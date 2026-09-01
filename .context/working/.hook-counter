@@ -1,9 +1,9 @@
-audit-task-tools=4
+audit-task-tools=24
 
-check-project-boundary=72
-budget-gate=72
-check-active-task=69
-loop-detect=68
+check-project-boundary=92
+budget-gate=92
+check-active-task=89
+loop-detect=88
 audit-task-tools=48
 pre-compact=1
 check-arc-id=1
@@ -13,6 +13,6 @@ check-inception-schema=1
 check-onboarding-gate=1
 check-agent-dispatch=1
 check-rail-mcp-label=1
-checkpoint=4
-check-tier0=4
-error-watchdog=3
+checkpoint=24
+check-tier0=24
+error-watchdog=23
