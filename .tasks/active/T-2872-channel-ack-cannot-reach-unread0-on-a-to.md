@@ -29,7 +29,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-08-31T19:46:32Z
-last_update: 2026-09-01T07:37:40Z
+last_update: 2026-09-01T07:38:36Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -61,49 +61,61 @@ bvp_scores_proposed:
 
 ## Context
 
-> **CORRECTED 2026-09-01 — the headline defect does not reproduce against the
-> shipping verb.** The filing below is preserved verbatim because the record of a
-> wrong call is worth more than a quiet edit.
+> **CONFIRMED 2026-09-01 — the defect is real. An intermediate "correction" posted
+> on this task and broadcast to the fleet claimed it did not reproduce; that claim
+> was wrong and has been retracted on the rail. Both wrong turns are left in the
+> record below, because a task that quietly edits away its own bad calls teaches
+> nothing.**
 
-`channel unread` was measured on the **same topic**, driving the same three
-consecutive acks:
+**What actually happened.** `channel unread` was measured first and *does* converge,
+so the whole surface was declared clean. It is not the surface the filing was about.
+Measured side by side, one topic, one moment, three consecutive acks:
 
 ```
-ack #1 -> last_offset=10  up_to=9   unread_count=0
-ack #2 -> last_offset=11  up_to=10  unread_count=0
-ack #3 -> last_offset=12  up_to=11  unread_count=0
+ack #1   agent inbox -> unread=1     channel unread -> unread_count=0
+ack #2   agent inbox -> unread=1     channel unread -> unread_count=0
+ack #3   agent inbox -> unread=1     channel unread -> unread_count=0
 ```
 
-The `latest - up_to = 1` gap reproduces exactly as filed. `unread_count` is **0**
-every time. Both are true, and only one of them is the product's answer.
+Both are true simultaneously. That is PL-350's shape exactly — *"two verbs answering
+'have I read this?' differently is not a difference in scope, it is a
+contradiction."* Verifying one verb and generalising to the other is the same
+adjacent-assertion error the filing warned about, committed while purporting to
+correct the filing for it.
 
-`count_unread` (`crates/termlink-cli/src/commands/channel.rs`) has skipped
-`receipt` via `UNREAD_META_TYPES` since **T-1332**, so `latest - receipt_up_to` is
-not the definition of unread — it is a subtraction this task performed by hand and
-then attributed to the system. The convergence the task demanded was already the
-shipping behaviour.
+**Located.** `unread_verdict()` (`crates/termlink-cli/src/commands/channel.rs`)
+returns `latest - frontier`: a **raw offset subtraction with no `msg_type`
+awareness**. `channel ack` appends its receipt at `latest` and sets
+`receipt_up_to = latest - 1`, so the difference is pinned at 1 forever. `latest`
+arrives from the hub's `latest_offset` (T-2533) or is reconstructed from a count, so
+at that layer there is no envelope type to filter on — which is why this cannot be
+fixed by adding an exclusion the way `count_unread` has one.
 
-This is the failure mode the filing itself names one paragraph later — *"the
-assertion is adjacent to the property"* — committed by the filing. The measurement
-was real; the inference from it was not checked against the verb.
+**Why this surface is the one that matters.** `/check-arc` reads `agent inbox`, so
+this is the unread number an operator actually sees. `channel unread` — the verb
+that is correct — is not on the path they use.
 
-**What survives, and it is the useful half.** *"The defect is only visible when you
-ask for convergence, and no test asks"* was **correct**. The six existing
-`count_unread` tests are static-slice tests; `count_unread_excludes_meta_envelopes`
-places a receipt mid-list but never exercises the ack LOOP, where each ack appends a
-receipt and advances the tail. Nothing asserted that repeated acking terminates.
-That test now exists and is load-bearing: removing `"receipt"` from
-`UNREAD_META_TYPES` turns it red, so had the code carried the filed defect this test
-would have caught it.
-
-**Prior art nobody joined to this filing.** `PL-317` (T-2589, 2026-08-10) describes
-this mechanism precisely — *"a receipt acking up_to=N is ITSELF an envelope at an
-offset > N included in the topic total, so the difference never reaches 0"* — and
-records the fix. `check-outbox.sh` was repaired there; `check-receiver-ack-lag.sh`
+**The class has been fixed three times already and this sibling was never
+migrated.** `PL-317` (T-2589) named it: *"a receipt acking up_to=N is ITSELF an
+envelope at an offset > N included in the topic total, so the difference never
+reaches 0."* `check-outbox.sh` was repaired there; `check-receiver-ack-lag.sh`
 carries its own note (line 34) that `lag: 0` was once unreachable and now uses
-`latest_content_offset`. Three surfaces had already been through this class. The
-learning existed and did not reach the re-discovery, which is the more durable
-finding than the one filed.
+`latest_content_offset`; `count_unread` was never affected (`UNREAD_META_TYPES`,
+T-1332). `agent inbox` is the fourth surface and the surviving one. T-2757 worked
+directly on this function and fixed the *cursor-vs-receipt* divergence (PL-350)
+without touching the subtraction underneath it.
+
+**What landed, and what it does NOT cover.** A convergence regression test,
+`count_unread_converges_across_repeated_acks`, now models the ack loop and asserts
+termination. It is load-bearing (dropping `"receipt"` from `UNREAD_META_TYPES` turns
+it red). **It covers `count_unread` only.** It does not touch `unread_verdict` and
+would not have caught this defect — stated explicitly so a green suite is never read
+as this task being closed.
+
+**Still open:** the fix itself. `unread_verdict`'s docstring warns that trading a
+loud over-count for a silent under-count is worse, not better (Directive #2), so the
+choice between a hub-side latest-content-offset and a client-side envelope walk is a
+real decision and is deliberately not being made in passing.
 
 ### As filed (2026-08-31)
 
@@ -151,20 +163,20 @@ fix.
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] **Establish where the off-by-one belongs.** Answered: **neither (a) nor (b) — there is no off-by-one in `unread`.** `count_unread` already excludes `receipt` (`UNREAD_META_TYPES`, T-1332), so option (a) would move an offset that nothing reads and option (b) would re-exclude what is already excluded. The gap lives only in the hand-computed `latest - up_to`, which no shipping surface uses. Recorded rather than implemented, because implementing either would have been a change with no defect under it.
-- [x] **A repeated ack converges.** Verified twice, independently. Live: three consecutive acks on `dm:d1993c2c3ec44c94:deadbeefdeadbeef` hold `unread_count=0` while `last_offset - up_to` sits at 1 throughout. In-tree: `count_unread_converges_across_repeated_acks` models the ack loop (ack through tail, append receipt above it, ×3) and asserts both the reproduced gap of 1 and the true count of 0 — so the discrepancy is legible at the point of failure instead of being re-discovered.
-- [x] **The regression test is load-bearing.** Removing `"receipt"` from `UNREAD_META_TYPES` fails it (`MUTANT_RC=101`); restoring returns 7/7 green. A test that cannot go red is not a test, and this one goes red on precisely the defect that was filed.
-- [ ] **Decide whether self-authored posts should count toward one's OWN lag.** This is the residual, and it is a genuine judgement rather than a bug. `check-receiver-ack-lag.sh` currently reports `agent-chat-arc lag=7` for our own identity — classified `ok` (threshold 25), guard rc=0, and it *does* reach 0 when acked; it re-grows because we posted, which for a frontier metric is correct, not self-defeating. The open question is narrower than the filing: should envelopes an identity authored itself count as that identity's own unacked backlog? Arguably not — you have read what you wrote — but it is protocol-visible to peers reading our receipt frontier, so it is not a change to make in passing. **Owner: human** (see Human AC).
+- [ ] **Establish where the off-by-one belongs.** Still open, and now correctly located at `unread_verdict()` rather than at `ack`. Options: (a) the hub exposes a *latest content offset* alongside `latest_offset` so the subtraction skips meta envelopes at source; (b) the client walks envelopes per topic to classify them — accurate but O(N) per topic, which is the cost `agent inbox` uses counts to avoid; (c) `ack` sets `up_to` to the offset its own receipt will occupy. Record which, and why the others were rejected; (c) is protocol-visible to peers reading our receipt frontier.
+- [x] **Reproduce against the actual surface, not an adjacent one.** Three consecutive acks on one topic: `agent inbox` reports `unread=1` every time while `channel unread` reports `0` every time. Both measured at the same moment. The filing's table is confirmed; only the verb it named was wrong.
+- [x] **A convergence test exists for `count_unread`.** `count_unread_converges_across_repeated_acks` models ack-through-tail + append-receipt ×3 and asserts the true count is 0 while the naive `latest - up_to` gap reproduces at 1. Load-bearing: dropping `"receipt"` from `UNREAD_META_TYPES` fails it (rc=101), restoring returns 7/7 green. **Scope: this covers `count_unread` only and would NOT have caught the `unread_verdict` defect.**
+- [ ] **`agent inbox` converges after the fix.** Same three-ack drive must leave `agent inbox` reporting `unread=0`, and a regression test must assert it — the defect survived because no test asked this function for convergence either.
+- [ ] **The two verbs agree.** `agent inbox` and `channel unread` must return the same answer for the same topic at the same moment. They currently differ by exactly 1, and PL-350 already recorded that such a disagreement is a contradiction rather than a scope difference.
 
 ### Human
-- [ ] [REVIEW] Decide whether an identity's OWN posts should count toward its own ack-lag / unread frontier.
+- [ ] [REVIEW] Choose how `agent inbox` should stop counting its own receipts.
   **Steps:**
-  1. `timeout 240 bash scripts/check-receiver-ack-lag.sh`
-  2. Read the `agent-chat-arc` row. Today it shows `ok  d1993c2c3ec44c94  lag=7` — that identity is us, and those 7 are largely our own broadcasts.
-  3. Decide one of: **(A) leave as-is** — lag counts all unacked content regardless of author, so posting raises your own lag until you ack; simple, and already correct against its own definition. **(B) exclude self-authored envelopes** from an identity's own lag/unread — "you have read what you wrote"; quieter, but changes what a peer infers from our receipt frontier, so it is protocol-visible.
-  **Expected:** A or B recorded here, with one line of reasoning. If **B**, a follow-up build task is filed against `check-receiver-ack-lag.sh` and `count_unread`; if **A**, no code changes and this task closes.
-  **If not:** leave unchecked — the guard is green at threshold 25 and nothing is degrading while this sits.
-
+  1. Reproduce: `termlink channel ack dm:d1993c2c3ec44c94:deadbeefdeadbeef` then `termlink agent inbox --json` — repeat 3×. `unread` stays 1; `termlink channel unread <same topic> --json` returns 0 throughout.
+  2. Read `unread_verdict()` in `crates/termlink-cli/src/commands/channel.rs` — note its docstring warning that a silent under-count is worse than a loud over-count (Directive #2).
+  3. Pick one: **(a) hub-side** — expose a *latest content offset* beside `latest_offset` so the subtraction skips meta envelopes at source. Correct for every client, needs a hub change and a version floor, and stale hubs must degrade to today's behaviour rather than to a wrong zero. **(b) client-side walk** — fetch and classify envelopes per topic. No hub change, but O(N) per topic, which is the cost `agent inbox` uses counts to avoid. **(c) ack-side** — `ack` sets `up_to` to the offset its own receipt will occupy. Smallest change, but it alters what a peer infers from our receipt frontier, so it is protocol-visible.
+  **Expected:** one of a/b/c recorded here with a line of reasoning, and a follow-up build task filed against `unread_verdict()`.
+  **If not:** leave unchecked. The over-count is loud and bounded at 1 per acked topic — annoying and trust-eroding, not data-losing — so this can wait for a considered answer.
 
 ## Verification
 

@@ -4378,3 +4378,15 @@ learnings:
   task: T-2859
   date: 2026-08-30
   context: Added via context agent
+- id: PL-367
+  learning: "A filed defect must be measured against the shipping verb before the arithmetic in its repro is attributed to the system. T-2872 reported 'channel ack cannot reach unread=0' on a deterministic 3-run table showing latest-receipt_up_to pinned at 1. The gap is real and reproduces exactly; it is also not the unread definition — count_unread has excluded receipt via UNREAD_META_TYPES since T-1332, and the same three acks on the same topic return unread_count=0 every time. The filing computed the subtraction by hand and read it as product behaviour, which is the failure mode the filing itself names one paragraph later ('the assertion is adjacent to the property'). Aggravating: PL-317 (T-2589) had named this exact mechanism and its fix three weeks earlier, and fw context focus DID surface PL-317 on the very next focus of the task — so the surfacing tooling worked and was simply not read. That makes this Level A/B (do not repeat / improve technique), NOT Level C/D; building more surfacing would be building a second copy of a mechanism that already fired. What WAS genuinely missing was a test: the six count_unread tests are static slices and none exercised the ack loop, so nothing asked for convergence and the claim stayed plausible."
+  source: P-001
+  task: T-2872
+  date: 2026-09-01
+  context: Added via context agent
+- id: PL-368
+  learning: "SUPERSEDES PL-367, which was wrong. Verifying one verb and generalising to a sibling is the same adjacent-assertion error it accuses the filing of. T-2872 reported that acking cannot reach unread=0. channel unread was measured, found to converge (count_unread has excluded receipts since T-1332), and the whole surface was declared clean, broadcast to the fleet as a retraction telling peers to revert. Measured side by side afterwards on one topic at one moment, three consecutive acks: agent inbox -> unread=1,1,1; channel unread -> 0,0,0. The filing was RIGHT; only the verb it named was wrong. The defect is unread_verdict() computing latest-frontier as a raw offset subtraction with no msg_type awareness, and it matters more than the verb that is correct because /check-arc reads agent inbox. Two durable lessons. (1) When a class has been fixed before, enumerate every surface that computes the quantity BEFORE concluding, and say which ones you checked — PL-317's class had been fixed on check-outbox.sh and check-receiver-ack-lag.sh and was never migrated to agent inbox, so the fourth sibling survived. (2) A disproof needs the same standard of evidence as the claim: one green verb is not a clean surface, and the cost of getting this backwards was a wrong retraction sent to three hubs telling peers to undo correct work."
+  source: P-001
+  task: T-2872
+  date: 2026-09-01
+  context: Added via context agent
