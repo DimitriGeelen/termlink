@@ -29,7 +29,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-08-31T18:51:26Z
-last_update: 2026-09-02T06:45:58Z
+last_update: 2026-09-02T06:48:32Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -238,6 +238,28 @@ of this task.
 **Next step, precisely:** spawn a fast background command, wait for the PID to be gone,
 then `termlink status <name>` and `termlink status <id>` and record all three of state,
 PID liveness, and whether `exit_code`/`finished_at` appear.
+
+### The repro in `## Context` queries a different session than it spawned
+
+Re-reading it while writing the above: it spawns **`spawn-2525441`** and then runs
+`termlink status` **`spawn-2504150`**. Those are two different names. `Session not found`
+is the correct answer to that query, so that line is not evidence of the defect — it is
+evidence of a typo, and it is the line the Context leans on hardest.
+
+The `termlink list | grep spawn-2525441` line is unaffected by the mismatch and remains
+the real claim. But it is now the *only* surviving leg of that reproduction, and it was
+never re-run.
+
+This matters because my three passing cases all queried **by the `--name` I set**, whereas
+that repro used auto-generated `spawn-<pid>` names. So there are two live hypotheses I
+cannot separate without re-measuring, and they are not the two the ACs assume:
+1. the defect is real and my cases missed it because they queried by explicit name;
+2. the defect was always the typo plus a `list` reading that nobody re-checked.
+
+**Do not resolve this by re-reading — re-run it**, with the spawned name captured into a
+variable and used verbatim for both `list` and `status`, so the two can never diverge
+again. Until then AC1 stays open, and the Context section should be read as
+under-evidenced rather than as established fact.
 
 **Cleanup owed:** sessions `t2871a` and `t2871b` were left registered — the reaping Bash
 call was refused by the budget gate. `termlink clean` next session.
