@@ -9792,3 +9792,75 @@ task_id: T-2546
 payload:
   overall: CONFIRMED
   claim_count: 3
+---
+kind: scan_emitted
+timestamp: '2026-09-01T11:55:28Z'
+scan_id: R-5911e12e
+task_id: T-2874
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-01T11:55:28Z'
+scan_id: R-5911e12e
+task_id: T-2874
+payload:
+  task_file: .tasks/active/T-2874-mcp-wiring-settingslocaljson-pins-termli.md
+---
+kind: scan_emitted
+timestamp: '2026-09-01T20:47:18Z'
+scan_id: R-e4ae12a6
+task_id: T-2876
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-01T20:47:18Z'
+scan_id: R-e4ae12a6
+task_id: T-2876
+payload:
+  task_file: .tasks/active/T-2876-cross-session-message-prover-assert-deli.md
+---
+kind: scan_emitted
+timestamp: '2026-09-01T21:47:16Z'
+scan_id: R-c118926b
+task_id: T-2877
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-01T21:47:16Z'
+scan_id: R-c118926b
+task_id: T-2877
+payload:
+  task_file: .tasks/active/T-2877-a-counterfeit--verification-heading-shad.md
+---
+kind: scan_emitted
+timestamp: '2026-09-01T22:27:38Z'
+scan_id: R-1c51a37b
+task_id: T-2878
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-01T22:27:38Z'
+scan_id: R-1c51a37b
+task_id: T-2878
+payload:
+  task_file: .tasks/active/T-2878-meta-canary-watches-8-of-20-canaries-one.md

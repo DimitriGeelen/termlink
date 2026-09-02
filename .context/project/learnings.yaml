@@ -4390,3 +4390,15 @@ learnings:
   task: T-2872
   date: 2026-09-01
   context: Added via context agent
+- id: PL-369
+  learning: "A cron canary that writes no heartbeat is doubly broken, and both halves are silent: the T-1723 meta-canary stats a heartbeat file so it cannot watch one that writes none, and canary-status.sh::classify handles a heartbeat-less canary by log content alone with NO arm returning a non-empty log to HEALTHY — so one real finding latches it red forever. Adding the heartbeat fixes both. Check any newly-scheduled canary touches one at the TOP of the script (before any check or die), so it records that the canary RAN, not that it passed."
+  source: P-001
+  task: T-2878
+  date: 2026-09-01
+  context: Added via context agent
+- id: PL-370
+  learning: "A fixture that pins literal prose stays green while that prose becomes false. hook-counter-integrity-fixtures G2 asserted grep 'TIER: on-demand diagnostic' and passed for days while the header it pinned declared 'NOT a cron canary' and a crontab scheduled it daily — the test guarded the WORDING, not the claim. Assert the substance instead (a TIER line exists AND names the schedule the script actually has), and pin the specific false claim so it cannot return."
+  source: P-001
+  task: T-2878
+  date: 2026-09-01
+  context: Added via context agent

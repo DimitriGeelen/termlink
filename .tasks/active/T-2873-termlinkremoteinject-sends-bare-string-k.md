@@ -22,7 +22,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-01T10:44:04Z
-last_update: 2026-09-01T21:18:58Z
+last_update: 2026-09-02T06:13:55Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -327,3 +327,25 @@ session it serves.
   and all now show `exe ... (deleted)` — they hold the pre-fix inode and keep
   serving the broken `termlink_remote_inject` until each restarts. Expected, and
   the reason the binary swap was made non-disruptive rather than forced.
+
+### 2026-09-02T08:20Z — human AC step 3 re-verified through a reconnected server [claude-code]
+- **Action:** Ran the Human AC's own step 3 from a NEW session, through the MCP
+  server this session is actually attached to — the surface the AC is about, and
+  the one that could not be reached from the session that made the fix.
+- **Server identity:** every `termlink mcp serve` started today (07:56, 07:57,
+  08:11) has `/proc/<pid>/exe -> /root/.cargo/bin/termlink` with **no `(deleted)`
+  suffix**, i.e. they hold the current inode, `termlink 0.11.1766` — the post-fix
+  binary. The G-069 / preflight-Check-5 signature the AC's "If not" clause warns
+  about is absent.
+- **Result:** `termlink_remote_inject` against a scratch PTY session `t2873v` on
+  `192.168.10.107:9100` returned `{"ok": true, "bytes": 26, "result": {"status":
+  "injected", "bytes_len": 27}}`. The `-32602 Invalid keys format` is gone.
+- **Receiver-side proof:** per this task's own finding that `injected` is a
+  sender-side claim, `termlink_output t2873v` was read and shows the command
+  echoed at the prompt AND its output on the following line:
+  `echo T2873_LIVE_SESSION_OK` / `T2873_LIVE_SESSION_OK`. Injected AND executed.
+- **Scratch session reaped** (`signal TERM` + `clean`, no stale sessions left).
+- **Box deliberately left unchecked.** The evidence above is what the AC asks
+  for, but checking a `### Human` AC is not an agent action under any delegation
+  (CLAUDE.md § Agent/Human AC Split). This entry exists so the human can stamp it
+  in one read rather than re-running the probe.

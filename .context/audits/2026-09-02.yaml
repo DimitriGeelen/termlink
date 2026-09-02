@@ -1,10 +1,10 @@
-# Audit Results - 2026-09-01-2348
-timestamp: 2026-09-01T21:48:23Z
+# Audit Results - 2026-09-02-0029
+timestamp: 2026-09-01T22:29:17Z
 sections: "structure"
 summary:
   pass: 37
   warn: 10
-  fail: 0
+  fail: 1
 findings:
   - level: PASS
     check: "Tasks directory exists"
@@ -17,7 +17,7 @@ findings:
   - level: PASS
     check: "Task template exists"
   - level: PASS
-    check: "No duplicate task IDs — examined 14286 task file(s) across 6 corpus view(s) (21 ID(s) byte-identical in every view, 2531 same-task at differing revisions)"
+    check: "No duplicate task IDs — examined 14287 task file(s) across 6 corpus view(s) (21 ID(s) byte-identical in every view, 2531 same-task at differing revisions)"
   - level: PASS
     check: "All project YAML files parse correctly — examined 15 project YAML file(s)"
   - level: PASS
@@ -46,18 +46,21 @@ findings:
     check: "Found 77 GO-scope-not-propagated inception(s) of 158 GO-recorded completed inception(s) examined — GO recorded, related_tasks empty, nobody back-references, no unlocks_inception_decision"
     mitigation: "Triage: per inception either backfill related_tasks: / unlocks_inception_decision:, or file the slices its GO approved. Full list: cat /opt/termlink/.context/audits/go-scope-unpropagated/LATEST.md (origin: T-2078, T-2091, T-3099; sibling to L-417/T-1975)"
   - level: PASS
-    check: "Fabric: 446 registered card(s)"
+    check: "Fabric: 448 registered card(s)"
   - level: WARN
-    check: "Fabric: 311/476 cards have no edges"
+    check: "Fabric: 313/478 cards have no edges"
     mitigation: "Run: fw fabric enrich"
   - level: WARN
     check: "Fabric drift: 1 source file(s) have no fabric card"
     mitigation: "Run: fw fabric scan"
   - level: WARN
-    check: "Fabric: 9 card(s) point at files no watch pattern covers"
+    check: "Fabric: 10 card(s) point at files no watch pattern covers"
     mitigation: "Widen .fabric/watch-patterns.yaml, or remove the cards if they are not components"
   - level: PASS
     check: "Cron registry in sync with /etc/cron.d/agentic-audit-termlink"
+  - level: FAIL
+    check: "cron(canary-aliveness-sweep): USER-field syntax but no install in /etc/cron.d"
+    mitigation: "Install: sudo cp /opt/termlink/.context/cron/canary-aliveness-sweep.crontab /etc/cron.d/termlink-canary-aliveness-sweep && sudo systemctl reload cron"
   - level: PASS
     check: "cron(charter-drift-canary): USER-field syntax installed at /etc/cron.d/termlink-charter-drift-canary"
   - level: PASS

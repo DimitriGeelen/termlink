@@ -4,12 +4,12 @@ name: "Meta-canary watches 8 of 20 canaries; one canary cannot be watched at all
 description: >
   T-1723's meta-canary detects a canary that stopped firing, but it is wired per-canary as an explicit cron job line and only 8 of 20 canary crontabs declare one. The other 12 are unwatched: if their cron stops, nothing detects it - the exact G-058 silent-failure the meta-canary was built for. One of the 12, hook-counter-integrity, writes no heartbeat at all so it cannot be watched even in principle, and its stale log makes /canaries read it as permanently FIRING with no path back to HEALTHY. Nothing detects this gap: check-cron-install-drift compares host against git, so a meta job git never declared cannot fire.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
-components: []
+components: [scripts/check-canary-aliveness.sh, scripts/check-hook-counter-integrity.sh, tests/canary-aliveness-sweep-fixtures.sh, tests/hook-counter-integrity-fixtures.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -22,8 +22,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-01T22:08:08Z
-last_update: 2026-09-01T22:08:08Z
-date_finished: null
+last_update: 2026-09-01T22:27:35Z
+date_finished: 2026-09-01T22:27:35Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -327,6 +327,48 @@ MISSING class, and the two are complements.
      commit, that is a calibration failure — recommend GO or NO-GO.
 -->
 
+**Recommendation:** GO — install the sweep crontab.
+
+**Rationale:** The code half is complete and proven; what remains is one `sudo cp`
+that only root can do. Until it runs, the sweep exists but never fires, which is the
+same shipped-but-dark state (G-069) this task exists to detect in others — and
+`check-cron-install-drift.sh` is already naming it MISSING, so the gap is surfaced by
+an existing guard rather than by my assertion.
+
+The install is low-risk and reversible: one read-only daily job at 09:53 UTC that
+stats heartbeat mtimes and greps crontabs. It writes only to the shared
+`.canary-aliveness.log` that eight per-canary meta jobs already append to, changes no
+existing job, and `rm /etc/cron.d/termlink-canary-aliveness-sweep` fully reverts it.
+
+What it buys immediately: 12 canaries currently have nothing watching them, including
+`dead-letter`, `stuck-claims`, `waker-liveness` and `task-finalization`. If any of
+their crons stopped tonight, the framework would not notice — the G-058 condition that
+ran 16 days silently and is the reason the meta-canary was built.
+
+**Evidence:**
+- Measured from real cron job lines (comments/blanks/`VAR=` stripped): 20 canary
+  crontabs, 8 declare a meta job, 12 do not.
+- `check-cron-install-drift.sh` exits 1 naming `canary-aliveness-sweep.crontab` →
+  `/etc/cron.d/termlink-canary-aliveness-sweep` as MISSING.
+- `check-canary-log-hygiene.sh` clean — 32 findings-log job lines across 26 crontabs
+  keep stdout and stderr separate, the new job included.
+- Live sweep against the real tree: `all 20 cron-scheduled canaries alive (threshold
+  48h; 8 unscheduled heartbeat(s) excluded)`, exit 0.
+- Load-bearing by mutation: dropping the log walk reddens 5 fixture assertions,
+  dropping the fail-closed guard 2, dropping the unscheduled-canary exclusion 4;
+  dropping the heartbeat touch reddens 4 hook-counter assertions.
+- Fixtures: 25/25 (sweep) and 33/33 (hook-counter, up from 26 with the stale G2
+  prose-pin replaced by substance assertions).
+- P-011 gate: 10/10 verification commands passed.
+- Latch released on the real tree: `hook-counter-integrity-canary` moved from FIRING
+  (permanent, no path back) to HEALTHY.
+
+**What this does NOT claim:** the sweep verifies that every cron-scheduled canary is
+heartbeat-fresh or named. It says nothing about whether any canary's logic is correct
+or whether its findings get acted on, and a canary whose crontab was never installed
+writes neither log nor heartbeat and is invisible to it — that remains
+`check-cron-install-drift.sh`'s MISSING class.
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.
@@ -354,3 +396,15 @@ MISSING class, and the two are complements.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2878-meta-canary-watches-8-of-20-canaries-one.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-1c51a37b
+- **Timestamp:** 2026-09-01T22:27:38Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-09-01T22:27:35Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

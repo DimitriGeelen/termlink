@@ -1,0 +1,21 @@
+pickup_id: P-055
+version: 1
+type: bug-report
+source:
+  project: termlink
+  task_id: T-024
+  agent: claude-code
+  timestamp: '2026-09-01T20:24:35Z'
+payload:
+  summary: 'Hotkey dead after restarts: add dimitri-mint-dev to input group + sg-based
+    daemon restart (full report: hotkey-input-group-report.md)'
+  detail: 'See evidence file hotkey-input-group-report.md (sent via send-file). Requested
+    privileged actions: (1) usermod -aG input dimitri-mint-dev, (2) restart voxtype
+    daemon via sg input so evdev works without re-login, (3) verify /dev/input/event3
+    readable in that context. Preflight guard already committed at spikes/check-hotkey.sh.
+    Acceptance criteria in the file.'
+  priority: high
+  tags:
+  - hotkey
+  - input-group
+  - voxtype
