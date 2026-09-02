@@ -29,7 +29,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-08-31T19:46:32Z
-last_update: 2026-09-01T21:12:17Z
+last_update: 2026-09-02T06:22:38Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -394,3 +394,48 @@ instead of being reported as caught-up.
 
 ### 2026-08-31T19:47:36Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-09-02T08:45Z — the a/b/c options priced against the actual storage layer [claude-code]
+
+The previous commit (`edc1daf5a`) recorded "hub has no msg_type in records — option (a)
+is a counter, not a field" but never landed that in this file, so the human AC still
+offers three options with no costs attached. Measured now, with file:line, because a
+choice between three unpriced options is not a choice.
+
+**Correction to the shorthand first.** "The hub has no msg_type" is too strong and would
+mislead the decision. `msg_type` **is** a first-class field on `Envelope`
+(`crates/termlink-bus/src/envelope.rs:23`) — a sibling of `payload`, not something buried
+in caller-supplied JSON, so it is structured and signed. What it is not is **indexed**:
+the SQLite `records` table is `(topic, offset, byte_pos, length, ts_unix_ms)`
+(`crates/termlink-bus/src/meta.rs:907-913`) and `msg_type` appears in no SQL statement in
+the crate. So the constraint is "not queryable", not "not present".
+
+**(a) hub-side latest-content-offset — splits into two very different changes.**
+`channel.list` returns `{name, retention, count, latest_offset?}`
+(`crates/termlink-hub/src/channel.rs:1689-1693`); `latest_offset` is an O(1) read of the
+monotonic `offsets.next_offset` counter (`meta.rs:256-269`) and is msg_type-blind. So:
+- **(a1) compute by scan.** Any msg_type-conditional offset must decode each envelope
+  from the log. There is direct precedent in the hub — `channel.receipts` does exactly
+  this with a `records_scanned` counter and a **wall-clock deadline guard**
+  (`crates/termlink-hub/src/channel.rs:1391-1405`), and `find_idle_agents` walks a whole
+  topic (`crates/termlink-bus/src/lib.rs:584-597`). Cheap to write, bounded by a deadline,
+  but it is O(N) moved from the client to the hub rather than removed.
+- **(a2) index msg_type.** Add it as a column on `records` and the read becomes cheap for
+  every client, forever. This is a schema migration plus a version floor, and per the
+  T-2359 note stale hubs must degrade to **today's over-count**, never to a wrong zero.
+- `cv_index` is not a shortcut: it is in-memory, non-persistent, keyed on a caller-supplied
+  `cv_key`, capped at 1000/topic (`crates/termlink-hub/src/cv_index.rs:57`).
+
+**(b) client-side walk — already exists, which changes its price.** `channel info` is
+**not** a hub RPC; it is a client-side composite that already does a full paginated
+`channel.subscribe` walk and filters `msg_type == "receipt"` in the client
+(`crates/termlink-cli/src/commands/channel.rs:4169-4209`). So (b) is not a new cost
+centre, it is reusing a walk this codebase already pays and already ships. The O(N)
+objection in the AC stands on its merits but is no longer novel.
+
+**(c) ack-side** is unchanged by this measurement and remains the only protocol-visible
+option — it alters what a peer infers from our receipt frontier.
+
+**Not deciding.** The pick is the human's per the [REVIEW] AC, and (c) in particular
+changes something peers observe. This entry exists so the choice is made against measured
+costs rather than three equally-weighted sentences.
