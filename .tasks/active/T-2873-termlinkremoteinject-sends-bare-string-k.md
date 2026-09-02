@@ -4,12 +4,12 @@ name: "termlink_remote_inject sends bare-string keys; broken against every hub"
 description: >
   MCP termlink_remote_inject builds the command.inject keys array as bare strings (tools.rs:16062 - p.text.chars().map(|c| json!(c.to_string())), plus json!("Enter")), but the wire contract is KeyEntry with #[serde(tag="type", content="value")], so the hub rejects every call with -32602 'Invalid keys format: invalid type: string, expected adjacently tagged enum KeyEntry'. Reported by 100-Video-riper as suspected 0.9.0 vs 0.11.x hub skew on .122; disproved - reproduced byte-identical against the LOCAL 0.11.1716 hub, so the tool is broken against all hubs. The CLI sibling (remote.rs:1558-1562) and the local MCP sibling termlink_inject (tools.rs:12250) both wrap correctly - hardened in two places, this one never migrated. T-2747's parity census had already flagged termlink_remote_inject as unexamined (allowlist line 252, zero assertions in parity.rs).
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -22,8 +22,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-01T10:44:04Z
-last_update: 2026-09-02T06:13:55Z
-date_finished: null
+last_update: 2026-09-02T06:15:34Z
+date_finished: 2026-09-02T06:15:34Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -349,3 +349,15 @@ session it serves.
   for, but checking a `### Human` AC is not an agent action under any delegation
   (CLAUDE.md § Agent/Human AC Split). This entry exists so the human can stamp it
   in one read rather than re-running the probe.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-02038d39
+- **Timestamp:** 2026-09-02T06:16:15Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-09-02T06:15:34Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

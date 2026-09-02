@@ -29,7 +29,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-08-31T18:51:26Z
-last_update: 2026-08-31T18:54:39Z
+last_update: 2026-09-02T06:45:58Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -203,6 +203,44 @@ SUCCEEDED. Those are the first two ACs rather than assumptions baked into a fix.
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
 ## RCA
+
+### 2026-09-02 — AC1 partial: two cases measured, NEITHER reproduces. Third case unmeasured.
+
+Ran the AC1 discriminator on the local hub. Both completed cases contradict the report:
+
+| case | spawn | `--wait` verdict | `termlink status <name>` immediately after |
+|---|---|---|---|
+| **A** long-running | `--backend background --wait -- sleep 30` | `Session 't2871a' is ready` | **resolves**, `State: ready`, `PID: 1794347` |
+| **B** fast command | `--backend background --wait -- echo hello-t2871` | `Session 't2871b' is ready` | **resolves**, `State: ready`, `PID: 1795642` |
+
+A third, independent data point from the same session: a `--shell --backend background
+--wait` spawn (`t2873v`, done for T-2873) was not only queryable but successfully
+**injected into and read back** afterwards.
+
+So `--wait` returning "is ready" is NOT reporting on a session that never registered — at
+least not for these three shapes. That kills the second of AC1's two hypotheses for the
+cases measured: this is not optimistic/stale state, the registration is real.
+
+**What is still unmeasured, and it is the one that matters.** The remaining hypothesis is
+*registered-then-reaped*: case B's `echo` had already exited when `status` was queried, yet
+`status` still reported `State: ready` with a PID. The re-query **after** the process was
+definitively gone was cut off by the budget gate, so the interesting question — does the
+row go stale-but-present, disappear, or keep claiming `ready` for a dead PID? — has NOT
+been answered. Do not read the table above as an all-clear; read it as "hypothesis 2
+eliminated for three shapes, hypothesis 1 untested".
+
+Note case B is already suggestive: reporting `State: ready` and a live-looking PID for a
+process that has exited is the same sender-side-claim-versus-receiver-truth shape as
+T-2873 (`injected` without arrival) and T-2875 (`success:true` without delivery). If it
+holds up, AC3's "terminal state is retrievable, or the absence is loud" is the live half
+of this task.
+
+**Next step, precisely:** spawn a fast background command, wait for the PID to be gone,
+then `termlink status <name>` and `termlink status <id>` and record all three of state,
+PID liveness, and whether `exit_code`/`finished_at` appear.
+
+**Cleanup owed:** sessions `t2871a` and `t2871b` were left registered — the reaping Bash
+call was refused by the budget gate. `termlink clean` next session.
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).

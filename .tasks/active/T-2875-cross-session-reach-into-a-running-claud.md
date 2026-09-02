@@ -14,7 +14,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-09-01T11:56:19Z
-last_update: 2026-09-01T18:47:18Z
+last_update: 2026-09-02T06:16:35Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -43,11 +43,35 @@ bvp_scores_proposed:
 
 ## Problem Statement
 
-<!-- What problem are we exploring? For whom? Why now? -->
+Can a running Claude Code TUI session on this host be reached from outside it, and
+if so by what mechanism — and where does TermLink genuinely fit rather than
+duplicate what already works?
+
+Raised because a peer agent on .122 reported the reach as **structurally
+impossible** and recommended building a TermLink-based path to close it. If that
+report is right, a real capability gap exists and TermLink is chartered to close
+it. If it is wrong, building anything is breadth accretion (T-2483) against a rail
+that already runs.
+
+For: any agent or operator trying to hand work to a session they are not sitting in.
 
 ## Assumptions
 
-<!-- Key assumptions to test. Register with: fw assumption add "Statement" --task T-XXX -->
+Four assumptions were carried into the exploration, all now tested. They are
+tracked as IW-1..IW-4 under **Open Questions** below rather than duplicated here,
+because each one's disposition and confidence is what matters and the gate reads
+them there.
+
+- **A1** — `ListAgents` is account-wide (tested → **false**, same-machine-only, IW-1).
+- **A2** — `SendMessage` to an idle session merely queues until a human types
+  (tested → **false**, it delivers and wakes the target, IW-2).
+- **A3** — `termlink register --shell` would expose the caller's conversation
+  (tested → **false**, it starts a sibling PTY, IW-3).
+- **A4** — a cross-host path still needs building (tested → **false**, one already
+  works across three hosts; the gap is enrolment, IW-4).
+
+Every assumption carried in was disproved by measurement. That is the single most
+useful fact this exploration produced.
 
 ## Open Questions
 
@@ -127,15 +151,31 @@ to prevent.
 
 ## Technical Constraints
 
-<!-- What platform, browser, network, or hardware constraints apply?
-     For web apps: HTTPS requirements, browser API restrictions, CORS, device support.
-     For hardware APIs (mic, camera, GPS, Bluetooth): access requirements, permissions model.
-     For infrastructure: network topology, firewall rules, latency bounds.
-     Fill this BEFORE building. Discovering constraints after implementation wastes sessions. -->
+- `dev.tty.legacy_tiocsti = 0` — tty keystroke injection is dead at the kernel
+  level. Verified independently here, not taken from the peer's report.
+- `claude --help` exposes no `send` / `message` / `peer` subcommand.
+- `--remote-control` is a **launch-time** flag: it cannot be retrofitted onto a
+  running session. TermLink's own doorbell shares this limit (PL-237 — "running
+  headless claudes cannot be retrofitted; arm at relaunch"). Three independent
+  mechanisms, one shared structural truth: **reach must be arranged at launch.**
+- `ListAgents` / `SendMessage` are same-machine-only (IW-1), so they cannot span
+  hosts no matter how they are driven.
+- A sender-side `success: true` from `SendMessage` proves queueing, not receipt
+  (IW-2) — any prover built on this rail must assert on the receiver.
 
 ## Scope Fence
 
-<!-- What's IN scope for this exploration? What's explicitly OUT? -->
+**IN scope:** measuring what the two existing rails can each actually do, and
+disposing of the peer's structural-impossibility claim with evidence.
+
+**OUT of scope, deliberately:** building any new transport. Two working rails
+already cover this ground — `ListAgents`/`SendMessage` same-machine, TermLink
+`agent-presence` cross-host — and a third would be exactly the breadth accretion
+the charter-drift guard (T-2483) exists to prevent.
+
+**OUT of scope, referred onward:** the enrolment gap. It is the real finding and
+it is an adoption question, not a mechanism question, so it belongs in its own
+task rather than being absorbed here.
 
 ## Acceptance Criteria
 
@@ -181,17 +221,61 @@ to prevent.
 
 ## Recommendation
 
-**Recommendation:** DEFER
+**Recommendation:** NO-GO on building a new transport — with one follow-up filed.
 
 **Rationale:**
 
-A peer agent on .122 reported that reaching a running Claude TUI session on .107 is structurally impossible from outside, citing four verified facts (no claude send subcommand, cc-daemon control.sock is internal, a spawned claude -p lacks ListAgents/SendMessage, TIOCSTI disabled). Three of four check out here. But ListAgents run from a .107 session lists dimitri-mint-dev-2c and 107 dimitri-mint-dev as addressable peers right now, so the capability exists and the peer generalised its own vantage point into a structural claim. DEFER rather than NO-GO because the decisive question is unmeasured: whether ListAgents scope is same-machine-only, which would make the peer correct for cross-host .122 to .107 and leave a real gap that TermLink, not Remote Control, is chartered to close.
+The DEFER this task filed under is spent. It deferred on one unmeasured question —
+*"whether `ListAgents` scope is same-machine-only"* — and that question is now
+answered at confidence 3 (IW-1). With it answered, every branch the DEFER was
+holding open has resolved, and none of them lead to building anything:
+
+- **Same-machine reach already works.** `SendMessage` delivers into a running
+  session's conversation and wakes it (IW-2, proven on the receiver's own
+  transcript, not on the sender's `success:true`).
+- **Cross-host reach already works.** TermLink's `agent-presence` rail carries
+  three LIVE listeners across .107 / .122 / .121 today.
+- **The peer's recommended fix was worse than nothing.** `register --shell`
+  starts a sibling PTY; it does not attach to the caller's conversation (IW-3).
+  It would have granted remote **shell** access on that host — materially more
+  dangerous than a chat channel — and still not solved the stated problem.
+
+So the peer's report is correct about its own vantage point and wrong as a general
+claim: `ListAgents` was absent for it, and it inferred the capability does not
+exist. It reasoned from the shape of its own toolset. That is worth naming, because
+it is a failure mode any agent can repeat.
+
+**The real gap is enrolment, not mechanism.** 14 Claude sessions are live on .107
+and exactly **1** is on the TermLink rail. Nothing needs building for reach; what
+does not happen is sessions joining the rail that already exists. That is an
+adoption question, this repo already instruments it (`fleet-adoption-snapshot`),
+and it is filed separately as **T-2879** rather than absorbed here — one
+inception, one question.
 
 **Evidence:**
 
-<!-- Add evidence bullets as exploration progresses (file paths,
-     commit hashes, test results). The filing-time recommendation
-     can be revised before fw inception decide. -->
+- **IW-1, disproof by absence:** TermLink shows `ring20-concierge` (.122) and
+  `ring20-dashboard-agent` (.121) LIVE; **neither** appears in this session's
+  14-row `ListAgents`, which lists only `interactive`/`bg`/`shell` kinds. The .122
+  peer genuinely cannot see .107 sessions.
+- **IW-2, asserted on the receiver:** sentinel `HARNESS-PROBE-T2875-9f3c1a` sent to
+  a session spawned and owned by this exploration (no live session touched) appears
+  in the target's own transcript JSONL as a **`user` turn**, and the target woke
+  from `state: done` and acted. The **false negative is the finding**: the file it
+  was told to write never appeared, because it blocked on a permission prompt —
+  from the sender's side, byte-identical to non-delivery.
+- **T-2876 turned that into a standing prover.** `scripts/session-message-selftest.sh`
+  asserts on the receiver's transcript and splits the four outcomes a sender cannot
+  distinguish (`DELIVERED` / `BLOCKED` / `ENQUEUED` / `UNDELIVERED`). Live-proven
+  2026-09-01. Collapsing BLOCKED into UNDELIVERED is precisely this task's
+  misdiagnosis, now pinned by a mutant test.
+- **Two premises died on first execution** (T-2876): the `waitingFor` field does not
+  exist (0 of 56 agent records), and `state == "blocked"` is the ordinary RESTING
+  state of a finished session (43 of 56) — so keying off it would have classified
+  almost every broken rail as "merely stuck", inverting the bug.
+- **IW-3, from `register --help`:** `--shell` = "Start a PTY-backed session (full
+  bidirectional I/O)"; `--self` = "event-only endpoint (no PTY)". T-2873
+  independently measured where injected bytes land: a bash prompt.
 
 ## Decisions
 
