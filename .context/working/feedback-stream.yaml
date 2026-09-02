@@ -9864,3 +9864,21 @@ scan_id: R-1c51a37b
 task_id: T-2878
 payload:
   task_file: .tasks/active/T-2878-meta-canary-watches-8-of-20-canaries-one.md
+---
+kind: scan_emitted
+timestamp: '2026-09-02T06:16:15Z'
+scan_id: R-02038d39
+task_id: T-2873
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-02T06:16:15Z'
+scan_id: R-02038d39
+task_id: T-2873
+payload:
+  task_file: .tasks/active/T-2873-termlinkremoteinject-sends-bare-string-k.md
