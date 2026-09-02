@@ -1,10 +1,16 @@
 ---
 id: T-2858
-name: "Install-path drift: /root/.local/bin/termlink is stale behind the other two install paths"
+name: "Install-path drift: /root/.local/bin/termlink is stale behind the other two
+  install paths"
 description: >
-  check-installed-binary-drift has been the guard layer's only firing member for two sessions. /root/.local/bin/termlink is 0.11.1612 (2026-08-26) while /root/.cargo/bin and /usr/local/bin both carry 0.11.1716. The fix is one cp, but the path is outside /opt/termlink so the T-559 project boundary correctly refuses it from an agent session. Filing so the operator action has an approval record instead of being re-stated verbally each session.
+  check-installed-binary-drift has been the guard layer's only firing member for two
+  sessions. /root/.local/bin/termlink is 0.11.1612 (2026-08-26) while /root/.cargo/bin
+  and /usr/local/bin both carry 0.11.1716. The fix is one cp, but the path is outside
+  /opt/termlink so the T-559 project boundary correctly refuses it from an agent session.
+  Filing so the operator action has an approval record instead of being re-stated
+  verbally each session.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: human
 horizon: now
@@ -22,8 +28,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-08-30T10:13:13Z
-last_update: 2026-08-30T10:16:48Z
-date_finished: null
+last_update: 2026-09-02T06:40:17Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,6 +40,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-09-02T06:40:17Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-2858: Install-path drift: /root/.local/bin/termlink is stale behind the other two install paths
@@ -285,3 +305,43 @@ guard nobody reads has stopped working.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2858-install-path-drift-rootlocalbintermlink-.md
 - **Context:** Initial task creation
+
+### 2026-09-02T06:40:17Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-09-02T09:05Z — re-measured: the drift is now TWO paths, and both are pre-T-2873 [claude-code]
+
+`check-installed-binary-drift.sh` fired again in today's guard-layer sweep. The picture
+has changed since this task was filed, in a way that changes the human action from one
+path to two:
+
+```
+/root/.cargo/bin/termlink     0.11.1766   2026-09-01   <- current
+/root/.local/bin/termlink     0.11.1716   2026-08-29   <- STALE
+/usr/local/bin/termlink       0.11.1716   2026-08-29   <- STALE (new; was not stale at filing)
+/usr/bin/termlink             (absent)
+build artifact                0.11.1766                 (pending deploy, informational)
+```
+
+The T-2873 rebuild advanced **only** `/root/.cargo/bin` — it was installed there by
+temp-file + `mv -f` because the destination was being executed by live processes. So
+`/usr/local/bin` did not fall behind through neglect; it fell behind because the T-2873
+install deliberately touched one path.
+
+**Why this is now more than cosmetic.** `0.11.1716` is the **pre-fix** binary for T-2873:
+its `termlink_remote_inject` builds `command.inject` keys as bare strings and is rejected
+by every hub with `-32602`. So any caller resolving `termlink` through `/root/.local/bin`
+or `/usr/local/bin` still gets the broken tool, while a caller on PATH gets the fix. That
+is the check's own DRIFT wording — *"a fix landed in git is running for some callers and
+not others"* — with a named, currently-live defect behind it.
+
+**Still blocked for the same reason.** Writing to either path is refused by the T-559
+project-boundary gate, which is exactly what this task's second AC already records. The
+`[RUBBER-STAMP]` step below now covers two paths rather than one.
+
+**Unexamined by construction.** The check probes 4 known paths and says so explicitly. A
+**fifth** install exists — `/opt/termlink/.termlink/bin/termlink`, the T-288 per-project
+vendored binary, **0.9.13 dated 2026-03-27** (~5 months and ~1000 commits stale). It is
+gitignored (`.gitignore:68`), so it is invisible to git and to this check both. Nothing in
+the main checkout's config points at it any more — T-2874 removed that pin — but four
+git worktrees still carry it, filed separately.

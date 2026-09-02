@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2880: Dispose stranded pickup envelope P-055 — its three requested actions were already done
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-02T06:39:55Z
+# ============================================================================
+
+task_id: T-2880
+task_name: "Dispose stranded pickup envelope P-055 — its three requested actions were already done"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-02T06:36:39Z
+completed: 2026-09-02T06:39:47Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-02T08:39:43+02:00
+last_commit: 2026-09-02T08:39:43+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  dispose P-055 — its three asks were already satisfied on this host
+
+# Key outcomes
+outcomes:
+  - '**The envelope''s three asks are verified satisfied on this host, not assumed.** Each requested privileged action is checked against live host state with the reading recorded, so the disposal rests on measurement rather than on "it looks done".'
+  - '**The envelope is disposed to `processed/`, matching P-050..P-054.** It leaves `auto-deferred/` — where it is un-promotable by construction — and lands where every previously-actioned envelope lives, so `fw pickup status` counts it correctly.'
+  - '**The drain is auditable, not silent.** The reasoning and the live readings are recorded in this task''s RCA before the move, so a future reader can tell an actioned envelope from one quietly deleted. This is the specific trade T-2801 warns about: a checker that auto-drains converts a visible backlog into a silent one.'
+  - '**The guard returns to clean, and did not start clean.** `check-pickup-deferred-freshness.sh` exits 1 before the move and 0 after — so the disposal is load-bearing rather than coincidental.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/pickup/processed/P-055-bug-report.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/session.yaml'
+  - '.tasks/active/T-2880-dispose-stranded-pickup-envelope-p-055--.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-02T08:39:43'
+    action: 'T-2880: dispose P-055 — its three asks were already satisfied on this host'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 7
+  lines_added: 312
+  lines_removed: 26
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2880-dispose-stranded-pickup-envelope-p-055--.md
+generated_by: context-agent-hybrid
