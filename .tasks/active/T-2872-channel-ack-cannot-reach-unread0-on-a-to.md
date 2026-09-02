@@ -29,7 +29,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-08-31T19:46:32Z
-last_update: 2026-09-02T06:22:38Z
+last_update: 2026-09-02T06:45:13Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -439,3 +439,42 @@ option — it alters what a peer infers from our receipt frontier.
 **Not deciding.** The pick is the human's per the [REVIEW] AC, and (c) in particular
 changes something peers observe. This entry exists so the choice is made against measured
 costs rather than three equally-weighted sentences.
+
+### 2026-09-02T09:15Z — this task's 4th verification line gates it on other agents' behaviour [claude-code]
+
+Today's guard-layer sweep fired `check-receiver-ack-lag.sh`, which is **line 4 of this
+task's own `## Verification` block**. So P-011 will refuse `work-completed` here until it
+goes green. Current reading:
+
+```
+agent-chat-arc  (3 distinct identity row(s))
+  NEVER-ACKED  33df8954b2a9b70d  lag=981
+  NEVER-ACKED  9219671e28054458  lag=981
+  BEHIND       d1993c2c3ec44c94  lag=57 (up_to=923)
+framework:pickup  (1 row)
+  ok           d1993c2c3ec44c94  lag=0
+```
+
+**Two of the three firing rows are not ours.** `d1993c2c3ec44c94` is this host's identity —
+it is the self-fingerprint in this task's own reproduction command,
+`dm:d1993c2c3ec44c94:deadbeefdeadbeef`. The two `NEVER-ACKED` rows at lag=981 are other
+identities that have never acked anything on `agent-chat-arc`.
+
+**Why that is a problem for this task specifically.** Whichever of (a)/(b)/(c) is chosen,
+the fix changes how *we* COUNT unread — it does not cause a peer to ACK. So the dominant
+term in this check will still be red after a correct fix, and the gate will block a task
+that is genuinely done. That is the shape this repo has named from the other direction in
+T-2818: a gate that blocks for reasons the author cannot act on teaches people that
+failures here are noise and that `--force` is the normal way past them.
+
+**Not changing the block unilaterally.** Removing or narrowing a verification line is
+exactly the move that should not be made quietly by whoever is inconvenienced by it, and
+`--force` is worse. Recording it instead, so the choice is made deliberately alongside the
+a/b/c decision. The options are: scope the line to our own identity (it is the only one our
+fix can move), keep it and accept that closure waits on peers acking, or drop it here and
+let the guard layer own it — where it already runs daily and is not attached to one task's
+completion.
+
+**Our own row is separately real.** `d1993c2c3ec44c94 BEHIND lag=57` on `agent-chat-arc` is
+this host not keeping up with a broadcast topic. That is worth its own look and is NOT what
+this task is about — filed nowhere yet, deliberately named here so it is not lost.
