@@ -18,7 +18,13 @@ set -uo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 HANDOVER_SH="${HANDOVER_SH:-$REPO_ROOT/.agentic-framework/agents/handover/handover.sh}"
-PREFIX_REF="${PREFIX_REF:-HEAD}"
+# The pre-fix commit, pinned deliberately. This was `HEAD` in the first draft, which
+# was correct for exactly as long as the fix was uncommitted: the moment T-2882 landed,
+# HEAD became the FIXED script and case 9 compared the fix against itself, reporting
+# "the fixtures do not discriminate" — the load-bearing case quietly disarming itself.
+# Caught by rehearsing the P-011 line under `set -eo pipefail` rather than by hand.
+# 35affce76 is the last commit before the T-2882 fix.
+PREFIX_REF="${PREFIX_REF:-35affce76}"
 
 PASS=0
 FAIL=0

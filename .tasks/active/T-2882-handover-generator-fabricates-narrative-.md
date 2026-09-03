@@ -22,7 +22,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-03T05:31:38Z
-last_update: 2026-09-03T05:38:07Z
+last_update: 2026-09-03T05:53:52Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -198,7 +198,9 @@ bash tests/handover-suggested-action-fixtures.sh > /tmp/.t2882-fix.out 2>&1 && g
 # The local divergence is registered and the register still parses.
 python3 -c "import yaml,sys; d=yaml.safe_load(open('.vendor-divergence.yaml')); sys.exit(0 if any('T-2882' in str(e) for e in (d.get('divergences') or [])) else 1)"
 # The divergence checker does not report a tooling error (exit 2) on the edited register.
-bash scripts/check-vendor-divergence.sh > /tmp/.t2882-vd.out 2>&1; test $? -ne 2
+# Condition-context capture: `cmd; test $?` would abort under the gate's `set -e`
+# whenever cmd is non-zero — which is exactly the case this line exists to distinguish.
+rc=0; bash scripts/check-vendor-divergence.sh > /tmp/.t2882-vd.out 2>&1 || rc=$?; test "$rc" -ne 2
 
 ## RCA
 

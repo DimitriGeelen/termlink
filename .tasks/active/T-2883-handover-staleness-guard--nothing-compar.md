@@ -24,7 +24,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-03T05:38:33Z
-last_update: 2026-09-03T05:39:48Z
+last_update: 2026-09-03T05:42:23Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -196,7 +196,9 @@ bash tests/handover-staleness-check-fixtures.sh > /tmp/.t2883-fix.out 2>&1 && gr
 # The check is a member of the guard layer, so CI runs it (not shipped-but-dark).
 bash scripts/run-guard-layer.sh --list > /tmp/.t2883-gl.out 2>&1 && grep -q "check-handover-staleness.sh" /tmp/.t2883-gl.out
 # Fail-closed: a missing corpus is a tooling error, never a vacuous clean.
-bash scripts/check-handover-staleness.sh --handovers-dir /nonexistent-xyz > /dev/null 2>&1; test $? -eq 2
+# `cmd; test $?` aborts under the gate's `set -e` before reaching the test — capture
+# the code in a condition context instead (|| rc=$? is exempt from set -e).
+rc=0; bash scripts/check-handover-staleness.sh --handovers-dir /nonexistent-xyz > /dev/null 2>&1 || rc=$?; test "$rc" -eq 2
 # The git-tracked allowlist exists at the T-2681 location.
 test -f .context/checks/handover-staleness-allowlist
 
