@@ -22,7 +22,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-03T05:31:38Z
-last_update: 2026-09-03T05:31:38Z
+last_update: 2026-09-03T05:38:07Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -72,8 +72,12 @@ the one line every session is told to act on.
   `handover.sh:495`; it is not a new mechanism.
 - [ ] **Suggested First Action is derived from real signal, not string order.** Ranking
   keys on `.context/working/focus.yaml` `current_task` first, then `last_update`
-  descending — never lexicographic task id. Against the current tree the generator must
-  name **T-2871** (the actual focus), not T-1457. Record the before/after output.
+  descending — never lexicographic task id. Run against the live tree, the generator
+  must name **whatever `focus.yaml` currently holds**, never `T-1457`.
+  (This AC originally pinned the literal `T-2871`, which was the focus when it was
+  written; focus has since moved to the tasks doing this work, so the literal would now
+  fail for the right behaviour. The invariant — focus wins — is what is asserted, and
+  the fixture suite pins it independently of whatever focus happens to be.)
 - [ ] **It is labelled as mechanical while unenriched.** While `enrichment_status:
   pending`, the line states it is a mechanical fallback rather than a reasoned
   recommendation, so a session that acts on it knows what it is acting on.
@@ -88,6 +92,10 @@ the one line every session is told to act on.
 - [ ] **It is filed upstream**, since `handover.sh` is vendored (G-062) and a local fix
   has a ~2-month half-life (T-2812). Post the defect + the three-part fix to the
   `framework:pickup` topic and record the offset in this task.
+  → Filed 2026-09-03 at **`framework:pickup` offset 83**, carrying the root cause, the
+  three-part fix, and the fixture evidence including the pre-fix mutant case.
+  `.vendor-divergence.yaml` moved `local-only` → `filed-upstream`. Not yet confirmed
+  carried, so the entry stays at risk on a re-vendor until upstream acknowledges.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.

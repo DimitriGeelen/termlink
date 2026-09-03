@@ -86,7 +86,7 @@ divergences:
       entry resolves.
     date: 2026-09-03
     file: .agentic-framework/agents/handover/handover.sh
-    status: local-only
+    status: filed-upstream
     kind: fix
     generality: GENERIC
     symptom: >
@@ -123,7 +123,7 @@ divergences:
       lexicographically-first fixture task) in both the focus-present and
       focus-absent scenarios, reproducing the defect exactly. A suite green
       against both implementations would prove nothing (T-2814).
-    upstream_ref: "PENDING — to be filed at framework:pickup under T-2882"
+    upstream_ref: "framework:pickup offset 83 (T-2882, filed 2026-09-03) — carries the root cause, the three-part fix, and the fixture evidence including the pre-fix mutant case. Not yet confirmed carried upstream, so still at risk on a re-vendor."
 
   - task: T-2866
     commit: pending-same-commit
