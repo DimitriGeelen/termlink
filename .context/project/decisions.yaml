@@ -1128,3 +1128,10 @@ decisions:
   date: 2026-08-27
   task: T-1643
   rationale: "Auto-captured from task file on completion"
+
+  - id: PD-001
+    decision: "**DEFER all four**, decision recorded here. No edit, no cross-branch commit."
+    scope: project
+    date: 2026-09-03
+    task: T-2881
+    rationale: "Auto-captured from task file on completion"

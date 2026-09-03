@@ -1,0 +1,90 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2881: T-2874's mcpServers cleanup reached main only — four worktrees still pin the 0.9.13 vendored binary
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-03T13:31:37Z
+# ============================================================================
+
+task_id: T-2881
+task_name: "T-2874's mcpServers cleanup reached main only — four worktrees still pin the 0.9.13 vendored binary"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-09-02T06:42:56Z
+completed: 2026-09-03T13:31:29Z
+duration_days: 1
+updates_count: 2
+first_commit: 2026-09-02T08:44:33+02:00
+last_commit: 2026-09-03T09:15:34+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  file the four worktrees T-2874's cleanup did not reach. the worktree mcpServers block is inert and self-heals on merge — measured, deferred, and the boundary trap filed as T-2885
+
+# Key outcomes
+outcomes:
+  - '**Measure first whether the block is inert or breaking, and do not assume.** T-2874''s evidence says the identical block did NOT launch the live server on main (`/proc/<pid>/exe` was the PATH binary), so the honest prior is "inert and misleading". Start a session rooted in one worktree and record whether `mcp__termlink__*` tools are present. The answer decides whether this is a trust-hazard cleanup or a live-outage fix, and the task''s framing must follow the measurement rather than lead it.'
+  - '**All four worktrees are enumerated with their pin and target state recorded**, not just the one that surfaced the finding — the defect class here is "sibling never migrated", so a fix that reaches three of four reproduces the very thing it repairs.'
+  - '**The cross-branch cost is stated explicitly before any edit.** Each worktree is a distinct branch, so this either lands as four commits on four branches or is deliberately deferred to whoever next works each branch. Record which was chosen and why; T-2800 exists because cross-branch work done casually is how duplicate and colliding work happens.'
+  - '**`.termlink/bin/termlink` is left on disk untouched.** Deleting the 0.9.13 vendored binary is a separate decision and T-2874 explicitly declined it; this task does not silently widen that scope.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-09-03 — AC4: defer the edit to whoever next works each branch'
+    chose: '**DEFER all four**, decision recorded here. No edit, no cross-branch commit.'
+    rationale: '1. **It is inert** (AC1, measured two ways). There is no functional harm to race. 2. **It self-heals on merge.** Main deleted the `mcpServers` key in T-2874. No branch touches that region, so each merge takes main''s deletion cleanly. Doing nothing converges; the hazard has a natural end date. 3. **`T-2398-findings` carries uncommitted third-party work in the very file** the fix would touch (a `mcp__termlink__termlink_agent_inbox` permissions addition). Staging that file there stages someone else''s change too, committing it under this task''s ID. That is not a cost worth paying to remove an inert key. 4. **All-four or none.** The defect class here is "sibling never migrated". Fixing the three easy branches and skipping the entangled one would *reproduce the exact failure this task exists to repair* — with a green task as cover. Given (3) makes one branch genuinely unsafe to touch, the coherent choice is none. 5. T-2800 exists because cross-branch work done casually is how duplicate and colliding work happens. Four commits on four branches to delete a dead key does not clear that bar.'
+    alternatives_rejected: ['*Edit all four now* — costs four cross-branch commits plus entangling another session''s uncommitted work, to fix something measured to have no effect and that disappears on merge. *Edit the three clean ones* — rejected outright; it is the sibling-divergence failure wearing this task''s name. - **Consequence, stated plainly:** **AC3 is deliberately NOT satisfied** and is left unticked. This task''s deliverable is the measurement and this decision, not the edit. Whoever next works one of these branches should drop the `mcpServers` key while they are in there — it is a two-line change and the branch is already theirs to commit on.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/session.yaml'
+  - '.tasks/active/T-2881-t-2874s-mcpservers-cleanup-reached-main-.md'
+  - '.tasks/active/T-2885-t-559-boundary-hook-strands-any-session-.md'
+  - '.termlink-task'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-02T08:44:33'
+    action: 'T-2881: file the four worktrees T-2874''s cleanup did not reach'
+  - time: '2026-09-03T09:15:34'
+    action: 'T-2881: the worktree mcpServers block is inert and self-heals on merge — measured, deferred, and the boundary trap filed as T-2885'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 1848 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1848
+  commits: 2
+  files_changed: 9
+  lines_added: 669
+  lines_removed: 136
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2881-t-2874s-mcpservers-cleanup-reached-main-.md
+generated_by: context-agent-hybrid

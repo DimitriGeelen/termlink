@@ -18,10 +18,10 @@ description: >
   and is the first thing to measure. Same hardened-in-one-place-siblings-never-migrated
   shape as T-2667 / T-2673 / T-2687 / T-2873.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -36,8 +36,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-02T06:42:56Z
-last_update: 2026-09-03T07:15:35Z
-date_finished:
+last_update: 2026-09-03T13:31:29Z
+date_finished: 2026-09-03T13:31:29Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -213,6 +213,11 @@ paths (`git -C`, `.claude/worktrees/<w>/...`) — those stay in bounds. Do not `
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+test -x .termlink/bin/termlink
+test "$(stat -c%s .termlink/bin/termlink)" = "16826352"
+for w in T-2209-history-skills T-2398-findings charter-review-2026-0814 governance-canary-signal; do python3 -c "import json,sys;d=json.load(open('.claude/worktrees/$w/.claude/settings.local.json'));sys.exit(0 if 'termlink' in d.get('mcpServers',{}) else 1)" || exit 1; done
+for w in T-2209-history-skills T-2398-findings charter-review-2026-0814 governance-canary-signal; do test ! -e ".claude/worktrees/$w/.termlink/bin/termlink" || exit 1; done
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -341,3 +346,16 @@ paths (`git -C`, `.claude/worktrees/<w>/...`) — those stay in bounds. Do not `
 ### 2026-09-02T06:44:10Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-9ce16a55
+- **Timestamp:** 2026-09-03T13:31:31Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-09-03T13:31:29Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** AC3 deliberately deferred per in-file Decision (2026-09-03): block is inert, self-heals on merge, and T-2398-findings carries uncommitted third-party work in the same file — see Decisions section
