@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2891: T-2889's verification block landed under ## RCA, so P-011 passed vacuously
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-03T12:15:50Z
+# ============================================================================
+
+task_id: T-2891
+task_name: "T-2889's verification block landed under ## RCA, so P-011 passed vacuously"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-03T12:12:26Z
+completed: 2026-09-03T12:15:41Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  The 7-line verification block written for T-2889 was inserted after the ## Verification section's trailing comment block but BEFORE the ## RCA heading was accounted for, so it landed inside ## RCA. P-011 extracts from ## Verification only, found it empty, and passed vacuously — the identical defect T-2830 committed and T-2831 shipped check-verification-misfile.sh to detect. The 7 commands were all executed by hand and returned rc=0, so T-2889's claims are true; what is false is any implication that a gate proved them. Repair the placement, confirm the misfile checker actually fires on this shape (if it does not, that is the more valuable finding), and re-run the gate for real.
+
+# Key outcomes
+outcomes:
+  - '**The block is moved into `## Verification` and its placement is asserted'
+  - '**Whether `check-verification-misfile.sh` fires on this shape is MEASURED and'
+  - '**T-2889 is re-completed with the gate genuinely executing its 7 commands**, not'
+  - '**T-2889''s Recommendation/RCA text is not left claiming the gate proved anything it'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 3
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2891-t-2889s-verification-block-landed-under-.md
+generated_by: context-agent-hybrid

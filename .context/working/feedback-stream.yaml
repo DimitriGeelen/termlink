@@ -9990,3 +9990,39 @@ scan_id: R-bd080408
 task_id: T-2888
 payload:
   task_file: .tasks/active/T-2888-fw-audit-may-never-complete-in-full-a-bo.md
+---
+kind: scan_emitted
+timestamp: '2026-09-03T12:10:40Z'
+scan_id: R-165d9718
+task_id: T-2889
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-03T12:10:40Z'
+scan_id: R-165d9718
+task_id: T-2889
+payload:
+  task_file: .tasks/active/T-2889-enrich-s-2026-0903-1102-clear-the-d8-aud.md
+---
+kind: scan_emitted
+timestamp: '2026-09-03T12:15:43Z'
+scan_id: R-4207adf0
+task_id: T-2891
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-03T12:15:43Z'
+scan_id: R-4207adf0
+task_id: T-2891
+payload:
+  task_file: .tasks/active/T-2891-t-2889s-verification-block-landed-under-.md

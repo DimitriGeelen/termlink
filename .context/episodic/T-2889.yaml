@@ -1,0 +1,98 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2889: Enrich S-2026-0903-1102: clear the D8 audit FAIL on 5 [TODO] handover sections
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-03T12:10:47Z
+# ============================================================================
+
+task_id: T-2889
+task_name: "Enrich S-2026-0903-1102: clear the D8 audit FAIL on 5 [TODO] handover sections"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-03T10:23:01Z
+completed: 2026-09-03T12:10:39Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-09-03T12:25:20+02:00
+last_commit: 2026-09-03T12:25:20+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  capture the D8 handover-enrichment task surfaced by the 08:00 full audit
+
+# Key outcomes
+outcomes:
+  - 'Every `[TODO:` marker in **both** `.context/handovers/S-2026-0903-1102.md` and'
+  - 'Each filled section states its provenance in the artefact itself — reconstructed, with'
+  - '`enrichment_status` flipped `pending` → `enriched` in the frontmatter of **both**'
+  - '`bash scripts/check-handover-staleness.sh` reports **0 pending** in window and exits 0'
+  - '**D8 drops from FAIL to its floor.** `LATEST.md` contains zero placeholder markers of'
+  - '**A section with no supporting evidence says so rather than being filled.** Where the'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/2026-09-03.yaml'
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/episodic/T-2887.yaml'
+  - '.context/episodic/T-2888.yaml'
+  - '.context/handovers/S-2026-0903-1102.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0903-1221.discard-manifest.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/.compact-log'
+  - '.context/working/feedback-stream.yaml'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.pre-compact.last-run'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/.session-start-ts'
+  - '.context/working/session.yaml'
+  - '.tasks/active/T-2723-handover-commit-under-t-1452-collides-wi.md'
+  - '.tasks/active/T-2889-enrich-s-2026-0903-1102-clear-the-d8-aud.md'
+  - '.tasks/completed/T-2887-housekeeping-2026-09-03-re-stamp-the-enf.md'
+  - '.tasks/completed/T-2888-fw-audit-may-never-complete-in-full-a-bo.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-03T12:25:20'
+    action: 'T-2889: capture the D8 handover-enrichment task surfaced by the 08:00 full audit'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 107 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 107
+  commits: 1
+  files_changed: 20
+  lines_added: 718
+  lines_removed: 229
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2889-enrich-s-2026-0903-1102-clear-the-d8-aud.md
+generated_by: context-agent-hybrid
