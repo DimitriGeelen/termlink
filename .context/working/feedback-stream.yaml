@@ -9936,3 +9936,21 @@ scan_id: R-5cc57467
 task_id: T-2883
 payload:
   task_file: .tasks/active/T-2883-handover-staleness-guard--nothing-compar.md
+---
+kind: scan_emitted
+timestamp: '2026-09-03T06:36:32Z'
+scan_id: R-c0dd1a65
+task_id: T-2884
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-03T06:36:32Z'
+scan_id: R-c0dd1a65
+task_id: T-2884
+payload:
+  task_file: .tasks/active/T-2884-enrich-s-2026-0903-0755-handover-from-ev.md
