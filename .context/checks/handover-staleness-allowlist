@@ -1,0 +1,8 @@
+# T-2883 — acknowledged handover-staleness findings.
+# One signature per line with a cited reason. Entries are COUNTED AND REPORTED but do
+# not fire. Axis A signature: the literal Suggested First Action line. Axis B
+# signature: "<Section>::<literal>".
+#
+# Empty on purpose: the one real instance (T-2882) was REPAIRED, not acknowledged.
+# An entry here is for a value that is correct as it stands, never for a constant
+# nobody has got round to fixing.

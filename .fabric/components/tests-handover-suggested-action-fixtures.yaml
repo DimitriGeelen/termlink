@@ -1,0 +1,20 @@
+id: tests/handover-suggested-action-fixtures.sh
+name: handover-suggested-action-fixtures
+type: script
+subsystem: unknown
+location: tests/handover-suggested-action-fixtures.sh
+tags: []
+
+purpose: "TODO: describe what this component does"
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-09-03
+created_by: unknown
