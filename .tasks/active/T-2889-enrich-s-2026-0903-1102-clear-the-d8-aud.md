@@ -1,14 +1,8 @@
 ---
-id: T-2888
-name: "fw audit may never complete in full: a bounded run is killed before it emits
-  a summary"
+id: T-2889
+name: "Enrich S-2026-0903-1102: clear the D8 audit FAIL on 5 [TODO] handover sections"
 description: >
-  A full 'fw audit' exceeded a 15-minute bound and was killed at exit 124 inside OE-DAILY/CTL-013,
-  having emitted 260 PASS / 29 WARN / 1 FAIL across 19 sections but no SUMMARY or
-  PRIORITY ACTIONS. CTL-009 runs a git log per inception (168) and CTL-013 re-runs
-  task verification blocks. Both the daily cron and the pre-push hook invoke only
-  --sections structure, so the full audit may not run to completion anywhere. Measure
-  the true wall time and decide whether this is merely slow or structurally uncompletable.
+  The 08:00 full audit FAILs on D8 (handover quality) because .context/handovers/LATEST.md carries 5 unfilled [TODO] sections. Same class T-2882 fixed at the generator and T-2884 cleared for the predecessor handover. Fill from committed artefacts with provenance stated, and flip enrichment_status to enriched.
 
 status: started-work
 workflow_type: build
@@ -27,9 +21,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-03T10:10:30Z
-last_update: 2026-09-03T10:11:40Z
-date_finished:
+created: 2026-09-03T10:23:01Z
+last_update: 2026-09-03T10:23:01Z
+date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -40,86 +34,27 @@ date_finished:
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
-bvp_scores_proposed:
-  - ts: '2026-09-03T10:11:40Z'
-    estimator: bvp-estimator-v1-heuristic
-    scores:
-      D1: 4
-      D2: 4
-      D3: 3
-      D4: 2
-      F-RECALL: 0
-      F-ORCH: 0
-    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
-      (body:component-discoverability); D4=2 (body:env-class-handled); 
-      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
-    rubric_sha: e4a00f38e801
 ---
 
-# T-2888: fw audit may never complete in full: a bounded run is killed before it emits a summary
+# T-2889: Enrich S-2026-0903-1102: clear the D8 audit FAIL on 5 [TODO] handover sections
 
 ## Context
 
 <!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
-**Verdict: NOT a defect. The premise was wrong and is recorded here so nobody re-opens it.**
-
-The suspicion was that `fw audit` never completes in full, and therefore that the sections
-after the cut-off were reporting on nothing. Two interactive runs were killed — the first by
-a self-imposed `timeout 900` (exit 124, died in `OE-DAILY/CTL-013` after 260 PASS / 29 WARN /
-1 FAIL across 19 sections), the second by the harness at 248 lines in `CTL-009`. Neither
-emitted `=== SUMMARY ===`, which looked like evidence for the hypothesis.
-
-It was not. Both were artefacts of running it in a bounded foreground/background slot.
-
-**Measured from the scheduler's own artefacts, which is better evidence than a stopwatch:**
-`.context/audits/cron/2026-09-03-0800.yaml` is **45,763 bytes and carries no `sections:`
-key** — the signature of the full unsharded run. It began `2026-09-03T06:00:02Z` and the file
-was written at 08:07 local. **The full audit completes daily in ~7 minutes**, and it is the
-largest artefact of the day.
-
-**It is scheduled, and so is every section independently.** `/etc/cron.d/agentic-audit-termlink`
-runs eight jobs: seven sharded by section (`structure,compliance,quality,discovery` every
-30m; `traceability,episodic,discovery-trends` hourly; `observations,gaps` 6-hourly;
-`oe-fast,oe-research` at :15/:45; `oe-hourly` at :30; `oe-daily` at 07:00; `oe-weekly` Mon
-09:00) plus **one unsharded `fw audit --cron` at 08:00**. So the sections beyond the
-interactive cut-off run twice over — once in their shard, once in the full run. Nothing is
-dark, and AC4's filing branch does not apply.
-
-**What is true, narrowly:** the full audit is slow for interactive use (`CTL-009` runs a
-`git log` per inception, 168 of them; `CTL-013` re-runs task verification blocks). That is a
-note for anyone invoking it by hand — read
-`.context/audits/cron/LATEST-CRON.yaml` or the 08:00 artefact instead of re-running it — not
-a governance gap.
-
-**Today's authoritative full-audit result (08:00 run): 348 PASS / 68 WARN / 3 FAIL.** The
-three failures are recorded in `## Recommendation` below; note that the interactive run saw
-only one of them, because it was killed before reaching the checks that produce the other two.
-That is the concrete cost of trusting a truncated run, and the reason this task closes with
-the cron artefact — not the interactive output — as the source of record.
-
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] The full `fw audit` wall time is MEASURED on this tree, not estimated, and recorded
-      here with the exit code — so "slow" and "uncompletable" are distinguishable
-      — ~7 min, from the 08:00 cron artefact (start `06:00:02Z`, written 08:07 local).
-        Interactive attempts: exit 124 (self-imposed bound) and harness-killed.
-- [x] The verdict is stated one way or the other: either the run completes and emits
-      `=== SUMMARY ===` (it is merely slow — record the time and close), or it does not
-      complete under a generous bound (it is structurally uncompletable — record which
-      section it dies in)
-      — COMPLETES. `summary: {pass: 348, warn: 68, fail: 3}`. Merely slow.
-- [x] Established from the crontab and the pre-push hook whether the FULL audit is invoked
-      anywhere on a schedule, or only `--sections structure` — i.e. whether the sections
-      after the cutoff have ever run unattended
-      — 8 cron jobs: 7 sharded covering every section + 1 unsharded `fw audit --cron` at
-        08:00. The post-cutoff sections run twice over. Nothing is dark.
-- [x] If the full audit is confirmed uncompletable AND unscheduled, that is the
-      shipped-but-dark class in the audit layer itself and is filed rather than silently
-      accepted (the checks in question would be reporting on nothing)
-      — Branch does not apply: neither condition holds. Nothing filed, deliberately.
+- [ ] All five `[TODO:` markers in `.context/handovers/S-2026-0903-1102.md` are replaced with
+      content sourced from committed artefacts (commit subjects, task files, episodic YAMLs)
+- [ ] Each filled section states its provenance in the artefact itself — reconstructed, with
+      what it is sourced from — so a later reader can tell recorded fact from reconstruction.
+      Claims the artefacts do not support are ABSENT, never inferred (this is the T-2882
+      defect one layer up: a plausible narrative is acted on, an empty one is not)
+- [ ] `enrichment_status` flipped `pending` → `enriched` in the frontmatter
+- [ ] `bash scripts/check-handover-staleness.sh` reports 0 pending in window and exits 0
+- [ ] The D8 audit check passes: `LATEST.md` contains zero `[TODO` markers
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -215,14 +150,6 @@ the cron artefact — not the interactive output — as the source of record.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
-# 1. The 08:00 artefact is the FULL run: it must carry a summary and NO `sections:` key
-#    (a sharded run declares its sections; the unsharded one does not).
-python3 -c "import yaml,sys;d=yaml.safe_load(open('.context/audits/cron/2026-09-03-0800.yaml'));s=d.get('summary') or {};sys.exit(0 if ('sections' not in d and all(k in s for k in ('pass','warn','fail'))) else 1)"
-# 2. The full unsharded audit is actually SCHEDULED — an `fw audit --cron` line carrying no
-#    --section flag. This is the claim that "nothing is dark" rests on; if a future edit
-#    shards every job, this fires.
-test -n "$(grep -E '^[0-9*/, ]+ +root .*fw\" audit --cron' /etc/cron.d/agentic-audit-termlink 2>/dev/null)"
-
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -264,28 +191,6 @@ test -n "$(grep -E '^[0-9*/, ]+ +root .*fw\" audit --cron' /etc/cron.d/agentic-a
 -->
 
 ## Recommendation
-
-**Recommendation:** CLOSE — no defect. The full audit completes daily in ~7 minutes and every
-section is scheduled twice over. Anyone invoking it interactively should read
-`.context/audits/cron/LATEST-CRON.yaml` or the 08:00 artefact rather than re-run it.
-
-**The three FAILs in today's 08:00 full run**, none of which this task fixes — recorded so the
-truncated interactive run is not mistaken for the audit result:
-
-1. `cron(canary-aliveness-sweep)` — USER-field syntax, no install in `/etc/cron.d`. T-2878
-   shipped it and it was never installed, so its own meta-canary fix is dark. Remediation
-   writes to `/etc/cron.d` under sudo — **operator's call, deliberately not run.**
-2. `D2: Human review queue — 57 tasks waiting >30d`, oldest 125 days (T-1417, T-1419,
-   T-1435 …). These carry unticked `### Human` ACs. **An agent must never tick those**, and
-   autonomous mode does not delegate completing human-owned tasks, so this can only be
-   surfaced, never cleared, from here.
-3. `D8: Handover quality — LATEST.md has 5 [TODO] sections`. This one IS in scope and is the
-   same defect class as T-2882/T-2883/T-2884 — it is addressed separately rather than here,
-   because enriching a handover is its own deliverable with its own evidence trail.
-
-**Note on the interactive run:** it reported only failure 1. Failures 2 and 3 come from checks
-it was killed before reaching. A truncated audit does not under-report proportionally — it
-under-reports *whatever is at the end*, silently, while still printing hundreds of PASS lines.
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
      (audit_inception_recommendation, lib/task-audit.sh:117) is shared, so the
@@ -337,10 +242,7 @@ under-reports *whatever is at the end*, silently, while still printing hundreds 
 
 ## Updates
 
-### 2026-09-03T10:10:30Z — task-created [task-create-agent]
+### 2026-09-03T10:23:01Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2888-fw-audit-may-never-complete-in-full-a-bo.md
+- **Output:** /opt/termlink/.tasks/active/T-2889-enrich-s-2026-0903-1102-clear-the-d8-aud.md
 - **Context:** Initial task creation
-
-### 2026-09-03T10:11:40Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work

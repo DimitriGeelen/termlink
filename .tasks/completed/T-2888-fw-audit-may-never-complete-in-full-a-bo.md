@@ -1,12 +1,14 @@
 ---
-id: T-2887
-name: "Housekeeping 2026-09-03: re-stamp the enforcement baseline after proving the
-  drift is additive-only"
+id: T-2888
+name: "fw audit may never complete in full: a bounded run is killed before it emits
+  a summary"
 description: >
-  fw doctor FAILs on 'Enforcement baseline CHANGED', a single opaque bit that cannot
-  name what changed (T-2909). Diffed it: the stored sha matches .claude/settings.json
-  at commit 96c160467 exactly, and the delta since is 8 hooks ADDED, 0 removed. Re-stamp
-  with the delta recorded in the commit, so the stamp is auditable rather than laundered.
+  A full 'fw audit' exceeded a 15-minute bound and was killed at exit 124 inside OE-DAILY/CTL-013,
+  having emitted 260 PASS / 29 WARN / 1 FAIL across 19 sections but no SUMMARY or
+  PRIORITY ACTIONS. CTL-009 runs a git log per inception (168) and CTL-013 re-runs
+  task verification blocks. Both the daily cron and the pre-push hook invoke only
+  --sections structure, so the full audit may not run to completion anywhere. Measure
+  the true wall time and decide whether this is merely slow or structurally uncompletable.
 
 status: work-completed
 workflow_type: build
@@ -25,9 +27,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-03T09:56:13Z
-last_update: 2026-09-03T10:01:54Z
-date_finished: 2026-09-03T10:01:54Z
+created: 2026-09-03T10:10:30Z
+last_update: 2026-09-03T10:22:35Z
+date_finished: 2026-09-03T10:22:35Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -39,103 +41,85 @@ date_finished: 2026-09-03T10:01:54Z
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 bvp_scores_proposed:
-  - ts: '2026-09-03T09:57:43Z'
+  - ts: '2026-09-03T10:11:40Z'
     estimator: bvp-estimator-v1-heuristic
     scores:
       D1: 4
-      D2: 0
+      D2: 4
       D3: 3
       D4: 2
       F-RECALL: 0
       F-ORCH: 0
-    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
       (body:component-discoverability); D4=2 (body:env-class-handled); 
       F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
 ---
 
-# T-2887: Housekeeping 2026-09-03: re-stamp the enforcement baseline after proving the drift is additive-only
+# T-2888: fw audit may never complete in full: a bounded run is killed before it emits a summary
 
 ## Context
 
 <!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
-`fw doctor` FAILed with `Enforcement baseline CHANGED — settings.json hooks differ from
-baseline`. That message is a **single opaque bit**: it reports that the hook set moved
-but cannot say which way. `docs/reports/T-2909-enforcement-baseline-laundering.md` (an
-in-progress exploration on the `charter-review-2026-0814` branch) documents precisely
-this — and that the prescribed remedy, `fw enforcement baseline`, *launders* the loss by
-overwriting the record without ever naming what left. So the remedy was NOT run until the
-delta had been established independently.
+**Verdict: NOT a defect. The premise was wrong and is recorded here so nobody re-opens it.**
 
-**Measured.** The stored baseline `5ba1d36e8d39eae6` recomputes byte-identically from
-`.claude/settings.json` as it stood at commit `96c160467` (T-1638, 2026-05-15) — proving
-which file the stamp was taken from. Diffing that against the live file:
+The suspicion was that `fw audit` never completes in full, and therefore that the sections
+after the cut-off were reporting on nothing. Two interactive runs were killed — the first by
+a self-imposed `timeout 900` (exit 124, died in `OE-DAILY/CTL-013` after 260 PASS / 29 WARN /
+1 FAIL across 19 sections), the second by the harness at 248 lines in `CTL-009`. Neither
+emitted `=== SUMMARY ===`, which looked like evidence for the hypothesis.
 
-```
-REMOVED since baseline commit:   0
-ADDED since baseline commit:     9
-  PreToolUse  Write|Edit                             check-active-completed-dup
-  PreToolUse  Write|Edit                             check-arc-id
-  PreToolUse  Write|Edit                             check-heredoc-cmd-sub
-  PreToolUse  Write|Edit                             check-inception-decisions
-  PreToolUse  Write|Edit                             check-inception-schema
-  PreToolUse  Write|Edit                             check-onboarding-gate
-  PreToolUse  mcp__termlink__termlink_channel_post   check-rail-mcp-label
-  PostToolUse Write|Edit                             check-settings-edit
-  SessionStart startup                               post-compact-resume
-```
+It was not. Both were artefacts of running it in a bounded foreground/background slot.
 
-**Zero removals.** The drift is strictly additive — enforcement was strengthened and the
-baseline simply was never re-stamped after those nine bindings landed. This is the one
-condition under which re-stamping is legitimate rather than laundering, and it is why the
-delta is recorded here and in the commit message: the stamp is auditable after the fact.
+**Measured from the scheduler's own artefacts, which is better evidence than a stopwatch:**
+`.context/audits/cron/2026-09-03-0800.yaml` is **45,763 bytes and carries no `sections:`
+key** — the signature of the full unsharded run. It began `2026-09-03T06:00:02Z` and the file
+was written at 08:07 local. **The full audit completes daily in ~7 minutes**, and it is the
+largest artefact of the day.
 
-**The first measurement was wrong twice, and the strict verification is what caught it.**
-The initial diff matched only tokens containing `check-` / `gate` / `guard`, which (a)
-under-counted the additions at 8 — `post-compact-resume` on `SessionStart/startup` carries
-none of those tokens — and (b) was structurally blind to a path migration. Verification
-line 2, comparing whole command strings, failed and reported 18 removals. Those 18 turned
-out to be every pre-existing hook re-pathed from a hardcoded absolute
-`/opt/termlink/.agentic-framework/bin/fw` to `${CLAUDE_PROJECT_DIR}/...` — each with an
-exact counterpart in the added set. Normalising only that prefix gives 0 removed / 9 added.
-Recorded because the near-miss is the point: a laxer verification line would have
-confirmed the conclusion I had already reached, which is the failure mode this task is
-about.
+**It is scheduled, and so is every section independently.** `/etc/cron.d/agentic-audit-termlink`
+runs eight jobs: seven sharded by section (`structure,compliance,quality,discovery` every
+30m; `traceability,episodic,discovery-trends` hourly; `observations,gaps` 6-hourly;
+`oe-fast,oe-research` at :15/:45; `oe-hourly` at :30; `oe-daily` at 07:00; `oe-weekly` Mon
+09:00) plus **one unsharded `fw audit --cron` at 08:00**. So the sections beyond the
+interactive cut-off run twice over — once in their shard, once in the full run. Nothing is
+dark, and AC4's filing branch does not apply.
 
-**Same fact, second surface.** Eight of the nine are exactly the eight `fw doctor` reports
-as `missing` in all five linked worktrees. The worktrees branched before the gates landed,
-so "baseline drifted" and "worktrees are missing 8 hooks" are one event seen from two
-sides, not two problems.
+**What is true, narrowly:** the full audit is slow for interactive use (`CTL-009` runs a
+`git log` per inception, 168 of them; `CTL-013` re-runs task verification blocks). That is a
+note for anyone invoking it by hand — read
+`.context/audits/cron/LATEST-CRON.yaml` or the 08:00 artefact instead of re-running it — not
+a governance gap.
 
-**Bearing on T-2886.** The path migration means `.claude/settings.json` already uses the
-portable `${CLAUDE_PROJECT_DIR}` idiom, while `.mcp.json` — and the framework's own shipped
-`framework-mcp.mcp-fragment.json` — still use a bare cwd-relative path. The framework
-therefore already has the correct idiom in one file and not the other, which is a
-materially stronger form of the T-2886 argument than the filing at offset 85 made.
-
-**Left deliberately undone:** the worktree hook drift itself. `fw upgrade <worktree-path>`
-would refresh them, but four of the five carry other sessions' in-flight branches, and
-T-2881 already established that reaching into a worktree from here is the wrong move.
-Whoever next works each branch should run it there.
+**Today's authoritative full-audit result (08:00 run): 348 PASS / 68 WARN / 3 FAIL.** The
+three failures are recorded in `## Recommendation` below; note that the interactive run saw
+only one of them, because it was killed before reaching the checks that produce the other two.
+That is the concrete cost of trusting a truncated run, and the reason this task closes with
+the cron artefact — not the interactive output — as the source of record.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] The baseline delta is established by measurement, not assumption: the stored sha is
-      shown to recompute from a named commit's `settings.json`, and the add/remove sets are
-      enumerated
-      — stored `5ba1d36e8d39eae6` recomputes from `96c160467`; delta 0 removed / 9 added
-- [x] The removal set is empty — re-stamping is only performed because nothing was lost
-      — verified by whole-command comparison with only the fw-path prefix normalised, and
-        mutation-tested: deleting `check-tier0` makes the check fire
-- [x] `fw enforcement baseline` re-stamped, and `fw doctor` reports `Enforcement baseline
-      intact`
-      — new hash `9bc136177d40fe76`
-- [x] The enumerated delta is recorded in the task and the commit message, so the stamp can
-      be audited later rather than being an opaque overwrite
-      — commit `51768fe67` carries the full 0-removed / 9-added table
+- [x] The full `fw audit` wall time is MEASURED on this tree, not estimated, and recorded
+      here with the exit code — so "slow" and "uncompletable" are distinguishable
+      — ~7 min, from the 08:00 cron artefact (start `06:00:02Z`, written 08:07 local).
+        Interactive attempts: exit 124 (self-imposed bound) and harness-killed.
+- [x] The verdict is stated one way or the other: either the run completes and emits
+      `=== SUMMARY ===` (it is merely slow — record the time and close), or it does not
+      complete under a generous bound (it is structurally uncompletable — record which
+      section it dies in)
+      — COMPLETES. `summary: {pass: 348, warn: 68, fail: 3}`. Merely slow.
+- [x] Established from the crontab and the pre-push hook whether the FULL audit is invoked
+      anywhere on a schedule, or only `--sections structure` — i.e. whether the sections
+      after the cutoff have ever run unattended
+      — 8 cron jobs: 7 sharded covering every section + 1 unsharded `fw audit --cron` at
+        08:00. The post-cutoff sections run twice over. Nothing is dark.
+- [x] If the full audit is confirmed uncompletable AND unscheduled, that is the
+      shipped-but-dark class in the audit layer itself and is filed rather than silently
+      accepted (the checks in question would be reporting on nothing)
+      — Branch does not apply: neither condition holds. Nothing filed, deliberately.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -230,26 +214,14 @@ Whoever next works each branch should run it there.
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
-#
-# T-2887 note: that is exactly what recurred here, with eight more hooks. L-398
-# exists and is even printed in this very template, so the knowledge was present
-# and still did not bind — nothing MAKES a hook-adding task re-stamp. The learning
-# has now failed to prevent its own restatement twice (T-1886, T-2887), which is
-# the T-2746 argument for a structural check over more documentation.
 
-# 1. The stored baseline matches the live settings.json (the re-stamp actually landed).
-test "$(cat .context/project/enforcement-baseline.sha256)" = "$(python3 -c "import json,hashlib;d=json.load(open('.claude/settings.json'));print(hashlib.sha256(json.dumps(d.get('hooks',{}),sort_keys=True).encode()).hexdigest())")"
-# 2. THE LOAD-BEARING ONE: nothing present at the baseline commit was removed. This is the
-#    only condition under which re-stamping is legitimate; if a future edit drops a hook,
-#    this line fires and the stamp must not be refreshed until that is explained.
-#    ONLY the fw-binary path prefix is normalised (absolute vs ${CLAUDE_PROJECT_DIR}) — the
-#    event, matcher and hook verb are all compared literally, so a genuine removal fires.
-#    Comparing raw command strings instead reports all 18 pre-existing hooks as removed on
-#    the path migration alone; that is a false positive, not extra strictness.
-python3 -c "import json,re,subprocess,sys;n=lambda c:re.sub(r'^(\S*?|\\\$\{CLAUDE_PROJECT_DIR\})/\.agentic-framework/bin/fw\b','FW',c).strip();f=lambda t:{(e,g.get('matcher',''),n(h.get('command',''))) for e,gs in json.loads(t).get('hooks',{}).items() for g in gs for h in g.get('hooks',[])};old=f(subprocess.run(['git','show','96c160467:.claude/settings.json'],capture_output=True,text=True).stdout);new=f(open('.claude/settings.json').read());sys.exit(0 if not (old-new) else 1)"
-# 3. fw doctor agrees the baseline is intact (doctor exits non-zero on unrelated warnings,
-#    so its rc is captured rather than gating the line — see the pipefail notes above).
-rc=0; .agentic-framework/bin/fw doctor --quick > /tmp/.t2887-doctor.out 2>&1 || rc=$?; grep -q "Enforcement baseline intact" /tmp/.t2887-doctor.out
+# 1. The 08:00 artefact is the FULL run: it must carry a summary and NO `sections:` key
+#    (a sharded run declares its sections; the unsharded one does not).
+python3 -c "import yaml,sys;d=yaml.safe_load(open('.context/audits/cron/2026-09-03-0800.yaml'));s=d.get('summary') or {};sys.exit(0 if ('sections' not in d and all(k in s for k in ('pass','warn','fail'))) else 1)"
+# 2. The full unsharded audit is actually SCHEDULED — an `fw audit --cron` line carrying no
+#    --section flag. This is the claim that "nothing is dark" rests on; if a future edit
+#    shards every job, this fires.
+test -n "$(grep -E '^[0-9*/, ]+ +root .*fw\" audit --cron' /etc/cron.d/agentic-audit-termlink 2>/dev/null)"
 
 ## RCA
 
@@ -292,6 +264,28 @@ rc=0; .agentic-framework/bin/fw doctor --quick > /tmp/.t2887-doctor.out 2>&1 || 
 -->
 
 ## Recommendation
+
+**Recommendation:** CLOSE — no defect. The full audit completes daily in ~7 minutes and every
+section is scheduled twice over. Anyone invoking it interactively should read
+`.context/audits/cron/LATEST-CRON.yaml` or the 08:00 artefact rather than re-run it.
+
+**The three FAILs in today's 08:00 full run**, none of which this task fixes — recorded so the
+truncated interactive run is not mistaken for the audit result:
+
+1. `cron(canary-aliveness-sweep)` — USER-field syntax, no install in `/etc/cron.d`. T-2878
+   shipped it and it was never installed, so its own meta-canary fix is dark. Remediation
+   writes to `/etc/cron.d` under sudo — **operator's call, deliberately not run.**
+2. `D2: Human review queue — 57 tasks waiting >30d`, oldest 125 days (T-1417, T-1419,
+   T-1435 …). These carry unticked `### Human` ACs. **An agent must never tick those**, and
+   autonomous mode does not delegate completing human-owned tasks, so this can only be
+   surfaced, never cleared, from here.
+3. `D8: Handover quality — LATEST.md has 5 [TODO] sections`. This one IS in scope and is the
+   same defect class as T-2882/T-2883/T-2884 — it is addressed separately rather than here,
+   because enriching a handover is its own deliverable with its own evidence trail.
+
+**Note on the interactive run:** it reported only failure 1. Failures 2 and 3 come from checks
+it was killed before reaching. A truncated audit does not under-report proportionally — it
+under-reports *whatever is at the end*, silently, while still printing hundreds of PASS lines.
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
      (audit_inception_recommendation, lib/task-audit.sh:117) is shared, so the
@@ -343,22 +337,22 @@ rc=0; .agentic-framework/bin/fw doctor --quick > /tmp/.t2887-doctor.out 2>&1 || 
 
 ## Updates
 
-### 2026-09-03T09:56:13Z — task-created [task-create-agent]
+### 2026-09-03T10:10:30Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2887-housekeeping-2026-09-03-re-stamp-the-enf.md
+- **Output:** /opt/termlink/.tasks/active/T-2888-fw-audit-may-never-complete-in-full-a-bo.md
 - **Context:** Initial task creation
 
-### 2026-09-03T09:57:43Z — status-update [task-update-agent]
+### 2026-09-03T10:11:40Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 
 ## Reviewer Verdict (v1.5)
 
-- **Scan ID:** R-6ca5a290
-- **Timestamp:** 2026-09-03T10:02:13Z
+- **Scan ID:** R-bd080408
+- **Timestamp:** 2026-09-03T10:22:37Z
 - **Catalogue:** v1.3-seed
 - **Overall:** PASS
 - **Needs Human:** no
 - **Findings:** none
 
-### 2026-09-03T10:01:54Z — status-update [task-update-agent]
+### 2026-09-03T10:22:35Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed

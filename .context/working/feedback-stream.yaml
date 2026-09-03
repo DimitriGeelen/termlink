@@ -9954,3 +9954,39 @@ scan_id: R-c0dd1a65
 task_id: T-2884
 payload:
   task_file: .tasks/active/T-2884-enrich-s-2026-0903-0755-handover-from-ev.md
+---
+kind: scan_emitted
+timestamp: '2026-09-03T10:02:13Z'
+scan_id: R-6ca5a290
+task_id: T-2887
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-03T10:02:13Z'
+scan_id: R-6ca5a290
+task_id: T-2887
+payload:
+  task_file: .tasks/active/T-2887-housekeeping-2026-09-03-re-stamp-the-enf.md
+---
+kind: scan_emitted
+timestamp: '2026-09-03T10:22:37Z'
+scan_id: R-bd080408
+task_id: T-2888
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-03T10:22:37Z'
+scan_id: R-bd080408
+task_id: T-2888
+payload:
+  task_file: .tasks/active/T-2888-fw-audit-may-never-complete-in-full-a-bo.md
