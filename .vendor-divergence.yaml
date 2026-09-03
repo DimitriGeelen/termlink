@@ -77,6 +77,54 @@ last_vendor_event:
 #   7. Update `last_vendor_event` here.
 
 divergences:
+  - task: T-2882
+    commit: pending-same-commit
+    commit_note: >
+      Registered in the SAME commit that carries the fix, so the hash is not
+      knowable when this line is written. The checker's match key is the task id
+      parsed from the commit subject — `T-2882:` — which IS knowable, so the
+      entry resolves.
+    date: 2026-09-03
+    file: .agentic-framework/agents/handover/handover.sh
+    status: local-only
+    kind: fix
+    generality: GENERIC
+    symptom: >
+      Every narrative section of a generated handover is a fabricated constant,
+      and `.context/handovers/LATEST.md` is the first artefact read at every
+      session start and every post-compaction recovery. `Decisions` /
+      `Things Tried` / `Open Questions` emit a bare `None`; `Gotchas` emits
+      `See gaps register above.`; and Suggested First Action ranks started-work
+      candidates by task id compared as a STRING, printing the first agent-owned
+      one. That is a constant until the task closes: measured on this repo it
+      read `Continue T-1166` for 916 consecutive handovers and then
+      `Continue T-1457` for 68 more, while the session's real focus (T-2871)
+      ranked 17th of 123 candidates and was never named. Enrichment was never a
+      step — only an advisory `echo` after generation (handover.sh:1450) — and
+      the T-136 auto-handover (checkpoint.sh:123-161) runs the script
+      non-interactively and commits, so no agent is ever in the loop to fill it.
+      The harm is not that the line is wrong but that a fabricated constant is
+      indistinguishable from a reasoned answer, in the one line the Session Start
+      Protocol tells every session to act on. Directive #2.
+    fix: >
+      Three changes. (1) Both frontmatter blocks stamp `enrichment_status:
+      pending` — reusing the convention the framework already applies to
+      episodic summaries and already reads back at handover.sh:495, not a new
+      mechanism. (2) The fabricated narrative literals become explicit `[TODO:
+      ...]` markers, so an unfilled section reads as unfilled. (3) Suggested
+      First Action ranks by `.context/working/focus.yaml` `current_task`, then
+      `last_update` descending, never id order, and labels itself a mechanical
+      fallback while the handover is unenriched.
+    evidence: >
+      `bash tests/handover-suggested-action-fixtures.sh` — 9 assertions, all
+      green. Case 9 is the load-bearing one: it extracts the generator block from
+      the PRE-FIX script via `git show` and requires cases 1 and 2 to FAIL
+      against it. They do — the pre-fix block returns `Continue T-1001` (the
+      lexicographically-first fixture task) in both the focus-present and
+      focus-absent scenarios, reproducing the defect exactly. A suite green
+      against both implementations would prove nothing (T-2814).
+    upstream_ref: "PENDING — to be filed at framework:pickup under T-2882"
+
   - task: T-2866
     commit: pending-same-commit
     commit_note: >

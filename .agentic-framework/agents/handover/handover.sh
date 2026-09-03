@@ -293,6 +293,8 @@ if [ "$CHECKPOINT_MODE" = true ]; then
 session_id: $SESSION_ID
 timestamp: $TIMESTAMP
 type: checkpoint
+# T-2882: see the main block below — generation never enriches, so it says so.
+enrichment_status: pending
 tasks_active: [$ACTIVE_TASKS]
 tasks_parked: [$PARKED_TASKS]
 tasks_awaiting_review: [$AWAITING_REVIEW_TASKS]
@@ -706,6 +708,10 @@ cat > "$HANDOVER_FILE" << EOF
 session_id: $SESSION_ID
 timestamp: $TIMESTAMP
 predecessor: $PREDECESSOR
+# T-2882: the generator cannot know the session narrative, so it never claims to.
+# Whoever enriches the [TODO] sections flips this to 'enriched'. Same convention the
+# framework already applies to episodic summaries and reads back at handover.sh:495.
+enrichment_status: pending
 tasks_active: [$ACTIVE_TASKS]
 tasks_parked: [$PARKED_TASKS]
 tasks_awaiting_review: [$AWAITING_REVIEW_TASKS]
@@ -1278,15 +1284,15 @@ fi
 cat >> "$HANDOVER_FILE" << EOF
 ## Decisions Made This Session
 
-None
+[TODO: decisions taken this session, or "None" once a session agent has checked. T-2882: the generator cannot know this — an unfilled section must read as unfilled.]
 
 ## Things Tried That Failed
 
-None
+[TODO: approaches tried that did not work, and why. Unfilled by the generator — see above.]
 
 ## Open Questions / Blockers
 
-None
+[TODO: questions left open and anything blocking the next session. Unfilled by the generator — see above.]
 
 ## Token Usage
 
@@ -1302,7 +1308,7 @@ fi)
 
 ## Gotchas / Warnings for Next Session
 
-See gaps register above.
+[TODO: traps the next session should know about. The gaps register above is a starting point, not an answer — T-2882.]
 
 ## Suggested First Action
 
@@ -1311,11 +1317,28 @@ ${MERGEBACK_NUDGE}
 $(python3 -c "
 import glob, re, os
 tasks_dir = '$TASKS_DIR/active'
-# Find first started-work task in horizon:now/next, prefer agent-owned.
+focus_file = '$PROJECT_ROOT/.context/working/focus.yaml'
+# Rank started-work horizon:now/next tasks, preferring agent-owned.
+#
+# T-2882: rank by CURRENT FOCUS, then by last_update descending. The previous
+# implementation sorted on the task id compared as a STRING and printed the
+# first agent-owned candidate, which is a constant until that task closes: it
+# emitted 'Continue T-1166' for 916 handovers and then 'Continue T-1457' for 68
+# more, while the session's real focus never appeared. A constant presented as a
+# recommendation is worse than no recommendation, because it reads like one.
+#
 # T-1724: skip inception tasks with a recorded DEFER decision — those are
 # parked under 'Watching for Recurrence', not actionable. Without this
 # guard, the same DEFERed inception (e.g. T-1611) gets recommended every
 # session even though it explicitly chose to wait.
+focus_id = ''
+try:
+    with open(focus_file) as fh:
+        m = re.search(r'^current_task:\s*(.+)', fh.read(), re.M)
+        if m:
+            focus_id = m.group(1).strip().strip('\"').strip(\"'\")
+except Exception:
+    pass
 candidates = []
 for f in sorted(glob.glob(os.path.join(tasks_dir, '*.md'))):
     with open(f) as fh:
@@ -1325,21 +1348,38 @@ for f in sorted(glob.glob(os.path.join(tasks_dir, '*.md'))):
     h = re.search(r'^horizon:\s*(.+)', content, re.M)
     if not h or h.group(1).strip() not in ('now', 'next'):
         continue
-    # T-1724: an inception with a recorded DEFER is parked, not active work.
-    # Look for a literal '**Decision**: DEFER' line (the inception-decide
-    # canonical marker).
     if re.search(r'^\*\*Decision\*\*:\s*DEFER', content, re.M):
         continue
     tid = re.search(r'^id:\s*(.+)', content, re.M)
     tname = re.search(r'^name:\s*(.+)', content, re.M)
     owner = re.search(r'^owner:\s*(.+)', content, re.M)
-    is_human = owner and owner.group(1).strip() == 'human'
+    lu = re.search(r'^last_update:\s*(.+)', content, re.M)
+    is_human = bool(owner and owner.group(1).strip() == 'human')
     hval = 0 if h.group(1).strip() == 'now' else 1
-    candidates.append((is_human, hval, tid.group(1).strip() if tid else '', tname.group(1).strip() if tname else ''))
-candidates.sort()
-if candidates:
-    _, _, tid, tname = candidates[0]
-    print(f'Continue {tid}: {tname}')
+    candidates.append({
+        'is_human': is_human,
+        'hval': hval,
+        'id': tid.group(1).strip() if tid else '',
+        'name': tname.group(1).strip() if tname else '',
+        'last_update': lu.group(1).strip() if lu else '',
+    })
+# Stable two-pass sort: recency first, then the ownership/horizon grouping, so
+# within each group the most recently touched task wins. Never id order.
+candidates.sort(key=lambda c: c['last_update'], reverse=True)
+candidates.sort(key=lambda c: (c['is_human'], c['hval']))
+chosen, why = None, ''
+for c in candidates:
+    if focus_id and c['id'] == focus_id:
+        chosen, why = c, 'current focus'
+        break
+if chosen is None and candidates:
+    chosen, why = candidates[0], 'most recently updated'
+if chosen:
+    print(f\"Continue {chosen['id']}: {chosen['name']}\")
+    print('')
+    print(f'_Mechanical fallback, ranked by {why} — not a reasoned recommendation.'
+          ' This handover is \`enrichment_status: pending\`; the sections above are'
+          ' unfilled. Confirm against the task before acting on it._')
 else:
     print('See active tasks')
 " 2>/dev/null || echo "See active tasks")
