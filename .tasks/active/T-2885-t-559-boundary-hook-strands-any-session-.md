@@ -1,24 +1,10 @@
 ---
-id: T-2881
-name: "T-2874's mcpServers cleanup reached main only — four worktrees still pin the
-  0.9.13 vendored binary"
+id: T-2885
+name: "T-559 boundary hook strands any session that cd's into a same-repo worktree"
 description: >
-  T-2874 removed the mcpServers block from .claude/settings.local.json in the main
-  checkout, on the grounds that it names .termlink/bin/termlink while .termlink/bin
-  is gitignored - a git-tracked config whose target is not reproducible, so any reader
-  who trusts it is misled about which binary serves the tool. Measured 2026-09-02:
-  all four registered git worktrees (charter-review-2026-0814, governance-canary-signal,
-  T-2209-history-skills, T-2398-findings) still carry that block, and in every one
-  the named target does not exist at all, because a gitignored path is never materialised
-  into a worktree. Severity is bounded deliberately: T-2874's own evidence showed
-  the block did NOT launch the live server on main (/proc/pid/exe resolved to the
-  PATH binary), so these copies are most likely inert too - this is a trust and reproducibility
-  hazard of the same kind T-2874 judged worth fixing, not a proven outage. Whether
-  a worktree session actually fails to start the termlink MCP server is UNVERIFIED
-  and is the first thing to measure. Same hardened-in-one-place-siblings-never-migrated
-  shape as T-2667 / T-2673 / T-2687 / T-2873.
+  The project-boundary hook derives PROJECT_ROOT from the hook's own location, so a git worktree (which materialises its own .framework.yaml and .agentic-framework/) is judged a foreign project. A session whose cwd moves into a worktree can no longer cd, read, or commit in its own main checkout, and the hook's suggested remedies restore nothing. Filed upstream at framework:pickup offset 84.
 
-status: started-work
+status: captured
 workflow_type: build
 owner: agent
 horizon: now
@@ -35,9 +21,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-02T06:42:56Z
-last_update: 2026-09-02T06:44:33Z
-date_finished:
+created: 2026-09-03T07:12:17Z
+last_update: 2026-09-03T07:12:17Z
+date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -48,76 +34,20 @@ date_finished:
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
-bvp_scores_proposed:
-  - ts: '2026-09-02T06:44:10Z'
-    estimator: bvp-estimator-v1-heuristic
-    scores:
-      D1: 4
-      D2: 0
-      D3: 3
-      D4: 2
-      F-RECALL: 0
-      F-ORCH: 0
-    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
-      (body:component-discoverability); D4=2 (body:env-class-handled); 
-      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
-    rubric_sha: e4a00f38e801
 ---
 
-# T-2881: T-2874's mcpServers cleanup reached main only — four worktrees still pin the 0.9.13 vendored binary
+# T-2885: T-559 boundary hook strands any session that cd's into a same-repo worktree
 
 ## Context
 
-Measured 2026-09-03. **The block is INERT, not breaking** — the framing follows the
-measurement, per AC1.
-
-**AC1 — inert or breaking?** `claude mcp list` run from inside
-`.claude/worktrees/T-2398-findings` resolves termlink to `termlink mcp serve` — the
-PATH form declared in `.mcp.json` — and reports `√ Connected`. `.mcp.json` wins over
-`settings.local.json`; the pinned `.termlink/bin/termlink` is never launched. This
-confirms T-2874's prior ("inert and misleading") and extends it to the worktrees.
-
-It is inert for **two independent reasons**, either of which alone would suffice:
-1. `.mcp.json` takes precedence (measured above).
-2. `.termlink/bin/` is gitignored (`.gitignore:68`), so a worktree — which materialises
-   tracked files only — **has no such binary at all**. Verified absent in all four.
-   Main's copy exists and is 0.9.13; every live `mcp serve` process runs
-   `/root/.cargo/bin/termlink`.
-
-So this is a **trust-hazard cleanup**: a block that reads as an authoritative pin,
-points at a path that does not exist, and has no effect on what runs.
-
-**AC2 — all four enumerated.** Identical block in every one; none is a variant:
-
-| worktree | pin | binary present? |
-|---|---|---|
-| `T-2209-history-skills` | `.termlink/bin/termlink mcp serve` | absent |
-| `T-2398-findings` | `.termlink/bin/termlink mcp serve` | absent |
-| `charter-review-2026-0814` | `.termlink/bin/termlink mcp serve` | absent |
-| `governance-canary-signal` | `.termlink/bin/termlink mcp serve` | absent |
-
-**Incidental finding (not this task's scope):** the `fw` MCP server fails to connect
-inside a worktree (`CONNECTION_CLOSED`), while termlink/context7/playwright all
-connect. Consistent with the T-2817 DANGLING class — a worktree materialises tracked
-files only, and much of `.agentic-framework/` was historically untracked. Worth its
-own task rather than widening this one.
-
-**Trap encountered while measuring (filed upstream as T-2885, `framework:pickup`
-offset 84):** `cd`-ing into a worktree strands the session. The T-559 boundary hook
-derives `PROJECT_ROOT` from its own location, and a worktree carries its own
-`.framework.yaml` + `.agentic-framework/`, so the hook judges the *main checkout* a
-foreign project and blocks the way back. Measure worktrees from main using relative
-paths (`git -C`, `.claude/worktrees/<w>/...`) — those stay in bounds. Do not `cd` in.
+<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] **Measure first whether the block is inert or breaking, and do not assume.** T-2874's evidence says the identical block did NOT launch the live server on main (`/proc/<pid>/exe` was the PATH binary), so the honest prior is "inert and misleading". Start a session rooted in one worktree and record whether `mcp__termlink__*` tools are present. The answer decides whether this is a trust-hazard cleanup or a live-outage fix, and the task's framing must follow the measurement rather than lead it.
-- [x] **All four worktrees are enumerated with their pin and target state recorded**, not just the one that surfaced the finding — the defect class here is "sibling never migrated", so a fix that reaches three of four reproduces the very thing it repairs.
-- [ ] **The block is removed the same way T-2874 removed it**, leaving `.mcp.json` as the single declaration, with each worktree's `settings.local.json` still parsing as JSON and its `permissions` block byte-identical (diff the parsed structures before and after, as T-2874 did).
-- [x] **The cross-branch cost is stated explicitly before any edit.** Each worktree is a distinct branch, so this either lands as four commits on four branches or is deliberately deferred to whoever next works each branch. Record which was chosen and why; T-2800 exists because cross-branch work done casually is how duplicate and colliding work happens.
-- [x] **`.termlink/bin/termlink` is left on disk untouched.** Deleting the 0.9.13 vendored binary is a separate decision and T-2874 explicitly declined it; this task does not silently widen that scope.
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -284,34 +214,6 @@ paths (`git -C`, `.claude/worktrees/<w>/...`) — those stay in bounds. Do not `
 
 ## Decisions
 
-### 2026-09-03 — AC4: defer the edit to whoever next works each branch
-
-- **Chose:** **DEFER all four**, decision recorded here. No edit, no cross-branch commit.
-- **Why:**
-  1. **It is inert** (AC1, measured two ways). There is no functional harm to race.
-  2. **It self-heals on merge.** Main deleted the `mcpServers` key in T-2874. No branch
-     touches that region, so each merge takes main's deletion cleanly. Doing nothing
-     converges; the hazard has a natural end date.
-  3. **`T-2398-findings` carries uncommitted third-party work in the very file** the fix
-     would touch (a `mcp__termlink__termlink_agent_inbox` permissions addition). Staging
-     that file there stages someone else's change too, committing it under this task's
-     ID. That is not a cost worth paying to remove an inert key.
-  4. **All-four or none.** The defect class here is "sibling never migrated". Fixing the
-     three easy branches and skipping the entangled one would *reproduce the exact
-     failure this task exists to repair* — with a green task as cover. Given (3) makes
-     one branch genuinely unsafe to touch, the coherent choice is none.
-  5. T-2800 exists because cross-branch work done casually is how duplicate and
-     colliding work happens. Four commits on four branches to delete a dead key does
-     not clear that bar.
-- **Rejected:** *Edit all four now* — costs four cross-branch commits plus entangling
-  another session's uncommitted work, to fix something measured to have no effect and
-  that disappears on merge. *Edit the three clean ones* — rejected outright; it is the
-  sibling-divergence failure wearing this task's name.
-- **Consequence, stated plainly:** **AC3 is deliberately NOT satisfied** and is left
-  unticked. This task's deliverable is the measurement and this decision, not the edit.
-  Whoever next works one of these branches should drop the `mcpServers` key while they
-  are in there — it is a two-line change and the branch is already theirs to commit on.
-
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
      Format:
@@ -333,11 +235,7 @@ paths (`git -C`, `.claude/worktrees/<w>/...`) — those stay in bounds. Do not `
 
 ## Updates
 
-### 2026-09-02T06:42:56Z — task-created [task-create-agent]
+### 2026-09-03T07:12:17Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2881-t-2874s-mcpservers-cleanup-reached-main-.md
+- **Output:** /opt/termlink/.tasks/active/T-2885-t-559-boundary-hook-strands-any-session-.md
 - **Context:** Initial task creation
-
-### 2026-09-02T06:44:10Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
-- **Change:** horizon: next → now (auto-sync)
