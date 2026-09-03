@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2883: Handover staleness guard — nothing compares one handover to the next
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-03T06:30:36Z
+# ============================================================================
+
+task_id: T-2883
+task_name: "Handover staleness guard — nothing compares one handover to the next"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-03T05:38:33Z
+completed: 2026-09-03T06:30:25Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-03T07:42:21+02:00
+last_commit: 2026-09-03T07:42:21+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  nothing compared one handover to the next — a constant could repeat 916 times unseen
+
+# Key outcomes
+outcomes:
+  - '**Axis A — a constant Suggested First Action FIRES.** The check reads the last N'
+  - '**Axis B — a regression of the fabricated literals FIRES.** LATEST.md carrying a'
+  - '**Axis C — `enrichment_status: pending` is COUNTED AND REPORTED, never fired on.**'
+  - '**Exit codes and fail-closed contract.** 0 = nothing firing, 1 = axis A or B'
+  - '**Scope is stated on every output path (T-2680).** The check detects a *constant*'
+  - '**Conventions match the existing guard layer.** `--json`, `--quiet`,'
+  - '**A fixture suite pins all three axes and both false-positive guards**, weighted'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/checks/handover-staleness-allowlist'
+  - '.fabric/components/scripts-check-handover-staleness.yaml'
+  - '.fabric/components/tests-handover-staleness-check-fixtures.yaml'
+  - '.fabric/components/tests-handover-suggested-action-fixtures.yaml'
+  - 'scripts/check-handover-staleness.sh'
+  - '.tasks/active/T-2883-handover-staleness-guard--nothing-compar.md'
+  - 'tests/handover-staleness-check-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-03T07:42:21'
+    action: 'T-2883: nothing compared one handover to the next — a constant could repeat 916 times unseen'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 51 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 51
+  commits: 1
+  files_changed: 7
+  lines_added: 838
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2883-handover-staleness-guard--nothing-compar.md
+generated_by: context-agent-hybrid

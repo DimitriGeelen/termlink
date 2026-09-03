@@ -1,5 +1,5 @@
-# Audit Results - 2026-09-02-0850
-timestamp: 2026-09-02T06:50:27Z
+# Audit Results - 2026-09-03-0755
+timestamp: 2026-09-03T05:55:32Z
 sections: "structure"
 summary:
   pass: 37
@@ -17,7 +17,7 @@ findings:
   - level: PASS
     check: "Task template exists"
   - level: PASS
-    check: "No duplicate task IDs — examined 14290 task file(s) across 6 corpus view(s) (21 ID(s) byte-identical in every view, 2531 same-task at differing revisions)"
+    check: "No duplicate task IDs — examined 14292 task file(s) across 6 corpus view(s) (21 ID(s) byte-identical in every view, 2531 same-task at differing revisions)"
   - level: PASS
     check: "All project YAML files parse correctly — examined 15 project YAML file(s)"
   - level: PASS
@@ -46,9 +46,9 @@ findings:
     check: "Found 77 GO-scope-not-propagated inception(s) of 158 GO-recorded completed inception(s) examined — GO recorded, related_tasks empty, nobody back-references, no unlocks_inception_decision"
     mitigation: "Triage: per inception either backfill related_tasks: / unlocks_inception_decision:, or file the slices its GO approved. Full list: cat /opt/termlink/.context/audits/go-scope-unpropagated/LATEST.md (origin: T-2078, T-2091, T-3099; sibling to L-417/T-1975)"
   - level: PASS
-    check: "Fabric: 448 registered card(s)"
+    check: "Fabric: 451 registered card(s)"
   - level: WARN
-    check: "Fabric: 313/478 cards have no edges"
+    check: "Fabric: 316/481 cards have no edges"
     mitigation: "Run: fw fabric enrich"
   - level: WARN
     check: "Fabric drift: 1 source file(s) have no fabric card"

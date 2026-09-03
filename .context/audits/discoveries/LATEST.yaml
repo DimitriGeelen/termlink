@@ -1,15 +1,16 @@
-timestamp: 2026-09-02T06:00:02Z
+timestamp: 2026-09-03T06:00:02Z
 findings:
   - id: D1
     level: PASS
-    check: "D1: Episodic quality — 0% [TODO] (10/2391)"
+    check: "D1: Episodic quality — 0% [TODO] (10/2392)"
   - id: D2
     level: FAIL
-    check: "D2: Human review queue — 57 task(s) waiting >30d: T-1417(124d) T-1419(124d) T-1435(123d) T-1442(123d) T-1482(120d) T-1483(120d) T-1484(120d) T-1485(120d) T-1486(120d) T-1487(120d) T-1488(120d) T-1489(120d) T-1490(120d) T-1491(120d) T-1492(120d) T-1493(120d) T-1494(120d) T-1495(120d) T-1496(120d) T-1498(120d) T-1499(120d) T-1500(120d) T-1501(120d) T-1502(120d) T-1506(119d) T-1529(119d) T-1530(119d) T-1531(119d) T-1532(119d) T-1533(119d) T-1534(119d) T-1535(119d) T-1536(119d) T-1537(119d) T-1557(119d) T-1558(119d) T-1559(119d) T-1570(119d) T-1635(109d) T-1673(107d) T-1691(106d) T-1695(80d) T-1696(106d) T-1722(98d) T-1723(98d) T-1795(102d) T-2013(80d) T-2014(80d) T-2209(80d) T-2210(80d) T-2211(80d) T-2212(80d) T-2213(80d) T-2297(61d) T-2385(54d) T-2402(52d) T-2408(52d) T-2723(17d)"
+    check: "D2: Human review queue — 57 task(s) waiting >30d: T-1417(125d) T-1419(125d) T-1435(124d) T-1442(124d) T-1482(121d) T-1483(121d) T-1484(121d) T-1485(121d) T-1486(121d) T-1487(121d) T-1488(121d) T-1489(121d) T-1490(121d) T-1491(121d) T-1492(121d) T-1493(121d) T-1494(121d) T-1495(121d) T-1496(121d) T-1498(121d) T-1499(121d) T-1500(121d) T-1501(121d) T-1502(121d) T-1506(120d) T-1529(120d) T-1530(120d) T-1531(120d) T-1532(120d) T-1533(120d) T-1534(120d) T-1535(120d) T-1536(120d) T-1537(120d) T-1557(120d) T-1558(120d) T-1559(120d) T-1570(120d) T-1635(110d) T-1673(108d) T-1691(107d) T-1695(81d) T-1696(107d) T-1722(99d) T-1723(99d) T-1795(103d) T-2013(81d) T-2014(81d) T-2209(81d) T-2210(81d) T-2211(81d) T-2212(81d) T-2213(81d) T-2297(62d) T-2385(55d) T-2402(53d) T-2408(53d) T-2723(18d)"
     mitigation: "Review with: fw task verify (lists unchecked Human ACs)"
   - id: D8
-    level: PASS
-    check: "D8: Handover quality — no [TODO] in LATEST.md"
+    level: FAIL
+    check: "D8: Handover quality — LATEST.md has 5 [TODO] sections"
+    mitigation: "Fill handover: edit .context/handovers/LATEST.md or run fw handover"
   - id: D10
     level: PASS
     check: "D10: Decision-without-dialogue — none detected"
@@ -21,7 +22,7 @@ findings:
     check: "D4: Audit trend — insufficient history (<3 entries)"
   - id: D5
     level: WARN
-    check: "D5: Task lifecycle — 31 anomaly(s): T-2486(31d-active) T-2725(17d-active) T-2828(10d-active) T-1137(135d-active) T-1296(128d-active) T-1428(124d-active) T-1429(124d-active) T-1451(122d-active) T-1457(121d-active) T-1665(107d-active) (+21 more)"
+    check: "D5: Task lifecycle — 31 anomaly(s): T-2486(32d-active) T-2725(18d-active) T-2828(11d-active) T-1137(136d-active) T-1296(129d-active) T-1428(125d-active) T-1429(125d-active) T-1451(123d-active) T-1457(122d-active) T-1665(108d-active) (+21 more)"
     mitigation: "Review flagged tasks for process issues"
   - id: D13
     level: WARN
@@ -29,13 +30,13 @@ findings:
     mitigation: "Recover both classes with: bin/fw inception sweep (T-1514)"
   - id: D3
     level: PASS
-    check: "D3: Commit velocity — normal (PASS today=3 avg=27 ratio=0.1x)"
+    check: "D3: Commit velocity — normal (PASS today=5 avg=22 ratio=0.2x)"
   - id: D7
     level: PASS
-    check: "D7: Commit bunching — none (PASS 28_commits_24h_no_bunching)"
+    check: "D7: Commit bunching — detected (INFO 1_bunch(es) 17_commits_24h)"
   - id: D6
     level: PASS
-    check: "D6: Completion velocity — normal (PASS recent=1.7 earlier=4.7)"
+    check: "D6: Completion velocity — normal (PASS recent=1.7 earlier=4.4)"
   - id: D12
     level: PASS
     check: "D12: Bypass log — no log file"
@@ -51,7 +52,7 @@ findings:
     check: "D15: Inception limbo state — none (PASS no_limbo)"
 
 summary:
-  pass: 11
+  pass: 10
   warn: 3
-  fail: 1
+  fail: 2
   total: 15

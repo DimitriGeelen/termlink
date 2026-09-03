@@ -1,0 +1,89 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2882: Handover generator fabricates narrative sections and a lexicographic-constant Suggested First Action
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-03T06:29:22Z
+# ============================================================================
+
+task_id: T-2882
+task_name: "Handover generator fabricates narrative sections and a lexicographic-constant Suggested First Action"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-03T05:31:38Z
+completed: 2026-09-03T06:29:13Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-09-03T07:38:03+02:00
+last_commit: 2026-09-03T07:56:17+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  handover Suggested First Action was a lexicographic constant, not a recommendation. filed upstream at framework:pickup offset 83; register moved to filed-upstream. the mutant case disarmed itself when the fix landed — pin the pre-fix ref
+
+# Key outcomes
+outcomes:
+  - '**The generator stops emitting fabricated narrative.** The five narrative sections'
+  - '**Handovers carry `enrichment_status`.** Both generation paths — the main block'
+  - '**Suggested First Action is derived from real signal, not string order.** Ranking'
+  - '**It is labelled as mechanical while unenriched.** While `enrichment_status:'
+  - '**A fixture suite pins all three behaviours and fails against the pre-fix script.**'
+  - '**The local divergence is registered so a re-vendor cannot silently delete it.**'
+  - '**It is filed upstream**, since `handover.sh` is vendored (G-062) and a local fix'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'the mutant case disarmed itself when the fix landed — pin the pre-fix ref'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/agents/handover/handover.sh'
+  - '.tasks/active/T-2882-handover-generator-fabricates-narrative-.md'
+  - '.tasks/active/T-2883-handover-staleness-guard--nothing-compar.md'
+  - 'tests/handover-suggested-action-fixtures.sh'
+  - '.vendor-divergence.yaml'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-03T07:38:03'
+    action: 'T-2882: handover Suggested First Action was a lexicographic constant, not a recommendation'
+  - time: '2026-09-03T07:53:51'
+    action: 'T-2882: filed upstream at framework:pickup offset 83; register moved to filed-upstream'
+  - time: '2026-09-03T07:56:17'
+    action: 'T-2882: the mutant case disarmed itself when the fix landed — pin the pre-fix ref'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 57 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 57
+  commits: 3
+  files_changed: 5
+  lines_added: 651
+  lines_removed: 24
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2882-handover-generator-fabricates-narrative-.md
+generated_by: context-agent-hybrid

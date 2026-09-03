@@ -1,15 +1,17 @@
 ---
-id: T-2882
-name: "Handover generator fabricates narrative sections and a lexicographic-constant Suggested First Action"
+id: T-2883
+name: "Handover staleness guard — nothing compares one handover to the next"
 description: >
-  Handover generator fabricates narrative sections and a lexicographic-constant Suggested First Action
+  Detect a Suggested First Action that has gone constant across consecutive handovers,
+  and a regression of the T-2882 fabricated-narrative literals. Closes the G-019 blindness
+  behind T-2882.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [scripts/check-handover-staleness.sh, tests/handover-staleness-check-fixtures.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -21,9 +23,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-03T05:31:38Z
-last_update: 2026-09-03T05:53:52Z
-date_finished: null
+created: 2026-09-03T05:38:33Z
+last_update: 2026-09-03T06:30:25Z
+date_finished: 2026-09-03T06:30:25Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,68 +36,65 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-09-03T05:39:48Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 1
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=1 (body:episodic-only); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
-# T-2882: Handover generator fabricates narrative sections and a lexicographic-constant Suggested First Action
+# T-2883: Handover staleness guard — nothing compares one handover to the next
 
 ## Context
 
-`.context/handovers/LATEST.md` is the first artefact read at every session start
-(CLAUDE.md §Session Start Protocol steps 2-3) and at every post-compaction recovery
-(SessionStart hook). Measured 2026-09-02: every narrative section in it is a
-generator-supplied constant — `Decisions`/`Things Tried`/`Open Questions` say `None`,
-`Gotchas` says `See gaps register above.`, and **Suggested First Action is
-`Continue T-1457`, byte-identical across the last 68 handovers** (the 916 before that
-said `Continue T-1166`). The generator at `handover.sh:1307-1345` sorts started-work
-candidates by task id **compared as a string** and prints the first agent-owned one;
-the session's actual focus (T-2871) ranks 17th of 123 and is never named. Enrichment
-is only an advisory `echo` at `handover.sh:1450`, and the T-136 auto-handover
-(`checkpoint.sh:123-161`) runs the script non-interactively and commits, so no agent
-is ever in the loop to fill it. The defect is not that the line is wrong but that a
-fabricated constant is indistinguishable from a reasoned answer — Directive #2, in
-the one line every session is told to act on.
+<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] **The generator stops emitting fabricated narrative.** The five narrative sections
-  (`Where We Are` beyond its commit list, `Decisions Made This Session`, `Things Tried
-  That Failed`, `Open Questions / Blockers`, `Gotchas / Warnings`) emit an explicit
-  `[TODO: ...]` marker instead of `None` / `See gaps register above.`. An unfilled
-  section must look unfilled — a reader skimming LATEST.md cannot mistake it for a
-  finding.
-- [ ] **Handovers carry `enrichment_status`.** Both generation paths — the main block
-  (`handover.sh` ~line 704) and the `--checkpoint` block (~line 291) — write
-  `enrichment_status: pending` into the frontmatter. This reuses the convention the
-  framework already applies to episodic summaries and already reads at
-  `handover.sh:495`; it is not a new mechanism.
-- [ ] **Suggested First Action is derived from real signal, not string order.** Ranking
-  keys on `.context/working/focus.yaml` `current_task` first, then `last_update`
-  descending — never lexicographic task id. Run against the live tree, the generator
-  must name **whatever `focus.yaml` currently holds**, never `T-1457`.
-  (This AC originally pinned the literal `T-2871`, which was the focus when it was
-  written; focus has since moved to the tasks doing this work, so the literal would now
-  fail for the right behaviour. The invariant — focus wins — is what is asserted, and
-  the fixture suite pins it independently of whatever focus happens to be.)
-- [ ] **It is labelled as mechanical while unenriched.** While `enrichment_status:
-  pending`, the line states it is a mechanical fallback rather than a reasoned
-  recommendation, so a session that acts on it knows what it is acting on.
-- [ ] **A fixture suite pins all three behaviours and fails against the pre-fix script.**
-  Cases: focus present wins; focus absent falls back to most-recently-updated; the
-  lexicographic-first task is NOT chosen when it is neither focused nor recent. The
-  suite must be red against the current `handover.sh` — a fixture that passes both
-  before and after proves nothing (T-2814 lesson).
-- [ ] **The local divergence is registered so a re-vendor cannot silently delete it.**
-  `.vendor-divergence.yaml` gains a `divergences:` entry for this change with
-  `status: local-only` and a cited reason, and the file still parses.
-- [ ] **It is filed upstream**, since `handover.sh` is vendored (G-062) and a local fix
-  has a ~2-month half-life (T-2812). Post the defect + the three-part fix to the
-  `framework:pickup` topic and record the offset in this task.
-  → Filed 2026-09-03 at **`framework:pickup` offset 83**, carrying the root cause, the
-  three-part fix, and the fixture evidence including the pre-fix mutant case.
-  `.vendor-divergence.yaml` moved `local-only` → `filed-upstream`. Not yet confirmed
-  carried, so the entry stays at risk on a re-vendor until upstream acknowledges.
+- [x] **Axis A — a constant Suggested First Action FIRES.** The check reads the last N
+  handovers (default 10, `--window N`) and fires when the Suggested First Action line
+  is byte-identical across all of them. This is the axis that actually found T-2882,
+  and it is **self-clearing**: the moment the value moves, the check goes green. It
+  must fire against the real corpus as it stood at `35affce76` (68 identical
+  handovers) and be green against the corpus once the T-2882 fix lands.
+- [x] **Axis B — a regression of the fabricated literals FIRES.** LATEST.md carrying a
+  bare `None` or `See gaps register above.` as a narrative section body re-fires the
+  T-2882 defect. This is a regression guard, not a permanent alarm — it is green on
+  the fixed tree.
+- [x] **Axis C — `enrichment_status: pending` is COUNTED AND REPORTED, never fired on.**
+  Today every handover is auto-generated and therefore unenriched, so firing on it
+  would make the check permanently red — the exact fatigue failure T-2833 documented
+  when its first draft produced 58 legitimate findings. The count is printed on both
+  output paths so a green is never ambiguous between "enrichment happened" and "the
+  filter ate it". Promoting C to a firing axis is a deliberate later decision, once
+  enrichment is actually wired.
+- [x] **Exit codes and fail-closed contract.** 0 = nothing firing, 1 = axis A or B
+  firing, 2 = tooling. A missing handovers directory, an unreadable allowlist, absent
+  `python3`, or a corpus of zero handovers all exit **2, never a vacuous 0** — a
+  checker reporting clean because it could not look is the disease, not the cure.
+- [x] **Scope is stated on every output path (T-2680).** The check detects a *constant*
+  Suggested First Action and a *known* set of fabricated literals. It does not verify
+  that a handover is accurate, useful, or genuinely enriched. Both the clean and
+  firing paths say so, so a green cannot be misread as "handovers are good".
+- [x] **Conventions match the existing guard layer.** `--json`, `--quiet`,
+  `--handovers-dir`, `--allowlist`; a git-tracked allowlist at
+  `.context/checks/handover-staleness-allowlist` (T-2681); and the
+  `# guard-layer: source` marker so `scripts/run-guard-layer.sh` picks it up and CI
+  runs it.
+- [x] **A fixture suite pins all three axes and both false-positive guards**, weighted
+  toward the firing cases, and includes a case built from the REAL pre-fix corpus
+  rather than only synthetic mutants.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -191,40 +190,19 @@ the one line every session is told to act on.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
-# Both generation paths stamp the enrichment marker (main block + --checkpoint block).
-test "$(grep -c 'enrichment_status: pending' .agentic-framework/agents/handover/handover.sh)" -ge 2
-# Ranking + placeholder behaviour pinned; suite must be red against the pre-fix script.
-bash tests/handover-suggested-action-fixtures.sh > /tmp/.t2882-fix.out 2>&1 && grep -q "ALL PASS" /tmp/.t2882-fix.out
-# The local divergence is registered and the register still parses.
-python3 -c "import yaml,sys; d=yaml.safe_load(open('.vendor-divergence.yaml')); sys.exit(0 if any('T-2882' in str(e) for e in (d.get('divergences') or [])) else 1)"
-# The divergence checker does not report a tooling error (exit 2) on the edited register.
-# Condition-context capture: `cmd; test $?` would abort under the gate's `set -e`
-# whenever cmd is non-zero — which is exactly the case this line exists to distinguish.
-rc=0; bash scripts/check-vendor-divergence.sh > /tmp/.t2882-vd.out 2>&1 || rc=$?; test "$rc" -ne 2
+# 21 assertions covering all three axes, both false-positive guards, the fail-closed
+# contract, and a case built from the REAL pre-fix corpus pulled out of git.
+bash tests/handover-staleness-check-fixtures.sh > /tmp/.t2883-fix.out 2>&1 && grep -q "ALL PASS" /tmp/.t2883-fix.out
+# The check is a member of the guard layer, so CI runs it (not shipped-but-dark).
+bash scripts/run-guard-layer.sh --list > /tmp/.t2883-gl.out 2>&1 && grep -q "check-handover-staleness.sh" /tmp/.t2883-gl.out
+# Fail-closed: a missing corpus is a tooling error, never a vacuous clean.
+# `cmd; test $?` aborts under the gate's `set -e` before reaching the test — capture
+# the code in a condition context instead (|| rc=$? is exempt from set -e).
+rc=0; bash scripts/check-handover-staleness.sh --handovers-dir /nonexistent-xyz > /dev/null 2>&1 || rc=$?; test "$rc" -eq 2
+# The git-tracked allowlist exists at the T-2681 location.
+test -f .context/checks/handover-staleness-allowlist
 
 ## RCA
-
-**Symptom:** `/resume` and post-compaction recovery report no usable state — every
-narrative section of LATEST.md is a constant, and Suggested First Action has read
-`Continue T-1457` for 68 consecutive handovers while the real focus was T-2871.
-
-**Root cause:** `handover.sh:1307-1345` ranks started-work candidates by task id
-compared as a **string**, so the winner is whichever agent-owned `horizon: now` task
-carries the lexicographically smallest id — a constant until that task closes. The
-other narrative sections are hard-coded literals (`None`, `See gaps register above.`)
-emitted unconditionally.
-
-**Why structurally allowed:** enrichment was never a step, only an advisory `echo`
-after generation (`handover.sh:1450`). The T-136 auto-handover
-(`checkpoint.sh:123-161`) invokes the script non-interactively and commits the result,
-so that advice is printed to nobody. And nothing in the framework compares one
-handover to the next, so a value repeating 916 times produced no signal — the
-framework had no way to see a constant as a constant.
-
-**Prevention:** distinct from the fix — a guard that fires when LATEST.md is
-`enrichment_status: pending` and when Suggested First Action is byte-identical across
-N consecutive handovers. Filed as a separate task so it ships and is verified on its
-own merits.
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
@@ -316,7 +294,22 @@ own merits.
 
 ## Updates
 
-### 2026-09-03T05:31:38Z — task-created [task-create-agent]
+### 2026-09-03T05:38:33Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2882-handover-generator-fabricates-narrative-.md
+- **Output:** /opt/termlink/.tasks/active/T-2883-handover-staleness-guard--nothing-compar.md
 - **Context:** Initial task creation
+
+### 2026-09-03T05:39:48Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-5cc57467
+- **Timestamp:** 2026-09-03T06:30:28Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-09-03T06:30:25Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
