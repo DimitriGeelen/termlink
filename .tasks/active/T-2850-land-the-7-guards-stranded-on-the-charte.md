@@ -22,7 +22,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-08-29T09:37:35Z
-last_update: 2026-08-29T16:10:30Z
+last_update: 2026-09-07T21:22:24Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -268,3 +268,43 @@ bash scripts/check-strict-star.sh --no-heartbeat > /tmp/.t2850-ss.out 2>&1
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2850-land-the-7-guards-stranded-on-the-charte.md
 - **Context:** Initial task creation
+
+## Updates (2026-09-07 landing session)
+
+### 2026-09-07T23:35Z — measured ground truth, landed the survivors, recorded the discards [claude-code]
+
+**Measured against merge-base 447b8b638.** Most of the "7 stranded guards" had already landed
+on main byte-identical via commit 6b587e826 and follow-ups (addressed-posts,
+dashboard-deleted-root, error-swallowing-predicate, strict-star, unbounded-rpc-call — all 5
+`identical`, allowlists included). The genuinely stranded remainder was landed in two commits:
+
+- **Landed (first batch):** run-guard-layer.sh T-2779 suite membership (38 previously
+  INVISIBLE `scripts/test-*.sh`/non-fixture `tests/*.sh` suites now marker-gated members or
+  counted unclassified) + its fixtures (40/40); session-selftest.sh T-2780 tmux orphan reap
+  (1 orphan/day from the T-2557 daily canary); test-session-selftest.sh T-2695 PTY-seam tests
+  + `# guard-layer: source` marker; check-task-frontmatter.sh T-2794 (2632/2632 parse);
+  tests/mutate-2783.sh (fail-closed mutation proof).
+- **Landed (merge):** check-cron-install-drift.sh — real divergence, BOTH sides evolved
+  independently: main added T-2821 (--lenient + basename allowlist), branch added T-2787
+  (JOB_DRIFT class via redirect-stripping — "scheduled but different command" vs "not
+  scheduled at all"). Three-way merged carrying both feature sets; branch's fixture suite
+  (superset, 37/37 green) landed with it. Allowlist suppresses plain DRIFT only — never
+  MISSING / UNINSTALLED_JOBS / JOB_DRIFT.
+
+**Discarded, with reasons (the branch copies, not the work):**
+- check-verification-pipefail.sh — branch carried the T-2775 standalone reimplementation;
+  main's T-2818 WRAPPER of the framework detector supersedes it by design ("two copies of a
+  subtle SIGPIPE heuristic drift"). Branch's tests/verification-pipefail-fixtures.sh discarded
+  with it (main has verification-pipefail-check-fixtures.sh).
+- check-task-template-idioms.sh + fixtures — main's copy is the superset (adds the T-2681
+  tracked-first allowlist mechanism the branch copy lacks).
+- check-hook-counter-integrity.sh + fixtures — main's T-2878 header supersedes the branch's
+  "do not schedule" reasoning, documented as a correction in the file itself.
+- .context/checks/unbounded-rpc-call-allowlist — main's copy carries the T-2669 RECORD
+  CORRECTION (the branch copy asserts a code state that never existed on main).
+
+**Firings triaged (AC 3):** with the landed members, the full sweep reports 94 passed /
+0 errored with real firings from check-installed-binary-drift (two termlink versions
+installed — already filed as T-2858, started-work) and check-receiver-ack-lag (peer
+never-acked rows — already recorded on T-2872). Both findings own their tasks; nothing
+was allowlisted to look green.
