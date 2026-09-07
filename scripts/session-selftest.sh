@@ -327,6 +327,20 @@ if [ "$TEST_MODE" -eq 0 ] && [ "$spawn_status" = "PASS" ]; then
     # session per canary run would be a worse defect than the gap being closed.
     if [ -n "$PTY_SESSION" ]; then
         "$TERMLINK" signal "$PTY_SESSION" TERM "${HUB_ARGS[@]}" >/dev/null 2>&1 || true
+        # T-2780: `signal TERM` + `clean` are NOT sufficient, and this is the trap —
+        # both return rc=0 (reporting success) while the backing tmux session keeps
+        # running. `signal` targets the session's registered PROCESS; the tmux session
+        # that process created outlives it, and `clean` reaps termlink's registry, not
+        # tmux. Measured: 7 orphaned `tl-session-selftest-*-pty` sessions after 7 runs,
+        # with 0 showing in `termlink list` — invisible through every termlink surface.
+        # The T-2557 canary runs this prover daily, so that is one orphan per day
+        # forever. T-2695 AC 5 asserted this was handled; it was not.
+        # Scoped to our OWN generated name (nonce-suffixed), never a prefix/glob, so it
+        # can never touch a `tl-*` session belonging to real work. Best-effort: tmux may
+        # legitimately be absent, and a reap failure must never fail a passing prover.
+        if command -v tmux >/dev/null 2>&1; then
+            tmux kill-session -t "tl-${PTY_SESSION}" >/dev/null 2>&1 || true
+        fi
     fi
     "$TERMLINK" clean >/dev/null 2>&1 || true
     cleanup_status="done"
