@@ -90,9 +90,12 @@ re-stated verbally each session.
 - [x] The blocked action is attributed to the specific gate that refused it (T-559 project boundary), not left as an unexplained omission
 
 ### Human
-- [ ] [RUBBER-STAMP] Bring `/root/.local/bin/termlink` up to the version the other two paths carry
+- [ ] [RUBBER-STAMP] Bring both stale install paths up to the version `/root/.cargo/bin` carries
+  *(Command corrected 2026-09-07: measured drift is now `/root/.cargo/bin` = 0.11.1766 newest,
+  `/root/.local/bin` AND `/usr/local/bin` both stale at 0.11.1716 — the earlier Updates entry
+  said the step covered two paths, but the command here still named one. It now matches.)*
   **Steps:**
-  1. `cd /opt/termlink && cp /root/.cargo/bin/termlink /root/.local/bin/termlink && bash scripts/check-installed-binary-drift.sh`
+  1. `cd /opt/termlink && cp /root/.cargo/bin/termlink /root/.local/bin/termlink && cp /root/.cargo/bin/termlink /usr/local/bin/termlink && bash scripts/check-installed-binary-drift.sh`
   **Expected:** the table shows all three paths at the same version, and the last line reads
   `check-installed-binary-drift: clean` instead of `DRIFT(1)`. The `build artifact … PENDING
   DEPLOY` line may remain — that is informational and expected after a rebuild, not drift.
