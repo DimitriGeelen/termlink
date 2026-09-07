@@ -34,14 +34,57 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Scoped 2026-09-07 (ground truth re-measured — the filing still holds):
+
+- **Nothing executes either prover.** `grep -rln` over `.context/cron/`,
+  `.github/workflows/`, `/etc/cron.d/termlink-*`: every hit is a comment or the
+  provers' own files. The stuck-claims crontab MENTIONS substrate-smoke in prose only.
+- **comms-selftest already has a hermetic harness** — `scripts/test-comms-selftest.sh`
+  (T-2482) drives all stages via canned fixtures (`TERMLINK_DIAGNOSE_TEST_PRESENCE_JSON`
+  + `COMMS_SELFTEST_TEST_SEND_RC`), no live hub. But it sits in `scripts/`, and the
+  guard-layer runner (T-2684) picks up fixture suites by the `tests/*fixtures*.sh`
+  naming convention — so it is hermetic AND executed by nothing. The cheapest honest
+  close for the comms half is a thin `tests/comms-selftest-fixtures.sh` wrapper exec'ing
+  it: guard layer runs it on every push/PR via T-2686 CI, no new canary, no peer
+  intrusion (T-2486 explicitly warned against manufacturing a 14th canary; a daily
+  cron that proof-pings a live peer is intrusive and half-overlaps T-2387/T-2295).
+- **substrate-smoke has NO hermetic harness and its live run is the value** — so its
+  half wants the T-2557 session-control canary pattern: a wrapper canary that runs the
+  prover and TRANSLATES the verdict. Critical trap measured today: smoke's `create`
+  stage on an unreachable hub → `stage_fail` → **exit 1**, i.e. the prover reports
+  BROKEN on a quiet/hub-down host. That is precisely the T-2694 F2/G3 objection this
+  task's description records. The wrapper must therefore precheck hub reachability
+  itself (cheap RPC) and exit 2 (non-firing, /preflight territory) when unreachable,
+  BEFORE invoking smoke — smoke's own exit-2 arm covers only usage/missing-dep.
+- Smoke is cron-safe otherwise: self-reaps its `smoke:*` topic on every exit path
+  (T-2754 trap), ~seconds of runtime, bounded retention (messages:100).
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] `tests/comms-selftest-fixtures.sh` exists and exec's `scripts/test-comms-selftest.sh`,
+      so the guard-layer runner (tests/*fixtures*.sh convention) and the T-2686 CI job both
+      execute the comms prover's hermetic harness on every run; `bash scripts/run-guard-layer.sh --list`
+      names it as a member.
+- [ ] `scripts/check-substrate-smoke-freshness.sh` exists, mirroring the T-2557 verdict
+      split: hub unreachable (own precheck) → exit 2 non-firing; smoke exit 0 → 0;
+      smoke exit 1 → 1 FIRING naming the broken stage; smoke exit 2 → 2. `--json`,
+      `--quiet`, heartbeat touch, test seams (canned smoke rc + output per PL-213).
+- [ ] Fixture suite for the canary wrapper (tests/…-fixtures.sh) pins all four verdict
+      translations INCLUDING the hub-down→2 remap (the F2/G3 case — the load-bearing leg).
+- [ ] `.context/cron/substrate-smoke-canary.crontab` written with the `# Installed to:`
+      header and the T-2685 split-stream redirect idiom; `check-cron-install-drift.sh`
+      sees it (fires MISSING until the human installs — that is the intended signal).
+- [ ] CLAUDE.md canary section gains the new canary paragraph (18th), same
+      empty-log-healthy convention.
+
+### Human
+- [ ] [RUBBER-STAMP] Install the smoke-canary crontab:
+  **Steps:**
+  1. `cd /opt/termlink && sudo cp .context/cron/substrate-smoke-canary.crontab /etc/cron.d/termlink-substrate-smoke-canary && bash scripts/check-cron-install-drift.sh`
+  **Expected:** drift check reports OK for the new crontab.
+  **If not:** the declared `# Installed to:` path and the cp destination differ — fix the header, not the check.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
