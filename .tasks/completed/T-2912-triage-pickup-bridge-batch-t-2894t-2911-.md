@@ -4,10 +4,10 @@ name: "Triage pickup-bridge batch T-2894..T-2911: dedupe, commit, dispositions"
 description: >
   Triage pickup-bridge batch T-2894..T-2911: dedupe, commit, dispositions
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -22,8 +22,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-07T17:16:25Z
-last_update: 2026-09-07T17:16:25Z
-date_finished: null
+last_update: 2026-09-07T17:20:49Z
+date_finished: 2026-09-07T17:20:49Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -258,3 +258,27 @@ termlink channel subscribe framework:pickup --cursor 103 --limit 1 > /tmp/.t2912
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2912-triage-pickup-bridge-batch-t-2894t-2911-.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-3b7020cf
+- **Timestamp:** 2026-09-07T17:20:50Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 3
+
+**Per-AC findings:**
+
+- **AC#3 (Agent)** — Mechanism attributed: envelope-level dedup works (`dedup.log` sha-keyed, one entry per envelope), but the pickup→task-creation step is NOT idempotent per envelope — task-created stamps show one new ta
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=lib/pickup.sh in: Mechanism attributed: envelope-level dedup works (`dedup.log` sha-keyed, one entry per envelope), but the pickup→task-creation step is NOT idempotent `
+
+**Verification-level findings:**
+
+  1. **empty-output-success** (partial, heuristic) @ Verification:line 10
+     - evidence: `git ls-files --error-unmatch .tasks/active/T-2894-pickup-termlink-hub-to-hub-channel-feder.md > /dev/null 2>&1`
+  2. **empty-output-success** (partial, heuristic) @ Verification:line 11
+     - evidence: `git ls-files --error-unmatch .context/pickup/processed/P-057-bug-report.yaml > /dev/null 2>&1`
+
+### 2026-09-07T17:20:49Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

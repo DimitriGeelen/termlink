@@ -1,0 +1,108 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2912: Triage pickup-bridge batch T-2894..T-2911: dedupe, commit, dispositions
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-07T17:20:56Z
+# ============================================================================
+
+task_id: T-2912
+task_name: "Triage pickup-bridge batch T-2894..T-2911: dedupe, commit, dispositions"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-07T17:16:25Z
+completed: 2026-09-07T17:20:49Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-09-07T19:20:18+02:00
+last_commit: 2026-09-07T19:20:18+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  triage pickup-bridge batch — 9 duplicate task files removed (4 groups, lowest ID kept), 9 survivors + P-056..P-063 artifacts committed; non-idempotent task-creation defect filed upstream (framework:pickup offset 103)
+
+# Key outcomes
+outcomes:
+  - 'Every T-2894..T-2911 file is read; duplicate groups identified by diffing full bodies modulo id/timestamps (all "differences" were only the Updates-section self-references): {T-2896,T-2897}, {T-2898..T-2902}, {T-2903..T-2906}, {T-2909,T-2910}.'
+  - '9 exact-duplicate files removed, lowest ID kept per group: T-2897→T-2896; T-2899,T-2900,T-2901,T-2902→T-2898; T-2904,T-2905,T-2906→T-2903; T-2910→T-2909. Survivors untouched: T-2894, T-2895, T-2896, T-2898, T-2903, T-2907, T-2908, T-2909, T-2911.'
+  - 'Mechanism attributed: envelope-level dedup works (`dedup.log` sha-keyed, one entry per envelope), but the pickup→task-creation step is NOT idempotent per envelope — task-created stamps show one new task per cron minute-tick (`:0N:01/:0N:02`), stopping exactly when the NEXT envelope advances the marker (e.g. P-057 group T-2898..T-2902 spans 18:49:24→18:52:02 and stops when P-058 processes at 18:52:08). Vendored `lib/pickup.sh` territory → filed upstream on `framework:pickup` **offset 103** (2026-09-07, pickup-bug-report), not patched locally (G-062).'
+  - 'All surviving pickup task files plus `.context/pickup/processed/P-056..P-063`, the ring20 federation envelope, and `.bridge-posted/` markers committed.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/pickup/.bridge-posted/1c0c2103067c8f1627c8dcf5a2f42e18207b4d805e01e5aa037c736a448ca62f'
+  - '.context/pickup/.bridge-posted/24c990f4fa57732fd1a33b1c1ae49cc63fc013ed5a60d25129ea2e8382888b3a'
+  - '.context/pickup/.bridge-posted/299a2bfb76127c12e66218f777fd12b47733c2cb0a9d6685212b44e4d8695a97'
+  - '.context/pickup/.bridge-posted/56ffc037752d9195aabf6ae9f8ef6508c4d5fcf72286ac3eb1f4a52698f0351e'
+  - '.context/pickup/.bridge-posted/651b25d7661f8dd857a30ac866f4fc6bd86b9f4f96a3a9e96b1c5ff0d5790d86'
+  - '.context/pickup/.bridge-posted/d0fddb21cdfbd5b66b7d80b272cb1b1214173b3246f0ee02214e204f763ac282'
+  - '.context/pickup/.bridge-posted/dbe1dd83390f9a368d45791abfec1ae9cb0f15a72a987f7b8b8caa068fa6504e'
+  - '.context/pickup/.bridge-posted/e5e0c24c82ba320d8910b180fca5ca3a53ef8c31860aa84120b34d808f0d1f72'
+  - '.context/pickup/.bridge-posted/eb29b485542e595e7f10164da5f0d7a79e90db9b6613b0ea1b3d5ca02a1a4d88'
+  - '.context/pickup/dedup.log'
+  - '.context/pickup/processed/P-056-bug-report.yaml'
+  - '.context/pickup/processed/P-057-bug-report.yaml'
+  - '.context/pickup/processed/P-058-feature-proposal.yaml'
+  - '.context/pickup/processed/P-059-bug-report.yaml'
+  - '.context/pickup/processed/P-060-learning.yaml'
+  - '.context/pickup/processed/P-061-feature-proposal.yaml'
+  - '.context/pickup/processed/P-062-feature-proposal.yaml'
+  - '.context/pickup/processed/P-063-bug-report.yaml'
+  - '.context/pickup/processed/ring20-chat-arc-federation-broken-bug-report.yaml'
+  - '.context/working/focus.yaml'
+  - '.context/working/.pickup-bridge.log'
+  - '.tasks/active/T-2723-handover-commit-under-t-1452-collides-wi.md'
+  - '.tasks/active/T-2894-pickup-termlink-hub-to-hub-channel-feder.md'
+  - '.tasks/active/T-2895-pickup-batch-13-framework-observations-r.md'
+  - '.tasks/active/T-2896-pickup-voxtype-rightctrl-dead-daemon-dow.md'
+  - '.tasks/active/T-2898-pickup-voxtype-observability-persistent-.md'
+  - '.tasks/active/T-2903-pickup-p-057-execution-misquoted---run-s.md'
+  - '.tasks/active/T-2907-pickup-t-064-wave-155-t-373-003-ntb-cons.md'
+  - '.tasks/active/T-2908-pickup-install-voxtype-hotkeyservice-lis.md'
+  - '.tasks/active/T-2909-pickup-ring20-onedev-remote-for-0506-vox.md'
+  - '.tasks/active/T-2911-pickup-opencode-runs-zero-of-the-37-fw-h.md'
+  - '.tasks/active/T-2912-triage-pickup-bridge-batch-t-2894t-2911-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-07T19:20:18'
+    action: 'T-2912: triage pickup-bridge batch — 9 duplicate task files removed (4 groups, lowest ID kept), 9 survivors + P-056..P-063 artifacts committed; non-idempotent task-creation defect filed upstream (framework:pickup offset 103)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 32
+  lines_added: 2404
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2912-triage-pickup-bridge-batch-t-2894t-2911-.md
+generated_by: context-agent-hybrid
