@@ -1,0 +1,88 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2892: Investigate incoming high-priority complaint DM from framework-agent
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-07T17:15:19Z
+# ============================================================================
+
+task_id: T-2892
+task_name: "Investigate incoming high-priority complaint DM from framework-agent"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-03T14:17:00Z
+completed: 2026-09-07T17:15:11Z
+duration_days: 4
+updates_count: 1
+first_commit: 2026-09-03T16:29:40+02:00
+last_commit: 2026-09-03T16:30:55+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  T-2892 / T-2893: the AF Agent complaint was real — D8 regressed 40min after T-2889 claimed it fixed, root-caused and filed upstream. fix decisions.yaml corruption from T-2881's auto-captured decision — bad indent under a mapping value + duplicate id PD-001 reused, renumbered PD-155
+
+# Key outcomes
+outcomes:
+  - 'The unread DM is read in full; verified it is self-authored smoke-test chatter, not a complaint — recorded in Context with what else was checked (all DM topics, framework:pickup, GitHub issues) before concluding the real source is `fw audit`''s D8 discovery.'
+  - 'The actual D8 FAIL finding is verified against live state (`grep -c ''\[TODO''` on LATEST.md), not accepted from the discovery file alone.'
+  - 'The false claim from the prior session ("D8 can only reach WARN, not PASS") is corrected in this task''s Context — stating exactly which case it does and does not cover.'
+  - '`LATEST.md` is enriched, bringing D8 back down to its WARN(1) floor — verified live, not asserted. Note the target moved: S-2026-0903-1520 was enriched in-session (2026-09-03), then a newer handover S-2026-0903-1629 regenerated LATEST unenriched (the exact T-2893 recurrence); 1629 was enriched from session evidence on 2026-09-07, `grep -c ''\[TODO'' LATEST.md` = 1.'
+  - 'The structural gap is filed as its own bug-class task with RCA: **T-2893** (completed 2026-09-07, commit `5b787d7c7`) — cites D8''s location (`audit.sh:5086`), the measured recurrence, and the upstream filing at `framework:pickup` offset 86.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fix decisions.yaml corruption from T-2881''s auto-captured decision — bad indent under a mapping value + duplicate id PD-001 reused, renumbered PD-155'
+    source: git-mined
+  - description: 'T-2892 / T-2893: the AF Agent complaint was real — D8 regressed 40min after T-2889 claimed it fixed, root-caused and filed upstream'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/handovers/S-2026-0903-1520.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0903-1520.md'
+  - '.context/handovers/S-2026-0903-1627.discard-manifest.yaml'
+  - '.context/project/decisions.yaml'
+  - '.tasks/active/T-2892-investigate-incoming-high-priority-compl.md'
+  - '.tasks/active/T-2893-d8s-whole-file-todo-grep-has-no-grace-pe.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-03T16:29:40'
+    action: 'T-2892 / T-2893: the AF Agent complaint was real — D8 regressed 40min after T-2889 claimed it fixed, root-caused and filed upstream'
+  - time: '2026-09-03T16:30:55'
+    action: 'T-2892: fix decisions.yaml corruption from T-2881''s auto-captured decision — bad indent under a mapping value + duplicate id PD-001 reused, renumbered PD-155'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 5938 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 5938
+  commits: 2
+  files_changed: 6
+  lines_added: 647
+  lines_removed: 13
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2892-investigate-incoming-high-priority-compl.md
+generated_by: context-agent-hybrid

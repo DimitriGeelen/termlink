@@ -4,10 +4,10 @@ name: "Investigate incoming high-priority complaint DM from framework-agent"
 description: >
   An unread DM (topic dm:d1993c2c3ec44c94:deadbeefdeadbeef, our own fp is the first segment) is sitting with unread=1. User reports it is a high-priority complaint calling recent work sloppy/lazy/lying. Read it, verify the claim against actual evidence, and fix whatever is real.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -22,8 +22,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-03T14:17:00Z
-last_update: 2026-09-03T14:17:00Z
-date_finished: null
+last_update: 2026-09-07T17:15:11Z
+date_finished: 2026-09-07T17:15:11Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -78,8 +78,8 @@ matches the discovery exactly.
 - [x] The unread DM is read in full; verified it is self-authored smoke-test chatter, not a complaint — recorded in Context with what else was checked (all DM topics, framework:pickup, GitHub issues) before concluding the real source is `fw audit`'s D8 discovery.
 - [x] The actual D8 FAIL finding is verified against live state (`grep -c '\[TODO'` on LATEST.md), not accepted from the discovery file alone.
 - [x] The false claim from the prior session ("D8 can only reach WARN, not PASS") is corrected in this task's Context — stating exactly which case it does and does not cover.
-- [ ] `LATEST.md` (`S-2026-0903-1520.md`) is enriched the same way T-2889 enriched its two, bringing D8 back down to its WARN(1) floor — verified live, not asserted.
-- [ ] The structural gap — D8 has no grace period / enrichment-status awareness and will FAIL on every freshly-generated handover until manually enriched, unlike the smarter `check-handover-staleness.sh` (T-2883) which already exempts this case — is filed as its own bug-class task with RCA, since enriching one handover does not prevent the next one from doing the same thing.
+- [x] `LATEST.md` is enriched, bringing D8 back down to its WARN(1) floor — verified live, not asserted. Note the target moved: S-2026-0903-1520 was enriched in-session (2026-09-03), then a newer handover S-2026-0903-1629 regenerated LATEST unenriched (the exact T-2893 recurrence); 1629 was enriched from session evidence on 2026-09-07, `grep -c '\[TODO' LATEST.md` = 1.
+- [x] The structural gap is filed as its own bug-class task with RCA: **T-2893** (completed 2026-09-07, commit `5b787d7c7`) — cites D8's location (`audit.sh:5086`), the measured recurrence, and the upstream filing at `framework:pickup` offset 86.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -174,6 +174,10 @@ matches the discovery exactly.
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+#
+test 1 -eq $(grep -c '\[TODO' .context/handovers/LATEST.md)
+grep -q "enrichment_status: enriched" .context/handovers/LATEST.md
+test -f .tasks/completed/T-2893-d8s-whole-file-todo-grep-has-no-grace-pe.md
 
 ## RCA
 
@@ -271,3 +275,15 @@ matches the discovery exactly.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2892-investigate-incoming-high-priority-compl.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-e6dca7bf
+- **Timestamp:** 2026-09-07T17:15:13Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-09-07T17:15:11Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
