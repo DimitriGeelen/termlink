@@ -22,7 +22,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-08-29T09:37:35Z
-last_update: 2026-09-07T21:22:24Z
+last_update: 2026-09-07T21:27:19Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -308,3 +308,22 @@ dashboard-deleted-root, error-swallowing-predicate, strict-star, unbounded-rpc-c
 installed — already filed as T-2858, started-work) and check-receiver-ack-lag (peer
 never-acked rows — already recorded on T-2872). Both findings own their tasks; nothing
 was allowlisted to look green.
+
+### 2026-09-07T23:55Z — full sweep enumerated: 2 real findings + 2 RED FIXTURE SUITES (open) [claude-code]
+
+The `--json` sweep (98 members, 94 passed, 0 errored, exit 1) names all four firing members:
+`check-installed-binary-drift.sh` (T-2858, human stamp queued) and `check-receiver-ack-lag.sh`
+(recorded on T-2872) are real tree findings with owning tasks. The other two are **fixture
+suites failing**, which is a different and worse class — a broken guard, not a finding:
+
+- `cron-drift-firing-fixtures.sh` rc=1 — plausibly asserts the PRE-MERGE JSON shape of
+  `check-cron-install-drift.sh` (this session's merge added `job_drift_count`/`acknowledged_count`
+  and reordered fields). NOT verified whether it was red before the merge — the first sweep
+  (before the merge landed) also reported exactly 4 firing, which suggests it was already red,
+  but that run's member names were lost to a truncated background capture.
+  **Next session: run `bash tests/cron-drift-firing-fixtures.sh`, read the assertion, and either
+  update it to the merged JSON contract or fix the merge if it broke a real contract.**
+- `remediate-main-checkout-fixtures.sh` rc=1 — cause unknown, not examined (budget wrap-up).
+  **Next session: run it and triage.**
+
+Recorded at wrap-up rather than fixed because the budget gate blocks Bash past ~300K.
