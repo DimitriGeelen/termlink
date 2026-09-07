@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2893: D8's whole-file TODO grep has no grace period, FAILs every fresh handover until manually enriched
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-07T17:12:06Z
+# ============================================================================
+
+task_id: T-2893
+task_name: "D8's whole-file TODO grep has no grace period, FAILs every fresh handover until manually enriched"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-03T14:24:55Z
+completed: 2026-09-07T17:11:58Z
+duration_days: 4
+updates_count: 1
+first_commit: 2026-09-03T16:29:40+02:00
+last_commit: 2026-09-03T16:29:40+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  T-2892 / T-2893: the AF Agent complaint was real — D8 regressed 40min after T-2889 claimed it fixed, root-caused and filed upstream
+
+# Key outcomes
+outcomes:
+  - 'D8''s exact location and logic are cited (`agents/audit/audit.sh:5082-5126`), confirming it is a bare `grep -c ''\[TODO''` with no grace period and no `enrichment_status` awareness, in contrast to `scripts/check-handover-staleness.sh` (T-2883, axis C) which already handles this correctly.'
+  - 'The recurrence is measured, not asserted: the `2026-09-03T14:00:02Z` discovery FAIL on `S-2026-0903-1520.md` is cited as concrete evidence the gap fires in practice, not just in theory.'
+  - 'Filed upstream on `framework:pickup` with a suggested fix (grace period or `enrichment_status` read), since D8 lives in vendored `agents/audit/audit.sh` and a local edit is reverted by the next `fw upgrade` (G-062) — offset recorded in this task.'
+  - 'NOT patched locally in `.agentic-framework/` — this task''s deliverable is the upstream filing plus this record, not a vendored-tree edit.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'T-2892 / T-2893: the AF Agent complaint was real — D8 regressed 40min after T-2889 claimed it fixed, root-caused and filed upstream'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/handovers/S-2026-0903-1520.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0903-1520.md'
+  - '.context/handovers/S-2026-0903-1627.discard-manifest.yaml'
+  - '.tasks/active/T-2892-investigate-incoming-high-priority-compl.md'
+  - '.tasks/active/T-2893-d8s-whole-file-todo-grep-has-no-grace-pe.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-03T16:29:40'
+    action: 'T-2892 / T-2893: the AF Agent complaint was real — D8 regressed 40min after T-2889 claimed it fixed, root-caused and filed upstream'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5927 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 5927
+  commits: 1
+  files_changed: 5
+  lines_added: 641
+  lines_removed: 6
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2893-d8s-whole-file-todo-grep-has-no-grace-pe.md
+generated_by: context-agent-hybrid

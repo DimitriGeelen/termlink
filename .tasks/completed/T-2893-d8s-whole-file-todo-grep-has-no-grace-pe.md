@@ -4,10 +4,10 @@ name: "D8's whole-file TODO grep has no grace period, FAILs every fresh handover
 description: >
   fw audit's D8 check (agents/audit/audit.sh, vendored) is a naive grep -c '[TODO' over the entire LATEST.md with a >0=WARN />3=FAIL threshold. It has no concept of enrichment_status or how recently the handover was generated, unlike the newer check-handover-staleness.sh (T-2883) which correctly treats a freshly-generated, not-yet-enriched handover as non-firing (axis C). Consequence, measured today: T-2889 enriched two stale handovers and closed reporting 'D8 FAIL to its WARN floor'; the very next handover auto-generated 40 minutes later (S-2026-0903-1520, at commit 0e60d926e) tripped D8 FAIL again (5 TODOs) at the 14:00:02 discovery run, because every fresh handover starts unenriched by design and D8 cannot tell that state apart from weeks-stale neglect. Enriching one handover does not prevent the next one from doing the same thing -- this recurs at every session/compaction boundary until fixed structurally.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -22,8 +22,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-03T14:24:55Z
-last_update: 2026-09-03T14:24:55Z
-date_finished: null
+last_update: 2026-09-07T17:11:58Z
+date_finished: 2026-09-07T17:11:58Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -263,3 +263,25 @@ re-enriching S-2026-0903-1520 was done under T-2892, not this task.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2893-d8s-whole-file-todo-grep-has-no-grace-pe.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-8adc8cd5
+- **Timestamp:** 2026-09-07T17:11:59Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 2
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — D8's exact location and logic are cited (`agents/audit/audit.sh:5082-5126`), confirming it is a bare `grep -c '\[TODO'` with no grace period and no `enrichment_status` awareness, in contrast to `scrip
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=scripts/check-handover-staleness.sh in: D8's exact location and logic are cited (`agents/audit/audit.sh:5082-5126`), confirming it is a bare `grep -c '\[TODO'` with no grace period and no `e`
+
+**Verification-level findings:**
+
+  1. **l387-sigpipe-risk** (partial, heuristic) @ Verification:line 54
+     - evidence: `grep -n "grep -c '\\\\\[TODO'" .agentic-framework/agents/audit/audit.sh | grep -q 5086`
+
+### 2026-09-07T17:11:58Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
