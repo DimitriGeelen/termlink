@@ -117,9 +117,9 @@ SUCCEEDED. Those are the first two ACs rather than assumptions baked into a fix.
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
 - [x] **Establish which of the two states is true.** ANSWERED 2026-09-07 (binary 0.11.1766): **neither of the filed alternatives — the session is genuinely registered for the command's whole lifetime, then deregistered at command exit.** `build_spawn_shell_cmd` (execution.rs:566) generates `register --name X … & TL_PID=$! ; sleep 1 ; <user_cmd> ; kill $TL_PID` — register runs concurrently with the command and is killed when it completes. Live repro: spawn `sleep 25`, `--wait` ready → `list` shows it, `status spawn-3461747` resolves 4s in → after exit, "Session not found". The original Context repro was invalid: it queried `spawn-2504150` after spawning `spawn-2525441` (wrong id), and its `list | grep` absence claim does not reproduce — `--wait`'s "ready" is truthful and the store it polls (`find_session`) is the same one `status`/`list` read.
-- [ ] **`--wait` returning success implies queryable.** Property HOLDS (live-verified: `status` resolved 4s into a 25s command) and a regression test is WRITTEN — `spawn_cmd_register_brackets_user_command` pins the ordering (register backgrounded → user cmd → kill) that guarantees the non-empty window. **Not yet run**: `cargo test` was blocked by the session budget gate; next session must run `cargo test -p termlink-cli --lib -- execution` before ticking this.
-- [ ] **Terminal state is retrievable, or the absence is loud.** CHOSE loud absence (WIP, tests written not yet run): `spawn_terminal_state()` discloses at spawn time — text line + JSON `terminal_state` field — that a background+command session deregisters at exit with no retrievable exit_code/finished_at, pointing at `termlink exec` for captured results. **Reason:** durable terminal state needs session-store/protocol changes (its own task, to be filed); the loud disclosure closes the Directive-#2 gap now without deciding the store design in passing. Scoped strictly to background+command (tmux/terminal persist; command-less background never self-terminates) — pinned by `terminal_state_note_is_scoped_to_background_with_command`.
-- [ ] **Reporter's variant addressed.** ESTABLISHED (reply not yet sent — session hit budget gate): their `--wait` TIMEOUT is a **different defect** from the filed one. Ours registered and succeeded; theirs never registered — an environmental register failure inside the spawned shell (hub unreachable / bad TERMLINK_RUNTIME_DIR in their permissions-constrained context). The timeout is the designed loud path; what failed them is that `spawn_detached` nulls the spawned shell's stdout/stderr (execution.rs:663-665), so register's own error is discarded and the timeout is the ONLY symptom. Mitigation added in this session's WIP: the timeout message (text + JSON `hint`) now names the discarded-output cause and what to check. REMAINING: send the reply to framework-agent-systemd on the durable route (agent-chat-arc, their offset-873 thread).
+- [x] **`--wait` returning success implies queryable.** Property HOLDS (live-verified: `status` resolved 4s into a 25s command) and the regression test now RUNS GREEN — `cargo test -p termlink --bin termlink -- execution` (the handover's `-p termlink-cli --lib` invocation was wrong: the crate's package name is `termlink` and it has no lib target): 22 passed, 0 failed, including `spawn_cmd_register_brackets_user_command` pinning the ordering (register backgrounded → user cmd → kill) that guarantees the non-empty window. 2026-09-07.
+- [x] **Terminal state is retrievable, or the absence is loud.** CHOSE loud absence (tests run green 2026-09-07; durable half filed as **T-2914**): `spawn_terminal_state()` discloses at spawn time — text line + JSON `terminal_state` field — that a background+command session deregisters at exit with no retrievable exit_code/finished_at, pointing at `termlink exec` for captured results. **Reason:** durable terminal state needs session-store/protocol changes (filed as T-2914); the loud disclosure closes the Directive-#2 gap now without deciding the store design in passing. Scoped strictly to background+command (tmux/terminal persist; command-less background never self-terminates) — pinned by `terminal_state_note_is_scoped_to_background_with_command`.
+- [x] **Reporter's variant addressed.** ESTABLISHED, and reply SENT 2026-09-07 at agent-chat-arc offset 1170 (in_reply_to=873, their requested durable route — carries task ids T-2871/T-2914, both findings, outcome classification, and the interim `termlink exec`/tmux guidance): their `--wait` TIMEOUT is a **different defect** from the filed one. Ours registered and succeeded; theirs never registered — an environmental register failure inside the spawned shell (hub unreachable / bad TERMLINK_RUNTIME_DIR in their permissions-constrained context). The timeout is the designed loud path; what failed them is that `spawn_detached` nulls the spawned shell's stdout/stderr (execution.rs:663-665), so register's own error is discarded and the timeout is the ONLY symptom. Mitigation added in this session's WIP: the timeout message (text + JSON `hint`) now names the discarded-output cause and what to check. DONE: reply posted to the offset-873 thread at offset 1170 via `termlink_agent_reply` (metadata: project=010-termlink, thread=T-2871).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -214,6 +214,9 @@ SUCCEEDED. Those are the first two ACs rather than assumptions baked into a fix.
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+cargo test -p termlink --bin termlink -- execution > /tmp/.t2871-tests 2>&1 && grep -q "test result: ok. 22 passed" /tmp/.t2871-tests
+grep -q "fn spawn_terminal_state" crates/termlink-cli/src/commands/execution.rs
+test -f .tasks/active/T-2914-durable-terminal-state-for-backgroundcom.md
 
 ## RCA
 
@@ -276,6 +279,34 @@ under-evidenced rather than as established fact.
 
 **Cleanup owed:** sessions `t2871a` and `t2871b` were left registered — the reaping Bash
 call was refused by the budget gate. `termlink clean` next session.
+*(Done 2026-09-07: `termlink clean` reports no stale sessions; `termlink list` shows neither.)*
+
+### 2026-09-07 — Final RCA
+
+**Symptom:** `spawn --backend background --wait` prints "ready" for a session that (per the
+report) never appears in `list`/`status`; separately, the reporter's own `--wait` timed out
+after 30s with no diagnostics.
+
+**Root cause:** two distinct causes. (1) The "ready-but-unqueryable" claim was an invalid
+repro — it queried a different session id than it spawned; the session IS registered, for
+the command's whole lifetime, by design of `build_spawn_shell_cmd` (`register … & ;
+user_cmd ; kill $TL_PID`), and deregisters at command exit — so terminal state
+(exit_code/finished_at) is discarded by design, not by a race. (2) The reporter's timeout
+was an environmental register failure inside the spawned shell, invisible because
+`spawn_detached` nulls the shell's stdout/stderr, discarding register's own error.
+
+**Why structurally allowed:** "ready" semantics and terminal-state lifetime were
+undocumented at the spawn surface; nothing disclosed that background+command sessions
+self-deregister; the detached shell's diagnostics had no path out, so every environmental
+failure collapsed into a generic timeout.
+
+**Prevention:** loud spawn-time disclosure (text + JSON `terminal_state`) scoped to
+background+command; timeout message names the discarded-output cause; 4 regression tests
+pin the register-bracket ordering, disclosure scoping, and JSON fields
+(`spawn_cmd_register_brackets_user_command`,
+`terminal_state_note_is_scoped_to_background_with_command`,
+`background_spawn_with_command_discloses_missing_terminal_state`,
+`spawn_json_carries_terminal_state_when_given`). Durable terminal state is T-2914.
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
