@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2915: Axis D duplicated-fix detection — overlap signals vs main and across branches (T-2828 GO follow-up)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-07T20:08:30Z
+# ============================================================================
+
+task_id: T-2915
+task_name: "Axis D duplicated-fix detection — overlap signals vs main and across branches (T-2828 GO follow-up)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-07T19:40:19Z
+completed: 2026-09-07T20:08:18Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-09-07T22:00:25+02:00
+last_commit: 2026-09-07T22:00:25+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  axis D same-line fix duplication — measured signal (same-deleted-line, blob-differing, main as a side), WARN tier, 10 new fixtures (33 total), T-2828 IW-1..3 disposed with evidence
+
+# Key outcomes
+outcomes:
+  - '**IW-1 measured, not argued.** A spike run against the repo''s real branches records, per candidate signal (common-file baseline, hunk-range overlap, same-deleted-line, same-added-line, same-enclosing-function), how many branch pairs and files would fire. Results recorded in this task and used to pick the shipped signal. The known ground-truth pair (T-2687/T-2824 termlink_topics fix) must be caught by the chosen signal, or the miss explained.'
+  - '**Axis D shipped.** check-task-id-collisions.sh gains a modified-file duplication axis that (a) includes main as a comparison side with per-branch merge base (IW-2), (b) reports at the measured-noise-appropriate level (WARN unless measurement justifies FIRE), (c) skips the same per-session artifact paths as axis C plus .context/ churn.'
+  - '**Fixtures pin it.** tests/task-id-collision-fixtures.sh gains cases: duplicated fix across two branches detected; duplicated fix branch-vs-main detected; disjoint edits to the same file NOT reported (the false-positive guard IW-1 exists for); output distinguishes axis D from axes A/B/C.'
+  - '**T-2828 IW dispositions updated with this evidence** (recorded in the inception file; completion of T-2828 itself stays with its human owner).'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'axis D same-line fix duplication — measured signal (same-deleted-line, blob-differing, main as a side), WARN tier, 10 new fixtures (33 total), T-2828 IW-1..3 disposed with evidence'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - 'scripts/check-task-id-collisions.sh'
+  - '.tasks/active/T-2828-duplicate-work-detector-is-blind-to-dupl.md'
+  - '.tasks/active/T-2915-axis-d-duplicated-fix-detection--overlap.md'
+  - 'tests/task-id-collision-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-07T22:00:25'
+    action: 'T-2915: axis D same-line fix duplication — measured signal (same-deleted-line, blob-differing, main as a side), WARN tier, 10 new fixtures (33 total), T-2828 IW-1..3 disposed with evidence'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 27 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 27
+  commits: 1
+  files_changed: 5
+  lines_added: 561
+  lines_removed: 18
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2915-axis-d-duplicated-fix-detection--overlap.md
+generated_by: context-agent-hybrid

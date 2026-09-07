@@ -10134,3 +10134,21 @@ scan_id: R-8f3b435f
 task_id: T-2871
 payload:
   task_file: .tasks/active/T-2871-spawn---backend-background---wait-report.md
+---
+kind: scan_emitted
+timestamp: '2026-09-07T20:08:23Z'
+scan_id: R-d528d6e0
+task_id: T-2915
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-07T20:08:23Z'
+scan_id: R-d528d6e0
+task_id: T-2915
+payload:
+  task_file: .tasks/active/T-2915-axis-d-duplicated-fix-detection--overlap.md
