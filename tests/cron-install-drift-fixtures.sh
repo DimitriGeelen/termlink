@@ -162,6 +162,77 @@ EOF
 assert_rc "crontab without an Installed-to header is skipped" 0 "$(run)"
 assert_json "skipped_count is 1" '.skipped_count' "1"
 
+# --- fixture 11 (T-2787): redirect-only change is JOB_DRIFT, not UNINSTALLED_JOBS ---
+# The T-2685 shape: the job IS scheduled and IS running; only its output routing
+# differs. Pre-T-2787 this reported "the scheduled work exists in git but is NOT
+# scheduled on this host" — a false claim that sends the operator to re-install a
+# crontab that is already firing. It must still FIRE (an undeployed change is real),
+# but under a class that says what actually differs.
+reset
+cat > "$SRC/kappa.crontab" <<'EOF'
+# Installed to: /etc/cron.d/termlink-kappa
+39 7 * * * root cd /opt/termlink && bash scripts/kappa.sh --quiet >> .context/working/.kappa.log 2>> .context/working/.kappa.log.stderr
+EOF
+cat > "$INST/termlink-kappa" <<'EOF'
+# Installed to: /etc/cron.d/termlink-kappa
+39 7 * * * root cd /opt/termlink && bash scripts/kappa.sh --quiet >> .context/working/.kappa.log 2>&1
+EOF
+assert_rc "redirect-only change still FIRES (undeployed change is real)" 1 "$(run)"
+assert_json "redirect drift counts as job_drift" '.job_drift_count' "1"
+assert_json "redirect drift is NOT reported as unscheduled" '.uninstalled_jobs_count' "0"
+assert_json "redirect drift is not double-counted as plain drift" '.drift_count' "0"
+out="$(CRON_DRIFT_SRC_DIR="$SRC" CRON_DRIFT_INSTALLED_DIR="$INST" bash "$CHECK" 2>&1 || true)"
+if grep -q "NOT scheduled on this host" <<< "$out"; then
+    fail=$((fail+1)); echo "  FAIL: job-drift still asserts the job is not scheduled" >&2
+else
+    pass=$((pass+1)); echo "  ok: job-drift does not claim the job is unscheduled"
+fi
+if grep -q "installed:" <<< "$out" && grep -q "git:" <<< "$out"; then
+    pass=$((pass+1)); echo "  ok: job-drift shows both the git and installed forms"
+else
+    fail=$((fail+1)); echo "  FAIL: job-drift output does not show both forms" >&2
+fi
+
+# --- fixture 12 (T-2787): a genuinely-absent job is STILL UNINSTALLED_JOBS ----------
+# The load-bearing control. If the new class swallowed this, T-2682's whole finding
+# (a meta-canary line never scheduled at all) would go silent.
+reset
+cat > "$SRC/lambda.crontab" <<'EOF'
+# Installed to: /etc/cron.d/termlink-lambda
+23 6 * * * root cd /opt/termlink && bash scripts/lambda.sh --quiet >> .context/working/.lambda.log 2>> .context/working/.lambda.log.stderr
+43 6 * * * root cd /opt/termlink && bash scripts/check-canary-aliveness.sh --quiet >> .context/working/.alive.log 2>> .context/working/.alive.log.stderr
+EOF
+cat > "$INST/termlink-lambda" <<'EOF'
+# Installed to: /etc/cron.d/termlink-lambda
+23 6 * * * root cd /opt/termlink && bash scripts/lambda.sh --quiet >> .context/working/.lambda.log 2>> .context/working/.lambda.log.stderr
+EOF
+assert_rc "genuinely-absent job still fires" 1 "$(run)"
+assert_json "genuinely-absent job is still UNINSTALLED_JOBS" '.uninstalled_jobs_count' "1"
+assert_json "genuinely-absent job is not misfiled as job_drift" '.job_drift_count' "0"
+out="$(CRON_DRIFT_SRC_DIR="$SRC" CRON_DRIFT_INSTALLED_DIR="$INST" bash "$CHECK" 2>&1 || true)"
+if grep -q "NOT scheduled on this host" <<< "$out"; then
+    pass=$((pass+1)); echo "  ok: genuinely-absent job keeps the 'not scheduled' wording"
+else
+    fail=$((fail+1)); echo "  FAIL: genuinely-absent job lost its 'not scheduled' claim" >&2
+fi
+
+# --- fixture 13 (T-2787): one crontab can carry BOTH classes at once ---------------
+# The real tree does exactly this: fleet-doorbell-mail has a redirect-drifted canary
+# line AND a meta-canary line that was never scheduled. Both must be reported.
+reset
+cat > "$SRC/mu.crontab" <<'EOF'
+# Installed to: /etc/cron.d/termlink-mu
+23 6 * * * root cd /opt/termlink && bash scripts/mu.sh --quiet >> .context/working/.mu.log 2>> .context/working/.mu.log.stderr
+43 6 * * * root cd /opt/termlink && bash scripts/check-canary-aliveness.sh --quiet >> .context/working/.alive.log 2>> .context/working/.alive.log.stderr
+EOF
+cat > "$INST/termlink-mu" <<'EOF'
+# Installed to: /etc/cron.d/termlink-mu
+23 6 * * * root cd /opt/termlink && bash scripts/mu.sh --quiet >> .context/working/.mu.log 2>&1
+EOF
+assert_rc "mixed crontab fires" 1 "$(run)"
+assert_json "mixed: the redirect-drifted line is job_drift" '.job_drift_count' "1"
+assert_json "mixed: the never-scheduled line is still uninstalled" '.uninstalled_jobs_count' "1"
+
 # --- fixture 10: missing source dir is a tooling error, never a clean bill ---------
 rc="$(CRON_DRIFT_SRC_DIR="$SCRATCH/does-not-exist" CRON_DRIFT_INSTALLED_DIR="$INST" \
     bash "$CHECK" >/dev/null 2>&1; echo $?)"

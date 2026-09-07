@@ -36,10 +36,10 @@ PATH=/usr/local/bin:/usr/bin:/bin
 0 9 * * * root cd "/opt/termlink" && find .context/audits/cron -name '*.yaml' -mtime +7 -delete 2>&1 | logger -t agentic-cron
 
 # Pickup inbox processor (15 min)
-*/15 * * * * root cd "/opt/termlink" && PROJECT_ROOT="/opt/termlink" "/opt/termlink/.agentic-framework/bin/fw" pickup process 2>&1 | logger -t agentic-cron
+*/15 * * * * root cd "/opt/termlink" && PROJECT_ROOT="/opt/termlink" flock -n /var/lock/agentic-pickup-termlink.lock -c '"/opt/termlink/.agentic-framework/bin/fw" pickup process' 2>&1 | logger -t agentic-cron
 
 # Pickup inbox drain (every minute)
-* * * * * root cd "/opt/termlink" && PROJECT_ROOT="/opt/termlink" "/opt/termlink/.agentic-framework/bin/fw" pickup process 2>&1 | logger -t agentic-cron
+* * * * * root cd "/opt/termlink" && PROJECT_ROOT="/opt/termlink" flock -n /var/lock/agentic-pickup-termlink.lock -c '"/opt/termlink/.agentic-framework/bin/fw" pickup process' 2>&1 | logger -t agentic-cron
 
 # Revisit-due scan (daily 07:00, G-053)
 0 7 * * * root cd "/opt/termlink" && PROJECT_ROOT="$(pwd)" .agentic-framework/agents/context/revisit-due-scan.sh 2>&1 | logger -t agentic-cron

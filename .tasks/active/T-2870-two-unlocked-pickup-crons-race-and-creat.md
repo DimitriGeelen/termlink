@@ -31,7 +31,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-08-31T15:27:54Z
-last_update: 2026-09-07T20:36:33Z
+last_update: 2026-09-07T20:57:48Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -137,15 +137,22 @@ survives one. If the marker ordering is worth changing, it is an upstream filing
 
 ### Human
 - [ ] [RUBBER-STAMP] Serialise both `fw pickup process` cron lines with `flock`, matching the pattern AEF already uses on this host.
+  *(Steps rewritten 2026-09-07: the flock wrapper now lives IN the registry `command:` fields, so
+  `fw cron generate` emits both pickup lines pre-wrapped on the shared lock — the stamp is now an
+  install, not a hand-edit, and git↔installed stay in sync afterwards instead of tripping
+  JOB_DRIFT/DRIFT forever. The original hand-edit steps are superseded.)*
   **Steps:**
   1. `sudo cp /etc/cron.d/agentic-pickup-termlink /root/agentic-pickup-termlink.bak && sudo cp /etc/cron.d/agentic-audit-termlink /root/agentic-audit-termlink.bak`
-  2. Edit `/etc/cron.d/agentic-pickup-termlink`: wrap the invocation so the line reads
-     `* * * * * root PROJECT_ROOT="/opt/termlink" flock -n /var/lock/agentic-pickup-termlink.lock -c "/opt/termlink/.agentic-framework/bin/fw pickup process" 2>&1 | logger -t agentic-pickup`
-  3. Edit `/etc/cron.d/agentic-audit-termlink`: wrap its `*/15` pickup line the same way, using the **same** lock path so the two jobs exclude each other.
-  4. `grep -h "pickup process" /etc/cron.d/agentic-pickup-termlink /etc/cron.d/agentic-audit-termlink`
-  5. Wait ~3 minutes, then `journalctl -t agentic-pickup -n 20 --no-pager`
-  **Expected:** Step 4 prints two lines, both containing `flock -n /var/lock/agentic-pickup-termlink.lock`. Step 5 shows the job still running normally — `flock -n` exits silently when the lock is held, which is the intended skip, not an error.
-  **If not:** Restore with `sudo cp /root/agentic-pickup-termlink.bak /etc/cron.d/agentic-pickup-termlink` (and likewise for the audit file). If cron stops running the job entirely, check the line has not lost its trailing `| logger` pipe or its `root` user field.
+  2. `cd /opt/termlink && sudo cp .context/cron/agentic-audit.crontab /etc/cron.d/agentic-audit-termlink`
+     (installs BOTH pickup lines — the `*/15` processor AND the every-minute drain — each already wrapped in `flock -n /var/lock/agentic-pickup-termlink.lock`)
+  3. `sudo rm /etc/cron.d/agentic-pickup-termlink && sudo systemctl reload cron`
+     (its every-minute job is now carried, flocked, by the audit crontab — leaving the unlocked
+     copy in place would keep the race alive. The backup from step 1 preserves it. If you prefer
+     to keep the file, instead wrap its line with the SAME lock path by hand.)
+  4. `cd /opt/termlink && bash scripts/check-pickup-cron-lock.sh`
+  5. Wait ~3 minutes, then `journalctl -t agentic-cron -n 20 --no-pager | grep -i pickup`
+  **Expected:** Step 4 prints a clean verdict (every installed `pickup process` line flocked on one shared path, exit 0). Step 5 shows the drain still running — `flock -n` exits silently when the lock is held, which is the intended skip, not an error.
+  **If not:** Restore with `sudo cp /root/agentic-pickup-termlink.bak /etc/cron.d/agentic-pickup-termlink && sudo cp /root/agentic-audit-termlink.bak /etc/cron.d/agentic-audit-termlink`. If cron stops running the job entirely, check the installed lines kept their `root` user field and trailing `| logger` pipe.
 
 
 ## Verification
@@ -305,3 +312,23 @@ nothing between the two jobs.
 Live verdict today: FIRING on both lines (no flock installed yet) — correct until
 the Human `[RUBBER-STAMP]` lands. Verification line 2 will pass exactly when the
 stamp is done, which is the intended gating.
+
+### 2026-09-07T23:20Z — flock moved into the registry; Human AC steps rewritten to an install [claude-code]
+
+The regenerated crontab was blocking the OneDev push (ref-scoped cron-drift audit FAIL), and
+regenerating exposed a second problem: the drain line would have been emitted UNLOCKED, and the
+original Human AC steps (hand-edit the installed files) would have left git↔installed permanently
+divergent — the freshly-landed T-2787 JOB_DRIFT detector would fire on the stamp forever.
+
+Fix: both registry `command:` fields now carry
+`flock -n /var/lock/agentic-pickup-termlink.lock -c 'fw pickup process'`. The generator's
+`\bfw\b` → quoted-vendored-path substitution resolves correctly inside the `-c '...'` string
+(verified in the generated output). `fw cron generate` now emits BOTH pickup lines pre-wrapped
+on the shared lock. The Human AC steps are rewritten: the stamp is now `sudo cp` of the
+generated crontab + retiring (or wrapping) the legacy `agentic-pickup-termlink` file.
+
+Deliberately NOT installed from this session: installing is the human's stamp, and installing
+an intermediate unlocked version would have doubled the race in the meantime. Until the stamp,
+`check-cron-install-drift.sh` fires UNINSTALLED_JOBS on the drain line (truthful — the work is
+in git and not yet scheduled) and `check-pickup-cron-lock.sh` keeps firing on the two live
+unlocked lines (the correct pre-stamp state).

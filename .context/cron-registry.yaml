@@ -100,7 +100,7 @@ jobs:
   - id: pickup-process
     name: "Pickup inbox processor (15 min)"
     schedule: "*/15 * * * *"
-    command: "fw pickup process"
+    command: "flock -n /var/lock/agentic-pickup-termlink.lock -c 'fw pickup process'"
     source_file: agentic-audit-termlink
     origin_task: T-921
     status: active
@@ -109,7 +109,7 @@ jobs:
   - id: pickup-drain-1m
     name: "Pickup inbox drain (every minute)"
     schedule: "* * * * *"
-    command: "fw pickup process"
+    command: "flock -n /var/lock/agentic-pickup-termlink.lock -c 'fw pickup process'"
     source_file: agentic-pickup-termlink
     origin_task: T-1073
     status: active
