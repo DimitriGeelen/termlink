@@ -122,13 +122,18 @@ survives one. If the marker ordering is worth changing, it is an upstream filing
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `.context/cron-registry.yaml` declares the `agentic-pickup-termlink` crontab and its
+- [x] `.context/cron-registry.yaml` declares the `agentic-pickup-termlink` crontab and its
       every-minute `fw pickup process` job, so the drift check can see it at all.
-- [ ] A regression check fails if any `fw pickup process` cron line on this host lacks
+      (Entry `pickup-drain-1m`, origin T-1073, with the T-2870 race documented inline.)
+- [x] A regression check fails if any `fw pickup process` cron line on this host lacks
       `flock` — asserting the property, not the current text, so a reinstall that drops the
-      lock re-fires it.
-- [ ] Duplicate-task scan is repeatable: a normalised content-hash over `.tasks/**` reports
+      lock re-fires it. (`scripts/check-pickup-cron-lock.sh` — also fires on locked lines
+      using DIVERGENT lock paths, since flocks on different paths do not exclude each
+      other. 20 fixture assertions in `tests/pickup-cron-lock-fixtures.sh`. Live run
+      today: FIRING on both installed lines, which is the correct pre-stamp state.)
+- [x] Duplicate-task scan is repeatable: a normalised content-hash over `.tasks/**` reports
       0 duplicate groups in `active/`, with the two `completed/` entries left untouched.
+      (Run 2026-09-07: `0 duplicate groups`; the scan is verification line 3.)
 
 ### Human
 - [ ] [RUBBER-STAMP] Serialise both `fw pickup process` cron lines with `flock`, matching the pattern AEF already uses on this host.
@@ -149,7 +154,15 @@ survives one. If the marker ordering is worth changing, it is an upstream filing
 grep -q 'agentic-pickup-termlink' .context/cron-registry.yaml
 # Every installed `fw pickup process` cron line for this project is serialised. Asserts the PROPERTY, not the
 # current text, so a reinstall that drops flock re-fires this rather than passing on a stale match.
-bash -c 'n=$(grep -h "fw pickup process" /etc/cron.d/* 2>/dev/null | grep -c "/opt/termlink"); f=$(grep -h "fw pickup process" /etc/cron.d/* 2>/dev/null | grep "/opt/termlink" | grep -c flock); test "$n" -gt 0 && test "$n" -eq "$f"'
+# (Original inline grep anchored on "fw pickup process", which the installed lines can NEVER match —
+# the fw path is quoted (`.../bin/fw" pickup process`), so n=0 and the line failed even with flock in
+# place. Replaced 2026-09-07 by the check script, which matches on substrings robust to that quoting
+# and additionally asserts all lines share ONE lock path. See Updates.)
+bash scripts/check-pickup-cron-lock.sh
+# The regression check's own fixtures stay green.
+bash tests/pickup-cron-lock-fixtures.sh > /tmp/.t2870-fix.txt 2>&1 && grep -q "0 failed" /tmp/.t2870-fix.txt
+# The registry edit parses and carries the new entry.
+python3 -c "import yaml; jobs=yaml.safe_load(open('.context/cron-registry.yaml'))['jobs']; assert any(j.get('source_file')=='agentic-pickup-termlink' for j in jobs)"
 # No content-identical duplicate task groups remain in active/ (id + timestamps normalised away).
 python3 -c "import re,glob,hashlib,collections;g=collections.defaultdict(list);[g[hashlib.sha256(re.sub(r\"\\d{4}-\\d{2}-\\d{2}[T ]\\d{2}:\\d{2}:\\d{2}\\S*\",\"<TS>\",re.sub(r\"^(id|created|last_update|date_finished):.*$\",\"\",open(p,encoding=\"utf-8\",errors=\"replace\").read(),flags=re.M).replace(re.search(r\"^id:\\s*(\\S+)\",open(p,encoding=\"utf-8\",errors=\"replace\").read(),re.M).group(1),\"<ID>\")).encode()).hexdigest()].append(p) for p in glob.glob(\".tasks/active/*.md\") if re.search(r\"^id:\\s*\\S+\",open(p,encoding=\"utf-8\",errors=\"replace\").read(),re.M)];d=[v for v in g.values() if len(v)>1];assert not d,d;print(\"0 duplicate groups\")"
 
@@ -194,6 +207,23 @@ python3 -c "import re,glob,hashlib,collections;g=collections.defaultdict(list);[
 -->
 
 ## Recommendation
+
+**Recommendation:** GO
+
+**Rationale:** The agent half is done and verified: the every-minute crontab is now
+declared in the registry (the drift check's blind spot closed), a property-asserting
+regression check exists and correctly FIRES on the two unlocked lines as installed
+today, and the duplicate scan reports 0 active groups. What remains is exactly the
+one-step `[RUBBER-STAMP]` flock edit in `/etc/cron.d` — outside the project boundary,
+so it is yours by construction, and fully reversible (both files are backed up in
+step 1 of the Steps). Until stamped, the race window stays open: every minute the two
+jobs can overlap and mint another byte-identical duplicate pair.
+
+**Evidence:**
+- `.context/cron-registry.yaml` entry `pickup-drain-1m` (source_file agentic-pickup-termlink, origin T-1073)
+- `scripts/check-pickup-cron-lock.sh` live run 2026-09-07: FIRING, 2 findings, both lines named — the correct pre-stamp verdict; 20/20 fixtures green
+- Duplicate scan 2026-09-07: `0 duplicate groups` in active/
+- The task's original verification line could never pass: its grep anchor `"fw pickup process"` cannot match the installed quoted-path lines (see Updates)
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
      (audit_inception_recommendation, lib/task-audit.sh:117) is shared, so the
@@ -252,3 +282,26 @@ python3 -c "import re,glob,hashlib,collections;g=collections.defaultdict(list);[
 
 ### 2026-08-31T15:31:23Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-09-07T21:00Z — agent ACs shipped; the task's own verification line had the quoting bug [claude-code]
+
+All three Agent ACs landed: registry entry `pickup-drain-1m`, regression check
+`scripts/check-pickup-cron-lock.sh` (+ 20-assertion fixture suite), duplicate scan
+run clean (0 active groups).
+
+**Found while doing it:** this task's original verification line 2 anchored on the
+string `fw pickup process` — but both installed lines quote the fw path
+(`"/opt/termlink/.agentic-framework/bin/fw" pickup process`), so the grep matches
+NOTHING, `n=0`, `test 0 -gt 0` fails, and the line would have failed **even after
+the human added flock**. A verification line that cannot pass under the fixed state
+is the T-2818 fatigue shape (a gate that blocks for reasons the author cannot act
+on). Replaced with the check script, whose fixture c1 pins the quoted-path shape
+so the miss cannot silently return.
+
+The check also asserts a property the AC text implied but the inline grep did not:
+locked lines must share ONE lock path — `flock` on two different paths serialises
+nothing between the two jobs.
+
+Live verdict today: FIRING on both lines (no flock installed yet) — correct until
+the Human `[RUBBER-STAMP]` lands. Verification line 2 will pass exactly when the
+stamp is done, which is the intended gating.

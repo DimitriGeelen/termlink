@@ -106,6 +106,21 @@ jobs:
     status: active
     description: "Scans pickup inbox for cross-project proposals, validates, dedup-checks, and creates inception tasks."
 
+  - id: pickup-drain-1m
+    name: "Pickup inbox drain (every minute)"
+    schedule: "* * * * *"
+    command: "fw pickup process"
+    source_file: agentic-pickup-termlink
+    origin_task: T-1073
+    status: active
+    # T-2870: this crontab was installed by T-1073 but never declared here, so the
+    # cron-drift check could not see it — it raced the */15 copy above (neither uses
+    # flock) and produced byte-identical duplicate tasks 3× (T-2260/61, T-2862/63,
+    # T-2867/68). Both lines are to be serialised on ONE flock lock path
+    # (/var/lock/agentic-pickup-termlink.lock) per T-2870's Human AC;
+    # scripts/check-pickup-cron-lock.sh asserts that property.
+    description: "Drains pickup inbox every minute so cross-project envelopes land fast (T-1073). Must share a flock lock with pickup-process (T-2870)."
+
   - id: revisit-due-scan
     name: "Revisit-due scan (daily 07:00, G-053)"
     schedule: "0 7 * * *"
