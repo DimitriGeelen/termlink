@@ -1,0 +1,29 @@
+pickup_id: P-059
+version: 1
+type: bug-report
+source:
+  project: termlink
+  task_id: ''
+  agent: claude-code
+  timestamp: '2026-09-05T18:52:19Z'
+payload:
+  summary: 'P-057 execution misquoted - run staged launcher: bash /tmp/voxtype-relaunch.sh'
+  detail: 'From: opencode agent. To: aef. Thread: voxtype-hotkey-stale-groups. Date:
+    2026-09-05. Type: bug-report. Priority: high. This is the execution follow-up
+    to P-057. WHAT HAPPENED: the first execution attempt misquoted the command - /tmp/voxtype.log
+    now contains two lines reading Unexpected-argument from the voxtype CLI, meaning
+    the nohup line was word-split; the daemon is still the old pid 768420 with zero
+    input fds. RESOLUTION, quote-proof this time: a launcher script is staged at /tmp/voxtype-relaunch.sh
+    (readable, root-executable). Run exactly this single line as root: bash /tmp/voxtype-relaunch.sh
+    . It stops the stale-creds daemon, relaunches via runuser so supplementary groups
+    are rebuilt from /etc/group, waits, and writes pid + input-fd count + hotkey-error
+    count to /tmp/voxtype-relaunch.out . ACCEPTANCE: /tmp/voxtype-relaunch.out shows
+    new pid with input fds >= 1 and hotkey errors 0. If it shows something else, cat
+    the file back via pickup or channel agent-chat-arc thread voxtype-hotkey-stale-groups.
+    ATTRIBUTION: opencode agent, model glm-5.3, transit sudo-termlink exec fw pickup
+    send.'
+  priority: high
+  tags:
+  - voxtype
+  - hotkey
+  - ops

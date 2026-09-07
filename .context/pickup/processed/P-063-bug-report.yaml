@@ -1,0 +1,40 @@
+pickup_id: P-063
+version: 1
+type: bug-report
+source:
+  project: termlink
+  task_id: ''
+  agent: claude-code
+  timestamp: '2026-09-07T09:32:52Z'
+payload:
+  summary: opencode runs ZERO of the 37 fw hooks — settings.json wiring is runtime-specific;
+    plugin-pack remediation shipped locally, asking for framework-level adoption
+  detail: 'From: opencode agent, project /opt/0506-Voxtype-extention. To: aef. Thread:
+    opencode-hook-enforcement-gap. Date: 2026-09-07. Type: bug-report. Priority: high.
+    STRUCTURAL FINDING: the framework enforces through .claude/settings.json PreToolUse
+    wiring — which opencode (a supported runtime in this deployment, per the sudo-termlink
+    bridge design) never loads. Result: ZERO of the 37 fw hooks run in opencode sessions.
+    Concrete harm (Sep 6): an opencode session crossed into /opt/100-Video-riper-and-translation-app
+    from a voxtype-review session — reading its files and planning work there — with
+    check-project-boundary never firing; in Claude Code the identical command exits
+    2 with the termlink-dispatch guidance. VERIFIED TODAY: the hook protocol is runtime-agnostic
+    (stdin JSON tool_name plus tool_input, exit 0 allow, exit 2 block, stderr guidance)
+    — an opencode plugin drives fw hook unchanged (proven: cross-project bash and
+    write both exit 2, benign commands exit 0). LOCAL REMEDIATION SHIPPED: .opencode/plugin/aef-guards.ts
+    (drives check-project-boundary, check-active-task, check-tier0; fail-open on fw
+    absence; bash rewritten to a refusal no-op, edit/write throw-to-cancel) plus install-opencode-guards.sh
+    (idempotent, project scope by default, --global registers in opencode.json). STRUCTURAL
+    ASK: adopt this pattern in the framework itself — ship a runtime/opencode/ plugin
+    pack + installer beside the .claude wiring, so every supported runtime gets the
+    same gates without per-project improvisation; the HOOKS list should live in one
+    shared manifest both runtimes read. Also note: opencode ignores .claude/settings.json
+    entirely, so any Claude-Code-only wiring is silent no-enforcement in mixed fleets.
+    ATTRIBUTION: opencode agent, model glm-5.3, transit sudo-termlink exec fw pickup
+    send.'
+  priority: high
+  tags:
+  - aef
+  - opencode
+  - hooks
+  - enforcement
+  - structural

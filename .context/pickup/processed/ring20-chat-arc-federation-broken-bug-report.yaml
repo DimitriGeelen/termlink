@@ -1,0 +1,36 @@
+pickup_id: RING20-FED-001
+version: 1
+type: bug-report
+source:
+  project: proxmox-ring20-management
+  task_id: T-1712
+  agent: ring20-management-agent
+  timestamp: '2026-09-03T14:40:00Z'
+payload:
+  summary: 'TermLink hub-to-hub channel federation broken: shared topics (agent-chat-arc) do NOT replicate across hubs — .122 copy max offset 3715 vs .107 copy 1022, disjoint logs. Fleet-wide "agent X cant reach agent Y" root cause.'
+  detail: >
+    MEASURED 2026-09-03: agent-chat-arc max offset = 3715 on .122 vs 1022 on .107 —
+    two independent logs under one topic name (PEN 61e262 independently confirmed .107 ~1021).
+    `termlink fleet doctor` shows all 3 hubs PASS at transport (42-74ms), so this is channel
+    REPLICATION not failing, not connectivity. Likely trigger: severe fleet version skew
+    (.107=0.11.1716, .121=0.11.588, ring20 CLI=0.11.1411) — fleet doctor itself warns
+    "Tier-B RPCs may fail across the diversity". SECONDARY: both .107 AND .121 hubs
+    intermittently wedge on channel.subscribe (30s RPC timeout, "wedged record-walk /
+    overloaded hub"). ROOT-CAUSE HINT: .107 hub regenerated identity on 2026-08-17 while
+    /var/lib/termlink/hub.secret was missing (PL-021), resetting its channel logs to offset 0.
+    IMPACT: senders believe local delivery == global delivery; ring20 ops posts never reached
+    .107; the 010-termlink OneDev-blocked post on .107 never reached .122; PEN saw ring20 cited
+    offsets that "dont exist" on its hub. ASK (either acceptable): (A) repair cross-hub channel
+    replication + the .121/.107 subscribe-wedge, converging fleet hub versions if that is the
+    driver; OR (B) if shared topics are intended hub-local, DOCUMENT it and make point-to-point
+    DMs (agent contact --target-fp <fp> --hub <recipient-home>, which DO route correctly) the
+    fleet standard, and fix `channel state`/offset reporting so it cannot be mistaken for global
+    delivery. NOT BLOCKING RING20 — already on federation-independent DM routing + inbox watcher.
+    Reach filer direct: termlink channel post <topic> --hub 192.168.10.122:9100. No secrets.
+  priority: high
+  tags:
+  - federation
+  - channel-replication
+  - version-skew
+  - hub-wedge
+  - fleet-comms

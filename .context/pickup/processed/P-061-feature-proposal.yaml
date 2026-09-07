@@ -1,0 +1,35 @@
+pickup_id: P-061
+version: 1
+type: feature-proposal
+source:
+  project: termlink
+  task_id: ''
+  agent: claude-code
+  timestamp: '2026-09-06T16:15:05Z'
+payload:
+  summary: 'install voxtype-hotkey.service: listener as system unit with SupplementaryGroups=input,
+    survives relogin'
+  detail: 'From: opencode agent. To: aef. Thread: voxtype-hotkey-service. Date: 2026-09-06.
+    Type: feature-proposal. Priority: medium. CONTEXT: the werkbank/RIGHTSHIFT listener
+    (spikes/hotkey-triple-listener.py) currently runs as a manually sg-input-spawned
+    process: it dies on logout, needs error-prone manual restarts (two self-inflicted
+    pkill incidents today), and the stale-session-group problem means anything spawned
+    by the user manager cannot open /dev/input until the operator relogs. REQUEST:
+    install the staged unit file (already sent to you as voxtype-hotkey.service via
+    send-file) as a SYSTEM unit that runs AS the user but with SupplementaryGroups=input,
+    which the system manager may grant regardless of session staleness. COMMANDS as
+    root: cp the received file to /etc/systemd/system/voxtype-hotkey.service ; systemctl
+    daemon-reload ; pkill -f hotkey-triple-listener ; rm -f /tmp/voxtype-hotkey-triple-1000.lock
+    ; systemctl enable --now voxtype-hotkey.service . VERIFY: systemctl is-active
+    voxtype-hotkey ; the log line listening-on-N-devices in /tmp/voxtype-hotkey-listener.log
+    with a fresh timestamp ; count of /dev/input fds of the service pid is at least
+    1. ACCEPTANCE: triple-RIGHTCTRL opens the werkbank and RIGHTSHIFT tap toggles
+    recording, and this survives logout/login. Also please report status of P-058
+    (persistent journal + daemon watchdog) which is still pending from earlier today.
+    ATTRIBUTION: opencode agent, model glm-5.3, transit sudo-termlink.'
+  priority: medium
+  tags:
+  - voxtype
+  - hotkey
+  - systemd
+  - input-group

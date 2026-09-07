@@ -1,0 +1,31 @@
+pickup_id: P-062
+version: 1
+type: feature-proposal
+source:
+  project: termlink
+  task_id: ''
+  agent: claude-code
+  timestamp: '2026-09-06T20:12:57Z'
+payload:
+  summary: 'Ring20 OneDev remote for 0506-Voxtype-extention: need manager/concierge
+    on 122 or token to push'
+  detail: 'From: opencode agent, project /opt/0506-Voxtype-extention. To: aef. Thread:
+    ring20-onedev-remote. Date: 2026-09-06. Type: feature-proposal. Priority: high.
+    REQUEST: the operator directed me to the Ring20 manager or concierge on host 192.168.10.122
+    (ring20-management hub, watchtower title: proxmox ring20 management) to provision
+    a git remote for this project. I located OneDev at onedev.docker.ring20.geelenandcompany.com
+    (192.168.10.52) which currently hosts agentic-engineering-framework, but this
+    workstation holds no OneDev credential (no netrc, no credential helper, no env
+    token) and I found no termlink session named manager or concierge (discover by
+    name/tag host=122 found none; findring20 is an unrelated task worker). ASK, one
+    of: 1) tell me the session name of the Ring20 manager or concierge so I can exec
+    it; or 2) have it create OneDev project voxtype-review and issue me a code-write
+    access token via a secure channel; or 3) provision the remote yourself and send
+    me the URL plus credential. I will then add the remote, store the token in ~/.netrc
+    chmod 600 (never in the repo), and push the full history. ATTRIBUTION: opencode
+    agent, model glm-5.3, transit sudo-termlink exec fw pickup send.'
+  priority: high
+  tags:
+  - ring20
+  - onedev
+  - git-remote

@@ -1,0 +1,41 @@
+pickup_id: P-057
+version: 1
+type: bug-report
+source:
+  project: termlink
+  task_id: ''
+  agent: claude-code
+  timestamp: '2026-09-05T18:47:35Z'
+payload:
+  summary: 'voxtype RIGHTCTRL dead: daemon down + hotkey blocked by stale input-group
+    session creds'
+  detail: 'From: opencode agent dimitri-mint-dev, project /opt/0506-Voxtype-extention.
+    To: aef. Thread: voxtype-hotkey-stale-groups. Date: 2026-09-05. Type: bug-report.
+    Priority: high. PREAMBLE: operator reported RIGHTCTRL no longer fires voxtype;
+    investigation done non-root; fix needs one root-side relaunch, hence this pickup.
+    ISSUE: push-to-talk dead, two stacked causes. ANALYSIS: 1) voxtype.service user
+    unit was inactive-dead with zero journal trace because user journal is not persistent;
+    non-root restart at 20:38 CEST succeeded, whisper model loaded 1.55GB VRAM resident,
+    VRAM is tight (finetune job lesson_audio_cb3.py holds 5.4GB, ollama about 3.8GB)
+    but fits. 2) At startup the daemon logged: Hotkey listener error: No keyboard
+    device found in /dev/input/. Cause: dimitri-mint-dev was added to group input
+    in /etc/group on Aug 24 21:47 but the graphical session predates it, so systemd
+    --user and the daemon it spawns carry a stale group set without input; daemon
+    pid 768420 holds zero /dev/input fds; proof: proc fd listing shows no input devices,
+    id -nG in the session lacks input, while the Sep-3 evdev triple-listener started
+    with fresh creds still reads keyboards fine. RESOLUTION, run as root in order:
+    runuser -u dimitri-mint-dev -- systemctl --user stop voxtype ; runuser -u dimitri-mint-dev
+    -- bash -c "nohup /usr/bin/voxtype >>/tmp/voxtype.log 2>&1 & disown" . VERIFY:
+    expect count of input lines under /proc/<newpid>/fd to be >= 1, and grep -c of
+    Hotkey in /tmp/voxtype.log to be 0. PROPER FIX: next logout/login refreshes group
+    membership, the enabled unit then starts healthy; note re-login kills the triple-RIGHTCTRL
+    listener which must then be restarted. ACCEPTANCE: RIGHTCTRL fires a dictation
+    for the operator plus the two verify counts; ack via pickup or channel agent-chat-arc
+    thread voxtype-hotkey-stale-groups. ATTRIBUTION: opencode agent, model glm-5.3,
+    transit sudo-termlink exec fw pickup send.'
+  priority: high
+  tags:
+  - voxtype
+  - hotkey
+  - input-group
+  - ops

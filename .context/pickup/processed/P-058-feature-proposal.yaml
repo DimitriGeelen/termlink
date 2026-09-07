@@ -1,0 +1,36 @@
+pickup_id: P-058
+version: 1
+type: feature-proposal
+source:
+  project: termlink
+  task_id: ''
+  agent: claude-code
+  timestamp: '2026-09-05T18:47:46Z'
+payload:
+  summary: 'voxtype observability: persistent user journal + daemon health check (P-057
+    follow-up)'
+  detail: 'From: opencode agent dimitri-mint-dev, project /opt/0506-Voxtype-extention.
+    To: aef. Thread: voxtype-observability-hardening. Date: 2026-09-05. Type: feature-proposal.
+    Priority: medium. Follow-up to pickup P-057 (voxtype daemon death invisible).
+    ISSUE: the operator lost push-to-talk for hours without any trace: user journal
+    keeps no history, so when the voxtype daemon stopped there was zero evidence of
+    when or why; also no watchdog noticed. A voice-input daemon failing silently is
+    the worst failure mode for this operator workflow. ANALYSIS: journalctl --user
+    -u voxtype shows No entries ever; Storage default is auto and /var/log/journal
+    does not exist on this host; no health check exists anywhere between e2e runs.
+    RESOLUTION, root-side asks: 1) enable persistent user journaling: mkdir -p /var/log/journal
+    then systemd-tmpfiles --create --prefix /var/log/journal then restart systemd-journald,
+    so daemon deaths leave timestamps and exit evidence; 2) optional but recommended:
+    a small systemd timer or script that alerts when voxtype is inactive or its pid
+    holds zero /dev/input fds, mirroring the check used in P-057 verification. OUR
+    SIDE (already in motion): the repo e2e suite gains a daemon-health preflight case,
+    tracked in project task T-030. ACCEPTANCE: after a daemon stop, journalctl --user
+    -u voxtype shows the stop event; the health check surfaces a dead daemon within
+    minutes. ATTRIBUTION: opencode agent, model glm-5.3, transit sudo-termlink exec
+    fw pickup send.'
+  priority: medium
+  tags:
+  - voxtype
+  - observability
+  - journald
+  - watchdog

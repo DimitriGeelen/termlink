@@ -1,0 +1,20 @@
+pickup_id: P-056
+version: 1
+type: bug-report
+source:
+  project: termlink
+  task_id: ''
+  agent: claude-code
+  timestamp: '2026-09-03T20:32:25Z'
+payload:
+  summary: 'Batch: 13 framework observations routed from voxtype project inbox (gates/tools/layout)
+    — full report: framework-observations-report.md'
+  detail: See evidence file framework-observations-report.md. OBS-008 (termlink dispatch
+    /tmp/tl-dispatch root-owned) is flagged BLOCKER by the source project. Project-local
+    product items (OBS-017..020) stay project-side.
+  priority: medium
+  tags:
+  - framework
+  - gates
+  - termlink
+  - layout
