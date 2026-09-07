@@ -26,7 +26,7 @@ alone (CLAUDE.md Human Task Completion Rule).
 Rows with an empty `## Verification` block need that scrutiny most —
 nothing mechanical would gate their close.
 
-## Qualifying tasks (4)
+## Qualifying tasks (5)
 
 | Task | Status | Workflow | Name | Agent ACs | Verification cmds? |
 |------|--------|----------|------|----------:|--------------------|
@@ -34,4 +34,5 @@ nothing mechanical would gate their close.
 | T-1451 | started-work | build | revisit_at frontmatter field + template update (T-14... | 6 | yes |
 | T-212 | started-work | build | Create Homebrew tap for TermLink distribution | 5 | yes |
 | T-2828 | started-work | inception | Duplicate-work detector is blind to duplicated FIXES... | 3 | **no** |
+| T-2915 | started-work | build | Axis D duplicated-fix detection — overlap signals vs... | 4 | yes |
 
