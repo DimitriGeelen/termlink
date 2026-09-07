@@ -1,10 +1,10 @@
-# Audit Results - 2026-09-07-2209
-timestamp: 2026-09-07T20:09:14Z
+# Audit Results - 2026-09-07-2246
+timestamp: 2026-09-07T20:46:31Z
 sections: "structure"
 summary:
   pass: 37
   warn: 10
-  fail: 1
+  fail: 2
 findings:
   - level: PASS
     check: "Tasks directory exists"
@@ -46,9 +46,9 @@ findings:
     check: "Found 77 GO-scope-not-propagated inception(s) of 158 GO-recorded completed inception(s) examined — GO recorded, related_tasks empty, nobody back-references, no unlocks_inception_decision"
     mitigation: "Triage: per inception either backfill related_tasks: / unlocks_inception_decision:, or file the slices its GO approved. Full list: cat /opt/termlink/.context/audits/go-scope-unpropagated/LATEST.md (origin: T-2078, T-2091, T-3099; sibling to L-417/T-1975)"
   - level: PASS
-    check: "Fabric: 451 registered card(s)"
+    check: "Fabric: 453 registered card(s)"
   - level: WARN
-    check: "Fabric: 316/481 cards have no edges"
+    check: "Fabric: 318/483 cards have no edges"
     mitigation: "Run: fw fabric enrich"
   - level: WARN
     check: "Fabric drift: 1 source file(s) have no fabric card"
@@ -56,6 +56,9 @@ findings:
   - level: WARN
     check: "Fabric: 10 card(s) point at files no watch pattern covers"
     mitigation: "Widen .fabric/watch-patterns.yaml, or remove the cards if they are not components"
+  - level: FAIL
+    check: "Cron drift: /opt/termlink/.context/cron-registry.yaml is ahead of /opt/termlink/.context/cron/agentic-audit.crontab (registry edited but not generated)"
+    mitigation: "Run: fw cron generate"
   - level: PASS
     check: "Cron registry in sync with /etc/cron.d/agentic-audit-termlink"
   - level: FAIL
