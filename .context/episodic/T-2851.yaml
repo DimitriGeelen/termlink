@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2851: Hook telemetry counter is corrupted by an unlocked read-modify-write
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-07T20:39:46Z
+# ============================================================================
+
+task_id: T-2851
+task_name: "Hook telemetry counter is corrupted by an unlocked read-modify-write"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-08-29T09:52:33Z
+completed: 2026-09-07T20:39:38Z
+duration_days: 9
+updates_count: 2
+first_commit: 2026-08-29T12:02:23+02:00
+last_commit: 2026-08-29T12:02:23+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  repair the corrupt hook counter; file the unlocked read-modify-write upstream
+
+# Key outcomes
+outcomes:
+  - 'The mechanism is proven from the vendored source, not inferred from the symptom: `_fw_telemetry_increment` reads the whole file, edits in memory, and truncate-writes it back with no lock and no atomic rename'
+  - 'The live corruption is recorded verbatim before repair (malformed line, torn key, duplicate key) so the filing carries measured evidence rather than a description'
+  - 'The local data file is repaired by `max()` over duplicate keys — a duplicate is a stale snapshot of a monotonic counter, so summing would double-count real fires'
+  - '`scripts/check-hook-counter-integrity.sh` exits 0 after the repair'
+  - 'The defect is filed to `framework:pickup` and NOT patched locally — `lib/` is vendored, so a local fix is deleted by the next `fw upgrade` (G-062)'
+  - 'The filing states the failure DIRECTION (false silence in the T-1626 decay-alarm denominator), because that is what makes it urgent rather than untidy'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/working/.hook-counter'
+  - '.tasks/active/T-2851-hook-telemetry-counter-is-corrupted-by-a.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-08-29T12:02:23'
+    action: 'T-2851: repair the corrupt hook counter; file the unlocked read-modify-write upstream'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 13607 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 13607
+  commits: 1
+  files_changed: 2
+  lines_added: 284
+  lines_removed: 13
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2851-hook-telemetry-counter-is-corrupted-by-a.md
+generated_by: context-agent-hybrid

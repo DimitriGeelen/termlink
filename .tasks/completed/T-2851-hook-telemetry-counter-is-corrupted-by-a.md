@@ -9,10 +9,10 @@ description: >
   apparent failure ratio: false silence in enforcement telemetry. Found by check-hook-counter-integrity.sh
   on its first run at the authority (T-2850).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: claude-code
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -27,8 +27,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-08-29T09:52:33Z
-last_update: 2026-08-29T09:59:51Z
-date_finished:
+last_update: 2026-09-07T20:39:38Z
+date_finished: 2026-09-07T20:39:38Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -66,12 +66,18 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] The mechanism is proven from the vendored source, not inferred from the symptom: `_fw_telemetry_increment` reads the whole file, edits in memory, and truncate-writes it back with no lock and no atomic rename
-- [ ] The live corruption is recorded verbatim before repair (malformed line, torn key, duplicate key) so the filing carries measured evidence rather than a description
-- [ ] The local data file is repaired by `max()` over duplicate keys — a duplicate is a stale snapshot of a monotonic counter, so summing would double-count real fires
-- [ ] `scripts/check-hook-counter-integrity.sh` exits 0 after the repair
-- [ ] The defect is filed to `framework:pickup` and NOT patched locally — `lib/` is vendored, so a local fix is deleted by the next `fw upgrade` (G-062)
-- [ ] The filing states the failure DIRECTION (false silence in the T-1626 decay-alarm denominator), because that is what makes it urgent rather than untidy
+- [x] The mechanism is proven from the vendored source, not inferred from the symptom: `_fw_telemetry_increment` reads the whole file, edits in memory, and truncate-writes it back with no lock and no atomic rename
+      (Read this session: `.agentic-framework/lib/hook-telemetry.sh:39-61` — `mapfile -t lines < "$file"` → in-memory edit → `printf '%s\n' "${lines[@]}" > "$file"`. No flock, no temp+rename anywhere in the function.)
+- [x] The live corruption is recorded verbatim before repair (malformed line, torn key, duplicate key) so the filing carries measured evidence rather than a description
+      (The framework:pickup offset-69 filing carries the 22-line snapshot verbatim: malformed `08` line, torn `oop-detect=48`, duplicate `audit-task-tools=13`/`=89`. The canary log `.context/working/.hook-counter-integrity-canary.log` holds a second independent firing, 2026-08-31: duplicate `audit-task-tools`, readers 25 vs 67.)
+- [x] The local data file is repaired by `max()` over duplicate keys — a duplicate is a stale snapshot of a monotonic counter, so summing would double-count real fires
+      (Done in the session that posted the filing — the payload states it: "We repaired only our own data file (max() over duplicate keys…)". Current file re-verified 2026-09-07: 17 lines, 0 duplicates, 0 malformed.)
+- [x] `scripts/check-hook-counter-integrity.sh` exits 0 after the repair
+      (Re-run 2026-09-07: `clean — 17 line(s), no duplicate or malformed keys`, rc=0. Verification line 1 pins it.)
+- [x] The defect is filed to `framework:pickup` and NOT patched locally — `lib/` is vendored, so a local fix is deleted by the next `fw upgrade` (G-062)
+      (Filed at offset 69, "Filed by 010-termlink under T-2851". `git status`/`git log` on `.agentic-framework/lib/hook-telemetry.sh`: unmodified since the v1.6.160 vendor event — no local patch exists to be erased. Verification line 3 pins the no-local-patch property.)
+- [x] The filing states the failure DIRECTION (false silence in the T-1626 decay-alarm denominator), because that is what makes it urgent rather than untidy
+      (Offset-69 payload: "Each duplicate key roughly HALVES the apparent failure ratio, so the alarm goes quiet exactly when hooks fire hardest … The failure direction is false silence." Verification line 2 greps the live topic for it.)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -165,21 +171,48 @@ bvp_scores_proposed:
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+# The corruption oscillates (T-2878): a duplicate survives only until the next hook fire
+# happens to rewrite the file cleanly. So "check exits 0" proves the file is clean NOW,
+# not that the write path is fixed — the write path is vendored and deliberately unpatched.
+bash scripts/check-hook-counter-integrity.sh
+# The upstream filing exists on the live topic and carries the failure direction.
+termlink channel search framework:pickup "T-2851" --json > /tmp/.t2851-filing.txt 2>&1 && grep -q "unlocked read-modify-write" /tmp/.t2851-filing.txt && grep -q "false silence" /tmp/.t2851-filing.txt
+# The vendored write path is NOT patched locally (G-062 — a local fix would be vendor-erased).
+test -z "$(git status --porcelain .agentic-framework/lib/hook-telemetry.sh)"
+
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom:** `.context/working/.hook-counter` accumulated malformed lines (a bare `08`
+with no key), torn keys (`oop-detect=48`), and duplicate keys
+(`audit-task-tools=13` + `audit-task-tools=89`). The two readers of the same file
+disagreed: `fw_hook_counter_get` (first-match) said 13; `hook-threshold.py` (sums)
+said 102 — a second independent canary firing on 2026-08-31 measured 25 vs 67.
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause:** `_fw_telemetry_increment` (`lib/hook-telemetry.sh:39-61`, vendored) is
+an unlocked read-modify-write: `mapfile` reads the whole file, one line is edited in
+memory, and `printf … > "$file"` truncate-rewrites it. Claude Code fires PreToolUse and
+PostToolUse hooks concurrently and runs independent tool calls in parallel, so two
+increments interleave — both read the same snapshot, the later write erases the
+earlier's increment, and a short write landing over a longer one leaves the previous
+content's tail behind (the malformed `08` is the tail of a longer number). L-023
+("truncate+write races silently lose data under parallel calls", 2026-03-26) recurring
+verbatim — the learning predates the code.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Why structurally allowed:** nothing read the counter file's integrity. Both consumers
+tolerate garbage silently: first-match ignores duplicates, summing double-counts them,
+and neither errors on a malformed line. The failure direction compounds the blindness —
+the summing reader feeds the T-1626 decay-alarm DENOMINATOR, so each duplicate roughly
+halves the apparent failure ratio: the alarm goes quieter exactly when hooks fire
+hardest, which is when corruption is most likely. False silence in the layer whose job
+is to detect silent decay.
+
+**Prevention:** `scripts/check-hook-counter-integrity.sh` (T-2795, 26 fixtures) fires
+on malformed lines, duplicate keys, and reader disagreement; scheduled daily as the
+`termlink-hook-counter-integrity-canary` cron (T-2850/T-2878 — the corruption is
+intermittent, so a daily sample of an oscillating fault is exactly what a canary is
+for). The WRITE-path fix (flock, or tmp+`mv` atomic rename) is upstream's per G-062 —
+filed at `framework:pickup` offset 69 with the suggested fix and the detection script
+offered.
 
 ## Evolution
 
@@ -264,3 +297,15 @@ bvp_scores_proposed:
 
 ### 2026-08-29T09:59:51Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-f33f8cd2
+- **Timestamp:** 2026-09-07T20:39:39Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-09-07T20:39:38Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
