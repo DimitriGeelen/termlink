@@ -382,6 +382,7 @@ pub(crate) fn spawn_result_json(
     backend: &str,
     registration: SpawnRegistration,
     session_id: Option<&str>,
+    terminal_state: Option<&'static str>,
 ) -> serde_json::Value {
     let mut v = serde_json::json!({
         "ok": true,
@@ -405,8 +406,35 @@ pub(crate) fn spawn_result_json(
                 ),
             );
         }
+        if let Some(ts) = terminal_state {
+            obj.insert("terminal_state".to_string(), serde_json::Value::String(ts.to_string()));
+        }
     }
     v
+}
+
+/// T-2871: what a caller can retrieve after the spawned command exits.
+///
+/// The background backend runs `termlink register … & <cmd>; kill $TL_PID`, so
+/// the registration lives exactly as long as the command and is torn down when
+/// it exits — nothing records `exit_code` or `finished_at`, and a later
+/// `status <name>` answers "Session not found". A dispatcher that only learns
+/// this by querying is inferring failure from silence, which is the Directive
+/// #2 shape; saying it at spawn time is the loud alternative. `None` for every
+/// other case: tmux/terminal sessions persist, and a command-less background
+/// session runs a shell that outlives nothing.
+pub(crate) fn spawn_terminal_state(
+    backend: &SpawnBackend,
+    command: &[String],
+) -> Option<&'static str> {
+    if matches!(backend, SpawnBackend::Background) && !command.is_empty() {
+        Some(
+            "none — the session deregisters when the command exits; exit_code/finished_at \
+             are not retrievable afterwards. Use `termlink exec` for captured results.",
+        )
+    } else {
+        None
+    }
 }
 
 pub(crate) async fn cmd_spawn(opts: SpawnOpts) -> Result<()> {
@@ -436,6 +464,8 @@ pub(crate) async fn cmd_spawn(opts: SpawnOpts) -> Result<()> {
         return Err(e);
     }
 
+    let terminal_state = spawn_terminal_state(&resolved, &command);
+
     if !json {
         println!("Spawned session '{}' via {} backend", session_name, resolved);
         if !wait {
@@ -443,6 +473,9 @@ pub(crate) async fn cmd_spawn(opts: SpawnOpts) -> Result<()> {
                 "  registration unconfirmed — the launcher started, but `termlink register` \
                  runs inside the spawned shell. Pass --wait to confirm it registered."
             );
+        }
+        if let Some(ts) = terminal_state {
+            println!("  terminal state: {ts}");
         }
     }
 
@@ -461,6 +494,7 @@ pub(crate) async fn cmd_spawn(opts: SpawnOpts) -> Result<()> {
                         &resolved.to_string(),
                         SpawnRegistration::Confirmed,
                         Some(reg.id.as_str()),
+                        terminal_state,
                     ));
                 } else {
                     println!("Session '{}' is ready", session_name);
@@ -468,6 +502,13 @@ pub(crate) async fn cmd_spawn(opts: SpawnOpts) -> Result<()> {
                 return Ok(());
             }
             if start.elapsed() > timeout {
+                // T-2871: the register process's own output is discarded by the
+                // detached launcher, so this timeout is the ONLY symptom the
+                // caller ever sees of a register that failed inside the spawned
+                // shell — name the likely causes instead of just the clock.
+                let hint = "the launcher started, but `termlink register` inside the \
+                     spawned shell never appeared; its output is discarded, so check hub \
+                     reachability and TERMLINK_RUNTIME_DIR in the spawn environment";
                 if json {
                     super::json_error_exit(serde_json::json!({
                         "ok": false,
@@ -475,12 +516,14 @@ pub(crate) async fn cmd_spawn(opts: SpawnOpts) -> Result<()> {
                         "backend": resolved.to_string(),
                         "ready": false,
                         "error": format!("Timeout waiting for session to register ({}s)", wait_timeout),
+                        "hint": hint,
                     }));
                 }
                 anyhow::bail!(
-                    "Timeout waiting for session '{}' to register ({}s)",
+                    "Timeout waiting for session '{}' to register ({}s) — {}",
                     session_name,
-                    wait_timeout
+                    wait_timeout,
+                    hint
                 );
             }
             tokio::time::sleep(std::time::Duration::from_millis(250)).await;
@@ -493,6 +536,7 @@ pub(crate) async fn cmd_spawn(opts: SpawnOpts) -> Result<()> {
             &resolved.to_string(),
             SpawnRegistration::Unconfirmed,
             None,
+            terminal_state,
         ));
     }
 
@@ -827,6 +871,67 @@ mod tests {
         assert!(cmd.contains("kill $TL_PID"), "should kill register after: {cmd}");
     }
 
+    // ---- T-2871: the queryable-window guarantee ----
+    //
+    // `--wait` reports ready when `find_session` resolves, and `status`/`list`
+    // read the SAME registration — so "ready implies queryable for the
+    // command's lifetime" holds exactly as long as `termlink register` starts
+    // BEFORE the user command and is killed only AFTER it completes. This pins
+    // that ordering; foregrounding register or moving the kill above the user
+    // command would empty the window and fail here. (Live-verified 2026-09-07:
+    // `status <name>` resolved 4s into a 25s background command; after exit
+    // the session is deregistered by design — see spawn_terminal_state.)
+
+    #[test]
+    fn spawn_cmd_register_brackets_user_command() {
+        let cmd = build_spawn_shell_cmd(
+            "worker-2", &[], &[], &[], &[], false,
+            &["sleep".to_string(), "5".to_string()],
+        ).unwrap();
+        let reg = cmd.find("register").expect("register present");
+        let bg = cmd.find("TL_PID=$!").expect("register backgrounded");
+        let user = cmd.find("sleep 5").expect("user command present");
+        let kill = cmd.find("kill $TL_PID").expect("register torn down");
+        assert!(
+            reg < bg && bg < user && user < kill,
+            "register must start (backgrounded) before the user command and be \
+             killed only after it completes, or the queryable window is empty: {cmd}"
+        );
+    }
+
+    // ---- T-2871: terminal-state absence is disclosed, not discovered ----
+
+    #[test]
+    fn background_spawn_with_command_discloses_missing_terminal_state() {
+        let ts = spawn_terminal_state(
+            &SpawnBackend::Background,
+            &["sleep".to_string(), "5".to_string()],
+        );
+        let ts = ts.expect("background+command must disclose that no terminal state is kept");
+        assert!(ts.contains("deregisters"), "must say the session goes away: {ts}");
+        assert!(ts.contains("exit_code"), "must name what is not retrievable: {ts}");
+    }
+
+    #[test]
+    fn terminal_state_note_is_scoped_to_background_with_command() {
+        // tmux/terminal sessions persist; a command-less background session
+        // runs a shell that never self-terminates. Only background+command
+        // tears itself down, so only it carries the note.
+        assert!(spawn_terminal_state(&SpawnBackend::Background, &[]).is_none());
+        assert!(spawn_terminal_state(&SpawnBackend::Tmux, &["x".to_string()]).is_none());
+        assert!(spawn_terminal_state(&SpawnBackend::Terminal, &["x".to_string()]).is_none());
+    }
+
+    #[test]
+    fn spawn_json_carries_terminal_state_when_given() {
+        let note = spawn_terminal_state(&SpawnBackend::Background, &["x".to_string()]);
+        let v = spawn_result_json("s3", "background", SpawnRegistration::Confirmed, Some("tl-y"), note);
+        assert!(v["terminal_state"].as_str().unwrap_or("").contains("deregisters"));
+        // And absent when there is nothing to disclose — absence must stay meaningful.
+        let v2 = spawn_result_json("s4", "tmux", SpawnRegistration::Confirmed, Some("tl-z"), None);
+        assert!(v2.get("terminal_state").is_none());
+    }
+
     #[test]
     fn spawn_cmd_with_roles_tags_cap() {
         let cmd = build_spawn_shell_cmd(
@@ -924,7 +1029,7 @@ mod tests {
         // The defect in one assertion: the fast path used to return a bare
         // ok:true after the LAUNCHER started, while `termlink register` runs
         // inside the spawned shell and can still fail.
-        let v = spawn_result_json("s1", "tmux", SpawnRegistration::Unconfirmed, None);
+        let v = spawn_result_json("s1", "tmux", SpawnRegistration::Unconfirmed, None, None);
         assert_eq!(v["ok"].as_bool(), Some(true), "still a successful launch");
         assert_eq!(v["registered"].as_str(), Some("unconfirmed"));
         assert!(v["note"].is_string(), "must say why it is unconfirmed");
@@ -935,7 +1040,7 @@ mod tests {
 
     #[test]
     fn confirmed_spawn_reports_ready_and_session_id() {
-        let v = spawn_result_json("s2", "background", SpawnRegistration::Confirmed, Some("tl-abc"));
+        let v = spawn_result_json("s2", "background", SpawnRegistration::Confirmed, Some("tl-abc"), None);
         assert_eq!(v["registered"].as_str(), Some("confirmed"));
         assert_eq!(v["ready"].as_bool(), Some(true));
         assert_eq!(v["session_id"].as_str(), Some("tl-abc"));
@@ -957,7 +1062,7 @@ mod tests {
         // T-562 established session_name + backend + ok on this envelope. The
         // T-2550 disclosure is ADDITIVE; nothing that existed may move.
         for reg in [SpawnRegistration::Unconfirmed, SpawnRegistration::Confirmed] {
-            let v = spawn_result_json("keep", "terminal", reg, Some("tl-x"));
+            let v = spawn_result_json("keep", "terminal", reg, Some("tl-x"), None);
             assert_eq!(v["ok"].as_bool(), Some(true));
             assert_eq!(v["session_name"].as_str(), Some("keep"));
             assert_eq!(v["backend"].as_str(), Some("terminal"));
