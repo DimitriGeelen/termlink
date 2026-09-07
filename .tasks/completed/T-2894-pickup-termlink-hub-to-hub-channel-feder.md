@@ -1,13 +1,16 @@
 ---
 id: T-2894
-name: "Pickup: TermLink hub-to-hub channel federation broken: shared topics (agent-chat-arc) do NOT replicate across hubs — .122 copy max offset 3715 vs .107 copy 1022, disjoint logs. Fleet-wide agent X cant reach agent Y root cause. (from proxmox-ring20-management)"
+name: "Pickup: TermLink hub-to-hub channel federation broken: shared topics (agent-chat-arc)
+  do NOT replicate across hubs — .122 copy max offset 3715 vs .107 copy 1022, disjoint
+  logs. Fleet-wide agent X cant reach agent Y root cause. (from proxmox-ring20-management)"
 description: >
-  Auto-created from pickup envelope. Source: proxmox-ring20-management, task T-1712. Type: bug-report.
+  Auto-created from pickup envelope. Source: proxmox-ring20-management, task T-1712.
+  Type: bug-report.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: next
+horizon: null
 tags: [pickup, bug-report]
 components: []
 related_tasks: []
@@ -22,8 +25,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-03T14:34:02Z
-last_update: 2026-09-03T14:34:02Z
-date_finished: null
+last_update: 2026-09-07T17:24:53Z
+date_finished: 2026-09-07T17:24:53Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -36,20 +39,47 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 source_task_id_in_origin: T-1712
 source_project_in_origin: "proxmox-ring20-management"
+bvp_scores_proposed:
+  - ts: '2026-09-07T17:21:51Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-2894: Pickup: TermLink hub-to-hub channel federation broken: shared topics (agent-chat-arc) do NOT replicate across hubs — .122 copy max offset 3715 vs .107 copy 1022, disjoint logs. Fleet-wide agent X cant reach agent Y root cause. (from proxmox-ring20-management)
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Pickup RING20-FED-001 (ring20-management T-1712, 2026-09-03): peer measured `agent-chat-arc`
+max offset 3715 on .122 vs 1022 on .107 and concluded "hub-to-hub channel federation broken",
+asking for either (A) repair cross-hub replication, or (B) document hub-locality, make DMs the
+fleet standard, and fix state/offset reporting so local delivery cannot be mistaken for global.
+
+The answer is (B), and most of it already exists: **there is no inter-hub federation primitive
+by design** — G-060 / T-1791 / T-1792, documented in CLAUDE.md §"Channel Topic Semantics —
+Per-Hub State" and `docs/operations/channel-topic-semantics.md`. Disjoint per-hub logs under a
+shared topic name are expected, not a regression. Cross-hub visibility is explicit client-driven
+cross-posting (`channel post --hub`, `/broadcast-chat` fans to every hub, T-1856/T-1857), and
+point-to-point DM routing (`agent contact`) routes correctly — which the filer independently
+confirmed. Scope here: verify, answer the filer on their hub, and disposition the two secondary
+observations (subscribe-wedge; offset-reporting ambiguity) per one-bug-one-task.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] The federation claim is answered against the documented design with citations (G-060, T-1791/T-1792, `docs/operations/channel-topic-semantics.md` — confirmed present, "no inter-hub federation primitive", zero code matches for federat/cross_hub/topic_replic) — option (B) of the filer's ask; the disjoint-offset measurement acknowledged as consistent with design, not disputed. Their PL-021 reading of the .107 offset reset (2026-08-17 identity regeneration) confirmed as the documented volatile-runtime_dir class.
+- [x] Reply delivered to the filer's hub: `agent-chat-arc` on 192.168.10.122:9100 **offset 3718** (2026-09-07), referencing RING20-FED-001 / their T-1712, naming the doc, the DM standard (`agent contact`), and `/broadcast-chat` (T-1856/57) as the broadcast mitigation.
+- [x] Secondary observations dispositioned: (1) `channel.subscribe` 30s wedge — existing coverage: **T-2013** (tokio worker starvation fix, work-completed) + **T-2017** (channel.info wedge follow-up, started-work); .121 at 0.11.588 predates the fix, remediation is version convergence, no new task needed. (2) offset output mistakable for global delivery — no read-side hub-scope annotation exists (verified: `channel state --json` returns bare envelopes); filed as **T-2913** (hub-qualified read-side output); write-side already mitigated (delivered-unconfirmed status + await-ack arc T-2286/87/95).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -89,6 +119,13 @@ source_project_in_origin: "proxmox-ring20-management"
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
 # The completion gate runs each command — if any exits non-zero, completion is blocked.
+#
+# The design doc the answer rests on exists and says what we cited:
+grep -q "no inter-hub channel-topic federation primitive" docs/operations/channel-topic-semantics.md
+# The reply reached the filer's hub at the recorded offset:
+termlink channel subscribe agent-chat-arc --hub 192.168.10.122:9100 --cursor 3718 --limit 1 > /tmp/.t2894-reply.out 2>&1 && grep -q "RING20-FED-001" /tmp/.t2894-reply.out
+# The filed follow-up task exists:
+test -n "$(ls .tasks/active/T-2913-* 2>/dev/null)"
 #
 # Toolchain hint (L-291): if you edited *.vbproj/*.csproj/*.xaml add `dotnet build`;
 # *.go → `go build ./...`; Cargo.toml → `cargo check`; tsconfig.json → `tsc --noEmit`;
@@ -146,6 +183,28 @@ source_project_in_origin: "proxmox-ring20-management"
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
 ## RCA
+
+**Symptom:** Peer project measured disjoint `agent-chat-arc` logs across hubs (.122 offset
+3715 vs .107 offset 1022) and reported "hub-to-hub channel federation broken" as the fleet-wide
+"agent X can't reach agent Y" root cause.
+
+**Root cause:** Not a defect — a misdiagnosis of documented design. TermLink has no inter-hub
+channel-topic federation primitive (G-060, T-1791 code sweep: zero matches); per-hub topic
+state is independent by construction, so disjoint logs under one topic name are the expected
+state. The two real events inside the report are already-known classes: the .107 offset reset
+was PL-021 volatile-runtime_dir identity regeneration (2026-08-17), and the subscribe wedge is
+the T-2013 tokio-starvation class (fixed; .121's 0.11.588 binary predates the fix).
+
+**Why structurally allowed:** Nothing in the read-side output tells a fleet operator that an
+offset is hub-local — `channel state --json` returns bare envelopes with no hub qualifier — so
+a reasonable peer reading two hubs' offsets side by side infers replication that was never
+promised. The doc exists (`docs/operations/channel-topic-semantics.md`) but the tool output
+does not carry the scope it describes.
+
+**Prevention:** T-2913 filed — hub-qualify read-side output (state/info/topics) so a cited
+offset always names its hub. Write-side is already mitigated (`delivered-unconfirmed` status,
+await-ack arc T-2286/87/95). Reply at .122 offset 3718 points the peer at the doc and the
+supported cross-hub patterns (DM routing, explicit fan-out).
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
@@ -241,3 +300,23 @@ source_project_in_origin: "proxmox-ring20-management"
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2894-pickup-termlink-hub-to-hub-channel-feder.md
 - **Context:** Initial task creation
+
+### 2026-09-07T17:21:51Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-299a70e9
+- **Timestamp:** 2026-09-07T17:24:55Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** yes
+- **Findings:** none
+
+- **Layer-1 escalations:** 1
+  1. **external-publish** (high) — External publish or release
+     - matched: `broadcast`
+
+### 2026-09-07T17:24:53Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

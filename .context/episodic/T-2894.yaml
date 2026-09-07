@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2894: Pickup: TermLink hub-to-hub channel federation broken: shared topics (agent-chat-arc) do NOT replicate across hubs — .122 copy max offset 3715 vs .107 copy 1022, disjoint logs. Fleet-wide agent X cant reach agent Y root cause. (from proxmox-ring20-management)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-07T17:25:01Z
+# ============================================================================
+
+task_id: T-2894
+task_name: "Pickup: TermLink hub-to-hub channel federation broken: shared topics (agent-chat-arc) do NOT replicate across hubs — .122 copy max offset 3715 vs .107 copy 1022, disjoint logs. Fleet-wide agent X cant reach agent Y root cause. (from proxmox-ring20-management)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-03T14:34:02Z
+completed: 2026-09-07T17:24:53Z
+duration_days: 4
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Auto-created from pickup envelope. Source: proxmox-ring20-management, task T-1712. Type: bug-report.
+
+# Key outcomes
+outcomes:
+  - 'The federation claim is answered against the documented design with citations (G-060, T-1791/T-1792, `docs/operations/channel-topic-semantics.md` — confirmed present, "no inter-hub federation primitive", zero code matches for federat/cross_hub/topic_replic) — option (B) of the filer''s ask; the disjoint-offset measurement acknowledged as consistent with design, not disputed. Their PL-021 reading of the .107 offset reset (2026-08-17 identity regeneration) confirmed as the documented volatile-runtime_dir class.'
+  - 'Reply delivered to the filer''s hub: `agent-chat-arc` on 192.168.10.122:9100 **offset 3718** (2026-09-07), referencing RING20-FED-001 / their T-1712, naming the doc, the DM standard (`agent contact`), and `/broadcast-chat` (T-1856/57) as the broadcast mitigation.'
+  - 'Secondary observations dispositioned: (1) `channel.subscribe` 30s wedge — existing coverage: **T-2013** (tokio worker starvation fix, work-completed) + **T-2017** (channel.info wedge follow-up, started-work); .121 at 0.11.588 predates the fix, remediation is version convergence, no new task needed. (2) offset output mistakable for global delivery — no read-side hub-scope annotation exists (verified: `channel state --json` returns bare envelopes); filed as **T-2913** (hub-qualified read-side output); write-side already mitigated (delivered-unconfirmed status + await-ack arc T-2286/87/95).'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 5930 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [pickup, bug-report]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 5930
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2894-pickup-termlink-hub-to-hub-channel-feder.md
+generated_by: context-agent-hybrid
