@@ -215,6 +215,105 @@ if [ "$rc" = "0" ]; then ok "handovers/episodic artifacts are excluded from axis
 else bad "handovers excluded from axis C" "rc=$rc: $out"; fi
 
 # ---------------------------------------------------------------------------
+# 8e. Axis D (T-2915) — duplicated FIX to an existing file across two branches.
+#     Both sides delete the same original line and replace it differently.
+#     WARNS (exit stays 0) — a heuristic must not block.
+# ---------------------------------------------------------------------------
+mk_srcfile() {  # a baseline file with distinct non-trivial lines
+    mkdir -p "$1/scripts"
+    cat > "$1/scripts/worker.sh" <<'EOF'
+first_original_line_alpha_beta_gamma
+second_original_line_delta_epsilon
+third_original_line_zeta_eta_theta
+fourth_original_line_iota_kappa
+EOF
+}
+D="$TMP/fixdup"; mk_repo "$D"
+mk_srcfile "$D"; commit_all "$D" src
+branch_with "$D" alpha
+sed -i 's/second_original_line_delta_epsilon/alpha_replacement_line_one/' "$D/scripts/worker.sh"
+commit_all "$D" a
+( cd "$D" && git checkout -q main )
+branch_with "$D" beta
+sed -i 's/second_original_line_delta_epsilon/beta_replacement_line_two/' "$D/scripts/worker.sh"
+commit_all "$D" b
+out=$(run_check "$D"); rc=$?
+if [ "$rc" = "0" ]; then ok "axis D WARNS without firing (exit 0)"
+else bad "axis D warns without firing" "rc=$rc: $out"; fi
+if echo "$out" | grep -q "DUPLICATED FIX?: scripts/worker.sh"; then
+    ok "axis D names the co-fixed file"
+else bad "axis D names the co-fixed file" "$out"; fi
+if echo "$out" | grep -q "second_original_line_delta_epsilon"; then
+    ok "axis D prints the shared deleted line"
+else bad "axis D prints the shared deleted line" "$out"; fi
+
+# ---------------------------------------------------------------------------
+# 8f. Axis D — branch vs MAIN. The T-2687/T-2824 shape: the fix landed on main
+#     while the branch independently fixed the same line. Axis C is blind to
+#     this by construction; axis D must see it.
+# ---------------------------------------------------------------------------
+D="$TMP/fixmain"; mk_repo "$D"
+mk_srcfile "$D"; commit_all "$D" src
+branch_with "$D" feature
+sed -i 's/third_original_line_zeta_eta_theta/branch_fix_of_the_defect/' "$D/scripts/worker.sh"
+commit_all "$D" f
+( cd "$D" && git checkout -q main )
+sed -i 's/third_original_line_zeta_eta_theta/main_fix_of_the_same_defect/' "$D/scripts/worker.sh"
+commit_all "$D" m
+out=$(run_check "$D"); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "DUPLICATED FIX?: scripts/worker.sh"; then
+    ok "axis D sees a duplicated fix against MAIN (per-pair merge base)"
+else bad "axis D sees duplicated fix vs main" "rc=$rc: $out"; fi
+if echo "$out" | grep -Eq "feature <-> main|main <-> feature"; then
+    ok "axis D names main as a comparison side"
+else bad "axis D names main as a side" "$out"; fi
+
+# ---------------------------------------------------------------------------
+# 8g. THE AXIS-D FALSE-POSITIVE GUARDS.
+#     (1) Disjoint edits to the same file (different lines deleted) => silent.
+#     (2) Identical end blobs (same change carried on both sides) => silent.
+# ---------------------------------------------------------------------------
+D="$TMP/fixdisjoint"; mk_repo "$D"
+mk_srcfile "$D"; commit_all "$D" src
+branch_with "$D" alpha
+sed -i 's/first_original_line_alpha_beta_gamma/alpha_touches_line_one/' "$D/scripts/worker.sh"
+commit_all "$D" a
+( cd "$D" && git checkout -q main )
+branch_with "$D" beta
+sed -i 's/fourth_original_line_iota_kappa/beta_touches_line_four/' "$D/scripts/worker.sh"
+commit_all "$D" b
+out=$(run_check "$D"); rc=$?
+if ! echo "$out" | grep -q "DUPLICATED FIX"; then
+    ok "axis D silent on disjoint edits to the same file (the IW-1 noise case)"
+else bad "axis D silent on disjoint edits" "$out"; fi
+
+D="$TMP/fixcarried"; mk_repo "$D"
+mk_srcfile "$D"; commit_all "$D" src
+branch_with "$D" alpha
+sed -i 's/second_original_line_delta_epsilon/identical_carried_change/' "$D/scripts/worker.sh"
+commit_all "$D" a
+( cd "$D" && git checkout -q main )
+branch_with "$D" beta
+sed -i 's/second_original_line_delta_epsilon/identical_carried_change/' "$D/scripts/worker.sh"
+commit_all "$D" b
+out=$(run_check "$D"); rc=$?
+if ! echo "$out" | grep -q "DUPLICATED FIX"; then
+    ok "axis D silent when end blobs are identical (carried/cherry-picked work)"
+else bad "axis D silent on identical end blobs" "$out"; fi
+
+# ---------------------------------------------------------------------------
+# 8h. Axis D controls: --no-fixes skips it and says so; --json carries counts.
+# ---------------------------------------------------------------------------
+out=$(run_check "$TMP/fixdisjoint" --no-fixes)
+if echo "$out" | grep -q "axis D skipped"; then ok "--no-fixes skips axis D and says so"
+else bad "--no-fixes skips axis D" "$out"; fi
+js=$(run_check "$TMP/fixdup" --json)
+if echo "$js" | grep -q '"duplicate_fix_count": *1'; then ok "--json carries duplicate_fix_count"
+else bad "--json carries duplicate_fix_count" "$js"; fi
+if echo "$js" | grep -q '"duplicate_fixes"'; then ok "--json carries duplicate_fixes detail"
+else bad "--json carries duplicate_fixes detail" "$js"; fi
+
+# ---------------------------------------------------------------------------
 # 9. Tooling errors are exit 2 — never a false "clean".
 # ---------------------------------------------------------------------------
 NOTGIT="$TMP/notgit"; mkdir -p "$NOTGIT"

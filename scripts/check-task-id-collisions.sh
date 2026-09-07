@@ -36,10 +36,26 @@
 #            judgement. A heuristic that blocks on a judgement gets disabled the
 #            first time it is wrong, so this one only advises.
 #
-# A and C are facts and fire. B is a hint and does not. They are genuinely
+#   Axis D — SAME-LINE FIX DUPLICATION (T-2915, T-2828 GO). Two sides MODIFIED the
+#            same pre-existing file since their mutual merge base, their end blobs
+#            differ, and both DELETED at least one identical non-trivial line.
+#            WARNS, never fires (same rule as axis B). Main IS a comparison side —
+#            axis C excludes BASE by construction, which is how the T-2687(main)/
+#            T-2824(branch) duplicate fix stayed invisible from both directions.
+#            The signal was MEASURED, not argued (T-2915 spike on 6 real branches):
+#            "same file touched" fired on nearly every pair; "same added line"
+#            matched generated boilerplate everywhere; "same deleted line" fired
+#            on 13 of 52 candidate files, every one a genuine same-code
+#            modification, including the known ground-truth tools.rs pair.
+#            Blob-identical files are excluded first — that is carried/squash-
+#            merged work, not independent duplication (removed a 133-file
+#            false-positive pair in measurement).
+#
+# A and C are facts and fire. B and D are hints and do not. They are genuinely
 # complementary: axis B found the two branches that both fixed the allowlist
 # tracking bug; axis C found the two that both wrote check-verification-pipefail.sh,
-# whose titles share no rare term and which B therefore missed entirely.
+# whose titles share no rare term and which B therefore missed entirely; axis D
+# sees the duplicated FIX to an existing file, which is invisible to both.
 #
 # This is a DEPLOY-TIME / ad-hoc check, NOT a cron canary — same tier as
 # check-cron-install-drift.sh (T-2561). Run it before starting work, and before a
@@ -55,6 +71,7 @@ THRESHOLD="${TASK_COLLISION_SIMILARITY:-0.72}"
 QUIET=0
 FORMAT=human
 NO_TITLES=0
+NO_FIXES=0
 
 usage() {
     sed -n '3,50p' "$0" | sed 's/^# \{0,1\}//'
@@ -64,6 +81,7 @@ Usage: check-task-id-collisions.sh [OPTIONS]
   --base REF        Common base to diff branches against (default: main)
   --threshold N     Axis B similarity threshold, 0..1 (default: 0.72)
   --no-titles       Skip axis B entirely
+  --no-fixes        Skip axis D entirely
   --json            Emit a JSON envelope
   --quiet           Print only when something fires (axis A or C)
   -h, --help        This help
@@ -71,7 +89,9 @@ Usage: check-task-id-collisions.sh [OPTIONS]
 Test hooks: TASK_COLLISION_BASE, TASK_COLLISION_BRANCHES (space-separated branch
 list, overrides discovery), TASK_COLLISION_SIMILARITY, TASK_COLLISION_RARE_DF
 (axis B: max document frequency for a word to count as rare, default 4),
-TASK_COLLISION_MIN_SHARED (axis B: rare words needed to report a pair, default 2).
+TASK_COLLISION_MIN_SHARED (axis B: rare words needed to report a pair, default 2),
+TASK_COLLISION_FIX_MIN_LEN (axis D: min stripped length for a deleted line to
+count, default 11).
 
 Exit: 0 clean · 1 colliding ID(s) or duplicate file(s) · 2 tooling error
 EOF
@@ -82,6 +102,7 @@ while [ $# -gt 0 ]; do
         --base)      shift; [ $# -ge 1 ] || { echo "check-task-id-collisions: --base requires a value" >&2; exit 2; }; BASE_REF="$1" ;;
         --threshold) shift; [ $# -ge 1 ] || { echo "check-task-id-collisions: --threshold requires a value" >&2; exit 2; }; THRESHOLD="$1" ;;
         --no-titles) NO_TITLES=1 ;;
+        --no-fixes)  NO_FIXES=1 ;;
         --json)      FORMAT=json ;;
         --quiet)     QUIET=1 ;;
         -h|--help)   usage; exit 0 ;;
@@ -102,6 +123,7 @@ export TASK_COLLISION_SIMILARITY="$THRESHOLD"
 export TASK_COLLISION_FORMAT="$FORMAT"
 export TASK_COLLISION_QUIET="$QUIET"
 export TASK_COLLISION_NO_TITLES="$NO_TITLES"
+export TASK_COLLISION_NO_FIXES="$NO_FIXES"
 
 python3 - <<'PYEOF'
 import json, os, re, subprocess, sys
@@ -112,6 +134,8 @@ THRESHOLD = float(os.environ.get("TASK_COLLISION_SIMILARITY") or 0.72)
 FORMAT    = os.environ.get("TASK_COLLISION_FORMAT", "human")
 QUIET     = os.environ.get("TASK_COLLISION_QUIET") == "1"
 NO_TITLES = os.environ.get("TASK_COLLISION_NO_TITLES") == "1"
+NO_FIXES  = os.environ.get("TASK_COLLISION_NO_FIXES") == "1"
+FIX_MIN_LEN = int(os.environ.get("TASK_COLLISION_FIX_MIN_LEN") or 11)
 
 
 def git(*args):
@@ -270,6 +294,84 @@ for p, branches in sorted(added.items()):
     file_dupes.append({"path": p,
                        "branches": sorted(branches)})
 
+# ---- Axis D: same-line fix duplication (T-2915, T-2828 GO follow-up) ------
+# Two sides MODIFIED the same pre-existing file since their mutual merge base,
+# their end blobs differ (blob-identical = carried/squash-merged work, excluded
+# — same exclusion axis C applies; in measurement this removed a 133-file
+# false-positive pair), and both DELETED at least one identical non-trivial
+# line. You can only delete the same original line by touching the same
+# pre-existing code — that is the T-2687/T-2824 shape. Main IS a comparison
+# side here (per-pair merge base): axis C excludes BASE by construction, which
+# is exactly how the August duplicate fix stayed invisible.
+#
+# Signal choice is empirical (T-2915 spike): same-file was ~all pairs (useless),
+# same-ADDED-line matched generated boilerplate (noisy), same-DELETED-line hit
+# 13/52 candidate files with zero boilerplate matches and caught the known
+# ground-truth pair. WARNS, never fires — a heuristic that blocks gets switched
+# off (axis B rule).
+AXIS_D_SKIP = AXIS_C_SKIP + (".context/", "VERSION", ".termlink-task",
+                             "CLAUDE.md")
+TRIVIAL_RE = re.compile(r'^[\s{}()\[\];,#/*-]*$|^(else|end|fi|done|esac|then|do|EOF)$')
+
+
+def modified_lines(ref, mb):
+    """path -> set of non-trivial deleted lines, for M-status files vs mb."""
+    out = git("diff", "-U0", "--no-color", "--diff-filter=M", mb, ref)
+    files, cur = {}, None
+    for line in out.splitlines():
+        if line.startswith("diff --git"):
+            cur = None
+        elif line.startswith("+++ b/"):
+            p = line[6:]
+            if any(p.startswith(s) or p == s for s in AXIS_D_SKIP):
+                cur = None
+            else:
+                cur = files.setdefault(p, set())
+        elif cur is not None and line.startswith("-") and not line.startswith("---"):
+            t = line[1:].strip()
+            if len(t) >= FIX_MIN_LEN and not TRIVIAL_RE.match(t):
+                cur.add(t)
+    return files
+
+
+fix_dupes = []
+if not NO_FIXES:
+    sides = sorted(set(BRANCHES)) + [BASE]
+    mb_cache, del_cache = {}, {}
+
+    def mbase(a, b):
+        key = (a, b)
+        if key not in mb_cache:
+            mb_cache[key] = git("merge-base", a, b).strip()
+        return mb_cache[key]
+
+    def deleted(ref, mb):
+        key = (ref, mb)
+        if key not in del_cache:
+            del_cache[key] = modified_lines(ref, mb)
+        return del_cache[key]
+
+    by_file = {}
+    for xi in range(len(sides)):
+        for yi in range(xi + 1, len(sides)):
+            a, b = sides[xi], sides[yi]
+            mb = mbase(a, b)
+            if not mb:
+                continue
+            da, db_ = deleted(a, mb), deleted(b, mb)
+            for p in sorted(set(da) & set(db_)):
+                shared = da[p] & db_[p]
+                if not shared:
+                    continue
+                if blob(a, p) and blob(a, p) == blob(b, p):
+                    continue  # identical end state: carried work, not duplication
+                by_file.setdefault(p, []).append(
+                    {"sides": [a, b],
+                     "shared_deleted_count": len(shared),
+                     "shared_deleted_sample": sorted(shared)[:3]})
+    for p in sorted(by_file):
+        fix_dupes.append({"path": p, "pairs": by_file[p]})
+
 colliding_ids = {c["id"] for c in collisions}
 dupes = []
 if not NO_TITLES:
@@ -310,6 +412,8 @@ if FORMAT == "json":
         "duplicate_files": file_dupes,
         "duplicate_title_count": len(dupes),
         "duplicate_titles": dupes,
+        "duplicate_fix_count": len(fix_dupes),
+        "duplicate_fixes": fix_dupes,
         "similarity_threshold": THRESHOLD,
     }))
     sys.exit(1 if fire else 0)
@@ -360,13 +464,30 @@ if dupes:
     print("  Two branches may be solving the same problem. Renumbering is mechanical;")
     print("  duplicated work is not recoverable. Read the other branch before continuing.")
 
-if not fire and not dupes:
+if fix_dupes:
+    print("")
+    print("check-task-id-collisions: %d file(s) with same-line fix duplication across "
+          "sides — WARNING (not firing, axis D):" % len(fix_dupes))
+    for d in fix_dupes:
+        print("  DUPLICATED FIX?: %s" % d["path"])
+        for pr in d["pairs"]:
+            print("      %s <-> %s  (%d shared deleted line(s))"
+                  % (pr["sides"][0], pr["sides"][1], pr["shared_deleted_count"]))
+            for ln in pr["shared_deleted_sample"][:2]:
+                print("          - %s" % ln[:100])
+    print("  Both sides deleted the same original line(s) — they modified the same")
+    print("  pre-existing code. That is how T-2687 and T-2824 fixed the identical defect")
+    print("  eight days apart, surfacing only as a merge conflict. Read the other side")
+    print("  before continuing; one of the two changes may already exist.")
+
+if not fire and not dupes and not fix_dupes:
     # Do not claim the title axis is clean when it was never run — that is the
     # same "healthy while nobody looked" wording this session spent its time on.
     titles_note = "axis B skipped (--no-titles)" if NO_TITLES else "no near-duplicate titles"
+    fixes_note = "axis D skipped (--no-fixes)" if NO_FIXES else "no same-line fix duplication"
     print("check-task-id-collisions: clean (%d branch(es) scanned against %s, "
-          "no colliding IDs, no duplicate files, %s)"
-          % (len(per_branch_new), BASE, titles_note))
+          "no colliding IDs, no duplicate files, %s, %s)"
+          % (len(per_branch_new), BASE, titles_note, fixes_note))
 elif not fire:
     print("")
     print("check-task-id-collisions: no colliding IDs, no duplicate files "

@@ -1209,7 +1209,7 @@ behind reads a single working tree and is structurally incapable of seeing any o
 been passing cleanly throughout.
 
 `scripts/check-task-id-collisions.sh` is a **deploy-time / ad-hoc check, NOT a cron canary** —
-same tier as `check-cron-install-drift.sh`. Three axes:
+same tier as `check-cron-install-drift.sh`. Four axes:
 
 - **Axis A — COLLIDING IDS.** An ID claimed by two or more branches beyond the merge base.
   **FIRES** (exit 1), printing each branch's filename so a cherry-pick (same ID, *same* task —
@@ -1223,8 +1223,21 @@ same tier as `check-cron-install-drift.sh`. Three axes:
   **WARNS, never fires.** It catches duplication *before* either branch has written the file —
   earlier than C, at the cost of being a judgement. A heuristic that blocks on a judgement
   gets switched off the first time it is wrong, so this one only advises.
+- **Axis D — SAME-LINE FIX DUPLICATION** (T-2915, closing the T-2828 GO). Two sides MODIFIED
+  the same pre-existing file since their mutual merge base, end blobs differ, and both
+  DELETED at least one identical non-trivial line — you can only delete the same original
+  line by touching the same pre-existing code. **WARNS, never fires** (axis-B rule). **Main
+  IS a comparison side** (per-pair merge base) — axis C excludes BASE by construction, which
+  is how T-2687(main)/T-2824(branch) independently fixed the identical `termlink_topics`
+  defect 8 days apart with nothing firing. The signal was MEASURED on the real branch set
+  (T-2915 spike): same-file fired on ~every pair (useless), same-ADDED-line matched
+  generated boilerplate (noisy), same-DELETED-line hit 13/52 candidate files with zero
+  boilerplate matches and caught the tools.rs ground truth. Blob-identical files are
+  excluded first (carried/squash-merged work — removed a 133-file false-positive pair).
+  `--no-fixes` skips it; `TASK_COLLISION_FIX_MIN_LEN` (default 11) tunes the
+  deleted-line length floor.
 
-A and C are facts and fire; B is a hint and does not. They are genuinely complementary, and
+A and C are facts and fire; B and D are hints and do not. They are genuinely complementary, and
 the August incident proves it in both directions: **axis B** found the two branches that both
 fixed the untracked-allowlist bug, and **axis C** found the two that both wrote
 `check-verification-pipefail.sh` — whose task titles share no rare term, so B missed it

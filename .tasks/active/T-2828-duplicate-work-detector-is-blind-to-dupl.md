@@ -63,9 +63,17 @@ cost_estimate_proposed:
 
 - **IW-1: Is there a signal for "these two branches fixed the same thing" that is
   materially quieter than "these two branches touched the same file"?**
-  confidence: 1
-  disposition:
-  rationale:
+  confidence: 3
+  disposition: answered
+  rationale: YES — measured, not argued (T-2915 spike, 6 real branches, 13 pairs).
+    "Same file touched" fired on essentially every pair (S1, useless). "Same ADDED
+    line" matched generated boilerplate everywhere (.fabric cards, shebangs — noisy).
+    "Same DELETED non-trivial line" — both sides removed the identical original line —
+    fired on 13 of 52 candidate files, every one a genuine same-code modification,
+    including the ground-truth T-2687/T-2824 tools.rs pair (shared deleted rpc_call
+    lines). Prerequisite dampener: exclude files whose end blobs are identical on both
+    sides (carried/squash-merged work) — that alone removed a 133-file false-positive
+    pair. Shipped as axis D in check-task-id-collisions.sh (T-2915).
 
   The file is far too coarse — nearly every pair of long-lived branches touches some file in
   common, so an axis at that grain fires constantly and gets switched off within a week,
@@ -75,9 +83,15 @@ cost_estimate_proposed:
   branch set for how often it would have fired, not just whether it catches T-2687/T-2824.
 
 - **IW-2: Should main be compared at all, and if so as what?**
-  confidence: 2
-  disposition:
-  rationale:
+  confidence: 3
+  disposition: answered
+  rationale: YES, as a full comparison side with a PER-PAIR merge base (T-2915).
+    Each pair (side_a, side_b) — main included as a side — diffs both sides against
+    merge-base(side_a, side_b), so "branch's changes since base vs main's changes
+    since that same base" falls out of the general pairwise shape rather than being
+    a special case. Fixture 8f pins the branch-vs-main detection; the live run
+    catches the tools.rs ground truth on exactly this comparison
+    (worktree-charter-review-2026-0814 <-> main).
 
   Axis C excludes BASE by construction (`if b != BASE`). That is correct for axis C as
   written — `git diff --diff-filter=A BASE...main` is empty by definition — so including main
@@ -87,9 +101,16 @@ cost_estimate_proposed:
   that the merge base is per-branch rather than global.
 
 - **IW-3: Is detection the right intervention, or is the timing wrong?**
-  confidence: 1
-  disposition:
-  rationale:
+  confidence: 2
+  disposition: answered
+  rationale: Detection shipped as WARN-tier (axis D never fires — the axis-B rule:
+    a heuristic that blocks gets switched off). Timing: the check is documented as
+    "run before starting work and before a merge" — run at start-of-work, axis D
+    acts while the cost is still avoidable, which subsumes most of the pre-edit-hook
+    value without a new hook surface. A pre-edit hook remains open as a possible
+    later refinement, but with the axis in place the marginal value is the delta
+    between "operator runs the check at session start" and "hook fires per edit",
+    which current evidence (2 incidents in ~5 months) does not justify building.
 
   A check that fires at merge time reports work already wasted; T-2824's effort was spent
   eight days before anything could have noticed. The cheap manual mitigation
