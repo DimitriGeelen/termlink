@@ -10026,3 +10026,111 @@ scan_id: R-4207adf0
 task_id: T-2891
 payload:
   task_file: .tasks/active/T-2891-t-2889s-verification-block-landed-under-.md
+---
+kind: scan_emitted
+timestamp: '2026-09-03T13:31:31Z'
+scan_id: R-9ce16a55
+task_id: T-2881
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-03T13:31:31Z'
+scan_id: R-9ce16a55
+task_id: T-2881
+payload:
+  task_file: .tasks/active/T-2881-t-2874s-mcpservers-cleanup-reached-main-.md
+---
+kind: scan_emitted
+timestamp: '2026-09-07T17:11:59Z'
+scan_id: R-8adc8cd5
+task_id: T-2893
+payload:
+  overall: CONCERN
+  finding_count: 2
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-07T17:11:59Z'
+scan_id: R-8adc8cd5
+task_id: T-2893
+payload:
+  task_file: .tasks/active/T-2893-d8s-whole-file-todo-grep-has-no-grace-pe.md
+---
+kind: scan_emitted
+timestamp: '2026-09-07T17:15:13Z'
+scan_id: R-e6dca7bf
+task_id: T-2892
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-07T17:15:13Z'
+scan_id: R-e6dca7bf
+task_id: T-2892
+payload:
+  task_file: .tasks/active/T-2892-investigate-incoming-high-priority-compl.md
+---
+kind: scan_emitted
+timestamp: '2026-09-07T17:20:50Z'
+scan_id: R-3b7020cf
+task_id: T-2912
+payload:
+  overall: CONCERN
+  finding_count: 3
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-07T17:20:50Z'
+scan_id: R-3b7020cf
+task_id: T-2912
+payload:
+  task_file: .tasks/active/T-2912-triage-pickup-bridge-batch-t-2894t-2911-.md
+---
+kind: scan_emitted
+timestamp: '2026-09-07T17:24:55Z'
+scan_id: R-299a70e9
+task_id: T-2894
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-07T17:24:55Z'
+scan_id: R-299a70e9
+task_id: T-2894
+payload:
+  task_file: .tasks/active/T-2894-pickup-termlink-hub-to-hub-channel-feder.md
+---
+kind: scan_emitted
+timestamp: '2026-09-07T19:38:45Z'
+scan_id: R-8f3b435f
+task_id: T-2871
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-07T19:38:45Z'
+scan_id: R-8f3b435f
+task_id: T-2871
+payload:
+  task_file: .tasks/active/T-2871-spawn---backend-background---wait-report.md

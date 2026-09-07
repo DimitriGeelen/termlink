@@ -1,0 +1,125 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2871: spawn --backend background --wait reports ready for a session that is never listed or queryable
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-07T19:38:52Z
+# ============================================================================
+
+task_id: T-2871
+task_name: "spawn --backend background --wait reports ready for a session that is never listed or queryable"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-08-31T18:51:26Z
+completed: 2026-09-07T19:38:08Z
+duration_days: 7
+updates_count: 2
+first_commit: 2026-08-31T20:54:20+02:00
+last_commit: 2026-09-07T21:38:01+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  file the background-spawn ready-but-unqueryable defect with a happy-path repro. session state — pickup P-054 processed, discard manifests, ack/binary-drift housekeeping. AC1 partial — two cases measured, neither reproduces; the reaped case is still open. the Context repro queries a different session than it spawned. WIP — root cause established (register-for-lifetime, torn down at command exit; original repro queried wrong id); loud terminal-state disclosure + timeout hint + 4 regression tests written. Tests NOT yet run (budget gate) — next session: cargo test -p termlink-cli --lib -- execution. tests green (22/22), reply sent to reporter at chat-arc offset 1170, durable terminal-state follow-up filed as T-2914, RCA finalized
+
+# Key outcomes
+outcomes:
+  - '**Establish which of the two states is true.** ANSWERED 2026-09-07 (binary 0.11.1766): **neither of the filed alternatives — the session is genuinely registered for the command''s whole lifetime, then deregistered at command exit.** `build_spawn_shell_cmd` (execution.rs:566) generates `register --name X … & TL_PID=$! ; sleep 1 ; <user_cmd> ; kill $TL_PID` — register runs concurrently with the command and is killed when it completes. Live repro: spawn `sleep 25`, `--wait` ready → `list` shows it, `status spawn-3461747` resolves 4s in → after exit, "Session not found". The original Context repro was invalid: it queried `spawn-2504150` after spawning `spawn-2525441` (wrong id), and its `list | grep` absence claim does not reproduce — `--wait`''s "ready" is truthful and the store it polls (`find_session`) is the same one `status`/`list` read.'
+  - '**`--wait` returning success implies queryable.** Property HOLDS (live-verified: `status` resolved 4s into a 25s command) and the regression test now RUNS GREEN — `cargo test -p termlink --bin termlink -- execution` (the handover''s `-p termlink-cli --lib` invocation was wrong: the crate''s package name is `termlink` and it has no lib target): 22 passed, 0 failed, including `spawn_cmd_register_brackets_user_command` pinning the ordering (register backgrounded → user cmd → kill) that guarantees the non-empty window. 2026-09-07.'
+  - '**Terminal state is retrievable, or the absence is loud.** CHOSE loud absence (tests run green 2026-09-07; durable half filed as **T-2914**): `spawn_terminal_state()` discloses at spawn time — text line + JSON `terminal_state` field — that a background+command session deregisters at exit with no retrievable exit_code/finished_at, pointing at `termlink exec` for captured results. **Reason:** durable terminal state needs session-store/protocol changes (filed as T-2914); the loud disclosure closes the Directive-#2 gap now without deciding the store design in passing. Scoped strictly to background+command (tmux/terminal persist; command-less background never self-terminates) — pinned by `terminal_state_note_is_scoped_to_background_with_command`.'
+  - '**Reporter''s variant addressed.** ESTABLISHED, and reply SENT 2026-09-07 at agent-chat-arc offset 1170 (in_reply_to=873, their requested durable route — carries task ids T-2871/T-2914, both findings, outcome classification, and the interim `termlink exec`/tmux guidance): their `--wait` TIMEOUT is a **different defect** from the filed one. Ours registered and succeeded; theirs never registered — an environmental register failure inside the spawned shell (hub unreachable / bad TERMLINK_RUNTIME_DIR in their permissions-constrained context). The timeout is the designed loud path; what failed them is that `spawn_detached` nulls the spawned shell''s stdout/stderr (execution.rs:663-665), so register''s own error is discarded and the timeout is the ONLY symptom. Mitigation added in this session''s WIP: the timeout message (text + JSON `hint`) now names the discarded-output cause and what to check. DONE: reply posted to the offset-873 thread at offset 1170 via `termlink_agent_reply` (metadata: project=010-termlink, thread=T-2871).'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/2026-08-31.yaml'
+  - '.context/audits/2026-09-02.yaml'
+  - '.context/audits/2026-09-07.yaml'
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/handovers/S-2026-0831-1337.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0831-1659.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0831-1927.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0902-0846.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0903-1629.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0907-1929.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0907-1931.discard-manifest.yaml'
+  - '.context/pickup/.bridge-posted/9f35a5a7d99be804569d4d29c4bc3e9df6db8c89d6f38a0c7c08d33c58be5911'
+  - '.context/pickup/dedup.log'
+  - '.context/pickup/processed/P-054-feature-proposal.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/.compact-log'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.pickup-bridge.log'
+  - '.context/working/.pre-compact.last-run'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/.session-start-ts'
+  - '.context/working/session.yaml'
+  - 'crates/termlink-cli/src/commands/execution.rs'
+  - '.tasks/active/T-2389-relaunch-107-agents-via-t-2388-tl-claude.md'
+  - '.tasks/active/T-2669-sweep-raw-rpccall-mcpcli-handler-sites-o.md'
+  - '.tasks/active/T-2723-handover-commit-under-t-1452-collides-wi.md'
+  - '.tasks/active/T-2858-install-path-drift-rootlocalbintermlink-.md'
+  - '.tasks/active/T-2870-two-unlocked-pickup-crons-race-and-creat.md'
+  - '.tasks/active/T-2871-spawn---backend-background---wait-report.md'
+  - '.tasks/active/T-2872-channel-ack-cannot-reach-unread0-on-a-to.md'
+  - '.tasks/active/T-2873-termlinkremoteinject-sends-bare-string-k.md'
+  - '.tasks/active/T-2875-cross-session-reach-into-a-running-claud.md'
+  - '.tasks/active/T-2879-rail-enrolment-gap-1-of-14-local-claude-.md'
+  - '.tasks/active/T-2881-t-2874s-mcpservers-cleanup-reached-main-.md'
+  - '.tasks/active/T-2914-durable-terminal-state-for-backgroundcom.md'
+  - '.termlink-task'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-08-31T20:54:20'
+    action: 'T-2871: file the background-spawn ready-but-unqueryable defect with a happy-path repro'
+  - time: '2026-08-31T20:54:36'
+    action: 'T-2871: session state — pickup P-054 processed, discard manifests, ack/binary-drift housekeeping'
+  - time: '2026-09-02T08:48:31'
+    action: 'T-2871: AC1 partial — two cases measured, neither reproduces; the reaped case is still open'
+  - time: '2026-09-02T08:49:00'
+    action: 'T-2871: the Context repro queries a different session than it spawned'
+  - time: '2026-09-07T19:31:20'
+    action: 'T-2871: WIP — root cause established (register-for-lifetime, torn down at command exit; original repro queried wrong id); loud terminal-state disclosure + timeout hint + 4 regression tests written. Tests NOT yet run (budget gate) — next session: cargo test -p termlink-cli --lib -- execution'
+  - time: '2026-09-07T21:38:01'
+    action: 'T-2871: tests green (22/22), reply sent to reporter at chat-arc offset 1170, durable terminal-state follow-up filed as T-2914, RCA finalized'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 6 commit(s), 10126 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 10126
+  commits: 6
+  files_changed: 39
+  lines_added: 3195
+  lines_removed: 188
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2871-spawn---backend-background---wait-report.md
+generated_by: context-agent-hybrid
