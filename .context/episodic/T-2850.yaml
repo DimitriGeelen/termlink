@@ -1,0 +1,194 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2850: Land the 7 guards stranded on the charter-review worktree branch
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-08T07:41:09Z
+# ============================================================================
+
+task_id: T-2850
+task_name: "Land the 7 guards stranded on the charter-review worktree branch"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-29T09:37:35Z
+completed: 2026-09-08T07:39:10Z
+duration_days: 10
+updates_count: 1
+first_commit: 2026-08-29T11:45:37+02:00
+last_commit: 2026-09-08T09:33:08+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  land the 7 guards stranded on the charter-review worktree branch. land the 14 fabric component cards for the guards landed in 6b587e826. give the hook-counter guard a scheduled reader. session residue — audits, metrics, working state. session residue — working state, metrics, audit. session residue — T-2854 closure, episodic, arc measurements. session residue — T-2855 fabric cards, episodic, arc reply @772, pickup filing @71. land two dark canaries, upgrade the hub, clear one rubber-stamp blocker. clear the two CTL-030 horizon FAILs; PROJECT_ROOT mis-resolution hit again. land the stranded charter-review guard work that survives triage — T-2779 suite membership for run-guard-layer (38 invisible suites now counted), T-2780 tmux orphan reap in session-selftest (1 orphan/day from the daily canary), T-2695 PTY-seam tests + marker on test-session-selftest, T-2794 check-task-frontmatter (2632/2632 parse), mutate-2783 mutation proof. All landed suites green; sweep 94 passed 0 errored. merge cron-install-drift divergence — T-2821 lenient/allowlist (main) + T-2787 JOB_DRIFT class (branch) in one script, 37/37 fixtures green; record the landing ground-truth + discard decisions in the task. sweep enumeration — 2 real findings owned by T-2858/T-2872, 2 fixture suites RED (cron-drift-firing, remediate-main-checkout) recorded as named next-session triage. fabric cards for the 3 landed-but-unregistered files (session-message-selftest, check-task-frontmatter, mutate-2783) — clears the fabric-drift audit WARN
+
+# Key outcomes
+outcomes:
+  - 'All guard scripts, fixture suites, and the allowlists they depend on are present at the authority and tracked by git (measured 2026-09-07: 5 of the "7 stranded" were already landed byte-identical; the true survivors landed in 426af059b + the T-2821/T-2787 merge)'
+  - 'Every landed guard is proven SOUND at the authority: its hermetic fixture assertions all pass. This is the landable property — soundness is a statement about the guard, whereas a firing is a statement about the tree (2026-09-08 sweep: 98 members, 0 errored, 0 fixture-suite failures other than one live-tree control failing-because-true)'
+  - 'Where a landed guard fires, the finding is triaged and filed as its own task rather than allowlisted to make the layer look green — an allowlist entry is for a site confirmed safe, never for a real defect one does not want to see (T-2818 inverted: suppressing a true finding is the worse half of alert fatigue). Filed: T-2858, T-2872, T-2919; T-2870 owns the cron-install control'
+  - 'Control assertions that fail are recorded as failing-because-true, with the specific defect each names, so nobody later reads them as a broken fixture (see Updates 2026-09-08T07:35Z — the "three" in the original wording was a pre-triage estimate; measured reality is one live-tree control (cron-drift-firing → T-2870) plus one genuine host defect fixed as T-2919)'
+  - '`scripts/run-guard-layer.sh` picks the new members up (38 previously-invisible suites counted via T-2779) and reports soundness-green: 0 ERRORED, no broken guards; remaining firings are truthful and each owned by a queued human stamp (T-2858 / T-2872 / T-2870) — see Decisions 2026-09-08 for the amendment from "full-green roll-up"'
+  - 'No task-corpus (`.tasks/`) file crosses from the branch — the corpus is a registry with global invariants and cannot be merged (T-3110); only content lands (verified in the 2026-09-07 landing: content-only)'
+  - 'The count of `scripts/check-*.sh` at the authority increases by exactly the number of guards landed, measured before and after (measured: 63 → 64; exactly one new check script, check-task-frontmatter.sh, landed in 426af059b)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'sweep enumeration — 2 real findings owned by T-2858/T-2872, 2 fixture suites RED (cron-drift-firing, remediate-main-checkout) recorded as named next-session triage'
+    source: git-mined
+  - description: 'merge cron-install-drift divergence — T-2821 lenient/allowlist (main) + T-2787 JOB_DRIFT class (branch) in one script, 37/37 fixtures green; record the landing ground-truth + discard decisions in the task'
+    source: git-mined
+  - description: 'land the stranded charter-review guard work that survives triage — T-2779 suite membership for run-guard-layer (38 invisible suites now counted), T-2780 tmux orphan reap in session-selftest (1 orphan/day from the daily canary), T-2695 PTY-seam tests + marker on test-session-selftest, T-2794 check-task-frontmatter (2632/2632 parse), mutate-2783 mutation proof. All landed suites green; sweep 94 passed 0 errored'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-09-08 — AC5 amended from "full-green roll-up" to "soundness-green with owned firings"'
+    chose: 'AC5 now requires 0 ERRORED + no broken guards, with every remaining firing truthful and owned by a named task, instead of a literal all-PASS sweep.'
+    rationale: 'The original wording contradicted this task''s own AC2 ("soundness is the landable property — a firing is a statement about the tree") and made completion hostage to three queued HUMAN stamps (T-2858 binary copy, T-2872 a/b/c choice, T-2870 cron install) that are deliberately separate tasks. Forcing a green sweep before those stamps would require either checking Human ACs (forbidden) or allowlisting true findings (T-2818 inverted — the exact anti-pattern AC3 forbids).'
+    alternatives_rejected: ['(a) leaving T-2850 open until all three stamps land — conflates the landing deliverable with three independently-owned remediations; (b) allowlisting the firings — suppresses true findings to cosmetically green the layer.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/2026-08-27.yaml'
+  - '.context/audits/2026-08-28.yaml'
+  - '.context/audits/2026-08-29.yaml'
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/audits/unclosed-satisfied/LATEST.md'
+  - '.context/checks/addressed-aliases'
+  - '.context/checks/error-swallowing-allowlist'
+  - '.context/checks/strict-star-allowlist'
+  - '.context/checks/unbounded-rpc-call-allowlist'
+  - '.context/checks/verification-pipefail-allowlist'
+  - '.context/cron/hook-counter-integrity-canary.crontab'
+  - '.context/episodic/T-2854.yaml'
+  - '.context/episodic/T-2855.yaml'
+  - '.context/handovers/S-2026-0827-2343.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0828-1643.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0828-1645.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0829-1036.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0829-1256.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0829-1320.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0829-1408.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0829-1553.discard-manifest.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/.compact-log'
+  - '.context/working/feedback-stream.yaml'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.loop-detect.json'
+  - '.context/working/.pre-compact.last-run'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/.session-start-ts'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'docs/reports/T-2849-finished-and-waiting-triage.md'
+  - '.fabric/components/scripts-check-addressed-posts.yaml'
+  - '.fabric/components/scripts-check-dashboard-deleted-root.yaml'
+  - '.fabric/components/scripts-check-error-swallowing-predicate.yaml'
+  - '.fabric/components/scripts-check-hook-counter-integrity.yaml'
+  - '.fabric/components/scripts-check-planted-default-gate.yaml'
+  - '.fabric/components/scripts-check-strict-star.yaml'
+  - '.fabric/components/scripts-check-task-frontmatter.yaml'
+  - '.fabric/components/scripts-check-task-template-idioms.yaml'
+  - '.fabric/components/scripts-check-unbounded-rpc-call.yaml'
+  - '.fabric/components/scripts-session-message-selftest.yaml'
+  - '.fabric/components/tests-addressed-posts-check-fixtures.yaml'
+  - '.fabric/components/tests-dashboard-deleted-root-fixtures.yaml'
+  - '.fabric/components/tests-error-swallowing-check-fixtures.yaml'
+  - '.fabric/components/tests-hook-counter-integrity-fixtures.yaml'
+  - '.fabric/components/tests-mutate-2783.yaml'
+  - '.fabric/components/tests-planted-default-gate-fixtures.yaml'
+  - '.fabric/components/tests-strict-star-check-fixtures.yaml'
+  - '.fabric/components/tests-task-template-idioms-fixtures.yaml'
+  - '.fabric/components/tests-unbounded-rpc-call-fixtures.yaml'
+  - 'scripts/check-addressed-posts.sh'
+  - 'scripts/check-cron-install-drift.sh'
+  - 'scripts/check-dashboard-deleted-root.sh'
+  - 'scripts/check-error-swallowing-predicate.sh'
+  - 'scripts/check-hook-counter-integrity.sh'
+  - 'scripts/check-strict-star.sh'
+  - 'scripts/check-task-frontmatter.sh'
+  - 'scripts/check-task-template-idioms.sh'
+  - 'scripts/check-unbounded-rpc-call.sh'
+  - 'scripts/run-guard-layer.sh'
+  - 'scripts/session-selftest.sh'
+  - 'scripts/test-session-selftest.sh'
+  - '.tasks/active/T-2723-handover-commit-under-t-1452-collides-wi.md'
+  - '.tasks/active/T-2850-land-the-7-guards-stranded-on-the-charte.md'
+  - '.tasks/completed/T-2831-repair-t-2830-verification-block-landed-.md'
+  - '.tasks/completed/T-2832-register-vendored-framework-divergences-.md'
+  - '.tasks/completed/T-2849-land-the-finished-and-waiting-queue-at-t.md'
+  - '.tasks/completed/T-2854-check-unpaired-capture-flags--chained-ca.md'
+  - '.tasks/completed/T-2855-template-planted-required-field-makes-th.md'
+  - '.termlink-task'
+  - 'tests/addressed-posts-check-fixtures.sh'
+  - 'tests/dashboard-deleted-root-fixtures.sh'
+  - 'tests/error-swallowing-check-fixtures.sh'
+  - 'tests/guard-layer-runner-fixtures.sh'
+  - 'tests/hook-counter-integrity-fixtures.sh'
+  - 'tests/mutate-2783.sh'
+  - 'tests/strict-star-check-fixtures.sh'
+  - 'tests/task-template-idioms-fixtures.sh'
+  - 'tests/unbounded-rpc-call-fixtures.sh'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-08-29T11:45:37'
+    action: 'T-2850: land the 7 guards stranded on the charter-review worktree branch'
+  - time: '2026-08-29T11:46:22'
+    action: 'T-2850: land the 14 fabric component cards for the guards landed in 6b587e826'
+  - time: '2026-08-29T12:03:14'
+    action: 'T-2850: give the hook-counter guard a scheduled reader'
+  - time: '2026-08-29T12:03:20'
+    action: 'T-2850: session residue — audits, metrics, working state'
+  - time: '2026-08-29T12:59:55'
+    action: 'T-2850: session residue — working state, metrics, audit'
+  - time: '2026-08-29T14:07:58'
+    action: 'T-2850: session residue — T-2854 closure, episodic, arc measurements'
+  - time: '2026-08-29T16:25:02'
+    action: 'T-2850: session residue — T-2855 fabric cards, episodic, arc reply @772, pickup filing @71'
+  - time: '2026-08-29T17:48:20'
+    action: 'T-2850: land two dark canaries, upgrade the hub, clear one rubber-stamp blocker'
+  - time: '2026-08-29T18:10:30'
+    action: 'T-2850: clear the two CTL-030 horizon FAILs; PROJECT_ROOT mis-resolution hit again'
+  - time: '2026-09-07T23:22:16'
+    action: 'T-2850: land the stranded charter-review guard work that survives triage — T-2779 suite membership for run-guard-layer (38 invisible suites now counted), T-2780 tmux orphan reap in session-selftest (1 orphan/day from the daily canary), T-2695 PTY-seam tests + marker on test-session-selftest, T-2794 check-task-frontmatter (2632/2632 parse), mutate-2783 mutation proof. All landed suites green; sweep 94 passed 0 errored'
+  - time: '2026-09-07T23:27:19'
+    action: 'T-2850: merge cron-install-drift divergence — T-2821 lenient/allowlist (main) + T-2787 JOB_DRIFT class (branch) in one script, 37/37 fixtures green; record the landing ground-truth + discard decisions in the task'
+  - time: '2026-09-07T23:39:26'
+    action: 'T-2850: sweep enumeration — 2 real findings owned by T-2858/T-2872, 2 fixture suites RED (cron-drift-firing, remediate-main-checkout) recorded as named next-session triage'
+  - time: '2026-09-08T09:33:08'
+    action: 'T-2850: fabric cards for the 3 landed-but-unregistered files (session-message-selftest, check-task-frontmatter, mutate-2783) — clears the fabric-drift audit WARN'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 13 commit(s), 14281 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 14281
+  commits: 13
+  files_changed: 82
+  lines_added: 10542
+  lines_removed: 285
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2850-land-the-7-guards-stranded-on-the-charte.md
+generated_by: context-agent-hybrid
