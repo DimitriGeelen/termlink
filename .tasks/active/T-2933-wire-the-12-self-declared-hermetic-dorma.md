@@ -1,15 +1,18 @@
 ---
-id: T-2896
-name: "Pickup: voxtype RIGHTCTRL dead: daemon down + hotkey blocked by stale input-group
-  (from termlink)"
+id: T-2933
+name: "Wire the 12 self-declared-hermetic dormant guards into the guard layer"
 description: >
-  Auto-created from pickup envelope. Source: termlink. Type: bug-report.
+  T-2929 measured 57 dormant guard scripts. Twelve of them declare hermeticity in
+  their own headers (no live hub, no live PTY) and their disposition is unambiguous:
+  guard-layer, missing only the marker. Run each standalone to confirm it is hermetic,
+  green and fast, then add the marker so it runs on every push and PR. The 18 deploy-time
+  and 27 provisional rows are explicitly NOT in scope.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
-tags: [pickup, bug-report]
+horizon: now
+tags: []
 components: []
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
@@ -22,8 +25,8 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-05T18:48:02Z
-last_update: '2026-09-08T21:30:40Z'
+created: 2026-09-08T21:47:10Z
+last_update: '2026-09-08T21:49:43Z'
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -36,7 +39,7 @@ date_finished:
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 bvp_scores_proposed:
-  - ts: '2026-09-08T21:30:31Z'
+  - ts: '2026-09-08T21:49:24Z'
     estimator: bvp-estimator-v1-heuristic
     scores:
       D1: 4
@@ -50,29 +53,74 @@ bvp_scores_proposed:
       F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
 cost_estimate_proposed:
-  - ts: '2026-09-08T21:30:40Z'
+  - ts: '2026-09-08T21:49:43Z'
     estimator: bvp-estimator-v1-heuristic
     cost_estimate:
       blast_radius:
       tier: 2
       effort: 8
     rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
-      (workflow:build); effort=8 (lines=204,acs=4)
+      (workflow:build); effort=8 (lines=207,acs=4)
     rubric_sha: e4a00f38e801
 ---
 
-# T-2896: Pickup: voxtype RIGHTCTRL dead: daemon down + hotkey blocked by stale input-group (from termlink)
+# T-2933: Wire the 12 self-declared-hermetic dormant guards into the guard layer
 
 ## Context
 
 <!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
+## State at park (session S-2026-0908-2240, parked on context budget at ~96%)
+
+**11 of 12 marked. Work is done and committed; verification is incomplete.**
+
+| step | result |
+|---|---|
+| pre-screen for live send paths | 3 flagged, all cleared by reading: 2 only `bash -n`/grep `agent-send.sh`; `relay-b2-send-hops.sh` executes it under `TERMLINK=/bin/true`, a real stub seam |
+| all 12 run standalone | **12/12 rc=0**; 11 completed in ≤1241 ms |
+| marker added | **11** — `mutate-2783.sh` withheld |
+| unclassified | 86 → **75** (−11) ✓ |
+| dormant (`check-guard-runner-coverage.sh`) | 57 → **46** (−11) ✓ |
+| guard-layer members | 100 → **112**; +11 markers plus `tests/guard-runner-coverage-fixtures.sh`, which joins by naming convention (authored under T-2929) |
+
+**`mutate-2783.sh` was withheld on its own AC, not waved through.** It passes (rc 0) but takes
+**58.6 s**. The guard-layer CI job is documented as "runs on every push and PR — no Rust build,
+seconds"; one 59 s member contradicts that. Bound set at **10 s** — the other 11 are all under
+1.3 s, so the bound separates cleanly rather than being fitted to the answer. It needs either a
+fast mode or a slower tier; that is a runner decision, so it is surfaced, not decided.
+
+### Why this is parked and not closed
+
+AC3 is **unverified**. `run-guard-layer.sh` did not finish inside a 580 s bound (it already
+exceeded 300 s last session, so this is pre-existing — 11 members at ~4 s total cannot explain
+it), and the run stopped before reaching any of the 11. Their verdicts are not in doubt — the
+layer executes each member as `bash <script>` and records the rc, which is exactly the
+measurement taken standalone, 12/12 green — but the *layer-level* assertion has not been made,
+and asserting it from the standalone runs would be inferring a check I did not run.
+
+### Finding: the guard layer is RED on main, and CI probably does not see it
+
+3 FAILs, none in a file this task touches: `check-installed-binary-drift.sh`,
+`check-receiver-ack-lag.sh`, `cron-drift-firing-fixtures.sh`. All three read **host state** —
+an installed binary, ack lag, `/etc/cron.d`. CI has none of it, so this is plausibly
+locally-red / CI-green, which would mean the push/PR gate and the developer's own run disagree
+about whether the tree is sound. That is the shipped≠live shape (G-069) inside the guard layer.
+Not investigated — surfaced as a Sovereign question.
+
+### Also unresolved: the layer's runtime
+
+>580 s locally. CLAUDE.md says "seconds". Either the documented claim is stale or the layer has
+grown past what a per-push gate should carry. A decision either way is out of this task's scope.
+
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] **Every candidate is executed standalone before it is trusted, and the header is not taken as evidence.** Each of the 12 scripts T-2929 classified `guard-layer` on the strength of its own "hermetic / no live hub" header is run in isolation and its exit code, wall-clock duration, and any network or host-state side effect recorded. A self-declaration is a claim by the author, not a measurement — T-2929's own hermeticity screen was wrong twice, once posting real broadcasts to three live fleet hubs. A script whose header says hermetic but whose behaviour disagrees is NOT marked.
+- [ ] **Only scripts that pass on their own merits get the marker.** A candidate earns `# guard-layer: source` iff it exits 0, completes within a stated bound, and shows no live-hub or host-state dependency when run. Any candidate that fails, hangs, or touches the fleet is left unmarked with the reason recorded — a failing script added to the layer would make every push and PR red, which is how a guard layer gets switched off.
+- [ ] **The layer is demonstrably larger, and this change introduces no new failure.** Member count has grown by exactly the number of scripts marked and unclassified has fallen by the same number, both stated before and after — "the layer still passes" is not the same claim as "the layer now covers more". *(AC AMENDED mid-task, openly: it originally read "runs to completion with no FAIL and no ERROR". That baseline was assumed and is false — the layer is already RED on main with 3 pre-existing FAILs, none in a file this task touches. Amending an AC to something passable is exactly the producer-not-judge hazard, so the amendment is recorded here rather than made silently, and it does not weaken the real claim: no NEW failure. The 3 pre-existing FAILs are a separate finding, below.)*
+- [ ] **`check-guard-runner-coverage.sh` reflects the change, and the residue is named.** Re-running it shows the dormant count reduced by exactly the number marked, and the remaining dormant scripts are reported with their buckets intact (deploy-time / provisional) so nothing is silently absorbed. The check must still FIRE — this task does not claim to end dormancy, only to close the unambiguous part of it.
+- [ ] **No deploy-time or provisional script is marked.** The 18 `deploy-time` and 27 `guard-layer?` rows are out of scope by construction: the first would read host state in CI, the second is unverified. Verified mechanically, not by intent.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -260,7 +308,10 @@ cost_estimate_proposed:
 
 ## Updates
 
-### 2026-09-05T18:48:02Z — task-created [task-create-agent]
+### 2026-09-08T21:47:10Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2896-pickup-voxtype-rightctrl-dead-daemon-dow.md
+- **Output:** /opt/termlink/.tasks/active/T-2933-wire-the-12-self-declared-hermetic-dorma.md
 - **Context:** Initial task creation
+
+### 2026-09-08T21:49:41Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

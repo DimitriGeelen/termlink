@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# guard-layer: source
 # tests/agent-send-idle-gate.sh (T-2410) — hermetic test for the sender-side
 # doorbell idle-gate. No live hub, no live PTY: exercises the pure decision helper
 # (scripts/lib-idle-gate.sh) across the full matrix, and the reused T-2402

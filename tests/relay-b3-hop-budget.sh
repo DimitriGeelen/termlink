@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# guard-layer: source
 # T-2395 (relay-loop B3): verify scripts/relay-hop-check.sh enforces the
 # hop-budget circuit-breaker deterministically.
 #

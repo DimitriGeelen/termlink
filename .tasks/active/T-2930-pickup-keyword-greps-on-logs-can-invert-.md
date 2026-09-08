@@ -1,7 +1,7 @@
 ---
-id: T-2864
-name: "Pickup: T-023 voxtype-review: X core input focus diverges from WM active-window
-  (from termlink)"
+id: T-2930
+name: "Pickup: Keyword greps on logs can invert a diagnosis: live post_process hook
+  was (from termlink)"
 description: >
   Auto-created from pickup envelope. Source: termlink. Type: learning.
 
@@ -12,7 +12,7 @@ horizon: next
 tags: [pickup, learning]
 components: []
 related_tasks: []
-created: 2026-08-31T09:27:01Z
+created: 2026-09-08T21:09:02Z
 last_update: '2026-09-08T21:30:40Z'
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
@@ -24,7 +24,7 @@ target_blast_radius: 3            # int 0..9. Anticipated component count of the
 voi_score: 0.5                    # float 0..1. Value of Information — expected value of resolving this question,
                                   # independent of build cost. Higher when answer affects many tasks or unblocks a strategic decision. Required.
 bvp_scores_proposed:
-  - ts: '2026-09-08T21:30:31Z'
+  - ts: '2026-09-08T21:30:32Z'
     estimator: bvp-estimator-v1-heuristic
     scores:
       D1: 2
@@ -48,7 +48,7 @@ cost_estimate_proposed:
     rubric_sha: e4a00f38e801
 ---
 
-# T-2864: Pickup: T-023 voxtype-review: X core input focus diverges from WM active-window (from termlink)
+# T-2930: Pickup: Keyword greps on logs can invert a diagnosis: live post_process hook was (from termlink)
 
 ## Problem Statement
 

@@ -2,7 +2,8 @@
 id: T-2007
 name: "TermLink-as-coordination-substrate — what exists today (research, not design)"
 description: >
-  Inception: TermLink-as-coordination-substrate — what exists today (research, not design)
+  Inception: TermLink-as-coordination-substrate — what exists today (research, not
+  design)
 
 status: captured
 workflow_type: inception
@@ -12,13 +13,36 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-05T19:16:55Z
-last_update: 2026-06-06T12:32:28Z
+last_update: '2026-09-08T21:30:37Z'
 revisit_at: 2026-09-25
   # T-2839 2026-08-26: DEFER had no usable return path, so this task could never
   # resurface (G-053/T-1451 — revisit_at makes DEFER a pause, not a silent drop).
   # Date is a DEFAULT (+30d), not an assessment: all six repaired tasks share it
   # deliberately so it reads as agent-set. The DEFER verdict is unchanged.
-date_finished: null
+date_finished:
+bvp_scores_proposed:
+  - ts: '2026-09-08T21:30:27Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-09-08T21:30:37Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius:
+      tier: 4
+      effort: 7
+    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=4 
+      (workflow:inception); effort=7 (lines=199,acs=4)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-2007: TermLink-as-coordination-substrate — what exists today (research, not design)

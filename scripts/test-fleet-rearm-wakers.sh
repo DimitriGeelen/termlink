@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# guard-layer: source
 # T-2404 — hermetic unit + dry-run tests for fleet-rearm-wakers.sh.
 # Sources the script in lib mode (FLEET_REARM_LIB=1) for the pure helpers, then
 # runs one subprocess dry-run against a fake state dir (kills/spawns nothing).

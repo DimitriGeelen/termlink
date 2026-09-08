@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# guard-layer: source
 # test-comms-selftest.sh (T-2482) -- host-independent unit tests for the staged
 # comms round-trip prover. Feeds a canned presence fixture (inherited by
 # diagnose-unconsumed.sh via TERMLINK_DIAGNOSE_TEST_PRESENCE_JSON) for the

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# guard-layer: source
 # T-2396 (G-083): verify scripts/wake-confirm.sh distinguishes CONSUMED from
 # rung-but-not-consumed via a receipt that acks the posted offset.
 #

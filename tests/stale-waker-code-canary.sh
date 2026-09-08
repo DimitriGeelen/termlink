@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# guard-layer: source
 # tests/stale-waker-code-canary.sh (T-2405) — hermetic test for the
 # stale-waker-code detection canary. No live hub, no real wakers: a fixture
 # state dir + a fake waker script whose mtime we control, and $$ (this test's

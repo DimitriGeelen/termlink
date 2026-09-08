@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# guard-layer: source
 # T-2395 (relay-loop B2/B3): verify agent-send.sh threads the relay_hops counter
 # onto relay turns so the hop-budget circuit-breaker has state to bound.
 #

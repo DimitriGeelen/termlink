@@ -1,8 +1,16 @@
 ---
 id: T-2825
-name: "P-011 gate can examine less than a task declares — unanchored heading and last-section drop"
+name: "P-011 gate can examine less than a task declares — unanchored heading and last-section
+  drop"
 description: >
-  CAPTURED, not worked. Reported by 832-Workflow-designer (framework:pickup offset 30) and confirmed in our update-task.sh:962/973. Two defects in the same three lines: (1) a '## Verification' heading not at column 0 extracts nothing and the gate returns 0 silently; (2) sed '$d' deletes a real command when Verification is the file's LAST section. Both proved on fixtures. Live instances here: 0 and 1-benign. Vendored (G-062) so not patched locally; replied at offset 31 recommending an unconditional leg count, which covers both. scripts/check-verification-legs.py reports per-task leg counts.
+  CAPTURED, not worked. Reported by 832-Workflow-designer (framework:pickup offset
+  30) and confirmed in our update-task.sh:962/973. Two defects in the same three lines:
+  (1) a '## Verification' heading not at column 0 extracts nothing and the gate returns
+  0 silently; (2) sed '$d' deletes a real command when Verification is the file's
+  LAST section. Both proved on fixtures. Live instances here: 0 and 1-benign. Vendored
+  (G-062) so not patched locally; replied at offset 31 recommending an unconditional
+  leg count, which covers both. scripts/check-verification-legs.py reports per-task
+  leg counts.
 
 status: captured
 workflow_type: build
@@ -16,8 +24,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-20T22:12:15Z
-last_update: 2026-08-20T22:12:15Z
-date_finished: null
+last_update: '2026-09-08T21:30:39Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -28,6 +36,30 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-09-08T21:30:30Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-09-08T21:30:39Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius:
+      tier: 2
+      effort: 6
+    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
+      (workflow:build); effort=6 (lines=145,acs=4)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-2825: P-011 gate can examine less than a task declares — unanchored heading and last-section drop

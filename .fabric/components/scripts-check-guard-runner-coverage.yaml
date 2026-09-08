@@ -1,0 +1,20 @@
+id: scripts/check-guard-runner-coverage.sh
+name: check-guard-runner-coverage
+type: script
+subsystem: unknown
+location: scripts/check-guard-runner-coverage.sh
+tags: []
+
+purpose: "TODO: describe what this component does"
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-09-08
+created_by: unknown

@@ -1,8 +1,20 @@
 ---
 id: T-2841
-name: "parity harness reads ambient TERMLINK_RUNTIME_DIR — suite is non-deterministic between a clean CI runner and a dev box"
+name: "parity harness reads ambient TERMLINK_RUNTIME_DIR — suite is non-deterministic
+  between a clean CI runner and a dev box"
 description: >
-  T-2824 measured this: cargo test -p termlink-mcp --test parity is 28 passed / 0 failed in 8s when TERMLINK_RUNTIME_DIR points at an empty dir, but on this host (13 live registered sessions) parity_topics FAILS on a reachability delta and parity_whoami_* STALLS past 6 minutes. Same tree, same binary, different ambient state. All 19 session-touching tests DO set TERMLINK_RUNTIME_DIR per-test to a TestDir, so per-test isolation is not the hole; the 4 that do not are pure-logic tests that never touch a session. The remaining suspect is that set_var is process-global and something -- most likely the in-process TermLinkTools/mcp_client -- resolves the runtime dir once, before or independently of the first test's set_var, and so captures the ambient value. Failure direction is the dangerous one: green on a dev box that happens to be clean, red-or-hung on a runner that is not, with no signal saying which state produced the result.
+  T-2824 measured this: cargo test -p termlink-mcp --test parity is 28 passed / 0
+  failed in 8s when TERMLINK_RUNTIME_DIR points at an empty dir, but on this host
+  (13 live registered sessions) parity_topics FAILS on a reachability delta and parity_whoami_*
+  STALLS past 6 minutes. Same tree, same binary, different ambient state. All 19 session-touching
+  tests DO set TERMLINK_RUNTIME_DIR per-test to a TestDir, so per-test isolation is
+  not the hole; the 4 that do not are pure-logic tests that never touch a session.
+  The remaining suspect is that set_var is process-global and something -- most likely
+  the in-process TermLinkTools/mcp_client -- resolves the runtime dir once, before
+  or independently of the first test's set_var, and so captures the ambient value.
+  Failure direction is the dangerous one: green on a dev box that happens to be clean,
+  red-or-hung on a runner that is not, with no signal saying which state produced
+  the result.
 
 status: captured
 workflow_type: build
@@ -22,8 +34,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-08-27T12:53:38Z
-last_update: 2026-08-27T12:53:38Z
-date_finished: null
+last_update: '2026-09-08T21:30:39Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,6 +46,30 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-09-08T21:30:31Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-09-08T21:30:39Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius:
+      tier: 2
+      effort: 8
+    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
+      (workflow:build); effort=8 (lines=202,acs=4)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-2841: parity harness reads ambient TERMLINK_RUNTIME_DIR — suite is non-deterministic between a clean CI runner and a dev box

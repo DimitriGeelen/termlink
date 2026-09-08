@@ -12,8 +12,32 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-20T18:03:21Z
-last_update: 2026-05-20T18:04:02Z
-date_finished: null
+last_update: '2026-09-08T21:30:37Z'
+date_finished:
+bvp_scores_proposed:
+  - ts: '2026-09-08T21:30:26Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=2 (body:env-class-handled); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-09-08T21:30:37Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius:
+      tier: 2
+      effort: 8
+    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
+      (workflow:build); effort=8 (lines=117,acs=6)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-1726: Triage 199 stale [enrich_or_prune] learnings — fw consolidate scan flagged

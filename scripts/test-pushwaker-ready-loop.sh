@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# guard-layer: source
 # T-2402 Stage 3 — integration test for the idle-gated ring loop.
 #
 # Proves the core AC: an injection issued while the REPL is BUSY is NOT swallowed

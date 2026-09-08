@@ -4,10 +4,10 @@ name: "T-2870's flock regression check passes while pickup duplicates are still 
 description: >
   T-2870's flock regression check passes while pickup duplicates are still being created — 4 envelopes became 8 tasks today
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -22,8 +22,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-08T19:50:25Z
-last_update: 2026-09-08T19:50:25Z
-date_finished: null
+last_update: 2026-09-08T19:57:23Z
+date_finished: 2026-09-08T19:57:23Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -373,3 +373,25 @@ the stamp lands. The register is clean as of this commit and that is all.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2928-t-2870s-flock-regression-check-passes-wh.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-edc05782
+- **Timestamp:** 2026-09-08T19:57:26Z
+- **Catalogue:** v1.3-seed
+- **Overall:** FAIL
+- **Needs Human:** no
+- **Findings:** 2
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — **The live `fw pickup process` cron lines are enumerated from the host, not from git.** Every location that can schedule the job — `/etc/cron.d/*`, the root user crontab, and any project-local registr
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=etc/cron.d in: **The live `fw pickup process` cron lines are enumerated from the host, not from git.** Every location that can schedule the job — `/etc/cron.d/*`, th`
+
+**Verification-level findings:**
+
+  1. **swallowed-errors** (severe, deterministic) @ Verification:line 64
+     - evidence: `bash scripts/check-pickup-cron-lock.sh > /tmp/.t2928-lock.txt 2>&1 || true`
+
+### 2026-09-08T19:57:23Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

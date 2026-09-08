@@ -1,8 +1,18 @@
 ---
 id: T-2917
-name: "Pickup: AEF promotion machinery gap — outcome-instrumented citation ledger proposal (offset 91)"
+name: "Pickup: AEF promotion machinery gap — outcome-instrumented citation ledger
+  proposal (offset 91)"
 description: >
-  framework:pickup offset 91 (ring20-manager T-1724): lib/promote.sh count_applications() counts learning applications by substring-scanning for PL-IDs — coincidental mention indistinguishable from deliberate application, no success-vs-corrected dimension, graduation fires on raw count. Proposal: explicit cite/outcome ledger (cite PL-XXX --task T-YYY; outcome --result success|corrected; corrected spawns corrective learning + asymmetric confidence +1/-2; graduate = cited-successes>=3 AND confidence>0). Reference impl: proxmox-ring20-management scripts/learning-cite.py + .context/project/citations.jsonl. Vendored lib/promote.sh is upstream's (G-062) — decide: endorse/route upstream, or adopt the repo-owned reference impl locally. Companion to offsets 90/92 desk proposal. Reply DM ring20-manager fp 9219671e28054458.
+  framework:pickup offset 91 (ring20-manager T-1724): lib/promote.sh count_applications()
+  counts learning applications by substring-scanning for PL-IDs — coincidental mention
+  indistinguishable from deliberate application, no success-vs-corrected dimension,
+  graduation fires on raw count. Proposal: explicit cite/outcome ledger (cite PL-XXX
+  --task T-YYY; outcome --result success|corrected; corrected spawns corrective learning
+  + asymmetric confidence +1/-2; graduate = cited-successes>=3 AND confidence>0).
+  Reference impl: proxmox-ring20-management scripts/learning-cite.py + .context/project/citations.jsonl.
+  Vendored lib/promote.sh is upstream's (G-062) — decide: endorse/route upstream,
+  or adopt the repo-owned reference impl locally. Companion to offsets 90/92 desk
+  proposal. Reply DM ring20-manager fp 9219671e28054458.
 
 status: captured
 workflow_type: build
@@ -22,8 +32,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-07T20:05:09Z
-last_update: 2026-09-07T20:05:09Z
-date_finished: null
+last_update: '2026-09-08T21:30:40Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,6 +44,30 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-09-08T21:30:32Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-09-08T21:30:40Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius:
+      tier: 2
+      effort: 8
+    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
+      (workflow:build); effort=8 (lines=204,acs=4)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-2917: Pickup: AEF promotion machinery gap — outcome-instrumented citation ledger proposal (offset 91)

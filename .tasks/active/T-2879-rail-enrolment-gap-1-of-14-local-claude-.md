@@ -1,8 +1,17 @@
 ---
 id: T-2879
-name: "Rail enrolment gap: 1 of 14 local Claude sessions is on the TermLink presence rail"
+name: "Rail enrolment gap: 1 of 14 local Claude sessions is on the TermLink presence
+  rail"
 description: >
-  T-2875 measured two working reach rails and disproved every assumption it carried in, concluding that nothing needs BUILDING for cross-session reach. The gap it surfaced instead is ENROLMENT: 14 Claude Code sessions are live on .107 and exactly 1 appears on TermLink agent-presence. Question: how many of the 13 SHOULD have enrolled, and if the answer is more than a couple, is the fix a launcher default (scripts/tl-claude.sh --reachable, T-2388), a prompt-time nudge, or an accepted cost? PL-237 constrains the answer space - reach must be arranged at LAUNCH, so no retrofit path exists and any fix is a launch-path fix. Start by reading what fleet-adoption-snapshot already records rather than measuring afresh.
+  T-2875 measured two working reach rails and disproved every assumption it carried
+  in, concluding that nothing needs BUILDING for cross-session reach. The gap it surfaced
+  instead is ENROLMENT: 14 Claude Code sessions are live on .107 and exactly 1 appears
+  on TermLink agent-presence. Question: how many of the 13 SHOULD have enrolled, and
+  if the answer is more than a couple, is the fix a launcher default (scripts/tl-claude.sh
+  --reachable, T-2388), a prompt-time nudge, or an accepted cost? PL-237 constrains
+  the answer space - reach must be arranged at LAUNCH, so no retrofit path exists
+  and any fix is a launch-path fix. Start by reading what fleet-adoption-snapshot
+  already records rather than measuring afresh.
 
 status: captured
 workflow_type: inception
@@ -12,8 +21,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-09-02T06:19:43Z
-last_update: 2026-09-02T06:22:26Z
-date_finished: null
+last_update: '2026-09-08T21:30:40Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -22,6 +31,29 @@ target_blast_radius: 3            # int 0..9. Anticipated component count of the
                                   # Guide: 0=docs only, 1=single file, 3=small subsystem (S), 5=cross-subsystem (M), 7=multi-arc (L), 9=framework-wide (XL).
 voi_score: 0.5                    # float 0..1. Value of Information — expected value of resolving this question,
                                   # independent of build cost. Higher when answer affects many tasks or unblocks a strategic decision. Required.
+bvp_scores_proposed:
+  - ts: '2026-09-08T21:30:31Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-09-08T21:30:40Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 4
+      effort: 6
+    rationale: blast_radius=3 (target_blast_radius:inception-T-2189); tier=4 
+      (workflow:inception); effort=6 (lines=112,acs=4)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-2879: Rail enrolment gap: 1 of 14 local Claude sessions is on the TermLink presence rail

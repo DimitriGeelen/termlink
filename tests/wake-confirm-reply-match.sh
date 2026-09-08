@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# guard-layer: source
 # tests/wake-confirm-reply-match.sh (T-2412) — hermetic test for the broadened
 # doorbell consumption-confirmation matcher. Feeds canned `channel subscribe`
 # JSON via the TERMLINK_WAKECONFIRM_TEST_JSON seam (PL-213 — no live hub) and

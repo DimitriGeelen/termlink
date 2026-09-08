@@ -1,8 +1,16 @@
 ---
 id: T-2890
-name: "T-2882's frontmatter comment pins D8 at WARN: the handover check can never reach PASS again"
+name: "T-2882's frontmatter comment pins D8 at WARN: the handover check can never
+  reach PASS again"
 description: >
-  handover.sh:712 emits a frontmatter comment containing the literal string [TODO], and the D8 audit check greps the WHOLE file for that string. So every handover the fixed generator produces carries one hit no matter how thoroughly it is enriched, and D8 is pinned at WARN(1) minimum forever — it can no longer distinguish an unfilled skeleton from a fully enriched handover, which is the single thing it exists to measure. Found by T-2889 after enriching LATEST.md to zero real placeholders and watching D8 still refuse to pass. handover.sh is vendored (G-062) and already carries a registered divergence from T-2882 at framework:pickup offset 83.
+  handover.sh:712 emits a frontmatter comment containing the literal string [TODO],
+  and the D8 audit check greps the WHOLE file for that string. So every handover the
+  fixed generator produces carries one hit no matter how thoroughly it is enriched,
+  and D8 is pinned at WARN(1) minimum forever — it can no longer distinguish an unfilled
+  skeleton from a fully enriched handover, which is the single thing it exists to
+  measure. Found by T-2889 after enriching LATEST.md to zero real placeholders and
+  watching D8 still refuse to pass. handover.sh is vendored (G-062) and already carries
+  a registered divergence from T-2882 at framework:pickup offset 83.
 
 status: captured
 workflow_type: build
@@ -22,8 +30,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-03T12:07:12Z
-last_update: 2026-09-03T12:07:12Z
-date_finished: null
+last_update: '2026-09-08T21:30:40Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,6 +42,30 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-09-08T21:30:31Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 1
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=1 (body:episodic-only); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-09-08T21:30:40Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius:
+      tier: 2
+      effort: 8
+    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
+      (workflow:build); effort=8 (lines=204,acs=4)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-2890: T-2882's frontmatter comment pins D8 at WARN: the handover check can never reach PASS again

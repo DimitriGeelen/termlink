@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# guard-layer: source
 # test-diagnose-unconsumed.sh (T-2479) -- host-independent unit tests for the
 # G-083 loud consumption-diagnosis. Feeds canned presence + receipt fixtures via
 # the PL-213 test hooks so the classifier runs with no live hub.

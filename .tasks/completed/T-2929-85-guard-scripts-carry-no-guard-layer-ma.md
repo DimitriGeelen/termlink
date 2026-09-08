@@ -15,12 +15,12 @@ description: >
   to avoid a recursive canary-detecting-uninstalled-canaries. Classify first, wire
   second.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [scripts/check-guard-runner-coverage.sh, tests/guard-runner-coverage-fixtures.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -33,8 +33,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-08T19:58:17Z
-last_update: '2026-09-08T21:28:27Z'
-date_finished:
+last_update: 2026-09-08T21:46:11Z
+date_finished: 2026-09-08T21:46:11Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -454,3 +454,33 @@ test "$(grep -cE '\*\*(deploy-time|guard-layer)' .tasks/active/T-2929-85-guard-s
 ### 2026-09-08T19:59:31Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-4a3ed034
+- **Timestamp:** 2026-09-08T21:46:26Z
+- **Catalogue:** v1.3-seed
+- **Overall:** FAIL
+- **Needs Human:** yes
+- **Findings:** 4
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — **The 85 are cross-referenced against every runner, and the truly-dormant subset is named.** For each unclassified script, record whether it is invoked by (a) an *installed* crontab under `/etc/cron.d
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=etc/cron.d in: **The 85 are cross-referenced against every runner, and the truly-dormant subset is named.** For each unclassified script, record whether it is invoke`
+- **AC#2 (Agent)** — **The measurement distinguishes shipped-but-dark from genuinely-unowned.** A check whose crontab exists in git but is absent from `/etc/cron.d` is a *different* defect (the T-2561/T-2682 install-drift
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=etc/cron.d in: **The measurement distinguishes shipped-but-dark from genuinely-unowned.** A check whose crontab exists in git but is absent from `/etc/cron.d` is a *`
+
+**Verification-level findings:**
+
+  1. **swallowed-errors** (severe, deterministic) @ Verification:line 61
+     - evidence: `bash scripts/check-guard-runner-coverage.sh > /tmp/.t2929-run.txt 2>&1 || true`
+  2. **swallowed-errors** (severe, deterministic) @ Verification:line 63
+     - evidence: `bash scripts/check-guard-runner-coverage.sh --json > /tmp/.t2929.json 2>&1 || true`
+
+- **Layer-1 escalations:** 1
+  1. **destructive-action** (high) — Destructive operation in verification or AC
+     - matched: `rm -rf`
+
+### 2026-09-08T21:46:11Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

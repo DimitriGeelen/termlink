@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# guard-layer: source
 # tests/tl-claude-identity-binding.sh (T-2411) — hermetic test for per-agent
 # identity binding into the reachable claude session. No live hub, no live PTY:
 # sources tl-claude.sh in lib mode (TL_CLAUDE_LIB=1) and asserts build_claude_cmd
