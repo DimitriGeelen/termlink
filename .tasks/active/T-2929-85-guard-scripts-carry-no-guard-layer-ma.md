@@ -33,7 +33,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-08T19:58:17Z
-last_update: 2026-09-08T20:05:56Z
+last_update: '2026-09-08T21:28:27Z'
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -58,6 +58,29 @@ bvp_scores_proposed:
     rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
       (body:component-discoverability); D4=2 (body:env-class-handled); 
       F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+  - ts: '2026-09-08T21:28:14Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 1
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=1 (body:episodic-only); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-09-08T21:28:27Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius:
+      tier: 2
+      effort: 8
+    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
+      (workflow:build); effort=8 (lines=255,acs=7)
     rubric_sha: e4a00f38e801
 ---
 
@@ -111,15 +134,121 @@ the same class of reason. That is precisely why the deliverable is a per-script
 disposition table and not a bulk `# guard-layer: source` sweep: marking these
 `source` would put live-fleet writes and a hang into every push and PR.
 
+## Disposition (AC5 deliverable — session S-2026-0908-2240)
+
+**The count moved from 48 to 57, and the tree did not change — the definition tightened.**
+Last session's 48 counted a script as covered if *anything* referenced it. Two of those
+references do not constitute coverage, and AC4 names both:
+
+1. **A fixture reference is not coverage.** `tests/*fixtures*.sh` are guard-layer members,
+   so a check they invoke looks "run on every push" — but it is run against a *synthetic
+   fixture tree*, never against this repository. That is precisely how
+   `check-pickup-cron-lock.sh` read as covered for a day while the defect it guards fired
+   four times (T-2928). Fixture-only went 2 → 5.
+2. **A dormant caller does not rescue its callee.** Verified concretely:
+   `agent-send-idle-gate.sh`'s only caller is `scripts/lib-idle-gate.sh`, which is itself
+   unmarked and unrun. Nine scripts moved out of COVERED on this rule alone.
+
+So **48 was an undercount**, and the honest figure under the stricter definition is 57.
+
+**A third class was found by running the check against the tree, and it is not dormant.**
+`check-outbox.sh` backs the `/check-outbox` slash command. A human running it on demand is a
+real invocation path — just not a scheduled one — so it is reported as OPERATOR-INVOKED and
+does not fire. Without that class the check would have made a false claim about a script that
+is deliberately operator-driven. `SHIPPED-DARK` is likewise reported and non-firing: it is the
+T-2561/T-2682 install-drift class, already owned by `check-cron-install-drift.sh`, and firing
+on it here would double-own the remediation.
+
+**Basis for each row.** A script's own header is a far better signal than any grep, and 12 of
+them state it outright ("hermetic", "no live hub, no live PTY"). Where a header declares
+nothing and no live-hub or host-state signal appears, the row is marked **`guard-layer?`** —
+provisional, needing a read before the marker is added. Twenty-seven rows are in that state
+and are deliberately *not* presented as settled: this task's own measurement showed the
+hermeticity screen was wrong twice, once posting real broadcasts to three live fleet hubs.
+
+**Wiring is out of scope by AC5**, and the provisional column is the reason it must stay so.
+
+| script | dir | disposition | basis |
+|---|---|---|---|
+| `agent-listeners-cv-read.sh` | tests/ | **guard-layer?** | no live-hub or host-state signal, but no self-declaration either — PROVISIONAL, read before adding the marker |
+| `agent-listeners-identity-fp.sh` | tests/ | **guard-layer?** | no live-hub or host-state signal, but no self-declaration either — PROVISIONAL, read before adding the marker |
+| `agent-send-idle-gate.sh` | tests/ | **guard-layer** | header self-declares hermetic (no live hub / no live PTY) |
+| `check-addressed-posts.sh` | scripts/ | **deploy-time** | reaches a live hub or the network — must NOT join the push/PR layer |
+| `check-approval-surfaces.sh` | scripts/ | **guard-layer?** | no live-hub or host-state signal, but no self-declaration either — PROVISIONAL, read before adding the marker |
+| `check-dashboard-deleted-root.sh` | scripts/ | **deploy-time** | reads host state (/etc, /proc, systemctl, crontab) |
+| `check-guard-runner-coverage.sh` | scripts/ | **deploy-time** | reads /etc/cron.d — in CI every cron-covered script would read dormant. Sibling of check-cron-install-drift.sh. |
+| `check-pickup-cron-lock.sh` | scripts/ | **deploy-time** | reads host state (/etc, /proc, systemctl, crontab) |
+| `fleet-capability-canary.sh` | tests/ | **deploy-time** | reaches a live hub or the network — must NOT join the push/PR layer |
+| `mutate-2783.sh` | tests/ | **guard-layer** | mutation-proof harness; drives named tests, no host state |
+| `relay-b1-doorbell-rail.sh` | tests/ | **guard-layer?** | no live-hub or host-state signal, but no self-declaration either — PROVISIONAL, read before adding the marker |
+| `relay-b2-send-hops.sh` | tests/ | **guard-layer** | header self-declares hermetic (no live hub / no live PTY) |
+| `relay-b3-hop-budget.sh` | tests/ | **guard-layer** | header self-declares hermetic (no live hub / no live PTY) |
+| `relay-wake-confirm.sh` | tests/ | **guard-layer** | header self-declares hermetic (no live hub / no live PTY) |
+| `stale-waker-code-canary.sh` | tests/ | **guard-layer** | header self-declares hermetic (no live hub / no live PTY) |
+| `test-agent-chat-arc-recent.sh` | scripts/ | **deploy-time** | reaches a live hub or the network — must NOT join the push/PR layer |
+| `test-agent-conversation-list.sh` | scripts/ | **guard-layer?** | no live-hub or host-state signal, but no self-declaration either — PROVISIONAL, read before adding the marker |
+| `test-agent-conversation-selftest.sh` | scripts/ | **guard-layer?** | no live-hub or host-state signal, but no self-declaration either — PROVISIONAL, read before adding the marker |
+| `test-agent-conversation-status.sh` | scripts/ | **guard-layer?** | no live-hub or host-state signal, but no self-declaration either — PROVISIONAL, read before adding the marker |
+| `test-agent-listeners-fleet.sh` | scripts/ | **deploy-time** | reaches a live hub or the network — must NOT join the push/PR layer |
+| `test-agent-listeners.sh` | scripts/ | **deploy-time** | reaches a live hub or the network — must NOT join the push/PR layer |
+| `test-agent-send-auto-discover.sh` | scripts/ | **deploy-time** | reaches a live hub or the network — must NOT join the push/PR layer |
+| `test-agent-send-orchestration.sh` | scripts/ | **deploy-time** | reaches a live hub or the network — must NOT join the push/PR layer |
+| `test-agent-send-transport.sh` | scripts/ | **deploy-time** | reaches a live hub or the network — must NOT join the push/PR layer |
+| `test-arc-live-probe.sh` | scripts/ | **deploy-time** | reaches a live hub or the network — must NOT join the push/PR layer |
+| `test-be-reachable.sh` | scripts/ | **guard-layer?** | no live-hub or host-state signal, but no self-declaration either — PROVISIONAL, read before adding the marker |
+| `test-charter-drift-freshness.sh` | scripts/ | **guard-layer?** | no live-hub or host-state signal, but no self-declaration either — PROVISIONAL, read before adding the marker |
+| `test-charter-sentence-drift.sh` | scripts/ | **guard-layer?** | no live-hub or host-state signal, but no self-declaration either — PROVISIONAL, read before adding the marker |
+| `test-chat-arc-broadcast.sh` | scripts/ | **deploy-time** | QUARANTINE — RED by its own `2>&1` capture (corrupts the JSON it feeds to jq) AND posts to LIVE hubs. Fix the test before wiring. |
+| `test-check-fleet-binary-freshness.sh` | scripts/ | **guard-layer?** | no live-hub or host-state signal, but no self-declaration either — PROVISIONAL, read before adding the marker |
+| `test-check-fleet-doorbell-mail-health.sh` | scripts/ | **deploy-time** | reads host state (/etc, /proc, systemctl, crontab) |
+| `test-check-framework-pickup-freshness.sh` | scripts/ | **guard-layer?** | no live-hub or host-state signal, but no self-declaration either — PROVISIONAL, read before adding the marker |
+| `test-check-unconfirmed-delivery-freshness.sh` | scripts/ | **guard-layer?** | no live-hub or host-state signal, but no self-declaration either — PROVISIONAL, read before adding the marker |
+| `test-comms-selftest.sh` | scripts/ | **guard-layer** | header self-declares hermetic (no live hub / no live PTY) |
+| `test-diagnose-unconsumed.sh` | scripts/ | **guard-layer** | header self-declares hermetic (no live hub / no live PTY) |
+| `test-fleet-adoption-snapshot.sh` | scripts/ | **deploy-time** | QUARANTINE — hangs (rc 124 at T6 under a 60s bound). Diagnose before wiring. |
+| `test-fleet-rearm-wakers.sh` | scripts/ | **guard-layer** | header self-declares hermetic (no live hub / no live PTY) |
+| `test-journal-mirror.sh` | scripts/ | **guard-layer?** | no live-hub or host-state signal, but no self-declaration either — PROVISIONAL, read before adding the marker |
+| `test-journal-reaper.sh` | scripts/ | **deploy-time** | reaches a live hub or the network — must NOT join the push/PR layer |
+| `test-listener-heartbeat.sh` | scripts/ | **guard-layer?** | no live-hub or host-state signal, but no self-declaration either — PROVISIONAL, read before adding the marker |
+| `test-mcp-desc-budget.sh` | scripts/ | **guard-layer?** | no live-hub or host-state signal, but no self-declaration either — PROVISIONAL, read before adding the marker |
+| `test-notify-sidecar.sh` | scripts/ | **guard-layer?** | no live-hub or host-state signal, but no self-declaration either — PROVISIONAL, read before adding the marker |
+| `test-pushwaker-ready-loop.sh` | scripts/ | **guard-layer** | header self-declares hermetic (no live hub / no live PTY) |
+| `test-pushwaker-reap.sh` | scripts/ | **guard-layer?** | no live-hub or host-state signal, but no self-declaration either — PROVISIONAL, read before adding the marker |
+| `test-sidecar-auto-confirm.sh` | scripts/ | **guard-layer?** | no live-hub or host-state signal, but no self-declaration either — PROVISIONAL, read before adding the marker |
+| `test-substrate-preflight.sh` | scripts/ | **guard-layer?** | no live-hub or host-state signal, but no self-declaration either — PROVISIONAL, read before adding the marker |
+| `test-tl-claude-cmd.sh` | scripts/ | **guard-layer?** | no live-hub or host-state signal, but no self-declaration either — PROVISIONAL, read before adding the marker |
+| `test-watchtower-guard.sh` | scripts/ | **deploy-time** | reaches a live hub or the network — must NOT join the push/PR layer |
+| `test_g052_inception_decision_gate.sh` | tests/ | **guard-layer?** | no live-hub or host-state signal, but no self-declaration either — PROVISIONAL, read before adding the marker |
+| `test_g054_completion_smoke.sh` | tests/ | **guard-layer?** | no live-hub or host-state signal, but no self-declaration either — PROVISIONAL, read before adding the marker |
+| `test_pl152_counter_arity_static.sh` | tests/ | **guard-layer?** | no live-hub or host-state signal, but no self-declaration either — PROVISIONAL, read before adding the marker |
+| `test_t1619_metrics_trend_smoke.sh` | tests/ | **guard-layer?** | no live-hub or host-state signal, but no self-declaration either — PROVISIONAL, read before adding the marker |
+| `test_t1628_task_verify_flags.sh` | tests/ | **guard-layer?** | no live-hub or host-state signal, but no self-declaration either — PROVISIONAL, read before adding the marker |
+| `test_t1640_pgrep_self_match.sh` | tests/ | **deploy-time** | reads host state (/etc, /proc, systemctl, crontab) |
+| `test_tl_dispatch_meta.sh` | tests/ | **guard-layer?** | no live-hub or host-state signal, but no self-declaration either — PROVISIONAL, read before adding the marker |
+| `tl-claude-identity-binding.sh` | tests/ | **guard-layer** | header self-declares hermetic (no live hub / no live PTY) |
+| `wake-confirm-reply-match.sh` | tests/ | **guard-layer** | header self-declares hermetic (no live hub / no live PTY) |
+
+**Totals:** deploy-time = 18 · guard-layer = 12 · guard-layer? = 27 · **57 dormant**
+
+**Two are quarantined, not merely dormant** — `test-chat-arc-broadcast.sh` is RED by its own
+`2>&1` capture *and* posts to live hubs; `test-fleet-adoption-snapshot.sh` hangs. Adding the
+marker to either would put a live-fleet write and a hang into every push and PR.
+
+**The check flags itself.** `check-guard-runner-coverage.sh` appears in its own dormant list,
+correctly: nothing runs it yet, and its own disposition is `deploy-time` because it reads
+`/etc/cron.d`. In CI no termlink crontab is installed, so every cron-covered script would read
+dormant and it would fire on every push. It is the sibling of `check-cron-install-drift.sh`,
+unmarked for the identical reason.
+
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] **The 85 are cross-referenced against every runner, and the truly-dormant subset is named.** For each unclassified script, record whether it is invoked by (a) an *installed* crontab under `/etc/cron.d`, (b) a git-tracked crontab under `.context/cron/` that is not yet installed, (c) a CI workflow, or (d) any other script. A script matched by none of these is dormant. The dormant count is stated as a number with the list, because "85 unclassified" is not the same claim as "85 unrun" and conflating them would overstate the finding.
-- [ ] **The measurement distinguishes shipped-but-dark from genuinely-unowned.** A check whose crontab exists in git but is absent from `/etc/cron.d` is a *different* defect (the T-2561/T-2682 install-drift class, already owned by `check-cron-install-drift.sh`) from a check no crontab has ever referenced. Both are reported, separately labelled, so remediation is not misrouted.
-- [ ] **A repeatable script produces the classification, not a one-off shell session.** `scripts/check-guard-runner-coverage.sh` emits the per-script disposition and exits 0 when every unclassified script has a runner, 1 when any is dormant, 2 on tooling error (fail-closed: an empty script inventory is an error, never a vacuous clean — the T-2747 zero-tools lesson). `--json` for scripting; test seams for the scripts dir, cron dirs and CI dir so fixtures need no host state.
-- [ ] **The check is load-bearing, proven by mutation.** A fixture suite (`tests/guard-runner-coverage-fixtures.sh`) pins the firing cases and the two false-positive guards: a script referenced only by its own fixture suite must still count as dormant, and a script referenced only from a task file or handover must not count as covered (that is how `check-pickup-cron-lock.sh` looked "referenced" while nothing ran it). At least one mutant is recorded that turns the check red.
-- [ ] **The dormant set is triaged into dispositions, and no wiring is done under this task.** Each dormant script gets exactly one of: `cron` (runtime canary — names the crontab it needs), `deploy-time` (reads host state; needs a preflight-tier runner), `guard-layer` (hermetic; just missing the marker), or `retired` (superseded/dead). The disposition table is the deliverable. Wiring is deliberately out of scope: `run-guard-layer.sh` requires no host state, so the deploy-time bucket cannot simply be marked `source`, and picking its runner is a decision this task informs rather than pre-empts.
+- [x] **The 85 are cross-referenced against every runner, and the truly-dormant subset is named.** For each unclassified script, record whether it is invoked by (a) an *installed* crontab under `/etc/cron.d`, (b) a git-tracked crontab under `.context/cron/` that is not yet installed, (c) a CI workflow, or (d) any other script. A script matched by none of these is dormant. The dormant count is stated as a number with the list, because "85 unclassified" is not the same claim as "85 unrun" and conflating them would overstate the finding.
+- [x] **The measurement distinguishes shipped-but-dark from genuinely-unowned.** A check whose crontab exists in git but is absent from `/etc/cron.d` is a *different* defect (the T-2561/T-2682 install-drift class, already owned by `check-cron-install-drift.sh`) from a check no crontab has ever referenced. Both are reported, separately labelled, so remediation is not misrouted.
+- [x] **A repeatable script produces the classification, not a one-off shell session.** `scripts/check-guard-runner-coverage.sh` emits the per-script disposition and exits 0 when every unclassified script has a runner, 1 when any is dormant, 2 on tooling error (fail-closed: an empty script inventory is an error, never a vacuous clean — the T-2747 zero-tools lesson). `--json` for scripting; test seams for the scripts dir, cron dirs and CI dir so fixtures need no host state.
+- [x] **The check is load-bearing, proven by mutation.** A fixture suite (`tests/guard-runner-coverage-fixtures.sh`) pins the firing cases and the two false-positive guards: a script referenced only by its own fixture suite must still count as dormant, and a script referenced only from a task file or handover must not count as covered (that is how `check-pickup-cron-lock.sh` looked "referenced" while nothing ran it). At least one mutant is recorded that turns the check red.
+- [x] **The dormant set is triaged into dispositions, and no wiring is done under this task.** Each dormant script gets exactly one of: `cron` (runtime canary — names the crontab it needs), `deploy-time` (reads host state; needs a preflight-tier runner), `guard-layer` (hermetic; just missing the marker), or `retired` (superseded/dead). The disposition table is the deliverable. Wiring is deliberately out of scope: `run-guard-layer.sh` requires no host state, so the deploy-time bucket cannot simply be marked `source`, and picking its runner is a decision this task informs rather than pre-empts.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -214,6 +343,16 @@ disposition table and not a bulk `# guard-layer: source` sweep: marking these
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+bash tests/guard-runner-coverage-fixtures.sh > /tmp/.t2929-fx.txt 2>&1 && grep -q "0 failed" /tmp/.t2929-fx.txt
+bash scripts/check-guard-runner-coverage.sh > /tmp/.t2929-run.txt 2>&1 || true
+grep -q "FIRING" /tmp/.t2929-run.txt
+bash scripts/check-guard-runner-coverage.sh --json > /tmp/.t2929.json 2>&1 || true
+python3 -c "import json; d=json.load(open('/tmp/.t2929.json')); assert d['ok'] is False; s=d['summary']; assert s['dormant']+s['dormant_fixtures_only']==len(d['firing']); print('json ok')"
+E=$(mktemp -d); mkdir -p "$E/scripts" "$E/tests"; set +e; GUARD_COVERAGE_SCRIPTS_DIR="$E/scripts" GUARD_COVERAGE_TESTS_DIR="$E/tests" bash scripts/check-guard-runner-coverage.sh >/dev/null 2>&1; rc=$?; set -e; rm -rf "$E"; test "$rc" = "2"
+bash -n scripts/check-guard-runner-coverage.sh && bash -n tests/guard-runner-coverage-fixtures.sh
+test -z "$(grep -m1 "^# guard-layer:" scripts/check-guard-runner-coverage.sh)"
+test "$(grep -cE '\*\*(deploy-time|guard-layer)' .tasks/active/T-2929-85-guard-scripts-carry-no-guard-layer-ma.md)" -eq 57
 
 ## RCA
 
