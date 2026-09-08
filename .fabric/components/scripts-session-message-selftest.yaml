@@ -1,0 +1,20 @@
+id: scripts/session-message-selftest.sh
+name: session-message-selftest
+type: script
+subsystem: provers
+location: scripts/session-message-selftest.sh
+tags: [prover, session-messaging, T-2876]
+
+purpose: "Session-to-session message prover (T-2876): prepare/assert/cleanup verbs proving SendMessage delivery by reading the RECEIVER transcript — verdicts DELIVERED/BLOCKED/ENQUEUED/UNDELIVERED, never trusting the sender rc"
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-09-08
+created_by: unknown

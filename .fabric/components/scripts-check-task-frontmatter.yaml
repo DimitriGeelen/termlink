@@ -1,0 +1,20 @@
+id: scripts/check-task-frontmatter.sh
+name: check-task-frontmatter
+type: script
+subsystem: guard-layer
+location: scripts/check-task-frontmatter.sh
+tags: [static-check, guard-layer, T-2794]
+
+purpose: "Guard-layer static check (T-2794): every .tasks/**.md frontmatter must yaml-parse; fail-closed exit 2 on tooling faults"
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-09-08
+created_by: unknown

@@ -1,0 +1,20 @@
+id: tests/mutate-2783.sh
+name: mutate-2783
+type: script
+subsystem: guard-layer
+location: tests/mutate-2783.sh
+tags: [mutation-harness, T-2783]
+
+purpose: "Mutation harness (T-2783): applies pinned mutants to verify guard fixtures actually redden; refuses to run on a dirty tree (fail-closed)"
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-09-08
+created_by: unknown
