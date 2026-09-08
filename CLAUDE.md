@@ -655,6 +655,43 @@ termlink channel sweep <t>`), or — if genuinely operator-durable — add it to
 sixteen canaries above — all seventeen follow the same "empty-log = healthy"
 convention.
 
+### Substrate-smoke canary (T-2696, verb-3 end-to-end composition — the un-executed prover)
+
+`scripts/substrate-smoke.sh` (T-2151) proves the substrate's canonical work-stealing
+COMPOSITION in one command — create → post → claim → claim-transfer → worker-loop →
+verify-clean, plus the four arc-demo regression gates (drain race, cooperative handoff,
+lease expiry, hub-blip resilience) — and **nothing executed it on a schedule** (T-2696
+measured: every `grep -rln` hit across `.context/cron/`, CI, and `/etc/cron.d` was a
+comment or the prover's own file). The stuck-claims canary (T-2556) watches claim STATE;
+this canary proves the claim COMPOSITION still round-trips. A daily cron runs
+`scripts/check-substrate-smoke-freshness.sh --quiet` (see
+`.context/cron/substrate-smoke-canary.crontab`) and appends to
+`.context/working/.substrate-smoke-canary.log`. Empty log = healthy.
+
+T-2557-pattern verdict translation — smoke exit 0 → healthy; 1 → **FIRE**, naming the
+broken stage from `stages_failed[0]`; 2 → tooling (non-firing). **The load-bearing remap
+(T-2694 F2/G3):** smoke's `create` stage on an UNREACHABLE hub is a `stage_fail` → smoke
+exits **1**, i.e. the prover reports "substrate broken" on a quiet/hub-down host. The
+canary therefore prechecks hub reachability itself (cheap `channel list` read, 15s bound)
+BEFORE invoking smoke and exits 2 (non-firing, `/preflight` territory) when unreachable —
+smoke's own exit-2 arm covers only usage/missing-dep and cannot make that distinction. A
+firing thus carries a built-in claim: *the hub was reachable seconds earlier, so a stage
+genuinely broke.* Smoke is cron-safe: self-reaps its `smoke:*` topic on every exit path
+(T-2754), ~seconds of runtime, bounded retention. The COMMS sibling closed differently on
+purpose: `comms-selftest`'s harness was already hermetic, so it joined the guard layer as
+`tests/comms-selftest-fixtures.sh` (runs on every push/PR via T-2686 CI) instead of
+becoming a 19th canary that proof-pings a live peer daily (T-2486 warned against exactly
+that; it would half-overlap T-2387/T-2295). Ad-hoc check:
+`bash scripts/check-substrate-smoke-freshness.sh` (exit 0 = healthy, 1 = firing,
+2 = tooling); add `--json` for scripting, `--hub ADDR`, `--no-heartbeat`. Test seams
+(PL-213): `TERMLINK_SMOKE_CANARY_TEST_HUB_RC` (canned precheck rc) +
+`TERMLINK_SMOKE_CANARY_TEST_JSON`/`_RC` (canned smoke verdict); fixtures:
+`bash tests/substrate-smoke-canary-fixtures.sh` (16 assertions, the hub-down→2 remap
+pinned first). Operator action on firing: reproduce with `bash scripts/substrate-smoke.sh`
+(names the stage), then `/claims --all` + `termlink channel claims-summary --all
+--only-stuck`. `/canaries` auto-discovers the log. Pair with the seventeen canaries above —
+all eighteen follow the same "empty-log = healthy" convention.
+
 ### Cron-install-drift check (T-2561, shipped≠live / G-069 for the canary layer)
 
 A canary is only load-bearing if its crontab is actually installed to `/etc/cron.d`.

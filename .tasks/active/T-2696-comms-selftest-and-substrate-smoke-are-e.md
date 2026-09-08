@@ -2,22 +2,24 @@
 id: T-2696
 name: "comms-selftest and substrate-smoke are executed by nothing"
 description: >
-  Two of the four charter-verb affirmative provers are referenced only in comments and docs. Wiring them to cron needs a prerequisites-absent (exit 2) contract first, or they fire on a quiet host rather than on breakage (T-2694 F2/G3).
+  Two of the four charter-verb affirmative provers are referenced only in comments
+  and docs. Wiring them to cron needs a prerequisites-absent (exit 2) contract first,
+  or they fire on a quiet host rather than on breakage (T-2694 F2/G3).
 
-status: captured
+status: work-completed
 workflow_type: build
-owner: agent
-horizon: next
+owner: human
+horizon: now
 tags: []
-components: []
+components: [scripts/canary-status.sh, scripts/check-cron-install-drift.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-14T08:01:43Z
-last_update: 2026-09-07T20:44:59Z
-date_finished: null
+last_update: 2026-09-08T07:47:50Z
+date_finished: 2026-09-08T07:47:50Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -28,6 +30,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-09-08T07:43:21Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-2696: comms-selftest and substrate-smoke are executed by nothing
@@ -63,20 +79,20 @@ Scoped 2026-09-07 (ground truth re-measured — the filing still holds):
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `tests/comms-selftest-fixtures.sh` exists and exec's `scripts/test-comms-selftest.sh`,
+- [x] `tests/comms-selftest-fixtures.sh` exists and exec's `scripts/test-comms-selftest.sh`,
       so the guard-layer runner (tests/*fixtures*.sh convention) and the T-2686 CI job both
       execute the comms prover's hermetic harness on every run; `bash scripts/run-guard-layer.sh --list`
       names it as a member.
-- [ ] `scripts/check-substrate-smoke-freshness.sh` exists, mirroring the T-2557 verdict
+- [x] `scripts/check-substrate-smoke-freshness.sh` exists, mirroring the T-2557 verdict
       split: hub unreachable (own precheck) → exit 2 non-firing; smoke exit 0 → 0;
       smoke exit 1 → 1 FIRING naming the broken stage; smoke exit 2 → 2. `--json`,
       `--quiet`, heartbeat touch, test seams (canned smoke rc + output per PL-213).
-- [ ] Fixture suite for the canary wrapper (tests/…-fixtures.sh) pins all four verdict
+- [x] Fixture suite for the canary wrapper (tests/…-fixtures.sh) pins all four verdict
       translations INCLUDING the hub-down→2 remap (the F2/G3 case — the load-bearing leg).
-- [ ] `.context/cron/substrate-smoke-canary.crontab` written with the `# Installed to:`
+- [x] `.context/cron/substrate-smoke-canary.crontab` written with the `# Installed to:`
       header and the T-2685 split-stream redirect idiom; `check-cron-install-drift.sh`
       sees it (fires MISSING until the human installs — that is the intended signal).
-- [ ] CLAUDE.md canary section gains the new canary paragraph (18th), same
+- [x] CLAUDE.md canary section gains the new canary paragraph (18th), same
       empty-log-healthy convention.
 
 ### Human
@@ -141,6 +157,26 @@ Scoped 2026-09-07 (ground truth re-measured — the filing still holds):
 # the capture step closed off — the middle stage is what `grep -q` slams its
 # stdin on. `echo "$out"` is small and immediate; grep scans the whole captured
 # string anyway, so the tail-3 was cosmetic. Drop it: `echo "$out" | grep -q PAT`.
+
+# AC1: the comms wrapper exists, is a guard-layer member, and passes.
+test -x tests/comms-selftest-fixtures.sh
+bash scripts/run-guard-layer.sh --list > /tmp/.t2696-list 2>&1 && grep -q "comms-selftest-fixtures.sh" /tmp/.t2696-list
+bash tests/comms-selftest-fixtures.sh > /tmp/.t2696-comms 2>&1 && grep -q "test-comms-selftest: PASS" /tmp/.t2696-comms
+# AC2+AC3: canary exists; the 16-assertion suite pins all four translations incl. hub-down→2.
+test -x scripts/check-substrate-smoke-freshness.sh
+bash tests/substrate-smoke-canary-fixtures.sh > /tmp/.t2696-canary 2>&1 && grep -q "16 passed, 0 failed" /tmp/.t2696-canary
+# The F2/G3 remap directly, not only via the suite: canned unreachable hub => rc 2.
+TERMLINK_SMOKE_CANARY_TEST_HUB_RC=1 bash scripts/check-substrate-smoke-freshness.sh --no-heartbeat --quiet > /dev/null 2>&1; test $? -eq 2
+# AC4: crontab written with self-declared install path + split-stream idiom; drift check sees it.
+grep -q "^# Installed to:.*termlink-substrate-smoke-canary" .context/cron/substrate-smoke-canary.crontab
+grep -q "2>> .context/working/.substrate-smoke-canary.log.stderr" .context/cron/substrate-smoke-canary.crontab
+bash scripts/check-canary-log-hygiene.sh > /tmp/.t2696-hyg 2>&1
+# Either the crontab is already installed, or the drift check names it MISSING —
+# both states prove the check SEES it (state-tolerant so the human's finalize re-run passes post-install).
+test -f /etc/cron.d/termlink-substrate-smoke-canary || { bash scripts/check-cron-install-drift.sh > /tmp/.t2696-drift 2>&1; grep -q "MISSING: substrate-smoke-canary.crontab" /tmp/.t2696-drift; }
+# AC5: CLAUDE.md paragraph present, chain count updated.
+grep -q "### Substrate-smoke canary (T-2696" CLAUDE.md
+grep -q "all eighteen follow" CLAUDE.md
 #
 # Enforcement-baseline hint (L-398, T-1886): if you edited `.claude/settings.json`
 # (added/removed/reorganised hooks), add `bin/fw enforcement baseline` to your
@@ -189,6 +225,15 @@ Scoped 2026-09-07 (ground truth re-measured — the filing still holds):
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+## Recommendation
+
+**Recommendation:** GO
+**Rationale:** Both halves shipped exactly as scoped. The comms half joins the guard layer (runs on every push/PR — no new canary, no live-peer intrusion); the smoke half is the 18th cron canary with the F2/G3 hub-down→exit-2 remap fixture-pinned as the first assertion. The remaining step is the standard one-line crontab install every canary in this repo has gone through.
+**Evidence:**
+- `bash tests/comms-selftest-fixtures.sh` → test-comms-selftest: PASS; `run-guard-layer.sh --list` names both new suites as members
+- `bash tests/substrate-smoke-canary-fixtures.sh` → 16 passed, 0 failed (hub-down→2 pinned even with a canned "broken" smoke verdict standing by)
+- `check-cron-install-drift.sh` reports the new crontab MISSING — the intended shipped-but-not-yet-installed signal; `check-canary-log-hygiene.sh` clean on the split-stream redirect
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.
@@ -219,3 +264,24 @@ Scoped 2026-09-07 (ground truth re-measured — the filing still holds):
 
 ### 2026-08-14T08:01:56Z — status-update [task-update-agent]
 - **Change:** horizon: now → next
+
+### 2026-09-08T07:43:21Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-dc5bc99c
+- **Timestamp:** 2026-09-08T07:47:54Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — `tests/comms-selftest-fixtures.sh` exists and exec's `scripts/test-comms-selftest.sh`,
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=scripts/test-comms-selftest.sh in: `tests/comms-selftest-fixtures.sh` exists and exec's `scripts/test-comms-selftest.sh`,`
+
+### 2026-09-08T07:47:50Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

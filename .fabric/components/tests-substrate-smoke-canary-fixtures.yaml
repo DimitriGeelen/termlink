@@ -1,0 +1,20 @@
+id: tests/substrate-smoke-canary-fixtures.sh
+name: substrate-smoke-canary-fixtures
+type: script
+subsystem: guard-layer
+location: tests/substrate-smoke-canary-fixtures.sh
+tags: [fixture-suite, canary, T-2696]
+
+purpose: "Hermetic assertions (16) for check-substrate-smoke-freshness.sh — pins all four verdict translations including the load-bearing hub-down→exit-2 remap"
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-09-08
+created_by: unknown

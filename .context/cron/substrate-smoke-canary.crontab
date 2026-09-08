@@ -1,0 +1,26 @@
+# T-2696 — Substrate-smoke canary (verb-3 "claim work" end-to-end composition)
+# Source of truth: /opt/termlink/.context/cron/substrate-smoke-canary.crontab (git-tracked)
+# Installed to:    /etc/cron.d/termlink-substrate-smoke-canary (USER field syntax — do NOT load into a user crontab)
+#
+# scripts/substrate-smoke.sh (T-2151) proves the substrate's canonical
+# work-stealing composition (create → post → claim → claim-transfer →
+# worker-loop → verify-clean + four arc-demo regression gates) — and nothing
+# executed it on a schedule. The stuck-claims canary (T-2556) watches claim
+# STATE; this canary proves the claim COMPOSITION still round-trips daily.
+# Verdict translation (T-2557 pattern): smoke 0 → healthy, 1 → FIRE (broken
+# stage named), 2 → tooling. THE LOAD-BEARING REMAP: the canary prechecks hub
+# reachability itself and exits 2 (non-firing) when the hub is down — smoke
+# alone exits 1 on a hub-down create stage, which would fire the canary on
+# every blip (T-2694 F2/G3 trap). Empty log = healthy. /canaries auto-discovers
+# this log.
+#
+# Operator action on firing: hub was reachable, so a stage genuinely broke.
+# Reproduce: bash scripts/substrate-smoke.sh (names the stage), then inspect
+# /claims --all and `termlink channel claims-summary --all --only-stuck`.
+# Ad-hoc check: bash scripts/check-substrate-smoke-freshness.sh
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+
+# Daily at 07:37 UTC — offset from the :13 mirror, :17 unconfirmed-delivery,
+# :27 stuck-claims, :33 session-control, :43 frozen-husk, :47 task-finalization.
+37 7 * * * root cd /opt/termlink && bash scripts/check-substrate-smoke-freshness.sh --quiet >> .context/working/.substrate-smoke-canary.log 2>> .context/working/.substrate-smoke-canary.log.stderr

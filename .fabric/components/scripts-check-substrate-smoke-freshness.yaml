@@ -1,0 +1,20 @@
+id: scripts/check-substrate-smoke-freshness.sh
+name: check-substrate-smoke-freshness
+type: script
+subsystem: canaries
+location: scripts/check-substrate-smoke-freshness.sh
+tags: [canary, substrate, T-2696]
+
+purpose: "Substrate-smoke canary (T-2696): daily-runs substrate-smoke.sh and translates its verdict (T-2557 pattern); prechecks hub reachability and exits 2 non-firing when the hub is down (the T-2694 F2/G3 remap)"
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-09-08
+created_by: unknown
