@@ -68,6 +68,15 @@ done
 [ -d "$ROOT" ] || { echo "remediate: no such directory: $ROOT" >&2; exit 2; }
 cd "$ROOT" || exit 2
 git rev-parse --git-dir >/dev/null 2>&1 || { echo "remediate: not a git repository: $ROOT" >&2; exit 2; }
+# T-2919: being INSIDE some repo is not enough — a stray enclosing repo (a
+# commitless /.git was found on this host) makes rev-parse succeed from any
+# directory, turning "not a git repo" into a false clean. Require that ROOT
+# is itself the repository toplevel.
+TOPLEVEL="$(git rev-parse --show-toplevel 2>/dev/null)"
+[ "$TOPLEVEL" = "$(pwd -P)" ] || {
+    echo "remediate: $ROOT is not the root of a git repository (enclosing repo toplevel: ${TOPLEVEL:-unknown})" >&2
+    exit 2
+}
 
 if [ -z "$REPORT" ]; then
     REPORT="$ROOT/.claude/worktrees/t2687-pickup-failopen/.context/working/.remediation-report.json"

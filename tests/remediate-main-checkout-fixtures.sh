@@ -197,6 +197,18 @@ bash "$SCRIPT" --root "$TMP/does-not-exist" >/dev/null 2>&1; rc=$?
 if [ "$rc" = "2" ]; then ok "missing root => exit 2"
 else bad "missing root => exit 2" "rc=$rc"; fi
 
+# T-2919: a stray ENCLOSING repo (e.g. a commitless /.git) makes `git rev-parse
+# --git-dir` succeed from any directory, so "not a git repo" alone is a false
+# clean. The guard must require ROOT to be the repository toplevel itself.
+git init -q "$TMP/encl"
+mkdir -p "$TMP/encl/sub"
+bash "$SCRIPT" --root "$TMP/encl/sub" >"$TMP/encl.out" 2>&1; rc=$?
+if [ "$rc" = "2" ]; then ok "inside a repo but not its toplevel => exit 2 (T-2919)"
+else bad "inside a repo but not its toplevel => exit 2 (T-2919)" "rc=$rc"; fi
+if grep -q "not the root of a git repository" "$TMP/encl.out"; then
+    ok "enclosing-repo refusal names the toplevel condition"
+else bad "enclosing-repo refusal names the toplevel condition" "$(head -c 200 "$TMP/encl.out")"; fi
+
 echo ""
 echo "----------------------------------------"
 printf 'T-2803 fixtures: %d passed, %d failed\n' "$PASS" "$FAIL"
