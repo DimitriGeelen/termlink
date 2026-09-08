@@ -457,3 +457,9 @@
 [checkpoint] [auto] Handover FAILED at 2026-09-07T17:29:07Z — see /opt/termlink/.context/working/.checkpoint.handover.stderr
 [checkpoint] [auto] Handover generated at 2026-09-07T20:02:49Z
 [checkpoint] [auto] Handover generated at 2026-09-07T20:42:14Z
+[pre-compact] [manual] Handover generated at 2026-09-07T20:53:30Z
+[checkpoint] [auto] Handover generated at 2026-09-07T21:29:14Z
+[checkpoint] [auto] Handover generated at 2026-09-07T21:39:27Z
+[pre-compact] [manual] Handover generated at 2026-09-08T05:53:42Z
+[checkpoint] [auto] Handover generated at 2026-09-08T07:49:00Z
+[pre-compact] [manual] Handover generated at 2026-09-08T09:25:39Z

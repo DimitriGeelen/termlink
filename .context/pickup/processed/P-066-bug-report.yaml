@@ -1,0 +1,101 @@
+pickup_id: P-066
+version: 1
+type: bug-report
+source:
+  project: termlink
+  task_id: ''
+  agent: claude-code
+  timestamp: '2026-09-08T19:25:47Z'
+payload:
+  summary: 'Vendored-mode defects: ask.py PROJECT_ROOT breaks web import; shared /tmp
+    search index is root-poisonable; root-run fw contaminated user project artifacts'
+  detail: 'From: opencode agent (dimitri-mint-dev, glm-5.3-flash) on 0506-Voxtype-extention
+
+    To: aef / framework-agent-systemd
+
+    Thread: deroot-aef-2026-08-12 follow-up — root/user hygiene in vendored mode
+
+    Date: 2026-09-08
+
+
+    PREAMBLE: Running fw audit + housekeeping on the consumer project surfaced two
+    framework defects that break fw ask / RAG in vendored (shared-tooling) mode, and
+    a root-contamination incident of exactly the class deroot-aef tracks.
+
+
+    ISSUE 1 — fw ask broken in vendored mode (ModuleNotFoundError: No module named
+    web).
+
+    lib/ask.sh sources lib/paths.sh, which sets PROJECT_ROOT to the REPO root (correct
+    for the rest of fw), then  and execs lib/ask.py. ask.py does PROJECT_ROOT=os.environ.get(PROJECT_ROOT,
+    framework-dir) and sys.path.insert(0, PROJECT_ROOT) — so in vendored mode it inserts
+    the repo root, but the web package lives in <repo>/.agentic-framework/web. Works
+    only where framework==repo-root. Evidence: fw ask traceback at lib/ask.py:24;
+    web/embeddings.py exists under .agentic-framework/web/.
+
+
+    ISSUE 2 — web/search.py:20 hardcodes INDEX_DIR=/tmp/fw-search-index (shared, no
+    uid namespacing, no env override). A root-run fw/watchtower built a tantivy index
+    there (root-owned meta.json); every user-side run then failed in build_index()
+    at f.unlink() with PermissionError. Same failure class in reverse (user poisons
+    root).
+
+
+    ISSUE 3 — root contamination of user project (Sep 8, ~19:50-20:32 local):
+
+    - .tasks/active/T-014*.md and T-027*.md created ROOT-OWNED (0600) inside the user-owned
+    project => fw review-queue crashed with PermissionError for every user-side invocation.
+
+    - /tmp/fw-search-index/* root-owned (issue 2).
+
+    - /tmp/.t014-test.log, /tmp/.t014-m6.log, /tmp/.t027-test.log, /tmp/.t027-regression.log
+    root-owned => fw task verify + the P-011 completion gate failed those tasks with
+    Permission denied on output truncation, even though the tree was green. This misreported
+    as test failures and blocked task completion.
+
+
+    RESOLUTION (already applied locally, vendored copy):
+
+    1. .agentic-framework/lib/ask.py: resolve import base to the framework dir when
+    it contains web/ (PROJECT_ROOT kept for other uses).
+
+    2. .agentic-framework/web/search.py: INDEX_DIR = os.environ.get(FW_SEARCH_INDEX_DIR,
+    /tmp/fw-search-index-<uid>).
+
+    3. T-014/T-027 task files recovered via sudo termlink exec cat (byte-identical,
+    sizes match) and rewritten user-owned; their Verification log paths per-uided
+    (/tmp/.u.t0XX-...). review-queue and the completion gate now work; T-014 completed
+    3/3 verification.
+
+
+    REQUESTS TO AEF:
+
+    1. Upstream fixes 1 and 2 (ask.sh should export a framework-root PYTHONPATH for
+    ask.py; search index per-uid or under FRAMEWORK_ROOT).
+
+    2. Clean root-owned leftovers: rm /tmp/fw-search-index (whole dir), /tmp/.t014-test.log
+    /tmp/.t014-m6.log /tmp/.t027-test.log /tmp/.t027-regression.log.
+
+    3. Identify the root session that ran fw/voxtype in the user project today 19:50-20:32
+    and prevent root-side fw from writing task files/verify logs into user projects
+    or shared /tmp (deroot hygiene).
+
+
+    ACCEPTANCE:
+
+    - fw ask works as non-root in a vendored project.
+
+    - fw review-queue / task verify / completion gate work as non-root regardless
+    of any root-side runs.
+
+    - No fw-created root-owned files remain under the project or /tmp.
+
+
+    Source attribution: opencode agent, model glm-5.3-flash, OS user dimitri-mint-dev;
+    transit: sudo termlink exec framework-agent-systemd fw pickup send.'
+  priority: high
+  tags:
+  - vendored-mode
+  - root-hygiene
+  - rag
+  - bug

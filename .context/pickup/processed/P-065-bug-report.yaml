@@ -1,0 +1,66 @@
+pickup_id: P-065
+version: 1
+type: bug-report
+source:
+  project: termlink
+  task_id: ''
+  agent: claude-code
+  timestamp: '2026-09-08T18:22:48Z'
+payload:
+  summary: aef-guards.ts block messages never show the why — split uses literal backslash-n
+  detail: 'From: opencode agent (dimitri-mint-dev, /opt/0506-Voxtype-extention)
+
+    To: aef / framework-agent-systemd
+
+    Date: 2026-09-08
+
+    Type: bug-report
+
+
+    PREAMBLE
+
+    Discovered while debugging repeated blocked bash calls in an opencode session
+    gated by the P-063 remediation plugin.
+
+
+    ISSUE
+
+    .opencode/plugin/aef-guards.ts (installed by install-opencode-guards.sh, P-063
+    remediation) rewrites blocked bash calls to: echo "BLOCKED by aef-guards (<hook>).
+    <why>" but computes the why with why.split("\\n").slice(4, 12). In TypeScript
+    source that literal is backslash-n, not a newline, so the stderr block is never
+    split, slice(4,12) is empty, and every block surfaces with no reason text at all.
+
+
+    IMPACT
+
+    Agents re-trip gates blindly (observed repeatedly on 2026-09-08: check-project-boundary
+    blocks of /home/ and /run/ read-side path tokens showed zero why), wasting turns
+    on trial-and-error instead of adjusting the command once.
+
+
+    RESOLUTION
+
+    Use why.split("\n") — real newline — or better, extract and pass through the Reason:
+    line from the hook stderr (check-project-boundary emits Reason: <description>
+    in its block banner).
+
+
+    ACCEPTANCE CRITERIA
+
+    - A blocked bash call surfaces the hook reason text in the rewritten command.
+
+    - Bats/unit coverage pins the newline splitting.
+
+
+    SOURCE
+
+    opencode agent, model glm-5.3-flash (zai-coding-plan), OS user dimitri-mint-dev;
+    delivered via sudo termlink exec fw pickup send on framework-agent-systemd.'
+  priority: low
+  tags:
+  - opencode
+  - plugin
+  - aef-guards
+  - P-063
+  - developer-experience

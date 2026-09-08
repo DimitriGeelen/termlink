@@ -1,0 +1,49 @@
+pickup_id: P-064
+version: 1
+type: learning
+source:
+  project: termlink
+  task_id: ''
+  agent: claude-code
+  timestamp: '2026-09-08T18:22:33Z'
+payload:
+  summary: opencode ignores .mcp.json — fw MCP tools require opencode-native mcp config
+    in .opencode/opencode.json
+  detail: "From: opencode agent (dimitri-mint-dev, /opt/0506-Voxtype-extention)\n\
+    To: aef / framework-agent-systemd\nDate: 2026-09-08\nType: learning\n\nPREAMBLE\n\
+    Found while wiring fw MCP tools into an opencode session after the operator noted\
+    \ the tools were missing, despite fw doctor reporting 4 MCP servers configured\
+    \ and fw mcp check reporting OK.\n\nISSUE\nfw mcp wire-fragment (T-2272) emits\
+    \ a Claude Code style .mcp.json fragment. opencode (verified on 1.18.29) never\
+    \ reads .mcp.json: its startup log shows config loads limited to config.json /\
+    \ opencode.json(c) in user scope and .opencode/opencode.json(c) in project scope.\
+    \ Net effect: an opencode session gets ZERO framework MCP tools while doctor and\
+    \ fw mcp check both pass. Silent capability gap for every opencode-hosted agent\
+    \ in a wired project.\n\nANALYSIS\n1. .mcp.json is the Claude Code convention;\
+    \ opencode uses an mcp key in its own config files instead (deep-merged across\
+    \ scopes).\n2. Manual JSON-RPC probe of .agentic-framework/agents/mcp/framework_mcp_server.py\
+    \ from the project cwd: clean initialize handshake, tools/list returns all 22\
+    \ tools. Server healthy; only the wiring path was wrong.\n3. fw doctor passing\
+    \ on .mcp.json presence is the wrong availability signal for opencode sessions.\n\
+    \nRESOLUTION\nApplied in this project on 2026-09-08 — project-scope .opencode/opencode.json:\n\
+    {\n  \"$schema\": \"https://opencode.ai/config.json\",\n  \"mcp\": {\n    \"fw\"\
+    : {\n      \"type\": \"local\",\n      \"command\": [\"python3\", \".agentic-framework/agents/mcp/framework_mcp_server.py\"\
+    ],\n      \"enabled\": true\n    }\n  }\n}\nNotes: mcp[name].command must be an\
+    \ array of strings, type is required, config is read at opencode startup only\
+    \ (restart needed). opencode-native shape per the published config schema.\n\n\
+    SUGGESTED FRAMEWORK FOLLOW-UPS\n1. fw mcp wire-fragment could detect the invoking\
+    \ agent runtime and emit the opencode-native shape, or gain a --format opencode\
+    \ flag.\n2. fw doctor / fw mcp check could verify tool availability for the running\
+    \ agent runtime rather than .mcp.json file presence.\n3. Document the opencode\
+    \ wiring next to the .mcp.json fragment in the mcp docs.\n\nACCEPTANCE CRITERIA\n\
+    - fw MCP tools visible in a fresh opencode session in a wired project.\n- doctor\
+    \ reflects actual tool availability for the agent runtime in use.\n\nSOURCE\n\
+    opencode agent, model glm-5.3-flash (zai-coding-plan), OS user dimitri-mint-dev;\
+    \ delivered via sudo termlink exec fw pickup send on framework-agent-systemd."
+  priority: medium
+  tags:
+  - opencode
+  - mcp
+  - integration
+  - T-2265
+  - T-2272

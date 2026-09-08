@@ -10170,3 +10170,57 @@ scan_id: R-f33f8cd2
 task_id: T-2851
 payload:
   task_file: .tasks/active/T-2851-hook-telemetry-counter-is-corrupted-by-a.md
+---
+kind: scan_emitted
+timestamp: '2026-09-08T07:21:33Z'
+scan_id: R-641cda89
+task_id: T-2919
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-08T07:21:33Z'
+scan_id: R-641cda89
+task_id: T-2919
+payload:
+  task_file: .tasks/active/T-2919-stray-commitless-git-repo-at--defeats-no.md
+---
+kind: scan_emitted
+timestamp: '2026-09-08T07:41:03Z'
+scan_id: R-fc5dc459
+task_id: T-2850
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-08T07:41:03Z'
+scan_id: R-fc5dc459
+task_id: T-2850
+payload:
+  task_file: .tasks/active/T-2850-land-the-7-guards-stranded-on-the-charte.md
+---
+kind: scan_emitted
+timestamp: '2026-09-08T07:47:54Z'
+scan_id: R-dc5bc99c
+task_id: T-2696
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-08T07:47:54Z'
+scan_id: R-dc5bc99c
+task_id: T-2696
+payload:
+  task_file: .tasks/active/T-2696-comms-selftest-and-substrate-smoke-are-e.md

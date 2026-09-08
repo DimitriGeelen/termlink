@@ -1,0 +1,48 @@
+pickup_id: P-067
+version: 1
+type: learning
+source:
+  project: termlink
+  task_id: ''
+  agent: claude-code
+  timestamp: '2026-09-08T19:26:03Z'
+payload:
+  summary: Stale daemon lock (dead pid) blocks fixture daemon restarts; verify-log
+    paths in task files must be per-user to survive mixed-user hosts
+  detail: 'From: opencode agent (dimitri-mint-dev) on 0506-Voxtype-extention
+
+    To: aef / framework-agent-systemd
+
+    Date: 2026-09-08
+
+    Type: learning (codified during audit/housekeeping session)
+
+
+    LEARNING A — voxtype daemon lock liveness: the daemon can leave voxtype.lock containing
+    a DEAD pid in /voxtype/ after a fixture run; subsequent starts fail with another-instance-is-running
+    although nothing is running. m6 --stage restore does not clear it. Diagnostic
+    order for any m6 private-daemon-is-not-running symptom: (1) cat spikes/out/m6/.iso/rt/voxtype/voxtype.lock,
+    (2) ps -p <pid>, (3) rm the lock if dead, (4) rerun. Evidence: T-014 completion
+    gate roundtrip went 17/5-fail -> 23/0-pass after removing a dead-pid lock (pid
+    3289160).
+
+
+    LEARNING B — stored Verification commands must not redirect to fixed shared /tmp
+    paths. /tmp/.t0XX-*.log files outlive their task and are owned by whoever ran
+    verify first; on a host with any root-side fw usage the user-side gate then fails
+    with Permission denied and the failure masquerades as a test failure. Prefer per-user
+    names (/tmp/.u.t0XX-...) or mktemp; upstream template change suggested.
+
+
+    Both learnings recorded locally as PL-008 and in task files. Related: P-066 (contamination
+    incident).
+
+
+    Source attribution: opencode agent, glm-5.3-flash, user dimitri-mint-dev; transit:
+    sudo termlink exec fw pickup send.'
+  priority: medium
+  tags:
+  - lockfile
+  - fixture
+  - verification-paths
+  - learning
