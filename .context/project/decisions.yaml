@@ -1134,3 +1134,10 @@ decisions:
   date: 2026-09-03
   task: T-2881
   rationale: "Auto-captured from task file on completion"
+
+- id: PD-156
+  decision: "AC5 now requires 0 ERRORED + no broken guards, with every remaining firing truthful and owned by a named task, instead of a literal all-PASS sweep."
+  scope: project
+  date: 2026-09-08
+  task: T-2850
+  rationale: "Auto-captured from task file on completion"
