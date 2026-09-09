@@ -8,12 +8,12 @@ description: >
   green and fast, then add the marker so it runs on every push and PR. The 18 deploy-time
   and 27 provisional rows are explicitly NOT in scope.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [scripts/test-comms-selftest.sh, scripts/test-diagnose-unconsumed.sh, scripts/test-fleet-rearm-wakers.sh, scripts/test-pushwaker-ready-loop.sh, tests/agent-send-idle-gate.sh, tests/relay-b2-send-hops.sh, tests/relay-b3-hop-budget.sh, tests/relay-wake-confirm.sh, tests/stale-waker-code-canary.sh, tests/tl-claude-identity-binding.sh, tests/wake-confirm-reply-match.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -26,8 +26,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-08T21:47:10Z
-last_update: '2026-09-08T21:49:43Z'
-date_finished:
+last_update: 2026-09-09T07:43:13Z
+date_finished: 2026-09-09T07:43:13Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -116,11 +116,11 @@ grown past what a per-push gate should carry. A decision either way is out of th
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] **Every candidate is executed standalone before it is trusted, and the header is not taken as evidence.** Each of the 12 scripts T-2929 classified `guard-layer` on the strength of its own "hermetic / no live hub" header is run in isolation and its exit code, wall-clock duration, and any network or host-state side effect recorded. A self-declaration is a claim by the author, not a measurement — T-2929's own hermeticity screen was wrong twice, once posting real broadcasts to three live fleet hubs. A script whose header says hermetic but whose behaviour disagrees is NOT marked.
-- [ ] **Only scripts that pass on their own merits get the marker.** A candidate earns `# guard-layer: source` iff it exits 0, completes within a stated bound, and shows no live-hub or host-state dependency when run. Any candidate that fails, hangs, or touches the fleet is left unmarked with the reason recorded — a failing script added to the layer would make every push and PR red, which is how a guard layer gets switched off.
-- [ ] **The layer is demonstrably larger, and this change introduces no new failure.** Member count has grown by exactly the number of scripts marked and unclassified has fallen by the same number, both stated before and after — "the layer still passes" is not the same claim as "the layer now covers more". *(AC AMENDED mid-task, openly: it originally read "runs to completion with no FAIL and no ERROR". That baseline was assumed and is false — the layer is already RED on main with 3 pre-existing FAILs, none in a file this task touches. Amending an AC to something passable is exactly the producer-not-judge hazard, so the amendment is recorded here rather than made silently, and it does not weaken the real claim: no NEW failure. The 3 pre-existing FAILs are a separate finding, below.)*
-- [ ] **`check-guard-runner-coverage.sh` reflects the change, and the residue is named.** Re-running it shows the dormant count reduced by exactly the number marked, and the remaining dormant scripts are reported with their buckets intact (deploy-time / provisional) so nothing is silently absorbed. The check must still FIRE — this task does not claim to end dormancy, only to close the unambiguous part of it.
-- [ ] **No deploy-time or provisional script is marked.** The 18 `deploy-time` and 27 `guard-layer?` rows are out of scope by construction: the first would read host state in CI, the second is unverified. Verified mechanically, not by intent.
+- [x] **Every candidate is executed standalone before it is trusted, and the header is not taken as evidence.** Each of the 12 scripts T-2929 classified `guard-layer` on the strength of its own "hermetic / no live hub" header is run in isolation and its exit code, wall-clock duration, and any network or host-state side effect recorded. A self-declaration is a claim by the author, not a measurement — T-2929's own hermeticity screen was wrong twice, once posting real broadcasts to three live fleet hubs. A script whose header says hermetic but whose behaviour disagrees is NOT marked.
+- [x] **Only scripts that pass on their own merits get the marker.** A candidate earns `# guard-layer: source` iff it exits 0, completes within a stated bound, and shows no live-hub or host-state dependency when run. Any candidate that fails, hangs, or touches the fleet is left unmarked with the reason recorded — a failing script added to the layer would make every push and PR red, which is how a guard layer gets switched off.
+- [x] **The layer is demonstrably larger, and this change introduces no new failure.** Member count has grown by exactly the number of scripts marked and unclassified has fallen by the same number, both stated before and after — "the layer still passes" is not the same claim as "the layer now covers more". *(AC AMENDED mid-task, openly: it originally read "runs to completion with no FAIL and no ERROR". That baseline was assumed and is false — the layer is already RED on main with 3 pre-existing FAILs, none in a file this task touches. Amending an AC to something passable is exactly the producer-not-judge hazard, so the amendment is recorded here rather than made silently, and it does not weaken the real claim: no NEW failure. The 3 pre-existing FAILs are a separate finding, below.)*
+- [x] **`check-guard-runner-coverage.sh` reflects the change, and the residue is named.** Re-running it shows the dormant count reduced by exactly the number marked, and the remaining dormant scripts are reported with their buckets intact (deploy-time / provisional) so nothing is silently absorbed. The check must still FIRE — this task does not claim to end dormancy, only to close the unambiguous part of it.
+- [x] **No deploy-time or provisional script is marked.** The 18 `deploy-time` and 27 `guard-layer?` rows are out of scope by construction: the first would read host state in CI, the second is unverified. Verified mechanically, not by intent.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -154,6 +154,67 @@ grown past what a per-push gate should carry. A decision either way is out of th
        added to ## Verification. NEVER `... 2>&1 | grep -q ...` — that is the shape the
        Pipefail/SIGPIPE section below forbids, and this line used to prescribe it.
 -->
+
+## Close-out (session S-2026-0909, AC3 resolved)
+
+Parked last session with AC3 unverified: `run-guard-layer.sh` had not finished inside a
+580 s bound and never reached the 11 newly-marked members. Their verdicts were not in
+doubt — the layer runs each member as `bash <script>` and records the rc, the same
+measurement taken standalone — but the *layer-level* assertion had not been made, and
+asserting it from the standalone runs would have been inferring a check never run. It
+has now been run to completion.
+
+**AC3, measured.** Full layer run, unbounded, ~9 min wall clock:
+
+    guard layer: FIRING - 3 guard(s) found something (109 passed, 0 errored)
+
+- 112 members executed, 0 ERROR, 0 SKIP.
+- All **11** newly-marked members PASS (`suite` tier).
+- 3 FAIL — `check-installed-binary-drift.sh`, `check-receiver-ack-lag.sh`,
+  `cron-drift-firing-fixtures.sh`: the pre-existing host-state failures recorded at
+  park, none in a file this task touched. **No new failure.**
+
+**Member delta, measured exactly.** Rebuilt the pre-change member set from `540fc51d4`
+via `git archive`: **102 to 113**, delta **11**, and the delta set is byte-identical to
+the 11 scripts marked. The park note's "100 to 112" was loose recollection; the
+discrepancy it implied does not exist.
+
+**AC4.** unclassified 86 to **75** (-11); dormant + fixtures-only 57 to **46** (-11);
+buckets intact; check still FIRES (rc 1). The task never claimed to end dormancy.
+
+**AC5.** All 11 verified mechanically against T-2929's disposition table as
+guard-layer rows — 0 deploy-time, 0 provisional.
+
+### Finding: a marked script the runner never runs (pre-existing, filed onward)
+
+Reconciling 113 computed members against 112 executed surfaced a real gap, not an
+off-by-one. `scripts/fabric-workflow-link.sh` carries the guard-layer marker on line 2,
+but the runner's inventory globs are `scripts/check-*.sh`, `scripts/test-*.sh`,
+`tests/*.sh` — it matches none. It is therefore **never run, never listed by `--list`,
+and never reported as unclassified**: it declares membership and is silently excluded.
+
+`check-guard-runner-coverage.sh` inherits the same globs, so the script is invisible to
+the detector as well as the runner — neither covered nor flagged. Introduced by T-2839
+(2026-08-27), so it predates this task and does not affect the no-new-failure claim.
+Filed separately rather than fixed here: widening the globs changes the runner's
+contract and belongs behind its own gate (one lock at a time).
+
+### Process note — the same error, twice
+
+The verification block was twice inserted into the wrong section, because
+`str.index('## Verification')` matched a *mention* of that heading inside the Human-AC
+template comment rather than the heading itself. The first attempt put commands under
+`## Acceptance Criteria` (the T-2831 misfile defect — P-011 never runs them, so the gate
+passes vacuously). The second spliced a block mid-line into the template comment, which
+the completion gate caught and refused with "the ## Verification block contains line(s)
+bash cannot parse".
+
+The gate was right both times and was not bypassed, though
+`FW_ALLOW_UNPARSEABLE_VERIFICATION=1` was offered. Fixed by restoring the file from HEAD
+and re-applying every edit through an exact-line matcher that asserts a unique match and
+fails loudly otherwise. Recorded because the error was made by the author of a check for
+that exact error class — a self-declaration is a claim, not a measurement, which is this
+task's own thesis turned back on itself.
 
 ## Verification
 
@@ -216,6 +277,23 @@ grown past what a per-push gate should carry. A decision either way is out of th
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+
+# ── T-2933 verification (added at close) ─────────────────────────────────────
+# Asserts RELATIONSHIPS, not pinned totals: unclassified/dormant counts move
+# whenever any guard is added anywhere in the repo, and a gate hard-coding 75/46
+# would go red on unrelated work and get switched off.
+# AC1+AC2 — each of the 11 marked scripts still passes standalone.
+for s in scripts/test-comms-selftest.sh scripts/test-diagnose-unconsumed.sh scripts/test-fleet-rearm-wakers.sh scripts/test-pushwaker-ready-loop.sh tests/agent-send-idle-gate.sh tests/relay-b2-send-hops.sh tests/relay-b3-hop-budget.sh tests/relay-wake-confirm.sh tests/stale-waker-code-canary.sh tests/tl-claude-identity-binding.sh tests/wake-confirm-reply-match.sh; do bash "$s" >/dev/null 2>&1 || { echo "FAILED standalone: $s"; exit 1; }; done
+# AC2 — all 11 carry the marker.
+test "$(grep -lE '^# guard-layer: source' scripts/test-comms-selftest.sh scripts/test-diagnose-unconsumed.sh scripts/test-fleet-rearm-wakers.sh scripts/test-pushwaker-ready-loop.sh tests/agent-send-idle-gate.sh tests/relay-b2-send-hops.sh tests/relay-b3-hop-budget.sh tests/relay-wake-confirm.sh tests/stale-waker-code-canary.sh tests/tl-claude-identity-binding.sh tests/wake-confirm-reply-match.sh | wc -l)" = "11"
+# AC3 — the runner enumerates all 11 as members (membership, not just the marker).
+bash scripts/run-guard-layer.sh --list > /tmp/.t2933-list.txt 2>&1
+test "$(grep -cE 'test-comms-selftest\.sh|test-diagnose-unconsumed\.sh|test-fleet-rearm-wakers\.sh|test-pushwaker-ready-loop\.sh|agent-send-idle-gate\.sh|relay-b2-send-hops\.sh|relay-b3-hop-budget\.sh|relay-wake-confirm\.sh|stale-waker-code-canary\.sh|tl-claude-identity-binding\.sh|wake-confirm-reply-match\.sh' /tmp/.t2933-list.txt)" = "11"
+# AC4 — coverage check still FIRES, and none of the 11 is still reported dormant.
+bash scripts/check-guard-runner-coverage.sh --json > /tmp/.t2933-cov.json 2>&1 || true
+python3 -c "import json;d=json.load(open('/tmp/.t2933-cov.json'));assert d['ok'] is False,'coverage must still fire';w={'test-comms-selftest.sh','test-diagnose-unconsumed.sh','test-fleet-rearm-wakers.sh','test-pushwaker-ready-loop.sh','agent-send-idle-gate.sh','relay-b2-send-hops.sh','relay-b3-hop-budget.sh','relay-wake-confirm.sh','stale-waker-code-canary.sh','tl-claude-identity-binding.sh','wake-confirm-reply-match.sh'};f={e['script'] for e in d['firing']};assert not (w&f),sorted(w&f);print('AC4 ok')"
+# AC5 — none of the 11 was a deploy-time or provisional row in T-2929's table.
+python3 -c "rows=open('.tasks/completed/T-2929-85-guard-scripts-carry-no-guard-layer-ma.md').read().splitlines(); want=['test-comms-selftest','test-diagnose-unconsumed','test-fleet-rearm-wakers','test-pushwaker-ready-loop','agent-send-idle-gate','relay-b2-send-hops','relay-b3-hop-budget','relay-wake-confirm','stale-waker-code-canary','tl-claude-identity-binding','wake-confirm-reply-match']; g=lambda s:[l for l in rows if l.startswith('| \`%s.sh\`'%s)]; bad=[s for s in want if not g(s) or 'deploy-time' in g(s)[0] or 'guard-layer?' in g(s)[0]]; assert not bad, bad; print('AC5 ok')"
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -315,3 +393,20 @@ grown past what a per-push gate should carry. A decision either way is out of th
 
 ### 2026-09-08T21:49:41Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-98ee2af8
+- **Timestamp:** 2026-09-09T07:43:25Z
+- **Catalogue:** v1.3-seed
+- **Overall:** FAIL
+- **Needs Human:** no
+- **Findings:** 1
+
+**Verification-level findings:**
+
+  1. **swallowed-errors** (severe, deterministic) @ Verification:line 73
+     - evidence: `bash scripts/check-guard-runner-coverage.sh --json > /tmp/.t2933-cov.json 2>&1 || true`
+
+### 2026-09-09T07:43:13Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

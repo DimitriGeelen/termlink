@@ -1,0 +1,211 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2933: Wire the 12 self-declared-hermetic dormant guards into the guard layer
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-09T07:43:32Z
+# ============================================================================
+
+task_id: T-2933
+task_name: "Wire the 12 self-declared-hermetic dormant guards into the guard layer"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-08T21:47:10Z
+completed: 2026-09-09T07:43:13Z
+duration_days: 1
+updates_count: 2
+first_commit: 2026-09-09T00:04:41+02:00
+last_commit: 2026-09-09T00:04:41+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  wire 11 of 12 self-declared-hermetic guards into the guard layer
+
+# Key outcomes
+outcomes:
+  - '**Every candidate is executed standalone before it is trusted, and the header is not taken as evidence.** Each of the 12 scripts T-2929 classified `guard-layer` on the strength of its own "hermetic / no live hub" header is run in isolation and its exit code, wall-clock duration, and any network or host-state side effect recorded. A self-declaration is a claim by the author, not a measurement — T-2929''s own hermeticity screen was wrong twice, once posting real broadcasts to three live fleet hubs. A script whose header says hermetic but whose behaviour disagrees is NOT marked.'
+  - '**Only scripts that pass on their own merits get the marker.** A candidate earns `# guard-layer: source` iff it exits 0, completes within a stated bound, and shows no live-hub or host-state dependency when run. Any candidate that fails, hangs, or touches the fleet is left unmarked with the reason recorded — a failing script added to the layer would make every push and PR red, which is how a guard layer gets switched off.'
+  - '**The layer is demonstrably larger, and this change introduces no new failure.** Member count has grown by exactly the number of scripts marked and unclassified has fallen by the same number, both stated before and after — "the layer still passes" is not the same claim as "the layer now covers more". *(AC AMENDED mid-task, openly: it originally read "runs to completion with no FAIL and no ERROR". That baseline was assumed and is false — the layer is already RED on main with 3 pre-existing FAILs, none in a file this task touches. Amending an AC to something passable is exactly the producer-not-judge hazard, so the amendment is recorded here rather than made silently, and it does not weaken the real claim: no NEW failure. The 3 pre-existing FAILs are a separate finding, below.)*'
+  - '**`check-guard-runner-coverage.sh` reflects the change, and the residue is named.** Re-running it shows the dormant count reduced by exactly the number marked, and the remaining dormant scripts are reported with their buckets intact (deploy-time / provisional) so nothing is silently absorbed. The check must still FIRE — this task does not claim to end dormancy, only to close the unambiguous part of it.'
+  - '**No deploy-time or provisional script is marked.** The 18 `deploy-time` and 27 `guard-layer?` rows are out of scope by construction: the first would read host state in CI, the second is unverified. Verified mechanically, not by intent.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.fabric/components/scripts-check-guard-runner-coverage.yaml'
+  - '.fabric/components/tests-guard-runner-coverage-fixtures.yaml'
+  - 'scripts/test-comms-selftest.sh'
+  - 'scripts/testdata/unconfirmed-fresh.json'
+  - 'scripts/testdata/unconfirmed-stale.json'
+  - 'scripts/test-diagnose-unconsumed.sh'
+  - 'scripts/test-fleet-rearm-wakers.sh'
+  - 'scripts/test-pushwaker-ready-loop.sh'
+  - '.tasks/active/T-1124-run-t-1122-wsgi-migration-spikes-after-g.md'
+  - '.tasks/active/T-1261-t-1191-deferred-follow-up-integration-te.md'
+  - '.tasks/active/T-1726-triage-199-stale-enrichorprune-learnings.md'
+  - '.tasks/active/T-1810-live-two-real-claude-3-turn-soak-t-1807-.md'
+  - '.tasks/active/T-1886-fw-independent-review-v02--remote-exec-e.md'
+  - '.tasks/active/T-1898-vendored-agent-runner-phase-1--minimum-v.md'
+  - '.tasks/active/T-1899-g-020-task-create-time-gate-failed--rca-.md'
+  - '.tasks/active/T-2007-termlink-as-coordination-substrate--what.md'
+  - '.tasks/active/T-2011-propagate-t-2010-auditsh-patch-to-upstre.md'
+  - '.tasks/active/T-2022-substrate-filesystem-write-observation-c.md'
+  - '.tasks/active/T-2024-substrate-symmetric-authentication-acros.md'
+  - '.tasks/active/T-2026-substrate-typed-agent-launch-surface-che.md'
+  - '.tasks/active/T-2090-typed-agent-launch-surface--substrate-pr.md'
+  - '.tasks/active/T-2222-pickup-bvp-estimator-corrupts-anchor-les.md'
+  - '.tasks/active/T-2232-pickup-update-tasksh-ships-reachable-gat.md'
+  - '.tasks/active/T-2250-r5-telemetry-plane-design--local-first-p.md'
+  - '.tasks/active/T-2256-upstream-worktree-aware-fw-resolution---.md'
+  - '.tasks/active/T-2271-hub-scope-token-ceiling--bind-max-scope-.md'
+  - '.tasks/active/T-2371-ws-push-drops-laggedpre-subscribe-wakes-.md'
+  - '.tasks/active/T-2422-per-agent-authorization-model--beyond-au.md'
+  - '.tasks/active/T-2423-managed-fleet-deployupgrade-story--kill-.md'
+  - '.tasks/active/T-2445-round-8-review-residuals--ws-push-transp.md'
+  - '.tasks/active/T-2455-claim-lease-expiry-uses-wall-clock--ntp-.md'
+  - '.tasks/active/T-2464-log-payload-write-has-no-fsync-while-ind.md'
+  - '.tasks/active/T-2481-p3b--make-it-live-fleet-primitive-t-2477.md'
+  - '.tasks/active/T-2492-channel-request-reply-correlation-accept.md'
+  - '.tasks/active/T-2493-channel-post-path-swallows-hubauth-rpcre.md'
+  - '.tasks/active/T-2522-retention-days-mode-prunes-on-client-sup.md'
+  - '.tasks/active/T-2532-per-host-live-session-cap--no-maxsession.md'
+  - '.tasks/active/T-2534-bind-claim-verbs-to-verified-identity-t-.md'
+  - '.tasks/active/T-2541-charter-clarification-note-local-data-pl.md'
+  - '.tasks/active/T-2555-cli-generic-rpccall-error-classification.md'
+  - '.tasks/active/T-2560-wire-pl-021-flap-detector-fleet-history-.md'
+  - '.tasks/active/T-2566-design-ephemeral-presence-queue-vs-drop-.md'
+  - '.tasks/active/T-2568-tune-stuck-claims-flat-60s-gate-causes-a.md'
+  - '.tasks/active/T-2570-defer-orchestration-policy-creep-guard-f.md'
+  - '.tasks/active/T-2573-bug-subscribe-walk-deadline-drops-collec.md'
+  - '.tasks/active/T-2576-design-signal-leasedclaim-holder-when-ow.md'
+  - '.tasks/active/T-2577-design-retention-sweep-evicts-unread-rec.md'
+  - '.tasks/active/T-2581-fix-ptysession-drop-reaps-with-wnohang-r.md'
+  - '.tasks/active/T-2586-design-find-idle-fixed-60s-live-window-v.md'
+  - '.tasks/active/T-2593-termlinkinteractrun-silently-truncates-o.md'
+  - '.tasks/active/T-2594-ptysessionspawn-leaks-masterfd-and-orpha.md'
+  - '.tasks/active/T-2595-ptysessionspawn-runs-non-async-signal-sa.md'
+  - '.tasks/active/T-2596-ptysession-non-blocking-pty-write-busy-s.md'
+  - '.tasks/active/T-2597-ptysessionsignal-may-target-a-recycled-p.md'
+  - '.tasks/active/T-2600-findidle-60s-live-window-vs-agent-listen.md'
+  - '.tasks/active/T-2601-extract-a-single-shared-agent-liveness-p.md'
+  - '.tasks/active/T-2606-exactly-once-is-in-memory-only-dedupe-lr.md'
+  - '.tasks/active/T-2608-whoami-pid-ancestor-identity-fallback-is.md'
+  - '.tasks/active/T-2612-pty-drop-reaps-child-with-wnohang-so-zom.md'
+  - '.tasks/active/T-2613-pty-spawn-returns-ok-even-when-child-exe.md'
+  - '.tasks/active/T-2614-pty-new-post-fork-error-paths-orphan-chi.md'
+  - '.tasks/active/T-2615-atomic-write-helpers-in-termlink-session.md'
+  - '.tasks/active/T-2616-drain-loop-permanent-failure-policy--poi.md'
+  - '.tasks/active/T-2644-pty-interactive-attach-silently-drops-ke.md'
+  - '.tasks/active/T-2648-cap-clientcall-response-line-read-agains.md'
+  - '.tasks/active/T-2650-cmdrequest-reply-correlation-defaults-to.md'
+  - '.tasks/active/T-2651-cmdrequest-emit--cursor-fetch-rpcs-ignor.md'
+  - '.tasks/active/T-2655-propagate-t-2650t-2651-wall-clock-rpc-bo.md'
+  - '.tasks/active/T-2656-cmdattach-output-poll-silently-swallows-.md'
+  - '.tasks/active/T-2660-agent-asknegotiate-treat---timeout-0-as-.md'
+  - '.tasks/active/T-2661-mirror-grid-scrollback-prefetch-queryout.md'
+  - '.tasks/active/T-2662-cmdfilereceive-swallows-mid-transfer-rpc.md'
+  - '.tasks/active/T-2664-termlink-request-subscribe-loop-swallows.md'
+  - '.tasks/active/T-2665-cmdrun-reports-session-deregistered-even.md'
+  - '.tasks/active/T-2669-sweep-raw-rpccall-mcpcli-handler-sites-o.md'
+  - '.tasks/active/T-2689-mcpcli-parity-harness-covers-24-of-68-pa.md'
+  - '.tasks/active/T-2700-wire-protocol-version-negotiation-into-t.md'
+  - '.tasks/active/T-2701-no-load-stress-or-soak-test-exists--beha.md'
+  - '.tasks/active/T-2704-producer-not-judge-is-declared-an-invari.md'
+  - '.tasks/active/T-2707-mcp-server-runs-011720-while-project-ver.md'
+  - '.tasks/active/T-2708-fleet-hub-laptop-141-unreachable.md'
+  - '.tasks/active/T-2710-canary-test-seams-ship-unexercised--8-of.md'
+  - '.tasks/active/T-2723-handover-commit-under-t-1452-collides-wi.md'
+  - '.tasks/active/T-2748-expand-mcpcli-parity-assertions-beyond-t.md'
+  - '.tasks/active/T-2753-hubstoml-has-three-independent-parsers-w.md'
+  - '.tasks/active/T-2755-topic-count-growth-is-an-unwatched-axis.md'
+  - '.tasks/active/T-2759-channel-subscribe---from-latest-returns-.md'
+  - '.tasks/active/T-2823-update-tasksh-sets-datefinished-by-subst.md'
+  - '.tasks/active/T-2825-p-011-gate-can-examine-less-than-a-task-.md'
+  - '.tasks/active/T-2828-duplicate-work-detector-is-blind-to-dupl.md'
+  - '.tasks/active/T-2841-parity-harness-reads-ambient-termlinkrun.md'
+  - '.tasks/active/T-2858-install-path-drift-rootlocalbintermlink-.md'
+  - '.tasks/active/T-2862-pickup-t-023-voxtype-review-a-completed-.md'
+  - '.tasks/active/T-2864-pickup-t-023-voxtype-review-x-core-input.md'
+  - '.tasks/active/T-2865-pickup-root-side-fleetcontext-tooling-wr.md'
+  - '.tasks/active/T-2867-pickup-verification-gates-can-schedule-o.md'
+  - '.tasks/active/T-2869-static-check-allowlists-have-no-stale-en.md'
+  - '.tasks/active/T-2870-two-unlocked-pickup-crons-race-and-creat.md'
+  - '.tasks/active/T-2872-channel-ack-cannot-reach-unread0-on-a-to.md'
+  - '.tasks/active/T-2875-cross-session-reach-into-a-running-claud.md'
+  - '.tasks/active/T-2879-rail-enrolment-gap-1-of-14-local-claude-.md'
+  - '.tasks/active/T-2885-t-559-boundary-hook-strands-any-session-.md'
+  - '.tasks/active/T-2886-fw-mcp-server-dies-silently-in-worktrees.md'
+  - '.tasks/active/T-2890-t-2882s-frontmatter-comment-pins-d8-at-w.md'
+  - '.tasks/active/T-2895-pickup-batch-13-framework-observations-r.md'
+  - '.tasks/active/T-2896-pickup-voxtype-rightctrl-dead-daemon-dow.md'
+  - '.tasks/active/T-2898-pickup-voxtype-observability-persistent-.md'
+  - '.tasks/active/T-2903-pickup-p-057-execution-misquoted---run-s.md'
+  - '.tasks/active/T-2907-pickup-t-064-wave-155-t-373-003-ntb-cons.md'
+  - '.tasks/active/T-2908-pickup-install-voxtype-hotkeyservice-lis.md'
+  - '.tasks/active/T-2909-pickup-ring20-onedev-remote-for-0506-vox.md'
+  - '.tasks/active/T-2911-pickup-opencode-runs-zero-of-the-37-fw-h.md'
+  - '.tasks/active/T-2913-channel-stateinfotopics-output-should-na.md'
+  - '.tasks/active/T-2914-durable-terminal-state-for-backgroundcom.md'
+  - '.tasks/active/T-2916-pickup-ring20-apiv1-001--vendored-apipy-.md'
+  - '.tasks/active/T-2917-pickup-aef-promotion-machinery-gap--outc.md'
+  - '.tasks/active/T-2918-pickup-two-way-operator-channel-capabili.md'
+  - '.tasks/active/T-2920-pickup-opencode-ignores-mcpjson--fw-mcp-.md'
+  - '.tasks/active/T-2921-pickup-aef-guardsts-block-messages-never.md'
+  - '.tasks/active/T-2923-pickup-vendored-mode-defects-askpy-proje.md'
+  - '.tasks/active/T-2925-pickup-stale-daemon-lock-dead-pid-blocks.md'
+  - '.tasks/active/T-2930-pickup-keyword-greps-on-logs-can-invert-.md'
+  - '.tasks/active/T-2931-pickup-autonomous-run-record-arc-001-t-0.md'
+  - '.tasks/active/T-2932-pickup-autonomous-run-record-arc-001-t-0.md'
+  - '.tasks/active/T-2933-wire-the-12-self-declared-hermetic-dorma.md'
+  - '.tasks/completed/T-2928-t-2870s-flock-regression-check-passes-wh.md'
+  - '.tasks/completed/T-2929-85-guard-scripts-carry-no-guard-layer-ma.md'
+  - 'tests/agent-send-idle-gate.sh'
+  - 'tests/relay-b2-send-hops.sh'
+  - 'tests/relay-b3-hop-budget.sh'
+  - 'tests/relay-wake-confirm.sh'
+  - 'tests/stale-waker-code-canary.sh'
+  - 'tests/tl-claude-identity-binding.sh'
+  - 'tests/wake-confirm-reply-match.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-09T00:04:41'
+    action: 'T-2933: wire 11 of 12 self-declared-hermetic guards into the guard layer'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 596 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 596
+  commits: 1
+  files_changed: 134
+  lines_added: 4365
+  lines_removed: 374
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2933-wire-the-12-self-declared-hermetic-dorma.md
+generated_by: context-agent-hybrid

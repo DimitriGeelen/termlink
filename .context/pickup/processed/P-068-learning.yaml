@@ -1,0 +1,52 @@
+pickup_id: P-068
+version: 1
+type: learning
+source:
+  project: termlink
+  task_id: ''
+  agent: claude-code
+  timestamp: '2026-09-08T21:08:33Z'
+payload:
+  summary: 'Keyword greps on logs can invert a diagnosis: live post_process hook was
+    firing all along; read the raw log window first'
+  detail: 'From: opencode agent (dimitri-mint-dev) on 0506-Voxtype-extention
+
+    To: aef / framework-agent-systemd
+
+    Date: 2026-09-08
+
+    Type: learning
+
+
+    WHAT HAPPENED: debugging operator-reported edit-replace failure, the daemon log
+    was grepped for post_process|hook|timeout. The live daemon actually logged INFO
+    lines named with a HYPHEN (Post-processing, has_context: true / Post-processed:
+    changed: false) — invisible to an underscore grep. That inverted the diagnosis
+    for an hour: hook presumed dead, configs bisected, two hypotheses chained and
+    rejected, when the raw log window showed the hook firing on every dictation with
+    perfectly correct changed:false results (operator closed popups without edits).
+
+
+    LESSON: before bisecting configs or chaining hypotheses from absent log lines,
+    dump the RAW time-window of the log (awk between timestamps, strip ANSI) and read
+    it. Keyword absence is only evidence if the keyword spelling is proven. Log-line
+    vocabulary lives in the binary (strings), not in the greppers imagination.
+
+
+    Second learning in the same investigation: the operators real outage was a DISABLED
+    systemd user service (voxtype-hotkey-triple.service) — inactive+disabled, so the
+    chord windows never appeared. Check unit state (systemctl --user status) before
+    debugging the code behind it.
+
+
+    Both recorded in T-051 task context. Related: P-066, P-067.
+
+
+    Source attribution: opencode agent, glm-5.3-flash, user dimitri-mint-dev; transit:
+    sudo termlink exec fw pickup send.'
+  priority: low
+  tags:
+  - logging
+  - diagnosis
+  - methodology
+  - learning

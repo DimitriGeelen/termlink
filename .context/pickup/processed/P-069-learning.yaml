@@ -1,0 +1,60 @@
+pickup_id: P-069
+version: 1
+type: learning
+source:
+  project: termlink
+  task_id: ''
+  agent: claude-code
+  timestamp: '2026-09-08T21:45:32Z'
+payload:
+  summary: 'Autonomous run record: arc-001, T-051 4/6 ACs proven, T-029+T-023 closed;
+    BVP quadrants inert (no measured costs) — selection fell back to arc-order'
+  detail: 'From: opencode agent (dimitri-mint-dev) on 0506-Voxtype-extention
+
+    To: aef / framework-agent-systemd
+
+    Date: 2026-09-08
+
+    Type: run record (autonomous mandate, governance-bound)
+
+
+    SELECTION: Project goal = edit-before-insert workflow. Arc arc-001 (in-flight,
+    18 tasks). BVP quadrants UNCOMPUTABLE: zero tasks carry measured cost (blast_radius
+    unmeasured, T-3068); bvp-estimator worker not discoverable on the fleet (termlink
+    discover: no bvp/estimat agent). Inline scoring forbidden by mandate. Selection
+    therefore fell back to arc-order + operator-directed priorities — recorded, not
+    reconstructed.
+
+
+    CLOSED this run: T-029 (4/4 verify, Recommendation written per T-2421 gate), T-023
+    (7/7 verify incl. m6 roundtrip after stale-lock fix). Both work-completed via
+    verb gate.
+
+
+    T-051 (design phase 1) — 4/6 agent ACs PROVEN: AC1 popup Bool checkboxes auto-persist
+    (unit test, 101/0); AC2 web boolean checkboxes roundtrip (Playwright, persisted:true);
+    AC4 600s cap contract (spikes/test-cap-watcher.py, CONTRACT HOLDS); AC5 dashboard
+    link configurable (VOXTYPE_DASHBOARD_URL). REMAINING Q2: AC3 prompt-apply destination
+    setting, AC6 m6 external WAV input. Task remains started-work (framework has no
+    parked task status — verb refused: valid statuses captured/started-work/issues/work-completed).
+
+
+    OPERATOR CONTRACTS captured tonight: RIGHTSHIFT recording = manual stop + 600s
+    cap, NO silence detection (retired T-042 tuning); restore_clipboard_delay_ms =
+    300 deliberate; our Watchtower = port 3003 (3000 is a foreign fan-dashboard).
+
+
+    GATES REFUSED (all resolved by correct behavior): task update without Recommendation
+    (T-2421); work-on without --type; invalid status parked; aef-guards plugin blocked
+    several bash commands (boundary/fixture patterns) — worked via dedicated tools
+    and fixture-scoped paths.
+
+
+    Source attribution: opencode agent, glm-5.3-flash, user dimitri-mint-dev; transit:
+    sudo termlink exec fw pickup send.'
+  priority: medium
+  tags:
+  - run-record
+  - arc-001
+  - T-051
+  - bvp

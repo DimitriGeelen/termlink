@@ -1,0 +1,90 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2929: 85 guard scripts carry no guard-layer marker and nothing runs them — classify the family and give the deploy-time bucket a runner
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-08T21:46:34Z
+# ============================================================================
+
+task_id: T-2929
+task_name: "85 guard scripts carry no guard-layer marker and nothing runs them — classify the family and give the deploy-time bucket a runner"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-08T19:58:17Z
+completed: 2026-09-08T21:46:11Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-08T22:05:56+02:00
+last_commit: 2026-09-08T23:45:57+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  measured the guard-runner gap — 48 dormant, not 85; 33 executed, 31 green, 1 red by its own bug, 1 hang. record the measurement — 48 dormant of 85 unclassified, 33 executed (31 green, 1 red by its own 2>&1 bug, 1 hang). guard-runner coverage check + fixtures — 57 dormant (48 was an undercount), disposition table for all of them
+
+# Key outcomes
+outcomes:
+  - '**The 85 are cross-referenced against every runner, and the truly-dormant subset is named.** For each unclassified script, record whether it is invoked by (a) an *installed* crontab under `/etc/cron.d`, (b) a git-tracked crontab under `.context/cron/` that is not yet installed, (c) a CI workflow, or (d) any other script. A script matched by none of these is dormant. The dormant count is stated as a number with the list, because "85 unclassified" is not the same claim as "85 unrun" and conflating them would overstate the finding.'
+  - '**The measurement distinguishes shipped-but-dark from genuinely-unowned.** A check whose crontab exists in git but is absent from `/etc/cron.d` is a *different* defect (the T-2561/T-2682 install-drift class, already owned by `check-cron-install-drift.sh`) from a check no crontab has ever referenced. Both are reported, separately labelled, so remediation is not misrouted.'
+  - '**A repeatable script produces the classification, not a one-off shell session.** `scripts/check-guard-runner-coverage.sh` emits the per-script disposition and exits 0 when every unclassified script has a runner, 1 when any is dormant, 2 on tooling error (fail-closed: an empty script inventory is an error, never a vacuous clean — the T-2747 zero-tools lesson). `--json` for scripting; test seams for the scripts dir, cron dirs and CI dir so fixtures need no host state.'
+  - '**The check is load-bearing, proven by mutation.** A fixture suite (`tests/guard-runner-coverage-fixtures.sh`) pins the firing cases and the two false-positive guards: a script referenced only by its own fixture suite must still count as dormant, and a script referenced only from a task file or handover must not count as covered (that is how `check-pickup-cron-lock.sh` looked "referenced" while nothing ran it). At least one mutant is recorded that turns the check red.'
+  - '**The dormant set is triaged into dispositions, and no wiring is done under this task.** Each dormant script gets exactly one of: `cron` (runtime canary — names the crontab it needs), `deploy-time` (reads host state; needs a preflight-tier runner), `guard-layer` (hermetic; just missing the marker), or `retired` (superseded/dead). The disposition table is the deliverable. Wiring is deliberately out of scope: `run-guard-layer.sh` requires no host state, so the deploy-time bucket cannot simply be marked `source`, and picking its runner is a decision this task informs rather than pre-empts.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'guard-runner coverage check + fixtures — 57 dormant (48 was an undercount), disposition table for all of them'
+    source: git-mined
+  - description: 'record the measurement — 48 dormant of 85 unclassified, 33 executed (31 green, 1 red by its own 2>&1 bug, 1 hang)'
+    source: git-mined
+  - description: 'measured the guard-runner gap — 48 dormant, not 85; 33 executed, 31 green, 1 red by its own bug, 1 hang'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'scripts/check-guard-runner-coverage.sh'
+  - '.tasks/active/T-2929-85-guard-scripts-carry-no-guard-layer-ma.md'
+  - '.tasks/completed/T-2928-t-2870s-flock-regression-check-passes-wh.md'
+  - 'tests/guard-runner-coverage-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-08T22:05:56'
+    action: 'T-2929: measured the guard-runner gap — 48 dormant, not 85; 33 executed, 31 green, 1 red by its own bug, 1 hang'
+  - time: '2026-09-08T22:06:05'
+    action: 'T-2929: record the measurement — 48 dormant of 85 unclassified, 33 executed (31 green, 1 red by its own 2>&1 bug, 1 hang)'
+  - time: '2026-09-08T23:45:57'
+    action: 'T-2929: guard-runner coverage check + fixtures — 57 dormant (48 was an undercount), disposition table for all of them'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 107 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 107
+  commits: 3
+  files_changed: 4
+  lines_added: 963
+  lines_removed: 6
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2929-85-guard-scripts-carry-no-guard-layer-ma.md
+generated_by: context-agent-hybrid

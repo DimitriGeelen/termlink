@@ -1,9 +1,9 @@
-# Audit Results - 2026-09-08-2236
-timestamp: 2026-09-08T20:36:58Z
+# Audit Results - 2026-09-09-0907
+timestamp: 2026-09-09T07:07:50Z
 sections: "structure"
 summary:
   pass: 38
-  warn: 9
+  warn: 8
   fail: 2
 findings:
   - level: PASS
@@ -17,7 +17,7 @@ findings:
   - level: PASS
     check: "Task template exists"
   - level: PASS
-    check: "No duplicate task IDs — examined 14325 task file(s) across 6 corpus view(s) (21 ID(s) byte-identical in every view, 2531 same-task at differing revisions)"
+    check: "No duplicate task IDs — examined 14330 task file(s) across 6 corpus view(s) (20 ID(s) byte-identical in every view, 2532 same-task at differing revisions)"
   - level: PASS
     check: "All project YAML files parse correctly — examined 15 project YAML file(s)"
   - level: PASS
@@ -25,9 +25,6 @@ findings:
   - level: WARN
     check: "All onboarding-seed corpus references resolve to existing maps — NOT EVALUATED: candidate set empty (0 onboarding-seed corpus reference(s))"
     mitigation: "No 'fw corpus explain <id>' reference was found in lib/seeds/tasks — either the seeds stopped routing to maps, or lib/seeds/tasks is absent"
-  - level: WARN
-    check: "Arc 'arc-substrate-fitness' has no task commits in the last 30 days (12 task(s) in arc)"
-    mitigation: "Either close/abandon the arc via 'fw arc close' or run 'fw task update T-XXX --last-update $(date -u +%FT%TZ)' on a relevant task. Configurable via FW_STALE_ARC_DAYS (default 30)."
   - level: WARN
     check: "Arc 'mcp-slimming' has no task commits in the last 30 days (2 task(s) in arc)"
     mitigation: "Either close/abandon the arc via 'fw arc close' or run 'fw task update T-XXX --last-update $(date -u +%FT%TZ)' on a relevant task. Configurable via FW_STALE_ARC_DAYS (default 30)."
@@ -46,12 +43,12 @@ findings:
     check: "Found 77 GO-scope-not-propagated inception(s) of 158 GO-recorded completed inception(s) examined — GO recorded, related_tasks empty, nobody back-references, no unlocks_inception_decision"
     mitigation: "Triage: per inception either backfill related_tasks: / unlocks_inception_decision:, or file the slices its GO approved. Full list: cat /opt/termlink/.context/audits/go-scope-unpropagated/LATEST.md (origin: T-2078, T-2091, T-3099; sibling to L-417/T-1975)"
   - level: PASS
-    check: "Fabric: 459 registered card(s)"
+    check: "Fabric: 461 registered card(s)"
   - level: WARN
-    check: "Fabric: 324/489 cards have no edges"
+    check: "Fabric: 326/491 cards have no edges"
     mitigation: "Run: fw fabric enrich"
   - level: PASS
-    check: "Fabric drift: all watched files registered — examined 449 watched file(s)"
+    check: "Fabric drift: all watched files registered — examined 451 watched file(s)"
   - level: WARN
     check: "Fabric: 10 card(s) point at files no watch pattern covers"
     mitigation: "Widen .fabric/watch-patterns.yaml, or remove the cards if they are not components"

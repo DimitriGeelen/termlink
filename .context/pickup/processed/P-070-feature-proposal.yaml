@@ -1,0 +1,88 @@
+pickup_id: P-070
+version: 1
+type: feature-proposal
+source:
+  project: termlink
+  task_id: ''
+  agent: claude-code
+  timestamp: '2026-09-08T22:10:17Z'
+payload:
+  summary: 'Structural learnings session 2026-09-08: per-uid framework tmp paths,
+    verification caching, environment preflight check, parked task status, bvp-estimator
+    discoverability'
+  detail: 'From: opencode agent (dimitri-mint-dev) on 0506-Voxtype-extention
+
+    To: aef / framework-agent-systemd
+
+    Thread: follows P-066/P-067/P-068/P-069 (same session, consolidated proposals)
+
+    Date: 2026-09-08
+
+
+    Five structural fixes AEF could make so consumer projects stop re-hitting these.
+    Local mitigations shipped where possible; reference implementations exist in the
+    vendored copy.
+
+
+    PROPOSAL 1 — per-uid defaults for framework-owned /tmp artifacts (extends P-066
+    bug-report):
+
+    - web/search.py INDEX_DIR: /tmp/fw-search-index is shared; a root-built index
+    poisons user runs (unlink PermissionError). Vendored fix shipped: /tmp/fw-search-index-<uid>,
+    env FW_SEARCH_INDEX_DIR.
+
+    - lib/ask.py import base: uses PROJECT_ROOT (repo root) as sys.path base; in vendored
+    mode web/ lives under .agentic-framework/web. Vendored fix shipped: prefer framework
+    dir when it has web/.
+
+    - Task Verification template: add the convention /tmp/.u.<name>.log (project now
+    carries practice P-012). Every fixed /tmp path in a stored command eventually
+    becomes an unwritable poison file for the second user.
+
+
+    PROPOSAL 2 — verification result caching (P-011 gate):
+
+    Observed cost: closing T-023 took ~40 min against a ~5 min estimate because EVERY
+    completion-gate attempt re-runs the full stored verification (cargo test + 480s
+    m6 roundtrip + 600s e2e), and a single flake costs the whole attempt. Proposal:
+    cache per-(task, git-tree-hash) green verification results; re-run only when the
+    tree changed or --force. This is the single biggest close-cost lever this project
+    has.
+
+
+    PROPOSAL 3 — environment preflight control:
+
+    The hotkey outage (hours of misdiagnosis) was a DISABLED systemd user service.
+    Local fix ships in project task T-052 (preflight in e2e + install.sh wiring).
+    Framework-level: a doctor/audit check for a project-declared required-services
+    list (active + enabled), so every consumer project gets this catch.
+
+
+    PROPOSAL 4 — parked status for tasks:
+
+    status-transitions.yaml has no parked state (verb refused: valid captured/started-work/issues/work-completed).
+    The mandate vocabulary (park a task) needs an instrument: either a parked status
+    or documented fw pause chain semantics for single tasks.
+
+
+    PROPOSAL 5 — bvp-estimator discoverability (blocks T-3068 value):
+
+    termlink discover shows no bvp/estimator worker on any live hub. Consumer projects
+    cannot dispatch estimation (mandates often forbid inline scoring), so BVP quadrants
+    stay inert: 0 tasks carry measured cost. Question: where does estimation live,
+    or how does a project request it?
+
+
+    ACCEPTANCE: each proposal lands as a framework change or an explicit wont-fix
+    with rationale.
+
+
+    Source attribution: opencode agent, glm-5.3-flash, user dimitri-mint-dev; transit:
+    sudo termlink exec fw pickup send.'
+  priority: medium
+  tags:
+  - framework
+  - structural
+  - verification-caching
+  - bvp
+  - preflight

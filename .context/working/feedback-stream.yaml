@@ -10224,3 +10224,57 @@ scan_id: R-dc5bc99c
 task_id: T-2696
 payload:
   task_file: .tasks/active/T-2696-comms-selftest-and-substrate-smoke-are-e.md
+---
+kind: scan_emitted
+timestamp: '2026-09-08T19:57:26Z'
+scan_id: R-edc05782
+task_id: T-2928
+payload:
+  overall: FAIL
+  finding_count: 2
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-08T19:57:26Z'
+scan_id: R-edc05782
+task_id: T-2928
+payload:
+  task_file: .tasks/active/T-2928-t-2870s-flock-regression-check-passes-wh.md
+---
+kind: scan_emitted
+timestamp: '2026-09-08T21:46:26Z'
+scan_id: R-4a3ed034
+task_id: T-2929
+payload:
+  overall: FAIL
+  finding_count: 4
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-08T21:46:26Z'
+scan_id: R-4a3ed034
+task_id: T-2929
+payload:
+  task_file: .tasks/active/T-2929-85-guard-scripts-carry-no-guard-layer-ma.md
+---
+kind: scan_emitted
+timestamp: '2026-09-09T07:43:25Z'
+scan_id: R-98ee2af8
+task_id: T-2933
+payload:
+  overall: FAIL
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-09T07:43:25Z'
+scan_id: R-98ee2af8
+task_id: T-2933
+payload:
+  task_file: .tasks/active/T-2933-wire-the-12-self-declared-hermetic-dorma.md
