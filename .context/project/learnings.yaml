@@ -4402,3 +4402,9 @@ learnings:
   task: T-2878
   date: 2026-09-01
   context: Added via context agent
+- id: PL-371
+  learning: "BVP no-signal defaults outrank measured work: the estimator scores an untouched template at D1..D4=2 (no-signal) => BVP 70, blast_radius=3 (template constant target_blast_radius), effort=6 (lines=118,acs=4 = the empty template's own size) => cost 3.6 => hv-lc/Q1. A genuinely-scored task with real driver signal (T-2935: D1=4 D3=3, 5 substantive ACs, components wired) scores BVP 57 / cost 4.4 => hv-hc/Q2. So all 15 current Q1 candidates are tied at exactly 70/3.6 because none was ever scored, and quadrant-driven selection promotes unexamined stubs above reproduced defects. A tie across every candidate is the tell that the axis is measuring the template, not the task. Pair with T-3068 (83% of tasks have no cost at all)."
+  source: unknown
+  task: T-2935
+  date: 2026-09-09
+  context: Added via context agent
