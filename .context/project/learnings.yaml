@@ -4408,3 +4408,9 @@ learnings:
   task: T-2935
   date: 2026-09-09
   context: Added via context agent
+- id: PL-372
+  learning: "Measure a defect's CAUSE before choosing its remediation channel. T-2950 was written to end in an upstream bug filing; grepping first showed the missing verb is version skew (vendored framework 1.6.29, baseline 2026-06-08, vs upstream v1.6.295), not a missing upstream feature. Filing would have added phantom register debt to the rail one cycle after T-2949/P-075 was filed to stop exactly that. The filing was cancelled; the task became characterisation plus a surfaced sovereign question. Rule: when the remedy is 'file upstream', first prove upstream does not already have it."
+  source: P-001
+  task: T-2950
+  date: 2026-09-09
+  context: Added via context agent

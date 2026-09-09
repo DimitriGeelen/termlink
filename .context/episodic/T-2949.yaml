@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2949: Pickup processor mints local tasks from this project's own upstream filings
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-09T22:59:46Z
+# ============================================================================
+
+task_id: T-2949
+task_name: "Pickup processor mints local tasks from this project's own upstream filings"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-09T22:50:33Z
+completed: 2026-09-09T22:59:39Z
+duration_days: 0
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Posting P-073 to framework:pickup caused the pickup processor to auto-create T-2947 locally: a task to fix the bug we had just reported upstream. T-2816 added FW_PICKUP_SELF_PROJECT self-filtering to the pickup CANARY (scripts/check-framework-pickup-freshness.sh:49) but lib/pickup.sh applies no equivalent filter. Every upstream filing inflates the local register by one duplicate, which then reports as task debt in the very audit that prompted the filing. arc-008 cycle 1 finding F-B.
+
+# Key outcomes
+outcomes:
+  - 'Asymmetry pinned: `scripts/check-framework-pickup-freshness.sh:49` sets `SELF_PROJECT="${FW_PICKUP_SELF_PROJECT:-010-termlink}"` and excludes own filings from the CANARY''s firing set (T-2816), while the task-minting path in vendored `lib/pickup.sh` applies no equivalent filter.'
+  - 'Measured instance recorded, and it is worse than first logged: posting P-073 to `framework:pickup` produced **two** byte-identical local tasks, T-2946 and T-2947, both titled `Pickup: audit.sh D8 handover-quality check can never PASS... (from termlink)`. One filing, two duplicates, to fix the bug we had just reported upstream.'
+  - 'Cost stated in the audit''s own terms: each upstream filing inflates the local register by one duplicate, which then reports as task debt in the very audit that prompted the filing, compounding D2''s 57-deep review queue and doctor''s 69 stale tasks.'
+  - 'Defect is vendored (`lib/pickup.sh`) so per G-062 it is FILED UPSTREAM, not patched locally.'
+  - 'Root cause narrowed: attribution is NOT missing. Each minted task carries the literal suffix `(from termlink)`, so the processor already knows the source project is this project and mints regardless — the filter is absent, not the data. The filing cites T-2816 as the precedent to mirror, making the fix a known-shape port rather than a new design.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 9 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-008]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 9
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2949-pickup-processor-mints-local-tasks-from-.md
+generated_by: context-agent-hybrid

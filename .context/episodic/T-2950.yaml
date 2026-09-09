@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2950: The G-087-safe budget read verb the resume skill mandates does not exist
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-09T23:01:44Z
+# ============================================================================
+
+task_id: T-2950
+task_name: "The G-087-safe budget read verb the resume skill mandates does not exist"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-09T22:51:41Z
+completed: 2026-09-09T23:01:36Z
+duration_days: 0
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  The /resume skill instructs: read budget via 'checkpoint.sh budget' and explicitly warns NOT to raw-cat .context/working/.budget-status, citing G-087/T-222 where a stale or foreign-session cache read back as a plausible healthy {level:ok,tokens:0} (measured 0 vs 297923 and 0 vs 70549). But checkpoint.sh in this build has only three case arms: post-tool, reset, status. There is no budget verb. Invoking it prints usage, exits 1, and trips the hook-crash banner. Net effect: the ONLY documented safe read is unavailable, so every operator following the skill falls back to precisely the unsafe read G-087 exists to prevent. arc-008 cycle 3 finding F-D, discovered by executing the resume protocol.
+
+# Key outcomes
+outcomes:
+  - 'Absence measured, not assumed: `checkpoint.sh` exposes exactly three case arms — `post-tool`, `reset`, `status`. There is no `budget` arm; invoking it prints usage, exits 1, and trips the framework hook-crash banner.'
+  - 'The contradiction is documented: the `/resume` skill instructs operators to read budget via `checkpoint.sh budget` and explicitly forbids a raw `cat .context/working/.budget-status`, citing G-087/T-222 where a stale or foreign-session cache read back as a plausible healthy `{level:ok,tokens:0}` — measured twice in production at 0 vs 297,923 and 0 vs 70,549 tokens.'
+  - 'Impact stated: the ONLY documented safe read is unavailable, so an operator following the skill falls back to exactly the unsafe read G-087 exists to prevent — a guard whose prescribed remediation does not exist.'
+  - 'Cause corrected under measurement — it is VERSION SKEW, not a missing upstream feature. `checkpoint.sh budget` appears nowhere in the vendored framework and nowhere in this repo except this task; the skill cites framework-repo IDs (T-222, G-087) from a numbering this project never reaches. Vendored `.agentic-framework` is **1.6.29** with a declared baseline of **2026-06-08** (three months stale; CLAUDE.md references upstream at v1.6.295).'
+  - 'NOT filed upstream, deliberately: upstream almost certainly already ships the arm, and filing a likely-already-fixed report would add precisely the register noise P-075 (T-2949) objects to. The remediation is a re-vendor, which rewrites everything below `## Core Principle` in CLAUDE.md and deletes unlanded local divergences — a sovereign decision, surfaced not taken.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 9 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-008]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 9
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2950-the-g-087-safe-budget-read-verb-the-resu.md
+generated_by: context-agent-hybrid

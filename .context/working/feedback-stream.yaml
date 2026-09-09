@@ -10314,3 +10314,57 @@ scan_id: R-61ffeb7f
 task_id: T-2943
 payload:
   task_file: .tasks/active/T-2943-d8-audit-check-can-never-pass-generator-.md
+---
+kind: scan_emitted
+timestamp: '2026-09-09T22:57:59Z'
+scan_id: R-e5952b34
+task_id: T-2948
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-09T22:57:59Z'
+scan_id: R-e5952b34
+task_id: T-2948
+payload:
+  task_file: .tasks/active/T-2948-pre-push-audit-runs-only-the-structure-s.md
+---
+kind: scan_emitted
+timestamp: '2026-09-09T22:59:40Z'
+scan_id: R-48c1da1d
+task_id: T-2949
+payload:
+  overall: CONCERN
+  finding_count: 2
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-09T22:59:40Z'
+scan_id: R-48c1da1d
+task_id: T-2949
+payload:
+  task_file: .tasks/active/T-2949-pickup-processor-mints-local-tasks-from-.md
+---
+kind: scan_emitted
+timestamp: '2026-09-09T23:01:38Z'
+scan_id: R-bf1419e9
+task_id: T-2950
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-09T23:01:38Z'
+scan_id: R-bf1419e9
+task_id: T-2950
+payload:
+  task_file: .tasks/active/T-2950-the-g-087-safe-budget-read-verb-the-resu.md

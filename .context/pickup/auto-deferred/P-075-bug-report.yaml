@@ -1,0 +1,64 @@
+pickup_id: P-075
+version: 1
+type: bug-report
+source:
+  project: termlink
+  task_id: T-2949
+  agent: claude-code
+  timestamp: '2026-09-09T23:10:00Z'
+payload:
+  summary: 'pickup processor mints local tasks from a project''s OWN filings; attribution
+    is present in the title but never used as a filter, and each filing yields duplicates'
+  detail: |
+    WHERE
+      lib/pickup.sh                                  task-minting path -- no self-filter
+      scripts/check-framework-pickup-freshness.sh:49 SELF_PROJECT="${FW_PICKUP_SELF_PROJECT:-010-termlink}"
+
+    DEFECT
+      T-2816 taught the pickup CANARY not to fire on a project's own filings. It attributes
+      each envelope via metadata.from_project -> source_project -> agent_id and excludes
+      anything matching FW_PICKUP_SELF_PROJECT. The rationale given there still holds:
+      without it, filing a bug upstream made the canary fire at us, and the --ack needed to
+      clear that echo also acked genuine inbound filings.
+
+      The processor that MINTS TASKS from the same topic applies no equivalent filter. So a
+      project that posts a bug report upstream receives its own report back as local work.
+
+      Attribution is not missing. The minted task titles carry the source project verbatim:
+
+        name: "Pickup: audit.sh D8 handover-quality check can never PASS... (from termlink)"
+
+      The processor therefore already knows the filing came from the project it is minting
+      into. The filter is absent; the data it would need is not.
+
+    MEASURED (010-termlink, 2026-09-09)
+      Posted P-073 to framework:pickup (offset 115). It produced TWO byte-identical local
+      tasks -- T-2946 and T-2947 -- both suffixed "(from termlink)". One filing, two
+      duplicates. The duplication is a second, separable defect: whatever drives minting is
+      not idempotent per (topic, offset).
+
+    WHY IT MATTERS
+      The duplicates are not inert. They land in .tasks/active/ and are then counted by the
+      project's own health surfaces as task debt -- in this project, feeding a D2 audit
+      failure reporting 57 tasks waiting over 30 days in the human review queue and a doctor
+      warning reporting 69 stale tasks. The effect is self-reinforcing and perverse: filing
+      a defect upstream degrades the local health report that prompted the filing, so the
+      most conscientious downstream projects accrue the most phantom debt. It also erodes
+      the register's meaning -- a task that nobody local will ever action, describing work
+      that belongs to another repository.
+
+    PROPOSED FIX
+      1. Port the T-2816 filter to the minting path: skip any envelope whose attribution
+         matches FW_PICKUP_SELF_PROJECT (same precedence chain -- metadata.from_project ->
+         source_project -> agent_id). Mirror T-2816's stance on unknown attribution: when
+         provenance cannot be established, mint (a false task is cheap; a missed inbound
+         filing is the G-063 class the rail exists to prevent). Count and report what was
+         suppressed, so a quiet processor is never ambiguous between "nothing inbound" and
+         "the filter ate something".
+      2. Separately, make minting idempotent per (topic, offset) so one envelope cannot
+         yield two tasks.
+
+    NOT AFFECTED
+      The canary is correct as shipped (T-2816). Genuine inbound filings from peer projects
+      must continue to mint tasks -- that is the rail's purpose. This is strictly about
+      envelopes a project sent itself.

@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2948: Pre-push audit runs only the structure subset but reports like a full audit
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-09T22:58:06Z
+# ============================================================================
+
+task_id: T-2948
+task_name: "Pre-push audit runs only the structure subset but reports like a full audit"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-09T22:49:33Z
+completed: 2026-09-09T22:57:57Z
+duration_days: 0
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  The pre-push hook runs audit.sh --section structure (38P/8W/2F) while a bare fw audit reports 368P/77W/5F. The subset is a deliberate speed tradeoff (T-862), but its SUMMARY line is shape-identical to the full run's, so 69 warnings and 3 failures read at push time as absent rather than unexamined. Directive 2: the report is silently narrower than it appears. arc-008 cycle 1 finding F-C.
+
+# Key outcomes
+outcomes:
+  - 'Defect characterised precisely: `audit.sh` prints `Sections: <list>` in its HEADER, but the `=== SUMMARY ===` block ~40 lines below — the part an operator actually reads — carries no scope, so a subset run and a full run present identical-shaped verdicts.'
+  - 'Premise pinned: `.git/hooks/pre-push` invokes `"$AUDIT_SCRIPT" --section structure`, a deliberate speed tradeoff documented in-hook as T-862 (full audit >90s with 100+ tasks). The subset is NOT the defect; the unlabelled summary is.'
+  - 'Delta measured and recorded: structure-only 38P/8W/2F vs full 368P/77W/5F — 69 warnings and 3 failures never surface at push time, and so read as absent rather than unexamined (Directive 2).'
+  - 'Defect is vendored (`.agentic-framework/agents/audit/audit.sh`) so per G-062 it is FILED UPSTREAM at `framework:pickup`, not patched locally — a local patch is erased by the next re-vendor.'
+  - 'The filing carries a concrete minimal fix: emit the section scope inside the SUMMARY block, so the counts can never be read as a whole-project verdict.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 8 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-008]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 8
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2948-pre-push-audit-runs-only-the-structure-s.md
+generated_by: context-agent-hybrid

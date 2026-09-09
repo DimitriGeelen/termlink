@@ -135,3 +135,82 @@ has become a task yet. Nothing here may be dropped without an explicit decision.
   invisible to the gate that runs on every push. Not a defect in either check — but the
   subset's summary line is indistinguishable in shape from the full one, so it reads as a
   whole-project verdict. → NOT yet tasked. Next cycle.
+
+---
+
+## Cycle 3 — findings and outcomes (2026-09-09)
+
+Three findings from cycle 1's "discovered by doing the work" section were tasked, scored
+and driven. A fourth (F-D) was found by executing the resume protocol itself.
+
+### F-C → T-2948 — CLOSED. Filed upstream as P-074, `framework:pickup` offset 117.
+The finding narrowed under measurement. `audit.sh` DOES declare scope — in its header,
+~40 lines above the `=== SUMMARY ===` block. The defect is that the SUMMARY, the only part
+operators read and the only part quoted into push output and handovers, is byte-shape
+identical for a one-section run and a full one. The pre-push subset (`--section structure`,
+T-862, for speed) is a sound tradeoff and is NOT the bug. Measured: 38P/8W/2F at push vs
+368P/77W/5F full — 69 warnings and 3 failures read as *absent* rather than *unexamined*.
+Fix proposed upstream is one line: emit the scope inside the SUMMARY block.
+
+### F-B → T-2949 — CLOSED. Filed upstream as P-075.
+Worse than cycle 1 recorded, in two separable ways. Posting P-073 produced **two**
+byte-identical local tasks (T-2946, T-2947), not one — so minting is also not idempotent per
+(topic, offset). And attribution was never missing: every minted title carries the literal
+suffix `(from termlink)`, so the processor holds the source project and mints regardless.
+The filter is absent over data that is present. Filed with T-2816 cited as the precedent to
+mirror, including its stance on UNKNOWN attribution (mint when provenance is unprovable — a
+false task is cheap, a missed inbound filing is the G-063 class the rail exists to prevent).
+
+Echo latency is UNMEASURED here, stated as a limit rather than reported as absence: active
+task count was captured immediately before the P-074 post (245) and after (244, fully
+explained by T-2948 moving to `completed/`). No echo landed inside that window, so minting
+is asynchronous on a period this session did not observe.
+
+### F-D → T-2950 — the `/resume` skill's G-087-safe budget read does not execute.
+`checkpoint.sh` exposes exactly three case arms — `post-tool`, `reset`, `status`. There is no
+`budget` arm. The `/resume` skill mandates `checkpoint.sh budget` and explicitly forbids a
+raw `cat .context/working/.budget-status`, citing G-087/T-222 where a stale or foreign-session
+cache read back as a plausible healthy `{level:ok,tokens:0}` — measured in production at
+0 vs 297,923 and 0 vs 70,549 tokens. Invoking the documented verb prints usage, exits 1, and
+trips the hook-crash banner. The only documented safe read therefore does not exist, and an
+operator following the skill falls back to precisely the read G-087 forbids.
+
+**Cause is VERSION SKEW, not a missing upstream feature.** The string `checkpoint.sh budget`
+occurs nowhere in the vendored framework; the skill quotes framework-repo IDs (T-222, G-087)
+from a numbering this project never reaches. Vendored `.agentic-framework` is **1.6.29**,
+declared baseline **2026-06-08** — three months stale, against a CLAUDE.md that references
+upstream at v1.6.295. **No upstream filing was made**, deliberately: upstream almost certainly
+ships the arm already, and filing a likely-already-fixed report would add exactly the phantom
+register debt T-2949/P-075 was filed to stop, one cycle after filing it.
+
+### Sovereign question (new, cycle 3): re-vendor the framework?
+The remediation for F-D — and plausibly for an unknown number of other skill↔code mismatches
+— is a re-vendor. Per CLAUDE.md that rewrites everything below `## Core Principle` (844 lines
+here, including the entire Quick Reference table and its 29 operator entry points) and deletes
+local divergences not yet landed upstream. `.vendor-divergence.yaml` currently registers three
+at-risk local fixes. This is a human decision; it is surfaced, not taken.
+
+### Observations recorded, deliberately NOT tasked (scope discipline)
+- **G-020 blocks the edit that satisfies it.** Authoring real ACs via a shell heredoc is
+  refused while the task still has placeholder ACs. The gate's own message names editing the
+  task file as the remedy, so it is navigable via the file editor. Working as designed.
+- **P-002 gates read-only compound reads.** A `for` loop of `grep`s is refused because it is
+  not on the read-only allowlist. The block message itself invites filing this as an allowlist
+  gap. Fail-closed is the correct default; not pursued here.
+- **The BVP estimator cannot discriminate.** All three cycle-3 tasks scored identically
+  (D1=4 D2=0 D3=3 D4=2; blast_radius=None tier=2 effort=8) despite materially different value.
+  Prioritisation was done by judgment and said so. This is the standing PL-371 question.
+
+### F-E (cycle 3, found by executing the completion path) — the framework's own suggested next command is unreachable when suggested
+On completing T-2950, `fw task update --status work-completed` printed:
+
+    LEARNING PROMPT — This looks like a bugfix task
+    Consider: fw fix-learned T-2950 "what was learned"
+
+Running it immediately was refused by P-002 with `BLOCKED: No active task`, because the same
+completion clears focus. The framework prompts a command that its own completion step has
+just made unrunnable. Navigable — take focus on any open task first — but the prompt as
+printed cannot be followed literally at the moment it appears. Same class as T-2723 (handover
+commit collides with the focus gate), which is already open. Recorded, not separately tasked:
+the mechanism is T-2723's, and the mandate's rule is one finding one task, not one symptom
+one task.
