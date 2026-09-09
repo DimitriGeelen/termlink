@@ -33,7 +33,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-09T07:44:22Z
-last_update: 2026-09-09T07:48:29Z
+last_update: 2026-09-09T08:09:42Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -110,11 +110,37 @@ The estimator is honest about it (`no-components-UNMEASURED-not-zero`) rather th
 missing as cheap — but it means the quadrant system currently ranks over 17% of the backlog.
 That is T-3068 and it is a live distortion of any quadrant-driven selection, including this run's.
 
+## AC1 result (session S-2026-0909b) — measured, closed
+
+**Excluded set size: exactly 1.** `scripts/fabric-workflow-link.sh`, introduced by
+`6244af60c` (T-2839, 2026-08-27). AC1 existed because one instance is not the class; the
+class is measured at 1 today, but the *mechanism* still permits N — any future marked file
+whose name does not match `check-*.sh` / `test-*.sh` under `scripts/`, or which lives
+outside `scripts/`+`tests/`, is excluded the same silent way.
+
+Method, and a correction worth carrying: the first measurement compared the 53 marked files
+against **all 187 names** `--list` prints, and was unsound — `--list` emits the 112 members
+*and* the 75 unmarked non-members, so a marked file sitting in the non-member section would
+have been counted as enumerated and the excluded set under-reported. Re-measured against the
+member block alone (parsed 112, matching the run) the answer held at 1, but it held for a
+checked reason rather than a lucky one.
+
+**The fix is de-risked: the excluded script PASSES.** Run standalone: `rc=0` in **1014 ms**.
+So making membership marker-authoritative adds one fast, green member — it does not turn the
+layer red, and AC5's "no new failure" should be satisfiable. This was the single most useful
+thing to know before touching the runner, which is why it was measured before parking.
+
+**Remaining ACs (2-5) not started.** No file under `scripts/` or `tests/` has been modified.
+Parked on context (~262k of the mandate's ~300k). AC2 changes the runner's membership
+contract and AC5 needs a ~9 min full-layer comparison; beginning that with ~38k left would
+leave the runner altered and its verification unread — reliable-but-ungated, the state the
+mandate names as the dangerous one.
+
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] **The excluded set is measured and named before anything changes.** Every file under `scripts/` and `tests/` carrying `# guard-layer: source` that the runner's current inventory does NOT enumerate is listed with its path and the commit that introduced it, and the count is stated. `fabric-workflow-link.sh` is one known member; the task does not assume it is the only one. A fix sized to one instance when the class has N is the recurring shape this repo keeps finding (T-2667, T-2673).
+- [x] **The excluded set is measured and named before anything changes.** Every file under `scripts/` and `tests/` carrying `# guard-layer: source` that the runner's current inventory does NOT enumerate is listed with its path and the commit that introduced it, and the count is stated. `fabric-workflow-link.sh` is one known member; the task does not assume it is the only one. A fix sized to one instance when the class has N is the recurring shape this repo keeps finding (T-2667, T-2673).
 - [ ] **The runner's membership is made marker-authoritative, matching its own documented contract.** CLAUDE.md states "Membership is declared, not guessed. A static check joins the layer by carrying a marker in its own header." The implementation instead intersects the marker with three name globs, so a marked file outside them is silently excluded. After the change `--list` and a full run both enumerate every marked file under the scanned roots. Each newly-included script is run and its verdict recorded — a marked script that does not pass is reported, never quietly dropped to keep the layer green.
 - [ ] **The blind spot in `check-guard-runner-coverage.sh` is closed too.** The detector inherits the same globs, so an excluded script is today neither `covered` nor `unclassified` — invisible to the guard *and* to the guard's own auditor. After the change a marked-but-unenumerated script is reported in a named class rather than absent from every bucket. Verified against a fixture tree containing one.
 - [ ] **A fixture pins the defect and is load-bearing.** A fixture tree containing a marked script outside the legacy globs FAILS against the pre-fix inventory logic and PASSES after, proving the fixture detects the regression rather than merely passing. Asserted by mutation, not by inspection.
