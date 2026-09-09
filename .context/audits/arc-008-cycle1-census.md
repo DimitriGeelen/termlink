@@ -228,3 +228,30 @@ not an argument against filing; the filings are the deliverable and they reached
 (offsets 117–120). It is the sharpest available statement of why T-2949/P-075 matters: the
 project's own health surfaces get worse in exact proportion to how conscientiously it reports
 defects upstream.
+
+## Cycle 3 verification re-run — the audit disproved cycle 1's own fix
+
+    cycle 1:  Pass 368  Warn 77  Fail 5
+    cycle 2:  Pass 370  Warn 82  Fail 4
+    cycle 3:  Pass 370  Warn 80  Fail 5
+
+Fails went 4 -> 5. The regression is **D8**, and it is the most useful result of the arc so far.
+
+Cycle 1 cleared D8 by hand-filling `LATEST.md` (5 markers -> 1, FAIL -> WARN), and cycle 2's
+re-run confirmed it. Cycle 3 shows it back at FAIL with 5, because `LATEST.md` now resolves to
+the handover the `/compact` hook generated, which carries the generator's constant output.
+
+So the cycle-1 remediation survived exactly one session, and cycle 3's finding explains why it
+could never have survived longer: the generator emits those 5 markers deliberately (T-2882), so
+filling one file by hand treats the symptom of a constant. **D8 will re-FAIL after every single
+compaction, forever, until D8/D8b stop counting T-2882's markers** — which is precisely what
+P-076 (offset 119) and the P-077 correction ask upstream to do.
+
+This is the mandate's producer-not-judge rule paying for itself. Had verification been my own
+assertion, cycle 1 would stand recorded as "D8 fixed". The re-run says otherwise, and the
+correct conclusion is not that the fix was wrong but that it was aimed one level too low.
+
+The other four fails are unchanged and all sit outside agent authority: cron drift (T-2938) and
+the uninstalled substrate-smoke canary (T-2939) need `sudo`; D2's 57-deep review queue (T-2940)
+is a sovereignty-boundary triage; D8b (T-2942) is now filed upstream and cannot be fixed here.
+Warnings improved 82 -> 80.
