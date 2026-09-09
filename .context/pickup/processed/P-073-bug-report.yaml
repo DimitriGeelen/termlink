@@ -1,0 +1,44 @@
+pickup_id: P-073
+version: 1
+type: bug-report
+source:
+  project: termlink
+  task_id: T-2943
+  agent: claude-code
+  timestamp: '2026-09-09T18:08:57Z'
+payload:
+  summary: 'audit.sh D8 handover-quality check can never PASS: handover.sh emits a
+    comment containing the literal placeholder marker that D8 counts'
+  detail: "WHERE\n  .agentic-framework/agents/audit/audit.sh:5086  d8_todos=$(grep\
+    \ -c '\\[TODO' \"$HANDOVER_LATEST\")\n  .agentic-framework/agents/audit/audit.sh:5093\
+    \  elif [ \"$d8_todos\" -gt 0 ]; then warn ...\n  .agentic-framework/agents/audit/audit.sh:5098\
+    \  else pass \"D8: Handover quality - no [TODO] in LATEST.md\"\n  .agentic-framework/agents/handover/handover.sh:712\
+    \  emits an instructional comment containing the literal marker\n\nDEFECT\n  D8\
+    \ tallies raw occurrences of the placeholder marker anywhere in LATEST.md. The\
+    \ handover\n  generator itself emits one inside an instructional comment in the\
+    \ file header. Therefore\n  every handover the generator produces carries a floor\
+    \ of 1, D8's PASS branch at line 5098\n  is unreachable dead code, and a fully\
+    \ filled handover still reports\n  'WARN D8: LATEST.md has 1 [TODO] section(s)'\
+    \ with the mitigation 'Fill remaining [TODO]\n  sections' when there are none\
+    \ left to fill.\n\nMEASURED (010-termlink, 2026-09-09)\n  Before: 5 occurrences\
+    \ -> FAIL (threshold >3). After filling all four real sections: 1 -> WARN.\n \
+    \ Floor confirmed at 1 by direct measurement, not inferred from source.\n  Prose\
+    \ ABOUT the marker also counts: writing the defect up moved the tally 1 -> 2.\n\
+    \nNOT AFFECTED\n  D8b (audit.sh:5108) uses a per-file threshold of >3 rather than\
+    \ >0, so it clears correctly\n  once sections are filled. The two checks read\
+    \ the same tally with different thresholds,\n  which is why the FAIL is fixable\
+    \ and the WARN is not.\n\nWHY IT MATTERS\n  A guard that reports a defect nobody\
+    \ can fix trains its operator to stop reading that guard.\n  Worse here than plain\
+    \ noise: the residual WARN is indistinguishable from a genuinely\n  half-filled\
+    \ handover, so the check loses the ability to report the thing it exists for.\n\
+    \nPROPOSED FIX (either is sufficient)\n  1. Count markers only in section-body\
+    \ position rather than anywhere in the file; or\n  2. Have the generator not emit\
+    \ the literal marker in its own instruction text\n     (e.g. write 'placeholder\
+    \ sections' instead).\n  Option 2 is the smaller change; option 1 also fixes the\
+    \ 'prose about it counts' case.\n\nFiled from 010-termlink per G-062 (vendored\
+    \ code is not patched locally)."
+  priority: medium
+  tags:
+  - audit
+  - handover
+  - dead-code

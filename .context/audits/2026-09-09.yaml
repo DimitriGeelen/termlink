@@ -1,9 +1,9 @@
-# Audit Results - 2026-09-09-1938
-timestamp: 2026-09-09T17:38:59Z
+# Audit Results - 2026-09-09-2008
+timestamp: 2026-09-09T18:08:29Z
 summary:
-  pass: 368
-  warn: 77
-  fail: 5
+  pass: 370
+  warn: 82
+  fail: 4
 findings:
   - level: PASS
     check: "Tasks directory exists"
@@ -16,9 +16,9 @@ findings:
   - level: PASS
     check: "Task template exists"
   - level: PASS
-    check: "No duplicate task IDs — examined 14333 task file(s) across 6 corpus view(s) (20 ID(s) byte-identical in every view, 2532 same-task at differing revisions)"
+    check: "No duplicate task IDs — examined 14340 task file(s) across 6 corpus view(s) (20 ID(s) byte-identical in every view, 2532 same-task at differing revisions)"
   - level: PASS
-    check: "All project YAML files parse correctly — examined 15 project YAML file(s)"
+    check: "All project YAML files parse correctly — examined 16 project YAML file(s)"
   - level: PASS
     check: "All arc anchor_task references resolve to existing tasks — examined 6 arc anchor_task reference(s)"
   - level: WARN
@@ -123,17 +123,17 @@ findings:
     check: "Task T-2822-blanket-contextworking-gitignore-makes-s.md missing Updates section"
     mitigation: "Fix missing Updates section in T-2822-blanket-contextworking-gitignore-makes-s.md"
   - level: PASS
-    check: "All active tasks meet quality thresholds — examined 234 active task(s)"
+    check: "All active tasks meet quality thresholds — examined 240 active task(s)"
   - level: WARN
     check: "4 active task(s) have every Agent AC ticked and no Human AC outstanding, but are still started-work/issues"
     mitigation: "Candidates for close, not closures — spot-check with 'fw task verify T-XXX' per task, then 'fw task update T-XXX --status work-completed'. Full list: /opt/termlink/.context/audits/unclosed-satisfied/LATEST.md"
   - level: PASS
-    check: "Git traceability: 99% (7058/7107 commits reference tasks)"
+    check: "Git traceability: 99% (7060/7109 commits reference tasks)"
   - level: WARN
     check: "Uncommitted changes present"
     mitigation: "Commit changes with task reference or stash"
   - level: PASS
-    check: "All commit task refs resolve to actual tasks — examined 7058 task-referencing commit(s) in full history"
+    check: "All commit task refs resolve to actual tasks — examined 7060 task-referencing commit(s) in full history"
   - level: PASS
     check: "OneDev → GitHub mirror in sync (origin=github=2ea686b2)"
   - level: INFO
@@ -152,18 +152,18 @@ findings:
   - level: PASS
     check: "Bugfix-learning coverage: 47% (145/304 bugfixes have learnings)"
   - level: PASS
-    check: "All completed tasks have episodic summaries — examined 2410 completed task(s)"
+    check: "All completed tasks have episodic summaries — examined 2411 completed task(s)"
   - level: WARN
     check: "7 episodics have empty or TODO summaries"
     mitigation: "Fill in summary field with actual task description"
   - level: PASS
-    check: "No orphaned episodic files — examined 2411 episodic file(s)"
+    check: "No orphaned episodic files — examined 2412 episodic file(s)"
   - level: PASS
     check: "No observation inbox (not yet initialized)"
   - level: PASS
     check: "Gaps register: 23 watching, no triggers fired"
   - level: PASS
-    check: "Handover open questions: none"
+    check: "Handover open questions: 4 tracked in gaps/tasks"
   - level: WARN
     check: "Learnings ready for promotion — review graduation candidates"
     mitigation: "Run: fw promote suggest"
@@ -249,18 +249,25 @@ findings:
   - level: WARN
     check: "C-006: Inception T-2937 has template-only Recommendation block"
     mitigation: "Retrofit: fill in **Recommendation:** GO"
+  - level: WARN
+    check: "C-006: Inception T-2944 has template-only Recommendation block"
+    mitigation: "Retrofit: fill in **Recommendation:** GO"
+  - level: WARN
+    check: "C-006: Inception T-2945 has template-only Recommendation block"
+    mitigation: "Retrofit: fill in **Recommendation:** GO"
   - level: PASS
-    check: "CTL-001: Focus file has active task (T-2935)"
+    check: "CTL-001: Focus file has active task (T-2943)"
+  - level: WARN
+    check: "CTL-003: Budget status file stale (7min old)"
+    mitigation: "Check PreToolUse hook wiring for budget-gate.sh"
   - level: PASS
-    check: "CTL-003: Budget status file fresh (< 5min old)"
+    check: "CTL-004: Tool counter at 9 (last commit: 7 minutes ago)"
   - level: PASS
-    check: "CTL-004: Tool counter at 13 (last commit: 11 minutes ago)"
-  - level: PASS
-    check: "CTL-018: Budget status valid JSON (level: ok)"
+    check: "CTL-018: Budget status valid JSON (level: warn)"
   - level: PASS
     check: "CTL-008: Task reference traceability 100% (0/20 without T-XXX)"
   - level: PASS
-    check: "CTL-020: 3 cron audit file(s) in last hour"
+    check: "CTL-020: 2 cron audit file(s) in last hour"
   - level: PASS
     check: "CTL-002: Tier 0 guard installed and wired in settings.json"
   - level: PASS
@@ -678,6 +685,10 @@ findings:
   - level: PASS
     check: "CTL-027: Inception T-2937 has Recommendation + Decision sections"
   - level: PASS
+    check: "CTL-027: Inception T-2944 has Recommendation + Decision sections"
+  - level: PASS
+    check: "CTL-027: Inception T-2945 has Recommendation + Decision sections"
+  - level: PASS
     check: "CTL-010: Bypass log has 13 entries (post-commit detector working)"
   - level: PASS
     check: "CTL-011: pre-push hook installed and executable"
@@ -837,9 +848,9 @@ findings:
   - level: PASS
     check: "CTL-026: Human sovereignty gate present (completion + owner protection)"
   - level: PASS
-    check: "CTL-028: All completed/ tasks have frontmatter status: work-completed — examined 2410 completed task(s)"
+    check: "CTL-028: All completed/ tasks have frontmatter status: work-completed — examined 2411 completed task(s)"
   - level: PASS
-    check: "CTL-030: All completed/ tasks have null/absent stored horizon (arc-009) — examined 2410 completed task(s)"
+    check: "CTL-030: All completed/ tasks have null/absent stored horizon (arc-009) — examined 2411 completed task(s)"
   - level: WARN
     check: "CTL-029: T-1415 has all Agent ACs ticked but status='started-work' — completable, not closed"
     mitigation: "Run: bin/fw task update T-1415 --status work-completed"
@@ -916,6 +927,9 @@ findings:
     check: "CTL-029: T-2870 has all Agent ACs ticked but status='started-work' — completable, not closed"
     mitigation: "Run: bin/fw task update T-2870 --status work-completed"
   - level: WARN
+    check: "CTL-029: T-2943 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-2943 --status work-completed"
+  - level: WARN
     check: "CTL-012: Completed task T-1450 has unchecked AC"
     mitigation: "Review task completion — AC gate may have been bypassed"
   - level: WARN
@@ -931,15 +945,15 @@ findings:
     check: "CTL-012: Completed task T-2881 has unchecked AC"
     mitigation: "Review task completion — AC gate may have been bypassed"
   - level: PASS
-    check: "D1: Episodic quality — 0% [TODO] (10/2411)"
+    check: "D1: Episodic quality — 0% [TODO] (10/2412)"
   - level: FAIL
-    check: "D2: Human review queue — 57 task(s) waiting >30d: T-1417(132d) T-1419(132d) T-1435(131d) T-1442(130d) T-1482(128d) T-1483(128d) T-1484(128d) T-1485(128d) T-1486(128d) T-1487(128d) T-1488(128d) T-1489(128d) T-1490(128d) T-1491(128d) T-1492(128d) T-1493(128d) T-1494(127d) T-1495(127d) T-1496(127d) T-1498(127d) T-1499(127d) T-1500(127d) T-1501(127d) T-1502(127d) T-1506(127d) T-1529(127d) T-1530(127d) T-1531(127d) T-1532(127d) T-1533(127d) T-1534(127d) T-1535(127d) T-1536(127d) T-1537(127d) T-1557(127d) T-1558(127d) T-1559(127d) T-1570(127d) T-1635(116d) T-1673(114d) T-1691(114d) T-1695(88d) T-1696(114d) T-1722(105d) T-1723(105d) T-1795(110d) T-2013(88d) T-2014(88d) T-2209(88d) T-2210(88d) T-2211(88d) T-2212(88d) T-2213(88d) T-2297(69d) T-2385(62d) T-2402(60d) T-2408(59d) T-2409(16d) T-2723(25d) T-2822(16d) T-2836(16d)"
+    check: "D2: Human review queue — 57 task(s) waiting >30d: T-1417(132d) T-1419(132d) T-1435(131d) T-1442(130d) T-1482(128d) T-1483(128d) T-1484(128d) T-1485(128d) T-1486(128d) T-1487(128d) T-1488(128d) T-1489(128d) T-1490(128d) T-1491(128d) T-1492(128d) T-1493(128d) T-1494(128d) T-1495(128d) T-1496(128d) T-1498(127d) T-1499(127d) T-1500(127d) T-1501(127d) T-1502(127d) T-1506(127d) T-1529(127d) T-1530(127d) T-1531(127d) T-1532(127d) T-1533(127d) T-1534(127d) T-1535(127d) T-1536(127d) T-1537(127d) T-1557(127d) T-1558(127d) T-1559(127d) T-1570(127d) T-1635(116d) T-1673(114d) T-1691(114d) T-1695(88d) T-1696(114d) T-1722(105d) T-1723(105d) T-1795(110d) T-2013(88d) T-2014(88d) T-2209(88d) T-2210(88d) T-2211(88d) T-2212(88d) T-2213(88d) T-2297(69d) T-2385(62d) T-2402(60d) T-2408(59d) T-2409(16d) T-2723(25d) T-2822(16d) T-2836(16d) T-2839(14d)"
     mitigation: "Review with: fw task verify (lists unchecked Human ACs)"
+  - level: WARN
+    check: "D8: Handover quality — LATEST.md has 1 [TODO] section(s)"
+    mitigation: "Fill remaining [TODO] sections in LATEST.md"
   - level: FAIL
-    check: "D8: Handover quality — LATEST.md has 5 [TODO] sections"
-    mitigation: "Fill handover: edit .context/handovers/LATEST.md or run fw handover"
-  - level: FAIL
-    check: "D8b: Handover archive rot — 10/10 recent handovers have unfilled [TODO]s"
+    check: "D8b: Handover archive rot — 9/10 recent handovers have unfilled [TODO]s"
     mitigation: "Clean stale handovers or fix template to reduce [TODO] generation"
   - level: PASS
     check: "D10: Decision-without-dialogue — none detected"
@@ -954,17 +968,17 @@ findings:
     check: "D13: Inception limbo — 2 task(s): A=1/B=1 T-1635(A:1hu) T-2828(B)"
     mitigation: "Recover both classes with: bin/fw inception sweep (T-1514)"
   - level: PASS
-    check: "D3: Commit velocity — normal (PASS today=13 avg=21 ratio=0.6x)"
+    check: "D3: Commit velocity — normal (PASS today=15 avg=21 ratio=0.7x)"
   - level: PASS
-    check: "D7: Commit bunching — none (PASS 19_commits_24h_no_bunching)"
+    check: "D7: Commit bunching — none (PASS 21_commits_24h_no_bunching)"
   - level: PASS
-    check: "D6: Completion velocity — normal (PASS recent=3.7 earlier=2.0)"
+    check: "D6: Completion velocity — normal (PASS recent=4.0 earlier=2.0)"
   - level: PASS
     check: "D12: Bypass log — no log file"
   - level: PASS
     check: "D9: Control drift — normal (PASS 10_audits_checked)"
   - level: WARN
-    check: "D14: Empty inception Recommendation — 15_empty: T-2862 T-2864 T-2867 T-2898 T-2907 (+10 more)"
+    check: "D14: Empty inception Recommendation — 17_empty: T-2862 T-2864 T-2867 T-2898 T-2907 (+12 more)"
     mitigation: "Fill ## Recommendation block with **Recommendation:** + rationale before decide"
   - level: PASS
     check: "D15: Inception limbo state — none (PASS no_limbo)"
@@ -976,6 +990,8 @@ findings:
     check: "framework-mcp scan: status=missing (unexpected)"
   - level: PASS
     check: "Workflow dispatcher coverage: all 0 workflows route to a registered dispatcher and pi workflows declare a provider; declarable-but-unroutable: ['Task', 'ollama-direct']"
+  - level: PASS
+    check: "Arc 'arc-008': 1/6 (0.1667) — below threshold 0.80, no closure pressure"
   - level: WARN
     check: "Arc 'arc-001': 42/45 tasks completed (0.9333) but arc still in-progress"
     mitigation: "Capture wire-evidence of the arc's headline_mechanic firing, then: fw arc close arc-001 --demo <path"

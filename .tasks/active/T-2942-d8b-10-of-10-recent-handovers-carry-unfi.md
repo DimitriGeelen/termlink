@@ -4,7 +4,7 @@ name: "D8b: 10 of 10 recent handovers carry unfilled TODO sections"
 description: >
   arc-008 cycle-1 audit finding. Full census: .context/audits/arc-008-cycle1-census.md
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -24,7 +24,7 @@ arc_id: arc-008
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-09T17:59:45Z
-last_update: '2026-09-09T18:03:15Z'
+last_update: 2026-09-09T18:22:54Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -182,3 +182,6 @@ test -f .agentic-framework/agents/handover/handover.sh
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2942-d8b-10-of-10-recent-handovers-carry-unfi.md
 - **Context:** Initial task creation
+
+### 2026-09-09T18:22:54Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

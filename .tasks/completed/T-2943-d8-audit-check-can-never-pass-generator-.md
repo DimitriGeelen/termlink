@@ -6,10 +6,10 @@ description: >
   arc-008 cycle-1 finding, discovered while executing T-2941. Not present in the audit
   output — found by doing the work.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components:
   - .agentic-framework/agents/audit/audit.sh
@@ -29,8 +29,8 @@ arc_id: arc-008
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-09T18:05:42Z
-last_update: '2026-09-09T18:07:35Z'
-date_finished:
+last_update: 2026-09-09T18:22:37Z
+date_finished: 2026-09-09T18:22:37Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -89,10 +89,12 @@ Both files are **vendored** (G-062): a local patch is erased by the next re-vend
 ## Acceptance Criteria
 
 ### Agent
-- [ ] The floor is demonstrated, not asserted: a handover with every fillable section completed still yields a non-zero count, captured as the exact command and its output
-- [ ] The two thresholds are stated precisely — D8 warns at `>0` (floor 1, unreachable PASS) while D8b stales at `>3` (reachable) — so that a future reader does not "fix" D8b by mistake
-- [ ] The defect is filed upstream at `framework:pickup` per G-062 with a concrete proposal (count only markers in section-body position, or have the generator not emit the literal in its own instruction text), and the filing offset is recorded in this task
-- [ ] `.vendor-divergence.yaml` is updated if any local change is made to either vendored file, or it is stated explicitly that none was made and why
+- [x] The floor is demonstrated, not asserted: `grep -c '\[TODO' .context/handovers/LATEST.md` returns **5** before the fix (FAIL, threshold `>3`) and **1** after every fillable section is completed (WARN, threshold `>0`). The residual 1 is `handover.sh:712`. Measured on this repo, not read off the source.
+- [x] The two thresholds are stated precisely — D8 warns at `>0` (floor 1, PASS unreachable) while D8b stales at `>3` (reachable, clears on filling). Recorded in `## Context` so a future reader does not "fix" D8b by mistake.
+- [x] Filed upstream per G-062 as **P-073** and posted to the `framework:pickup` hub topic at **offset 115** (`status: delivered-unconfirmed`, ts 1788977351298), carrying both proposed fixes. Note the envelope was created in `.context/pickup/inbox/` first — that is local only, and CLAUDE.md is explicit that leaving a report in a file for a human to relay is itself the failure mode, so it was posted to the rail.
+- [x] No local change was made to either vendored file, so `.vendor-divergence.yaml` needs no entry. Stated explicitly rather than left silent: patching `audit.sh` here would be erased by the next `fw upgrade`, and the register is for changes that exist, not for changes deliberately not made.
+
+**Scope note (T-2680 discipline).** A green on this task means the defect is measured, recorded and filed. It does **not** mean D8 now passes — it cannot, until upstream acts. The residual WARN is expected and is not evidence of an unfilled handover.
 
 ## Verification
 
@@ -119,27 +121,11 @@ grep -q 'no \[TODO\] in LATEST.md' .agentic-framework/agents/audit/audit.sh
 
 ## Evolution
 
-<!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
-     understanding evolved during build — what was learned that wasn't known at
-     filing, what in the original plan no longer fits, what triggered pivots
-     or new sub-tasks. Mandatory at slice boundaries (when applicable) and
-     before --status work-completed.
+### 2026-09-09 — the defect turned out to be self-demonstrating
 
-     Origin: T-1717 grill Q4 — "the understanding of what we need and want
-     evolves with the process of materialisation." Structural counter to §ACD:
-     spec-vs-build divergence is logged as soon as it happens, not lost as
-     folklore.
-
-     Format (one entry per slice boundary or significant insight):
-       ### YYYY-MM-DD — [topic]
-       - **What changed:** [what we learned that we didn't know at filing]
-       - **Plan impact:** [what in the plan no longer fits]
-       - **Triggered:** [new sub-task / pivot / scope cut, with task ID if filed]
-
-     The completion gate (T-1718) blocks --status work-completed when this
-     section exists but is empty/template-only. Use --skip-evolution to bypass
-     (logged Tier-2). Non-arc tasks may leave this empty.
--->
+- **What changed:** Filed as a source-reading finding (D8 counts a comment the generator emits). While writing it up, the tally moved 1 -> 2 because the write-up itself contained the literal marker. So the check counts not only its own instruction text but any prose describing the bug — which means the defect actively resists being documented in the file it affects.
+- **Plan impact:** Widened the proposed upstream fix from "generator should not emit the literal" (option 2 alone) to include "count markers only in section-body position" (option 1), because option 2 fixes the floor but not the prose case. Both were filed.
+- **Triggered:** No new task. The revised diagnosis was fed back into T-2942, whose premise (10/10 archive rot means sessions are not filling handovers) is only partly true — every generated handover starts non-zero by construction, though D8b's `>3` threshold means filling still clears it.
 
 ## Recommendation
 
@@ -197,3 +183,18 @@ grep -q 'no \[TODO\] in LATEST.md' .agentic-framework/agents/audit/audit.sh
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2943-d8-audit-check-can-never-pass-generator-.md
 - **Context:** Initial task creation
+
+### 2026-09-09T18:08:22Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-61ffeb7f
+- **Timestamp:** 2026-09-09T18:22:38Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-09-09T18:22:37Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
