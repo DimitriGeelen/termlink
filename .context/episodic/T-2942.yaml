@@ -1,0 +1,118 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2942: D8b: 10 of 10 recent handovers carry unfilled TODO sections
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-09T23:08:41Z
+# ============================================================================
+
+task_id: T-2942
+task_name: "D8b: 10 of 10 recent handovers carry unfilled TODO sections"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-09T17:59:45Z
+completed: 2026-09-09T23:08:34Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-09T20:22:57+02:00
+last_commit: 2026-09-10T01:04:49+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  arc-008 cycle 2 verification — D8 FAIL cleared (FAIL->WARN, count 5->1), D8b 10/10->9/10; D8 dead-PASS defect filed upstream at framework:pickup offset 115. record three findings discovered by executing cycle 1 — D8 dead-PASS (T-2943), self-filing task echo, pre-push audit subset. arc-008 cycle 3 — three findings tasked, scored and closed (T-2948/2949/2950); two filed upstream (P-074 offset 117, P-075); T-2950 filing cancelled as version skew; PL-372. arc-008 cycle 3 — repair T-2948/T-2949 verification to be location-complete (envelopes route to auto-deferred); task T-2951 for stranded outbound filings; PL-372
+
+# Key outcomes
+outcomes:
+  - 'Measured, not estimated. Across the 10 most recent handovers the count is **uniformly 5**, except S-2026-0909-1934 at 1 — the single handover a session filled by hand. The five are: one instructional comment in the file header (the P-073 defect), plus four content sections named `## Decisions Made This Session`, `## Things Tried That Failed`, `## Open Questions / Blockers`, `## Gotchas / Warnings for Next Session`.'
+  - 'Confirmed, and it inverts the task''s premise. Each of the four content markers carries its own justification inside the text D8b counts: *"T-2882: the generator cannot know this — an unfilled section must read as unfilled."* The generator is not failing to fill them; it is deliberately refusing to, so a handover that looks complete is never one that is not. D8b is therefore firing on designed behaviour, and the two guards contradict each other.'
+  - 'Filed upstream at `framework:pickup` **offset 119** as P-076, per G-062. The proposal was reframed by the measurement: NOT "the generator should omit sections it cannot fill" (T-2882 deliberately forbids that) but "D8/D8b must stop counting T-2882''s intentional markers as rot" — either exclude them, or replace D8b''s rolling-window rot framing with a measure of whether the CURRENT handover was enriched, which is actionable.'
+  - '`.vendor-divergence.yaml` checked — and the first answer was WRONG. I made no change this session, but a registered divergence for `.agentic-framework/agents/handover/handover.sh` already exists (line 88, dated 2026-09-03, `status: filed-upstream`, `kind: fix`). **T-2882 is a LOCAL fix, not upstream design.** It replaced fabricated narrative constants — `None` for Decisions / Things Tried / Open Questions, `See gaps register above.` for Gotchas — with honest `[TODO:]` markers, because a fabricated constant is indistinguishable from a reasoned answer in the one artefact every session start reads. So D8b fires precisely BECAUSE this project applied an integrity fix. No new registration is needed; the existing entry covers it.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/2026-09-09.yaml'
+  - '.context/audits/arc-008-cycle1-census.md'
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/episodic/T-2943.yaml'
+  - '.context/episodic/T-2948.yaml'
+  - '.context/episodic/T-2949.yaml'
+  - '.context/episodic/T-2950.yaml'
+  - '.context/handovers/S-2026-0909-2303.discard-manifest.yaml'
+  - '.context/pickup/auto-deferred/P-074-bug-report.yaml'
+  - '.context/pickup/auto-deferred/P-075-bug-report.yaml'
+  - '.context/pickup/.bridge-posted/bfc9c5aacfd5b09f06634b7b786b1c432bec820abbbabed25c01ee1840e714c3'
+  - '.context/pickup/dedup.log'
+  - '.context/pickup/processed/P-073-bug-report.yaml'
+  - '.context/project/learnings.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/.compact-log'
+  - '.context/working/feedback-stream.yaml'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.hook-crashes.log'
+  - '.context/working/.pickup-bridge.log'
+  - '.context/working/.pre-compact.last-run'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/.session-start-ts'
+  - '.context/working/session.yaml'
+  - '.tasks/active/T-2723-handover-commit-under-t-1452-collides-wi.md'
+  - '.tasks/active/T-2942-d8b-10-of-10-recent-handovers-carry-unfi.md'
+  - '.tasks/active/T-2945-pickup-guard-gap-verb-gated-verification.md'
+  - '.tasks/active/T-2946-pickup-auditsh-d8-handover-quality-check.md'
+  - '.tasks/active/T-2947-pickup-auditsh-d8-handover-quality-check.md'
+  - '.tasks/active/T-2951-outbound-upstream-filings-are-stranded-i.md'
+  - '.tasks/completed/T-2943-d8-audit-check-can-never-pass-generator-.md'
+  - '.tasks/completed/T-2948-pre-push-audit-runs-only-the-structure-s.md'
+  - '.tasks/completed/T-2949-pickup-processor-mints-local-tasks-from-.md'
+  - '.tasks/completed/T-2950-the-g-087-safe-budget-read-verb-the-resu.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-09T20:22:57'
+    action: 'T-2942: arc-008 cycle 2 verification — D8 FAIL cleared (FAIL->WARN, count 5->1), D8b 10/10->9/10; D8 dead-PASS defect filed upstream at framework:pickup offset 115'
+  - time: '2026-09-09T20:23:28'
+    action: 'T-2942: record three findings discovered by executing cycle 1 — D8 dead-PASS (T-2943), self-filing task echo, pre-push audit subset'
+  - time: '2026-09-10T01:02:23'
+    action: 'T-2942: arc-008 cycle 3 — three findings tasked, scored and closed (T-2948/2949/2950); two filed upstream (P-074 offset 117, P-075); T-2950 filing cancelled as version skew; PL-372'
+  - time: '2026-09-10T01:04:49'
+    action: 'T-2942: arc-008 cycle 3 — repair T-2948/T-2949 verification to be location-complete (envelopes route to auto-deferred); task T-2951 for stranded outbound filings; PL-372'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 308 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 308
+  commits: 4
+  files_changed: 36
+  lines_added: 2964
+  lines_removed: 1279
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2942-d8b-10-of-10-recent-handovers-carry-unfi.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,66 @@
+pickup_id: P-076
+version: 1
+type: bug-report
+source:
+  project: termlink
+  task_id: T-2942
+  agent: claude-code
+  timestamp: '2026-09-09T23:35:00Z'
+payload:
+  summary: 'audit D8/D8b count the handover generator''s own DELIBERATE unfilled markers
+    as rot, contradicting T-2882 which established that an unfilled section must read as unfilled'
+  detail: |
+    WHERE
+      .agentic-framework/agents/audit/audit.sh   D8  (LATEST.md marker count)
+      .agentic-framework/agents/audit/audit.sh   D8b (archive rot: N of 10 recent handovers)
+      .agentic-framework/agents/handover/handover.sh  emits the markers being counted
+
+    DEFECT
+      Companion to P-073 (offset 115), which showed D8's PASS branch is unreachable because
+      the generator emits one marker inside an instructional comment. This is the second half
+      of the same mistake, and it is the more consequential one.
+
+      Measured across the 10 most recent handovers in 010-termlink: every single one carries
+      exactly 5 markers, except one carrying 1 -- and that one is the single handover a
+      session filled by hand. So the generator's output is uniformly 5, and D8b's verdict
+      "10 of 10 recent handovers carry unfilled TODO sections" is not detecting rot. It is
+      restating the generator's constant output.
+
+      Of those 5: one is the instructional comment from P-073. The other four are the content
+      sections -- Decisions Made This Session / Things Tried That Failed / Open Questions
+      Blockers / Gotchas Warnings for Next Session -- and each carries this text INSIDE the
+      marker it is counted by:
+
+        [TODO: decisions taken this session, or "None" once a session agent has checked.
+         T-2882: the generator cannot know this -- an unfilled section must read as unfilled.]
+
+      That is a deliberate design decision with a task ID on it. T-2882 established that the
+      generator must NOT silently omit or auto-fill a section it cannot know, because a
+      handover that looks complete and is not is worse than one that admits the gap. D8b then
+      counts exactly that honesty as decay.
+
+      So two guards in the same framework disagree about whether an unfilled marker is a
+      defect or the correct behaviour, and the audit's verdict is the one that is wrong.
+
+    WHY IT MATTERS
+      D8b currently FAILS permanently and unfixably by design. Its stated remediation -- fill
+      the sections -- is unavailable for archived handovers, because the only honest way to
+      fill a past session's "Decisions Made This Session" is to have been in that session.
+      Backfilling them would be fabrication, which is precisely what T-2882 prevents. A gate
+      that cannot be satisfied without lying is a gate operators learn to ignore, and D8b sits
+      in the same report as findings that DO need action.
+
+    PROPOSED FIX (either, not both)
+      1. Count only markers a session could legitimately fill -- i.e. exclude the P-073
+         instructional comment and treat the four T-2882 content markers as expected-present.
+         D8b then fires only on genuinely anomalous handovers, if any exist.
+      2. Or retire D8b's rot framing entirely and replace it with a measure of whether the
+         CURRENT session's handover was enriched, which is actionable, rather than a rolling
+         window over history nobody can now change.
+
+      Whichever is chosen, D8 and D8b must agree with T-2882 about what an unfilled marker
+      means, and the marker text should say which guard owns it.
+
+    NOT AFFECTED
+      T-2882's design is correct and should not be reverted. The generator needs no change
+      beyond the P-073 comment fix. This is about what the audit does with the output.

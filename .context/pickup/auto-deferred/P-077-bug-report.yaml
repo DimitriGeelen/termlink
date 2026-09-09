@@ -1,0 +1,53 @@
+pickup_id: P-077
+version: 1
+type: bug-report
+source:
+  project: termlink
+  task_id: T-2942
+  agent: claude-code
+  timestamp: '2026-09-09T23:45:00Z'
+payload:
+  summary: 'CORRECTION to P-076 (offset 119): T-2882 is a LOCAL divergence in 010-termlink,
+    not upstream design -- so D8/D8b penalise a downstream project for applying an integrity fix'
+  detail: |
+    This corrects one factual claim in P-076 (framework:pickup offset 119). The defect P-076
+    reports is unchanged and still stands. Its provenance was wrong, and that changes who is
+    affected and what upstream should look for.
+
+    WHAT P-076 IMPLIED
+      That the [TODO:] markers D8/D8b count are the handover generator's own deliberate output,
+      established by T-2882.
+
+    WHAT IS ACTUALLY THE CASE
+      T-2882 is a LOCAL divergence held by 010-termlink against its vendored framework copy,
+      registered in .vendor-divergence.yaml dated 2026-09-03 with status `filed-upstream`
+      (reported, NOT confirmed landed). It replaced the generator's fabricated narrative
+      constants -- a bare `None` for Decisions / Things Tried / Open Questions, and
+      `See gaps register above.` for Gotchas -- with explicit `[TODO: ...]` markers, on the
+      grounds that a fabricated constant is indistinguishable from a reasoned answer in the
+      one artefact every Session Start Protocol tells an agent to act on (Directive 2).
+
+    WHY THE CORRECTION MATTERS
+      1. Upstream may not recognise "T-2882" at all, and a stock upstream checkout may show D8
+         and D8b passing cleanly -- because it still emits the fabricated constants, which
+         contain no marker to count. The guard looks healthy precisely where the underlying
+         defect is worse.
+      2. The incentive is inverted. A downstream project that fixes the fabrication locally is
+         then reported by the audit as having rotting handovers. The more honest the fix, the
+         worse the health report.
+      3. There is a deletion hazard. Because T-2882 is `filed-upstream` and not confirmed
+         landed, the next `fw upgrade` / re-vendor removes it and silently restores the
+         fabricated constants -- with no failing check anywhere, since removing the markers
+         also clears D8/D8b. The regression would be invisible by construction.
+
+    WHAT UPSTREAM SHOULD DO
+      Land T-2882's substance (honest markers over fabricated constants) AND fix D8/D8b in the
+      same change, so the two never disagree about what a marker means. Landing either alone
+      reproduces this exact state: fix without guard-fix gives a permanently red D8b, guard-fix
+      without fix gives a green audit over fabricated content.
+
+    UNCHANGED FROM P-076
+      The measurement (uniformly 5 markers across 10 recent handovers, 1 where a session filled
+      it by hand), the analysis that D8b restates a constant rather than detecting decay, and
+      the observation that D8b's remediation is satisfiable only by fabricating a past session's
+      content, all stand as filed.

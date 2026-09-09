@@ -10368,3 +10368,21 @@ scan_id: R-bf1419e9
 task_id: T-2950
 payload:
   task_file: .tasks/active/T-2950-the-g-087-safe-budget-read-verb-the-resu.md
+---
+kind: scan_emitted
+timestamp: '2026-09-09T23:08:35Z'
+scan_id: R-7a8fcb6c
+task_id: T-2942
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-09T23:08:35Z'
+scan_id: R-7a8fcb6c
+task_id: T-2942
+payload:
+  task_file: .tasks/active/T-2942-d8b-10-of-10-recent-handovers-carry-unfi.md

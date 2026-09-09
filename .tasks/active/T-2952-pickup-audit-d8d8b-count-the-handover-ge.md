@@ -1,23 +1,14 @@
 ---
-id: T-2951
-name: "Outbound upstream filings are stranded in the pickup auto-deferred queue"
+id: T-2952
+name: "Pickup: audit D8/D8b count the handover generators own DELIBERATE unfilled markers (from termlink)"
 description: >
-  Posting P-074 and P-075 to framework:pickup delivered them to the hub (P-074 confirmed
-  at offset 117), but their LOCAL envelopes were routed to .context/pickup/auto-deferred/
-  with no breadcrumb. scripts/check-pickup-deferred-freshness.sh fires on both as
-  STRANDED (exit 1): with no breadcrumb naming a blocking task, fw pickup promote-deferred
-  can never promote them, so they are not deferred but lost. The pipeline is treating
-  OUTBOUND filing records as INBOUND envelopes awaiting promotion. Shares a root cause
-  with T-2949 (filed as P-075): the pickup pipeline has no direction- or self-awareness,
-  so a project's own filing is both minted back as local work AND stranded as an unpromotable
-  inbound item. Linked, not merged: T-2949 concerns minting, this concerns routing,
-  and a fix to either leaves the other live. arc-008 cycle 3 finding F-F.
+  Auto-created from pickup envelope. Source: termlink, task T-2942. Type: bug-report.
 
-status: started-work
+status: captured
 workflow_type: build
 owner: agent
-horizon: now
-tags: [arc:arc-008]
+horizon: next
+tags: [pickup, bug-report]
 components: []
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
@@ -30,9 +21,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-09T23:03:31Z
-last_update: 2026-09-09T23:08:53Z
-date_finished:
+created: 2026-09-09T23:07:02Z
+last_update: 2026-09-09T23:07:02Z
+date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -43,33 +34,11 @@ date_finished:
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
-bvp_scores_proposed:
-  - ts: '2026-09-09T23:04:40Z'
-    estimator: bvp-estimator-v1-heuristic
-    scores:
-      D1: 4
-      D2: 0
-      D3: 3
-      D4: 2
-      F-RECALL: 0
-      F-ORCH: 0
-    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
-      (body:component-discoverability); D4=2 (body:env-class-handled); 
-      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
-    rubric_sha: e4a00f38e801
-cost_estimate_proposed:
-  - ts: '2026-09-09T23:04:40Z'
-    estimator: bvp-estimator-v1-heuristic
-    cost_estimate:
-      blast_radius:
-      tier: 2
-      effort: 8
-    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
-      (workflow:build); effort=8 (lines=207,acs=4)
-    rubric_sha: e4a00f38e801
+source_task_id_in_origin: T-2942
+source_project_in_origin: "termlink"
 ---
 
-# T-2951: Outbound upstream filings are stranded in the pickup auto-deferred queue
+# T-2952: Pickup: audit D8/D8b count the handover generators own DELIBERATE unfilled markers (from termlink)
 
 ## Context
 
@@ -79,11 +48,8 @@ cost_estimate_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Reproduced and measured: every envelope this project posted in arc-008 cycle 3 (P-074…P-077) landed in `.context/pickup/auto-deferred/` with no `.breadcrumb.yaml`, and `scripts/check-pickup-deferred-freshness.sh` exits **1** naming each as STRANDED — "not waiting, lost", un-promotable by `fw pickup promote-deferred` because no breadcrumb names a blocking task.
-- [ ] Delivery is distinguished from bookkeeping, and the distinction is stated wherever the finding is reported: the upstream posts SUCCEEDED (`framework:pickup` offsets 117–120, `status: delivered-unconfirmed`). Only the LOCAL envelope record is stranded. The filings themselves are not at risk; the audit trail of them is.
-- [ ] Root cause named and linked to T-2949 (filed as P-075) without merging: the pickup pipeline has no direction- or self-awareness, so a project's own filing is BOTH minted back as local work (T-2949) AND filed into the inbound deferred queue as an unpromotable item (this task). Fixing either leaves the other live, which is why they are separate records.
-- [ ] Filed upstream per G-062 as a distinct defect from P-075 — routing, not minting — with the measured evidence and the proposal that outbound filing records not be routed into the inbound promotion queue at all.
-- [ ] Local hygiene resolved by an explicit, recorded decision rather than a silent drain: these envelopes are outbound records of already-delivered posts, so the choice to retain or remove them is stated with its reason. T-2801 is explicit that the checker "detects and never drains" precisely so a visible backlog is not quietly converted into an invisible one.
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -271,13 +237,7 @@ cost_estimate_proposed:
 
 ## Updates
 
-### 2026-09-09T23:03:31Z — task-created [task-create-agent]
+### 2026-09-09T23:07:02Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2951-outbound-upstream-filings-are-stranded-i.md
+- **Output:** /opt/termlink/.tasks/active/T-2952-pickup-audit-d8d8b-count-the-handover-ge.md
 - **Context:** Initial task creation
-
-### 2026-09-09T23:04:40Z — status-update [task-update-agent]
-- **Change:** tags: +arc:arc-008
-
-### 2026-09-09T23:08:53Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
