@@ -113,3 +113,25 @@ has become a task yet. Nothing here may be dropped without an explicit decision.
 - WARN  Cron flock parity: registry declares 2 wrapped jobs, deployed crontab has 0
 - WARN  Mirror divergence: 1 ref(s) differ between origin and github (T-1591/T-1592)
 - WARN  Untracked task files: 2 under .tasks/{active,completed}/
+
+## Findings discovered by DOING the work (not present in either verb's output)
+
+- **F-A: `audit.sh` D8 can never PASS.** `handover.sh:712` emits an instructional comment
+  containing the literal placeholder marker; D8 counts raw occurrences file-wide. Floor is 1,
+  so `pass "D8: Handover quality — no [TODO] in LATEST.md"` (audit.sh:5098) is dead code and a
+  perfectly filled handover reports WARN forever. Prose *about* the marker also counts.
+  → Tasked as **T-2943 (closed)**. Filed upstream: P-073, `framework:pickup` offset 115.
+
+- **F-B: own upstream filings round-trip back as local tasks.** Posting P-073 to
+  `framework:pickup` caused the pickup processor to auto-create **T-2947** in this project —
+  a task to fix the bug we had just reported upstream. T-2816 added `FW_PICKUP_SELF_PROJECT`
+  self-filtering to the pickup *canary*, but the *processor* that mints tasks applies no
+  equivalent filter. Net effect: every upstream filing inflates the local register by one
+  duplicate, which then shows up as task debt in the very audit that prompted the filing.
+  → NOT yet tasked. Next cycle.
+
+- **F-C: the pre-push audit is not the audit.** The pre-push hook runs `--sections structure`
+  only (38P/8W/2F) while the full run reports 368P/77W/5F. 69 warnings and 3 failures are
+  invisible to the gate that runs on every push. Not a defect in either check — but the
+  subset's summary line is indistinguishable in shape from the full one, so it reads as a
+  whole-project verdict. → NOT yet tasked. Next cycle.
