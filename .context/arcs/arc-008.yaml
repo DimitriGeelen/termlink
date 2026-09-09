@@ -1,0 +1,20 @@
+id: arc-008
+slug: arc-008
+name: "Audit and doctor finding remediation"
+description: "Every individual FAIL and WARNING emitted by fw audit and fw doctor becomes its own\
+  \ governed task. Findings that share a root cause are linked, never merged. Verification\
+  \ of a task is the re-run of the audit in the next cycle, not self-assertion."
+status: in-progress
+anchor_task: 
+headline_mechanic: "An operator runs fw audit and fw doctor and reads a clean report: zero failures,\
+  \ and every remaining warning either fixed or explicitly acknowledged with a cited\
+  \ reason, instead of the same findings being re-reported unread every session."
+demo_evidence: null
+created: 2026-09-09T17:45:14Z
+closed_at: null
+decision: null
+# T-1918 (arc-006, value-prioritisation): BVP scoring fields. Semantics in
+# docs/reports/T-1915-bvp-inception.md §4 (D7-reframe) and §7 (M2).
+bvp_scores: {}
+scoped_drivers: []           # max 3, weight ≤6 each (M2). Approved by fw arc approve-driver (T-1926).
+proposed_scoped_drivers: []  # uncapped persistence (D7-reframe). Estimator may write here freely.
