@@ -1,18 +1,22 @@
 ---
-id: T-2949
-name: "Pickup processor mints local tasks from this project's own upstream filings"
+id: T-2951
+name: "Outbound upstream filings are stranded in the pickup auto-deferred queue"
 description: >
-  Posting P-073 to framework:pickup caused the pickup processor to auto-create T-2947
-  locally: a task to fix the bug we had just reported upstream. T-2816 added FW_PICKUP_SELF_PROJECT
-  self-filtering to the pickup CANARY (scripts/check-framework-pickup-freshness.sh:49)
-  but lib/pickup.sh applies no equivalent filter. Every upstream filing inflates the
-  local register by one duplicate, which then reports as task debt in the very audit
-  that prompted the filing. arc-008 cycle 1 finding F-B.
+  Posting P-074 and P-075 to framework:pickup delivered them to the hub (P-074 confirmed
+  at offset 117), but their LOCAL envelopes were routed to .context/pickup/auto-deferred/
+  with no breadcrumb. scripts/check-pickup-deferred-freshness.sh fires on both as
+  STRANDED (exit 1): with no breadcrumb naming a blocking task, fw pickup promote-deferred
+  can never promote them, so they are not deferred but lost. The pipeline is treating
+  OUTBOUND filing records as INBOUND envelopes awaiting promotion. Shares a root cause
+  with T-2949 (filed as P-075): the pickup pipeline has no direction- or self-awareness,
+  so a project's own filing is both minted back as local work AND stranded as an unpromotable
+  inbound item. Linked, not merged: T-2949 concerns minting, this concerns routing,
+  and a fix to either leaves the other live. arc-008 cycle 3 finding F-F.
 
-status: work-completed
+status: captured
 workflow_type: build
 owner: agent
-horizon: null
+horizon: now
 tags: [arc:arc-008]
 components: []
 related_tasks: []
@@ -26,9 +30,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-09T22:50:33Z
-last_update: 2026-09-09T22:59:39Z
-date_finished: 2026-09-09T22:59:39Z
+created: 2026-09-09T23:03:31Z
+last_update: '2026-09-09T23:04:40Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -40,7 +44,7 @@ date_finished: 2026-09-09T22:59:39Z
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 bvp_scores_proposed:
-  - ts: '2026-09-09T22:56:06Z'
+  - ts: '2026-09-09T23:04:40Z'
     estimator: bvp-estimator-v1-heuristic
     scores:
       D1: 4
@@ -54,18 +58,18 @@ bvp_scores_proposed:
       F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
 cost_estimate_proposed:
-  - ts: '2026-09-09T22:56:06Z'
+  - ts: '2026-09-09T23:04:40Z'
     estimator: bvp-estimator-v1-heuristic
     cost_estimate:
       blast_radius:
       tier: 2
       effort: 8
     rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
-      (workflow:build); effort=8 (lines=217,acs=7)
+      (workflow:build); effort=8 (lines=207,acs=4)
     rubric_sha: e4a00f38e801
 ---
 
-# T-2949: Pickup processor mints local tasks from this project's own upstream filings
+# T-2951: Outbound upstream filings are stranded in the pickup auto-deferred queue
 
 ## Context
 
@@ -75,11 +79,8 @@ cost_estimate_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] Asymmetry pinned: `scripts/check-framework-pickup-freshness.sh:49` sets `SELF_PROJECT="${FW_PICKUP_SELF_PROJECT:-010-termlink}"` and excludes own filings from the CANARY's firing set (T-2816), while the task-minting path in vendored `lib/pickup.sh` applies no equivalent filter.
-- [x] Measured instance recorded, and it is worse than first logged: posting P-073 to `framework:pickup` produced **two** byte-identical local tasks, T-2946 and T-2947, both titled `Pickup: audit.sh D8 handover-quality check can never PASS... (from termlink)`. One filing, two duplicates, to fix the bug we had just reported upstream.
-- [x] Cost stated in the audit's own terms: each upstream filing inflates the local register by one duplicate, which then reports as task debt in the very audit that prompted the filing, compounding D2's 57-deep review queue and doctor's 69 stale tasks.
-- [x] Defect is vendored (`lib/pickup.sh`) so per G-062 it is FILED UPSTREAM, not patched locally.
-- [x] Root cause narrowed: attribution is NOT missing. Each minted task carries the literal suffix `(from termlink)`, so the processor already knows the source project is this project and mints regardless — the filter is absent, not the data. The filing cites T-2816 as the precedent to mirror, making the fix a known-shape port rather than a new design.
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -115,13 +116,6 @@ cost_estimate_proposed:
 -->
 
 ## Verification
-
-# Premise: the self-filter exists in the canary and nowhere in the minting path.
-grep -q 'FW_PICKUP_SELF_PROJECT' scripts/check-framework-pickup-freshness.sh
-# The upstream filing exists as a durable envelope.
-cat .context/pickup/inbox/P-075-bug-report.yaml .context/pickup/processed/P-075-bug-report.yaml .context/pickup/auto-deferred/P-075-bug-report.yaml 2>/dev/null > /tmp/.p-075; test -s /tmp/.p-075
-# The filing cites the precedent it asks upstream to mirror.
-grep -q 'T-2816' /tmp/.p-075
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -200,24 +194,6 @@ grep -q 'T-2816' /tmp/.p-075
 
 ## Evolution
 
-### 2026-09-09 — the echo is a duplicate pair, and attribution was never the gap
-- **What changed:** Filed on the belief that one upstream filing mints one local task and
-  that the processor lacks provenance. Both halves were wrong. Posting P-073 produced
-  **two** byte-identical tasks (T-2946, T-2947), and every minted title carries the literal
-  suffix `(from termlink)` — so the processor has the source project in hand and mints
-  anyway. The defect is an absent filter over present data, not missing metadata.
-- **Plan impact:** Splits into two separable defects rather than one. (a) no self-filter on
-  the minting path, and (b) minting is not idempotent per (topic, offset). Filing them as
-  one item would have let a fix for (a) land while (b) silently continued halving nothing.
-  The proposed fix also had to inherit T-2816's stance on UNKNOWN attribution — mint when
-  provenance is unprovable, because a false task is cheap and a missed inbound filing is
-  the G-063 class the rail exists to prevent.
-- **Triggered:** Filed upstream as P-075 (G-062 — `lib/pickup.sh` is vendored). The echo
-  from P-074 was instrumented: active-task count captured immediately before the post (245)
-  and after (244, fully explained by T-2948 moving to completed). No echo had landed inside
-  that window, so minting is asynchronous and the true latency is unmeasured here — stated
-  as a limit rather than reported as absence.
-
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
      filing, what in the original plan no longer fits, what triggered pivots
@@ -292,32 +268,10 @@ grep -q 'T-2816' /tmp/.p-075
 
 ## Updates
 
-### 2026-09-09T22:50:33Z — task-created [task-create-agent]
+### 2026-09-09T23:03:31Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2949-pickup-processor-mints-local-tasks-from-.md
+- **Output:** /opt/termlink/.tasks/active/T-2951-outbound-upstream-filings-are-stranded-i.md
 - **Context:** Initial task creation
 
-### 2026-09-09T22:52:50Z — status-update [task-update-agent]
+### 2026-09-09T23:04:40Z — status-update [task-update-agent]
 - **Change:** tags: +arc:arc-008
-
-### 2026-09-09T22:58:31Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
-
-## Reviewer Verdict (v1.5)
-
-- **Scan ID:** R-48c1da1d
-- **Timestamp:** 2026-09-09T22:59:40Z
-- **Catalogue:** v1.3-seed
-- **Overall:** CONCERN
-- **Needs Human:** no
-- **Findings:** 2
-
-**Per-AC findings:**
-
-- **AC#1 (Agent)** — Asymmetry pinned: `scripts/check-framework-pickup-freshness.sh:49` sets `SELF_PROJECT="${FW_PICKUP_SELF_PROJECT:-010-termlink}"` and excludes own filings from the CANARY's firing set (T-2816), while t
-  - **AC-verify-mismatch** (narrow, heuristic) — `path=lib/pickup.sh in: Asymmetry pinned: `scripts/check-framework-pickup-freshness.sh:49` sets `SELF_PROJECT="${FW_PICKUP_SELF_PROJECT:-010-termlink}"` and excludes own fili`
-- **AC#4 (Agent)** — Defect is vendored (`lib/pickup.sh`) so per G-062 it is FILED UPSTREAM, not patched locally.
-  - **AC-verify-mismatch** (narrow, heuristic) — `path=lib/pickup.sh in: Defect is vendored (`lib/pickup.sh`) so per G-062 it is FILED UPSTREAM, not patched locally.`
-
-### 2026-09-09T22:59:39Z — status-update [task-update-agent]
-- **Change:** status: started-work → work-completed

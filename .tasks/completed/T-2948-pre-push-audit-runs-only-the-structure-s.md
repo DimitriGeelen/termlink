@@ -118,7 +118,7 @@ cost_estimate_proposed:
 # Premise: the pre-push hook really does run the structure subset (T-862).
 grep -q -- '--section structure' .git/hooks/pre-push
 # The upstream filing exists as a durable envelope.
-cat .context/pickup/inbox/P-074-bug-report.yaml .context/pickup/processed/P-074-bug-report.yaml 2>/dev/null > /tmp/.p-074; test -s /tmp/.p-074
+cat .context/pickup/inbox/P-074-bug-report.yaml .context/pickup/processed/P-074-bug-report.yaml .context/pickup/auto-deferred/P-074-bug-report.yaml 2>/dev/null > /tmp/.p-074; test -s /tmp/.p-074
 # The filing names the SUMMARY block as the fix site, not the subset itself.
 grep -q 'SUMMARY' /tmp/.p-074
 

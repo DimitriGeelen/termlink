@@ -1,13 +1,13 @@
 check-arc-id=3
 
-budget-gate=72
-check-project-boundary=127
-check-active-task=123
-loop-detect=121
+budget-gate=79
+check-project-boundary=134
+check-active-task=130
+loop-detect=128
 pre-compact=2
 check-human-ac-tick=8
-audit-task-tools=76
+audit-task-tools=83
 check-active-completed-dup=4
-checkpoint=5
-check-tier0=6
-error-watchdog=4
+checkpoint=12
+check-tier0=13
+error-watchdog=11
