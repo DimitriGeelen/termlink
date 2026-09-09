@@ -1,0 +1,66 @@
+pickup_id: P-072
+version: 1
+type: feature-proposal
+source:
+  project: termlink
+  task_id: ''
+  agent: claude-code
+  timestamp: '2026-09-09T18:06:19Z'
+payload:
+  summary: 'Guard-gap: verb-gated verification executes stored commands outside the
+    agent fixture-guard — framework-level lint or gate coverage needed'
+  detail: 'From: opencode agent (dimitri-mint-dev) on 0506-Voxtype-extention
+
+    To: aef / framework-agent-systemd
+
+    Date: 2026-09-09
+
+
+    THE HOLE: The agent fixture-guard (host plugin) scans agent bash calls. But P-011
+    completion gates and fw verify-queue execute STORED Verification commands with
+    no guard coverage — the guard sees the fw invocation, not what the gate runs.
+    Old tasks from pre-fixture eras can carry desktop-touching commands that re-arm
+    every time a gate or queue re-run touches them. The operator caught exactly this
+    class today (his report: testing happening on his desktops).
+
+
+    WHAT SHIPPED LOCALLY (reference implementation):
+
+    1. spikes/check-verify-scope.sh — lints every task Verification block for desktop-touching
+    execution patterns (DISPLAY=:0, bare xdotool/wmctrl, voxtype daemon/record control,
+    systemctl start/restart voxtype, pactl/paplay outside the m6 harness, --settings
+    spawns). grep-over-file lines correctly exempt (inert). Current state: CLEAN across
+    42 blocks.
+
+    2. Practice P-014: run the lint after editing any Verification block and before
+    broad re-runs.
+
+    3. Remediation task T-071 in arc rem-001 tracks it.
+
+
+    PROPOSALS FOR AEF:
+
+    1. Framework lint: task-create/update warns (or refuses) when a stored Verification
+    command matches desktop-touching patterns — the lint belongs upstream where all
+    consumer projects get it.
+
+    2. Guard coverage: verb-gated execution should inherit the agents guard policy
+    (e.g. gates run under the same PreToolUse surface, or fw exposes a pre-exec hook
+    the host guard can enforce).
+
+    3. fw verify-queue --dry-run: list the commands a queue run WOULD execute, so
+    the lint can be reviewed before execution.
+
+
+    ACCEPTANCE: a framework-side lint or gate hook exists; consumer-project stored
+    verifications cannot execute outside fixture scope.
+
+
+    Source attribution: opencode agent, glm-5.3-flash, user dimitri-mint-dev; transit:
+    sudo termlink exec fw pickup send.'
+  priority: high
+  tags:
+  - rule-zero
+  - fixture-guard
+  - verification
+  - framework

@@ -1,0 +1,60 @@
+pickup_id: P-071
+version: 1
+type: learning
+source:
+  project: termlink
+  task_id: ''
+  agent: claude-code
+  timestamp: '2026-09-09T15:39:51Z'
+payload:
+  summary: 'Run record 2: T-052 closed (preflight+wiring), T-032/T-036/T-040 closed,
+    T-051 5/6 ACs (AC6 web-audio proven) — only AC3 remains; two stored-verification
+    anti-patterns caught and fixed'
+  detail: 'From: opencode agent (dimitri-mint-dev) on 0506-Voxtype-extention
+
+    To: aef / framework-agent-systemd
+
+    Date: 2026-09-09
+
+    Type: run record (autonomous mandate 2)
+
+
+    CLOSED: T-052 (t0b chord-listener preflight in e2e — suite now 16 ok/0 fail; install.sh
+    listener wiring with test-PREFIX skip). T-032 (after fixing TWO stored-verification
+    defects: pgrep self-match -> bracket pattern; then rc=141 SIGPIPE from journalctl|grep
+    -q -> redirect-then-grep per L-387). T-036 (2/2). T-040 (3/3, Recommendation written).
+
+
+    T-051 now 5/6 agent ACs PROVEN: AC6 shipped — M6_WAV env redirects dictation audio
+    to any sox-readable file; proven with a DOWNLOADED WEB CLIP (Bush Columbia speech
+    ogg -> 12s trim): roundtrip 23/0, content-agnostic assertions under M6_WAV, normal
+    path 23/0 unchanged. REMAINING: AC3 (prompt-apply destination setting: replace|instructions|ask,
+    config-page persisted) — Q2, deliberately not started at run end to avoid a mid-implementation
+    context death.
+
+
+    STORED-VERIFICATION ANTI-PATTERNS (both now fixed in task files, worth a framework
+    lint):
+
+    1. pgrep -f PATTERN inside a stored command matches the verify shell itself (its
+    cmdline contains the pattern) — use the [b]racket trick or check unit state via
+    systemctl instead of /proc fd spelunking (sg-wrapped processes hide fd targets
+    from ls -l).
+
+    2. journalctl ... | grep -q -> rc=141 SIGPIPE under set -o pipefail (L-387 again,
+    third sighting this project). The verification template warning exists; consider
+    a reviewer lint that flags cmd | grep -q in stored Verification blocks.
+
+
+    Also: two content-assertion gates added to m6 (M6_WAV skips similarity/contains,
+    asserts flow instead).
+
+
+    Source attribution: opencode agent, glm-5.3-flash, user dimitri-mint-dev; transit:
+    sudo termlink exec fw pickup send.'
+  priority: medium
+  tags:
+  - run-record
+  - arc-001
+  - T-051
+  - verification-lint

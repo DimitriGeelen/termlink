@@ -1,0 +1,92 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2941: D8: handover LATEST.md ships with 5 unfilled [TODO] sections
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-09T18:08:01Z
+# ============================================================================
+
+task_id: T-2941
+task_name: "D8: handover LATEST.md ships with 5 unfilled [TODO] sections"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-09T17:57:25Z
+completed: 2026-09-09T18:07:53Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-09T20:03:35+02:00
+last_commit: 2026-09-09T20:03:35+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  arc-008 cycle 1 — full audit (368P/77W/5F) captured, census committed, 5 FAIL tasks created and scored
+
+# Key outcomes
+outcomes:
+  - 'All `[TODO]` markers that are actually *sections* are replaced with real content (4 of the 5: Decisions Made, Things Tried That Failed, Open Questions/Blockers, Gotchas)'
+  - 'The 5th occurrence is identified: it is not a section but an instructional comment emitted by the vendored generator at `handover.sh:712`, which D8 counts anyway. It cannot be filled or removed locally (G-062). Filed as **T-2943**.'
+  - 'Content is substantive, not a restatement of the heading — Gotchas names five concrete traps measured this session, each with the command or line number that produced it'
+  - 'The D8 FAIL condition (`d8_todos > 3`) is cleared: the count is now 1, verified by direct measurement against the same `grep -c` the check uses'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/arcs/arc-008.yaml'
+  - '.context/audits/arc-008-cycle1-census.md'
+  - '.context/working/.budget-status'
+  - '.context/working/.compact-log'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.pickup-bridge.log'
+  - '.context/working/.pre-compact.last-run'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/.session-start-ts'
+  - '.context/working/session.yaml'
+  - '.tasks/active/T-2938-cron-drift-agentic-auditcrontab-differs-.md'
+  - '.tasks/active/T-2939-cronsubstrate-smoke-canary-declared-but-.md'
+  - '.tasks/active/T-2940-d2-57-tasks-have-waited-over-30-days-in-.md'
+  - '.tasks/active/T-2941-d8-handover-latestmd-ships-with-5-unfill.md'
+  - '.tasks/active/T-2942-d8b-10-of-10-recent-handovers-carry-unfi.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-09T20:03:35'
+    action: 'T-2941: arc-008 cycle 1 — full audit (368P/77W/5F) captured, census committed, 5 FAIL tasks created and scored'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 10 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 10
+  commits: 1
+  files_changed: 16
+  lines_added: 1120
+  lines_removed: 28
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2941-d8-handover-latestmd-ships-with-5-unfill.md
+generated_by: context-agent-hybrid
