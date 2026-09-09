@@ -214,3 +214,17 @@ printed cannot be followed literally at the moment it appears. Same class as T-2
 commit collides with the focus gate), which is already open. Recorded, not separately tasked:
 the mechanism is T-2723's, and the mandate's rule is one finding one task, not one symptom
 one task.
+
+### F-B reproduced live, and the net register effect of this cycle is negative
+Cycle 1 observed P-073 → T-2946 + T-2947. Cycle 3 observed P-076 → **T-2952 + T-2953**, again
+byte-identical, again suffixed `(from termlink)`. Two filings, two duplicates each: the 2x
+self-minting is reproducible, not a one-off, and the echo is asynchronous (it did not land
+inside the ~1 minute window measured around the P-074 post, but had landed by the next commit).
+
+Honest accounting for this cycle: **4 envelopes filed (P-074…P-077), 4 tasks closed, and on the
+observed 2x rate roughly 8 phantom tasks minted back.** The remediation work is therefore
+NET-NEGATIVE on the size of the task register — because of the very defect it filed. That is
+not an argument against filing; the filings are the deliverable and they reached the rail
+(offsets 117–120). It is the sharpest available statement of why T-2949/P-075 matters: the
+project's own health surfaces get worse in exact proportion to how conscientiously it reports
+defects upstream.
