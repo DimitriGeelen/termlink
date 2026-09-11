@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2962: Enrich handover S-2026-0911-2244
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-11T20:49:41Z
+# ============================================================================
+
+task_id: T-2962
+task_name: "Enrich handover S-2026-0911-2244"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-11T20:47:11Z
+completed: 2026-09-11T20:49:33Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-11T22:48:42+02:00
+last_commit: 2026-09-11T22:48:42+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  enrich handover S-2026-0911-2244
+
+# Key outcomes
+outcomes:
+  - 'All four generator-left `[TODO]` sections in `S-2026-0911-2244.md` are filled with session-specific content — Decisions Made, Things Tried That Failed, Open Questions / Blockers, Gotchas — and none of the four still contains the literal `[TODO`.'
+  - '`enrichment_status` is flipped from `pending` to `enriched` in the frontmatter, per the convention the file''s own header states.'
+  - 'The Suggested First Action footer no longer asserts that the sections above are unfilled. That sentence is generated unconditionally and becomes **false** the moment a session enriches the file — the same class of stale status claim this session spent its time on — so it is corrected to point at the real first action (the push blocker) rather than left to contradict the header two hundred lines above it.'
+  - '`LATEST.md` is updated to match, so the file the next session actually reads carries the enrichment rather than the stale copy.'
+  - 'The Open Questions section names the push blocker explicitly with its commit count and the fact that it needs a human credential, rather than leaving it implicit in the commit log.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/handovers/S-2026-0911-2244.md'
+  - '.tasks/active/T-2962-enrich-handover-s-2026-0911-2244.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-11T22:48:42'
+    action: 'T-2962: enrich handover S-2026-0911-2244'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-008]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 2
+  lines_added: 380
+  lines_removed: 6
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2962-enrich-handover-s-2026-0911-2244.md
+generated_by: context-agent-hybrid
