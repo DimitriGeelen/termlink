@@ -99,10 +99,63 @@ if [ -n "$TEST_NDJSON" ]; then
         exit 2
     }
 else
-    RAW="$(termlink channel subscribe "$TOPIC" --since "$SINCE_MS" --json 2>/dev/null)" || {
-        echo "framework-pickup canary: failed to read topic '$TOPIC' (hub down?)" >&2
-        exit 2
-    }
+    # T-2954: drain by CURSOR, paginated, with an EXPLICIT page bound.
+    #
+    # This call previously passed no --limit and so inherited the verb's default
+    # page size of 100. On a topic longer than one page that truncated the read
+    # silently: measured 2026-09-11, the canary reported max_offset=99 with
+    # ok:true while the topic head was 121, and own_count:0 showed the 22 newer
+    # filings were never seen rather than suppressed. It could not recover on its
+    # own -- the window stayed pinned to the first page for the life of the topic.
+    # A guard whose health signal is computed from its own truncated input is the
+    # G-063 miss this canary exists to prevent, reproduced inside the canary.
+    #
+    # The documented firing gate is "newer than last-acked", so the drain starts
+    # at SEEN+1 rather than re-reading history. WINDOW_DAYS / SINCE_MS are
+    # deliberately NOT the gate and are no longer passed: a time filter combined
+    # with an unstated page cap is precisely what made the truncation invisible.
+    PAGE_LIMIT=1000          # the verb's documented maximum
+    MAX_PAGES=200            # backstop: 200k envelopes, then fail CLOSED
+    cursor=$(( SEEN + 1 ))
+    [ "$cursor" -ge 0 ] || cursor=0
+    RAW=""
+    pages=0
+    while :; do
+        page="$(termlink channel subscribe "$TOPIC" --cursor "$cursor" --limit "$PAGE_LIMIT" --json 2>/dev/null)" || {
+            echo "framework-pickup canary: failed to read topic '$TOPIC' (hub down?)" >&2
+            exit 2
+        }
+        n="$(printf '%s' "$page" | grep -c '[^[:space:]]' || true)"
+        [ "$n" -gt 0 ] || break
+        RAW="${RAW}${page}
+"
+        pages=$(( pages + 1 ))
+        [ "$n" -ge "$PAGE_LIMIT" ] || break
+        if [ "$pages" -ge "$MAX_PAGES" ]; then
+            # Never report a provably partial read as a clean bill of health.
+            # "I could not look" and "I looked and found nothing" must not share
+            # an exit code (T-2810).
+            echo "framework-pickup canary: window still full after $MAX_PAGES pages of $PAGE_LIMIT -- refusing to report a truncated read as healthy" >&2
+            exit 2
+        fi
+        last="$(printf '%s' "$page" | python3 -c "
+import sys, json
+m = -1
+for line in sys.stdin:
+    line = line.strip()
+    if not line:
+        continue
+    try:
+        off = json.loads(line).get('offset')
+    except Exception:
+        continue
+    if off is not None and int(off) > m:
+        m = int(off)
+print(m)
+")"
+        [ "$last" -ge "$cursor" ] || break
+        cursor=$(( last + 1 ))
+    done
 fi
 
 # Parse + render via python. Emits the rendered report on stdout, and on a

@@ -179,6 +179,28 @@ else
     ok "embedded python block contains no double quote"
 fi
 
+# --- 11. the live drain is paginated and explicitly bounded (T-2954) ---------
+# STRUCTURAL, not behavioural, and deliberately labelled so. The FW_PICKUP_TEST_NDJSON
+# seam replaces the drain wholesale, so no fixture routed through it can exercise the
+# subscribe call at all -- feeding it a >100-line NDJSON would assert that the PARSER
+# handles a large input, which was never the defect and would be a green covering
+# something other than what it appears to cover (the T-2680 / T-2747 failure).
+#
+# The defect: the drain passed no --limit and inherited the verb's default page size
+# of 100, so on a topic longer than one page it reported max_offset=99 / ok:true while
+# the head was 121. What is pinned here is that the defect SHAPE cannot return -- the
+# call must carry an explicit --limit and advance a --cursor. Reverting either re-fires
+# this assertion.
+drain=$(sed -n '/^else$/,/^fi$/p' "$SCRIPT" | grep -n 'termlink channel subscribe' || true)
+if [ -z "$drain" ]; then
+    bad "live drain is paginated and explicitly bounded" "no subscribe call found in the drain block"
+elif printf '%s' "$drain" | grep -q -- '--limit' && printf '%s' "$drain" | grep -q -- '--cursor'; then
+    ok "live drain is paginated and explicitly bounded"
+else
+    bad "live drain is paginated and explicitly bounded" \
+        "subscribe call inherits the default page size -- a topic past one page truncates silently: $drain"
+fi
+
 echo
 echo "pickup-canary-selffilter-fixtures: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ] || exit 1
