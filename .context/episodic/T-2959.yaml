@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2959: fw git commit reports success while silently omitting unstaged task-file edits
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-11T20:41:46Z
+# ============================================================================
+
+task_id: T-2959
+task_name: "fw git commit reports success while silently omitting unstaged task-file edits"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-11T20:36:14Z
+completed: 2026-09-11T20:41:38Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-11T22:41:32+02:00
+last_commit: 2026-09-11T22:41:32+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fw git commit + fw task update compose into a silent-omission trap
+
+# Key outcomes
+outcomes:
+  - 'Reproduced from the live incident rather than a synthetic case: commit `3fd1159ef` is shown to contain the task-file rename with **zero** content lines, while the corrected body it was supposed to carry was still unstaged on disk — i.e. HEAD carried the superseded framing and the working tree carried the correction, with no error at any step.'
+  - 'The mechanism is named precisely, and distinguished from ordinary git semantics: `git commit` with nothing staged REFUSES, which is the safety property being relied on. Here `fw task update --status work-completed` has already staged a `git mv`, so the commit is non-empty and succeeds; the staged rename **masks** the omitted edits. The trap is the composition of the two verbs, not either alone.'
+  - 'Blast radius measured, not assumed, and the measurement is allowed to contradict the hypothesis: the last 400 task commits are scanned for the same shape (sole change = a `.tasks/` rename, 0 insertions / 0 deletions). **Result: 11 prior instances, and sampling shows they are the BENIGN ordering** — the task''s content was committed first and the rename committed after (T-2928 `76e573db5`→`83e27d06d`, T-2876 `175c8bbfb`→`db5869f01`, T-2833 `18c1b22b2`→`ff4222530`). No evidence of prior silent loss. T-2951 is the anomaly because the edits were made and the task closed with no intervening commit.'
+  - 'Filed upstream per G-062 with the measured evidence — `agents/git/git.sh` is vendored, so a local patch is erased by the next re-vendor (`.vendor-divergence.yaml` records ~one vendor event every two months).'
+  - 'Local prevention is either shipped or explicitly declined with a reason, and the reason survives contact with the measurement above. The cheap guard — "fire on a commit whose sole change is a `.tasks/` rename with 0 insertions" — is **declined**: the blast-radius scan proves it would fire on all 11 benign commits, making it permanently red, which is the exact alarm-fatigue failure T-2818 and T-2833 document from both directions. The precise check is a different one and is named in the upstream filing.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-2959-fw-git-commit-reports-success-while-sile.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-11T22:41:32'
+    action: 'T-2959: fw git commit + fw task update compose into a silent-omission trap'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-008]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 1
+  lines_added: 325
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2959-fw-git-commit-reports-success-while-sile.md
+generated_by: context-agent-hybrid
