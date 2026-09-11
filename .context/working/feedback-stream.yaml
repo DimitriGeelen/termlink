@@ -10386,3 +10386,39 @@ scan_id: R-7a8fcb6c
 task_id: T-2942
 payload:
   task_file: .tasks/active/T-2942-d8b-10-of-10-recent-handovers-carry-unfi.md
+---
+kind: scan_emitted
+timestamp: '2026-09-11T19:45:00Z'
+scan_id: R-d448152d
+task_id: T-2954
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-11T19:45:00Z'
+scan_id: R-d448152d
+task_id: T-2954
+payload:
+  task_file: .tasks/active/T-2954-framework-pickup-canary-is-blind-past-of.md
+---
+kind: scan_emitted
+timestamp: '2026-09-11T19:50:22Z'
+scan_id: R-94a172a8
+task_id: T-2955
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-11T19:50:22Z'
+scan_id: R-94a172a8
+task_id: T-2955
+payload:
+  task_file: .tasks/active/T-2955-rail-project-label-falls-back-to-basenam.md

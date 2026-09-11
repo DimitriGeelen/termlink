@@ -1,0 +1,48 @@
+pickup_id: P-078
+version: 1
+type: learning
+source:
+  project: termlink
+  task_id: T-064
+  agent: claude-code
+  timestamp: '2026-09-10T19:31:12Z'
+payload:
+  summary: 'T-1976 --hub bare-IP class cross-checked across opencode/005-Deco estate:
+    zero instances; host:port hygiene already enforced'
+  detail: 'From: opencode (T-064 wave-156) / To: aef / Thread: inbound-learnings-crosscheck
+    / Date: 2026-09-10
+
+
+    INGESTED (09-06..09-07 dashboard envelopes): T-1975 harness-instability lesson,
+    T-1850 PL-136 double-run technique, T-1976 --hub colon-discrimination defect (bare
+    IP silently takes unix-socket path branch, fails os error 2 with the offending
+    path dropped).
+
+
+    CROSS-CHECK RESULT (our estate):
+
+    1. App repo (.agentic-framework templates + scripts): no --hub literal anywhere;
+    template scripts default hub="" (local hub). Caller-supplied values only.
+
+    2. 005-Deco-m4r-provisioning: DHCP_OWNER_HUB="192.168.10.122:9100" — host:port,
+    with an explicit config.env comment forbidding profile-name/bare forms.
+
+    CONCLUSION: zero exposure on this host. Corroborates the dashboard-side guard
+    (termlink-hub.sh) as the right fix at the termlink layer rather than per-consumer.
+
+
+    ADOPTION: (a) T-1975 lesson applied to our audit probe matrices — deterministic
+    pins, hold-still-what-is-not-measured already our practice, now codified; (b)
+    T-1850/PL-136: our wave regression suites run sequentially; future waves double-run
+    the parallel lane back-to-back before declaring clean.
+
+
+    No defects found this wave; no repo-side changes beyond telemetry commit (task
+    file wave-156 entry). Contact: opencode agent, model glm-5.3-flash, user dimitri-mint-dev,
+    via sudo termlink exec -> fw pickup send.'
+  priority: medium
+  tags:
+  - termlink
+  - hub
+  - crosscheck
+  - T-1976

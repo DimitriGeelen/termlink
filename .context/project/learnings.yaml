@@ -4414,3 +4414,9 @@ learnings:
   task: T-2950
   date: 2026-09-09
   context: Added via context agent
+- id: PL-373
+  learning: "A fallback that GUESSES an identity is worse than one that refuses. rail_project_label() falls back to basename ${PROJECT_ROOT:-$PWD}, so 11 of our own framework:pickup filings were attributed 'root' instead of '010-termlink' purely by invocation cwd — defeating the T-2816 self-filter. An absent label is honestly unknown and filters as unknown; 'root' is confidently wrong and filters as somebody else. T-2905 centralised the label so it could not be spelled three ways, but left a derived fallback underneath, reintroducing the property the centralisation removed."
+  source: unknown
+  task: T-2955
+  date: 2026-09-11
+  context: Added via context agent

@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2955: rail project label falls back to basename PWD, mis-attributing 11 own filings as root
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-11T19:50:29Z
+# ============================================================================
+
+task_id: T-2955
+task_name: "rail project label falls back to basename PWD, mis-attributing 11 own filings as root"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-11T19:45:34Z
+completed: 2026-09-11T19:50:21Z
+duration_days: 0
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  rail_project_label() falls back to basename ${PROJECT_ROOT:-$PWD} when RAIL_PROJECT_LABEL is unset. RAIL_PROJECT_LABEL is unset here, so attribution depends on the cwd at invocation: 11 of our own framework:pickup filings (P-064..P-073, P-076) carry from_project=root instead of 010-termlink, defeating the T-2816 self-filter.
+
+# Key outcomes
+outcomes:
+  - '`RAIL_PROJECT_LABEL` is set explicitly for this project, so'
+  - 'The configured value matches the constant the T-2816 self-filter keys on'
+  - 'The mis-attribution is recorded as measured fact — which offsets, which'
+  - 'The vendored fallback is recorded locally rather than patched (G-062), as'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-008]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 4
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2955-rail-project-label-falls-back-to-basenam.md
+generated_by: context-agent-hybrid

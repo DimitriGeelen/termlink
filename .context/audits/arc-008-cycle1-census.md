@@ -255,3 +255,79 @@ The other four fails are unchanged and all sit outside agent authority: cron dri
 the uninstalled substrate-smoke canary (T-2939) need `sudo`; D2's 57-deep review queue (T-2940)
 is a sovereignty-boundary triage; D8b (T-2942) is now filed upstream and cannot be fixed here.
 Warnings improved 82 -> 80.
+
+---
+
+## Post-cycle-3 findings (2026-09-11) — discovered while closing T-2951
+
+These were found by asking why a genuine inbound filing (P-078, from `opencode`)
+sat unprocessed in `.context/pickup/auto-deferred/` while the canary that exists
+to surface exactly that reported healthy. They are recorded here because the
+census, not the task file, is the durable finding record.
+
+### F-G — the framework-pickup canary was blind past offset 99 (T-2954, CLOSED)
+
+`scripts/check-framework-pickup-freshness.sh:102` drained the topic with
+`termlink channel subscribe "$TOPIC" --since "$SINCE_MS" --json` and passed no
+`--limit`, so it inherited the verb's default page size of 100.
+
+Measured before the fix:
+
+    framework-pickup canary: healthy — all filings surfaced (acked up to offset 99)
+    {"ok": true, "seen_offset": 99, "max_offset": 99, "unprocessed": [], "own_count": 0}
+
+The live topic head was **121**. `max_offset: 99` was not the topic's maximum
+offset, it was the last envelope of the first page. `own_count: 0` proves the 22
+newer filings were never SEEN rather than suppressed by the T-2816 self-filter.
+This could not self-correct: the window was pinned to the first 100 envelopes for
+the life of the topic, so every future filing was invisible and the canary would
+report healthy forever.
+
+That is G-063 — the miss this canary was built to prevent — reproduced inside the
+canary, and strictly worse than the original: G-063 was "no consumer exists";
+this was "a consumer exists, runs daily, and affirms health while blind".
+
+After the fix (cursor-paginated drain, explicit `--limit`, fail-closed on an
+unexhausted window) the canary correctly FIRES with `max_offset: 121`,
+`unprocessed: 16`, `own_count: 6`.
+
+### F-H — 11 of our OWN filings are attributed `root` (T-2955)
+
+Visible only once F-G was fixed; nine of the eleven sit behind the old
+truncation. `lib/rail-identity.sh::rail_project_label()` falls back to
+`basename "${PROJECT_ROOT:-$PWD}"`, and `RAIL_PROJECT_LABEL` was unset here, so
+attribution depended on the cwd at invocation:
+
+    from_project: root           offsets 106-114, 116, 120   (P-064..P-073, P-076)
+    from_project: 010-termlink   offsets 103, 115, 117-119, 121
+
+Same project, same rail, two labels. The `root` half is indistinguishable from a
+peer's filing to the T-2816 self-filter, whose documented cost is that the `--ack`
+used to clear the resulting false fire also acks genuine inbound filings.
+
+### F-I — every filing is posted TWICE, by two paths, with different msg_type
+
+P-073 appears at offset 115 as `msg_type=note` / `010-termlink` AND at offset 116
+as `msg_type=pickup-bug-report` / `root`. P-076 likewise at 119 and 120.
+
+**This corrects P-075's diagnosis.** Cycle 3 reported that the processor mints two
+local tasks per envelope and inferred a non-idempotent minting path. The rail shows
+the true mechanism: we POST each filing twice. P-075's remedy (a self-filter on the
+minting path) would not have addressed it.
+
+It is also inconsistent: P-074, P-075 and P-077 exist ONLY in the `note` form. If
+upstream's consumer keys on the `pickup-*` msg_type, **the three filings cycle 3
+recorded as "filed upstream" may never be processed as filings at all** — so that
+claim is weaker than it was stated.
+
+### F-J — five genuine inbound peer filings never surfaced (T-2956)
+
+    off=100  bug-report  050-email-archive   P-EMAIL-ARCHIVE-001
+    off=101  bug-report  050-email-archive   P-EMAIL-ARCHIVE-002
+    off=102  bug-report  050-email-archive   P-EMAIL-ARCHIVE-003
+    off=104  defect      050-email-archive   (Pen) — T-2065
+    off=105  defect      050-email-archive   (Pen) — T-2065, follow-on to 104
+
+This is the actual cost of F-G, and the reason it is the most serious finding of
+the arc: a peer project filed bug reports into what was, in effect, a write-only
+sink, and nothing said so for as long as the topic has exceeded 100 envelopes.
