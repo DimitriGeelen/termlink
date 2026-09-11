@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2956: Five inbound 050-email-archive filings never surfaced while the pickup canary was blind
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-11T19:56:12Z
+# ============================================================================
+
+task_id: T-2956
+task_name: "Five inbound 050-email-archive filings never surfaced while the pickup canary was blind"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-11T19:48:44Z
+completed: 2026-09-11T19:56:05Z
+duration_days: 0
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Offsets 100-102 (P-EMAIL-ARCHIVE-001/002/003) and 104-105 (Pen defects re T-2065) are genuine inbound peer filings on framework:pickup that were invisible behind the T-2954 truncation. They need reading and triaging; this is the measured cost of the canary blindness.
+
+# Key outcomes
+outcomes:
+  - 'All five filings (offsets 100, 101, 102, 104, 105) are read in full and'
+  - 'Each filing has an explicit, stated disposition with its reason: a local'
+  - 'The dispositions are recorded durably in the arc-008 census, so a future'
+  - 'Nothing is acked or drained as a side effect of triage. The canary''s ack'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 7 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-008]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 7
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2956-five-inbound-050-email-archive-filings-n.md
+generated_by: context-agent-hybrid

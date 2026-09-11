@@ -1,8 +1,8 @@
 ---
-id: T-2956
-name: "Five inbound 050-email-archive filings never surfaced while the pickup canary was blind"
+id: T-2957
+name: "Seven PreToolUse gates are wired Write|Edit only, so Bash heredoc task edits bypass them"
 description: >
-  Offsets 100-102 (P-EMAIL-ARCHIVE-001/002/003) and 104-105 (Pen defects re T-2065) are genuine inbound peer filings on framework:pickup that were invisible behind the T-2954 truncation. They need reading and triaging; this is the measured cost of the canary blindness.
+  check-active-task matches Write|Edit|Bash but check-human-ac-tick, check-active-completed-dup, check-arc-id, check-heredoc-cmd-sub, check-inception-decisions, check-inception-schema and check-onboarding-gate match Write|Edit only. A task file rewritten from a Bash heredoc ticks Human ACs with no block and no Tier-2 log. Reported by 050-email-archive (P-EMAIL-ARCHIVE-001), verified live here.
 
 status: captured
 workflow_type: build
@@ -21,8 +21,8 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-11T19:48:44Z
-last_update: 2026-09-11T19:50:17Z
+created: 2026-09-11T19:53:26Z
+last_update: 2026-09-11T19:55:43Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -36,7 +36,7 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2956: Five inbound 050-email-archive filings never surfaced while the pickup canary was blind
+# T-2957: Seven PreToolUse gates are wired Write|Edit only, so Bash heredoc task edits bypass them
 
 ## Context
 
@@ -235,10 +235,10 @@ date_finished: null
 
 ## Updates
 
-### 2026-09-11T19:48:44Z — task-created [task-create-agent]
+### 2026-09-11T19:53:26Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2956-five-inbound-050-email-archive-filings-n.md
+- **Output:** /opt/termlink/.tasks/active/T-2957-seven-pretooluse-gates-are-wired-writeed.md
 - **Context:** Initial task creation
 
-### 2026-09-11T19:50:17Z — status-update [task-update-agent]
+### 2026-09-11T19:55:43Z — status-update [task-update-agent]
 - **Change:** tags: +arc:arc-008

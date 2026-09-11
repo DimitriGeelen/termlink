@@ -331,3 +331,38 @@ claim is weaker than it was stated.
 This is the actual cost of F-G, and the reason it is the most serious finding of
 the arc: a peer project filed bug reports into what was, in effect, a write-only
 sink, and nothing said so for as long as the topic has exceeded 100 envelopes.
+
+### F-J triage outcome (T-2956) — all five read, each with a stated disposition
+
+| offset | filing | verified here | disposition |
+|---|---|---|---|
+| 100 | `check-human-ac-tick` wired `Write\|Edit` only, not Bash | **LIVE** — 7 gates are `Write\|Edit`, only `check-active-task` is `Write\|Edit\|Bash` | local task **T-2957** |
+| 101 | orchestrator-mcp-scan guaranteed FAIL in a vendored consumer | script present; failure not reproduced | no task this cycle, reason stated |
+| 102 | `fw pickup send` without `--remote` writes to the SENDER's own inbox | — | **root cause of F-B / F-I / T-2951; corrects P-075** |
+| 104 | `fw fabric drift` SIGPIPE false-unregistered (L-387) | **already fixed here**, attributed T-2518 | no task; reply owed |
+| 105 | `fw task review` hardcodes `go` in the decision command | **LIVE** — `lib/review.sh:380` | local task **T-2958** |
+
+**Offset 102 is the most consequential thing found in this arc.** A peer diagnosed
+it on 2026-09-07. Over cycles 2 and 3 this project independently observed the
+symptoms, reached a DIFFERENT and WRONG diagnosis (P-075 blamed the minting path
+for lacking a self-filter), and filed that wrong fix upstream. The envelopes were
+never sent anywhere — `fw pickup send` without `--remote` writes to our own inbox,
+which `fw pickup process` then ingests as inbound work. That is the whole of the
+"mints tasks from own filings", "each filing appears twice", and "outbound filings
+stranded in auto-deferred" cluster, in one line of `lib/pickup.sh`.
+
+The correct diagnosis was sitting on the rail, four days old, behind the offset-99
+truncation, for the entire time we were deriving the wrong one.
+
+This is the T-2801 P-043 precedent recurring — *the same bug solved twice while its
+sibling stayed open* — with an added cost P-043 did not have: the second solver
+published an incorrect fix. It is also why F-G (the blind canary) is the highest-value
+finding of the arc rather than merely an embarrassing one: the cost of a blind guard
+is not the class it fails to catch, it is everything downstream that is then
+reasoned about without the evidence.
+
+**Net correction to the cycle-3 report.** Cycle 3 recorded four filings as "filed
+upstream at offsets 117-120". Given F-I, three of those exist only as `msg_type=note`
+and may never be processed as filings; and P-075's content is now known to be a wrong
+diagnosis. A correction is owed — deliberately NOT sent yet, because sending it
+through the same path that is under suspicion would establish nothing.

@@ -10422,3 +10422,21 @@ scan_id: R-94a172a8
 task_id: T-2955
 payload:
   task_file: .tasks/active/T-2955-rail-project-label-falls-back-to-basenam.md
+---
+kind: scan_emitted
+timestamp: '2026-09-11T19:56:06Z'
+scan_id: R-95a016e5
+task_id: T-2956
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-11T19:56:06Z'
+scan_id: R-95a016e5
+task_id: T-2956
+payload:
+  task_file: .tasks/active/T-2956-five-inbound-050-email-archive-filings-n.md
