@@ -1,0 +1,107 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2951: Outbound upstream filings are stranded in the pickup auto-deferred queue
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-11T20:34:30Z
+# ============================================================================
+
+task_id: T-2951
+task_name: "Outbound upstream filings are stranded in the pickup auto-deferred queue"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-09-09T23:03:31Z
+completed: 2026-09-11T20:34:21Z
+duration_days: 2
+updates_count: 3
+first_commit: 2026-09-10T01:09:52+02:00
+last_commit: 2026-09-11T21:58:59+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  arc-008 cycle 3 — T-2942 closed (D8b fires on T-2882's deliberate markers, a LOCAL divergence); P-076 offset 119 + P-077 correction filed; T-2951 scoped. record live reproduction of the self-minting echo (P-076 -> T-2952+T-2953) and this cycle's net-negative register effect. cycle-3 verification re-run — 370P/80W/5F; D8 regressed to FAIL, disproving cycle 1's hand-fill remediation and confirming the T-2882 mechanism. enrich handover S-2026-0911-2156 — decisions, dead ends, blockers and gotchas filled; records the push auth failure and the two owed corrections
+
+# Key outcomes
+outcomes:
+  - 'Reproduced and measured: the envelopes this project filed in arc-008 cycle 3 sit in `.context/pickup/auto-deferred/` with no `.breadcrumb.yaml`, and `scripts/check-pickup-deferred-freshness.sh` exits **1** naming them STRANDED — "not waiting, lost", un-promotable by `fw pickup promote-deferred` because no breadcrumb names a blocking task.'
+  - 'Delivery is distinguished from bookkeeping, and the distinction is measured rather than assumed: the upstream filings SUCCEEDED and are readable on the hub at `framework:pickup` offsets 117 (P-074), 118 (P-075), 119 (P-076), sender `d1993c2c3ec4`, `from_project: 010-termlink`. Only the LOCAL envelope record is stranded. This also settles finding F-I in the negative — filings posted via `termlink channel post` **do** reach upstream; it is `fw pickup send` that never delivered anything, because without `--remote` it only ever wrote to the local inbox.'
+  - 'Root cause named at the correct layer and the task''s own prior diagnosis retracted: `fw pickup send` writes outbound envelopes into the INBOUND inbox, so T-2949 (minted back as local work) and this task (stranded in the deferred queue) are **one** defect at two stages, not two linked defects. The superseded "routing vs minting, fixing either leaves the other live" framing is struck from this task and stated as struck.'
+  - 'The correction to P-075 is filed upstream via the delivery path proven to work in AC 2 (`termlink channel post framework:pickup`), naming the wrong layer in the original proposal, citing the peer''s offset-102 diagnosis as prior and correct, and crediting it rather than re-claiming it.'
+  - 'Local hygiene resolved by an explicit, recorded decision rather than a silent drain, per T-2801''s "detects and never drains": the envelopes are retained and the reason is stated below.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-09-11 — the four stranded envelopes are retained, not drained'
+    chose: 'Leave all four envelopes in `.context/pickup/auto-deferred/`. The checker keeps firing (exit 1) until the vendored write-location defect is fixed upstream.'
+    rationale: 'T-2801 states the rule for this exact queue — the checker "detects and never drains", because converting a visible backlog into an invisible one is the failure, not the remedy. Deleting these would return the checker to green while the defect that created them is untouched, and would also destroy P-078, which is a genuine inbound peer filing, not one of our outbound records. A firing checker here is correct: it is reporting a real, unfixed, upstream-owned defect.'
+    alternatives_rejected: ['(a) Delete the three outbound records and keep P-078 — tidier, but it silences the only local evidence of the defect while the upstream fix is pending, and the evidence is what makes the filing at offset 122 checkable by anyone who reads it. (b) Write breadcrumbs naming a blocking task so `promote-deferred` could move them — this fabricates a blocker that does not exist and would make un-promotable records look merely deferred, which is precisely the ambiguity T-2801 exists to prevent. (c) Patch `lib/pickup.sh` locally — refused under G-062; the next re-vendor erases it, and `.vendor-divergence.yaml` shows this lineage re-vendors roughly every two months.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/2026-09-10.yaml'
+  - '.context/audits/arc-008-cycle1-census.md'
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/episodic/T-2942.yaml'
+  - '.context/handovers/S-2026-0911-2156.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0911-2156.md'
+  - '.context/pickup/auto-deferred/P-077-bug-report.yaml'
+  - '.context/pickup/.bridge-posted/782f0d01b028ba116a95e5c8242d5f44b1ef4cdeb925542e5f83ec27f7640e10'
+  - '.context/pickup/dedup.log'
+  - '.context/pickup/processed/P-076-bug-report.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/feedback-stream.yaml'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.pickup-bridge.log'
+  - '.context/working/session.yaml'
+  - '.tasks/active/T-2951-outbound-upstream-filings-are-stranded-i.md'
+  - '.tasks/active/T-2952-pickup-audit-d8d8b-count-the-handover-ge.md'
+  - '.tasks/active/T-2953-pickup-audit-d8d8b-count-the-handover-ge.md'
+  - '.tasks/completed/T-2942-d8b-10-of-10-recent-handovers-carry-unfi.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-10T01:09:52'
+    action: 'T-2951: arc-008 cycle 3 — T-2942 closed (D8b fires on T-2882''s deliberate markers, a LOCAL divergence); P-076 offset 119 + P-077 correction filed; T-2951 scoped'
+  - time: '2026-09-10T01:10:25'
+    action: 'T-2951: record live reproduction of the self-minting echo (P-076 -> T-2952+T-2953) and this cycle''s net-negative register effect'
+  - time: '2026-09-10T01:14:34'
+    action: 'T-2951: cycle-3 verification re-run — 370P/80W/5F; D8 regressed to FAIL, disproving cycle 1''s hand-fill remediation and confirming the T-2882 mechanism'
+  - time: '2026-09-11T21:58:59'
+    action: 'T-2951: enrich handover S-2026-0911-2156 — decisions, dead ends, blockers and gotchas filled; records the push auth failure and the two owed corrections'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 2730 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-008]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 2730
+  commits: 4
+  files_changed: 21
+  lines_added: 2003
+  lines_removed: 57
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2951-outbound-upstream-filings-are-stranded-i.md
+generated_by: context-agent-hybrid

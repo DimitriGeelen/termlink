@@ -1141,3 +1141,10 @@ decisions:
   date: 2026-09-08
   task: T-2850
   rationale: "Auto-captured from task file on completion"
+
+  - id: PD-001
+    decision: "Leave all four envelopes in `.context/pickup/auto-deferred/`. The"
+    scope: project
+    date: 2026-09-11
+    task: T-2951
+    rationale: "Auto-captured from task file on completion"

@@ -13,10 +13,10 @@ description: >
   inbound item. Linked, not merged: T-2949 concerns minting, this concerns routing,
   and a fix to either leaves the other live. arc-008 cycle 3 finding F-F.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-008]
 components: []
 related_tasks: []
@@ -31,8 +31,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-09T23:03:31Z
-last_update: 2026-09-09T23:14:34Z
-date_finished:
+last_update: 2026-09-11T20:34:21Z
+date_finished: 2026-09-11T20:34:21Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -73,17 +73,35 @@ cost_estimate_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+`fw pickup send` has no outbound store. It writes every envelope it creates to
+`$PICKUP_INBOX` (`lib/pickup.sh:643` — `local filepath="$PICKUP_INBOX/$filename"`),
+which is the same directory `fw pickup process` scans for INBOUND work. `--remote`
+appends a `termlink remote push` delivery step but does not change where the local
+record lands. So a project's own outbound filing is indistinguishable, **by location**,
+from a peer's inbound filing, and the processor ingests it as work to be done.
+
+This task was opened (arc-008 cycle 3, finding F-F) on the theory that the strand was
+a **routing** defect distinct from T-2949's **minting** defect. That framing is wrong,
+and this rewrite supersedes it. Both are the one missing outbound/inbound distinction
+at write time, observed at two stages of the same pipeline. The correction is owed
+upstream because P-075 published the wrong diagnosis — it proposed a self-**filter** on
+the minting path, which is the wrong layer: the envelope should never have been in the
+inbox for a filter to have to exclude.
+
+Diagnosed correctly by a peer (`050-email-archive`) and filed here at `framework:pickup`
+offset 102 on 2026-09-07. It sat unread for four days behind the blind-canary truncation
+fixed in T-2954, during which this project independently derived — and published — a
+wrong diagnosis of the same defect.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Reproduced and measured: every envelope this project posted in arc-008 cycle 3 (P-074…P-077) landed in `.context/pickup/auto-deferred/` with no `.breadcrumb.yaml`, and `scripts/check-pickup-deferred-freshness.sh` exits **1** naming each as STRANDED — "not waiting, lost", un-promotable by `fw pickup promote-deferred` because no breadcrumb names a blocking task.
-- [ ] Delivery is distinguished from bookkeeping, and the distinction is stated wherever the finding is reported: the upstream posts SUCCEEDED (`framework:pickup` offsets 117–120, `status: delivered-unconfirmed`). Only the LOCAL envelope record is stranded. The filings themselves are not at risk; the audit trail of them is.
-- [ ] Root cause named and linked to T-2949 (filed as P-075) without merging: the pickup pipeline has no direction- or self-awareness, so a project's own filing is BOTH minted back as local work (T-2949) AND filed into the inbound deferred queue as an unpromotable item (this task). Fixing either leaves the other live, which is why they are separate records.
-- [ ] Filed upstream per G-062 as a distinct defect from P-075 — routing, not minting — with the measured evidence and the proposal that outbound filing records not be routed into the inbound promotion queue at all.
-- [ ] Local hygiene resolved by an explicit, recorded decision rather than a silent drain: these envelopes are outbound records of already-delivered posts, so the choice to retain or remove them is stated with its reason. T-2801 is explicit that the checker "detects and never drains" precisely so a visible backlog is not quietly converted into an invisible one.
+- [x] Reproduced and measured: the envelopes this project filed in arc-008 cycle 3 sit in `.context/pickup/auto-deferred/` with no `.breadcrumb.yaml`, and `scripts/check-pickup-deferred-freshness.sh` exits **1** naming them STRANDED — "not waiting, lost", un-promotable by `fw pickup promote-deferred` because no breadcrumb names a blocking task.
+- [x] Delivery is distinguished from bookkeeping, and the distinction is measured rather than assumed: the upstream filings SUCCEEDED and are readable on the hub at `framework:pickup` offsets 117 (P-074), 118 (P-075), 119 (P-076), sender `d1993c2c3ec4`, `from_project: 010-termlink`. Only the LOCAL envelope record is stranded. This also settles finding F-I in the negative — filings posted via `termlink channel post` **do** reach upstream; it is `fw pickup send` that never delivered anything, because without `--remote` it only ever wrote to the local inbox.
+- [x] Root cause named at the correct layer and the task's own prior diagnosis retracted: `fw pickup send` writes outbound envelopes into the INBOUND inbox, so T-2949 (minted back as local work) and this task (stranded in the deferred queue) are **one** defect at two stages, not two linked defects. The superseded "routing vs minting, fixing either leaves the other live" framing is struck from this task and stated as struck.
+- [x] The correction to P-075 is filed upstream via the delivery path proven to work in AC 2 (`termlink channel post framework:pickup`), naming the wrong layer in the original proposal, citing the peer's offset-102 diagnosis as prior and correct, and crediting it rather than re-claiming it.
+- [x] Local hygiene resolved by an explicit, recorded decision rather than a silent drain, per T-2801's "detects and never drains": the envelopes are retained and the reason is stated below.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -178,6 +196,19 @@ cost_estimate_proposed:
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+#
+# AC1 — the checker still FIRES (exit 1). Asserted with `!` on purpose: the
+# envelopes are deliberately retained (see Decisions), so a green checker here
+# would mean they had been drained, which is the outcome T-2801 forbids.
+! bash scripts/check-pickup-deferred-freshness.sh > /tmp/.t2951-strand.out 2>&1
+grep -q "STRANDED: P-075-bug-report.yaml" /tmp/.t2951-strand.out
+# AC3 — the root cause is at the write location, in vendored code, unpatched.
+grep -qF "local filepath=\"\$PICKUP_INBOX/\$filename\"" .agentic-framework/lib/pickup.sh
+# AC2/AC4 — the correction is readable on the hub and threaded to P-075 (118).
+termlink channel subscribe framework:pickup --cursor 122 --limit 1 --json > /tmp/.t2951-hub.json 2>&1
+python3 -c 'import json,base64,sys; d=json.loads(open("/tmp/.t2951-hub.json").read().strip().splitlines()[0]); open("/tmp/.t2951-body.txt","wb").write(base64.b64decode(d["payload_b64"])); sys.exit(0 if str(d["metadata"]["in_reply_to"])=="118" else 1)'
+grep -q "CORRECTION to P-075" /tmp/.t2951-body.txt
+grep -q "050-email-archive" /tmp/.t2951-body.txt
 
 ## RCA
 
@@ -194,6 +225,44 @@ cost_estimate_proposed:
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
+
+**Symptom:** Envelopes this project filed upstream also appear in
+`.context/pickup/auto-deferred/` with no breadcrumb, where
+`check-pickup-deferred-freshness.sh` reports them STRANDED and
+`fw pickup promote-deferred` can never promote them. Separately, the processor
+mints local tasks from those same filings (T-2949).
+
+**Root cause:** `fw pickup send` has no outbound store. `lib/pickup.sh:643`
+writes every envelope it creates to `$PICKUP_INBOX` — the directory
+`fw pickup process` scans for INBOUND work. `--remote` adds a delivery step but
+does not change where the local record lands, so direction is not carried by
+location and an own filing is indistinguishable from a peer's.
+
+**Why structurally allowed:** three failures compounded, and the third is the
+one that cost most.
+
+1. A `send` without `--remote` prints `Created` and exits 0 while having
+   delivered nothing. Success and no-op are reported identically (Directive #2).
+2. The local record and the upstream post are separate mechanisms that were
+   conflated, so "the filing is stranded" and "the filing did not arrive" were
+   treated as the same claim. Measurement separated them: offsets 117–119 are
+   on the hub; only the local copy is stranded.
+3. The correct diagnosis was filed here by `050-email-archive` at offset 102 on
+   2026-09-07 and sat unread for four days, because the framework-pickup canary
+   passed no `--limit` to `channel subscribe`, inherited the default 100-envelope
+   page, and reported the topic healthy while blind past offset 99. A guard
+   reporting green over a partial scope is read as green over the whole (T-2680).
+   In that window this project derived and **published** a wrong diagnosis
+   (P-075) of a defect a peer had already solved correctly.
+
+**Prevention:** T-2954 made the canary's drain cursor-paginated, explicitly
+bounded, and fail-closed on an unexhausted window, with a structural fixture pin
+(`tests/pickup-canary-selffilter-fixtures.sh` assertion 11) that the live drain
+carries both `--cursor` and `--limit`. T-2955 set `RAIL_PROJECT_LABEL` explicitly
+so attribution is no longer derived from invocation cwd. The write-location
+defect itself is vendored (`lib/pickup.sh`) and is filed upstream per G-062 at
+offset 122, threaded to P-075, rather than patched locally where a re-vendor
+would erase it.
 
 ## Evolution
 
@@ -218,6 +287,28 @@ cost_estimate_proposed:
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-09-11 — the task's own diagnosis was wrong, and the correction was already on the rail
+
+- **What changed:** This task was filed as a **routing** defect, explicitly
+  distinct from T-2949's **minting** defect, with the reasoning recorded in its
+  AC 3 that "fixing either leaves the other live". That is false. Reading
+  `lib/pickup.sh:643` shows one cause — `fw pickup send` writes outbound
+  envelopes into the inbound inbox — observed at two stages of one pipeline.
+  The peer diagnosis at offset 102 (2026-09-07) had this right four days before
+  we read it.
+- **Plan impact:** AC 3 and AC 4 inverted. AC 3 no longer asserts two linked
+  defects; it requires the prior framing to be struck and stated as struck.
+  AC 4 no longer files a "distinct defect from P-075"; it files a **retraction**
+  of P-075, crediting the peer rather than re-claiming the finding. AC 2 gained
+  a measurement requirement, which is what settled F-I: the upstream posts are
+  readable at 117–119, so filings do reach upstream — it was `fw pickup send`
+  that never delivered, not the rail.
+- **Triggered:** Correction filed upstream at `framework:pickup` offset 122,
+  threaded `--reply-to 118`. No new sub-task: the fix is vendored and belongs
+  upstream (G-062). One loose end deliberately not folded in — P-078 is a
+  genuine **inbound** peer filing sitting stranded in the same queue, and its
+  disposition is its own record, not a line in this task's ACs.
 
 ## Recommendation
 
@@ -259,6 +350,29 @@ cost_estimate_proposed:
      - **Rejected:** [alternatives and why not]
 -->
 
+### 2026-09-11 — the four stranded envelopes are retained, not drained
+
+- **Chose:** Leave all four envelopes in `.context/pickup/auto-deferred/`. The
+  checker keeps firing (exit 1) until the vendored write-location defect is
+  fixed upstream.
+- **Why:** T-2801 states the rule for this exact queue — the checker "detects
+  and never drains", because converting a visible backlog into an invisible one
+  is the failure, not the remedy. Deleting these would return the checker to
+  green while the defect that created them is untouched, and would also destroy
+  P-078, which is a genuine inbound peer filing, not one of our outbound
+  records. A firing checker here is correct: it is reporting a real, unfixed,
+  upstream-owned defect.
+- **Rejected:** (a) Delete the three outbound records and keep P-078 — tidier,
+  but it silences the only local evidence of the defect while the upstream fix
+  is pending, and the evidence is what makes the filing at offset 122
+  checkable by anyone who reads it. (b) Write breadcrumbs naming a blocking
+  task so `promote-deferred` could move them — this fabricates a blocker that
+  does not exist and would make un-promotable records look merely deferred,
+  which is precisely the ambiguity T-2801 exists to prevent. (c) Patch
+  `lib/pickup.sh` locally — refused under G-062; the next re-vendor erases it,
+  and `.vendor-divergence.yaml` shows this lineage re-vendors roughly every two
+  months.
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
@@ -281,3 +395,15 @@ cost_estimate_proposed:
 
 ### 2026-09-09T23:08:53Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-16c2264d
+- **Timestamp:** 2026-09-11T20:34:23Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-09-11T20:34:21Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
