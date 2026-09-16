@@ -1,0 +1,91 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2964: Disposition the two pre-September pickup re-mints T-2222 and T-2232
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-16T16:17:01Z
+# ============================================================================
+
+task_id: T-2964
+task_name: "Disposition the two pre-September pickup re-mints T-2222 and T-2232"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-09-16T16:10:39Z
+completed: 2026-09-16T16:16:53Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-16T18:16:49+02:00
+last_commit: 2026-09-16T18:16:49+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  close T-2222 (finding disproved) and T-2232 (fix landed upstream) — self-minted residual now zero
+
+# Key outcomes
+outcomes:
+  - '**T-2222 is closed on disproof, not on age.** Its finding (BVP estimator corrupts anchor-less frontmatter) was re-measured under T-2809 on 2026-08-20 — 25 anchor-less old-format tasks, `estimate all` + `cost-all`, including the forced no-`ruamel` branch — with 0 errors and 0 malformed frontmatter. It does not reproduce. Its origin task **T-2203 is still `started-work`**, so this is explicitly NOT the "duplicate of completed work" disposition used for the September cluster, and that difference is stated on the task rather than glossed.'
+  - '**T-2232 is closed on a verified fix, read from the code.** `.agentic-framework/agents/task-create/update-task.sh:668` carries `sys.argv[3] ... else os.environ.get("FRAMEWORK_ROOT","")`, so the reported `__file__ is "-"` under `python3 -` cannot occur. Cross-checked against `.vendor-divergence.yaml` (T-2304, `landed-upstream`). Verified by reading the invocation, not by trusting the register.'
+  - 'Both closed through `fw task update` with the gates armed — no `--skip-*`, no `--force`, not deleted — each carrying its own Context, AC and RCA naming the evidence.'
+  - 'The self-minted residual is driven to **zero** and the sweep scope is stated (T-2680): after these two, no task in `.tasks/active/` carries `source_project_in_origin: "termlink"` **as a frontmatter field**. The claim is about that field in that directory — it says nothing about re-mints already in `completed/`, or about envelopes not yet processed.'
+  - 'The residual predicate is **anchored to start-of-line**, and the reason is recorded rather than silently fixed: the unanchored form returned 1, matching *this task''s own AC text quoting the field name*. A task that describes the marker is not a task that carries it — the identical deliberate-mention-counted-as-real defect as T-2882 (handover `[TODO]`) and T-2962 (its own first-draft check), now caught a third time in this lineage by the check that was meant to prove the sweep clean.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'close T-2222 (finding disproved) and T-2232 (fix landed upstream) — self-minted residual now zero'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-09-16 — two closures, two different reasons, stated separately'
+    chose: 'close T-2222 on *disproof of the finding* and T-2232 on *a fix verified in the tree*, rather than closing both under one "stale pickup re-mint" heading.'
+    rationale: 'they are not the same disposition. T-2222''s origin task is still `started-work`, so "duplicate of completed work" would be false for it; T-2232''s finding is genuinely fixed, which is stronger than duplication. Collapsing both into one reason would put an untrue sentence in the register to save a paragraph.'
+    alternatives_rejected: ['a single bulk close with a shared reason; leaving them open pending the origin tasks (T-2203 may never close, and the finding is already disproved).']
+  - decision: '2026-09-16 — anchoring the residual predicate instead of quietly fixing it'
+    chose: 'keep both forms in the Verification block, with a comment naming why the unanchored one returns 1.'
+    rationale: 'the false positive *is* the finding — a task that quotes a marker is not a task that carries it. That is the T-2882 defect, and this is its third instance in this lineage (handover `[TODO]`, T-2962''s own first-draft check, now this). Silently adding a `^` would have hidden the one durable lesson in a one-character diff.'
+    alternatives_rejected: ['replacing the predicate and saying nothing; excluding T-2964 by name (fixes this instance and leaves the class live for the next task that quotes a field).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/episodic/T-2222.yaml'
+  - '.context/episodic/T-2232.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.tasks/active/T-2964-disposition-the-two-pre-september-pickup.md'
+  - '.tasks/completed/T-2222-pickup-bvp-estimator-corrupts-anchor-les.md'
+  - '.tasks/completed/T-2232-pickup-update-tasksh-ships-reachable-gat.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-16T18:16:49'
+    action: 'T-2964: close T-2222 (finding disproved) and T-2232 (fix landed upstream) — self-minted residual now zero'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [pickup, dedup]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 6
+  commits: 1
+  files_changed: 5
+  lines_added: 336
+  lines_removed: 31
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2964-disposition-the-two-pre-september-pickup.md
+generated_by: context-agent-hybrid

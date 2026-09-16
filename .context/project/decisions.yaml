@@ -1169,3 +1169,17 @@ decisions:
     date: 2026-09-16
     task: T-2953
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-005
+    decision: "close T-2222 on *disproof of the finding* and T-2232 on *a fix verified in"
+    scope: project
+    date: 2026-09-16
+    task: T-2964
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-006
+    decision: "keep both forms in the Verification block, with a comment naming why the"
+    scope: project
+    date: 2026-09-16
+    task: T-2964
+    rationale: "Auto-captured from task file on completion"
