@@ -279,3 +279,116 @@ fleet hub**, which bears on any reasoning about presence-based features.
 - Phase 2 inventory — **not started** (blocked on IW-1 scope)
 - NON-USE DIAGNOSIS per item — **not started** (blocked on IW-3; reading D is
   currently unfalsifiable for most items)
+
+---
+
+## 10. Orphan / reference sweep (delegated GATHERER, returned)
+
+### 10a. The orphan definition had to change mid-sweep
+
+`run-guard-layer.sh` enrols members by **glob + header marker**, not by name. A script
+carrying `# guard-layer: source` is auto-enrolled with **zero name references anywhere**.
+**47** scripts carry the marker. So "referenced by nothing" is *not* the same as
+"run by nothing", and counting references alone would have produced false orphans.
+
+| Metric | Count |
+|---|---|
+| `scripts/*.sh` tracked | **192** (of 207 tracked files in `scripts/`) |
+| Zero refs anywhere (cron, workflows, .claude, CLAUDE.md, docs, tests, scripts) | **8** |
+| No reference from any **live runner** | **88** |
+| …of those, **also no** guard-layer marker → true orphans | **75** |
+| Referenced only by a sibling script | 3 |
+
+Of the 8 zero-reference scripts, **6 carry the marker** and are therefore live via glob.
+Only 2 are genuinely unreferenced *and* unmarked: `fabric-register-workflow.sh`,
+`fw-upgrade-safe.sh`.
+
+The 75 true orphans skew heavily to demo/bench/field material:
+`demo-*.sh` (~10), `test-agent-*.sh` (11), `substrate-*-demo.sh` (7), `bench-pushwake-*.sh` (2),
+`journal-*.sh`, `field-*.sh`, `commit-t908-batch.sh`, `dispatch-t909-risk-eval.sh`,
+`deploy-remote.sh`, `lint-doc-*.sh`, `worktree-bootstrap.sh`, `update-homebrew-sha.sh`.
+
+NOT ESTABLISHED (required before any DELETE reasoning): whether each orphan is
+reading **E (not wanted)** or reading **B (never wired)** / **C (undiscoverable)**.
+Demo and bench scripts in particular may be intentionally hand-run, which is
+reading D (UNMEASURED), not disuse. No verdicts drawn.
+
+Also recorded: unmarked `scripts/test-*.sh` **are** enumerated by the runner's glob but
+reported `SKIP(unclassified)` — enumerated, not executed.
+
+### 10b. Docs
+
+389 tracked docs; **309 under `docs/reports/`** (per-task research artifacts, expected
+to be numerous by convention); 81 non-report docs.
+
+- **11** docs have zero references anywhere — *all* under `docs/reports/`.
+- **20** have no live-index reference — again all under `docs/reports/`.
+- **0 of the 81 non-report docs are unreferenced.** The curated doc set is fully wired.
+
+### 10c. CLAUDE.md — the re-vendor split, measured
+
+| Fact | Value |
+|---|---|
+| Total lines | **3,283** |
+| `## Core Principle` at line | **2,461** |
+| Lines ABOVE (project-owned, survives `fw upgrade`) | **2,460 (74.9%)** |
+| Lines BELOW (framework-managed, **replaced** by `fw upgrade`) | **822 (25.1%)** |
+| `###` subsections above the split | **48** |
+
+CLAUDE.md §T-2015 warns that `fw upgrade` replaces everything from `## Core Principle`
+to EOF and that the boundary is **positional and unmarked**. Measured 2026-08-20 the
+file was 2,493 lines with the split at 1,650 (844 lines in the destroyed half). It is
+now **3,283 lines with 822 below** — the file grew ~790 lines and the project-owned
+half grew from ~1,650 to 2,460.
+
+### 10d. Test density per crate
+
+| Crate | Tests | Rust LOC | LOC/test |
+|---|---|---|---|
+| termlink-cli | 1,324 | 72,790 | 55.0 |
+| termlink-mcp | 1,049 | 50,828 | 48.5 |
+| termlink-session | 510 | 23,838 | 46.7 |
+| **termlink-hub** | **426** | 24,550 | **57.6** |
+| termlink-bus | 109 | 5,240 | 48.1 |
+| termlink-protocol | 106 | 3,093 | 29.2 |
+| termlink-test-utils | 5 | 347 | 69.4 |
+| **Total** | **3,529** | 180,686 | 51.2 |
+
+Density is strikingly uniform (46–58 LOC/test outside the helper crate). `termlink-hub`
+is thinnest of the real crates, `termlink-protocol` densest.
+
+Shell suites: 83 `tests/*.sh`, 62 fixture suites. A claimed-assertion total is
+**UNVERIFIED** — fixtures accumulate via `PASS=$((PASS+1))` rather than declaring a
+static count, so the number is only knowable by execution. Static proxy: 910 assertion-
+shaped lines. Recorded as UNVERIFIED rather than estimated.
+
+### 10e. Near-duplicate script groups (reported, not judged)
+
+| Group | Members |
+|---|---|
+| `*-freshness.sh` | **21** (17 impl + 4 `test-` twins) |
+| `test-agent-*.sh` | 11 |
+| `*selftest*.sh` | 7 (4 impl + 3 twins) |
+| `check-task-*.sh` / `check-fleet-*.sh` / `test-check-*.sh` | 4 each |
+| `check-verification-*` / `check-canary-*` / `check-error-*` / `test-pushwaker-*` / `demo-ws-*` / `agent-conversation-*` | 3 each |
+
+The dominant pattern is an implementation script plus a same-named `test-` twin, which
+accounts for much of the group size. That is a deliberate convention, not duplication —
+recorded so the raw group counts are not misread.
+
+---
+
+## 11. Observed discrepancy: guard-layer runtime
+
+CLAUDE.md documents the runner as: *"all static checks + fixture suites (**seconds**)"*.
+
+Observed this session: **>20 minutes and still executing** at time of writing, across two
+separate invocations. `GUARD_LAYER_TIMEOUT` defaults to 300s **per member**, and the layer
+had 113 members at last count, so a small number of hanging members can dominate wall time.
+
+NOT ESTABLISHED: which members are slow, and whether any are hanging to the timeout (which
+the runner counts as ERROR, never PASS). This matters beyond convenience — a guard layer
+that takes 20+ minutes is one that will not be run casually, and CI wires it into every
+push and PR. Resolving it needs per-member timings.
+
+**Consequence for this review:** the guard-layer baseline row in §0 remains PENDING.
