@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2967: Restore OneDev push via ring20-manager credential service
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-16T19:48:40Z
+# ============================================================================
+
+task_id: T-2967
+task_name: "Restore OneDev push via ring20-manager credential service"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-16T18:45:32Z
+completed: 2026-09-16T19:48:32Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  git push origin main has failed across four sessions (Authentication required, now 403) leaving 25 commits local-only. The operator directs that credentials are handled by the ring20-manager service rather than locally. Contact that peer over the TermLink rail, obtain or have applied the OneDev credential, and confirm the push lands.
+
+# Key outcomes
+outcomes:
+  - '**The failure is characterised before asking anyone for anything.** The remote URL, the auth method actually in use, and the exact server response are recorded. `Authentication required` and `403` are different failures — the first is "no credential offered", the second is "credential offered and refused" — and asking the credential service to fix the wrong one wastes a round trip on a peer.'
+  - '**Ring20 Manager is contacted over the TermLink rail, with the request stated in terms it can act on.** The peer is located via presence (`agent-listeners-fleet`), its LIVE/armed state recorded, and a DM sent naming the repo, the remote, the observed error, and precisely what is being asked for. If the peer is not reachable the fact is recorded and the request is left durably on the rail rather than assumed delivered — a send that returns ok is not a receipt.'
+  - '**No credential is invented, guessed, or written locally by this agent.** Whatever the service returns is applied through the mechanism it specifies. If the resolution requires a secret to be placed on this host, that is recorded as the human/service action it is, not performed by fabricating a token or editing git config with a value this agent chose.'
+  - '**The push is confirmed by observation, not by the absence of an error.** `git rev-list --count origin/main..HEAD` is 0 afterwards, verified against the remote ref rather than inferred from `git push` printing nothing alarming. If the push still fails, the new server response is recorded and the task reports blocked with that evidence rather than closing.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 63 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 63
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2967-restore-onedev-push-via-ring20-manager-c.md
+generated_by: context-agent-hybrid

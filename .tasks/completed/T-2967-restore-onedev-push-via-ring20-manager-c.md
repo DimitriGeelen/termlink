@@ -4,10 +4,10 @@ name: "Restore OneDev push via ring20-manager credential service"
 description: >
   git push origin main has failed across four sessions (Authentication required, now 403) leaving 25 commits local-only. The operator directs that credentials are handled by the ring20-manager service rather than locally. Contact that peer over the TermLink rail, obtain or have applied the OneDev credential, and confirm the push lands.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -22,8 +22,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-16T18:45:32Z
-last_update: 2026-09-16T18:45:32Z
-date_finished: null
+last_update: 2026-09-16T19:48:32Z
+date_finished: 2026-09-16T19:48:32Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -46,10 +46,10 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] **The failure is characterised before asking anyone for anything.** The remote URL, the auth method actually in use, and the exact server response are recorded. `Authentication required` and `403` are different failures — the first is "no credential offered", the second is "credential offered and refused" — and asking the credential service to fix the wrong one wastes a round trip on a peer.
-- [ ] **Ring20 Manager is contacted over the TermLink rail, with the request stated in terms it can act on.** The peer is located via presence (`agent-listeners-fleet`), its LIVE/armed state recorded, and a DM sent naming the repo, the remote, the observed error, and precisely what is being asked for. If the peer is not reachable the fact is recorded and the request is left durably on the rail rather than assumed delivered — a send that returns ok is not a receipt.
-- [ ] **No credential is invented, guessed, or written locally by this agent.** Whatever the service returns is applied through the mechanism it specifies. If the resolution requires a secret to be placed on this host, that is recorded as the human/service action it is, not performed by fabricating a token or editing git config with a value this agent chose.
-- [ ] **The push is confirmed by observation, not by the absence of an error.** `git rev-list --count origin/main..HEAD` is 0 afterwards, verified against the remote ref rather than inferred from `git push` printing nothing alarming. If the push still fails, the new server response is recorded and the task reports blocked with that evidence rather than closing.
+- [x] **The failure is characterised before asking anyone for anything.** The remote URL, the auth method actually in use, and the exact server response are recorded. `Authentication required` and `403` are different failures — the first is "no credential offered", the second is "credential offered and refused" — and asking the credential service to fix the wrong one wastes a round trip on a peer.
+- [x] **Ring20 Manager is contacted over the TermLink rail, with the request stated in terms it can act on.** The peer is located via presence (`agent-listeners-fleet`), its LIVE/armed state recorded, and a DM sent naming the repo, the remote, the observed error, and precisely what is being asked for. If the peer is not reachable the fact is recorded and the request is left durably on the rail rather than assumed delivered — a send that returns ok is not a receipt.
+- [x] **No credential is invented, guessed, or written locally by this agent.** Whatever the service returns is applied through the mechanism it specifies. If the resolution requires a secret to be placed on this host, that is recorded as the human/service action it is, not performed by fabricating a token or editing git config with a value this agent chose.
+- [x] **The push is confirmed by observation, not by the absence of an error.** `git rev-list --count origin/main..HEAD` is 0 afterwards, verified against the remote ref rather than inferred from `git push` printing nothing alarming. If the push still fails, the new server response is recorded and the task reports blocked with that evidence rather than closing.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -145,6 +145,20 @@ date_finished: null
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+# T-2967 verification.
+# Line 1 proves the credential actually works against the REMOTE (AC1 + AC4): ls-remote
+# authenticates and returns a sha for refs/heads/main. Deliberately not `git push` printing
+# nothing alarming — that is the inference AC4 forbids.
+# Line 2 proves local HEAD is not ahead of the pushed ref.
+# Line 3 proves the request to ring20-management-agent is DURABLE on the rail and readable
+# back, not merely that a send returned ok (AC2 — "a send that returns ok is not a receipt").
+# Line 4 proves the incidental .122 finding was captured as its own task rather than dropped.
+
+GIT_TERMINAL_PROMPT=0 git ls-remote origin -h refs/heads/main > /tmp/.t2967-remote.txt 2>&1 && grep -qE '^[0-9a-f]{40}[[:space:]]+refs/heads/main$' /tmp/.t2967-remote.txt
+test "$(git rev-list --count origin/main..HEAD)" = "0"
+timeout 60 termlink channel subscribe "dm:termlink-107-landing:ring20-management-agent" --hub 192.168.10.122:9100 --cursor 0 --limit 1 --json > /tmp/.t2967-dm.ndjson 2>&1 && python3 -c "import json,base64,sys; ls=[l for l in open('/tmp/.t2967-dm.ndjson') if l.strip()]; b=base64.b64decode(json.loads(ls[0])['payload_b64']).decode('utf-8','replace'); sys.exit(0 if 'termlink-107-landing' in b and 'T-2967' in b else 1)"
+test -f .tasks/active/T-2970-ring20-management-122-agent-presence-is-.md
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -160,6 +174,42 @@ date_finished: null
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
+
+**Symptom:** `git push origin` refused from workstation-107 for four sessions. Reported as a
+credential failure; the human asked for the Ring20 Manager credential service to be engaged.
+
+**Root cause — the diagnosis was wrong, and that is the finding.** The credential was never
+the problem. A LOCAL pre-push gate (T-1599/T-1610) was rejecting every push because
+`.context/project/decisions.yaml` failed to parse (repaired under T-2968). The remote was
+never contacted. Once the YAML parsed, the stored credential authenticated on the first
+attempt and all 26 commits landed. The earlier `403` / `Authentication required` observations
+came from unrelated attempts and were carried forward as if they described the current
+failure.
+
+**Why structurally allowed:** the pre-push gate reports the file it rejected, but the operator
+sees only "push failed" plus whatever the previous attempt printed. Nothing forced the
+question "has the remote actually been reached?" before escalating to a peer. AC1 of this task
+exists precisely to force it, and it is what resolved the task: characterising the failure cost
+one command and removed the need for the service entirely.
+
+**AC2 outcome — contacted, not delivered.** `ring20-management-agent` could NOT be located via
+presence: `.122`'s agent-presence is unreadable (`channel.subscribe` wedges at 30s while
+`channel.list` is fast — filed as **T-2970**). The identity was recovered from `channel list`
+instead. The request was left DURABLY on the rail at
+`dm:termlink-107-landing:ring20-management-agent` on 192.168.10.122:9100, offset 0, and read
+back to confirm (1954 bytes). The post returned `"confirmed": false,
+"status": "delivered-unconfirmed"` — recorded as such, because the hub accepting a message is
+not a recipient receipt.
+
+**AC3 outcome:** no credential was invented, guessed, written, or altered. `credential.helper`
+remains `store`; `~/.git-credentials` (mode 600) was read only to enumerate HOSTS, with secrets
+redacted, and was not modified. The one open credential question — whether the OneDev token is
+long-lived or lapses — is stated in the durable message as a question for the service, not
+resolved locally.
+
+**Prevention:** none claimed beyond AC1 already being the right gate and having worked. The
+durable-message pattern (post + read back + record `confirmed:false`) is the honest shape for
+an unreachable peer and is reused from the existing awaiting-ack convention.
 
 ## Evolution
 
@@ -241,3 +291,15 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2967-restore-onedev-push-via-ring20-manager-c.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-7cea391b
+- **Timestamp:** 2026-09-16T19:48:34Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-09-16T19:48:32Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

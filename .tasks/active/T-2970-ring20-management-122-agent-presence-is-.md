@@ -1,17 +1,10 @@
 ---
-id: T-2968
-name: "decisions.yaml auto-capture corruption recurs a third time, blocking all pushes"
+id: T-2970
+name: "ring20-management (.122) agent-presence is unreadable: channel.subscribe wedges at 30s while channel.list is fast"
 description: >
-  The pre-push gate (T-1599/T-1610) blocks every push: .context/project/decisions.yaml
-  fails to parse at line 1138. Ten tail entries written by the completion-time auto-capture
-  are indented two spaces too far AND renumber from PD-001, colliding with the real
-  PD-001..PD-010 at lines 164+. Highest valid is PD-156 — which is itself the T-2850
-  repair of this same defect, so the generator re-corrupted the file directly after
-  it was last fixed. Third occurrence in this lineage (T-2892, T-2850, now). The generator
-  is vendored (G-062) and already on the upstream record; this task repairs the file
-  and records the recurrence rate.
+  Hub 192.168.10.122:9100 (ring20-management, v0.11.1411) accepts connections and answers fleet doctor in 43ms, and 'channel list' returns 175 topics quickly — but 'channel.subscribe' on agent-presence times out after 30s with 'hub accepted the connection but never replied — wedged record-walk or overloaded hub'. agent-presence holds 3019 records under 'days' retention, well under the T-2252 growth threshold, so this is a record-walk fault rather than bloat. Operational impact: no agent on .122 is discoverable via presence from outside the host, so peers there (e.g. ring20-management-agent) cannot be located by the normal discovery route — the charter's verb 1 is dark for that hub. Discovered while trying to reach ring20-management-agent under T-2967. The hub is ~355 commits behind workstation-107 (0.11.1411 vs 0.11.1766); restarting it onto a current binary is the first hypothesis. Note the fleet-binary canary did not surface this because .122 is within its declared floor.
 
-status: started-work
+status: captured
 workflow_type: build
 owner: agent
 horizon: now
@@ -28,9 +21,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-16T18:48:07Z
-last_update: 2026-09-16T18:49:09Z
-date_finished:
+created: 2026-09-16T19:46:40Z
+last_update: 2026-09-16T19:46:40Z
+date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -41,23 +34,9 @@ date_finished:
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
-bvp_scores_proposed:
-  - ts: '2026-09-16T18:49:09Z'
-    estimator: bvp-estimator-v1-heuristic
-    scores:
-      D1: 4
-      D2: 0
-      D3: 3
-      D4: 2
-      F-RECALL: 0
-      F-ORCH: 0
-    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
-      (body:component-discoverability); D4=2 (body:env-class-handled); 
-      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
-    rubric_sha: e4a00f38e801
 ---
 
-# T-2968: decisions.yaml auto-capture corruption recurs a third time, blocking all pushes
+# T-2970: ring20-management (.122) agent-presence is unreadable: channel.subscribe wedges at 30s while channel.list is fast
 
 ## Context
 
@@ -67,10 +46,8 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] **The corruption is repaired on both axes, not just the one that breaks the parser.** The ten tail entries are dedented to top level AND renumbered PD-157..PD-166. Fixing only the indent yields a file that parses while carrying two entries for each of PD-001..PD-010 — valid YAML asserting a false history, which is worse than the parse error because nothing would ever report it again.
-- [ ] **No decision content is altered or dropped.** The repair changes indentation and the `id:` field only. Entry count before and after is equal, and each repaired entry keeps its original `decision`/`scope`/`date`/`task`/`rationale` bytes. A decisions register that silently loses a decision during a repair is a worse failure than the one being repaired.
-- [ ] **The file parses and the pre-push gate passes** — verified by running the gate's own check (`yaml.safe_load`) rather than by the push merely getting further, so the claim is about the file and not about whatever the remote happens to answer.
-- [ ] **The recurrence is recorded with its rate, not just fixed.** PD-156 is itself the T-2850 repair of this identical defect, so the generator re-corrupted the file directly after the last fix. Third occurrence (T-2892, T-2850, now). The generator is vendored and already on the upstream record — this task does not patch it (G-062) and does not re-file it, but it does state the interval, because "repaired three times" is the argument for a structural fix that "repaired once" is not.
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -102,30 +79,6 @@ bvp_scores_proposed:
        Conversion: this AC should be moved to ### Agent and
        `bin/fw reviewer T-XXX > /tmp/.rev 2>&1 && grep -q "Overall:.*PASS" /tmp/.rev`
        added to ## Verification. NEVER `... 2>&1 | grep -q ...` — that is the shape the
-     REPAIR RESULT (T-2968, session S-2026-0916c):
-     Ten tail entries dedented to column 0 and renumbered PD-157..PD-166. Indent alone
-     would have produced a file that parses while carrying two entries for each of
-     PD-001..PD-010 — valid YAML asserting a false history, which nothing would flag
-     again. The real PD-001..PD-010 at lines 164+ are untouched.
-
-     Structure note, recorded because the first reading of it was wrong: the file is a
-     top-level mapping with a single `decisions:` key whose sequence items sit at column
-     0 (legal YAML). An early verification line printed `entries: 1` and I read it as
-     "the repair collapsed the file"; it is simply the one top-level key. The transform
-     rewrites `  - id: PD-NNN` -> `- id: PD-NNN` and strips exactly two spaces from that
-     entry's continuation lines, touching nothing before line 1145.
-
-     AC2 evidence is by construction plus backup, not a post-hoc count: the 95% budget
-     gate landed immediately after the repair and blocks Bash, so the count comparison
-     could not be re-run. The script appends an output line for every input line (no
-     deletion path), and the pre-repair file is preserved at
-     /root/.claude/jobs/e817a600/tmp/decisions.yaml.bak. Stated at the strength the
-     evidence supports.
-
-     Third occurrence: PD-156 IS the T-2850 repair of this identical defect, so the
-     generator re-corrupted the file directly after the last fix (T-2892, T-2850, now).
-     Vendored, already upstream — not patched here (G-062), not re-filed. The interval
-     is the finding, and it blocks EVERY push while broken.
        Pipefail/SIGPIPE section below forbids, and this line used to prescribe it.
 -->
 
@@ -282,10 +235,7 @@ bvp_scores_proposed:
 
 ## Updates
 
-### 2026-09-16T18:48:07Z — task-created [task-create-agent]
+### 2026-09-16T19:46:40Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2968-decisionsyaml-auto-capture-corruption-re.md
+- **Output:** /opt/termlink/.tasks/active/T-2970-ring20-management-122-agent-presence-is-.md
 - **Context:** Initial task creation
-
-### 2026-09-16T18:49:09Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work

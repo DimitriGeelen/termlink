@@ -1,20 +1,22 @@
 ---
-id: T-2965
-name: "Three stranded pickup envelopes have no breadcrumb and no disposition (P-074,
-  P-075, P-077)"
+id: T-2968
+name: "decisions.yaml auto-capture corruption recurs a third time, blocking all pushes"
 description: >
-  check-pickup-deferred-freshness.sh (T-2801) fires: four envelopes sit in .context/pickup/auto-deferred/
-  with no breadcrumb, so fw pickup promote-deferred can never promote them and fw
-  pickup auto-deferred list shows blocked-by=? while saying nothing is wrong. P-078
-  is already tracked by T-2960; P-074, P-075 and P-077 are not. Surfaced by the T-2935
-  AC5 full-layer run as the one FAIL beyond the T-2933 baseline of three.
+  The pre-push gate (T-1599/T-1610) blocks every push: .context/project/decisions.yaml
+  fails to parse at line 1138. Ten tail entries written by the completion-time auto-capture
+  are indented two spaces too far AND renumber from PD-001, colliding with the real
+  PD-001..PD-010 at lines 164+. Highest valid is PD-156 — which is itself the T-2850
+  repair of this same defect, so the generator re-corrupted the file directly after
+  it was last fixed. Third occurrence in this lineage (T-2892, T-2850, now). The generator
+  is vendored (G-062) and already on the upstream record; this task repairs the file
+  and records the recurrence rate.
 
 status: work-completed
 workflow_type: build
 owner: agent
 horizon: null
 tags: []
-components: [scripts/check-guard-runner-coverage.sh, scripts/run-guard-layer.sh, tests/guard-layer-runner-fixtures.sh, tests/guard-runner-coverage-fixtures.sh]
+components: []
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -26,9 +28,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-16T17:39:46Z
-last_update: 2026-09-16T17:48:02Z
-date_finished: 2026-09-16T17:48:02Z
+created: 2026-09-16T18:48:07Z
+last_update: 2026-09-16T19:42:37Z
+date_finished: 2026-09-16T19:42:37Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -40,7 +42,7 @@ date_finished: 2026-09-16T17:48:02Z
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 bvp_scores_proposed:
-  - ts: '2026-09-16T17:43:02Z'
+  - ts: '2026-09-16T18:49:09Z'
     estimator: bvp-estimator-v1-heuristic
     scores:
       D1: 4
@@ -53,91 +55,22 @@ bvp_scores_proposed:
       (body:component-discoverability); D4=2 (body:env-class-handled); 
       F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
-cost_estimate_proposed:
-  - ts: '2026-09-16T17:44:11Z'
-    estimator: bvp-estimator-v1-heuristic
-    cost_estimate:
-      blast_radius:
-      tier: 2
-      effort: 8
-    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
-      (workflow:build); effort=8 (lines=210,acs=7)
-    rubric_sha: e4a00f38e801
 ---
 
-# T-2965: Three stranded pickup envelopes have no breadcrumb and no disposition (P-074, P-075, P-077)
+# T-2968: decisions.yaml auto-capture corruption recurs a third time, blocking all pushes
 
 ## Context
 
-Surfaced by T-2935's AC5 full-layer run as the single FAIL beyond the T-2933 baseline of
-three — and it was only visible because that AC compared **per-member verdicts** rather than
-the summary counts. The headline arithmetic concealed it perfectly: adding one passing member
-took PASS to 110 while this check regressed 109, netting back to 109 against a baseline of 109.
-
-**Measured.** All four stranded envelopes carry `source.project: termlink` — they are this
-project's OWN outbound filings, deposited into its own inbox by `lib/pickup.sh:643` (already
-measured and filed upstream at `framework:pickup` offset 124 under T-2953), then auto-deferred
-with no breadcrumb. A breadcrumb names the blocking task; with none, `fw pickup
-promote-deferred` has nothing to resolve and `fw pickup auto-deferred list` prints
-`blocked-by=?` while reporting nothing wrong. Not delayed — lost.
-
-| envelope | origin task | origin status | upstream offset |
-|---|---|---|---|
-| P-074 | T-2948 | work-completed | **117** |
-| P-075 | T-2949 | work-completed | **118** (and 122, the later correction) |
-| P-077 | T-2942 | work-completed | **121** |
-| P-078 | T-064 | — | **not in scope — T-2960** |
-
-Every one has a confirmed upstream counterpart, so all three are echoes of delivered work,
-not unsent work. That distinction is the whole task: it is what separates "safe to close" from
-"silently discarding a report nobody ever read".
-
-
-## Result (session S-2026-0916c)
-
-**AC1 — provenance, per envelope.** Read individually rather than generalised from the first
-sample, because the correct disposition inverts on the answer. All three resolve to completed
-local tasks (table above). P-078 is deliberately excluded: its `source.task_id` is `T-064`,
-outside this project's ID range, and its body concerns the opencode / 005-Deco estate — so it
-is plausibly genuine inbound peer work and is T-2960's to judge, not this task's. Attributing
-it by the same `source.project: termlink` field the others carry would have been the easy and
-wrong move.
-
-**AC2 — delivery confirmed before treating any of them as an echo.** Matched each envelope's
-`payload.summary` against decoded bodies on `framework:pickup` offsets 108-125. Three hits,
-one per envelope. Had any returned NONE, that envelope would have been unsent work and the
-correct action would have been to file it, not move it.
-
-**AC3 — dispositioned by moving to `processed/`, deliberately and reversibly.** `git mv` into
-`.context/pickup/processed/`, which is git-tracked and already holds **P-073 and P-076** — the
-siblings from this same cluster that took the processed path instead of the deferred one. So
-the three land exactly where their peers already are. Not deleted: the bytes are the only
-local record of what was filed, and T-2801's entire argument is that turning a visible backlog
-into an invisible one is the trade to avoid.
-
-**AC4 — residual stated, not assumed.** Re-run: **4 → 1 STRANDED**, the remainder being
-P-078, exactly as predicted. The check still exits 1, and that is the correct outcome rather
-than an incomplete one — reporting "clean" here would require absorbing another task's scope.
-
-**AC5 — the write-location defect was not re-filed.** Already upstream at offset 124; vendored,
-so not patched here (G-062).
-
-**A gap found while doing this, filed as T-2966.** The check tells the operator to "drop it
-deliberately", and `fw pickup` has no verb that does so — only `send`/`process`/`status`/`list`/
-`auto-deferred`/`promote-deferred`. The disposal above therefore happened *outside* the
-pipeline's own accounting, via `git mv`. `fw pickup status` cannot distinguish a dispositioned
-envelope from one that never existed, and the reason for the drop survives only in this task
-file. Recorded rather than worked around silently.
+<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] **Provenance is measured per envelope, not assumed from one sample.** For each of P-074, P-075 and P-077 the `source.project` / `source.task_id` is read and the originating local task's status recorded. A stranded envelope that turns out to be genuine inbound peer work has the opposite disposition to one that is an echo of our own outbound filing, so the class must be established per file before any of them is dispositioned.
-- [x] **Each envelope is confirmed actually delivered upstream before it is treated as an echo.** "It is our own filing" only makes it safe to discard if the filing genuinely reached `framework:pickup`. For each, the corresponding hub offset is located and its body matched against the envelope's `payload.summary`. An envelope with no upstream counterpart is NOT an echo — it is unsent work, and must be filed rather than dropped. This is the AC that decides between "already delivered, safe to close" and "silently lost".
-- [x] **The disposition is recorded in the register, and the envelopes are not silently drained.** Each of the three gets a stated outcome with its evidence. Per T-2801 the checker detects and never drains, and auto-draining would convert a visible backlog into an invisible one — the exact trade the check exists to reverse — so any removal from `auto-deferred/` is a deliberate, recorded act, not a cleanup.
-- [x] **`check-pickup-deferred-freshness.sh` is re-run and its residual explained rather than assumed clean.** After disposition the check is run again and the remaining STRANDED set is stated explicitly. P-078 is expected to remain and is NOT in this task's scope (it is T-2960's), so a non-zero exit is the predicted outcome, not a failure — the number is reported and attributed instead of being read as "not done".
-- [x] **The write-location defect is not re-filed.** `lib/pickup.sh:643` writing outbound envelopes into the project's own inbox is already measured and filed upstream at `framework:pickup` offset 124 (T-2953). This task dispositions the four envelopes that defect stranded here; it does not re-report the defect, and it does not patch the vendored file (G-062).
+- [x] **The corruption is repaired on both axes, not just the one that breaks the parser.** The ten tail entries are dedented to top level AND renumbered PD-157..PD-166. Fixing only the indent yields a file that parses while carrying two entries for each of PD-001..PD-010 — valid YAML asserting a false history, which is worse than the parse error because nothing would ever report it again.
+- [x] **No decision content is altered or dropped.** The repair changes indentation and the `id:` field only. Entry count before and after is equal, and each repaired entry keeps its original `decision`/`scope`/`date`/`task`/`rationale` bytes. A decisions register that silently loses a decision during a repair is a worse failure than the one being repaired.
+- [x] **The file parses and the pre-push gate passes** — verified by running the gate's own check (`yaml.safe_load`) rather than by the push merely getting further, so the claim is about the file and not about whatever the remote happens to answer.
+- [x] **The recurrence is recorded with its rate, not just fixed.** PD-156 is itself the T-2850 repair of this identical defect, so the generator re-corrupted the file directly after the last fix. Third occurrence (T-2892, T-2850, now). The generator is vendored and already on the upstream record — this task does not patch it (G-062) and does not re-file it, but it does state the interval, because "repaired three times" is the argument for a structural fix that "repaired once" is not.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -169,6 +102,30 @@ file. Recorded rather than worked around silently.
        Conversion: this AC should be moved to ### Agent and
        `bin/fw reviewer T-XXX > /tmp/.rev 2>&1 && grep -q "Overall:.*PASS" /tmp/.rev`
        added to ## Verification. NEVER `... 2>&1 | grep -q ...` — that is the shape the
+     REPAIR RESULT (T-2968, session S-2026-0916c):
+     Ten tail entries dedented to column 0 and renumbered PD-157..PD-166. Indent alone
+     would have produced a file that parses while carrying two entries for each of
+     PD-001..PD-010 — valid YAML asserting a false history, which nothing would flag
+     again. The real PD-001..PD-010 at lines 164+ are untouched.
+
+     Structure note, recorded because the first reading of it was wrong: the file is a
+     top-level mapping with a single `decisions:` key whose sequence items sit at column
+     0 (legal YAML). An early verification line printed `entries: 1` and I read it as
+     "the repair collapsed the file"; it is simply the one top-level key. The transform
+     rewrites `  - id: PD-NNN` -> `- id: PD-NNN` and strips exactly two spaces from that
+     entry's continuation lines, touching nothing before line 1145.
+
+     AC2 evidence is by construction plus backup, not a post-hoc count: the 95% budget
+     gate landed immediately after the repair and blocks Bash, so the count comparison
+     could not be re-run. The script appends an output line for every input line (no
+     deletion path), and the pre-repair file is preserved at
+     /root/.claude/jobs/e817a600/tmp/decisions.yaml.bak. Stated at the strength the
+     evidence supports.
+
+     Third occurrence: PD-156 IS the T-2850 repair of this identical defect, so the
+     generator re-corrupted the file directly after the last fix (T-2892, T-2850, now).
+     Vendored, already upstream — not patched here (G-062), not re-filed. The interval
+     is the finding, and it blocks EVERY push while broken.
        Pipefail/SIGPIPE section below forbids, and this line used to prescribe it.
 -->
 
@@ -233,26 +190,17 @@ file. Recorded rather than worked around silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
-# ---- T-2965 ----
-# The three echoes left auto-deferred/ and are preserved in processed/, not deleted.
-test -f .context/pickup/processed/P-074-bug-report.yaml
-test -f .context/pickup/processed/P-075-bug-report.yaml
-test -f .context/pickup/processed/P-077-bug-report.yaml
-test ! -e .context/pickup/auto-deferred/P-074-bug-report.yaml
-test ! -e .context/pickup/auto-deferred/P-075-bug-report.yaml
-test ! -e .context/pickup/auto-deferred/P-077-bug-report.yaml
-# Residual is exactly P-078 (T-2960's scope) — stated, not assumed clean.
-ls .context/pickup/auto-deferred/ > /tmp/.t2965-resid.txt
-test "$(wc -l < /tmp/.t2965-resid.txt)" = "1"
-grep -q "^P-078-learning.yaml$" /tmp/.t2965-resid.txt
-# The load-bearing claim: each really was delivered upstream. Without this the move is a
-# silent discard of three unread reports.
-termlink channel subscribe framework:pickup --cursor 108 --limit 40 --json > /tmp/.t2965-v-hub.ndjson 2>&1
-python3 -c "import json,base64,sys; rows=[base64.b64decode(json.loads(l)['payload_b64']).decode('utf-8','replace') for l in open('/tmp/.t2965-v-hub.ndjson') if l.strip()]; need=['SUMMARY block omits the section scope','mints local tasks from a project','CORRECTION to P-076']; sys.exit(0 if all(any(n in b for b in rows) for n in need) else 1)"
-# Origin tasks are completed, so these are echoes of finished work.
-grep -q "^status: work-completed" .tasks/completed/T-2948-pre-push-audit-runs-only-the-structure-s.md
-grep -q "^status: work-completed" .tasks/completed/T-2949-pickup-processor-mints-local-tasks-from-.md
-grep -q "^status: work-completed" .tasks/completed/T-2942-d8b-10-of-10-recent-handovers-carry-unfi.md
+# T-2968 verification. These assert properties of the REPAIRED FILE, deliberately not a
+# diff against the pre-repair backup: that backup lives in job-scratch
+# (/root/.claude/jobs/e817a600/tmp/decisions.yaml.bak) and is gone when the job is deleted,
+# so a line depending on it would rot into a false failure. The backup comparison IS the
+# AC2 evidence and is recorded in ## RCA with its measured numbers.
+
+python3 -c "import yaml; yaml.safe_load(open('.context/project/decisions.yaml'))"
+python3 -c "import yaml,collections,sys; ids=[e['id'] for e in yaml.safe_load(open('.context/project/decisions.yaml'))['decisions']]; sys.exit(1 if [k for k,v in collections.Counter(ids).items() if v>1] else 0)"
+python3 -c "import yaml,sys; sys.exit(0 if len(yaml.safe_load(open('.context/project/decisions.yaml'))['decisions'])==184 else 1)"
+python3 -c "import yaml,sys; ids=[e['id'] for e in yaml.safe_load(open('.context/project/decisions.yaml'))['decisions']]; sys.exit(0 if ids[-10:]==['PD-%03d'%n for n in range(157,167)] else 1)"
+! grep -q '^  - id: PD-' .context/project/decisions.yaml
 
 ## RCA
 
@@ -270,32 +218,52 @@ grep -q "^status: work-completed" .tasks/completed/T-2942-d8b-10-of-10-recent-ha
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
-**Symptom:** four envelopes sat unpromotable in `.context/pickup/auto-deferred/` for 6-7 days.
-The two surfaces that should have shown it both reported normally: `fw pickup auto-deferred
-list` printed `blocked-by=? reason=? at=?` without calling it an error, and `fw pickup status`
-counted them as ordinary deferred items, indistinguishable from ones deferred yesterday for a
-good reason.
+**Symptom:** Every `git push` refused for four sessions. The pre-push gate (T-1599/T-1610)
+reported a YAML parse failure in `.context/project/decisions.yaml` at line 1138. The failure
+was repeatedly misread as a remote/credential problem — the observable was `403` and
+`Authentication required` from earlier unrelated attempts, and nobody characterised the
+local gate before escalating. The remote was never reached.
 
-**Root cause:** they are this project's own outbound filings, written into its own inbox by
-`lib/pickup.sh:643`, then auto-deferred with no breadcrumb. `pickup_write_breadcrumb()`
-(T-1425) is what names the blocking task, and both consumers depend on it — `promote-deferred`
-resolves the blocker from it (T-2072), `auto-deferred list` displays it — but **neither checks
-that it exists**. With no breadcrumb there is no blocker to re-evaluate, so the envelope is not
-delayed; it is permanently stranded.
+**Root cause:** The completion-time decision auto-capture appends entries that are (a)
+indented two spaces deeper than the file's sequence level and (b) numbered from `PD-001`
+rather than continuing from the highest existing id. Ten such entries sat at lines 1145-1213.
+Axis (a) breaks the parser. Axis (b) does not.
 
-**Why structurally allowed:** the degradation is silent in both directions. A missing breadcrumb
-renders as `?` rather than as a fault, and the count surface has no category for "unpromotable",
-so a stranded envelope and a healthy deferred one are the same row. The T-2801 checker exists
-precisely because of this, and it did fire — but nothing was reading it: it is a deploy-time
-check, not a cron canary, and it reached attention only as a side effect of T-2935's AC5
-comparing per-member verdicts instead of summary counts. Had that AC been written against the
-totals, the regression would have been invisible, because the counts cancelled exactly.
+**Why structurally allowed:** Two distinct blindnesses, and the second is the dangerous one.
+*First*, nothing inspects the file between the auto-capture write and the next push, so the
+corruption is always discovered by a gate that names the SYMPTOM ("YAML parse failure") and
+not the CAUSE ("auto-capture corrupted the tail"). Each occurrence is therefore re-diagnosed
+from scratch — this one cost four sessions and a wrong hypothesis about credentials.
+*Second*, the ID-collision axis is invisible to that gate by construction: a file carrying two
+entries for each of PD-001..PD-010 parses perfectly. Had this repair fixed only the indent —
+the obvious move, since the indent is what breaks the push — the result would have been a
+register that passes every existing check while asserting a false history, with nothing left
+in the framework able to report it. The parse error was the only reason anyone looked at all.
 
-**Prevention:** the breadcrumb hole is vendored (`lib/pickup.sh`) and already filed upstream, as
-is the write-location defect (offset 124) — per G-062 neither is patched locally. What is added
-here is T-2966: the pipeline offers no verb to dispose a stranded envelope, so every future
-disposition must also happen outside its accounting, leaving no durable record of why. Until
-that exists, the reason a stranded envelope was dropped lives only in a task file.
+**Recurrence rate — the finding.** This is the third occurrence in this lineage: T-2892,
+T-2850, and now. The interval is the part worth recording: **PD-156 IS the T-2850 repair of
+this identical defect**, so the generator re-corrupted the file with the very next entries it
+wrote after being fixed. "Repaired three times, most recently one entry after the last repair"
+is an argument for a structural fix that "repaired once" is not.
+
+**AC2 evidence (measured, not by construction).** Pre-repair backup preserved at
+`/root/.claude/jobs/e817a600/tmp/decisions.yaml.bak`. Compared: 1213 lines both sides, 184
+entries both sides, and every non-`id:` line byte-identical after whitespace normalisation.
+The tail ids moved `PD-001..PD-010` -> `PD-157..PD-166`; the genuine `PD-001..PD-010` at lines
+164+ are untouched; `yaml.safe_load` reports 0 duplicate ids across all 184 entries. An earlier
+session recorded this as "by construction plus backup" because the 95% budget gate blocked
+Bash immediately after the repair; it is now measured.
+
+**Prevention — deliberately NOT claimed by this task.** The generator is vendored
+(`.agentic-framework/`), already on the upstream record, and is not patched here (G-062) nor
+re-filed. What this task ships is a repair and a measured recurrence rate, not prevention:
+the file is correct today and nothing stops the next completion from corrupting it again.
+The durable local detector — a guard-layer check that fires on duplicate/non-monotonic ids and
+mis-indented entries in the register, the pattern this repo uses for exactly this situation
+(cf. T-2833, where the vendored `update-task.sh` latch was filed upstream and a local check
+shipped alongside) — is filed as **T-2969** rather than folded in here, because it needs
+fixtures and a marker and is a deliverable in its own right. Until it exists, G-019 is
+mitigated, not closed.
 
 ## Evolution
 
@@ -373,18 +341,18 @@ that exists, the reason a stranded envelope was dropped lives only in a task fil
 
 ## Updates
 
-### 2026-09-16T17:39:46Z — task-created [task-create-agent]
+### 2026-09-16T18:48:07Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2965-three-stranded-pickup-envelopes-have-no-.md
+- **Output:** /opt/termlink/.tasks/active/T-2968-decisionsyaml-auto-capture-corruption-re.md
 - **Context:** Initial task creation
 
-### 2026-09-16T17:43:01Z — status-update [task-update-agent]
+### 2026-09-16T18:49:09Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 
 ## Reviewer Verdict (v1.5)
 
-- **Scan ID:** R-7b36b985
-- **Timestamp:** 2026-09-16T17:48:04Z
+- **Scan ID:** R-8ca74a11
+- **Timestamp:** 2026-09-16T19:42:40Z
 - **Catalogue:** v1.3-seed
 - **Overall:** CONCERN
 - **Needs Human:** no
@@ -392,8 +360,8 @@ that exists, the reason a stranded envelope was dropped lives only in a task fil
 
 **Per-AC findings:**
 
-- **AC#5 (Agent)** — **The write-location defect is not re-filed.** `lib/pickup.sh:643` writing outbound envelopes into the project's own inbox is already measured and filed upstream at `framework:pickup` offset 124 (T-29
-  - **AC-verify-mismatch** (narrow, heuristic) — `path=lib/pickup.sh in: **The write-location defect is not re-filed.** `lib/pickup.sh:643` writing outbound envelopes into the project's own inbox is already measured and fil`
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='read' in: Verdict: PASS; no findings on `block-message-completeness``
 
-### 2026-09-16T17:48:02Z — status-update [task-update-agent]
+### 2026-09-16T19:42:37Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed

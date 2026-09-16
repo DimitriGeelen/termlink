@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2965: Three stranded pickup envelopes have no breadcrumb and no disposition (P-074, P-075, P-077)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-16T17:48:11Z
+# ============================================================================
+
+task_id: T-2965
+task_name: "Three stranded pickup envelopes have no breadcrumb and no disposition (P-074, P-075, P-077)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-16T17:39:46Z
+completed: 2026-09-16T17:48:02Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-16T19:47:58+02:00
+last_commit: 2026-09-16T19:47:58+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  disposition the three stranded pickup echoes, after confirming each was actually delivered upstream
+
+# Key outcomes
+outcomes:
+  - '**Provenance is measured per envelope, not assumed from one sample.** For each of P-074, P-075 and P-077 the `source.project` / `source.task_id` is read and the originating local task''s status recorded. A stranded envelope that turns out to be genuine inbound peer work has the opposite disposition to one that is an echo of our own outbound filing, so the class must be established per file before any of them is dispositioned.'
+  - '**Each envelope is confirmed actually delivered upstream before it is treated as an echo.** "It is our own filing" only makes it safe to discard if the filing genuinely reached `framework:pickup`. For each, the corresponding hub offset is located and its body matched against the envelope''s `payload.summary`. An envelope with no upstream counterpart is NOT an echo — it is unsent work, and must be filed rather than dropped. This is the AC that decides between "already delivered, safe to close" and "silently lost".'
+  - '**The disposition is recorded in the register, and the envelopes are not silently drained.** Each of the three gets a stated outcome with its evidence. Per T-2801 the checker detects and never drains, and auto-draining would convert a visible backlog into an invisible one — the exact trade the check exists to reverse — so any removal from `auto-deferred/` is a deliberate, recorded act, not a cleanup.'
+  - '**`check-pickup-deferred-freshness.sh` is re-run and its residual explained rather than assumed clean.** After disposition the check is run again and the remaining STRANDED set is stated explicitly. P-078 is expected to remain and is NOT in this task''s scope (it is T-2960''s), so a non-zero exit is the predicted outcome, not a failure — the number is reported and attributed instead of being read as "not done".'
+  - '**The write-location defect is not re-filed.** `lib/pickup.sh:643` writing outbound envelopes into the project''s own inbox is already measured and filed upstream at `framework:pickup` offset 124 (T-2953). This task dispositions the four envelopes that defect stranded here; it does not re-report the defect, and it does not patch the vendored file (G-062).'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/pickup/processed/P-074-bug-report.yaml'
+  - '.context/pickup/processed/P-075-bug-report.yaml'
+  - '.context/pickup/processed/P-077-bug-report.yaml'
+  - '.tasks/active/T-2965-three-stranded-pickup-envelopes-have-no-.md'
+  - '.tasks/active/T-2966-pickup-pipeline-has-no-verb-to-dispose-a.md'
+  - '.tasks/completed/T-2935-marked-guard-scripts-outside-the-runners.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-16T19:47:58'
+    action: 'T-2965: disposition the three stranded pickup echoes, after confirming each was actually delivered upstream'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 8 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 8
+  commits: 1
+  files_changed: 4
+  lines_added: 390
+  lines_removed: 8
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2965-three-stranded-pickup-envelopes-have-no-.md
+generated_by: context-agent-hybrid

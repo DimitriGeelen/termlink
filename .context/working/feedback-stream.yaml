@@ -10440,3 +10440,255 @@ scan_id: R-95a016e5
 task_id: T-2956
 payload:
   task_file: .tasks/active/T-2956-five-inbound-050-email-archive-filings-n.md
+---
+kind: scan_emitted
+timestamp: '2026-09-11T20:34:23Z'
+scan_id: R-16c2264d
+task_id: T-2951
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-11T20:34:23Z'
+scan_id: R-16c2264d
+task_id: T-2951
+payload:
+  task_file: .tasks/active/T-2951-outbound-upstream-filings-are-stranded-i.md
+---
+kind: scan_emitted
+timestamp: '2026-09-11T20:41:40Z'
+scan_id: R-84a8faf1
+task_id: T-2959
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-11T20:41:40Z'
+scan_id: R-84a8faf1
+task_id: T-2959
+payload:
+  task_file: .tasks/active/T-2959-fw-git-commit-reports-success-while-sile.md
+---
+kind: scan_emitted
+timestamp: '2026-09-11T20:49:34Z'
+scan_id: R-480ad752
+task_id: T-2962
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-11T20:49:34Z'
+scan_id: R-480ad752
+task_id: T-2962
+payload:
+  task_file: .tasks/active/T-2962-enrich-handover-s-2026-0911-2244.md
+---
+kind: scan_emitted
+timestamp: '2026-09-16T16:07:46Z'
+scan_id: R-9f9fd388
+task_id: T-2946
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-16T16:07:46Z'
+scan_id: R-9f9fd388
+task_id: T-2946
+payload:
+  task_file: .tasks/active/T-2946-pickup-auditsh-d8-handover-quality-check.md
+---
+kind: scan_emitted
+timestamp: '2026-09-16T16:07:54Z'
+scan_id: R-c0c26b05
+task_id: T-2947
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-16T16:07:54Z'
+scan_id: R-c0c26b05
+task_id: T-2947
+payload:
+  task_file: .tasks/active/T-2947-pickup-auditsh-d8-handover-quality-check.md
+---
+kind: scan_emitted
+timestamp: '2026-09-16T16:08:02Z'
+scan_id: R-cc220812
+task_id: T-2952
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-16T16:08:02Z'
+scan_id: R-cc220812
+task_id: T-2952
+payload:
+  task_file: .tasks/active/T-2952-pickup-audit-d8d8b-count-the-handover-ge.md
+---
+kind: scan_emitted
+timestamp: '2026-09-16T16:12:46Z'
+scan_id: R-8bf8d3ff
+task_id: T-2953
+payload:
+  overall: FAIL
+  finding_count: 2
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-16T16:12:46Z'
+scan_id: R-8bf8d3ff
+task_id: T-2953
+payload:
+  task_file: .tasks/active/T-2953-pickup-audit-d8d8b-count-the-handover-ge.md
+---
+kind: scan_emitted
+timestamp: '2026-09-16T16:15:32Z'
+scan_id: R-5800301e
+task_id: T-2222
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-16T16:15:32Z'
+scan_id: R-5800301e
+task_id: T-2222
+payload:
+  task_file: .tasks/active/T-2222-pickup-bvp-estimator-corrupts-anchor-les.md
+---
+kind: scan_emitted
+timestamp: '2026-09-16T16:15:45Z'
+scan_id: R-1a86cf57
+task_id: T-2232
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-16T16:15:45Z'
+scan_id: R-1a86cf57
+task_id: T-2232
+payload:
+  task_file: .tasks/active/T-2232-pickup-update-tasksh-ships-reachable-gat.md
+---
+kind: scan_emitted
+timestamp: '2026-09-16T16:16:55Z'
+scan_id: R-b5a6c81f
+task_id: T-2964
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-16T16:16:55Z'
+scan_id: R-b5a6c81f
+task_id: T-2964
+payload:
+  task_file: .tasks/active/T-2964-disposition-the-two-pre-september-pickup.md
+---
+kind: scan_emitted
+timestamp: '2026-09-16T17:41:54Z'
+scan_id: R-cd6635dd
+task_id: T-2935
+payload:
+  overall: FAIL
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-16T17:41:54Z'
+scan_id: R-cd6635dd
+task_id: T-2935
+payload:
+  task_file: .tasks/active/T-2935-marked-guard-scripts-outside-the-runners.md
+---
+kind: scan_emitted
+timestamp: '2026-09-16T17:48:04Z'
+scan_id: R-7b36b985
+task_id: T-2965
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-16T17:48:04Z'
+scan_id: R-7b36b985
+task_id: T-2965
+payload:
+  task_file: .tasks/active/T-2965-three-stranded-pickup-envelopes-have-no-.md
+---
+kind: scan_emitted
+timestamp: '2026-09-16T19:42:40Z'
+scan_id: R-8ca74a11
+task_id: T-2968
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-16T19:42:40Z'
+scan_id: R-8ca74a11
+task_id: T-2968
+payload:
+  task_file: .tasks/active/T-2968-decisionsyaml-auto-capture-corruption-re.md
+---
+kind: scan_emitted
+timestamp: '2026-09-16T19:48:34Z'
+scan_id: R-7cea391b
+task_id: T-2967
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-16T19:48:34Z'
+scan_id: R-7cea391b
+task_id: T-2967
+payload:
+  task_file: .tasks/active/T-2967-restore-onedev-push-via-ring20-manager-c.md

@@ -1,0 +1,116 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2935: Marked guard scripts outside the runner's globs are silently never run
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-16T17:42:02Z
+# ============================================================================
+
+task_id: T-2935
+task_name: "Marked guard scripts outside the runner's globs are silently never run"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-09-09T07:44:22Z
+completed: 2026-09-16T17:41:34Z
+duration_days: 7
+updates_count: 1
+first_commit: 2026-09-09T09:48:29+02:00
+last_commit: 2026-09-16T19:41:28+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  file and score the marked-but-never-run guard script finding; parked pre-execution on budget. record PL-371 — BVP no-signal template defaults outrank measured work, all 15 Q1 candidates tied at 70/3.6. AC1 closed — excluded set is exactly 1 (fabric-workflow-link.sh, passes rc=0 in 1s); ACs 2-5 parked on context. guard-layer membership is marker-authoritative, and its auditor now checks that invariant instead of a copy of the globs
+
+# Key outcomes
+outcomes:
+  - '**The excluded set is measured and named before anything changes.** Every file under `scripts/` and `tests/` carrying `# guard-layer: source` that the runner''s current inventory does NOT enumerate is listed with its path and the commit that introduced it, and the count is stated. `fabric-workflow-link.sh` is one known member; the task does not assume it is the only one. A fix sized to one instance when the class has N is the recurring shape this repo keeps finding (T-2667, T-2673).'
+  - '**The runner''s membership is made marker-authoritative, matching its own documented contract.** CLAUDE.md states "Membership is declared, not guessed. A static check joins the layer by carrying a marker in its own header." The implementation instead intersects the marker with three name globs, so a marked file outside them is silently excluded. After the change `--list` and a full run both enumerate every marked file under the scanned roots. Each newly-included script is run and its verdict recorded — a marked script that does not pass is reported, never quietly dropped to keep the layer green.'
+  - '**The blind spot in `check-guard-runner-coverage.sh` is closed too.** The detector inherits the same globs, so an excluded script is today neither `covered` nor `unclassified` — invisible to the guard *and* to the guard''s own auditor. After the change a marked-but-unenumerated script is reported in a named class rather than absent from every bucket. Verified against a fixture tree containing one.'
+  - '**A fixture pins the defect and is load-bearing.** A fixture tree containing a marked script outside the legacy globs FAILS against the pre-fix inventory logic and PASSES after, proving the fixture detects the regression rather than merely passing. Asserted by mutation, not by inspection.'
+  - '**No new failure is introduced, measured against the T-2933 baseline.** A full `run-guard-layer.sh` run is compared to that baseline (112 members, 109 PASS, 0 ERROR, 3 pre-existing host-state FAILs: `check-installed-binary-drift.sh`, `check-receiver-ack-lag.sh`, `cron-drift-firing-fixtures.sh`). Member count changes by exactly the number of newly-enumerated scripts, stated before and after. Any FAIL beyond the 3 is either fixed or recorded as a finding with its cause — the claim is "this change added no failure", not "the layer is green".'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-09-16 — the general pass is marker-only; the unclassified bucket stays name-shaped'
+    chose: 'the new `scripts/*.sh` pass adds a file to the layer when it carries the marker and says nothing at all when it does not.'
+    rationale: '`scripts/` holds 190 `.sh` files, mostly operator tooling. `unclassified` means "looks like a guard but forgot its marker" — a judgement the *name* carries. Extending it to every general script would add ~130 entries and destroy that meaning. It would also trip the detector''s INVENTORY AGREEMENT gate, which exits 2 on unclassified-count drift.'
+    alternatives_rejected: ['report unmarked `scripts/*.sh` as unclassified — symmetrical-looking, and it manufactures exactly the alarm fatigue T-2818 documented, inside the accounting layer.']
+  - decision: '2026-09-16 — the detector checks the invariant, not a copy of the runner''s globs'
+    chose: 'widen only the MARKED scan, then diff it against the runner''s actual `--list --json` member names, reporting the difference as a firing `unenumerated` class.'
+    rationale: 'the original defect *was* a copy of the globs drifting from the contract. Mirroring the new globs into the detector recreates the same coupling one commit later and would go stale the same silent way. Comparing against the authority''s real output tests the property that matters — declared membership is honoured — and survives the globs changing again.'
+    alternatives_rejected: ['mirror the new `scripts/*.sh` glob in the detector. Cheaper, and it would have reported clean for exactly as long as the two copies happened to agree.']
+  - decision: '2026-09-16 — the fixture mutates the RUNNER, not the check'
+    chose: 'build a pre-fix runner (new pass''s glob neutered to `__no_such_glob__*.sh`) and point the check at it via `GUARD_COVERAGE_RUNNER`.'
+    rationale: 'AC4 asks whether the fixture detects the regression. The regression lives in the runner''s enumeration, so the runner is what has to break. Against it the check fires and names both dropped scripts; against the fixed runner the class is 0.'
+    alternatives_rejected: ['mutate the check (the suite''s existing M1-M3 style). That proves the assertion executes, not that it catches the defect — the weaker claim, and the one already covered.']
+  - decision: '2026-09-16 — gate the dormant disposition advice instead of leaving it'
+    chose: 'print the "give each dormant script a disposition" block only when `n_dormant > 0`.'
+    rationale: 'it ends by telling the operator to *add the `# guard-layer: source` marker*, which is wrong for every member of the new class — those scripts already carry one. Wrong advice in a firing message is worse than none: it sends the reader to change the one thing that is already correct.'
+    alternatives_rejected: ['leave it unconditional. Found while wiring the output rather than by a failing assertion, which is why it is recorded here rather than silently patched.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/2026-09-09.yaml'
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/handovers/S-2026-0909-0948.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0909-1009.discard-manifest.yaml'
+  - '.context/project/learnings.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/session.yaml'
+  - 'scripts/check-guard-runner-coverage.sh'
+  - 'scripts/run-guard-layer.sh'
+  - '.tasks/active/T-2723-handover-commit-under-t-1452-collides-wi.md'
+  - '.tasks/active/T-2935-marked-guard-scripts-outside-the-runners.md'
+  - '.tasks/active/T-2965-three-stranded-pickup-envelopes-have-no-.md'
+  - 'tests/guard-layer-runner-fixtures.sh'
+  - 'tests/guard-runner-coverage-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-09T09:48:29'
+    action: 'T-2935: file and score the marked-but-never-run guard script finding; parked pre-execution on budget'
+  - time: '2026-09-09T10:09:41'
+    action: 'T-2935: record PL-371 — BVP no-signal template defaults outrank measured work, all 15 Q1 candidates tied at 70/3.6'
+  - time: '2026-09-09T17:39:45'
+    action: 'T-2935: AC1 closed — excluded set is exactly 1 (fabric-workflow-link.sh, passes rc=0 in 1s); ACs 2-5 parked on context'
+  - time: '2026-09-16T19:41:28'
+    action: 'T-2935: guard-layer membership is marker-authoritative, and its auditor now checks that invariant instead of a copy of the globs'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 10677 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 10677
+  commits: 4
+  files_changed: 18
+  lines_added: 1902
+  lines_removed: 898
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2935-marked-guard-scripts-outside-the-runners.md
+generated_by: context-agent-hybrid

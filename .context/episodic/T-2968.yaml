@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2968: decisions.yaml auto-capture corruption recurs a third time, blocking all pushes
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-16T19:42:47Z
+# ============================================================================
+
+task_id: T-2968
+task_name: "decisions.yaml auto-capture corruption recurs a third time, blocking all pushes"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-16T18:48:07Z
+completed: 2026-09-16T19:42:37Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-16T20:51:28+02:00
+last_commit: 2026-09-16T20:51:28+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  repair decisions.yaml auto-capture corruption (third occurrence) — unblocks all pushes
+
+# Key outcomes
+outcomes:
+  - '**The corruption is repaired on both axes, not just the one that breaks the parser.** The ten tail entries are dedented to top level AND renumbered PD-157..PD-166. Fixing only the indent yields a file that parses while carrying two entries for each of PD-001..PD-010 — valid YAML asserting a false history, which is worse than the parse error because nothing would ever report it again.'
+  - '**No decision content is altered or dropped.** The repair changes indentation and the `id:` field only. Entry count before and after is equal, and each repaired entry keeps its original `decision`/`scope`/`date`/`task`/`rationale` bytes. A decisions register that silently loses a decision during a repair is a worse failure than the one being repaired.'
+  - '**The file parses and the pre-push gate passes** — verified by running the gate''s own check (`yaml.safe_load`) rather than by the push merely getting further, so the claim is about the file and not about whatever the remote happens to answer.'
+  - '**The recurrence is recorded with its rate, not just fixed.** PD-156 is itself the T-2850 repair of this identical defect, so the generator re-corrupted the file directly after the last fix. Third occurrence (T-2892, T-2850, now). The generator is vendored and already on the upstream record — this task does not patch it (G-062) and does not re-file it, but it does state the interval, because "repaired three times" is the argument for a structural fix that "repaired once" is not.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/project/decisions.yaml'
+  - '.tasks/active/T-2967-restore-onedev-push-via-ring20-manager-c.md'
+  - '.tasks/active/T-2968-decisionsyaml-auto-capture-corruption-re.md'
+  - '.tasks/completed/T-2965-three-stranded-pickup-envelopes-have-no-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-16T20:51:28'
+    action: 'T-2968: repair decisions.yaml auto-capture corruption (third occurrence) — unblocks all pushes'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 54 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 54
+  commits: 1
+  files_changed: 4
+  lines_added: 598
+  lines_removed: 36
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2968-decisionsyaml-auto-capture-corruption-re.md
+generated_by: context-agent-hybrid
