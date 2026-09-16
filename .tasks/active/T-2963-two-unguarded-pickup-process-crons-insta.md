@@ -1,15 +1,14 @@
 ---
-id: T-2953
-name: "Pickup: audit D8/D8b count the handover generators own DELIBERATE unfilled
-  markers (from termlink)"
+id: T-2963
+name: "Two unguarded pickup-process crons: installed copies drop the flock git declares"
 description: >
-  Auto-created from pickup envelope. Source: termlink, task T-2942. Type: bug-report.
+  check-cron-install-drift.sh fires UNINSTALLED_JOBS on agentic-audit.crontab: both git-declared flock-guarded 'fw pickup process' job lines are absent from /etc/cron.d/agentic-audit-termlink, and a second unguarded per-minute copy runs from /etc/cron.d/agentic-pickup-termlink. Measured contributing cause of the T-2953 double-mint (one envelope minted twice, 60s apart, twice in one day). Needs root to install.
 
-status: started-work
+status: captured
 workflow_type: build
 owner: agent
 horizon: now
-tags: [pickup, bug-report]
+tags: [cron, drift, pickup]
 components: []
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
@@ -22,9 +21,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-09T23:08:02Z
-last_update: 2026-09-16T16:08:20Z
-date_finished:
+created: 2026-09-16T16:09:29Z
+last_update: 2026-09-16T16:09:29Z
+date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -35,58 +34,20 @@ date_finished:
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
-source_task_id_in_origin: T-2942
-source_project_in_origin: "termlink"
-bvp_scores_proposed:
-  - ts: '2026-09-11T20:45:29Z'
-    estimator: bvp-estimator-v1-heuristic
-    scores:
-      D1: 4
-      D2: 0
-      D3: 3
-      D4: 2
-      F-RECALL: 1
-      F-ORCH: 0
-    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
-      (body:component-discoverability); D4=2 (body:env-class-handled); 
-      F-RECALL=1 (body:episodic-only); F-ORCH=0 (no-signal)
-    rubric_sha: e4a00f38e801
 ---
 
-# T-2953: Pickup: audit D8/D8b count the handover generators own DELIBERATE unfilled markers (from termlink)
+# T-2963: Two unguarded pickup-process crons: installed copies drop the flock git declares
 
 ## Context
 
-T-2946, T-2947, T-2952 and T-2953 are **not inbound findings**. They are four local
-tasks minted from this project's OWN outbound filings, for two findings that were
-already completed and already filed upstream on 2026-09-09: T-2943 → P-073
-(`framework:pickup` offset 115) and T-2942 → P-076 (offset 119). Both correctly
-declined to patch the vendored `audit.sh` / `handover.sh` per G-062.
-
-The count was three when this task was scoped. The sweep required by AC 6 found the
-fourth (T-2947) and two older ones (T-2222, T-2232) — which is the reason that AC
-exists: the visible instances were not the population.
-
-They are the downstream cost of the `fw pickup send` write-location defect corrected
-upstream at offset 122: `.agentic-framework/lib/pickup.sh:643` writes every outbound
-envelope to `$PICKUP_INBOX`, the directory `fw pickup process` scans for INBOUND work,
-so a project re-ingests its own reports as new work.
-
-The deliverable here is therefore the **disposition** of the re-minted set and the
-measured instance count contributed to the upstream thread — **not** a fix to D8/D8b,
-which is upstream's and already reported twice.
+<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] Origin established by measurement, not inference. Each re-minted task is traced to the envelope and the completed local task it came from, with timestamps: T-2946 + T-2947 ← the single envelope `P-073` ← T-2943 (completed 2026-09-09T18:22:37Z); T-2952 + T-2953 ← the single envelope `P-076` ← T-2942 (completed 2026-09-09T23:08:34Z). Recorded in `## RCA`.
-- [x] The **double-mint** is named as a defect distinct from the write-location one, and it is not a one-off: **both** September envelopes were minted twice, each pair exactly 60s apart (18:09:02Z/18:10:02Z and 23:07:02Z/23:08:02Z), from one file each in `.context/pickup/processed/`. The write-location defect explains why the envelopes were in the inbox at all; it does not explain why each was minted twice.
-- [x] The contributing cause is measured on this host rather than inferred from the verb's source: **two unsynchronised `fw pickup process` crons** run against `/opt/termlink` — `/etc/cron.d/agentic-pickup-termlink` every minute and `/etc/cron.d/agentic-audit-termlink` every 15 — and **both installed copies have the `flock` guard that git declares stripped out**. `scripts/check-cron-install-drift.sh` was already FIRING on exactly these two job lines (UNINSTALLED_JOBS, T-2682 class); nobody had read it. Filed as its own task, not fixed here.
-- [x] The underlying D8/D8b findings are confirmed already disposed — P-073 at offset 115, P-076 at offset 119, neither patched locally — so no D8/D8b work is outstanding under this task. Stated explicitly rather than left silent.
-- [x] T-2946, T-2947 and T-2952 are closed through `fw task update` as duplicates of completed work — via the verb, not hand-edited and not deleted — each naming the task it duplicates.
-- [x] The measurement is appended to the upstream correction thread (reply to offset 122) and read back from the hub: the write-location defect is not theoretical, it produced **6** phantom tasks in `active/` from this project's own filings, 4 of them in one day and every one of those a double-mint.
-- [x] The remaining pickup-minted backlog is swept for the same shape and the **scope of the sweep is stated** (T-2680): every `.tasks/active/` task carrying `source_project_in_origin: "termlink"` is enumerated, and each is either dispositioned here or named as still-open with a reason.
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -122,28 +83,6 @@ which is upstream's and already reported twice.
 -->
 
 ## Verification
-
-# The three duplicates went through the gate into completed/, not deleted.
-grep -q "^status: work-completed" .tasks/completed/T-2946-pickup-auditsh-d8-handover-quality-check.md
-grep -q "^status: work-completed" .tasks/completed/T-2947-pickup-auditsh-d8-handover-quality-check.md
-grep -q "^status: work-completed" .tasks/completed/T-2952-pickup-audit-d8d8b-count-the-handover-ge.md
-# Both origin tasks were already completed before their envelopes were re-minted.
-grep -q "^date_finished: 2026-09-09T18:22:37Z" .tasks/completed/T-2943-d8-audit-check-can-never-pass-generator-.md
-grep -q "^date_finished: 2026-09-09T23:08:34Z" .tasks/completed/T-2942-d8b-10-of-10-recent-handovers-carry-unfi.md
-# Each envelope exists exactly ONCE in processed/ — so two tasks from one file is a double-mint.
-test "$(ls .context/pickup/processed/ | grep -c '^P-073-')" = "1"
-test "$(ls .context/pickup/processed/ | grep -c '^P-076-')" = "1"
-# The sweep's residual: exactly 3 self-minted tasks remain in active/ (T-2222, T-2232, and this task,
-# which is still in active/ at verification time because the move happens after the gate).
-test "$(grep -l 'source_project_in_origin: "termlink"' .tasks/active/*.md | wc -l)" = "3"
-# The cron-drift guard still names both flock-guarded pickup job lines as declared-but-unscheduled.
-bash scripts/check-cron-install-drift.sh > /tmp/.t2953-cron.out 2>&1 || true
-grep -q "flock -n /var/lock/agentic-pickup-termlink.lock" /tmp/.t2953-cron.out
-# The measurement is on the hub at offset 124, threaded to the offset-122 correction.
-termlink channel subscribe framework:pickup --cursor 124 --limit 1 --json > /tmp/.t2953-hub.json 2>&1
-python3 -c 'import json,base64,sys; d=json.loads(open("/tmp/.t2953-hub.json").read().strip().splitlines()[0]); open("/tmp/.t2953-body.txt","wb").write(base64.b64decode(d["payload_b64"])); sys.exit(0 if str(d["metadata"]["in_reply_to"])=="122" else 1)'
-grep -q "THE SECOND DEFECT: DOUBLE-MINT" /tmp/.t2953-body.txt
-grep -q "6 phantom tasks" /tmp/.t2953-body.txt
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -205,39 +144,6 @@ grep -q "6 phantom tasks" /tmp/.t2953-body.txt
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
 ## RCA
-
-**Symptom:** four local tasks (T-2946, T-2947, T-2952, T-2953) appeared in `active/`
-describing two findings this project had already completed and already filed upstream
-the same day. Two of them were re-opened and worked before the origin was noticed.
-
-**Root cause — two independent defects, in sequence.**
-
-1. *Write location.* `fw pickup send` has no outbound store: `lib/pickup.sh:643` writes
-   every envelope to `$PICKUP_INBOX`, the directory `fw pickup process` scans for
-   inbound work. Direction is not carried by location, so a project re-ingests its own
-   reports. Corrected upstream at `framework:pickup` offset 122.
-2. *Double-mint.* `P-073` and `P-076` each exist as exactly **one** file in
-   `.context/pickup/processed/`, and each produced **two** tasks exactly 60s apart
-   (18:09:02Z/18:10:02Z, 23:07:02Z/23:08:02Z). Defect 1 explains why the envelope was
-   in the inbox at all; it does not explain the second mint. `pickup process` mints the
-   task and moves the envelope as two steps, so an invocation landing between them
-   mints again.
-
-**Why structurally allowed:** nothing distinguishes an outbound record from an inbound
-one, so no filter at the minting layer can be correct — and attribution, the only other
-discriminator, is itself unreliable (`rail_project_label()` falls back to `basename $PWD`).
-The second defect was amplified by two unsynchronised `fw pickup process` crons
-(`/etc/cron.d/agentic-pickup-termlink` every minute, `/etc/cron.d/agentic-audit-termlink`
-every 15) whose installed copies have the `flock` guard git declares **stripped out**.
-`scripts/check-cron-install-drift.sh` was already FIRING on exactly those two job lines
-and nobody had read it — the guard worked; the reading of it did not.
-
-**Prevention:** both defects filed upstream (offsets 122 and 124) since `lib/pickup.sh`
-is vendored (G-062); the cron half filed locally as **T-2963**; the two pre-September
-re-mints as **T-2964**. No local patch to the vendored verb, so `.vendor-divergence.yaml`
-needs no entry — stated rather than left silent.
-
-<!-- template note below -->
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
@@ -308,37 +214,6 @@ needs no entry — stated rather than left silent.
 
 ## Decisions
 
-### 2026-09-16 — the duplicate filing I made while reporting duplicate filings
-- **Chose:** leave both copies on the rail (offsets 124 and 125, byte-identical,
-  sha256 `751fb2f982b9`) and record the error here rather than post a third message
-  correcting it.
-- **Why:** a correction would be a third message on a topic whose problem I am
-  reporting is message duplication. The cheaper honest move is to name it where the
-  work is recorded. `channel post` mints a fresh `--client-msg-id` per invocation by
-  design (T-2049 dedupe is for *retries* of one send), so two invocations are
-  correctly two messages — the tool did the right thing and I called it twice.
-- **Rejected:** posting a retraction (adds noise to prove a point about noise);
-  saying nothing (a peer reading the topic would count two independent reports).
-
-### 2026-09-16 — closing the duplicates through the gate, not around it
-- **Chose:** write a real AC and RCA on each of T-2946/T-2947/T-2952 and close them
-  through `fw task update --status work-completed` with the gates armed.
-- **Why:** the mandate's rule is that a gate which refuses you is a finding, not an
-  obstacle. `--skip-acceptance-criteria` would have closed them in one command and
-  left three tasks in `completed/` with template ACs and no evidence trail.
-- **Rejected:** `--force` / `--skip-*` (routes around P-010 and P-011); deleting the
-  files (destroys the evidence that the re-mint happened, which is the finding).
-
-### 2026-09-16 — not fixing D8/D8b here
-- **Chose:** confirm the D8/D8b findings are already disposed and do no work on them.
-- **Why:** T-2943 (P-073, offset 115) and T-2942 (P-076, offset 119) already measured
-  and filed both halves, correctly declining to patch vendored code. Re-doing it under
-  a re-minted task ID is precisely the waste the re-mint causes.
-- **Rejected:** treating the re-minted titles as a live work request — that is what
-  made two sessions open them in the first place.
-
-<!-- template note below -->
-
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
      Format:
@@ -360,11 +235,7 @@ needs no entry — stated rather than left silent.
 
 ## Updates
 
-### 2026-09-09T23:08:02Z — task-created [task-create-agent]
+### 2026-09-16T16:09:29Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2953-pickup-audit-d8d8b-count-the-handover-ge.md
+- **Output:** /opt/termlink/.tasks/active/T-2963-two-unguarded-pickup-process-crons-insta.md
 - **Context:** Initial task creation
-
-### 2026-09-11T20:45:28Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
-- **Change:** horizon: next → now (auto-sync)
