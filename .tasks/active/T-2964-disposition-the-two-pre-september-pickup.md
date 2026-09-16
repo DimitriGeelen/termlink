@@ -2,9 +2,13 @@
 id: T-2964
 name: "Disposition the two pre-September pickup re-mints T-2222 and T-2232"
 description: >
-  T-2222 (origin T-2203) and T-2232 (origin T-2229) are tasks minted from this project's own filings, found by the T-2953 sweep. Both predate the September cluster and come from different origin findings, so their upstream disposition must be verified individually before closing. T-2222's finding may already be superseded by T-2809 (BVP estimator corruption does not reproduce, reported at offset 23).
+  T-2222 (origin T-2203) and T-2232 (origin T-2229) are tasks minted from this project's
+  own filings, found by the T-2953 sweep. Both predate the September cluster and come
+  from different origin findings, so their upstream disposition must be verified individually
+  before closing. T-2222's finding may already be superseded by T-2809 (BVP estimator
+  corruption does not reproduce, reported at offset 23).
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -22,8 +26,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-16T16:10:39Z
-last_update: 2026-09-16T16:10:39Z
-date_finished: null
+last_update: 2026-09-16T16:13:29Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,6 +38,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-09-16T16:13:30Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-2964: Disposition the two pre-September pickup re-mints T-2222 and T-2232
@@ -46,8 +64,11 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] **T-2222 is closed on disproof, not on age.** Its finding (BVP estimator corrupts anchor-less frontmatter) was re-measured under T-2809 on 2026-08-20 — 25 anchor-less old-format tasks, `estimate all` + `cost-all`, including the forced no-`ruamel` branch — with 0 errors and 0 malformed frontmatter. It does not reproduce. Its origin task **T-2203 is still `started-work`**, so this is explicitly NOT the "duplicate of completed work" disposition used for the September cluster, and that difference is stated on the task rather than glossed.
+- [x] **T-2232 is closed on a verified fix, read from the code.** `.agentic-framework/agents/task-create/update-task.sh:668` carries `sys.argv[3] ... else os.environ.get("FRAMEWORK_ROOT","")`, so the reported `__file__ is "-"` under `python3 -` cannot occur. Cross-checked against `.vendor-divergence.yaml` (T-2304, `landed-upstream`). Verified by reading the invocation, not by trusting the register.
+- [x] Both closed through `fw task update` with the gates armed — no `--skip-*`, no `--force`, not deleted — each carrying its own Context, AC and RCA naming the evidence.
+- [x] The self-minted residual is driven to **zero** and the sweep scope is stated (T-2680): after these two, no task in `.tasks/active/` carries `source_project_in_origin: "termlink"` **as a frontmatter field**. The claim is about that field in that directory — it says nothing about re-mints already in `completed/`, or about envelopes not yet processed.
+- [x] The residual predicate is **anchored to start-of-line**, and the reason is recorded rather than silently fixed: the unanchored form returned 1, matching *this task's own AC text quoting the field name*. A task that describes the marker is not a task that carries it — the identical deliberate-mention-counted-as-real defect as T-2882 (handover `[TODO]`) and T-2962 (its own first-draft check), now caught a third time in this lineage by the check that was meant to prove the sweep clean.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -83,6 +104,19 @@ date_finished: null
 -->
 
 ## Verification
+
+# Both re-mints went through the gate into completed/, not deleted.
+grep -q "^status: work-completed" .tasks/completed/T-2222-pickup-bvp-estimator-corrupts-anchor-les.md
+grep -q "^status: work-completed" .tasks/completed/T-2232-pickup-update-tasksh-ships-reachable-gat.md
+# T-2222 closes on DISPROOF, not on origin completion — its origin task is still open.
+grep -q "^status: started-work" .tasks/active/T-2203-ctl-028-bulk-flip--157-completed-tasks-w.md
+# T-2232's finding is fixed in the vendored tree: argv[3] with env fallback, no __file__ reliance.
+grep -q "sys.argv\[3\] if len(sys.argv) > 3 else os.environ.get(\"FRAMEWORK_ROOT\"" .agentic-framework/agents/task-create/update-task.sh
+# ...and the register agrees it landed upstream.
+grep -q "landed-upstream" .vendor-divergence.yaml
+# Residual is zero under the ANCHORED predicate. Unanchored returns 1 — this task's own
+# AC text quoting the field name — which is the false positive AC 5 records.
+test "$(grep -l '^source_project_in_origin: \"termlink\"' .tasks/active/*.md 2>/dev/null | wc -l)" = "0"
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -214,6 +248,28 @@ date_finished: null
 
 ## Decisions
 
+### 2026-09-16 — two closures, two different reasons, stated separately
+- **Chose:** close T-2222 on *disproof of the finding* and T-2232 on *a fix verified in
+  the tree*, rather than closing both under one "stale pickup re-mint" heading.
+- **Why:** they are not the same disposition. T-2222's origin task is still
+  `started-work`, so "duplicate of completed work" would be false for it; T-2232's
+  finding is genuinely fixed, which is stronger than duplication. Collapsing both into
+  one reason would put an untrue sentence in the register to save a paragraph.
+- **Rejected:** a single bulk close with a shared reason; leaving them open pending the
+  origin tasks (T-2203 may never close, and the finding is already disproved).
+
+### 2026-09-16 — anchoring the residual predicate instead of quietly fixing it
+- **Chose:** keep both forms in the Verification block, with a comment naming why the
+  unanchored one returns 1.
+- **Why:** the false positive *is* the finding — a task that quotes a marker is not a
+  task that carries it. That is the T-2882 defect, and this is its third instance in
+  this lineage (handover `[TODO]`, T-2962's own first-draft check, now this). Silently
+  adding a `^` would have hidden the one durable lesson in a one-character diff.
+- **Rejected:** replacing the predicate and saying nothing; excluding T-2964 by name
+  (fixes this instance and leaves the class live for the next task that quotes a field).
+
+<!-- template note below -->
+
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
      Format:
@@ -239,3 +295,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2964-disposition-the-two-pre-september-pickup.md
 - **Context:** Initial task creation
+
+### 2026-09-16T16:13:29Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

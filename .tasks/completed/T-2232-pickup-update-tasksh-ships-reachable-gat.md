@@ -5,10 +5,10 @@ name: "Pickup: update-task.sh ships-reachable gate crashes on inception work-com
 description: >
   Auto-created from pickup envelope. Source: termlink, task T-2229. Type: bug-report.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: next
+horizon: null
 tags: [pickup, bug-report]
 components: []
 related_tasks: []
@@ -17,8 +17,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-21T10:39:02Z
-last_update: '2026-09-08T21:30:38Z'
-date_finished:
+last_update: 2026-09-16T16:15:44Z
+date_finished: 2026-09-16T16:15:44Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -61,14 +61,24 @@ cost_estimate_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+A re-mint of this project's own outbound filing (`source_project_in_origin: "termlink"`,
+origin task T-2229, completed), surfaced by the T-2953 sweep. Same write-location defect:
+`lib/pickup.sh:643` writes outbound envelopes into `$PICKUP_INBOX`.
+
+**The finding is fixed, and the fix is verified by reading the code rather than trusting
+the register.** `.agentic-framework/agents/task-create/update-task.sh:668` now reads
+`framework_root = sys.argv[3] if len(sys.argv) > 3 else os.environ.get("FRAMEWORK_ROOT", "")`
+— the reported `__file__ is "-" under python3 stdin` shape is gone, and
+`lib.inception_decisions` imports against an explicitly-passed root. This is the T-2304
+fix, registered `landed-upstream` in `.vendor-divergence.yaml` and re-verified on
+2026-08-26 by reading the invocation, not by counting occurrences.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] The fix is present in the vendored tree and verified by reading it: `update-task.sh:668` passes `FRAMEWORK_ROOT` via `sys.argv[3]` with an env fallback, so the `__file__ is "-"` failure the envelope reports cannot occur. Not inferred from the register alone.
+- [x] Cross-checked against `.vendor-divergence.yaml`: the same fix is registered as T-2304, `status: landed-upstream`, with upstream carrying it by a **better** mechanism than the one filed (argv survives an env-stripping wrapper; the filed env-threading did not).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -136,6 +146,26 @@ cost_estimate_proposed:
 
 ## RCA
 
+**Symptom:** a local task describing an `update-task.sh` crash — `__file__` resolving to
+`-` under `python3 -` stdin, breaking the `lib.inception_decisions` import on the
+ships-reachable gate — that no longer occurs in the vendored tree.
+
+**Root cause (of the phantom task):** the `fw pickup send` write-location defect;
+`lib/pickup.sh:643` writes outbound envelopes into the inbound inbox.
+
+**Root cause (of the original crash):** a `python3 -` heredoc cannot resolve its own
+location, so `sys.path` could not be derived from `__file__`. Fixed by passing the
+framework root explicitly.
+
+**Why structurally allowed:** direction is not carried by location; and a pickup task
+minted from an already-fixed finding carries no marker distinguishing it from live work,
+so it sits in `active/` asserting outstanding work that does not exist.
+
+**Prevention:** write-location defect filed upstream (offsets 122/124), vendored so not
+patched here (G-062). The fix itself is already registered and verified landed-upstream.
+
+<!-- template note below -->
+
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
      Non-bug-class tasks may leave this section empty or remove it.
@@ -201,3 +231,21 @@ cost_estimate_proposed:
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2232-pickup-update-tasksh-ships-reachable-gat.md
 - **Context:** Initial task creation
+
+### 2026-09-16T16:15:30Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+- **Reason:** Opening to record disposition
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-1a86cf57
+- **Timestamp:** 2026-09-16T16:15:45Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-09-16T16:15:44Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Finding fixed upstream (T-2304, landed-upstream): update-task.sh:668 passes FRAMEWORK_ROOT via argv[3]. Phantom task from the pickup write-location defect. Disposition in T-2964.

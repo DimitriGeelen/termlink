@@ -5,20 +5,20 @@ name: "Pickup: BVP estimator corrupts anchor-less task frontmatter (orphaned pro
 description: >
   Auto-created from pickup envelope. Source: termlink, task T-2203. Type: bug-report.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: next
+horizon: null
 tags: [pickup, bug-report]
-components: []
+components: [scripts/check-task-frontmatter.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-13T20:08:02Z
-last_update: '2026-09-08T21:30:38Z'
-date_finished:
+last_update: 2026-09-16T16:15:31Z
+date_finished: 2026-09-16T16:15:31Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -61,14 +61,28 @@ cost_estimate_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+A re-mint of this project's own outbound filing (`source_project_in_origin: "termlink"`,
+origin task T-2203), surfaced by the T-2953 sweep. `fw pickup send` writes outbound
+envelopes into `$PICKUP_INBOX` (`lib/pickup.sh:643`), so `fw pickup process` re-ingests
+them as inbound work — corrected upstream at `framework:pickup` offset 122, measured at
+offset 124.
+
+**The finding itself is superseded by measurement, not merely stale.** The reported BVP
+estimator frontmatter corruption was re-measured on 2026-08-20 under T-2809 — on scratch
+copies, 25 anchor-less old-format tasks, `estimate all` + `cost-all` — and produced 0
+errors and 0 malformed frontmatter, including on the forced no-`ruamel` fallback branch.
+It does not reproduce. Reported at `framework:pickup` offset 23.
+
+Note this is **not** "duplicate of completed work": origin task T-2203 is still
+`started-work`. It is closed because the finding was independently disproved, which is a
+different and stronger reason.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] The finding is disproved by a later measurement, not merely aged out: T-2809 re-ran `fw bvp estimate all` + `cost-all` over 25 anchor-less old-format tasks on 2026-08-20 with 0 errors and 0 malformed frontmatter, including the forced no-`ruamel` branch. Recorded in CLAUDE.md as an outcome and deliberately **not** as a warning, because documenting a hazard that no longer reproduces taxes every future reader.
+- [x] The distinction is stated rather than glossed: origin task T-2203 is still `started-work`, so this closes on *disproof of the finding*, not on *completion of the origin task*.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -136,6 +150,28 @@ cost_estimate_proposed:
 
 ## RCA
 
+**Symptom:** a local task describing a BVP-estimator corruption that, when finally
+measured, does not occur.
+
+**Root cause (of the phantom task):** `fw pickup send` has no outbound store —
+`lib/pickup.sh:643` writes every envelope to `$PICKUP_INBOX`, the directory
+`fw pickup process` scans for inbound work, so the project re-ingests its own report.
+
+**Root cause (of the original claim):** a June 2026 commit message recorded the
+corruption and was never filed; the vendored estimator had no git history to bisect
+against, so "fixed upstream" is the inference that fits rather than a proven bisect.
+Either way the behaviour is gone.
+
+**Why structurally allowed:** direction is not carried by location, so nothing
+distinguishes our outbound report from a peer's inbound one; and a claim recorded only
+in a commit message has no owner and no expiry, so it survives its own refutation.
+
+**Prevention:** write-location defect filed upstream (offsets 122/124), vendored so not
+patched here (G-062). The non-reproduction is recorded in CLAUDE.md so the next reader
+does not re-inherit the warning.
+
+<!-- template note below -->
+
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
      Non-bug-class tasks may leave this section empty or remove it.
@@ -201,3 +237,21 @@ cost_estimate_proposed:
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2222-pickup-bvp-estimator-corrupts-anchor-les.md
 - **Context:** Initial task creation
+
+### 2026-09-16T16:15:29Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+- **Reason:** Opening to record disposition
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-5800301e
+- **Timestamp:** 2026-09-16T16:15:32Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-09-16T16:15:31Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Finding disproved by T-2809 re-measurement 2026-08-20 (does not reproduce); phantom task from the pickup write-location defect. Disposition in T-2964.

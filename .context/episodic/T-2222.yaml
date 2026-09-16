@@ -1,0 +1,72 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2222: Pickup: BVP estimator corrupts anchor-less task frontmatter (orphaned proposed-score lists produce invalid YAML) (from termlink)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-16T16:15:39Z
+# ============================================================================
+
+task_id: T-2222
+task_name: "Pickup: BVP estimator corrupts anchor-less task frontmatter (orphaned proposed-score lists produce invalid YAML) (from termlink)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-06-13T20:08:02Z
+completed: 2026-09-16T16:15:31Z
+duration_days: 95
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Auto-created from pickup envelope. Source: termlink, task T-2203. Type: bug-report.
+
+# Key outcomes
+outcomes:
+  - 'The finding is disproved by a later measurement, not merely aged out: T-2809 re-ran `fw bvp estimate all` + `cost-all` over 25 anchor-less old-format tasks on 2026-08-20 with 0 errors and 0 malformed frontmatter, including the forced no-`ruamel` branch. Recorded in CLAUDE.md as an outcome and deliberately **not** as a warning, because documenting a hazard that no longer reproduces taxes every future reader.'
+  - 'The distinction is stated rather than glossed: origin task T-2203 is still `started-work`, so this closes on *disproof of the finding*, not on *completion of the origin task*.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 136567 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [pickup, bug-report]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 136567
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2222-pickup-bvp-estimator-corrupts-anchor-les.md
+generated_by: context-agent-hybrid
