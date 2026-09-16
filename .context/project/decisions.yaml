@@ -1142,44 +1142,72 @@ decisions:
   task: T-2850
   rationale: "Auto-captured from task file on completion"
 
-  - id: PD-001
-    decision: "Leave all four envelopes in `.context/pickup/auto-deferred/`. The"
-    scope: project
-    date: 2026-09-11
-    task: T-2951
-    rationale: "Auto-captured from task file on completion"
+- id: PD-157
+  decision: "Leave all four envelopes in `.context/pickup/auto-deferred/`. The"
+  scope: project
+  date: 2026-09-11
+  task: T-2951
+  rationale: "Auto-captured from task file on completion"
 
-  - id: PD-002
-    decision: "leave both copies on the rail (offsets 124 and 125, byte-identical,"
-    scope: project
-    date: 2026-09-16
-    task: T-2953
-    rationale: "Auto-captured from task file on completion"
+- id: PD-158
+  decision: "leave both copies on the rail (offsets 124 and 125, byte-identical,"
+  scope: project
+  date: 2026-09-16
+  task: T-2953
+  rationale: "Auto-captured from task file on completion"
 
-  - id: PD-003
-    decision: "write a real AC and RCA on each of T-2946/T-2947/T-2952 and close them"
-    scope: project
-    date: 2026-09-16
-    task: T-2953
-    rationale: "Auto-captured from task file on completion"
+- id: PD-159
+  decision: "write a real AC and RCA on each of T-2946/T-2947/T-2952 and close them"
+  scope: project
+  date: 2026-09-16
+  task: T-2953
+  rationale: "Auto-captured from task file on completion"
 
-  - id: PD-004
-    decision: "confirm the D8/D8b findings are already disposed and do no work on them."
-    scope: project
-    date: 2026-09-16
-    task: T-2953
-    rationale: "Auto-captured from task file on completion"
+- id: PD-160
+  decision: "confirm the D8/D8b findings are already disposed and do no work on them."
+  scope: project
+  date: 2026-09-16
+  task: T-2953
+  rationale: "Auto-captured from task file on completion"
 
-  - id: PD-005
-    decision: "close T-2222 on *disproof of the finding* and T-2232 on *a fix verified in"
-    scope: project
-    date: 2026-09-16
-    task: T-2964
-    rationale: "Auto-captured from task file on completion"
+- id: PD-161
+  decision: "close T-2222 on *disproof of the finding* and T-2232 on *a fix verified in"
+  scope: project
+  date: 2026-09-16
+  task: T-2964
+  rationale: "Auto-captured from task file on completion"
 
-  - id: PD-006
-    decision: "keep both forms in the Verification block, with a comment naming why the"
-    scope: project
-    date: 2026-09-16
-    task: T-2964
-    rationale: "Auto-captured from task file on completion"
+- id: PD-162
+  decision: "keep both forms in the Verification block, with a comment naming why the"
+  scope: project
+  date: 2026-09-16
+  task: T-2964
+  rationale: "Auto-captured from task file on completion"
+
+- id: PD-163
+  decision: "the new `scripts/*.sh` pass adds a file to the layer when it carries the marker"
+  scope: project
+  date: 2026-09-16
+  task: T-2935
+  rationale: "Auto-captured from task file on completion"
+
+- id: PD-164
+  decision: "widen only the MARKED scan, then diff it against the runner's actual"
+  scope: project
+  date: 2026-09-16
+  task: T-2935
+  rationale: "Auto-captured from task file on completion"
+
+- id: PD-165
+  decision: "build a pre-fix runner (new pass's glob neutered to `__no_such_glob__*.sh`) and"
+  scope: project
+  date: 2026-09-16
+  task: T-2935
+  rationale: "Auto-captured from task file on completion"
+
+- id: PD-166
+  decision: "print the \"give each dormant script a disposition\" block only when `n_dormant > 0`."
+  scope: project
+  date: 2026-09-16
+  task: T-2935
+  rationale: "Auto-captured from task file on completion"
