@@ -1,0 +1,107 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2953: Pickup: audit D8/D8b count the handover generators own DELIBERATE unfilled markers (from termlink)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-16T16:12:53Z
+# ============================================================================
+
+task_id: T-2953
+task_name: "Pickup: audit D8/D8b count the handover generators own DELIBERATE unfilled markers (from termlink)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-09-09T23:08:02Z
+completed: 2026-09-16T16:12:44Z
+duration_days: 7
+updates_count: 2
+first_commit: 2026-09-11T22:44:58+02:00
+last_commit: 2026-09-16T18:12:38+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Session handover S-2026-0911-2244. close T-2946/T-2947/T-2952 as re-mints of our own completed filings (P-073/P-076). disposition of the self-minted pickup backlog — RCA, decisions, verification; T-2963/T-2964 filed
+
+# Key outcomes
+outcomes:
+  - 'Origin established by measurement, not inference. Each re-minted task is traced to the envelope and the completed local task it came from, with timestamps: T-2946 + T-2947 ← the single envelope `P-073` ← T-2943 (completed 2026-09-09T18:22:37Z); T-2952 + T-2953 ← the single envelope `P-076` ← T-2942 (completed 2026-09-09T23:08:34Z). Recorded in `## RCA`.'
+  - 'The **double-mint** is named as a defect distinct from the write-location one, and it is not a one-off: **both** September envelopes were minted twice, each pair exactly 60s apart (18:09:02Z/18:10:02Z and 23:07:02Z/23:08:02Z), from one file each in `.context/pickup/processed/`. The write-location defect explains why the envelopes were in the inbox at all; it does not explain why each was minted twice.'
+  - 'The contributing cause is measured on this host rather than inferred from the verb''s source: **two unsynchronised `fw pickup process` crons** run against `/opt/termlink` — `/etc/cron.d/agentic-pickup-termlink` every minute and `/etc/cron.d/agentic-audit-termlink` every 15 — and **both installed copies have the `flock` guard that git declares stripped out**. `scripts/check-cron-install-drift.sh` was already FIRING on exactly these two job lines (UNINSTALLED_JOBS, T-2682 class); nobody had read it. Filed as its own task, not fixed here.'
+  - 'The underlying D8/D8b findings are confirmed already disposed — P-073 at offset 115, P-076 at offset 119, neither patched locally — so no D8/D8b work is outstanding under this task. Stated explicitly rather than left silent.'
+  - 'T-2946, T-2947 and T-2952 are closed through `fw task update` as duplicates of completed work — via the verb, not hand-edited and not deleted — each naming the task it duplicates.'
+  - 'The measurement is appended to the upstream correction thread (reply to offset 122) and read back from the hub: the write-location defect is not theoretical, it produced **6** phantom tasks in `active/` from this project''s own filings, 4 of them in one day and every one of those a double-mint.'
+  - 'The remaining pickup-minted backlog is swept for the same shape and the **scope of the sweep is stated** (T-2680): every `.tasks/active/` task carrying `source_project_in_origin: "termlink"` is enumerated, and each is either dispositioned here or named as still-open with a reason.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-09-16 — the duplicate filing I made while reporting duplicate filings'
+    chose: 'leave both copies on the rail (offsets 124 and 125, byte-identical, sha256 `751fb2f982b9`) and record the error here rather than post a third message correcting it.'
+    rationale: 'a correction would be a third message on a topic whose problem I am reporting is message duplication. The cheaper honest move is to name it where the work is recorded. `channel post` mints a fresh `--client-msg-id` per invocation by design (T-2049 dedupe is for *retries* of one send), so two invocations are correctly two messages — the tool did the right thing and I called it twice.'
+    alternatives_rejected: ['posting a retraction (adds noise to prove a point about noise); saying nothing (a peer reading the topic would count two independent reports).']
+  - decision: '2026-09-16 — closing the duplicates through the gate, not around it'
+    chose: 'write a real AC and RCA on each of T-2946/T-2947/T-2952 and close them through `fw task update --status work-completed` with the gates armed.'
+    rationale: 'the mandate''s rule is that a gate which refuses you is a finding, not an obstacle. `--skip-acceptance-criteria` would have closed them in one command and left three tasks in `completed/` with template ACs and no evidence trail.'
+    alternatives_rejected: ['`--force` / `--skip-*` (routes around P-010 and P-011); deleting the files (destroys the evidence that the re-mint happened, which is the finding).']
+  - decision: '2026-09-16 — not fixing D8/D8b here'
+    chose: 'confirm the D8/D8b findings are already disposed and do no work on them.'
+    rationale: 'T-2943 (P-073, offset 115) and T-2942 (P-076, offset 119) already measured and filed both halves, correctly declining to patch vendored code. Re-doing it under a re-minted task ID is precisely the waste the re-mint causes.'
+    alternatives_rejected: ['treating the re-minted titles as a live work request — that is what made two sessions open them in the first place.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/episodic/T-2946.yaml'
+  - '.context/episodic/T-2947.yaml'
+  - '.context/episodic/T-2952.yaml'
+  - '.context/handovers/LATEST.md'
+  - '.context/handovers/S-2026-0911-2244.md'
+  - '.context/project/metrics-history.yaml'
+  - '.tasks/active/T-2723-handover-commit-under-t-1452-collides-wi.md'
+  - '.tasks/active/T-2953-pickup-audit-d8d8b-count-the-handover-ge.md'
+  - '.tasks/active/T-2963-two-unguarded-pickup-process-crons-insta.md'
+  - '.tasks/active/T-2964-disposition-the-two-pre-september-pickup.md'
+  - '.tasks/completed/T-2946-pickup-auditsh-d8-handover-quality-check.md'
+  - '.tasks/completed/T-2947-pickup-auditsh-d8-handover-quality-check.md'
+  - '.tasks/completed/T-2952-pickup-audit-d8d8b-count-the-handover-ge.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-11T22:44:58'
+    action: 'T-2953: Session handover S-2026-0911-2244'
+  - time: '2026-09-16T18:08:19'
+    action: 'T-2953: close T-2946/T-2947/T-2952 as re-mints of our own completed filings (P-073/P-076)'
+  - time: '2026-09-16T18:12:38'
+    action: 'T-2953: disposition of the self-minted pickup backlog — RCA, decisions, verification; T-2963/T-2964 filed'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 9664 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [pickup, bug-report]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 9664
+  commits: 4
+  files_changed: 12
+  lines_added: 5447
+  lines_removed: 3935
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2953-pickup-audit-d8d8b-count-the-handover-ge.md
+generated_by: context-agent-hybrid

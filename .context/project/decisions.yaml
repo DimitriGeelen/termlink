@@ -1148,3 +1148,24 @@ decisions:
     date: 2026-09-11
     task: T-2951
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-002
+    decision: "leave both copies on the rail (offsets 124 and 125, byte-identical,"
+    scope: project
+    date: 2026-09-16
+    task: T-2953
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-003
+    decision: "write a real AC and RCA on each of T-2946/T-2947/T-2952 and close them"
+    scope: project
+    date: 2026-09-16
+    task: T-2953
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-004
+    decision: "confirm the D8/D8b findings are already disposed and do no work on them."
+    scope: project
+    date: 2026-09-16
+    task: T-2953
+    rationale: "Auto-captured from task file on completion"

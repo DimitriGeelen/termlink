@@ -5,10 +5,10 @@ name: "Pickup: audit D8/D8b count the handover generators own DELIBERATE unfille
 description: >
   Auto-created from pickup envelope. Source: termlink, task T-2942. Type: bug-report.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [pickup, bug-report]
 components: []
 related_tasks: []
@@ -23,8 +23,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-09T23:08:02Z
-last_update: 2026-09-16T16:08:20Z
-date_finished:
+last_update: 2026-09-16T16:12:44Z
+date_finished: 2026-09-16T16:12:44Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -368,3 +368,26 @@ needs no entry — stated rather than left silent.
 ### 2026-09-11T20:45:28Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-8bf8d3ff
+- **Timestamp:** 2026-09-16T16:12:46Z
+- **Catalogue:** v1.3-seed
+- **Overall:** FAIL
+- **Needs Human:** no
+- **Findings:** 2
+
+**Per-AC findings:**
+
+- **AC#3 (Agent)** — The contributing cause is measured on this host rather than inferred from the verb's source: **two unsynchronised `fw pickup process` crons** run against `/opt/termlink` — `/etc/cron.d/agentic-pickup-
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=etc/cron.d in: The contributing cause is measured on this host rather than inferred from the verb's source: **two unsynchronised `fw pickup process` crons** run agai`
+
+**Verification-level findings:**
+
+  1. **swallowed-errors** (severe, deterministic) @ Verification:line 15
+     - evidence: `bash scripts/check-cron-install-drift.sh > /tmp/.t2953-cron.out 2>&1 || true`
+
+### 2026-09-16T16:12:44Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Self-minted pickup backlog dispositioned; double-mint defect measured and filed upstream at offset 124; cron cause filed as T-2963, older re-mints as T-2964.
