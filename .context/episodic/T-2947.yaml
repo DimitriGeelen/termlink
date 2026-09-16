@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2947: Pickup: audit.sh D8 handover-quality check can never PASS: handover.sh emits a (from termlink)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-16T16:08:00Z
+# ============================================================================
+
+task_id: T-2947
+task_name: "Pickup: audit.sh D8 handover-quality check can never PASS: handover.sh emits a (from termlink)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-09T18:10:02Z
+completed: 2026-09-16T16:07:52Z
+duration_days: 7
+updates_count: 2
+first_commit: 2026-09-10T07:39:01+02:00
+last_commit: 2026-09-10T07:39:01+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Session handover S-2026-0910-0738
+
+# Key outcomes
+outcomes:
+  - 'Origin task **T-2943** is confirmed `work-completed` (finished 2026-09-09T18:22:37Z) and its finding was filed upstream at `framework:pickup` offset 115 — so the work this envelope describes is already done and already reported. Verified by command, not asserted.'
+  - 'Closed as a duplicate through `fw task update`, with the disposition recorded in T-2953. Not deleted, not hand-edited out of `active/` — the re-mint is evidence and stays in the register.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/handovers/LATEST.md'
+  - '.context/handovers/S-2026-0910-0738.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-10T07:39:01'
+    action: 'T-2947: Session handover S-2026-0910-0738'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 9957 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [pickup, bug-report]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 9957
+  commits: 1
+  files_changed: 2
+  lines_added: 268
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2947-pickup-auditsh-d8-handover-quality-check.md
+generated_by: context-agent-hybrid

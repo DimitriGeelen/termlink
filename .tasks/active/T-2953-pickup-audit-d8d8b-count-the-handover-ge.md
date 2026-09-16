@@ -1,13 +1,14 @@
 ---
 id: T-2953
-name: "Pickup: audit D8/D8b count the handover generators own DELIBERATE unfilled markers (from termlink)"
+name: "Pickup: audit D8/D8b count the handover generators own DELIBERATE unfilled
+  markers (from termlink)"
 description: >
   Auto-created from pickup envelope. Source: termlink, task T-2942. Type: bug-report.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [pickup, bug-report]
 components: []
 related_tasks: []
@@ -22,8 +23,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-09T23:08:02Z
-last_update: 2026-09-09T23:08:02Z
-date_finished: null
+last_update: 2026-09-11T20:45:28Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -36,20 +37,52 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 source_task_id_in_origin: T-2942
 source_project_in_origin: "termlink"
+bvp_scores_proposed:
+  - ts: '2026-09-11T20:45:29Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 1
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=1 (body:episodic-only); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-2953: Pickup: audit D8/D8b count the handover generators own DELIBERATE unfilled markers (from termlink)
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+T-2946, T-2952 and T-2953 are **not inbound findings**. They are three local tasks
+minted from this project's OWN outbound filings, for two findings that were already
+completed and already filed upstream on 2026-09-09: T-2943 → P-073 (`framework:pickup`
+offset 115) and T-2942 → P-076 (offset 119). Both correctly declined to patch the
+vendored `audit.sh` / `handover.sh` per G-062.
+
+They are the downstream cost of the `fw pickup send` write-location defect corrected
+upstream at offset 122: `.agentic-framework/lib/pickup.sh:643` writes every outbound
+envelope to `$PICKUP_INBOX`, the directory `fw pickup process` scans for INBOUND work,
+so a project re-ingests its own reports as new work.
+
+The deliverable here is therefore the **disposition** of the re-minted set and the
+measured instance count contributed to the upstream thread — **not** a fix to D8/D8b,
+which is upstream's and already reported twice.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] Origin established by measurement, not inference. Each re-minted task is traced to the envelope and the completed local task it came from, with timestamps: T-2946 + T-2947 ← the single envelope `P-073` ← T-2943 (completed 2026-09-09T18:22:37Z); T-2952 + T-2953 ← the single envelope `P-076` ← T-2942 (completed 2026-09-09T23:08:34Z). Recorded in `## RCA`.
+- [ ] The **double-mint** is named as a defect distinct from the write-location one, and it is not a one-off: **both** September envelopes were minted twice, each pair exactly 60s apart (18:09:02Z/18:10:02Z and 23:07:02Z/23:08:02Z), from one file each in `.context/pickup/processed/`. The write-location defect explains why the envelopes were in the inbox at all; it does not explain why each was minted twice.
+- [ ] The contributing cause is measured on this host rather than inferred from the verb's source: **two unsynchronised `fw pickup process` crons** run against `/opt/termlink` — `/etc/cron.d/agentic-pickup-termlink` every minute and `/etc/cron.d/agentic-audit-termlink` every 15 — and **both installed copies have the `flock` guard that git declares stripped out**. `scripts/check-cron-install-drift.sh` was already FIRING on exactly these two job lines (UNINSTALLED_JOBS, T-2682 class); nobody had read it. Filed as its own task, not fixed here.
+- [ ] The underlying D8/D8b findings are confirmed already disposed — P-073 at offset 115, P-076 at offset 119, neither patched locally — so no D8/D8b work is outstanding under this task. Stated explicitly rather than left silent.
+- [ ] T-2946, T-2947 and T-2952 are closed through `fw task update` as duplicates of completed work — via the verb, not hand-edited and not deleted — each naming the task it duplicates.
+- [ ] The measurement is appended to the upstream correction thread (reply to offset 122) and read back from the hub: the write-location defect is not theoretical, it produced **6** phantom tasks in `active/` from this project's own filings, 4 of them in one day and every one of those a double-mint.
+- [ ] The remaining pickup-minted backlog is swept for the same shape and the **scope of the sweep is stated** (T-2680): every `.tasks/active/` task carrying `source_project_in_origin: "termlink"` is enumerated, and each is either dispositioned here or named as still-open with a reason.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -241,3 +274,7 @@ source_project_in_origin: "termlink"
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2953-pickup-audit-d8d8b-count-the-handover-ge.md
 - **Context:** Initial task creation
+
+### 2026-09-11T20:45:28Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

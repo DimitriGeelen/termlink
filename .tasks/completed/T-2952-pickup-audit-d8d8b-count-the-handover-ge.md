@@ -1,13 +1,14 @@
 ---
-id: T-2946
-name: "Pickup: audit.sh D8 handover-quality check can never PASS: handover.sh emits a (from termlink)"
+id: T-2952
+name: "Pickup: audit D8/D8b count the handover generators own DELIBERATE unfilled
+  markers (from termlink)"
 description: >
-  Auto-created from pickup envelope. Source: termlink, task T-2943. Type: bug-report.
+  Auto-created from pickup envelope. Source: termlink, task T-2942. Type: bug-report.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: next
+horizon: null
 tags: [pickup, bug-report]
 components: []
 related_tasks: []
@@ -21,9 +22,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-09T18:09:02Z
-last_update: 2026-09-09T23:15:02Z
-date_finished: null
+created: 2026-09-09T23:07:02Z
+last_update: 2026-09-16T16:08:01Z
+date_finished: 2026-09-16T16:08:01Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,22 +35,45 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
-source_task_id_in_origin: T-2943
+source_task_id_in_origin: T-2942
 source_project_in_origin: "termlink"
+bvp_scores_proposed:
+  - ts: '2026-09-16T16:07:38Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 1
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=1 (body:episodic-only); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
-# T-2946: Pickup: audit.sh D8 handover-quality check can never PASS: handover.sh emits a (from termlink)
+# T-2952: Pickup: audit D8/D8b count the handover generators own DELIBERATE unfilled markers (from termlink)
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+This task is a **re-mint of this project's own outbound filing**, not inbound work.
+Envelope `P-076` was created by local task **T-2942**, which completed at 2026-09-09T23:08:34Z and
+filed the finding upstream at `framework:pickup` offset **119**. `fw pickup send`
+writes outbound envelopes into `$PICKUP_INBOX` (`.agentic-framework/lib/pickup.sh:643`),
+the directory `fw pickup process` scans for INBOUND work, so the report was re-ingested
+as new local work. Two unsynchronised `pickup process` crons then minted the same
+envelope **twice** — this task at 2026-09-09T23:07:02Z, its twin T-2953 60s later.
+
+Disposition, evidence and the upstream report live in **T-2953**. Nothing is
+outstanding here.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Origin task **T-2942** is confirmed `work-completed` (finished 2026-09-09T23:08:34Z) and its finding was filed upstream at `framework:pickup` offset 119 — so the work this envelope describes is already done and already reported. Verified by command, not asserted.
+- [x] Closed as a duplicate through `fw task update`, with the disposition recorded in T-2953. Not deleted, not hand-edited out of `active/` — the re-mint is evidence and stays in the register.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -85,6 +109,11 @@ source_project_in_origin: "termlink"
 -->
 
 ## Verification
+
+# The origin task is completed — this envelope describes finished work.
+grep -q '^status: work-completed' .tasks/completed/T-2942-d8b-10-of-10-recent-handovers-carry-unfi.md
+# ...and it finished when this task claims it did.
+grep -q '^date_finished: 2026-09-09T23:08:34Z' .tasks/completed/T-2942-d8b-10-of-10-recent-handovers-carry-unfi.md
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -146,6 +175,26 @@ source_project_in_origin: "termlink"
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
 ## RCA
+
+**Symptom:** a local task appeared describing a finding this project had already
+completed and filed upstream, indistinguishable in `active/` from genuine inbound work.
+
+**Root cause:** `fw pickup send` has no outbound store. `lib/pickup.sh:643` writes every
+envelope it creates to `$PICKUP_INBOX` — the same directory `fw pickup process` scans for
+inbound work — so direction is not carried by location and a project re-ingests its own
+reports. Corrected upstream at `framework:pickup` offset 122.
+
+**Why structurally allowed:** nothing distinguishes an outbound record from an inbound
+one, so no filter at the minting layer can be made correct; and attribution, the only
+other discriminator, is itself unreliable (`rail_project_label()` falls back to
+`basename $PWD`). The duplication was doubled by two unsynchronised `fw pickup process`
+crons whose installed copies have the `flock` guard git declares stripped out.
+
+**Prevention:** upstream must give `send` an outbound store distinct from the inbox
+(filed). Locally the cron half is filed as its own task; `scripts/check-cron-install-drift.sh`
+already fires on it. Vendored code, so not patched here (G-062).
+
+<!-- original template note below -->
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
@@ -237,7 +286,25 @@ source_project_in_origin: "termlink"
 
 ## Updates
 
-### 2026-09-09T18:09:02Z — task-created [task-create-agent]
+### 2026-09-09T23:07:02Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2946-pickup-auditsh-d8-handover-quality-check.md
+- **Output:** /opt/termlink/.tasks/active/T-2952-pickup-audit-d8d8b-count-the-handover-ge.md
 - **Context:** Initial task creation
+
+### 2026-09-16T16:07:38Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+- **Reason:** Opening only to record duplicate disposition (state machine requires captured -> started-work -> work-completed).
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-cc220812
+- **Timestamp:** 2026-09-16T16:08:02Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-09-16T16:08:01Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Duplicate: re-mint of our own P-076 envelope; finding completed as T-2942 and filed upstream at offset 119. Disposition in T-2953.
