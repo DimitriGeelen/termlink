@@ -211,6 +211,65 @@ if mkmut M3 && bash -n "$TMP/mut.sh"; then
     rm -rf "$EMPTY2"
 else bad "M3 could not be built"; fi
 
+# ---- T-2935: marked-but-unenumerated is a NAMED class, not an invisible one ----
+# The M3 block above leaves `set -e` on, and every check run below legitimately exits 1
+# (this fixture tree has dormant scripts by design), so the suite would abort here.
+set +e
+# A marked script named neither check-* nor test-* was enumerated by none of the runner's
+# name globs and classified by none of this check's buckets: not unclassified (it has a
+# marker), not covered, not dormant. Invisible to the guard AND to the guard's auditor.
+printf '#!/usr/bin/env bash\n%s\nexit 0\n' "$marker" > "$TMP/scripts/widget-guard.sh"
+
+# Pre-fix runner: neuter ONLY the marker-authoritative pass, leaving the three legacy
+# name-glob loops exactly as they were. Mutating the runner (not the check) is the right
+# direction here — the fixture must prove the CHECK detects a runner that drops a marked
+# script, so the runner is the thing that has to regress.
+python3 - "$RUNNER" "$TMP/runner-prefix.sh" <<'PYMUT'
+import sys
+src, dst = sys.argv[1], sys.argv[2]
+s = open(src).read()
+old = 'for f in "$SCRIPTS_DIR"/*.sh; do'
+assert s.count(old) == 1, "pre-fix mutation anchor not unique"
+open(dst, "w").write(s.replace(old, 'for f in "$SCRIPTS_DIR"/__no_such_glob__*.sh; do', 1))
+PYMUT
+
+run_with_runner() { # $1=runner path, rest=check args
+    GUARD_COVERAGE_SCRIPTS_DIR="$TMP/scripts" \
+    GUARD_COVERAGE_TESTS_DIR="$TMP/tests" \
+    GUARD_COVERAGE_CRON_SRC_DIR="$TMP/cron-src" \
+    GUARD_COVERAGE_CRON_INSTALLED_DIR="$TMP/cron-inst" \
+    GUARD_COVERAGE_CI_DIR="$TMP/ci" \
+    GUARD_COVERAGE_COMMANDS_DIR="$TMP/commands" \
+    GUARD_COVERAGE_CALLER_DIRS="$TMP/scripts $TMP/bin" \
+    GUARD_COVERAGE_RUNNER="$1" \
+    bash "$CHECK" "${@:2}"
+}
+unenum_of() { printf '%s' "$1" | python3 -c 'import json,sys; print(" ".join(e["script"] for e in json.load(sys.stdin).get("unenumerated",[])))' 2>/dev/null; }
+summary_unenum() { printf '%s' "$1" | python3 -c 'import json,sys; print(json.load(sys.stdin)["summary"]["unenumerated"])' 2>/dev/null; }
+
+# the FIXED runner enumerates it -> class is empty, and that is the post-fix state
+if bash -n "$TMP/runner-prefix.sh"; then
+    OUT_FIX="$(run_with_runner "$RUNNER" --json 2>/dev/null)"
+    assert_eq "T-2935 fixed runner: unenumerated count is 0" "$(summary_unenum "$OUT_FIX")" "0"
+    assert_not "T-2935 fixed runner does not flag widget-guard.sh" "$(unenum_of "$OUT_FIX")" "widget-guard.sh"
+
+    # the PRE-FIX runner drops it -> the check must FIRE and NAME it (the load-bearing leg)
+    set +e
+    OUT_PRE="$(run_with_runner "$TMP/runner-prefix.sh" --json 2>/dev/null)"; RC_PRE=$?
+    set -e
+    assert_eq "T-2935 pre-fix runner: check FIRES (rc 1)" "$RC_PRE" "1"
+    assert_has "T-2935 pre-fix runner: widget-guard.sh named as unenumerated" "$(unenum_of "$OUT_PRE")" "widget-guard.sh"
+    assert_has "T-2935 pre-fix runner: helper-live.sh named as unenumerated" "$(unenum_of "$OUT_PRE")" "helper-live.sh"
+
+    # and the TEXT path must not hand out the dormant advice, which says "add the marker" —
+    # exactly the wrong instruction for a script that already carries one.
+    set +e
+    TXT_PRE="$(run_with_runner "$TMP/runner-prefix.sh" 2>&1)"
+    set -e
+    assert_has "T-2935 text names the unenumerated script" "$TXT_PRE" "widget-guard.sh"
+    assert_has "T-2935 text says membership is the marker, not the filename" "$TXT_PRE" "membership is the marker, not the filename"
+else bad "T-2935 pre-fix runner mutant could not be built"; fi
+
 echo
 echo "guard-runner-coverage fixtures: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ] || exit 1

@@ -141,6 +141,20 @@ for f in "$SCRIPTS_DIR"/check-*.sh "$SCRIPTS_DIR"/test-*.sh "$TESTS_DIR"/*.sh; d
     if has_marker "$f"; then marked+=("$b"); else unclassified+=("$b"); fi
 done
 
+# T-2935: the loop above mirrors run-guard-layer.sh's legacy NAME globs, so a MARKED
+# script under SCRIPTS_DIR named neither check-* nor test-* landed in neither bucket:
+# not unclassified (it carries a marker) and not compared against anything. It was
+# invisible to this auditor exactly as it was invisible to the runner — neither covered
+# nor flagged. Widen the MARKED scan to every .sh under SCRIPTS_DIR so the marked set is
+# complete. The unclassified set is deliberately NOT widened: see run-guard-layer.sh for
+# why that bucket stays name-shaped (190 .sh files, most of them operator tooling).
+for f in "$SCRIPTS_DIR"/*.sh; do
+    [ -e "$f" ] || continue
+    b="$(basename "$f")"
+    case "$b" in check-*.sh|test-*.sh) continue ;; esac
+    has_marker "$f" && marked+=("$b")
+done
+
 if [ "${#unclassified[@]}" -eq 0 ]; then
     echo "check-guard-runner-coverage: empty unclassified inventory under $SCRIPTS_DIR / $TESTS_DIR — enumeration failed" >&2
     echo "  An empty inventory is a tooling error, never a vacuous clean (T-2747)." >&2
@@ -148,6 +162,7 @@ if [ "${#unclassified[@]}" -eq 0 ]; then
 fi
 
 # ---- inventory agreement with the authority (fail-closed) -------------------
+unenumerated=()
 if [ "$SKIP_AGREEMENT" != "1" ]; then
     if [ ! -f "$RUNNER" ]; then
         echo "check-guard-runner-coverage: runner not found: $RUNNER (cannot verify inventory agreement)" >&2
@@ -165,6 +180,22 @@ if [ "$SKIP_AGREEMENT" != "1" ]; then
         echo "  The two definitions of 'unclassified' have drifted. Reconcile before trusting either." >&2
         exit 2
     fi
+
+    # T-2935: agreeing on the unclassified COUNT does not prove the runner enumerates every
+    # MARKED script — the two can agree perfectly about what is unmarked while the runner
+    # silently drops a marked file, which is precisely what happened to fabric-workflow-link.sh
+    # for 20 days. Compare the marked set against the runner's ACTUAL member list. This keys on
+    # the invariant the layer's contract rests on ("declared membership is honoured"), not on a
+    # copy of the runner's globs, so it stays load-bearing if the globs change shape again.
+    runner_members="$(printf '%s' "$rj" | grep -o '"name":"[^"]*"' | sed 's/^"name":"//;s/"$//')"
+    if [ -z "$runner_members" ]; then
+        echo "check-guard-runner-coverage: could not read member names from $RUNNER --list --json" >&2
+        exit 2
+    fi
+    for b in ${marked[@]+"${marked[@]}"}; do
+        printf '%s\n' "$runner_members" | grep -qxF -- "$b" \
+            || unenumerated+=("$b|carries the guard-layer marker but the runner does not enumerate it — declared, never run")
+    done
 fi
 
 # ---- helpers ---------------------------------------------------------------
@@ -225,7 +256,8 @@ for s in "${unclassified[@]}"; do
     dormant+=("$s|no runner anywhere")
 done
 
-n_fire=$(( ${#dormant[@]} + ${#dormant_fx[@]} ))
+n_dormant=$(( ${#dormant[@]} + ${#dormant_fx[@]} ))
+n_fire=$(( n_dormant + ${#unenumerated[@]} ))
 total=${#unclassified[@]}
 
 json_arr() { # entries as name|why
@@ -245,26 +277,38 @@ json_arr() { # entries as name|why
 if [ "$FORMAT" = json ]; then
     printf '{"ok":%s,"firing":' "$([ "$n_fire" -eq 0 ] && echo true || echo false)"
     json_arr ${dormant[@]+"${dormant[@]}"} ${dormant_fx[@]+"${dormant_fx[@]}"}
+    printf ',"unenumerated":'; json_arr ${unenumerated[@]+"${unenumerated[@]}"}
     printf ',"shipped_dark":'; json_arr ${shipped_dark[@]+"${shipped_dark[@]}"}
     printf ',"operator_invoked":'; json_arr ${operator[@]+"${operator[@]}"}
     printf ',"covered":'; json_arr ${covered[@]+"${covered[@]}"}
-    printf ',"summary":{"unclassified":%s,"covered":%s,"shipped_dark":%s,"operator_invoked":%s,"dormant":%s,"dormant_fixtures_only":%s},' \
-        "$total" "${#covered[@]}" "${#shipped_dark[@]}" "${#operator[@]}" "${#dormant[@]}" "${#dormant_fx[@]}"
-    printf '"scope":"Detects whether an unclassified guard script has any runner. Does NOT verify the runner is correctly configured, nor that the script passes."}\n'
+    printf ',"summary":{"unclassified":%s,"covered":%s,"shipped_dark":%s,"operator_invoked":%s,"dormant":%s,"dormant_fixtures_only":%s,"marked":%s,"unenumerated":%s},' \
+        "$total" "${#covered[@]}" "${#shipped_dark[@]}" "${#operator[@]}" "${#dormant[@]}" "${#dormant_fx[@]}" \
+        "${#marked[@]}" "${#unenumerated[@]}"
+    printf '"scope":"Two questions: does every unclassified guard script have a runner, and does the runner enumerate every MARKED script. Does NOT verify the runner is correctly configured, nor that any script passes."}\n'
     [ "$n_fire" -eq 0 ] && exit 0 || exit 1
 fi
 
 if [ "$n_fire" -eq 0 ]; then
     [ "$QUIET" -eq 1 ] || {
-        echo "check-guard-runner-coverage: clean — all $total unclassified script(s) have a runner (${#covered[@]} covered, ${#operator[@]} operator-invoked, ${#shipped_dark[@]} shipped-dark)."
-        echo "  Scope: this proves each has a runner. It does not verify the runner is correctly configured, nor that the script passes."
+        echo "check-guard-runner-coverage: clean — all $total unclassified script(s) have a runner (${#covered[@]} covered, ${#operator[@]} operator-invoked, ${#shipped_dark[@]} shipped-dark),"
+        echo "  and all ${#marked[@]} marked script(s) are enumerated by the runner."
+        echo "  Scope: this proves each has a runner and that declared membership is honoured. It does not verify the runner is correctly configured, nor that any script passes."
     }
     exit 0
 fi
 
-echo "check-guard-runner-coverage: FIRING — $n_fire of $total unclassified script(s) are DORMANT (nothing runs them):"
+if [ "${#unenumerated[@]}" -gt 0 ]; then
+    echo "check-guard-runner-coverage: FIRING — ${#unenumerated[@]} MARKED script(s) the runner does not enumerate:"
+    for e in ${unenumerated[@]+"${unenumerated[@]}"}; do echo "  ↳ ${e%%|*}: ${e#*|}"; done
+    echo "  A script that DECLARES membership and is silently excluded is the failure class the layer exists to prevent:"
+    echo "  it is neither run nor reported, so the layer's green says nothing about it. Fix the runner's enumeration"
+    echo "  (membership is the marker, not the filename) — do NOT strip the marker to silence this."
+fi
+if [ "$n_dormant" -gt 0 ]; then
+echo "check-guard-runner-coverage: FIRING — $n_dormant of $total unclassified script(s) are DORMANT (nothing runs them):"
 for e in ${dormant[@]+"${dormant[@]}"};    do echo "  ↳ ${e%%|*}: ${e#*|}"; done
 for e in ${dormant_fx[@]+"${dormant_fx[@]}"}; do echo "  ↳ ${e%%|*}: ${e#*|}"; done
+fi
 if [ "${#operator[@]}" -gt 0 ]; then
     echo "  ${#operator[@]} operator-invoked (reported, NOT firing — a human runs these on demand):"
     for e in ${operator[@]+"${operator[@]}"}; do echo "    · ${e%%|*}"; done
@@ -274,6 +318,10 @@ if [ "${#shipped_dark[@]}" -gt 0 ]; then
     for e in ${shipped_dark[@]+"${shipped_dark[@]}"}; do echo "    · ${e%%|*}"; done
 fi
 echo "  ${#covered[@]} covered by an installed crontab, CI, or a live caller."
+# T-2935: this disposition advice is DORMANT-specific and must not print for an
+# unenumerated-only firing — it ends with "add the '# guard-layer: source' marker",
+# which is precisely the wrong instruction for a script that already carries one.
+if [ "$n_dormant" -gt 0 ]; then
 cat <<'EOF'
   A guard nothing executes asserts nothing. Give each dormant script exactly one
   disposition: cron (runtime canary — name the crontab), deploy-time (reads host
@@ -282,4 +330,5 @@ cat <<'EOF'
   Do NOT bulk-add the marker: a script that reaches a live hub or hangs would then
   run on every push and PR.
 EOF
+fi
 exit 1

@@ -184,6 +184,34 @@ for f in "$SCRIPTS_DIR"/test-*.sh "$TESTS_DIR"/*.sh; do
     m_cmd+=("bash $f $extra")
 done
 
+# T-2935: membership is the MARKER, not the filename. The three passes above key on
+# name globs (check-*.sh / *fixtures*.sh / test-*.sh + tests/*.sh), so a marked script in
+# SCRIPTS_DIR named anything else was enumerated by NONE of them: never run, never listed,
+# and never even reported unclassified — invisible to the layer and to its own auditor.
+# CLAUDE.md has always documented the contract as "Membership is declared, not guessed. A
+# static check joins the layer by carrying a marker in its own header." This pass makes the
+# implementation match the documented contract instead of a name convention.
+#
+# Marker-only, deliberately — no unclassified reporting here. SCRIPTS_DIR holds 190 .sh
+# files, the large majority operator tooling rather than guards; reporting the unmarked ones
+# would add ~130 entries to a bucket whose meaning is "looks like a guard but forgot its
+# marker", which is alarm fatigue in the accounting layer itself. A name-shaped candidate
+# that forgets its marker is still caught as unclassified by the check-*/test-* passes above.
+#
+# TESTS_DIR needs no equivalent pass: the third loop already globs "$TESTS_DIR"/*.sh whole.
+for f in "$SCRIPTS_DIR"/*.sh; do
+    [ -e "$f" ] || continue
+    b="$(basename "$f")"
+    # Enumerated by the name-glob passes above — never double-add.
+    case "$b" in check-*.sh|test-*.sh) continue ;; esac
+    marker="$(grep -m1 -E '^#[[:space:]]*guard-layer:[[:space:]]*source' "$f" 2>/dev/null || true)"
+    [ -n "$marker" ] || continue
+    extra="$(printf '%s' "$marker" | sed -E 's/^#[[:space:]]*guard-layer:[[:space:]]*source[[:space:]]*//')"
+    m_name+=("$b")
+    m_kind+=("static-check")
+    m_cmd+=("bash $f $extra")
+done
+
 if [ "$WITH_TESTS" -eq 1 ]; then
     m_name+=("cargo test --workspace")
     m_kind+=("unit-tests")

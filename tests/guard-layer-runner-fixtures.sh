@@ -217,6 +217,28 @@ mk_check alpha 0
 printf '#!/usr/bin/env bash\n# guard-layer: source\necho theta\nexit 0\n' > "$T/theta-suite.sh"
 assert_eq "a marked non-fixtures tests/*.sh joins as a member" "2" "$(run_json | jq -r '.summary.total')"
 
+# T-2935: membership is the MARKER, not the filename. A marked script under scripts/
+# named neither check-* nor test-* was enumerated by none of the three name-glob passes:
+# never run, never listed, and not even counted as unclassified — invisible to the layer
+# and to its own auditor. CLAUDE.md always documented the contract as marker-declared.
+reset
+mk_check alpha 0
+printf '#!/usr/bin/env bash\n# guard-layer: source\necho widget\nexit 0\n' > "$S/widget-guard.sh"
+assert_eq "a marked scripts/*.sh outside the name globs joins as a member" "2" "$(run_json | jq -r '.summary.total')"
+assert_eq "...and is named in --list" "widget-guard.sh" \
+    "$(run_json --list | jq -r '.members[].name' | grep -x 'widget-guard.sh')"
+assert_eq "...and is not miscounted as unclassified" "0" "$(run_json | jq -r '.summary.unclassified')"
+assert_rc "...and a full run executes it (rc 0)" 0 "$(run)"
+
+# The unclassified bucket stays NAME-shaped on purpose: scripts/ holds ~190 .sh files,
+# most of them operator tooling. An unmarked general script is not a guard that forgot
+# its marker, so it must not flood the bucket whose meaning is exactly that.
+reset
+mk_check alpha 0
+printf '#!/usr/bin/env bash\necho helper\nexit 0\n' > "$S/helper-tooling.sh"
+assert_eq "an UNMARKED scripts/*.sh is not a member" "1" "$(run_json | jq -r '.summary.total')"
+assert_eq "...and is not reported as unclassified either" "0" "$(run_json | jq -r '.summary.unclassified')"
+
 echo
 echo "guard-layer-runner fixtures: $pass passed, $fail failed"
 [ "$fail" -eq 0 ] || exit 1

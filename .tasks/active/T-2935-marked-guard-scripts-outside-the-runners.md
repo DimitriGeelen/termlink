@@ -33,7 +33,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-09T07:44:22Z
-last_update: 2026-09-09T15:39:46Z
+last_update: 2026-09-16T17:21:07Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -136,15 +136,119 @@ contract and AC5 needs a ~9 min full-layer comparison; beginning that with ~38k 
 leave the runner altered and its verification unread — reliable-but-ungated, the state the
 mandate names as the dangerous one.
 
+## AC2-AC4 result (session S-2026-0916c) — implemented and pinned
+
+**AC2 — the runner is now marker-authoritative.** `run-guard-layer.sh` gains a fourth
+discovery pass over `"$SCRIPTS_DIR"/*.sh` (skipping `check-*`/`test-*`, already enumerated
+by the name-glob passes), marker-gated. Membership now matches the contract CLAUDE.md has
+always stated — "Membership is declared, not guessed. A static check joins the layer by
+carrying a marker in its own header" — rather than a name convention that silently
+overrode it. `TESTS_DIR` needed no equivalent pass: the third loop already globs
+`"$TESTS_DIR"/*.sh` whole, which is why the hole was scripts-only.
+
+Measured before and after, on this tree: **112 → 113 members**, newly enumerated set is
+exactly `["fabric-workflow-link.sh"]`, lost set empty, **unclassified unchanged at 75**.
+That last number matters beyond bookkeeping: the detector's INVENTORY AGREEMENT gate
+exits 2 on any unclassified-count drift between the two, so an implementation that widened
+the bucket would have turned its own auditor into a hard error.
+
+**The unclassified bucket is deliberately NOT widened, and that is a judgement worth stating.**
+`scripts/` holds 190 `.sh` files, the large majority operator tooling rather than guards.
+Reporting every unmarked one would add ~130 entries to a bucket whose meaning is precisely
+"looks like a guard but forgot its marker" — alarm fatigue manufactured inside the accounting
+layer, the T-2818 failure shape. A name-shaped candidate that forgets its marker is still
+caught as unclassified by the `check-*`/`test-*` passes, so nothing is lost.
+
+**AC3 — the detector's blind spot is closed at the invariant, not at the globs.**
+`check-guard-runner-coverage.sh` mirrored the runner's legacy name globs, so the excluded
+script was in neither bucket: not `unclassified` (it carries a marker), not `covered`, not
+`dormant`. Invisible to the guard *and* to the guard's own auditor — the specific thing the
+task name describes.
+
+The fix does **not** re-implement the runner's new globs, which would only move the copy.
+It widens the MARKED scan to every `scripts/*.sh`, then compares that set against the
+runner's **actual `--list --json` member names**, reporting any difference in a new firing
+class `unenumerated`. Keying on the invariant ("declared membership is honoured") instead of
+on a copy of the enumeration rules means the check stays load-bearing if the globs change
+shape again — the same reason the existing agreement gate compares counts with the authority
+rather than trusting its own.
+
+Worth naming explicitly: **agreeing on the unclassified count never proved this.** The two
+can agree perfectly about what is unmarked while the runner silently drops a marked file,
+which is exactly what happened for the 20 days between `6244af60c` and now.
+
+**A correctness bug found while wiring the output.** The firing block ends with disposition
+advice that tells the operator to *add the `# guard-layer: source` marker* — actively wrong
+for a script that already carries one, which is the entire `unenumerated` class. It is now
+gated on `n_dormant > 0`, so an unenumerated-only firing cannot hand out an instruction that
+would not help.
+
+**AC4 — pinned by mutation, in both suites.** The load-bearing leg mutates the **runner**,
+not the check: a copy with the new pass's glob neutered to `__no_such_glob__*.sh` reproduces
+pre-fix behaviour exactly, leaving the three legacy loops intact. Against it the check FIRES
+(rc 1) and names both marked-but-dropped scripts; against the fixed runner the class is 0.
+Mutating the check instead would have proved only that the assertion runs.
+
+- `tests/guard-runner-coverage-fixtures.sh`: 21 → **28 passed, 0 failed**
+- `tests/guard-layer-runner-fixtures.sh`: 40 → **46 passed, 0 failed**, adding the runner-side
+  contract (a marked `scripts/*.sh` outside the globs joins, is named in `--list`, is executed
+  by a full run) and its false-positive guard (an UNMARKED `scripts/*.sh` is neither a member
+  nor unclassified — the ~130-entry flood must not happen).
+
+One incidental fixture-harness defect fixed: the M3 mutant block leaves `set -e` on, so the
+first new check invocation — which legitimately exits 1 on a tree with dormant scripts by
+design — aborted the suite before the summary line. The suite reported `rc=1` with no
+failures printed, which reads as a broken run rather than a failing assertion.
+
+## AC5 result (session S-2026-0916c) — full-layer run compared to the T-2933 baseline
+
+| | T-2933 baseline | after this change |
+|---|---|---|
+| members | 112 | **113** (+1, exactly the newly enumerated set) |
+| PASS | 109 | **109** |
+| ERROR | 0 | **0** |
+| FAIL | 3 | **4** |
+
+**The newly enumerated member passes:** `fabric-workflow-link.sh` → `rc 0`, `verdict PASS`,
+confirming the AC1 standalone measurement (rc 0 in 1014 ms) holds inside the runner.
+
+**PASS held at 109 while members rose by 1, and that arithmetic is the actual finding.**
+Adding a passing member should have read 110. It did not, because a *different* member moved
+PASS → FAIL in the same window: 109 + 1 (new, passing) − 1 (regressed) = 109. The two changes
+cancel exactly, so the headline counts alone would have concealed both. Reading the per-member
+verdicts rather than the summary is what separated them.
+
+**The fourth FAIL is not this change.** `check-pickup-deferred-freshness.sh` was already a
+member before the change (verified against the pre-change `--list --json`), so this task's
+enumeration edit cannot have introduced it. It fires on **host state**: four envelopes in
+`.context/pickup/auto-deferred/` carry no breadcrumb, which per T-2801 makes them unpromotable
+by construction — `fw pickup promote-deferred` has no blocking task to resolve and
+`fw pickup auto-deferred list` prints `blocked-by=?` while reporting nothing wrong.
+
+Two of the four are pointed, given this lineage's recent history: **P-075** reports that the
+pickup processor mints local tasks from a project's OWN filings — the same defect measured and
+filed upstream at `framework:pickup` offset 124 — and **P-077** is a correction to P-076
+concerning T-2882. Both had been sitting unread in the queue the whole time.
+
+Filed as **T-2965** (P-074, P-075, P-077; P-078 is already T-2960's) rather than fixed here.
+Dispositioning inbound peer filings is not this task's scope, and per the mandate the
+verification of that finding is the next cycle's audit, not an assertion in this file.
+
+**The three baseline FAILs are unchanged and unaddressed by this task:**
+`check-installed-binary-drift.sh`, `check-receiver-ack-lag.sh`, `cron-drift-firing-fixtures.sh`.
+
+The claim this AC makes is therefore the narrow one it was written to make — *this change added
+no failure* — not *the layer is green*. It is not.
+
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
 - [x] **The excluded set is measured and named before anything changes.** Every file under `scripts/` and `tests/` carrying `# guard-layer: source` that the runner's current inventory does NOT enumerate is listed with its path and the commit that introduced it, and the count is stated. `fabric-workflow-link.sh` is one known member; the task does not assume it is the only one. A fix sized to one instance when the class has N is the recurring shape this repo keeps finding (T-2667, T-2673).
-- [ ] **The runner's membership is made marker-authoritative, matching its own documented contract.** CLAUDE.md states "Membership is declared, not guessed. A static check joins the layer by carrying a marker in its own header." The implementation instead intersects the marker with three name globs, so a marked file outside them is silently excluded. After the change `--list` and a full run both enumerate every marked file under the scanned roots. Each newly-included script is run and its verdict recorded — a marked script that does not pass is reported, never quietly dropped to keep the layer green.
-- [ ] **The blind spot in `check-guard-runner-coverage.sh` is closed too.** The detector inherits the same globs, so an excluded script is today neither `covered` nor `unclassified` — invisible to the guard *and* to the guard's own auditor. After the change a marked-but-unenumerated script is reported in a named class rather than absent from every bucket. Verified against a fixture tree containing one.
-- [ ] **A fixture pins the defect and is load-bearing.** A fixture tree containing a marked script outside the legacy globs FAILS against the pre-fix inventory logic and PASSES after, proving the fixture detects the regression rather than merely passing. Asserted by mutation, not by inspection.
-- [ ] **No new failure is introduced, measured against the T-2933 baseline.** A full `run-guard-layer.sh` run is compared to that baseline (112 members, 109 PASS, 0 ERROR, 3 pre-existing host-state FAILs: `check-installed-binary-drift.sh`, `check-receiver-ack-lag.sh`, `cron-drift-firing-fixtures.sh`). Member count changes by exactly the number of newly-enumerated scripts, stated before and after. Any FAIL beyond the 3 is either fixed or recorded as a finding with its cause — the claim is "this change added no failure", not "the layer is green".
+- [x] **The runner's membership is made marker-authoritative, matching its own documented contract.** CLAUDE.md states "Membership is declared, not guessed. A static check joins the layer by carrying a marker in its own header." The implementation instead intersects the marker with three name globs, so a marked file outside them is silently excluded. After the change `--list` and a full run both enumerate every marked file under the scanned roots. Each newly-included script is run and its verdict recorded — a marked script that does not pass is reported, never quietly dropped to keep the layer green.
+- [x] **The blind spot in `check-guard-runner-coverage.sh` is closed too.** The detector inherits the same globs, so an excluded script is today neither `covered` nor `unclassified` — invisible to the guard *and* to the guard's own auditor. After the change a marked-but-unenumerated script is reported in a named class rather than absent from every bucket. Verified against a fixture tree containing one.
+- [x] **A fixture pins the defect and is load-bearing.** A fixture tree containing a marked script outside the legacy globs FAILS against the pre-fix inventory logic and PASSES after, proving the fixture detects the regression rather than merely passing. Asserted by mutation, not by inspection.
+- [x] **No new failure is introduced, measured against the T-2933 baseline.** A full `run-guard-layer.sh` run is compared to that baseline (112 members, 109 PASS, 0 ERROR, 3 pre-existing host-state FAILs: `check-installed-binary-drift.sh`, `check-receiver-ack-lag.sh`, `cron-drift-firing-fixtures.sh`). Member count changes by exactly the number of newly-enumerated scripts, stated before and after. Any FAIL beyond the 3 is either fixed or recorded as a finding with its cause — the claim is "this change added no failure", not "the layer is green".
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -240,6 +344,27 @@ mandate names as the dangerous one.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+# ---- T-2935 ----
+# Both suites green, including the load-bearing mutation legs.
+bash tests/guard-layer-runner-fixtures.sh > /tmp/.t2935-v-rf.out 2>&1
+grep -q "46 passed, 0 failed" /tmp/.t2935-v-rf.out
+bash tests/guard-runner-coverage-fixtures.sh > /tmp/.t2935-v-cf.out 2>&1
+grep -q "28 passed, 0 failed" /tmp/.t2935-v-cf.out
+# AC2: the runner enumerates the previously-excluded marked script, and --list names it.
+bash scripts/run-guard-layer.sh --list --json > /tmp/.t2935-v-list.json 2>&1
+python3 -c "import json,sys; d=json.load(open('/tmp/.t2935-v-list.json')); n=[m['name'] for m in d['members']]; sys.exit(0 if 'fabric-workflow-link.sh' in n and len(n)==113 else 1)"
+# AC2 false-positive guard: the unclassified bucket did NOT absorb the ~130 unmarked
+# general scripts. 75 is also what the detector's INVENTORY AGREEMENT gate requires.
+python3 -c "import json,sys; d=json.load(open('/tmp/.t2935-v-list.json')); sys.exit(0 if d['summary']['unclassified']==75 else 1)"
+# AC3: the detector reports the new class, and this tree has none of it.
+bash scripts/check-guard-runner-coverage.sh --json > /tmp/.t2935-v-cov.json 2>&1 || true
+python3 -c "import json,sys; d=json.load(open('/tmp/.t2935-v-cov.json')); sys.exit(0 if d['summary']['unenumerated']==0 and 'unenumerated' in d else 1)"
+# AC3: scope line no longer claims a narrower question than the check now answers.
+python3 -c "import json,sys; d=json.load(open('/tmp/.t2935-v-cov.json')); sys.exit(0 if 'enumerate every MARKED script' in d['scope'] else 1)"
+# Both edited guards still parse.
+bash -n scripts/run-guard-layer.sh
+bash -n scripts/check-guard-runner-coverage.sh
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -255,6 +380,39 @@ mandate names as the dangerous one.
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
+
+**Symptom:** `scripts/fabric-workflow-link.sh` carried `# guard-layer: source` and was
+never executed by the guard layer, never printed by `--list`, and never reported as
+unclassified — for the 20 days between `6244af60c` (T-2839, 2026-08-27) and this fix. It
+was absent from every bucket, so no output anywhere said anything about it, true or false.
+
+**Root cause:** `run-guard-layer.sh` computed membership as *(marker ∩ three name globs)*
+— `scripts/check-*.sh`, `tests/*fixtures*.sh`, `scripts/test-*.sh` + `tests/*.sh` — while
+CLAUDE.md, the runner's own `--help`, and its header comment all document membership as the
+**marker alone** ("Membership is declared, not guessed"). A marked file under `scripts/`
+named neither `check-*` nor `test-*` satisfies the documented contract and matches no glob,
+so it is dropped silently. The glob was never a second condition anyone decided to impose;
+it is the residue of the marker having been added later to a name-based inventory.
+
+**Why structurally allowed:** the auditor inherited the same globs from the thing it audits.
+`check-guard-runner-coverage.sh` scanned `check-*.sh test-*.sh tests/*.sh` and sorted each
+file into `marked` or `unclassified` — so a marked file outside those globs was in neither,
+and no bucket was empty in a way anyone would notice. Its one cross-check against the
+authority compares the **unclassified count**, which agreed perfectly the whole time:
+both sides shared the identical blind spot, so agreement was evidence of nothing. This is
+the shape this repo keeps re-finding — a guard that asserts a property *adjacent* to the one
+it claims (T-2831), and a green that is read as a full bill of health (T-2680). It surfaced
+only by reconciling 113 computed members against 112 executed in T-2933, i.e. by someone
+comparing two numbers that were never supposed to differ.
+
+**Prevention** (distinct from the fix): the detector now compares the **marked set against
+the runner's actual `--list --json` member names** and reports any difference as a firing
+`unenumerated` class. That keys on the invariant — *declared membership is honoured* —
+rather than on a copy of the enumeration rules, so it survives the globs changing shape
+again, which is precisely how the first version failed. Pinned by mutating the **runner**
+(the new pass neutered to a glob that matches nothing) so the fixture proves the check
+detects a regressed runner, not merely that an assertion executes. A marked script that is
+dropped by any future enumeration change now fires by name instead of vanishing.
 
 ## Evolution
 
@@ -279,6 +437,40 @@ mandate names as the dangerous one.
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-09-16 — the auditor's blind spot was the harder half, and it is not glob-shaped
+- **What changed:** at filing, the defect read as "the runner's globs are too narrow" and the
+  detector's blindness read as a consequence of inheriting them. Reading both scripts showed
+  the auditor's real weakness is one level up: its single cross-check against the runner
+  compares the **unclassified count**, and that number agreed perfectly for all 20 days. Two
+  components sharing a blind spot produce agreement, and agreement was being read as
+  verification. Widening globs on both sides would have restored agreement without restoring
+  the property.
+- **Plan impact:** AC3 ("the detector inherits the same globs") is satisfied, but not by the
+  implementation its wording implies. The detector does not mirror the runner's new glob; it
+  diffs the marked set against the runner's real member list. Stated here because a future
+  reader comparing AC text to the diff would otherwise find them apparently inconsistent.
+- **Triggered:** no new task. The unclassified-count agreement gate is kept as-is — it is
+  still the right check for its own question, it was simply never the check for this one.
+
+### 2026-09-16 — a wrong instruction inside a firing message
+- **What changed:** the detector's firing output ends with disposition advice whose final
+  option is "add the `# guard-layer: source` marker". For the new `unenumerated` class that is
+  precisely backwards — every member already carries one. Not a cosmetic issue: a firing guard
+  that names the wrong remedy sends the operator to change the one thing that is correct.
+- **Plan impact:** none to the ACs; folded into AC3's implementation and gated on `n_dormant`.
+- **Triggered:** nothing filed. Recorded because it was found by writing the output rather than
+  by any assertion — no fixture would have caught advice that is merely wrong.
+
+### 2026-09-16 — the fixture harness reported a broken run as a failing one
+- **What changed:** the M3 mutant block leaves `set -e` enabled. The first new check invocation
+  exits 1 by design (the fixture tree contains dormant scripts), so the suite aborted before
+  its summary line — `rc=1`, no `FAIL` printed, no count. That is indistinguishable at a glance
+  from an assertion failure, and it cost a cycle to tell apart.
+- **Plan impact:** none; `set +e` added at the top of the new block, matching the surrounding
+  cases' convention.
+- **Triggered:** nothing filed — it is one line in one suite. Noted because "no failures printed
+  and a non-zero exit" is a shape worth recognising quickly in any of these suites.
 
 ## Recommendation
 
@@ -319,6 +511,44 @@ mandate names as the dangerous one.
      - **Why:** [rationale]
      - **Rejected:** [alternatives and why not]
 -->
+
+### 2026-09-16 — the general pass is marker-only; the unclassified bucket stays name-shaped
+- **Chose:** the new `scripts/*.sh` pass adds a file to the layer when it carries the marker
+  and says nothing at all when it does not.
+- **Why:** `scripts/` holds 190 `.sh` files, mostly operator tooling. `unclassified` means
+  "looks like a guard but forgot its marker" — a judgement the *name* carries. Extending it
+  to every general script would add ~130 entries and destroy that meaning. It would also
+  trip the detector's INVENTORY AGREEMENT gate, which exits 2 on unclassified-count drift.
+- **Rejected:** report unmarked `scripts/*.sh` as unclassified — symmetrical-looking, and it
+  manufactures exactly the alarm fatigue T-2818 documented, inside the accounting layer.
+
+### 2026-09-16 — the detector checks the invariant, not a copy of the runner's globs
+- **Chose:** widen only the MARKED scan, then diff it against the runner's actual
+  `--list --json` member names, reporting the difference as a firing `unenumerated` class.
+- **Why:** the original defect *was* a copy of the globs drifting from the contract. Mirroring
+  the new globs into the detector recreates the same coupling one commit later and would go
+  stale the same silent way. Comparing against the authority's real output tests the property
+  that matters — declared membership is honoured — and survives the globs changing again.
+- **Rejected:** mirror the new `scripts/*.sh` glob in the detector. Cheaper, and it would have
+  reported clean for exactly as long as the two copies happened to agree.
+
+### 2026-09-16 — the fixture mutates the RUNNER, not the check
+- **Chose:** build a pre-fix runner (new pass's glob neutered to `__no_such_glob__*.sh`) and
+  point the check at it via `GUARD_COVERAGE_RUNNER`.
+- **Why:** AC4 asks whether the fixture detects the regression. The regression lives in the
+  runner's enumeration, so the runner is what has to break. Against it the check fires and
+  names both dropped scripts; against the fixed runner the class is 0.
+- **Rejected:** mutate the check (the suite's existing M1-M3 style). That proves the assertion
+  executes, not that it catches the defect — the weaker claim, and the one already covered.
+
+### 2026-09-16 — gate the dormant disposition advice instead of leaving it
+- **Chose:** print the "give each dormant script a disposition" block only when `n_dormant > 0`.
+- **Why:** it ends by telling the operator to *add the `# guard-layer: source` marker*, which
+  is wrong for every member of the new class — those scripts already carry one. Wrong advice
+  in a firing message is worse than none: it sends the reader to change the one thing that is
+  already correct.
+- **Rejected:** leave it unconditional. Found while wiring the output rather than by a failing
+  assertion, which is why it is recorded here rather than silently patched.
 
 ## Decision
 
