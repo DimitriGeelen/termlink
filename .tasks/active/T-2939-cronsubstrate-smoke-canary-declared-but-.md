@@ -4,7 +4,7 @@ name: "cron(substrate-smoke-canary) declared but never installed to /etc/cron.d"
 description: >
   arc-008 cycle-1 audit finding. Full census: .context/audits/arc-008-cycle1-census.md
 
-status: captured
+status: started-work
 workflow_type: build
 owner: human
 horizon: now
@@ -25,7 +25,7 @@ arc_id: arc-008
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-09T17:55:23Z
-last_update: '2026-09-09T18:03:15Z'
+last_update: 2026-09-18T18:39:07Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -76,7 +76,7 @@ Scope is `worktree` (host state), non-blocking for push. Shares host-state root 
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Finding is reproduced and recorded with the exact audit line, and the remediation command is verified to be the correct one before the human runs it
+- [x] Finding is reproduced and recorded with the exact audit line, and the remediation command is verified to be the correct one before the human runs it
 
 ### Human
 - [ ] [RUBBER-STAMP] substrate-smoke canary is installed and scheduled
@@ -160,6 +160,14 @@ test -f /etc/cron.d/termlink-substrate-smoke-canary
      commit, that is a calibration failure — recommend GO or NO-GO.
 -->
 
+**Recommendation:** GO
+**Rationale:** The install is mechanical and everything around it is verified. The finding is reproduced first-hand (2026-09-18: `/etc/cron.d/termlink-substrate-smoke-canary` absent while 29 sibling termlink crontabs are installed; audit line recorded in `.context/audits/2026-09-18.yaml`), the remediation command in the Steps block is confirmed correct against three independent sources, and — beyond the AC — the job being scheduled was executed ad-hoc and returned healthy, so the rubber-stamp schedules a canary that provably works today.
+**Evidence:**
+- Target absent: `ls /etc/cron.d/termlink-substrate-smoke-canary` → No such file; the only termlink canary crontab not installed
+- Remediation verified three ways: source `.context/cron/substrate-smoke-canary.crontab` exists (git-tracked, USER-field syntax `37 7 * * * root …`, T-2685-correct split-stream redirect); its own `# Installed to:` header names exactly the target the command writes; the audit's mitigation line is byte-identical to the Steps command
+- Scheduled job proven live: `bash scripts/check-substrate-smoke-freshness.sh --no-heartbeat` → exit 0, "healthy (verb-3 work-stealing composition proven end-to-end)"
+- Post-install check for the human: `test -f /etc/cron.d/termlink-substrate-smoke-canary` (this task's own Verification line) and the audit FAIL clears
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.
@@ -187,3 +195,12 @@ test -f /etc/cron.d/termlink-substrate-smoke-canary
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2939-cronsubstrate-smoke-canary-declared-but-.md
 - **Context:** Initial task creation
+
+### 2026-09-18T18:39:07Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-09-18T18:45:00Z — reproduced + remediation verified + job proven live [agent, autonomous run]
+- **Reproduced:** target `/etc/cron.d/termlink-substrate-smoke-canary` absent (the only uninstalled termlink canary crontab of 30 cron.d entries); audit line `[FAIL] cron(substrate-smoke-canary): USER-field syntax but no install in /etc/cron.d` recorded in `.context/audits/2026-09-18.yaml`.
+- **Remediation verified:** Steps command matches the crontab's self-declared `# Installed to:` header AND the audit's mitigation line byte-for-byte; source is git-tracked with USER-field syntax and the T-2685 split-stream redirect idiom.
+- **Beyond the AC:** ran the job ad-hoc — `bash scripts/check-substrate-smoke-freshness.sh --no-heartbeat` exits 0 healthy, so the stamp schedules a canary that provably round-trips today.
+- **Not done deliberately:** the install itself. This session runs as root and could have copied the file, but the Human AC assigns host-state changes to the operator; performing it would check a Human AC by another route (autonomous-mode boundary).
