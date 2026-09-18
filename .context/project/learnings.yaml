@@ -4420,3 +4420,9 @@ learnings:
   task: T-2955
   date: 2026-09-11
   context: Added via context agent
+- id: PL-374
+  learning: "Duplicated-fix detection: exclude blob-identical end states first (carried/squash-merged work), then key on same-DELETED-non-trivial-line — same-added-line matches generated boilerplate and same-file fires on every pair. Measure candidate signals on the real corpus before shipping a heuristic (T-2915 spike: S3 hit 13/52 candidates with zero noise; S1/S2/S4 unusable)."
+  source: unknown
+  task: T-2915
+  date: 2026-09-18
+  context: Added via context agent
