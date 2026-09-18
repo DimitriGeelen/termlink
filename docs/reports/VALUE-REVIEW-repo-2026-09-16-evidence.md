@@ -14,14 +14,21 @@
 
 | Check | Result | Source |
 |---|---|---|
-| `cargo test --workspace` | **2962 passed, 0 failed, 4 ignored** across 10 suites | baseline run, this session |
+| `cargo test --workspace` | **3,618 passed, 0 failed, 4 ignored** across 24 suites, exit 0 | baseline run, this session (completed) |
 | `fw audit` (structure) | Pass 38 · Warn 8 · Fail 2 | audit 2026-09-16, both FAILs worktree/host-scoped (`/etc/cron.d`), not in any committed ref |
-| `bash scripts/run-guard-layer.sh` | **PENDING** — exceeded 300s, still running at write time | not yet evidence |
+| `bash scripts/run-guard-layer.sh` | **113 members: 109 PASS · 4 FAIL · 0 ERROR · 75 unclassified** (exit 1) | completed; see §12 |
 | `termlink --version` | 0.11.1766 | CLI |
 | `fw --version` | v1.6.29 (vendored) | CLI |
 
-The guard-layer row is deliberately left PENDING rather than filled from a previous
-session's memory. A baseline reconstructed from recollection is not a baseline.
+The guard-layer row was deliberately left PENDING while the run was in flight, rather
+than filled from a previous session's memory — a baseline reconstructed from
+recollection is not a baseline. It has since completed; see §12.
+
+> **Correction (same session).** This row first recorded 2,962 passed across 10 suites,
+> read from the run while it was still executing. The completed run is 3,618 across 24.
+> The mid-run figure was not wrong so much as not finished — recorded here because a
+> baseline that quietly shrinks by 656 tests between readings is exactly the kind of
+> number a later reader would treat as a regression.
 
 ---
 
@@ -273,9 +280,8 @@ fleet hub**, which bears on any reasoning about presence-based features.
 
 ## 9. Open at time of writing
 
-- `run-guard-layer.sh` baseline — still executing
-- Orphan/reference sweep (scripts, docs, CLAUDE.md split, per-crate test density,
-  near-duplicate script groups) — delegated, not yet returned
+- ~~`run-guard-layer.sh` baseline — still executing~~ → **done**, §12
+- ~~Orphan/reference sweep — delegated~~ → **returned**, §10
 - Phase 2 inventory — **not started** (blocked on IW-1 scope)
 - NON-USE DIAGNOSIS per item — **not started** (blocked on IW-3; reading D is
   currently unfalsifiable for most items)
@@ -391,4 +397,53 @@ the runner counts as ERROR, never PASS). This matters beyond convenience — a g
 that takes 20+ minutes is one that will not be run casually, and CI wires it into every
 push and PR. Resolving it needs per-member timings.
 
-**Consequence for this review:** the guard-layer baseline row in §0 remains PENDING.
+**Consequence for this review:** none in the end — the run completed (exit 1, 4 firing
+members, 0 ERROR) and §0/§12 carry the real numbers. The runtime discrepancy stands as a
+finding in its own right, independent of the result.
+
+---
+
+## 12. Guard-layer baseline (completed)
+
+`scripts/run-guard-layer.sh --json` — **113 members · 109 PASS · 4 FAIL · 0 ERROR ·
+75 unclassified**, roll-up exit 1. Runtime **>20 minutes** (see §11).
+
+**Identical to the baseline recorded in T-2935's session** (113/109/0/4), so there is
+no regression since. Recorded because T-2935 documented the trap: PASS count alone can
+hold steady while membership changes, if a gain and a regression cancel. Both counts
+match here, and the four firing members are the same class.
+
+`0 ERROR` is the meaningful half: every member that was supposed to run, ran. No guard
+silently failed to execute, which is the condition that would make the other 109 PASSes
+worthless.
+
+### The four firing members
+
+| Member | Firing reason | Class |
+|---|---|---|
+| `check-installed-binary-drift.sh` | 3 install paths: `/root/.cargo/bin` at **0.11.1766**, `/root/.local/bin` and `/usr/local/bin` both at **0.11.1716** (2026-08-29) | host state — shipped≠live (G-069) |
+| `check-pickup-deferred-freshness.sh` | **1 STRANDED envelope**: `P-078-learning.yaml`, no breadcrumb, so `fw pickup promote-deferred` can never promote it | known, filed **T-2960** |
+| `check-receiver-ack-lag.sh` | `agent-chat-arc`: identity `1da4fd998a04ba8c` **NEVER-ACKED**, lag **1451** | real — unconsumed rail |
+| `cron-drift-firing-fixtures.sh` | 12/13 assertions pass; the one failure is the **control assertion** "the real tree passes the firing check" | not a broken fixture — tracks the cron drift below |
+
+**The fourth is not what it looks like.** A failing *fixture suite* would normally mean a
+guard's own tests are broken. Here 12 of 13 assertions pass and the failure is a PL-219
+control assertion that the real tree is clean — it fails because cron drift genuinely
+exists, the same host-state finding `fw audit` reports. Counting it as a broken test
+would have been wrong in both directions: it would overstate guard breakage and hide
+that it is correctly reporting a real condition.
+
+**Two of the four are host state** (binary drift, cron drift) — present in `/etc/cron.d`
+and `/usr/local/bin`, not in any committed ref, and already classified worktree-scoped
+and non-blocking by `fw audit`.
+
+### The 75 unclassified
+
+The runner reports 75 of its scanned scripts as `SKIP(unclassified)` — scripts matching
+its name globs that carry no `# guard-layer: source` marker. Cross-referencing §10a:
+75 is exactly the count of **true orphans** found by the independent sweep. The two
+measurements agree, which raises confidence that the orphan set is real rather than an
+artifact of either method.
+
+NOT ESTABLISHED: whether each is reading **E (not wanted)** or **B/C/D**. Agreement
+between two methods establishes the SET, not the disposition.

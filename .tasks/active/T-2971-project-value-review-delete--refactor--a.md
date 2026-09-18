@@ -70,14 +70,17 @@ questions rather than guessed, because each one changes what evidence is even co
 a wrong scope silently produces a confident review of the wrong thing.
 
 - **IW-1: What is the review SCOPE — whole repo, or a named subsystem?**
-  confidence: 1
-  disposition:
-  rationale:
+  confidence: 3
+  disposition: answered
+  rationale: human confirmed 2026-09-16 — WHOLE REPO. Broader than the two narrower options
+  offered; inventory grain therefore stays coarse (subsystem/surface, not per-function) so the
+  evidence per item does not thin out to nothing.
 
 - **IW-2: What is the authoritative PURPOSE SOURCE to judge value against?**
-  confidence: 2
-  disposition:
-  rationale:
+  confidence: 3
+  disposition: answered
+  rationale: human confirmed 2026-09-16 — docs/CHARTER.md (four verbs + five non-goals) PLUS
+  policy/value-drivers.yaml (D1-D4 protected + free drivers). Both, not either.
   note: `docs/CHARTER.md` is the strong candidate — T-2470 shipped it as "the single owned
   statement of what TermLink is", and T-2484 guards its canonical sentence against the
   README/ARCHITECTURE copies. `policy/value-drivers.yaml` carries the weighted drivers and
@@ -85,23 +88,31 @@ a wrong scope silently produces a confident review of the wrong thing.
   produces verdicts that are taste wearing evidence's clothes.
 
 - **IW-3: What EXTERNAL DATA may this review use?**
-  confidence: 0
-  disposition:
-  rationale:
+  confidence: 3
+  disposition: answered
+  rationale: human confirmed 2026-09-16 — NONE. Load-bearing, not a formality: with no per-verb
+  telemetry in-repo and no external usage data permitted, non-use is UNFALSIFIABLE for the 214
+  live tools. Every DELETE resting on non-use is capped at LOW confidence and must route through
+  reading D (UNMEASURED) first. Reported as capped, never silently downgraded to 'no evidence
+  of use'.
   note: matters disproportionately here. Several axes (real use per verb, consumer breakage
   on DELETE) are only answerable from outside this repo — peer projects on the fleet, hub
   topic state on other hosts. Without it, DELETE confidence is capped and must be reported
   as capped rather than quietly downgraded to "no evidence of use".
 
 - **IW-4: What is the session BUDGET, and is a partial review in slices acceptable?**
-  confidence: 1
-  disposition:
-  rationale:
+  confidence: 2
+  disposition: answered
+  rationale: human said 'continue' with no figure 2026-09-16. Treated as: proceed to the Phase 5
+  report; stop and report what remains unreviewed when context runs short.
 
 - **IW-5: Can GATHERER and JUDGE genuinely be separated on this host?**
-  confidence: 2
-  disposition:
-  rationale:
+  confidence: 3
+  disposition: answered
+  rationale: PARTIALLY. JUDGE runs as a fresh sub-agent whose only inputs are the evidence file
+  and the confirmed yardstick, so context is genuinely separated. A different MODEL FAMILY is not
+  available, so this is contextual independence, not architectural — recorded as a limitation,
+  not claimed as full separation.
   note: the prompt requires producer-not-judge and drops every confidence one level if the
   roles collapse. Sub-agents are available, so JUDGE can run as a fresh agent whose only
   input is the evidence file and the confirmed yardstick. A different MODEL FAMILY is not

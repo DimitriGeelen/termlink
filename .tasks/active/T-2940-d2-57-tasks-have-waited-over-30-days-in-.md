@@ -4,14 +4,14 @@ name: "D2: 57 tasks have waited over 30 days in the human review queue"
 description: >
   arc-008 cycle-1 audit finding. Full census: .context/audits/arc-008-cycle1-census.md
 
-status: captured
+status: started-work
 workflow_type: build
 owner: human
 horizon: now
 tags: []
 components:
   - .context/audits/arc-008-cycle1-census.md
-related_tasks: []
+related_tasks: [T-2194]
 arc_id: arc-008
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -24,7 +24,7 @@ arc_id: arc-008
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-09T17:56:23Z
-last_update: '2026-09-09T18:03:15Z'
+last_update: 2026-09-18T15:41:49Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -75,7 +75,7 @@ The queue's size is itself the finding: a review queue with 57 items aged past a
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Finding is reproduced and recorded with the exact audit line, and the remediation command is verified to be the correct one before the human runs it
+- [x] Finding is reproduced and recorded with the exact audit line, and the remediation command is verified to be the correct one before the human runs it
 
 ### Human
 - [ ] [REVIEW] Review queue triaged to a readable size
@@ -130,6 +130,11 @@ test -f .context/audits/arc-008-cycle1-census.md
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-09-18 — the finding is a moving target, and the audit's own list overstates it
+- **What changed:** The count is not static — it moved 57 → 58 between filing and reproduction (T-2723 aged past 30d), so any triage that takes weeks is chasing a growing queue. Separately, the audit's printed ID list is unfiltered (68 IDs shown, 10 under threshold) while its header count is correctly filtered — a reader trusting the list over-counts.
+- **Plan impact:** The Human AC's "materially smaller count" expectation should be read against the live count at triage time, not 57. The list/header mismatch is a vendored check-quality defect: recorded here, not patched (G-062).
+- **Triggered:** No new task — the mismatch is cosmetic and the census (`.context/audits/arc-008-cycle1-census.md`) plus T-2194's classification already carry the authoritative breakdown.
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -159,6 +164,14 @@ test -f .context/audits/arc-008-cycle1-census.md
      commit, that is a calibration failure — recommend GO or NO-GO.
 -->
 
+**Recommendation:** GO
+**Rationale:** The agent half is complete and verified: the D2 finding is reproduced from a full `fw audit` run (58 tasks >30d, oldest T-1417 at 141d, saved `.context/audits/2026-09-18.yaml`), and the remediation entry point the Human AC hands you — `fw review-queue` — was executed and confirmed to render the queue with verdicts (7 pending inception decisions + 138 Human-AC verdicts). The remaining work is pure sovereignty: 58 individual close / re-own / defer-with-`revisit_at` decisions the agent is structurally forbidden to make. T-2194 (still open, owner: human) already classified the queue — 4 RUBBER-STAMP-only tasks (T-1696, T-1722, T-1296, T-1723), ~50 tasks with REVIEW ACs, 3 mixed — so triage can start from that classification rather than from zero.
+**Evidence:**
+- Audit line reproduced 2026-09-18: `[FAIL] D2: Human review queue — 58 task(s) waiting >30d` (count moved 57 → 58 since filing; T-2723 crossed the threshold)
+- `cd /opt/termlink && .agentic-framework/bin/fw review-queue` verified as the correct triage verb; `fw inception sweep` verified NOT to be an alternative (it only finalizes tasks already carrying a `## Decision` block)
+- Check-quality defect recorded (vendored, not patched — G-062): the audit's printed ID list is unfiltered and over-counts by 10 under-threshold tasks; header count is correct
+- Fastest first cut: the 4 RUBBER-STAMP-only tasks from T-2194's classification are mechanical approvals
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.
@@ -186,3 +199,14 @@ test -f .context/audits/arc-008-cycle1-census.md
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2940-d2-57-tasks-have-waited-over-30-days-in-.md
 - **Context:** Initial task creation
+
+### 2026-09-18T15:41:49Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-09-18T16:05:00Z — reproduced + remediation verified [agent, autonomous run]
+- **Reproduced (full `fw audit`, 2026-09-18, saved `.context/audits/2026-09-18.yaml`; summary 374 pass / 79 warn / 5 fail):**
+  `[FAIL] D2: Human review queue — 58 task(s) waiting >30d: T-1417(141d) T-1419(141d) T-1435(140d) … T-2723(34d)` — oldest T-1417 at 141d. Count moved 57 → 58 since filing (T-2723 crossed 30d).
+- **Check-quality note (vendored audit, not fixed here):** the header count is correctly filtered to >30d (58), but the printed list is unfiltered — it shows 68 IDs including 10 under threshold (T-2409 25d, T-2706 21d, T-2709 22d, T-2711 22d, T-2822 25d, T-2836 25d, T-2839 22d, T-2861 18d, T-2873 16d, T-2878 16d). Cosmetic, but a reader trusting the list over-counts by 10.
+- **Remediation verified:** `cd /opt/termlink && .agentic-framework/bin/fw review-queue` runs and renders the queue with verdicts (7 pending inception decisions + 138 Human-AC verdicts) — it is the correct triage entry point for the Human AC. The audit's own mitigation line (`fw inception sweep`, T-1514) is NOT an alternative: it only ticks-and-finalizes tasks that already carry a recorded `## Decision` block, so it is the batch step AFTER triage decisions are recorded, not a way to shrink the queue by itself.
+- **Prior work, linked not merged (arc-008 rule):** T-2194 (2026-08-20, owner: human, still open) already classified this queue — 4 RUBBER-STAMP-only tasks (T-1696, T-1722, T-1296, T-1723), 56 REVIEW ACs across ~50 tasks, 3 mixed — and recorded the strategy. This task is the arc-008 re-filing of the same audit line; it adds the reproduction and the remediation check, nothing else. Added to `related_tasks`.
+- **Sovereignty:** every item in the queue is a human decision; the agent's work on this task is complete at "reproduced and verified". Nothing in the queue was touched.
