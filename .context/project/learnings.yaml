@@ -4426,3 +4426,9 @@ learnings:
   task: T-2915
   date: 2026-09-18
   context: Added via context agent
+- id: PL-375
+  learning: "Pickup-minted inception shells T-2862/T-2864/T-2867/T-2898/T-2907/T-2908/T-2909/T-2920/T-2925/T-2930 (the bulk of the visible hv-lc quadrant) all carry 'Source: termlink' but their payloads are authored by 0506-Voxtype-extention agents and addressed to AEF upstream — the source label is the T-2815 basename mis-attribution, NOT a self-echo. Read the envelope payload authorship before dispositioning; the label alone inverts the diagnosis (T-2930's own warning, nearly demonstrated on itself)."
+  source: unknown
+  task: T-2925
+  date: 2026-09-18
+  context: Added via context agent
