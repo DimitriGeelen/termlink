@@ -7,15 +7,15 @@ description: >
   same file. Same shape as the three artifact lists T-2751 closed. Options: cross-check,
   consolidate, or accept-and-document. Found while declining herdr rank 21 (T-2752).
 
-status: captured
+status: started-work
 workflow_type: inception
 owner: agent
-horizon: later
+horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-08-15T21:38:37Z
-last_update: '2026-09-08T21:30:39Z'
+last_update: 2026-09-18T18:45:11Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -54,11 +54,28 @@ cost_estimate_proposed:
 
 ## Problem Statement
 
-<!-- What problem are we exploring? For whom? Why now? -->
+`~/.termlink/hubs.toml` — the operator's fleet-membership file — is parsed by three
+independent implementations that share no code and no cross-check: (1) the CLI's typed
+loader (`crates/termlink-cli/src/config.rs:115,138` — `toml::from_str` into `HubsConfig`,
+with a round-trip unit test); (2) a hand-rolled substring parser in
+`crates/termlink-mcp/src/tools.rs` ("Simple TOML parser for [hubs.NAME] sections",
+tools.rs:7540, with the `[hubs.` prefix-scan repeated at tools.rs:7593 and again at
+tools.rs:10962 — no section-parsing unit tests); (3) shell greppers — 32 scripts under
+`scripts/` reference hubs.toml, a subset parsing `[hubs.*]` sections with grep/sed.
+Path RESOLUTION was unified by T-2632 (CLI and MCP agree where the file lives even with
+HOME unset); parsing was not. A TOML construct the typed loader accepts but the substring
+parser mis-reads (quoted section names, trailing comments on a section header, CRLF)
+would make the CLI and MCP disagree about fleet membership silently — the
+plausible-wrong-answer class (Directive #2), on the file every fleet verb depends on.
+Re-verified 2026-09-18; the original recommendation's "~11 shell greppers" undercounted
+(32 referencing scripts).
 
 ## Assumptions
 
-<!-- Key assumptions to test. Register with: fw assumption add "Statement" --task T-XXX -->
+- A1 (validated 2026-09-18): the triplication exists as described — re-verified at
+  config.rs:115/138, tools.rs:7540/7593/10962, and 32 hubs.toml-referencing scripts.
+- A2 (unvalidated — the DEFER driver): the tools.rs hand-parser exists to avoid a crate
+  dependency; nobody has verified that rationale, so consolidating blind could be wrong.
 
 ## Open Questions
 
@@ -78,9 +95,21 @@ cost_estimate_proposed:
      FW_SKIP_DISPOSITION_GATE=1 (env-var, T-1890 producer/consumer parity).
 -->
 
+- **IW-1: Do the three parsers disagree on any live profile set today?**
+  confidence: 2
+  disposition: answered
+  rationale: No divergence observed or reported anywhere — no CLI-vs-MCP fleet-membership discrepancy in any audit, canary log, or task since the tools.rs parser landed; the risk is structural, not a live defect.
+
+- **IW-2: Is the right remedy a cross-parity check or consolidation onto the CLI's typed loader?**
+  confidence: 1
+  disposition: deferred
+  rationale: Undecidable without either an observed divergence (which names the failing TOML construct) or a verified answer on why tools.rs hand-rolls the parse instead of using the toml crate (dependency-avoidance rationale unverified — A2). Revisit trigger recorded in Recommendation.
+
 ## Exploration Plan
 
-<!-- How will we validate assumptions? Spikes, prototypes, research? Time-box each. -->
+Completed as a measurement pass (no spike needed): locate every parse site
+(`grep -rn "hubs.toml" crates/ scripts/`), classify by mechanism (typed crate /
+substring scan / shell grep), and check for an existing cross-check (none found).
 
 ## Technical Constraints
 
@@ -92,7 +121,9 @@ cost_estimate_proposed:
 
 ## Scope Fence
 
-<!-- What's IN scope for this exploration? What's explicitly OUT? -->
+IN: establishing whether the triplication is real, measuring its surface, and deciding
+whether a remedy is warranted now. OUT: implementing any consolidation or parity check
+(a build task after a GO), and the vendored framework's own config reads (G-062).
 
 ## Acceptance Criteria
 
@@ -161,3 +192,7 @@ cost_estimate_proposed:
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-09-18T18:45:11Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
