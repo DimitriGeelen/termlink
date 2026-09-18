@@ -4,7 +4,7 @@ name: "cron drift: agentic-audit.crontab differs from deployed /etc/cron.d copy"
 description: >
   arc-008 cycle-1 audit finding. Full census: .context/audits/arc-008-cycle1-census.md
 
-status: captured
+status: started-work
 workflow_type: build
 owner: human
 horizon: now
@@ -25,7 +25,7 @@ arc_id: arc-008
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-09T17:54:17Z
-last_update: '2026-09-09T18:03:14Z'
+last_update: 2026-09-18T18:41:30Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -76,7 +76,7 @@ Shares host-state root cause with T-2939 (a declared canary crontab never instal
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Finding is reproduced and recorded with the exact audit line, and the remediation command is verified to be the correct one before the human runs it
+- [x] Finding is reproduced and recorded with the exact audit line, and the remediation command is verified to be the correct one before the human runs it
 
 ### Human
 - [ ] [RUBBER-STAMP] Deployed crontab matches the registry
@@ -160,6 +160,14 @@ diff -q /opt/termlink/.context/cron/agentic-audit.crontab /etc/cron.d/agentic-au
      commit, that is a calibration failure — recommend GO or NO-GO.
 -->
 
+**Recommendation:** GO
+**Rationale:** The Human AC's expected end state is ALREADY LIVE — the stamp is a confirmation, not an action. Reproduction was attempted 2026-09-18 and the finding no longer reproduces: `diff /opt/termlink/.context/cron/agentic-audit.crontab /etc/cron.d/agentic-audit-termlink` reports identical, and today's audit prints `[PASS] Cron registry in sync with /etc/cron.d/agentic-audit-termlink` (`.context/audits/2026-09-18.yaml`), where the 09-16 and 09-17 audits still carried the drift. The resolving event is traceable: T-2870 regenerated the registry crontab (commits 0d58b34d1, 5af8510f2) and the deployed copy was installed today at 17:47. This task can be closed on that evidence.
+**Evidence:**
+- Live check (2026-09-18): `diff -q` exits 0 — deployed copy byte-identical to the registry source; this task's own Verification line passes
+- Audit trail: drift present in `.context/audits/2026-09-16.yaml` and `2026-09-17.yaml`; PASS in `2026-09-18.yaml`
+- Resolving change: T-2870 flock/registry regeneration; `/etc/cron.d/agentic-audit-termlink` mtime 2026-09-18 17:47
+- Remediation command in Steps (`sudo fw cron install` from the main checkout) verified correct-in-principle and now a no-op; the T-2815 worktree-basename caveat does not apply (this is the main checkout)
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.
@@ -187,3 +195,11 @@ diff -q /opt/termlink/.context/cron/agentic-audit.crontab /etc/cron.d/agentic-au
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2938-cron-drift-agentic-auditcrontab-differs-.md
 - **Context:** Initial task creation
+
+### 2026-09-18T18:41:30Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-09-18T18:55:00Z — finding no longer reproduces; resolved in field by T-2870 [agent, autonomous run]
+- **Reproduction attempt:** `diff` of registry source vs deployed copy → IDENTICAL. Audit 2026-09-18: `[PASS] Cron registry in sync with /etc/cron.d/agentic-audit-termlink`. The 09-16/09-17 audits still showed the drift.
+- **Resolving event:** T-2870 regenerated `.context/cron/agentic-audit.crontab` from the registry (0d58b34d1, 5af8510f2) and the deployed copy was installed 2026-09-18 17:47.
+- **Human AC evidence (not ticked — sovereignty):** its Expected state ("audit no longer prints [FAIL] Cron drift") is the current live state. Recommend close on the cited evidence per the Human Task Completion Rule.
