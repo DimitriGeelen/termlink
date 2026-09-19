@@ -654,6 +654,40 @@ _fw_single_command_is_safe() {
             esac
             ;;
 
+        # Category 4c (T-2961): checkpoint.sh read verbs.
+        #
+        # `checkpoint.sh status` is the verb the P-009 budget rule mandates, and
+        # `checkpoint.sh budget` is the verb the /resume skill mandates (absent in
+        # this vendored build — version skew, T-2950; today it prints usage and
+        # exits 1, which is harmless, and post-re-vendor it is contractually the
+        # G-087-safe cache read). Both gated whenever focus was null — which is
+        # precisely the post-completion state where the framework REQUIRES the
+        # agent to read its budget before deciding to start another task or hand
+        # over. Measured three refusals in one session (2026-09-19) before this
+        # arm was added: the only documented safe budget read was unavailable in
+        # exactly the state it exists for. Same deadlock class as the T-2878
+        # context add-* and T-2052 task-create exemptions.
+        #
+        # This does NOT breach the Tier 0 scope boundary that keeps `./script.sh`
+        # out (the T-2742 rule above): that rule is about ARBITRARY files, whose
+        # contents a command-string scan cannot see. `checkpoint.sh` here is the
+        # same trust class as the `fw`/`bin/fw` arm — a named framework verb
+        # surface judged by name plus sub-verb, not by file contents. `status`
+        # was read to verify: its only write is the ensure_counter bootstrap
+        # (creates .context/working/.tool-counter if absent — the exempt wrap-up
+        # path). The mutating arms (`post-tool` increments counters and can
+        # trigger auto-handover; `reset` deletes session state) fall through and
+        # stay gated, mirroring the systemctl/git verb-scoping treatment.
+        checkpoint.sh)
+            local cp_sub
+            cp_sub=$(echo "$cmd" | awk '{print $2}')
+            case "$cp_sub" in
+                status|budget)
+                    return 0
+                    ;;
+            esac
+            ;;
+
         # Category 5: System utilities
         curl|wget|date|uname|ps|ss|id|whoami|hostname|env|printenv|df|du|free|uptime|lsb_release|nproc)
             return 0

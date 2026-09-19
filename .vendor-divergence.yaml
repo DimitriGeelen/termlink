@@ -77,6 +77,46 @@ last_vendor_event:
 #   7. Update `last_vendor_event` here.
 
 divergences:
+  - task: T-2961
+    commit: pending-same-commit
+    commit_note: >
+      Registered in the SAME commit that carries the fix (T-2882 precedent); the
+      checker's match key is the task id parsed from the commit subject —
+      `T-2961:` — which resolves.
+    date: 2026-09-19
+    file: .agentic-framework/agents/context/lib/safe-commands.sh
+    status: local-only
+    kind: fix
+    generality: GENERIC
+    symptom: >
+      The P-002 safe-command allowlist had no arm for checkpoint.sh, so the two
+      read verbs the framework itself mandates — `checkpoint.sh status` (P-009
+      budget rule) and `checkpoint.sh budget` (/resume skill; absent in this
+      vendored build per T-2950's version-skew finding, harmless usage-print
+      today) — gated whenever focus was null. That is precisely the
+      post-completion state where the budget read is required before deciding
+      to start another task or hand over. Three refusals measured in one
+      session (2026-09-19). Same deadlock class as T-2878/T-2052.
+    fix: >
+      Verb-scoped Category 4c arm: `checkpoint.sh` base with sub-verbs
+      `status|budget` safe; `post-tool`/`reset` fall through and stay gated;
+      the `bash <path>/checkpoint.sh` wrapper spelling stays gated (T-2742
+      Tier 0 scope boundary).
+    evidence: >
+      tests/safe-commands-checkpoint-fixtures.sh — 13 assertions green, both
+      directions pinned, and the two safe-classification cases FAIL against
+      the pre-fix lib extracted from git (defect reproduced, T-2814 rule).
+      The suite name matches the guard-layer runner's *fixtures*.sh membership
+      convention, so a re-vendor that deletes this arm reddens the guard layer
+      — the T-2687/2026-08-26 recovery mechanism, by construction.
+    upstream_note: >
+      NOT filed upstream, deliberately (T-2950/P-075 precedent): the vendored
+      tree is three months behind a fast-moving upstream whose own /resume
+      skill mandates the budget verb, so upstream's allowlist plausibly already
+      carries an equivalent arm; filing a likely-stale report adds phantom
+      register debt. Re-check this entry at the already-surfaced sovereign
+      re-vendor decision (T-2950).
+
   - task: T-2882
     commit: pending-same-commit
     commit_note: >

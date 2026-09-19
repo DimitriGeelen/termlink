@@ -17,7 +17,7 @@ description: >
   though its stated reason is imprecise. This is the gate inviting its own gap to
   be filed, which is the honest design; the filing is the action it asks for.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -35,7 +35,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-11T20:43:22Z
-last_update: '2026-09-18T18:42:32Z'
+last_update: 2026-09-19T20:57:48Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -77,14 +77,27 @@ cost_estimate_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Scope narrowed by measurement before work (2026-09-19): the fw half of the title was
+already closed by the T-3096 sweep (92 read pairs added to safe-commands.sh), and
+`fw bvp estimate` — named in the description — genuinely writes task frontmatter, so
+the gate is right to block it. What remains live is the `checkpoint.sh` surface:
+`checkpoint.sh status` is the verb the P-009 budget rule mandates and `checkpoint.sh
+budget` is the verb the /resume skill mandates (absent in this vendored build —
+version skew, characterised by T-2950; harmless today: prints usage, exits 1), and
+both gate whenever focus is null — which is exactly the post-completion state where
+an agent must read its budget to decide whether to start another task or hand over.
+Measured three refusals in this session alone before this task was started.
+safe-commands.sh is vendored (G-062): the edit must be registered in
+.vendor-divergence.yaml, following the T-2888/T-2988/T-3096 local-patch precedent.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `is_bash_safe_command` classifies direct invocations of `checkpoint.sh status` and `checkpoint.sh budget` (bare, relative, and absolute-path spellings) as safe — the two read verbs the budget rule and /resume skill mandate no longer gate on null focus
+- [x] The mutating arms stay gated: `checkpoint.sh post-tool` and `checkpoint.sh reset` still classify unsafe, and `fw bvp estimate` (a frontmatter write) still classifies unsafe — regression-pinned in the fixture suite
+- [x] Fixture suite `tests/safe-commands-checkpoint-fixtures.sh` is green and load-bearing: run against the PRE-FIX safe-commands.sh (extracted from git), the safe-classification cases FAIL — proving the suite detects the defect it exists to pin
+- [x] The local edit to vendored safe-commands.sh is registered in `.vendor-divergence.yaml` with symptom, fix, and evidence
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -120,6 +133,9 @@ cost_estimate_proposed:
 -->
 
 ## Verification
+
+bash tests/safe-commands-checkpoint-fixtures.sh > /tmp/.t2961-fixtures.out 2>&1 && grep -q "ALL PASS" /tmp/.t2961-fixtures.out
+grep -q "T-2961" .vendor-divergence.yaml
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -220,6 +236,24 @@ cost_estimate_proposed:
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+## Evolution
+
+### 2026-09-19 — scope narrowed by measurement; risk carried by the guard layer
+- **What changed:** The title's fw half was already closed by T-3096's 92-pair sweep
+  (verified in the live allowlist, not assumed), and `fw bvp estimate` — named in the
+  filing — is a frontmatter WRITE the gate is right to block. The live surface reduced
+  to the checkpoint.sh verb pair. Also learned from T-2950: the `budget` arm is version
+  skew, not a missing feature — so the new arm allowlists it by contract (G-087-safe
+  read) while it is a harmless usage-print in this build.
+- **Plan impact:** No upstream filing (T-2950/P-075 precedent — likely stale against a
+  three-months-newer upstream). Deletion-on-re-vendor risk is carried structurally
+  instead: the fixture suite matches the guard-layer *fixtures*.sh membership
+  convention, so a re-vendor that drops the arm reddens `run-guard-layer.sh` — the
+  exact mechanism that caught the 2026-08-26 pickup.sh deletion.
+- **Triggered:** Nothing new filed. The sovereign re-vendor question already surfaced
+  by T-2950 gains one more line item (re-check this arm), recorded in the register
+  entry's upstream_note.
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -276,3 +310,6 @@ cost_estimate_proposed:
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2961-read-only-fw-and-checkpoint-verbs-are-ab.md
 - **Context:** Initial task creation
+
+### 2026-09-19T20:57:48Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
