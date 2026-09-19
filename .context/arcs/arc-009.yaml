@@ -1,0 +1,23 @@
+id: arc-009
+slug: arc-009
+name: "Value-review execution: five-run findings remediation"
+description: "Executes the consolidated findings of the five-run value-review repeatability series\
+  \ (docs/reports/VALUE-REVIEW-repo-2026-09-19-run1..run5, consolidated in docs/reports/VALUE-REVIEW-repo-2026-09-19-consolidated.md).\
+  \ Classes: ADD (repair/wire/surface/instrument), REFACTOR, INVESTIGATE. DELETE was\
+  \ verdicted zero across runs; any future delete goes through its own DELETE CHECKS.\
+  \ Sovereign items are surfaced as questions, never executed by agents."
+status: in-progress
+anchor_task: T-2974
+headline_mechanic: "Every non-KEEP finding from the 2026-09-19 five-run value review reaches a terminal\
+  \ state the operator can see: agent-executable repairs/refactors land as verified\
+  \ commits under this arc's tasks, and every sovereign or human-decision finding\
+  \ renders as an approvable owner:human card on the Watchtower review queue"
+demo_evidence: null
+created: 2026-09-19T21:52:07Z
+closed_at: null
+decision: null
+# T-1918 (arc-006, value-prioritisation): BVP scoring fields. Semantics in
+# docs/reports/T-1915-bvp-inception.md §4 (D7-reframe) and §7 (M2).
+bvp_scores: {}
+scoped_drivers: []           # max 3, weight ≤6 each (M2). Approved by fw arc approve-driver (T-1926).
+proposed_scoped_drivers: []  # uncapped persistence (D7-reframe). Estimator may write here freely.
