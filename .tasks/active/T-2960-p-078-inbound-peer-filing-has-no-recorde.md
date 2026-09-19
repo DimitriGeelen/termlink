@@ -2,7 +2,15 @@
 id: T-2960
 name: "P-078 inbound peer filing has no recorded disposition"
 description: >
-  P-078 is a genuine INBOUND filing from the opencode project (T-064 wave-156): a cross-check of the T-1976 bare-IP --hub class across their estate, reporting zero exposure and corroborating our fix. It sits in .context/pickup/auto-deferred/ as one of the four STRANDED envelopes, but unlike the other three it is not one of our own outbound records. It is referenced in T-2954 and in the arc-008 census only as the TRIGGER that exposed the blind canary; its own contents were never triaged and no disposition was recorded. Deliberately not folded into T-2951 (one finding, one task). Note the envelope is stamped source.project: termlink despite originating at opencode, which is the T-2955 attribution defect seen from the receiving side.
+  P-078 is a genuine INBOUND filing from the opencode project (T-064 wave-156): a
+  cross-check of the T-1976 bare-IP --hub class across their estate, reporting zero
+  exposure and corroborating our fix. It sits in .context/pickup/auto-deferred/ as
+  one of the four STRANDED envelopes, but unlike the other three it is not one of
+  our own outbound records. It is referenced in T-2954 and in the arc-008 census only
+  as the TRIGGER that exposed the blind canary; its own contents were never triaged
+  and no disposition was recorded. Deliberately not folded into T-2951 (one finding,
+  one task). Note the envelope is stamped source.project: termlink despite originating
+  at opencode, which is the T-2955 attribution defect seen from the receiving side.
 
 status: captured
 workflow_type: build
@@ -22,8 +30,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-11T20:42:16Z
-last_update: 2026-09-11T20:42:16Z
-date_finished: null
+last_update: '2026-09-18T18:42:32Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,6 +42,30 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-09-18T18:42:31Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-09-18T18:42:32Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius:
+      tier: 2
+      effort: 8
+    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
+      (workflow:build); effort=8 (lines=204,acs=4)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-2960: P-078 inbound peer filing has no recorded disposition

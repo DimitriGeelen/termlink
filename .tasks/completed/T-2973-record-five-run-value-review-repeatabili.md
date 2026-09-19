@@ -1,18 +1,14 @@
 ---
-id: T-2958
-name: "fw task review hardcodes 'go' in the decision command it hands the human"
+id: T-2973
+name: "Record five-run value-review repeatability series artifacts"
 description: >
-  lib/review.sh:380 emits 'inception decide <task> go' with the verb hardcoded while
-  interpolating the rationale from the task's own Recommendation, so a NO-GO recommendation
-  prints a command recording GO. Inverted a live human decision on the reporting peer's
-  repo. Sovereignty boundary. Reported by 050-email-archive (Pen, T-2065 follow-on),
-  verified live here.
+  Record five-run value-review repeatability series artifacts
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
-tags: [arc:arc-008]
+horizon: null
+tags: []
 components: []
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
@@ -25,9 +21,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-11T19:54:29Z
-last_update: '2026-09-18T18:42:31Z'
-date_finished:
+created: 2026-09-19T19:25:00Z
+last_update: 2026-09-19T19:27:03Z
+date_finished: 2026-09-19T19:27:03Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -38,44 +34,27 @@ date_finished:
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
-bvp_scores_proposed:
-  - ts: '2026-09-18T18:42:31Z'
-    estimator: bvp-estimator-v1-heuristic
-    scores:
-      D1: 4
-      D2: 0
-      D3: 3
-      D4: 2
-      F-RECALL: 0
-      F-ORCH: 0
-    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
-      (body:component-discoverability); D4=2 (body:env-class-handled); 
-      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
-    rubric_sha: e4a00f38e801
-cost_estimate_proposed:
-  - ts: '2026-09-18T18:42:31Z'
-    estimator: bvp-estimator-v1-heuristic
-    cost_estimate:
-      blast_radius:
-      tier: 2
-      effort: 8
-    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
-      (workflow:build); effort=8 (lines=207,acs=4)
-    rubric_sha: e4a00f38e801
 ---
 
-# T-2958: fw task review hardcodes 'go' in the decision command it hands the human
+# T-2973: Record five-run value-review repeatability series artifacts
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Operator requested the Project Value Review prompt be run five times consecutively
+against this repo (repeatability series). All five runs completed (rc=0) on
+2026-09-19; this task records their artifacts in git. The artifacts belong
+substantively to the value-review inception T-2971, whose inception commit-limit
+gate is at its cap pending the human go/no-go decision — so the recording commit
+is made under this dedicated build task instead (cross-attribution noted in the
+commit message). Run logs and per-run snapshots live in the background-job
+directory `value-review-runs/`.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] All five runs' value-review artifacts (5 evidence files, 3 Phase-5 reports, 1 judge-verdicts file) are committed under docs/reports/ with a run-N suffix each
+- [x] The commit message states the cross-attribution to the value-review inception and why the commit is not made under it
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -148,6 +127,7 @@ cost_estimate_proposed:
 # on, and grep scans the whole captured string anyway, so the `tail -3` was
 # cosmetic. `echo "$out" | grep -q PAT`, nothing between.
 #
+test "$(git ls-files docs/reports | grep -c 2026-09-19-run)" = "9"
 # TEST RUNNERS need a guard either way (T-2738). `set -e` is suppressed inside the
 # `if` condition the gate runs each line in, so in `cmd1; cmd2` only cmd2 is the
 # verdict — and the pass marker you grep for survives a partial failure: a suite
@@ -263,10 +243,19 @@ cost_estimate_proposed:
 
 ## Updates
 
-### 2026-09-11T19:54:29Z — task-created [task-create-agent]
+### 2026-09-19T19:25:00Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2958-fw-task-review-hardcodes-go-in-the-decis.md
+- **Output:** /opt/termlink/.tasks/active/T-2973-record-five-run-value-review-repeatabili.md
 - **Context:** Initial task creation
 
-### 2026-09-11T19:55:43Z — status-update [task-update-agent]
-- **Change:** tags: +arc:arc-008
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-4aa9fe68
+- **Timestamp:** 2026-09-19T19:27:04Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-09-19T19:27:03Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

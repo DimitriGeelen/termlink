@@ -1,18 +1,14 @@
 ---
-id: T-2958
-name: "fw task review hardcodes 'go' in the decision command it hands the human"
+id: T-2972
+name: "Answer the three 055-agentic-fleet-cockpit consults: topology, priority routing, orchestration model"
 description: >
-  lib/review.sh:380 emits 'inception decide <task> go' with the verb hardcoded while
-  interpolating the rationale from the task's own Recommendation, so a NO-GO recommendation
-  prints a command recording GO. Inverted a live human decision on the reporting peer's
-  repo. Sovereignty boundary. Reported by 050-email-archive (Pen, T-2065 follow-on),
-  verified live here.
+  Answer the three 055-agentic-fleet-cockpit consults: topology, priority routing, orchestration model
 
-status: captured
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
-tags: [arc:arc-008]
+tags: []
 components: []
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
@@ -25,9 +21,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-11T19:54:29Z
-last_update: '2026-09-18T18:42:31Z'
-date_finished:
+created: 2026-09-17T21:40:29Z
+last_update: 2026-09-18T15:38:40Z
+date_finished: 2026-09-18T15:38:40Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -38,33 +34,9 @@ date_finished:
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
-bvp_scores_proposed:
-  - ts: '2026-09-18T18:42:31Z'
-    estimator: bvp-estimator-v1-heuristic
-    scores:
-      D1: 4
-      D2: 0
-      D3: 3
-      D4: 2
-      F-RECALL: 0
-      F-ORCH: 0
-    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
-      (body:component-discoverability); D4=2 (body:env-class-handled); 
-      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
-    rubric_sha: e4a00f38e801
-cost_estimate_proposed:
-  - ts: '2026-09-18T18:42:31Z'
-    estimator: bvp-estimator-v1-heuristic
-    cost_estimate:
-      blast_radius:
-      tier: 2
-      effort: 8
-    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
-      (workflow:build); effort=8 (lines=207,acs=4)
-    rubric_sha: e4a00f38e801
 ---
 
-# T-2958: fw task review hardcodes 'go' in the decision command it hands the human
+# T-2972: Answer the three 055-agentic-fleet-cockpit consults: topology, priority routing, orchestration model
 
 ## Context
 
@@ -74,8 +46,12 @@ cost_estimate_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Every claim in each reply is grounded in a cited path, struct, or a search that returned zero hits — no assertion that a design exists without a pointer to it
+- [x] The topology answer states the 5-level model does not exist, and names the three real levels plus the two tag conventions, citing crates/termlink-session/src/registration.rs
+- [x] The priority-routing answer reports the negative result (zero hits repo-wide) rather than hedging
+- [x] The orchestration answer distinguishes registered `termlink spawn` sessions from in-process AEF sub-agents, and states that TERMLINK_PARENT_SESSION is a caller convention with zero references in crates/
+- [x] Three draft replies exist under .context/working/drafts/ and are shown to the operator before anything is posted
+- [x] Nothing is posted to any DM topic without explicit operator approval
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -109,6 +85,14 @@ cost_estimate_proposed:
        added to ## Verification. NEVER `... 2>&1 | grep -q ...` — that is the shape the
        Pipefail/SIGPIPE section below forbids, and this line used to prescribe it.
 -->
+- [ ] [RUBBER-STAMP] Post the three approved replies to the 055 cockpit DM topics (outward-facing; sovereignty over what leaves this project is yours — the agent AC above forbids the agent posting)
+  **Steps:**
+  1. Read the three drafts: `cd /opt/termlink && cat .context/working/drafts/T-2972-reply-A.txt .context/working/drafts/T-2972-reply-B.txt .context/working/drafts/T-2972-reply-C.txt`
+  2. Post A (answers the 09-16 13:34 consult): `cd /opt/termlink && termlink channel post dm:8e6fd77ec6f74b37:d1993c2c3ec44c94 --msg-type chat --payload "$(cat .context/working/drafts/T-2972-reply-A.txt)" --metadata from_project=010-termlink --metadata _thread=T-2972 --json`
+  3. Post B (answers the 09-16 13:55 consult): `cd /opt/termlink && termlink channel post dm:3bba15e681b3a078:d1993c2c3ec44c94 --msg-type chat --payload "$(cat .context/working/drafts/T-2972-reply-B.txt)" --metadata from_project=010-termlink --metadata _thread=T-2972 --json`
+  4. Post C (answers the 09-17 20:54 T-064 consult): `cd /opt/termlink && termlink channel post dm:3bba15e681b3a078:d1993c2c3ec44c94 --msg-type chat --payload "$(cat .context/working/drafts/T-2972-reply-C.txt)" --metadata from_project=010-termlink --metadata _thread=T-2972 --json`
+  **Expected:** each command prints a JSON envelope with `"ok": true` and an `offset`; `termlink channel subscribe dm:3bba15e681b3a078:d1993c2c3ec44c94 --json` shows the new offsets with `from_project: 010-termlink`
+  **If not:** an auth error → `termlink fleet doctor`; a queued outcome (`Queued`) means the hub blipped and the offline queue will flush — check `/queue-status`. If you want wording changed first, edit the draft file and re-run the post; nothing is sent until you run these.
 
 ## Verification
 
@@ -170,6 +154,24 @@ cost_estimate_proposed:
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+# AC5: three drafts exist and are non-empty
+test -s .context/working/drafts/T-2972-reply-A.txt && test -s .context/working/drafts/T-2972-reply-B.txt && test -s .context/working/drafts/T-2972-reply-C.txt
+# AC2: topology answer denies the 5-level model and cites registration.rs (A and B)
+grep -q "DOES NOT EXIST" .context/working/drafts/T-2972-reply-A.txt && grep -q "registration.rs" .context/working/drafts/T-2972-reply-A.txt && grep -q "registration.rs" .context/working/drafts/T-2972-reply-B.txt
+# AC3: priority-routing answer states the negative result as zero hits (A and B)
+grep -qi "zero hits" .context/working/drafts/T-2972-reply-A.txt && grep -qi "zero hits" .context/working/drafts/T-2972-reply-B.txt
+# AC4: orchestration answer distinguishes spawn sessions from sub-agents and states TERMLINK_PARENT_SESSION has zero crates/ references
+grep -q "termlink spawn" .context/working/drafts/T-2972-reply-C.txt && grep -q "TERMLINK_PARENT_SESSION" .context/working/drafts/T-2972-reply-C.txt && grep -q "ZERO references in crates/" .context/working/drafts/T-2972-reply-C.txt
+# AC4 ground truth: the claim in C is still true of the tree
+test "$(grep -rl TERMLINK_PARENT_SESSION crates/ | wc -l)" = "0"
+# Two-facts rule (operator decision 2026-09-18) present in all three
+grep -q "git-common-dir" .context/working/drafts/T-2972-reply-A.txt && grep -q "git-common-dir" .context/working/drafts/T-2972-reply-B.txt && grep -q "git-common-dir" .context/working/drafts/T-2972-reply-C.txt
+# Gaps the replies cite are registered (register-first)
+python3 -c "import yaml; ids=[c['id'] for c in yaml.safe_load(open('.context/project/concerns.yaml'))['concerns']]; assert 'G-090' in ids and 'G-091' in ids"
+# AC6 (no post without operator approval) is not mechanically checkable here: the operator is the one who posts
+# (Human AC), so a "no T-2972 post exists" probe would fail on the correct outcome. AC6 is attested by the
+# Human AC being the only posting path in this task.
 
 ## RCA
 
@@ -239,6 +241,13 @@ cost_estimate_proposed:
      for Human Review). If the artefact is complete and you still don't want to
      commit, that is a calibration failure — recommend GO or NO-GO.
 -->
+**Recommendation:** GO — post all three replies as drafted (Human AC carries the exact commands).
+**Rationale:** The three consults have sat unanswered since 09-16/09-17 because the cockpit's mailbox has no reader on our side (832's 2026-09-03 diagnosis); every day unanswered is a day the cockpit may build on the non-existent 5-level model. Every claim in the drafts is source-cited or a recorded zero-hit search, the two-facts project rule you decided on 2026-09-18 is encoded in all three, and the two gaps the replies mention are registered (G-090, G-091) so the drafts promise nothing that is not on the register. The one open judgement is reply C's `parent=<session-id>` tag proposal — it is phrased as a proposal to converge on, not a commitment; if you do not want to offer it, delete that paragraph before posting.
+**Evidence:**
+- Drafts: `.context/working/drafts/T-2972-reply-{A,B,C}.txt` (132/77/85 lines), gitignored working files
+- P-011: 7/7 verification lines pass, incl. the ground-truth re-check `grep -rl TERMLINK_PARENT_SESSION crates/` → 0 files
+- Register: G-091 (T-559 checkout/project conflation — live-fired in this session, root at `.agentic-framework/bin/fw:75-88` + `:220-224`), G-090 (envelope project attribution) in `.context/project/concerns.yaml`
+- Precedent for the post shape: our 2026-09-01 reply on `dm:8e6fd77ec6f74b37:d1993c2c3ec44c94` offset 1 (`from_project` + `_thread` metadata)
 
 ## Decisions
 
@@ -263,10 +272,24 @@ cost_estimate_proposed:
 
 ## Updates
 
-### 2026-09-11T19:54:29Z — task-created [task-create-agent]
+### 2026-09-17T21:40:29Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2958-fw-task-review-hardcodes-go-in-the-decis.md
+- **Output:** /opt/termlink/.tasks/active/T-2972-answer-the-three-055-agentic-fleet-cockp.md
 - **Context:** Initial task creation
 
-### 2026-09-11T19:55:43Z — status-update [task-update-agent]
-- **Change:** tags: +arc:arc-008
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-a8a28a76
+- **Timestamp:** 2026-09-18T15:38:42Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Agent)** — The topology answer states the 5-level model does not exist, and names the three real levels plus the two tag conventions, citing crates/termlink-session/src/registration.rs
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=crates/termlink-session/src/registration.rs in: The topology answer states the 5-level model does not exist, and names the three real levels plus the two tag conventions, citing crates/termlink-sess`
+
+### 2026-09-18T15:38:40Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

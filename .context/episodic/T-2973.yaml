@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2973: Record five-run value-review repeatability series artifacts
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-19T19:27:10Z
+# ============================================================================
+
+task_id: T-2973
+task_name: "Record five-run value-review repeatability series artifacts"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-19T19:25:00Z
+completed: 2026-09-19T19:27:03Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-09-19T21:26:36+02:00
+last_commit: 2026-09-19T21:26:36+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  record five consecutive value-review runs — evidence x5, Phase-5 reports x3, judge verdicts x1
+
+# Key outcomes
+outcomes:
+  - 'All five runs'' value-review artifacts (5 evidence files, 3 Phase-5 reports, 1 judge-verdicts file) are committed under docs/reports/ with a run-N suffix each'
+  - 'The commit message states the cross-attribution to the value-review inception and why the commit is not made under it'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/reports/VALUE-REVIEW-repo-2026-09-19-run1-evidence.md'
+  - 'docs/reports/VALUE-REVIEW-repo-2026-09-19-run2-evidence.md'
+  - 'docs/reports/VALUE-REVIEW-repo-2026-09-19-run2.md'
+  - 'docs/reports/VALUE-REVIEW-repo-2026-09-19-run3-evidence.md'
+  - 'docs/reports/VALUE-REVIEW-repo-2026-09-19-run4-evidence.md'
+  - 'docs/reports/VALUE-REVIEW-repo-2026-09-19-run4.md'
+  - 'docs/reports/VALUE-REVIEW-repo-2026-09-19-run5-evidence.md'
+  - 'docs/reports/VALUE-REVIEW-repo-2026-09-19-run5-judge-verdicts.md'
+  - 'docs/reports/VALUE-REVIEW-repo-2026-09-19-run5.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-19T21:26:36'
+    action: 'T-2973: record five consecutive value-review runs — evidence x5, Phase-5 reports x3, judge verdicts x1'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 9
+  lines_added: 4037
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2973-record-five-run-value-review-repeatabili.md
+generated_by: context-agent-hybrid

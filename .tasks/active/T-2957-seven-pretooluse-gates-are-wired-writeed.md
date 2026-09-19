@@ -1,8 +1,13 @@
 ---
 id: T-2957
-name: "Seven PreToolUse gates are wired Write|Edit only, so Bash heredoc task edits bypass them"
+name: "Seven PreToolUse gates are wired Write|Edit only, so Bash heredoc task edits
+  bypass them"
 description: >
-  check-active-task matches Write|Edit|Bash but check-human-ac-tick, check-active-completed-dup, check-arc-id, check-heredoc-cmd-sub, check-inception-decisions, check-inception-schema and check-onboarding-gate match Write|Edit only. A task file rewritten from a Bash heredoc ticks Human ACs with no block and no Tier-2 log. Reported by 050-email-archive (P-EMAIL-ARCHIVE-001), verified live here.
+  check-active-task matches Write|Edit|Bash but check-human-ac-tick, check-active-completed-dup,
+  check-arc-id, check-heredoc-cmd-sub, check-inception-decisions, check-inception-schema
+  and check-onboarding-gate match Write|Edit only. A task file rewritten from a Bash
+  heredoc ticks Human ACs with no block and no Tier-2 log. Reported by 050-email-archive
+  (P-EMAIL-ARCHIVE-001), verified live here.
 
 status: captured
 workflow_type: build
@@ -22,8 +27,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-11T19:53:26Z
-last_update: 2026-09-11T19:55:43Z
-date_finished: null
+last_update: '2026-09-18T18:42:31Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,6 +39,30 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-09-18T18:42:31Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-09-18T18:42:31Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius:
+      tier: 2
+      effort: 8
+    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
+      (workflow:build); effort=8 (lines=207,acs=4)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-2957: Seven PreToolUse gates are wired Write|Edit only, so Bash heredoc task edits bypass them

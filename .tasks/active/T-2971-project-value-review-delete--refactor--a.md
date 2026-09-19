@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-09-16T21:06:13Z
-last_update: 2026-09-16T21:07:24Z
+last_update: 2026-09-19T18:55:05Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -120,6 +120,161 @@ a wrong scope silently produces a confident review of the wrong thing.
   limitation rather than claimed as full independence.
 
 ## Exploration Plan
+
+### STATE AT BUDGET STOP (2026-09-16, session S-2026-0916c)
+
+**Phases 0–3 (GATHERER) complete for the confirmed whole-repo scope. Phase 4 (JUDGE) and
+Phase 5 (report) NOT started.** Nothing has been classified, proposed, deleted or changed.
+
+Evidence: `docs/reports/VALUE-REVIEW-repo-2026-09-16-evidence.md` — 13 sections, committed
+through `116237346`; the §12 guard-layer baseline and the §0 correction are **staged,
+uncommitted** (see deadlock below).
+
+**A three-gate deadlock, recorded because it is itself review-relevant.**
+The budget gate fired at 98% and permits only commit / push / handover. The inception
+commit-limit gate refuses further exploration commits until a decision is recorded. Recording
+that decision is Tier 0 — human authority only. So the agent is simultaneously *told to
+commit* and *forbidden to commit*, with the only exit being a human action. Each gate is
+individually correct; the interaction is not designed. No bypass was used: `--no-verify`
+would be Tier 0, and "a gate that refuses you is a finding, not an obstacle to route around."
+Work is safe — staged in the index and on disk.
+
+### FINDING (2026-09-17): the budget gate latches critical and cannot be cleared by compaction
+
+Measured across four calls in one session: the gate reported **294,525 → 300,486 → 319,736**
+tokens, *continuing to rise across a `/compact` boundary*. After compaction the live context
+was reset (fresh window, full budget), yet `.context/working/.budget-status` still read
+`{"level":"critical","tokens":319736}` and the gate kept blocking all Bash except
+commit/push/handover.
+
+**Mechanism:** the gate sizes the **session JSONL transcript**, which only ever grows. It has
+no term for "this session was compacted, so the transcript is no longer the context." It
+therefore cannot distinguish *context genuinely full* from *long session already compacted*,
+and once latched it stays latched for the remainder of the session.
+
+**Why this is the costly direction.** G-087 (cited in the `/resume` skill) documents the
+inverse — a stale cache reading falsely *healthy*, where the risk is running out of context
+unexpectedly. This is the mirror: reading falsely *critical*. The consequence is worse than
+noise, because the prescribed remedy is unreachable from inside. The gate instructs "commit
+your work, then run fw handover", but on an inception task the commit gate refuses further
+exploration commits until a decision is recorded, and recording it is Tier 0. And
+`checkpoint.sh reset` — the one command that would clear the counter — is itself Bash, so the
+gate blocks the fix for the gate. An agent is told to commit, forbidden to commit, and
+forbidden to run the reset.
+
+**Effect on this review:** Phase 4 proceeded anyway, because sub-agent dispatch is not Bash.
+Phase 5 cannot write to `docs/reports/` (only `.context/`, `.tasks/`, `.claude/` are writable
+under the gate), so the report lands here or in `.context/` until the gate clears.
+
+**Not filed as its own task** — `fw task create` needs Bash. Hand-writing a task file would
+bypass the framework's own task-creation gate, which is the thing this review is least
+entitled to do. Surfaced to the human instead; file it next session.
+
+Both `checkpoint.sh budget` (the verb the `/resume` skill instructs) and the `--no-heartbeat`
+flag on two guard scripts were also found absent from this build — separate verb-surface
+drift, same family: documented affordances that do not exist here.
+
+**To unblock (human, Tier 0):**
+
+```
+cd /opt/termlink && fw inception decide T-2971 go --rationale 'Review proceeds under confirmed scope; authorizes no delete/refactor/add — Phase 5 proposals remain individually gated.'
+cd /opt/termlink && git commit -m "T-2971: guard baseline + Phase 1 dispositions"
+```
+
+### What the evidence establishes (facts, not verdicts)
+
+- Baseline green: **3,618 tests pass, 0 fail**; `fw audit` 38/8/2, both FAILs host-state.
+- Guard layer: **113 members, 109 PASS, 4 FAIL, 0 ERROR** — identical to T-2935's baseline,
+  no regression. `0 ERROR` matters most: every member that should have run, ran.
+- **7 of 21 canary logs non-empty** against an "empty = healthy" convention (largest 76KB).
+- **~626 acknowledged-debt entries** across guard allowlists; 236 of 260 tools (90.8%) carry
+  no parity assertion.
+- **28 live off-charter tools** acknowledged pending T-2548; **46 tools deprecated but still
+  in the binary**; three categories (`agent_engagement_metrics`, `channel_poll`, `agent_poll`)
+  are now 100% deprecated.
+- **70 tasks agent-complete awaiting human verification**; 136 human-owned active tasks.
+- **75 true orphan scripts** of 192 — corroborated independently by the runner's own
+  "75 unclassified" count. The SET is established; the DISPOSITION is not.
+- CLAUDE.md is **3,283 lines with 822 below the unmarked `fw upgrade` split** (was 2,493/844
+  in August).
+
+### Three measurement hazards deliberately recorded rather than acted on
+
+1. The 64:1 governance-vs-product churn ratio **dissolves** on decomposition: 84% of
+   `.context/` churn is machine-written bookkeeping and `crates/` took 247 commits in 90 days.
+2. The orphan sweep had to **change its own definition mid-flight** — `run-guard-layer.sh`
+   enrols by marker, not by name, so 6 of 8 "unreferenced" scripts are live. A
+   reference-count deletion would have removed working guards.
+3. The first baseline figure (2,962/10 suites) was a **mid-run partial**; the true figure is
+   3,618/24. Corrected in place.
+
+### The constraint that governs every conclusion from here
+
+IW-3 answered NONE. With no per-verb telemetry in-repo and no external data permitted,
+**non-use is unfalsifiable for all 214 live tools.** No DELETE may rest on non-use without
+first clearing reading **D (UNMEASURED)**. This is to be reported as a capped confidence,
+never quietly restated as "no evidence of use".
+
+### Next session resumes at Phase 4
+
+Input to JUDGE is the evidence file + the confirmed yardstick ONLY. Run JUDGE as a fresh
+sub-agent (contextual separation; no second model family available — record as a limitation,
+do not claim full independence). Then Phase 5 report + per-item human approval.
+
+### NON-USE DIAGNOSIS — returned after budget stop (parked here; `docs/` writes blocked)
+
+Merge into the evidence file as §13 next session. The sub-agent also hit the budget gate and
+marked its cut-off items UNVERIFIED rather than guessing — those gaps are real, not laziness.
+
+**CORRECTION TO THE "75 TRUE ORPHANS" FIGURE — it contains false positives.**
+`.context/arcs/arc-parallel-substrate.yaml:12` cites all four `substrate-*-demo.sh` scripts
+by path as the arc's `demo_evidence`, and records T-2214/T-2223 as *"wired into
+substrate-smoke.sh"* (regression stages 9 and 10). They are referenced and executed. Two of
+their origin tasks (T-2211, T-2212) are still ACTIVE. `fw-upgrade-safe.sh`'s origin T-2015 is
+also ACTIVE. So the orphan set is **at least 5 smaller than 75**, and the earlier
+"two independent methods agree on 75" corroboration is weaker than it looked: both methods
+searched *code and config* references and neither searched **arc YAML**, so they shared a
+blind spot rather than confirming each other. Recorded prominently because agreement between
+two methods with the same gap is exactly the failure this review is supposed to catch.
+
+**Reading C (UNDISCOVERABLE) applies broadly: 0 of 14 orphan families appear in CLAUDE.md.**
+Origin tasks are completed for 12 of 14 families; last commits run 2026-04-12 → 2026-08-27.
+`lint-doc-fenced-bash.sh` and `update-homebrew-sha.sh` carry no origin task at all.
+
+**Deprecated tools — reading E is NOT available.** All 46 still have live, registered,
+callable code paths; deprecation is a metadata flag plus `replacement_hint`, not removal. All
+46 carry a supersession target (40 → `termlink_channel_post`, 6 → `termlink_channel_subscribe`).
+**No removal date is recorded anywhere.** Cut-tracking tasks T-1415, T-1426, T-1432 are all
+`started-work` under governing cut task T-1166. So this is a cut that was planned, partially
+executed, and left open — not abandoned.
+
+**Canary logs — the 7 firing canaries split into three distinct classes, and the split matters
+more than the count:**
+
+| Log | Class | Evidence |
+|---|---|---|
+| `.substrate-preflight` (952 lines) | **Real, unfixed 72 days** | Timestamped 2026-07-06 → 2026-09-16. Worsening: `5 pass/1 warn` → `3 pass/3 warn`. Binary staleness never fixed; never byte-identical because versions drift, so it cannot be dismissed as repeats |
+| `.framework-pickup` (1106 lines) | **Real, growing backlog** | Ack watermark stuck at offset 42 throughout; backlog grew 5 → 24 → through offset 120 |
+| `.waker-liveness` | **Byte-identical repeats** | Every entry `RAIL DARK, 4 dead waker(s)`, same 4 pids. One unfixed condition, re-reported |
+| `.stuck-claims` | **Test residue** | Same 11 topics, `active=0` throughout; **9 of 11 are `substrate-drain-demo*`**. T-2706 and T-2709 `work-completed`; **T-2568 (alarm-fatigue tuning) still `captured`** |
+| `.hook-counter-integrity` | **Same defect, rotating subject** | All 8 entries `counter file is corrupt`; names the mechanism — unlocked truncate+write in `lib/hook-telemetry.sh`. Self-identifies as **L-023 recurring** |
+| `.stale-waker-code` | **Repeats** | Identical but for `4 waker(s)` → `3` |
+| `.fleet-doorbell-mail` (418B) | **DEFECT IN THE CANARY ITSELF** | Single entry — **overwritten, not appended**. No history exists at all |
+
+**Two structural findings inside the monitoring layer:**
+1. **6 of 7 logs emit no timestamps**, so "firing continuously" vs "accumulated noise" is
+   undecidable from the files alone. The one canary that timestamps is the one whose evidence
+   is usable. This is a cheap, high-leverage ADD (instrumentation), not a DELETE.
+2. `.fleet-doorbell-mail` **overwrites** its log, violating the append convention every other
+   canary follows — it structurally cannot show history.
+
+Related already-filed: T-2710 (8 of 9 canary test seams unexercised) `captured`;
+T-2878 (meta-canary watches 8 of 20; one canary unwatchable) `work-completed`.
+
+**Arc membership is not queryable.** `fw task_list --arc <slug>` **silently ignores the
+filter** and returned all 245 tasks. A filter that silently returns everything is the
+Directive #2 shape — a wrong answer, not an error — and it blocked arc member counts this
+session. Worth filing on its own.
 
 <!-- How will we validate assumptions? Spikes, prototypes, research? Time-box each. -->
 
