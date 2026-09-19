@@ -17,10 +17,10 @@ description: >
   though its stated reason is imprecise. This is the gate inviting its own gap to
   be filed, which is the honest design; the filing is the action it asks for.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-008]
 components: []
 related_tasks: []
@@ -35,8 +35,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-11T20:43:22Z
-last_update: 2026-09-19T20:57:48Z
-date_finished:
+last_update: 2026-09-19T21:05:21Z
+date_finished: 2026-09-19T21:05:21Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -236,8 +236,6 @@ grep -q "T-2961" .vendor-divergence.yaml
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
-## Evolution
-
 ### 2026-09-19 — scope narrowed by measurement; risk carried by the guard layer
 - **What changed:** The title's fw half was already closed by T-3096's 92-pair sweep
   (verified in the live allowlist, not assumed), and `fw bvp estimate` — named in the
@@ -313,3 +311,15 @@ grep -q "T-2961" .vendor-divergence.yaml
 
 ### 2026-09-19T20:57:48Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-3a24205f
+- **Timestamp:** 2026-09-19T21:05:22Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-09-19T21:05:21Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -10692,3 +10692,57 @@ scan_id: R-7cea391b
 task_id: T-2967
 payload:
   task_file: .tasks/active/T-2967-restore-onedev-push-via-ring20-manager-c.md
+---
+kind: scan_emitted
+timestamp: '2026-09-18T15:38:42Z'
+scan_id: R-a8a28a76
+task_id: T-2972
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-18T15:38:42Z'
+scan_id: R-a8a28a76
+task_id: T-2972
+payload:
+  task_file: .tasks/active/T-2972-answer-the-three-055-agentic-fleet-cockp.md
+---
+kind: scan_emitted
+timestamp: '2026-09-19T19:27:04Z'
+scan_id: R-4aa9fe68
+task_id: T-2973
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-19T19:27:04Z'
+scan_id: R-4aa9fe68
+task_id: T-2973
+payload:
+  task_file: .tasks/active/T-2973-record-five-run-value-review-repeatabili.md
+---
+kind: scan_emitted
+timestamp: '2026-09-19T21:05:22Z'
+scan_id: R-3a24205f
+task_id: T-2961
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-19T21:05:22Z'
+scan_id: R-3a24205f
+task_id: T-2961
+payload:
+  task_file: .tasks/active/T-2961-read-only-fw-and-checkpoint-verbs-are-ab.md
