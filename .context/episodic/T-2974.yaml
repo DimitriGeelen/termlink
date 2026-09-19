@@ -1,0 +1,117 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2974: Consolidate five-run value-review findings into an execution arc
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-19T22:37:36Z
+# ============================================================================
+
+task_id: T-2974
+task_name: "Consolidate five-run value-review findings into an execution arc"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-19T21:49:21Z
+completed: 2026-09-19T22:37:29Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-09-20T00:37:21+02:00
+last_commit: 2026-09-20T00:37:21+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  consolidate five-run value review into arc-009 execution plan
+
+# Key outcomes
+outcomes:
+  - 'A consolidated, deduplicated findings file exists at docs/reports/VALUE-REVIEW-repo-2026-09-19-consolidated.md, with one row per unique finding across runs 1-5, each row citing its source run rows (traceability preserved)'
+  - 'A new arc exists under .context/arcs/ for executing the value-review findings, with a scope statement referencing the consolidated file'
+  - 'Every agent-executable consolidated finding is covered by a created task assigned to the new arc; every sovereign/human-decision finding is covered by an owner:human task (routing it to the Watchtower review queue) — no finding is dropped'
+  - 'The mapping finding-ID → task-ID is recorded in the consolidated file (or the arc file), so execution coverage is checkable'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/arcs/arc-009.yaml'
+  - 'docs/reports/VALUE-REVIEW-repo-2026-09-19-consolidated.md'
+  - '.tasks/active/T-2974-consolidate-five-run-value-review-findin.md'
+  - '.tasks/active/T-2975-fix-canaries-firing-to-healthy-masking-p.md'
+  - '.tasks/active/T-2976-fix-substrate-preflight-binary-comparato.md'
+  - '.tasks/active/T-2977-reinstall-current-binary-resolve-3-binar.md'
+  - '.tasks/active/T-2978-re-arm-push-wake-rail-relaunch-unwakeabl.md'
+  - '.tasks/active/T-2979-triage-and-ack-the-11-inbound-frameworkp.md'
+  - '.tasks/active/T-2980-bind-claim-verb-identity-to-verified-sen.md'
+  - '.tasks/active/T-2981-file-upstream-dispatch-gate-counter-sema.md'
+  - '.tasks/active/T-2982-file-upstream-hook-telemetry-flock-fix-l.md'
+  - '.tasks/active/T-2983-guard-layer-runner-streaming-per-member-.md'
+  - '.tasks/active/T-2984-inception-structural-consumer-for-framew.md'
+  - '.tasks/active/T-2985-wire-firing-canaries-to-de-duplicated-au.md'
+  - '.tasks/active/T-2986-fix-stale-claudemd-factual-claims.md'
+  - '.tasks/active/T-2987-sweep-testdemoprobe-residue-topics--stal.md'
+  - '.tasks/active/T-2988-investigate-then-bound-healthring20-fedp.md'
+  - '.tasks/active/T-2989-inception-claudemd-split-design-clobber-.md'
+  - '.tasks/active/T-2990-close-out-arc-005-bookkeeping--shorten-r.md'
+  - '.tasks/active/T-2991-raise-mcp-parity-coverage-on-highest-chu.md'
+  - '.tasks/active/T-2992-inception-coordinated-toolsrs--channelrs.md'
+  - '.tasks/active/T-2993-reconcile-t-2548-record-discharge-iw-1-t.md'
+  - '.tasks/active/T-2994-present-deprecated-tool-deletion-go-ahea.md'
+  - '.tasks/active/T-2995-inception-rpc-surface-wiring-check-sweep.md'
+  - '.tasks/active/T-2996-per-toolper-verb-invocation-telemetry-in.md'
+  - '.tasks/active/T-2997-human-ac-staleness-surface-partial-compl.md'
+  - '.tasks/active/T-2998-governance-artifact-archival-90d-handove.md'
+  - '.tasks/active/T-2999-paired-commit-drift-check-for-mcpcli-hel.md'
+  - '.tasks/active/T-3000-project-boundary-read-false-positive-fix.md'
+  - '.tasks/active/T-3001-inception-presence-heartbeat-truthfulnes.md'
+  - '.tasks/active/T-3002-canary-log-hygiene-per-entry-iso-dates--.md'
+  - '.tasks/active/T-3003-investigate-go-propagation-leak-77-go-in.md'
+  - '.tasks/active/T-3004-investigate-chat-arc-traffic-collapse.md'
+  - '.tasks/active/T-3005-investigate-fleet-version-floors-for-121.md'
+  - '.tasks/active/T-3006-investigate-task-completion-rate-drop.md'
+  - '.tasks/active/T-3007-investigate-ack-lag-read-side-unconfirme.md'
+  - '.tasks/active/T-3008-fix-red-fixture-suite-found-during-revie.md'
+  - '.tasks/active/T-3009-fabric-edge-enrichment-326491-cards-edge.md'
+  - '.tasks/active/T-3010-set-90-day-revisitat-on-artifact-surface.md'
+  - '.tasks/active/T-3011-investigate-topic-createpost-ratio-anoma.md'
+  - '.tasks/active/T-3012-sovereign-question-review-session-12-que.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-20T00:37:21'
+    action: 'T-2974: consolidate five-run value review into arc-009 execution plan'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 48 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 48
+  commits: 1
+  files_changed: 41
+  lines_added: 8517
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2974-consolidate-five-run-value-review-findin.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2961: Read-only fw and checkpoint verbs are absent from the P-002 safe-commands allowlist
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-19T21:05:28Z
+# ============================================================================
+
+task_id: T-2961
+task_name: "Read-only fw and checkpoint verbs are absent from the P-002 safe-commands allowlist"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-11T20:43:22Z
+completed: 2026-09-19T21:05:21Z
+duration_days: 8
+updates_count: 2
+first_commit: 2026-09-11T22:44:26+02:00
+last_commit: 2026-09-19T23:04:48+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  T-2959: capture two findings surfaced while closing T-2951/T-2959. allowlist checkpoint.sh read verbs (status/budget) in P-002 safe-commands
+
+# Key outcomes
+outcomes:
+  - '`is_bash_safe_command` classifies direct invocations of `checkpoint.sh status` and `checkpoint.sh budget` (bare, relative, and absolute-path spellings) as safe — the two read verbs the budget rule and /resume skill mandate no longer gate on null focus'
+  - 'The mutating arms stay gated: `checkpoint.sh post-tool` and `checkpoint.sh reset` still classify unsafe, and `fw bvp estimate` (a frontmatter write) still classifies unsafe — regression-pinned in the fixture suite'
+  - 'Fixture suite `tests/safe-commands-checkpoint-fixtures.sh` is green and load-bearing: run against the PRE-FIX safe-commands.sh (extracted from git), the safe-classification cases FAIL — proving the suite detects the defect it exists to pin'
+  - 'The local edit to vendored safe-commands.sh is registered in `.vendor-divergence.yaml` with symptom, fix, and evidence'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/agents/context/lib/safe-commands.sh'
+  - '.tasks/active/T-2960-p-078-inbound-peer-filing-has-no-recorde.md'
+  - '.tasks/active/T-2961-read-only-fw-and-checkpoint-verbs-are-ab.md'
+  - 'tests/safe-commands-checkpoint-fixtures.sh'
+  - '.vendor-divergence.yaml'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-11T22:44:26'
+    action: 'T-2959: capture two findings surfaced while closing T-2951/T-2959'
+  - time: '2026-09-19T23:04:48'
+    action: 'T-2961: allowlist checkpoint.sh read verbs (status/budget) in P-002 safe-commands'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 11541 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-008]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 11541
+  commits: 2
+  files_changed: 5
+  lines_added: 680
+  lines_removed: 5
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2961-read-only-fw-and-checkpoint-verbs-are-ab.md
+generated_by: context-agent-hybrid
