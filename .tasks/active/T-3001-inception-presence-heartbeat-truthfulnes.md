@@ -15,7 +15,7 @@ tags: [value-review, arc:arc-009]
 components: []
 related_tasks: []
 created: 2026-09-19T22:23:58Z
-last_update: 2026-09-20T21:20:22Z
+last_update: 2026-09-20T21:22:01Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -95,24 +95,24 @@ Findings artifact: `docs/reports/T-3001-presence-heartbeat-truthfulness.md`.
 -->
 
 - **IW-1: What does a presence heartbeat actually assert today — which fields does the producer emit, and what does each consumer infer from them?**
-  confidence: 0
-  disposition: open
-  rationale: not yet measured — spikes 1-2
+  confidence: 3
+  disposition: answered
+  rationale: Ten metadata fields, ALL bound before the loop (listener-heartbeat.sh:150-157 vs post_one); consumers apply a pure recency test (agent-listeners.sh:13-16). LIVE = 'a bash loop iterated recently' — artifact F1/F2
 
 - **IW-2: Can an agent be LIVE on `agent-presence` while genuinely unable to act on a message — does the T-2876 BLOCKED class have a presence-side counterpart that is currently invisible?**
-  confidence: 0
-  disposition: open
-  rationale: not yet measured — spike 3
+  confidence: 3
+  disposition: answered
+  rationale: Yes, and by construction: be-reachable.sh:253-264 spawns the beater `nohup setsid ... & disown` 'so it survives this shell exit', so presence measures a different process than the one that would act; state-file pid is the beater's ($!), pid_alive() validates the beater — artifact F3
 
 - **IW-3: Does the T-2876 verdict set (DELIVERED/BLOCKED/ENQUEUED/UNDELIVERED) transfer to presence, or is presence a different axis needing its own vocabulary?**
-  confidence: 0
-  disposition: open
-  rationale: not yet measured — spike 4
+  confidence: 2
+  disposition: answered
+  rationale: Partial: BLOCKED and ENQUEUED map exactly onto the two states LIVE collapses; DELIVERED/UNDELIVERED are message-scoped and do not transfer. The PRINCIPLE (emit only what the emitter observes) transfers fully. States measured; mapping reasoned, hence confidence 2 — artifact F4
 
 - **IW-4: Where would truthfulness be enforced — producer-side (emit only what the process can observe) or consumer-side (stop over-reading LIVE) — and how much of each surface is vendored (G-062, upstream) vs local?**
-  confidence: 0
-  disposition: open
-  rationale: not yet measured — spike 5
+  confidence: 3
+  disposition: answered
+  rationale: Fix is entirely local (scripts/ + crates/); but .agentic-framework/lib/templates/scripts/ carries copies that seed every bootstrapped project, and the template listener-heartbeat.sh has the identical defect (started_at:123 emitted:137) — template half is an upstream filing per G-062 — artifact F5
 
 ## Exploration Plan
 
@@ -194,9 +194,36 @@ vocabulary transfers; recording vendored-vs-local ownership of every surface a f
 
 ## Recommendation
 
-**Recommendation:** GO
+**Recommendation:** GO — with a rationale materially different from the one this
+section carried before the exploration ran.
 
-**Rationale:** Three findings in two days shared the sender-trust shape (T-2873/74/75); presence is the remaining surface that asserts delivery it cannot see
+**Rationale:** The premise holds but the pre-filled text mis-stated it. Presence does
+not "assert delivery it cannot see" — delivery is message-scoped and presence is prior
+to it. What presence asserts is *dispatchability*, and the measured defect is sharper:
+`LIVE` is the union of T-2876's BLOCKED and ENQUEUED, the exact pair that vocabulary
+exists to tell apart (artifact F4).
+
+Two measurements carry it. Every heartbeat field is bound before the loop starts, so a
+beat establishes only that a bash loop is iterating (F1), and consumers apply a pure
+recency test to that replay (F2). And the beater is deliberately not the agent —
+`be-reachable.sh:253-264` detaches it with `nohup setsid ... & disown` so it outlives
+the session — so presence structurally cannot see whether the agent can act (F3).
+Nothing closes this: T-2239, T-2387 and T-2405 all interrogate the delivery apparatus,
+none the recipient's readiness.
+
+**Dependency-ordered scope:** (1) rename the claim — LIVE -> BEATING at the
+producer/classifier boundary, truthful under F1 with no new signal. (2) decide who
+observes agent-side readiness; the beater structurally cannot, so either the agent
+emits its own state or consumers stop inferring dispatchability from presence. (3) file
+the vendored-template half upstream (F5) or the fix does not travel and re-imports on
+the next bootstrap. (4) only then touch `find-idle`, whose anti-join treats LIVE as
+dispatchable.
+
+**Do not start (1) before (2) is decided** — renaming the field while consumers still
+infer dispatchability from it relocates the untruth rather than removing it. (2) is a
+design question this exploration deliberately did not settle.
+
+Full findings: `docs/reports/T-3001-presence-heartbeat-truthfulness.md`.
 
 ## Decisions
 
