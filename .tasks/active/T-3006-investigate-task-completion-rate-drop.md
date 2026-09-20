@@ -6,15 +6,15 @@ description: >
   tasks vs gate friction vs abandonment) before any process change. Evidence: docs/reports/VALUE-REVIEW-repo-2026-09-19-consolidated.md
   C-42.
 
-status: captured
+status: started-work
 workflow_type: inception
 owner: agent
-horizon: later
+horizon: now
 tags: [value-review, arc:arc-009]
 components: []
 related_tasks: []
 created: 2026-09-19T22:28:29Z
-last_update: '2026-09-20T08:45:20Z'
+last_update: 2026-09-20T08:52:51Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -53,11 +53,20 @@ cost_estimate_proposed:
 
 ## Problem Statement
 
-<!-- What problem are we exploring? For whom? Why now? -->
+C-42 (run4 I3): task completions fell ~8× (609/mo → ~75/mo) while commit volume held at ~447/30d.
+Before any process change, the cause must be separated: bigger tasks (same work, fewer closes) vs
+gate friction (work done, close blocked — e.g. partial-complete accumulation in the human review
+queue) vs genuine abandonment. For: the operator (process decisions) and calibration (BVP cost
+axis). Why now: arc-009 S-29d slice; a process change made on the wrong cause is pure regression
+risk.
 
 ## Assumptions
 
-<!-- Key assumptions to test. Register with: fw assumption add "Statement" --task T-XXX -->
+- A-1: `date_finished` in `.tasks/completed/` is reliable enough post-T-2203 repair to bucket
+  completions by month.
+- A-2: Commit volume per month with task-ID attribution is a usable proxy for work volume.
+- A-3: The 75-task partial-complete review queue (57 >30d, per D2/T-2940) is large enough to
+  account for a material share of the drop.
 
 ## Open Questions
 
@@ -77,9 +86,34 @@ cost_estimate_proposed:
      FW_SKIP_DISPOSITION_GATE=1 (env-var, T-1890 producer/consumer parity).
 -->
 
+- **IW-1: Does the ~8× completion drop reproduce from `date_finished` monthly buckets, and over which window?**
+  confidence: 3
+  disposition: answered
+  rationale: Yes from the Apr peak (609 → ~77/mo Sep run-rate); but commits fell 2114 → ~310/mo in the same window (~6.8×, near-proportional) — C-42's "commits held" was a window artifact (artifact F1)
+
+- **IW-2: How much of the drop is explained by gate friction — tasks finished agent-side but parked in the review queue / partial-complete instead of reaching completed/?**
+  confidence: 2
+  disposition: answered
+  rationale: A stock of 29-75 partial-completes accumulated over months — ≤1.5 months of Sep-rate completions total, not an 8× monthly flow driver (artifact F3)
+
+- **IW-3: Did task size grow — commits-per-completed-task and distinct-task-IDs-per-month trends?**
+  confidence: 3
+  disposition: answered
+  rationale: 1.9 (Mar) → 4.0 (Sep) across the span, but only 3.5 → 4.0 within the drop window — explains the residual, not the drop (artifact F2)
+
+- **IW-4: Is there evidence of abandonment (tasks started-work with no commit activity for >30d)?**
+  confidence: 3
+  disposition: answered
+  rationale: Exactly 1 stale started-work task (T-2486, itself an inception awaiting review) — negligible (artifact F4)
+
 ## Exploration Plan
 
-<!-- How will we validate assumptions? Spikes, prototypes, research? Time-box each. -->
+1. Bucket `.tasks/completed/` by `date_finished` month; bucket commits and distinct task IDs in
+   commit subjects by month (git log). Time-box: 25 min.
+2. Count agent-side-done-but-not-completed population (partial-complete/review queue) and its
+   entry-date distribution. Time-box: 15 min.
+3. Compute commits-per-completed-task by month (size proxy). Time-box: 10 min.
+4. Recommendation separating cause shares. Time-box: 15 min.
 
 ## Technical Constraints
 
@@ -91,7 +125,10 @@ cost_estimate_proposed:
 
 ## Scope Fence
 
-<!-- What's IN scope for this exploration? What's explicitly OUT? -->
+IN: measuring completion/commit/queue trends from the local ledger + git history; attributing the
+drop across the three candidate causes; recommendation only.
+OUT: any process change, review-queue drainage (that is T-2940/D2's territory), retro-editing task
+records.
 
 ## Acceptance Criteria
 
@@ -137,9 +174,9 @@ cost_estimate_proposed:
 
 ## Recommendation
 
-**Recommendation:** GO
+**Recommendation:** NO-GO
 
-**Rationale:** Three candidate causes demand opposite remedies; acting without the split risks optimising the wrong lever
+**Rationale:** C-42's premise is falsified by measurement: completions and commits fell TOGETHER (Apr 609→~77/mo vs commits 2,114→~310/mo, ~6.8× near-proportional — "commits held at 447/30d" compared the current 30d window against the April completion peak without checking April's 2,114 commits). Attribution: ~85-90% total-throughput decline, ~10% task-size growth (commits/completion 3.5→4.0 in the window), small review-queue residual (owned by T-2940/D2), ~0% abandonment (1 stale task). No gate/process change is warranted. Optional cheap follow-on only: a completions-vs-commits monthly panel in fw metrics. Full series: docs/reports/T-3006-completion-rate-drop-investigation.md
 
 ## Decisions
 
@@ -163,3 +200,7 @@ cost_estimate_proposed:
 
 ### 2026-09-19T22:35:36Z — status-update [task-update-agent]
 - **Change:** tags: +arc:arc-009
+
+### 2026-09-20T08:52:51Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
