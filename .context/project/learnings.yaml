@@ -4444,3 +4444,9 @@ learnings:
   task: T-3018
   date: 2026-09-20
   context: Added via context agent
+- id: PL-378
+  learning: "Work-selection deadlock: every Q1/Q2 task in every in-flight arc is owner:human (arc-009 T-2984/T-2989 parked on go/no-go; arc-008 T-2938/2939/2940 agent-ACs-done human-ACs-open; arc-001 T-2022/2024/2026 and arc-002 T-2250 captured/human). The only agent-owned Q1 work is the arc-less Pickup: backlog, which top-down selection (level 2 = arc) cannot reach. Reproduce: fw bvp --quadrant hv-lc|hv-hc --include-proposed, intersect with fw arc show <arc>. Autonomous runs therefore exhaust to a human-blocked state regardless of remaining context budget."
+  source: unknown
+  task: T-2984
+  date: 2026-09-20
+  context: Added via context agent
