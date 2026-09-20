@@ -1,8 +1,18 @@
 ---
 id: T-2969
-name: "decisions.yaml register corruption has no local detector — three repairs, zero prevention"
+name: "decisions.yaml register corruption has no local detector — three repairs, zero
+  prevention"
 description: >
-  The completion-time decision auto-capture has corrupted .context/project/decisions.yaml three times (T-2892, T-2850, T-2968), most recently one entry after its own last repair (PD-156 IS the T-2850 fix). Each repair was reactive, triggered by the pre-push gate reporting a parse failure. The generator is vendored and on the upstream record (G-062), so it is not patched locally — but no LOCAL detector exists, and one axis of the corruption (ID collision) parses cleanly and is therefore invisible to every check the repo currently runs. Ship a guard-layer member that fires on duplicate ids, non-monotonic ids, and mis-indented entries in the register, with fixtures, following the T-2833 pattern (vendored defect filed upstream, local detection shipped alongside).
+  The completion-time decision auto-capture has corrupted .context/project/decisions.yaml
+  three times (T-2892, T-2850, T-2968), most recently one entry after its own last
+  repair (PD-156 IS the T-2850 fix). Each repair was reactive, triggered by the pre-push
+  gate reporting a parse failure. The generator is vendored and on the upstream record
+  (G-062), so it is not patched locally — but no LOCAL detector exists, and one axis
+  of the corruption (ID collision) parses cleanly and is therefore invisible to every
+  check the repo currently runs. Ship a guard-layer member that fires on duplicate
+  ids, non-monotonic ids, and mis-indented entries in the register, with fixtures,
+  following the T-2833 pattern (vendored defect filed upstream, local detection shipped
+  alongside).
 
 status: captured
 workflow_type: build
@@ -22,8 +32,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-16T19:41:24Z
-last_update: 2026-09-16T19:41:24Z
-date_finished: null
+last_update: '2026-09-20T08:45:19Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,6 +44,30 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-09-20T08:45:09Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-09-20T08:45:19Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius:
+      tier: 2
+      effort: 8
+    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
+      (workflow:build); effort=8 (lines=204,acs=4)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-2969: decisions.yaml register corruption has no local detector — three repairs, zero prevention

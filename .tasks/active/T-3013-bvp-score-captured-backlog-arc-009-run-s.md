@@ -1,16 +1,13 @@
 ---
-id: T-2996
-name: "Per-tool/per-verb invocation telemetry instrument"
+id: T-3013
+name: "BVP-score captured backlog (arc-009 run-selection prerequisite)"
 description: >
-  S-22/C-45,C-30: no per-tool/per-verb invocation counts exist (incl. kv.* session-daemon
-  blind spot); non-use judgements were capped at reading D (UNMEASURED). Instrument
-  invocation counts so the next review can judge usage. Evidence: docs/reports/VALUE-REVIEW-repo-2026-09-19-consolidated.md
-  C-45, C-30.
+  Autonomous-run prerequisite: every captured task (incl. all 38 arc-009 tasks T-2975..T-3012) gets estimator-proposed BVP value scores and cost estimates so Q1/Q2 selection is scorer-driven, not agent-estimated. Runs fw bvp estimate all + estimator.py cost-all over --statuses captured. Proposals only; confirmation stays sovereignty-gated (fw bvp confirm).
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [value-review, arc:arc-009]
 components: []
 related_tasks: []
@@ -24,9 +21,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-19T22:19:23Z
-last_update: '2026-09-20T08:45:20Z'
-date_finished:
+created: 2026-09-20T08:43:16Z
+last_update: 2026-09-20T08:43:16Z
+date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -37,34 +34,9 @@ date_finished:
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
-bvp_scores_proposed:
-  - ts: '2026-09-20T08:45:11Z'
-    estimator: bvp-estimator-v1-heuristic
-    scores:
-      D1: 4
-      D2: 2
-      D3: 3
-      D4: 2
-      F-RECALL: 0
-      F-ORCH: 0
-    rationale: D1=4 (body:structural-gate); D2=2 
-      (body:telemetry-or-audit-entry); D3=3 (body:component-discoverability); 
-      D4=2 (body:env-class-handled); F-RECALL=0 (no-signal); F-ORCH=0 
-      (no-signal)
-    rubric_sha: e4a00f38e801
-cost_estimate_proposed:
-  - ts: '2026-09-20T08:45:20Z'
-    estimator: bvp-estimator-v1-heuristic
-    cost_estimate:
-      blast_radius:
-      tier: 2
-      effort: 8
-    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
-      (workflow:build); effort=8 (lines=207,acs=4)
-    rubric_sha: e4a00f38e801
 ---
 
-# T-2996: Per-tool/per-verb invocation telemetry instrument
+# T-3013: BVP-score captured backlog (arc-009 run-selection prerequisite)
 
 ## Context
 
@@ -74,8 +46,11 @@ cost_estimate_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `fw bvp estimate all --statuses captured` ran to completion with 0 errors reported (value axis, estimator-proposed scores only — no confirmations) — "Estimated 156 tasks: 49 wrote, 107 skipped, 0 errored"
+- [x] `estimator.py cost-all --statuses captured` ran to completion with 0 errors reported (cost axis) — "cost-estimated 156 tasks: 49 wrote, 107 skipped, 0 errored"
+- [x] All 38 arc-009 member tasks (T-2975..T-3012) carry `bvp_scores_proposed` in frontmatter
+- [x] All 38 arc-009 member tasks carry `cost_estimate_proposed` in frontmatter (estimator cost axis)
+- [x] Quadrant query `fw bvp --quadrant hv-lc --include-proposed` returns at least one task (both axes populated, quadrant selection unblocked)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -171,6 +146,10 @@ cost_estimate_proposed:
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+test "$(grep -rl "^tags:.*arc:arc-009" /opt/termlink/.tasks/active | xargs grep -l "^bvp_scores_proposed:" | grep -c .)" = "38"
+test "$(grep -rl "^tags:.*arc:arc-009" /opt/termlink/.tasks/active | xargs grep -l "^cost_estimate_proposed:" | grep -c .)" = "38"
+/opt/termlink/.agentic-framework/bin/fw bvp --quadrant hv-lc --include-proposed > /root/.claude/jobs/01aca046/tmp/.bvpq.out 2>&1 && grep -q "T-" /root/.claude/jobs/01aca046/tmp/.bvpq.out
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -263,10 +242,7 @@ cost_estimate_proposed:
 
 ## Updates
 
-### 2026-09-19T22:19:23Z — task-created [task-create-agent]
+### 2026-09-20T08:43:16Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2996-per-toolper-verb-invocation-telemetry-in.md
+- **Output:** /opt/termlink/.tasks/active/T-3013-bvp-score-captured-backlog-arc-009-run-s.md
 - **Context:** Initial task creation
-
-### 2026-09-19T22:35:32Z — status-update [task-update-agent]
-- **Change:** tags: +arc:arc-009

@@ -2,7 +2,9 @@
 id: T-2990
 name: "Close out arc-005 bookkeeping + shorten remaining MCP description outliers"
 description: >
-  S-16/C-05: run5 measured arc-005 (MCP slimming) as largely landed but bookkeeping-stale; close the arc properly and shorten the remaining description outliers. Evidence: docs/reports/VALUE-REVIEW-repo-2026-09-19-consolidated.md C-05.
+  S-16/C-05: run5 measured arc-005 (MCP slimming) as largely landed but bookkeeping-stale;
+  close the arc properly and shorten the remaining description outliers. Evidence:
+  docs/reports/VALUE-REVIEW-repo-2026-09-19-consolidated.md C-05.
 
 status: captured
 workflow_type: refactor
@@ -22,8 +24,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-19T22:13:50Z
-last_update: 2026-09-19T22:35:30Z
-date_finished: null
+last_update: '2026-09-20T08:45:20Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,6 +36,30 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-09-20T08:45:10Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=3 (body:portability-abstraction); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-09-20T08:45:20Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius:
+      tier: 3
+      effort: 8
+    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=3 
+      (workflow:refactor); effort=8 (lines=207,acs=4)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-2990: Close out arc-005 bookkeeping + shorten remaining MCP description outliers
