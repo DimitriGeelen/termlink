@@ -11,7 +11,7 @@ description: >
   94 warnings are an un-actionable class (T-2818 attention-exhaustion shape). Check
   is vendored (G-062) so the fix is upstream. Learning PL-376. Census: .context/audits/arc-008-cycle2-census.md
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -30,7 +30,7 @@ arc_id: arc-008
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-20T10:30:15Z
-last_update: '2026-09-20T13:16:26Z'
+last_update: 2026-09-20T13:27:10Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -81,14 +81,41 @@ cost_estimate_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+arc-008 cycle-2 finding (census: `.context/audits/arc-008-cycle2-census.md`).
+
+`audit.sh:4851-4943` implements CTL-029, the active-side mirror of CTL-028: it warns when a
+task in `started-work`/`issues` has every real `### Agent` AC ticked, and prescribes
+`Run: bin/fw task update <id> --status work-completed`.
+
+The selector reads `id`, `status` and the Agent AC block. **It never reads `owner:`.** For a
+task with `owner: human`, the prescribed command is refused by R-033, the sovereignty gate —
+an agent cannot complete a human-owned task, and PL-376 records that such a task can never
+reach T-193 partial-complete either. So CTL-029 tells the agent to run a command the framework
+structurally forbids, every audit cycle, forever. The warning cannot be cleared by doing what
+it says.
+
+This is one warning class advising an action another gate exists to prevent. Both are correct
+in isolation; the contradiction is that neither knows about the other. The cost is not the
+wasted command — it is that un-actionable warnings train the operator to stop reading the
+warning list, which is the same fatigue mechanism T-2818 documented from the other direction.
+
+Vendored (`.agentic-framework/agents/audit/audit.sh`), so per G-062 the fix is filed upstream,
+not patched locally. Linked to T-2938/T-2939/T-2940 (the three human-owned arc-008 tasks that
+trip it) and T-3014, never merged with them — arc-008 rule.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] The contradiction is measured, not asserted: CTL-029's own selector is replicated against
+      `.tasks/active/` and the resulting warning set is split by `owner:`. The count of warnings
+      whose prescribed remediation R-033 would refuse is recorded here with the task IDs.
+- [x] The refusal is demonstrated rather than inferred: `fw task update <id> --status
+      work-completed` is attempted against one owner-human task from that set and the R-033
+      refusal text is recorded verbatim. No `--force`, no ownership change.
+- [x] Filed upstream to `framework:pickup` per G-062, carrying the measurement, the verbatim
+      refusal, and a proposed fix; the offset is recorded here. No local patch is made to
+      `.agentic-framework/agents/audit/audit.sh`, and that is stated rather than left silent.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -184,6 +211,23 @@ cost_estimate_proposed:
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+# ── AC closure checks. Each asserts against the rail or the working tree. ──
+# NOTE on (a)/(b): a plain `grep <token> <this task file>` would match the check's
+# OWN command line and pass vacuously (the T-2831 class). Both therefore excise the
+# ## Verification section before asserting. Mutant-tested: a wrong value fails.
+
+# (a) the 28/28 measurement is recorded in the task's prose
+python3 -c "import re,sys;t=open('.tasks/active/T-3016-ctl-029-advises-closing-human-owned-task.md').read();b=re.sub(r'^## Verification.*?(?=^## RCA)','',t,flags=re.M|re.S);sys.exit(0 if 'ctl029_unactionable: 28 of 28' in b else 1)"
+
+# (b) the R-033 refusal is recorded verbatim, not paraphrased
+python3 -c "import re,sys;t=open('.tasks/active/T-3016-ctl-029-advises-closing-human-owned-task.md').read();b=re.sub(r'^## Verification.*?(?=^## RCA)','',t,flags=re.M|re.S);sys.exit(0 if 'Sovereignty gate (R-033): owner is human.' in b else 1)"
+
+# (c) the filing is retrievable ON the rail at the recorded offset and carries this task
+termlink channel subscribe framework:pickup --cursor 127 --limit 1 --json > /tmp/.t3016-rail.json 2>/dev/null && python3 -c "import json,base64,sys;e=json.loads(open('/tmp/.t3016-rail.json').read().strip().splitlines()[0]);x=base64.b64decode(e['payload_b64']).decode('utf-8','replace');sys.exit(0 if ('T-3016' in x and '28 of 28' in x and 'No local patch was made' in x) else 1)"
+
+# (d) NO local patch to the vendored audit file this task is about (G-062)
+test -z "$(git status --porcelain .agentic-framework/agents/audit/audit.sh)"
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -223,6 +267,48 @@ cost_estimate_proposed:
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-09-20 — the measurement changed the claim from "noisy" to "categorically wrong"
+
+- **What changed:** Filing assumed the census framing — CTL-029 contributes roughly 30 of 94
+  warnings, most of them un-actionable. Replicating the selector gave 28 warnings of which
+  **28 are un-actionable, 100%**. That is a different claim. "A control that is often wrong"
+  is a tuning problem; "a control that has never once emitted an actionable warning in this
+  tree" is a design error. The report was rewritten around the second.
+- **Plan impact:** The proposed fix moved from "suppress the noisy subset" to "read `owner:`
+  and branch", because there is no useful subset to keep on the human side — the state being
+  flagged is, per PL-376, the correct TERMINAL state of a human-owned task. CTL-029 is not
+  over-reporting; it is reporting the system working as designed and calling it a fault.
+- **Triggered:** No new task. The sharper claim is what got filed at offset 127.
+
+### 2026-09-20 — two of my own findings from the previous unit did not survive contact
+
+- **What changed:** T-3015 recorded that the pickup bridge stamps `metadata.from_project: root`
+  and that one envelope mints three tasks. Filing a second envelope through the identical path
+  produced `010-termlink` and exactly one task. Inspecting the bridge showed it sets no metadata
+  at all, so the attribution was never mine to make.
+- **Plan impact:** Both findings were narrowed to what the evidence actually supports: the
+  observable field inconsistency (which still matters, because T-2816's self-filter keys on it)
+  and a triple-task event that correlates with the `P-079` id collision rather than with normal
+  `process` behaviour. Recorded as corrections on this task rather than quietly dropped.
+- **Triggered:** A standing caution for the rest of this run — a defect observed once during an
+  incident is a symptom, not a mechanism, and should not be filed upstream as a mechanism until
+  it reproduces. Nothing was filed upstream on either claim.
+
+### 2026-09-20 — three gates refused this unit, and only one of them was right
+
+- **What changed:** G-020 blocked the CTL-029 research correctly (placeholder ACs — that is the
+  gate doing its job, and the ACs were written before proceeding). G-020 also blocked a
+  genuinely read-only `grep` because the command used `$(...)`, which is not on the read-only
+  allowlist — the **second** occurrence of that exact gap across two runs. T-1730 then refused
+  a `/tmp` scratch write because the evidence text quoted a task id other than the focused one.
+- **Plan impact:** Two of the three refusals cost real time and neither protected anything. The
+  allowlist gap is now a repeat, which per the Bug-Fix Learning Checkpoint makes it systemic
+  rather than incidental and worth registering rather than absorbing a third time.
+- **Triggered:** The T-1730 misfire is filed with this report at offset 127. The G-020
+  command-substitution gap is recorded here and in the run handback, still unfiled — it is a
+  distinct defect in a distinct file and under the arc's link-never-merge rule it needs its own
+  task, which this unit did not open in order to honour "one lock at a time".
 
 ## Recommendation
 
@@ -283,3 +369,77 @@ cost_estimate_proposed:
 
 ### 2026-09-20T10:32:40Z — status-update [task-update-agent]
 - **Change:** owner:  → agent
+
+### 2026-09-20T13:27:10Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-09-20 — measured, demonstrated, filed [agent, autonomous run]
+
+**AC1 — measured by replicating CTL-029's own selector** (`audit.sh:4875-4938`) against
+`.tasks/active/`, then splitting the resulting warning set by `owner:`:
+
+    CTL-029 warns on ....................... 28 active task(s)
+    split by owner ......................... {'human': 28}
+    ctl029_unactionable: 28 of 28  (100%)
+
+Not "most" — all of them. Every warning this control emits prescribes a command R-033 refuses.
+Its actionable rate in this tree is zero. The census's earlier "30 of 94 warnings" framing
+understated the precision: the correct statement is that CTL-029's *entire output* is
+un-actionable, not that it contributes a share of un-actionable warnings.
+
+Flagged IDs: T-212, T-1415, T-1420, T-1426, T-1428, T-1430, T-1432, T-1451, T-1453, T-1632,
+T-1633, T-1799, T-1885, T-2194, T-2197, T-2203, T-2258, T-2389, T-2470, T-2815, T-2819,
+T-2828, T-2837, T-2858, T-2870, T-2938, T-2939, T-2940.
+
+**AC2 — refusal demonstrated, not inferred.** Ran the prescribed command against T-2938 with
+no `--force`, no `--skip-sovereignty`, and no ownership change. Verbatim:
+
+    === Task Update ===
+    Task:    T-2938 ("cron drift: agentic-audit.crontab differs from deployed /etc/cron.d copy")
+    ERROR: Cannot complete human-owned task
+    Sovereignty gate (R-033): owner is human.
+    The human must review and approve via Watchtower:
+    exit=1
+
+Post-state verified unchanged: `status: started-work`, `owner: human`, still in `active/`.
+
+**AC3 — filed upstream.** `upstream_filing: framework:pickup@127` (pickup_id P-080,
+msg_type `pickup-bug-report`, 7183 bytes), via `fw pickup send` → `fw pickup process`.
+Payload verified on the rail. Carries the 28/28 measurement, the verbatim refusal, the
+proposed `owner:`-aware branch, and the general point that nothing in the framework checks
+whether a control's prescribed remediation is permitted by the framework's own gates.
+
+**No local patch** was made to `.agentic-framework/agents/audit/audit.sh`. Vendored; per G-062
+a local fix is deleted by the next re-vendor. Stated rather than left silent.
+
+### 2026-09-20 — two corrections to findings recorded on T-3015
+
+Both were recorded on T-3015 during the previous unit and both are now contradicted by
+evidence gathered here. Recording the correction rather than letting them stand:
+
+1. **"The bridge stamped `metadata.from_project: root`" — unproven, and probably wrong.**
+   Offset 126 carries `root`; offset 127, filed minutes later through the identical
+   `fw pickup send` → `process` → `lib/pickup-channel-bridge.sh` path, carries `010-termlink`.
+   The bridge sets no metadata at all (no `from_project` reference exists in it), so the field
+   originates elsewhere. The *observable* fact stands and still matters — T-2816's canary
+   self-filter keys on that field, so the offset-126 filing will fire the framework-pickup
+   canary at this project — but the attribution to the bridge was mine to prove and I had not
+   proved it.
+
+2. **"One envelope produced three identical tasks" — did not reproduce.** P-080 produced
+   exactly one round-trip task. The T-3019/T-3020/T-3021 triple therefore correlates with the
+   `P-079` id collision that occurred in that run, not with normal `process` behaviour. The
+   triple is real and still needs disposition; its cause is narrower than first stated.
+
+### 2026-09-20 — a third gate misfire, found while writing this report
+
+Writing the evidence above into a scratch file under `/tmp` was refused by the **T-1730
+focus-drift gate**, because the quoted refusal text cites a task id other than the one in
+focus and the gate infers "action target" from any task id appearing anywhere in the command
+string — including inside quoted evidence in a heredoc whose destination is outside the
+project tree.
+
+The gate cannot distinguish *acting on* a task from *writing about* one. This is the same
+class as the D8/D8b defect filed at offset 126: a checker string-matching over prose, scoring
+description as action. It is filed with this report at offset 127 rather than as its own task,
+because it was found in the act of filing this one and shares the report's evidence.

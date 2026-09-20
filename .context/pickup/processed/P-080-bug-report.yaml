@@ -1,0 +1,98 @@
+pickup_id: P-080
+version: 1
+type: bug-report
+source:
+  project: 010-termlink
+  task_id: T-3016
+  agent: claude-code
+  timestamp: '2026-09-20T13:30:04Z'
+payload:
+  summary: 'CTL-029 prescribes a command R-033 refuses: 28 of 28 of its warnings are
+    on owner:human tasks, so its actionable rate is zero; it reports the designed
+    terminal state of a human-owned task as an anomaly'
+  detail: "From: 010-termlink (autonomous run, arc-008 \"Audit and doctor finding\
+    \ remediation\"). Task: T-3016.\nType: bug-report. Priority: high. Vendored file,\
+    \ so filed per G-062 rather than patched locally.\n\n== THE CONTRADICTION ==\n\
+    \nCTL-029 (audit.sh:4851-4943, \"completable-but-not-completed\", T-2055) warns\
+    \ when an active task\nin status started-work/issues has every real `### Agent`\
+    \ AC ticked, and prescribes:\n\n    Run: bin/fw task update <id> --status work-completed\n\
+    \nIts selector reads `id`, `status`, and the `### Agent` AC block. It never reads\
+    \ `owner:`.\n\nR-033, the sovereignty gate, refuses exactly that command when\
+    \ `owner: human`. So for every\nhuman-owned task, CTL-029 instructs the agent\
+    \ to run a command another gate exists to forbid.\nThe warning cannot be cleared\
+    \ by complying with it. It recurs every audit cycle, forever.\n\n== MEASUREMENT\
+    \ (CTL-029's own selector, replicated against .tasks/active/) ==\n\n    CTL-029\
+    \ warns on ....................... 28 active tasks\n    split by owner .........................\
+    \ {'human': 28}\n    un-actionable (R-033 refuses) .......... 28 of 28  =  100%\n\
+    \nNot \"most\". All of them. This control has never emitted an actionable warning\
+    \ in this tree.\n\nTask IDs: T-212, T-1415, T-1420, T-1426, T-1428, T-1430, T-1432,\
+    \ T-1451, T-1453, T-1632,\nT-1633, T-1799, T-1885, T-2194, T-2197, T-2203, T-2258,\
+    \ T-2389, T-2470, T-2815, T-2819,\nT-2828, T-2837, T-2858, T-2870, and the three\
+    \ arc-008 cron/queue tasks.\n\n== THE REFUSAL, DEMONSTRATED NOT INFERRED ==\n\n\
+    Ran the prescribed command against one of the flagged human-owned tasks, with\
+    \ no --force and\nno ownership change:\n\n    $ fw task update <human-owned-task>\
+    \ --status work-completed\n    === Task Update ===\n    ERROR: Cannot complete\
+    \ human-owned task\n    Sovereignty gate (R-033): owner is human.\n    The human\
+    \ must review and approve via Watchtower:\n    exit=1\n\nPost-state confirmed\
+    \ unchanged: status: started-work, owner: human, still in active/.\n\n== WHY THIS\
+    \ IS NOT MERELY NOISE ==\n\nRead what the flagged state actually IS. A human-owned\
+    \ task whose agent ACs are all ticked and\nwhich sits in active/ awaiting human\
+    \ review is not \"shipped-but-unclosed\" — it is the T-193\npartial-complete design\
+    \ working exactly as specified. PL-376 (recorded in this project) goes\nfurther:\
+    \ a task filed `owner: human` at CREATION can never reach partial-complete at\
+    \ all,\nbecause R-033 refuses the transition, so this state is its correct TERMINAL\
+    \ agent state.\n\nCTL-029 therefore reports the designed terminal state of a human-owned\
+    \ task as an anomaly.\n\nThe cost is not the wasted command. It is that 28 permanently\
+    \ un-clearable warnings train the\noperator to stop reading the warning list —\
+    \ the same fatigue mechanism that made a permanently\nred check worthless in T-2818\
+    \ and T-2833, here arriving from the opposite direction. A control\nwhose every\
+    \ finding is un-actionable is worse than absent, because it consumes the attention\
+    \ a\nreal finding would have received.\n\n== PROPOSED FIX ==\n\nRead `owner:`\
+    \ in the selector (one regex, beside the existing `status` read) and branch:\n\
+    \n  owner: agent  -> unchanged. This is the real shipped-but-unclosed class CTL-029\
+    \ was built\n                   for, and it stays actionable.\n\n  owner: human\
+    \  -> do not emit the current warning. Either (a) exclude these from CTL-029\n\
+    \                   entirely, since the state is correct by design; or (b) emit\
+    \ a DISTINCT,\n                   human-addressed line that does not prescribe\
+    \ an agent-refused command, e.g.\n                   \"N task(s) awaiting human\
+    \ review\" pointing at the review queue / Watchtower\n                   URL that\
+    \ `fw task update` already prints on refusal.\n\n(b) is probably better than (a):\
+    \ the queue depth is genuinely worth surfacing — this project\nhas 58 tasks waiting\
+    \ over 30 days, which is its own audit finding (D2) — but it must be\nsurfaced\
+    \ as a human-actionable fact, not as an agent instruction that cannot be followed.\n\
+    \nWhether the framework prefers (a) or (b) is a design judgement for its owners;\
+    \ this project is\nnot deciding it.\n\n== A GENERAL POINT WORTH MORE THAN THE\
+    \ INSTANCE ==\n\nTwo controls can each be individually correct and jointly incoherent.\
+    \ CTL-029 is right that the\nstate is unusual; R-033 is right to refuse. Nothing\
+    \ in the framework checks that a control's\nprescribed remediation is permitted\
+    \ by the framework's own gates. That class — \"a check whose\nadvice another check\
+    \ forbids\" — is likely not unique to this pair, and a lint over remediation\n\
+    strings (\"does any gate refuse this verb for the entity being flagged?\") would\
+    \ find others.\n\n== A SECOND DEFECT, FOUND WHILE WRITING THIS REPORT ==\n\nFiling\
+    \ this hit the T-1730 focus-drift gate. Writing the evidence above into a scratch\
+    \ file\nunder /tmp was refused, because the quoted refusal text CITES a task id\
+    \ other than the one in\nfocus, and the gate infers \"action target\" from any\
+    \ task id appearing in the command string —\nincluding inside quoted evidence\
+    \ in a heredoc whose destination is /tmp.\n\nSo the gate cannot distinguish acting\
+    \ on a task from writing about one. That is the same class\nas the D8/D8b defect\
+    \ filed from this project at offset 126: a checker string-matching over\nprose,\
+    \ where describing a thing is scored as doing it. Recording evidence that cites\
+    \ another\ntask is a normal and necessary act; a gate that refuses it pushes authors\
+    \ toward the logged\nTier-2 bypass for an action that was never in scope, which\
+    \ devalues the bypass log.\n\nSuggested narrowing: anchor the target extraction\
+    \ to task ids in COMMAND-ARGUMENT position for\nknown state-changing verbs (fw\
+    \ task update, fw context add-*, git commit -m), rather than any\noccurrence anywhere\
+    \ in the command text; and exempt writes whose destination is outside the\nproject\
+    \ tree.\n\n== WHAT WAS NOT DONE ==\n\nNo local patch was made to .agentic-framework/agents/audit/audit.sh,\
+    \ nor to the focus-drift\ngate. Both are vendored; per G-062 a local fix is deleted\
+    \ by the next re-vendor. Stated rather\nthan left silent.\n\nRelated local tasks:\
+    \ the three arc-008 cron/queue tasks, and the arc-008 cycle-2 census.\nLearning:\
+    \ PL-376."
+  priority: high
+  tags:
+  - audit
+  - CTL-029
+  - R-033
+  - sovereignty
+  - vendored
+  - G-062
