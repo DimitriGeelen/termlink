@@ -1,0 +1,127 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3013: BVP-score captured backlog (arc-009 run-selection prerequisite)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-20T08:48:32Z
+# ============================================================================
+
+task_id: T-3013
+task_name: "BVP-score captured backlog (arc-009 run-selection prerequisite)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-20T08:43:16Z
+completed: 2026-09-20T08:48:19Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-09-20T10:47:41+02:00
+last_commit: 2026-09-20T10:47:41+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  BVP-score captured backlog — value + cost proposals for arc-009 quadrant selection
+
+# Key outcomes
+outcomes:
+  - '`fw bvp estimate all --statuses captured` ran to completion with 0 errors reported (value axis, estimator-proposed scores only — no confirmations) — "Estimated 156 tasks: 49 wrote, 107 skipped, 0 errored"'
+  - '`estimator.py cost-all --statuses captured` ran to completion with 0 errors reported (cost axis) — "cost-estimated 156 tasks: 49 wrote, 107 skipped, 0 errored"'
+  - 'All 38 arc-009 member tasks (T-2975..T-3012) carry `bvp_scores_proposed` in frontmatter'
+  - 'All 38 arc-009 member tasks carry `cost_estimate_proposed` in frontmatter (estimator cost axis)'
+  - 'Quadrant query `fw bvp --quadrant hv-lc --include-proposed` returns at least one task (both axes populated, quadrant selection unblocked)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-2931-pickup-autonomous-run-record-arc-001-t-0.md'
+  - '.tasks/active/T-2932-pickup-autonomous-run-record-arc-001-t-0.md'
+  - '.tasks/active/T-2934-pickup-structural-learnings-session-2026.md'
+  - '.tasks/active/T-2936-pickup-run-record-2-t-052-closed-preflig.md'
+  - '.tasks/active/T-2937-pickup-run-record-2-t-052-closed-preflig.md'
+  - '.tasks/active/T-2944-pickup-guard-gap-verb-gated-verification.md'
+  - '.tasks/active/T-2945-pickup-guard-gap-verb-gated-verification.md'
+  - '.tasks/active/T-2963-two-unguarded-pickup-process-crons-insta.md'
+  - '.tasks/active/T-2966-pickup-pipeline-has-no-verb-to-dispose-a.md'
+  - '.tasks/active/T-2969-decisionsyaml-register-corruption-has-no.md'
+  - '.tasks/active/T-2970-ring20-management-122-agent-presence-is-.md'
+  - '.tasks/active/T-2975-fix-canaries-firing-to-healthy-masking-p.md'
+  - '.tasks/active/T-2976-fix-substrate-preflight-binary-comparato.md'
+  - '.tasks/active/T-2977-reinstall-current-binary-resolve-3-binar.md'
+  - '.tasks/active/T-2978-re-arm-push-wake-rail-relaunch-unwakeabl.md'
+  - '.tasks/active/T-2979-triage-and-ack-the-11-inbound-frameworkp.md'
+  - '.tasks/active/T-2980-bind-claim-verb-identity-to-verified-sen.md'
+  - '.tasks/active/T-2981-file-upstream-dispatch-gate-counter-sema.md'
+  - '.tasks/active/T-2982-file-upstream-hook-telemetry-flock-fix-l.md'
+  - '.tasks/active/T-2983-guard-layer-runner-streaming-per-member-.md'
+  - '.tasks/active/T-2984-inception-structural-consumer-for-framew.md'
+  - '.tasks/active/T-2985-wire-firing-canaries-to-de-duplicated-au.md'
+  - '.tasks/active/T-2986-fix-stale-claudemd-factual-claims.md'
+  - '.tasks/active/T-2987-sweep-testdemoprobe-residue-topics--stal.md'
+  - '.tasks/active/T-2988-investigate-then-bound-healthring20-fedp.md'
+  - '.tasks/active/T-2989-inception-claudemd-split-design-clobber-.md'
+  - '.tasks/active/T-2990-close-out-arc-005-bookkeeping--shorten-r.md'
+  - '.tasks/active/T-2991-raise-mcp-parity-coverage-on-highest-chu.md'
+  - '.tasks/active/T-2992-inception-coordinated-toolsrs--channelrs.md'
+  - '.tasks/active/T-2993-reconcile-t-2548-record-discharge-iw-1-t.md'
+  - '.tasks/active/T-2994-present-deprecated-tool-deletion-go-ahea.md'
+  - '.tasks/active/T-2995-inception-rpc-surface-wiring-check-sweep.md'
+  - '.tasks/active/T-2996-per-toolper-verb-invocation-telemetry-in.md'
+  - '.tasks/active/T-2997-human-ac-staleness-surface-partial-compl.md'
+  - '.tasks/active/T-2998-governance-artifact-archival-90d-handove.md'
+  - '.tasks/active/T-2999-paired-commit-drift-check-for-mcpcli-hel.md'
+  - '.tasks/active/T-3000-project-boundary-read-false-positive-fix.md'
+  - '.tasks/active/T-3001-inception-presence-heartbeat-truthfulnes.md'
+  - '.tasks/active/T-3002-canary-log-hygiene-per-entry-iso-dates--.md'
+  - '.tasks/active/T-3003-investigate-go-propagation-leak-77-go-in.md'
+  - '.tasks/active/T-3004-investigate-chat-arc-traffic-collapse.md'
+  - '.tasks/active/T-3005-investigate-fleet-version-floors-for-121.md'
+  - '.tasks/active/T-3006-investigate-task-completion-rate-drop.md'
+  - '.tasks/active/T-3007-investigate-ack-lag-read-side-unconfirme.md'
+  - '.tasks/active/T-3008-fix-red-fixture-suite-found-during-revie.md'
+  - '.tasks/active/T-3009-fabric-edge-enrichment-326491-cards-edge.md'
+  - '.tasks/active/T-3010-set-90-day-revisitat-on-artifact-surface.md'
+  - '.tasks/active/T-3011-investigate-topic-createpost-ratio-anoma.md'
+  - '.tasks/active/T-3012-sovereign-question-review-session-12-que.md'
+  - '.tasks/active/T-3013-bvp-score-captured-backlog-arc-009-run-s.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-20T10:47:41'
+    action: 'T-3013: BVP-score captured backlog — value + cost proposals for arc-009 quadrant selection'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [value-review, arc:arc-009]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 50
+  lines_added: 1703
+  lines_removed: 156
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3013-bvp-score-captured-backlog-arc-009-run-s.md
+generated_by: context-agent-hybrid

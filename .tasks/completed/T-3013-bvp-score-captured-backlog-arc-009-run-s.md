@@ -4,10 +4,10 @@ name: "BVP-score captured backlog (arc-009 run-selection prerequisite)"
 description: >
   Autonomous-run prerequisite: every captured task (incl. all 38 arc-009 tasks T-2975..T-3012) gets estimator-proposed BVP value scores and cost estimates so Q1/Q2 selection is scorer-driven, not agent-estimated. Runs fw bvp estimate all + estimator.py cost-all over --statuses captured. Proposals only; confirmation stays sovereignty-gated (fw bvp confirm).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [value-review, arc:arc-009]
 components: []
 related_tasks: []
@@ -22,8 +22,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-20T08:43:16Z
-last_update: 2026-09-20T08:43:16Z
-date_finished: null
+last_update: 2026-09-20T08:48:19Z
+date_finished: 2026-09-20T08:48:19Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -190,7 +190,10 @@ test "$(grep -rl "^tags:.*arc:arc-009" /opt/termlink/.tasks/active | xargs grep 
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
-## Recommendation
+### 2026-09-20 — cost axis field name + quadrant coverage gap
+- **What changed:** The cost estimator writes `cost_estimate_proposed` (timestamped proposal list), not the top-level `cost_estimate` the template comment describes — the first verification draft asserted the wrong field and failed rehearsal. Also learned: 164/212 tasks (incl. all arc-009 build slices) get NO quadrant because `components:` is empty, so blast_radius is unmeasurable — value scores exist but hv-lc selection only sees tasks with a computable cost.
+- **Plan impact:** Quadrant-driven selection over arc-009 build tasks needs `components:` resolved on those tasks before the scorer can place them; until then only the inception/investigate slices carry quadrants.
+- **Triggered:** Verification line corrected to `cost_estimate_proposed`; run selection proceeds with the scored hv-lc set first.
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
      (audit_inception_recommendation, lib/task-audit.sh:117) is shared, so the
@@ -246,3 +249,15 @@ test "$(grep -rl "^tags:.*arc:arc-009" /opt/termlink/.tasks/active | xargs grep 
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3013-bvp-score-captured-backlog-arc-009-run-s.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-6e888ea3
+- **Timestamp:** 2026-09-20T08:48:26Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-09-20T08:48:19Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
