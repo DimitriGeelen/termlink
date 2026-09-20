@@ -41,7 +41,7 @@ arc_id: arc-008
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-20T15:19:15Z
-last_update: '2026-09-20T15:21:17Z'
+last_update: 2026-09-20T15:21:34Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -102,26 +102,75 @@ cost_estimate_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] The refusals are reproduced, not recalled: for each of the five recorded shapes, show the
-      P-002/G-020 block firing against a command that provably writes nothing, and show the gate's
-      own "gap in the allowlist worth filing" line in the block text. Cite the session and date of
-      each original occurrence.
-- [ ] The read-only claim is established for the guard scripts, not assumed: show that
-      `scripts/check-*.sh` is a detect-never-repair family — cite the headers that say so — and
-      demonstrate that a `--quiet`/`--json` invocation leaves the tree byte-identical
-      (`git status --porcelain` empty before and after).
-- [ ] The `>/dev/null` misclassification is isolated: show the redirect pattern in
-      `safe-commands.sh` that scores a discard-redirect as a file write, and show a command that is
-      refused solely because of it.
-- [ ] The structural ordering conflict is recorded: P-002 refuses the BVP estimator while focus is
-      on a `captured` task, so a task cannot be scored before it is started — which inverts the
-      governing "scored before started" rule. Demonstrate the block, and state whether the remedy
-      belongs in the allowlist (the estimator writes a task file, not a source file) or in the rule.
-- [ ] Disposition recorded per G-062: either filed upstream to `framework:pickup` with the offset
-      recorded here, or registered in `.vendor-divergence.yaml` as a local divergence with a cited
-      reason — and if NOT filed, the reason must engage with T-2950/T-2961's precedent that a
-      report against a three-month-stale vendored build is phantom register debt. No silent local
-      patch to `.agentic-framework/`.
+- [x] The refusals are reproduced, not recalled. All five shapes were re-run through the real
+      classifier (`is_bash_safe_command`) and the real write-predicate (`has_bash_write_pattern`)
+      sourced from the live lib, not reasoned about from the regex. Verdicts, measured:
+      `bash scripts/check-task-id-collisions.sh --quiet` GATED/no-write;
+      `bash scripts/check-stranded-finalized-tasks.sh --quiet` GATED/no-write;
+      `bash scripts/check-verification-misfile.sh --json` GATED/no-write;
+      `python3 - <<PY` GATED; `f=$(ls .tasks/active | head -1)` GATED;
+      `git status --porcelain >/dev/null` write-pattern MATCH.
+      The gate's own line is at `check-active-task.sh:364-367`, emitted on exactly this branch:
+      "this command writes nothing the gate can detect ... If it genuinely only reads, that is a
+      gap in the allowlist worth filing." Original occurrences: 2026-09-19 (shapes 1-3, three
+      refusals in one session, also the origin of T-2961); 2026-09-20 run 1 (shape 4,
+      `check-stranded-finalized-tasks.sh --quiet`); 2026-09-20 run 2 (shape 4 again,
+      `check-task-id-collisions.sh --quiet`, and shape 5 with focus on a `captured` task).
+- [x] The read-only claim is established, not assumed. The family is 66 `scripts/check-*.sh`, of
+      which **38 carry the `# guard-layer: source` marker** — which CLAUDE.md defines as "safe to
+      run anywhere: no live hub, no network, no host state". Headers citing detect-never-repair
+      explicitly: `check-pickup-deferred-freshness.sh:40` ("This DETECTS; it never drains"),
+      `check-task-id-collisions.sh:60` and `check-pickup-cron-lock.sh:26` ("DEPLOY-TIME / ad-hoc
+      check, NOT a cron canary"). Measured: six members run (`check-task-id-collisions`,
+      `check-stranded-finalized-tasks`, `check-verification-misfile`, `check-canary-log-hygiene`,
+      `check-silent-exit`, `check-version-derivation`), all rc=0, and
+      `git status --porcelain | sort | md5sum` identical before and after
+      (`5a54d8c25df77549887305c594b4636d` both sides). Tree byte-identical.
+- [x] The `>/dev/null` misclassification is isolated, and it is narrower than the filing said.
+      `has_bash_write_pattern` (`safe-commands.sh:771`) scores a write on `[^2>&]>[^>&]|>>`.
+      Measured: `>/dev/null` and `> /dev/null 2>&1` classify WRITE; `2>/dev/null` does NOT — so the
+      defect is specifically the **stdout** discard-redirect, not discard-redirects generally.
+      The command refused *solely* by it is `git status --porcelain >/dev/null`, which
+      `is_bash_safe_command` independently returns SAFE for: the two predicates disagree, and
+      `check-active-task.sh:220` tests the write-pattern FIRST with the safe-list reachable only
+      via `elif` at :223, so the write-pattern wins and the command is gated in production.
+- [x] The structural ordering conflict is recorded, and the answer is the opposite of the one the
+      filing implied. Mechanism: `check-active-task.sh:731-743` blocks outright when focus is on a
+      `captured` task ("BLOCKED: Task X has status 'captured' (work not started)") and prints
+      `fw work-on X` — i.e. *start it* — as the remedy. Independently, both scoring verbs are off
+      the allowlist: `fw bvp estimate T-XXX` GATED and the `estimator.py cost-one` invocation
+      GATED, while the pure read `fw bvp --quadrant hv-lc --include-proposed` is SAFE. So scoring a
+      captured task is refused from both directions, and the gate's own prescribed remedy is the
+      rule violation.
+      **The remedy belongs in the RULE, not the allowlist.** The estimator genuinely writes — it
+      persists `bvp_scores_proposed:` into the task's frontmatter, visible in this task's own
+      frontmatter at ts `2026-09-20T15:20:28Z`. Allowlisting a real write to silence an ordering
+      rule would weaken the gate to fit the process. That the bvp *read* is already SAFE shows the
+      allowlist has drawn the read/write line correctly here. Either "scored before started"
+      accepts that scoring is itself a state change, or the estimator needs a non-persisting
+      `--dry-run`. Which of those is a Sovereign decision, surfaced below and not taken here.
+- [x] Disposition recorded per G-062, and it splits by provenance rather than being one verdict.
+      No local patch was made to `.agentic-framework/` — verified byte-clean in `## Verification`.
+      **(a) The guard-script arm is NOT upstream's defect.** `scripts/check-*.sh` and the
+      `# guard-layer: source` marker are this project's own convention (T-2684); upstream AEF has
+      no such family, so it cannot be expected to allowlist one. This half is a consumer-local
+      extension, and its route is a registered `.vendor-divergence.yaml` divergence exactly as
+      **T-2961** did for `checkpoint.sh` on this same file (`status: local-only`, with fixtures
+      that redden the guard layer if a re-vendor deletes the arm). Filing it upstream would be
+      asking upstream to encode a downstream naming convention.
+      **(b) The `>` over-classification is already known upstream and deliberately declined.**
+      `check-active-task.sh:265-283` — vendored text, therefore upstream's own — documents this
+      exact behaviour ("a `>` anywhere on the line ... voids it", with worked examples) and
+      concludes "The guard is NOT the bug and is not relaxed here ... Widening it would admit
+      `fw work-on X > .claude/settings.json`." Upstream considered it and chose to emit a hint
+      instead. Re-filing a deliberated upstream decision as a defect is precisely the error
+      **T-3018** made eleven days after T-2950 had closed the same finding.
+      **(c) Engaging the T-2950/T-2961 precedent as required.** That precedent says a report
+      against a three-month-stale vendored build (1.6.29 @ 2026-06-08 vs upstream v1.6.295) is
+      phantom register debt. It applies here with *additional* force, because unlike the
+      checkpoint.sh case there is no reason to think upstream shares the gap at all: (a) is ours
+      by construction and (b) is upstream's settled decision. Nothing is filed this run. All of it
+      re-checks at the already-surfaced sovereign re-vendor decision (T-2950).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -217,45 +266,77 @@ cost_estimate_proposed:
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+# ── T-3030 checks (16 lines, all rehearsed under `set -eo pipefail`; lines 1 and 5
+# mutant-tested: widening the bash arm reddens line 1, neutering the redirect regex
+# reddens line 5 — neither is vacuous). ──
+bash -c 'set -eo pipefail; . .agentic-framework/agents/context/lib/safe-commands.sh; ! is_bash_safe_command "bash scripts/check-task-id-collisions.sh --quiet"'
+bash -c 'set -eo pipefail; . .agentic-framework/agents/context/lib/safe-commands.sh; ! is_bash_safe_command "bash scripts/check-stranded-finalized-tasks.sh --quiet"'
+bash -c 'set -eo pipefail; . .agentic-framework/agents/context/lib/safe-commands.sh; ! has_bash_write_pattern "bash scripts/check-task-id-collisions.sh --quiet"'
+bash -c 'set -eo pipefail; . .agentic-framework/agents/context/lib/safe-commands.sh; is_bash_safe_command "bash -n scripts/check-task-id-collisions.sh"'
+bash -c 'set -eo pipefail; . .agentic-framework/agents/context/lib/safe-commands.sh; has_bash_write_pattern "git status --porcelain >/dev/null"'
+bash -c 'set -eo pipefail; . .agentic-framework/agents/context/lib/safe-commands.sh; ! has_bash_write_pattern "git status --porcelain 2>/dev/null"'
+bash -c 'set -eo pipefail; . .agentic-framework/agents/context/lib/safe-commands.sh; ! is_bash_safe_command "python3 - <<PY"'
+bash -c 'set -eo pipefail; . .agentic-framework/agents/context/lib/safe-commands.sh; is_bash_safe_command "python3 -c import yaml"'
+bash -c 'set -eo pipefail; . .agentic-framework/agents/context/lib/safe-commands.sh; ! is_bash_safe_command ".agentic-framework/bin/fw bvp estimate T-3017"'
+bash -c 'set -eo pipefail; . .agentic-framework/agents/context/lib/safe-commands.sh; is_bash_safe_command ".agentic-framework/bin/fw bvp --quadrant hv-lc --include-proposed"'
+test "$(grep -c 'Check write patterns FIRST' .agentic-framework/agents/context/check-active-task.sh)" = "1"
+grep -q 'gap in the allowlist worth filing' .agentic-framework/agents/context/check-active-task.sh
+grep -q 'The guard is NOT the bug and is not relaxed here' .agentic-framework/agents/context/check-active-task.sh
+test "$(ls scripts/check-*.sh | wc -l)" -ge "60"
+test "$(grep -l '^# guard-layer: source' scripts/check-*.sh | wc -l)" -ge "35"
+test -z "$(git status --porcelain .agentic-framework/agents/context/lib/safe-commands.sh)"
+
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+The gate has two predicates and they answer different questions. `has_bash_write_pattern` asks
+"does this line contain a write-shaped token?"; `is_bash_safe_command` asks "is this command on the
+read-only allowlist?". `check-active-task.sh:220-223` consults them in that order, write-pattern
+first, allowlist only via `elif`. Every one of the five refusals is one of those two saying no:
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+- Shapes 1, 2, 4, 5 are **allowlist omissions**. The `bash|sh` arm admits exactly one form,
+  `bash -n` (`safe-commands.sh:707-712`); the `python3` arm admits exactly `python3 -c`
+  (`:697-706`). Everything else in those families falls through and returns "not safe". No write
+  was ever detected in any of them — the classifier itself reports `no-write` for all four.
+- Shape 3 is a **write-predicate false positive**, and the only one of the five where the two
+  predicates actively disagree.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+The filing conflated these, attributing the guard-script refusals to "the redirect pattern". They
+are not: `bash scripts/check-task-id-collisions.sh --quiet` contains no redirect and is scored
+`no-write`. It is gated because no arm claims it. That distinction decides the fix — a redirect
+fix would not have unblocked the guard scripts at all.
+
+Why the framework was blind (G-019): the allowlist is a closed vocabulary of *command spellings*,
+while the property it is trying to approximate — "this writes nothing" — is a property of
+*behaviour*. Thirty-eight of this project's guard scripts already declare that behaviour in a
+machine-readable header (`# guard-layer: source`, defined as no live hub, no network, no host
+state). The gate cannot see it, because nothing connects a consumer project's declaration to the
+framework's vocabulary. The scripts are not merely *probably* safe; they are *annotated* safe, and
+the annotation is unread.
 
 ## Evolution
 
-<!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
-     understanding evolved during build — what was learned that wasn't known at
-     filing, what in the original plan no longer fits, what triggered pivots
-     or new sub-tasks. Mandatory at slice boundaries (when applicable) and
-     before --status work-completed.
+Two of this task's five criteria disproved something the task asserted about itself, which is now
+the third consecutive arc-008 task where that has happened (T-3025 AC2, T-3018 AC2, T-3030 AC1/AC5).
+The shared mechanism is worth naming: each of those criteria was written to force a *measurement*
+before a claim was believed, and in every case the measurement contradicted the filing. The filings
+were not careless — they were written from a real refusal, observed live. What they got wrong was
+the *cause*, inferred from the symptom without reading the code path.
 
-     Origin: T-1717 grill Q4 — "the understanding of what we need and want
-     evolves with the process of materialisation." Structural counter to §ACD:
-     spec-vs-build divergence is logged as soon as it happens, not lost as
-     folklore.
+The specific lesson here is narrower and more useful than "measure first". It is that a gate with
+two predicates and an `elif` between them has **two** failure modes that present identically to the
+user — a false positive in the first predicate and an omission in the second both render as one
+block message — and the message cannot distinguish them, because it is emitted after the branch is
+already taken. Five refusals across three sessions were read as one defect for that reason. Anyone
+diagnosing a gate refusal should establish *which predicate* refused before proposing a fix; here,
+four of five refusals would have been untouched by the fix the filing proposed.
 
-     Format (one entry per slice boundary or significant insight):
-       ### YYYY-MM-DD — [topic]
-       - **What changed:** [what we learned that we didn't know at filing]
-       - **Plan impact:** [what in the plan no longer fits]
-       - **Triggered:** [new sub-task / pivot / scope cut, with task ID if filed]
-
-     The completion gate (T-1718) blocks --status work-completed when this
-     section exists but is empty/template-only. Use --skip-evolution to bypass
-     (logged Tier-2). Non-arc tasks may leave this empty.
--->
+Second, and recorded against the G-062 discipline rather than this defect: "file it upstream" is not
+automatically the conservative choice. Two of this run's three disposition branches resolve to
+*do not file* — one because the convention is ours and upstream cannot be expected to know it, one
+because upstream has already considered and declined it in a comment shipped in the vendored file.
+Filing either would have added register debt while looking like diligence. The check that caught it
+was reading the vendored code's own comments before writing the report, which is the same discipline
+T-3018 arrived at from the other direction (grep `completed/` before filing).
 
 ## Recommendation
 
@@ -317,17 +398,26 @@ cost_estimate_proposed:
 ### 2026-09-20T15:20:28Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 
-## PARKED (arc-008 autonomous run — filed and scoped, not executed)
+## Correction
 
-Filed after the gate refused a pure-read guard-script invocation for the fifth time across three
-sessions, during wrap-up, with the gate's own message naming the gap. Real ACs written because
-G-020 correctly refused every edit while they were placeholders; that is the whole of the work done.
+Two claims in this task's own filing were disproved by executing its acceptance criteria, and are
+corrected rather than silently dropped (the convention used on T-3025's AC2 and T-3018's AC4):
 
-Status is `started-work` only because P-002 forced it: the BVP estimator writes to the task file, so
-the gate refuses to run it while focus sits on a `captured` task — a task therefore cannot be scored
-before it is started. That inverts "scored before started". The inversion is recorded as AC4 rather
-than worked around, and it is the same class as the refusals this task is about.
+1. The filing said the guard-script refusals came from the redirect pattern. Measured: they come
+   from a missing `bash|sh` arm. The redirect pattern scores them `no-write`.
+2. The filing proposed "allowlist `bash scripts/check-*.sh` when the argv contains only read
+   flags". Measured, there is a better key already in the tree: the `# guard-layer: source` marker,
+   carried by 38 of the 66 members and already *defined* as run-anywhere-safe. A name-prefix rule
+   admits any file someone names `check-*.sh`; the marker is an assertion the script makes about
+   itself and that the guard-layer runner already relies on. Recorded for whoever implements the
+   fix — which is not this task.
 
-Not executed because the session was at the live gate's `warn` level (>=225K of a 300K window,
-budget-gate.sh:106), where the standing instruction is to commit and hand over rather than open new
-work.
+## Scope note — why no fix was written
+
+Not one of the five acceptance criteria asks for a fix. T-3030 is a diagnosis-and-disposition task,
+and under the governing rule that an activity not required by an acceptance criterion is not part of
+the task, implementing the allowlist arm here would be scope the task does not carry — and would
+open a second structural change while this one is ungated. The implementation is a separate task
+against `.vendor-divergence.yaml`, carrying the T-2961 shape: local arm + registered divergence +
+a fixtures suite whose name matches the guard-layer runner's `*fixtures*.sh` membership convention,
+so that a re-vendor deleting the arm reddens the guard layer by construction.
