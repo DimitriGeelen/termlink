@@ -35,7 +35,7 @@ arc_id: arc-008
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-20T15:07:25Z
-last_update: 2026-09-20T18:37:47Z
+last_update: 2026-09-20T18:46:02Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -240,6 +240,36 @@ test -z "$(git status --porcelain .agentic-framework/)"
 -->
 
 ## Evolution
+
+- **The filing was right about the symptom and wrong about the cause, twice.** The checker
+  genuinely cannot see this duplicate (real tree, rc=0, pair unreported). But "all four axes
+  exclude the base" is false for axis D, which includes BASE deliberately and was observed
+  firing against `main` in the same run; and "axis B would have fired" is false — the scorer
+  gives the pair 0 rare terms against the real 2737-title corpus. Two greps and one scorer
+  run settled both. Third task in this arc where measuring the recorded premise changed the
+  work (T-3029's blocker was false, T-3030 flipped two-thirds).
+- **The sharper cause forbids the obvious fix.** Base-exclusion is one mechanism of blindness
+  (A/B/C); same-side pairing is another (D). The invariant is that *every axis is a cross-side
+  comparison*, so widening the candidate set cannot help — both duplicates sit on the same
+  side either way. Had the filing's cause been accepted, the fix would have been built,
+  shipped, and still blind.
+- **The strongest result was a refusal to ship.** A description-level detector DOES fire on
+  the ground-truth pair at threshold ≥2 — via `invoking` (df=3) and `plausible` (df=4), two
+  prose adverbs with no relation to the defect, at 123 firing pairs, and it misses at every
+  principled threshold. That is a guard that catches the right pair for the wrong reason: it
+  would have passed its own fixture, satisfied the original AC4 literally, and been worthless.
+  Declining to build it is the T-2831 lesson applied *before* the vacuous check exists rather
+  than after — which is the only time it is cheap.
+- **An AC was amended mid-task, deliberately visibly.** The original AC4 required the shipped
+  artifact to fire on the ground-truth pair; that presumed a detector was the right remedy,
+  which AC2/AC3 disproved. Rather than silently reinterpret it — the "claim outran its check"
+  disease inverted — it was replaced with an explicit criterion forbidding a vacuous detector,
+  and the replacement says so in its own text.
+- **Two gate refusals, both recorded, neither bypassed.** P-002 #16 on `while read` (known
+  loop-keyword class). G-020 correctly blocked on placeholder ACs — but it blocked two
+  *read-only* commands to get there: `sed -n '150,200p'` (no `-i`) and an awk program whose
+  `NR>=140` contains `>`. Its write-pattern detector matches the quoted-`>` shape already
+  recorded for P-002, so that shape now has a second host. Reshaped to `head|tail`; no --force.
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
