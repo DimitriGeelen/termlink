@@ -30,7 +30,7 @@ arc_id: arc-008
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-20T10:29:11Z
-last_update: '2026-09-20T13:16:26Z'
+last_update: 2026-09-20T13:25:41Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -228,27 +228,60 @@ test -z "$(git status --porcelain .agentic-framework/agents/handover/handover.sh
 
 ## Evolution
 
-<!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
-     understanding evolved during build — what was learned that wasn't known at
-     filing, what in the original plan no longer fits, what triggered pivots
-     or new sub-tasks. Mandatory at slice boundaries (when applicable) and
-     before --status work-completed.
+### 2026-09-20 — filing is not a clerical act; it surfaced three defects in the rail itself
 
-     Origin: T-1717 grill Q4 — "the understanding of what we need and want
-     evolves with the process of materialisation." Structural counter to §ACD:
-     spec-vs-build divergence is logged as soon as it happens, not lost as
-     folklore.
+- **What changed:** At filing time AC3 read as a chore: write up what was already measured and
+  post it. Executing it surfaced three defects that the measurement phase could not have seen,
+  because they only exist in the act of filing — the bridge stamps
+  `metadata.from_project: root` (so T-2816's self-filter will fire our own canary at us), one
+  envelope minted three identical local tasks (T-3019/T-3020/T-3021) with only one named on the
+  console, and the run printed both an uncomputable-dedup-hash error and a `P-079` id collision.
+  The report about a vendored defect was itself deformed by a second vendored defect.
+- **Plan impact:** "File upstream" can no longer be treated as a zero-risk terminal step in this
+  arc. Any future task ending in a `framework:pickup` filing should budget for verifying the
+  filing's own metadata, not just its payload — the payload verified clean while the envelope
+  around it did not.
+- **Triggered:** Three follow-on findings recorded on this task, to be filed as their own linked
+  tasks per the arc's link-never-merge rule. T-3019/T-3020/T-3021 exist as unwanted round-trip
+  artifacts and need disposition.
 
-     Format (one entry per slice boundary or significant insight):
-       ### YYYY-MM-DD — [topic]
-       - **What changed:** [what we learned that we didn't know at filing]
-       - **Plan impact:** [what in the plan no longer fits]
-       - **Triggered:** [new sub-task / pivot / scope cut, with task ID if filed]
+### 2026-09-20 — the verb split meant the obvious path would have filed nothing
 
-     The completion gate (T-1718) blocks --status work-completed when this
-     section exists but is empty/template-only. Use --skip-evolution to bypass
-     (logged Tier-2). Non-arc tasks may leave this empty.
--->
+- **What changed:** The AC presumes a channel offset, which presumes a channel post. `fw pickup
+  send` does not post — it writes an envelope to the LOCAL inbox. Only `fw pickup process`
+  mirrors to `framework:pickup`, via `lib/pickup-channel-bridge.sh`. Running `send` alone would
+  have produced a file in `.context/pickup/inbox/`, no rail post, and no offset to record —
+  while looking like success (`Created P-079-bug-report.yaml`).
+- **Plan impact:** The two-step is load-bearing and non-obvious. `process` also has blast radius:
+  it acts on every envelope in the inbox, so it is only safe to run when the inbox holds just
+  your own. That was checked first here (inbox empty) and should be checked first every time.
+- **Triggered:** Dry-run-before-process adopted as the local habit; recorded here rather than
+  left as tacit knowledge.
+
+### 2026-09-20 — my own first verification check would have passed vacuously
+
+- **What changed:** Draft check (a) was `grep -q "framework:pickup offset 126" <this task file>`.
+  Since the Verification block lives IN that file, the command's own text satisfied the pattern.
+  It would have reported PASS whether or not the offset was ever recorded in the task's prose —
+  the exact vacuous-pass class T-2831 documents, committed in the check written to prevent a
+  false close.
+- **Plan impact:** In this repo a Verification command must never assert a plain string match
+  against its own task file. The fix here excises the `## Verification` section before asserting,
+  and was mutant-tested (a wrong offset `@999` fails) — because a check that cannot go red is
+  not a check.
+- **Triggered:** No new task; the rule is recorded here and in the commit message. Worth
+  promoting to a static check across `.tasks/` if a second instance appears.
+
+### 2026-09-20 — the defect grew while being reported
+
+- **What changed:** The commit that filed this report was itself blocked-and-warned by the hook
+  printing `HANDOVER STALE: Last handover has 7 unfilled [TODO] sections`. At the start of this
+  work the number was 5.
+- **Plan impact:** Confirms the scope note was right to insist a green here does not mean D8
+  passes. The mechanism is untouched by this task by design (G-062), so the count will keep
+  climbing until upstream acts on the filing.
+- **Triggered:** Nothing new — this is the predicted behaviour, recorded so the next cycle's
+  census reads it as expected rather than as a regression.
 
 ## Recommendation
 
