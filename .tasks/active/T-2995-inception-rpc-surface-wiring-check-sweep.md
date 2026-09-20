@@ -16,7 +16,7 @@ tags: [value-review, arc:arc-009]
 components: []
 related_tasks: []
 created: 2026-09-19T22:18:28Z
-last_update: 2026-09-20T21:53:49Z
+last_update: 2026-09-20T21:55:00Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -99,24 +99,24 @@ Full measurements: `docs/reports/T-2995-rpc-surface-wiring-sweep.md`.
 -->
 
 - **IW-1: For each of the five surfaces (orchestrator.route, dialog.presence, session.*, event.* family, event.broadcast), is it hub-implemented, and does it carry a client surface (CLI verb and/or MCP tool)?**
-  confidence:
-  disposition:
-  rationale:
+  confidence: 3
+  disposition: answered
+  rationale: Matrix measured in source — orchestrator.route and dialog.presence: hub arm, zero CLI/MCP; session.* lifecycle: no hub arm at all (served by termlink-session/src/handler.rs); event.* splits three ways (live / daemon-served / orphan constants). Hub router carries 64 arms, only 5 are session.*/event.* — artifact F2
 
 - **IW-2: Does the C-30 audit blind spot apply to session.* and event.* — i.e. is "zero hub-observed calls" evidence of disuse, or evidence of nothing?**
-  confidence:
-  disposition:
-  rationale:
+  confidence: 3
+  disposition: answered
+  rationale: Yes, and by construction: server.rs:1610 is the ONLY general dispatch audit site, and termlink-session/src/handler.rs — which serves session.register/deregister/heartbeat/update — has ZERO audit references. Second blind spot found: rpc_audit.rs:47 SKIP_METHODS excludes event.poll/event.collect by design (T-1307). Every zero-call reading in C-31/C-32 is inadmissible — artifact F1
 
 - **IW-3: Does the C-33 event.broadcast reference sweep (DELETE checks 4-5: references, external consumers) come back clean?**
-  confidence:
-  disposition:
-  rationale:
+  confidence: 3
+  disposition: answered
+  rationale: Clean of callers, but the question was already moot: event.broadcast was CUT 2026-05-31 (router.rs:1017, T-1166/T-1415) and the hub returns -32601. Residue is the constant + a LEGACY_METHODS warn entry + tests/no_legacy_callers.rs which enforces the retirement by naming it — artifact F3
 
 - **IW-4: Does anything depend on orchestrator.route remaining present — specifically the federation tripwire C-27 warns not to break?**
-  confidence:
-  disposition:
-  rationale:
+  confidence: 3
+  disposition: answered
+  rationale: No — and the tripwire says so itself: no_federation_tripwire.rs:43 names orchestrator.route as the residual path that 'is NOT covered and cannot be by a static check'. What DOES exist is a 350-line handler, a dedicated route_cache module (Layer 3 of 3), and a live E2E driver at tests/e2e/level8-orchestration-harness.sh:121 — artifact F4
 
 ## Exploration Plan
 
@@ -205,9 +205,50 @@ C-33 reference sweep; identifying what depends on `orchestrator.route`.
 
 ## Recommendation
 
-**Recommendation:** GO
+**Recommendation:** GO — with a result materially different from the one this section
+carried before the exploration ran.
 
-**Rationale:** Multiple runs found unwired-but-intended RPC surfaces; a single sweep resolves five INVESTIGATE rows and may produce the review's only clean DELETE
+**Rationale:** The sweep's main finding is that three of the five rows were asking the
+wrong question.
+
+- **C-31 and most of C-32 rest on inadmissible evidence.** The session daemon
+  (`termlink-session/src/handler.rs`), which serves the entire `session.*` lifecycle, has
+  **no audit sink at all**, and `rpc_audit.rs:47` excludes `event.poll`/`event.collect` by
+  design. "Zero hub-observed calls" there is structurally guaranteed regardless of traffic.
+  C-31 asked for this verification; it comes back positive, so its own disposition is
+  *decide nothing on usage until T-2996 lands*.
+- **C-33's premise is already spent.** `event.broadcast` was cut **2026-05-31**
+  (`router.rs:1017`, T-1166/T-1415); the hub returns `-32601`. The reference sweep is clean,
+  but what remains is residue held in place by `no_legacy_callers.rs`, which enforces the
+  retirement by naming the constant.
+- **C-27's reading is refuted.** `orchestrator.route` is not shelved scaffolding: 350-line
+  handler, a dedicated `route_cache` module describing it as Layer 3 of three, and a live
+  E2E harness driving it. It lacks a *client surface*, which is what the zero-call reading
+  actually measures. The federation tripwire does not depend on it —
+  `no_federation_tripwire.rs:43` names it as the path it cannot cover.
+- **C-28 is cheap and clean.** `dialog.presence` has handler, tests, capability
+  advertisement, and a live producer maintaining state *for a query nobody can issue*
+  (`channel.rs:941`). Only the client surface is missing.
+- **The real clean DELETEs were never in the review.** `event.state_change` and
+  `event.error` have zero references outside their own definition in `control.rs` — no hub
+  arm, no CLI, no MCP, no test. They are the only surfaces here removable on structure
+  alone, so F1's inadmissibility does not touch them.
+
+**Dependency-ordered scope:** (1) remove the two orphan constants — independent of
+everything. (2) wire `dialog.presence`. (3) retire the `event.broadcast` residue as one unit
+with its guard-test expectations. (4) `orchestrator.route` — **human**: the measurement
+supports WIRE and does not support DELETE, but whether it may exist turns on non-goal #4.
+(5) `session.*` and daemon-served `event.*` — **blocked on T-2996**; no usage disposition
+before the telemetry exists.
+
+**Note on the prior text:** this section arrived pre-filled with "GO" before any spike ran,
+predicting the sweep would "resolve five INVESTIGATE rows and may produce the review's only
+clean DELETE". It resolves two; two are blocked on T-2996 and one on the human. And C-33 —
+the predicted clean DELETE — was retired four months before the prediction was written,
+while the actual clean DELETEs are two constants the review never identified. The GO
+survives; none of its stated reasons did. **This is the third consecutive arc-009 inception
+(after T-2989 and T-3001) whose Recommendation arrived pre-filled with a conclusion the
+exploration then contradicted.**
 
 ## Decisions
 
