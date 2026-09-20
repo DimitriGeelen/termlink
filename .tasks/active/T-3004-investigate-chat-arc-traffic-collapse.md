@@ -6,15 +6,15 @@ description: >
   gone vs rail broken vs measurement artifact). Evidence: docs/reports/VALUE-REVIEW-repo-2026-09-19-consolidated.md
   C-40.
 
-status: captured
+status: started-work
 workflow_type: inception
 owner: agent
-horizon: later
+horizon: now
 tags: [value-review, arc:arc-009]
 components: []
 related_tasks: []
 created: 2026-09-19T22:26:41Z
-last_update: '2026-09-20T08:45:20Z'
+last_update: 2026-09-20T08:55:53Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -53,11 +53,19 @@ cost_estimate_proposed:
 
 ## Problem Statement
 
-<!-- What problem are we exploring? For whom? Why now? -->
+C-40: fleet-adoption snapshots show agent-chat-arc at 0 posts + 0 unique speakers for 10
+consecutive daily snapshots after a progressive decline (270.4 → 12.1 → 31.9 → zeros), and the
+topic was historically 92% single-sender (871/950 posts from `d1993c2c3ec44c94`). Is the fleet's
+main broadcast rail dead, was it ever a real multi-agent rail, and is the zero-streak a traffic
+fact or a measurement artifact (hub-dedup fix / snapshot pipeline change)? For: the operator
+(whether "broadcast to the fleet" still reaches anyone). Why now: arc-009 S-29b slice.
 
 ## Assumptions
 
-<!-- Key assumptions to test. Register with: fw assumption add "Statement" --task T-XXX -->
+- A-1: The fleet-adoption snapshot series is on disk locally and can date the zero-streak start.
+- A-2: The hub's own topic state (`channel list` / chat-arc recent) can distinguish "no posts
+  arriving" from "snapshot pipeline stopped counting".
+- A-3: `d1993c2c3ec44c94` is resolvable to an identity via local tooling (whoami/tofu/receipts).
 
 ## Open Questions
 
@@ -77,9 +85,33 @@ cost_estimate_proposed:
      FW_SKIP_DISPOSITION_GATE=1 (env-var, T-1890 producer/consumer parity).
 -->
 
+- **IW-1: Does the zero-streak reproduce on the live topic, and when exactly did it start?**
+  confidence: 3
+  disposition: answered
+  rationale: 36 consecutive zero blocks in .fleet-adoption-snapshot.log; daily cadence dates the start to 2026-08-16 — the T-2758 commit date (84df1c239). The TOPIC is not zero: posts exist from today on .107 (artifact F1/F2)
+
+- **IW-2: Is the collapse a traffic fact or a measurement artifact — does the zero-streak start align with the hub-dedup fix commit or any snapshot-pipeline change?**
+  confidence: 3
+  disposition: answered
+  rationale: Compound: .107 counter structurally blind (no latest_offset on pre-T-2533 hub; fallback tail=count-1 lands scan window in trimmed past — reproduced live, cursor 500 → 0 while tail holds today's posts); .122 copy genuinely quiet (stale poster, rollout-detector confirms); .121 now partial-unreachable (artifact F2/F3)
+
+- **IW-3: Who is `d1993c2c3ec44c94` (92% of historical posts) — which host/agent identity, and is it still alive?**
+  confidence: 3
+  disposition: answered
+  rationale: Shared HOST keypair on the dimitrimintdev dev host — signs both hourly dimitrimintdev-vendored T-1438 heartbeats AND 832-Workflow-designer notes (self-labeled in payload); alive today 08:05Z. T-2838 caveat confirmed: the stat measures a host, not an agent (artifact F4)
+
+- **IW-4: What does the answer imply — is agent-chat-arc a live rail worth guarding, or a single-sender artifact whose zero-state is the honest reading?**
+  confidence: 2
+  disposition: answered
+  rationale: Alive on the hub of record (.107), low-diversity (mostly automated heartbeats + peer notes); the zero is the measurement lying, not the rail dying — fix the counter (artifact Recommendation), hub upgrade dependency already owned by T-2977
+
 ## Exploration Plan
 
-<!-- How will we validate assumptions? Spikes, prototypes, research? Time-box each. -->
+1. Locate fleet-adoption snapshot series on disk; date the decline and zero-streak. Time-box: 15 min.
+2. Read live topic state (channel list count, chat-arc recent window) on the local hub. Time-box: 10 min.
+3. Date the hub-dedup fix commit; compare to streak start. Time-box: 10 min.
+4. Resolve the dominant sender fingerprint via local identity tooling. Time-box: 10 min.
+5. Recommendation. Time-box: 15 min.
 
 ## Technical Constraints
 
@@ -91,7 +123,10 @@ cost_estimate_proposed:
 
 ## Scope Fence
 
-<!-- What's IN scope for this exploration? What's explicitly OUT? -->
+IN: dating and attributing the chat-arc decline/zero-streak from local snapshots + local-hub reads;
+identifying the dominant sender; recommendation on the rail's status.
+OUT: reviving traffic, changing topic retention, fleet-wide hub probes beyond what reachability
+allows, the ack-lag read side (T-3007's slice).
 
 ## Acceptance Criteria
 
@@ -139,7 +174,7 @@ cost_estimate_proposed:
 
 **Recommendation:** GO
 
-**Rationale:** A collapsed rail and a healthy-but-quiet rail are indistinguishable today; the diagnosis decides whether repair work exists
+**Rationale:** Diagnosis complete — the rail is ALIVE on .107 (posts from today, 4 speakers/30d) while the snapshot reported 0/0 for 36 days: the counter is structurally blind on hubs without latest_offset (pre-T-2533 binary; fallback tail=count-1 lands the scan window entirely in the trimmed past — reproduced live). .122's copy genuinely quiet (stale poster, known), .121 partial-unreachable (known). GO on ONE small build task: fix the snapshot's tail derivation (page-forward fallback + never trust receipt up_to beyond derived tail) with a fixture pinning today's reproduce. Hub upgrade half is already owned by T-2977; .122/.121 already surfaced by rollout-detector/fleet doctor. Full evidence: docs/reports/T-3004-chat-arc-collapse-investigation.md
 
 ## Decisions
 
@@ -163,3 +198,7 @@ cost_estimate_proposed:
 
 ### 2026-09-19T22:35:35Z — status-update [task-update-agent]
 - **Change:** tags: +arc:arc-009
+
+### 2026-09-20T08:55:53Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
