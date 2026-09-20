@@ -77,6 +77,58 @@ last_vendor_event:
 #   7. Update `last_vendor_event` here.
 
 divergences:
+  - task: T-2982
+    commit: pending-same-commit
+    commit_note: >
+      Registered in the SAME commit that closes the task, so the hash is not
+      knowable when this line is written. The checker's match key is the task
+      id parsed from the commit subject — `T-2982:` — which IS knowable.
+    date: 2026-09-21
+    file: .agentic-framework/lib/hook-telemetry.sh
+    status: filed-upstream
+    filed_at: "framework:pickup offset 132"
+    kind: defect-report
+    generality: GENERIC
+    local_patch: none
+    local_patch_note: >
+      IMPORTANT — this entry records a defect filed upstream, NOT a local code
+      change. The vendored function is untouched (G-062). Nothing here is at
+      risk from a re-vendor; the entry exists so the pre-re-vendor checklist
+      has a concrete re-verification step, described under `reverify` below.
+    symptom: >
+      `_fw_telemetry_increment` performs an unlocked read-modify-write —
+      mapfile the whole counter file, modify in memory, rewrite with
+      `printf ... > "$file"`. Under 8 concurrent writers x 60 increments it
+      loses 477-479 of 480. The `>` truncation is what makes it severe: a
+      concurrent writer's mapfile observes a near-empty file, bases its
+      increment on ~0 and writes back ~1, so the counter collapses toward 1
+      rather than drifting down. Duplicate keys also accumulate when a writer
+      holding a stale snapshot re-appends a key that already exists.
+    impact: >
+      Not hypothetical. This repo's live .hook-counter carries a bare fragment
+      line "6" and `error-watchdog` twice (56 and 9). The two readers then
+      disagree on the same bytes — fw_hook_counter_get breaks on first match
+      and returns 1, hook-threshold.py sums and returns 14. The summing reader
+      feeds the T-1626 decay-alarm denominator, so each duplicate roughly
+      halves the apparent failure ratio and a repeatedly-failing hook can stay
+      under threshold. The corruption makes the guard layer look healthier
+      than it is.
+    proposed_fix: >
+      Serialise the whole read-modify-write on a sidecar `${file}.lock` via
+      flock, falling back to the current unlocked path if the lock cannot be
+      opened (telemetry must never block). The function's comment cites a 5ms
+      per-fire budget as the reason it avoids a subprocess; measured, unfixed
+      is 0.306ms and flock-serialised is 2.877ms, both inside 5ms, so that
+      objection does not hold.
+    evidence:
+      harness: tests/hook-telemetry-race-fixtures.sh
+      detection: scripts/check-hook-counter-integrity.sh (already firing daily)
+    reverify: >
+      AFTER ANY RE-VENDOR: run `bash tests/hook-telemetry-race-fixtures.sh`.
+      Leg 1 asserts the UNFIXED behaviour reproduces. If leg 1 now FAILS
+      ("harness cannot go red"), that is the signal the upstream fix landed —
+      move this entry to landed-upstream and invert leg 1 into a regression
+      guard. If leg 1 still passes, the fix has not landed; leave it here.
   - task: T-2961
     commit: pending-same-commit
     commit_note: >

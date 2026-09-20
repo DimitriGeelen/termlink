@@ -73,18 +73,18 @@ cost_estimate_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] The lost-update race in `_fw_telemetry_increment` is REPRODUCED by a concurrency
+- [x] The lost-update race in `_fw_telemetry_increment` is REPRODUCED by a concurrency
       harness, with measured expected-vs-actual counts recorded in this task (an
       asserted race is not evidence of one).
-- [ ] The corruption window is characterised: whether concurrent readers can observe a
+- [x] The corruption window is characterised: whether concurrent readers can observe a
       truncated/empty counter file, not merely a count one low.
-- [ ] A candidate fix is written and shown to eliminate the loss under the SAME harness
+- [x] A candidate fix is written and shown to eliminate the loss under the SAME harness
       (0 lost increments across repeated runs).
-- [ ] The fix's per-call overhead is measured against the 5ms T-1626 budget that the
+- [x] The fix's per-call overhead is measured against the 5ms T-1626 budget that the
       function's own comment cites as the reason it avoids a subprocess.
-- [ ] Defect + reproduction + measured fix are FILED at `framework:pickup` (the code is
+- [x] Defect + reproduction + measured fix are FILED at `framework:pickup` (the code is
       vendored — G-062 forbids patching it here), and the filing offset is recorded.
-- [ ] The divergence is registered in `.vendor-divergence.yaml` with `status:
+- [x] The divergence is registered in `.vendor-divergence.yaml` with `status:
       filed-upstream` and a cited reason.
 
 ### Human
@@ -191,43 +191,63 @@ grep -q "T-2982" .vendor-divergence.yaml
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom:** Hook fire/failure counters under `.context/working/` are wrong and
+visibly malformed — a bare fragment line `6`, and `error-watchdog` present twice
+(56 and 9). Measured under load, 477-479 of 480 increments are lost.
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause:** `lib/hook-telemetry.sh::_fw_telemetry_increment` performs an
+unlocked read-modify-write: `mapfile` the whole file, modify in memory, then
+`printf ... > "$file"`. Two writers read the same base and the last wins. The
+`>` truncation makes it far worse than a lost update — a concurrent writer's
+`mapfile` observes a near-empty file, bases its increment on ~0 and writes back
+~1, so the counter collapses toward 1 rather than drifting down.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Why structurally allowed:** the function deliberately avoids a subprocess.
+Its own comment states the reason: "Pure bash — no subprocess fork — to keep
+per-fire overhead under the T-1626 5ms budget." That trade was never measured.
+Measured here, flock costs 2.877ms against a 5.000ms budget — the constraint
+that justified the unsafe design does not bind.
+
+The second-order reason it survived: the corruption biases the guard layer
+toward SILENCE. Duplicate keys inflate the summing reader's denominator, so a
+repeatedly-failing hook reads as a lower failure ratio and stays under
+threshold. A defect that makes alarms quieter does not announce itself.
+
+**Prevention:** detection already exists and is good —
+`scripts/check-hook-counter-integrity.sh` fires daily, names this exact
+mechanism, and flags reader disagreement. What was missing is the *fix*, and
+the fix cannot live here: the code is vendored, so a local patch is erased by
+the next re-vendor (G-062). Prevention is therefore (a) the upstream filing at
+`framework:pickup` offset 132 carrying a reproduction and a measured fix, and
+(b) `tests/hook-telemetry-race-fixtures.sh`, whose leg 1 asserts the defect
+still reproduces — so a future re-vendor that lands the fix turns leg 1 red and
+tells us, rather than leaving us guessing.
 
 ## Evolution
 
-<!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
-     understanding evolved during build — what was learned that wasn't known at
-     filing, what in the original plan no longer fits, what triggered pivots
-     or new sub-tasks. Mandatory at slice boundaries (when applicable) and
-     before --status work-completed.
+### 2026-09-21 — the fix was never the hard part; the justification was
 
-     Origin: T-1717 grill Q4 — "the understanding of what we need and want
-     evolves with the process of materialisation." Structural counter to §ACD:
-     spec-vs-build divergence is logged as soon as it happens, not lost as
-     folklore.
-
-     Format (one entry per slice boundary or significant insight):
-       ### YYYY-MM-DD — [topic]
-       - **What changed:** [what we learned that we didn't know at filing]
-       - **Plan impact:** [what in the plan no longer fits]
-       - **Triggered:** [new sub-task / pivot / scope cut, with task ID if filed]
-
-     The completion gate (T-1718) blocks --status work-completed when this
-     section exists but is empty/template-only. Use --skip-evolution to bypass
-     (logged Tier-2). Non-arc tasks may leave this empty.
--->
+- **What changed:** The task was filed as "file upstream the flock fix", which
+  reads as a clerical errand. Two things turned out differently. First, the
+  severity was understated: this is not a counter that drifts a few percent
+  low, it is a counter that collapses to ~1 (480 expected, 1-3 observed). The
+  `>` truncation, not the lost update, is the mechanism. Second, the real
+  obstacle to fixing it upstream was never "write a lock" — it was the
+  function's own comment asserting a 5ms budget as grounds for staying
+  lock-free. An upstream filing that ignored that objection would have been
+  declined on sight, so the filing had to *measure* it: 0.306ms unfixed,
+  2.877ms with flock, budget 5.000ms.
+- **Plan impact:** The deliverable shifted from "report a race" to "refute the
+  stated design constraint with numbers". The harness exists to carry that
+  evidence upstream, not merely to prove a race locally.
+- **Also found:** the local detection was already complete and already firing —
+  `check-hook-counter-integrity.sh` had been naming this mechanism daily, and
+  its log was 7KB and non-empty. Worth recording that the gap was never
+  detection; it was that detection had nowhere to route a fix, because the code
+  is vendored.
+- **Triggered:** none. Deliberately no local patch (G-062). The re-verification
+  step is recorded in `.vendor-divergence.yaml` under `reverify:` rather than
+  as a new task, because it is a step in the existing pre-re-vendor checklist.
 
 ## Recommendation
 
