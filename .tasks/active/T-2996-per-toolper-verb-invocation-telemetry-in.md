@@ -7,10 +7,10 @@ description: >
   invocation counts so the next review can judge usage. Evidence: docs/reports/VALUE-REVIEW-repo-2026-09-19-consolidated.md
   C-45, C-30.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [value-review, arc:arc-009]
 components: []
 related_tasks: []
@@ -25,7 +25,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-19T22:19:23Z
-last_update: '2026-09-20T08:45:20Z'
+last_update: 2026-09-20T22:49:54Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -52,6 +52,20 @@ bvp_scores_proposed:
       D4=2 (body:env-class-handled); F-RECALL=0 (no-signal); F-ORCH=0 
       (no-signal)
     rubric_sha: e4a00f38e801
+  - ts: '2026-09-20T22:49:55Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 2
+      D3: 3
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=2 
+      (body:telemetry-or-audit-entry); D3=3 (body:component-discoverability); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: e4a00f38e801
 cost_estimate_proposed:
   - ts: '2026-09-20T08:45:20Z'
     estimator: bvp-estimator-v1-heuristic
@@ -68,108 +82,76 @@ cost_estimate_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+C-45 is the value review's highest-value ADD, HIGH across all three runs, and the
+prerequisite for C-01/IW-1 (the 28 off-charter tools), C-02, C-30, C-31 and C-38.
+
+**The task description is wrong in a way that matters.** It says "no per-tool/per-verb
+invocation counts exist". Hub-side RPC telemetry DOES exist: `rpc_audit::record` is
+called for every authenticated dispatch (`termlink-hub/src/server.rs:1610`), which is
+where C-34's `channel.create` = 52,695 and C-36's "108 calls/34.2d" came from.
+
+The real gap is one of RESOLUTION, not absence: `rpc_audit` counts **RPC methods**,
+while every usage question is about **tools and verbs**. `termlink_agent_top_reacted`,
+`termlink_agent_top_repliers` and a plain CLI `channel post` all arrive at the hub as
+the same `channel.post`. So the 260-tool surface is invisible not because nothing
+counts, but because the counter aggregates above the level the decision needs.
+
+**Design is determined by T-2982, closed immediately before this task.** The repo
+contains both patterns for this exact problem:
+  - `rpc_audit` serializes its critical section under a Mutex (`AUDIT_WRITE_LOCK`)
+    explicitly "so concurrent authenticated dispatches cannot race" — CORRECT.
+  - `lib/hook-telemetry.sh::_fw_telemetry_increment` does an unlocked
+    read-modify-truncate-write and loses 477-479 of 480 increments under 8 writers
+    (measured, T-2982) — WRONG, and currently corrupting `.hook-counter`.
+This instrument follows the first. The direction of the error is why that is not a
+style preference: these counts are the evidence for DELETING tools, so an undercount
+makes a used tool read as unused and get deleted. Silent undercount is the one
+failure mode this instrument must not have.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
-
-### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-
-     ── Prefix routing (T-1811, T-1878): default to [REVIEWER] if Expected is grep-able ──
-     If your Expected clause is grep-able / file-exists / structural (a deterministic
-     shell check), prefer [REVIEWER] — that AC should be an Agent AC with the reviewer
-     command in `## Verification` instead of a Human AC here. Only keep [REVIEW] if
-     verification genuinely needs human taste (tone, feel, layout rhythm).
-     See CLAUDE.md §AC Classification Guidance for the conversion rule.
-
-     [REVIEW] example (genuine human judgment):
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
-
-     [REVIEWER] example (static-scan-verifiable — convert to Agent AC + Verification):
-       - [ ] [REVIEWER] Block message names both bypass mechanisms
-         **Steps:**
-         1. Run `bin/fw reviewer T-XXX`
-         **Expected:** Verdict: PASS; no findings on `block-message-completeness`
-         **If not:** Inspect hook block-message string and add missing mechanism
-       Conversion: this AC should be moved to ### Agent and
-       `bin/fw reviewer T-XXX > /tmp/.rev 2>&1 && grep -q "Overall:.*PASS" /tmp/.rev`
-       added to ## Verification. NEVER `... 2>&1 | grep -q ...` — that is the shape the
-       Pipefail/SIGPIPE section below forbids, and this line used to prescribe it.
--->
+- [ ] Gap is demonstrated, not asserted: a recorded check shows `rpc_audit` cannot
+      distinguish two named MCP tools from the off-charter set that dispatch to the
+      same RPC method (or that resolve entirely client-side and reach the hub not at
+      all) — establishing that per-method counts cannot answer the per-tool question
+- [ ] An invocation sink lives in `termlink-hub` beside `rpc_audit` (both
+      `termlink-mcp` and `termlink-cli` already depend on that crate — no new
+      dependency, no T-2069 duplication), recording `{ts, surface, name}` append-only,
+      serialized under a mutex, size-bounded with rotation — the `rpc_audit` shape,
+      explicitly NOT the unlocked `.hook-counter` shape
+- [ ] Every MCP tool call is recorded by TOOL NAME at the dispatch choke point
+      (`#[tool_handler]` on `termlink-mcp/src/server.rs:16` replaced by an explicit
+      `call_tool` that records then delegates to the generated router)
+- [ ] Recording is best-effort and cannot fail a tool call: a sink write error leaves
+      the tool's own result unchanged (pinned by a test, not by inspection)
+- [ ] A concurrency fixture proves the sink loses no records under >=8 concurrent
+      writers — the direct T-2982 regression guard, and the reason this design was
+      chosen over the framework's existing counter
+- [ ] A reader reports per-tool invocation counts over a window, so the next review
+      judges the 260-tool surface on measurement instead of inference
+- [ ] `cargo build` and the touched crates' tests are green
+- [ ] Coverage scope is stated in the reader's own output and in this task: this
+      instruments the MCP TOOL surface. CLI verbs and the session-daemon `kv.*` /
+      `session.*` blind spot (C-30/C-31) remain UNMEASURED and are filed as
+      follow-ups. A reader must not be able to mistake partial coverage for a clean
+      full-surface census (T-2680: a guard reporting green is why nobody looks)
 
 ## Verification
 
-# Shell commands that MUST pass before work-completed. One per line.
-# Lines starting with # are comments (skipped). Empty lines ignored.
-# The completion gate runs each command — if any exits non-zero, completion is blocked.
-#
-# Toolchain hint (L-291): if you edited *.vbproj/*.csproj/*.xaml add `dotnet build`;
-# *.go → `go build ./...`; Cargo.toml → `cargo check`; tsconfig.json → `tsc --noEmit`;
-# pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
-# past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
-#
-# ── Pipefail/SIGPIPE: grepping a command's output (L-387, T-2090, T-2743, T-2738) ──
-#
-# THE DEFAULT — redirect to a file, then grep the file:
-#     cmd > /tmp/.out 2>&1 && grep -q "PATTERN" /tmp/.out
-#     curl -sf "$(bin/fw watchtower url)/page" -o /tmp/.out && grep -q "PAT" /tmp/.out
-# Correct at any output size, and `&&` keeps the PRODUCING command's exit code in
-# the verdict. Reach for this first; the alternative below is the special case.
-#
-# NEVER `cmd | grep -q PAT` (L-387) — why: P-011 runs each line under `set -eo
-# pipefail`. When grep matches it exits and closes stdin while cmd is still
-# writing, cmd takes SIGPIPE, the pipeline exits 141 — verification "fails" with
-# the pattern present. Captured 4× (T-1716, T-1838, T-1862, T-1863).
-#
-# THE EXCEPTION — capture first, grep the capture:
-#     out=$(cmd 2>&1); echo "$out" | grep -q "PATTERN"
-# Valid ONLY while "$out" fits the 65536-byte pipe buffer, and it is on you to
-# know that it does. Above that the form inverts and becomes the very failure
-# L-387 describes: echo blocks on the full pipe, grep -q exits, echo takes
-# SIGPIPE, rc=141 (T-2743 — measured on a 146,366-byte Watchtower page, 3/3 runs,
-# deterministic not racy; rendered routes run 50-200KB, so anything that curls a
-# page is over the line). It also discards cmd's exit code, so a 404 yields an
-# empty capture that grep merely fails to match rather than a failed line.
-# If you do use it: single pipe only, no intermediate tail/awk/sed stage between
-# capture and grep (T-2090) — the middle stage is what `grep -q` slams its stdin
-# on, and grep scans the whole captured string anyway, so the `tail -3` was
-# cosmetic. `echo "$out" | grep -q PAT`, nothing between.
-#
-# TEST RUNNERS need a guard either way (T-2738). `set -e` is suppressed inside the
-# `if` condition the gate runs each line in, so in `cmd1; cmd2` only cmd2 is the
-# verdict — and the pass marker you grep for survives a partial failure: a suite
-# printing "3 failed, 9 passed" satisfies `grep -q "9 passed"`, and generalising
-# to `grep -qE "[0-9]+ passed"` matches the same output. Keep the exit code:
-#     python3 -m pytest <file> -q > /tmp/.out 2>&1 && grep -q passed /tmp/.out
-# or add the guard the exit code used to supply:
-#     out=$(python3 -m pytest <file> -q 2>&1); echo "$out" | grep -q passed && ! echo "$out" | grep -q failed
-#     out=$(bats <file> 2>&1); echo "$out" | grep -q '^ok 1 ' && ! echo "$out" | grep -q '^not ok'
-# The close gate refuses the unguarded form. Bypass: FW_ALLOW_UNJUDGED_TEST_RUN=1.
-#
-# REHEARSING A LINE BY HAND DOES NOT REHEARSE THE GATE (T-2743). Your interactive
-# shell has no `set -eo pipefail`. A line has returned 0 by hand and 141 under
-# P-011, from the same directory, the same second. To rehearse for real:
-#     bash -c 'set -eo pipefail; <your verification line>'
-#
-# Enforcement-baseline hint (L-398, T-1886): if you edited `.claude/settings.json`
-# (added/removed/reorganised hooks), add `bin/fw enforcement baseline` to your
-# Verification block. Otherwise the canonical hash diverges and `fw doctor`
-# reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
-# Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
-# the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+# T-2996 (C-45). Safe redirect form only (L-387): never `cmd | grep -q PAT`.
+cargo build -p termlink-hub -p termlink-mcp > /tmp/.t2996-build 2>&1
+cargo test -p termlink-hub invocation_audit > /tmp/.t2996-unit 2>&1 && grep -q "6 passed" /tmp/.t2996-unit
+bash tests/invocation-audit-concurrency-fixtures.sh > /tmp/.t2996-fix 2>&1 && grep -q "ALL ASSERTIONS PASSED" /tmp/.t2996-fix
+# The fixture must be able to go RED on the rejected shape, or it proves nothing (T-2982 standard).
+grep -q "the defect reproduces" /tmp/.t2996-fix
+# list_tools must stay implemented alongside call_tool — the default is an EMPTY list.
+cargo test -p termlink-mcp --test mcp_integration test_list_tools > /tmp/.t2996-lt 2>&1 && grep -q "1 passed" /tmp/.t2996-lt
+# The instrument must resolve runtime_dir, not hardcode /tmp (T-2729).
+grep -q "discovery::runtime_dir" crates/termlink-hub/src/invocation_audit.rs
+# The reader must carry its scope disclaimer on every output path (T-2680).
+bash scripts/invocation-usage.sh > /tmp/.t2996-rd 2>&1 && grep -q "SCOPE:" /tmp/.t2996-rd
 
 ## RCA
 
@@ -189,27 +171,60 @@ cost_estimate_proposed:
 
 ## Evolution
 
-<!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
-     understanding evolved during build — what was learned that wasn't known at
-     filing, what in the original plan no longer fits, what triggered pivots
-     or new sub-tasks. Mandatory at slice boundaries (when applicable) and
-     before --status work-completed.
+### 2026-09-21 — the task description was wrong, and the correction is the task
 
-     Origin: T-1717 grill Q4 — "the understanding of what we need and want
-     evolves with the process of materialisation." Structural counter to §ACD:
-     spec-vs-build divergence is logged as soon as it happens, not lost as
-     folklore.
+- **What changed:** The filing says "no per-tool/per-verb invocation counts
+  exist". Hub-side RPC telemetry *does* exist (`rpc_audit::record`,
+  `server.rs:1610`) — it is the source of C-34's 52,695 and C-36's 108 calls.
+  The gap is RESOLUTION, not absence: it counts RPC METHODS, and every usage
+  question is about TOOLS. Measured: `top_reacted`, `top_replied` and
+  `top_repliers` all dispatch the identical `channel.subscribe`, which is this
+  host's largest method at 403,555 dispatches, and they PAGE — so the count is
+  not even proportional to tool usage.
+- **Plan impact:** The work is not "add telemetry where there is none"; it is
+  "record at the one place in the process where tool identity still exists"
+  (the MCP dispatch choke point), because every tool body below it dissolves
+  its identity into a shared RPC method.
+- **Triggered:** Context section rewritten to carry the correction so the next
+  reader does not re-derive it.
 
-     Format (one entry per slice boundary or significant insight):
-       ### YYYY-MM-DD — [topic]
-       - **What changed:** [what we learned that we didn't know at filing]
-       - **Plan impact:** [what in the plan no longer fits]
-       - **Triggered:** [new sub-task / pivot / scope cut, with task ID if filed]
+### 2026-09-21 — T-2982 determined the design, and the fixture proves it
 
-     The completion gate (T-1718) blocks --status work-completed when this
-     section exists but is empty/template-only. Use --skip-evolution to bypass
-     (logged Tier-2). Non-arc tasks may leave this empty.
--->
+- **What changed:** This repo contains both the right and the wrong pattern for
+  this exact problem. Measured side by side under 8 concurrent writers × 60:
+  `O_APPEND` line writes 480/480/480 with zero torn lines; the unlocked
+  read-modify-TRUNCATE-write used by `lib/hook-telemetry.sh` scored 3, 9, 6.
+- **Plan impact:** The sink is append-only by requirement, not by taste. The
+  error direction decides it: these counts are the warrant for DELETING tools,
+  so an undercount makes a used tool read as zero and get deleted. Also
+  corrected a claim in my own module doc — the process-local `Mutex` does NOT
+  serialise across processes (MCP/CLI are separate processes); cross-process
+  safety comes from `O_APPEND` atomicity. The fixture tests PROCESSES, not
+  threads, because the unit test structurally cannot substantiate that claim.
+- **Triggered:** `tests/invocation-audit-concurrency-fixtures.sh`, whose leg 2
+  runs the rejected shape so the harness can still go red.
+
+### 2026-09-21 — replacing a macro silently dropped half its behaviour
+
+- **What changed:** `#[tool_handler]` generates `call_tool` AND `list_tools`.
+  Hand-writing only `call_tool` left `list_tools` on its default, which returns
+  an EMPTY list: the server would have advertised ZERO tools while compiling
+  cleanly and dispatching correctly. Caught by
+  `mcp_integration.rs::test_list_tools` ("missing tool: termlink_ping").
+- **Plan impact:** Both methods must move together; recorded in a comment at
+  the site because the failure is silent at compile time and total at runtime.
+- **Triggered:** Nothing new filed — the existing test was sufficient, which is
+  itself the argument for T-2686 having wired the suite into CI.
+
+### 2026-09-21 — shipped is not live
+
+- **What changed:** The reader reports no sink on this host, correctly: the
+  running MCP server is an older binary, so nothing records until it is rebuilt
+  and restarted. This is the repo's own G-069 condition (T-2480).
+- **Plan impact:** This task delivers the instrument, NOT a populated dataset.
+  No usage verdict — in particular nothing about C-01's 28 tools — may be drawn
+  until the server restarts onto a binary carrying this and time passes.
+- **Triggered:** Stated in the Recommendation rather than left implicit.
 
 ## Recommendation
 
@@ -270,3 +285,7 @@ cost_estimate_proposed:
 
 ### 2026-09-19T22:35:32Z — status-update [task-update-agent]
 - **Change:** tags: +arc:arc-009
+
+### 2026-09-20T22:49:54Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

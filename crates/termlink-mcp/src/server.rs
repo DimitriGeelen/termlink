@@ -7,14 +7,67 @@ use rmcp::model::{
     ReadResourceResult, ResourceContents, ServerCapabilities, ServerInfo,
 };
 use rmcp::service::RequestContext;
-use rmcp::{tool_handler, RoleServer, ServerHandler, ServiceExt};
+use rmcp::{RoleServer, ServerHandler, ServiceExt};
 
 use crate::tools::TermLinkTools;
 
 use termlink_session::{client, manager};
 
-#[tool_handler]
 impl ServerHandler for TermLinkTools {
+    /// T-2996 (C-45): the per-tool invocation choke point.
+    ///
+    /// This replaces `#[tool_handler]`, which generated exactly the delegation
+    /// below and nothing else. It is hand-written for one reason: it is the
+    /// single place in the process where the TOOL NAME is known. Every tool
+    /// body below dissolves its identity into an RPC method — three of the
+    /// off-charter analytics tools issue the same `channel.subscribe` — so the
+    /// hub's `rpc_audit` can never attribute a call back to the tool that made
+    /// it. Recording here is what turns the 260-tool surface question from
+    /// inference into measurement (value-review C-45, gating C-01/IW-1).
+    ///
+    /// Forward-compat (T-1060): this delegates through the `pub tool_router`
+    /// FIELD, which exists and is populated by `TermLinkTools::new()` under
+    /// both rmcp-macros 1.3.x (where the macro expanded to this field access)
+    /// and 1.4.x+ (where it expands to a generated associated function that may
+    /// be private). Going through the field is therefore strictly more
+    /// version-robust than what it replaces, not less.
+    ///
+    /// Recording happens BEFORE dispatch and is never conditioned on the
+    /// result: the question this instrument answers is "was this tool invoked",
+    /// and a call that errors is still a call. It is also infallible by
+    /// contract, so telemetry can never fail a user's tool.
+    async fn call_tool(
+        &self,
+        request: rmcp::model::CallToolRequestParams,
+        context: RequestContext<RoleServer>,
+    ) -> Result<rmcp::model::CallToolResult, McpError> {
+        termlink_hub::invocation_audit::record(
+            termlink_hub::invocation_audit::SURFACE_MCP,
+            &request.name,
+        );
+        let tcc = rmcp::handler::server::tool::ToolCallContext::new(self, request, context);
+        self.tool_router.call(tcc).await
+    }
+
+    /// T-2996: the OTHER half of what `#[tool_handler]` generated.
+    ///
+    /// Removing that macro to instrument `call_tool` also removed this, and the
+    /// default trait implementation returns an EMPTY tool list — the server
+    /// would advertise zero tools to every client while compiling cleanly and
+    /// serving `call_tool` correctly. `tests/mcp_integration.rs::test_list_tools`
+    /// caught it ("missing tool: termlink_ping"). Recorded here because the
+    /// failure is silent at compile time and total at runtime: if a future
+    /// change touches this impl, both methods must move together.
+    async fn list_tools(
+        &self,
+        _request: Option<PaginatedRequestParams>,
+        _context: RequestContext<RoleServer>,
+    ) -> Result<rmcp::model::ListToolsResult, McpError> {
+        Ok(rmcp::model::ListToolsResult::with_all_items(
+            self.tool_router.list_all(),
+        ))
+    }
+
     fn get_info(&self) -> ServerInfo {
         ServerInfo::new(
             ServerCapabilities::builder()

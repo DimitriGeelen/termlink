@@ -12,6 +12,7 @@ pub mod remote_store;
 pub mod retention_sweeper;
 pub mod route_cache;
 pub mod router;
+pub mod invocation_audit;
 pub mod rpc_audit;
 pub mod template_cache;
 pub mod topic_lint;
