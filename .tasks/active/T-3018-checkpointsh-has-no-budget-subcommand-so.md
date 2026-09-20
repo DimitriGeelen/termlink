@@ -19,9 +19,9 @@ workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: [.agentic-framework/agents/context/checkpoint.sh]
-related_tasks: []
-# arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
+components: [.agentic-framework/agents/context/checkpoint.sh, .agentic-framework/agents/context/budget-gate.sh, scripts/check-task-id-collisions.sh]
+related_tasks: [T-2950, T-2961, T-2949, T-3028, T-3029]
+arc_id: arc-008
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
@@ -32,7 +32,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-20T10:34:39Z
-last_update: 2026-09-20T14:06:42Z
+last_update: 2026-09-20T14:58:41Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -74,25 +74,52 @@ cost_estimate_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Filed 2026-09-20 as a fresh arc-008 finding. Executing AC2 (measure the blast radius) disproved
+two of the three premises in the filing, and disproved them by measurement rather than argument.
+The corrected position is recorded in `## Correction` below; the criteria have been rewritten to
+match what is true, with the original text preserved there.
+
+The defect itself is real and reproduces on demand (AC1). What is false is that it was new, and
+that CLAUDE.md prescribes it.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] The defect is demonstrated, not asserted: show `checkpoint.sh budget` exiting non-zero
-      with usage output, and show the subcommand dispatch in the vendored script listing only
-      `post-tool|reset|status`. Cite line numbers.
-- [ ] The blast radius is measured: enumerate every surface prescribing `checkpoint.sh budget`
-      as the G-087-safe read (CLAUDE.md Session Start Protocol, the `/resume` skill, any other
-      hit across `.claude/` and docs), so the cost is "N documented surfaces route the reader
-      into the exact raw read G-087 forbids", not one broken command.
-- [ ] The G-087 fallback hazard is stated concretely: what an agent that follows the
-      instruction actually does next, and why `cat .budget-status` is unsafe (stale /
-      foreign-session cache reads back as a plausible `{"level":"ok","tokens":0}`).
-- [ ] Filed upstream to `framework:pickup` per G-062 with the dispatch defect and a proposed
-      fix (implement `budget`, or correct the prescribing surfaces to `status`); offset
-      recorded here. No local patch to `.agentic-framework/`, stated.
+- [x] The defect is demonstrated, not asserted. `.agentic-framework/agents/context/checkpoint.sh budget`
+      prints `Usage: checkpoint.sh {post-tool|reset|status}`, exits **1**, and trips the framework's
+      `HOOK CRASHED: checkpoint (exit 1)` banner. The dispatch `case` carries exactly three arms —
+      `:277 post-tool)`, `:427 reset)`, `:439 status)` — and a catch-all at `:457` that prints the
+      usage line and `exit 1`. The script's own header documents the same three (`:13-15`). There is
+      no `budget` arm anywhere in its 461 lines.
+- [x] The blast radius is measured, and the measurement **contradicts the filing**. Exactly **one**
+      surface prescribes `checkpoint.sh budget`: the `/resume` skill, which is **user-level**
+      (`userSettings:resume`), not in this repo. `.claude/` contains **zero** occurrences.
+      **CLAUDE.md does not prescribe it** — it prescribes `checkpoint.sh status`, which exists
+      (`CLAUDE.md:2906`, `:2919`), and contains **zero** mentions of G-087. The in-repo occurrences
+      are all *about* the defect, never prescriptions of it: `.vendor-divergence.yaml:94`,
+      `.agentic-framework/agents/context/lib/safe-commands.sh:660`, and
+      `tests/safe-commands-checkpoint-fixtures.sh:52,70`.
+- [x] The G-087 fallback hazard is stated concretely **and its limits stated with it**. An agent
+      following the skill runs `budget`, gets exit 1, and falls back to `cat .context/working/.budget-status`.
+      Measured live this run: the cache read `{"level":"ok","tokens":195853}` while the true figure
+      was **209,271** — **13,418 tokens stale** after ~20 minutes, with no freshness or
+      session-ownership field a reader could check. **The `level` was nonetheless correct**, because
+      the live gate's thresholds are 75/85/95% of a 300K window (`budget-gate.sh:106-108`) and
+      195,853 is ~65%. So this reading was stale-but-benign and is **not** itself a G-087 instance;
+      it demonstrates the missing freshness check, not the dangerous outcome. The dangerous outcome
+      is cited, not re-measured: G-087/T-222 recorded 0 vs 297,923 and 0 vs 70,549 tokens.
+- [x] **Not filed upstream — and the original criterion demanding it was wrong.** This finding was
+      already closed as **T-2950** on 2026-09-09, eleven days before T-3018 was filed, under the same
+      arc. T-2950's own AC4 established by measurement that the cause is **version skew, not a missing
+      upstream feature** (vendored `.agentic-framework` is **1.6.29**, baseline **2026-06-08**; CLAUDE.md
+      references upstream **v1.6.295**), and its AC5 recorded a deliberate decision **not** to file,
+      because upstream almost certainly already ships the arm and a likely-already-fixed report is
+      exactly the register noise **P-075 (T-2949)** objects to. **T-2961** reached the same conclusion
+      independently on 2026-09-19 and recorded it in `.vendor-divergence.yaml:94`. Filing now would
+      contradict two standing recorded decisions and manufacture the phantom debt both name. No local
+      patch to `.agentic-framework/` was made — stated, per G-062. Remediation remains the re-vendor,
+      which is a **Sovereign** decision already surfaced under T-2950/T-2949 and is not taken here.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -129,80 +156,78 @@ cost_estimate_proposed:
 
 ## Verification
 
-# Shell commands that MUST pass before work-completed. One per line.
-# Lines starting with # are comments (skipped). Empty lines ignored.
-# The completion gate runs each command — if any exits non-zero, completion is blocked.
-#
-# Toolchain hint (L-291): if you edited *.vbproj/*.csproj/*.xaml add `dotnet build`;
-# *.go → `go build ./...`; Cargo.toml → `cargo check`; tsconfig.json → `tsc --noEmit`;
-# pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
-# past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
-#
-# ── Pipefail/SIGPIPE: grepping a command's output (L-387, T-2090, T-2743, T-2738) ──
-#
-# THE DEFAULT — redirect to a file, then grep the file:
-#     cmd > /tmp/.out 2>&1 && grep -q "PATTERN" /tmp/.out
-#     curl -sf "$(bin/fw watchtower url)/page" -o /tmp/.out && grep -q "PAT" /tmp/.out
-# Correct at any output size, and `&&` keeps the PRODUCING command's exit code in
-# the verdict. Reach for this first; the alternative below is the special case.
-#
-# NEVER `cmd | grep -q PAT` (L-387) — why: P-011 runs each line under `set -eo
-# pipefail`. When grep matches it exits and closes stdin while cmd is still
-# writing, cmd takes SIGPIPE, the pipeline exits 141 — verification "fails" with
-# the pattern present. Captured 4× (T-1716, T-1838, T-1862, T-1863).
-#
-# THE EXCEPTION — capture first, grep the capture:
-#     out=$(cmd 2>&1); echo "$out" | grep -q "PATTERN"
-# Valid ONLY while "$out" fits the 65536-byte pipe buffer, and it is on you to
-# know that it does. Above that the form inverts and becomes the very failure
-# L-387 describes: echo blocks on the full pipe, grep -q exits, echo takes
-# SIGPIPE, rc=141 (T-2743 — measured on a 146,366-byte Watchtower page, 3/3 runs,
-# deterministic not racy; rendered routes run 50-200KB, so anything that curls a
-# page is over the line). It also discards cmd's exit code, so a 404 yields an
-# empty capture that grep merely fails to match rather than a failed line.
-# If you do use it: single pipe only, no intermediate tail/awk/sed stage between
-# capture and grep (T-2090) — the middle stage is what `grep -q` slams its stdin
-# on, and grep scans the whole captured string anyway, so the `tail -3` was
-# cosmetic. `echo "$out" | grep -q PAT`, nothing between.
-#
-# TEST RUNNERS need a guard either way (T-2738). `set -e` is suppressed inside the
-# `if` condition the gate runs each line in, so in `cmd1; cmd2` only cmd2 is the
-# verdict — and the pass marker you grep for survives a partial failure: a suite
-# printing "3 failed, 9 passed" satisfies `grep -q "9 passed"`, and generalising
-# to `grep -qE "[0-9]+ passed"` matches the same output. Keep the exit code:
-#     python3 -m pytest <file> -q > /tmp/.out 2>&1 && grep -q passed /tmp/.out
-# or add the guard the exit code used to supply:
-#     out=$(python3 -m pytest <file> -q 2>&1); echo "$out" | grep -q passed && ! echo "$out" | grep -q failed
-#     out=$(bats <file> 2>&1); echo "$out" | grep -q '^ok 1 ' && ! echo "$out" | grep -q '^not ok'
-# The close gate refuses the unguarded form. Bypass: FW_ALLOW_UNJUDGED_TEST_RUN=1.
-#
-# REHEARSING A LINE BY HAND DOES NOT REHEARSE THE GATE (T-2743). Your interactive
-# shell has no `set -eo pipefail`. A line has returned 0 by hand and 141 under
-# P-011, from the same directory, the same second. To rehearse for real:
-#     bash -c 'set -eo pipefail; <your verification line>'
-#
-# Enforcement-baseline hint (L-398, T-1886): if you edited `.claude/settings.json`
-# (added/removed/reorganised hooks), add `bin/fw enforcement baseline` to your
-# Verification block. Otherwise the canonical hash diverges and `fw doctor`
-# reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
-# Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
-# the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+# T-3018 — each line rehearsed under `bash -c 'set -eo pipefail; <line>'` before being
+# written here (T-2743), and the first two mutant-tested: adding a `budget)` arm to a
+# copy of checkpoint.sh fails line 1, appending the string to a copy of CLAUDE.md fails
+# line 3. Both are load-bearing, neither is vacuous (T-2831).
+test "$(grep -cE '^    budget\)' .agentic-framework/agents/context/checkpoint.sh)" = "0"
+test "$(grep -cE '^    (post-tool|reset|status)\)' .agentic-framework/agents/context/checkpoint.sh)" = "3"
+test "$(grep -c 'checkpoint\.sh budget' CLAUDE.md)" = "0"
+grep -q 'checkpoint\.sh status' CLAUDE.md
+test -z "$(grep -rl 'checkpoint\.sh budget' .claude/ 2>/dev/null)"
+grep -q '^status: work-completed' .tasks/completed/T-2950-the-g-087-safe-budget-read-verb-the-resu.md
+grep -q '^date_finished: 2026-09-09' .tasks/completed/T-2950-the-g-087-safe-budget-read-verb-the-resu.md
+grep -q 'checkpoint.sh budget' .vendor-divergence.yaml
+test -z "$(git status --porcelain .agentic-framework/agents/context/checkpoint.sh)"
+grep -q 'CONTEXT_WINDOW \* 95 / 100' .agentic-framework/agents/context/budget-gate.sh
+bash tests/safe-commands-checkpoint-fixtures.sh > /tmp/.t3018f 2>&1 && grep -q 'ALL PASS' /tmp/.t3018f
+
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom.** `.agentic-framework/agents/context/checkpoint.sh budget` — the read the `/resume`
+skill names as the G-087-*safe* one — prints usage, exits 1, and trips the `HOOK CRASHED` banner.
+It fired again this run, unprompted, during the `/resume` that opened the session.
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause.** Version skew, established under measurement by **T-2950**, not by this task. The
+vendored tree is `1.6.29` with a declared baseline of `2026-06-08`; CLAUDE.md references upstream
+`v1.6.295`. The skill is user-level and tracks current upstream, which ships the arm; the vendored
+build is three months behind and does not. Nothing is broken in the sense of a bug to patch — two
+components at different versions disagree about a verb.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Why structurally allowed — and this is the finding worth keeping.** T-3018 is a **duplicate of
+T-2950**, filed eleven days later, in the same arc, by the same route (executing the resume
+protocol). It was filed, scored through the estimators, selected as the arc's top Q1 item, and
+started, before anyone noticed the finding was already closed. The framework did not catch it
+because **every axis of the duplicate-work checker is cross-branch**:
+`scripts/check-task-id-collisions.sh` builds its candidate set as *IDs not already in the base*
+(`:168`, `:171`) and then runs all four axes over that set. Two tasks that both live on `main` are
+excluded by construction before any axis looks. Run this session against the real tree, the checker
+reported *"no colliding IDs, no duplicate files (7 branch(es) scanned against main)"* — correct on
+its own terms, and blind to the duplicate sitting in front of it. Axis B's rare-word scorer would
+comfortably have fired on these two titles (shared rare terms: *G-087-safe*, *budget*, *read*,
+*resume*); it never got the chance.
+
+**Prevention.** Filed as its own governed task rather than fixed here — the arc-008 rule is that
+each finding becomes its own task, and this one is a change to a guard, not to this defect. Filing
+upstream was **correctly refused** by two standing recorded decisions (T-2950 AC5, T-2961's
+`upstream_note` in `.vendor-divergence.yaml:94`), both citing P-075/T-2949: a report about a
+three-month-stale vendored build is phantom register debt, not a contribution. The real remediation
+is the re-vendor, a Sovereign decision already surfaced under T-2950/T-2949 and not taken here.
+
+## Correction
+
+**Two of the three premises in the filing were false, and measurement is what disproved them.**
+
+1. *"CLAUDE.md Session Start Protocol prescribes `checkpoint.sh budget`."* **False.** CLAUDE.md
+   prescribes `checkpoint.sh status` (`:2906`, `:2919`) — which exists — and mentions G-087 zero
+   times. The sole prescribing surface is the user-level `/resume` skill, outside this repo.
+   `.claude/` contains no occurrence.
+2. *"not previously filed."* **False.** T-2950 closed it on 2026-09-09 with five ticked criteria,
+   including the version-skew diagnosis and the deliberate do-not-file decision. T-2961 reached the
+   same conclusion independently on 2026-09-19 and fixed the downstream consequence (the P-002
+   allowlist gap that gated the read when focus was null), with 13 green fixtures.
+3. *The defect itself.* **True and reproduced** (AC1). That half of the filing stands.
+
+The original AC4 read: *"Filed upstream to `framework:pickup` per G-062 ... offset recorded here."*
+It was written on premise 2 and is therefore unexecutable: complying would contradict two standing
+decisions. It is rewritten above rather than silently dropped, and the original is preserved here —
+same convention applied to T-3025's AC2 last session.
+
+**What this task's execution actually produced** is not a fix for the budget verb, which needed
+none. It is the measurement that the arc re-filed its own closed finding, and the identification of
+why no guard could see it.
+
 
 ## Evolution
 

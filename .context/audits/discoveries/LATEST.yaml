@@ -1,15 +1,15 @@
-timestamp: 2026-09-20T14:00:01Z
+timestamp: 2026-09-20T15:00:02Z
 findings:
   - id: D1
     level: PASS
-    check: "D1: Episodic quality — 0% [TODO] (10/2441)"
+    check: "D1: Episodic quality — 0% [TODO] (10/2442)"
   - id: D2
     level: FAIL
-    check: "D2: Human review queue — 58 task(s) waiting >30d: T-1417(143d) T-1419(143d) T-1435(142d) T-1442(141d) T-1482(139d) T-1483(139d) T-1484(138d) T-1485(138d) T-1486(138d) T-1487(138d) T-1488(138d) T-1489(138d) T-1490(138d) T-1491(138d) T-1492(138d) T-1493(138d) T-1494(138d) T-1495(138d) T-1496(138d) T-1498(138d) T-1499(138d) T-1500(138d) T-1501(138d) T-1502(138d) T-1506(138d) T-1529(138d) T-1530(138d) T-1531(138d) T-1532(138d) T-1533(138d) T-1534(138d) T-1535(138d) T-1536(138d) T-1537(138d) T-1557(138d) T-1558(138d) T-1559(138d) T-1570(137d) T-1635(127d) T-1673(125d) T-1691(125d) T-1695(99d) T-1696(125d) T-1722(116d) T-1723(116d) T-1795(121d) T-2013(99d) T-2014(99d) T-2209(99d) T-2210(99d) T-2211(98d) T-2212(98d) T-2213(98d) T-2297(80d) T-2385(73d) T-2402(71d) T-2408(70d) T-2409(27d) T-2706(23d) T-2709(24d) T-2711(24d) T-2723(36d) T-2822(27d) T-2836(27d) T-2839(24d) T-2861(20d) T-2873(18d) T-2878(18d)"
+    check: "D2: Human review queue — 58 task(s) waiting >30d: T-1417(143d) T-1419(143d) T-1435(142d) T-1442(141d) T-1482(139d) T-1483(139d) T-1484(138d) T-1485(138d) T-1486(138d) T-1487(138d) T-1488(138d) T-1489(138d) T-1490(138d) T-1491(138d) T-1492(138d) T-1493(138d) T-1494(138d) T-1495(138d) T-1496(138d) T-1498(138d) T-1499(138d) T-1500(138d) T-1501(138d) T-1502(138d) T-1506(138d) T-1529(138d) T-1530(138d) T-1531(138d) T-1532(138d) T-1533(138d) T-1534(138d) T-1535(138d) T-1536(138d) T-1537(138d) T-1557(138d) T-1558(138d) T-1559(138d) T-1570(138d) T-1635(127d) T-1673(125d) T-1691(125d) T-1695(99d) T-1696(125d) T-1722(116d) T-1723(116d) T-1795(121d) T-2013(99d) T-2014(99d) T-2209(99d) T-2210(99d) T-2211(99d) T-2212(99d) T-2213(99d) T-2297(80d) T-2385(73d) T-2402(71d) T-2408(70d) T-2409(27d) T-2706(23d) T-2709(24d) T-2711(24d) T-2723(36d) T-2822(27d) T-2836(27d) T-2839(24d) T-2861(20d) T-2873(18d) T-2878(18d)"
     mitigation: "Review with: fw task verify (lists unchecked Human ACs)"
   - id: D8
     level: FAIL
-    check: "D8: Handover quality — LATEST.md has 6 [TODO] sections"
+    check: "D8: Handover quality — LATEST.md has 5 [TODO] sections"
     mitigation: "Fill handover: edit .context/handovers/LATEST.md or run fw handover"
   - id: D10
     level: PASS
