@@ -8,7 +8,7 @@ description: >
   pinning it. Evidence: docs/reports/VALUE-REVIEW-repo-2026-09-19-consolidated.md
   C-13.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -26,7 +26,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-19T21:57:55Z
-last_update: '2026-09-20T08:45:19Z'
+last_update: 2026-09-20T18:57:10Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -68,14 +68,79 @@ cost_estimate_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+The filing (S-1/C-13) is right that the masking exists and wrong about the remedy.
+
+**Measured (AC1/AC2), 30 canaries on the real tree:** 25 healthy, 3 firing, 2 not-scheduled.
+All three FIRING rows have `log_mtime == heartbeat_mtime` to the second. Seven canaries hold
+non-empty logs; four of those read HEALTHY. Six of the non-empty-log canaries carry the
+signature of genuine resolution — heartbeat and log share the **same minute-of-day** weeks
+apart (dead-letter 07:39/07:39, fleet-doorbell-mail 09:23/09:23, stuck-claims 07:27/07:27),
+which is a fixed-time daily cron that has re-evaluated and appended nothing since.
+
+**The mechanism is sharper than filed.** The two writes have different authors: the check
+SCRIPT touches its own `.heartbeat`, while the LOG is appended by the *crontab's* `>>`
+redirect (`check-stuck-claims-freshness.sh:44` vs `.context/cron/stuck-claims-canary.crontab`).
+So running `bash scripts/check-<x>.sh` by hand sends findings to the terminal, appends
+nothing, and advances the heartbeat. A FIRING canary reads HEALTHY from that moment on —
+and an ad-hoc run is exactly what this file prescribes as the operator's response to a
+firing canary. That is a real, non-synthetic masked path, and it satisfied AC3's bar.
+
+**But the predicate cannot be fixed, and the filed fix would do harm.** Genuine resolution
+and ad-hoc masking leave *byte-identical* state: `log non-empty, heartbeat newer`. No
+mtime-only predicate can separate them. The filing's prescription — "fire on unacknowledged
+log content, heartbeat never clears" — would hold framework-pickup (63,993 B),
+stale-waker-code, stuck-claims and fleet-doorbell-mail permanently red over resolved
+history: the T-2818/T-2833 fatigue trap traded for the masking one. The existing fixture
+suite already warned about precisely this ("If that leg ever fails, the fix has turned every
+canary that ever fired into a permanent red light").
+
+**Shipped instead:** the status taxonomy, exit codes and JSON `status` values are unchanged
+— a new status is an ungated contract change to a layer other tools parse — and the reader
+stops over-claiming. `SCOPE_NOTE` is defined once and printed on the full render, the
+quiet-with-problems path and the JSON envelope, stating that HEALTHY over a non-empty log
+means "no NEW entry since the last heartbeat", never "resolved". The `else`-branch comment
+now names both causes instead of asserting only resolution.
+
+**Two paths deliberately carry no scope line:** quiet-with-no-problems (emits nothing by
+design — adding output there would break every cron consumer) and the zero-canaries path
+(no log exists to be misread; that is a no-data condition, not a health report).
+
+**Side findings, not fixed here:** (a) `/canaries` prints a log's signal-bearing line
+directly beneath a HEALTHY row, so an operator sees `verdict=setup-fail` under a green
+status — observed live on fleet-doorbell-mail, and it broke this task's own first fixture
+attempt; (b) heartbeat format is inconsistent — ~6 canaries write an ISO timestamp, the rest
+are bare `touch`, so the content slot needed to record invocation provenance already exists
+on some and not others. The real fix — have each check script refuse to touch its heartbeat
+when stdout is a terminal (`[ -t 1 ]`), or record provenance in it — spans 27 scripts and is
+its own task.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] AC1: The mechanism is MEASURED on the real tree, not asserted. For every canary
+      holding a non-empty log, record log_size / log_mtime / heartbeat_mtime and the
+      classification `classify()` produces, and state how many read HEALTHY while
+      holding unacknowledged log content.
+- [x] AC2: Each HEALTHY-with-content canary is separated into RESOLVED (a later run
+      re-evaluated the SAME condition with the SAME scope and found nothing — the
+      documented and correct semantics of the `else` branch) versus MASKED (the
+      heartbeat was advanced by a run that did not re-evaluate that condition:
+      narrower flags, different scope, or an inspection run). Counts for both, with
+      the evidence that distinguishes them.
+- [x] AC3: A predicate change ships ONLY if AC2 yields at least one genuine MASKED
+      instance on the real tree, or a non-synthetic path to one. If AC2 yields zero,
+      that is recorded and NO predicate change ships — a fix justified only by a
+      fixture it was written to satisfy is the T-2831 vacuous-check class, and
+      "permanently FIRING until acknowledged" is the T-2818/T-2833 fatigue trap in
+      the opposite direction.
+- [x] AC4: Whatever ships (including a decision to ship no predicate change),
+      `/canaries` states on every output path what its green does and does not
+      cover, per the T-2680 scope-disclaimer precedent.
+- [x] AC5: `tests/canary-status-fixtures.sh` (or the suite that covers this script)
+      passes before and after. Any new assertion carries a mutant leg that fails
+      when the change is reverted — a guard's green is not evidence until it has
+      been fed the violation it claims to catch (PL-328).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -171,6 +236,21 @@ cost_estimate_proposed:
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+bash tests/canary-status-firing-fixtures.sh > /tmp/.t2975-fix 2>&1 && grep -q "failed: 0" /tmp/.t2975-fix
+bash tests/canary-status-firing-fixtures.sh > /tmp/.t2975-fix2 2>&1 && grep -q "passed: 12" /tmp/.t2975-fix2
+bash tests/canary-status-worktree-fixtures.sh > /tmp/.t2975-wt 2>&1 && grep -q "0 failed" /tmp/.t2975-wt
+bash tests/canary-log-isolation-fixtures.sh > /tmp/.t2975-iso 2>&1 && grep -q "0 failed" /tmp/.t2975-iso
+test "$(grep -c '^SCOPE_NOTE=' scripts/canary-status.sh)" = "1"
+test "$(grep -c 'scope: \$SCOPE_NOTE' scripts/canary-status.sh)" = "2"
+grep -q '"scope":"%s"' scripts/canary-status.sh
+grep -q "masked path" tests/canary-status-firing-fixtures.sh
+grep -q "mutant-scope" tests/canary-status-firing-fixtures.sh
+bash scripts/canary-status.sh > /tmp/.t2975-real 2>&1 || true
+grep -q "scope: HEALTHY on a non-empty log" /tmp/.t2975-real
+bash scripts/canary-status.sh --json > /tmp/.t2975-json 2>/dev/null || true
+python3 -c "import json; d=json.load(open('/tmp/.t2975-json')); assert d['scope']"
+test -z "$(git status --porcelain .agentic-framework/)"
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -186,6 +266,35 @@ cost_estimate_proposed:
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
+
+**Symptom:** `/canaries` reports HEALTHY for a canary whose log holds unresolved findings.
+Concretely: a canary that is FIRING flips to HEALTHY the moment anyone runs its check
+script by hand, and stays that way. Observed live — fleet-doorbell-mail renders
+`verdict=setup-fail` directly beneath a green HEALTHY row.
+
+**Root cause:** the heartbeat and the log have *different authors*. The check script
+touches its own `.heartbeat`; the log is appended by the crontab's `>>` redirect. So any
+invocation not wrapped by that crontab — an operator's ad-hoc run, a differently-flagged
+run — advances the heartbeat while writing nothing to the log. `classify()` decides
+HEALTHY-vs-FIRING purely from `log_mtime` vs `heartbeat_mtime`, and that ordering has two
+causes it cannot tell apart: genuine resolution, and an un-redirected run.
+
+**Why structurally allowed:** the reader infers "resolved" from an ordering that does not
+entail it, and nothing anywhere records *which kind of run* produced a heartbeat. T-2826
+hardened the equality case (`-gt` → `-ge`) and deliberately preserved the
+historical-stays-HEALTHY branch as correct, which pinned the remaining half as intended
+behaviour. The masking is therefore invisible to every existing check, and the documented
+operator response to a firing canary ("Ad-hoc check: `bash scripts/check-<x>.sh`") is the
+action that triggers it.
+
+**Prevention:** the reader no longer claims more than it knows — `SCOPE_NOTE` on all three
+reporting paths states that HEALTHY over a non-empty log means "no NEW entry since the last
+heartbeat", never "resolved" — plus fixture case 6, which reproduces the masking sequence
+(FIRING → advance heartbeat only → HEALTHY) so any future predicate change must confront it,
+and two mutants proving the declaration is load-bearing. This is detection and honesty, not
+a cure: the cure is provenance in the heartbeat (`[ -t 1 ]`, or a recorded invocation
+marker), which spans 27 check scripts and is filed as its own task rather than smuggled in
+here.
 
 ## Evolution
 
@@ -210,6 +319,41 @@ cost_estimate_proposed:
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+- **The filing's premise held; its prescribed remedy did not.** "Fix predicate (fire on
+  unacknowledged log content, heartbeat never clears)" would have put framework-pickup,
+  stale-waker-code, stuck-claims and fleet-doorbell-mail permanently red over history that
+  six independent daily cron runs had already resolved. Shipping it would have traded the
+  masking defect for the T-2818/T-2833 fatigue defect and called it a fix. Third task this
+  run where measuring the recorded premise changed the work.
+
+- **The two states are byte-identical, so no predicate could have worked.** This was not
+  discoverable from the filing, only from reading who writes the heartbeat versus who writes
+  the log. It is the T-2875/T-2876 shape again — outcomes indistinguishable from one side —
+  arriving in the monitoring layer rather than the comms layer.
+
+- **The existing fixture suite had already written the warning.** Its header says "If that
+  leg ever fails, the fix has turned every canary that ever fired into a permanent red
+  light." T-2826 anticipated exactly the over-correction this task was asked to make. The
+  guard layer's own prose was the best evidence available, and it was free.
+
+- **A new status was the tempting fix and was declined.** `UNVERIFIED` as a fourth,
+  non-firing class would genuinely stop the false assurance — but `status` flows into the
+  JSON envelope, the exit-code counters and the meta-canary, and changing it is an ungated
+  contract change to a layer other tools parse. Recorded as the follow-up, not opened here
+  ("one lock at a time").
+
+- **The first fixture attempt failed, and the failure was the finding.** Asserting on
+  rendered text matched the word FIRING inside the planted *log body*, because the script
+  prints a log's signal-bearing line beneath a HEALTHY row. Re-anchoring the assertion on
+  the JSON status field fixed it — and surfaced side finding (a), which is a real operator
+  hazard nobody had filed.
+
+- **Cost was dominated by four gates, not by the edit.** P-002 refused a `for` loop and a
+  leading `VAR=` assignment; G-020 refused the read-only `canary-status.sh` run and the
+  estimator. Reaching a cost score required passing four gates in sequence, and the last of
+  them required writing the ACs first — so the estimator's `acs=`/`lines=` inputs are a
+  function of work the gate forced to happen before the estimate.
 
 ## Recommendation
 
@@ -270,3 +414,6 @@ cost_estimate_proposed:
 
 ### 2026-09-19T22:08:33Z — status-update [task-update-agent]
 - **Change:** tags: +arc:arc-009
+
+### 2026-09-20T18:57:10Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

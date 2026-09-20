@@ -101,6 +101,78 @@ else
     bad "empty log must stay HEALTHY" "rc=$rc; $(printf '%s' "$out" | head -4)"
 fi
 
+# --- 5. T-2975: the green must declare what it does not cover ---------------
+#
+# HEALTHY on a NON-EMPTY log is not a claim that the finding was resolved. The
+# check script touches its own heartbeat; the crontab appends the log. So a
+# hand-run sends findings to the terminal, advances the heartbeat, appends
+# nothing — and the canary reads HEALTHY from then on. Case 6 below reproduces
+# exactly that sequence, so the behaviour is pinned rather than merely described.
+
+rm -f "$W"/.*-canary.* 2>/dev/null
+mk scoped "check-x: FIRING — something is wrong" "$NOW" "$NOW"
+
+out=$(run)
+if printf '%s' "$out" | grep -q "scope:"; then
+    ok "full render declares its scope"
+else
+    bad "full render declares its scope" "$(printf '%s' "$out" | head -4)"
+fi
+
+qout=$(run --quiet)
+if printf '%s' "$qout" | grep -q "scope:"; then
+    ok "quiet-with-problems path declares its scope"
+else
+    bad "quiet-with-problems path declares its scope" "$(printf '%s' "$qout" | head -4)"
+fi
+
+jout=$(run --json)
+if printf '%s' "$jout" | python3 -c "import json,sys; d=json.load(sys.stdin); sys.exit(0 if d.get('scope') else 1)"; then
+    ok "JSON envelope parses and carries a non-empty scope field"
+else
+    bad "JSON envelope parses and carries a non-empty scope field" "$(printf '%s' "$jout" | head -c 200)"
+fi
+
+# --- 6. T-2975: the masking sequence itself ---------------------------------
+# A canary that IS firing, then has ONLY its heartbeat advanced (what a hand-run
+# does), flips to HEALTHY. This is the defect; it is pinned so that any future
+# change to the predicate has to confront it deliberately.
+rm -f "$W"/.*-canary.* 2>/dev/null
+mk masked "check-x: the subsystem is broken" "$NOW" "$NOW"
+
+# Read the STATUS FIELD, not the rendered text. The rendered text also echoes the
+# log's own signal-bearing line, so grepping the whole output for a status word
+# matches the log body instead of the verdict — which is itself the display half
+# of this defect: an alarming log line prints directly beneath a HEALTHY row.
+status_of() { (cd "$TMP" && bash "$SCRIPT" --json 2>/dev/null) \
+    | python3 -c "import json,sys; print(json.load(sys.stdin)['canaries'][0]['status'])"; }
+
+before=$(status_of); (cd "$TMP" && bash "$SCRIPT" >/dev/null 2>&1); rcb=$?
+touch -d "@$((NOW + 60))" "$W/.masked-canary.heartbeat"   # the hand-run
+after=$(status_of); (cd "$TMP" && bash "$SCRIPT" >/dev/null 2>&1); rca=$?
+if [ "$before" = "FIRING" ] && [ "$rcb" -eq 1 ] \
+   && [ "$after" = "HEALTHY" ] && [ "$rca" -eq 0 ]; then
+    ok "advancing the heartbeat alone flips FIRING to HEALTHY (the masked path)"
+else
+    bad "masked path must reproduce" "before=$before rc=$rcb after=$after rc=$rca"
+fi
+
+# --- 7. mutants: the declaration must be load-bearing -----------------------
+MUT="$TMP/mutant-scope.sh"
+sed '/echo "  scope: \$SCOPE_NOTE"/d' "$SCRIPT" > "$MUT"
+mout=$( cd "$TMP" && bash "$MUT" 2>&1 )
+if printf '%s' "$mout" | grep -q "scope:"; then
+    bad "mutant: removing the scope prints silences the declaration" "still printed"
+else
+    ok "mutant: removing the scope prints silences the declaration"
+fi
+
+if [ "$(grep -c '^SCOPE_NOTE=' "$SCRIPT")" = "1" ]; then
+    ok "SCOPE_NOTE has exactly one definition (paths cannot drift apart)"
+else
+    bad "SCOPE_NOTE must be defined once" "found $(grep -c '^SCOPE_NOTE=' "$SCRIPT")"
+fi
+
 echo
 echo "  passed: $PASS   failed: $FAIL"
 [ "$FAIL" -eq 0 ] || exit 1

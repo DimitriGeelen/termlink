@@ -65,6 +65,15 @@ WORKING_DIR_EXPLICIT=0
 # source-level static check that merely left a heartbeat behind. Overridable so
 # fixtures can point it at a temp tree; an absent dir fails open.
 CRON_SRC_DIR="${CANARY_STATUS_CRON_DIR:-.context/cron}"
+
+# T-2975. HEALTHY on a canary whose log is NON-EMPTY means only "no new entry
+# since the last heartbeat" — it is not a statement that the recorded finding
+# was resolved. The heartbeat is touched by the check SCRIPT; the log is
+# appended by the CRONTAB redirect, so any hand-run of the script advances the
+# heartbeat while its findings go to the terminal. Stated on EVERY output path,
+# clean included, because a reader reporting green is exactly why nobody looks
+# (T-2680).
+SCOPE_NOTE="HEALTHY on a non-empty log means 'no NEW entry since the last heartbeat', NOT 'resolved' — any hand-run of a check script advances its heartbeat without appending (T-2975)"
 MAX_AGE_HOURS=48
 JSON=0
 QUIET=0
@@ -308,9 +317,35 @@ classify() {
             # advances. Only a run that actually appended can tie.
             status="FIRING"
         else
-            # Log non-empty but no new entries since last heartbeat: prior
-            # firings are now resolved (healthy current state, historical
-            # entries remain in log).
+            # Log non-empty but no new entries since last heartbeat.
+            #
+            # T-2975: this branch has TWO causes and cannot tell them apart,
+            # because they leave byte-identical state on disk:
+            #
+            #   (a) RESOLVED — a later CRON run re-evaluated the same condition
+            #       with the same flags and found nothing to append. Healthy.
+            #       Signature on the real tree: heartbeat and log share the same
+            #       minute-of-day weeks apart (a fixed-time daily job that has
+            #       appended nothing since). 6 of 7 non-empty logs here.
+            #
+            #   (b) MASKED — the heartbeat was advanced by a run that never
+            #       re-evaluated this finding. The script touches its OWN
+            #       heartbeat; the log is appended by the CRONTAB's `>>`
+            #       redirect. So running `bash scripts/check-<x>.sh` by hand
+            #       sends findings to the TERMINAL and appends nothing, while
+            #       the heartbeat moves. A FIRING canary inspected by hand is
+            #       reported HEALTHY from that moment on — and an ad-hoc run is
+            #       precisely what CLAUDE.md tells the operator to do when a
+            #       canary fires.
+            #
+            # No mtime-only predicate can separate (a) from (b), so the fix the
+            # filing proposed ("heartbeat never clears") is not available here:
+            # it would hold framework-pickup, stale-waker-code, stuck-claims and
+            # fleet-doorbell-mail permanently red over resolved history — the
+            # T-2818/T-2833 fatigue trap, traded for the masking one. What is
+            # available is to stop over-claiming: the status stays HEALTHY (the
+            # exit-code and JSON contract are unchanged) and every output path
+            # states what that green does NOT cover. See SCOPE_NOTE.
             status="HEALTHY"
         fi
     fi
@@ -374,9 +409,10 @@ PROBLEMS=$((FIRING + STALE))
 
 # JSON rendering.
 if [ "$JSON" = "1" ]; then
-    printf '{"ok":true,"summary":{"total":%d,"healthy":%d,"firing":%d,"stale":%d,"no_heartbeat":%d,"not_scheduled":%d,"max_age_hours":%d},"canary_dir":"%s","resolution":"%s","canaries":[' \
+    printf '{"ok":true,"summary":{"total":%d,"healthy":%d,"firing":%d,"stale":%d,"no_heartbeat":%d,"not_scheduled":%d,"max_age_hours":%d},"canary_dir":"%s","resolution":"%s","scope":"%s","canaries":[' \
         "$TOTAL" "$HEALTHY" "$FIRING" "$STALE" "$NO_HB" "$NOT_SCHED" "$MAX_AGE_HOURS" \
-        "$(printf '%s' "$WORKING_DIR" | sed 's/\\/\\\\/g; s/"/\\"/g')" "$RESOLUTION"
+        "$(printf '%s' "$WORKING_DIR" | sed 's/\\/\\\\/g; s/"/\\"/g')" "$RESOLUTION" \
+        "$(printf '%s' "$SCOPE_NOTE" | sed 's/\\/\\\\/g; s/"/\\"/g')"
     first=1
     while IFS=$'\t' read -r name status log_size log_mtime hb_mtime latest_entry; do
         [ -n "$name" ] || continue
@@ -426,6 +462,7 @@ if [ "$QUIET" = "1" ]; then
     # Quiet mode WITH problems: render only the FIRING/STALE rows.
     echo "canary-status: $PROBLEMS canary(ies) need attention ($FIRING firing, $STALE stale, threshold ${MAX_AGE_HOURS}h)"
     echo "  read: $WORKING_DIR [$RESOLUTION]"
+    echo "  scope: $SCOPE_NOTE"
     while IFS=$'\t' read -r name status log_size log_mtime hb_mtime latest_entry; do
         [ -n "$name" ] || continue
         case "$status" in
@@ -443,6 +480,7 @@ fi
 # Full human render.
 echo "canary-status: $TOTAL canary(ies) — $HEALTHY healthy, $FIRING firing, $STALE stale, $NOT_SCHED not-scheduled (threshold ${MAX_AGE_HOURS}h)"
 echo "  read: $WORKING_DIR [$RESOLUTION]"
+echo "  scope: $SCOPE_NOTE"
 echo ""
 printf '  %-12s %-32s %s\n' "STATUS" "NAME" "LAST FIRED / LATEST ENTRY"
 printf '  %-12s %-32s %s\n' "------" "----" "-------------------------"
