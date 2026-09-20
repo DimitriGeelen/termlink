@@ -1,22 +1,20 @@
 ---
-id: T-3015
-name: "Handover generator emits 5 unfilled [TODO] sections and PreCompact auto-commits
-  them — D8/D8b recur every compaction"
+id: T-3014
+name: "arc-008 cycle-2 census: re-run fw audit + fw doctor, diff vs cycle-1, file
+  unfiled findings"
 description: >
-  arc-008 cycle-2 finding. T-2941 (D8) and T-2942 (D8b) were closed work-completed
-  2026-09-09 having filled that day's handover; 11 days later both audit lines are
-  unchanged (5 [TODO], 10/10). The mechanism — handover.sh emitting 5 [TODO] sections
-  plus a PreCompact hook that auto-generates and auto-commits without requiring them
-  filled — was never touched, so every compaction mints a fresh violation. Linked
-  to T-2941/T-2942/T-2943, not merged (arc-008 rule). Census: .context/audits/arc-008-cycle2-census.md
+  arc-008 cycle-2 census: re-run fw audit + fw doctor, diff vs cycle-1, file unfiled
+  findings
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
-related_tasks: [T-2941, T-2942, T-2943, T-3014]
+components:
+  - .context/audits/arc-008-cycle2-census.md
+  - .context/audits/arc-008-cycle1-census.md
+related_tasks: [T-2938, T-2939, T-2940]
 arc_id: arc-008
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -28,9 +26,9 @@ arc_id: arc-008
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-20T10:29:11Z
-last_update: 2026-09-20T10:37:22Z
-date_finished:
+created: 2026-09-20T10:14:56Z
+last_update: 2026-09-20T10:33:48Z
+date_finished: 2026-09-20T10:33:48Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -42,55 +40,71 @@ date_finished:
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 bvp_scores_proposed:
-  - ts: '2026-09-20T10:32:40Z'
+  - ts: '2026-09-20T10:17:08Z'
     estimator: bvp-estimator-v1-heuristic
     scores:
       D1: 4
-      D2: 0
+      D2: 4
       D3: 3
       D4: 2
-      F-RECALL: 1
+      F-RECALL: 0
       F-ORCH: 0
-    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
       (body:component-discoverability); D4=2 (body:env-class-handled); 
-      F-RECALL=1 (body:episodic-only); F-ORCH=0 (no-signal)
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
 cost_estimate_proposed:
-  - ts: '2026-09-20T10:32:40Z'
+  - ts: '2026-09-20T10:17:24Z'
     estimator: bvp-estimator-v1-heuristic
     cost_estimate:
       blast_radius:
       tier: 2
       effort: 8
     rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
-      (workflow:build); effort=8 (lines=204,acs=4)
+      (workflow:build); effort=8 (lines=228,acs=5)
+    rubric_sha: e4a00f38e801
+  - ts: '2026-09-20T10:17:36Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 8
+    rationale: blast_radius=3 (2-components); tier=2 (workflow:build); effort=8 
+      (lines=228,acs=5)
     rubric_sha: e4a00f38e801
 ---
 
-# T-3015: Handover generator emits 5 unfilled [TODO] sections and PreCompact auto-commits them — D8/D8b recur every compaction
+# T-3014: arc-008 cycle-2 census: re-run fw audit + fw doctor, diff vs cycle-1, file unfiled findings
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+arc-008's rule is that verification of a finding is **the re-run of the audit in the next
+cycle, not self-assertion**. Cycle 1 (2026-09-09, `.context/audits/arc-008-cycle1-census.md`)
+captured the complete finding census: `fw audit` 368 pass / 77 warn / 5 fail, `fw doctor`
+14 warn / 0 fail. Eleven days later the three Q1 tasks filed off that census (T-2938 cron
+drift, T-2939 uninstalled substrate-smoke canary, T-2940 D2 review queue) are all parked to
+human review with GO verdicts, but **nobody has re-run the census**, so which cycle-1
+findings actually cleared is unmeasured — and the arc rule says that re-run is the proof.
+
+This task is the cycle-2 census: re-run both verbs, write the durable cycle-2 record, diff
+it against cycle-1 (cleared / persisting / new), and file any FAIL that has no task, per the
+arc rule that every individual FAIL and WARNING becomes its own governed task and findings
+sharing a root cause are linked, never merged.
+
+Scope boundary: this task **measures and files**. It does not remediate any finding — each
+remediation is its own task, which is the arc's whole premise.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] The 5 `[TODO]` markers in a freshly generated handover are split by cause, measured not
-      asserted: how many are the T-2943 generator-comment floor (unfillable) and how many are
-      genuinely unfilled sections. Recorded with the file and line numbers.
-- [x] The recurrence is demonstrated end-to-end on a single session: a handover generated,
-      auto-committed and auto-pushed by `fw handover` while carrying unfilled sections — i.e.
-      the mechanism ships a fresh D8/D8b violation with no human in the loop
-- [ ] Filed upstream to `framework:pickup` per G-062 (the generator and the PreCompact hook are
-      both vendored), carrying the measurement and a proposed fix; the offset is recorded here.
-      No local patch to `.agentic-framework/` is made, and that is stated rather than left silent
-
-**Scope note (T-2680 discipline).** A green here means the mechanism is measured, demonstrated
-and filed. It does **not** mean D8 passes — T-2943 established D8's PASS is unreachable while
-the generator's own comment counts toward its tally. The number to watch is **D8b**, which is
-reachable and currently 10/10.
+- [x] `.context/audits/arc-008-cycle2-census.md` exists and records, for both `fw audit`
+      (all sections) and `fw doctor`: the summary counts, the capture timestamp/commit, and
+      every raw FAIL line verbatim
+- [x] The census carries an explicit cycle-1 → cycle-2 diff naming each cycle-1 FAIL as
+      CLEARED / PERSISTS / SUPERSEDED, with the evidence for each verdict
+- [x] Every FAIL in the cycle-2 audit is either mapped to an existing task ID or filed as a
+      new task, and the census records the mapping (no FAIL left unattributed)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -126,6 +140,11 @@ reachable and currently 10/10.
 -->
 
 ## Verification
+
+test -f .context/audits/arc-008-cycle2-census.md
+grep -q "^## Cycle-1 to cycle-2 diff" .context/audits/arc-008-cycle2-census.md
+grep -q "^## FAIL to task mapping" .context/audits/arc-008-cycle2-census.md
+grep -q "^## Audit FAIL" .context/audits/arc-008-cycle2-census.md
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -204,27 +223,39 @@ reachable and currently 10/10.
 
 ## Evolution
 
-<!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
-     understanding evolved during build — what was learned that wasn't known at
-     filing, what in the original plan no longer fits, what triggered pivots
-     or new sub-tasks. Mandatory at slice boundaries (when applicable) and
-     before --status work-completed.
+### 2026-09-20 — the re-run contradicted two closed tasks
+- **What changed:** The census was filed expecting to confirm remediation. It did the
+  opposite for D8/D8b: T-2941 and T-2942 were closed `work-completed` on 2026-09-09 and
+  eleven days later both audit lines are byte-identical (5 [TODO], 10/10). The distinction
+  that emerged is instance-vs-mechanism — both tasks filled the handover that existed that
+  day; neither touched `handover.sh` or the PreCompact auto-commit that mints a new
+  violation on every compaction. `fw doctor` emitted HANDOVER STALE during this session,
+  unprompted, which is the mechanism firing in real time.
+- **Plan impact:** "diff the two cycles" was scoped as bookkeeping. It is the arc's actual
+  verification instrument, and this is the first cycle where it caught something that
+  self-assertion had already marked done.
+- **Triggered:** T-3015 (the mechanism, linked to T-2941/2942/2943 rather than reopening
+  either — arc rule: findings sharing a root cause are linked, never merged).
 
-     Origin: T-1717 grill Q4 — "the understanding of what we need and want
-     evolves with the process of materialisation." Structural counter to §ACD:
-     spec-vs-build divergence is logged as soon as it happens, not lost as
-     folklore.
+### 2026-09-20 — two framework surfaces disagree about the same 30 tasks
+- **What changed:** Not in the plan at all. CTL-029 flags T-2938/T-2939/T-2940 as
+  "completable, not closed"; attempting that close returned `Sovereignty gate (R-033):
+  owner is human`. Found by hitting the refusal, not by reading the warning list — I had
+  gone to close those three believing a prior session had simply forgotten to.
+- **Plan impact:** The premise that arc-008's Q1 tasks were "unfinished" was wrong; their
+  parked-to-review state is terminal for an agent. 30 of 94 warnings are an un-actionable
+  class.
+- **Triggered:** PL-376 (the terminal-state rule), T-3016 (the contradiction itself).
 
-     Format (one entry per slice boundary or significant insight):
-       ### YYYY-MM-DD — [topic]
-       - **What changed:** [what we learned that we didn't know at filing]
-       - **Plan impact:** [what in the plan no longer fits]
-       - **Triggered:** [new sub-task / pivot / scope cut, with task ID if filed]
-
-     The completion gate (T-1718) blocks --status work-completed when this
-     section exists but is empty/template-only. Use --skip-evolution to bypass
-     (logged Tier-2). Non-arc tasks may leave this empty.
--->
+### 2026-09-20 — the census nearly lost its own evidence
+- **What changed:** The full audit takes ~8 minutes. I misread a slow run as a dead one
+  (`pgrep 'fw audit'` misses it — the process is named `audit.sh`), and the retry's `rm`
+  deleted the live run's output file from under it. The run survived on a deleted inode and
+  the output was recovered through `/proc/<pid>/fd/1`; the second invocation was correctly
+  refused rc=75 by the flock.
+- **Plan impact:** None to the deliverable — the data is complete. Worth recording because
+  the lock behaved exactly as designed and the near-loss was entirely mine.
+- **Triggered:** nothing filed; no framework defect involved.
 
 ## Recommendation
 
@@ -278,51 +309,19 @@ reachable and currently 10/10.
 
 ## Updates
 
-### 2026-09-20T10:29:11Z — task-created [task-create-agent]
+### 2026-09-20T10:14:56Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3015-handover-generator-emits-5-unfilled-todo.md
+- **Output:** /opt/termlink/.tasks/active/T-3014-arc-008-cycle-2-census-re-run-fw-audit--.md
 - **Context:** Initial task creation
 
-### 2026-09-20T10:37:22Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
+## Reviewer Verdict (v1.5)
 
-### 2026-09-20T10:40:00Z — measured + recurrence demonstrated end-to-end [agent, autonomous run]
+- **Scan ID:** R-06ae37e8
+- **Timestamp:** 2026-09-20T10:33:49Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
 
-**AC1 — the 5 markers, split by cause (measured on `S-2026-0920-1235.md`, not asserted):**
-
-| line | marker | cause | fillable |
-|---|---|---|---|
-| 6 | `# Whoever enriches the [TODO] sections flips this to 'enriched'` | generator's own instructional comment (T-2943 floor) | **no** |
-| 232 | `[TODO: decisions taken this session...]` | genuinely unfilled | yes |
-| 236 | `[TODO: approaches tried that did not work...]` | genuinely unfilled | yes |
-| 240 | `[TODO: questions left open...]` | genuinely unfilled | yes |
-| 252 | `[TODO: traps the next session should know about...]` | genuinely unfilled | yes |
-
-So **1 floor + 4 genuinely unfilled**. This settles the question the cycle-2 census raised:
-D8 FAILs at threshold `>3` with a count of 5, and four of those five are real. The FAIL is
-**not** an artifact of T-2943's floor — that accounts for exactly one.
-
-After filling the four, the count is **2**: the line-6 floor, plus one new occurrence in the
-Gotchas prose that *describes* the marker. That second one is T-2943's documented inflation
-("prose about the marker also counts") reproduced verbatim. Both are below D8b's `>3`
-per-file threshold, so this file now clears D8b.
-
-**AC2 — the recurrence, demonstrated on one session with no human in the loop:**
-1. `fw handover` was run once, to wrap up.
-2. It generated `S-2026-0920-1235.md` carrying 5 `[TODO]` sections,
-3. **auto-committed** it as `77f60e10e`, and
-4. **auto-pushed** it to OneDev (`397583e04..77f60e10e`) — carrying two unrelated commits with it.
-
-No step asked anyone to fill anything. A fresh D8/D8b violation was minted, committed and
-published in a single unattended verb invocation. Independently, the commit hook emitted
-`HANDOVER STALE: Last handover has 5 unfilled [TODO] sections` twice during this session —
-the framework observing the defect while producing it.
-
-This is why T-2941/T-2942 could close honestly in September and both audit lines still FAIL
-eleven days later: they filled a file, and the file is regenerated on every compaction.
-
-**AC3 — NOT done.** The upstream filing to `framework:pickup` has not been made. Deliberate:
-this session hit its context stop condition (~90%) and posting to the fleet rail is an
-outward-facing action better taken with budget to verify the send landed. No local patch was
-made to `handover.sh` or the PreCompact hook — both are vendored (G-062), so a local fix
-would be erased by the next re-vendor. Stated explicitly rather than left silent.
+### 2026-09-20T10:33:48Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

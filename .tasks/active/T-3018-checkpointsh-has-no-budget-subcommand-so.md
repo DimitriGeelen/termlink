@@ -1,21 +1,16 @@
 ---
-id: T-3014
-name: "arc-008 cycle-2 census: re-run fw audit + fw doctor, diff vs cycle-1, file
-  unfiled findings"
+id: T-3018
+name: "checkpoint.sh has no 'budget' subcommand, so the G-087-safe budget read prescribed by /resume and CLAUDE.md crashes"
 description: >
-  arc-008 cycle-2 census: re-run fw audit + fw doctor, diff vs cycle-1, file unfiled
-  findings
+  The /resume skill and CLAUDE.md Session Start Protocol both prescribe '.agentic-framework/agents/context/checkpoint.sh budget' as the G-087-safe way to read context budget, explicitly warning NOT to raw-cat .context/working/.budget-status because a stale or foreign-session cache reads back as a plausible {level:ok,tokens:0}. The vendored checkpoint.sh implements only {post-tool|reset|status}: invoking 'budget' prints usage, exits 1, and triggers a 'HOOK CRASHED (exit 1)' banner. So the documented safe path does not exist and an agent following the instruction either crashes or falls back to the exact raw read G-087 forbids. Observed twice across sessions (2026-09-18 and 2026-09-20) and not previously filed. Workaround: 'checkpoint.sh status' reports tokens and percentage. Vendored (G-062) so the fix is upstream.
 
-status: started-work
+status: captured
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components:
-  - .context/audits/arc-008-cycle2-census.md
-  - .context/audits/arc-008-cycle1-census.md
-related_tasks: [T-2938, T-2939, T-2940]
-arc_id: arc-008
+components: []
+related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
@@ -26,9 +21,9 @@ arc_id: arc-008
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-20T10:14:56Z
-last_update: '2026-09-20T10:17:36Z'
-date_finished:
+created: 2026-09-20T10:34:39Z
+last_update: 2026-09-20T10:34:39Z
+date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -39,72 +34,20 @@ date_finished:
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
-bvp_scores_proposed:
-  - ts: '2026-09-20T10:17:08Z'
-    estimator: bvp-estimator-v1-heuristic
-    scores:
-      D1: 4
-      D2: 4
-      D3: 3
-      D4: 2
-      F-RECALL: 0
-      F-ORCH: 0
-    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
-      (body:component-discoverability); D4=2 (body:env-class-handled); 
-      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
-    rubric_sha: e4a00f38e801
-cost_estimate_proposed:
-  - ts: '2026-09-20T10:17:24Z'
-    estimator: bvp-estimator-v1-heuristic
-    cost_estimate:
-      blast_radius:
-      tier: 2
-      effort: 8
-    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
-      (workflow:build); effort=8 (lines=228,acs=5)
-    rubric_sha: e4a00f38e801
-  - ts: '2026-09-20T10:17:36Z'
-    estimator: bvp-estimator-v1-heuristic
-    cost_estimate:
-      blast_radius: 3
-      tier: 2
-      effort: 8
-    rationale: blast_radius=3 (2-components); tier=2 (workflow:build); effort=8 
-      (lines=228,acs=5)
-    rubric_sha: e4a00f38e801
 ---
 
-# T-3014: arc-008 cycle-2 census: re-run fw audit + fw doctor, diff vs cycle-1, file unfiled findings
+# T-3018: checkpoint.sh has no 'budget' subcommand, so the G-087-safe budget read prescribed by /resume and CLAUDE.md crashes
 
 ## Context
 
-arc-008's rule is that verification of a finding is **the re-run of the audit in the next
-cycle, not self-assertion**. Cycle 1 (2026-09-09, `.context/audits/arc-008-cycle1-census.md`)
-captured the complete finding census: `fw audit` 368 pass / 77 warn / 5 fail, `fw doctor`
-14 warn / 0 fail. Eleven days later the three Q1 tasks filed off that census (T-2938 cron
-drift, T-2939 uninstalled substrate-smoke canary, T-2940 D2 review queue) are all parked to
-human review with GO verdicts, but **nobody has re-run the census**, so which cycle-1
-findings actually cleared is unmeasured — and the arc rule says that re-run is the proof.
-
-This task is the cycle-2 census: re-run both verbs, write the durable cycle-2 record, diff
-it against cycle-1 (cleared / persisting / new), and file any FAIL that has no task, per the
-arc rule that every individual FAIL and WARNING becomes its own governed task and findings
-sharing a root cause are linked, never merged.
-
-Scope boundary: this task **measures and files**. It does not remediate any finding — each
-remediation is its own task, which is the arc's whole premise.
+<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] `.context/audits/arc-008-cycle2-census.md` exists and records, for both `fw audit`
-      (all sections) and `fw doctor`: the summary counts, the capture timestamp/commit, and
-      every raw FAIL line verbatim
-- [x] The census carries an explicit cycle-1 → cycle-2 diff naming each cycle-1 FAIL as
-      CLEARED / PERSISTS / SUPERSEDED, with the evidence for each verdict
-- [x] Every FAIL in the cycle-2 audit is either mapped to an existing task ID or filed as a
-      new task, and the census records the mapping (no FAIL left unattributed)
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -140,11 +83,6 @@ remediation is its own task, which is the arc's whole premise.
 -->
 
 ## Verification
-
-test -f .context/audits/arc-008-cycle2-census.md
-grep -q "^## Cycle-1 to cycle-2 diff" .context/audits/arc-008-cycle2-census.md
-grep -q "^## FAIL to task mapping" .context/audits/arc-008-cycle2-census.md
-grep -q "^## Audit FAIL" .context/audits/arc-008-cycle2-census.md
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -223,39 +161,27 @@ grep -q "^## Audit FAIL" .context/audits/arc-008-cycle2-census.md
 
 ## Evolution
 
-### 2026-09-20 — the re-run contradicted two closed tasks
-- **What changed:** The census was filed expecting to confirm remediation. It did the
-  opposite for D8/D8b: T-2941 and T-2942 were closed `work-completed` on 2026-09-09 and
-  eleven days later both audit lines are byte-identical (5 [TODO], 10/10). The distinction
-  that emerged is instance-vs-mechanism — both tasks filled the handover that existed that
-  day; neither touched `handover.sh` or the PreCompact auto-commit that mints a new
-  violation on every compaction. `fw doctor` emitted HANDOVER STALE during this session,
-  unprompted, which is the mechanism firing in real time.
-- **Plan impact:** "diff the two cycles" was scoped as bookkeeping. It is the arc's actual
-  verification instrument, and this is the first cycle where it caught something that
-  self-assertion had already marked done.
-- **Triggered:** T-3015 (the mechanism, linked to T-2941/2942/2943 rather than reopening
-  either — arc rule: findings sharing a root cause are linked, never merged).
+<!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
+     understanding evolved during build — what was learned that wasn't known at
+     filing, what in the original plan no longer fits, what triggered pivots
+     or new sub-tasks. Mandatory at slice boundaries (when applicable) and
+     before --status work-completed.
 
-### 2026-09-20 — two framework surfaces disagree about the same 30 tasks
-- **What changed:** Not in the plan at all. CTL-029 flags T-2938/T-2939/T-2940 as
-  "completable, not closed"; attempting that close returned `Sovereignty gate (R-033):
-  owner is human`. Found by hitting the refusal, not by reading the warning list — I had
-  gone to close those three believing a prior session had simply forgotten to.
-- **Plan impact:** The premise that arc-008's Q1 tasks were "unfinished" was wrong; their
-  parked-to-review state is terminal for an agent. 30 of 94 warnings are an un-actionable
-  class.
-- **Triggered:** PL-376 (the terminal-state rule), T-3016 (the contradiction itself).
+     Origin: T-1717 grill Q4 — "the understanding of what we need and want
+     evolves with the process of materialisation." Structural counter to §ACD:
+     spec-vs-build divergence is logged as soon as it happens, not lost as
+     folklore.
 
-### 2026-09-20 — the census nearly lost its own evidence
-- **What changed:** The full audit takes ~8 minutes. I misread a slow run as a dead one
-  (`pgrep 'fw audit'` misses it — the process is named `audit.sh`), and the retry's `rm`
-  deleted the live run's output file from under it. The run survived on a deleted inode and
-  the output was recovered through `/proc/<pid>/fd/1`; the second invocation was correctly
-  refused rc=75 by the flock.
-- **Plan impact:** None to the deliverable — the data is complete. Worth recording because
-  the lock behaved exactly as designed and the near-loss was entirely mine.
-- **Triggered:** nothing filed; no framework defect involved.
+     Format (one entry per slice boundary or significant insight):
+       ### YYYY-MM-DD — [topic]
+       - **What changed:** [what we learned that we didn't know at filing]
+       - **Plan impact:** [what in the plan no longer fits]
+       - **Triggered:** [new sub-task / pivot / scope cut, with task ID if filed]
+
+     The completion gate (T-1718) blocks --status work-completed when this
+     section exists but is empty/template-only. Use --skip-evolution to bypass
+     (logged Tier-2). Non-arc tasks may leave this empty.
+-->
 
 ## Recommendation
 
@@ -309,7 +235,7 @@ grep -q "^## Audit FAIL" .context/audits/arc-008-cycle2-census.md
 
 ## Updates
 
-### 2026-09-20T10:14:56Z — task-created [task-create-agent]
+### 2026-09-20T10:34:39Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3014-arc-008-cycle-2-census-re-run-fw-audit--.md
+- **Output:** /opt/termlink/.tasks/active/T-3018-checkpointsh-has-no-budget-subcommand-so.md
 - **Context:** Initial task creation
