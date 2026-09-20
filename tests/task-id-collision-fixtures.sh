@@ -334,6 +334,38 @@ out=$(run_check "$TMP/collide" --quiet)
 if echo "$out" | grep -q "COLLISION"; then ok "--quiet still prints a firing collision"
 else bad "--quiet still prints a firing collision" "$out"; fi
 
+# ---------------------------------------------------------------------------
+# 11. Scope truthfulness (T-3028). Every axis is a CROSS-SIDE comparison, so a
+#     green here says nothing about two tasks filed on the SAME side. Measured:
+#     T-3018 duplicated T-2950, both on main, and this checker reported "no
+#     colliding IDs, no duplicate files" over them. The clean path must say so —
+#     a guard reporting green is exactly why nobody looks (T-2680).
+# ---------------------------------------------------------------------------
+out=$(run_check "$TMP/clean")
+if printf '%s' "$out" | grep -q "scope:"; then ok "clean path declares its scope"
+else bad "clean path declares its scope" "$out"; fi
+if printf '%s' "$out" | grep -q "SAME side"; then ok "clean path names the same-side blind spot"
+else bad "clean path names the same-side blind spot" "$out"; fi
+
+out=$(run_check "$TMP/clean" --json)
+if printf '%s' "$out" | grep -q '"scope"'; then ok "--json carries a scope field"
+else bad "--json carries a scope field" "$out"; fi
+if printf '%s' "$out" | python3 -c 'import json,sys; d=json.load(sys.stdin); sys.exit(0 if "SAME side" in d.get("scope","") else 1)'; then
+  ok "--json scope field names the same-side blind spot"
+else bad "--json scope field names the same-side blind spot" "$out"; fi
+
+# Mutant: strip the scope line and the clean path must stop declaring scope.
+# Without this leg the two assertions above prove only that a string exists.
+MUT="$TMP/mutant-scope-check.sh"
+sed '/print("  scope: %s" % SCOPE_NOTE)/d' "$CHECK" > "$MUT"
+mout=$( cd "$TMP/clean" && bash "$MUT" 2>&1 )
+if printf '%s' "$mout" | grep -q "scope:"; then
+  bad "mutant: removing the scope print silences the declaration" "still printed: $mout"
+else ok "mutant: removing the scope print silences the declaration"; fi
+if printf '%s' "$mout" | grep -q "no colliding IDs\|clean ("; then
+  ok "mutant still reports clean — proving the scope line is the only thing lost"
+else bad "mutant still reports clean" "$mout"; fi
+
 echo ""
 echo "----------------------------------------"
 printf 'T-2800 fixtures: %d passed, %d failed\n' "$PASS" "$FAIL"

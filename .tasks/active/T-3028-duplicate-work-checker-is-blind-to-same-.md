@@ -17,10 +17,10 @@ description: >
   class to the August incident T-2800 was built for, arriving from the direction it
   does not cover.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: later
+horizon: now
 tags: []
 components: [scripts/check-task-id-collisions.sh]
 related_tasks: [T-2800, T-2915, T-3018, T-2950]
@@ -35,7 +35,7 @@ arc_id: arc-008
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-20T15:07:25Z
-last_update: '2026-09-20T15:09:59Z'
+last_update: 2026-09-20T18:37:47Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -77,14 +77,49 @@ cost_estimate_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**The blindness is real; two of the three claims in the `description:` above are not.**
+That frontmatter is left as filed — it is the honest record of what was believed — but
+measurement under AC1/AC2 corrected it on two counts, and the corrections changed the
+remedy:
+
+1. *"all four axes exclude the base"* — **false for axis D.** A/B/C do drop any id already
+   in BASE (`if not i or i in base_ids` at :178, and axis C's `--diff-filter=A BASE...ref`
+   at :273). Axis D does not: `sides = sorted(set(BRANCHES)) + [BASE]` (:339) puts main in
+   deliberately (T-2915), and the real-tree run fires on `worktree-charter-review-2026-0814
+   <-> main`, proving it. D is nonetheless blind here for a *different* reason — it pairs
+   only DISTINCT sides, and inspects only `--diff-filter=M` files, so two task files added
+   on the same side have no partner and are not even the right file status.
+   The unifying cause is therefore sharper than base-exclusion: **every axis is a CROSS-SIDE
+   comparison.** That is why widening the candidate set cannot fix it — both duplicates sit
+   on the same side either way.
+
+2. *"Axis B's rare-word scorer would have fired ... it never got the chance"* — **false.**
+   Fed the two real titles against the real 2737-title corpus, they share `budget` (df=10),
+   `read` (df=101), `safe` (df=12) and **zero** rare terms, where firing needs ≥2 at df≤4.
+   "G-087-safe" never survives tokenisation (`g` is ≤2 chars, `087` is numeric). The scorer
+   would have scored this pair 0 with full access.
+
+**Disposition.** Three candidate detectors were measured and all three rejected: corpus-wide
+axis B fires on 58 pairs and still scores the ground truth 0; component overlap is unusable
+(T-2950 declares none; 62,554 corpus pairs share ≥1); a description-level variant only
+"catches" the pair at threshold ≥2 via `invoking` (df=3) and `plausible` (df=4) — two
+incidental prose adverbs unrelated to the defect — at 123 firing pairs, and misses it at every
+principled threshold. Catching the right pair for the wrong reason is the T-2831 vacuous-check
+class, so **no detector was shipped.**
+
+What shipped instead is the honest half: the checker's own summary line read as a clean bill
+over the task corpus when it is only a statement about cross-side NEW ids. Every output path
+now declares that scope (T-2680 precedent, already the file's own convention for `--no-titles`).
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Blindness is measured per-axis and located by line, not asserted from the filing. For each of A/B/C/D, the specific construct that prevents it from seeing two same-side tasks is cited; the filing's claim that "all four axes exclude the base" is TESTED, not inherited, and corrected if the code disagrees.
+- [x] The ground-truth pair (T-3018 / T-2950) is fed to the real checker on the real tree and confirmed unreported; and axis B's rare-word scorer is fed those two real titles directly, to separate "the signal exists but is unreachable" from "there is no signal" — a guard's green is not evidence until it has been fed the violation it claims to catch (PL-328).
+- [x] Disposition is decided on evidence with provenance BEFORE anything is filed or built: whether the remedy may land locally is settled by reading where the file actually lives (project-owned vs vendored, G-062), and any corpus-wide comparison is cost- and noise-measured on the real corpus before being committed to as the deliverable.
+- [x] Whatever ships is proven load-bearing by a mutant, not by its own clean run: reverting the shipped change makes the fixture suite go RED, and restoring it returns it to GREEN. No permanently-red guard is left behind (T-2818/T-2833 fatigue trap).
+- [x] No detector is shipped that only appears to work. If measurement shows no principled signal separates the ground-truth pair from corpus noise, that is RECORDED as the finding and no vacuous detector is built to satisfy a criterion — a guard that catches the right pair for the wrong reason is the T-2831 class, and shipping one here would reproduce inside the guard layer the exact defect this arc exists to catch. (This criterion replaces an earlier AC4 clause requiring the shipped artifact to fire on the ground-truth pair; that clause presumed a detector was the correct remedy, which the measurement under AC2/AC3 disproved. Recorded rather than silently reinterpreted.)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -120,6 +155,14 @@ cost_estimate_proposed:
 -->
 
 ## Verification
+
+bash tests/task-id-collision-fixtures.sh > /tmp/.t3028-fix 2>&1 && grep -q ", 0 failed" /tmp/.t3028-fix
+test "$(grep -c 'print("  scope: %s" % SCOPE_NOTE)' scripts/check-task-id-collisions.sh)" = "2"
+test "$(grep -c '^SCOPE_NOTE = ' scripts/check-task-id-collisions.sh)" = "1"
+grep -q '"scope": SCOPE_NOTE' scripts/check-task-id-collisions.sh
+grep -q "mutant-scope-check" tests/task-id-collision-fixtures.sh
+bash scripts/check-task-id-collisions.sh > /tmp/.t3028-real 2>&1 && grep -q "SAME side" /tmp/.t3028-real
+test -z "$(git status --porcelain .agentic-framework/)"
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -276,3 +319,7 @@ cost_estimate_proposed:
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3028-duplicate-work-checker-is-blind-to-same-.md
 - **Context:** Initial task creation
+
+### 2026-09-20T18:37:47Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)

@@ -401,9 +401,23 @@ if not NO_TITLES:
 
 fire = len(collisions) > 0 or len(file_dupes) > 0
 
+# Every axis here is a CROSS-SIDE comparison, and a green says nothing about the
+# other direction. A/B/C drop any id already present in BASE (:178), so two tasks
+# that both live on the base are gone before an axis looks; D does include BASE as
+# a side (:339) but only ever pairs DISTINCT sides, so same-side duplicates have no
+# comparison partner there either. Measured under T-3028 on the real tree: T-3018
+# duplicated T-2950 — same arc, 11 days apart, both on main — and this checker
+# reported "no colliding IDs, no duplicate files" over them, correctly on its own
+# terms. Stated on EVERY output path, clean included, because a guard reporting
+# green is exactly why nobody looks (T-2680).
+SCOPE_NOTE = ("detects CROSS-SIDE duplication only (branch vs branch, or branch vs %s); "
+              "two tasks filed on the SAME side are invisible to all four axes — "
+              "see T-3028" % BASE)
+
 if FORMAT == "json":
     print(json.dumps({
         "ok": not fire,
+        "scope": SCOPE_NOTE,
         "base": BASE,
         "branches_scanned": sorted(per_branch_new.keys()),
         "collision_count": len(collisions),
@@ -488,10 +502,12 @@ if not fire and not dupes and not fix_dupes:
     print("check-task-id-collisions: clean (%d branch(es) scanned against %s, "
           "no colliding IDs, no duplicate files, %s, %s)"
           % (len(per_branch_new), BASE, titles_note, fixes_note))
+    print("  scope: %s" % SCOPE_NOTE)
 elif not fire:
     print("")
     print("check-task-id-collisions: no colliding IDs, no duplicate files "
           "(%d branch(es) scanned against %s)" % (len(per_branch_new), BASE))
+    print("  scope: %s" % SCOPE_NOTE)
 
 sys.exit(1 if fire else 0)
 PYEOF
