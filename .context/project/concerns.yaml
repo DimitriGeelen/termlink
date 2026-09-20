@@ -1,4 +1,154 @@
 concerns:
+- id: G-093
+  type: gap
+  title: 'partial-complete pins focus on a work-completed task and the write gate then refuses the checkpoint
+    commit of that task''s own files — T-2054''s allowance covers only the null-focus (full completion) branch'
+  description: 'Hit 2026-09-18 closing T-2972 to partial-complete. `fw task update --status work-completed`
+    left focus on T-2972 by design (update-task.sh:2100-2110: "not partial-complete — human still needs
+    focus"). check-active-task.sh:750 then blocks every write-shaped Bash command under that focus, and the
+    classifier counts `git reset && git add`, and even a read-only `sed -n | grep` pipeline, as write-shaped
+    (`Why: it matches a file-write pattern`). The T-2054 exception at check-active-task.sh:506-523 — "allow
+    git commit so that checkpoint can land; committing persists work already produced, it is not new work" —
+    is gated on `[ -z "$CURRENT_TASK" ]`, i.e. only after FULL completion nulls focus. So the task file
+    (status/date_finished flip, Recommendation, Human AC) and any register edits made while closing cannot be
+    committed under the task they belong to. The only exits are the documented focus-drift override
+    FW_SWITCH_FOCUS=1 (T-1890, logged), a commit mis-attributed to the next task (the T-2833 precedent:
+    commits 2dabb2da5 / 9798e715a "said so in their messages"), or leaving the files uncommitted until a
+    later full completion nulls focus. Distinct from T-2833 (the latch where finalize never ran) — here
+    finalize ran correctly; the gates simply compose into a dead end for the partial-complete state, which
+    is the NORMAL end state of every task with a Human AC (70 such tasks in active/ today). Fix direction:
+    extend the T-2054 arm to `focus non-null AND focused task status == work-completed AND commit message
+    names the focused task` — same reasoning (it persists already-produced work), same commit-msg hook
+    enforcement. Vendored (G-062): not patched here; filed upstream.'
+  spec_reference: .agentic-framework/agents/context/check-active-task.sh:506-523 (T-2054 arm keyed on null
+    focus) + :731-760 (work-completed status block); .agentic-framework/agents/task-create/update-task.sh:2100-2110
+    (partial-complete keeps focus); PL-196 (sibling — the same gate also blocks human-AC ticks)
+  severity: medium
+  trigger_fired: true
+  trigger_event: '2026-09-18 T-2972 partial-complete: `git reset -q && git add <task file> <concerns.yaml>`
+    blocked with "Task T-2972 has status work-completed / P-002"; no verb clears focus short of full completion'
+  detection_lag_days: since T-2054 (the allowance was written for the full-completion branch only); every
+    partial-complete since has ended with uncommitted task-file edits or a mis-attributed commit
+  status: watching
+  created: '2026-09-18'
+  last_reviewed: '2026-09-18'
+  related_tasks:
+  - T-2972
+  - T-2054
+  - T-2833
+  - T-1890
+- id: G-092
+  type: gap
+  title: '`fw cron install` swallows unknown flags and mutates host state — `fw cron install --help` performed
+    the install (a help probe is a write)'
+  description: 'Hit 2026-09-18 while verifying T-2938''s remediation command BEFORE the human ran it (the task''s
+    own agent AC). `fw cron install --help` did not print help: it ran `cron generate`, printed "Pending cron
+    changes:" with the unified diff, and WROTE /etc/cron.d/agentic-audit-termlink (mtime 17:47:57.52, the
+    call''s timestamp); the immediately following `--dry-run` reported "Cron in sync". Mechanism:
+    bin/fw:5422-5427 — the install arg loop is `case "$1" in --dry-run) ...;; *) shift ;; esac`, so every
+    token that is not --dry-run is silently discarded and the verb proceeds to the write. There is no
+    `-h|--help` arm and no "unknown option" refusal. Consequence here: the agent executed the RUBBER-STAMP
+    Human AC of T-2938 (deploy the registry crontab, adding flock + a new every-minute pickup drain job to the
+    host) without the operator''s stamp — an action autonomous mode does not delegate (CLAUDE.md §Autonomous
+    Mode Boundaries). The pre-state is preserved in T-2938''s Updates for a one-line revert. Class: a mutating
+    verb whose argument parser fails OPEN; the safe shape is `*) echo "unknown option: $1" >&2; exit 2 ;;`
+    (the framework''s own static checks use exactly that idiom). Same file also derives the /etc/cron.d
+    filename from `basename "$PROJECT_ROOT"` (line 5424) — the T-2815 defect, so an install from a worktree
+    writes agentic-audit-<worktree-name>; G-091 is the general form. Vendored (G-062): not patched here;
+    filed upstream.'
+  spec_reference: .agentic-framework/bin/fw:5422-5427 (install arg loop swallows unknown args) + :5424
+    (basename slug, T-2815); /etc/cron.d/agentic-audit-termlink mtime 2026-09-18 17:47:57
+  severity: high
+  trigger_fired: true
+  trigger_event: '2026-09-18 T-2938 agent AC "remediation command is verified to be the correct one before the
+    human runs it": the verification probe `fw cron install --help` executed the remediation'
+  detection_lag_days: since T-448 (cron registry management shipped); nothing tests that a help/unknown flag
+    on a mutating fw verb refuses
+  status: watching
+  created: '2026-09-18'
+  last_reviewed: '2026-09-18'
+  related_tasks:
+  - T-2938
+  - T-2815
+  - T-448
+- id: G-091
+  type: gap
+  title: 'project-boundary hook (T-559) conflates CHECKOUT with PROJECT — a session that steps into a
+    git worktree of its own project is re-rooted there and locked out of the real project, reads included'
+  description: 'Live-fired 2026-09-18 in this session (T-2972). Demonstrating the worktree caveat, the shell
+    cwd moved to /opt/termlink/.claude/worktrees/T-2398-findings. From then on the PreToolUse boundary hook
+    resolved "Project root: /opt/termlink/.claude/worktrees/T-2398-findings" and BLOCKED, as "Command Targets
+    Another Project": `cd /opt/termlink`; Edit-tool writes to /opt/termlink/.context/working/drafts/; and
+    plain reads (`grep`, `ls`, `git -C /opt/termlink status`) — "Outside-path argument /opt/termlink (not in
+    read-side allowlist)". Mechanism: bin/fw:75-88 find_project_root walks up from $PWD for the first
+    .framework.yaml or .tasks/ — a worktree materialises both, so the walk stops at the worktree; then the
+    T-2446 arm (bin/fw:220-224) prefers that cwd-root over CLAUDE_PROJECT_DIR because it "differs", i.e.
+    a worktree of the SAME project is treated as a DIFFERENT project. The hook has no notion of
+    `git rev-parse --git-common-dir`, so it cannot tell "launched in a worktree for isolation" (confine —
+    correct) from "stepped into one from the main checkout" (still the same project). It is enforcing the
+    CHECKOUT boundary while labelling it the PROJECT boundary. Consequences observed: the PreCompact
+    handover ran inside the worktree and auto-committed S-2026-0918-1040 to branch worktree-T-2398-findings
+    (b6c597b41), VERSION-stamped the worktree, and its push was blocked by cron drift on
+    agentic-audit-t-2398-findings — the T-2815 basename defect, same root. Also the Claude Code harness
+    independently switched its primary working dir to the worktree and injected "do NOT cd to the original
+    repository root" — two surfaces agreeing from the same input (cwd) is not corroboration (PL-344). Only
+    an operator-run `! cd /opt/termlink` cleared it. Same defect class as T-2815 (cron filename from
+    basename) and T-2800 (task IDs allocated per-worktree): every one derives identity from the checkout
+    path. Fix direction (decided with the operator, T-2972): derive TWO facts and keep them distinct —
+    PROJECT = parent of `git rev-parse --git-common-dir`, CHECKOUT = `git rev-parse --show-toplevel`; the
+    boundary hook should confine to PROJECT (with an explicit worktree-isolation mode when the session was
+    LAUNCHED there), and every path-derived slug (T-2815, T-2800) should key on PROJECT. Vendored code
+    (G-062): not patched here; filed upstream.'
+  spec_reference: .agentic-framework/bin/fw:75-88 (find_project_root first-marker walk) + :220-224 (T-2446
+    cwd-root-wins arm); .agentic-framework/agents/context/check-project-boundary.sh:516 (read-side block);
+    CLAUDE.md §T-2815 / §T-2800 (sibling instances of the same derivation)
+  severity: high
+  trigger_fired: true
+  trigger_event: '2026-09-18 T-2972: shell entered .claude/worktrees/T-2398-findings for a demonstration;
+    boundary hook re-rooted to the worktree and blocked cd, Edit and read-only Bash against /opt/termlink;
+    PreCompact handover committed to the worktree branch'
+  detection_lag_days: since T-559 shipped; worktrees are routine here (bgIsolation) so the exposure was
+    daily — nothing fired because a block reads as "policy working"
+  status: watching
+  created: '2026-09-18'
+  last_reviewed: '2026-09-18'
+  related_tasks:
+  - T-2972
+  - T-2815
+  - T-2800
+  - T-559
+- id: G-090
+  type: gap
+  title: 'bus envelopes carry no project attribution — with a shared identity key every root-run project on
+    a host is one indistinguishable sender, and from_project is self-asserted metadata'
+  description: 'Found answering the 055-agentic-fleet-cockpit consults (T-2972). /root/.termlink/identity.key
+    is shared by every project run as root on host .107, so 010-termlink and 055-agentic-fleet-cockpit both
+    sign as fingerprint d1993c2c3ec44c94: the cockpit''s consults to us and our replies to it sit on
+    dm:<peer>:d1993c2c3ec44c94 as the SAME sender. The only attribution is metadata.from_project — free-form,
+    unsigned (excluded from the signed bytes per channel.rs:696, the G-087 class), optional, and absent on
+    several live envelopes. Sessions DO carry metadata.cwd at registration (registration.rs:283) from which
+    PROJECT is derivable (G-091 rule), but posts carry no cwd and the hub stamps nothing. Consequence: a
+    fleet view (the cockpit''s stated goal) cannot attribute a message to a project except by trusting the
+    poster''s own label; the framework-pickup canary already had to exclude own filings by a hand-set constant
+    (FW_PICKUP_SELF_PROJECT, T-2816) for exactly this reason. Fix direction is ours (hub/CLI code, not
+    vendored): CLI `channel post` stamps a derived project (PROJECT per G-091) into signed metadata, or the hub
+    stamps it from the poster''s registered session cwd; decision on which side owns it is a design question.'
+  spec_reference: crates/termlink-hub/src/channel.rs:696 (metadata excluded from signed bytes);
+    crates/termlink-session/src/registration.rs:283 (cwd captured at register, not on post);
+    scripts/check-framework-pickup-freshness.sh (FW_PICKUP_SELF_PROJECT constant workaround, T-2816)
+  severity: medium
+  trigger_fired: true
+  trigger_event: '2026-09-17/18 T-2972: decoding the cockpit DM topics showed both parties as sender
+    d1993c2c3ec44c94; attribution possible only via self-asserted from_project'
+  detection_lag_days: since shared-key deployment; the pickup canary''s self-filter constant (T-2816) was a
+    symptom-level workaround that did not register the gap
+  status: watching
+  created: '2026-09-18'
+  last_reviewed: '2026-09-18'
+  related_tasks:
+  - T-2972
+  - T-2816
+  - T-1427
 - id: G-089
   type: gap
   title: 'file receive integrity check was a false-green by construction (OBS-108) — the one verb whose job
