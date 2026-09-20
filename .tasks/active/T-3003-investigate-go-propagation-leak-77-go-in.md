@@ -6,15 +6,15 @@ description: >
   investigate the leak mechanism and propose the structural fix. Evidence: docs/reports/VALUE-REVIEW-repo-2026-09-19-consolidated.md
   C-35.
 
-status: captured
+status: started-work
 workflow_type: inception
 owner: agent
-horizon: later
+horizon: now
 tags: [value-review, arc:arc-009]
 components: []
 related_tasks: []
 created: 2026-09-19T22:25:46Z
-last_update: '2026-09-20T08:45:20Z'
+last_update: 2026-09-20T08:49:07Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -53,11 +53,21 @@ cost_estimate_proposed:
 
 ## Problem Statement
 
-<!-- What problem are we exploring? For whom? Why now? -->
+CLAUDE.md §Inception Discipline requires that a GO decision propagate into separate build tasks
+traceable back to the inception. Value-review finding C-35 measured 77 of 158 GO-recorded
+inceptions with empty `related_tasks` and no back-reference from any other task — meaning for
+~half of all GO decisions, whether the authorized work ever happened is undiscoverable from the
+task graph. This makes the review queue and BVP prioritization blind to a whole class of
+"approved but never started" work. For: the operator (review-queue truthfulness) and future
+agents (selection). Why now: arc-009 executes the value review; this is its S-29a slice.
 
 ## Assumptions
 
-<!-- Key assumptions to test. Register with: fw assumption add "Statement" --task T-XXX -->
+- A-1: The C-35 count is reproducible on the current tree (within drift of a day's work).
+- A-2: The leak is mechanical, not behavioral: no code path in `fw inception decide` (or the
+  Watchtower decide route) writes a forward link at decision time, so linkage depends entirely
+  on agent discipline after GO.
+- A-3: A detection check (deploy-time, T-2800-tier) is buildable from existing frontmatter alone.
 
 ## Open Questions
 
@@ -77,9 +87,35 @@ cost_estimate_proposed:
      FW_SKIP_DISPOSITION_GATE=1 (env-var, T-1890 producer/consumer parity).
 -->
 
+- **IW-1: Is the C-35 measurement (77/158 GO inceptions unlinked in both directions) reproducible on the current tree?**
+  confidence: 3
+  disposition: answered
+  rationale: Reproduced 2026-09-20 as 80/167 strict (tree drifted since review); loose predicate (no body mention anywhere) collapses to 4 — see docs/reports/T-3003-go-propagation-leak-investigation.md F1/F2
+
+- **IW-2: What is the leak mechanism — does any code path in the decide flow (update-task.sh / inception verb / Watchtower decide route) write a forward link, or is linkage purely post-GO agent discipline?**
+  confidence: 3
+  disposition: answered
+  rationale: lib/inception.sh has zero related_tasks writes; GO prints advisory only (inception.sh:775); sole consumer is build-side (update-task.sh:917-1033) — artifact F3
+
+- **IW-3: Is the leak ongoing or legacy — what does the date distribution of unlinked GO inceptions look like?**
+  confidence: 3
+  disposition: answered
+  rationale: Ongoing — 2026-08 alone added 13 strict-unlinked GOs (monthly buckets in artifact F1)
+
+- **IW-4: What is the cheapest structural fix — decide-time prompt for follow-on task IDs, a deploy-time unlinked-GO check, or both — and what does it cost?**
+  confidence: 2
+  disposition: answered
+  rationale: Both, split by ownership: local check-go-propagation.sh + baseline ledger (T-2483 pattern, ~1 script + fixtures) here; decide-time --follow-on flag filed upstream (vendored, G-062) — artifact Recommendation
+
 ## Exploration Plan
 
-<!-- How will we validate assumptions? Spikes, prototypes, research? Time-box each. -->
+1. Measurement script (read-only) over `.tasks/{active,completed}`: enumerate inceptions with a
+   recorded GO, test forward link (`related_tasks` non-empty) and back-reference (any other task
+   naming the ID). Time-box: 30 min.
+2. Read the decide path in vendored `update-task.sh` / inception lib + Watchtower decide route for
+   any propagation write. Time-box: 20 min.
+3. Classify + date-bucket the unlinked set. Time-box: 10 min.
+4. Write recommendation with fix options costed. Time-box: 20 min.
 
 ## Technical Constraints
 
@@ -91,7 +127,10 @@ cost_estimate_proposed:
 
 ## Scope Fence
 
-<!-- What's IN scope for this exploration? What's explicitly OUT? -->
+IN: measuring the unlinked-GO population, identifying the leak mechanism in the decide flow,
+proposing (not building) the structural fix, filing any vendored-code defect upstream (G-062).
+OUT: building the fix (separate build task on GO), retro-linking 77 historical inceptions by hand,
+changing vendored `update-task.sh` locally.
 
 ## Acceptance Criteria
 
@@ -139,7 +178,7 @@ cost_estimate_proposed:
 
 **Recommendation:** GO
 
-**Rationale:** Audit reports the leak weekly; 77 approved decisions with no filed work is the shipped-not-started twin of G-069
+**Rationale:** Reproduced 2026-09-20: 80/167 GO inceptions strictly unlinked and the leak is ongoing (13 new in 2026-08). BUT the loose measure collapses to 4 — this is primarily a traceability/metadata defect (related_tasks never written by the decide path, lib/inception.sh:775 prints advice only), not 77 lost approvals. GO on: (1) local check-go-propagation.sh + git-tracked baseline ledger (fires on NEW leaks only, T-2818 fatigue lesson); (2) upstream filing for a decide-time --follow-on flag (vendored, G-062); (3) surface the 4 genuine orphans (T-954, T-955, T-958, T-1698) to the human. Full evidence: docs/reports/T-3003-go-propagation-leak-investigation.md
 
 ## Decisions
 
@@ -163,3 +202,7 @@ cost_estimate_proposed:
 
 ### 2026-09-19T22:35:35Z — status-update [task-update-agent]
 - **Change:** tags: +arc:arc-009
+
+### 2026-09-20T08:49:07Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
