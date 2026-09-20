@@ -1,0 +1,21 @@
+# Acknowledged budget-ladder drift — T-3029.
+#
+# Format: <signature>  # <reason>
+#
+# This is a LEDGER OF AN OPEN QUESTION, not a permanent exemption (T-2483 convention).
+# Every entry here is still COUNTED and PRINTED by the check on its clean path, so a green
+# result can never be misread as "the documented ladder is correct".
+#
+# Why these three are acknowledged rather than fixed: all six contradicting lines live BELOW
+# the `## Core Principle` heading in CLAUDE.md, which `fw upgrade` rewrites wholesale from
+# lib/templates/claude-project.md (T-2015). A local correction is deleted by the next upgrade,
+# so there is nothing this project can durably fix on its own side. Filed upstream instead,
+# per G-062, at framework:pickup offset 130 with the measurement and a proposed fix.
+#
+# Remove a line when upstream lands the correction: the check then either stays green (fixed)
+# or fires with the residual difference (partially fixed). Do NOT remove a line to quiet the
+# check — the entry IS the record that the docs currently lie about when to stop working.
+
+CLAUDE.md::escalation-ladder-absolutes  # template-owned (T-2015); filed framework:pickup@130. Prose 120K/150K/170K is only self-consistent against a 200,000 window; the gate runs 300,000.
+CLAUDE.md::work-proposal-bands  # template-owned (T-2015); filed framework:pickup@130. Bands 60/75/85% vs the gate's 75/85/95% — wrong on the percentage axis as well as the absolute one.
+CLAUDE.md::structural-enforcement-critical  # template-owned (T-2015); filed framework:pickup@130. Also contradicts the same file's own escalation ladder (150K/75% vs 170K), so the template is internally inconsistent independent of the code.

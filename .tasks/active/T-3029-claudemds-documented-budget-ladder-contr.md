@@ -21,10 +21,10 @@ description: >
   is framework-template territory rewritten by fw upgrade (T-2015), so check which
   half each line falls in before editing.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: later
+horizon: now
 tags: []
 components: [CLAUDE.md, .agentic-framework/agents/context/budget-gate.sh]
 related_tasks: [T-3018, T-2015, T-139]
@@ -39,7 +39,7 @@ arc_id: arc-008
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-20T15:08:33Z
-last_update: '2026-09-20T15:09:59Z'
+last_update: 2026-09-20T18:05:16Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -65,6 +65,19 @@ bvp_scores_proposed:
       (body:component-discoverability); D4=2 (body:env-class-handled); 
       F-RECALL=1 (body:episodic-only); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
+  - ts: '2026-09-20T18:05:16Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 4
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=4 (body/components:instruction-sync); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 cost_estimate_proposed:
   - ts: '2026-09-20T15:09:59Z'
     estimator: bvp-estimator-v1-heuristic
@@ -83,12 +96,63 @@ cost_estimate_proposed:
 
 <!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
+CLAUDE.md tells an agent when to stop working. Those numbers are wrong, in the
+conservative direction, and have been for six months.
+
+MEASURED. Prose (CLAUDE.md :2907-2910, :2916, :3052) states warn 120K / urgent 150K /
+critical 170K with bands 60/75/85%. Both enforcing scripts — budget-gate.sh:103-108 and
+checkpoint.sh:31-36 — compute warn 225K(75%) / urgent 255K(85%) / critical 285K(95%) from a
+CONTEXT_WINDOW default of 300000. The two scripts agree EXACTLY with each other, so this is
+not a code-vs-code divergence: the prose is the sole outlier, wrong on the absolute axis by
+105-115K and on the percentage axis by 10-15 points. It also contradicts itself — :3052 puts
+critical at 150K/75%, :2916 puts it at 170K. Checked and ruled out: this project sets no
+CONTEXT_WINDOW override (`fw config get` empty, FW_CONTEXT_WINDOW unset), so the 300000
+default is genuinely what runs. An override would have made the docs right and this finding
+wrong; that had to be checked rather than assumed.
+
+ROOT CAUSE. T-131 (2026-03-14) removed the hardcoded 200000 from both scripts under an AC
+reading "No remaining hardcoded 200000 or 200K references", verified by
+`! grep -q '200000' <script>` over the two files it had just edited. The criterion asserts a
+property of the system; the check proves it of two files. The same constant lived on in the
+prose and was never in scope. The code has since moved again (T-131 set 60/80/90 against a 1M
+default), so the prose is two migrations stale, not one.
+
+COST, first-party and twice measured. The 2026-09-20 arc-008 run parked T-3018 unexecuted
+citing "~80% context" at ~178K — 59% of the real window, level ok. And the session that
+executed THIS task read 173,390 tokens at selection time, which the documented ladder calls
+"Above 85% (170K+): handover immediately, no new work"; obeying it would have ended the
+session with two scored Q1 tasks unstarted. An always-conservative error in a stop rule is
+a tax paid silently, because stopping early never produces a failure to investigate.
+
+DISPOSITION. All six contradicting lines sit BELOW `## Core Principle` (line 2461), the
+boundary `fw upgrade` rewrites wholesale from lib/templates/claude-project.md (T-2015);
+zero sit in the project-owned half. A local correction is deleted by the next upgrade, so
+there is nothing this project can durably fix in the prose. Filed upstream per G-062 at
+framework:pickup offset 130. The durable local artifact is
+`scripts/check-budget-ladder-drift.sh`, which compares the numbers the prose asserts against
+the numbers the gate computes — chosen over prose because PL-346 is explicit that a recorded
+learning is not prevention, and because the check fires precisely WHEN an upgrade re-imports
+the stale template, converting a silent re-import into a loud one. The three known drifts are
+acknowledged in a git-tracked ledger (T-2483 convention) so the guard is green today and
+fires on NEW drift, rather than being permanently red and trained-past (T-2818/T-2833).
+
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Contradiction MEASURED on BOTH axes against the live gate, not inferred: the absolute
+      thresholds and the percentage bands are each read from budget-gate.sh and stated beside
+      CLAUDE.md's, and the effective window is confirmed by checking whether this project
+      overrides CONTEXT_WINDOW (an override would mean the docs are right and the finding is
+      wrong — that must be checked, not assumed).
+- [x] Every contradicting line LOCATED by line number and classified above or below the
+      `## Core Principle` clobber boundary (T-2015), so the disposition follows from where the
+      text lives rather than from preference.
+- [x] Disposition decided ON EVIDENCE and recorded: provenance established before filing (no
+      re-file of a decision upstream already took), and any project-owned correction placed
+      where `fw upgrade` will not erase it.
+- [x] No edit to the framework-managed region below the boundary — futile by construction
+      (T-2015) and the same class G-062 forbids; verified by diff at close.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -134,6 +198,15 @@ cost_estimate_proposed:
 # pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
 # past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
 #
+
+bash scripts/check-budget-ladder-drift.sh --quiet
+! bash scripts/check-budget-ladder-drift.sh --allowlist /dev/null --quiet
+bash tests/budget-ladder-drift-fixtures.sh > /tmp/.blf-fix 2>&1 && grep -q ", 0 failed" /tmp/.blf-fix
+test "$(grep -c '^CLAUDE.md::' .context/checks/budget-ladder-allowlist)" = "3"
+grep -q "guard-layer: source" scripts/check-budget-ladder-drift.sh
+test -z "$(git status --porcelain CLAUDE.md)"
+test -z "$(git status --porcelain .agentic-framework/)"
+python3 -c "import re,sys; g=open('.agentic-framework/agents/context/budget-gate.sh').read(); c=open('.agentic-framework/agents/context/checkpoint.sh').read(); f=lambda s:(re.search(r'CONTEXT_WINDOW\"\s+(\d+)\)',s).group(1), re.findall(r'TOKEN_\w+=\\\$\(\(CONTEXT_WINDOW \* (\d+)',s)); assert f(g)==f(c), (f(g),f(c))"
 # ── Pipefail/SIGPIPE: grepping a command's output (L-387, T-2090, T-2743, T-2738) ──
 #
 # THE DEFAULT — redirect to a file, then grep the file:
@@ -280,3 +353,7 @@ cost_estimate_proposed:
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3029-claudemds-documented-budget-ladder-contr.md
 - **Context:** Initial task creation
+
+### 2026-09-20T18:05:16Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
