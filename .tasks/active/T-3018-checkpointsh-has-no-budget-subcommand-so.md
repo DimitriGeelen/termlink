@@ -32,7 +32,7 @@ arc_id: arc-008
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-20T10:34:39Z
-last_update: 2026-09-20T14:58:41Z
+last_update: 2026-09-20T15:10:37Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -231,27 +231,35 @@ why no guard could see it.
 
 ## Evolution
 
-<!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
-     understanding evolved during build — what was learned that wasn't known at
-     filing, what in the original plan no longer fits, what triggered pivots
-     or new sub-tasks. Mandatory at slice boundaries (when applicable) and
-     before --status work-completed.
+### 2026-09-20 — the task was the duplicate it was filed to describe
 
-     Origin: T-1717 grill Q4 — "the understanding of what we need and want
-     evolves with the process of materialisation." Structural counter to §ACD:
-     spec-vs-build divergence is logged as soon as it happens, not lost as
-     folklore.
+- **What changed:** Two of the three premises in the filing were false, and AC2 — the criterion
+  that says *measure* the blast radius rather than assert it — is what disproved them. CLAUDE.md
+  never prescribed `checkpoint.sh budget`; it prescribes `status`, which exists. And the finding
+  was not new: **T-2950** closed it eleven days earlier, in this same arc, discovered by the same
+  route (executing the resume protocol), with the version-skew diagnosis already established and a
+  deliberate do-not-file decision already recorded. **T-2961** then reached the same conclusion
+  independently on 2026-09-19 and fixed the downstream P-002 allowlist consequence. Three arrivals
+  at one finding, by three separate paths, none of which saw the others.
+- **Plan impact:** AC4 became unexecutable. It instructed filing upstream per G-062; complying
+  would have contradicted two standing recorded decisions and produced exactly the phantom register
+  debt P-075/T-2949 names. It was rewritten to the corrected disposition with the original text
+  preserved in `## Correction` — the convention used on T-3025's AC2 last session — rather than
+  quietly dropped. The task's deliverable changed from *fix a broken verb* (nothing to fix; it is
+  version skew awaiting a Sovereign re-vendor) to *measure why the arc could re-file its own closed
+  finding*.
+- **Triggered:** **T-3028** (BVP 57 / cost 2.0, Q1) — every axis of `check-task-id-collisions.sh`
+  is cross-branch; its candidate set is "IDs not already in the base", so two tasks both on `main`
+  are excluded by construction before any axis runs. The checker reported clean this session while
+  the duplicate sat in front of it. **T-3029** (BVP 63 / cost 3.2, Q1, now the arc's top item) —
+  CLAUDE.md's budget ladder contradicts the live gate; found while establishing AC3's arithmetic,
+  and it has a measured cost: this very task was parked unexecuted last session at ~178K citing
+  "~80% context", which is 59% of the real window and level `ok`.
+- **The lesson that outlasts the instance:** AC1 ("demonstrated, not asserted") and AC2 ("measured")
+  were written last session purely as scoping discipline. They are what caught this. An acceptance
+  criterion that forces measurement before the title is believed will sometimes disprove the task
+  it belongs to — and that is the criterion working, not failing.
 
-     Format (one entry per slice boundary or significant insight):
-       ### YYYY-MM-DD — [topic]
-       - **What changed:** [what we learned that we didn't know at filing]
-       - **Plan impact:** [what in the plan no longer fits]
-       - **Triggered:** [new sub-task / pivot / scope cut, with task ID if filed]
-
-     The completion gate (T-1718) blocks --status work-completed when this
-     section exists but is empty/template-only. Use --skip-evolution to bypass
-     (logged Tier-2). Non-arc tasks may leave this empty.
--->
 
 ## Recommendation
 
