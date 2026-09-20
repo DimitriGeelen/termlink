@@ -11,7 +11,7 @@ description: >
   at cycle 1 but never filed as its own finding. Check is vendored (G-062) so the
   fix is upstream. Census: .context/audits/arc-008-cycle2-census.md
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -30,7 +30,7 @@ arc_id: arc-008
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-20T10:31:21Z
-last_update: '2026-09-20T13:16:26Z'
+last_update: 2026-09-20T17:25:43Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -83,12 +83,30 @@ cost_estimate_proposed:
 
 <!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
+The D2 audit line reports a correctly age-filtered COUNT beside an unfiltered LIST.
+Measured live: header 58, printed 68, surplus 10 — and the surplus is exactly the
+14-30d warn-band population, because both age branches append to one shared
+`d2_details` accumulator (audit.sh ~5029-5037) which the FAIL label then prints.
+The file is vendored, so the fix is upstream (G-062); this task measures, locates the
+mechanism, and files. Filed at `framework:pickup` offset 129.
+
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] The defect is MEASURED against the live audit check, not inferred from this
+      filing: the D2 header count and the D2 printed list are both captured from a
+      real run, and the number of printed IDs under the 30-day threshold is stated
+      as an observed figure (which may be 0, disproving the filing).
+- [x] The MECHANISM is identified at file:line in the vendored check — why the
+      header count is age-filtered while the printed list is not, or evidence that
+      both share one filter and the filing misread it.
+- [x] Disposition is decided ON EVIDENCE and recorded: filed upstream, registered as
+      a local divergence, or recorded as already-known/declined, with the reason.
+      Provenance is established before filing — upstream's defect, or this project's
+      own convention?
+- [x] No local patch is made to vendored code under .agentic-framework/ (G-062); the
+      vendored file is verified byte-clean at close.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -184,6 +202,23 @@ cost_estimate_proposed:
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+# ── AC2: the mechanism. ONE accumulator, appended by BOTH age branches. ──
+test "$(grep -c 'd2_details="$d2_details $t_id' .agentic-framework/agents/audit/audit.sh)" = "2"
+# ── AC2: and printed under BOTH labels, so the >30d line carries warn-band IDs. ──
+grep -q 'waiting >30d:$d2_details' .agentic-framework/agents/audit/audit.sh
+grep -q 'waiting >14d:$d2_details' .agentic-framework/agents/audit/audit.sh
+# ── AC2: the two band thresholds the branches select on (720h = 30d, 336h = 14d). ──
+grep -q 'age_hours" -ge 720' .agentic-framework/agents/audit/audit.sh
+grep -q 'age_hours" -ge 336' .agentic-framework/agents/audit/audit.sh
+# ── AC1: measured from live audit output. The invariant holds BEFORE and AFTER an
+# upstream fix (today 10==10; once fixed 0==0), so it asserts the mechanism, not the
+# bug's presence. Mutant-tested: hardcoding thr=14 instead of reading it from the
+# message reddens this line. ──
+python3 -c 'import re; d=open(".context/audits/discoveries/LATEST.yaml").read(); m=re.search(r"D2: Human review queue . (\d+) task\(s\) waiting >(\d+)d:(.*?)\"", d, re.S); assert m; hdr=int(m.group(1)); thr=int(m.group(2)); ids=re.findall(r"T-\d+\((\d+)d\)", m.group(3)); under=[a for a in ids if int(a)<thr]; assert len(ids)-hdr==len(under)'
+# ── AC4: no local patch to vendored code (G-062). ──
+test -z "$(git status --porcelain .agentic-framework/agents/audit/audit.sh)"
+test -z "$(git status --porcelain .agentic-framework/)"
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -199,6 +234,35 @@ cost_estimate_proposed:
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
+
+**Symptom:** The D2 audit line reports `58 task(s) waiting >30d:` and then prints 68
+task IDs, ten of them aged 18–27 days. A reader trusting the list over the header
+over-counts the aged backlog by 17% and mis-triages ten tasks as month-forgotten.
+
+**Root cause:** `audit.sh` accumulates ONE details string, `d2_details`, and appends to
+it from BOTH mutually-exclusive age branches — the `>= 720h` (30d) arm and the
+`>= 336h` (14d) arm. The counters `d2_fail` and `d2_warn` are correctly separate; only
+the details string is shared. The `fail` line then prints `$d2_fail` (30d-only) beside
+`$d2_details` (the union of both bands). The surplus is therefore not approximate: it
+is exactly the warn-band population, which is what the measurement shows (68 − 58 = 10,
+and the count of printed IDs under 30 days is also 10).
+
+**Why structurally allowed:** the defect is **asymmetric**, and the asymmetry is what
+hid it. When `d2_fail == 0` the `elif` warn branch renders, and `$d2_details` then
+contains only warn-band tasks — so the check is *correct* in the warn case and wrong
+only once it escalates to FAIL. Every cheap reading of the code in the healthy state
+shows a consistent count and list. It misreports precisely when it is escalating, i.e.
+when an operator is most likely to act on it. Nothing in the framework compares a
+control's rendered *message* against the predicate that selected its contents, so a
+count and a list can disagree indefinitely without any gate noticing.
+
+**Prevention:** distinct from the fix. The invariant is corpus-independent and needs no
+fixture: *every `T-NNNN(Xd)` printed beside a threshold must satisfy X ≥ that
+threshold.* It is asserted in this task's `## Verification` in the stronger form
+`surplus == sub-threshold population`, which holds both before an upstream fix (10==10)
+and after it (0==0) — so it pins the mechanism rather than the bug, and does not redden
+when the bug is fixed. It generalises to any audit line that pairs a filtered count with
+a detail list, which is the reusable half.
 
 ## Evolution
 
@@ -223,6 +287,50 @@ cost_estimate_proposed:
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-09-20 — the surplus is not approximately the warn band; it IS the warn band
+
+- **What changed:** at filing this was "the list carries ten sub-threshold IDs" — a
+  symptom with no mechanism, carried unfiled since T-2940 cycle 1. Executing AC1
+  produced a sharper fact than the filing had: `printed − header == count(printed under
+  threshold)`, exactly, 10 and 10. That equality is not what a sloppy filter looks like;
+  it is the signature of a *shared accumulator*, and it located the mechanism from the
+  output side before the source was opened. Reading `audit.sh` then confirmed it.
+- **Plan impact:** the deliverable stayed diagnosis-and-filing (the file is vendored,
+  G-062), but the evidence strengthened from "ten IDs look wrong" to a one-line
+  structural claim with a corpus-independent invariant attached. The filing proposes the
+  split-accumulator fix rather than a filter, because a filter on the print site would
+  fix the FAIL line and leave the same shared-state shape in place.
+- **What the two findings in this file have in common:** T-3016 (CTL-029, filed at
+  offset 127 two commits ago) and this one are both defects in what a control *says*
+  about what it found — CTL-029 prescribes a command R-033 forbids; D2 prints a list its
+  own header contradicts. Neither is an error in the predicate. Nothing checks a
+  control's rendered message against the selector that produced it. That blind spot is
+  worth more than either instance and is named as such in the filing.
+- **Triggered:** filed upstream at `framework:pickup` offset 129. No local patch
+  (G-062). Also surfaced, unrelated to this task's ACs and recorded rather than acted
+  on: two further P-002 allowlist shapes (below).
+
+### 2026-09-20 — two more P-002 shapes, and one of them collapses two open items into one
+
+- **What changed:** T-3030 closed recording five refusal shapes, and its handback added
+  a sixth (`while read -r t`). This session hit a seventh, `for t in …`, and an eighth,
+  a `>` **inside a quoted grep pattern** (`grep -n "waiting >30d\|…"`), which the write
+  detector scored as a redirect on a line containing no redirect at all.
+- **Plan impact:** shapes six and seven are **not two gaps**. `while` and `for` are
+  shell *keywords*, not command names, so the allowlist's per-command leading-token
+  check can never match either — one gap, two faces. That merge matters because T-3030's
+  handback listed them as separate open items.
+- **Why the eighth is sharper than anything T-3030 recorded:** T-3030's `>` finding was
+  about a real redirect (`>/dev/null`) being classified as a write, which upstream has
+  already considered and declined in a comment in the vendored file. This is different:
+  there is no redirect on the line. The gate cannot see quoting, so a `>` inside a
+  quoted argument is indistinguishable from an operator. That is a stronger case than
+  the one upstream declined, and it is not the same claim.
+- **Triggered:** nothing filed from this task — it is outside T-3017's acceptance
+  criteria, and an activity that closes no criterion is not part of the task. Recorded
+  here and carried to the handback so it is filed under its own task with its own
+  measurement, not smuggled into this one.
 
 ## Recommendation
 
@@ -280,3 +388,6 @@ cost_estimate_proposed:
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3017-d2-audit-check-prints-10-sub-threshold-t.md
 - **Context:** Initial task creation
+
+### 2026-09-20T17:25:43Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
