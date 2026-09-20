@@ -8,15 +8,15 @@ description: >
   DELETE candidate. C-27 final ruling is human. Evidence: docs/reports/VALUE-REVIEW-repo-2026-09-19-consolidated.md
   C-27..C-33.
 
-status: captured
+status: started-work
 workflow_type: inception
 owner: agent
-horizon: next
+horizon: now
 tags: [value-review, arc:arc-009]
 components: []
 related_tasks: []
 created: 2026-09-19T22:18:28Z
-last_update: '2026-09-20T08:45:20Z'
+last_update: 2026-09-20T21:53:49Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -57,6 +57,25 @@ cost_estimate_proposed:
 
 <!-- What problem are we exploring? For whom? Why now? -->
 
+Five RPC surfaces are recorded as hub-implemented (or CLI/MCP-surfaced) with **zero
+observed calls**: `orchestrator.route` (C-27), `dialog.presence` (C-28), the `session.*`
+lifecycle methods (C-31), the `event.*` family (C-32), and `event.broadcast` (C-33).
+Each is a candidate for either WIRE (it was wanted and never connected) or DELETE (it is
+resident code nobody can reach) — and the review held all five at INVESTIGATE because
+nobody had run the per-method wiring check.
+
+For whom: anyone reading the RPC surface as a statement of what the system does. Why now:
+C-33 is a declared retirement (`LEGACY_METHODS`, "targeted for retirement") that failed
+DELETE checks 4-5 only because the reference sweep was never run, so it sits in a state
+where the code says "going away" and the process says "not yet".
+
+**The prior that gates everything else:** C-30 found `kv.*` usage structurally invisible —
+session-daemon calls never pass the hub audit sink — and C-31 records that the same blind
+spot "plausibly applies (not individually verified)". If it does, "zero calls" in these
+rows measures the instrument and not the traffic.
+
+Full measurements: `docs/reports/T-2995-rpc-surface-wiring-sweep.md`.
+
 ## Assumptions
 
 <!-- Key assumptions to test. Register with: fw assumption add "Statement" --task T-XXX -->
@@ -79,9 +98,43 @@ cost_estimate_proposed:
      FW_SKIP_DISPOSITION_GATE=1 (env-var, T-1890 producer/consumer parity).
 -->
 
+- **IW-1: For each of the five surfaces (orchestrator.route, dialog.presence, session.*, event.* family, event.broadcast), is it hub-implemented, and does it carry a client surface (CLI verb and/or MCP tool)?**
+  confidence:
+  disposition:
+  rationale:
+
+- **IW-2: Does the C-30 audit blind spot apply to session.* and event.* — i.e. is "zero hub-observed calls" evidence of disuse, or evidence of nothing?**
+  confidence:
+  disposition:
+  rationale:
+
+- **IW-3: Does the C-33 event.broadcast reference sweep (DELETE checks 4-5: references, external consumers) come back clean?**
+  confidence:
+  disposition:
+  rationale:
+
+- **IW-4: Does anything depend on orchestrator.route remaining present — specifically the federation tripwire C-27 warns not to break?**
+  confidence:
+  disposition:
+  rationale:
+
 ## Exploration Plan
 
 <!-- How will we validate assumptions? Spikes, prototypes, research? Time-box each. -->
+
+All spikes are read-only reads of the working tree. No RPC method is added, wired,
+removed, or renamed by this task.
+
+1. **Blind-spot first** — establish whether the hub audit sink observes `session.*` and
+   `event.*` at all, by reading the audit call sites rather than the call counts. This
+   runs FIRST because it decides whether the zero-call evidence in steps 2-3 is
+   admissible → IW-2.
+2. **Wiring matrix** — for each of the five surfaces: hub dispatch arm present? CLI verb
+   present? MCP tool present? → IW-1.
+3. **Reference sweep** — `event.broadcast` across source, config, hooks, CI, docs and
+   prompts; DELETE checks 4-5 → IW-3.
+4. **Tripwire check** — what reads `orchestrator.route`, and does any guard depend on its
+   presence → IW-4.
 
 ## Technical Constraints
 
@@ -94,6 +147,19 @@ cost_estimate_proposed:
 ## Scope Fence
 
 <!-- What's IN scope for this exploration? What's explicitly OUT? -->
+
+**IN:** measuring, per surface, whether it is hub-implemented and client-reachable;
+establishing whether the C-30 audit blind spot extends to these families; running the
+C-33 reference sweep; identifying what depends on `orchestrator.route`.
+
+**OUT — deliberately:**
+- Deleting, wiring, or renaming any RPC method. This is an inception; the sweep is read-only.
+- The **C-27 ruling**. Whether `orchestrator.route` may exist at all turns on charter
+  non-goal #4, which is a sovereignty question. The measurement is agent work; the ruling
+  is not, and is surfaced rather than resolved.
+- Building the C-45/C-30 telemetry instrument. That is T-2996's scope, and this task
+  depends on its ABSENCE being characterised, not on it being built.
+- Deciding go/no-go. The `### Human [REVIEW]` AC owns that.
 
 ## Acceptance Criteria
 
@@ -165,3 +231,7 @@ cost_estimate_proposed:
 
 ### 2026-09-19T22:35:32Z — status-update [task-update-agent]
 - **Change:** tags: +arc:arc-009
+
+### 2026-09-20T21:53:49Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
