@@ -39,7 +39,7 @@ arc_id: arc-008
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-20T15:08:33Z
-last_update: 2026-09-20T18:05:16Z
+last_update: 2026-09-20T18:15:54Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -275,27 +275,88 @@ python3 -c "import re,sys; g=open('.agentic-framework/agents/context/budget-gate
 
 ## Evolution
 
-<!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
-     understanding evolved during build — what was learned that wasn't known at
-     filing, what in the original plan no longer fits, what triggered pivots
-     or new sub-tasks. Mandatory at slice boundaries (when applicable) and
-     before --status work-completed.
+### 2026-09-20 — the "blocked on a Sovereign question" premise was false
 
-     Origin: T-1717 grill Q4 — "the understanding of what we need and want
-     evolves with the process of materialisation." Structural counter to §ACD:
-     spec-vs-build divergence is logged as soon as it happens, not lost as
-     folklore.
+- **What changed:** This task was parked last cycle as blocked on a scope judgement — the
+  target text sits below `## Core Principle`, which `fw upgrade` rewrites, so "where does the
+  fix go?" looked like a decision for the framework's owners. Measuring instead of assuming
+  resolved it in two greps: ALL SIX contradicting lines are in the rewritten region and ZERO
+  are in the project-owned half. That is not a judgement call, it is an arithmetic fact, and
+  it makes the disposition forced — file upstream (G-062), because there is nothing here to
+  durably fix. A second assumption was also checked rather than inherited: if this project
+  overrode CONTEXT_WINDOW the docs would be RIGHT and the finding wrong. It does not.
+- **Plan impact:** Removed the blocker. The task was executable the whole time.
+- **Triggered:** Nothing new; T-3029 executed rather than re-parked.
 
-     Format (one entry per slice boundary or significant insight):
-       ### YYYY-MM-DD — [topic]
-       - **What changed:** [what we learned that we didn't know at filing]
-       - **Plan impact:** [what in the plan no longer fits]
-       - **Triggered:** [new sub-task / pivot / scope cut, with task ID if filed]
+### 2026-09-20 — the root cause is an AC whose claim outran its check, not stale prose
 
-     The completion gate (T-1718) blocks --status work-completed when this
-     section exists but is empty/template-only. Use --skip-evolution to bypass
-     (logged Tier-2). Non-arc tasks may leave this empty.
--->
+- **What changed:** The filing framed this as documentation drift. It is narrower and more
+  instructive than that. T-131 (2026-03-14) removed the hardcoded 200000 under an AC reading
+  "No remaining hardcoded 200000 or 200K references", verified by `! grep -q '200000'` over
+  the two script files it had just edited. The criterion asserts a property of the SYSTEM;
+  the check proves it of TWO FILES. This is the third finding in three days from this arc
+  with the same shape — a control whose stated claim is broader than the predicate behind it
+  (framework:pickup offsets 127, 129, and now 130). The prose survived six months and two
+  further threshold migrations inside that gap.
+- **Plan impact:** The upstream filing leads with the mechanism rather than the numbers, and
+  proposes a lint over acceptance criteria that flags universal claims ("no remaining",
+  "all", "every") whose verification commands are all path-scoped.
+- **Triggered:** That AC-lint proposal is named in the filing; deliberately NOT built here —
+  it closes no T-3029 criterion and needs its own measurement and score.
+
+### 2026-09-20 — scope widened from prose to a structural check, on the project's own rule
+
+- **What changed:** The intended deliverable was a corrected paragraph. Two things killed
+  that: the paragraph is erased by the next upgrade, and PL-346 — surfaced by the framework
+  itself when focus was set — states the rule explicitly: "when a learning describes a class
+  that recurs SILENTLY, escalate it to a structural check in the same session it is written.
+  Treat a second instance of a documented class as evidence the documentation was the wrong
+  instrument." T-131's AC already WAS the documentation instrument. So the deliverable became
+  `scripts/check-budget-ladder-drift.sh`. The re-vendor problem inverts into the argument FOR
+  it: the check fires exactly when an upgrade re-imports the stale template, turning a silent
+  re-import into a loud one.
+- **Plan impact:** Cost exceeded the 3.2 estimate — the estimate priced prose editing, and
+  the delivered artifact is a check plus a 25-assertion fixture suite plus a ledger. Recorded
+  as a calibration signal rather than absorbed silently.
+- **Triggered:** Acknowledgement ledger `.context/checks/budget-ladder-allowlist` (T-2483
+  convention), so the guard is green today and fires on NEW drift instead of being
+  permanently red and trained-past (T-2818/T-2833).
+
+### 2026-09-20 — the fixture suite reproduced the vacuous-pass class inside the guard layer
+
+- **What changed:** Two assertions were written `hasnt"..."` without a space. Bash read each
+  as a single unknown command, neither assertion ran, and the suite still reported "22 passed,
+  0 failed". That is precisely the T-2831 class — a check that did not execute reporting as a
+  pass — committed while building a guard against a check that proved less than it claimed.
+  The first repair (an ERR trap) was wrong: this suite deliberately runs commands exiting 1
+  and 2, so it produced 11 false failures. The second repair was subtler and only caught by
+  running the mutant: `command_not_found_handle` DOES fire, but bash runs it in a separate
+  execution environment, so `FAIL=$((FAIL+1))` inside it is discarded — the handler fires, the
+  counter stays 0, and the suite still reports success. A guard that appears to work and
+  silently does not. The record has to leave the subshell through a file.
+- **Plan impact:** Every assertion added here is now mutant-tested in both directions rather
+  than trusted on its green. A further vacuous pass was caught the same way: the fixture
+  verification line `grep -q "0 failed"` also matches "10 failed", so it was tightened to
+  ", 0 failed" and mutant-tested against that exact string.
+- **Triggered:** Nothing external; the suite's own not-run guard is now load-bearing and
+  proven by mutant (24 passed, 1 failed, rc 1).
+
+### 2026-09-20 — two more P-002 refusals, one a genuinely new shape
+
+- **What changed:** Occurrence 14 is a NINTH distinct shape: a leading variable assignment
+  (`WURL=$(cat …)`), where the allowlist's leading-token check sees `WURL=$(cat` and cannot
+  match a command name. Distinct from the loop-keyword class (shapes 6/7) and the quoted-`>`
+  class (shape 8). Occurrence 15 is different in kind: the gate refused `fw task update` —
+  the framework's OWN sanctioned state-change verb — because no task was active, i.e. it
+  required an active task in order to run the verb that sets one. Its diagnostic prose is
+  also inverted for this case, saying the command "writes nothing the gate can detect" about
+  a command whose entire purpose is a gated write. Same bootstrap shape as the G-020 deadlock
+  recorded on T-3017. Both were resolved by following the gate's own second hint
+  (`fw context focus`), not bypassed.
+- **Plan impact:** None for this task.
+- **Triggered:** Nothing filed from here — it closes no T-3029 criterion. Carried to the
+  handback with the shapes from T-3017 so the P-002 taxonomy is filed once, under its own
+  task, with its own measurement.
 
 ## Recommendation
 
