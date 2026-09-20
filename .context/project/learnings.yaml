@@ -4438,3 +4438,9 @@ learnings:
   task: T-2940
   date: 2026-09-20
   context: Added via context agent
+- id: PL-377
+  learning: "A finding can be re-filed inside the same arc because every axis of check-task-id-collisions.sh is cross-branch: its candidate set is 'IDs not already in the base', so two tasks both on main are excluded before any axis runs. T-3018 duplicated T-2950 eleven days later, same arc, same discovery route, and was filed, scored, selected as top Q1 and started before anyone noticed. Before filing a finding discovered by executing a protocol, grep .tasks/completed/ for its rare terms - the checker cannot do it for you."
+  source: P-001
+  task: T-3018
+  date: 2026-09-20
+  context: Added via context agent
