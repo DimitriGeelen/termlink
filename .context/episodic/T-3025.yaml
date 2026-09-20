@@ -1,0 +1,158 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3025: fw pickup process creates three identical tasks per envelope, two of them ~47s later and unannounced
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-20T14:06:17Z
+# ============================================================================
+
+task_id: T-3025
+task_name: "fw pickup process creates three identical tasks per envelope, two of them ~47s later and unannounced"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-20T13:35:39Z
+completed: 2026-09-20T14:06:08Z
+duration_days: 0
+updates_count: 0
+first_commit: 2026-09-20T15:56:41+02:00
+last_commit: 2026-09-20T16:06:05+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  pickup duplicate-task mechanism corrected — repeated cron passes over an unwritten dedup record. pickup race root-caused and caught live — unserialised process, dedup row 59s late
+
+# Key outcomes
+outcomes:
+  - 'The mechanism is established rather than guessed: show that the duplicate tasks are'
+  - 'The race is root-caused in `lib/pickup.sh` with line numbers: creation at `:542`'
+  - 'Every round-trip task this run produced is dispositioned with the disposition recorded'
+  - 'Filed upstream to `framework:pickup` per G-062 with the mechanism, the ordering defect and'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/2026-09-16.yaml'
+  - '.context/audits/2026-09-17.yaml'
+  - '.context/audits/2026-09-18.yaml'
+  - '.context/audits/2026-09-19.yaml'
+  - '.context/audits/2026-09-20.yaml'
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/episodic/T-3015.yaml'
+  - '.context/episodic/T-3016.yaml'
+  - '.context/handovers/LATEST.md'
+  - '.context/handovers/S-2026-0916-2332.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0917-0738.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0917-0741.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0917-0741.md'
+  - '.context/handovers/S-2026-0917-2246.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0918-1750.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0918-1803.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0918-2050.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0918-2054.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0918-2138.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0919-1444.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0919-1910.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0919-1954.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0919-1956.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0919-1958.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0919-2000.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0919-2115.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0919-2119.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0919-2121.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0919-2122.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0919-2229.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0919-2306.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0919-2313.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0919-2328.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0920-1001.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0920-1100.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0920-1101.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0920-1103.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0920-1104.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0920-1105.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0920-1106.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0920-1109.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0920-1111.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0920-1111.md'
+  - '.context/handovers/S-2026-0920-1235.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0920-1238.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0920-1240.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0920-1240.md'
+  - '.context/handovers/S-2026-0920-1537.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0920-1539.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0920-1539.md'
+  - '.context/pickup/.bridge-posted/17a2904d86d8b228c9bb9751f6a980c4d651795cdd98aa1c78eb09089c635688'
+  - '.context/pickup/dedup.log'
+  - '.context/pickup/processed/P-081-bug-report.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/reports/VALUE-REVIEW-repo-2026-09-17.md'
+  - '.context/working/.budget-status'
+  - '.context/working/.compact-log'
+  - '.context/working/feedback-stream.yaml'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.hook-crashes.log'
+  - '.context/working/.pickup-bridge.log'
+  - '.context/working/.pre-compact.last-run'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/.session-start-ts'
+  - '.context/working/session.yaml'
+  - '.tasks/active/T-2723-handover-commit-under-t-1452-collides-wi.md'
+  - '.tasks/active/T-3019-pickup-handover-generator--precompact-au.md'
+  - '.tasks/active/T-3020-pickup-handover-generator--precompact-au.md'
+  - '.tasks/active/T-3021-pickup-handover-generator--precompact-au.md'
+  - '.tasks/active/T-3022-pickup-ctl-029-prescribes-a-command-r-03.md'
+  - '.tasks/active/T-3023-pickup-ctl-029-prescribes-a-command-r-03.md'
+  - '.tasks/active/T-3024-pickup-ctl-029-prescribes-a-command-r-03.md'
+  - '.tasks/active/T-3025-fw-pickup-process-creates-three-identica.md'
+  - '.tasks/active/T-3026-pickup-fw-pickup-process-is-unserialised.md'
+  - '.tasks/active/T-3027-pickup-fw-pickup-process-is-unserialised.md'
+  - '.tasks/completed/T-3015-handover-generator-emits-5-unfilled-todo.md'
+  - '.tasks/completed/T-3016-ctl-029-advises-closing-human-owned-task.md'
+  - '.termlink-task'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-20T15:56:41'
+    action: 'T-3025: pickup duplicate-task mechanism corrected — repeated cron passes over an unwritten dedup record'
+  - time: '2026-09-20T16:06:05'
+    action: 'T-3025: pickup race root-caused and caught live — unserialised process, dedup row 59s late'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 30 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 30
+  commits: 2
+  files_changed: 80
+  lines_added: 8958
+  lines_removed: 3969
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3025-fw-pickup-process-creates-three-identica.md
+generated_by: context-agent-hybrid

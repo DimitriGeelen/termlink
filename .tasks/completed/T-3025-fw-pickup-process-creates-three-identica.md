@@ -15,10 +15,10 @@ description: >
   so the fix is upstream per G-062. Linked to T-3015/T-3016, not merged - arc-008
   rule.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: [.agentic-framework/lib/pickup.sh, 
       .agentic-framework/lib/pickup-channel-bridge.sh]
@@ -35,8 +35,8 @@ arc_id: arc-008
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-20T13:35:39Z
-last_update: '2026-09-20T13:57:46Z'
-date_finished:
+last_update: 2026-09-20T14:06:08Z
+date_finished: 2026-09-20T14:06:08Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -266,3 +266,15 @@ python3 -c "import re,sys;t=open('.tasks/active/T-3025-fw-pickup-process-creates
 
 # 7. No local patch was made to the vendored pickup pipeline.
 test -z "$(git status --porcelain .agentic-framework/lib/pickup.sh .agentic-framework/lib/pickup-channel-bridge.sh)"
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-2e256381
+- **Timestamp:** 2026-09-20T14:06:11Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-09-20T14:06:08Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

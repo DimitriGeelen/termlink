@@ -14,7 +14,7 @@ description: >
   not previously filed. Workaround: 'checkpoint.sh status' reports tokens and percentage.
   Vendored (G-062) so the fix is upstream.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -32,7 +32,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-20T10:34:39Z
-last_update: '2026-09-20T13:16:27Z'
+last_update: 2026-09-20T14:06:42Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -80,8 +80,19 @@ cost_estimate_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] The defect is demonstrated, not asserted: show `checkpoint.sh budget` exiting non-zero
+      with usage output, and show the subcommand dispatch in the vendored script listing only
+      `post-tool|reset|status`. Cite line numbers.
+- [ ] The blast radius is measured: enumerate every surface prescribing `checkpoint.sh budget`
+      as the G-087-safe read (CLAUDE.md Session Start Protocol, the `/resume` skill, any other
+      hit across `.claude/` and docs), so the cost is "N documented surfaces route the reader
+      into the exact raw read G-087 forbids", not one broken command.
+- [ ] The G-087 fallback hazard is stated concretely: what an agent that follows the
+      instruction actually does next, and why `cat .budget-status` is unsafe (stale /
+      foreign-session cache reads back as a plausible `{"level":"ok","tokens":0}`).
+- [ ] Filed upstream to `framework:pickup` per G-062 with the dispatch defect and a proposed
+      fix (implement `budget`, or correct the prescribing surfaces to `status`); offset
+      recorded here. No local patch to `.agentic-framework/`, stated.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -273,3 +284,24 @@ cost_estimate_proposed:
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3018-checkpointsh-has-no-budget-subcommand-so.md
 - **Context:** Initial task creation
+
+### 2026-09-20T14:06:42Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+## PARKED (arc-008 autonomous run — scoped, no investigation done)
+
+Selected as the next Q1 unit and started via `fw work-on`, then parked at ~80% context with
+no investigation performed. Real acceptance criteria were written (above) because G-020
+correctly refused every edit while they were template placeholders; scoping is all that was
+done. Status is `started-work` only because `work-on` sets it — treat the work as untouched.
+
+Why selected over T-3017 (both hv-lc, tied BVP 57 / cost 2.0): CLAUDE.md and the `/resume`
+skill both prescribe `checkpoint.sh budget` as the G-087-SAFE budget read. That subcommand
+does not exist, so the documented safe path fails and the reader falls back to
+`cat .budget-status` — the exact hazard G-087 names (measured 0 vs 297,923 tokens in
+production). A live safety gap on every session start; T-3017 is reporting noise.
+
+Why not executed: the run hit ~80% of the context window immediately after closing T-3025.
+CLAUDE.md's Work Proposal Rule permits only wrap-up above 75%, and this needs a full unit.
+
+Next session: top Q1 item in arc-008. The ACs above are ready to execute against.
