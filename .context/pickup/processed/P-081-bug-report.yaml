@@ -1,0 +1,91 @@
+pickup_id: P-081
+version: 1
+type: bug-report
+source:
+  project: 010-termlink
+  task_id: T-3025
+  agent: claude-code
+  timestamp: '2026-09-20T14:01:49Z'
+payload:
+  summary: fw pickup process is unserialised and records its dedup row ~60s after
+    creating the task, so one envelope yields three tasks
+  detail: "From: 010-termlink (autonomous run, arc-008). Task: T-3025.\nType: bug-report.\
+    \ Priority: high. Vendored pipeline, filed per G-062 rather than patched locally.\n\
+    \n== WHAT HAPPENED ==\n\nTwo upstream filings made through `fw pickup send` +\
+    \ `fw pickup process` each produced\nTHREE identical local inception tasks instead\
+    \ of one. Six spurious tasks entered\n.tasks/active/ from two envelopes - 3x amplification\
+    \ per filing.\n\n  envelope P-079-bug-report.yaml  ->  3 tasks created 13:20:02\
+    \ / 13:20:02 / 13:20:03\n  envelope P-080-bug-report.yaml  ->  3 tasks created\
+    \ 13:30:15 / 13:31:02 / 13:31:02\n\n== THE MECHANISM (measured, not inferred)\
+    \ ==\n\nTwo independent facts combine.\n\n(1) THE SUPPRESSING RECORD IS WRITTEN\
+    \ LAST, AND LATE.\n\nlib/pickup.sh pickup_process_one() runs, in this order:\n\
+    \n    :542   pickup_create_inception \"$file\"     # creates the task\n    :555\
+    \   pickup_record_dedup \"$file\"         # writes the row that suppresses re-processing\n\
+    \    :558   pickup_move_preserving \"$file\" \"$PICKUP_PROCESSED\"\n\nSo between\
+    \ entering the function and :555 there is NO dedup row and the envelope is\nSTILL\
+    \ IN inbox/. Anything that re-enters during that window sees a fresh envelope.\n\
+    \nThat window is not small. Measured from this project's own dedup.log against\
+    \ the\ncreated: stamps of the tasks it produced:\n\n    P-079   first task 13:20:02Z\
+    \   dedup row 13:21:00Z   = 58s\n    P-080   first task 13:30:15Z   dedup row\
+    \ 13:31:16Z   = 61s\n\nRoughly a minute, because pickup_create_inception shells\
+    \ out to task creation.\n\n(2) NOTHING SERIALISES CONCURRENT RUNS.\n\n  - lib/pickup.sh\
+    \ contains no flock, no lockfile, no mutex of any kind. grep for\n    flock/lockfile/LOCK\
+    \ over the file returns nothing relevant.\n  - Three schedules drive `fw pickup\
+    \ process` against THIS project's inbox, and they\n    do not share a lock:\n\n\
+    \      /etc/cron.d/agentic-pickup-termlink:5\n        * * * * *  ... fw pickup\
+    \ process            <-- NO flock at all\n      /etc/cron.d/agentic-audit-termlink:42\n\
+    \        * * * * *  ... flock -n /var/lock/agentic-pickup-termlink.lock -c '...\
+    \ pickup process'\n      /etc/cron.d/agentic-audit-termlink:39\n        */15 *\
+    \ * * *  ... same lock as :42\n\n    :39 and :42 exclude each other. Neither excludes\
+    \ :5, because :5 takes no lock.\n    So at minimum TWO unguarded `pickup process`\
+    \ runs race every single minute, and\n    an operator-initiated run makes three.\n\
+    \nCombine (1) and (2): every entrant during the ~60s pre-record window creates\
+    \ its own\ntask from the same envelope. The console names only the task the caller\
+    \ created, so a\ncheck run immediately after `pickup process` sees one task and\
+    \ reads clean; the others\nsurface up to a minute later, unannounced.\n\n== THE\
+    \ CORROBORATING STDERR ==\n\nThe losing racers are visible in the output:\n\n\
+    \    pickup_dedup_hash: envelope not readable: .context/pickup/inbox/P-079-bug-report.yaml\n\
+    \    pickup_record_dedup: refusing to record an uncomputable dedup hash - ledger\
+    \ left unchanged\n\nThat is a run which had ALREADY created its task, then reached\
+    \ :555 after a winner had\nmoved the envelope to processed/ at :558. Its hash\
+    \ is uncomputable, so it records\nnothing. The fail-closed refusal is correct\
+    \ behaviour and is not the defect - it is the\nrace observed from the losing side.\
+    \ Note the consequence: that run contributed a task\nand contributed no suppression.\n\
+    \n== WHY THE EXISTING DEDUP CANNOT CLOSE THIS ==\n\npickup_dedup_check is content-hash\
+    \ based with a 7-day cooldown and it works correctly\nfor sequential re-runs.\
+    \ It cannot help here because the row it reads is written by the\nvery step the\
+    \ racing run has not reached yet. This is a check-then-act race, not a\nweak hash.\n\
+    \n== PROPOSED FIX ==\n\nOrder of preference:\n\n  1. Serialise the whole process\
+    \ pass. Wrap do_pickup_process in flock on a path derived\n     from PICKUP_DIR,\
+    \ so the lock follows the inbox rather than the crontab that happened\n     to\
+    \ be installed. Locking in the library, not in the cron line, is what makes this\n\
+    \     robust: the /etc/cron.d line that caused this has no lock, and a library\
+    \ that\n     depends on every caller remembering one has no guarantee at all.\n\
+    \n  2. Claim the envelope before doing any work. Move the envelope out of inbox/\
+    \ (to an\n     in-progress/ dir, or record the dedup row) BEFORE pickup_create_inception\
+    \ rather\n     than after. An atomic rename is the natural claim primitive: the\
+    \ loser's rename\n     fails and it exits having created nothing.\n\n  3. Failing\
+    \ both, make the losing racer loud. The 'refusing to record an uncomputable\n\
+    \     dedup hash' branch currently leaves an orphan task behind with no warning\
+    \ that a\n     duplicate was just created.\n\n(1) and (2) are complementary -\
+    \ (2) shrinks the window to near zero, (1) closes it.\n\n== SECOND, SMALLER FINDING\
+    \ IN THE SAME PATH ==\n\nmetadata.from_project is inconsistent across two filings\
+    \ made minutes apart through the\nidentical code path: offset 126 carries 'root',\
+    \ offset 127 carries '010-termlink'. The\nbridge sets no metadata itself, so the\
+    \ value is arriving from somewhere upstream of it.\nThis matters because T-2816's\
+    \ framework-pickup canary self-filter keys on exactly that\nfield to suppress\
+    \ a project's own filings; an own filing stamped 'root' is not\nrecognised as\
+    \ ours and fires the canary at us. Cause not established here - reported as\n\
+    an observation, not a diagnosis.\n\n== WHAT WAS NOT DONE ==\n\nNo local patch\
+    \ to .agentic-framework/lib/pickup.sh or lib/pickup-channel-bridge.sh.\nBoth are\
+    \ vendored; per G-062 a local fix is deleted by the next re-vendor. Stated rather\n\
+    than left silent.\n\nRelated local tasks: T-2963 (two unguarded pickup process\
+    \ crons) - linked, not merged,\nper the arc-008 rule that findings sharing a root\
+    \ cause stay separate. T-3015 and T-3016\nare the two filings whose round trips\
+    \ produced the six spurious tasks."
+  priority: high
+  tags:
+  - pickup
+  - race
+  - dedup
+  - vendored

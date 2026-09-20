@@ -7,7 +7,7 @@ description: >
 status: captured
 workflow_type: build
 owner: agent
-horizon: next
+horizon: later
 tags: [pickup, bug-report]
 components: []
 related_tasks: []
@@ -22,7 +22,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-20T13:20:02Z
-last_update: 2026-09-20T13:20:02Z
+last_update: 2026-09-20T14:01:27Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -241,3 +241,20 @@ source_project_in_origin: "010-termlink"
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3019-pickup-handover-generator--precompact-au.md
 - **Context:** Initial task creation
+
+## DISPOSITION (arc-008, recorded under the pickup-race task)
+
+**Round-trip of this project's own upstream filing. No work to do here.**
+
+This is the one task envelope `P-079` was designed to produce — the other two bearing
+this name are race artifacts. But the envelope is our OWN filing: the bug it
+describes was investigated, written up and filed at `framework:pickup` offset 126
+under T-3015, which is closed. The pipeline consumed our own report back into a
+local task.
+
+Its acceptance criteria are unfilled template placeholders. Not set to
+`work-completed` for the same reason as its duplicates: that would assert work the
+file does not contain. Moved to `horizon: later`.
+
+### 2026-09-20T14:01:27Z — status-update [task-update-agent]
+- **Change:** horizon: next → later

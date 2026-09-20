@@ -1,8 +1,8 @@
 ---
-id: T-3022
-name: "Pickup: CTL-029 prescribes a command R-033 refuses: 28 of 28 of its warnings are (from 010-termlink)"
+id: T-3026
+name: "Pickup: fw pickup process is unserialised and records its dedup row ~60s after (from 010-termlink)"
 description: >
-  Auto-created from pickup envelope. Source: 010-termlink, task T-3016. Type: bug-report.
+  Auto-created from pickup envelope. Source: 010-termlink, task T-3025. Type: bug-report.
 
 status: captured
 workflow_type: build
@@ -21,8 +21,8 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-20T13:30:15Z
-last_update: 2026-09-20T14:01:28Z
+created: 2026-09-20T14:02:02Z
+last_update: 2026-09-20T14:05:06Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -34,11 +34,11 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
-source_task_id_in_origin: T-3016
+source_task_id_in_origin: T-3025
 source_project_in_origin: "010-termlink"
 ---
 
-# T-3022: Pickup: CTL-029 prescribes a command R-033 refuses: 28 of 28 of its warnings are (from 010-termlink)
+# T-3026: Pickup: fw pickup process is unserialised and records its dedup row ~60s after (from 010-termlink)
 
 ## Context
 
@@ -237,24 +237,22 @@ source_project_in_origin: "010-termlink"
 
 ## Updates
 
-### 2026-09-20T13:30:15Z — task-created [task-create-agent]
+### 2026-09-20T14:02:02Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3022-pickup-ctl-029-prescribes-a-command-r-03.md
+- **Output:** /opt/termlink/.tasks/active/T-3026-pickup-fw-pickup-process-is-unserialised.md
 - **Context:** Initial task creation
 
 ## DISPOSITION (arc-008, recorded under the pickup-race task)
 
 **Round-trip of this project's own upstream filing. No work to do here.**
 
-This is the one task envelope `P-080` was designed to produce — the other two bearing
-this name are race artifacts. But the envelope is our OWN filing: the bug it
-describes was investigated, written up and filed at `framework:pickup` offset 127
-under T-3016, which is closed. The pipeline consumed our own report back into a
-local task.
+Envelope `P-081` is this project's OWN bug report about the pickup race, filed at
+`framework:pickup` offset 128 under T-3025. This is the task the winning racer created.
+Its acceptance criteria are unfilled template placeholders.
 
-Its acceptance criteria are unfilled template placeholders. Not set to
-`work-completed` for the same reason as its duplicates: that would assert work the
-file does not contain. Moved to `horizon: later`.
+Not set to `work-completed`: ticking placeholder ACs to clear the queue would assert
+work that was never done. Moved to `horizon: later` instead, which removes it from the
+suggestion set without making a false claim. Substance is tracked at T-3025.
 
-### 2026-09-20T14:01:28Z — status-update [task-update-agent]
+### 2026-09-20T14:05:06Z — status-update [task-update-agent]
 - **Change:** horizon: next → later

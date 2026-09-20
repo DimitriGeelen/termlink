@@ -7,7 +7,7 @@ description: >
 status: captured
 workflow_type: build
 owner: agent
-horizon: next
+horizon: later
 tags: [pickup, bug-report]
 components: []
 related_tasks: []
@@ -22,7 +22,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-20T13:31:02Z
-last_update: 2026-09-20T13:31:02Z
+last_update: 2026-09-20T14:01:28Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -241,3 +241,23 @@ source_project_in_origin: "010-termlink"
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3023-pickup-ctl-029-prescribes-a-command-r-03.md
 - **Context:** Initial task creation
+
+## DISPOSITION (arc-008, recorded under the pickup-race task)
+
+**Race artifact. No work to do here; do not start this task.**
+
+Envelope `P-080` produced three identical tasks because `fw pickup process` is
+unserialised and writes its dedup row ~60s after creating the task. The canonical
+task for this envelope is T-3022; this file is one of the two extra copies.
+Its acceptance criteria are unfilled template placeholders — it never carried
+content of its own.
+
+The substance was filed upstream at `framework:pickup` offset 127 under T-3016,
+which is closed. Nothing here is unaddressed.
+
+Not set to `work-completed`: its ACs are placeholders and ticking them to clear the
+queue would assert work that was never done. Moved to `horizon: later` instead, which
+removes it from the suggestion set without making a false claim.
+
+### 2026-09-20T14:01:28Z — status-update [task-update-agent]
+- **Change:** horizon: next → later
