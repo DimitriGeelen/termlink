@@ -10,10 +10,10 @@ description: >
   filled — was never touched, so every compaction mints a fresh violation. Linked
   to T-2941/T-2942/T-2943, not merged (arc-008 rule). Census: .context/audits/arc-008-cycle2-census.md
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: [.agentic-framework/agents/handover/handover.sh, 
       .agentic-framework/agents/context/pre-compact.sh]
@@ -30,8 +30,8 @@ arc_id: arc-008
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-20T10:29:11Z
-last_update: 2026-09-20T13:25:41Z
-date_finished:
+last_update: 2026-09-20T13:26:31Z
+date_finished: 2026-09-20T13:26:31Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -428,3 +428,15 @@ per the arc's link-never-merge rule):
    existing `processed/P-079-bug-report.yaml`, resolved by filing ours as `.dup-1.yaml`.
 
 upstream_filing: framework:pickup@126 (pickup_id P-079, msg_type pickup-bug-report, 5646 bytes)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-ca39c559
+- **Timestamp:** 2026-09-20T13:26:33Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-09-20T13:26:31Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -10746,3 +10746,93 @@ scan_id: R-3a24205f
 task_id: T-2961
 payload:
   task_file: .tasks/active/T-2961-read-only-fw-and-checkpoint-verbs-are-ab.md
+---
+kind: scan_emitted
+timestamp: '2026-09-19T22:37:30Z'
+scan_id: R-46600e23
+task_id: T-2974
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-19T22:37:30Z'
+scan_id: R-46600e23
+task_id: T-2974
+payload:
+  task_file: .tasks/active/T-2974-consolidate-five-run-value-review-findin.md
+---
+kind: scan_emitted
+timestamp: '2026-09-20T08:48:26Z'
+scan_id: R-6e888ea3
+task_id: T-3013
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-20T08:48:26Z'
+scan_id: R-6e888ea3
+task_id: T-3013
+payload:
+  task_file: .tasks/active/T-3013-bvp-score-captured-backlog-arc-009-run-s.md
+---
+kind: scan_emitted
+timestamp: '2026-09-20T10:33:49Z'
+scan_id: R-06ae37e8
+task_id: T-3014
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-20T10:33:49Z'
+scan_id: R-06ae37e8
+task_id: T-3014
+payload:
+  task_file: .tasks/active/T-3014-arc-008-cycle-2-census-re-run-fw-audit--.md
+---
+kind: scan_emitted
+timestamp: '2026-09-20T13:26:33Z'
+scan_id: R-ca39c559
+task_id: T-3015
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-20T13:26:33Z'
+scan_id: R-ca39c559
+task_id: T-3015
+payload:
+  task_file: .tasks/active/T-3015-handover-generator-emits-5-unfilled-todo.md
+---
+kind: scan_emitted
+timestamp: '2026-09-20T13:33:56Z'
+scan_id: R-a89e3a21
+task_id: T-3016
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-20T13:33:56Z'
+scan_id: R-a89e3a21
+task_id: T-3016
+payload:
+  task_file: .tasks/active/T-3016-ctl-029-advises-closing-human-owned-task.md

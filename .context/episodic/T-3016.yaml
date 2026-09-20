@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3016: CTL-029 advises closing human-owned tasks that the R-033 sovereignty gate structurally refuses
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-20T13:34:04Z
+# ============================================================================
+
+task_id: T-3016
+task_name: "CTL-029 advises closing human-owned tasks that the R-033 sovereignty gate structurally refuses"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-20T10:30:15Z
+completed: 2026-09-20T13:33:54Z
+duration_days: 0
+updates_count: 6
+first_commit: 2026-09-20T15:33:49+02:00
+last_commit: 2026-09-20T15:33:49+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  CTL-029's actionable rate is zero — filed at framework:pickup@127
+
+# Key outcomes
+outcomes:
+  - 'The contradiction is measured, not asserted: CTL-029''s own selector is replicated against'
+  - 'The refusal is demonstrated rather than inferred: `fw task update <id> --status'
+  - 'Filed upstream to `framework:pickup` per G-062, carrying the measurement, the verbatim'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/pickup/.bridge-posted/1c2140b4b00d1fb4c7a1024a9d006df6d2ebe2aae5a3d6056d79dac9917ced34'
+  - '.context/pickup/dedup.log'
+  - '.context/pickup/processed/P-080-bug-report.yaml'
+  - '.tasks/active/T-3016-ctl-029-advises-closing-human-owned-task.md'
+  - '.tasks/active/T-3022-pickup-ctl-029-prescribes-a-command-r-03.md'
+  - '.tasks/completed/T-3015-handover-generator-emits-5-unfilled-todo.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-20T15:33:49'
+    action: 'T-3016: CTL-029''s actionable rate is zero — filed at framework:pickup@127'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 183 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 183
+  commits: 1
+  files_changed: 6
+  lines_added: 507
+  lines_removed: 5
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3016-ctl-029-advises-closing-human-owned-task.md
+generated_by: context-agent-hybrid

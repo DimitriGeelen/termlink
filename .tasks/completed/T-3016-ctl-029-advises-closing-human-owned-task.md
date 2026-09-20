@@ -11,10 +11,10 @@ description: >
   94 warnings are an un-actionable class (T-2818 attention-exhaustion shape). Check
   is vendored (G-062) so the fix is upstream. Learning PL-376. Census: .context/audits/arc-008-cycle2-census.md
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: [.agentic-framework/agents/audit/audit.sh]
 related_tasks: [T-2938, T-2939, T-2940, T-3014]
@@ -30,8 +30,8 @@ arc_id: arc-008
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-20T10:30:15Z
-last_update: 2026-09-20T13:27:10Z
-date_finished:
+last_update: 2026-09-20T13:33:54Z
+date_finished: 2026-09-20T13:33:54Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -443,3 +443,15 @@ The gate cannot distinguish *acting on* a task from *writing about* one. This is
 class as the D8/D8b defect filed at offset 126: a checker string-matching over prose, scoring
 description as action. It is filed with this report at offset 127 rather than as its own task,
 because it was found in the act of filing this one and shares the report's evidence.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-a89e3a21
+- **Timestamp:** 2026-09-20T13:33:56Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-09-20T13:33:54Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

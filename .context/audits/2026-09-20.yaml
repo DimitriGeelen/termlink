@@ -1,10 +1,10 @@
-# Audit Results - 2026-09-16-2332
-timestamp: 2026-09-16T21:32:48Z
+# Audit Results - 2026-09-20-1537
+timestamp: 2026-09-20T13:37:39Z
 sections: "structure"
 summary:
   pass: 38
-  warn: 8
-  fail: 2
+  warn: 9
+  fail: 1
 findings:
   - level: PASS
     check: "Tasks directory exists"
@@ -17,11 +17,11 @@ findings:
   - level: PASS
     check: "Task template exists"
   - level: PASS
-    check: "No duplicate task IDs — examined 14367 task file(s) across 6 corpus view(s) (20 ID(s) byte-identical in every view, 2532 same-task at differing revisions)"
+    check: "No duplicate task IDs — examined 14421 task file(s) across 6 corpus view(s) (20 ID(s) byte-identical in every view, 2532 same-task at differing revisions)"
   - level: PASS
-    check: "All project YAML files parse correctly — examined 16 project YAML file(s)"
+    check: "All project YAML files parse correctly — examined 17 project YAML file(s)"
   - level: PASS
-    check: "All arc anchor_task references resolve to existing tasks — examined 6 arc anchor_task reference(s)"
+    check: "All arc anchor_task references resolve to existing tasks — examined 7 arc anchor_task reference(s)"
   - level: WARN
     check: "All onboarding-seed corpus references resolve to existing maps — NOT EVALUATED: candidate set empty (0 onboarding-seed corpus reference(s))"
     mitigation: "No 'fw corpus explain <id>' reference was found in lib/seeds/tasks — either the seeds stopped routing to maps, or lib/seeds/tasks is absent"
@@ -47,14 +47,14 @@ findings:
   - level: WARN
     check: "Fabric: 326/491 cards have no edges"
     mitigation: "Run: fw fabric enrich"
-  - level: PASS
-    check: "Fabric drift: all watched files registered — examined 451 watched file(s)"
+  - level: WARN
+    check: "Fabric drift: 1 source file(s) have no fabric card"
+    mitigation: "Run: fw fabric scan"
   - level: WARN
     check: "Fabric: 10 card(s) point at files no watch pattern covers"
     mitigation: "Widen .fabric/watch-patterns.yaml, or remove the cards if they are not components"
-  - level: FAIL
-    check: "Cron drift: /opt/termlink/.context/cron/agentic-audit.crontab differs from deployed /etc/cron.d/agentic-audit-termlink"
-    mitigation: "Run: fw cron install"
+  - level: PASS
+    check: "Cron registry in sync with /etc/cron.d/agentic-audit-termlink"
   - level: PASS
     check: "cron(canary-aliveness-sweep): USER-field syntax installed at /etc/cron.d/termlink-canary-aliveness-sweep"
   - level: PASS

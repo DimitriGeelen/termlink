@@ -1,0 +1,92 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3015: Handover generator emits 5 unfilled [TODO] sections and PreCompact auto-commits them — D8/D8b recur every compaction
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-20T13:26:39Z
+# ============================================================================
+
+task_id: T-3015
+task_name: "Handover generator emits 5 unfilled [TODO] sections and PreCompact auto-commits them — D8/D8b recur every compaction"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-20T10:29:11Z
+completed: 2026-09-20T13:26:31Z
+duration_days: 0
+updates_count: 4
+first_commit: 2026-09-20T12:48:39+02:00
+last_commit: 2026-09-20T15:26:27+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  measure the handover [TODO] mechanism; file T-3018; finalize T-3014. file the handover D8/D8b mechanism upstream — framework:pickup@126. Evolution log — filing surfaced three rail defects; vacuous-check caught pre-gate
+
+# Key outcomes
+outcomes:
+  - 'The 5 `[TODO]` markers in a freshly generated handover are split by cause, measured not'
+  - 'The recurrence is demonstrated end-to-end on a single session: a handover generated,'
+  - 'Filed upstream to `framework:pickup` per G-062 (the generator and the PreCompact hook are'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/episodic/T-3014.yaml'
+  - '.context/handovers/S-2026-0920-1235.md'
+  - '.context/pickup/.bridge-posted/042c84840fe014af7e912abdf1f3a27b47e309f2ed897e14a65d48068a0a940b'
+  - '.context/pickup/dedup.log'
+  - '.context/pickup/processed/P-079-bug-report.yaml'
+  - '.tasks/active/T-3015-handover-generator-emits-5-unfilled-todo.md'
+  - '.tasks/active/T-3016-ctl-029-advises-closing-human-owned-task.md'
+  - '.tasks/active/T-3017-d2-audit-check-prints-10-sub-threshold-t.md'
+  - '.tasks/active/T-3018-checkpointsh-has-no-budget-subcommand-so.md'
+  - '.tasks/active/T-3019-pickup-handover-generator--precompact-au.md'
+  - '.tasks/active/T-3020-pickup-handover-generator--precompact-au.md'
+  - '.tasks/active/T-3021-pickup-handover-generator--precompact-au.md'
+  - '.tasks/completed/T-3014-arc-008-cycle-2-census-re-run-fw-audit--.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-20T12:48:39'
+    action: 'T-3015: measure the handover [TODO] mechanism; file T-3018; finalize T-3014'
+  - time: '2026-09-20T15:25:41'
+    action: 'T-3015: file the handover D8/D8b mechanism upstream — framework:pickup@126'
+  - time: '2026-09-20T15:26:27'
+    action: 'T-3015: Evolution log — filing surfaced three rail defects; vacuous-check caught pre-gate'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 177 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 177
+  commits: 3
+  files_changed: 13
+  lines_added: 1446
+  lines_removed: 47
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3015-handover-generator-emits-5-unfilled-todo.md
+generated_by: context-agent-hybrid

@@ -1,10 +1,10 @@
-# Audit Results - 2026-09-16-2332
-timestamp: 2026-09-16T21:32:48Z
+# Audit Results - 2026-09-18-2139
+timestamp: 2026-09-18T19:39:55Z
 sections: "structure"
 summary:
-  pass: 38
+  pass: 39
   warn: 8
-  fail: 2
+  fail: 1
 findings:
   - level: PASS
     check: "Tasks directory exists"
@@ -17,7 +17,7 @@ findings:
   - level: PASS
     check: "Task template exists"
   - level: PASS
-    check: "No duplicate task IDs — examined 14367 task file(s) across 6 corpus view(s) (20 ID(s) byte-identical in every view, 2532 same-task at differing revisions)"
+    check: "No duplicate task IDs — examined 14368 task file(s) across 6 corpus view(s) (20 ID(s) byte-identical in every view, 2532 same-task at differing revisions)"
   - level: PASS
     check: "All project YAML files parse correctly — examined 16 project YAML file(s)"
   - level: PASS
@@ -52,9 +52,8 @@ findings:
   - level: WARN
     check: "Fabric: 10 card(s) point at files no watch pattern covers"
     mitigation: "Widen .fabric/watch-patterns.yaml, or remove the cards if they are not components"
-  - level: FAIL
-    check: "Cron drift: /opt/termlink/.context/cron/agentic-audit.crontab differs from deployed /etc/cron.d/agentic-audit-termlink"
-    mitigation: "Run: fw cron install"
+  - level: PASS
+    check: "Cron registry in sync with /etc/cron.d/agentic-audit-termlink"
   - level: PASS
     check: "cron(canary-aliveness-sweep): USER-field syntax installed at /etc/cron.d/termlink-canary-aliveness-sweep"
   - level: PASS
