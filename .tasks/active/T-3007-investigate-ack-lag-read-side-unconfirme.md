@@ -6,15 +6,15 @@ description: >
   whether the lag is recipient-side or tracker-side. Evidence: docs/reports/VALUE-REVIEW-repo-2026-09-19-consolidated.md
   C-43.
 
-status: captured
+status: started-work
 workflow_type: inception
 owner: agent
-horizon: later
+horizon: now
 tags: [value-review, arc:arc-009]
 components: []
 related_tasks: []
 created: 2026-09-19T22:29:24Z
-last_update: '2026-09-20T08:45:20Z'
+last_update: 2026-09-20T09:04:25Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -53,11 +53,20 @@ cost_estimate_proposed:
 
 ## Problem Statement
 
-<!-- What problem are we exploring? For whom? Why now? -->
+C-43: the receiver-ack-lag guard reports that on `agent-chat-arc` 4 of 5 identities have NEVER
+acked and one lags by 1,533 — the G-063 write-only-sink shape on the fleet's main broadcast topic.
+But an unacked identity is not necessarily an unread one: most read paths (recent-chat, snapshot
+scans, subscribes) never emit receipts. Separate "nobody reads" from "readers don't ack" before
+treating this as a consumption failure. For: the operator (whether broadcast reaches anyone) and
+the guard's own credibility. Why now: arc-009 S-29e; sibling T-3004 just showed the same topic's
+POST side being mismeasured.
 
 ## Assumptions
 
-<!-- Key assumptions to test. Register with: fw assumption add "Statement" --task T-XXX -->
+- A-1: `channel ack-status` rows on the local hub are inspectable and keyed by identity
+  fingerprint (T-2838 item 1 caveat applies — a row is a host, not an agent).
+- A-2: Read paths that don't ack (plain subscribe) exist and are the dominant consumption mode.
+- A-3: T-3004's evidence (live posts today, shared host keypair) carries over to the read side.
 
 ## Open Questions
 
@@ -77,9 +86,32 @@ cost_estimate_proposed:
      FW_SKIP_DISPOSITION_GATE=1 (env-var, T-1890 producer/consumer parity).
 -->
 
+- **IW-1: What does the ack-lag guard report right now, and which identities are the never-ackers?**
+  confidence: 3
+  disposition: answered
+  rationale: rc=1 (permanently red): agent-chat-arc 4 NEVER-ACKED at lag=1554 (1da4fd99, 33df8954, 9219671e, fd794e54) + d1993c2c BEHIND (up_to=923, lag=630); framework:pickup also fires (2 never-acked lag=126, one behind by 44) — measured 2026-09-20
+
+- **IW-2: Do unacked identities actually read the topic (unacked subscribe consumption), or is the topic genuinely unread by them?**
+  confidence: 2
+  disposition: answered
+  rationale: Unanswerable from receipts BY DESIGN — every monitoring/read path (recent-chat, adoption snapshot, plain subscribe, this investigation) reads without acking and leaves no trace; T-3004 proved live readers exist on the topic the same day the guard called it unconsumed
+
+- **IW-3: Which consumption paths emit receipts at all — is acking structurally rare by design, making never-acked the expected state for most identities?**
+  confidence: 3
+  disposition: answered
+  rationale: Only the addressed flows ack (agent-respond receipt+reply via /check-arc, check-addressed-posts.sh); even framework:pickup's consumption contract acks via a LOCAL seen-offset file (T-2231) invisible to hub receipts — so yes, never-acked is the structural default
+
+- **IW-4: Is the guard's firing semantics right for this rail (broadcast, mostly-automated posts), or does it need a topic-class exemption / different threshold to stay credible?**
+  confidence: 3
+  disposition: answered
+  rationale: The 5 rows ARE the topic's 5 SENDERS (channel info .senders match exactly) — a sender-keyed check on a broadcast rail fires forever on its own posting bots (fd794e54: 1 post ever, permanent NEVER-ACKED row); permanently-red guard = T-2556/T-2818 fatigue class. Scope it to ack-contract topics (dm:* + include list), print exclusions
+
 ## Exploration Plan
 
-<!-- How will we validate assumptions? Spikes, prototypes, research? Time-box each. -->
+1. Run `check-receiver-ack-lag.sh` + `channel ack-status` on agent-chat-arc; capture rows. Time-box: 10 min.
+2. Grep the codebase for receipt-emitting paths (`channel ack` / ack-emitting verbs) vs plain-subscribe readers. Time-box: 15 min.
+3. Correlate with T-3004's live-read evidence (who reads without acking). Time-box: 10 min.
+4. Recommendation on guard semantics. Time-box: 15 min.
 
 ## Technical Constraints
 
@@ -91,7 +123,10 @@ cost_estimate_proposed:
 
 ## Scope Fence
 
-<!-- What's IN scope for this exploration? What's explicitly OUT? -->
+IN: measuring current ack-status on agent-chat-arc, enumerating receipt-emitting vs plain read
+paths, verdict on whether the guard's semantics fit a broadcast rail; recommendation only.
+OUT: changing the guard, hub-side ack enforcement (T-2838's own territory), the POST-side counter
+(T-3004's slice), per-agent identity keys (T-2838 item 1).
 
 ## Acceptance Criteria
 
@@ -139,7 +174,7 @@ cost_estimate_proposed:
 
 **Recommendation:** GO
 
-**Rationale:** The unconfirmed-delivery canary fires on symptoms; nobody has established which side of the rail owns the lag
+**Rationale:** C-43's G-063 framing over-reaches: the guard's rows are the topic's SENDERS (posters who never acked), not readers — on a broadcast rail its never-ackers are its own posting bots, and unacked subscribe-reads are invisible to receipts by design (T-3004 proved live readers exist the same day the guard called the topic unconsumed). The guard is permanently red (rc=1), the T-2556/T-2818 fatigue class. GO on ONE small build task: scope check-receiver-ack-lag.sh to ack-contract topics (dm:* + explicit include list), print exclusions counted-not-silent (T-2483 pattern), keep the sender-keyed caveat, document that broadcast consumption belongs to the adoption snapshot (post-T-3004 fix). Fixture: broadcast topic with never-acked bots must not fire; behind-threshold dm topic must. Findings + lag semantics (lag=1554 is frontier length, not backlog growth) recorded in the IW dispositions above; full artifact write deferred at session budget stop.
 
 ## Decisions
 
@@ -163,3 +198,7 @@ cost_estimate_proposed:
 
 ### 2026-09-19T22:35:36Z — status-update [task-update-agent]
 - **Change:** tags: +arc:arc-009
+
+### 2026-09-20T09:04:25Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
