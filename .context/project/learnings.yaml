@@ -4450,3 +4450,9 @@ learnings:
   task: T-2984
   date: 2026-09-20
   context: Added via context agent
+- id: PL-379
+  learning: "PL-378 is WRONG as stated: arc-009 does contain agent-executable Q1 work. Measured 2026-09-20: T-2995 and T-3001 are owner:agent, status:captured, horizon:next, tags arc:arc-009, quadrant hv-lc (BVP 70 / cost 3.6) — no human AC pending, nothing blocking. The four arc-009 tasks that ARE blocked (T-3003/3004/3006/3007) are blocked by an unchecked ### Human [REVIEW] go/no-go AC on exploration-complete agent-owned inceptions, NOT by owner:human as PL-378 claimed. Two distinct blockers were collapsed into one, and the collapse understated available work to zero. Lesson: 'no agent-executable work remains' must be proven per-task against owner AND status AND the Human-AC set, never inferred from the owner field of the tasks that happen to be started-work."
+  source: P-001
+  task: T-2984
+  date: 2026-09-20
+  context: Added via context agent
