@@ -15,7 +15,8 @@ workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [.agentic-framework/agents/handover/handover.sh, 
+      .agentic-framework/agents/context/pre-compact.sh]
 related_tasks: [T-2941, T-2942, T-2943, T-3014]
 arc_id: arc-008
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
@@ -29,7 +30,7 @@ arc_id: arc-008
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-20T10:29:11Z
-last_update: 2026-09-20T10:37:22Z
+last_update: '2026-09-20T13:16:26Z'
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -65,6 +66,15 @@ cost_estimate_proposed:
     rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
       (workflow:build); effort=8 (lines=204,acs=4)
     rubric_sha: e4a00f38e801
+  - ts: '2026-09-20T13:16:26Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 8
+    rationale: blast_radius=3 (2-components); tier=2 (workflow:build); effort=8 
+      (lines=260,acs=5)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3015: Handover generator emits 5 unfilled [TODO] sections and PreCompact auto-commits them — D8/D8b recur every compaction
@@ -83,7 +93,7 @@ cost_estimate_proposed:
 - [x] The recurrence is demonstrated end-to-end on a single session: a handover generated,
       auto-committed and auto-pushed by `fw handover` while carrying unfilled sections — i.e.
       the mechanism ships a fresh D8/D8b violation with no human in the loop
-- [ ] Filed upstream to `framework:pickup` per G-062 (the generator and the PreCompact hook are
+- [x] Filed upstream to `framework:pickup` per G-062 (the generator and the PreCompact hook are
       both vendored), carrying the measurement and a proposed fix; the offset is recorded here.
       No local patch to `.agentic-framework/` is made, and that is stated rather than left silent
 
@@ -185,6 +195,20 @@ reachable and currently 10/10.
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+# AC3 closure checks. Independently checkable — they query the rail and the working
+# tree, not the agent's assertion. L-387: no `cmd | grep -q` shapes anywhere below.
+
+# (a) the offset is recorded in the task's PROSE, not merely inside this Verification
+#     block. A plain `grep <token> <this file>` would match the check's own command line
+#     and pass vacuously (the T-2831 class), so the Verification section is excised first.
+python3 -c "import re,sys;t=open('.tasks/active/T-3015-handover-generator-emits-5-unfilled-todo.md').read();body=re.sub(r'^## Verification.*?(?=^## )','',t,flags=re.M|re.S);sys.exit(0 if 'upstream_filing: framework:pickup@126' in body else 1)"
+
+# (b) the filing is actually retrievable ON the rail at that offset and carries this task
+termlink channel subscribe framework:pickup --cursor 126 --limit 1 --json > /tmp/.t3015-rail.json 2>/dev/null && python3 -c "import json,base64,sys;e=json.loads(open('/tmp/.t3015-rail.json').read().strip().splitlines()[0]);x=base64.b64decode(e['payload_b64']).decode('utf-8','replace');sys.exit(0 if ('T-3015' in x and 'PROPOSED FIX' in x and 'No local patch was made' in x) else 1)"
+
+# (c) NO local patch to the two vendored files this task is about (G-062)
+test -z "$(git status --porcelain .agentic-framework/agents/handover/handover.sh .agentic-framework/agents/context/pre-compact.sh)"
 
 ## RCA
 
@@ -326,3 +350,48 @@ this session hit its context stop condition (~90%) and posting to the fleet rail
 outward-facing action better taken with budget to verify the send landed. No local patch was
 made to `handover.sh` or the PreCompact hook — both are vendored (G-062), so a local fix
 would be erased by the next re-vendor. Stated explicitly rather than left silent.
+
+### 2026-09-20T11:0Z — AC3 closed: filed upstream [agent, autonomous run]
+
+**Filed to `framework:pickup` offset 126**, pickup_id `P-079`, msg_type `pickup-bug-report`,
+5646 bytes, via the sanctioned verb path `fw pickup send` → `fw pickup process` (which mirrors
+through `lib/pickup-channel-bridge.sh`, T-1165). Not hand-rolled as a raw `channel post`.
+
+The filing carries: the 5-marker split with `handover.sh` line numbers (712 / 1287 / 1291 /
+1295 / 1311), the end-to-end recurrence demonstration, the `pre-compact.sh:82-86` unconditional
+`--commit` branch, and a two-part proposed fix. Part (A) — count a structured
+`unfilled_sections:` list instead of grepping the literal `[TODO]` string — is offered as a
+correctness fix. Part (B) — whether an `enrichment_status: pending` document should be
+auto-PUSHED — is explicitly flagged as a scope judgement for the framework's owners and is
+**not** decided here.
+
+**The sharpest finding, now filed:** D8/D8b measure by string-grep over prose, so the
+generator's own comment counts and *so does any writing about the defect*. Enriching this
+project's handover took the count 5 → 2, not 5 → 1, because one sentence in Gotchas describes
+the marker. A metric that a truthful description of itself can inflate is not measuring what
+it names.
+
+**No local patch was made** to `.agentic-framework/agents/handover/handover.sh` or
+`.agentic-framework/agents/context/pre-compact.sh`. Both are vendored; per G-062 a local fix
+is deleted by the next re-vendor. Stated rather than left silent, as the AC requires.
+
+**Scope note (T-2680) restated:** this closes the *measure / demonstrate / file* obligation.
+It does **not** make D8 pass — nothing here changes the vendored generator, and D8's PASS
+remains unreachable while its own comment counts. The next audit cycle is the verification,
+per the arc rule, and it should still show D8 failing. That is expected, not a regression.
+
+**Three defects surfaced by the filing act itself** (recorded here, filed as their own tasks
+per the arc's link-never-merge rule):
+1. The bridge stamped `metadata.from_project: root` on offset 126, while offsets 122–125 carry
+   `010-termlink`. T-2816's canary self-filter matches on that field, so **this project's own
+   filing will fire the framework-pickup canary at us** on the next daily run.
+2. `fw pickup process` round-tripped our own OUTBOUND filing back in as local inbound work —
+   and from ONE envelope it created **three identical tasks**, T-3019 / T-3020 / T-3021, all
+   stamped `created: 2026-09-20T13:20:02..03Z` (within one second of each other), all
+   `captured`. The run's own console output named only T-3021, so two of the three were
+   created silently. A report we authored is now three pieces of inbound backlog.
+3. Two errors printed during the same process run: `pickup_dedup_hash: envelope not readable`
+   (the envelope was moved before its hash was computed) and a `P-079` id collision against an
+   existing `processed/P-079-bug-report.yaml`, resolved by filing ours as `.dup-1.yaml`.
+
+upstream_filing: framework:pickup@126 (pickup_id P-079, msg_type pickup-bug-report, 5646 bytes)

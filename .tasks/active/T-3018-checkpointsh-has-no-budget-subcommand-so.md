@@ -1,15 +1,25 @@
 ---
 id: T-3018
-name: "checkpoint.sh has no 'budget' subcommand, so the G-087-safe budget read prescribed by /resume and CLAUDE.md crashes"
+name: "checkpoint.sh has no 'budget' subcommand, so the G-087-safe budget read prescribed
+  by /resume and CLAUDE.md crashes"
 description: >
-  The /resume skill and CLAUDE.md Session Start Protocol both prescribe '.agentic-framework/agents/context/checkpoint.sh budget' as the G-087-safe way to read context budget, explicitly warning NOT to raw-cat .context/working/.budget-status because a stale or foreign-session cache reads back as a plausible {level:ok,tokens:0}. The vendored checkpoint.sh implements only {post-tool|reset|status}: invoking 'budget' prints usage, exits 1, and triggers a 'HOOK CRASHED (exit 1)' banner. So the documented safe path does not exist and an agent following the instruction either crashes or falls back to the exact raw read G-087 forbids. Observed twice across sessions (2026-09-18 and 2026-09-20) and not previously filed. Workaround: 'checkpoint.sh status' reports tokens and percentage. Vendored (G-062) so the fix is upstream.
+  The /resume skill and CLAUDE.md Session Start Protocol both prescribe '.agentic-framework/agents/context/checkpoint.sh
+  budget' as the G-087-safe way to read context budget, explicitly warning NOT to
+  raw-cat .context/working/.budget-status because a stale or foreign-session cache
+  reads back as a plausible {level:ok,tokens:0}. The vendored checkpoint.sh implements
+  only {post-tool|reset|status}: invoking 'budget' prints usage, exits 1, and triggers
+  a 'HOOK CRASHED (exit 1)' banner. So the documented safe path does not exist and
+  an agent following the instruction either crashes or falls back to the exact raw
+  read G-087 forbids. Observed twice across sessions (2026-09-18 and 2026-09-20) and
+  not previously filed. Workaround: 'checkpoint.sh status' reports tokens and percentage.
+  Vendored (G-062) so the fix is upstream.
 
 status: captured
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [.agentic-framework/agents/context/checkpoint.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -22,8 +32,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-20T10:34:39Z
-last_update: 2026-09-20T10:34:39Z
-date_finished: null
+last_update: '2026-09-20T13:16:27Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,6 +44,30 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-09-20T13:16:21Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-09-20T13:16:27Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (single-component); tier=2 (workflow:build); 
+      effort=8 (lines=204,acs=4)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3018: checkpoint.sh has no 'budget' subcommand, so the G-087-safe budget read prescribed by /resume and CLAUDE.md crashes

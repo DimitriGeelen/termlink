@@ -1,0 +1,80 @@
+pickup_id: P-079
+version: 1
+type: bug-report
+source:
+  project: 010-termlink
+  task_id: T-3015
+  agent: claude-code
+  timestamp: '2026-09-20T13:19:49Z'
+payload:
+  summary: Handover generator + PreCompact auto-commit mint a fresh D8/D8b FAIL every
+    compaction; D8/D8b grep the literal [TODO] string so prose describing the defect
+    inflates it
+  detail: "From: 010-termlink (autonomous run, arc-008 \"Audit and doctor finding\
+    \ remediation\"). Task: T-3015.\nType: bug-report. Priority: high. Vendored files,\
+    \ so filed per G-062 rather than patched locally.\n\n== WHAT RECURS ==\n\nThe\
+    \ audit checks D8 (\"Handover quality — LATEST.md has N [TODO] sections\") and\
+    \ D8b (\"Handover\narchive rot — N/N recent handovers have unfilled [TODO]s\"\
+    ) have FAILed continuously in this\nproject. Two tasks (T-2941, T-2942) were closed\
+    \ work-completed on 2026-09-09 having filled that\nday's handover by hand. Eleven\
+    \ days later, on a fresh audit re-run, both lines were unchanged:\nD8 = 5 [TODO],\
+    \ D8b = 10/10. Filling the file does nothing, because the file is regenerated\
+    \ on\nevery compaction.\n\n== MEASUREMENT (not assertion) ==\n\nFreshly generated\
+    \ handover S-2026-0920-1235.md, 5 markers split by cause:\n\n  line   6  generator's\
+    \ own instructional comment          UNFILLABLE  (handover.sh:712)\n  line 232\
+    \  \"[TODO: decisions taken this session...]\"      fillable    (handover.sh:1287)\n\
+    \  line 236  \"[TODO: approaches tried that did not work]\"   fillable    (handover.sh:1291)\n\
+    \  line 240  \"[TODO: questions left open...]\"               fillable    (handover.sh:1295)\n\
+    \  line 252  \"[TODO: traps the next session should know]\"   fillable    (handover.sh:1311)\n\
+    \nSo 1 structural floor + 4 genuinely unfilled. D8 fails at threshold >3 with\
+    \ a count of 5, and\nfour of the five are real — the FAIL is NOT merely an artifact\
+    \ of the known floor.\n\nAfter filling all four by hand the count did not fall\
+    \ to 1, it fell to 2. The extra one is a\nsentence in the Gotchas section that\
+    \ *describes* the marker. That is the sharpest part of this\nreport, and it generalises:\n\
+    \n  D8/D8b measure by grepping the literal string \"[TODO]\" over prose. Therefore\
+    \ the\n  generator's own comment counts, and so does any writing ABOUT the defect.\
+    \ Documenting\n  the problem increases the measured size of the problem.\n\nA\
+    \ metric that a truthful description of itself can inflate is not measuring what\
+    \ it names.\n\n== THE RECURRENCE, DEMONSTRATED END-TO-END, NO HUMAN IN THE LOOP\
+    \ ==\n\n1. `fw handover` was invoked once, to wrap up a session.\n2. It generated\
+    \ S-2026-0920-1235.md carrying 5 [TODO] sections and stamped\n   `enrichment_status:\
+    \ pending` (handover.sh:297, :714).\n3. It auto-COMMITTED that file (77f60e10e).\n\
+    4. It auto-PUSHED it to the remote, carrying two unrelated commits with it.\n\n\
+    No step asked anyone to fill anything. A fresh D8/D8b violation was minted, committed\
+    \ and\npublished in a single unattended verb invocation. Meanwhile the commit\
+    \ hook printed\n\"HANDOVER STALE: Last handover has 5 unfilled [TODO] sections\"\
+    \ twice in the same session — the\nframework observing its own defect while producing\
+    \ it.\n\npre-compact.sh:82-86 is the unconditional half:\n    if [ \"$SKIP_COMMIT\"\
+    \ = \"true\" ]; then\n        bash .../handover.sh --no-commit\n    else\n   \
+    \     bash .../handover.sh --commit      # <-- commits a document it just stamped\
+    \ 'pending'\n    fi\n\n== PROPOSED FIX (two parts; upstream's call which to take)\
+    \ ==\n\n(A) Make the metric structural instead of textual. The generator already\
+    \ writes\n    `enrichment_status: pending|enriched`, and it knows exactly which\
+    \ sections it left\n    unfilled. Emit that as structured frontmatter, e.g.\n\n\
+    \        enrichment_status: pending\n        unfilled_sections: [decisions, failed_approaches,\
+    \ open_questions, gotchas]\n\n    and have D8/D8b count `unfilled_sections` rather\
+    \ than grep for \"[TODO]\". This fixes the\n    floor and the prose-inflation\
+    \ in one move, and makes \"unfilled\" a fact the generator\n    asserts rather\
+    \ than a string a checker guesses at.\n\n(B) Decide deliberately what an unenriched\
+    \ handover may do. Auto-COMMIT is defensible —\n    PreCompact fires precisely\
+    \ when the session is about to lose its context, and an\n    uncommitted handover\
+    \ could be lost outright. Auto-PUSH of a document explicitly marked\n    `pending`\
+    \ is the harder half to justify: it publishes a known-incomplete artifact to a\n\
+    \    shared remote with no human in the loop. Splitting those two behaviours would\
+    \ leave the\n    safety property intact while removing the publish.\n\nNote (B)\
+    \ is a scope/priority judgement for the framework's owners, not something this\n\
+    project should decide unilaterally. (A) is a straightforward correctness fix.\n\
+    \n== WHAT WAS NOT DONE ==\n\nNo local patch was made to .agentic-framework/agents/handover/handover.sh\
+    \ or\n.agentic-framework/agents/context/pre-compact.sh. Both are vendored; a local\
+    \ fix would be\ndeleted by the next re-vendor (this project measures roughly one\
+    \ wholesale vendor event every\ntwo months). Stating this explicitly rather than\
+    \ leaving it silent.\n\nRelated local tasks: T-2941, T-2942, T-2943 (D8 floor),\
+    \ T-3014 (arc-008 cycle-2 census)."
+  priority: high
+  tags:
+  - handover
+  - audit
+  - D8
+  - D8b
+  - vendored
+  - G-062
