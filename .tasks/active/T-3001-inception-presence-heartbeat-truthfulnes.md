@@ -7,15 +7,15 @@ description: >
   aligned with the T-2876 prover verdict set. Evidence: docs/reports/VALUE-REVIEW-repo-2026-09-19-consolidated.md
   C-10.
 
-status: captured
+status: started-work
 workflow_type: inception
 owner: agent
-horizon: next
+horizon: now
 tags: [value-review, arc:arc-009]
 components: []
 related_tasks: []
 created: 2026-09-19T22:23:58Z
-last_update: '2026-09-20T08:45:20Z'
+last_update: 2026-09-20T21:20:22Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -54,7 +54,23 @@ cost_estimate_proposed:
 
 ## Problem Statement
 
-<!-- What problem are we exploring? For whom? Why now? -->
+A presence heartbeat on `agent-presence` is read across this repo as "this agent is
+reachable". It is not that claim. It is the weaker claim that a process was alive and
+emitting N seconds ago. Between those two sits every failure T-2873/74/75 found in one
+week: a hub reporting `injected` while the PTY got nothing, a config that looked
+authoritative and was never read, and a send that succeeded while the target sat blocked.
+
+T-2876 already built the vocabulary that tells those apart on the MESSAGE rail --
+DELIVERED / BLOCKED / ENQUEUED / UNDELIVERED, asserted on the receiver and never on the
+sender. Presence is the remaining surface that still asserts something it cannot observe,
+and its consumers (`/peers`, `agent find-idle`, doorbell discovery) treat LIVE as
+dispatchable.
+
+For whom: every orchestrator that picks a worker off presence. Why now: the truthfulness
+vocabulary exists and is proven, so the question is whether it transfers to this surface,
+not whether such a vocabulary is possible.
+
+Findings artifact: `docs/reports/T-3001-presence-heartbeat-truthfulness.md`.
 
 ## Assumptions
 
@@ -78,9 +94,41 @@ cost_estimate_proposed:
      FW_SKIP_DISPOSITION_GATE=1 (env-var, T-1890 producer/consumer parity).
 -->
 
+- **IW-1: What does a presence heartbeat actually assert today — which fields does the producer emit, and what does each consumer infer from them?**
+  confidence: 0
+  disposition: open
+  rationale: not yet measured — spikes 1-2
+
+- **IW-2: Can an agent be LIVE on `agent-presence` while genuinely unable to act on a message — does the T-2876 BLOCKED class have a presence-side counterpart that is currently invisible?**
+  confidence: 0
+  disposition: open
+  rationale: not yet measured — spike 3
+
+- **IW-3: Does the T-2876 verdict set (DELIVERED/BLOCKED/ENQUEUED/UNDELIVERED) transfer to presence, or is presence a different axis needing its own vocabulary?**
+  confidence: 0
+  disposition: open
+  rationale: not yet measured — spike 4
+
+- **IW-4: Where would truthfulness be enforced — producer-side (emit only what the process can observe) or consumer-side (stop over-reading LIVE) — and how much of each surface is vendored (G-062, upstream) vs local?**
+  confidence: 0
+  disposition: open
+  rationale: not yet measured — spike 5
+
 ## Exploration Plan
 
-<!-- How will we validate assumptions? Spikes, prototypes, research? Time-box each. -->
+Read-only measurement against the working tree. No producer or consumer is changed by
+this inception.
+
+1. **Producer** -- read `scripts/listener-heartbeat.sh` / `be-reachable` and enumerate
+   every field a heartbeat emits, and which of them the emitting process can actually
+   observe about itself -> IW-1 (producer half).
+2. **Consumers** -- enumerate every reader of `agent-presence` and record the predicate
+   each applies and the conclusion it draws -> IW-1 (consumer half), IW-2.
+3. **Counterpart check** -- test whether a LIVE-but-cannot-act state is reachable, and
+   whether anything today distinguishes it -> IW-2.
+4. **Vocabulary fit** -- hold the T-2876 verdict set against the states found in 1-3 and
+   record which map, which do not, and what is left over -> IW-3.
+5. **Ownership** -- for each surface a fix would touch, record vendored vs local -> IW-4.
 
 ## Technical Constraints
 
@@ -92,7 +140,15 @@ cost_estimate_proposed:
 
 ## Scope Fence
 
-<!-- What's IN scope for this exploration? What's explicitly OUT? -->
+**IN:** measuring what the heartbeat asserts; enumerating consumers and their predicates;
+testing whether LIVE-but-blocked is reachable and invisible; assessing whether the T-2876
+vocabulary transfers; recording vendored-vs-local ownership of every surface a fix touches.
+
+**OUT -- deliberately:**
+- Changing any producer or consumer. This is an inception; no behaviour is altered.
+- Patching vendored code (G-062) -- anything upstream is filed, not edited here.
+- Deciding go/no-go. The `### Human [REVIEW]` AC owns that, and producer-not-judge forbids
+  me ratifying my own exploration.
 
 ## Acceptance Criteria
 
@@ -164,3 +220,7 @@ cost_estimate_proposed:
 
 ### 2026-09-19T22:35:34Z — status-update [task-update-agent]
 - **Change:** tags: +arc:arc-009
+
+### 2026-09-20T21:20:22Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
