@@ -6,10 +6,10 @@ description: >
   upstream with the fix, register in .vendor-divergence.yaml. Evidence: consolidated
   C-20.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [value-review, arc:arc-009]
 components: []
 related_tasks: []
@@ -24,7 +24,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-19T22:05:16Z
-last_update: '2026-09-20T08:45:19Z'
+last_update: 2026-09-20T22:12:32Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -73,8 +73,19 @@ cost_estimate_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] The lost-update race in `_fw_telemetry_increment` is REPRODUCED by a concurrency
+      harness, with measured expected-vs-actual counts recorded in this task (an
+      asserted race is not evidence of one).
+- [ ] The corruption window is characterised: whether concurrent readers can observe a
+      truncated/empty counter file, not merely a count one low.
+- [ ] A candidate fix is written and shown to eliminate the loss under the SAME harness
+      (0 lost increments across repeated runs).
+- [ ] The fix's per-call overhead is measured against the 5ms T-1626 budget that the
+      function's own comment cites as the reason it avoids a subprocess.
+- [ ] Defect + reproduction + measured fix are FILED at `framework:pickup` (the code is
+      vendored — G-062 forbids patching it here), and the filing offset is recorded.
+- [ ] The divergence is registered in `.vendor-divergence.yaml` with `status:
+      filed-upstream` and a cited reason.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -110,6 +121,14 @@ cost_estimate_proposed:
 -->
 
 ## Verification
+
+# The harness must exist, and must still DEMONSTRATE the race against the
+# unfixed vendored function (a harness that cannot go red proves nothing).
+test -x tests/hook-telemetry-race-fixtures.sh
+bash tests/hook-telemetry-race-fixtures.sh > /tmp/.t2982 2>&1 && grep -q "ALL ASSERTIONS PASSED" /tmp/.t2982
+# The divergence register must parse and must carry this task's entry.
+python3 -c "import yaml,sys; d=yaml.safe_load(open('.vendor-divergence.yaml')); sys.exit(0)"
+grep -q "T-2982" .vendor-divergence.yaml
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -269,3 +288,7 @@ cost_estimate_proposed:
 
 ### 2026-09-19T22:08:36Z — status-update [task-update-agent]
 - **Change:** tags: +arc:arc-009
+
+### 2026-09-20T22:12:32Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

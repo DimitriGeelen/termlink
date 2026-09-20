@@ -136,13 +136,45 @@ Three distinct classes, not one:
 - **Live:** `event.subscribe`, `event.emit_to` (hub arms, client surfaces).
 - **Daemon-served, hub-invisible:** `event.emit` (the hub is a *client* of it), `event.topics`.
   Their zero-call readings are F1 artefacts.
-- **Orphan constants:** `event.state_change` and `event.error` have **zero references
-  anywhere outside their own definition** in `control.rs` — no hub arm, no CLI, no MCP, no
-  test, no script. Nothing can emit them and nothing can receive them.
+- **Orphan constants:** `event.state_change` and `event.error` — see F7 for the precise
+  measurement, which is not the one this finding originally claimed.
 
-The two orphans are the only surfaces in this entire sweep whose removal rests on no usage
-argument at all: they are unreferenced by construction, so F1's inadmissibility does not
-apply to them.
+### F7 — correction to F6, and the grep that produced it
+
+F6 first asserted that `event.state_change` and `event.error` have "zero references anywhere
+outside their own definition". **That was false for `event.state_change`, and the error is
+worth recording because it is the exact blind spot this repo already guards against
+elsewhere.**
+
+The first sweep grepped the **constant names** (`EVENT_STATE_CHANGE`, `EVENT_ERROR`) across
+`crates/**/*.rs`. Every real use of these methods spells the **string literal** instead, so
+the constant-scoped grep returned nothing and the absence read as "unreferenced". This is
+the inverse of the trap T-2699 documents for error codes, where an emission counts as
+"a reference to `error_code::NAME`, **or** the bare numeric literal" — precisely because
+checking only the symbol misses the literal.
+
+Re-measured on the string literal:
+
+| method | production sites | `#[cfg(test)]` sites | docs |
+|---|---|---|---|
+| `event.state_change` | **0** | 3 — `jsonrpc.rs:182`, `session/server.rs:455`, `session/handler.rs:1542` | T-005 design, T-256 |
+| `event.error` | **0** | **0** | T-005 design, T-256 |
+
+The three test sites use the bare string as a throwaway "some notification" fixture — they
+are testing that a request with no `id` produces no response, and `event.state_change` is
+just a plausible method name to put in it. They do not reference the constant.
+
+`docs/reports/T-256-q1-primitives.md:60-61` labels both **"Reserved, not implemented"**,
+which is an accurate description of the state they are still in.
+
+**What survives of F6:** both constants are unused by production code, and removing them
+breaks nothing — the three tests name the string, not the symbol, so they keep compiling.
+This remains the only disposition in the sweep that rests on no usage argument, so F1's
+inadmissibility still does not apply.
+
+**What does not survive:** the claim that the method names appear nowhere. They appear in
+three tests and in two design documents. A future sweep grepping the string will keep
+finding hits, and should not read those as live traffic.
 
 ## Recommendation
 
@@ -169,13 +201,16 @@ divide on a different axis:
 4. **One row is cheap and clean.** C-28's `dialog.presence` has handler, tests, capability
    advertisement and a live producer maintaining state for it. Only the client surface is
    missing.
-5. **Two surfaces are genuinely orphaned.** `event.state_change` and `event.error` have zero
-   references outside their own definition. These are the only DELETE candidates in the
-   sweep that need no usage evidence, because nothing references them either way.
+5. **Two constants are unused by production code.** `event.state_change` and `event.error`
+   have **zero production references** (F7). They are the only DELETE candidates in the
+   sweep that need no usage evidence. Note the correction in F7: the method *names* do
+   appear in three `#[cfg(test)]` fixtures and two design docs — removing the constants is
+   still safe, because those tests spell the string rather than the symbol.
 
 **Dependency-ordered scope, if GO:**
-1. `event.state_change` + `event.error` — unreferenced constants, removable on structure
-   alone. No dependency on T-2996.
+1. `event.state_change` + `event.error` — constants unused by production code, removable on
+   structure alone (F7). No dependency on T-2996. The three test fixtures naming the string
+   are unaffected.
 2. `dialog.presence` — add the client surface (CLI verb and/or MCP tool). Small; producer,
    handler and tests already exist.
 3. `event.broadcast` residue — retire the constant and the `LEGACY_METHODS` entry

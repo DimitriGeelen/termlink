@@ -16,7 +16,7 @@ tags: [value-review, arc:arc-009]
 components: []
 related_tasks: []
 created: 2026-09-19T22:18:28Z
-last_update: 2026-09-20T21:55:00Z
+last_update: 2026-09-20T21:58:29Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -101,7 +101,7 @@ Full measurements: `docs/reports/T-2995-rpc-surface-wiring-sweep.md`.
 - **IW-1: For each of the five surfaces (orchestrator.route, dialog.presence, session.*, event.* family, event.broadcast), is it hub-implemented, and does it carry a client surface (CLI verb and/or MCP tool)?**
   confidence: 3
   disposition: answered
-  rationale: Matrix measured in source — orchestrator.route and dialog.presence: hub arm, zero CLI/MCP; session.* lifecycle: no hub arm at all (served by termlink-session/src/handler.rs); event.* splits three ways (live / daemon-served / orphan constants). Hub router carries 64 arms, only 5 are session.*/event.* — artifact F2
+  rationale: Matrix measured in source — orchestrator.route and dialog.presence: hub arm, zero CLI/MCP; session.* lifecycle: no hub arm at all (served by termlink-session/src/handler.rs); event.* splits three ways (live / daemon-served / constants unused by production code — see F7 correction). Hub router carries 64 arms, only 5 are session.*/event.* — artifact F2
 
 - **IW-2: Does the C-30 audit blind spot apply to session.* and event.* — i.e. is "zero hub-observed calls" evidence of disuse, or evidence of nothing?**
   confidence: 3
@@ -230,9 +230,14 @@ wrong question.
   advertisement, and a live producer maintaining state *for a query nobody can issue*
   (`channel.rs:941`). Only the client surface is missing.
 - **The real clean DELETEs were never in the review.** `event.state_change` and
-  `event.error` have zero references outside their own definition in `control.rs` — no hub
-  arm, no CLI, no MCP, no test. They are the only surfaces here removable on structure
-  alone, so F1's inadmissibility does not touch them.
+  `event.error` have **zero production references** — no hub arm, no CLI, no MCP. They are
+  the only surfaces here removable on structure alone, so F1's inadmissibility does not
+  touch them. **Corrected mid-exploration (artifact F7):** the first measurement grepped the
+  CONSTANT names and reported zero references anywhere, which was false — every real use
+  spells the string literal. Re-measured, `event.state_change` appears in three
+  `#[cfg(test)]` fixtures using the bare string as a throwaway notification name, and both
+  appear in the T-005/T-256 design docs (T-256 labels them "Reserved, not implemented").
+  Removing the constants is still safe; the claim that the names appear nowhere was not.
 
 **Dependency-ordered scope:** (1) remove the two orphan constants — independent of
 everything. (2) wire `dialog.presence`. (3) retire the `event.broadcast` residue as one unit
