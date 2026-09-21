@@ -31,7 +31,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-21T07:35:12Z
-last_update: 2026-09-21T07:36:49Z
+last_update: 2026-09-21T07:40:40Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -63,22 +63,30 @@ bvp_scores_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+The `/resume` skill, step 6, prescribes `.agentic-framework/agents/context/checkpoint.sh
+budget` as the G-087-safe budget read and in the same breath forbids the raw
+`cat .context/working/.budget-status`, citing G-087/T-222 (a failed transcript scan or a
+foreign-session cache reads back as a plausible `{"level":"ok","tokens":0}` — measured
+twice in production, 0 vs 297,923 and 0 vs 70,549). The vendored `checkpoint.sh`
+implements only `{post-tool|reset|status}`. So the only read the framework certifies as
+safe does not exist, and the only read that exists is the one it forbids.
+
+Filed upstream at `framework:pickup@134` (G-062 — vendored code is not patched here).
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] The defect is reproduced by a recorded check, not asserted: invoking
+- [x] The defect is reproduced by a recorded check, not asserted: invoking
       `.agentic-framework/agents/context/checkpoint.sh budget` exits non-zero and its
       own usage line offers only `{post-tool|reset|status}` — `budget` is absent
-- [ ] The contradiction is stated in this task: `/resume` step 6 prescribes the
+- [x] The contradiction is stated in this task: `/resume` step 6 prescribes the
       `budget` subcommand AND explicitly forbids the raw `cat` of
       `.context/working/.budget-status` (G-087/T-222), so the only read the framework
       certifies as safe is unimplemented and the only implemented read is forbidden
-- [ ] No local patch is made under `.agentic-framework/` (G-062: a local fix to
+- [x] No local patch is made under `.agentic-framework/` (G-062: a local fix to
       vendored code is deleted by the next re-vendor) — verified by a clean porcelain
-- [ ] The defect is filed upstream at `framework:pickup` and the resulting offset is
+- [x] The defect is filed upstream at `framework:pickup` and the resulting offset is
       recorded in this task file, per CLAUDE.md: if you are writing a report to a file
       so a human can relay it, post it to the rail instead
 
@@ -97,43 +105,49 @@ grep -q "framework:pickup@" .tasks/active/T-3034-checkpointsh-has-no-budget-subc
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom:** `checkpoint.sh budget` exits non-zero, prints `Usage: checkpoint.sh
+{post-tool|reset|status}`, and trips the framework's HOOK CRASHED banner — which tells the
+operator to report a malfunction for a subcommand that was never implemented. Reproduced
+3 times across 2 sessions.
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause:** The documented contract for `budget` is not "print the cache"; it is to
+REJECT a cache that is stale, from another session, or self-marked `unknown`, answering
+`level: unknown` plus a reason. That provenance-checking logic is what G-087/T-222 exists
+to provide, and it was never written. `status` is not a substitute — it prints a number
+with no provenance check, which is the same failure surface as the raw `cat`, just
+prettier.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Why structurally allowed:** The prescription and the implementation live in different
+artefacts with nothing tying them together — `/resume` is a skill body, `checkpoint.sh` is
+vendored code, and no check asserts that a command a skill instructs the operator to run
+actually exists. This is the guard-layer shape this repo keeps finding: the safe path is
+documented, prescribed, and absent, so in practice everyone takes the unsafe one and
+believes they are compliant. Compounding it, the missing verb fails LOUDLY as a hook crash,
+which trains the reader that the safe read is broken tooling rather than absent tooling.
+
+**Prevention:** Filed upstream at `framework:pickup@134` with the suggested implementation
+(including the specific point that `level: unknown` must exit 0 — it is an ANSWER, not a
+crash — since the non-zero exit is what manufactures the false malfunction report). The
+prevention is upstream's to land; this task's local contribution is the filing and the
+recorded reproduction. A local detector asserting "every command a skill prescribes
+resolves" is a plausible follow-up but was not built here — it is not this task's scope
+and would be a new check, not a fix.
 
 ## Evolution
 
-<!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
-     understanding evolved during build — what was learned that wasn't known at
-     filing, what in the original plan no longer fits, what triggered pivots
-     or new sub-tasks. Mandatory at slice boundaries (when applicable) and
-     before --status work-completed.
+### 2026-09-21 — the missing verb is the smaller half
 
-     Origin: T-1717 grill Q4 — "the understanding of what we need and want
-     evolves with the process of materialisation." Structural counter to §ACD:
-     spec-vs-build divergence is logged as soon as it happens, not lost as
-     folklore.
-
-     Format (one entry per slice boundary or significant insight):
-       ### YYYY-MM-DD — [topic]
-       - **What changed:** [what we learned that we didn't know at filing]
-       - **Plan impact:** [what in the plan no longer fits]
-       - **Triggered:** [new sub-task / pivot / scope cut, with task ID if filed]
-
-     The completion gate (T-1718) blocks --status work-completed when this
-     section exists but is empty/template-only. Use --skip-evolution to bypass
-     (logged Tier-2). Non-arc tasks may leave this empty.
--->
+- **What changed:** At filing this read as "a subcommand is missing". Writing the upstream
+  report made the sharper point visible: what is missing is not a printer but the
+  provenance REJECTION logic (stale / foreign-session / self-marked-unknown), which is the
+  entire substance of G-087. Someone could add a `budget` verb that cats the cache, close
+  this defect, and leave G-087 exactly as unguarded as it is today.
+- **Plan impact:** The upstream filing therefore leads with the contract, not the usage
+  line, and states explicitly that `status` is not a substitute. It also names the
+  either/or: if `status` IS meant to serve this role, then `/resume` step 6 is the thing
+  that is wrong — but one of the two must move.
+- **Triggered:** No new sub-task. The filing carries both branches so the decision is
+  upstream's to make; deciding it here would be resolving a question that is not mine.
 
 ## Recommendation
 
