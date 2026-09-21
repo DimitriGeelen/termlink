@@ -12,3 +12,4 @@ inception_commit_limit: 5
 PORT: 3003
 version_sha: 67aeacc735006f6aed489fce7af0ec9248587917
 RAIL_PROJECT_LABEL: 010-termlink
+CONTEXT_WINDOW: 800000
