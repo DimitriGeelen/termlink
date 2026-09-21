@@ -1,0 +1,36 @@
+# T-3051 — Notify-sidecar liveness canary (arc-003 deterministic wake rail)
+# Source of truth: /opt/termlink/.context/cron/notify-sidecar-canary.crontab (git-tracked)
+# Installed to:    /etc/cron.d/termlink-notify-sidecar-canary (USER field syntax — do NOT load into a user crontab)
+#
+# T-3049 measured the wake rail dark for 82 days and nothing noticed. The other
+# canaries all ask whether the FLEET is well — hubs, binaries, wakers, claims,
+# queues, topics, receipts. None asks whether THIS host can still hear, so an
+# agent with dead ears looked healthy to every one of them.
+#
+# DISTINCT FROM THE SUPERVISOR (T-3050), which is a fixer, not detection. The
+# supervisor can fail silently: a sidecar that crash-loops is restarted and dies
+# every cycle, a start that fails every 5 minutes looks identical to one that
+# never runs, and if the supervisor's own crontab was never installed it does
+# nothing. This canary reads HEARTBEATS ONLY and never consults the supervisor,
+# so it still fires in all three cases. A canary satisfied by its fixer's
+# existence detects nothing.
+#
+# Scoped to agents DECLARED in notify-sidecar-agents.conf. ~/.termlink/notify/
+# still holds July test residue whose heartbeats will never beat again; adopting
+# every heartbeat found would make this permanently red, i.e. unread (T-2818).
+#
+# Threshold 300s = the supervisor's own cadence, so anything it CAN fix is fixed
+# before this fires. What survives is what it could not fix. Empty log = healthy.
+# /canaries auto-discovers this log.
+#
+# Operator action on firing: DEAD means the listener stopped and the supervisor
+# could not revive it — read .context/working/notify-sidecar-<agent>.log first.
+# MISSING means it has never run here — check `bash scripts/check-cron-install-drift.sh`.
+# Ad-hoc: bash scripts/check-notify-sidecar-freshness.sh
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+
+# Daily at 07:53 UTC — offset from :13 mirror, :17 unconfirmed-delivery,
+# :27 stuck-claims, :33 session-control, :37 substrate-smoke, :43 frozen-husk,
+# :47 task-finalization.
+53 7 * * * root cd /opt/termlink && bash scripts/check-notify-sidecar-freshness.sh --quiet >> .context/working/.notify-sidecar-canary.log 2>> .context/working/.notify-sidecar-canary.log.stderr
