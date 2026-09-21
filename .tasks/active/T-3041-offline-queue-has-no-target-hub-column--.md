@@ -1,18 +1,20 @@
 ---
-id: T-3038
-name: "check-go-propagation.sh + git-tracked baseline ledger (fires on NEW leaks only)"
+id: T-3041
+name: "Offline queue has no target-hub column — a queued cross-hub post flushes to
+  the wrong hub"
 description: >
-  Local detection for the GO-propagation leak T-3003 measured: 80/167 GO inceptions
-  strictly unlinked, 13 new in 2026-08. Ships a check plus a git-tracked baseline
-  ledger so the 80 existing instances are frozen and visible while only NEW leaks
-  fire — the T-2818 fatigue lesson (a guard that is permanently red is a guard nobody
-  reads).
+  channel post --hub <addr> queues to a SHARED outbound.sqlite whose pending_posts
+  table carries no target-hub column, and BusClient.flush() drains every row to the
+  single addr fixed at its construction. A cross-post queued while hub B is down is
+  therefore delivered to whichever hub the next post targets — a misdelivery that
+  reports success and pops the row, not a drop. Found by source read during AEF T-3397
+  design review; NOT yet reproduced (PL-367).
 
 status: started-work
 workflow_type: build
 owner: agent
 horizon: now
-tags: [arc:arc-009, go-propagation, guard]
+tags: [bug, substrate, comms]
 components: []
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
@@ -25,8 +27,8 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-21T11:09:14Z
-last_update: 2026-09-21T11:23:12Z
+created: 2026-09-21T12:45:56Z
+last_update: 2026-09-21T12:47:09Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -39,7 +41,7 @@ date_finished:
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 bvp_scores_proposed:
-  - ts: '2026-09-21T11:12:23Z'
+  - ts: '2026-09-21T12:47:10Z'
     estimator: bvp-estimator-v1-heuristic
     scores:
       D1: 4
@@ -54,31 +56,76 @@ bvp_scores_proposed:
     rubric_sha: e4a00f38e801
 ---
 
-# T-3038: check-go-propagation.sh + git-tracked baseline ledger (fires on NEW leaks only)
+# T-3041: Offline queue has no target-hub column — a queued cross-hub post flushes to the wrong hub
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+`channel post --hub <addr>` queues to a SHARED queue whose rows carry no destination,
+and the flush sends every row to whichever hub the current client points at. A
+cross-post queued while the target hub is down is therefore delivered to a DIFFERENT
+hub — a misdelivery that reports success and pops the row, not a drop.
+
+Three facts, read in source:
+
+1. `default_queue_path()` (`crates/termlink-session/src/offline_queue.rs:118`) resolves
+   to ONE file per identity dir. It does not vary with `--hub`;
+   `crates/termlink-cli/src/commands/channel.rs:1072` computes the target socket and the
+   queue path independently of each other.
+2. `pending_posts` is `(id, post_json, enqueued_ms, attempts)`
+   (`offline_queue.rs:123-128`). There is NO target-hub column.
+3. `BusClient` holds a single `addr` fixed at construction
+   (`crates/termlink-session/src/bus_client.rs:128`) and `flush()` drains EVERY queued
+   row to `self.addr` (`bus_client.rs:234`, `295`).
+
+### THIS IS NOT A NEW FINDING — PL-109, 2026-05-01
+
+**Prior art, found before writing any code here.** PL-109 (task T-1429) recorded this
+same defect nearly five months ago and verified it MORE strongly than the source read
+above — by inspecting the live `/root/.termlink/outbound.sqlite` and confirming
+`post_json` carries topic + metadata + signature and **no `hub_addr` field**. Verbatim:
+
+> "Outbound queue serialization gap: channel post --hub <REMOTE> with TCP target queues
+> to outbound.sqlite WITHOUT preserving hub_addr in the post_json envelope. Queue flush
+> retries against local hub, never the intended remote. … Should either bypass queue for
+> TCP (per T-1385 design intent) or persist destination. Bug not fix for this session —
+> design gap for T-1429 follow-up."
+
+It has sat at `application: TBD` since. The learning is accurate, specific, names both
+remediation options, and **prevented nothing for five months** — the same argument
+T-2746 made for converting a precise-but-inert learning into a structural check.
+
+Re-surfaced 2026-09-21 during design review of AEF's T-3397 cross-post proposal, which
+is about to specify `channel post --hub <addr>` as the G-060 cross-hub mechanism. That
+makes this defect load-bearing for a consumer, not just latent.
+
+**Scope note:** PL-109 says flush "retries against local hub"; the source read says it
+flushes to whichever `addr` the current `BusClient` was built with. These agree — a
+later `channel post` with no `--hub` builds a local client and drains the remote-destined
+rows into the local hub. The local case is simply the common one.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] `scripts/check-go-propagation.sh` exists and carries the `# guard-layer: source` marker so `run-guard-layer.sh` picks it up
-- [x] Exit contract: 0 = no unacknowledged leak, 1 = a NEW unlinked GO inception, 2 = tooling — **fail-closed**: absent `python3`, an unreadable ledger, or a corpus with zero inception files all exit 2, never a vacuous clean
-- [x] Git-tracked baseline ledger at `.context/checks/go-propagation-allowlist`
-      <!-- Filename deviates from this AC as first written (`-baseline`). Renamed to
-           `-allowlist` to match the ten sibling ledgers under .context/checks/
-           (charter-drift, alloc-sink, drain-sink, silent-exit, busy-spin,
-           verification-misfile, stranded-finalized, mcp-parity-census,
-           error-code-emission, platform-lock, version-derivation). Substance of the
-           AC is unchanged and met: git-tracked, under .context/checks/, one
-           `<task-id>  # <reason>` per line, counted-and-reported, non-firing.
-           Recorded rather than silently amended — T-3038. -->
-- [x] A GO inception with empty `related_tasks` that is NOT in the baseline **fires**; deleting a baseline line re-fires that inception — the load-bearing property, demonstrated both directions
-- [x] Output on BOTH paths (clean and firing) states the census and a scope disclaimer (T-2680): it detects GO inceptions with no forward link, it does NOT audit whether the follow-on work is adequate or whether the GO was right
-- [x] The loose-vs-strict split T-3003 measured is preserved: strictly-unlinked fires, loosely-linked (a back-reference exists elsewhere) is reported non-firing — so the 4 genuine orphans stay distinguishable from the 76 metadata gaps
-- [x] Fixtures at `tests/go-propagation-check-fixtures.sh` pin the exit codes, the baseline suppression, the re-fire on removal, and at least one false-positive guard (a GO inception that IS properly linked must never fire)
+- [ ] **Reproduced against the shipping verb before any fix** (PL-367): a post to an
+      unreachable TCP hub is queued, a subsequent post to a reachable hub is issued, and
+      the first message is observed arriving at the WRONG hub (or the reproduction fails
+      and that negative result is recorded here, closing PL-109 as no-longer-true).
+      Use a scratch `smoke:*` topic on both hubs; never a real work or dm topic.
+- [ ] The reproduction is captured as a hermetic regression test that fails against
+      current `main` — seams over live hubs where possible, per PL-213
+- [ ] Remediation chosen between PL-109's two named options, with the rejected one and
+      the reason recorded in `## Decisions`: (a) persist the destination on the queue row
+      and flush per-destination, or (b) refuse to queue a cross-hub post at all and fail
+      loudly at post time
+- [ ] Whichever is chosen, a cross-hub post can never be delivered to a hub other than
+      the one it was addressed to — demonstrated in BOTH directions (the fix makes the
+      regression test pass; reverting the fix makes it fail again)
+- [ ] PL-109 is updated from `application: TBD` to name this task, so the five-month-old
+      learning stops reading as unactioned
+- [ ] Bypassing the queue is NOT silently equivalent to dropping the message: if option
+      (b) is chosen, the refusal is loud and names the target hub (PL-373 — a fallback
+      that guesses is worse than one that refuses)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -174,16 +221,6 @@ bvp_scores_proposed:
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
-# ── T-3038 verification (L-387-safe: redirect to file, never `cmd | grep -q`) ──
-bash tests/go-propagation-check-fixtures.sh > /tmp/.t3038-fix.out 2>&1 && grep -q "0 failed" /tmp/.t3038-fix.out
-bash scripts/check-go-propagation.sh > /tmp/.t3038-real.out 2>&1 && grep -q "0 firing" /tmp/.t3038-real.out
-bash scripts/check-go-propagation.sh > /tmp/.t3038-scope.out 2>&1 && grep -q "does NOT audit" /tmp/.t3038-scope.out
-bash scripts/run-guard-layer.sh --list > /tmp/.t3038-gl.out 2>&1 && grep -q "check-go-propagation.sh" /tmp/.t3038-gl.out
-bash scripts/run-guard-layer.sh --list > /tmp/.t3038-gl2.out 2>&1 && grep -q "go-propagation-check-fixtures.sh" /tmp/.t3038-gl2.out
-git ls-files --error-unmatch .context/checks/go-propagation-allowlist
-git ls-files --error-unmatch tests/go-propagation-check-fixtures.sh
-test -x tests/go-propagation-check-fixtures.sh
-
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -223,58 +260,6 @@ test -x tests/go-propagation-check-fixtures.sh
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
-
-### 2026-09-21 — the loose "orphan" axis cannot distinguish work from bookkeeping
-
-- **What changed:** T-3003 named four genuine orphans (T-954, T-955, T-958, T-1698)
-  using a loose predicate: strictly unlinked AND no other task mentions the ID at all.
-  Filing T-3040 to triage those four — a task whose description lists all four IDs —
-  made every one of them read as "mentioned". The orphan count fell from 4 to 3 to 0
-  with no remediation work done on any of them. The axis measures whether an ID has
-  been written down somewhere, not whether anything was done about it.
-- **Plan impact:** the orphan flag stays, but it is an annotation and must never become
-  a firing gate. It is reported alongside the strict predicate rather than replacing it.
-  The strict predicate (related_tasks on either side) is the one that fires.
-- **Triggered:** no new task; recorded here and in the check's own output wording so the
-  next reader does not mistake a falling orphan count for progress.
-
-### 2026-09-21 — two defects found by RUNNING the check, not by reading it
-
-- **What changed:** (1) frontmatter timestamps are emitted sometimes quoted and sometimes
-  bare. An unstripped quote made `fromisoformat` raise, age read as None, and the record
-  reached the firing branch by FALLING THROUGH rather than by being old — a task decided
-  today fired. T-2828 fired correctly only by luck. (2) The verdict scanner had to be
-  ordered so NO-GO and DEFER can never read as GO; a substring match instead of a prefix
-  match fires on inceptions that were correctly declined and have no follow-on by design.
-- **Plan impact:** both are now pinned as fixture cases 7 and 8 and demonstrated with
-  mutants, because neither is visible by inspection — only by execution against a corpus
-  that contains the shape.
-- **Triggered:** the fixture suite's weighting toward regression cases over happy paths.
-
-### 2026-09-21 — the GO detector is deliberately conservative and does NOT reconcile with T-3003
-
-- **What changed:** the check counts 164 GO-recorded inceptions where T-3003 measured 167.
-  The 80 strictly-unlinked figure agrees exactly (71 firing + 9 in grace), so the gap is in
-  GO DETECTION, not in the link predicate. The direction is safe — a false negative, three
-  inceptions the verdict scanner does not recognise as GO — but it is unexplained.
-- **Plan impact:** the ledger was baselined at 71 rather than 80 because 9 were inside the
-  grace window at baseline time; those fire around 2026-09-28 if still unlinked. The census
-  is reported on every run so the discrepancy stays visible instead of being absorbed.
-- **Triggered:** nothing filed. Reconciling 164 vs 167 is a follow-on if the gap matters;
-  recorded here so a future reader does not assume the two measurements agree.
-
-### 2026-09-21 — shipped the T-2830 defect while building a guard against it
-
-- **What changed:** the `## Verification` block for this task was first inserted before
-  `## Decision` and therefore landed at the end of `## Decisions` — commands under a
-  neighbouring heading, exactly the misfile class T-2830/T-2831 documented. P-011 would
-  have found an empty Verification section and passed VACUOUSLY on a task whose whole
-  claim is that a guard is load-bearing.
-- **Plan impact:** none to the deliverable; caught before commit by reading the section
-  order rather than trusting the insert, then confirmed clean by
-  `scripts/check-verification-misfile.sh` (2747 files, 0 misfiled).
-- **Triggered:** no new task — the guard already exists and worked. Recorded because the
-  lesson is that having the guard did not stop the mistake; running it did.
 
 ## Recommendation
 
@@ -328,10 +313,10 @@ test -x tests/go-propagation-check-fixtures.sh
 
 ## Updates
 
-### 2026-09-21T11:09:14Z — task-created [task-create-agent]
+### 2026-09-21T12:45:56Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3038-check-go-propagationsh--git-tracked-base.md
+- **Output:** /opt/termlink/.tasks/active/T-3041-offline-queue-has-no-target-hub-column--.md
 - **Context:** Initial task creation
 
-### 2026-09-21T11:12:45Z — status-update [task-update-agent]
+### 2026-09-21T12:47:09Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work

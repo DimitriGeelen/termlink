@@ -1,0 +1,114 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3038: check-go-propagation.sh + git-tracked baseline ledger (fires on NEW leaks only)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-21T12:45:02Z
+# ============================================================================
+
+task_id: T-3038
+task_name: "check-go-propagation.sh + git-tracked baseline ledger (fires on NEW leaks only)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-21T11:09:14Z
+completed: 2026-09-21T12:44:47Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-21T13:14:06+02:00
+last_commit: 2026-09-21T14:44:43+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  propagate T-3003's GO scope — file the three approved slices, write related_tasks. check-go-propagation.sh + baseline ledger — green at birth, fires on new leaks. fixtures for check-go-propagation — 49 assertions, 3 mutants pinned. Evolution entries + fabric card
+
+# Key outcomes
+outcomes:
+  - '`scripts/check-go-propagation.sh` exists and carries the `# guard-layer: source` marker so `run-guard-layer.sh` picks it up'
+  - 'Exit contract: 0 = no unacknowledged leak, 1 = a NEW unlinked GO inception, 2 = tooling — **fail-closed**: absent `python3`, an unreadable ledger, or a corpus with zero inception files all exit 2, never a vacuous clean'
+  - 'Git-tracked baseline ledger at `.context/checks/go-propagation-allowlist`'
+  - 'A GO inception with empty `related_tasks` that is NOT in the baseline **fires**; deleting a baseline line re-fires that inception — the load-bearing property, demonstrated both directions'
+  - 'Output on BOTH paths (clean and firing) states the census and a scope disclaimer (T-2680): it detects GO inceptions with no forward link, it does NOT audit whether the follow-on work is adequate or whether the GO was right'
+  - 'The loose-vs-strict split T-3003 measured is preserved: strictly-unlinked fires, loosely-linked (a back-reference exists elsewhere) is reported non-firing — so the 4 genuine orphans stay distinguishable from the 76 metadata gaps'
+  - 'Fixtures at `tests/go-propagation-check-fixtures.sh` pin the exit codes, the baseline suppression, the re-fire on removal, and at least one false-positive guard (a GO inception that IS properly linked must never fire)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fixtures for check-go-propagation — 49 assertions, 3 mutants pinned'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/checks/go-propagation-allowlist'
+  - '.context/episodic/T-2971.yaml'
+  - '.context/episodic/T-2989.yaml'
+  - '.context/episodic/T-2995.yaml'
+  - '.context/episodic/T-3001.yaml'
+  - '.context/episodic/T-3004.yaml'
+  - '.context/episodic/T-3005.yaml'
+  - '.context/episodic/T-3007.yaml'
+  - '.context/episodic/T-3011.yaml'
+  - '.context/episodic/T-3012.yaml'
+  - '.context/working/focus.yaml'
+  - '.fabric/components/tests-go-propagation-check-fixtures.yaml'
+  - 'scripts/check-go-propagation.sh'
+  - '.tasks/active/T-3037-file-upstream-railprojectlabel-guesses-a.md'
+  - '.tasks/active/T-3038-check-go-propagationsh--git-tracked-base.md'
+  - '.tasks/active/T-3039-file-upstream-inception-decide-path-neve.md'
+  - '.tasks/active/T-3040-triage-the-4-genuine-go-orphans-t-954-t-.md'
+  - '.tasks/completed/T-2971-project-value-review-delete--refactor--a.md'
+  - '.tasks/completed/T-2989-inception-claudemd-split-design-clobber-.md'
+  - '.tasks/completed/T-2995-inception-rpc-surface-wiring-check-sweep.md'
+  - '.tasks/completed/T-3001-inception-presence-heartbeat-truthfulnes.md'
+  - '.tasks/completed/T-3003-investigate-go-propagation-leak-77-go-in.md'
+  - '.tasks/completed/T-3004-investigate-chat-arc-traffic-collapse.md'
+  - '.tasks/completed/T-3005-investigate-fleet-version-floors-for-121.md'
+  - '.tasks/completed/T-3007-investigate-ack-lag-read-side-unconfirme.md'
+  - '.tasks/completed/T-3011-investigate-topic-createpost-ratio-anoma.md'
+  - '.tasks/completed/T-3012-sovereign-question-review-session-12-que.md'
+  - 'tests/go-propagation-check-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-21T13:14:06'
+    action: 'T-3038: propagate T-3003''s GO scope — file the three approved slices, write related_tasks'
+  - time: '2026-09-21T13:23:09'
+    action: 'T-3038: check-go-propagation.sh + baseline ledger — green at birth, fires on new leaks'
+  - time: '2026-09-21T14:43:38'
+    action: 'T-3038: fixtures for check-go-propagation — 49 assertions, 3 mutants pinned'
+  - time: '2026-09-21T14:44:43'
+    action: 'T-3038: Evolution entries + fabric card'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 95 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-009, go-propagation, guard]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 95
+  commits: 4
+  files_changed: 28
+  lines_added: 1768
+  lines_removed: 1396
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3038-check-go-propagationsh--git-tracked-base.md
+generated_by: context-agent-hybrid
