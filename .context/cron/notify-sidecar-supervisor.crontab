@@ -1,0 +1,34 @@
+# T-3050 — Notify-sidecar supervisor (arc-003 deterministic wake rail autostart + self-heal)
+# Source of truth: /opt/termlink/.context/cron/notify-sidecar-supervisor.crontab (git-tracked)
+# Installed to:    /etc/cron.d/termlink-notify-sidecar-supervisor (USER field syntax — do NOT load into a user crontab)
+#
+# NOT a canary. This is the TRIGGER the rail never had. T-3049 measured the
+# deterministic notify sidecar dark for 82 days: arc-003 closed 2026-07-02
+# recording "reliable cross-agent comms shipped ... no silent loss", and the
+# sidecar's last heartbeat was 2026-07-01 — the day before. No launcher, no cron
+# entry, no skill, no unit. PL-168: "Canary scripts without a trigger are not
+# prevention — they are dormant tooling."
+#
+# Every 5 minutes it starts a notify sidecar for each agent declared in
+# .context/cron/notify-sidecar-agents.conf that does not have one. That is
+# autostart (first run after a reboot) and self-heal (a sidecar that dies is back
+# within 5 minutes) from one mechanism. Idempotent: when everything is already
+# running it starts nothing and leaves pids untouched.
+#
+# It never kills a running sidecar. A process alive with a stale heartbeat is the
+# frozen-husk shape (T-2239) and is REPORTED on stderr, not reaped — surprise
+# process kills are not an autostarter's business. --restart-stale opts in.
+#
+# Unlike the canaries, a NON-EMPTY log here is normal and good: it records every
+# start, which is the evidence the rail is being kept alive. Liveness DETECTION is
+# a separate concern and belongs to its own canary.
+#
+# Operator action if starts repeat every cycle: the sidecar is dying immediately.
+# Read .context/working/notify-sidecar-<agent>.log, then run
+# `bash scripts/notify-sidecar-supervisor.sh --dry-run` to see what it intends.
+# Ad-hoc: bash scripts/notify-sidecar-supervisor.sh
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+
+# Every 5 minutes. Cheap: one pgrep per declared agent when all are healthy.
+*/5 * * * * root cd /opt/termlink && bash scripts/notify-sidecar-supervisor.sh --quiet >> .context/working/.notify-sidecar-supervisor.log 2>> .context/working/.notify-sidecar-supervisor.log.stderr
