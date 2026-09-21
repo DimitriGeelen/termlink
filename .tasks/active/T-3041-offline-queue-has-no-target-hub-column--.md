@@ -272,6 +272,47 @@ python3 -c "import yaml,sys; d=yaml.safe_load(open('.context/project/learnings.y
 
 ## RCA
 
+**Symptom:** A learning recorded five months earlier (PL-109, 2026-05-01) was read as a
+live defect, filed as this task, and relayed to a peer project as a **standing constraint
+for their spec** — "treat cross-hub post as unreliable under a hub blip". Measured against
+the shipping verb, the defect does not exist on that path: the post never queues, it
+refuses loudly with a named cause and exit 1. The claim had to be retracted to the peer
+twenty minutes after it was sent.
+
+**Root cause:** The learning register cannot express supersession. PL-109 sat at
+`application: TBD`, which reads identically whether nobody got round to it or whether it
+stopped being true. The bypass that falsifies it landed 2026-04-28 in `175096726` (T-1385)
+— three days BEFORE the learning was written — and nothing re-measured it in the five
+months since. Note this is not "the learning was wrong": a binary predating that commit
+would still have shown the old behaviour, which is this project's own shipped-not-live
+class (G-069). It was recorded against reality and then reality moved.
+
+**Why structurally allowed:** three gaps, none of which is the code.
+1. **PL-367 is discipline, not a gate.** "A filed defect must be measured against the
+   shipping verb, not accepted on the filing's say-so" is exactly the rule that would have
+   caught this, and nothing asked whether it had been applied. This is the same condition
+   the alloc-sink / drain-sink / silent-exit / busy-spin checks exist to fix one layer
+   down — a convention held by memory rather than by a check.
+2. **Nothing reads the learning register for staleness.** The guard layer runs eighteen
+   cron canaries and eleven source-level static checks; not one asks "does this learning
+   still reproduce?" A learning is written once and never re-measured, so its half-life is
+   invisible. The register is the one memory type with no freshness signal at all.
+3. **A cross-project assertion has no gate between reading and sending.** I moved from
+   "the register says X" to telling another project to design around X with no measurement
+   step in between. The blast radius of an unmeasured claim is largest precisely when it
+   crosses a project boundary, and that is where the least checking happens.
+
+**Prevention:**
+- *Instance:* PL-109 now carries the measurement, the addresses, the exit codes and the
+  commit that superseded it, so the next reader cannot repeat this. The retraction was sent
+  to the peer with the evidence rather than another assertion.
+- *Class:* the structural fix — learnings carrying a `re_measured_on:` / supersession field,
+  and something that surfaces learnings never re-measured — is **a Sovereign question,
+  surfaced here and deliberately not resolved.** Adding a field to the learning schema
+  unilaterally, inside a bug task, is exactly the kind of quiet policy change that should be
+  a human decision; and a checker that guesses whether a learning is stale would be worse
+  than none (PL-373). Recorded as an open question in the handback, not decided here.
+
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
      Non-bug-class tasks may leave this section empty or remove it.
