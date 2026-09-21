@@ -4471,3 +4471,9 @@ learnings:
   task: T-2984
   date: 2026-09-20
   context: Added via context agent
+- id: PL-380
+  learning: "A PROJECT_ROOT-scoped reproduction does not isolate side effects that resolve from FRAMEWORK_ROOT. Reproducing the pickup pipeline with PROJECT_ROOT pointed at a throwaway project correctly isolated the task register, pickup dirs and dedup log — but pickup_process_one mirrors every processed envelope to the LIVE framework:pickup topic via lib/pickup-channel-bridge.sh, resolved from FRAMEWORK_ROOT, so a synthetic fixture reached a shared cross-project rail (redacted at offset 137). Before reproducing any pipeline against a fixture, grep the code path for FRAMEWORK_ROOT-resolved helpers and for hub/network writes; env-var isolation only covers the variable you set. Origin T-3042."
+  source: P-001
+  task: T-3042
+  date: 2026-09-21
+  context: Added via context agent
