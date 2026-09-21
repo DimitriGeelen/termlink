@@ -112,27 +112,27 @@ failure mode this instrument must not have.
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Gap is demonstrated, not asserted: a recorded check shows `rpc_audit` cannot
+- [x] Gap is demonstrated, not asserted: a recorded check shows `rpc_audit` cannot
       distinguish two named MCP tools from the off-charter set that dispatch to the
       same RPC method (or that resolve entirely client-side and reach the hub not at
       all) — establishing that per-method counts cannot answer the per-tool question
-- [ ] An invocation sink lives in `termlink-hub` beside `rpc_audit` (both
+- [x] An invocation sink lives in `termlink-hub` beside `rpc_audit` (both
       `termlink-mcp` and `termlink-cli` already depend on that crate — no new
       dependency, no T-2069 duplication), recording `{ts, surface, name}` append-only,
       serialized under a mutex, size-bounded with rotation — the `rpc_audit` shape,
       explicitly NOT the unlocked `.hook-counter` shape
-- [ ] Every MCP tool call is recorded by TOOL NAME at the dispatch choke point
+- [x] Every MCP tool call is recorded by TOOL NAME at the dispatch choke point
       (`#[tool_handler]` on `termlink-mcp/src/server.rs:16` replaced by an explicit
       `call_tool` that records then delegates to the generated router)
-- [ ] Recording is best-effort and cannot fail a tool call: a sink write error leaves
+- [x] Recording is best-effort and cannot fail a tool call: a sink write error leaves
       the tool's own result unchanged (pinned by a test, not by inspection)
-- [ ] A concurrency fixture proves the sink loses no records under >=8 concurrent
+- [x] A concurrency fixture proves the sink loses no records under >=8 concurrent
       writers — the direct T-2982 regression guard, and the reason this design was
       chosen over the framework's existing counter
-- [ ] A reader reports per-tool invocation counts over a window, so the next review
+- [x] A reader reports per-tool invocation counts over a window, so the next review
       judges the 260-tool surface on measurement instead of inference
-- [ ] `cargo build` and the touched crates' tests are green
-- [ ] Coverage scope is stated in the reader's own output and in this task: this
+- [x] `cargo build` and the touched crates' tests are green
+- [x] Coverage scope is stated in the reader's own output and in this task: this
       instruments the MCP TOOL surface. CLI verbs and the session-daemon `kv.*` /
       `session.*` blind spot (C-30/C-31) remain UNMEASURED and are filed as
       follow-ups. A reader must not be able to mistake partial coverage for a clean
