@@ -121,16 +121,79 @@ if not os.path.isdir(DIRPATH):
     sys.exit(0)
 
 
-def summary_of(path):
-    """The envelope's `summary:` line — the whole point is knowing what is stuck."""
+def _summary_from_yaml(path):
+    """Read payload.summary by PARSING the envelope, not by pattern-matching it.
+
+    A regex over YAML produced both T-3045 (quote class) and T-3046 (line
+    break): the file is structured data and the scanner kept guessing at its
+    syntax, wrongly and silently. Parsing closes the class rather than the
+    instance. PyYAML is deliberately NOT made a hard dependency — an absent
+    module or an unparseable envelope returns None and the caller falls back to
+    the scan, which is never worse than the behaviour this replaces.
+    """
+    try:
+        import yaml
+    except ImportError:
+        return None
     try:
         with open(path, "r", errors="replace") as fh:
-            for line in fh:
-                m = re.match(r'\s*summary:\s*"?(.*?)"?\s*$', line)
-                if m and m.group(1):
-                    return m.group(1)
+            data = yaml.safe_load(fh)
+    except Exception:
+        return None
+    if not isinstance(data, dict):
+        return None
+    payload = data.get("payload")
+    if isinstance(payload, dict) and payload.get("summary"):
+        return str(payload["summary"])
+    if data.get("summary"):
+        return str(data["summary"])
+    return None
+
+
+def _summary_from_scan(path):
+    """Fallback for an envelope PyYAML cannot read.
+
+    Handles the quoting styles the corpus actually contains INCLUDING a quoted
+    scalar wrapped across lines, which is the T-3046 defect. Conservative by
+    design: an unterminated scalar yields what was found rather than a guess.
+    """
+    try:
+        with open(path, "r", errors="replace") as fh:
+            lines = fh.readlines()
     except OSError:
-        pass
+        return None
+    for i, line in enumerate(lines):
+        m = re.match(r'\s*summary:\s*(\S.*?)\s*$', line)
+        if not m:
+            continue
+        raw = m.group(1)
+        q = raw[0] if raw[:1] in ('"', "'") else ""
+        if not q:
+            return raw
+        body = raw[1:]
+        if body.endswith(q):
+            return body[:-1].replace(q + q, q)
+        parts = [body]
+        for cont in lines[i + 1:]:
+            c = cont.strip()
+            if c.endswith(q):
+                parts.append(c[:-1])
+                break
+            parts.append(c)
+        return " ".join(p for p in parts if p).replace(q + q, q)
+    return None
+
+
+def summary_of(path):
+    """The envelope's summary — the whole point is knowing what is stuck.
+
+    Whitespace is collapsed last, so a folded scalar arrives as one line and the
+    caller's 160-char display cap bounds the output by intent rather than by an
+    accident of where the YAML happened to wrap.
+    """
+    s = _summary_from_yaml(path) or _summary_from_scan(path)
+    if s:
+        return " ".join(s.split())
     return "(no summary: line in envelope)"
 
 

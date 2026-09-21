@@ -1,10 +1,19 @@
 ---
 id: T-3046
-name: "Stranded-envelope checker truncates and mis-quotes the summary it exists to surface"
+name: "Stranded-envelope checker truncates and mis-quotes the summary it exists to
+  surface"
 description: >
-  summary_of() in scripts/check-pickup-deferred-freshness.sh carries the same double-quote-only assumption T-3045 fixed in TS_RE: its regex strips an optional double quote and reads a single line. The pickup pipeline writes single-quoted YAML folded scalars, so P-078 renders as "'T-1976 --hub bare-IP class cross-checked across opencode/005-Deco estate:" — a stray leading quote and a sentence cut off before its actual finding ("zero instances"). The check's own header says both firing classes print the summary 'because the entire failure mode is that nobody knows what is in the file', so a truncated summary defeats the stated purpose of the output. Ours, not vendored. Found while fixing T-3045; deliberately not folded into it (one bug, one task).
+  summary_of() in scripts/check-pickup-deferred-freshness.sh carries the same double-quote-only
+  assumption T-3045 fixed in TS_RE: its regex strips an optional double quote and
+  reads a single line. The pickup pipeline writes single-quoted YAML folded scalars,
+  so P-078 renders as "'T-1976 --hub bare-IP class cross-checked across opencode/005-Deco
+  estate:" — a stray leading quote and a sentence cut off before its actual finding
+  ("zero instances"). The check's own header says both firing classes print the summary
+  'because the entire failure mode is that nobody knows what is in the file', so a
+  truncated summary defeats the stated purpose of the output. Ours, not vendored.
+  Found while fixing T-3045; deliberately not folded into it (one bug, one task).
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -22,8 +31,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-21T21:23:41Z
-last_update: 2026-09-21T21:23:41Z
-date_finished: null
+last_update: 2026-09-21T21:48:58Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,6 +43,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-09-21T21:48:59Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3046: Stranded-envelope checker truncates and mis-quotes the summary it exists to surface
@@ -46,14 +69,14 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `summary_of()` strips a matched single quote as well as a double quote, so the real
+- [x] `summary_of()` strips a matched single quote as well as a double quote, so the real
       P-078 envelope's summary renders with no stray leading `'`
-- [ ] A YAML folded/multi-line scalar is joined rather than cut at the first line break:
+- [x] A YAML folded/multi-line scalar is joined rather than cut at the first line break:
       P-078's summary renders through to its actual finding ("zero instances"), not
       truncated at "…005-Deco estate:"
-- [ ] The existing 160-character display truncation still applies AFTER joining, so a long
+- [x] The existing 160-character display truncation still applies AFTER joining, so a long
       summary is bounded by the intended cap and not by an accident of YAML line wrapping
-- [ ] `tests/pickup-deferred-freshness-fixtures.sh` gains a case covering a single-quoted
+- [x] `tests/pickup-deferred-freshness-fixtures.sh` gains a case covering a single-quoted
       multi-line summary, is green in full, and its assertion count does not drop below 26
       (the T-3045 baseline)
 
@@ -151,6 +174,28 @@ date_finished: null
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+# AC4 — the suite is green in full and has not shrunk below the T-3045 baseline
+# of 26. Asserted as >= rather than == so a later legitimate case need not edit
+# this line to stay honest.
+bash tests/pickup-deferred-freshness-fixtures.sh > /tmp/.t3046-f 2>&1 && python3 -c "import re; m=re.search(r'fixtures: (\d+) passed, (\d+) failed', open('/tmp/.t3046-f').read()); assert m and int(m.group(2))==0 and int(m.group(1))>=26, (m.group(0) if m else 0)"
+
+# AC1 + AC2 — measured on the REAL git-tracked P-078 envelope, so this holds in a
+# clean clone: no stray leading quote, and the summary survives past the YAML wrap
+# through to the finding it previously dropped. rc is captured and discarded on
+# purpose — P-078 is STRANDED and the checker still exits 1, which is correct and
+# is not what this line measures.
+rc=0; bash scripts/check-pickup-deferred-freshness.sh --json > /tmp/.t3046-p 2>&1 || rc=$?; python3 -c "import json; e=[x for x in json.load(open('/tmp/.t3046-p'))['envelopes'] if x['file'].startswith('P-078')][0]; s=e['summary']; assert not s.startswith(chr(39)), s; assert 'zero instances' in s, s"
+
+# AC3 — the 160-char cap acts AFTER joining, so the bound is the intended one and
+# not wherever the YAML happened to wrap.
+grep -q "long joined summary is capped at 160 chars, not at the YAML wrap" /tmp/.t3046-f
+
+# The parse is an improvement, not a new dependency: an envelope PyYAML cannot
+# read still yields its summary through the scan fallback. This one is a guard
+# against a FUTURE regression, not evidence for this fix — it passes against the
+# pre-fix code too, and is recorded as such rather than counted as proof.
+grep -q "unparseable envelope still yields its summary via the scan fallback" /tmp/.t3046-f
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -166,6 +211,35 @@ date_finished: null
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
+
+**Symptom:** the STRANDED/STALE lines printed P-078's summary as
+`'T-1976 --hub bare-IP class cross-checked across opencode/005-Deco estate:` — a
+stray leading quote, and the sentence cut off immediately before its actual
+finding, "zero instances". The output looked complete; nothing indicated a
+truncation had happened.
+
+**Root cause:** `summary_of()` matched `\s*summary:\s*"?(.*?)"?\s*$` against one
+line at a time. The pickup pipeline writes single-quoted YAML scalars that wrap,
+so the optional double quote never stripped the actual single quote, and the
+per-line read stopped at the wrap.
+
+**Why structurally allowed:** the same reason as T-3045 one function away — the
+checker pattern-matched YAML instead of parsing it, and the fixture helper only
+ever wrote the one shape the pattern already handled. Two defects, one root
+cause, found only because fixing the first put eyes on the file. Worth stating
+plainly: this was found by a human reading output, not by any guard. Nothing in
+the guard layer asserts that a checker's own human-readable output is faithful,
+and this class stays invisible until someone looks.
+
+**Prevention (distinct from the fix):** the fix is to PARSE the envelope
+(`yaml.safe_load` → `payload.summary`) rather than pattern-match it, which
+closes the class rather than the instance. PyYAML is deliberately not a hard
+dependency — an absent module or an unparseable file falls back to an improved
+scan, so the checker can never go blind on malformed input, which would be worse
+than the defect. Cases 18/19 pin the joining and the cap; case 20 pins the
+fallback. Measured against a mutant carrying the pre-fix `summary_of`: 18 and 19
+go red, case 20 stays green — so case 20 is a forward guard, not evidence here,
+and is recorded that way rather than counted.
 
 ## Evolution
 
@@ -190,6 +264,28 @@ date_finished: null
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-09-21 — stop pattern-matching a structured file
+
+- **What changed:** at filing I scoped this as "strip a single quote too, and
+  join continuation lines" — i.e. a third patch to the same regex habit. Writing
+  it made the alternative obvious: the envelope is YAML, the file already
+  requires python3, and both T-3045 and T-3046 exist only because a scanner was
+  guessing at syntax it could simply have parsed. Parsing is also *less* code
+  than hand-rolling multi-line flow-scalar handling would have been.
+- **Plan impact:** the deliverable became a parse with a scan fallback rather
+  than a better regex. The fallback is load-bearing in the other direction — a
+  parse-only implementation would make PyYAML a hard dependency and take the
+  checker blind on exactly the malformed envelopes it most needs to describe.
+  That trade is pinned by case 20, which is honestly a forward guard and not
+  proof of this fix.
+- **Triggered:** no new task. One thing deliberately NOT done: `recorded_time()`
+  still reads its timestamp by regex (`TS_RE`) rather than from the parse, so the
+  file now has both styles in it. Consolidating them is a real improvement and a
+  real risk — T-3045's fixtures pin `TS_RE`'s behaviour precisely, and rewriting
+  it under this task would be scope creep on a gate I just made load-bearing.
+  Recorded here rather than filed, because it is a refactor with no defect behind
+  it; filing it would manufacture work.
 
 ## Recommendation
 
@@ -247,3 +343,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3046-stranded-envelope-checker-truncates-and-.md
 - **Context:** Initial task creation
+
+### 2026-09-21T21:48:58Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

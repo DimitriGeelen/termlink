@@ -82,6 +82,25 @@ envelope: $2.yaml
 EOF
 }
 
+# envelope_ml <dir> <name> <iso> <line1> <line2>
+# A SINGLE-QUOTED scalar wrapped across two lines — the shape the pickup
+# pipeline actually writes, and the one T-3046 truncated at the wrap.
+envelope_ml() {
+    mkdir -p "$1"
+    cat > "$1/$2.yaml" <<EOF
+pickup_id: $2
+version: 1
+type: learning
+source:
+  project: "peer"
+  timestamp: '$3'
+payload:
+  summary: '$4
+    $5'
+  detail: "body"
+EOF
+}
+
 iso_days_ago() { date -u -d "@$(( $(date +%s) - $1 * 86400 ))" '+%Y-%m-%dT%H:%M:%SZ'; }
 
 run() { d="$1"; shift; bash "$CHECK" --dir "$d" "$@" 2>&1; }
@@ -288,6 +307,52 @@ else bad "pre-fix mutant regresses to mtime" "age_source=$src_field — the muta
 out=$(bash "$MUT" --dir "$TMP/q-stale"); rc=$?
 if [ "$rc" = "0" ]; then ok "pre-fix mutant silently stops firing STALE (the real cost)"
 else bad "pre-fix mutant silently stops firing STALE" "rc=$rc: $out"; fi
+
+# ---------------------------------------------------------------------------
+# 18. T-3046: a single-quoted scalar wrapped across lines is JOINED, not cut at
+#     the wrap, and carries no stray leading quote. Both halves must survive —
+#     the real P-078 lost its actual finding ("zero instances") this way.
+# ---------------------------------------------------------------------------
+d="$TMP/ml"
+envelope_ml "$d" "P-904" "$old_iso" "first half of the finding:" "second half with the verdict"
+out=$(run "$d")
+if echo "$out" | grep -q "first half of the finding: second half with the verdict"; then
+    ok "wrapped single-quoted summary is joined across the line break"
+else bad "wrapped summary is joined" "$out"; fi
+if echo "$out" | grep -q "      '"; then
+    bad "joined summary carries no stray leading quote" "$out"
+else ok "joined summary carries no stray leading quote"; fi
+
+# ---------------------------------------------------------------------------
+# 19. The 160-char display cap applies AFTER joining, so output is bounded by
+#     intent and not by wherever the YAML happened to wrap. Pre-fix this line
+#     was ~40 chars because the wrap truncated it; the cap never got to act.
+# ---------------------------------------------------------------------------
+d="$TMP/ml-long"
+long_a="AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+long_b="BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBCCCCCCCCCCCCCCCCCCCC"
+envelope_ml "$d" "P-905" "$old_iso" "$long_a" "$long_b"
+shown=$(run "$d" | grep -F "AAAA" | sed 's/^ *//')
+if [ "${#shown}" = "160" ]; then ok "long joined summary is capped at 160 chars, not at the YAML wrap"
+else bad "long joined summary capped at 160" "length=${#shown}"; fi
+
+# ---------------------------------------------------------------------------
+# 20. The scan FALLBACK is live. An envelope PyYAML cannot parse must still
+#     yield its summary — the parse is an improvement, not a new dependency,
+#     and a checker that goes blind on malformed input would be worse than the
+#     defect it replaced.
+# ---------------------------------------------------------------------------
+d="$TMP/unparseable"
+mkdir -p "$d"
+cat > "$d/P-906.yaml" <<'EOF'
+pickup_id: P-906
+summary: 'recovered by the fallback scan'
+broken: [unclosed
+EOF
+out=$(run "$d")
+if echo "$out" | grep -q "recovered by the fallback scan"; then
+    ok "unparseable envelope still yields its summary via the scan fallback"
+else bad "scan fallback recovers summary" "$out"; fi
 
 echo ""
 echo "----------------------------------------"
