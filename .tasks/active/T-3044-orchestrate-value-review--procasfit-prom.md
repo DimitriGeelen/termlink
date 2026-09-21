@@ -258,6 +258,29 @@ the check" failure the mandate names. The register should keep disagreeing with 
 task title until the sequence actually finishes.
 
 
+### 2026-09-21 — the "worker" is not a conversation being continued
+
+Reading the PTY back after the resumption inject (T-2876: injected is not received)
+proved delivery, but it also showed what the delivery actually is. The text did not land
+in an ongoing `vr-gatherer-r1` conversation. It landed in Claude Code's
+"describe a task for a new session" box and **spawned a fresh session**, which appeared
+in the agent list as `HUMAN DECISION RECORDED… starting…` and then
+`…Inspecting run record stru[cture]`.
+
+So each dispatch to this worker starts a NEW agent with no memory of the last one. The
+first GATHERER dispatch worked the same way — which is why it succeeded only because the
+directive was self-contained.
+
+That moves `.context/runs/T-3044-sequence.yaml` from prudent to **load-bearing**: it is
+the only thing carrying state between steps, and a directive that assumed continuity
+would have silently produced a worker operating on half the decision. This is why the
+resumption directive points at the run record as authoritative rather than restating the
+decision inline — what the worker acts on and what is committed cannot drift apart.
+
+Worth noting the orchestrator did not design for this; it was found by checking rather
+than assumed from the inject returning "Injected 1419 bytes".
+
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it

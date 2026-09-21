@@ -26,7 +26,7 @@ steps:
     round: 1
     prompt: value_review
     role: GATHERER
-    state: halted-at-ask
+    state: resumed-rescoped
     worker: vr-gatherer-r1
     halts_at: "PHASE 1 [ASK] — yardstick + data availability map need human confirmation"
     feeds: R1S2
@@ -39,7 +39,7 @@ steps:
     classification_performed: false
     baseline:
       fw_audit: "38 PASS / 9 WARN / 1 FAIL (cron 2026-09-21T14:38:24Z, sections=structure only)"
-      guard_layer: "PARTIAL — still running at halt; 29 members reported, 2 FAIL (check-installed-binary-drift, check-pickup-deferred-freshness), 1 ERROR (check-receiver-ack-lag)"
+      guard_layer: "COMPLETE exit 1 (FIRING) — 117 PASS / 3 FAIL / 1 ERROR of 121 members; FAIL: check-installed-binary-drift, check-pickup-deferred-freshness, cron-drift-firing-fixtures; ERROR: check-receiver-ack-lag. Measured runtime 703s vs documented (seconds) — 3rd measurement of C-18. 75 unmarked check/suite scripts were NOT run."
       cargo_test: not-run (deferred to Phase 3)
     blocking_questions_for_human:
       - id: Q1
@@ -62,10 +62,15 @@ steps:
         subject: data gap — decisive
         text: >
           Per-tool usage is still UNMEASURED. T-2996 shipped the writer TODAY
-          (c1c8165f6) but the running MCP server (pid 35408, binary 0.11.1716,
-          started 08:52) predates it, so invocation-audit.jsonl does not exist.
+          (c1c8165f6, 01:07) but the running MCP server (pid 35408, binary
+          0.11.1716, started 08:52) predates it, so no production
+          invocation-audit.jsonl exists. The writer is PROVEN FUNCTIONAL: a test
+          fixture sink at /tmp/tl-test-0-parity-list-sessions/ holds 25 well-formed
+          records written 09:28 today. So this is a restart away, not a build away.
           Rebuild + restart MCP to start collecting before Phase 2, or proceed
-          UNMEASURED as all prior runs did?
+          UNMEASURED as all prior runs did? Note this sink is what would finally
+          speak to C-29/C-30/C-31 and discharge the C-01/C-02 IW-1 external-consumer
+          check that every prior run left open.
       - id: Q5
         subject: run purpose
         text: >
@@ -126,3 +131,55 @@ sovereign_question:
          human-gated. Rounds chain on reports, never on unapproved execution.
     - C: state explicitly that the [ASK] gates are waived for this run (a Tier-2
          situational authorization, logged) — orchestrator will not assume this.
+  resolution:
+    answered_by: human
+    answered_utc: '2026-09-21T15:40:00Z'
+    choice: B
+    text: >
+      Phases 0-5 of the value-review are pre-authorised for both rounds: they are
+      read-only research and produce a report, not a change. PHASE 6 (EXECUTE) remains
+      human-gated per the prompt's own "EXECUTE APPROVED ITEMS ONLY". Rounds therefore
+      chain on REPORTS, never on unapproved execution, which satisfies the requested
+      2-round autonomy without driving through the gate that guards irreversible action.
+    gates_still_standing:
+      - "value-review PHASE 6 — execution of DELETE/REFACTOR/ADD items"
+      - "procAsFit — sovereign questions remain surfaced, not resolved"
+human_decision:
+  answered_utc: '2026-09-21T15:40:00Z'
+  source: operator instruction "proceed as suggested" against the orchestrator's stated package
+  Q1_yardstick: >
+    CONFIRMED as recorded in docs/reports/VALUE-REVIEW-repo-2026-09-21-phase01.md section 1
+    (charter purpose, 4 verbs, 5 non-goals, D1=9 D2=7 D3=5 D4=3 F-RECALL=6 F-ORCH=5).
+  Q2_f_orch: >
+    NOT RESOLVED — carried forward unchanged. F-ORCH stays at weight 5 for this run because
+    no-change is the only default an agent may take on a sovereign parameter; retiring or
+    re-weighting it is the human's act, not this review's. Every ranking R1S1 produces
+    therefore carries the assumption "F-ORCH is live at 5". The review must say so where it
+    matters rather than presenting rankings as weight-independent.
+  Q3_scope_vendored_tree: >
+    INCLUDE .agentic-framework/ as READ context — it is load-bearing and holds all 13 BPMN
+    workflows — but it is NOT a deletion or refactor target. G-062: local fixes to vendored
+    code are erased by the next re-vendor, so any finding there is FILE-UPSTREAM-ONLY
+    (framework:pickup) and must be classified as such, never as a local DELETE/REFACTOR.
+    Orchestrator judgement call, recorded so it can be corrected.
+  Q4_telemetry: >
+    DEFERRED to round 2. The invocation-audit sink does not exist because the running MCP
+    server (pid 35408, binary 0.11.1716) predates T-2996 (c1c8165f6, shipped today). A
+    rebuild + restart would begin collecting — but that server backs the orchestrator's own
+    TermLink tools, so restarting it mid-run may drop them. Round 1 proceeds UNMEASURED on
+    per-tool usage and must label it so. Restart is the first candidate action of round 2.
+  Q5_run_purpose: >
+    RESCOPED — this is the decision that changes the work. R1S1 does NOT run as a cold
+    eighth review. It (a) verifies the 45 consolidated findings C-01..C-45 from
+    docs/reports/VALUE-REVIEW-repo-2026-09-19-consolidated.md against the current tree,
+    classifying each still-true / fixed / superseded / now-wrong with evidence, and
+    (b) runs the value-review's own Phases 2-5 ONLY over ground arc-009 does not already
+    cover. Measured basis: of 18 arc-009 slices T-2975..T-2992, 3 are work-completed
+    (T-2975, T-2982, T-2989), 14 are still `captured`, 1 is started-work and human-owned
+    (T-2984). Re-deriving the same findings while 83% of the previous round is unexecuted
+    is breadth the project does not need.
+  Q6_unseen_data: >
+    NO additional data available. The absences R1S1 listed stand: policy/capabilities.yaml,
+    bvp-realization.jsonl, coverage tooling, GitHub-side CI history, estimator/calibration
+    logs, and any out-of-band observer of bus loss. Confidence must be capped accordingly
+    rather than estimated around.
