@@ -6,16 +6,16 @@ description: >
   investigate the leak mechanism and propose the structural fix. Evidence: docs/reports/VALUE-REVIEW-repo-2026-09-19-consolidated.md
   C-35.
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: agent
-horizon: now
+horizon: null
 tags: [value-review, arc:arc-009]
 components: []
 related_tasks: []
 created: 2026-09-19T22:25:46Z
-last_update: 2026-09-20T08:49:07Z
-date_finished:
+last_update: 2026-09-21T11:06:59Z
+date_finished: 2026-09-21T11:06:59Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -136,15 +136,15 @@ changing vendored `update-task.sh` locally.
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -193,7 +193,13 @@ changing vendored `update-task.sh` locally.
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO
+
+Rationale: Reproduced 2026-09-20: 80/167 GO inceptions strictly unlinked and the leak is ongoing (13 new in 2026-08). BUT the loose measure collapses to 4 — this is primarily a traceability/metadata defect (related_tasks never written by the decide path, lib/inception.sh:775 prints advice only), not 77 lost approvals. GO on: (1) local check-go-propagation.sh + git-tracked baseline ledger (fires on NEW leaks only, T-2818 fatigue lesson); (2) upstream filing for a decide-time --follow-on flag (vendored, G-062); (3) surface the 4 genuine orphans (T-954, T-955, T-958, T-1698) to the human. Full evidence: docs/reports/T-3003-go-propagation-leak-investigation.md
+
+**Date**: 2026-09-21T11:06:59Z
 
 ## Updates
 
@@ -206,3 +212,43 @@ changing vendored `update-task.sh` locally.
 ### 2026-09-20T08:49:07Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: later → now (auto-sync)
+
+### 2026-09-21T11:06:59Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+
+Rationale: Reproduced 2026-09-20: 80/167 GO inceptions strictly unlinked and the leak is ongoing (13 new in 2026-08). BUT the loose measure collapses to 4 — this is primarily a traceability/metadata defect (related_tasks never written by the decide path, lib/inception.sh:775 prints advice only), not 77 lost approvals. GO on: (1) local check-go-propagation.sh + git-tracked baseline ledger (fires on NEW leaks only, T-2818 fatigue lesson); (2) upstream filing for a decide-time --follow-on flag (vendored, G-062); (3) surface the 4 genuine orphans (T-954, T-955, T-958, T-1698) to the human. Full evidence: docs/reports/T-3003-go-propagation-leak-investigation.md
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-e6046078
+- **Timestamp:** 2026-09-21T11:07:00Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Verification-level findings:**
+
+  1. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-3
+     - evidence: `IW-3 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+
+## Recommendation Verdict (v1.0)
+
+- **Scan ID:** RC-2cc98c53
+- **Timestamp:** 2026-09-21T11:07:00Z
+- **Overall:** CONFIRMED
+- **Claims:** 5
+
+| Claim | Type | Status |
+|-------|------|--------|
+| `T-2818` | task | ✓ pass |
+| `T-954` | task | ✓ pass |
+| `T-955` | task | ✓ pass |
+| `T-958` | task | ✓ pass |
+| `T-1698` | task | ✓ pass |
+
+### 2026-09-21T11:06:59Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO

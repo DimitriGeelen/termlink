@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3003: Investigate GO-propagation leak (77 GO inceptions unpropagated)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-21T11:07:06Z
+# ============================================================================
+
+task_id: T-3003
+task_name: "Investigate GO-propagation leak (77 GO inceptions unpropagated)"
+workflow_type: inception
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-19T22:25:46Z
+completed: 2026-09-21T11:06:59Z
+duration_days: 2
+updates_count: 3
+first_commit: 2026-09-20T10:52:37+02:00
+last_commit: 2026-09-20T23:06:54+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  GO-propagation leak measured — 80/167 strict, 4 genuine orphans; mechanism = no decide-time related_tasks write. PL-379 — correct PL-378; arc-009 has agent-executable Q1 work
+
+# Key outcomes
+outcomes:
+  - 'Problem statement validated'
+  - 'Assumptions tested'
+  - 'Recommendation written with rationale'
+  - '[REVIEW] Review exploration findings and approve go/no-go decision'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/project/learnings.yaml'
+  - 'docs/reports/T-3003-go-propagation-leak-investigation.md'
+  - '.tasks/active/T-3003-investigate-go-propagation-leak-77-go-in.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-20T10:52:37'
+    action: 'T-3003: GO-propagation leak measured — 80/167 strict, 4 genuine orphans; mechanism = no decide-time related_tasks write'
+  - time: '2026-09-20T23:06:54'
+    action: 'T-3003: PL-379 — correct PL-378; arc-009 has agent-executable Q1 work'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 2201 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [value-review, arc:arc-009]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 2201
+  commits: 2
+  files_changed: 3
+  lines_added: 128
+  lines_removed: 8
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3003-investigate-go-propagation-leak-77-go-in.md
+generated_by: context-agent-hybrid
