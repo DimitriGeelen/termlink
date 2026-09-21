@@ -1,0 +1,70 @@
+run_id: R-3044-value-review-procasfit
+orchestrator_task: T-3044
+created: '2026-09-21T14:45:00Z'
+requested_by: human
+instruction: >
+  Use TermLink to sequentially run the prompt sequence [value-review, procAsFit].
+  Repeat the whole sequence 2 times, feeding each round's result into the next.
+  Run them in order; each prompt acts on the previous result. The orchestrator must
+  NOT execute the prompts itself outside this sequence.
+prompts:
+  value_review: docs/prompts/value-review.md
+  proc_as_fit:  docs/prompts/proc-as-fit.md
+placeholder_fill:
+  SCOPE: whole repo (/opt/termlink)
+  PURPOSE_SOURCE: docs/CHARTER.md + policy/value-drivers.yaml
+  EXTERNAL_DATA: none
+  BUDGET: 200k tokens
+  filled_by: orchestrator T-3044
+  rationale: >
+    Left unfilled by the requester; the prompt says the agent may ask. docs/CHARTER.md
+    exists and is the human-blessed purpose statement, so PURPOSE_SOURCE is unambiguous.
+    SCOPE=whole repo and EXTERNAL_DATA=none are the stated defaults. These are routine
+    calls; they are recorded here so they can be corrected rather than silently assumed.
+steps:
+  - id: R1S1
+    round: 1
+    prompt: value_review
+    role: GATHERER+JUDGE
+    state: dispatched
+    worker: vr-gatherer-r1
+    halts_at: "PHASE 1 [ASK] — yardstick + data availability map need human confirmation"
+    feeds: R1S2
+  - id: R1S2
+    round: 1
+    prompt: proc_as_fit
+    state: blocked
+    blocked_on: R1S1 report + human approval of Phase 5 items
+    feeds: R2S1
+  - id: R2S1
+    round: 2
+    prompt: value_review
+    state: pending
+    input: result of R1S2
+    feeds: R2S2
+  - id: R2S2
+    round: 2
+    prompt: proc_as_fit
+    state: pending
+    input: result of R2S1
+sovereign_question:
+  id: SQ-3044-1
+  question: >
+    The instruction asks for 2 autonomous rounds, but both prompts contain hard human
+    gates: value-review PHASE 1 "[ASK] ... Do not continue until both are confirmed",
+    PHASE 5 "[ASK] Human approves / rejects / modifies per item", and PHASE 6 "EXECUTE
+    APPROVED ITEMS ONLY". procAsFit independently says "Sovereign questions are
+    surfaced, not resolved". A fully unattended 2-round loop can only be achieved by
+    driving through those gates, which both prompts forbid.
+  orchestrator_position: >
+    Not resolved by the orchestrator. Workers are configured to run to the PHASE 1 [ASK]
+    and halt, producing the yardstick + data availability map for confirmation. Round 2
+    cannot be meaningfully defined until Round 1 Phase 5 is approved, since its input is
+    "the result of the previous round".
+  options:
+    - A: confirm yardstick + data map now; workers continue to a Phase 5 report and halt
+         there for item-by-item approval (preserves every gate; 2 human touchpoints/round)
+    - B: pre-authorise Phases 0-5 only (research is read-only), keeping Phase 6 execution
+         human-gated. Rounds chain on reports, never on unapproved execution.
+    - C: state explicitly that the [ASK] gates are waived for this run (a Tier-2
+         situational authorization, logged) — orchestrator will not assume this.
