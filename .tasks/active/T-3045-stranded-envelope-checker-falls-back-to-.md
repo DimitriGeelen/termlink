@@ -1,18 +1,10 @@
 ---
-id: T-2960
-name: "P-078 inbound peer filing has no recorded disposition"
+id: T-3045
+name: "Stranded-envelope checker falls back to mtime for every single-quoted timestamp"
 description: >
-  P-078 is a genuine INBOUND filing from the opencode project (T-064 wave-156): a
-  cross-check of the T-1976 bare-IP --hub class across their estate, reporting zero
-  exposure and corroborating our fix. It sits in .context/pickup/auto-deferred/ as
-  one of the four STRANDED envelopes, but unlike the other three it is not one of
-  our own outbound records. It is referenced in T-2954 and in the arc-008 census only
-  as the TRIGGER that exposed the blind canary; its own contents were never triaged
-  and no disposition was recorded. Deliberately not folded into T-2951 (one finding,
-  one task). Note the envelope is stamped source.project: termlink despite originating
-  at opencode, which is the T-2955 attribution defect seen from the receiving side.
+  scripts/check-pickup-deferred-freshness.sh resolves an envelope's age via TS_RE, whose pattern accepts an optional double quote but not a single quote. The pickup pipeline writes RFC3339 values single-quoted (P-078: timestamp: '2026-09-10T19:31:12Z'), so recorded_time() returns None and age_days_of() silently falls back to file mtime, labelling it 'unreliable'. That is precisely the PL-213 environment-dependence the function's own docstring says it exists to prevent: in a fresh clone or worktree every envelope reads as 0 days old and STALE can never fire. Masked on the origin host because mtime happens to agree (11 days both ways) for P-078. Proven by running TS_RE against all three quoting styles: single NO-MATCH, double MATCH, bare MATCH. Ours, not vendored — locally fixable. Found while recording the P-078 disposition under T-2960; deliberately not folded into it (one bug, one task).
 
-status: started-work
+status: captured
 workflow_type: build
 owner: agent
 horizon: now
@@ -29,9 +21,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-11T20:42:16Z
-last_update: 2026-09-21T20:43:03Z
-date_finished:
+created: 2026-09-21T20:45:01Z
+last_update: 2026-09-21T20:45:01Z
+date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -42,60 +34,20 @@ date_finished:
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
-bvp_scores_proposed:
-  - ts: '2026-09-18T18:42:31Z'
-    estimator: bvp-estimator-v1-heuristic
-    scores:
-      D1: 4
-      D2: 0
-      D3: 3
-      D4: 2
-      F-RECALL: 0
-      F-ORCH: 0
-    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
-      (body:component-discoverability); D4=2 (body:env-class-handled); 
-      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
-    rubric_sha: e4a00f38e801
-cost_estimate_proposed:
-  - ts: '2026-09-18T18:42:32Z'
-    estimator: bvp-estimator-v1-heuristic
-    cost_estimate:
-      blast_radius:
-      tier: 2
-      effort: 8
-    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
-      (workflow:build); effort=8 (lines=204,acs=4)
-    rubric_sha: e4a00f38e801
 ---
 
-# T-2960: P-078 inbound peer filing has no recorded disposition
+# T-3045: Stranded-envelope checker falls back to mtime for every single-quoted timestamp
 
 ## Context
 
 <!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
-P-078 is the one genuinely INBOUND envelope left in `.context/pickup/auto-deferred/`
-(T-2951 drained the three that were our own outbound records). It was cited in T-2954
-and the arc-008 census only as the TRIGGER that exposed the blind pickup canary — its
-own payload was never read and no disposition was ever recorded. This task reads it and
-records one. The deliverable is the disposition, not a code change.
-
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] P-078's payload is read in full and its ask-of-us is classified (action-required vs
-      acknowledge-only), with the classification and the evidence for it recorded in a
-      `## Disposition` section of this task file
-- [x] The disposition names the originating project and task (opencode, T-064 wave-156),
-      states the cross-check result it reports, and gives the explicit reason why no
-      downstream task is filed from it
-- [x] The receive-side attribution artefact (`source.project: termlink` on an envelope that
-      originated at opencode) is recorded as corroborating the already-filed T-2955, and is
-      NOT re-filed as a new defect
-- [x] Whether `check-pickup-deferred-freshness.sh` still counts P-078 as STRANDED is measured
-      and the verdict recorded with its reason — the checker is neither weakened nor the
-      envelope drained to make it green (T-2801: it detects and never drains)
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -129,55 +81,6 @@ records one. The deliverable is the disposition, not a code change.
        added to ## Verification. NEVER `... 2>&1 | grep -q ...` — that is the shape the
        Pipefail/SIGPIPE section below forbids, and this line used to prescribe it.
 -->
-
-## Disposition
-
-**Classification: ACKNOWLEDGE — no action required of us. No downstream task filed.**
-
-**Origin.** opencode project, task T-064, wave-156, thread `inbound-learnings-crosscheck`,
-dated 2026-09-10. Contact recorded in the payload as an opencode agent (model glm-5.3-flash,
-user dimitri-mint-dev), delivered via `termlink exec` → `fw pickup send`.
-
-**What it reports.** opencode ingested three of our filings (T-1975 harness-instability,
-T-1850/PL-136 double-run technique, T-1976 `--hub` colon-discrimination) and cross-checked the
-T-1976 bare-IP class across their own estate. Result: **zero instances**. Their app repo carries
-no `--hub` literal (templates default to `hub=""`, the local hub); 005-Deco-m4r-provisioning uses
-`DHCP_OWNER_HUB="192.168.10.122:9100"` — `host:port`, with a config.env comment forbidding the
-bare and profile-name forms. They also recorded adopting two of our lessons.
-
-**Why no task is filed.** The envelope asks nothing of us. It is a corroborating NEGATIVE result
-plus an adoption report: it reports no defect, requests no change, and names no unmet need. Its
-value to this project is evidentiary, and it is recorded here rather than actioned:
-
-1. It independently confirms that fixing the T-1976 class at the **termlink layer**
-   (the `termlink-hub.sh` guard) was the correct scope, rather than per-consumer — the
-   conclusion the payload states explicitly.
-2. It is direct evidence that our outbound filings are being **read and acted on** by a peer
-   project, which is the thing G-063 exists to make observable.
-
-Filing a task to "respond" would manufacture work from a report whose content is that nothing
-is wrong.
-
-**Receive-side attribution artefact.** The envelope is stamped `source.project: termlink` despite
-originating at opencode. This is the **T-2955** attribution defect (project label falling back to
-a path-derived slug) seen from the RECEIVING side. T-2955 is already filed and work-completed;
-this is recorded as corroboration and is deliberately **NOT re-filed** as a new defect.
-
-**Stranded-checker verdict (measured, not assumed).** `bash scripts/check-pickup-deferred-freshness.sh`
-→ **rc=1, still firing**, reporting P-078 as the single STRANDED envelope. That is correct and
-expected: the class is "no breadcrumb, so `fw pickup promote-deferred` can never promote it", and
-recording a disposition in this task file does not mint a breadcrumb. The checker was **not**
-weakened and the envelope was **not** drained to make it green — per T-2801 it detects and never
-drains, and discarding is a human judgement. The envelope is left in place, now with its contents
-read and its disposition recorded, which is what was actually missing.
-
-**Byproduct finding, filed separately as T-3045.** The checker's own age-resolution is defective:
-`TS_RE` accepts an optional double quote but not a single quote, and the pickup pipeline writes
-RFC3339 values single-quoted, so `recorded_time()` returns `None` and the age silently falls back
-to file mtime — the exact PL-213 environment-dependence its docstring says it prevents. Proven by
-running the regex against all three quoting styles (single NO-MATCH, double MATCH, bare MATCH).
-It closes none of this task's acceptance criteria, so it was registered as its own task rather
-than folded in here.
 
 ## Verification
 
@@ -239,21 +142,6 @@ than folded in here.
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
-
-# AC1+AC2: a Disposition section exists, classifies the ask, and names the origin.
-grep -q '^## Disposition' .tasks/active/T-2960-p-078-inbound-peer-filing-has-no-recorde.md
-grep -q 'ACKNOWLEDGE — no action required' .tasks/active/T-2960-p-078-inbound-peer-filing-has-no-recorde.md
-grep -q 'opencode project, task T-064, wave-156' .tasks/active/T-2960-p-078-inbound-peer-filing-has-no-recorde.md
-grep -q 'zero instances' .tasks/active/T-2960-p-078-inbound-peer-filing-has-no-recorde.md
-# AC3: T-2955 recorded as corroboration, explicitly not re-filed.
-grep -q 'NOT re-filed' .tasks/active/T-2960-p-078-inbound-peer-filing-has-no-recorde.md
-# AC4: the envelope is still on disk — the checker was not made green by draining it (T-2801).
-test -f .context/pickup/auto-deferred/P-078-learning.yaml
-# AC4: and the checker genuinely still fires on it, exactly as the disposition records.
-rc=0; bash scripts/check-pickup-deferred-freshness.sh > /tmp/.t2960-chk 2>&1 || rc=$?; test "$rc" = 1
-grep -q 'STRANDED: P-078-learning.yaml' /tmp/.t2960-chk
-# The byproduct finding was registered as its own task, not folded into this one.
-test -f .tasks/active/T-3045-stranded-envelope-checker-falls-back-to-.md
 
 ## RCA
 
@@ -347,10 +235,7 @@ test -f .tasks/active/T-3045-stranded-envelope-checker-falls-back-to-.md
 
 ## Updates
 
-### 2026-09-11T20:42:16Z — task-created [task-create-agent]
+### 2026-09-21T20:45:01Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2960-p-078-inbound-peer-filing-has-no-recorde.md
+- **Output:** /opt/termlink/.tasks/active/T-3045-stranded-envelope-checker-falls-back-to-.md
 - **Context:** Initial task creation
-
-### 2026-09-21T20:43:03Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
