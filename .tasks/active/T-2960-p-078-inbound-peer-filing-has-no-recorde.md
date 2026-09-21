@@ -30,7 +30,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-11T20:42:16Z
-last_update: 2026-09-21T20:43:03Z
+last_update: 2026-09-21T20:47:32Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -294,6 +294,44 @@ test -f .tasks/active/T-3045-stranded-envelope-checker-falls-back-to-.md
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-09-21 — a disposition is not a breadcrumb, and the checker cannot tell them apart
+
+- **What changed:** The task was filed as "nobody recorded a disposition", which implied that
+  recording one would resolve the finding. It does not, and should not. `check-pickup-deferred-
+  freshness.sh` fires on the STRANDED class — *no breadcrumb, therefore `fw pickup
+  promote-deferred` can never promote it* — which is a statement about **promotability**, not
+  about whether a human has read the thing. A disposition and a breadcrumb are different
+  artefacts. So P-078 is now fully triaged and the checker still reports it, correctly, at rc=1.
+- **Plan impact:** The obvious-looking success condition ("record disposition, checker goes
+  green") was wrong and was deliberately not pursued. Making it green would have required either
+  weakening the checker or draining the envelope — and T-2801 is explicit that it detects and
+  never drains, because turning a visible backlog into a silent one is the exact trade it exists
+  to reverse. The AC was therefore written to *measure and record* the verdict rather than to
+  flip it, and `## Verification` now asserts that the checker still fires.
+- **Open hazard this leaves:** P-078 will now fire on this check forever, for a reason that has
+  been fully addressed. That is the T-2818 permanently-red-guard shape — a guard nobody reads —
+  and the resolution is a human judgement (drop the envelope, or mint a breadcrumb for it), not
+  something an agent should take unilaterally. Surfaced here rather than decided.
+- **Triggered:** T-3045 (filed, `captured`). While measuring the checker's verdict for AC4 its
+  own age-resolution proved defective: `TS_RE` accepts an optional double quote but not a single
+  quote, and the pickup pipeline writes RFC3339 values single-quoted, so `recorded_time()`
+  returns `None` and every envelope's age silently falls back to mtime — the precise PL-213
+  environment-dependence the function's docstring says it exists to prevent. Masked on this host
+  only because mtime happens to agree (11 days either way) for P-078. Not folded in here (one
+  bug, one task), and not fixed under this task, since it closes none of these ACs.
+
+### 2026-09-21 — the gate that refused me reported a second finding while doing it
+
+- **What changed:** G-020 blocked the first command of this task because the ACs were still
+  template placeholders. Answering it (writing real ACs) was the documented unblock, not a
+  bypass. But its refusal message also named something unrelated and true: it could not prove
+  `bash scripts/check-pickup-deferred-freshness.sh` is a read, because that script is absent
+  from the P-002 read-only allowlist.
+- **Plan impact:** None to this task's scope — recorded rather than actioned.
+- **Triggered:** Nothing new filed. This is a fresh instance of the class **T-3030** already
+  closed for other pure-read guard scripts, so it is logged as a recurrence of a known class
+  rather than re-filed as a novel defect.
 
 ## Recommendation
 
