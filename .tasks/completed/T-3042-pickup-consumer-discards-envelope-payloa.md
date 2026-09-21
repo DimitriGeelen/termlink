@@ -9,10 +9,10 @@ description: >
   = BVP 70, tier 4 inception, cost 3.6 = hv-lc, so content-free tasks top the Q1 quadrant.
   Vendored (G-062) — file upstream, do not patch.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [bug, pickup, framework-upstream, bvp]
 components: []
 related_tasks: []
@@ -27,8 +27,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-21T14:04:04Z
-last_update: 2026-09-21T14:06:41Z
-date_finished:
+last_update: 2026-09-21T14:21:07Z
+date_finished: 2026-09-21T14:21:07Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -372,3 +372,19 @@ operator to stop reading it (T-2818).
 
 ### 2026-09-21T14:06:41Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-e43200bb
+- **Timestamp:** 2026-09-21T14:21:08Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** yes
+- **Findings:** none
+
+- **Layer-1 escalations:** 1
+  1. **cross-project-blast** (medium) — Cross-project or cross-repo change
+     - matched: `cross-project`
+
+### 2026-09-21T14:21:07Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

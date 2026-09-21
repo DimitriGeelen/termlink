@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3042: Pickup consumer discards envelope payload — content-free tasks rank BVP 70 hv-lc
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-21T14:21:15Z
+# ============================================================================
+
+task_id: T-3042
+task_name: "Pickup consumer discards envelope payload — content-free tasks rank BVP 70 hv-lc"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-21T14:04:04Z
+completed: 2026-09-21T14:21:07Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-21T16:07:47+02:00
+last_commit: 2026-09-21T16:21:01+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  file pickup-consumer payload-discard + triage task. reproduce payload-discard, measure displacement, file upstream at framework:pickup offset 138. RCA + Evolution — the guard tested its symptom, not its property
+
+# Key outcomes
+outcomes:
+  - '**Reproduced before filing** (PL-367): a pickup envelope carrying a non-empty'
+  - 'The BVP consequence is measured, not asserted: the created task''s proposed scores are'
+  - 'Filed upstream at `framework:pickup` (G-062 — `lib/pickup.sh` is vendored and a local'
+  - 'The filing cites T-2687 explicitly — that task diagnosed the identical displacement'
+  - 'Filing is recorded here with its `framework:pickup` offset, so this task cannot close'
+  - 'Local detection, if any is added, is a CHECK not a patch — and must not fire on the'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3042-pickup-consumer-discards-envelope-payloa.md'
+  - '.tasks/active/T-3043-triage-32-auto-created-pickup-tasks--for.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-21T16:07:47'
+    action: 'T-3042: file pickup-consumer payload-discard + triage task'
+  - time: '2026-09-21T16:20:13'
+    action: 'T-3042: reproduce payload-discard, measure displacement, file upstream at framework:pickup offset 138'
+  - time: '2026-09-21T16:21:01'
+    action: 'T-3042: RCA + Evolution — the guard tested its symptom, not its property'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 17 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [bug, pickup, framework-upstream, bvp]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 17
+  commits: 3
+  files_changed: 2
+  lines_added: 655
+  lines_removed: 40
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3042-pickup-consumer-discards-envelope-payloa.md
+generated_by: context-agent-hybrid
