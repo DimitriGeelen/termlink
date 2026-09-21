@@ -1,10 +1,18 @@
 ---
 id: T-3036
-name: "Run substrate-smoke prover and report claim/claim-transfer stage verdicts (AEF T-3398 drift check)"
+name: "Run substrate-smoke prover and report claim/claim-transfer stage verdicts (AEF
+  T-3398 drift check)"
 description: >
-  AEF's arc-020 circuit design reuses channel claim / claim_transfer / hub start-status / fleet verbs as building blocks and asked whether those still behave as their design expects. The affirmative prover exists (scripts/substrate-smoke.sh: create - post - claim - claim-transfer - worker-loop - verify-clean plus four regression gates) but its canary has never been installed in /etc/cron.d (10 consecutive audit FAIL recurrences), so no standing evidence exists. Run the prover, report the stage-by-stage verdict to AEF, and close the standing audit gap by installing the canary or recording why not.
+  AEF's arc-020 circuit design reuses channel claim / claim_transfer / hub start-status
+  / fleet verbs as building blocks and asked whether those still behave as their design
+  expects. The affirmative prover exists (scripts/substrate-smoke.sh: create - post
+  - claim - claim-transfer - worker-loop - verify-clean plus four regression gates)
+  but its canary has never been installed in /etc/cron.d (10 consecutive audit FAIL
+  recurrences), so no standing evidence exists. Run the prover, report the stage-by-stage
+  verdict to AEF, and close the standing audit gap by installing the canary or recording
+  why not.
 
-status: captured
+status: started-work
 workflow_type: test
 owner: agent
 horizon: now
@@ -22,8 +30,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-21T08:58:02Z
-last_update: 2026-09-21T08:58:02Z
-date_finished: null
+last_update: 2026-09-21T14:31:40Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,20 +42,123 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-09-21T14:30:00Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-09-21T14:30:43Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius:
+      tier: 1
+      effort: 8
+    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=1 
+      (workflow:test); effort=8 (lines=204,acs=4)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3036: Run substrate-smoke prover and report claim/claim-transfer stage verdicts (AEF T-3398 drift check)
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+AEF's arc-020 circuit design reuses `channel claim` / `claim-transfer` / hub
+start-status / fleet verbs as building blocks and asked whether those still
+behave as its design expects. `scripts/substrate-smoke.sh` (T-2151) is the
+affirmative prover for exactly that composition, but its canary has never been
+installed to `/etc/cron.d` (audit FAIL, 10 consecutive recurrences), so **no
+standing evidence exists** — the prover has never run on a schedule. This task
+produces the missing evidence once, by hand, and reports it to the peer who
+asked.
+
+Reachability is prechecked separately BEFORE invoking the prover. This is
+load-bearing, not ceremony: T-2696 measured that smoke's `create` stage on an
+unreachable hub is a `stage_fail`, so smoke exits **1** — "substrate broken" —
+on a host whose hub is merely down. Without the precheck a verdict of 1 is
+ambiguous between "the composition regressed" and "nothing was listening", and
+reporting the former when it was the latter is precisely the kind of confident
+wrong answer that would mislead the peer who asked.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Hub reachability prechecked and its result recorded BEFORE the prover runs, so the exit code is interpretable (T-2696 remap: unreachable ⇒ tooling, not a stage regression)
+- [x] `scripts/substrate-smoke.sh` executed against the live hub and its **stage-by-stage** verdict recorded verbatim in this task — every stage named, not an aggregate pass/fail
+- [x] The claim / claim-transfer stages AEF specifically asked about are reported individually, since those are the verbs arc-020 reuses
+- [x] Verdict filed to the `framework:pickup` topic and **proven received by reading it back from the hub at a recorded offset** — not by trusting the `delivered` response (T-2876: delivered means queued, not received)
+- [x] The standing canary-install audit gap is resolved in this task by recording WHY it was not installed here plus the exact operator command, since installing to `/etc/cron.d` needs sudo and is operator action this session must not take
+
+**Measured evidence (2026-09-21).**
+
+*Reachability precheck, run BEFORE the prover.* `termlink channel list` -> rc=0.
+This is load-bearing, not ceremony: T-2696 measured that smoke's `create` stage on
+an unreachable hub is a `stage_fail`, so the prover exits **1** on a host whose hub
+is merely down. Without the precheck an exit of 1 cannot be told apart from a real
+regression, and reporting "substrate broken" to a peer when the real answer was
+"nothing was listening" is the confident-wrong-answer failure this project keeps
+finding in its own guards.
+
+*Prover result.* `scripts/substrate-smoke.sh --json` -> rc=0, `ok:true`,
+`stages_failed: []`. All ten stages passed, named individually because an aggregate
+verdict does not answer what AEF asked:
+
+    1.  create
+    2.  post (offset=0)
+    3.  claim                        <-- arc-020 building block
+    4.  transfer                     <-- arc-020 building block (claim-transfer)
+    5.  worker-loop (adopted-claim path)
+    6.  verify-clean (active=0 expired=0)
+    7.  drain-demo (work-stealing race, exclusive delivery)
+    8.  handoff-demo (CLAIM_NOT_OWNED ownership gates)
+    9.  lease-expiry-demo (worker-death auto-reclaim, lapsed-owner lockout)
+    10. resilience-demo (hub-blip queue absorb + exactly-once drain)
+
+Stage 8 is worth more than its bare pass: it exercises the CLAIM_NOT_OWNED gate,
+proving `transfer` still REFUSES what it is supposed to refuse. A transfer that had
+lost its ownership check would pass stage 4 and fail stage 8.
+
+*The qualification, which is load-bearing.* The running binary is **termlink
+0.11.1766**; this tree's VERSION is **0.11.2062** — about 296 commits newer. So the
+verdict covers 0.11.1766 and NOT current HEAD. This is the T-2181 stale-binary class
+(preflight Check 4). The green is real; it is green about a specific binary, and the
+report says so.
+
+*Filed and proven received.* Posted to `framework:pickup` at **offset 139**. The post
+response itself said `[delivered-unconfirmed: hub accepted it; no consumer receipt
+yet]`, which is exactly why acceptance required a read-back: `channel subscribe
+--cursor 139 --limit 1` returned 4477 bytes carrying `pickup_id: P-TL-3036`, the
+claim/transfer building-block lines, and the 0.11.1766 qualification. Per T-2876,
+`delivered` means queued, not received — the read-back is the evidence, the response
+is not.
+
+*Why there was no standing evidence to report, and why that is not fixed here.* The
+prover's canary (`.context/cron/substrate-smoke-canary.crontab`, T-2696) has NEVER
+been installed to `/etc/cron.d`; our audit has recorded that FAIL for ten consecutive
+runs. So when AEF asked, the truthful answer was "nobody knows" — an un-executed
+prover is not evidence. This task produces the one missing data point by hand; it
+does **not** make the evidence standing, and the next person to ask will be in the
+same position unless the canary is installed. Same shape as T-2683 (static checks
+nothing ran) and T-2686 (a parity test failing undetected since 2026-08-12).
+
+Installing it requires `sudo` to `/etc/cron.d`, which is operator action this session
+must not take. Exact command, for the operator:
+
+    sudo cp /opt/termlink/.context/cron/substrate-smoke-canary.crontab /etc/cron.d/termlink-substrate-smoke-canary && sudo systemctl reload cron
+
+This is deliberately NOT also filed as a Human AC here: the daily audit already names
+it every run, and duplicating a signal that already fires daily into a review queue
+that T-2940 measured at 57 items waiting over 30 days would add noise, not signal.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -143,6 +254,17 @@ date_finished: null
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+# T-3036 verification. Rehearsed under `bash -c 'set -eo pipefail; <line>'` (T-2743)
+# and each confirmed able to go RED with a wrong sentinel before being committed.
+# Safe redirect form throughout, never `cmd | grep -q` (L-387 SIGPIPE).
+timeout 30 termlink channel subscribe framework:pickup --cursor 139 --limit 1 > /tmp/.t3036v 2>&1 && grep -q 'pickup_id: P-TL-3036' /tmp/.t3036v
+grep -q 'arc-020 building block' /tmp/.t3036v
+grep -q '0.11.1766' /tmp/.t3036v
+grep -rq 'handoff-demo (CLAIM_NOT_OWNED ownership gates)' .tasks/
+grep -rq 'sudo cp /opt/termlink/.context/cron/substrate-smoke-canary.crontab' .tasks/
+test -f scripts/substrate-smoke.sh
+
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -160,6 +282,28 @@ date_finished: null
 -->
 
 ## Evolution
+
+- date: 2026-09-21
+  task: T-3036
+  note: >
+    Ran the substrate-smoke prover for AEF's arc-020 drift check: 10/10 stages
+    PASS including claim and claim-transfer, and stage 8 (handoff-demo) proving
+    transfer still REFUSES via the CLAIM_NOT_OWNED gate — a transfer that had lost
+    its ownership check would pass stage 4 and fail stage 8. Filed at
+    framework:pickup offset 139 and proven by hub read-back, not by the
+    `delivered` response (T-2876).
+- date: 2026-09-21
+  task: T-3036
+  note: >
+    Two things this run refused to overstate. (1) The verdict is about binary
+    0.11.1766 while the tree is VERSION 0.11.2062, ~296 commits newer — the green
+    covers the installed binary, not HEAD (T-2181 Check 4 class), and the report
+    says so rather than letting a peer read it as broader than it is. (2) The
+    prover's canary has never been installed, so this is a one-shot data point and
+    NOT standing evidence; the honest answer to "what did the schedule show" is
+    still "nobody knows". An un-executed prover is not a guard — same shape as
+    T-2683 and T-2686.
+
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
@@ -239,3 +383,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3036-run-substrate-smoke-prover-and-report-cl.md
 - **Context:** Initial task creation
+
+### 2026-09-21T14:31:40Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
