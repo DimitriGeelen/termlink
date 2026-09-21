@@ -31,7 +31,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-21T22:28:18Z
-last_update: 2026-09-21T22:29:18Z
+last_update: 2026-09-21T22:32:12Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -271,6 +271,30 @@ d=$(mktemp -d); RUNME_CRON_DIR="$d" bash runme.sh --dry-run > /tmp/.t3052-d 2>&1
      for Human Review). If the artefact is complete and you still don't want to
      commit, that is a calibration failure — recommend GO or NO-GO.
 -->
+
+**Recommendation:** RUBBER-STAMP — run `sudo ./runme.sh`, then tick the Human AC.
+
+**Rationale:**
+The agent half is done and verified: fixtures 11/11 hermetic, covering idempotence,
+tamper-detection, loud failure on a missing source, and the non-root refusal
+(genuinely exercised via `runuser`, not skipped). What remains needs root, which is
+yours, so it cannot honestly be an Agent AC.
+
+What you are approving is narrow: copying two git-tracked crontabs into
+`/etc/cron.d` so the arc-003 notify rail has a launcher and a detector. Until this
+runs, the rail is alive only for as long as the session that started it by hand and
+dies on reboot — which is exactly the 82-day dark period T-3049 measured.
+
+**Why this is low-risk:** nothing it does is destructive, it changes only the two
+files it names, it is idempotent so re-running is safe, and it verifies byte
+equality afterwards rather than assuming `cp` worked. Read it first with
+`sudo ./runme.sh --dry-run`, which writes nothing.
+
+**What I could not verify, stated plainly:** that installed cron actually fires on
+schedule. The script confirms the files are in place and match source; it cannot
+confirm cron executes them. First real evidence will be
+`.context/working/.notify-sidecar-supervisor.log` gaining entries, or
+`/canaries` showing the notify canary as healthy rather than absent.
 
 ## Decisions
 
