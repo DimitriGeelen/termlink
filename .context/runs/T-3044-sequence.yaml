@@ -25,12 +25,70 @@ steps:
   - id: R1S1
     round: 1
     prompt: value_review
-    role: GATHERER
-    state: resumed-rescoped
+    role: GATHERER + JUDGE (separation only partial — see report §3)
+    state: complete-halted-at-phase-5
     worker: vr-gatherer-r1
-    halts_at: "PHASE 1 [ASK] — yardstick + data availability map need human confirmation"
+    halts_at: "PHASE 5 [ASK] — per-item human approval required before PHASE 6 EXECUTE"
     feeds: R1S2
-    phases_completed: [0, 1]
+    phases_completed: [0, 1, 2, 3, 4, 5]
+    phase5_completed_utc: '2026-09-21T21:40:00Z'
+    report: docs/reports/VALUE-REVIEW-repo-2026-09-21-round1.md
+    executed_items: 0
+    phase6_entered: false
+    read_only: true
+    outcome_summary: >
+      Rescope executed as directed. (a) All 45 consolidated findings C-01..C-45 verified
+      against the current tree: 33 STILL-TRUE (9 measurably worse), 4 PARTIALLY-FIXED
+      (C-01, C-10, C-13, C-24), 1 FIXED (C-20), 1 SUPERSEDED (C-33), 4 NOW-WRONG
+      (C-31, C-32, C-40, C-43). (b) Phases 2-5 run over ground arc-009 does not cover,
+      producing 9 new findings N-1..N-9. Central result: four of the five falsified
+      findings were defects in the MEASURING INSTRUMENT, not the product, and the same
+      class is live and unfixed (N-1).
+    corrections_to_the_record:
+      - id: arc-009-scope
+        text: >
+          The rescope was decided on "3 of 18 slices complete, 14 captured". MEASURED:
+          arc-009 has 38 slices (T-2975..T-3012) — 12 work-completed, 2 started-work,
+          24 captured. Both the denominator (18 vs 38) and the completions (3 vs 12)
+          were understated. The rescope's direction survives (63% still unstarted) but
+          the premise was wrong and the human should know.
+      - id: f-orch-assumption
+        text: >
+          F-ORCH held LIVE at weight 5 per decision Q2. Report §1 states the assumption
+          and §12 SQ-R1-1 names the only rankings that would move if it were retired
+          (C-27, C-36, N-2); N-1 and N-3 rank first under any weighting.
+      - id: per-tool-telemetry
+        text: >
+          Per-tool usage labelled UNMEASURED throughout, not estimated around, per Q4.
+          Production sink confirmed ABSENT in all three runtime dirs this step.
+    top_findings_for_human:
+      - N-1 (HIGH, measured 3 ways): the runtime-dir split silently disables >=4
+        hub-dependent canaries (exit 2, non-firing, reported HEALTHY), breaks the default
+        CLI, and causes the single failing workspace test. Only 1 of 27 crontabs sets
+        TERMLINK_RUNTIME_DIR — and that one proves the correct value is known.
+      - N-2 (MEDIUM, measured): arc-009 reproduces the defect it exists to fix — 8 of its
+        9 completed GO inceptions produced no follow-up task; systemic leak now 86/168
+        = 51.2% (was 48.7%), and the audit's 8 newest findings are arc-009's own slices.
+      - N-3 (HIGH, measured): substrate-smoke canary shipped-but-dark; root cause of
+        both C-44's red fixture suite and the single fw audit FAIL.
+      - N-9 (HIGH, measured live): the budget gate halted this step at "98% of context
+        window" while ~14.7M tokens remained — it assumes a ~200k window. Vendored.
+    gate_conduct:
+      - "3 of 5 GATHERER workers were refused by the agent-dispatch gate (C-16 firing
+         live, 4th independent observation). fw dispatch approve was NOT run — an agent
+         does not self-approve a governance gate. The 24 affected findings were verified
+         directly and carry the prompt's -1 self-judged confidence penalty."
+      - "The budget gate (N-9) blocked a Bash append at wrap-up. It was NOT bypassed;
+         the report was completed through the Edit path the gate explicitly allows."
+    self_reported_pollution: >
+      Four canary heartbeats (stuck-claims, topic-growth, forever-archival,
+      framework-pickup) were refreshed at 21:22 by ad-hoc runs without --no-heartbeat.
+      Declared in report §2. Affects no finding (all rest on log content and exit codes),
+      and incidentally demonstrates C-13's masking mechanism live.
+    awaiting_human:
+      - "Per-item approval of the 11 proposed tasks R1-1..R1-11 (report §13) before PHASE 6"
+      - "7 sovereign questions SQ-R1-1..SQ-R1-7 (report §12), of which SQ-R1-1 (F-ORCH)
+         should be settled before round 2 inherits the same assumption"
     halted_at_utc: '2026-09-21T15:10:00Z'
     snapshot_utc: '2026-09-21T15:00:21Z'
     snapshot_dir: .context/working/value-review-R3044-snapshot/
@@ -96,8 +154,13 @@ steps:
   - id: R1S2
     round: 1
     prompt: proc_as_fit
-    state: blocked
-    blocked_on: R1S1 report + human approval of Phase 5 items
+    state: ready-input-available
+    input: docs/reports/VALUE-REVIEW-repo-2026-09-21-round1.md
+    blocked_on: >
+      Nothing structural — gate policy B pre-authorises read-only research, and R1S1's
+      report now exists as its input. Note procAsFit surfaces sovereign questions rather
+      than resolving them, so it can run without the Phase 6 approval. The 11 proposed
+      tasks stay unexecuted regardless.
     feeds: R2S1
   - id: R2S1
     round: 2
