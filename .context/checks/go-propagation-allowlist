@@ -1,0 +1,91 @@
+# go-propagation-allowlist — GO-recorded inceptions acknowledged as NOT firing.
+#
+# Origin: T-3038, baselining the backlog T-3003 measured. Entries are COUNTED AND
+# REPORTED by scripts/check-go-propagation.sh, never silently excluded — removing a
+# line re-fires that inception.
+#
+# This is a LEDGER OF AN OPEN QUESTION, not a permanent exemption (the T-2483 /
+# T-2548 convention). Every line below is a real GO whose scope was never linked.
+# They are acknowledged so the check is green-at-birth and fires on NEW leaks only —
+# the T-2818 lesson: a guard that is permanently red is a guard nobody reads.
+#
+# Do NOT add a new entry to silence a fresh leak. The remediation for a new firing is
+# to file the slices the GO approved and write related_tasks in both directions.
+#
+# Baseline captured 2026-09-21 against 164 GO-recorded inceptions.
+# Per T-3003 F2 these are predominantly a TRACEABILITY defect, not lost approvals:
+# follow-on work exists and names the inception in prose, but `related_tasks` — the
+# field the review queue, BVP component resolution and the decomposition gate all
+# read — was never written, in either direction.
+
+T-002    # GO 2026-03-08, unlinked at baseline (T-002-cross-terminal-session-communication-via.md)
+T-003    # GO 2026-03-08, unlinked at baseline (T-003-it-001-paradigm-decision--injection-vs-m.md)
+T-004    # GO 2026-03-08, unlinked at baseline (T-004-it-009-protocol-relationships--mcp-lsp-e.md)
+T-005    # GO 2026-03-08, unlinked at baseline (T-005-it-003-message-protocol-design.md)
+T-006    # GO 2026-03-08, unlinked at baseline (T-006-it-002-session-identity-discovery-and-li.md)
+T-007    # GO 2026-03-08, unlinked at baseline (T-007-it-004-output-capture--bidirectional-com.md)
+T-008    # GO 2026-03-10, unlinked at baseline (T-008-it-006-security-model--capability-based-.md)
+T-013    # GO 2026-03-08, unlinked at baseline (T-013-tech-stack-decision--implementation-lang.md)
+T-053    # GO 2026-03-09, unlinked at baseline (T-053-end-to-end-cli-integration-test-harness-.md)
+T-066    # GO 2026-03-10, unlinked at baseline (T-066-hub-as-persistent-daemon--extract-from-c.md)
+T-1016   # GO 2026-04-23, unlinked at baseline (T-1016-termlink-deploy--atomic-binary-deploymen.md)
+T-1025   # GO 2026-04-13, unlinked at baseline (T-1025-hub-restart-tcp-detection--server-side-h.md)
+T-1070   # GO 2026-04-18, unlinked at baseline (T-1070-consumer-installupdate-ux--why-cargo-bui.md)
+T-1071   # GO 2026-04-18, unlinked at baseline (T-1071-framework-improvements-from-termlink-pro.md)
+T-1101   # GO 2026-04-17, unlinked at baseline (T-1101-deep-value-assessment--what-does-termlin.md)
+T-1169   # GO 2026-04-20, unlinked at baseline (T-1169-pickup-to-framework-multi-agent-dispatch.md)
+T-1253   # GO 2026-04-25, unlinked at baseline (T-1253-g-007-mirror-anomaly--github-ahead-of-on.md)
+T-149    # GO 2026-03-16, unlinked at baseline (T-149-platform-aware-spawn--tmuxheadless-suppo.md)
+T-1635   # GO 2026-05-15, unlinked at baseline (T-1635-v2-peer-consult-seam--termlink-side-resp.md)
+T-1698   # GO 2026-05-18, unlinked at baseline (T-1698-auto-heal-infrastructure-dormant--no-boo.md)
+T-176    # GO 2026-04-23, unlinked at baseline (T-176-audit-framework-hook-config-against-24-a.md)
+T-1830   # GO 2026-05-28, unlinked at baseline (T-1830-doorbellmail-adoption-gap--drive-zero-ac.md)
+T-1906   # GO 2026-06-01, unlinked at baseline (T-1906-watchtower-decide-leaves-staged-work-tre.md)
+T-205    # GO 2026-03-22, unlinked at baseline (T-205-drop-pyyaml-phantom-dependency-from-inst.md)
+T-2054   # GO 2026-06-09, unlinked at baseline (T-2054-value-drivers-v4-f-evidence--f-containme.md)
+T-206    # GO 2026-03-21, unlinked at baseline (T-206-remove-sudo-from-installer--path-based-i.md)
+T-207    # GO 2026-04-23, unlinked at baseline (T-207-fix-phantom-aef-binary-name-in-installer.md)
+T-208    # GO 2026-03-22, unlinked at baseline (T-208-termlink-distribution-via-homebrew-tap--.md)
+T-2089   # GO 2026-06-09, unlinked at baseline (T-2089-broadcast-with-replay--current-value-key.md)
+T-209    # GO 2026-03-22, unlinked at baseline (T-209-implement-fw-dispatch--ssh-based-cross-m.md)
+T-2155   # GO 2026-06-11, unlinked at baseline (T-2155-rca-misread-budget-at-post-compaction-re.md)
+T-2229   # GO 2026-07-02, unlinked at baseline (T-2229-triage-ring20-cross-hub-federation--hear.md)
+T-232    # GO 2026-03-23, unlinked at baseline (T-232-terminal-shadow-sessions--read-only-moni.md)
+T-2348   # GO 2026-07-04, unlinked at baseline (T-2348-reviewer-agent-assisted-inception-decide.md)
+T-2380   # GO 2026-07-09, unlinked at baseline (T-2380-cross-agent-comms-confirm-ack-field-gap-.md)
+T-2393   # GO 2026-07-10, unlinked at baseline (T-2393-poll-free-self-advancing-agent-exchange-.md)
+T-2397   # GO 2026-07-10, unlinked at baseline (T-2397-agent-flow-model-busy-session-as-respond.md)
+T-2419   # GO 2026-07-19, unlinked at baseline (T-2419-ultra-critical-review-termlink-purpose-v.md)
+T-2425   # GO 2026-07-21, unlinked at baseline (T-2425-ultra-critical-review-round-2--termlink-.md)
+T-2430   # GO 2026-07-21, unlinked at baseline (T-2430-identity-keyed-governor-rate-buckets--re.md)
+T-2454   # GO 2026-07-31, unlinked at baseline (T-2454-claim-verbs-lack-caller-identity-binding.md)
+T-2457   # GO 2026-07-31, unlinked at baseline (T-2457-identity-binding-gap-below-the-verificat.md)
+T-2459   # GO 2026-07-31, unlinked at baseline (T-2459-post-idempotency-exactly-once-does-not-s.md)
+T-2476   # GO 2026-08-01, unlinked at baseline (T-2476-consumption-confirmation-for-the-wake-la.md)
+T-2477   # GO 2026-08-01, unlinked at baseline (T-2477-shipped-equals-live-arc-closure-capabili.md)
+T-2540   # GO 2026-08-20, unlinked at baseline (T-2540-charter-non-goal-4-violation-orchestrato.md)
+T-2548   # GO 2026-08-20, unlinked at baseline (T-2548-charter-non-goal-4-conversation-analytic.md)
+T-2549   # GO 2026-08-20, unlinked at baseline (T-2549-charter-non-goal-4-termlink-dispatch-orc.md)
+T-2678   # GO 2026-08-23, unlinked at baseline (T-2678-charter-guard-coverage-review--non-goal-.md)
+T-2683   # GO 2026-08-23, unlinked at baseline (T-2683-termlink-purpose-review-3--is-the-guard-.md)
+T-2690   # GO 2026-08-23, unlinked at baseline (T-2690-termlink-purpose-review-4--the-two-const.md)
+T-2694   # GO 2026-08-23, unlinked at baseline (T-2694-termlink-purpose-review-5--are-the-chart.md)
+T-2698   # GO 2026-08-23, unlinked at baseline (T-2698-termlink-purpose-review-6--is-the-refusa.md)
+T-2702   # GO 2026-08-23, unlinked at baseline (T-2702-termlink-purpose-review-7--are-the-archi.md)
+T-2828   # GO 2026-09-08, unlinked at baseline (T-2828-duplicate-work-detector-is-blind-to-dupl.md)
+T-283    # GO 2026-04-12, unlinked at baseline (T-283-cross-session-failure-blindness--107-rem.md)
+T-287    # GO 2026-04-23, unlinked at baseline (T-287-cross-project-framework-upgrade--fw-agen.md)
+T-292    # GO 2026-04-12, unlinked at baseline (T-292-audit-health-decay--why-do-warnings-accu.md)
+T-534    # GO 2026-03-27, unlinked at baseline (T-534-rca-agent-keeps-suggesting-direct-github.md)
+T-690    # GO 2026-04-12, unlinked at baseline (T-690-event-subscription--push-based-event-del.md)
+T-947    # GO 2026-04-12, unlinked at baseline (T-947-pickup-canary-30s-pickup-processor-smoke.md)
+T-950    # GO 2026-04-12, unlinked at baseline (T-950-pickup-30-second-pickup-processor-cycle-.md)
+T-952    # GO 2026-04-12, unlinked at baseline (T-952-pickup-l-004-termlink-inject-vs-push--in.md)
+T-953    # GO 2026-04-12, unlinked at baseline (T-953-pickup-l-006-termlink-send-file-oktrue-m.md)
+T-956    # GO 2026-04-12, unlinked at baseline (T-956-pickup-pickup-envelopes--messaging-chann.md)
+T-957    # GO 2026-04-12, unlinked at baseline (T-957-pickup-cross-host-agent-access-requires-.md)
+T-959    # GO 2026-04-12, unlinked at baseline (T-959-pickup-two-pool-architecture-persistent-.md)
+T-967    # GO 2026-04-12, unlinked at baseline (T-967-persistent-agent-sessions--mark-protect-.md)
+T-972    # GO 2026-04-12, unlinked at baseline (T-972-deep-rca-agent-command-amnesia--why-do-a.md)
+T-980    # GO 2026-04-12, unlinked at baseline (T-980-tier-0-self-approval-bypass--agent-can-c.md)
+T-984    # GO 2026-04-12, unlinked at baseline (T-984-fw-upgrade-silently-reverts-local-patche.md)
