@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3005: Investigate fleet version floors for .121/.122
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-21T11:07:35Z
+# ============================================================================
+
+task_id: T-3005
+task_name: "Investigate fleet version floors for .121/.122"
+workflow_type: inception
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-19T22:27:35Z
+completed: 2026-09-21T11:07:29Z
+duration_days: 2
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  S-29/C-41: fleet-version-floors entries for .121/.122 may be stale relative to their measured lineage (T-2377/T-2467 history); re-verify and adjust floors/exemptions. Evidence: docs/reports/VALUE-REVIEW-repo-2026-09-19-consolidated.md C-41.
+
+# Key outcomes
+outcomes:
+  - 'Problem statement validated'
+  - 'Assumptions tested'
+  - 'Recommendation written with rationale'
+  - '[REVIEW] Review exploration findings and approve go/no-go decision'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 2199 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [value-review, arc:arc-009]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 2199
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3005-investigate-fleet-version-floors-for-121.md
+generated_by: context-agent-hybrid
