@@ -65,24 +65,71 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] **Reproduced before filing** (PL-367): a pickup envelope carrying a non-empty
+- [x] **Reproduced before filing** (PL-367): a pickup envelope carrying a non-empty
       `payload.detail` is processed, and the resulting task file is confirmed to contain
       none of it — measured, not read off `lib/pickup.sh`. Use a fixture envelope, never a
       live inbound one.
-- [ ] The BVP consequence is measured, not asserted: the created task's proposed scores are
+- [x] The BVP consequence is measured, not asserted: the created task's proposed scores are
       shown to be the all-2s `no-signal` default (BVP 70) and to land in `hv-lc`.
-- [ ] Filed upstream at `framework:pickup` (G-062 — `lib/pickup.sh` is vendored and a local
+- [x] Filed upstream at `framework:pickup` (G-062 — `lib/pickup.sh` is vendored and a local
       patch is erased by the next `fw upgrade`), naming both halves: the consumer dropping
       `payload.detail`/`priority`/`tags`, AND the estimator's no-signal default being HIGH
       rather than neutral, so an unreadable task outranks a readable one.
-- [ ] The filing cites T-2687 explicitly — that task diagnosed the identical displacement
+- [x] The filing cites T-2687 explicitly — that task diagnosed the identical displacement
       ("ranked BVP 70 / hv-hc, displacing real work") and its guard only refuses a
       literally-empty `summary`, so a good summary over an empty body still passes.
-- [ ] Filing is recorded here with its `framework:pickup` offset, so this task cannot close
+- [x] Filing is recorded here with its `framework:pickup` offset, so this task cannot close
       on an intention to file (the T-2812 lesson: two `lib/upgrade.sh` defects sat 76 days
       behind ACs that said "report written for operator copy-paste", ticked and never sent).
-- [ ] Local detection, if any is added, is a CHECK not a patch — and must not fire on the
+- [x] Local detection, if any is added, is a CHECK not a patch — and must not fire on the
       32 pre-existing shells that T-3043 is draining, or it is red on arrival (T-2818).
+
+
+<!-- ── Measured evidence (T-3042 execution, 2026-09-21) ────────────────────── -->
+
+**Reproduction (AC 1).** Fixture envelope with `payload.detail` carrying sentinel
+`SENTINEL-DETAIL-9F2A` + a file:line + a repro command, `priority: high`, and
+`tags: [SENTINEL-TAG-RINGBUF, widget, performance]`. Isolated project root,
+`fw pickup process`, rc=0, task created. In the resulting task file: detail
+sentinel `grep -c` = **0**, tag sentinel = **0**, file path = **0**, priority =
+**0**. `tags:` read `[pickup, bug-report]`. 243 lines, all template. The producer
+side accepts all three fields (`fw pickup send --detail --priority --tags`), so
+the asymmetry is consumer-only.
+
+**BVP consequence (AC 2), measured on the live register — and it corrects the
+figure this task was filed with.** `fw bvp --quadrant hv-lc --include-proposed`:
+28 tasks in the quadrant, **25 tied at BVP 70**, **18 of those 25 are `Pickup:`
+shells**. The first task carrying real content (T-2938, a live cron-install
+drift) ranks below all 18. 35 `Pickup:` shells in `.tasks/active` total. The
+filing description said "8 of 12" — that was read off a truncated listing and is
+wrong; 18 of 25 is the counted figure.
+
+Two content-free scoring shapes coexist and the distinction matters: the 18
+legacy shells sit at the all-2s no-signal default (2x35 = **BVP 70**), while a
+shell created TODAY scores D1=4 D2=0 D3=3 D4=2 = **BVP 57** from template
+boilerplate matching keyword heuristics. Both are content-free; the no-signal
+reading is the HIGHER of the two. So the claim to carry forward is not "empty
+tasks score 70" but "the reading that admits least knowledge ranks best".
+
+**Filed upstream (ACs 3-5): `framework:pickup` offset 138**, msg_type
+`pickup-bug-report`, attributed `(010-termlink)` so T-2816's self-filter
+suppresses it from our own canary. Read back from the hub at that offset and
+confirmed to contain both named halves and the T-2687 citation. `delivered` was
+NOT treated as proof (T-2876); the read-back is.
+
+**No local detection was added (AC 6).** The constraint binds nothing: draining
+the 35 shells is T-3043's scope, and a checker written now would be red on
+arrival against them (T-2818).
+
+**Side finding — the reproduction seam is incomplete.** `pickup_process_one`
+mirrors every processed envelope to the LIVE `framework:pickup` topic via
+`lib/pickup-channel-bridge.sh` (T-1165), resolving the bridge from
+`FRAMEWORK_ROOT`, not `PROJECT_ROOT`. A `PROJECT_ROOT`-isolated reproduction
+therefore still posts to the shared cross-project rail. It did here: the fixture
+reached offset 136 and was redacted at 137 with an explicit "not a real filing"
+reason. Included in the upstream filing as a testability gap. Also observed:
+`--payload-from-file` does not exist on the shipping `termlink channel post`, so
+the bridge's first form always fails and silently falls through to its second.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -177,6 +224,14 @@ bvp_scores_proposed:
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+# ── Real verification (T-3042) ──
+termlink channel subscribe framework:pickup --cursor 138 --limit 1 > /tmp/.t3042rb 2>&1 && grep -q 'pickup_id: P-TL-3042' /tmp/.t3042rb
+grep -q 'T-2687' /tmp/.t3042rb
+grep -q 'HALF 1: the consumer drops the payload' /tmp/.t3042rb
+grep -q 'HALF 2: the empty body then scores HIGH' /tmp/.t3042rb
+grep -rq 'framework:pickup offset 138' .tasks/
+grep -A9 'fw task create' .agentic-framework/lib/pickup.sh > /tmp/.t3042src 2>&1 && ! grep -q 'payload' /tmp/.t3042src
 
 ## RCA
 
