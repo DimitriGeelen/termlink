@@ -28,7 +28,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-21T12:45:56Z
-last_update: 2026-09-21T12:47:09Z
+last_update: '2026-09-21T13:49:24Z'
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -53,6 +53,16 @@ bvp_scores_proposed:
     rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
       (body:component-discoverability); D4=2 (body:env-class-handled); 
       F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-09-21T13:49:24Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius:
+      tier: 2
+      effort: 8
+    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
+      (workflow:build); effort=8 (lines=265,acs=8)
     rubric_sha: e4a00f38e801
 ---
 
@@ -106,26 +116,51 @@ rows into the local hub. The local case is simply the common one.
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] **Reproduced against the shipping verb before any fix** (PL-367): a post to an
-      unreachable TCP hub is queued, a subsequent post to a reachable hub is issued, and
-      the first message is observed arriving at the WRONG hub (or the reproduction fails
-      and that negative result is recorded here, closing PL-109 as no-longer-true).
-      Use a scratch `smoke:*` topic on both hubs; never a real work or dm topic.
-- [ ] The reproduction is captured as a hermetic regression test that fails against
-      current `main` — seams over live hubs where possible, per PL-213
-- [ ] Remediation chosen between PL-109's two named options, with the rejected one and
-      the reason recorded in `## Decisions`: (a) persist the destination on the queue row
-      and flush per-destination, or (b) refuse to queue a cross-hub post at all and fail
-      loudly at post time
-- [ ] Whichever is chosen, a cross-hub post can never be delivered to a hub other than
-      the one it was addressed to — demonstrated in BOTH directions (the fix makes the
-      regression test pass; reverting the fix makes it fail again)
-- [ ] PL-109 is updated from `application: TBD` to name this task, so the five-month-old
-      learning stops reading as unactioned
-- [ ] Bypassing the queue is NOT silently equivalent to dropping the message: if option
-      (b) is chosen, the refusal is loud and names the target hub (PL-373 — a fallback
-      that guesses is worse than one that refuses)
+- [x] **Reproduced against the shipping verb before any fix** (PL-367) — **NEGATIVE RESULT.**
+      The defect this task was filed for does NOT reproduce on the TCP cross-hub path.
+      Two variants, both against the shipping verb, 2026-09-21:
+      `127.0.0.1:9199` (nothing listening, absent from `hubs.toml`) →
+      `Error: cross-hub channel.post failed: I/O error: Connection refused (os error 111)`,
+      true exit code **1**; and `192.168.10.141:9100` (laptop-141, present in `hubs.toml`,
+      host down) → `... No route to host (os error 113)`, true exit code **1**. Queue before
+      and after: `pending=0 dead_letters=0`. The scratch topic `smoke:t3041-135102` on the
+      LOCAL hub received nothing — `channel delete` reported **0 record(s) removed**, so the
+      canary was not misdelivered there either. Nothing was queued, nothing was misdelivered,
+      and the refusal was loud.
+- [x] **Mechanism confirmed in source, not inferred from two trials.**
+      `crates/termlink-cli/src/commands/channel.rs:1096` branches on `if sock.is_tcp()` into a
+      direct authed RPC whose error is propagated, under the comment: *"T-1385: TCP cross-hub
+      posts bypass the offline queue (BusClient is Unix-only at the wire level). Direct authed
+      RPC; no queueing on failure."* The offline-queue path is the `else` branch and is
+      Unix-socket-only. A TCP cross-hub post therefore cannot reach the queue, so it cannot be
+      misdelivered by a queue row that carries no destination.
+- [x] **The task's own premise is recorded as falsified.** This task's `description` asserts a
+      queued cross-post "is delivered to whichever hub the next post targets"; PL-109 asserts it
+      "retries against local hub, never the intended remote". Those were already two different
+      failure shapes, and the measurement shows **neither** occurs — the post never queues.
+- [x] **PL-109 updated** from `application: TBD` to name this task and carry the measurement,
+      so a five-month-old learning stops reading as an unactioned live defect.
+- [x] **Dating the divergence.** The bypass landed **2026-04-28** in commit `175096726`
+      (T-1385) — three days BEFORE PL-109 was recorded on 2026-05-01. This is deliberately NOT
+      claimed as "the learning was false when written": a binary predating that commit would
+      still have shown the old behaviour, which is this project's own shipped-not-live class
+      (G-069). The claim is only that it is not true now.
+- [x] **Residual named and explicitly NOT claimed.** `queue_path` is a single shared
+      `default_queue_path()` and the queueing branch is taken for any non-TCP `--hub`, so two
+      local hubs addressed by different UNIX SOCKET paths on one host would share one queue with
+      no destination column. **Not reproduced, not tested, not asserted in either direction.**
+      One bug = one task: if it is ever worth chasing it is a separate task, not a re-scope of
+      this one.
+
+<!-- WITHDRAWN as not applicable. These four ACs presupposed a reproducible defect:
+       - hermetic regression test capturing the reproduction
+       - remediation chosen between PL-109's two named options
+       - cross-hub post can never be delivered to a hub other than the one addressed
+       - refusal is loud and names the target hub (PL-373)
+     There is nothing to remediate on the measured path, and the last one is already
+     satisfied by the shipping behaviour (named cause + exit 1), not by work done here.
+     They are withdrawn rather than ticked, because ticking them would claim work that
+     was never performed. -->
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -161,6 +196,20 @@ rows into the local hub. The local case is simply the common one.
 -->
 
 ## Verification
+
+# T-3041 closes on a NEGATIVE reproduction, so these pin the EVIDENCE for that
+# negative, not a fix. All are pure reads; all use the L-387-safe no-pipe form.
+grep -q 'TCP cross-hub posts bypass the offline queue' crates/termlink-cli/src/commands/channel.rs
+grep -q 'if sock.is_tcp()' crates/termlink-cli/src/commands/channel.rs
+git cat-file -e 175096726^{commit}
+python3 -c "import yaml; yaml.safe_load(open('.context/project/learnings.yaml'))"
+python3 -c "import yaml,sys; d=yaml.safe_load(open('.context/project/learnings.yaml')); ls=d['learnings'] if isinstance(d,dict) and 'learnings' in d else d; e=[x for x in ls if x.get('id')=='PL-109'][0]; sys.exit(0 if str(e.get('application','')).startswith('SUPERSEDED') else 1)"
+#
+# DELIBERATELY NOT VERIFIED HERE: the live two-variant post to an unreachable hub.
+# `cmd_channel_post` calls ensure_topic BEFORE the is_tcp branch, so running it under
+# P-011 would CREATE a topic on the local hub on every completion attempt. A gate with
+# a side effect on shared hub state is the wrong trade. The live measurement is recorded
+# as evidence in the Agent ACs above, with the exact addresses, errors and exit codes.
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -239,6 +288,34 @@ rows into the local hub. The local case is simply the common one.
 
 ## Evolution
 
+### The rule existed and I did not apply it (2026-09-21)
+
+PL-367 says a filed defect must be measured against the shipping verb, not accepted on the
+filing's say-so. I read PL-109, found it matched a source read, and relayed it to a peer
+project as a **standing constraint for their spec** — "treat cross-hub post as unreliable
+under a blip" — before running a single command. Twenty minutes later I had to retract it.
+The rule was not missing, not unclear, and not hard to apply; the reproduction took four
+commands. Having the learning is not the same as reaching for it.
+
+### A superseded learning is indistinguishable from a live one
+
+PL-109 sat at `application: TBD` for five months. The register has no way to express "this
+was true, and then someone fixed it" — `TBD` reads identically whether nobody got to it or
+whether it stopped being true three days after it was written. The fix landed 2026-04-28
+and the learning was recorded 2026-05-01, so for essentially its whole life it described
+behaviour the code no longer had, and anyone reading the register would have concluded, as
+I did, that it was a live defect. That is the same shape as this project's stale-guard
+lessons (T-2818: a guard nobody can trust; T-2680: a green whose scope is unstated) applied
+to project memory rather than to a check. Whether learnings should carry a re-measured-on
+date is a question for the human, not one to settle by inventing a field here.
+
+### Cost of relaying unmeasured claims across projects
+
+The retraction was cheap because the peer had not shipped anything yet. It would not have
+been cheap if they had designed around a constraint that does not exist — a retry/buffer
+layer for a path that already fails loudly. The asymmetry argues for measuring BEFORE the
+cross-project send, not before the fix.
+
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
      filing, what in the original plan no longer fits, what triggered pivots
@@ -291,6 +368,31 @@ rows into the local hub. The local case is simply the common one.
 -->
 
 ## Decisions
+
+### Why no remediation was chosen (2026-09-21)
+
+Nothing to remediate on the measured path. PL-109 named two options — (a) persist the
+destination on the queue row, (b) refuse to queue a cross-hub post and fail loudly. The
+shipping binary already does (b), and has since commit `175096726` (2026-04-28, T-1385):
+the TCP branch never touches the queue and propagates the connection error with a named
+cause and exit 1. Implementing (a) now would add a destination column to a queue that the
+cross-hub path cannot reach.
+
+### Why the four unmet ACs were WITHDRAWN rather than ticked
+
+Ticking "remediation chosen" or "regression test written" would claim work nobody did.
+P-010 gates on checked boxes, so the cheap path was to tick them and let the task close
+clean. They are struck through in an HTML comment naming each one and why it no longer
+applies, which leaves the gate honest and the record readable.
+
+### Why the UNIX-socket residual is not pursued here
+
+`queue_path` is one shared `default_queue_path()` and the queueing branch is taken for any
+non-TCP `--hub`, so two local hubs addressed by different unix socket paths would share a
+queue with no destination column. It is unreproduced and untested. One bug = one task: it
+is a separate task if it is ever worth chasing, not a re-scope of this one. Recording it
+as an untested residual rather than silently dropping it, and equally not inflating it
+into a finding I have not measured.
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.

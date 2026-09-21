@@ -1271,7 +1271,22 @@ learnings:
   task: T-1429
   date: 2026-05-01
   context: Added via context agent
-  application: TBD
+  application: 'SUPERSEDED for the TCP path — re-measured 2026-09-21 under T-3041 and it does
+    NOT reproduce. Two variants against the shipping verb (127.0.0.1:9199 unlisted-and-dead;
+    192.168.10.141:9100 listed-in-hubs.toml-and-down) both refused loudly at post time with a
+    named cause and true exit code 1; queue stayed pending=0 dead_letters=0; the scratch topic
+    on the local hub received nothing (channel delete reported 0 records removed). Mechanism is
+    explicit, not inferred: crates/termlink-cli/src/commands/channel.rs:1096 branches
+    `if sock.is_tcp()` into a direct authed RPC with the comment "TCP cross-hub posts bypass the
+    offline queue (BusClient is Unix-only at the wire level). Direct authed RPC; no queueing on
+    failure." The queueing path is the else branch and is Unix-socket-only. That bypass landed
+    2026-04-28 in commit 175096726 (T-1385) — THREE DAYS BEFORE this learning was recorded. Not
+    claiming the learning was false when written: a binary predating the commit would still have
+    shown the old behaviour, which is this project''s own shipped-not-live class (G-069). What is
+    claimed is that it is not true now. RESIDUAL, EXPLICITLY UNTESTED: queue_path is a single
+    shared default_queue_path() and the queueing branch is taken for any non-TCP --hub, so two
+    local hubs addressed by different UNIX SOCKET paths on one host would share one queue with no
+    destination column. Not reproduced, not claimed in either direction.'
 - id: PL-111
   learning: Hub-side state that needs to survive restart belongs in runtime_dir alongside T-1294's secret/cert —
     and the bus registry already does, contrary to the T-1444 inception's original premise. Topics + retention are
