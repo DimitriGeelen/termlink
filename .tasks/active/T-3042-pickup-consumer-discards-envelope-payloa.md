@@ -235,43 +235,83 @@ grep -A9 'fw task create' .agentic-framework/lib/pickup.sh > /tmp/.t3042src 2>&1
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom:** 35 `Pickup:` tasks in `.tasks/active` are 243-line untouched
+templates. 18 of them occupy the top BVP-70 band of the hv-lc quadrant, ranking
+above every task in that quadrant that carries real content.
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause:** two independent gaps that compose.
+(1) `lib/pickup.sh::pickup_create_inception` passes only name/type/owner/
+description/horizon/tags to `fw task create`. `payload.detail`, `payload.priority`
+and `payload.tags` are read from the envelope by the producer (`fw pickup send`
+accepts all three) and then never written anywhere by the consumer.
+(2) The BVP estimator's no-signal default is 2 on every driver = BVP 70, which is
+a mid-high value claim rather than an abstention. An unreadable task therefore
+competes, and wins, against readable ones.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+Neither alone would surface. A dropped payload with an abstaining estimator would
+leave the shells at the bottom of the queue where their emptiness is harmless. A
+high no-signal default with a payload-preserving consumer would have real content
+to score. Together they invert the queue.
+
+**Why structurally allowed:** T-2687 had already diagnosed this exact displacement
+— its own comment says the content-free tasks "ranked BVP 70 / hv-hc, displacing
+real work at the top of `fw bvp --quadrant hv-hc`" — and added a guard. But the
+guard refuses only when `summary` or `source.project` extract *empty*. It was
+written against the malformed-envelope case that produced tasks literally named
+"Pickup:  (from )". A well-formed envelope with a good summary and a rich body
+passes it cleanly and produces an equally empty task. The guard tested the
+symptom it had in front of it rather than the property it wanted, which is that a
+created task carries the content that justified creating it.
+
+The blindness compounded because nothing measures the quadrant's *composition*.
+`fw bvp --quadrant hv-lc` reports scores, not whether the top band is made of
+tasks nobody can read; and 161 of 200 tasks have no cost at all, so the
+thresholds are computed over 39. A queue can be 64% content-free at the top and
+every surface still reads green.
+
+**Prevention:** filed upstream at `framework:pickup` offset 138 (G-062 — vendored,
+not patched here), naming both halves so a consumer fix that leaves the estimator
+default alone is not mistaken for a complete one. Deliberately NOT paired with a
+local checker: the 35 existing shells are T-3043's scope and any detector written
+before that drain would be red on arrival, which is how a guard teaches its
+operator to stop reading it (T-2818).
 
 ## Evolution
 
-<!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
-     understanding evolved during build — what was learned that wasn't known at
-     filing, what in the original plan no longer fits, what triggered pivots
-     or new sub-tasks. Mandatory at slice boundaries (when applicable) and
-     before --status work-completed.
+### 2026-09-21 — the filed premise was half wrong, and the measurement is what caught it
 
-     Origin: T-1717 grill Q4 — "the understanding of what we need and want
-     evolves with the process of materialisation." Structural counter to §ACD:
-     spec-vs-build divergence is logged as soon as it happens, not lost as
-     folklore.
+- **What changed:** this task was filed asserting the estimator's no-signal
+  default (all-2s, BVP 70) is what pins the shells at the top. Reproducing it
+  showed a shell created *today* scores D1=4 D2=0 D3=3 D4=2 = BVP 57 — the
+  estimator now matches keyword heuristics against template boilerplate. Both
+  outcomes are content-free; the 70 is simply the higher one. The accurate claim
+  is "the reading that admits least knowledge ranks best", not "empty tasks score
+  70". The filing carries the corrected version.
+- **Plan impact:** AC 2 as written ("shown to be the all-2s no-signal default")
+  would have been satisfied by the 18 legacy shells alone and would have missed
+  that fresh shells score differently. It was answered on the live register
+  rather than on the fixture, which is what surfaced the divergence.
+- **Triggered:** the displacement figure was also corrected — 18 of 25, not the
+  "8 of 12" in this task's own description, which had been read off a truncated
+  listing.
 
-     Format (one entry per slice boundary or significant insight):
-       ### YYYY-MM-DD — [topic]
-       - **What changed:** [what we learned that we didn't know at filing]
-       - **Plan impact:** [what in the plan no longer fits]
-       - **Triggered:** [new sub-task / pivot / scope cut, with task ID if filed]
+### 2026-09-21 — PROJECT_ROOT does not isolate the pickup pipeline
 
-     The completion gate (T-1718) blocks --status work-completed when this
-     section exists but is empty/template-only. Use --skip-evolution to bypass
-     (logged Tier-2). Non-arc tasks may leave this empty.
--->
+- **What changed:** the reproduction was scoped with `PROJECT_ROOT` pointed at a
+  throwaway project, which correctly isolated the task register, the pickup dirs
+  and the dedup log. It did not isolate the hub. `pickup_process_one` mirrors
+  every processed envelope to the live `framework:pickup` topic through
+  `lib/pickup-channel-bridge.sh`, resolved from `FRAMEWORK_ROOT`. The fixture
+  reached a shared cross-project rail at offset 136.
+- **Plan impact:** none to the deliverable, but the reproduction was not as
+  side-effect-free as it was designed to be, and the design error was invisible
+  until after the fact. Redacted at offset 137 with an explicit "not a real
+  filing" reason naming the cause, so a peer reading the topic is not left
+  guessing.
+- **Triggered:** included in the upstream filing as a testability gap — anyone
+  testing this pipeline hits it. Also observed en route: `--payload-from-file`
+  does not exist on the shipping `termlink channel post`, so the bridge's first
+  post form always fails and falls through to its second, silently.
 
 ## Recommendation
 
