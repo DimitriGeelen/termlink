@@ -22,8 +22,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-21T14:54:57Z
-last_update: 2026-09-21T14:54:57Z
-date_finished: null
+last_update: '2026-09-21T20:14:23Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,6 +34,30 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-09-21T20:14:17Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 3
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=3 (body:portability-abstraction); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-09-21T20:14:23Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius:
+      tier: 2
+      effort: 8
+    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
+      (workflow:build); effort=8 (lines=302,acs=6)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3044: Orchestrate value-review + procAsFit prompt sequence over TermLink (2 rounds)
@@ -190,7 +214,8 @@ R2S2 remain `blocked`/`pending` in the run record and are gated on a human answe
 test -f docs/prompts/value-review.md && test -f docs/prompts/proc-as-fit.md
 python3 -c "import yaml; d=yaml.safe_load(open('.context/runs/T-3044-sequence.yaml')); ids=[s['id'] for s in d['steps']]; assert ids==['R1S1','R1S2','R2S1','R2S2'], ids"
 python3 -c "import yaml; d=yaml.safe_load(open('.context/runs/T-3044-sequence.yaml')); pf=d['placeholder_fill']; assert set(pf) >= {'SCOPE','PURPOSE_SOURCE','EXTERNAL_DATA','BUDGET','filled_by','rationale'}, sorted(pf)"
-python3 -c "import yaml; d=yaml.safe_load(open('.context/runs/T-3044-sequence.yaml')); s=d['steps'][0]; assert s['worker']=='vr-gatherer-r1', s.get('worker'); assert s['state']=='halted-at-ask', s['state']"
+python3 -c "import yaml,os; d=yaml.safe_load(open('.context/runs/T-3044-sequence.yaml')); s=d['steps'][0]; assert s['worker']=='vr-gatherer-r1', s.get('worker'); assert set(s['phases_completed']) >= {0,1,2,3,4,5}, s['phases_completed']; assert os.path.exists(s['artifact']), s['artifact']"
+test -s docs/reports/VALUE-REVIEW-repo-2026-09-21-round1.md
 python3 -c "import yaml; d=yaml.safe_load(open('.context/runs/T-3044-sequence.yaml')); q=d['sovereign_question']; assert q['id']=='SQ-3044-1'; assert 'Not resolved by the orchestrator' in q['orchestrator_position']"
 python3 -c "import yaml; d=yaml.safe_load(open('.context/runs/T-3044-sequence.yaml')); qs=d['steps'][0]['blocking_questions_for_human']; assert len(qs)==6, len(qs)"
 test -s docs/reports/VALUE-REVIEW-repo-2026-09-21-phase01.md
@@ -279,6 +304,42 @@ decision inline — what the worker acts on and what is committed cannot drift a
 
 Worth noting the orchestrator did not design for this; it was found by checking rather
 than assumed from the inject returning "Injected 1419 bytes".
+
+
+### 2026-09-21 — the load-bearing state carrier stopped parsing, and nothing noticed
+
+Last session this file recorded that `.context/runs/T-3044-sequence.yaml` had moved from
+"prudent" to **load-bearing**: with each dispatch spawning a fresh worker, the run record
+is the only carrier of state between steps. Within the same day it **stopped parsing**.
+
+R1S1's own write introduced four list items of the shape
+
+    - N-1 (HIGH, measured 3 ways): the runtime-dir split silently disables >=4
+      hub-dependent canaries ...
+
+The dash sits at column 7 and the text at column 9, so YAML reads `N-1 (HIGH, measured 3
+ways)` as a mapping KEY — and the continuation line is at column 9 too, i.e. a sibling
+key, not a continuation. `ScannerError: could not find expected ':'`. Repaired by folding
+the four into `- >` block scalars; a non-whitespace md5 of before and after is IDENTICAL,
+so the fix changed scalar STYLE and not one byte of content.
+
+**The finding is not the typo.** Five of this task's seven verification commands were red
+and would have stayed red until someone ran them. Nothing in the guard layer reads
+`.context/runs/*.yaml`. The repo already ships `check-episodic-parse.sh` (T-2805) for
+precisely this class — a durable store whose only reader swallows the parse error — and
+the identical blindness exists one directory over. Recorded as a finding; NOT built here,
+because a new check is a new task and not an activity this task's ACs require.
+
+### 2026-09-21 — a verification command must assert an invariant, not a snapshot
+
+Line 4 of this task's own Verification block asserted `state == 'halted-at-ask'`. That was
+true when written and went red the moment R1S1 legitimately advanced to
+`complete-halted-at-phase-5`. A check that fails on correct progress trains its reader to
+force past it — the T-2818 fatigue mechanism, self-inflicted.
+
+Replaced with a **stronger** assertion, not a looser one: the step names a separate worker,
+`phases_completed` covers 0-5, and the artifact it claims is actually present on disk. The
+old line asserted a moment; the new one asserts that the work happened. 8 of 8 now pass.
 
 
 ## Recommendation

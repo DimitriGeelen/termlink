@@ -62,16 +62,20 @@ steps:
           Per-tool usage labelled UNMEASURED throughout, not estimated around, per Q4.
           Production sink confirmed ABSENT in all three runtime dirs this step.
     top_findings_for_human:
-      - N-1 (HIGH, measured 3 ways): the runtime-dir split silently disables >=4
+      - >
+        N-1 (HIGH, measured 3 ways): the runtime-dir split silently disables >=4
         hub-dependent canaries (exit 2, non-firing, reported HEALTHY), breaks the default
         CLI, and causes the single failing workspace test. Only 1 of 27 crontabs sets
         TERMLINK_RUNTIME_DIR — and that one proves the correct value is known.
-      - N-2 (MEDIUM, measured): arc-009 reproduces the defect it exists to fix — 8 of its
+      - >
+        N-2 (MEDIUM, measured): arc-009 reproduces the defect it exists to fix — 8 of its
         9 completed GO inceptions produced no follow-up task; systemic leak now 86/168
         = 51.2% (was 48.7%), and the audit's 8 newest findings are arc-009's own slices.
-      - N-3 (HIGH, measured): substrate-smoke canary shipped-but-dark; root cause of
+      - >
+        N-3 (HIGH, measured): substrate-smoke canary shipped-but-dark; root cause of
         both C-44's red fixture suite and the single fw audit FAIL.
-      - N-9 (HIGH, measured live): the budget gate halted this step at "98% of context
+      - >
+        N-9 (HIGH, measured live): the budget gate halted this step at "98% of context
         window" while ~14.7M tokens remained — it assumes a ~200k window. Vendored.
     gate_conduct:
       - "3 of 5 GATHERER workers were refused by the agent-dispatch gate (C-16 firing
