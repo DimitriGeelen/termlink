@@ -4,16 +4,16 @@ name: "Project value review: delete / refactor / add across TermLink"
 description: >
   Inception: Project value review: delete / refactor / add across TermLink
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
 created: 2026-09-16T21:06:13Z
-last_update: 2026-09-19T18:55:05Z
-date_finished:
+last_update: 2026-09-21T11:06:22Z
+date_finished: 2026-09-21T11:06:22Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -294,15 +294,15 @@ session. Worth filing on its own.
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -359,7 +359,17 @@ GO on running the review, not on any outcome it proposes. The repo carries stron
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO
+
+Rationale:
+
+GO on running the review, not on any outcome it proposes. The repo carries strong prior evidence that a value review has purchase: the T-2468 purpose review already found TermLink over-built in breadth and pruned 52 charter-untraceable tools, and 28 live tools remain acknowledged-but-unjustified in .context/checks/charter-drift-allowlist pending T-2548 — an open question about ~30 tools that has sat unresolved while a daily canary reports the surface clean. The guard layer has grown to 18 cron canaries plus 11+ static checks, several of which were found shipped-but-dark (T-2683, T-2696, T-2939), which is exactly the cost-without-value shape this review is meant to detect. Against that, the review is read-only through Phase 5 and creates no authorization to change anything, so the downside is bounded to review effort. The honest risk is the opposite one: that a DELETE axis run against a project whose charter is already narrow produces pressure to cut guards that are load-bearing but quiet. The prompt's own DELETE CHECKS and the 'non-use is a symptom, not a verdict' rule are the mitigation, and they are strict enough to rely on.
+
+Evidence:
+
+**Date**: 2026-09-21T11:06:21Z
 
 ## Updates
 
@@ -368,3 +378,55 @@ GO on running the review, not on any outcome it proposes. The repo carries stron
 
 ### 2026-09-16T21:07:24Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-09-21T11:06:21Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+
+Rationale:
+
+GO on running the review, not on any outcome it proposes. The repo carries strong prior evidence that a value review has purchase: the T-2468 purpose review already found TermLink over-built in breadth and pruned 52 charter-untraceable tools, and 28 live tools remain acknowledged-but-unjustified in .context/checks/charter-drift-allowlist pending T-2548 — an open question about ~30 tools that has sat unresolved while a daily canary reports the surface clean. The guard layer has grown to 18 cron canaries plus 11+ static checks, several of which were found shipped-but-dark (T-2683, T-2696, T-2939), which is exactly the cost-without-value shape this review is meant to detect. Against that, the review is read-only through Phase 5 and creates no authorization to change anything, so the downside is bounded to review effort. The honest risk is the opposite one: that a DELETE axis run against a project whose charter is already narrow produces pressure to cut guards that are load-bearing but quiet. The prompt's own DELETE CHECKS and the 'non-use is a symptom, not a verdict' rule are the mitigation, and they are strict enough to rely on.
+
+Evidence:
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-2dd1d191
+- **Timestamp:** 2026-09-21T11:06:23Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 5
+
+**Verification-level findings:**
+
+  1. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-1
+     - evidence: `IW-1 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+  2. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-2
+     - evidence: `IW-2 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+  3. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-3
+     - evidence: `IW-3 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+  4. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-4
+     - evidence: `IW-4 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+  5. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-5
+     - evidence: `IW-5 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+
+## Recommendation Verdict (v1.0)
+
+- **Scan ID:** RC-94ee498d
+- **Timestamp:** 2026-09-21T11:06:23Z
+- **Overall:** CONFIRMED
+- **Claims:** 5
+
+| Claim | Type | Status |
+|-------|------|--------|
+| `T-2468` | task | ✓ pass |
+| `T-2548` | task | ✓ pass |
+| `T-2683` | task | ✓ pass |
+| `T-2696` | task | ✓ pass |
+| `T-2939` | task | ✓ pass |
+
+### 2026-09-21T11:06:22Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
