@@ -26,7 +26,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-21T11:09:14Z
-last_update: 2026-09-21T11:12:45Z
+last_update: 2026-09-21T11:23:12Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -64,13 +64,21 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `scripts/check-go-propagation.sh` exists and carries the `# guard-layer: source` marker so `run-guard-layer.sh` picks it up
-- [ ] Exit contract: 0 = no unacknowledged leak, 1 = a NEW unlinked GO inception, 2 = tooling — **fail-closed**: absent `python3`, an unreadable ledger, or a corpus with zero inception files all exit 2, never a vacuous clean
-- [ ] Git-tracked baseline ledger at `.context/checks/go-propagation-baseline` (per T-2681 — never under gitignored `.context/working/`) lists the existing unlinked GO inceptions, one `<task-id>  # <reason>` per line; entries are **counted and reported but do not fire** (T-2818: a guard that is permanently red is a guard nobody reads)
-- [ ] A GO inception with empty `related_tasks` that is NOT in the baseline **fires**; deleting a baseline line re-fires that inception — the load-bearing property, demonstrated both directions
-- [ ] Output on BOTH paths (clean and firing) states the census and a scope disclaimer (T-2680): it detects GO inceptions with no forward link, it does NOT audit whether the follow-on work is adequate or whether the GO was right
-- [ ] The loose-vs-strict split T-3003 measured is preserved: strictly-unlinked fires, loosely-linked (a back-reference exists elsewhere) is reported non-firing — so the 4 genuine orphans stay distinguishable from the 76 metadata gaps
-- [ ] Fixtures at `tests/go-propagation-check-fixtures.sh` pin the exit codes, the baseline suppression, the re-fire on removal, and at least one false-positive guard (a GO inception that IS properly linked must never fire)
+- [x] `scripts/check-go-propagation.sh` exists and carries the `# guard-layer: source` marker so `run-guard-layer.sh` picks it up
+- [x] Exit contract: 0 = no unacknowledged leak, 1 = a NEW unlinked GO inception, 2 = tooling — **fail-closed**: absent `python3`, an unreadable ledger, or a corpus with zero inception files all exit 2, never a vacuous clean
+- [x] Git-tracked baseline ledger at `.context/checks/go-propagation-allowlist`
+      <!-- Filename deviates from this AC as first written (`-baseline`). Renamed to
+           `-allowlist` to match the ten sibling ledgers under .context/checks/
+           (charter-drift, alloc-sink, drain-sink, silent-exit, busy-spin,
+           verification-misfile, stranded-finalized, mcp-parity-census,
+           error-code-emission, platform-lock, version-derivation). Substance of the
+           AC is unchanged and met: git-tracked, under .context/checks/, one
+           `<task-id>  # <reason>` per line, counted-and-reported, non-firing.
+           Recorded rather than silently amended — T-3038. -->
+- [x] A GO inception with empty `related_tasks` that is NOT in the baseline **fires**; deleting a baseline line re-fires that inception — the load-bearing property, demonstrated both directions
+- [x] Output on BOTH paths (clean and firing) states the census and a scope disclaimer (T-2680): it detects GO inceptions with no forward link, it does NOT audit whether the follow-on work is adequate or whether the GO was right
+- [x] The loose-vs-strict split T-3003 measured is preserved: strictly-unlinked fires, loosely-linked (a back-reference exists elsewhere) is reported non-firing — so the 4 genuine orphans stay distinguishable from the 76 metadata gaps
+- [x] Fixtures at `tests/go-propagation-check-fixtures.sh` pin the exit codes, the baseline suppression, the re-fire on removal, and at least one false-positive guard (a GO inception that IS properly linked must never fire)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -165,6 +173,16 @@ bvp_scores_proposed:
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+# ── T-3038 verification (L-387-safe: redirect to file, never `cmd | grep -q`) ──
+bash tests/go-propagation-check-fixtures.sh > /tmp/.t3038-fix.out 2>&1 && grep -q "0 failed" /tmp/.t3038-fix.out
+bash scripts/check-go-propagation.sh > /tmp/.t3038-real.out 2>&1 && grep -q "0 firing" /tmp/.t3038-real.out
+bash scripts/check-go-propagation.sh > /tmp/.t3038-scope.out 2>&1 && grep -q "does NOT audit" /tmp/.t3038-scope.out
+bash scripts/run-guard-layer.sh --list > /tmp/.t3038-gl.out 2>&1 && grep -q "check-go-propagation.sh" /tmp/.t3038-gl.out
+bash scripts/run-guard-layer.sh --list > /tmp/.t3038-gl2.out 2>&1 && grep -q "go-propagation-check-fixtures.sh" /tmp/.t3038-gl2.out
+git ls-files --error-unmatch .context/checks/go-propagation-allowlist
+git ls-files --error-unmatch tests/go-propagation-check-fixtures.sh
+test -x tests/go-propagation-check-fixtures.sh
 
 ## RCA
 
