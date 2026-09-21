@@ -147,8 +147,16 @@ def breadcrumb_fields(path):
     return fields
 
 
-TS_RE = re.compile(r'^\s*(?:timestamp|deferred_at):\s*"?'
-                   r'(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z?)"?\s*$')
+# The quote class is a matched pair, not two independent optional characters.
+# T-3045: this accepted a double quote and a bare value but NOT a single quote,
+# and the pickup pipeline writes RFC3339 values single-quoted
+# (P-078: `timestamp: '2026-09-10T19:31:12Z'`). recorded_time() therefore returned
+# None for every real envelope and age_days_of() fell through to mtime — the exact
+# PL-213 environment-dependence its own docstring says it exists to prevent.
+# Back-referencing the opening quote means a mismatched pair does not match at all,
+# which is right: that is malformed YAML and guessing at it would be worse.
+TS_RE = re.compile(r'^\s*(?:timestamp|deferred_at):\s*(?P<q>["\']?)'
+                   r'(?P<ts>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z?)(?P=q)\s*$')
 
 
 def recorded_time(path):
@@ -158,7 +166,7 @@ def recorded_time(path):
             for line in fh:
                 m = TS_RE.match(line)
                 if m:
-                    s = m.group(1).rstrip("Z")
+                    s = m.group("ts").rstrip("Z")
                     try:
                         return time.mktime(time.strptime(s, "%Y-%m-%dT%H:%M:%S")) - time.timezone
                     except ValueError:

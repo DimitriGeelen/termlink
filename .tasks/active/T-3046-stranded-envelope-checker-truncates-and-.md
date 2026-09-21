@@ -1,20 +1,10 @@
 ---
-id: T-3045
-name: "Stranded-envelope checker falls back to mtime for every single-quoted timestamp"
+id: T-3046
+name: "Stranded-envelope checker truncates and mis-quotes the summary it exists to surface"
 description: >
-  scripts/check-pickup-deferred-freshness.sh resolves an envelope's age via TS_RE,
-  whose pattern accepts an optional double quote but not a single quote. The pickup
-  pipeline writes RFC3339 values single-quoted (P-078: timestamp: '2026-09-10T19:31:12Z'),
-  so recorded_time() returns None and age_days_of() silently falls back to file mtime,
-  labelling it 'unreliable'. That is precisely the PL-213 environment-dependence the
-  function's own docstring says it exists to prevent: in a fresh clone or worktree
-  every envelope reads as 0 days old and STALE can never fire. Masked on the origin
-  host because mtime happens to agree (11 days both ways) for P-078. Proven by running
-  TS_RE against all three quoting styles: single NO-MATCH, double MATCH, bare MATCH.
-  Ours, not vendored — locally fixable. Found while recording the P-078 disposition
-  under T-2960; deliberately not folded into it (one bug, one task).
+  summary_of() in scripts/check-pickup-deferred-freshness.sh carries the same double-quote-only assumption T-3045 fixed in TS_RE: its regex strips an optional double quote and reads a single line. The pickup pipeline writes single-quoted YAML folded scalars, so P-078 renders as "'T-1976 --hub bare-IP class cross-checked across opencode/005-Deco estate:" — a stray leading quote and a sentence cut off before its actual finding ("zero instances"). The check's own header says both firing classes print the summary 'because the entire failure mode is that nobody knows what is in the file', so a truncated summary defeats the stated purpose of the output. Ours, not vendored. Found while fixing T-3045; deliberately not folded into it (one bug, one task).
 
-status: started-work
+status: captured
 workflow_type: build
 owner: agent
 horizon: now
@@ -31,9 +21,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-21T20:45:01Z
-last_update: 2026-09-21T21:18:00Z
-date_finished:
+created: 2026-09-21T21:23:41Z
+last_update: 2026-09-21T21:23:41Z
+date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -44,33 +34,9 @@ date_finished:
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
-bvp_scores_proposed:
-  - ts: '2026-09-21T20:49:10Z'
-    estimator: bvp-estimator-v1-heuristic
-    scores:
-      D1: 4
-      D2: 0
-      D3: 3
-      D4: 2
-      F-RECALL: 0
-      F-ORCH: 0
-    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
-      (body:component-discoverability); D4=2 (body:env-class-handled); 
-      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
-    rubric_sha: e4a00f38e801
-cost_estimate_proposed:
-  - ts: '2026-09-21T20:49:31Z'
-    estimator: bvp-estimator-v1-heuristic
-    cost_estimate:
-      blast_radius:
-      tier: 2
-      effort: 8
-    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
-      (workflow:build); effort=8 (lines=214,acs=6)
-    rubric_sha: e4a00f38e801
 ---
 
-# T-3045: Stranded-envelope checker falls back to mtime for every single-quoted timestamp
+# T-3046: Stranded-envelope checker truncates and mis-quotes the summary it exists to surface
 
 ## Context
 
@@ -80,15 +46,16 @@ cost_estimate_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] `TS_RE` in `scripts/check-pickup-deferred-freshness.sh` matches an RFC3339 value in all
-      three quoting styles the corpus actually contains: single-quoted, double-quoted, and bare
-- [x] `age_days_of()` reports `age_source` = `envelope` (not `mtime`) for the real P-078
-      envelope, whose `timestamp:` is single-quoted — i.e. the checker's own output no longer
-      carries the "age from mtime — unreliable" note for it
-- [x] The fix is load-bearing: a fixture pins the defect so that restoring the pre-fix quote
-      class makes that fixture FAIL, and restoring the fix returns it to green
-- [x] The pre-existing fixture suite `tests/pickup-deferred-freshness-fixtures.sh` still passes
-      in full, and its assertion count does not go down
+- [ ] `summary_of()` strips a matched single quote as well as a double quote, so the real
+      P-078 envelope's summary renders with no stray leading `'`
+- [ ] A YAML folded/multi-line scalar is joined rather than cut at the first line break:
+      P-078's summary renders through to its actual finding ("zero instances"), not
+      truncated at "…005-Deco estate:"
+- [ ] The existing 160-character display truncation still applies AFTER joining, so a long
+      summary is bounded by the intended cap and not by an accident of YAML line wrapping
+- [ ] `tests/pickup-deferred-freshness-fixtures.sh` gains a case covering a single-quoted
+      multi-line summary, is green in full, and its assertion count does not drop below 26
+      (the T-3045 baseline)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -184,26 +151,6 @@ cost_estimate_proposed:
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
-# AC4 — the pre-existing suite is green in full and the assertion count has not
-# gone DOWN. Asserted as >= the pre-change 18 rather than == the current 26, so a
-# later legitimate case does not have to edit this line to stay honest.
-bash tests/pickup-deferred-freshness-fixtures.sh > /tmp/.t3045-f 2>&1 && python3 -c "import re; m=re.search(r'fixtures: (\d+) passed, (\d+) failed', open('/tmp/.t3045-f').read()); assert m and int(m.group(2))==0 and int(m.group(1))>=18, (m.group(0) if m else 0)"
-
-# AC1 — all three quoting styles the corpus actually contains resolve from the
-# recorded timestamp. Reads the capture written by the line above.
-grep -q "single-quoted timestamp resolves age from the envelope" /tmp/.t3045-f && grep -q "double-quoted timestamp resolves age from the envelope" /tmp/.t3045-f && grep -q "bare-quoted timestamp resolves age from the envelope" /tmp/.t3045-f
-
-# AC2 — the REAL P-078 envelope (git-tracked, so this holds in a clean clone too)
-# now reports age_source=envelope. rc is captured and discarded on purpose: the
-# checker still exits 1 because P-078 is STRANDED, which is correct and is not
-# what this line is measuring.
-rc=0; bash scripts/check-pickup-deferred-freshness.sh --json > /tmp/.t3045-p078 2>&1 || rc=$?; python3 -c "import json; e=[x for x in json.load(open('/tmp/.t3045-p078'))['envelopes'] if x['file'].startswith('P-078')][0]; assert e['age_source']==('envelope'), e"
-
-# AC3 — the fix is load-bearing: case 17 rebuilds the pre-fix quote class in a
-# mutant copy and asserts BOTH that it regresses to mtime and that it silently
-# stops firing STALE. A fixture that cannot be made to fail proves nothing.
-grep -q "pre-fix mutant regresses to mtime" /tmp/.t3045-f && grep -q "pre-fix mutant silently stops firing STALE" /tmp/.t3045-f
-
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -219,33 +166,6 @@ grep -q "pre-fix mutant regresses to mtime" /tmp/.t3045-f && grep -q "pre-fix mu
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
-
-**Symptom:** `check-pickup-deferred-freshness.sh` reported the age of the only
-auto-deferred envelope as coming from file mtime, annotated "unreliable", even
-though the envelope carries an explicit `timestamp:`. Masked on this host because
-mtime happened to agree (11 days by both routes) — the two numbers only diverge in
-a fresh clone or worktree, which is exactly where nobody was looking.
-
-**Root cause:** `TS_RE` spelled the quote as two independent optional double-quote
-characters (`"?` … `"?`). The pickup pipeline writes RFC3339 values **single**-quoted
-(P-078: `timestamp: '2026-09-10T19:31:12Z'`), so `recorded_time()` returned `None`
-for every real envelope and `age_days_of()` fell through to its mtime branch.
-
-**Why structurally allowed:** the fixture suite's `envelope()` helper hardcodes a
-double quote. All 18 pre-existing assertions — including the one whose header calls
-itself "the load-bearing assertion … age must come from the RECORDED timestamp, not
-file mtime" — only ever exercised the one quoting style that already worked. The
-suite was green and the guard was broken, simultaneously, for the same reason: the
-test wrote the input the code could already parse. This is the T-2680 shape (a check
-that asserts a property adjacent to the one it claims) reached from the fixture side
-rather than the detector side.
-
-**Prevention (distinct from the fix):** case 14 asserts all three quoting styles the
-corpus actually contains; case 15 asserts the *consequence* (a 45-day envelope fires
-STALE) rather than just the regex; case 17 rebuilds the pre-fix quote class in a
-mutant copy through a new `PICKUP_FRESHNESS_CHECK` seam and asserts it both regresses
-to mtime AND silently stops firing STALE. Measured, not asserted: the mutant exits
-**0 — "healthy"** on an envelope 15 days past the threshold.
 
 ## Evolution
 
@@ -270,30 +190,6 @@ to mtime AND silently stops firing STALE. Measured, not asserted: the mutant exi
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
-
-### 2026-09-21 — the green suite was the defect's accomplice, not its witness
-
-- **What changed:** at filing this read as a one-character regex omission. It is
-  not. The 18 green assertions and the broken guard have the *same* cause — the
-  fixture helper wrote `timestamp: "..."`, so the suite only ever fed the checker
-  input it could already parse. Fixing the regex without touching the fixtures
-  would have left the suite exactly as unable to catch the next quoting variant.
-  That reframed the deliverable from "fix TS_RE" to "make the quoting dimension
-  something the suite actually varies".
-- **Plan impact:** the filed ACs already asked for a load-bearing fixture, but I
-  had assumed that meant one assertion. It needed three layers — the regex (case
-  14), the consequence (case 15), and a mutant that proves the pin can go red
-  (case 17) — plus a `PICKUP_FRESHNESS_CHECK` seam that did not previously exist,
-  so the suite can be pointed at a mutated copy. Assertion count 18 → 26.
-- **Triggered:** no new sub-task for the fix itself. One adjacent defect was
-  found and deliberately NOT folded in (one bug, one task): `summary_of()` carries
-  the identical double-quote-only assumption, so P-078's single-quoted summary
-  renders with a stray leading `'`. It is cosmetic where this one was load-bearing,
-  and it is the same root shape — filed as **T-3046** rather than silently repaired
-  here, so the class is visible rather than absorbed. Verified before filing, not
-  assumed: the real output truncates at the folded-scalar line break, dropping the
-  envelope's actual finding ("zero instances") from the line whose entire job is to
-  say what is in the file.
 
 ## Recommendation
 
@@ -347,24 +243,7 @@ to mtime AND silently stops firing STALE. Measured, not asserted: the mutant exi
 
 ## Updates
 
-### 2026-09-21T20:45:01Z — task-created [task-create-agent]
+### 2026-09-21T21:23:41Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3045-stranded-envelope-checker-falls-back-to-.md
+- **Output:** /opt/termlink/.tasks/active/T-3046-stranded-envelope-checker-truncates-and-.md
 - **Context:** Initial task creation
-
-### 2026-09-21T20:49:09Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
-
-### 2026-09-21T20:49:50Z — status-update [task-update-agent]
-- **Change:** status: started-work → captured
-- **Reason:** Parked unstarted at a mandate stop condition. Status was flipped to started-work solely to satisfy the P-002/G-020 gate so the BVP scorer could run (the scorer is not on the read-only allowlist); no implementation work was done. Scored: value 57 (D1=4 D3=3 D4=2), cost blast_radius UNMEASURED tier=2 effort=8.
-
-### 2026-09-21T20:50:08Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
-
-### 2026-09-21T20:50:26Z — status-update [task-update-agent]
-- **Change:** status: started-work → captured
-- **Reason:** Parked unstarted at a mandate stop condition (context 234k). ACs and BVP score committed in 78019139e; no implementation done.
-
-### 2026-09-21T21:18:00Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work

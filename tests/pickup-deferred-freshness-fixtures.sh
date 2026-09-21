@@ -12,7 +12,10 @@ set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-CHECK="$REPO_ROOT/scripts/check-pickup-deferred-freshness.sh"
+# Seam (PL-213): point the suite at a mutant copy to prove an assertion is
+# load-bearing. T-3045 uses it to restore the pre-fix quote class and watch
+# case 14/15 go red.
+CHECK="${PICKUP_FRESHNESS_CHECK:-$REPO_ROOT/scripts/check-pickup-deferred-freshness.sh}"
 
 PASS=0
 FAIL=0
@@ -44,6 +47,37 @@ crumb() {
 reason: triple-dedup
 blocking_task: $4
 deferred_at: $3
+envelope: $2.yaml
+EOF
+}
+
+# envelope_q <dir> <name> <iso> <summary> <quote-char-or-empty>
+# The original envelope() helper hardcodes a DOUBLE quote, which is why 18 green
+# assertions coexisted with T-3045: the corpus writes these single-quoted and no
+# fixture ever spelled one that way.
+envelope_q() {
+    mkdir -p "$1"
+    q="$5"
+    cat > "$1/$2.yaml" <<EOF
+pickup_id: $2
+version: 1
+type: learning
+source:
+  project: "peer"
+  timestamp: ${q}${3}${q}
+payload:
+  summary: "$4"
+  detail: "body"
+EOF
+}
+
+# crumb_q <dir> <name> <iso-deferred-at> <blocking-task> <quote-char-or-empty>
+crumb_q() {
+    q="$5"
+    cat > "$1/$2.yaml.breadcrumb.yaml" <<EOF
+reason: triple-dedup
+blocking_task: $4
+deferred_at: ${q}${3}${q}
 envelope: $2.yaml
 EOF
 }
@@ -173,6 +207,87 @@ else bad "--quiet still reports firing" "$out"; fi
 out=$(run "$TMP/fresh" --threshold-days abc 2>&1); rc=$?
 if [ "$rc" = "2" ]; then ok "non-integer threshold => exit 2"
 else bad "non-integer threshold => exit 2" "rc=$rc: $out"; fi
+
+# ---------------------------------------------------------------------------
+# 14. T-3045: age is read from the recorded timestamp in ALL THREE quoting styles
+#     the corpus actually contains. The pipeline writes single quotes; the
+#     pre-fix pattern accepted only a double quote or a bare value, so every real
+#     envelope silently fell through to mtime.
+# ---------------------------------------------------------------------------
+old_iso=$(iso_days_ago 45)
+for style in single double bare; do
+    case "$style" in
+        single) qc="'" ;;
+        double) qc='"' ;;
+        bare)   qc=""  ;;
+    esac
+    d="$TMP/q-$style"
+    envelope_q "$d" "P-900" "$old_iso" "quoted $style" "$qc"
+    src_field=$(run "$d" --json | python3 -c 'import json,sys; print(json.load(sys.stdin)["envelopes"][0]["age_source"])')
+    if [ "$src_field" = "envelope" ]; then ok "$style-quoted timestamp resolves age from the envelope"
+    else bad "$style-quoted timestamp resolves age from the envelope" "age_source=$src_field (mtime means the pattern did not match)"; fi
+done
+
+# ---------------------------------------------------------------------------
+# 15. The CONSEQUENCE, not just the regex: a single-quoted envelope 45 days past
+#     the threshold must actually fire STALE. Under the pre-fix pattern its age
+#     came from mtime, read as 0 days, and the check reported it healthy — the
+#     failure mode is a guard that silently stops guarding.
+# ---------------------------------------------------------------------------
+d="$TMP/q-stale"
+envelope_q "$d" "P-901" "$old_iso" "single-quoted and long overdue" "'"
+crumb_q    "$d" "P-901" "$old_iso" "T-1" "'"
+out=$(run "$d"); rc=$?
+if [ "$rc" = "1" ] && echo "$out" | grep -q "STALE: P-901.yaml"; then
+    ok "single-quoted envelope 45 days old fires STALE"
+else bad "single-quoted envelope 45 days old fires STALE" "rc=$rc: $out"; fi
+if echo "$out" | grep -q "45 days ago"; then ok "STALE age is the recorded 45 days, not a checkout-fresh 0"
+else bad "STALE age is the recorded 45 days" "$out"; fi
+
+# ---------------------------------------------------------------------------
+# 16. A MISMATCHED quote pair is not guessed at. It is malformed YAML; matching
+#     it would invent a timestamp the file does not actually carry, so it falls
+#     back to mtime and says so.
+# ---------------------------------------------------------------------------
+d="$TMP/q-mismatch"
+mkdir -p "$d"
+cat > "$d/P-902.yaml" <<EOF
+pickup_id: P-902
+source:
+  timestamp: "${old_iso}'
+payload:
+  summary: "mismatched"
+EOF
+src_field=$(run "$d" --json | python3 -c 'import json,sys; print(json.load(sys.stdin)["envelopes"][0]["age_source"])')
+if [ "$src_field" = "mtime" ]; then ok "mismatched quote pair is not matched (falls back, labelled unreliable)"
+else bad "mismatched quote pair is not matched" "age_source=$src_field"; fi
+
+# ---------------------------------------------------------------------------
+# 17. The fix is LOAD-BEARING. Restore the pre-fix quote class in a mutant copy
+#     and the single-quote path must regress to mtime. A fixture that cannot be
+#     made to fail is not evidence of anything (T-2818).
+# ---------------------------------------------------------------------------
+MUT="$TMP/mutant-check.sh"
+python3 - "$REPO_ROOT/scripts/check-pickup-deferred-freshness.sh" "$MUT" <<'PYEOF'
+import io, sys
+src = io.open(sys.argv[1], encoding="utf-8").read()
+# Spelled via chr() so the escaping survives three levels of quoting intact.
+DQ, BS, SQ = chr(34), chr(92), chr(39)
+fixed  = "(?P<q>[" + DQ + BS + SQ + "]?)"   # (?P<q>["\']?)
+prefix = DQ + "?"                            # "?
+if fixed not in src:
+    sys.exit("mutant anchor absent - the fix was refactored, update case 17")
+io.open(sys.argv[2], "w", encoding="utf-8").write(
+    src.replace(fixed, prefix).replace("(?P=q)", prefix))
+PYEOF
+d="$TMP/q-single-mutant"
+envelope_q "$d" "P-903" "$old_iso" "single-quoted" "'"
+src_field=$(bash "$MUT" --dir "$d" --json | python3 -c 'import json,sys; print(json.load(sys.stdin)["envelopes"][0]["age_source"])')
+if [ "$src_field" = "mtime" ]; then ok "pre-fix mutant regresses to mtime — the fix is load-bearing"
+else bad "pre-fix mutant regresses to mtime" "age_source=$src_field — the mutant did not reproduce the defect"; fi
+out=$(bash "$MUT" --dir "$TMP/q-stale"); rc=$?
+if [ "$rc" = "0" ]; then ok "pre-fix mutant silently stops firing STALE (the real cost)"
+else bad "pre-fix mutant silently stops firing STALE" "rc=$rc: $out"; fi
 
 echo ""
 echo "----------------------------------------"
