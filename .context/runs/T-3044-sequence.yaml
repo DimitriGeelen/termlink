@@ -25,11 +25,69 @@ steps:
   - id: R1S1
     round: 1
     prompt: value_review
-    role: GATHERER+JUDGE
-    state: dispatched
+    role: GATHERER
+    state: halted-at-ask
     worker: vr-gatherer-r1
     halts_at: "PHASE 1 [ASK] — yardstick + data availability map need human confirmation"
     feeds: R1S2
+    phases_completed: [0, 1]
+    halted_at_utc: '2026-09-21T15:10:00Z'
+    snapshot_utc: '2026-09-21T15:00:21Z'
+    snapshot_dir: .context/working/value-review-R3044-snapshot/
+    artifact: docs/reports/VALUE-REVIEW-repo-2026-09-21-phase01.md
+    read_only: true
+    classification_performed: false
+    baseline:
+      fw_audit: "38 PASS / 9 WARN / 1 FAIL (cron 2026-09-21T14:38:24Z, sections=structure only)"
+      guard_layer: "PARTIAL — still running at halt; 29 members reported, 2 FAIL (check-installed-binary-drift, check-pickup-deferred-freshness), 1 ERROR (check-receiver-ack-lag)"
+      cargo_test: not-run (deferred to Phase 3)
+    blocking_questions_for_human:
+      - id: Q1
+        subject: yardstick
+        text: >
+          Confirm the yardstick as recorded (charter purpose, 4 verbs, 5 non-goals,
+          drivers D1=9 D2=7 D3=5 D4=3 F-RECALL=6 F-ORCH=5).
+      - id: Q2
+        subject: yardstick / sovereign
+        text: >
+          fw audit WARNs that free driver F-ORCH's retire_when condition appears met.
+          F-ORCH weight 5 shapes every ranking. Retire, keep, or re-weight? Sovereign —
+          not changed by this review.
+      - id: Q3
+        subject: scope
+        text: >
+          Does SCOPE "whole repo" include the vendored .agentic-framework/ tree
+          (upstream-governed per G-062, and the only home of all 13 BPMN workflows)?
+      - id: Q4
+        subject: data gap — decisive
+        text: >
+          Per-tool usage is still UNMEASURED. T-2996 shipped the writer TODAY
+          (c1c8165f6) but the running MCP server (pid 35408, binary 0.11.1716,
+          started 08:52) predates it, so invocation-audit.jsonl does not exist.
+          Rebuild + restart MCP to start collecting before Phase 2, or proceed
+          UNMEASURED as all prior runs did?
+      - id: Q5
+        subject: run purpose
+        text: >
+          This is the 7th+ value review. The 2026-09-19 five-run series produced 45
+          consolidated findings (C-01..C-45) filed as arc-009 slices T-2975..T-2992,
+          of which only 3 of 18 are complete and 14 are still `captured`. Should R1S1
+          continue as a cold 8th review, or be rescoped (e.g. verify/refresh the 45
+          existing findings, or review only what arc-009 does not already cover)?
+      - id: Q6
+        subject: unseen data
+        text: >
+          Is there data I cannot see? Specifically ABSENT here: capabilities.yaml,
+          bvp-realization.jsonl, coverage tooling, CI run history (GitHub-side),
+          estimator/calibration logs, and any out-of-band observer of bus message loss.
+    data_gaps_capping_confidence:
+      - per-tool invocation telemetry (shipped-not-live, T-2996 / G-069 class)
+      - bvp-realization.jsonl ABSENT — "did shipped arcs deliver?" unanswerable
+      - policy/capabilities.yaml ABSENT
+      - test coverage tooling ABSENT
+      - workflow ratification has no machine-readable marker (weakens DELETE protection)
+      - no out-of-band observer of bus loss (structural; named by the prompt)
+      - rpc-audit.jsonl window is 36 days and rotates on size — not full history
   - id: R1S2
     round: 1
     prompt: proc_as_fit

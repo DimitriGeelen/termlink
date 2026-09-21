@@ -42,14 +42,54 @@ date_finished: null
 
 <!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
+The human asked for a two-round sequence — value-review then procAsFit, twice, each round
+fed the previous round's result — run over TermLink, explicitly NOT executed in the
+orchestrator's own context. This task is the orchestration, not the review.
+
+**Measured evidence (2026-09-21)**
+
+- Prompts written verbatim: `docs/prompts/value-review.md` (452 lines) and
+  `docs/prompts/proc-as-fit.md` (101 lines). The four value-review placeholders were
+  left unfilled by the requester; the fill and its rationale are recorded under
+  `placeholder_fill:` in the run record so they can be corrected rather than silently
+  assumed.
+- Durable run record: `.context/runs/T-3044-sequence.yaml` (128 lines, parses) naming all
+  four steps R1S1 / R1S2 / R2S1 / R2S2 with per-step state and `feeds:` ordering. This is
+  what lets a later session resume without this conversation — and it was re-read intact
+  after a context compaction, which is the only real proof of that property.
+- R1S1 ran in a SEPARATE worker (`vr-gatherer-r1`, tl-lsr7bclm), not here. Reachability
+  was confirmed by reading the worker's own PTY back after injection, not by trusting the
+  inject's success code (T-2876: delivered means queued, not received). The stronger proof
+  arrived later: the worker independently produced
+  `docs/reports/VALUE-REVIEW-repo-2026-09-21-phase01.md` (12,426 bytes) plus a Phase-0
+  snapshot at `.context/working/value-review-R3044-snapshot/`, and rewrote its own step in
+  the run record to `state: halted-at-ask`. A worker that was merely spawned cannot do that.
+- R1S1 halted at the PHASE 1 [ASK] gate as directed and recorded six blocking questions
+  (Q1..Q6) rather than answering them itself. Two are decisive: **Q4** — per-tool usage is
+  still UNMEASURED because T-2996 shipped the writer today (`c1c8165f6`) while the running
+  MCP server (pid 35408, binary 0.11.1716) predates it, so the sink file does not exist;
+  this is the project's own G-069 shipped-but-not-live class. **Q5** — this is the seventh+
+  value review; the 2026-09-19 series produced 45 findings filed as arc-009 slices
+  T-2975..T-2992, of which 3 of 18 are complete and 14 are still `captured`, so an eighth
+  cold review would re-derive the same findings while 83% of the last round is unexecuted.
+- SQ-3044-1 is recorded with the orchestrator's position stated as NOT resolved. The
+  instruction asks for two autonomous rounds; both prompts carry hard human gates
+  (PHASE 1 [ASK], PHASE 5 [ASK], PHASE 6 "approved items only") and procAsFit independently
+  requires that Sovereign questions be surfaced rather than decided. Driving through them to
+  keep momentum is the one thing both prompts forbid, so the sequence is parked here.
+
+**What this task does NOT claim.** It does not claim the value review was performed — only
+Phases 0 and 1 of round 1 ran, read-only, and no classification was done. R1S2, R2S1 and
+R2S2 remain `blocked`/`pending` in the run record and are gated on a human answer.
+
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Both prompts (value-review, procAsFit) are written to `docs/prompts/` verbatim, with the four value-review placeholders filled and the fill recorded, so the sequence is reproducible and survives a context reset
-- [ ] A durable run record exists naming all 4 steps (2 rounds x 2 prompts), their order, and each step's state, so a later session can resume the sequence without this conversation
-- [ ] Round 1 Step 1 (value review, GATHERER role) is dispatched to a **separate** TermLink worker session — not executed in the orchestrator's own context — and the worker is confirmed reachable, not merely spawned
-- [ ] The conflict between the user's "repeat 2 times" chaining and the prompts' own [ASK] gates (Phase 1, Phase 5) plus Phase 6 "approved items only" is surfaced to the human as a Sovereign question rather than resolved by the orchestrator
+- [x] Both prompts (value-review, procAsFit) are written to `docs/prompts/` verbatim, with the four value-review placeholders filled and the fill recorded, so the sequence is reproducible and survives a context reset
+- [x] A durable run record exists naming all 4 steps (2 rounds x 2 prompts), their order, and each step's state, so a later session can resume the sequence without this conversation
+- [x] Round 1 Step 1 (value review, GATHERER role) is dispatched to a **separate** TermLink worker session — not executed in the orchestrator's own context — and the worker is confirmed reachable, not merely spawned
+- [x] The conflict between the user's "repeat 2 times" chaining and the prompts' own [ASK] gates (Phase 1, Phase 5) plus Phase 6 "approved items only" is surfaced to the human as a Sovereign question rather than resolved by the orchestrator
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -145,6 +185,16 @@ date_finished: null
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+
+# --- T-3044 orchestration verification (rehearsed under set -eo pipefail, T-2743) ---
+test -f docs/prompts/value-review.md && test -f docs/prompts/proc-as-fit.md
+python3 -c "import yaml; d=yaml.safe_load(open('.context/runs/T-3044-sequence.yaml')); ids=[s['id'] for s in d['steps']]; assert ids==['R1S1','R1S2','R2S1','R2S2'], ids"
+python3 -c "import yaml; d=yaml.safe_load(open('.context/runs/T-3044-sequence.yaml')); pf=d['placeholder_fill']; assert set(pf) >= {'SCOPE','PURPOSE_SOURCE','EXTERNAL_DATA','BUDGET','filled_by','rationale'}, sorted(pf)"
+python3 -c "import yaml; d=yaml.safe_load(open('.context/runs/T-3044-sequence.yaml')); s=d['steps'][0]; assert s['worker']=='vr-gatherer-r1', s.get('worker'); assert s['state']=='halted-at-ask', s['state']"
+python3 -c "import yaml; d=yaml.safe_load(open('.context/runs/T-3044-sequence.yaml')); q=d['sovereign_question']; assert q['id']=='SQ-3044-1'; assert 'Not resolved by the orchestrator' in q['orchestrator_position']"
+python3 -c "import yaml; d=yaml.safe_load(open('.context/runs/T-3044-sequence.yaml')); qs=d['steps'][0]['blocking_questions_for_human']; assert len(qs)==6, len(qs)"
+test -s docs/reports/VALUE-REVIEW-repo-2026-09-21-phase01.md
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -184,6 +234,29 @@ date_finished: null
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-09-21 — the worker answered a question the orchestrator had not thought to ask
+
+The plan was: dispatch R1S1, halt at PHASE 1 [ASK], surface the gate conflict. That
+happened. What was not planned is Q5. The worker checked whether this review had been
+done before and found it is the seventh-plus run: the 2026-09-19 series produced 45
+consolidated findings filed as arc-009 slices T-2975..T-2992, of which 3 of 18 are
+complete and 14 are still `captured`. So the honest framing of the human's decision is
+not only "which gate policy" but "should round 1 be a cold eighth review at all, when
+83% of round seven is unexecuted". That reframing came from the worker's own Phase 0
+reading, not from the orchestration design, and it is the strongest argument for having
+spent the context on a separate worker rather than running the prompt here.
+
+### 2026-09-21 — parked, not completed
+
+All four acceptance criteria are met and ticked, but the task is deliberately left
+`started-work`. The ACs cover setting the sequence up and dispatching R1S1; the task NAME
+promises two full rounds. R1S2, R2S1 and R2S2 are `blocked`/`pending` in the run record
+and gated on a human answer to SQ-3044-1 plus Q1..Q6. Marking this `work-completed`
+would assert an orchestration that has run one of four steps — the "assertion without
+the check" failure the mandate names. The register should keep disagreeing with the
+task title until the sequence actually finishes.
+
 
 ## Recommendation
 
