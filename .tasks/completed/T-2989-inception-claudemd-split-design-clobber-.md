@@ -7,16 +7,16 @@ description: >
   ratifies the approach (run4 Q5). Evidence: docs/reports/VALUE-REVIEW-repo-2026-09-19-consolidated.md
   C-04.
 
-status: work-completed
+status: started-work
 workflow_type: inception
 owner: human
-horizon: null
+horizon: now
 tags: [value-review, arc:arc-009]
 components: []
 related_tasks: []
 created: 2026-09-19T22:12:55Z
-last_update: 2026-09-21T11:06:34Z
-date_finished: 2026-09-21T11:06:34Z
+last_update: 2026-09-20T19:52:08Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -156,15 +156,15 @@ path to its reader; producing a dependency-ordered reduction plan.
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [x] Problem statement validated
+- [ ] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [x] Assumptions tested
+- [ ] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [x] Recommendation written with rationale
+- [ ] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [x] [REVIEW] Review exploration findings and approve go/no-go decision
+- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -240,40 +240,7 @@ The conclusion survives; none of its stated reasons did.
 
 ## Decision
 
-**Decision**: GO
-
-**Rationale**: Recommendation: GO — with a scope materially different from the one this
-section carried before the exploration ran.
-
-Rationale: The premise is confirmed and was understated: ~69–77k tokens
-against a <20k target, ~25% of the window before any code is read. But the
-implied remedy — reorganise around the clobber boundary — would make the preload
-worse, because the clobber-safe half IS the preloaded half. Following T-2015's own
-advice is what put +790 lines into the preload in one month (artifact §F1).
-
-Two blocks are 72% of the file and both have an existing on-demand home:
-- `### TermLink Substrate + Skills Reference`, ~18k tokens, duplicates a catalogue
-  the 34 skills in `.claude/commands/` already surface lazily (§F2).
-- The canary/guard block, ~37k tokens, duplicates remediation text already held in
-  each check script's header and `docs/operations/` (§F3).
-
-Dependency-ordered scope: (1) confirm whether a `@path` import in CLAUDE.md
-defers loading or is inlined — UNVERIFIED and load-bearing; if inlined, an
-import-based split saves zero and only genuinely on-demand surfaces help (§F4).
-(2) reduce the skills reference to a pointer. (3) move the canary block to
-`docs/operations/`, leaving an index. (4) re-measure; the residual gap is the Hub
-Auth Rotation Protocol (~6k).
-
-Do not start (2)–(3) before (1) is answered — assuming it wrong produces a
-refactor that moves 55k tokens between files and reduces preload by nothing.
-
-Note on the prior text: this section arrived pre-filled with "GO" and a
-rationale citing "844 lines in the destroyed half" — a figure copied from a stale
-2026-08-20 measurement in CLAUDE.md line 1149. The measured figure is 823, the
-file is 3,283 lines not 2,493, and the destroyed half is not where the cost is.
-The conclusion survives; none of its stated reasons did.
-
-**Date**: 2026-09-21T11:06:34Z
+<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
 
 ## Updates
 
@@ -285,68 +252,3 @@ The conclusion survives; none of its stated reasons did.
 
 ### 2026-09-20T19:52:08Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
-
-### 2026-09-21T11:06:34Z — inception-decision [inception-workflow]
-- **Action:** Recorded inception decision
-- **Decision:** GO
-- **Rationale:** Recommendation: GO — with a scope materially different from the one this
-section carried before the exploration ran.
-
-Rationale: The premise is confirmed and was understated: ~69–77k tokens
-against a <20k target, ~25% of the window before any code is read. But the
-implied remedy — reorganise around the clobber boundary — would make the preload
-worse, because the clobber-safe half IS the preloaded half. Following T-2015's own
-advice is what put +790 lines into the preload in one month (artifact §F1).
-
-Two blocks are 72% of the file and both have an existing on-demand home:
-- `### TermLink Substrate + Skills Reference`, ~18k tokens, duplicates a catalogue
-  the 34 skills in `.claude/commands/` already surface lazily (§F2).
-- The canary/guard block, ~37k tokens, duplicates remediation text already held in
-  each check script's header and `docs/operations/` (§F3).
-
-Dependency-ordered scope: (1) confirm whether a `@path` import in CLAUDE.md
-defers loading or is inlined — UNVERIFIED and load-bearing; if inlined, an
-import-based split saves zero and only genuinely on-demand surfaces help (§F4).
-(2) reduce the skills reference to a pointer. (3) move the canary block to
-`docs/operations/`, leaving an index. (4) re-measure; the residual gap is the Hub
-Auth Rotation Protocol (~6k).
-
-Do not start (2)–(3) before (1) is answered — assuming it wrong produces a
-refactor that moves 55k tokens between files and reduces preload by nothing.
-
-Note on the prior text: this section arrived pre-filled with "GO" and a
-rationale citing "844 lines in the destroyed half" — a figure copied from a stale
-2026-08-20 measurement in CLAUDE.md line 1149. The measured figure is 823, the
-file is 3,283 lines not 2,493, and the destroyed half is not where the cost is.
-The conclusion survives; none of its stated reasons did.
-
-## Reviewer Verdict (v1.5)
-
-- **Scan ID:** R-778e51a0
-- **Timestamp:** 2026-09-21T11:06:35Z
-- **Catalogue:** v1.3-seed
-- **Overall:** CONCERN
-- **Needs Human:** no
-- **Findings:** 2
-
-**Verification-level findings:**
-
-  1. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-3
-     - evidence: `IW-3 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
-  2. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-4
-     - evidence: `IW-4 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
-
-## Recommendation Verdict (v1.0)
-
-- **Scan ID:** RC-20576ec9
-- **Timestamp:** 2026-09-21T11:06:35Z
-- **Overall:** CONFIRMED
-- **Claims:** 1
-
-| Claim | Type | Status |
-|-------|------|--------|
-| `T-2015` | task | ✓ pass |
-
-### 2026-09-21T11:06:34Z — status-update [task-update-agent]
-- **Change:** status: started-work → work-completed
-- **Reason:** Inception decision: GO

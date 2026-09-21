@@ -8,16 +8,16 @@ description: >
   only the human decides. Evidence: docs/reports/VALUE-REVIEW-repo-2026-09-19-consolidated.md
   section 2.
 
-status: work-completed
+status: captured
 workflow_type: inception
 owner: human
-horizon: null
+horizon: now
 tags: [value-review, arc:arc-009]
 components: []
 related_tasks: []
 created: 2026-09-19T22:34:03Z
-last_update: 2026-09-21T11:07:49Z
-date_finished: 2026-09-21T11:07:49Z
+last_update: '2026-09-20T08:45:20Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -99,15 +99,15 @@ cost_estimate_proposed:
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [x] Problem statement validated
+- [ ] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [x] Assumptions tested
+- [ ] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [x] Recommendation written with rationale
+- [ ] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [x] [REVIEW] Review exploration findings and approve go/no-go decision
+- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -156,13 +156,7 @@ cost_estimate_proposed:
 
 ## Decision
 
-**Decision**: GO
-
-**Rationale**: Recommendation: GO
-
-Rationale: Twelve recorded questions from five independent runs await decisions that gate several execution slices; one batched session is the cheapest discharge path
-
-**Date**: 2026-09-21T11:07:48Z
+<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
 
 ## Updates
 
@@ -171,35 +165,3 @@ Rationale: Twelve recorded questions from five independent runs await decisions 
 
 ### 2026-09-19T22:35:38Z — status-update [task-update-agent]
 - **Change:** tags: +arc:arc-009
-
-### 2026-09-21T11:07:48Z — inception-decision [inception-workflow]
-- **Action:** Recorded inception decision
-- **Decision:** GO
-- **Rationale:** Recommendation: GO
-
-Rationale: Twelve recorded questions from five independent runs await decisions that gate several execution slices; one batched session is the cheapest discharge path
-
-### 2026-09-21T11:07:48Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
-- **Reason:** Inception decision in progress
-
-## Reviewer Verdict (v1.5)
-
-- **Scan ID:** R-17aedd18
-- **Timestamp:** 2026-09-21T11:07:50Z
-- **Catalogue:** v1.3-seed
-- **Overall:** PASS
-- **Needs Human:** no
-- **Findings:** none
-
-## Recommendation Verdict (v1.0)
-
-- **Scan ID:** RC-89df9ee6
-- **Timestamp:** 2026-09-21T11:07:50Z
-- **Overall:** UNVERIFIED
-- **Claims:** 0
-- No verifiable claims found in ## Recommendation
-
-### 2026-09-21T11:07:49Z — status-update [task-update-agent]
-- **Change:** status: started-work → work-completed
-- **Reason:** Inception decision: GO

@@ -8,16 +8,16 @@ description: >
   DELETE candidate. C-27 final ruling is human. Evidence: docs/reports/VALUE-REVIEW-repo-2026-09-19-consolidated.md
   C-27..C-33.
 
-status: work-completed
+status: started-work
 workflow_type: inception
 owner: agent
-horizon: null
+horizon: now
 tags: [value-review, arc:arc-009]
 components: []
 related_tasks: []
 created: 2026-09-19T22:18:28Z
-last_update: 2026-09-21T11:06:48Z
-date_finished: 2026-09-21T11:06:48Z
+last_update: 2026-09-20T21:58:29Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -165,15 +165,15 @@ C-33 reference sweep; identifying what depends on `orchestrator.route`.
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [x] Problem statement validated
+- [ ] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [x] Assumptions tested
+- [ ] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [x] Recommendation written with rationale
+- [ ] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [x] [REVIEW] Review exploration findings and approve go/no-go decision
+- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -268,59 +268,7 @@ exploration then contradicted.**
 
 ## Decision
 
-**Decision**: GO
-
-**Rationale**: Recommendation: GO — with a result materially different from the one this section
-carried before the exploration ran.
-
-Rationale: The sweep's main finding is that three of the five rows were asking the
-wrong question.
-
-- C-31 and most of C-32 rest on inadmissible evidence. The session daemon
-  (`termlink-session/src/handler.rs`), which serves the entire `session.` lifecycle, has
-  no audit sink at all, and `rpc_audit.rs:47` excludes `event.poll`/`event.collect` by
-  design. "Zero hub-observed calls" there is structurally guaranteed regardless of traffic.
-  C-31 asked for this verification; it comes back positive, so its own disposition is
-  decide nothing on usage until T-2996 lands.
-- C-33's premise is already spent. `event.broadcast` was cut 2026-05-31
-  (`router.rs:1017`, T-1166/T-1415); the hub returns `-32601`. The reference sweep is clean,
-  but what remains is residue held in place by `no_legacy_callers.rs`, which enforces the
-  retirement by naming the constant.
-- C-27's reading is refuted. `orchestrator.route` is not shelved scaffolding: 350-line
-  handler, a dedicated `route_cache` module describing it as Layer 3 of three, and a live
-  E2E harness driving it. It lacks a client surface, which is what the zero-call reading
-  actually measures. The federation tripwire does not depend on it —
-  `no_federation_tripwire.rs:43` names it as the path it cannot cover.
-- C-28 is cheap and clean. `dialog.presence` has handler, tests, capability
-  advertisement, and a live producer maintaining state for a query nobody can issue
-  (`channel.rs:941`). Only the client surface is missing.
-- The real clean DELETEs were never in the review. `event.state_change` and
-  `event.error` have zero production references — no hub arm, no CLI, no MCP. They are
-  the only surfaces here removable on structure alone, so F1's inadmissibility does not
-  touch them. Corrected mid-exploration (artifact F7): the first measurement grepped the
-  CONSTANT names and reported zero references anywhere, which was false — every real use
-  spells the string literal. Re-measured, `event.state_change` appears in three
-  `#[cfg(test)]` fixtures using the bare string as a throwaway notification name, and both
-  appear in the T-005/T-256 design docs (T-256 labels them "Reserved, not implemented").
-  Removing the constants is still safe; the claim that the names appear nowhere was not.
-
-Dependency-ordered scope: (1) remove the two orphan constants — independent of
-everything. (2) wire `dialog.presence`. (3) retire the `event.broadcast` residue as one unit
-with its guard-test expectations. (4) `orchestrator.route` — human: the measurement
-supports WIRE and does not support DELETE, but whether it may exist turns on non-goal #4.
-(5) `session.` and daemon-served `event.` — blocked on T-2996; no usage disposition
-before the telemetry exists.
-
-Note on the prior text: this section arrived pre-filled with "GO" before any spike ran,
-predicting the sweep would "resolve five INVESTIGATE rows and may produce the review's only
-clean DELETE". It resolves two; two are blocked on T-2996 and one on the human. And C-33 —
-the predicted clean DELETE — was retired four months before the prediction was written,
-while the actual clean DELETEs are two constants the review never identified. The GO
-survives; none of its stated reasons did. This is the third consecutive arc-009 inception
-(after T-2989 and T-3001) whose Recommendation arrived pre-filled with a conclusion the
-exploration then contradicted.
-
-**Date**: 2026-09-21T11:06:48Z
+<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
 
 ## Updates
 
@@ -333,99 +281,3 @@ exploration then contradicted.
 ### 2026-09-20T21:53:49Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
-
-### 2026-09-21T11:06:48Z — inception-decision [inception-workflow]
-- **Action:** Recorded inception decision
-- **Decision:** GO
-- **Rationale:** Recommendation: GO — with a result materially different from the one this section
-carried before the exploration ran.
-
-Rationale: The sweep's main finding is that three of the five rows were asking the
-wrong question.
-
-- C-31 and most of C-32 rest on inadmissible evidence. The session daemon
-  (`termlink-session/src/handler.rs`), which serves the entire `session.` lifecycle, has
-  no audit sink at all, and `rpc_audit.rs:47` excludes `event.poll`/`event.collect` by
-  design. "Zero hub-observed calls" there is structurally guaranteed regardless of traffic.
-  C-31 asked for this verification; it comes back positive, so its own disposition is
-  decide nothing on usage until T-2996 lands.
-- C-33's premise is already spent. `event.broadcast` was cut 2026-05-31
-  (`router.rs:1017`, T-1166/T-1415); the hub returns `-32601`. The reference sweep is clean,
-  but what remains is residue held in place by `no_legacy_callers.rs`, which enforces the
-  retirement by naming the constant.
-- C-27's reading is refuted. `orchestrator.route` is not shelved scaffolding: 350-line
-  handler, a dedicated `route_cache` module describing it as Layer 3 of three, and a live
-  E2E harness driving it. It lacks a client surface, which is what the zero-call reading
-  actually measures. The federation tripwire does not depend on it —
-  `no_federation_tripwire.rs:43` names it as the path it cannot cover.
-- C-28 is cheap and clean. `dialog.presence` has handler, tests, capability
-  advertisement, and a live producer maintaining state for a query nobody can issue
-  (`channel.rs:941`). Only the client surface is missing.
-- The real clean DELETEs were never in the review. `event.state_change` and
-  `event.error` have zero production references — no hub arm, no CLI, no MCP. They are
-  the only surfaces here removable on structure alone, so F1's inadmissibility does not
-  touch them. Corrected mid-exploration (artifact F7): the first measurement grepped the
-  CONSTANT names and reported zero references anywhere, which was false — every real use
-  spells the string literal. Re-measured, `event.state_change` appears in three
-  `#[cfg(test)]` fixtures using the bare string as a throwaway notification name, and both
-  appear in the T-005/T-256 design docs (T-256 labels them "Reserved, not implemented").
-  Removing the constants is still safe; the claim that the names appear nowhere was not.
-
-Dependency-ordered scope: (1) remove the two orphan constants — independent of
-everything. (2) wire `dialog.presence`. (3) retire the `event.broadcast` residue as one unit
-with its guard-test expectations. (4) `orchestrator.route` — human: the measurement
-supports WIRE and does not support DELETE, but whether it may exist turns on non-goal #4.
-(5) `session.` and daemon-served `event.` — blocked on T-2996; no usage disposition
-before the telemetry exists.
-
-Note on the prior text: this section arrived pre-filled with "GO" before any spike ran,
-predicting the sweep would "resolve five INVESTIGATE rows and may produce the review's only
-clean DELETE". It resolves two; two are blocked on T-2996 and one on the human. And C-33 —
-the predicted clean DELETE — was retired four months before the prediction was written,
-while the actual clean DELETEs are two constants the review never identified. The GO
-survives; none of its stated reasons did. This is the third consecutive arc-009 inception
-(after T-2989 and T-3001) whose Recommendation arrived pre-filled with a conclusion the
-exploration then contradicted.
-
-## Reviewer Verdict (v1.5)
-
-- **Scan ID:** R-8d228845
-- **Timestamp:** 2026-09-21T11:06:49Z
-- **Catalogue:** v1.3-seed
-- **Overall:** CONCERN
-- **Needs Human:** no
-- **Findings:** 1
-
-**Verification-level findings:**
-
-  1. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-1
-     - evidence: `IW-1 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
-
-## Recommendation Verdict (v1.0)
-
-- **Scan ID:** RC-4c228f15
-- **Timestamp:** 2026-09-21T11:06:49Z
-- **Overall:** CONTRADICTED
-- **Claims:** 15
-
-| Claim | Type | Status |
-|-------|------|--------|
-| `termlink-session/src/handler.rs` | file | ✗ fail — file not found at PROJECT_ROOT |
-| `event.poll` | module | ✓ pass |
-| `event.collect` | module | ✓ pass |
-| `event.broadcast` | module | ✗ fail — symbol not found in lib/ agents/ bin/ |
-| `orchestrator.route` | module | ✗ fail — symbol not found in lib/ agents/ bin/ |
-| `dialog.presence` | module | ✗ fail — symbol not found in lib/ agents/ bin/ |
-| `event.state_change` | module | ✗ fail — symbol not found in lib/ agents/ bin/ |
-| `event.error` | module | ✓ pass |
-| `T-2996` | task | ✓ pass |
-| `T-1166` | task | ✓ pass |
-| `T-1415` | task | ✓ pass |
-| `T-005` | task | ✓ pass |
-| `T-256` | task | ✓ pass |
-| `T-2989` | task | ✓ pass |
-| `T-3001` | task | ✓ pass |
-
-### 2026-09-21T11:06:48Z — status-update [task-update-agent]
-- **Change:** status: started-work → work-completed
-- **Reason:** Inception decision: GO

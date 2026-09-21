@@ -7,16 +7,16 @@ description: >
   aligned with the T-2876 prover verdict set. Evidence: docs/reports/VALUE-REVIEW-repo-2026-09-19-consolidated.md
   C-10.
 
-status: work-completed
+status: started-work
 workflow_type: inception
 owner: agent
-horizon: null
+horizon: now
 tags: [value-review, arc:arc-009]
 components: []
 related_tasks: []
 created: 2026-09-19T22:23:58Z
-last_update: 2026-09-21T11:07:08Z
-date_finished: 2026-09-21T11:07:08Z
+last_update: 2026-09-20T21:22:01Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -154,15 +154,15 @@ vocabulary transfers; recording vendored-vs-local ownership of every surface a f
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [x] Problem statement validated
+- [ ] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [x] Assumptions tested
+- [ ] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [x] Recommendation written with rationale
+- [ ] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [x] [REVIEW] Review exploration findings and approve go/no-go decision
+- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -238,40 +238,7 @@ Full findings: `docs/reports/T-3001-presence-heartbeat-truthfulness.md`.
 
 ## Decision
 
-**Decision**: GO
-
-**Rationale**: Recommendation: GO — with a rationale materially different from the one this
-section carried before the exploration ran.
-
-Rationale: The premise holds but the pre-filled text mis-stated it. Presence does
-not "assert delivery it cannot see" — delivery is message-scoped and presence is prior
-to it. What presence asserts is dispatchability, and the measured defect is sharper:
-`LIVE` is the union of T-2876's BLOCKED and ENQUEUED, the exact pair that vocabulary
-exists to tell apart (artifact F4).
-
-Two measurements carry it. Every heartbeat field is bound before the loop starts, so a
-beat establishes only that a bash loop is iterating (F1), and consumers apply a pure
-recency test to that replay (F2). And the beater is deliberately not the agent —
-`be-reachable.sh:253-264` detaches it with `nohup setsid ... & disown` so it outlives
-the session — so presence structurally cannot see whether the agent can act (F3).
-Nothing closes this: T-2239, T-2387 and T-2405 all interrogate the delivery apparatus,
-none the recipient's readiness.
-
-Dependency-ordered scope: (1) rename the claim — LIVE -> BEATING at the
-producer/classifier boundary, truthful under F1 with no new signal. (2) decide who
-observes agent-side readiness; the beater structurally cannot, so either the agent
-emits its own state or consumers stop inferring dispatchability from presence. (3) file
-the vendored-template half upstream (F5) or the fix does not travel and re-imports on
-the next bootstrap. (4) only then touch `find-idle`, whose anti-join treats LIVE as
-dispatchable.
-
-Do not start (1) before (2) is decided — renaming the field while consumers still
-infer dispatchability from it relocates the untruth rather than removing it. (2) is a
-design question this exploration deliberately did not settle.
-
-Full findings: `docs/reports/T-3001-presence-heartbeat-truthfulness.md`.
-
-**Date**: 2026-09-21T11:07:08Z
+<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
 
 ## Updates
 
@@ -284,70 +251,3 @@ Full findings: `docs/reports/T-3001-presence-heartbeat-truthfulness.md`.
 ### 2026-09-20T21:20:22Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
-
-### 2026-09-21T11:07:08Z — inception-decision [inception-workflow]
-- **Action:** Recorded inception decision
-- **Decision:** GO
-- **Rationale:** Recommendation: GO — with a rationale materially different from the one this
-section carried before the exploration ran.
-
-Rationale: The premise holds but the pre-filled text mis-stated it. Presence does
-not "assert delivery it cannot see" — delivery is message-scoped and presence is prior
-to it. What presence asserts is dispatchability, and the measured defect is sharper:
-`LIVE` is the union of T-2876's BLOCKED and ENQUEUED, the exact pair that vocabulary
-exists to tell apart (artifact F4).
-
-Two measurements carry it. Every heartbeat field is bound before the loop starts, so a
-beat establishes only that a bash loop is iterating (F1), and consumers apply a pure
-recency test to that replay (F2). And the beater is deliberately not the agent —
-`be-reachable.sh:253-264` detaches it with `nohup setsid ... & disown` so it outlives
-the session — so presence structurally cannot see whether the agent can act (F3).
-Nothing closes this: T-2239, T-2387 and T-2405 all interrogate the delivery apparatus,
-none the recipient's readiness.
-
-Dependency-ordered scope: (1) rename the claim — LIVE -> BEATING at the
-producer/classifier boundary, truthful under F1 with no new signal. (2) decide who
-observes agent-side readiness; the beater structurally cannot, so either the agent
-emits its own state or consumers stop inferring dispatchability from presence. (3) file
-the vendored-template half upstream (F5) or the fix does not travel and re-imports on
-the next bootstrap. (4) only then touch `find-idle`, whose anti-join treats LIVE as
-dispatchable.
-
-Do not start (1) before (2) is decided — renaming the field while consumers still
-infer dispatchability from it relocates the untruth rather than removing it. (2) is a
-design question this exploration deliberately did not settle.
-
-Full findings: `docs/reports/T-3001-presence-heartbeat-truthfulness.md`.
-
-## Reviewer Verdict (v1.5)
-
-- **Scan ID:** R-8cd6a395
-- **Timestamp:** 2026-09-21T11:07:09Z
-- **Catalogue:** v1.3-seed
-- **Overall:** CONCERN
-- **Needs Human:** no
-- **Findings:** 1
-
-**Verification-level findings:**
-
-  1. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-3
-     - evidence: `IW-3 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
-
-## Recommendation Verdict (v1.0)
-
-- **Scan ID:** RC-50d1e29d
-- **Timestamp:** 2026-09-21T11:07:09Z
-- **Overall:** CONFIRMED
-- **Claims:** 5
-
-| Claim | Type | Status |
-|-------|------|--------|
-| `docs/reports/T-3001-presence-heartbeat-truthfulness.md` | file | ✓ pass |
-| `T-2876` | task | ✓ pass |
-| `T-2239` | task | ✓ pass |
-| `T-2387` | task | ✓ pass |
-| `T-2405` | task | ✓ pass |
-
-### 2026-09-21T11:07:08Z — status-update [task-update-agent]
-- **Change:** status: started-work → work-completed
-- **Reason:** Inception decision: GO

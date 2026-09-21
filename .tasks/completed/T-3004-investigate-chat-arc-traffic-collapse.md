@@ -6,16 +6,16 @@ description: >
   gone vs rail broken vs measurement artifact). Evidence: docs/reports/VALUE-REVIEW-repo-2026-09-19-consolidated.md
   C-40.
 
-status: work-completed
+status: started-work
 workflow_type: inception
 owner: agent
-horizon: null
+horizon: now
 tags: [value-review, arc:arc-009]
 components: []
 related_tasks: []
 created: 2026-09-19T22:26:41Z
-last_update: 2026-09-21T11:07:19Z
-date_finished: 2026-09-21T11:07:19Z
+last_update: 2026-09-20T08:55:53Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -132,15 +132,15 @@ allows, the ack-lag read side (T-3007's slice).
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [x] Problem statement validated
+- [ ] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [x] Assumptions tested
+- [ ] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [x] Recommendation written with rationale
+- [ ] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [x] [REVIEW] Review exploration findings and approve go/no-go decision
+- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -189,13 +189,7 @@ allows, the ack-lag read side (T-3007's slice).
 
 ## Decision
 
-**Decision**: GO
-
-**Rationale**: Recommendation: GO
-
-Rationale: Diagnosis complete — the rail is ALIVE on .107 (posts from today, 4 speakers/30d) while the snapshot reported 0/0 for 36 days: the counter is structurally blind on hubs without latest_offset (pre-T-2533 binary; fallback tail=count-1 lands the scan window entirely in the trimmed past — reproduced live). .122's copy genuinely quiet (stale poster, known), .121 partial-unreachable (known). GO on ONE small build task: fix the snapshot's tail derivation (page-forward fallback + never trust receipt up_to beyond derived tail) with a fixture pinning today's reproduce. Hub upgrade half is already owned by T-2977; .122/.121 already surfaced by rollout-detector/fleet doctor. Full evidence: docs/reports/T-3004-chat-arc-collapse-investigation.md
-
-**Date**: 2026-09-21T11:07:18Z
+<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
 
 ## Updates
 
@@ -208,35 +202,3 @@ Rationale: Diagnosis complete — the rail is ALIVE on .107 (posts from today, 4
 ### 2026-09-20T08:55:53Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: later → now (auto-sync)
-
-### 2026-09-21T11:07:18Z — inception-decision [inception-workflow]
-- **Action:** Recorded inception decision
-- **Decision:** GO
-- **Rationale:** Recommendation: GO
-
-Rationale: Diagnosis complete — the rail is ALIVE on .107 (posts from today, 4 speakers/30d) while the snapshot reported 0/0 for 36 days: the counter is structurally blind on hubs without latest_offset (pre-T-2533 binary; fallback tail=count-1 lands the scan window entirely in the trimmed past — reproduced live). .122's copy genuinely quiet (stale poster, known), .121 partial-unreachable (known). GO on ONE small build task: fix the snapshot's tail derivation (page-forward fallback + never trust receipt up_to beyond derived tail) with a fixture pinning today's reproduce. Hub upgrade half is already owned by T-2977; .122/.121 already surfaced by rollout-detector/fleet doctor. Full evidence: docs/reports/T-3004-chat-arc-collapse-investigation.md
-
-## Reviewer Verdict (v1.5)
-
-- **Scan ID:** R-4e1b742b
-- **Timestamp:** 2026-09-21T11:07:20Z
-- **Catalogue:** v1.3-seed
-- **Overall:** PASS
-- **Needs Human:** no
-- **Findings:** none
-
-## Recommendation Verdict (v1.0)
-
-- **Scan ID:** RC-e8d7b69f
-- **Timestamp:** 2026-09-21T11:07:20Z
-- **Overall:** CONFIRMED
-- **Claims:** 2
-
-| Claim | Type | Status |
-|-------|------|--------|
-| `T-2533` | task | ✓ pass |
-| `T-2977` | task | ✓ pass |
-
-### 2026-09-21T11:07:19Z — status-update [task-update-agent]
-- **Change:** status: started-work → work-completed
-- **Reason:** Inception decision: GO
