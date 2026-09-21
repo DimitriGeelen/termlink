@@ -224,6 +224,58 @@ test -x tests/go-propagation-check-fixtures.sh
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-09-21 — the loose "orphan" axis cannot distinguish work from bookkeeping
+
+- **What changed:** T-3003 named four genuine orphans (T-954, T-955, T-958, T-1698)
+  using a loose predicate: strictly unlinked AND no other task mentions the ID at all.
+  Filing T-3040 to triage those four — a task whose description lists all four IDs —
+  made every one of them read as "mentioned". The orphan count fell from 4 to 3 to 0
+  with no remediation work done on any of them. The axis measures whether an ID has
+  been written down somewhere, not whether anything was done about it.
+- **Plan impact:** the orphan flag stays, but it is an annotation and must never become
+  a firing gate. It is reported alongside the strict predicate rather than replacing it.
+  The strict predicate (related_tasks on either side) is the one that fires.
+- **Triggered:** no new task; recorded here and in the check's own output wording so the
+  next reader does not mistake a falling orphan count for progress.
+
+### 2026-09-21 — two defects found by RUNNING the check, not by reading it
+
+- **What changed:** (1) frontmatter timestamps are emitted sometimes quoted and sometimes
+  bare. An unstripped quote made `fromisoformat` raise, age read as None, and the record
+  reached the firing branch by FALLING THROUGH rather than by being old — a task decided
+  today fired. T-2828 fired correctly only by luck. (2) The verdict scanner had to be
+  ordered so NO-GO and DEFER can never read as GO; a substring match instead of a prefix
+  match fires on inceptions that were correctly declined and have no follow-on by design.
+- **Plan impact:** both are now pinned as fixture cases 7 and 8 and demonstrated with
+  mutants, because neither is visible by inspection — only by execution against a corpus
+  that contains the shape.
+- **Triggered:** the fixture suite's weighting toward regression cases over happy paths.
+
+### 2026-09-21 — the GO detector is deliberately conservative and does NOT reconcile with T-3003
+
+- **What changed:** the check counts 164 GO-recorded inceptions where T-3003 measured 167.
+  The 80 strictly-unlinked figure agrees exactly (71 firing + 9 in grace), so the gap is in
+  GO DETECTION, not in the link predicate. The direction is safe — a false negative, three
+  inceptions the verdict scanner does not recognise as GO — but it is unexplained.
+- **Plan impact:** the ledger was baselined at 71 rather than 80 because 9 were inside the
+  grace window at baseline time; those fire around 2026-09-28 if still unlinked. The census
+  is reported on every run so the discrepancy stays visible instead of being absorbed.
+- **Triggered:** nothing filed. Reconciling 164 vs 167 is a follow-on if the gap matters;
+  recorded here so a future reader does not assume the two measurements agree.
+
+### 2026-09-21 — shipped the T-2830 defect while building a guard against it
+
+- **What changed:** the `## Verification` block for this task was first inserted before
+  `## Decision` and therefore landed at the end of `## Decisions` — commands under a
+  neighbouring heading, exactly the misfile class T-2830/T-2831 documented. P-011 would
+  have found an empty Verification section and passed VACUOUSLY on a task whose whole
+  claim is that a guard is load-bearing.
+- **Plan impact:** none to the deliverable; caught before commit by reading the section
+  order rather than trusting the insert, then confirmed clean by
+  `scripts/check-verification-misfile.sh` (2747 files, 0 misfiled).
+- **Triggered:** no new task — the guard already exists and worked. Recorded because the
+  lesson is that having the guard did not stop the mistake; running it did.
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
