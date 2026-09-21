@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3004: Investigate chat-arc traffic collapse
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-21T11:07:25Z
+# ============================================================================
+
+task_id: T-3004
+task_name: "Investigate chat-arc traffic collapse"
+workflow_type: inception
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-19T22:26:41Z
+completed: 2026-09-21T11:07:19Z
+duration_days: 2
+updates_count: 3
+first_commit: 2026-09-20T11:04:06+02:00
+last_commit: 2026-09-20T11:04:06+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  chat-arc 'collapse' diagnosed — rail alive on .107, snapshot counter blind on pre-T-2533 hubs; zero-streak dates to T-2758 commit
+
+# Key outcomes
+outcomes:
+  - 'Problem statement validated'
+  - 'Assumptions tested'
+  - 'Recommendation written with rationale'
+  - '[REVIEW] Review exploration findings and approve go/no-go decision'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/reports/T-3004-chat-arc-collapse-investigation.md'
+  - '.tasks/active/T-3004-investigate-chat-arc-traffic-collapse.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-20T11:04:06'
+    action: 'T-3004: chat-arc ''collapse'' diagnosed — rail alive on .107, snapshot counter blind on pre-T-2533 hubs; zero-streak dates to T-2758 commit'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2200 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [value-review, arc:arc-009]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 2200
+  commits: 1
+  files_changed: 2
+  lines_added: 111
+  lines_removed: 8
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3004-investigate-chat-arc-traffic-collapse.md
+generated_by: context-agent-hybrid
