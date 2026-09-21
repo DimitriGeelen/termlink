@@ -46,6 +46,7 @@ usage() {
 
 Usage: notify-sidecar-supervisor.sh [OPTIONS]
   --conf PATH         Declared-agents file (default .context/cron/notify-sidecar-agents.conf)
+                      Format: <agent-id> <self-fp|-> [extra sidecar flags...]
   --interval SECS     Sidecar probe cadence for agents it starts (default 15)
   --stale-after SECS  Heartbeat age at which a LIVE process counts as a husk (default 90)
   --restart-stale     Also kill+restart a husk (opt-in; default is report only)
@@ -98,13 +99,29 @@ heartbeat_age_secs() {
     echo $(( ( $(now_ms) - v ) / 1000 ))
 }
 
-started=0; already=0; husks=0; failed=0
-while read -r agent fp _rest; do
+started=0; already=0; husks=0; failed=0; drift=0
+while read -r agent fp extra; do
     case "${agent:-}" in ''|'#'*) continue ;; esac
     [ -n "${fp:-}" ] || { echo "notify-supervisor: $agent has no self-fp field (use '-' to auto-resolve)" >&2; failed=$((failed+1)); continue; }
 
     pid="$(sidecar_pid_for "$agent")"
     if [ -n "$pid" ]; then
+        # Conf-vs-process drift. Editing the conf does NOT reconfigure a sidecar
+        # that is already running — it keeps executing with the flags it was
+        # started with, exactly like the T-2405 stale-waker-code class. Without
+        # this check, adding --auto-confirm to the conf would look applied and do
+        # nothing, indefinitely. Reported, never auto-killed (same rule as a husk).
+        if [ -n "${extra:-}" ] && [ -r "/proc/$pid/cmdline" ]; then
+            running="$(tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null)"
+            for want in $extra; do
+                case " $running " in
+                    *" $want "*) : ;;
+                    *) drift=$((drift+1))
+                       echo "notify-supervisor: FLAG-DRIFT $agent pid=$pid is running without '$want' — conf changed since it started; kill it to apply" >&2
+                       break ;;
+                esac
+            done
+        fi
         age="$(heartbeat_age_secs "$agent")"
         if [ -n "$age" ] && [ "$age" -gt "$STALE_AFTER" ]; then
             husks=$((husks+1))
@@ -130,6 +147,11 @@ while read -r agent fp _rest; do
 
     args=(--agent-id "$agent" --interval "$INTERVAL")
     [ "$fp" = "-" ] || args+=(--self-fp "$fp")
+    # Deliberate word-splitting: the conf's trailing field is a flag list, so
+    # enabling something like --auto-confirm is a declared, git-tracked, reviewable
+    # decision rather than a flag buried in a process someone started by hand.
+    # shellcheck disable=SC2206
+    [ -n "${extra:-}" ] && args+=($extra)
     nohup setsid bash "$SIDECAR" "${args[@]}" \
         >> "$LOG_DIR/notify-sidecar-$agent.log" 2>&1 &
     sleep 1
@@ -142,8 +164,8 @@ while read -r agent fp _rest; do
     fi
 done < "$CONF"
 
-if [ "$failed" -gt 0 ] || [ "$husks" -gt 0 ]; then
-    echo "notify-supervisor: $already ok, $started started, $husks husk(s), $failed failed"
+if [ "$failed" -gt 0 ] || [ "$husks" -gt 0 ] || [ "$drift" -gt 0 ]; then
+    echo "notify-supervisor: $already ok, $started started, $husks husk(s), $drift flag-drift, $failed failed"
     exit 1
 fi
 [ "$QUIET" = "1" ] && [ "$started" = "0" ] && exit 0

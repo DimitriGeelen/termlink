@@ -145,6 +145,32 @@ out=$(sup); rc=$?
 if [ "$rc" = "0" ] && echo "$out" | grep -q "0 ok, 0 started"; then ok "comments and blanks are not agents"
 else bad "comments skipped" "rc=$rc: $out"; fi
 
+# ---------------------------------------------------------------------------
+# 10. PER-AGENT FLAGS. The conf's trailing field is passed through to the
+#     sidecar, so enabling something like --auto-confirm is a declared,
+#     git-tracked decision rather than a flag buried in a hand-started process.
+# ---------------------------------------------------------------------------
+conf "fxb - --auto-confirm"
+out=$(sup); rc=$?
+pidb="$(pidof_fx fxb)"
+if [ -n "$pidb" ] && tr '\0' ' ' < "/proc/$pidb/cmdline" 2>/dev/null | grep -q -- "--auto-confirm"; then
+    ok "per-agent flags from the conf reach the sidecar command line"
+else bad "flags passed through" "pid='$pidb' cmdline='$(tr '\0' ' ' < "/proc/$pidb/cmdline" 2>/dev/null)'"; fi
+
+# ---------------------------------------------------------------------------
+# 11-12. FLAG DRIFT. Editing the conf does NOT reconfigure a running sidecar —
+#     it keeps the flags it started with (the T-2405 stale-code class). Without
+#     detection, adding a flag would look applied and do nothing forever. It is
+#     REPORTED, never auto-killed, same rule as a husk.
+# ---------------------------------------------------------------------------
+conf "fxb - --auto-confirm --include-broadcast"
+out=$(sup); rc=$?
+pidc="$(pidof_fx fxb)"
+if [ "$rc" = "1" ] && echo "$out" | grep -q "FLAG-DRIFT fxb"; then ok "a flag added to the conf after start is reported as FLAG-DRIFT"
+else bad "flag drift detected" "rc=$rc: $out"; fi
+if [ "$pidc" = "$pidb" ]; then ok "flag drift does NOT kill the running sidecar"
+else bad "drift must not kill" "pidb=$pidb pidc='$pidc'"; fi
+
 echo ""
 echo "----------------------------------------"
 printf 'T-3050 fixtures: %d passed, %d failed\n' "$PASS" "$FAIL"
