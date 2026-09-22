@@ -13,6 +13,10 @@ headline_mechanic: "An agent sends a message to a peer by identity and receives 
   \ receipt \u2014 delivered direct host-to-host on the LAN with hub fallback \u2014\
   \ instead of seeing it silently lost across non-federating hubs."
 demo_evidence: "docs/reports/arc-003-reliable-comms-close-demo.md"
+# T-3066: demo_evidence is a narrative written once at close time — it cannot fail
+# later, so it cannot keep this arc's "no silent loss" claim honest. `prover` binds
+# the claim to something re-runnable. check-arc-claim-drift.sh executes it.
+prover: "bash scripts/notify-rail-e2e.sh --stages '' --experiment e4"
 created: 2026-06-27T16:25:39Z
 closed_at: 2026-07-02T09:18:32Z
 decision: "GO — reliable cross-agent comms shipped: send-by-identity, direct host-to-host with loud hub fallback, journaled confirmed receipt, no silent loss."
