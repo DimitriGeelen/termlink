@@ -7,7 +7,7 @@ description: >
 status: captured
 workflow_type: build
 owner: agent
-horizon: now
+horizon: later
 tags: [arc:arc-011]
 components: []
 related_tasks: []
@@ -36,9 +36,19 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-3073: Message queue priority field - flat FIFO for now
+# T-3073 [DUPLICATE of T-3071 — DO NOT WORK]: Message queue priority field - flat FIFO for now
 
 ## Context
+
+**DUPLICATE of T-3071. Do not work this task.**
+
+A `fw task create` batch partially failed (two of six calls dropped silently
+because `--type inception` needs `--recommendation`/`--rationale`). The retry
+re-created the two that HAD succeeded, producing this pair. The framework has no
+`cancelled` status — valid states are captured/started-work/issues/work-completed
+— so it is parked at `horizon: later` and marked here instead.
+
+Work T-3071.
 
 <!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 

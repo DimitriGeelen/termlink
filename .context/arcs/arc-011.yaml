@@ -40,7 +40,7 @@ prover: "bash scripts/notify-rail-e2e.sh --stages precond,deliver,receipt,ladder
 slices:
   - id: S1
     spec_step: "1. sender sends via a sidecar API"
-    task: T-3070
+    task: T-3075
     status: unbuilt
     note: "Sends ride hub RPC today. No sidecar API exists. Operator wants a separate
            always-respawning process, independent of the hub because the hub goes
@@ -48,11 +48,15 @@ slices:
            FQDN/IP on change). NEEDS OPERATOR DISCUSSION BEFORE BUILD."
   - id: S2
     spec_step: "2. payload may carry a binary blob"
-    task: T-3071
+    task: T-3076
     status: unbuilt
-    note: "TermLink has blob transport but it does not drop in: file send targets a
-           SESSION not a dm topic; file receive WAITS for file.init events so the
-           receiver must be attached; PL-095 — send spools to the SENDER's hub inbox."
+    note: "CORRECTED 2026-09-22. TermLink ALREADY carries blobs on topics:
+           `artifact.put` + `channel.post {msg_type:artifact, artifact_ref:<sha256>}`
+           (T-1249/T-1164a), content-addressed. The session-targeted
+           file.init/chunk/complete path is the LEGACY FALLBACK, used only when a
+           peer hub does not advertise artifact.put. My first finding read only the
+           CLI surface and the legacy path and concluded it did not fit — wrong.
+           Open question is receiver-side fetch and mandatory --expected-sha256."
   - id: S3
     spec_step: "3. receiver stores it on local disk"
     task: T-2300
@@ -74,7 +78,7 @@ slices:
            S1 lands."
   - id: S6
     spec_step: "6. sender records it in its own ledger"
-    task: T-3072
+    task: T-3070
     status: unbuilt
     note: "Sender can only poll hub receipts. A sender that restarts loses all
            knowledge of what it is waiting on."
@@ -87,12 +91,12 @@ slices:
            have a recovery path when the agent is not running at all."
   - id: S8
     spec_step: "8. read the queue, inject the highest-priority message"
-    task: T-3073
+    task: T-3071
     status: unbuilt
     note: "Flat FIFO for now per operator; the priority FIELD is what this slice adds."
   - id: S9
     spec_step: "9. urgent messages inject directly"
-    task: T-3074
+    task: T-3072
     status: unbuilt
     note: "Semantics undefined. Operator: note it for later."
   - id: S10
@@ -110,7 +114,7 @@ slices:
            correct until it is in."
   - id: S12
     spec_step: "12. roles swap — the agent replies as sender"
-    task: T-3070
+    task: T-3075
     status: unbuilt
     note: "Blocked for framework-agent-systemd: `termlink` is not in its systemd
            --allowed-commands, so it can receive and cannot reply. Operator decision."
