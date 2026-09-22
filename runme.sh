@@ -4,6 +4,8 @@
 # Run this from the project root instead of pasting commands:
 #
 #     sudo ./runme.sh --dry-run     # read what it intends to do
+#     sudo ./runme.sh --decide T-3055=go        # record ONE human decision
+#     sudo ./runme.sh --disable-mismatch-plugins  # opt-in plugin cleanup
 #     sudo ./runme.sh               # do it
 #
 # WHY THIS EXISTS. Operator steps were being handed over as copy-pasteable shell
@@ -36,9 +38,13 @@ CRON_DIR="${RUNME_CRON_DIR:-/etc/cron.d}"
 [ -n "${RUNME_CRON_DIR:-}" ] && export CRON_DRIFT_INSTALLED_DIR="$RUNME_CRON_DIR"
 
 DRY_RUN=0
+DECIDE=""
+DISABLE_MISMATCH=0
 while [ $# -gt 0 ]; do
     case "$1" in
         --dry-run) DRY_RUN=1 ;;
+        --decide)  shift; [ $# -ge 1 ] || { echo "runme: --decide needs <ID>=<verdict>" >&2; exit 2; }; DECIDE="$1" ;;
+        --disable-mismatch-plugins) DISABLE_MISMATCH=1 ;;
         -h|--help) sed -n '2,27p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) echo "runme: unknown arg: $1" >&2; exit 2 ;;
     esac
@@ -47,7 +53,7 @@ done
 
 # Refuse rather than half-apply. A partial application is worse than none: it
 # leaves the host in a state nobody described, and the operator believes it ran.
-if [ "$DRY_RUN" = "0" ] && [ "$(id -u)" != "0" ]; then
+if [ "$DRY_RUN" = "0" ] && [ -z "$DECIDE" ] && [ "$DISABLE_MISMATCH" = "0" ] && [ "$(id -u)" != "0" ]; then
     echo "runme: needs root (these write to /etc/cron.d). Nothing was applied." >&2
     echo "       Run:  sudo ./runme.sh          (or ./runme.sh --dry-run to preview)" >&2
     exit 2
@@ -109,6 +115,80 @@ install_crontab notify-sidecar-canary.crontab     "$CRON_DIR/termlink-notify-sid
 # Using the repo's existing check rather than a bespoke one means this cannot
 # quietly disagree with what `fw audit` will say five minutes from now.
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# PENDING DECISIONS — human authority required
+#
+# LISTED by default, never executed. That distinction is the whole point: a Tier 0
+# gate exists to require a human, so a script recording decisions on its own would
+# be precisely the laundering the gate prevents. Dispatching them to a TermLink
+# peer would be the same thing by another route — a peer doing what was blocked
+# here bypasses the operator's decision rather than honouring it.
+#
+# Recording one is deliberate and per-item:
+#     sudo ./runme.sh --decide T-3055=go
+# The operator names BOTH the item and the verdict. No default verdict, no batch.
+# ---------------------------------------------------------------------------
+decision_ids() { echo "T-3055"; }
+
+decision_blurb() {
+    case "$1" in
+        T-3055)
+            echo "Plugin survey (inception). Recommendation: GO."
+            echo "  Approving records: keep context7 for now, playwright pinned,"
+            echo "  rust-analyzer repaired. It also unblocks a staged commit — the"
+            echo "  inception commit limit refuses further commits until a decision"
+            echo "  exists. Verdicts: go | no-go | defer"
+            ;;
+        *) echo "(no description)" ;;
+    esac
+}
+
+if [ -n "$DECIDE" ]; then
+    head2 "Recording decision"
+    d_id="${DECIDE%%=*}"; d_verdict="${DECIDE#*=}"
+    if [ "$d_id" = "$DECIDE" ] || [ -z "$d_verdict" ]; then
+        say "  FAILED  --decide needs <ID>=<verdict>, e.g. T-3055=go"; exit 2
+    fi
+    if ! decision_ids | tr " " "\n" | grep -qx -- "$d_id"; then
+        say "  FAILED  unknown decision id '$d_id'. Pending: $(decision_ids)"; exit 2
+    fi
+    case "$d_verdict" in
+        go|no-go|defer) : ;;
+        *) say "  FAILED  verdict must be go, no-go or defer (got '$d_verdict')"; exit 2 ;;
+    esac
+    if [ "$DRY_RUN" = "1" ]; then
+        say "  [DRY]   would record $d_id = $d_verdict"
+    elif .agentic-framework/bin/fw inception decide "$d_id" "$d_verdict" --rationale "Operator decision via runme.sh --decide $DECIDE"; then
+        say "  OK      recorded $d_id = $d_verdict"; DONE=$((DONE + 1))
+    else
+        say "  FAILED  fw refused the decision (output above)"; FAILED=$((FAILED + 1))
+    fi
+else
+    head2 "Pending decisions (human authority — nothing here runs by default)"
+    for d in $(decision_ids); do
+        say "  $d  $(decision_blurb "$d" | head -1)"
+        decision_blurb "$d" | tail -n +2 | sed "s/^/    /"
+        say "    -> sudo ./runme.sh --decide $d=go"
+    done
+fi
+
+# ---------------------------------------------------------------------------
+# OPT-IN — disable the purpose-mismatch plugins (T-3055)
+# Never part of a default run: a recommendation, not a repair, and unapproved.
+# ---------------------------------------------------------------------------
+if [ "$DISABLE_MISMATCH" = "1" ]; then
+    head2 "Disabling purpose-mismatch plugins (measured 1,835 always-on tok)"
+    for pl in chrome-devtools-mcp modern-web-guidance superdesign frontend-design; do
+        if [ "$DRY_RUN" = "1" ]; then
+            say "  [DRY]   would disable $pl"
+        elif claude plugin disable "$pl" >/dev/null 2>&1; then
+            say "  OK      disabled $pl"; DONE=$((DONE + 1))
+        else
+            say "  FAILED  could not disable $pl"; FAILED=$((FAILED + 1))
+        fi
+    done
+fi
+
 head2 "Verification"
 if [ "$DRY_RUN" = "1" ]; then
     say "  [DRY]   skipped (nothing was changed)"

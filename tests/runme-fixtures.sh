@@ -108,6 +108,42 @@ else
     echo "  SKIP  non-root refusal (no runuser/nobody available) — NOT asserted"
 fi
 
+# ---------------------------------------------------------------------------
+# 12. DECISIONS ARE LISTED, NEVER EXECUTED by a default run. This is the
+#     load-bearing property of the whole section: a Tier 0 gate exists to require
+#     a human, so a script that recorded decisions on its own would be exactly the
+#     laundering the gate prevents.
+# ---------------------------------------------------------------------------
+out=$(run --dry-run)
+if echo "$out" | grep -q "Pending decisions"; then ok "default run LISTS pending decisions"
+else bad "lists pending decisions" "$out"; fi
+if echo "$out" | grep -q "nothing here runs by default"; then ok "the listing states that nothing runs by default"
+else bad "listing states non-execution" "$out"; fi
+if echo "$out" | grep -q "would record"; then bad "default run must not record a decision" "$out"
+else ok "default run records NO decision"; fi
+
+# ---------------------------------------------------------------------------
+# 13. A typo must never resolve to a default verdict. Both halves are checked,
+#     because a wrong id and a wrong verdict fail for different reasons and either
+#     one silently defaulting would record a decision the human did not make.
+# ---------------------------------------------------------------------------
+rc=0; RUNME_CRON_DIR="$TMP/cron" bash "$RUNME" --decide T-9999=go >/dev/null 2>&1 || rc=$?
+if [ "$rc" = "2" ]; then ok "unknown decision id => exit 2, nothing recorded"
+else bad "unknown id refused" "rc=$rc"; fi
+rc=0; RUNME_CRON_DIR="$TMP/cron" bash "$RUNME" --decide T-3055=maybe >/dev/null 2>&1 || rc=$?
+if [ "$rc" = "2" ]; then ok "verdict outside go/no-go/defer => exit 2"
+else bad "bad verdict refused" "rc=$rc"; fi
+rc=0; RUNME_CRON_DIR="$TMP/cron" bash "$RUNME" --decide T-3055 >/dev/null 2>&1 || rc=$?
+if [ "$rc" = "2" ]; then ok "malformed --decide (no '=') => exit 2"
+else bad "malformed refused" "rc=$rc"; fi
+
+# ---------------------------------------------------------------------------
+# 14. The plugin cleanup is OPT-IN: absent from a default run, since it is a
+#     recommendation the operator has not approved, not a repair.
+# ---------------------------------------------------------------------------
+if echo "$out" | grep -qi "disabling purpose-mismatch"; then bad "plugin disable must be opt-in" "$out"
+else ok "plugin cleanup absent from a default run"; fi
+
 echo ""
 echo "----------------------------------------"
 printf 'T-3052 fixtures: %d passed, %d failed\n' "$PASS" "$FAIL"
