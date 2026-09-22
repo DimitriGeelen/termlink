@@ -4,10 +4,10 @@ name: "Detect orphaned deferred slices: tasks that name future work with no succ
 description: >
   Detect orphaned deferred slices: tasks that name future work with no successor
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -22,8 +22,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-22T09:28:06Z
-last_update: 2026-09-22T09:33:50Z
-date_finished: null
+last_update: 2026-09-22T10:16:08Z
+date_finished: 2026-09-22T10:16:08Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -46,47 +46,47 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] MEASURED FIRST, and the measurement recorded. Done, and it killed the original
+- [x] MEASURED FIRST, and the measurement recorded. Done, and it killed the original
       design: 205 tasks match deferral vocabulary, only 3 are strict orphans, and the
       ground truth T-2300 is NOT among them — its deferral marker is the bare word
       "future" in parentheses and the deferred unit is named as slice "S4", not as
       prose or a task id. No vocabulary catches that without matching "future"
       everywhere. A text-scan gate would have reported 3 findings, missed the real
       one, and read as clean (T-2680 / T-2747 class)
-- [ ] REDESIGNED against the ARC SCHEMA instead. Measured: 8 arcs, 2 closed, **zero**
+- [x] REDESIGNED against the ARC SCHEMA instead. Measured: 8 arcs, 2 closed, **zero**
       carry a `slices` field and **zero** bind any prover — the key union is
       `[anchor_task, blockers, bvp_scores, closed_at, created, decision,
       demo_evidence, description, headline_mechanic, id, name, slug, status]`. So a
       deferred slice had no field to live in, and a closed arc's capability claim has
       nothing re-runnable behind it
-- [ ] `scripts/check-arc-claim-drift.sh` exists, is executable, carries the
+- [x] `scripts/check-arc-claim-drift.sh` exists, is executable, carries the
       `# guard-layer: source` marker, and fires on any arc with `status: closed`
       whose capability claim (`decision` / `headline_mechanic`) is not bound to an
       executable prover
-- [ ] `demo_evidence` alone does NOT satisfy the binding, and the check says why: it
+- [x] `demo_evidence` alone does NOT satisfy the binding, and the check says why: it
       is a markdown narrative written once at close time. A claim whose only evidence
       is prose cannot decay loudly — arc-003 closed asserting "no silent loss" and a
       silent-loss path was proven 82 days later with nothing firing
-- [ ] Where a prover IS bound, the check RUNS it and fires on a non-zero exit, so the
+- [x] Where a prover IS bound, the check RUNS it and fires on a non-zero exit, so the
       binding cannot itself go stale (the T-2683 lesson: a guard nothing executes)
-- [ ] Exit contract: 0 = clean, 1 = orphan(s), 2 = tooling. **Fail-closed** — a
+- [x] Exit contract: 0 = clean, 1 = orphan(s), 2 = tooling. **Fail-closed** — a
       missing tasks dir, absent `python3`, or a corpus of zero task files exits 2,
       never a vacuous clean
-- [ ] A git-tracked allowlist at `.context/checks/arc-claim-allowlist` (T-2681
+- [x] A git-tracked allowlist at `.context/checks/arc-claim-allowlist` (T-2681
       convention) acknowledges arcs whose claim nobody needs re-checked, with a cited
       reason; entries are counted and reported but do not fire
-- [ ] Output states its SCOPE explicitly: it detects whether a closed arc's claim is
+- [x] Output states its SCOPE explicitly: it detects whether a closed arc's claim is
       bound to something runnable and whether that still passes. It does NOT judge
       whether the prover is ADEQUATE to the claim, and says nothing about in-progress
       arcs (T-2680 — a green must not be read as a broader claim than it is)
-- [ ] `tests/arc-claim-drift-fixtures.sh` is hermetic (throwaway arc dirs, no live
+- [x] `tests/arc-claim-drift-fixtures.sh` is hermetic (throwaway arc dirs, no live
       register) and pins the two readings that would make the check worthless:
       `demo_evidence` accepted as a binding, and a bound-but-FAILING prover read as
       clean. Plus the fail-closed contract and the empty-field column-shift regression
-- [ ] The arcs found are reported to the operator, NOT auto-remediated — whether a
+- [x] The arcs found are reported to the operator, NOT auto-remediated — whether a
       stale claim still matters is a human judgement, and auto-binding a prover would
       convert a visible problem into a silent one
-- [ ] Proven on the real register: arc-003 bound to
+- [x] Proven on the real register: arc-003 bound to
       `notify-rail-e2e.sh --experiment e4` reports **CLAIM-FAILED**, converting a
       silently-false "no silent loss" claim into a loud one
 
@@ -124,6 +124,18 @@ date_finished: null
 -->
 
 ## Verification
+
+# --- T-3066 verification (all must exit 0) ---
+# NOTE: a live run currently exits 1, because arc-004 is genuinely UNBOUND. That is
+# a true finding about the register, not a defect in the check, so it must NOT be a
+# verification command — verifying it would mean blocking completion on an operator
+# decision about someone else's arc, or gaming the verdict to make it green.
+# The fixtures pin the behaviour instead; these pin the artifacts and the binding.
+test -x scripts/check-arc-claim-drift.sh
+bash tests/arc-claim-drift-fixtures.sh > /tmp/.t3066-fx 2>&1 && grep -q "15 passed, 0 failed" /tmp/.t3066-fx
+grep -q "^prover:" .context/arcs/reliable-comms.yaml
+grep -q "^# guard-layer: source" scripts/check-arc-claim-drift.sh
+bash scripts/check-arc-claim-drift.sh --arcs-dir /nonexistent-arcs-dir > /tmp/.t3066-fc 2>&1; test $? -eq 2
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -280,3 +292,20 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3066-detect-orphaned-deferred-slices-tasks-th.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-8b65e83a
+- **Timestamp:** 2026-09-22T10:16:13Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Verification-level findings:**
+
+  1. **mock-only-integration** (partial, heuristic) @ AC vs Verification cross-check
+     - evidence: `bash tests/arc-claim-drift-fixtures.sh > /tmp/.t3066-fx 2>&1 && grep -q "15 passed, 0 failed" /tmp/.t3066-fx`
+
+### 2026-09-22T10:16:08Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

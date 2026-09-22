@@ -23,10 +23,10 @@ description: >
   classifying >/dev/null as a write. Vendored (G-062) so the fix is upstream or a
   registered local divergence, not a silent patch.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: [.agentic-framework/agents/context/lib/safe-commands.sh]
 related_tasks: [T-2961, T-2878, T-2052, T-3018]
@@ -41,8 +41,8 @@ arc_id: arc-008
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-20T15:19:15Z
-last_update: 2026-09-20T15:21:34Z
-date_finished:
+last_update: 2026-09-20T17:05:57Z
+date_finished: 2026-09-20T17:05:57Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -421,3 +421,15 @@ open a second structural change while this one is ungated. The implementation is
 against `.vendor-divergence.yaml`, carrying the T-2961 shape: local arm + registered divergence +
 a fixtures suite whose name matches the guard-layer runner's `*fixtures*.sh` membership convention,
 so that a re-vendor deleting the arm reddens the guard layer by construction.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-0c4232ea
+- **Timestamp:** 2026-09-20T17:05:59Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-09-20T17:05:57Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

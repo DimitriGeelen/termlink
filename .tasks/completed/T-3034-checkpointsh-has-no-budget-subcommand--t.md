@@ -13,10 +13,10 @@ description: >
   twice this session. Vendored under .agentic-framework/ so per G-062 this is filed
   upstream at framework:pickup, not patched locally.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [governance, arc:arc-009]
 components: []
 related_tasks: []
@@ -31,8 +31,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-21T07:35:12Z
-last_update: 2026-09-21T07:40:40Z
-date_finished:
+last_update: 2026-09-21T08:14:31Z
+date_finished: 2026-09-21T08:14:31Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -208,3 +208,20 @@ and would be a new check, not a fix.
 
 ### 2026-09-21T07:36:49Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-13d59ae8
+- **Timestamp:** 2026-09-21T08:14:32Z
+- **Catalogue:** v1.3-seed
+- **Overall:** FAIL
+- **Needs Human:** no
+- **Findings:** 1
+
+**Verification-level findings:**
+
+  1. **swallowed-errors** (severe, deterministic) @ Verification:line 3
+     - evidence: `.agentic-framework/agents/context/checkpoint.sh budget > /tmp/.t3034-b 2>&1 || true`
+
+### 2026-09-21T08:14:31Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

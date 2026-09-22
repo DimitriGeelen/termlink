@@ -6,16 +6,16 @@ description: >
   whether the lag is recipient-side or tracker-side. Evidence: docs/reports/VALUE-REVIEW-repo-2026-09-19-consolidated.md
   C-43.
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: agent
-horizon: now
+horizon: null
 tags: [value-review, arc:arc-009]
 components: []
 related_tasks: []
 created: 2026-09-19T22:29:24Z
-last_update: 2026-09-20T09:04:25Z
-date_finished:
+last_update: 2026-09-21T11:07:57Z
+date_finished: 2026-09-21T11:07:57Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -132,15 +132,15 @@ OUT: changing the guard, hub-side ack enforcement (T-2838's own territory), the 
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -189,7 +189,13 @@ OUT: changing the guard, hub-side ack enforcement (T-2838's own territory), the 
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO
+
+Rationale: C-43's G-063 framing over-reaches: the guard's rows are the topic's SENDERS (posters who never acked), not readers — on a broadcast rail its never-ackers are its own posting bots, and unacked subscribe-reads are invisible to receipts by design (T-3004 proved live readers exist the same day the guard called the topic unconsumed). The guard is permanently red (rc=1), the T-2556/T-2818 fatigue class. GO on ONE small build task: scope check-receiver-ack-lag.sh to ack-contract topics (dm: + explicit include list), print exclusions counted-not-silent (T-2483 pattern), keep the sender-keyed caveat, document that broadcast consumption belongs to the adoption snapshot (post-T-3004 fix). Fixture: broadcast topic with never-acked bots must not fire; behind-threshold dm topic must. Findings + lag semantics (lag=1554 is frontier length, not backlog growth) recorded in the IW dispositions above; full artifact write deferred at session budget stop.
+
+**Date**: 2026-09-21T11:07:57Z
 
 ## Updates
 
@@ -202,3 +208,42 @@ OUT: changing the guard, hub-side ack enforcement (T-2838's own territory), the 
 ### 2026-09-20T09:04:25Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: later → now (auto-sync)
+
+### 2026-09-21T11:07:57Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+
+Rationale: C-43's G-063 framing over-reaches: the guard's rows are the topic's SENDERS (posters who never acked), not readers — on a broadcast rail its never-ackers are its own posting bots, and unacked subscribe-reads are invisible to receipts by design (T-3004 proved live readers exist the same day the guard called the topic unconsumed). The guard is permanently red (rc=1), the T-2556/T-2818 fatigue class. GO on ONE small build task: scope check-receiver-ack-lag.sh to ack-contract topics (dm: + explicit include list), print exclusions counted-not-silent (T-2483 pattern), keep the sender-keyed caveat, document that broadcast consumption belongs to the adoption snapshot (post-T-3004 fix). Fixture: broadcast topic with never-acked bots must not fire; behind-threshold dm topic must. Findings + lag semantics (lag=1554 is frontier length, not backlog growth) recorded in the IW dispositions above; full artifact write deferred at session budget stop.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-fbf55829
+- **Timestamp:** 2026-09-21T11:07:58Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Verification-level findings:**
+
+  1. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-1
+     - evidence: `IW-1 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+
+## Recommendation Verdict (v1.0)
+
+- **Scan ID:** RC-d9e83a9a
+- **Timestamp:** 2026-09-21T11:07:58Z
+- **Overall:** CONFIRMED
+- **Claims:** 4
+
+| Claim | Type | Status |
+|-------|------|--------|
+| `T-3004` | task | ✓ pass |
+| `T-2556` | task | ✓ pass |
+| `T-2818` | task | ✓ pass |
+| `T-2483` | task | ✓ pass |
+
+### 2026-09-21T11:07:57Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO

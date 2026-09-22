@@ -14,12 +14,12 @@ description: >
   Ours, not vendored — locally fixable. Found while recording the P-078 disposition
   under T-2960; deliberately not folded into it (one bug, one task).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-008]
-components: []
+components: [scripts/check-pickup-deferred-freshness.sh, tests/pickup-deferred-freshness-fixtures.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -32,8 +32,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-21T20:45:01Z
-last_update: 2026-09-21T21:18:00Z
-date_finished:
+last_update: 2026-09-21T21:25:19Z
+date_finished: 2026-09-21T21:25:19Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -368,3 +368,15 @@ to mtime AND silently stops firing STALE. Measured, not asserted: the mutant exi
 
 ### 2026-09-21T21:18:00Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-a1f5470c
+- **Timestamp:** 2026-09-21T21:25:22Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-09-21T21:25:19Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

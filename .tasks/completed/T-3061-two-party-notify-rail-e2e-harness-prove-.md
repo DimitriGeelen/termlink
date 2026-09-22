@@ -4,10 +4,10 @@ name: "Two-party notify-rail E2E harness: prove wake between claude-termlink and
 description: >
   Two-party notify-rail E2E harness: prove wake between claude-termlink and the AEF agent
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -22,8 +22,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-22T08:27:39Z
-last_update: 2026-09-22T08:27:39Z
-date_finished: null
+last_update: 2026-09-22T10:15:18Z
+date_finished: 2026-09-22T10:15:18Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -46,28 +46,28 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `scripts/notify-rail-e2e.sh` exists, is executable, and runs five named stages
+- [x] `scripts/notify-rail-e2e.sh` exists, is executable, and runs five named stages
       (PRECOND / DELIVER / RECEIPT / WAKE / REVERSE) printing one PASS/FAIL per stage
-- [ ] Every delivery verdict is asserted on the RECEIVER's observable state (its
+- [x] Every delivery verdict is asserted on the RECEIVER's observable state (its
       `notify/<agent>.flag`, `.heartbeat`, or the topic's receipts) and NEVER on the
       sender's exit code — the T-2876 rule, pinned by a fixture in which a send
       "succeeds" while the receiver sees nothing and the verdict must still be broken
-- [ ] Exit contract: 0 = proven, 1 = broken (names the failing stage), 2 = tooling.
+- [x] Exit contract: 0 = proven, 1 = broken (names the failing stage), 2 = tooling.
       Fail-closed: an unreachable hub or unreadable receiver exits 2, never a delivery
       verdict
-- [ ] The WAKE stage reports `NOT-WIRED` (non-green) when no process consumes the
+- [x] The WAKE stage reports `NOT-WIRED` (non-green) when no process consumes the
       raised flag, and does not count that as a pass — a rail that fills a mailbox
       nobody reads must not report proven
-- [ ] Experiment E1 (sidecar-dead) demonstrates `notify-check.sh` returns 3/DEAF, not
+- [x] Experiment E1 (sidecar-dead) demonstrates `notify-check.sh` returns 3/DEAF, not
       0/CLEAR, when the receiver's sidecar is stopped with mail outstanding
-- [ ] Experiment E2 (latency) sends N sentinels and reports observed flag-raise
+- [x] Experiment E2 (latency) sends N sentinels and reports observed flag-raise
       latency (min/p50/max) measured receiver-side
-- [ ] Hermetic test seams allow the whole suite to run with no live hub and no live
+- [x] Hermetic test seams allow the whole suite to run with no live hub and no live
       peer (PL-213), mirroring `TERMLINK_NOTIFY_TEST_UNREAD`
-- [ ] `tests/notify-rail-e2e-fixtures.sh` covers the stage logic with at least three
+- [x] `tests/notify-rail-e2e-fixtures.sh` covers the stage logic with at least three
       mutants pinned (sender-exit-code trust, DEAF collapsed into CLEAR, WAKE
       NOT-WIRED reported as pass) — each mutant must turn the suite red
-- [ ] A live run against the real `framework-agent-systemd` peer is executed and its
+- [x] A live run against the real `framework-agent-systemd` peer is executed and its
       verdict recorded in the task, including any stage that legitimately fails
 
 ### Human
@@ -104,6 +104,23 @@ date_finished: null
 -->
 
 ## Verification
+
+# --- T-3061 verification (all must exit 0) ---
+# NOTE: the FULL suite deliberately exits 1 while WAKE is NOT-WIRED, so it is not
+# a verification command. Verifying it would mean either gaming the verdict or
+# blocking completion on an operator decision (arming the wake path, T-2389).
+# These verify the HARNESS is correct and the stages that should pass, do.
+test -x scripts/notify-rail-e2e.sh
+test -x scripts/notify-wake-consumer.sh
+test -x scripts/notify-wake-consumer.py
+bash tests/notify-rail-e2e-fixtures.sh > /tmp/.t3061-fx 2>&1 && grep -q "15 passed, 0 failed" /tmp/.t3061-fx
+# E1: a dead sidecar must report DEAF(3), never CLEAR(0)
+bash scripts/notify-rail-e2e.sh --stages "" --experiment e1 > /tmp/.t3061-e1 2>&1 && grep -q "E1 *PASS" /tmp/.t3061-e1
+# E4: no unwatched mailbox (the identity-split silent-loss path, now closed)
+bash scripts/notify-rail-e2e.sh --stages "" --experiment e4 > /tmp/.t3061-e4 2>&1 && grep -q "E4 *PASS" /tmp/.t3061-e4
+# the second mailbox is declared and beating
+grep -q "claude-termlink-alt 6738c073bbcc587a" .context/cron/notify-sidecar-agents.conf
+bash scripts/check-notify-sidecar-freshness.sh > /tmp/.t3061-fr 2>&1 && grep -q "healthy" /tmp/.t3061-fr
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -260,3 +277,20 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3061-two-party-notify-rail-e2e-harness-prove-.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-cd94b9a6
+- **Timestamp:** 2026-09-22T10:15:28Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Verification-level findings:**
+
+  1. **mock-only-integration** (partial, heuristic) @ AC vs Verification cross-check
+     - evidence: `bash tests/notify-rail-e2e-fixtures.sh > /tmp/.t3061-fx 2>&1 && grep -q "15 passed, 0 failed" /tmp/.t3061-fx`
+
+### 2026-09-22T10:15:18Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -12,10 +12,10 @@ description: >
   verdict to AEF, and close the standing audit gap by installing the canary or recording
   why not.
 
-status: started-work
+status: work-completed
 workflow_type: test
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-009]
 components: []
 related_tasks: []
@@ -30,8 +30,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-21T08:58:02Z
-last_update: 2026-09-21T14:31:40Z
-date_finished:
+last_update: 2026-09-21T14:36:08Z
+date_finished: 2026-09-21T14:36:08Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -386,3 +386,20 @@ test -f scripts/substrate-smoke.sh
 
 ### 2026-09-21T14:31:40Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-139facdc
+- **Timestamp:** 2026-09-21T14:36:09Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#5 (Agent)** — The standing canary-install audit gap is resolved in this task by recording WHY it was not installed here plus the exact operator command, since installing to `/etc/cron.d` needs sudo and is operator 
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=etc/cron.d in: The standing canary-install audit gap is resolved in this task by recording WHY it was not installed here plus the exact operator command, since insta`
+
+### 2026-09-21T14:36:08Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

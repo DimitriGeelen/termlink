@@ -14,10 +14,10 @@ description: >
   following the T-2833 pattern (vendored defect filed upstream, local detection shipped
   alongside).
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -32,8 +32,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-16T19:41:24Z
-last_update: '2026-09-20T08:45:19Z'
-date_finished:
+last_update: 2026-09-22T10:20:56Z
+date_finished: 2026-09-22T10:20:56Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -80,8 +80,29 @@ cost_estimate_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] **The fourth occurrence is repaired.** This task was filed after the third
+      (T-2892, T-2850, T-2968) and sat in `captured` while it happened again on
+      2026-09-22, blocking a push. The recurrence count is now the argument, and it
+      is recorded here rather than silently re-fixed for a fourth time
+- [x] The repair is a targeted fix of the malformed entry — never a wholesale
+      rewrite, and never `git push --no-verify`. The pre-push gate (T-1599/T-1610)
+      is the only thing that has ever caught this class; bypassing it would remove
+      the sole working detector
+- [x] `scripts/check-decisions-register.sh` exists, is executable and carries the
+      `# guard-layer: source` marker, so it runs on every push and PR via the
+      T-2686 CI job instead of waiting for the next blocked push
+- [x] It detects BOTH axes, because they fail differently: **(a) parse failure**
+      (what the pre-push gate already catches, reproduced locally so it is visible
+      before a push) and **(b) DUPLICATE IDs**, which parse cleanly and are
+      therefore invisible to every check the repo currently runs
+- [x] Exit contract 0 clean / 1 corrupt / 2 tooling, **fail-closed**: a missing
+      register, absent `python3`, or missing PyYAML exit 2, never a clean 0
+- [x] `tests/decisions-register-fixtures.sh` is hermetic and pins both axes plus
+      the fail-closed contract — including a duplicate-ID fixture that parses
+      perfectly, which is the case the existing gate cannot see
+- [x] The generator is NOT patched locally: it is vendored (G-062) and already on
+      the upstream record. This task ships local DETECTION that survives a
+      re-vendor, and says so
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -117,6 +138,16 @@ cost_estimate_proposed:
 -->
 
 ## Verification
+
+# --- T-2969 verification (all must exit 0) ---
+test -x scripts/check-decisions-register.sh
+grep -q "^# guard-layer: source" scripts/check-decisions-register.sh
+# the register itself is repaired (4th occurrence)
+bash scripts/check-decisions-register.sh > /tmp/.t2969-live 2>&1 && grep -q "clean" /tmp/.t2969-live
+# both axes + fail-closed are pinned
+bash tests/decisions-register-fixtures.sh > /tmp/.t2969-fx 2>&1 && grep -q "14 passed, 0 failed" /tmp/.t2969-fx
+# fail-closed: a missing register must exit 2, never a clean 0
+bash scripts/check-decisions-register.sh --register /nonexistent.yaml > /tmp/.t2969-fc 2>&1; test $? -eq 2
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -273,3 +304,18 @@ cost_estimate_proposed:
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2969-decisionsyaml-register-corruption-has-no.md
 - **Context:** Initial task creation
+
+### 2026-09-22T10:18:26Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-e7c62865
+- **Timestamp:** 2026-09-22T10:20:59Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-09-22T10:20:56Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
