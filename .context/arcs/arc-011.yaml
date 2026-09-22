@@ -106,9 +106,17 @@ slices:
     spec_step: "10. inject, verify the agent is working, report INJECTED"
     task: T-3069
     status: unbuilt
-    note: "THE KEY SLICE. Until it exists L3 cannot be posted honestly — evidence=
-           wake-consumer was removed precisely because noticing a flag is not
-           injecting. L3 machinery is built and waiting for a truthful caller."
+    note: "CODE COMPLETE, NOT PROVEN (T-3069). scripts/notify-injector.sh runs the
+           full chain with five distinct outcomes and 17 hermetic fixtures, and it
+           behaves correctly live UP TO the prompt check (rc=4 defer on a real
+           session). The inject->verify->L3 path is UNPROVEN and the AC is
+           unticked.
+           BLOCKER, measured twice: there is no live interactive Claude REPL
+           registered as a TermLink session on this host. All 14 sessions classify
+           UNKNOWN because they are shell endpoints or finished dispatch workers at
+           a bash prompt. THE INJECTOR HAS NO AUDIENCE YET — which is a fleet
+           condition, not a code defect, and it also means S12 (role swap) rests on
+           an assumption nothing currently satisfies."
   - id: S11
     spec_step: "11. a cron drives the whole loop"
     task: T-3068

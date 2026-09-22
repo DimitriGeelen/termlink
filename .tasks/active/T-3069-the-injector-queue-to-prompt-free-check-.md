@@ -131,6 +131,18 @@ cost_estimate_proposed:
       A session was spawned for it (`inj-proof`), never reached READY in 120s, and
       its own picker text read `rate limited — wait and re…`. Session was stopped
       and deregistered; 0 remain. No claim is made about the full path.
+      **ATTEMPT 2 (same day), also failed, and it surfaced something bigger.**
+      Rather than spawn another session, all 14 registered TermLink sessions were
+      classified. **Every one returned UNKNOWN**, and spot-checking showed why:
+      they are SHELL endpoints (AEF, cashweb, pen) or FINISHED dispatch workers
+      sitting at `root@host:/path#`. The classifier is correct — there is a
+      pushwaker test asserting a raw shell prompt defers — but the implication is
+      the finding: **there is currently no live interactive Claude REPL registered
+      as a TermLink session on this host, so the injector has no audience.**
+      Two failures on this AC, so per the procAsFit binding ("if a task fails its
+      acceptance criteria twice, record the failure mode and move on") it is not
+      attempted a third time. The blocker is environmental, and it is now
+      understood rather than merely observed.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
