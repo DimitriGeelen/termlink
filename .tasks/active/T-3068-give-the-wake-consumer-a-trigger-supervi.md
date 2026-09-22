@@ -22,7 +22,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-22T10:36:15Z
-last_update: 2026-09-22T10:36:15Z
+last_update: 2026-09-22T12:12:39Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -70,9 +70,16 @@ date_finished: null
       leave-alone-if-healthy, the anchored probe not matching itself, a conf with zero
       agents being a tooling error rather than a silent success, and the heartbeat
       being written
-- [ ] Proven live end to end: a real message raises the flag, the SUPERVISED consumer
+- [x] Proven live end to end: a real message raises the flag, the SUPERVISED consumer
       (not one I launched by hand for the test) fires, and an L3 `stage=read` receipt
-      appears on the topic — read back from the hub, not inferred
+      appears on the topic — read back from the hub, not inferred.
+      **MET 2026-09-22**, offsets 107-110 on dm:3bba15e681b3a078:d1993c2c3ec44c94:
+      note -> stage=delivered (both sidecars) -> stage=read evidence=wake-consumer,
+      signed 3bba15e6 (the receiving agent, via --as-identity). L3 at t=8s. Topic
+      grew by exactly 4 envelopes — no runaway.
+      Required restarting the sidecars first: the running ones were executing
+      pre-change code and emitted no `last_mail_ts` at all (T-2405 stale-code class,
+      a long-lived detached process keeps the old version until restarted).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.

@@ -110,6 +110,15 @@ head2 "1. Notify-rail cron (T-3050 supervisor, T-3051 canary)"
 install_crontab notify-sidecar-supervisor.crontab "$CRON_DIR/termlink-notify-sidecar-supervisor"
 install_crontab notify-sidecar-canary.crontab     "$CRON_DIR/termlink-notify-sidecar-canary"
 
+# T-3068 — the WAKE trigger (path A). Without this the rail delivers and
+# confirms, but nothing reads the flag durably: the consumers this starts are
+# the only thing that climbs L2 -> L3, and only cron restarts them after a
+# reboot or a crash. Proven live before being offered here: a real message
+# produced stage=delivered from both sidecars and then stage=read
+# (evidence=wake-consumer) from the supervised consumer, correctly signed as the
+# receiving agent, with no runaway.
+install_crontab notify-wake-supervisor.crontab    "$CRON_DIR/termlink-notify-wake-supervisor"
+
 # ---------------------------------------------------------------------------
 # Verification — the project's own drift checker is the arbiter, not this script.
 # Using the repo's existing check rather than a bespoke one means this cannot
