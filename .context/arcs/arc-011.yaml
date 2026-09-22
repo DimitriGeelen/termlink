@@ -99,10 +99,18 @@ slices:
   - id: S7
     spec_step: "7. independent process checks the prompt is free"
     task: T-3069
-    status: unbuilt
-    note: "The READY/BUSY/UNKNOWN classifier exists (be-reachable-pushwaker, T-2402
-           Stage 3) and is WIRED TO NOTHING. Must run without an LLM online, and must
-           have a recovery path when the agent is not running at all."
+    status: built
+    note: "notify-injector.sh checks, in order: is the agent running at all (its own
+           exit 3, never conflated with busy), then is the prompt free. Runs with no
+           LLM online.
+           The classifier it depends on was REBUILT by T-3079, because the one that
+           existed could not recognise an idle REPL: its READY markers did not match
+           the shipped UI, and its BUSY marker was usually pushed out of the read
+           window by streaming text — so marker absence never meant idle. It now
+           decides on two properties of how a terminal REPAINTS rather than on UI
+           prose: quiescence (two byte-identical reads) and composer-row emptiness.
+           466 paired samples scored against the UI's own completion marker:
+           FALSE-READY = 0."
   - id: S8
     spec_step: "8. read the queue, inject the highest-priority message"
     task: T-3071
@@ -139,8 +147,25 @@ slices:
   - id: S10
     spec_step: "10. inject, verify the agent is working, report INJECTED"
     task: T-3069
-    status: unbuilt
-    note: "CODE COMPLETE, NOT PROVEN (T-3069). scripts/notify-injector.sh runs the
+    status: built
+    note: "PROVEN LIVE 2026-09-22, third attempt (T-3069 + T-3079). Fresh topic
+           proof:t3079-1790111420 — message posted, mirrored (populating the T-3071
+           priority column), prompt READY, injected, verified by a BUSY transition,
+           L3 posted AND READ BACK from the hub: offset 1 = receipt stage=read
+           evidence=idle-gated-inject up_to=0. The first truthful machine-earned L3
+           on this rail; the only prior ones carried `operator` (a human vouching)
+           and the withdrawn `wake-consumer`.
+           The message is confirmed to have REACHED THE PROMPT on the receiver's own
+           transcript — a `user` turn in 7b8bcc50-....jsonl — which is the T-2876
+           DELIVERED verdict rather than a sender-side claim.
+           The run also exposed a false success and fixed it: the injector logged
+           `L3 posted` for a receipt never written, because notify-ack-read returns 0
+           for BOTH `posted` and `already acked`. It now reads the receipt back and
+           refuses to claim what it cannot see (fixture T24).
+           STILL OPEN: the queue has no watermark tied to the L3 rung, so on a topic
+           with history it re-serves the oldest offset (it served 0 while L3 stood at
+           145). Own task; not a classifier concern.
+           --- SUPERSEDED HISTORY --- CODE COMPLETE, NOT PROVEN (T-3069). scripts/notify-injector.sh runs the
            full chain with five distinct outcomes and 17 hermetic fixtures, and it
            behaves correctly live UP TO the prompt check (rc=4 defer on a real
            session). The inject->verify->L3 path is UNPROVEN and the AC is
@@ -174,6 +199,17 @@ sovereign_questions:
            orchestration. Decides which repo T-3069 lives in. Asked the AEF agent
            directly; no reply yet."
   - id: SQ-2
+    status: RESOLVED 2026-09-22 — premise disproved, real blocker found and fixed
+    resolution: "Tested directly on operator approval instead of reasoned about. A REPL
+           spawned with tl-claude.sh proved INJECTABLE immediately (an injected line was
+           answered), so arming is one command and T-2389 was never the blocker. The
+           actual blocker was one layer down: scripts/lib/pty-state.sh could not
+           recognise an idle REPL, so the injector deferred rc=4 forever. Fixed and
+           closed under T-3079, and the rail is now proven end to end (see S10).
+           The question was worth asking and its OBSERVATION was correct; only the
+           inference drawn from it was wrong. Recorded rather than deleted, because a
+           sovereign question that turned out to rest on a bad inference is exactly the
+           kind of thing that gets silently re-derived later."
     question: "Given NO interactive Claude REPL is registered as a TermLink session,
                should the arc prioritise making agents INJECTABLE before building
                more injection machinery?"
@@ -220,6 +256,19 @@ sovereign_questions:
            and is discarded. So urgent-into-busy can silently lose exactly the
            messages most likely to be marked urgent. Blocks T-3072."
   - id: SQ-5
+    status: RESOLVED 2026-09-22 — operator answered INSTALL, and it is installed
+    resolution: "Installed at /etc/cron.d/termlink-notify-wake-supervisor, byte-identical
+           to the tracked source. VERIFIED FIRING, not merely present: journalctl shows
+           `21:20:01 CRON[97550]: (root) CMD (... notify-wake-supervisor.sh --quiet ...)`
+           at the first */5 boundary after install, with both log streams present and
+           EMPTY (the healthy state, and proof the split redirect works).
+           Two guard-layer reds cleared as a result, not silenced:
+           check-cron-install-drift 1 -> 0, cron-drift-firing-fixtures 12/1 -> 13/0.
+           notify-rail-e2e WAKE went from NOT-WIRED to PASS.
+           The withdrawn-evidence concern that RAISED this question is separately
+           settled: T-3069/T-3079 have since produced a truthful machine-earned L3
+           (evidence=idle-gated-inject), so the wake path no longer rests on a
+           retracted claim."
     question: "Install the wake-supervisor crontab when the only live proof of the
                wake path has been withdrawn?"
     task: T-3068

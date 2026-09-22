@@ -1,0 +1,94 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3069: The injector: queue to prompt-free check to inject to verify-working to L3
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-22T21:21:30Z
+# ============================================================================
+
+task_id: T-3069
+task_name: "The injector: queue to prompt-free check to inject to verify-working to L3"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-22T12:51:49Z
+completed: 2026-09-22T21:21:21Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-09-22T16:46:58+02:00
+last_commit: 2026-09-22T21:31:20+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  the injector — the missing middle, with verification that can fail. live test — what it proved, and what it did NOT. attempt 2 at the live proof — failed, and it found something bigger. SQ-2's premise was wrong — the blocker is the idle classifier, not the audience
+
+# Key outcomes
+outcomes:
+  - '`scripts/notify-injector.sh` runs the full chain in order: arrival record →'
+  - 'It SOURCES the PTY classifier from `scripts/lib/pty-state.sh` rather than'
+  - '**AGENT-NOT-RUNNING is its own outcome**, distinct from BUSY, with its own'
+  - '**UNKNOWN defers, never injects.** The classifier is fail-safe biased by'
+  - '**Injection is VERIFIED before L3 is posted.** `termlink inject` returns'
+  - 'L3 is posted with `--evidence idle-gated-inject`, the kind that means the'
+  - 'Exit contract: 0 injected+verified · 1 nothing to do · 2 tooling ·'
+  - '`--dry-run` prints the decision and the message it WOULD inject, and injects'
+  - '`tests/notify-injector-fixtures.sh` is hermetic (stub `termlink`, fixture'
+  - '**MET 2026-09-22 (third attempt), after T-3079 removed the blocker.** The full'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/arcs/arc-011.yaml'
+  - 'scripts/be-reachable-pushwaker.sh'
+  - 'scripts/lib/pty-state.sh'
+  - 'scripts/notify-injector.sh'
+  - '.tasks/active/T-3069-the-injector-queue-to-prompt-free-check-.md'
+  - 'tests/notify-injector-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-22T16:46:58'
+    action: 'T-3069: the injector — the missing middle, with verification that can fail'
+  - time: '2026-09-22T16:54:12'
+    action: 'T-3069: live test — what it proved, and what it did NOT'
+  - time: '2026-09-22T17:10:09'
+    action: 'T-3069: attempt 2 at the live proof — failed, and it found something bigger'
+  - time: '2026-09-22T21:31:20'
+    action: 'T-3069: SQ-2''s premise was wrong — the blocker is the idle classifier, not the audience'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 509 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 509
+  commits: 4
+  files_changed: 6
+  lines_added: 709
+  lines_removed: 58
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3069-the-injector-queue-to-prompt-free-check-.md
+generated_by: context-agent-hybrid

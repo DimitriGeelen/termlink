@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3079: Idle classifier is blind to the current Claude Code UI, so the injector defers forever
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-22T21:20:23Z
+# ============================================================================
+
+task_id: T-3079
+task_name: "Idle classifier is blind to the current Claude Code UI, so the injector defers forever"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-22T20:33:56Z
+completed: 2026-09-22T21:20:14Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  scripts/lib/pty-state.sh classifies a live, idle, injectable Claude Code REPL as UNKNOWN, so notify-injector.sh defers rc=4 permanently and the L3 rung can never be reached by machine. Measured 2026-09-22: sampled every 10s for 100s after a completed turn, no positive marker at any sample. Cause is the marker set, not the window: ?forshortcuts is absent at every window size on a chat REPL with auto-mode on, whose footer reads 'auto mode on (shift+tab to cycle)'. Widening the window is NOT the fix — at 4000 bytes a stale esctointerrupt reappears and would pin BUSY forever, which is the scrollback contamination the docstring warns about. Also: the lib references $TERMLINK with no default, so a caller that has not set it reads nothing and gets UNKNOWN — a broken instrument indistinguishable from a real verdict.
+
+# Key outcomes
+outcomes:
+  - '**The fail-safe bias is preserved and provable.** READY is still returned ONLY on'
+  - '**A live, idle, injectable REPL classifies READY** — the state that currently'
+  - '**A mid-turn REPL never classifies READY.** Proven by sampling a real REPL'
+  - 'The READY predicate does not rest on UI *prose* alone. Footer wording changed'
+  - '**A composer with text already pending does NOT classify READY**, because'
+  - '`TERMLINK` resolves to a default inside the lib, so a caller that has not'
+  - 'Fixtures are built from **PTY bytes captured off a real REPL**, not hand-written'
+  - '**Mutation-proven:** disabling each new arm of the predicate individually makes a'
+  - '`bash tests/notify-injector-fixtures.sh` still passes in full — the injector'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 46 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 46
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3079-idle-classifier-is-blind-to-the-current-.md
+generated_by: context-agent-hybrid

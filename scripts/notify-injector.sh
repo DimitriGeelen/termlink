@@ -275,12 +275,53 @@ fi
 # the wrong directory, and a stale guard there made the ack a silent no-op that
 # still returned 0. Found by a fixture asserting "exactly one L3 posted" and
 # getting zero while the injector cheerfully logged "L3 posted".
-if NOTIFY_DIR="$NOTIFY_DIR" bash "$HERE/notify-ack-read.sh" --topic "$mail_topic" --up-to "$offset" \
-        --evidence idle-gated-inject --agent-id "$AGENT_ID" --quiet; then
-    printf '%s\n' "$mail_ts" > "$SEEN.tmp" 2>/dev/null && mv -f "$SEEN.tmp" "$SEEN" 2>/dev/null || true
-    log "INJECTED + VERIFIED: offset=$offset on $mail_topic; L3 posted (evidence=idle-gated-inject)"
-    exit 0
+#
+# T-3079 — and the rc is NOT sufficient evidence that a receipt exists. Read it
+# BACK. notify-ack-read's own contract says "Exit: 0 posted (OR ALREADY ACKED)",
+# so a zero means either "I wrote a receipt" or "I wrote nothing because the
+# watermark was already ahead". Reporting the second as "L3 posted" is a claim
+# about the hub made without looking at it, and this file already carries the
+# scar of the same class arriving by a different route (the stale-guard no-op
+# above). Fixing the route and leaving the conflation is how it recurred.
+#
+# Measured 2026-09-22: with the guard at 145 and the queue serving offset 0, the
+# injector logged "L3 posted (evidence=idle-gated-inject)" and no such receipt
+# existed on the topic. The whole arc exists to stop exactly that sentence.
+ack_rc=0
+NOTIFY_DIR="$NOTIFY_DIR" bash "$HERE/notify-ack-read.sh" --topic "$mail_topic" --up-to "$offset" \
+        --evidence idle-gated-inject --agent-id "$AGENT_ID" --quiet || ack_rc=$?
+if [ "$ack_rc" -ne 0 ]; then
+    loud "injected and verified, but the L3 receipt was REJECTED by the hub (rc=$ack_rc). The agent has the message; the sender has not been told."
+    exit 5
 fi
 
-loud "injected and verified, but the L3 receipt was REJECTED by the hub. The agent has the message; the sender has not been told."
-exit 5
+# Confirm on the HUB that a truthful L3 covering this offset actually exists.
+# Disavowed evidence does not count (T-3068): a stage=read carrying
+# evidence=wake-consumer asserts a read that never happened, and honouring it
+# here would relaunder a retracted claim as our own proof.
+l3_covered=0
+if [ -z "${INJECTOR_TEST_SKIP_L3_READBACK:-}" ]; then
+    if blob="$(timeout 30 "$TERMLINK" channel subscribe "$mail_topic" --cursor 0 --limit 1000 --json 2>/dev/null)" \
+       && [ -n "$blob" ]; then
+        max_read="$(printf '%s\n' "$blob" | jq -rs '[.[] | (.envelope//.) | select(.msg_type=="receipt")
+            | (.metadata//{}) | select(.stage=="read")
+            | select((.evidence // "") != "wake-consumer")
+            | (.up_to|tonumber?)] | max // -1' 2>/dev/null)"
+        case "$max_read" in ''|null) max_read=-1 ;; esac
+        [ "$max_read" -ge "$offset" ] 2>/dev/null && l3_covered=1
+    else
+        loud "injected and verified, but the L3 receipt could NOT BE READ BACK from the hub (topic unreadable). Not claiming the sender was told."
+        exit 5
+    fi
+else
+    l3_covered=1
+fi
+
+if [ "$l3_covered" -ne 1 ]; then
+    loud "injected and verified, but NO truthful L3 covering offset=$offset is on $mail_topic. The ack returned 0 without writing one (its contract conflates 'posted' with 'already acked'). The agent has the message; the sender has NOT been told."
+    exit 5
+fi
+
+printf '%s\n' "$mail_ts" > "$SEEN.tmp" 2>/dev/null && mv -f "$SEEN.tmp" "$SEEN" 2>/dev/null || true
+log "INJECTED + VERIFIED: offset=$offset on $mail_topic; L3 confirmed on the hub (evidence=idle-gated-inject, read back — not inferred)"
+exit 0

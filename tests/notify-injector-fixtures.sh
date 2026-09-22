@@ -28,10 +28,35 @@ TOPIC="dm:aaaa:bbbb"
 
 command -v sqlite3 >/dev/null 2>&1 || { echo "SKIP: sqlite3 not available"; exit 0; }
 
-# stub termlink: records argv, succeeds
+# stub termlink: records argv, succeeds.
+#
+# T-3079: `channel subscribe` must MODEL THE HUB, not return silence. The injector
+# now reads its L3 back from the topic instead of trusting notify-ack-read's exit
+# code, because that code means "posted OR already acked" — a zero that was being
+# reported as "L3 posted" when nothing had been written. A stub that returned
+# nothing here would make the read-back fail always, and the tempting fix (a seam
+# that skips it) would delete the very assertion T9 exists to make.
+#
+# So the stub replays what was posted: if a stage=read receipt carrying the earned
+# evidence has already gone through this stub, subscribe returns it. Nothing was
+# posted -> subscribe returns nothing -> the read-back correctly refuses.
 cat > "$WORK/bin/termlink" <<EOS
 #!/usr/bin/env bash
 printf '%s\n' "\$*" >> "$WORK/calls.log"
+case "\$1 \$2" in
+  "channel subscribe")
+      # A real topic is never empty — it holds at least the message we are
+      # injecting. Emitting a content envelope unconditionally keeps "topic
+      # unreadable" and "no L3 on the topic" as DISTINCT outcomes; collapsing
+      # them let a mutation of the read-back survive the suite (found by
+      # mutation testing this very fixture).
+      printf '{"msg_type":"note","sender_id":"peer","offset":1,"metadata":{}}\n'
+      up_to="\$(grep -o 'up_to=[0-9]*' "$WORK/calls.log" 2>/dev/null | tail -1 | cut -d= -f2)"
+      if grep -q 'evidence=idle-gated-inject' "$WORK/calls.log" 2>/dev/null; then
+          printf '{"msg_type":"receipt","sender_id":"peer","offset":9001,"metadata":{"stage":"read","up_to":"%s","evidence":"idle-gated-inject"}}\n' "\${up_to:-0}"
+      fi
+      ;;
+esac
 exit 0
 EOS
 chmod +x "$WORK/bin/termlink"
@@ -266,6 +291,25 @@ echo "T23 [outcome 2]: an empty priority-aware queue still exits 2, not a vacuou
 mkqueue_p; mkflag 25000; rm -f "$ND/.ag.injected-seen"
 INJECTOR_TEST_SESSION_STATE=present INJECTOR_TEST_PTY_STATE=READY run >/dev/null 2>&1; rc=$?
 [ "$rc" -eq 2 ] && pass "T23 rc=$rc" || fail "T23 expected 2 got $rc"
+
+echo "T24 [THE FALSE CLAIM]: ack returns 0 WITHOUT posting -> rc=5, never 'L3 posted'"
+# Reproduces a defect found live on 2026-09-22, not an imagined one. The L3 guard
+# stood at 145 while the queue served offset 0, so notify-ack-read took its
+# "already acked ... nothing to do" branch and exited 0 — its contract says
+# "0 posted (OR already acked)" — and the injector printed
+# "L3 posted (evidence=idle-gated-inject)" for a receipt that did not exist.
+# Here the guard is pre-seeded high to force that same branch. Nothing is posted,
+# so the stub's subscribe returns nothing, and the read-back must refuse.
+mkqueue; mkflag 30000; rm -f "$ND/.ag.injected-seen"; : > "$WORK/calls.log"
+printf '999\n' > "$ND/.ag.dm_aaaa_bbbb.l3read"
+OUT="$(INJECTOR_TEST_SESSION_STATE=present INJECTOR_TEST_PTY_STATE=READY \
+       INJECTOR_TEST_INJECT_RC=0 INJECTOR_TEST_VERIFY_STATE=BUSY run 2>&1)"; rc=$?
+if [ "$rc" -eq 5 ] && ! printf '%s' "$OUT" | grep -q 'L3 confirmed'; then
+    pass "T24 rc=5 and no success claim — a no-op ack is not a posted receipt"
+else
+    fail "T24 expected rc=5 with no success claim, got rc=$rc: $OUT"
+fi
+rm -f "$ND/.ag.dm_aaaa_bbbb.l3read"
 
 echo
 echo "notify-injector fixtures: $PASS passed, $FAIL failed"

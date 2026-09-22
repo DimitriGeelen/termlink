@@ -1,22 +1,15 @@
 ---
-id: T-3069
-name: "The injector: queue to prompt-free check to inject to verify-working to L3"
+id: T-3080
+name: "Record the arc-011 live proof in the slice register and resolve SQ-2"
 description: >
-  THE missing middle of the rail. Read the journal queue, check the prompt is free
-  (be-reachable-pushwaker READY/BUSY/UNKNOWN, built and unused), inject the message,
-  VERIFY the agent is actually working on it, and only then post L3 with evidence=idle-gated-inject.
-  Without this the rail delivers and confirms but nothing ever reaches an agent. Blocks
-  the honest use of L3.
+  T-3069 and T-3079 closed with the rail proven end to end on a live REPL. The slice register still records S7 and S10 as unbuilt and SQ-2 as open, so it understates the arc exactly as it overstated nothing before — the same drift class T-3077 repaired. Update S7/S10 to built with the live evidence, and resolve SQ-2, whose premise (no injectable audience) was disproved and whose real blocker (the idle classifier) is now fixed.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
-horizon: now
+owner: claude-code
+horizon: null
 tags: [arc:arc-011]
-components:
-  - scripts/notify-injector.sh
-  - scripts/lib/pty-state.sh
-  - tests/notify-injector-fixtures.sh
+components: []
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -28,9 +21,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-22T12:51:49Z
-last_update: 2026-09-22T19:30:07Z
-date_finished:
+created: 2026-09-22T21:22:03Z
+last_update: 2026-09-22T21:24:24Z
+date_finished: 2026-09-22T21:24:24Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -41,42 +34,9 @@ date_finished:
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
-bvp_scores_proposed:
-  - ts: '2026-09-22T14:42:57Z'
-    estimator: bvp-estimator-v1-heuristic
-    scores:
-      D1: 4
-      D2: 0
-      D3: 3
-      D4: 2
-      F-RECALL: 0
-      F-ORCH: 0
-    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
-      (body:component-discoverability); D4=2 (body:env-class-handled); 
-      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
-    rubric_sha: e4a00f38e801
-cost_estimate_proposed:
-  - ts: '2026-09-22T14:57:32Z'
-    estimator: bvp-estimator-v1-heuristic
-    cost_estimate:
-      blast_radius:
-      tier: 2
-      effort: 8
-    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
-      (workflow:build); effort=8 (lines=253,acs=12)
-    rubric_sha: e4a00f38e801
-  - ts: '2026-09-22T14:59:09Z'
-    estimator: bvp-estimator-v1-heuristic
-    cost_estimate:
-      blast_radius: 3
-      tier: 2
-      effort: 8
-    rationale: blast_radius=3 (3-components); tier=2 (workflow:build); effort=8 
-      (lines=253,acs=12)
-    rubric_sha: e4a00f38e801
 ---
 
-# T-3069: The injector: queue to prompt-free check to inject to verify-working to L3
+# T-3080: Record the arc-011 live proof in the slice register and resolve SQ-2
 
 ## Context
 
@@ -86,63 +46,15 @@ cost_estimate_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `scripts/notify-injector.sh` runs the full chain in order: arrival record →
-      agent reachable? → prompt free? → read queue → inject → **verify** → L3
-- [ ] It SOURCES the PTY classifier from `scripts/lib/pty-state.sh` rather than
-      carrying its own copy. Two copies of a subtle heuristic drift, and the one
-      that drifts is the one that quietly stops catching things
-- [ ] **AGENT-NOT-RUNNING is its own outcome**, distinct from BUSY, with its own
-      exit code. Operator requirement: "I want to inject, but I check if my agent
-      is running, I see it's not running." Treating absent as busy would retry
-      forever against a session that no longer exists
-- [ ] **UNKNOWN defers, never injects.** The classifier is fail-safe biased by
-      design (READY only on a positive idle marker) and the injector must preserve
-      that bias — a wrong READY is the blind inject this whole rung exists to kill
-- [ ] **Injection is VERIFIED before L3 is posted.** `termlink inject` returns
-      before submission (T-2396, proven live): on a busy or manual-accept session
-      the text lands unsubmitted and is discarded. So after injecting, the injector
-      re-reads the PTY and requires evidence the text was consumed; if it cannot
-      confirm, it posts NOTHING and says so
-- [ ] L3 is posted with `--evidence idle-gated-inject`, the kind that means the
-      injector observed a READY prompt before injecting — and it is the FIRST
-      truthful caller of that rung
-- [ ] Exit contract: 0 injected+verified · 1 nothing to do · 2 tooling ·
-      3 agent not running · 4 prompt busy/unknown (deferred) · 5 injected but
-      NOT verified (the loud case — a message may be sitting unsubmitted)
-- [ ] `--dry-run` prints the decision and the message it WOULD inject, and injects
-      nothing, so the chain can be inspected on a live host without side effects
-- [ ] `tests/notify-injector-fixtures.sh` is hermetic (stub `termlink`, fixture
-      journal, fixture flag) and pins: not-running ≠ busy, UNKNOWN defers,
-      unverified injection posts no L3, a verified injection posts exactly one L3,
-      and an empty queue is "nothing to do" rather than an error
-- [ ] **NOT MET — and deliberately left unticked.** Proven against a REAL session
-      end to end, with the L3 receipt read back from the hub.
-      **What WAS proven live (2026-09-22):**
-      * against the running AEF session `tl-vayovuqm`, the injector reached the
-        prompt check and returned **rc=4 (deferred)** — correct, because that is a
-        shell session carrying no Claude Code idle markers.
-      * the classifier's **fail-safe ORDERING was validated on a real screen**. A
-        freshly launched Claude REPL sat on a resume picker whose text matched BOTH
-        `resumesession` (modal → UNKNOWN) and `?forshortcuts` (→ READY). The
-        UNKNOWN-modal case is tested FIRST, so it deferred. A classifier checking
-        READY first would have injected into the picker's search box. That ordering
-        was a comment; it is now an observation.
-      **What was NOT proven:** the inject → verify → L3 path against a live REPL.
-      A session was spawned for it (`inj-proof`), never reached READY in 120s, and
-      its own picker text read `rate limited — wait and re…`. Session was stopped
-      and deregistered; 0 remain. No claim is made about the full path.
-      **ATTEMPT 2 (same day), also failed, and it surfaced something bigger.**
-      Rather than spawn another session, all 14 registered TermLink sessions were
-      classified. **Every one returned UNKNOWN**, and spot-checking showed why:
-      they are SHELL endpoints (AEF, cashweb, pen) or FINISHED dispatch workers
-      sitting at `root@host:/path#`. The classifier is correct — there is a
-      pushwaker test asserting a raw shell prompt defers — but the implication is
-      the finding: **there is currently no live interactive Claude REPL registered
-      as a TermLink session on this host, so the injector has no audience.**
-      Two failures on this AC, so per the procAsFit binding ("if a task fails its
-      acceptance criteria twice, record the failure mode and move on") it is not
-      attempted a third time. The blocker is environmental, and it is now
-      understood rather than merely observed.
+- [x] Slices S7 and S10 read `built`, each note carrying the evidence that earned it
+      (the hub-side receipt and the receiver-side transcript), not merely the word
+      "proven"
+- [x] No slice whose `task:` is in `.tasks/completed/` still reads `unbuilt` — the same
+      mechanical cross-check T-3077 added, re-run after this change
+- [x] SQ-2 is marked resolved with what actually answered it: its premise was
+      disproved by direct test, and the real blocker (the idle classifier) is fixed
+      and closed under T-3079
+- [x] The arc YAML parses, and every `task:` reference still resolves to a real file
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -231,6 +143,18 @@ cost_estimate_proposed:
 # P-011, from the same directory, the same second. To rehearse for real:
 #     bash -c 'set -eo pipefail; <your verification line>'
 #
+python3 -c "import yaml; d=yaml.safe_load(open('.context/arcs/arc-011.yaml')); assert len(d['slices'])==12"
+
+# No slice whose task is COMPLETED may still read 'unbuilt', and every task: must
+# resolve. Zero slices is a refusal, not a vacuous pass (T-2831).
+python3 -c "import yaml,glob,sys; D=lambda t: bool(glob.glob('.tasks/completed/%s-*.md'%t)); L=lambda t: bool(glob.glob('.tasks/active/%s-*.md'%t)); sl=yaml.safe_load(open('.context/arcs/arc-011.yaml'))['slices']; sys.exit(2) if not sl else None; bad=[s['id']+':'+s['task'] for s in sl if (D(s['task']) and s['status']=='unbuilt') or not (D(s['task']) or L(s['task']))]; print('slice-drift: '+(', '.join(bad) or 'none')); sys.exit(1 if bad else 0)"
+
+# S7 and S10 are built and carry their evidence, not just the word 'proven'.
+python3 -c "import yaml,sys; sl={s['id']:s for s in yaml.safe_load(open('.context/arcs/arc-011.yaml'))['slices']}; sys.exit(0 if sl['S7']['status']=='built' and sl['S10']['status']=='built' and 'idle-gated-inject' in sl['S10']['note'] else 1)"
+
+# SQ-2 and SQ-5 carry a resolution, not just a question.
+python3 -c "import yaml,sys; q={x['id']:x for x in yaml.safe_load(open('.context/arcs/arc-011.yaml'))['sovereign_questions']}; sys.exit(0 if 'status' in q['SQ-2'] and 'status' in q['SQ-5'] else 1)"
+
 # Enforcement-baseline hint (L-398, T-1886): if you edited `.claude/settings.json`
 # (added/removed/reorganised hooks), add `bin/fw enforcement baseline` to your
 # Verification block. Otherwise the canonical hash diverges and `fw doctor`
@@ -278,70 +202,25 @@ cost_estimate_proposed:
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
-### 2026-09-22 — the blocker is NOT "no REPL exists". It is the classifier.
+### 2026-09-22 — the register drifted in the opposite direction, and that is the same defect
 
-Operator approved spawning agents, so the SQ-2 premise was tested directly rather
-than reasoned about. It turned out to be **wrong in the half that mattered**, and the
-real blocker is one layer down.
-
-**What was believed (SQ-2, recorded twice):** *no interactive Claude REPL is registered
-as a TermLink session, so the injector has no audience.* True as an observation — all
-sessions probed UNKNOWN — but the inference drawn from it was wrong.
-
-**What is now measured:**
-
-1. **A REPL can be spawned and IS injectable.** `bash scripts/tl-claude.sh start --name
-   wake-proof2 --backend tmux -- --continue` produced a live Claude Code v2.1.267 REPL
-   inside a TermLink session. `termlink inject wake-proof2 "Reply with exactly:
-   WAKE-PROOF-OK" --enter` was **answered** — the response appears in the PTY. So
-   inject → run → respond works against a real REPL. The audience exists the moment
-   someone spawns one.
-
-2. **The classifier still refuses to authorise the inject, permanently.** Sampled every
-   10s for 100s after a completed turn: **no positive marker at any sample**, so
-   `pushwaker_probe_pty` returns UNKNOWN and the injector defers (rc=4) forever. That is
-   why the live AC failed twice. It was never an audience problem.
-
-3. **Why it refuses — the marker set does not match this UI.** The four positive markers
-   are `?forshortcuts | newtask? | checkingforupdate | /cleartosave`. On this host,
-   `?forshortcuts` is **absent at every window size** on a chat REPL with auto-mode on;
-   the footer reads `⏵⏵ auto mode on (shift+tab to cycle)` instead. Measured presence at
-   the 2500-byte default: `shift+tabtocycle` and `automodeon` PRESENT, `?forshortcuts`
-   ABSENT.
-
-4. **Widening the window is NOT the fix, and the file already says why.** Measured after
-   a completed turn: 2500B → no markers; 4000B → a **stale** `esctointerrupt` reappears;
-   6000B → stale busy marker AND idle markers together. Enlarging the tail reintroduces
-   exactly the scrollback contamination the docstring warns about, and would pin the
-   classifier to BUSY forever. The narrow window is correct; the marker set is wrong.
-
-5. **A measurement trap worth recording.** `scripts/lib/pty-state.sh` references
-   `"$TERMLINK"` with **no default**. Sourced from a bare shell that has not set it, the
-   probe runs an empty command, reads nothing, and classifies UNKNOWN — indistinguishable
-   from a genuine UNKNOWN. My first sweep of five sessions reported all-UNKNOWN through
-   this bug, which would have "confirmed" SQ-2 on a broken instrument. A one-line
-   `TERMLINK="${TERMLINK:-termlink}"` in the lib would close it.
-
-**CANDIDATE FIX, evidenced but NOT shipped.** The stripped tail ends with the composer
-prompt `❯` (U+276F) followed by U+00A0 when the REPL is idle with an EMPTY composer —
-which is precisely the condition an injector wants, and it also refuses when text is
-already pending (the T-2396 shape). Measured: idle tail ends `…9:25 PM ❯ `;
-mid-turn (`esctointerrupt` present) the tail ended with response text (`effort`), not
-the prompt. Note `tr -d '[:space:]'` does NOT strip U+00A0 in the C locale, so any
-pattern must account for it.
-
-**Deliberately not shipped tonight.** Two live data points is not enough for a
-safety-critical heuristic whose failure mode is a blind inject into a busy prompt —
-the exact data loss this arc exists to prevent. The honest next step is a quiescence
-conjunction (no busy marker AND tail ends with an empty composer AND tail unchanged
-across two reads), validated over many turns, with fixtures built from captured PTY
-bytes rather than from reasoning. That needs API budget this host does not have right
-now: the REPL footer reports **94% of the weekly limit used, resetting Sep 28**.
-
-**Consequence for SQ-2:** it should be re-stated. "Should we arm agents before building
-injection machinery?" is answered — arming works and takes one command. The open
-question is narrower and different: *make the idle classifier reliable across Claude
-Code UI versions*, which is a TermLink concern, not an AEF one.
+- **What changed:** T-3077 repaired a register that under-claimed shipped work, and
+  recorded that the cross-check it added runs only at that task's completion — "a
+  one-shot, not a standing guard". Within the same day the register drifted again, the
+  same way: S7 and S10 read `unbuilt` after the rail was proven live. The prediction
+  was right and arrived faster than expected, which is the argument for promoting that
+  cross-check into a standing `check-arc-slice-drift.sh` across all in-progress arcs.
+  Still not done here — new guard-layer surface is its own deliverable, offered rather
+  than assumed.
+- **Why sovereign questions get a `resolution:` field rather than deletion:** SQ-2's
+  observation was correct (nothing injectable was registered) and its inference was
+  wrong (that arming was the blocker). Deleting it would erase the fact that a
+  reasonable-looking inference was tested and failed — and that is precisely the kind
+  of thing a future session re-derives from scratch. The resolution says what actually
+  answered it, so the next reader inherits the correction, not just the conclusion.
+- **Triggered:** nothing new. Two questions remain open and unresolved by design
+  (SQ-1 injector ownership, SQ-3 artifact CLI verbs, SQ-4 urgent-into-busy), plus the
+  queue-watermark gap recorded in S10.
 
 ## Recommendation
 
@@ -395,13 +274,20 @@ Code UI versions*, which is a TermLink concern, not an AEF one.
 
 ## Updates
 
-### 2026-09-22T12:51:49Z — task-created [task-create-agent]
+### 2026-09-22T21:22:03Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3069-the-injector-queue-to-prompt-free-check-.md
+- **Output:** /opt/termlink/.tasks/active/T-3080-record-the-arc-011-live-proof-in-the-sli.md
 - **Context:** Initial task creation
 
-### 2026-09-22T13:10:18Z — status-update [task-update-agent]
-- **Change:** tags: +arc:arc-011
+## Reviewer Verdict (v1.5)
 
-### 2026-09-22T14:42:57Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
+- **Scan ID:** R-ebcd0026
+- **Timestamp:** 2026-09-22T21:24:26Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-09-22T21:24:24Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Arc register records the live proof: S7/S10 built with hub-side and receiver-side evidence, SQ-2 and SQ-5 resolved. Cross-check re-run: no drift.

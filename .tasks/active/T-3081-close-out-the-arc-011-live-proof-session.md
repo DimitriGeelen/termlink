@@ -1,22 +1,15 @@
 ---
-id: T-3068
-name: "Give the wake consumer a trigger: supervised standing service so the flag is
-  actually read"
+id: T-3081
+name: "Close out the arc-011 live-proof session: stop test REPLs and commit"
 description: >
-  Give the wake consumer a trigger: supervised standing service so the flag is actually
-  read
+  Stop the scratch Claude REPLs spawned for the T-3079/T-3069 live proof so they consume no further API budget, and commit the classifier fix, the injector read-back fix, the new fixtures and the arc register updates.
 
 status: started-work
 workflow_type: build
-owner: agent
+owner: claude-code
 horizon: now
 tags: [arc:arc-011]
-components:
-  - scripts/notify-wake-supervisor.sh
-  - scripts/notify-wake-consumer.sh
-  - scripts/notify-sidecar.sh
-  - tests/notify-wake-supervisor-fixtures.sh
-  - .context/cron/notify-wake-supervisor.crontab
+components: []
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -28,9 +21,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-22T10:36:15Z
-last_update: 2026-09-22T19:25:07Z
-date_finished:
+created: 2026-09-22T21:24:44Z
+last_update: 2026-09-22T21:24:44Z
+date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -41,56 +34,9 @@ date_finished:
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
-bvp_scores_proposed:
-  - ts: '2026-09-22T14:56:59Z'
-    estimator: bvp-estimator-v1-heuristic
-    scores:
-      D1: 4
-      D2: 2
-      D3: 3
-      D4: 2
-      F-RECALL: 0
-      F-ORCH: 0
-    rationale: D1=4 (body:structural-gate); D2=2 
-      (body:telemetry-or-audit-entry); D3=3 (body:component-discoverability); 
-      D4=2 (body:env-class-handled); F-RECALL=0 (no-signal); F-ORCH=0 
-      (no-signal)
-    rubric_sha: e4a00f38e801
-  - ts: '2026-09-22T18:17:59Z'
-    estimator: bvp-estimator-v1-heuristic
-    scores:
-      D1: 4
-      D2: 4
-      D3: 3
-      D4: 2
-      F-RECALL: 2
-      F-ORCH: 0
-    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
-      (body:component-discoverability); D4=2 (body:env-class-handled); 
-      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
-    rubric_sha: e4a00f38e801
-cost_estimate_proposed:
-  - ts: '2026-09-22T14:57:32Z'
-    estimator: bvp-estimator-v1-heuristic
-    cost_estimate:
-      blast_radius:
-      tier: 2
-      effort: 8
-    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
-      (workflow:build); effort=8 (lines=239,acs=10)
-    rubric_sha: e4a00f38e801
-  - ts: '2026-09-22T14:59:09Z'
-    estimator: bvp-estimator-v1-heuristic
-    cost_estimate:
-      blast_radius: 5
-      tier: 2
-      effort: 8
-    rationale: blast_radius=5 (5-components-medium-blast); tier=2 
-      (workflow:build); effort=8 (lines=239,acs=10)
-    rubric_sha: e4a00f38e801
 ---
 
-# T-3068: Give the wake consumer a trigger: supervised standing service so the flag is actually read
+# T-3081: Close out the arc-011 live-proof session: stop test REPLs and commit
 
 ## Context
 
@@ -100,69 +46,12 @@ cost_estimate_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `scripts/notify-wake-supervisor.sh` keeps a `notify-wake-consumer.sh
-      --follow` alive per agent declared in `.context/cron/notify-wake-agents.conf`,
-      started if absent, left alone if healthy — the same contract as the sidecar
-      supervisor (T-3050)
-- [ ] The liveness probe is ANCHORED so the supervisor cannot match its own command
-      line and report a phantom as running. T-3050 hit exactly this and the fixture
-      harness killed itself over it
-- [x] `.context/cron/notify-wake-supervisor.crontab` installs the trigger, using the
-      split-stream redirect idiom (`>> log 2>> log.stderr`, T-2685) so a tooling
-      error can never dirty the findings channel.
-      **INSTALLED 2026-09-22 on operator approval (SQ-5 answered: install).**
-      `/etc/cron.d/termlink-notify-wake-supervisor`, 0644 root:root, byte-identical
-      to the tracked source (`diff` clean). `check-cron-install-drift` went 1 -> 0
-      ("healthy, 30 installed + matching"), and `tests/cron-drift-firing-fixtures.sh`
-      went 12/1 -> **13 passed, 0 failed** — the guard-layer red this was causing is
-      gone, not silenced.
-      VERIFIED FIRING, not merely present: `journalctl -u cron` shows
-      `21:20:01 CRON[97550]: (root) CMD (cd /opt/termlink && bash
-      scripts/notify-wake-supervisor.sh --quiet ...)` at the first */5 boundary after
-      install, and both log streams exist and are EMPTY — which is the healthy state
-      under the one-bit convention, and proves the split redirect works.
-- [ ] The consumer writes a `<agent>.wake-heartbeat` each cycle, so "the consumer is
-      alive" is observable and a dead one is distinguishable from a quiet one — the
-      same reason the sidecar's own heartbeat exists
-- [ ] The consumer acts under the RIGHT IDENTITY: it exports `TERMLINK_AGENT_ID`
-      for the agent it serves, so L3 receipts are signed by that agent and not by
-      whatever key the cron happens to run as. A receipt attributed to the wrong
-      identity is worse than no receipt
-- [x] `notify-rail-e2e.sh`'s WAKE stage reports the consumer as a live path-A
-      trigger once installed, and the full suite's WAKE verdict changes from
-      NOT-WIRED accordingly — verified by running it, not by reading the code.
-      **MET 2026-09-22, by running it:** `WAKE PASS  1 consumer(s) react to a raised
-      flag`, where this previously read NOT-WIRED. Full suite
-      `--stages precond,deliver,receipt,ladder,wake` returns **verdict: PROVEN**
-      (PRECOND/DELIVER/RECEIPT/LADDER/WAKE all PASS; DELIVER observed on the peer in
-      6215ms, RECEIPT acked up_to=120).
-- [ ] `tests/notify-wake-supervisor-fixtures.sh` is hermetic and pins: start-if-absent,
-      leave-alone-if-healthy, the anchored probe not matching itself, a conf with zero
-      agents being a tooling error rather than a silent success, and the heartbeat
-      being written
-- [ ] Proven live end to end: a real message raises the flag, the SUPERVISED consumer
-      (not one I launched by hand for the test) fires, and an L3 `stage=read` receipt
-      appears on the topic — read back from the hub, not inferred.
-
-      **UNTICKED 2026-09-22 (T-3071 run). The evidence behind this tick was later
-      WITHDRAWN, so the tick was asserting something retracted.**
-      It was MET on 2026-09-22 at offsets 107-110 on
-      dm:3bba15e681b3a078:d1993c2c3ec44c94: note -> stage=delivered (both sidecars) ->
-      stage=read **evidence=wake-consumer**, signed 3bba15e6 via --as-identity, L3 at
-      t=8s, topic grew by exactly 4 envelopes.
-      Every one of those observations still happened. What changed is what they MEAN.
-      `evidence=wake-consumer` was withdrawn as untruthful later the same day: a
-      consumer noticing a FLAG has injected nothing into any prompt, so a receipt
-      claiming `stage=read` on that basis asserts a read that did not occur.
-      `notify-ack-read.sh` dropped it from the valid evidence list, and
-      `notify-ledger.sh` (T-3070) refuses to advance a rung on it — with offset 110,
-      the very receipt cited above, named in its fixtures as the case to ignore.
-      Leaving this ticked would have the register assert, on evidence the rail itself
-      now rejects, exactly the thing arc-011 exists to stop overclaiming. Re-tick only
-      on a receipt carrying `idle-gated-inject` or `observed-turn`.
-      Required restarting the sidecars first: the running ones were executing
-      pre-change code and emitted no `last_mail_ts` at all (T-2405 stale-code class,
-      a long-lived detached process keeps the old version until restarted).
+- [x] Every scratch REPL spawned for the live proof (`cls*`, `wake-proof*`, `shellfix`)
+      is stopped, so none keeps consuming API budget after the proof is recorded
+- [x] The classifier fix, the injector read-back fix, the new fixtures, the captured
+      PTY fixtures and the arc-register updates are committed and pushed to OneDev
+- [x] The three suites this work touches pass after the cleanup, from the committed
+      tree: pty-state (12), notify-injector (24), journal-mirror (16)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -251,6 +140,13 @@ cost_estimate_proposed:
 # P-011, from the same directory, the same second. To rehearse for real:
 #     bash -c 'set -eo pipefail; <your verification line>'
 #
+bash tests/pty-state-fixtures.sh
+bash tests/notify-injector-fixtures.sh
+bash tests/journal-mirror-fixtures.sh
+
+# No scratch REPL from the live proof is still registered.
+test -z "$(termlink list 2>/dev/null | grep -E 'cls[0-9]|cls-probe|wake-proof|shellfix')"
+
 # Enforcement-baseline hint (L-398, T-1886): if you edited `.claude/settings.json`
 # (added/removed/reorganised hooks), add `bin/fw enforcement baseline` to your
 # Verification block. Otherwise the canonical hash diverges and `fw doctor`
@@ -350,24 +246,7 @@ cost_estimate_proposed:
 
 ## Updates
 
-### 2026-09-22T10:36:15Z — task-created [task-create-agent]
+### 2026-09-22T21:24:44Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3068-give-the-wake-consumer-a-trigger-supervi.md
+- **Output:** /opt/termlink/.tasks/active/T-3081-close-out-the-arc-011-live-proof-session.md
 - **Context:** Initial task creation
-
-### 2026-09-22T13:10:21Z — status-update [task-update-agent]
-- **Change:** tags: +arc:arc-011
-
-### 2026-09-22T18:17:30Z — status-update [task-update-agent]
-- **Change:** status: started-work → captured
-- **Reason:** PARKED on SQ-5 (recorded in the arc register). The live-proof AC has been UNTICKED: it was ticked citing evidence=wake-consumer at offsets 107-110, and that evidence kind was withdrawn as untruthful the same day — notify-ledger.sh names offset 110 in its fixtures as the receipt to ignore. Installing the crontab would schedule a cron to drive a path whose only end-to-end proof has been retracted; leaving it dark keeps a permanent audit FAIL. Operator decision, not mine to make to keep momentum.
-
-### 2026-09-22T18:17:58Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
-
-### 2026-09-22T18:19:41Z — status-update [task-update-agent]
-- **Change:** status: started-work → captured
-- **Reason:** PARKED on SQ-5 (arc register). Live-proof AC unticked — its evidence (wake-consumer) was withdrawn. Install-vs-leave-dark is an operator decision.
-
-### 2026-09-22T19:18:57Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work

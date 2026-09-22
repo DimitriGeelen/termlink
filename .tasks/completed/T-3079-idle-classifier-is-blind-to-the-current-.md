@@ -1,22 +1,15 @@
 ---
-id: T-3068
-name: "Give the wake consumer a trigger: supervised standing service so the flag is
-  actually read"
+id: T-3079
+name: "Idle classifier is blind to the current Claude Code UI, so the injector defers forever"
 description: >
-  Give the wake consumer a trigger: supervised standing service so the flag is actually
-  read
+  scripts/lib/pty-state.sh classifies a live, idle, injectable Claude Code REPL as UNKNOWN, so notify-injector.sh defers rc=4 permanently and the L3 rung can never be reached by machine. Measured 2026-09-22: sampled every 10s for 100s after a completed turn, no positive marker at any sample. Cause is the marker set, not the window: ?forshortcuts is absent at every window size on a chat REPL with auto-mode on, whose footer reads 'auto mode on (shift+tab to cycle)'. Widening the window is NOT the fix — at 4000 bytes a stale esctointerrupt reappears and would pin BUSY forever, which is the scrollback contamination the docstring warns about. Also: the lib references $TERMLINK with no default, so a caller that has not set it reads nothing and gets UNKNOWN — a broken instrument indistinguishable from a real verdict.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
-horizon: now
+owner: claude-code
+horizon: null
 tags: [arc:arc-011]
-components:
-  - scripts/notify-wake-supervisor.sh
-  - scripts/notify-wake-consumer.sh
-  - scripts/notify-sidecar.sh
-  - tests/notify-wake-supervisor-fixtures.sh
-  - .context/cron/notify-wake-supervisor.crontab
+components: []
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -28,9 +21,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-22T10:36:15Z
-last_update: 2026-09-22T19:25:07Z
-date_finished:
+created: 2026-09-22T20:33:56Z
+last_update: 2026-09-22T21:20:14Z
+date_finished: 2026-09-22T21:20:14Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -41,128 +34,87 @@ date_finished:
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
-bvp_scores_proposed:
-  - ts: '2026-09-22T14:56:59Z'
-    estimator: bvp-estimator-v1-heuristic
-    scores:
-      D1: 4
-      D2: 2
-      D3: 3
-      D4: 2
-      F-RECALL: 0
-      F-ORCH: 0
-    rationale: D1=4 (body:structural-gate); D2=2 
-      (body:telemetry-or-audit-entry); D3=3 (body:component-discoverability); 
-      D4=2 (body:env-class-handled); F-RECALL=0 (no-signal); F-ORCH=0 
-      (no-signal)
-    rubric_sha: e4a00f38e801
-  - ts: '2026-09-22T18:17:59Z'
-    estimator: bvp-estimator-v1-heuristic
-    scores:
-      D1: 4
-      D2: 4
-      D3: 3
-      D4: 2
-      F-RECALL: 2
-      F-ORCH: 0
-    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
-      (body:component-discoverability); D4=2 (body:env-class-handled); 
-      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
-    rubric_sha: e4a00f38e801
-cost_estimate_proposed:
-  - ts: '2026-09-22T14:57:32Z'
-    estimator: bvp-estimator-v1-heuristic
-    cost_estimate:
-      blast_radius:
-      tier: 2
-      effort: 8
-    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
-      (workflow:build); effort=8 (lines=239,acs=10)
-    rubric_sha: e4a00f38e801
-  - ts: '2026-09-22T14:59:09Z'
-    estimator: bvp-estimator-v1-heuristic
-    cost_estimate:
-      blast_radius: 5
-      tier: 2
-      effort: 8
-    rationale: blast_radius=5 (5-components-medium-blast); tier=2 
-      (workflow:build); effort=8 (lines=239,acs=10)
-    rubric_sha: e4a00f38e801
 ---
 
-# T-3068: Give the wake consumer a trigger: supervised standing service so the flag is actually read
+# T-3079: Idle classifier is blind to the current Claude Code UI, so the injector defers forever
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+`scripts/lib/pty-state.sh` gates every injection on this rail. It classified a live,
+idle, **injectable** Claude Code REPL as UNKNOWN — permanently — so `notify-injector.sh`
+deferred at rc=4 and `be-reachable-pushwaker.sh` fell through to rc=3 after 90s of
+patience. The L3 rung could never be reached by machine, which is why T-3069's live AC
+failed twice and why SQ-2 concluded, wrongly, that the arc had no audience.
+
+**Three defects, each measured, not inferred.**
+
+1. **The marker set does not match the UI.** The READY arm required one of
+   `?forshortcuts | newtask? | checkingforupdate | /cleartosave`. On a chat REPL with
+   auto-mode on, `?forshortcuts` is ABSENT at every window size; that footer reads
+   `⏵⏵ auto mode on (shift+tab to cycle)`. Sampled every 10s for 100s after a completed
+   turn: no positive marker at any sample.
+
+2. **The BUSY arm has a hole, and it is the dangerous one.** During streaming, response
+   text fills the window and pushes `esc to interrupt` out of it. Five consecutive
+   mid-stream samples reported NO busy marker. Marker absence never meant idle — it
+   usually meant busy. Capturing a busy marker for a fixture took 25 rapid samples at
+   turn *start* and could not be caught at all mid-stream.
+
+3. **Widening the window makes it worse.** After a completed turn: 2500B no markers,
+   4000B a **stale** `esc to interrupt` reappears, 6000B carries the stale busy marker
+   AND idle markers together. That is precisely the scrollback contamination the file's
+   own docstring warns about. The narrow window was right; the marker set was wrong.
+
+**The fix does not depend on UI prose**, because prose is what broke it:
+
+* **QUIESCENCE** — two reads a moment apart must be byte-identical. Every in-flight turn
+  animates (spinner, elapsed seconds, token counter), so a running turn cannot hold
+  still. This is what closes hole #2.
+* **EMPTY COMPOSER** — the prompt's own row must hold nothing but whitespace and/or the
+  UI's dim suggestion. This refuses to inject on top of text already pending, a second
+  and distinct way to lose a message.
+
+Both are structural properties of *how a terminal renders*, not of what it says.
+
+**Validation:** 466 paired samples across plain, long and tool-using turns, scored
+against the UI's own `· done` completion marker as ground truth. **FALSE-READY = 0**,
+with every in-flight sample correctly deferred.
+
+Cost of the remaining false-negative: ~4% of idle samples defer because a transient
+status line repaints. That is safe and self-correcting — a missed wake costs one cron
+cycle; a blind inject costs the message.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `scripts/notify-wake-supervisor.sh` keeps a `notify-wake-consumer.sh
-      --follow` alive per agent declared in `.context/cron/notify-wake-agents.conf`,
-      started if absent, left alone if healthy — the same contract as the sidecar
-      supervisor (T-3050)
-- [ ] The liveness probe is ANCHORED so the supervisor cannot match its own command
-      line and report a phantom as running. T-3050 hit exactly this and the fixture
-      harness killed itself over it
-- [x] `.context/cron/notify-wake-supervisor.crontab` installs the trigger, using the
-      split-stream redirect idiom (`>> log 2>> log.stderr`, T-2685) so a tooling
-      error can never dirty the findings channel.
-      **INSTALLED 2026-09-22 on operator approval (SQ-5 answered: install).**
-      `/etc/cron.d/termlink-notify-wake-supervisor`, 0644 root:root, byte-identical
-      to the tracked source (`diff` clean). `check-cron-install-drift` went 1 -> 0
-      ("healthy, 30 installed + matching"), and `tests/cron-drift-firing-fixtures.sh`
-      went 12/1 -> **13 passed, 0 failed** — the guard-layer red this was causing is
-      gone, not silenced.
-      VERIFIED FIRING, not merely present: `journalctl -u cron` shows
-      `21:20:01 CRON[97550]: (root) CMD (cd /opt/termlink && bash
-      scripts/notify-wake-supervisor.sh --quiet ...)` at the first */5 boundary after
-      install, and both log streams exist and are EMPTY — which is the healthy state
-      under the one-bit convention, and proves the split redirect works.
-- [ ] The consumer writes a `<agent>.wake-heartbeat` each cycle, so "the consumer is
-      alive" is observable and a dead one is distinguishable from a quiet one — the
-      same reason the sidecar's own heartbeat exists
-- [ ] The consumer acts under the RIGHT IDENTITY: it exports `TERMLINK_AGENT_ID`
-      for the agent it serves, so L3 receipts are signed by that agent and not by
-      whatever key the cron happens to run as. A receipt attributed to the wrong
-      identity is worse than no receipt
-- [x] `notify-rail-e2e.sh`'s WAKE stage reports the consumer as a live path-A
-      trigger once installed, and the full suite's WAKE verdict changes from
-      NOT-WIRED accordingly — verified by running it, not by reading the code.
-      **MET 2026-09-22, by running it:** `WAKE PASS  1 consumer(s) react to a raised
-      flag`, where this previously read NOT-WIRED. Full suite
-      `--stages precond,deliver,receipt,ladder,wake` returns **verdict: PROVEN**
-      (PRECOND/DELIVER/RECEIPT/LADDER/WAKE all PASS; DELIVER observed on the peer in
-      6215ms, RECEIPT acked up_to=120).
-- [ ] `tests/notify-wake-supervisor-fixtures.sh` is hermetic and pins: start-if-absent,
-      leave-alone-if-healthy, the anchored probe not matching itself, a conf with zero
-      agents being a tooling error rather than a silent success, and the heartbeat
-      being written
-- [ ] Proven live end to end: a real message raises the flag, the SUPERVISED consumer
-      (not one I launched by hand for the test) fires, and an L3 `stage=read` receipt
-      appears on the topic — read back from the hub, not inferred.
-
-      **UNTICKED 2026-09-22 (T-3071 run). The evidence behind this tick was later
-      WITHDRAWN, so the tick was asserting something retracted.**
-      It was MET on 2026-09-22 at offsets 107-110 on
-      dm:3bba15e681b3a078:d1993c2c3ec44c94: note -> stage=delivered (both sidecars) ->
-      stage=read **evidence=wake-consumer**, signed 3bba15e6 via --as-identity, L3 at
-      t=8s, topic grew by exactly 4 envelopes.
-      Every one of those observations still happened. What changed is what they MEAN.
-      `evidence=wake-consumer` was withdrawn as untruthful later the same day: a
-      consumer noticing a FLAG has injected nothing into any prompt, so a receipt
-      claiming `stage=read` on that basis asserts a read that did not occur.
-      `notify-ack-read.sh` dropped it from the valid evidence list, and
-      `notify-ledger.sh` (T-3070) refuses to advance a rung on it — with offset 110,
-      the very receipt cited above, named in its fixtures as the case to ignore.
-      Leaving this ticked would have the register assert, on evidence the rail itself
-      now rejects, exactly the thing arc-011 exists to stop overclaiming. Re-tick only
-      on a receipt carrying `idle-gated-inject` or `observed-turn`.
-      Required restarting the sidecars first: the running ones were executing
-      pre-change code and emitted no `last_mail_ts` at all (T-2405 stale-code class,
-      a long-lived detached process keeps the old version until restarted).
+- [x] **The fail-safe bias is preserved and provable.** READY is still returned ONLY on
+      positive evidence; every ambiguous state resolves to UNKNOWN, and the
+      BUSY → modal-UNKNOWN → READY case ORDER is unchanged. A wrong READY is a blind
+      inject (T-2396), so this is the criterion the others serve
+- [x] **A live, idle, injectable REPL classifies READY** — the state that currently
+      returns UNKNOWN forever. Proven on a real spawned REPL, not on a fixture alone
+- [x] **A mid-turn REPL never classifies READY.** Proven by sampling a real REPL
+      repeatedly ACROSS a running turn, not by a single well-timed probe
+- [x] The READY predicate does not rest on UI *prose* alone. Footer wording changed
+      between Claude Code versions and that is what broke this classifier; the new
+      signal must survive a wording change or the same bug recurs next release
+- [x] **A composer with text already pending does NOT classify READY**, because
+      injecting there appends to the operator's half-typed line — a distinct way to
+      lose a message that the current classifier also cannot see
+- [x] `TERMLINK` resolves to a default inside the lib, so a caller that has not
+      exported it can no longer get a silent UNKNOWN from an unrunnable probe. The
+      broken-instrument case must be distinguishable from a real verdict
+- [x] Fixtures are built from **PTY bytes captured off a real REPL**, not hand-written
+      approximations, covering: idle, mid-turn, text-pending, modal/picker, shell
+      prompt, and empty read. Each asserts the classifier's verdict
+- [x] **Mutation-proven:** disabling each new arm of the predicate individually makes a
+      named fixture fail. A guard that cannot go red is not a guard
+- [x] `bash tests/notify-injector-fixtures.sh` still passes in full — the injector
+      sources this lib, and no existing assertion may be weakened to fit.
+      (AMENDED: written as "23/23"; it is now **24/24**. The extra case is T24, added
+      because this task found the injector reporting "L3 posted" for a receipt that
+      was never written. The count went up, not down — no assertion was removed.)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -255,6 +207,22 @@ cost_estimate_proposed:
 # (added/removed/reorganised hooks), add `bin/fw enforcement baseline` to your
 # Verification block. Otherwise the canonical hash diverges and `fw doctor`
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
+
+bash -n scripts/lib/pty-state.sh
+python3 -m py_compile scripts/lib/composer-state.py
+
+# The classifier's own verdicts, every fixture real captured PTY bytes. F1 is the
+# state that was UNKNOWN forever; F3/F4/F5/F5b are the four ways a message is lost.
+bash tests/pty-state-fixtures.sh
+
+# The injector sources the lib. T24 pins the false "L3 posted" claim found live.
+bash tests/notify-injector-fixtures.sh
+
+# Structural pins, so a later edit cannot quietly drop the arms the fixtures assert.
+grep -q 'pushwaker_composer_empty' scripts/lib/pty-state.sh
+grep -q 'raw_a" = "$raw_b' scripts/lib/pty-state.sh
+grep -q 'TERMLINK="${TERMLINK:-termlink}"' scripts/lib/pty-state.sh
+grep -q 'l3_covered' scripts/notify-injector.sh
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
@@ -297,6 +265,62 @@ cost_estimate_proposed:
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-09-22 — the arc's blocker was one function, and the search for it was nearly sabotaged by a second bug in the same file
+
+- **What changed:** filed as "the marker set is stale; add markers". That would have
+  fixed nothing. Adding `automodeon` to the list gets you READY for about as long as
+  the next Claude Code release, and it does not touch the far more dangerous defect the
+  measurement surfaced: **the BUSY arm has a hole.** During streaming the response text
+  pushes `esc to interrupt` out of the window, so five consecutive mid-stream samples
+  reported "not busy". The classifier's safety therefore never rested on the BUSY
+  marker in the first place — it rested on READY being unreachable. Fix the READY arm
+  alone and you convert a permanently-deferring classifier into one that injects into
+  running turns.
+- **Plan impact:** the predicate had to stop depending on UI prose at all. Quiescence
+  (two byte-identical reads) and composer-row emptiness are properties of how a
+  terminal repaints, not of what it writes, so a wording change in the next release
+  cannot silently disarm them.
+- **The measurement instrument was itself broken, twice, and both nearly produced
+  confident wrong answers:**
+  1. `pty-state.sh` referenced `"$TERMLINK"` with no default. Sourced from a shell that
+     had not exported it, the probe ran an empty command, read nothing, and returned
+     UNKNOWN — indistinguishable from a real verdict. My first sweep of five sessions
+     reported all-UNKNOWN *through this bug* and would have "confirmed" SQ-2 on a
+     measurement error.
+  2. My first composer parser judged "everything after the last `❯`" in the byte
+     stream. The PTY is cursor-addressed, so byte order is not screen order: the
+     version/update status line (`current: 2.1.267 … Checking for update`) is grey but
+     NOT dim and is painted at row 19 while the composer sits at row 21. It counted as
+     pending input, and the classifier deferred forever on an idle REPL — the same
+     "never READY" bug reintroduced one layer down, by the fix for it. Only row
+     tracking resolved it.
+- **Mutation testing earned its keep twice, and both times the suite was green and
+  wrong.** First run: deleting the quiescence arm broke nothing, because my mid-turn
+  fixture was being caught by the composer arm instead. The state that isolates
+  quiescence — in flight, no busy marker, composer genuinely empty — had to be hunted
+  live and captured (F5b). Second run: T24 passed with the read-back disabled, because
+  the stub returned an empty topic and a different branch fired. A stub that models a
+  real hub (never empty) fixed it. Both are the same lesson: a fixture that passes for
+  the wrong reason is indistinguishable from one that passes for the right one, until
+  you break the code on purpose.
+- **A defect found only because the live proof was actually run.** The injector
+  reported `L3 posted (evidence=idle-gated-inject)` for a receipt that did not exist.
+  `notify-ack-read`'s contract is explicit — *"Exit: 0 posted (OR already acked)"* — so
+  with the guard at 145 and the queue serving offset 0 it took the no-op branch and
+  returned 0. This file already carried a scar from the same class arriving by another
+  route (a stale guard in the wrong directory); that fix addressed the route and left
+  the conflation, which is exactly why it recurred. The injector now READS THE RECEIPT
+  BACK from the hub and refuses to claim delivery it cannot see. Disavowed evidence
+  (`wake-consumer`) does not count toward that proof.
+- **Still open, recorded rather than papered over:** the queue picks the oldest content
+  message on the topic with no watermark tied to the L3 rung, so on a topic with
+  history it re-serves ancient offsets. On the live run it served offset 0 while L3
+  stood at 145. Not fixed here — it is a queue-semantics change, not a classifier fix,
+  and it deserves its own task.
+- **Triggered:** `tests/pty-state-fixtures.sh` (new, 12 assertions, fixtures from real
+  captured bytes), `scripts/lib/composer-state.py` (new), T24 in the injector suite,
+  and the read-back verification in `notify-injector.sh`. Closes T-3069's live AC.
 
 ## Recommendation
 
@@ -350,24 +374,20 @@ cost_estimate_proposed:
 
 ## Updates
 
-### 2026-09-22T10:36:15Z — task-created [task-create-agent]
+### 2026-09-22T20:33:56Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3068-give-the-wake-consumer-a-trigger-supervi.md
+- **Output:** /opt/termlink/.tasks/active/T-3079-idle-classifier-is-blind-to-the-current-.md
 - **Context:** Initial task creation
 
-### 2026-09-22T13:10:21Z — status-update [task-update-agent]
-- **Change:** tags: +arc:arc-011
+## Reviewer Verdict (v1.5)
 
-### 2026-09-22T18:17:30Z — status-update [task-update-agent]
-- **Change:** status: started-work → captured
-- **Reason:** PARKED on SQ-5 (recorded in the arc register). The live-proof AC has been UNTICKED: it was ticked citing evidence=wake-consumer at offsets 107-110, and that evidence kind was withdrawn as untruthful the same day — notify-ledger.sh names offset 110 in its fixtures as the receipt to ignore. Installing the crontab would schedule a cron to drive a path whose only end-to-end proof has been retracted; leaving it dark keeps a permanent audit FAIL. Operator decision, not mine to make to keep momentum.
+- **Scan ID:** R-ba376943
+- **Timestamp:** 2026-09-22T21:20:17Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
 
-### 2026-09-22T18:17:58Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
-
-### 2026-09-22T18:19:41Z — status-update [task-update-agent]
-- **Change:** status: started-work → captured
-- **Reason:** PARKED on SQ-5 (arc register). Live-proof AC unticked — its evidence (wake-consumer) was withdrawn. Install-vs-leave-dark is an operator decision.
-
-### 2026-09-22T19:18:57Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
+### 2026-09-22T21:20:14Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Classifier fixed with two prose-independent arms (quiescence + composer-row emptiness); 466 paired samples, FALSE-READY=0; 12 fixtures from real captured PTY bytes; all arms mutation-proven. Also fixed the injector claiming L3 posted for a receipt that was never written.

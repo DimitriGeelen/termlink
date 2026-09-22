@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3080: Record the arc-011 live proof in the slice register and resolve SQ-2
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-22T21:24:32Z
+# ============================================================================
+
+task_id: T-3080
+task_name: "Record the arc-011 live proof in the slice register and resolve SQ-2"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-22T21:22:03Z
+completed: 2026-09-22T21:24:24Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  T-3069 and T-3079 closed with the rail proven end to end on a live REPL. The slice register still records S7 and S10 as unbuilt and SQ-2 as open, so it understates the arc exactly as it overstated nothing before — the same drift class T-3077 repaired. Update S7/S10 to built with the live evidence, and resolve SQ-2, whose premise (no injectable audience) was disproved and whose real blocker (the idle classifier) is now fixed.
+
+# Key outcomes
+outcomes:
+  - 'Slices S7 and S10 read `built`, each note carrying the evidence that earned it'
+  - 'No slice whose `task:` is in `.tasks/completed/` still reads `unbuilt` — the same'
+  - 'SQ-2 is marked resolved with what actually answered it: its premise was'
+  - 'The arc YAML parses, and every `task:` reference still resolves to a real file'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 2
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3080-record-the-arc-011-live-proof-in-the-sli.md
+generated_by: context-agent-hybrid
