@@ -183,22 +183,22 @@ while IFS=$'\t' read -r kind arc prover detail; do
     case "$kind" in
         SKIP)    continue ;;
         ALLOW)   CLOSED=$((CLOSED+1)); ALLOWED=$((ALLOWED+1))
-                 [ "$QUIET" -eq 1 ] || printf '  %-28s ACKNOWLEDGED  %s\n' "$arc" "$detail" ;;
+                 { [ "$QUIET" -eq 1 ] || [ "$JSON" -eq 1 ]; } || printf '  %-28s ACKNOWLEDGED  %s\n' "$arc" "$detail" ;;
         UNBOUND) CLOSED=$((CLOSED+1)); FIRING=$((FIRING+1))
                  FIRE_LINES="${FIRE_LINES}${arc}: ${detail}"$'\n'
-                 printf '  %-28s UNBOUND       %s\n' "$arc" "$detail" ;;
+                 [ "$JSON" -eq 1 ] || printf '  %-28s UNBOUND       %s\n' "$arc" "$detail" ;;
         RUN)     CLOSED=$((CLOSED+1))
                  if [ "$RUN_PROVERS" -eq 0 ]; then
                      BOUND_OK=$((BOUND_OK+1))
-                     [ "$QUIET" -eq 1 ] || printf '  %-28s BOUND         %s (not run)\n' "$arc" "$prover"
+                     { [ "$QUIET" -eq 1 ] || [ "$JSON" -eq 1 ]; } || printf '  %-28s BOUND         %s (not run)\n' "$arc" "$prover"
                  else
                      if timeout "$TIMEOUT" bash -c "$prover" >/dev/null 2>&1; then
                          BOUND_OK=$((BOUND_OK+1))
-                         [ "$QUIET" -eq 1 ] || printf '  %-28s VERIFIED      %s\n' "$arc" "$prover"
+                         { [ "$QUIET" -eq 1 ] || [ "$JSON" -eq 1 ]; } || printf '  %-28s VERIFIED      %s\n' "$arc" "$prover"
                      else
                          FIRING=$((FIRING+1))
                          FIRE_LINES="${FIRE_LINES}${arc}: bound prover FAILED: ${prover}"$'\n'
-                         printf '  %-28s CLAIM-FAILED  prover exited non-zero: %s\n' "$arc" "$prover"
+                         [ "$JSON" -eq 1 ] || printf '  %-28s CLAIM-FAILED  prover exited non-zero: %s\n' "$arc" "$prover"
                      fi
                  fi ;;
     esac

@@ -22,7 +22,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-22T09:28:06Z
-last_update: 2026-09-22T09:28:06Z
+last_update: 2026-09-22T09:33:50Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -72,19 +72,23 @@ date_finished: null
 - [ ] Exit contract: 0 = clean, 1 = orphan(s), 2 = tooling. **Fail-closed** — a
       missing tasks dir, absent `python3`, or a corpus of zero task files exits 2,
       never a vacuous clean
-- [ ] A git-tracked allowlist at `.context/checks/deferred-slice-allowlist` (T-2681
-      convention) acknowledges confirmed-benign hits with a cited reason; entries are
-      counted and reported but do not fire
-- [ ] Output states its SCOPE explicitly: it detects deferral language without a
-      successor. It does NOT verify the successor is adequate, nor that a task
-      without deferral language deferred nothing (T-2680 — a green must not be read
-      as a broader claim than it is)
-- [ ] `tests/deferred-slice-orphan-fixtures.sh` is hermetic (fixture corpus, no live
-      register) and pins at least two mutants: a task whose successor reference is
-      removed must fire, and an allowlisted entry must stop firing
-- [ ] The actual orphans found are reported to the operator, NOT auto-remediated —
-      whether a deferred slice still matters is a human judgement, and auto-filing
-      would convert a visible backlog into a silent one
+- [ ] A git-tracked allowlist at `.context/checks/arc-claim-allowlist` (T-2681
+      convention) acknowledges arcs whose claim nobody needs re-checked, with a cited
+      reason; entries are counted and reported but do not fire
+- [ ] Output states its SCOPE explicitly: it detects whether a closed arc's claim is
+      bound to something runnable and whether that still passes. It does NOT judge
+      whether the prover is ADEQUATE to the claim, and says nothing about in-progress
+      arcs (T-2680 — a green must not be read as a broader claim than it is)
+- [ ] `tests/arc-claim-drift-fixtures.sh` is hermetic (throwaway arc dirs, no live
+      register) and pins the two readings that would make the check worthless:
+      `demo_evidence` accepted as a binding, and a bound-but-FAILING prover read as
+      clean. Plus the fail-closed contract and the empty-field column-shift regression
+- [ ] The arcs found are reported to the operator, NOT auto-remediated — whether a
+      stale claim still matters is a human judgement, and auto-binding a prover would
+      convert a visible problem into a silent one
+- [ ] Proven on the real register: arc-003 bound to
+      `notify-rail-e2e.sh --experiment e4` reports **CLAIM-FAILED**, converting a
+      silently-false "no silent loss" claim into a loud one
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
