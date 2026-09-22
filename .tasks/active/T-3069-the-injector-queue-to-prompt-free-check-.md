@@ -2,9 +2,13 @@
 id: T-3069
 name: "The injector: queue to prompt-free check to inject to verify-working to L3"
 description: >
-  THE missing middle of the rail. Read the journal queue, check the prompt is free (be-reachable-pushwaker READY/BUSY/UNKNOWN, built and unused), inject the message, VERIFY the agent is actually working on it, and only then post L3 with evidence=idle-gated-inject. Without this the rail delivers and confirms but nothing ever reaches an agent. Blocks the honest use of L3.
+  THE missing middle of the rail. Read the journal queue, check the prompt is free
+  (be-reachable-pushwaker READY/BUSY/UNKNOWN, built and unused), inject the message,
+  VERIFY the agent is actually working on it, and only then post L3 with evidence=idle-gated-inject.
+  Without this the rail delivers and confirms but nothing ever reaches an agent. Blocks
+  the honest use of L3.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -22,8 +26,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-22T12:51:49Z
-last_update: 2026-09-22T13:12:55Z
-date_finished: null
+last_update: 2026-09-22T14:42:57Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,6 +38,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-09-22T14:42:57Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3069: The injector: queue to prompt-free check to inject to verify-working to L3
@@ -46,8 +64,37 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] `scripts/notify-injector.sh` runs the full chain in order: arrival record →
+      agent reachable? → prompt free? → read queue → inject → **verify** → L3
+- [ ] It SOURCES the PTY classifier from `scripts/lib/pty-state.sh` rather than
+      carrying its own copy. Two copies of a subtle heuristic drift, and the one
+      that drifts is the one that quietly stops catching things
+- [ ] **AGENT-NOT-RUNNING is its own outcome**, distinct from BUSY, with its own
+      exit code. Operator requirement: "I want to inject, but I check if my agent
+      is running, I see it's not running." Treating absent as busy would retry
+      forever against a session that no longer exists
+- [ ] **UNKNOWN defers, never injects.** The classifier is fail-safe biased by
+      design (READY only on a positive idle marker) and the injector must preserve
+      that bias — a wrong READY is the blind inject this whole rung exists to kill
+- [ ] **Injection is VERIFIED before L3 is posted.** `termlink inject` returns
+      before submission (T-2396, proven live): on a busy or manual-accept session
+      the text lands unsubmitted and is discarded. So after injecting, the injector
+      re-reads the PTY and requires evidence the text was consumed; if it cannot
+      confirm, it posts NOTHING and says so
+- [ ] L3 is posted with `--evidence idle-gated-inject`, the kind that means the
+      injector observed a READY prompt before injecting — and it is the FIRST
+      truthful caller of that rung
+- [ ] Exit contract: 0 injected+verified · 1 nothing to do · 2 tooling ·
+      3 agent not running · 4 prompt busy/unknown (deferred) · 5 injected but
+      NOT verified (the loud case — a message may be sitting unsubmitted)
+- [ ] `--dry-run` prints the decision and the message it WOULD inject, and injects
+      nothing, so the chain can be inspected on a live host without side effects
+- [ ] `tests/notify-injector-fixtures.sh` is hermetic (stub `termlink`, fixture
+      journal, fixture flag) and pins: not-running ≠ busy, UNKNOWN defers,
+      unverified injection posts no L3, a verified injection posts exactly one L3,
+      and an empty queue is "nothing to do" rather than an error
+- [ ] Proven against a REAL session end to end, with the L3 receipt read back from
+      the hub — and if any stage fails, the failure is reported, not narrated away
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -242,3 +289,6 @@ date_finished: null
 
 ### 2026-09-22T13:10:18Z — status-update [task-update-agent]
 - **Change:** tags: +arc:arc-011
+
+### 2026-09-22T14:42:57Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
