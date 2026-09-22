@@ -387,7 +387,12 @@ stage_ladder() {
 
     local n_l2 n_l3
     n_l2="$(printf '%s\n' "$blob" | jq -rs '[.[] | (.envelope//.) | select(.msg_type=="receipt") | (.metadata//{}).stage | select(.=="delivered")] | length' 2>/dev/null)"
-    n_l3="$(printf '%s\n' "$blob" | jq -rs '[.[] | (.envelope//.) | select(.msg_type=="receipt") | (.metadata//{}).stage | select(.=="read")] | length' 2>/dev/null)"
+    # stage=read receipts carrying evidence=wake-consumer are NOT counted. That
+    # evidence kind was removed (T-3068): a consumer that notices a flag has
+    # injected nothing, so those receipts assert something false. Counting them
+    # would let a disavowed receipt hold this stage green — a guard propped up by
+    # the exact lie it exists to catch. Offset 110 on the live dm topic is one.
+    n_l3="$(printf '%s\n' "$blob" | jq -rs '[.[] | (.envelope//.) | select(.msg_type=="receipt") | (.metadata//{}) | select(.stage=="read") | select((.evidence // "") != "wake-consumer")] | length' 2>/dev/null)"
     case "$n_l2" in ''|*[!0-9]*) n_l2=0 ;; esac
     case "$n_l3" in ''|*[!0-9]*) n_l3=0 ;; esac
 

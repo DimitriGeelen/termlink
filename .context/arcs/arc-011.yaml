@@ -1,0 +1,116 @@
+id: arc-010
+slug: arc-011
+name: "Agent-to-agent message delivery: mailbox to prompt"
+description: "The operator's full spec for the sidecar rail, end to end: sender -> sidecar API\
+  \ -> receiver stores message+blob on local disk -> flag -> RECEIVED back to sender\
+  \ -> sender ledger -> independent cron checks the prompt is free -> queue -> inject\
+  \ -> verify the agent is working -> INJECTED back to sender -> roles swap on reply.\
+  \ Steps 1-6 are partly built on the wrong mechanism (hub RPC, not a sidecar API);\
+  \ steps 7-10 do not exist."
+status: in-progress
+anchor_task: T-3069
+headline_mechanic: "An agent sends a message (with an optional binary blob) to a peer and learns, as\
+  \ two separate confirmed events, that it was RECEIVED into the peer's local store\
+  \ and later INJECTED into the peer's prompt with the peer verified as working on\
+  \ it \u2014 without either side needing to be continuously attached."
+demo_evidence: null
+created: 2026-09-22T13:10:11Z
+closed_at: null
+decision: null
+# T-1918 (arc-006, value-prioritisation): BVP scoring fields. Semantics in
+# docs/reports/T-1915-bvp-inception.md §4 (D7-reframe) and §7 (M2).
+bvp_scores: {}
+scoped_drivers: []           # max 3, weight ≤6 each (M2). Approved by fw arc approve-driver (T-1926).
+proposed_scoped_drivers: []  # uncapped persistence (D7-reframe). Estimator may write here freely.
+
+# T-3066 — this arc carries a SLICE REGISTER and a PROVER BINDING, which no other
+# arc in this repo has. Both exist because of what went wrong on arc-003:
+#   * arc-003 closed asserting "no silent loss" and a silent-loss path was proven
+#     82 days later. Its only evidence was demo_evidence — a markdown narrative
+#     written once at close time, which cannot fail later.
+#   * a deferred slice (L3 stage=read) had no field to live in, so it survived only
+#     as the word "future" inside a task that completed, and vanished.
+# A slice with no task is now a structural query, not an archaeology exercise.
+# scripts/check-arc-claim-drift.sh runs the prover and fires if it stops passing.
+prover: "bash scripts/notify-rail-e2e.sh --stages precond,deliver,receipt,ladder,wake"
+
+# Each slice maps to ONE operator spec step. status: built | partial | unbuilt.
+# 'partial' means something real exists but NOT via the specified mechanism — it is
+# deliberately not 'built', because that is exactly the overclaim that wasted a day.
+slices:
+  - id: S1
+    spec_step: "1. sender sends via a sidecar API"
+    task: T-3070
+    status: unbuilt
+    note: "Sends ride hub RPC today. No sidecar API exists. Operator wants a separate
+           always-respawning process, independent of the hub because the hub goes
+           down, also carrying the startup chain (agent/session/project/hub, re-resolve
+           FQDN/IP on change). NEEDS OPERATOR DISCUSSION BEFORE BUILD."
+  - id: S2
+    spec_step: "2. payload may carry a binary blob"
+    task: T-3071
+    status: unbuilt
+    note: "TermLink has blob transport but it does not drop in: file send targets a
+           SESSION not a dm topic; file receive WAITS for file.init events so the
+           receiver must be attached; PL-095 — send spools to the SENDER's hub inbox."
+  - id: S3
+    spec_step: "3. receiver stores it on local disk"
+    task: T-2300
+    status: built
+    note: "journal.sqlite, 2238 rows measured 2026-09-22."
+  - id: S4
+    spec_step: "4. receiver sets a flag"
+    task: T-3068
+    status: built
+    note: "Plus the arrival record (last_mail_ts/last_mail_topic) that survives the
+           L2 ack, so the flag can answer 'did anything arrive since I last looked?'
+           rather than only 'is something unread right now'."
+  - id: S5
+    spec_step: "5. receiver tells sender RECEIVED"
+    task: T-2300
+    status: partial
+    note: "L2 stage=delivered is real and durable, but it is a POST TO A HUB TOPIC,
+           not a sidecar API call. Right event, wrong mechanism. Becomes 'built' when
+           S1 lands."
+  - id: S6
+    spec_step: "6. sender records it in its own ledger"
+    task: T-3072
+    status: unbuilt
+    note: "Sender can only poll hub receipts. A sender that restarts loses all
+           knowledge of what it is waiting on."
+  - id: S7
+    spec_step: "7. independent process checks the prompt is free"
+    task: T-3069
+    status: unbuilt
+    note: "The READY/BUSY/UNKNOWN classifier exists (be-reachable-pushwaker, T-2402
+           Stage 3) and is WIRED TO NOTHING. Must run without an LLM online, and must
+           have a recovery path when the agent is not running at all."
+  - id: S8
+    spec_step: "8. read the queue, inject the highest-priority message"
+    task: T-3073
+    status: unbuilt
+    note: "Flat FIFO for now per operator; the priority FIELD is what this slice adds."
+  - id: S9
+    spec_step: "9. urgent messages inject directly"
+    task: T-3074
+    status: unbuilt
+    note: "Semantics undefined. Operator: note it for later."
+  - id: S10
+    spec_step: "10. inject, verify the agent is working, report INJECTED"
+    task: T-3069
+    status: unbuilt
+    note: "THE KEY SLICE. Until it exists L3 cannot be posted honestly — evidence=
+           wake-consumer was removed precisely because noticing a flag is not
+           injecting. L3 machinery is built and waiting for a truthful caller."
+  - id: S11
+    spec_step: "11. a cron drives the whole loop"
+    task: T-3068
+    status: unbuilt
+    note: "Crontab written, NOT installed. WAKE reports NOT-WIRED and that verdict is
+           correct until it is in."
+  - id: S12
+    spec_step: "12. roles swap — the agent replies as sender"
+    task: T-3070
+    status: unbuilt
+    note: "Blocked for framework-agent-systemd: `termlink` is not in its systemd
+           --allowed-commands, so it can receive and cannot reply. Operator decision."

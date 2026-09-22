@@ -165,7 +165,7 @@ fi
 echo "T15 [LADDER]: an L3 receipt present -> PASS"
 cat > "$WORK/l3.ndjson" <<'EOS'
 {"msg_type":"receipt","offset":1,"metadata":{"stage":"delivered","up_to":"0"}}
-{"msg_type":"receipt","offset":2,"metadata":{"stage":"read","up_to":"1","evidence":"wake-consumer"}}
+{"msg_type":"receipt","offset":2,"metadata":{"stage":"read","up_to":"1","evidence":"idle-gated-inject"}}
 EOS
 OUT="$(NOTIFY_E2E_TEST_PRECOND=1 NOTIFY_E2E_TEST_LADDER="$WORK/l3.ndjson" \
        bash "$E2E" --stages ladder 2>&1)"; rc=$?
@@ -173,6 +173,19 @@ if [ "$rc" -eq 0 ] && printf '%s' "$OUT" | grep -q 'reached L3'; then
     pass "T15 rc=$rc reached L3"
 else
     fail "T15 expected 0/reached L3 got $rc: $OUT"
+fi
+
+echo "T15b [LADDER]: a DISAVOWED wake-consumer receipt must NOT hold the stage green"
+cat > "$WORK/l3wc.ndjson" <<'EOS'
+{"msg_type":"receipt","offset":1,"metadata":{"stage":"delivered","up_to":"0"}}
+{"msg_type":"receipt","offset":2,"metadata":{"stage":"read","up_to":"1","evidence":"wake-consumer"}}
+EOS
+OUT="$(NOTIFY_E2E_TEST_PRECOND=1 NOTIFY_E2E_TEST_LADDER="$WORK/l3wc.ndjson" \
+       bash "$E2E" --stages ladder 2>&1)"; rc=$?
+if [ "$rc" -eq 1 ] && printf '%s' "$OUT" | grep -q 'L2-ONLY'; then
+    pass "T15b a receipt from a non-injecting consumer does not count as L3"
+else
+    fail "T15b A DISAVOWED RECEIPT HELD THE LADDER GREEN — rc=$rc: $OUT"
 fi
 
 echo "T16 [LADDER]: no staged receipts at all -> FAIL, not a vacuous pass"
