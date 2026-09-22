@@ -194,3 +194,27 @@ sovereign_questions:
     why: "Injecting into a busy prompt is the T-2396 failure — text lands unsubmitted
            and is discarded. So urgent-into-busy can silently lose exactly the
            messages most likely to be marked urgent. Blocks T-3072."
+  - id: SQ-5
+    question: "Install the wake-supervisor crontab when the only live proof of the
+               wake path has been withdrawn?"
+    task: T-3068
+    why: "RAISED 2026-09-22 during the T-3071 run. The audit has one standing FAIL —
+           cron(notify-wake-supervisor) written but absent from /etc/cron.d — and it
+           has been left deliberately uninstalled across two sessions. The reason got
+           sharper on inspection: T-3068's live-proof AC was ticked citing offsets
+           107-110 with `evidence=wake-consumer`, and that evidence kind was withdrawn
+           as untruthful later the same day (a consumer noticing a FLAG has injected
+           nothing, so `stage=read` on that basis asserts a read that never happened).
+           notify-ack-read.sh dropped it from the valid list and notify-ledger.sh
+           refuses to advance a rung on it, naming offset 110 — the very receipt cited
+           — in its fixtures as the case to ignore. The AC has now been UNTICKED.
+           So the question is not merely 'install it?' but: scheduling a cron to drive
+           a path whose only end-to-end proof has been retracted wires up machinery
+           nothing has shown to work. Against that, leaving it uninstalled keeps a
+           permanent red in the audit, which is its own corrosion (T-2818: a guard
+           that is always red stops being read).
+           Operator call. Two coherent answers: (a) install it and accept that the
+           rail's proof is pending a valid-evidence receipt, or (b) leave it dark and
+           acknowledge the audit FAIL in writing so the red is explained rather than
+           ignored. Not decided here — deciding it to keep momentum is exactly what
+           the mandate forbids."

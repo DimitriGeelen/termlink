@@ -29,7 +29,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-22T10:36:15Z
-last_update: '2026-09-22T14:59:09Z'
+last_update: 2026-09-22T18:17:58Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -55,6 +55,19 @@ bvp_scores_proposed:
       (body:telemetry-or-audit-entry); D3=3 (body:component-discoverability); 
       D4=2 (body:env-class-handled); F-RECALL=0 (no-signal); F-ORCH=0 
       (no-signal)
+    rubric_sha: e4a00f38e801
+  - ts: '2026-09-22T18:17:59Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
 cost_estimate_proposed:
   - ts: '2026-09-22T14:57:32Z'
@@ -111,13 +124,26 @@ cost_estimate_proposed:
       leave-alone-if-healthy, the anchored probe not matching itself, a conf with zero
       agents being a tooling error rather than a silent success, and the heartbeat
       being written
-- [x] Proven live end to end: a real message raises the flag, the SUPERVISED consumer
+- [ ] Proven live end to end: a real message raises the flag, the SUPERVISED consumer
       (not one I launched by hand for the test) fires, and an L3 `stage=read` receipt
       appears on the topic — read back from the hub, not inferred.
-      **MET 2026-09-22**, offsets 107-110 on dm:3bba15e681b3a078:d1993c2c3ec44c94:
-      note -> stage=delivered (both sidecars) -> stage=read evidence=wake-consumer,
-      signed 3bba15e6 (the receiving agent, via --as-identity). L3 at t=8s. Topic
-      grew by exactly 4 envelopes — no runaway.
+
+      **UNTICKED 2026-09-22 (T-3071 run). The evidence behind this tick was later
+      WITHDRAWN, so the tick was asserting something retracted.**
+      It was MET on 2026-09-22 at offsets 107-110 on
+      dm:3bba15e681b3a078:d1993c2c3ec44c94: note -> stage=delivered (both sidecars) ->
+      stage=read **evidence=wake-consumer**, signed 3bba15e6 via --as-identity, L3 at
+      t=8s, topic grew by exactly 4 envelopes.
+      Every one of those observations still happened. What changed is what they MEAN.
+      `evidence=wake-consumer` was withdrawn as untruthful later the same day: a
+      consumer noticing a FLAG has injected nothing into any prompt, so a receipt
+      claiming `stage=read` on that basis asserts a read that did not occur.
+      `notify-ack-read.sh` dropped it from the valid evidence list, and
+      `notify-ledger.sh` (T-3070) refuses to advance a rung on it — with offset 110,
+      the very receipt cited above, named in its fixtures as the case to ignore.
+      Leaving this ticked would have the register assert, on evidence the rail itself
+      now rejects, exactly the thing arc-011 exists to stop overclaiming. Re-tick only
+      on a receipt carrying `idle-gated-inject` or `observed-turn`.
       Required restarting the sidecars first: the running ones were executing
       pre-change code and emitted no `last_mail_ts` at all (T-2405 stale-code class,
       a long-lived detached process keeps the old version until restarted).
@@ -315,3 +341,10 @@ cost_estimate_proposed:
 
 ### 2026-09-22T13:10:21Z — status-update [task-update-agent]
 - **Change:** tags: +arc:arc-011
+
+### 2026-09-22T18:17:30Z — status-update [task-update-agent]
+- **Change:** status: started-work → captured
+- **Reason:** PARKED on SQ-5 (recorded in the arc register). The live-proof AC has been UNTICKED: it was ticked citing evidence=wake-consumer at offsets 107-110, and that evidence kind was withdrawn as untruthful the same day — notify-ledger.sh names offset 110 in its fixtures as the receipt to ignore. Installing the crontab would schedule a cron to drive a path whose only end-to-end proof has been retracted; leaving it dark keeps a permanent audit FAIL. Operator decision, not mine to make to keep momentum.
+
+### 2026-09-22T18:17:58Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
