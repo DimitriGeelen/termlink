@@ -4,10 +4,10 @@ name: "Close out the arc-011 live-proof session: stop test REPLs and commit"
 description: >
   Stop the scratch Claude REPLs spawned for the T-3079/T-3069 live proof so they consume no further API budget, and commit the classifier fix, the injector read-back fix, the new fixtures and the arc register updates.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: claude-code
-horizon: now
+horizon: null
 tags: [arc:arc-011]
 components: []
 related_tasks: []
@@ -22,8 +22,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-22T21:24:44Z
-last_update: 2026-09-22T21:24:44Z
-date_finished: null
+last_update: 2026-09-22T21:29:25Z
+date_finished: 2026-09-22T21:29:25Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -194,6 +194,28 @@ test -z "$(termlink list 2>/dev/null | grep -E 'cls[0-9]|cls-probe|wake-proof|sh
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-09-22 — "stopped" did not mean deregistered, and the cleanup found pre-existing debris
+
+- **What changed:** `tl-claude.sh stop` reports `Session 'X' stopped` and kills Claude,
+  but the `termlink register` wrapper inside the tmux pane survives — so the session
+  stays REGISTERED and `ready`. `termlink clean` then reports "No stale sessions found",
+  because the pid really is alive. Five scratch sessions looked live after being
+  stopped. The distinction that matters for budget is which PROCESS is alive: checking
+  `pane_current_command` showed `termlink`, not `claude`, so nothing was consuming API
+  quota — but the registry said otherwise, and anything reading the registry (find-idle,
+  the doorbell, the injector's own agent-running check) would have believed it.
+- **The cleanup was larger than this task created:** killing the five panes let
+  `termlink clean` reap **14** stale registrations, so nine predated this session. That
+  is the frozen-husk/orphan class the repo documents, accumulating quietly.
+- **Not filed as a defect here, deliberately:** `stop` killing Claude but leaving the
+  registrar is arguably correct for a *persistent* session (the whole point of
+  `tl-claude.sh start` is that the shell survives Claude exiting, so `restart` can
+  re-inject). What is missing is a way to say "and release the registration", and
+  whether that belongs to `stop` or to a new verb is a design call, not a bug fix I
+  should make while closing out someone else's proof run.
+- **Triggered:** nothing. Recorded so the next person who reads `ready` in
+  `termlink list` knows it can mean "a registrar is alive", not "an agent is there".
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -250,3 +272,16 @@ test -z "$(termlink list 2>/dev/null | grep -E 'cls[0-9]|cls-probe|wake-proof|sh
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3081-close-out-the-arc-011-live-proof-session.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-52a5ff5a
+- **Timestamp:** 2026-09-22T21:29:29Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-09-22T21:29:25Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Scratch REPLs stopped and deregistered (14 stale registrations reaped); classifier fix, injector read-back, fixtures and arc register committed as 14d3218b9 and pushed; all three suites green.
