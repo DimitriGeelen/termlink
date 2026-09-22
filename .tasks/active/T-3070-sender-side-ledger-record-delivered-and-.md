@@ -6,7 +6,7 @@ description: >
   and later injected. Today the sender can only poll hub receipts; there is no local
   record, so a sender that restarts loses all knowledge of what it is waiting on.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -26,7 +26,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-22T12:52:47Z
-last_update: '2026-09-22T14:59:18Z'
+last_update: 2026-09-22T15:10:40Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -83,8 +83,27 @@ cost_estimate_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] `scripts/notify-ledger.sh` records what THIS host has sent and what came back,
+      in a local SQLite the sender owns — so a sender that restarts still knows what
+      it is waiting on. Today that knowledge exists only as hub receipts it must
+      re-poll
+- [ ] Three verbs: `record` (I sent this), `sync` (read receipts and update rungs),
+      `status` (what is outstanding, and at which rung)
+- [ ] It records the LADDER per message — sent → delivered (L2) → read (L3) — so
+      "delivered but never read" is a state the sender can SEE rather than infer
+- [ ] **It never invents a rung.** `sync` only advances a rung on an actual receipt
+      read back from the hub; absence of a receipt leaves the rung where it was. A
+      ledger that optimistically marks things delivered is worse than no ledger
+- [ ] **`stage=read` carrying `evidence=wake-consumer` is ignored**, because that
+      evidence kind was withdrawn as untruthful (T-3068). A disavowed receipt must
+      not advance a rung here either
+- [ ] `status --stuck [--older-than SECS]` names messages sent but never confirmed —
+      the G-063 write-only-sink class, applied to the sender's own outbox
+- [ ] Exit contract 0 / 1 (stuck found, for `--stuck`) / 2 tooling, **fail-closed**:
+      an unreadable or uncreatable ledger exits 2, never a clean "nothing stuck"
+- [ ] `tests/notify-ledger-fixtures.sh` is hermetic (temp ledger, stub receipts) and
+      pins: a rung never advances without a receipt, wake-consumer evidence is
+      ignored, stuck detection fires on age, and an empty ledger is clean not broken
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -279,3 +298,6 @@ cost_estimate_proposed:
 
 ### 2026-09-22T13:10:19Z — status-update [task-update-agent]
 - **Change:** tags: +arc:arc-011
+
+### 2026-09-22T15:10:40Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
