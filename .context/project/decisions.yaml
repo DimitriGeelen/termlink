@@ -1211,3 +1211,17 @@ decisions:
   date: 2026-09-16
   task: T-2935
   rationale: "Auto-captured from task file on completion"
+
+- id: PD-167
+  decision: "recommend `inbox:<agent-id>` (with a `--await-ack-from <fp>` generalisation to follow), `dm:<fp>:<fp>` as the alternative; advised against keeping `sidecar:<agent-id>`."
+  scope: project
+  date: 2026-09-22
+  task: T-3062
+  rationale: "Auto-captured from task file on completion"
+
+- id: PD-168
+  decision: "T-3063 (retry window vs dedupe TTL), T-3064 (hub echo of client_msg_id), T-3065 (auto-confirm receipt signed by the wrong fp) filed as separate tasks; T-3062 stays a reply task."
+  scope: project
+  date: 2026-09-22
+  task: T-3062
+  rationale: "Auto-captured from task file on completion"
