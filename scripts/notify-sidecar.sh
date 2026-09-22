@@ -281,10 +281,40 @@ write_cycle() {
     printf '%s\n' "$hb" > "$notify_dir/.$agent_id.heartbeat.tmp" \
         && mv -f "$notify_dir/.$agent_id.heartbeat.tmp" "$notify_dir/$agent_id.heartbeat"
 
+    # T-3068 — MONOTONIC ARRIVAL RECORD, alongside the unread snapshot.
+    #
+    # pending/latest_topic describe what is unread AT THIS INSTANT, and that is
+    # all they ever described. When --auto-confirm acks, pending goes to 0 and
+    # latest_topic goes EMPTY, so the flag stops carrying any memory that mail
+    # arrived at all. A consumer polling the flag is then not losing a race — the
+    # information has been destroyed. Measured: two controlled sends, sidecar
+    # acked, consumer saw nothing across 40s.
+    #
+    # last_mail_ts/last_mail_topic PERSIST across the ack. They answer the
+    # question the flag previously could not: "did anything arrive since I last
+    # looked?" — as opposed to "is something unread right now". A consumer
+    # triggers on last_mail_ts advancing past its own durable marker, which is a
+    # value the acker cannot race to zero.
+    #
+    # Carried forward from the previous flag rather than kept in memory, so the
+    # record survives a sidecar restart exactly as the ack guards do.
+    local prev_mail_ts="" prev_mail_topic=""
+    if [ -r "$notify_dir/$agent_id.flag" ]; then
+        prev_mail_ts="$(grep -E '^last_mail_ts=' "$notify_dir/$agent_id.flag" 2>/dev/null | head -1 | cut -d= -f2-)"
+        prev_mail_topic="$(grep -E '^last_mail_topic=' "$notify_dir/$agent_id.flag" 2>/dev/null | head -1 | cut -d= -f2-)"
+    fi
+    local mail_ts="$prev_mail_ts" mail_topic="$prev_mail_topic"
+    if [ "$pending" -gt 0 ] 2>/dev/null; then
+        mail_ts="$hb"
+        mail_topic="$latest"
+    fi
+
     {
         printf 'pending=%s\n' "$pending"
         printf 'latest_topic=%s\n' "$latest"
         printf 'ts=%s\n' "$hb"
+        printf 'last_mail_ts=%s\n' "$mail_ts"
+        printf 'last_mail_topic=%s\n' "$mail_topic"
     } > "$notify_dir/.$agent_id.flag.tmp" \
         && mv -f "$notify_dir/.$agent_id.flag.tmp" "$notify_dir/$agent_id.flag"
 

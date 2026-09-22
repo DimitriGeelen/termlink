@@ -125,6 +125,11 @@ HEARTBEAT="$NOTIFY_DIR/$AGENT_ID.heartbeat"
 # One layer down and it would have been the identical blind spot.
 WAKE_HEARTBEAT="$NOTIFY_DIR/$AGENT_ID.wake-heartbeat"
 
+# Durable "highest arrival I have acted on". Survives a restart, so a supervised
+# consumer does not replay history every time the supervisor brings it back.
+SEEN_FILE="$NOTIFY_DIR/.$AGENT_ID.wake-seen"
+SEEN_MAIL_TS=""
+
 # IDENTITY IS DECLARED, NEVER DERIVED FROM THE WATCHER LABEL.
 #
 # An earlier version did `export TERMLINK_AGENT_ID="$AGENT_ID"`, reasoning that the
@@ -201,10 +206,35 @@ while [ "$DEADLINE" -eq 0 ] || [ "$(date +%s)" -lt "$DEADLINE" ]; do
 
     if [ -r "$FLAG" ]; then
         ts="$(kv "$FLAG" ts | tr -dc '0-9')"; : "${ts:=0}"
-        topic="$(kv "$FLAG" latest_topic)"
         pending="$(kv "$FLAG" pending | tr -dc '0-9')"; : "${pending:=0}"
 
-        if [ "$ts" -gt "$START_MS" ] 2>/dev/null && [ "$pending" -gt 0 ] && [ -n "$topic" ]; then
+        # T-3068 — TRIGGER ON THE ARRIVAL RECORD, NOT THE UNREAD SNAPSHOT.
+        #
+        # This used to key on `pending > 0` plus a non-empty latest_topic. Both are
+        # cleared the moment --auto-confirm acks, and the acker runs in the SAME
+        # sidecar cycle that detects the mail. So the consumer was not losing a
+        # race — after the ack there was nothing left in the flag to observe at
+        # all. Measured: two controlled sends, zero wakes across 40s each.
+        #
+        # last_mail_ts/last_mail_topic persist across the ack, so they answer "did
+        # anything arrive since I last looked?" rather than "is something unread
+        # right now". The acker cannot race them to zero.
+        mail_ts="$(kv "$FLAG" last_mail_ts | tr -dc '0-9')"; : "${mail_ts:=0}"
+        topic="$(kv "$FLAG" last_mail_topic)"
+
+        # First sight establishes a BASELINE and fires nothing. Without this a
+        # fresh consumer wakes immediately on whatever history the flag carries —
+        # claude-termlink's mailbox holds 91 pending from stale July topics, and a
+        # wake that fires on everything wakes nobody.
+        if [ -z "$SEEN_MAIL_TS" ]; then
+            if [ -r "$SEEN_FILE" ]; then
+                SEEN_MAIL_TS="$(tr -dc '0-9' < "$SEEN_FILE")"
+            fi
+            : "${SEEN_MAIL_TS:=$mail_ts}"
+            log "baseline last_mail_ts=$SEEN_MAIL_TS (firing only on advances past this)"
+        fi
+
+        if [ "$mail_ts" -gt "$SEEN_MAIL_TS" ] 2>/dev/null && [ -n "$topic" ]; then
             if [ -z "$TOPIC_FILTER" ] || [ "$topic" = "$TOPIC_FILTER" ]; then
                 _now="$(date +%s)"
                 _last="${LAST_FIRE_AT[$topic]:-0}"
@@ -256,9 +286,16 @@ while [ "$DEADLINE" -eq 0 ] || [ "$(date +%s)" -lt "$DEADLINE" ]; do
                 else
                     log "action failed (rc=$action_rc) — NOT posting L3; the message reached no prompt"
                 fi
+                # Advance the durable marker BEFORE any exit. It sat after the
+                # non-follow `exit 0` at first, so a one-shot consumer fired and
+                # never recorded that it had — and its successor replayed the same
+                # arrival on every restart. Under a supervisor that is an infinite
+                # replay, not a missed write.
+                SEEN_MAIL_TS="$mail_ts"
+                printf '%s\n' "$mail_ts" > "$SEEN_FILE.tmp" 2>/dev/null \
+                    && mv -f "$SEEN_FILE.tmp" "$SEEN_FILE" 2>/dev/null || true
                 FIRED=1
                 [ "$FOLLOW" -eq 1 ] || exit 0
-                START_MS="$(now_ms)"   # re-baseline so we do not re-fire on the same flag
             fi
         fi
     fi

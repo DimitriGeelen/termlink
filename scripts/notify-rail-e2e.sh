@@ -459,8 +459,14 @@ wake_diagnosis() {
         [ -r "$f" ] || continue
         grep -lqE 'notify-check|notify/.*\.flag|notify-wake-consumer' "$f" 2>/dev/null && cron_a=$((cron_a+1))
     done
-    printf 'pathA(flag-consumer)=%s pathB(pushwaker built=%s armed=%s) L3(stage=read)=NOT-IMPLEMENTED' \
-        "$cron_a" "$built_b" "$armed_b"
+    # L3 status is DETECTED, not asserted. This line used to hardcode
+    # "NOT-IMPLEMENTED" and kept saying so for two commits after L3 shipped — a
+    # guard telling a confident lie about a thing it never re-checked, which is
+    # the same disease the rest of this file is about.
+    local l3="implemented"
+    [ -x "$HERE/notify-ack-read.sh" ] || l3="NOT-IMPLEMENTED"
+    printf 'pathA(flag-consumer)=%s pathB(pushwaker built=%s armed=%s) L3(stage=read)=%s' \
+        "$cron_a" "$built_b" "$armed_b" "$l3"
 }
 
 stage_wake() {
@@ -471,7 +477,7 @@ stage_wake() {
         record WAKE PASS "$n consumer(s) react to a raised flag"
         return 0
     fi
-    record WAKE NOT-WIRED "no wake path is armed — $(wake_diagnosis). The mailbox fills and the ladder stops at L2/delivered: the sender is never told the message was INJECTED, because L3 stage=read was deferred as a future slice and never built."
+    record WAKE NOT-WIRED "no wake path is armed — $(wake_diagnosis). The rungs exist; nothing is running to climb them."
     return 1
 }
 
