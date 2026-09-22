@@ -631,8 +631,17 @@ experiment_e3() {
 # post that had FAILED with -32013 unknown-topic. A conclusion drawn from a failed
 # send is the exact sender-side reasoning this prover forbids. The topic must be
 # created first; the check below compares identities directly and needs no send.)
+# THE QUESTION THIS ASKS, AND THE ONE IT USED TO ASK (corrected)
+# The first version compared the fp DECLARED for this agent against the fp this
+# agent RESOLVES to, and failed when they differed. That is the wrong question.
+# An agent may legitimately have two fingerprints (a shared host key with all the
+# history, and a per-agent key with correct attribution); what makes it a SILENT
+# LOSS is not that they differ, it is that NOBODY WATCHES one of them. So the
+# question is coverage: is mail addressed to my resolved identity watched by ANY
+# declared sidecar? That also makes the remediation additive — cover the second
+# mailbox — instead of forcing a migration that would strand 11 live topics.
 experiment_e4() {
-    local declared="$SELF_FP" resolved
+    local resolved conf="${NOTIFY_E2E_CONF:-.context/cron/notify-sidecar-agents.conf}"
     resolved="$(TERMLINK_AGENT_ID="$SELF_AGENT" timeout "$EXEC_TIMEOUT" \
         "$TERMLINK" agent identity --resolve --json 2>/dev/null \
         | jq -r '.fingerprint // empty' 2>/dev/null)"
@@ -640,11 +649,18 @@ experiment_e4() {
         record E4 FAIL "cannot resolve identity for $SELF_AGENT — cannot rule out a split mailbox"
         return 1
     fi
-    if [ "$resolved" = "$declared" ]; then
-        record E4 PASS "sidecar watches the agent's resolved identity ($resolved) — no split"
+    if [ ! -r "$conf" ]; then
+        record E4 FAIL "sidecar conf unreadable ($conf) — cannot prove any mailbox is watched"
+        return 1
+    fi
+    # Declared fingerprints = field 2 of each non-comment conf line.
+    local declared
+    declared="$(awk '!/^[[:space:]]*#/ && NF>=2 {print $2}' "$conf" 2>/dev/null)"
+    if printf '%s\n' "$declared" | grep -qx -- "$resolved"; then
+        record E4 PASS "'$SELF_AGENT' resolves to $resolved and a declared sidecar watches it — no unwatched mailbox"
         return 0
     fi
-    record E4 FAIL "IDENTITY SPLIT: sidecar watches $declared but '$SELF_AGENT' resolves to $resolved. Mail addressed to the resolved identity lands on dm:*:$resolved topics that NOTHING polls — silent loss, no surface reports it."
+    record E4 FAIL "IDENTITY SPLIT: '$SELF_AGENT' resolves to $resolved but NO declared sidecar watches that fingerprint (conf declares: $(printf '%s' "$declared" | tr '\n' ' ')). Mail addressed to the resolved identity lands on dm:*:$resolved topics nothing polls — silent loss, no surface reports it."
     return 1
 }
 
