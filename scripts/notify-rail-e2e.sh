@@ -100,7 +100,8 @@ Options:
   --self-agent ID        sending agent id          (default claude-termlink)
   --self-fp FP           sending identity fp       (default d1993c2c3ec44c94)
   --stages LIST          comma list of precond,deliver,receipt,wake,reverse
-  --experiment NAME      e1 (sidecar-dead) | e2 (latency) | all
+  --experiment NAME      e1 (sidecar-dead) | e2 (latency) | e3 (closed-loop wake)
+                         | e4 (identity split) | all
   --iterations N         iterations for the e2 latency experiment (default 5)
   --deliver-timeout SEC  how long to wait for the receiver to observe (default 90)
   --no-reverse           skip the REVERSE stage
@@ -571,6 +572,44 @@ experiment_e3() {
     return 1
 }
 
+# ===========================================================================
+# EXPERIMENT E4 — identity split: is the sidecar watching the WRONG mailbox?
+# ===========================================================================
+# Found 2026-09-22 and proven, not inferred. `.context/cron/notify-sidecar-agents.conf`
+# declares `claude-termlink d1993c2c3ec44c94` (the shared HOST key), but
+# `TERMLINK_AGENT_ID=claude-termlink termlink agent identity --resolve` returns
+# 6738c073bbcc587a, because a per-agent key exists at identities/claude-termlink.key.
+# The agent therefore has TWO fingerprints and the sidecar watches exactly one.
+#
+# Proven by construction: a topic dm:<peer>:<alt-fp> was created and posted to.
+# The PEER's sidecar consumed it and posted a receipt (up_to=0). OUR sidecar never
+# moved — pending stayed 89, latest_topic unchanged, across two full 15s cycles.
+# Same message, same hub, same moment; the only variable is the configured
+# fingerprint. That is a SILENT LOSS path inside the rail whose entire purpose is
+# to prevent silent loss: any peer addressing this agent by its resolved identity
+# writes to a mailbox nothing is watching, and no surface reports it.
+#
+# (The first attempt at this experiment concluded "silent loss confirmed" from a
+# post that had FAILED with -32013 unknown-topic. A conclusion drawn from a failed
+# send is the exact sender-side reasoning this prover forbids. The topic must be
+# created first; the check below compares identities directly and needs no send.)
+experiment_e4() {
+    local declared="$SELF_FP" resolved
+    resolved="$(TERMLINK_AGENT_ID="$SELF_AGENT" timeout "$EXEC_TIMEOUT" \
+        "$TERMLINK" agent identity --resolve --json 2>/dev/null \
+        | jq -r '.fingerprint // empty' 2>/dev/null)"
+    if [ -z "$resolved" ]; then
+        record E4 FAIL "cannot resolve identity for $SELF_AGENT — cannot rule out a split mailbox"
+        return 1
+    fi
+    if [ "$resolved" = "$declared" ]; then
+        record E4 PASS "sidecar watches the agent's resolved identity ($resolved) — no split"
+        return 0
+    fi
+    record E4 FAIL "IDENTITY SPLIT: sidecar watches $declared but '$SELF_AGENT' resolves to $resolved. Mail addressed to the resolved identity lands on dm:*:$resolved topics that NOTHING polls — silent loss, no surface reports it."
+    return 1
+}
+
 # ---- verdict --------------------------------------------------------------
 emit_verdict() {
     local overall="PROVEN" code=0
@@ -626,6 +665,9 @@ case "$EXPERIMENTS" in
 esac
 case "$EXPERIMENTS" in
     *e3*|*all*) experiment_e3 ;;
+esac
+case "$EXPERIMENTS" in
+    *e4*|*all*) experiment_e4 ;;
 esac
 
 emit_verdict
