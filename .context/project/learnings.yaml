@@ -4477,3 +4477,15 @@ learnings:
   task: T-3042
   date: 2026-09-21
   context: Added via context agent
+- id: PL-381
+  learning: "N-9 reproduced live on a 1M-context session: the budget gate reported 278,883 tokens as '~92% of context window' and level=urgent while ~14.7M tokens of budget remained. It assumes a ~300k window, so on a large-context model it manufactures a false wrap-up state and will escalate to BLOCK. Vendored (G-062) — file upstream, do not patch locally. Note the autonomous mandate's own stop condition ('context reaches ~300k') shares the same mis-calibrated assumption."
+  source: unknown
+  task: T-3044
+  date: 2026-09-21
+  context: Added via context agent
+- id: PL-382
+  learning: "A receipt APPEARING on a dm topic is not evidence the sender's --await-ack will see it: channel.receipts is keyed per sender_id and derive_dm_recipient polls for the dm-party fp parsed from the topic name, so a receipt signed by any other key (e.g. a sidecar exporting TERMLINK_AGENT_ID and signing with a per-agent identity) satisfies nobody. Assert receipt.sender_id == the fp the sender derives, not merely that a receipt row exists. Same trap for peers: on a shared host key every party is the same sender_id, so an ack is indistinguishable from the sender acking itself."
+  source: P-001
+  task: T-3062
+  date: 2026-09-22
+  context: Added via context agent
