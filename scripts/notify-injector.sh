@@ -173,14 +173,38 @@ case "$state" in
 esac
 
 # ---- 4. read the queue ----------------------------------------------------
-# FLAT FIFO by (ts, offset), per operator: priority is a later slice (T-3071).
+# T-3071 (arc-011 S8) — priority band FIRST, then FIFO within the band.
+#
+# The operator's direction is "keep it flat for now", and it stays flat: every message
+# in the corpus today resolves to band 0, so `priority DESC` is constant across the
+# comparison and the surviving order is exactly the old `ts ASC, offset ASC`. What
+# changes is that flatness is now DECLARED rather than incidental — before this, there
+# was no notion of priority for the ordering to be flat with respect to, so the
+# guarantee lived only in a comment and would evaporate the first time someone added
+# an index or rewrote the query.
+#
+# FIFO is retained INSIDE the band on purpose: priority decides which band goes first,
+# never which message within one jumps its neighbours. Without the (ts, offset) tail a
+# same-band tie falls to whatever order SQLite happens to return, which is the
+# incidental ordering this slice exists to remove.
+#
+# COALESCE guards the pre-migration case: a journal written before the column exists
+# is migrated by journal-mirror.sh, but a caller pointing --journal at an old database
+# must sort it as normal rather than fail.
+#
 # Content only — meta envelopes (receipts/reactions/...) are not work.
 sql_topic="${mail_topic//\'/\'\'}"
+if sqlite3 "$JOURNAL" "SELECT 1 FROM pragma_table_info('messages') WHERE name='priority';" 2>/dev/null | grep -q 1; then
+    prio_order="COALESCE(priority,0) DESC, "
+else
+    prio_order=""
+    log "journal has no priority column (pre-T-3071) — ordering by FIFO alone"
+fi
 row="$(sqlite3 -separator '|' "$JOURNAL" \
     "SELECT offset, sender_id, substr(payload,1,4000) FROM messages
       WHERE topic='$sql_topic'
         AND msg_type NOT IN ('receipt','reaction','redaction','edit','topic_metadata')
-      ORDER BY ts ASC, offset ASC
+      ORDER BY ${prio_order}ts ASC, offset ASC
       LIMIT 1;" 2>/dev/null)"
 
 if [ -z "$row" ]; then

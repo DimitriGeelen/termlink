@@ -82,10 +82,28 @@ CREATE TABLE IF NOT EXISTS messages (
     ts              INTEGER NOT NULL DEFAULT 0,
     payload         TEXT    NOT NULL DEFAULT '',
     observed_addr   TEXT    NOT NULL DEFAULT '',
+    priority        INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (topic, offset)
 );
 CREATE INDEX IF NOT EXISTS idx_messages_convo ON messages(conversation_id, offset);
 SQL
+
+# T-3071 (arc-011 S8) — MIGRATE an existing journal that predates the priority column.
+# CREATE TABLE IF NOT EXISTS is a no-op on a journal that already exists, so a tree
+# created before this change never gains the column from the block above. The measured
+# case: 2241 rows across 143 topics, no priority column.
+#
+# Idempotent by CONSTRUCTION, not by catching an error: ALTER TABLE ADD COLUMN on an
+# existing column is an error, and a migration whose idempotency depends on swallowing
+# errors also swallows the ones that matter. So ask the schema first.
+if ! sqlite3 "$JOURNAL" "SELECT 1 FROM pragma_table_info('messages') WHERE name='priority';" \
+     | grep -q 1; then
+    sqlite3 "$JOURNAL" "ALTER TABLE messages ADD COLUMN priority INTEGER NOT NULL DEFAULT 0;" \
+        || die "cannot add priority column to $JOURNAL"
+    # DEFAULT 0 backfills every existing row to the normal band, so migrating changes
+    # no ordering: the whole corpus stays exactly where it was. Non-destructive — no
+    # existing row is rewritten, only the column is appended.
+fi
 
 # Resolve the topic list.
 topics=""
@@ -103,6 +121,12 @@ fi
 # arbitrary payloads (newlines, quotes, unicode).
 insert_py='
 import sys, json, sqlite3, base64
+# T-3071 — the declared priority band. Deliberately narrow and symmetric:
+#   >0 ahead of normal, 0 normal (the default and the entire corpus today), <0 behind.
+# Kept small on purpose. A wide range invites senders to escalate by arithmetic
+# ("just add a zero") rather than by meaning, and nothing in the spec needs more than
+# a handful of bands. Widening it later is additive; narrowing it is not.
+PRIORITY_MIN, PRIORITY_MAX = -9, 9
 db = sys.argv[1]
 con = sqlite3.connect(db)
 cur = con.cursor()
@@ -120,10 +144,33 @@ for line in sys.stdin:
         payload = base64.b64decode(e.get("payload_b64") or "").decode("utf-8", "replace")
     except Exception:
         payload = ""
+    # T-3071 (arc-011 S8) — persist the priority the SENDER declared.
+    # (No apostrophes below this line: insert_py is a single-quoted shell string,
+    #  so one stray quote ends it and the rest of the body runs as shell.)
+    #
+    # Until now this function read metadata and kept exactly two keys, so a declared
+    # priority reached the journal and was dropped. payload holds the decoded BODY,
+    # not the envelope, so nothing downstream could recover it.
+    #
+    # CLAMPED, per the caller-param convention (T-2527/T-2526): priority arrives from
+    # a PEER. Unclamped, `priority: 1e9` pins that sender to the head of every queue
+    # forever — a denial of attention that needs no exploit, just a large integer.
+    # bool is excluded deliberately: it is a subclass of int in Python, and accepting
+    # `true` as 1 would silently promote a message whose sender set a flag, not a band.
+    pr = md.get("priority")
+    if isinstance(pr, bool) or pr is None:
+        pr = 0
+    else:
+        try:
+            pr = int(pr)                       # tolerates "3" and 3; rejects "high", [], {}
+        except (TypeError, ValueError):
+            pr = 0                             # UNPARSEABLE SORTS AS NORMAL, never as urgent:
+                                               # a garbled field must not outrank a real one.
+    pr = max(PRIORITY_MIN, min(PRIORITY_MAX, pr))
     cur.execute(
         "INSERT OR IGNORE INTO messages"
-        "(topic,offset,conversation_id,sender_id,msg_type,ts,payload,observed_addr)"
-        " VALUES(?,?,?,?,?,?,?,?)",
+        "(topic,offset,conversation_id,sender_id,msg_type,ts,payload,observed_addr,priority)"
+        " VALUES(?,?,?,?,?,?,?,?,?)",
         (
             e.get("topic") or "",
             int(e.get("offset") or 0),
@@ -133,6 +180,7 @@ for line in sys.stdin:
             int(e.get("ts") or 0),
             payload,
             str(md.get("observed_addr") or md.get("addr") or ""),
+            pr,
         ),
     )
 con.commit()

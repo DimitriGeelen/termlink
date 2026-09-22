@@ -106,8 +106,31 @@ slices:
   - id: S8
     spec_step: "8. read the queue, inject the highest-priority message"
     task: T-3071
-    status: unbuilt
-    note: "Flat FIFO for now per operator; the priority FIELD is what this slice adds."
+    status: built
+    note: "The field was never missing from the wire — journal-mirror.sh was DISCARDING
+           it. It parsed every envelope's metadata and kept exactly two keys
+           (conversation_id, observed_addr); payload holds the decoded BODY, not the
+           envelope, so once dropped nothing downstream could recover it. A sender could
+           have declared a priority for months and it would have vanished silently.
+           Now persisted to messages.priority, CLAMPED to [-9,9] on the way in
+           (T-2527 caller-param convention: priority arrives from a PEER, and unclamped
+           `priority: 1e9` pins that sender to the head of every queue forever — a denial
+           of attention needing no exploit, just a large integer). bool is excluded
+           deliberately (bool subclasses int in Python, so `true` would have become band
+           1); unparseable sorts as NORMAL, never as urgent.
+           Injector now orders COALESCE(priority,0) DESC, ts ASC, offset ASC. Flat stays
+           flat — it stopped being INCIDENTAL. Before this there was no declared notion
+           of priority for the ordering to be flat with respect to, so the guarantee
+           lived only in a comment.
+           BEHAVIOUR-PRESERVING, differentially proven on the real corpus: 2241 rows,
+           143 topics, identical row selected on every topic. That identity is
+           meaningful because the clause was separately shown load-bearing — promoting
+           the NEWEST message on a live topic to band 5 flips selection from offset 0 to
+           20. 23 injector fixtures (17 pre-existing intact, and they now double as the
+           pre-migration back-compat assertion since their queue has no priority column)
+           + 16 NEW journal-mirror fixtures — the mirror had no coverage at all before
+           it began writing peer-supplied input into a column the injector sorts on.
+           DOES NOT authorise S9: bypassing the prompt-free wait remains blocked on SQ-4."
   - id: S9
     spec_step: "9. urgent messages inject directly"
     task: T-3072

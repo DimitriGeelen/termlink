@@ -194,6 +194,79 @@ else
     fail "T17 the classifier has been duplicated into the injector"
 fi
 
+# ---------------------------------------------------------------------------
+# T-3071 (arc-011 S8) — priority band ordering.
+#
+# Note what T1..T17 above now prove for free: mkqueue() builds a table with NO
+# priority column, so every one of them exercises the PRE-MIGRATION fallback path.
+# Their continued passing is the back-compat assertion, not a separate case.
+#
+# The band cases below need a column, so they build their own queue.
+# ---------------------------------------------------------------------------
+mkqueue_p() { # queue WITH the T-3071 priority column
+    rm -f "$JOURNAL"
+    sqlite3 "$JOURNAL" "CREATE TABLE messages (topic TEXT, offset INTEGER, conversation_id TEXT DEFAULT '', sender_id TEXT DEFAULT '', msg_type TEXT DEFAULT '', ts INTEGER DEFAULT 0, payload TEXT DEFAULT '', observed_addr TEXT DEFAULT '', priority INTEGER DEFAULT 0);"
+}
+addp() { # addp <offset> <ts> <priority> <body>
+    sqlite3 "$JOURNAL" "INSERT INTO messages VALUES ('$TOPIC', $1, '', 'f$1', 'note', $2, '$4', '', $3);"
+}
+# no INJECTOR_TEST_INJECT_RC — that seam SKIPS the real call and the stub would
+# record nothing, so the grep would pass vacuously (the T13 lesson).
+run_pick() {
+    rm -f "$ND/.ag.injected-seen"; : > "$WORK/calls.log"
+    INJECTOR_TEST_SESSION_STATE=present INJECTOR_TEST_PTY_STATE=READY \
+      INJECTOR_TEST_VERIFY_STATE=BUSY run >/dev/null 2>&1
+}
+picked() { grep -o 'PICK_[A-Z]*' "$WORK/calls.log" | head -1; }
+
+echo "T18: equal priority falls back to FIFO (the band decides nothing here)"
+mkqueue_p; mkflag 20000
+addp 30 900 2 PICK_WRONG
+addp 10  50 2 PICK_RIGHT
+run_pick
+[ "$(picked)" = "PICK_RIGHT" ] && pass "T18 same band -> oldest first" \
+                               || fail "T18 got '$(picked)' want PICK_RIGHT"
+
+echo "T19 [THE POINT OF THE SLICE]: a higher band wins regardless of arrival order"
+mkqueue_p; mkflag 21000
+addp 10  50 0 PICK_WRONG
+addp 30 900 5 PICK_RIGHT
+run_pick
+[ "$(picked)" = "PICK_RIGHT" ] && pass "T19 newest-but-urgent outranks oldest-but-normal" \
+                               || fail "T19 got '$(picked)' want PICK_RIGHT"
+
+echo "T20: a NEGATIVE band sorts BEHIND normal (deprioritise is real, not a no-op)"
+mkqueue_p; mkflag 22000
+addp 10  50 -5 PICK_WRONG
+addp 30 900  0 PICK_RIGHT
+run_pick
+[ "$(picked)" = "PICK_RIGHT" ] && pass "T20 negative band yields to normal" \
+                               || fail "T20 got '$(picked)' want PICK_RIGHT"
+
+echo "T21 [FAIL-SAFE]: a NULL priority sorts as normal, never ahead of a real band"
+# A row written by a pre-T-3071 mirror into a migrated table can be NULL. If COALESCE
+# were dropped, NULL sorts LAST under DESC in SQLite — which would look 'safe' here but
+# silently demote every legacy message below anything a peer marks. Pin the behaviour.
+mkqueue_p; mkflag 23000
+sqlite3 "$JOURNAL" "INSERT INTO messages VALUES ('$TOPIC', 10, '', 'f10', 'note', 50, 'PICK_RIGHT', '', NULL);"
+addp 30 900 0 PICK_WRONG
+run_pick
+[ "$(picked)" = "PICK_RIGHT" ] && pass "T21 NULL == band 0, ties break by FIFO" \
+                               || fail "T21 got '$(picked)' want PICK_RIGHT"
+
+echo "T22: a meta envelope is still not work, whatever band it claims"
+mkqueue_p; mkflag 24000
+sqlite3 "$JOURNAL" "INSERT INTO messages VALUES ('$TOPIC', 10, '', 'f10', 'receipt', 50, 'PICK_WRONG', '', 9);"
+addp 30 900 0 PICK_RIGHT
+run_pick
+[ "$(picked)" = "PICK_RIGHT" ] && pass "T22 priority cannot promote a receipt into the queue" \
+                               || fail "T22 got '$(picked)' want PICK_RIGHT"
+
+echo "T23 [outcome 2]: an empty priority-aware queue still exits 2, not a vacuous pass"
+mkqueue_p; mkflag 25000; rm -f "$ND/.ag.injected-seen"
+INJECTOR_TEST_SESSION_STATE=present INJECTOR_TEST_PTY_STATE=READY run >/dev/null 2>&1; rc=$?
+[ "$rc" -eq 2 ] && pass "T23 rc=$rc" || fail "T23 expected 2 got $rc"
+
 echo
 echo "notify-injector fixtures: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ] || exit 1
