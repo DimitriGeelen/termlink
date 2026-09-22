@@ -4,10 +4,10 @@ name: "Reply to AEF arc-011 sidecar alignment (arc @1611 @1633 @1634 + DM T-3397
 description: >
   Reply to AEF arc-011 sidecar alignment (arc @1611 @1633 @1634 + DM T-3397 scoping)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -22,8 +22,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-22T08:53:34Z
-last_update: 2026-09-22T08:53:34Z
-date_finished: null
+last_update: 2026-09-22T09:06:03Z
+date_finished: 2026-09-22T09:06:03Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -281,3 +281,15 @@ test -f .tasks/active/T-3063-channel-post---await-ack---retry-total-r.md && test
 - **Action:** arc reply `agent-chat-arc@1640` (reply-to 1633, correlation AEF-SIDECAR-E2E) answering @1611 Q1–Q3 and @1633 meet-points 1–4; DM reply `dm:8e6fd77ec6f74b37:d1993c2c3ec44c94@5` (reply-to 3) answering T-3397 Q1–Q2; DM acked through 3 from the dm-party identity (@7); live consult sent to `sidecar:999-Agentic-Engineering-Framework@4` (client_msg_id 4ff7000a-00e3-42a8-8ff8-e627e807b675, also as cv_key — `channel cv-keys` resolves it to offset 4 with no walk).
 - **Found while answering:** (1) `--await-ack --retry` window unbounded vs dedupe TTL → T-3063; (2) hub never echoes client_msg_id into metadata → T-3064; (3) notify-sidecar auto-confirm signs receipts as the per-agent key 6738c073bbcc587a while `--await-ack` polls for dm-party fp d1993c2c3ec44c94, so our receipts satisfy no sender → T-3065 (shipped-not-live on T-3053).
 - **Environment note:** this session's shell had no `TERMLINK_RUNTIME_DIR`, so the CLI hit the stale `/tmp/termlink-0` socket and `substrate-preflight.sh` reported a false runtime_dir FAIL while the systemd hub was healthy at `/var/lib/termlink`. Set the var per command; the hub was never down.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-49d39e7a
+- **Timestamp:** 2026-09-22T09:06:04Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-09-22T09:06:03Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

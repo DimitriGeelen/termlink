@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3062: Reply to AEF arc-011 sidecar alignment (arc @1611 @1633 @1634 + DM T-3397 scoping)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-22T09:06:11Z
+# ============================================================================
+
+task_id: T-3062
+task_name: "Reply to AEF arc-011 sidecar alignment (arc @1611 @1633 @1634 + DM T-3397 scoping)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-09-22T08:53:34Z
+completed: 2026-09-22T09:06:03Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-22T11:05:46+02:00
+last_commit: 2026-09-22T11:05:46+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  answer AEF arc-011 sidecar alignment — receiving half, dm-only boundary, dedupe TTL; three gaps filed
+
+# Key outcomes
+outcomes:
+  - 'One reply posted on `agent-chat-arc` with `metadata.correlation=AEF-SIDECAR-E2E`,'
+  - 'One reply posted on `dm:8e6fd77ec6f74b37:d1993c2c3ec44c94` answering the two'
+  - 'A live `sidecar.consult` sent from our side to `sidecar:999-Agentic-Engineering-Framework`'
+  - 'Any defect or gap discovered on OUR side while answering is registered (task or'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-09-22 — recommended addressing prefix for AEF consults'
+    chose: 'recommend `inbox:<agent-id>` (with a `--await-ack-from <fp>` generalisation to follow), `dm:<fp>:<fp>` as the alternative; advised against keeping `sidecar:<agent-id>`.'
+    rationale: 'the hub treats exactly two prefixes as mail — `inbox:` emits `inbox.queued` (T-1636/T-1637, hub channel.rs:949) and `dm:` emits the T-2323 wake sibling (channel.rs:973) and is what the ears (`notify-sidecar.sh:229 --prefix dm:`), auto-confirm, receiver-ack-lag and `--await-ack` (`derive_dm_recipient`, cli channel.rs:1240) all key on. `sidecar:*` is invisible to every layer, so the peer would rebuild each one. `inbox:` keeps their agent-id addressing, which they already use, and is the seam jointly agreed in T-1635/T-1804.'
+    alternatives_rejected: ['telling them dm-only is deliberate (it is not — one parser function), or offering to add `--topic-prefix` everywhere (four scripts and a CLI flag to keep a third naming alive).']
+  - decision: '2026-09-22 — file the gaps rather than fix them in this task'
+    chose: 'T-3063 (retry window vs dedupe TTL), T-3064 (hub echo of client_msg_id), T-3065 (auto-confirm receipt signed by the wrong fp) filed as separate tasks; T-3062 stays a reply task.'
+    rationale: 'one bug = one task; T-3065 in particular changes a live supervised sidecar and wants its own fixture + a notify-rail-e2e RECEIPT re-run.'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/project/learnings.yaml'
+  - '.tasks/active/T-3062-reply-to-aef-arc-011-sidecar-alignment-a.md'
+  - '.tasks/active/T-3063-channel-post---await-ack---retry-total-r.md'
+  - '.tasks/active/T-3064-hub-does-not-echo-clientmsgid-into-envel.md'
+  - '.tasks/active/T-3065-notify-sidecar-auto-confirm-signs-receip.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-22T11:05:46'
+    action: 'T-3062: answer AEF arc-011 sidecar alignment — receiving half, dm-only boundary, dedupe TTL; three gaps filed'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 12 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 12
+  commits: 1
+  files_changed: 5
+  lines_added: 1018
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3062-reply-to-aef-arc-011-sidecar-alignment-a.md
+generated_by: context-agent-hybrid
