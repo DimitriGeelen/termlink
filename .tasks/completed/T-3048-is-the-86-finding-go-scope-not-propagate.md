@@ -6,16 +6,16 @@ description: >
   Inception: Is the 86-finding GO-scope-not-propagated backlog a bulk backfill or
   86 individual decisions
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
 created: 2026-09-21T21:54:22Z
-last_update: 2026-09-21T21:55:44Z
-date_finished:
+last_update: 2026-09-22T08:01:47Z
+date_finished: 2026-09-22T08:01:47Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -119,15 +119,15 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -184,7 +184,17 @@ GO on a sample triage, not on any bulk remediation. The audit report itself stat
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO
+
+Rationale:
+
+GO on a sample triage, not on any bulk remediation. The audit report itself states these are candidates for triage and not confirmed abandoned decisions, and that deciding which is which is the judgement the check exists to force. Findings span T-002 to T-3012 — the entire project history, including the second task ever created — so this is a convention never followed rather than recent drift. The remedy differs sharply by class: linkable findings (slices exist, related_tasks merely unfilled) are a mechanical backfill; inline findings (the inception did its own work, so no slice was ever owed) mean the check is over-reporting a shape it should learn to recognise; genuinely unactioned findings are the only ones representing real lost scope. Acting in bulk without knowing the mix would either manufacture 86 tasks nobody wants or paper over real abandoned decisions.
+
+Evidence:
+
+**Date**: 2026-09-22T08:01:47Z
 
 ## Updates
 
@@ -193,3 +203,39 @@ GO on a sample triage, not on any bulk remediation. The audit report itself stat
 
 ### 2026-09-21T21:55:44Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-09-22T08:01:47Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+
+Rationale:
+
+GO on a sample triage, not on any bulk remediation. The audit report itself states these are candidates for triage and not confirmed abandoned decisions, and that deciding which is which is the judgement the check exists to force. Findings span T-002 to T-3012 — the entire project history, including the second task ever created — so this is a convention never followed rather than recent drift. The remedy differs sharply by class: linkable findings (slices exist, related_tasks merely unfilled) are a mechanical backfill; inline findings (the inception did its own work, so no slice was ever owed) mean the check is over-reporting a shape it should learn to recognise; genuinely unactioned findings are the only ones representing real lost scope. Acting in bulk without knowing the mix would either manufacture 86 tasks nobody wants or paper over real abandoned decisions.
+
+Evidence:
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-8128b272
+- **Timestamp:** 2026-09-22T08:01:48Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+## Recommendation Verdict (v1.0)
+
+- **Scan ID:** RC-65bbf8a2
+- **Timestamp:** 2026-09-22T08:01:48Z
+- **Overall:** CONFIRMED
+- **Claims:** 2
+
+| Claim | Type | Status |
+|-------|------|--------|
+| `T-002` | task | ✓ pass |
+| `T-3012` | task | ✓ pass |
+
+### 2026-09-22T08:01:47Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
