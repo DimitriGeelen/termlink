@@ -29,7 +29,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-22T12:51:49Z
-last_update: 2026-09-22T15:10:10Z
+last_update: 2026-09-22T19:30:07Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -277,6 +277,71 @@ cost_estimate_proposed:
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-09-22 — the blocker is NOT "no REPL exists". It is the classifier.
+
+Operator approved spawning agents, so the SQ-2 premise was tested directly rather
+than reasoned about. It turned out to be **wrong in the half that mattered**, and the
+real blocker is one layer down.
+
+**What was believed (SQ-2, recorded twice):** *no interactive Claude REPL is registered
+as a TermLink session, so the injector has no audience.* True as an observation — all
+sessions probed UNKNOWN — but the inference drawn from it was wrong.
+
+**What is now measured:**
+
+1. **A REPL can be spawned and IS injectable.** `bash scripts/tl-claude.sh start --name
+   wake-proof2 --backend tmux -- --continue` produced a live Claude Code v2.1.267 REPL
+   inside a TermLink session. `termlink inject wake-proof2 "Reply with exactly:
+   WAKE-PROOF-OK" --enter` was **answered** — the response appears in the PTY. So
+   inject → run → respond works against a real REPL. The audience exists the moment
+   someone spawns one.
+
+2. **The classifier still refuses to authorise the inject, permanently.** Sampled every
+   10s for 100s after a completed turn: **no positive marker at any sample**, so
+   `pushwaker_probe_pty` returns UNKNOWN and the injector defers (rc=4) forever. That is
+   why the live AC failed twice. It was never an audience problem.
+
+3. **Why it refuses — the marker set does not match this UI.** The four positive markers
+   are `?forshortcuts | newtask? | checkingforupdate | /cleartosave`. On this host,
+   `?forshortcuts` is **absent at every window size** on a chat REPL with auto-mode on;
+   the footer reads `⏵⏵ auto mode on (shift+tab to cycle)` instead. Measured presence at
+   the 2500-byte default: `shift+tabtocycle` and `automodeon` PRESENT, `?forshortcuts`
+   ABSENT.
+
+4. **Widening the window is NOT the fix, and the file already says why.** Measured after
+   a completed turn: 2500B → no markers; 4000B → a **stale** `esctointerrupt` reappears;
+   6000B → stale busy marker AND idle markers together. Enlarging the tail reintroduces
+   exactly the scrollback contamination the docstring warns about, and would pin the
+   classifier to BUSY forever. The narrow window is correct; the marker set is wrong.
+
+5. **A measurement trap worth recording.** `scripts/lib/pty-state.sh` references
+   `"$TERMLINK"` with **no default**. Sourced from a bare shell that has not set it, the
+   probe runs an empty command, reads nothing, and classifies UNKNOWN — indistinguishable
+   from a genuine UNKNOWN. My first sweep of five sessions reported all-UNKNOWN through
+   this bug, which would have "confirmed" SQ-2 on a broken instrument. A one-line
+   `TERMLINK="${TERMLINK:-termlink}"` in the lib would close it.
+
+**CANDIDATE FIX, evidenced but NOT shipped.** The stripped tail ends with the composer
+prompt `❯` (U+276F) followed by U+00A0 when the REPL is idle with an EMPTY composer —
+which is precisely the condition an injector wants, and it also refuses when text is
+already pending (the T-2396 shape). Measured: idle tail ends `…9:25 PM ❯ `;
+mid-turn (`esctointerrupt` present) the tail ended with response text (`effort`), not
+the prompt. Note `tr -d '[:space:]'` does NOT strip U+00A0 in the C locale, so any
+pattern must account for it.
+
+**Deliberately not shipped tonight.** Two live data points is not enough for a
+safety-critical heuristic whose failure mode is a blind inject into a busy prompt —
+the exact data loss this arc exists to prevent. The honest next step is a quiescence
+conjunction (no busy marker AND tail ends with an empty composer AND tail unchanged
+across two reads), validated over many turns, with fixtures built from captured PTY
+bytes rather than from reasoning. That needs API budget this host does not have right
+now: the REPL footer reports **94% of the weekly limit used, resetting Sep 28**.
+
+**Consequence for SQ-2:** it should be re-stated. "Should we arm agents before building
+injection machinery?" is answered — arming works and takes one command. The open
+question is narrower and different: *make the idle classifier reliable across Claude
+Code UI versions*, which is a TermLink concern, not an AEF one.
 
 ## Recommendation
 

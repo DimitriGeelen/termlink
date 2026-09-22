@@ -182,7 +182,32 @@ sovereign_questions:
            they are shell endpoints or finished dispatch workers. S10 and S12 both
            assume an audience that does not currently exist. T-2389 (arm agents via
            tl-claude --reachable, owner:human) may be the real blocker for the whole
-           arc, ranking above T-3071/T-3072."
+           arc, ranking above T-3071/T-3072.
+           SUPERSEDED 2026-09-22, same day, by direct test on operator approval. The
+           premise is WRONG in the half that mattered. A REPL was spawned
+           (tl-claude.sh start --backend tmux) and PROVED INJECTABLE: `termlink inject`
+           of 'Reply with exactly: WAKE-PROOF-OK' was ANSWERED in the PTY. So the
+           audience exists the moment anyone spawns one, and arming is one command —
+           T-2389 is not the blocker.
+           THE ACTUAL BLOCKER IS THE IDLE CLASSIFIER. After a completed turn, sampled
+           every 10s for 100s, scripts/lib/pty-state.sh finds NO positive marker, so
+           the injector defers (rc=4) forever — which is why T-3069's live AC failed
+           twice. Cause: the four markers do not match this UI. `?forshortcuts` is
+           ABSENT at every window size on a chat REPL with auto-mode on, whose footer
+           reads 'auto mode on (shift+tab to cycle)' instead. Widening the window is
+           NOT the fix and the file already says why: at 4000 bytes a STALE
+           esctointerrupt reappears and would pin it BUSY forever. The narrow window is
+           right; the marker set is wrong.
+           Also found: pty-state.sh references \"$TERMLINK\" with NO default, so a
+           caller that has not set it reads nothing and gets UNKNOWN — a broken
+           instrument indistinguishable from a real verdict, and it nearly 'confirmed'
+           this very question.
+           RE-STATE THE QUESTION AS: make the idle classifier reliable across Claude
+           Code UI versions. That is a TermLink concern, not an AEF one, so it also
+           narrows SQ-1. A candidate signal (tail ends with an empty composer prompt
+           U+276F + U+00A0) is evidenced in T-3069 but deliberately NOT shipped on two
+           data points — its failure mode is a blind inject into a busy prompt, the
+           exact T-2396 loss this arc exists to prevent."
   - id: SQ-3
     question: "Add `termlink artifact put` / `artifact get` CLI verbs?"
     task: T-3076
