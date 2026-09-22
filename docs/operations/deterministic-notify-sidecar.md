@@ -171,3 +171,50 @@ migration to flag-drop-only sending lands with V6 (T-2296), where the direct
 transport and per-conversation journaling restructure the send path end-to-end.
 Until then, the sidecar is the deterministic, self-detecting alternative an agent
 can opt into today.
+
+## Round-trip prover (T-3058) — how to re-prove the rail
+
+Every piece of this rail was verified in isolation before anyone proved a message
+actually lands in a peer's ears. This is the procedure that proves it, and the reason
+it is written down is that the next session should not have to rediscover it.
+
+**Assert on the RECEIVER, never on the sender's exit code.** `channel post` says
+`[delivered-unconfirmed: hub accepted it; no consumer receipt yet]` — that is the hub
+accepting bytes, not a peer hearing them. T-2876 is the same lesson on the session rail:
+delivered means queued, not received.
+
+```bash
+PEER_FP=3bba15e681b3a078                      # framework-agent-systemd (the AEF agent)
+TOPIC="dm:$PEER_FP:$(termlink agent identity --json | python3 -c 'import json,sys;print(json.load(sys.stdin)["fingerprint"])')"
+
+# 1. BEFORE — both the peer's ears and the receipt frontier
+cat ~/.termlink/notify/framework-agent-systemd.flag
+termlink channel info "$TOPIC" --json | python3 -c "import json,sys;d=json.load(sys.stdin);print(d['count'],[(x['sender_id'][:8],x['up_to']) for x in d.get('receipts') or []])"
+
+# 2. SEND
+termlink channel post "$TOPIC" --payload "round-trip prover"
+
+# 3. AFTER ~1 sidecar cycle (interval 15s): pending rises, latest_topic names the topic
+sleep 25; cat ~/.termlink/notify/framework-agent-systemd.flag
+
+# 4. AFTER ~2 cycles: auto-confirm posts a receipt and the ears drain back
+sleep 20; termlink channel info "$TOPIC" --json | python3 -c "import json,sys;d=json.load(sys.stdin);print([(x['sender_id'][:8],x['up_to']) for x in d.get('receipts') or []])"
+```
+
+**Measured 2026-09-22, the first time this rail was ever proven end to end:**
+
+| stage | AEF ears | receipts |
+|---|---|---|
+| before | `pending=0`, `latest_topic=` (empty) | both sides `up_to=13` |
+| after send (offset 16) | `pending=1`, `latest_topic=dm:3bba15e6…` | unchanged |
+| after auto-confirm | `pending=0`, drained | **both sides `up_to=16`** |
+
+The `pending=0 → 1 → 0` arc is the whole rail in one line: the peer noticed, confirmed,
+and cleared. A single reading could have been true already — the **delta** is the evidence,
+which is why both ends are captured.
+
+**Reading it when it fails.** `pending` never rises: the peer's sidecar is dead or watching
+a different fingerprint — check `bash scripts/check-notify-sidecar-freshness.sh` and the
+`--self-fp` in `.context/cron/notify-sidecar-agents.conf`. `pending` rises but no receipt
+appears: the sidecar is running WITHOUT `--auto-confirm` — `bash
+scripts/notify-sidecar-supervisor.sh` reports that as FLAG-DRIFT.
