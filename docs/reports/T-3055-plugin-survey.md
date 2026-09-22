@@ -149,3 +149,87 @@ which is not the same as a plugin with no components.
 rustup component was missing behind a shim. It is also the cleanest fit for this
 constraint — local binary, no MCP server, ~0 tokens. It immediately reported dead-code
 diagnostics in `crates/termlink-mcp/.../inbox_channel.rs` that nothing else had surfaced.
+
+---
+
+# ADDENDUM 2 — context7: use, exposure, value (operator question, 2026-09-22)
+
+## First, a correction to this document
+
+The main survey said *"context7: 23 files — genuinely referenced"*. That figure was
+inflated and the inference was wrong. Deduplicated, the references are **~4 distinct
+documents**: a governance design report (T-908), a spec (T-532), the `.mcp.json` /
+`settings.local.json` config, and a completed task (T-1111) — the other ~19 hits are
+copies inside five `.claude/worktrees/` snapshots, plus this survey citing itself.
+
+More importantly: **none of those references are usage.** They are configuration and
+policy mentions. "Referenced" was doing work in that sentence that the evidence does not
+support.
+
+## How it would be used
+
+`resolve-library-id` then `query-docs`: the agent names a library, the server returns
+current documentation. Its purpose is to stop an agent answering from stale training data
+about a fast-moving API.
+
+## Exposure
+
+**A. Unpinned remote code execution at every session start — the material one.**
+
+```json
+"context7": { "command": "npx", "args": ["-y", "@upstash/context7-mcp"] }
+```
+
+`npx -y` with **no version pin**: whatever is published on npm at that moment is fetched
+and executed, auto-confirmed, with the session's privileges — root on this host. A
+compromised publish of that package runs here immediately, with no review step and no
+version to audit. And `.mcp.json` is **git-tracked**, so this applies to every clone, every
+developer and every CI checkout, not just this machine.
+
+This is not unique to context7: `playwright` is `@playwright/mcp@latest`, the same class.
+Two of the four configured MCP servers fetch remote code at startup; `termlink` and `fw`
+run local commands and do not.
+
+**B. Query egress to a commercial third party.** Library name and query text go to
+Upstash's API. Not source code — but the query text is agent-composed and can carry
+intent and architecture ("how do I do X in rmcp for a hub that does Y").
+
+**C. Availability coupling.** A remote service sits in the startup path of a project whose
+own charter prizes working when things are down.
+
+## Value — honestly, UNMEASURED
+
+No usage trace exists: nothing under `.context/working/` or `.context/audits/` names
+context7, and per-tool invocation telemetry is confirmed absent (T-3044 Q4 — T-2996 shipped
+the writer while the running MCP server predates it, so the sink file does not exist).
+
+So the correct reading is **D: UNMEASURED**, not E: not wanted. I cannot say it is unused;
+I can say nobody can currently tell. That gap is itself the finding.
+
+**What its value would be, structurally, for THIS repo:** lower than for a typical
+JS/Python project. The codebase is 7 Rust crates, and Rust already ships a better answer
+locally — `cargo doc` generates documentation from the *exact versions pinned in
+Cargo.lock*, which is strictly more accurate than any third-party index, works offline, and
+costs nothing. Where context7 could genuinely help is the Flask/Watchtower side and fast-
+moving crates like `rmcp`.
+
+## The asymmetry
+
+The exposure is **certain and continuous** — unpinned third-party code fetched and executed
+every session, on every clone. The value is **unmeasured** and structurally reduced by a
+local toolchain that already answers the same question more accurately.
+
+That asymmetry, not the standalone constraint alone, is the argument.
+
+## Recommendation
+
+1. **If context7 goes:** use `cargo doc` / docs.rs for Rust. Removes a service dependency,
+   a commercial one, and one of the two unpinned-npx vectors. Consistent with the operator's
+   standalone constraint.
+2. **Regardless of that decision — pin playwright.** It passes the standalone constraint
+   (local browser) and CLAUDE.md mandates it, so it stays; but `@latest` should become a
+   pinned version. This is a small, high-value change that is independent of the context7
+   question and should not wait on it.
+3. **Before deciding on value:** if the answer matters, instrument first. Per-tool telemetry
+   (T-2996) is built and not live — that is the ADD that converts this from judgement to
+   measurement.

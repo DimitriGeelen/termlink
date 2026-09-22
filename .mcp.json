@@ -10,7 +10,7 @@
     "playwright": {
       "command": "npx",
       "args": [
-        "@playwright/mcp@latest",
+        "@playwright/mcp@0.0.82",
         "--no-sandbox"
       ]
     },
