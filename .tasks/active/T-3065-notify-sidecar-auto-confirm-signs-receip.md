@@ -1,8 +1,24 @@
 ---
 id: T-3065
-name: "notify-sidecar auto-confirm signs receipts with the per-agent key, not the dm-party fp — --await-ack senders never see them"
+name: "notify-sidecar auto-confirm signs receipts with the per-agent key, not the
+  dm-party fp — --await-ack senders never see them"
 description: >
-  scripts/notify-sidecar.sh:138 exports TERMLINK_AGENT_ID=<agent_id>, so every auto-confirm receipt (T-3053) is signed by the per-agent key: on this host claude-termlink resolves to 6738c073bbcc587a (termlink agent identity --resolve), while the dm topics it acks for are keyed on the shared fp d1993c2c3ec44c94 (.context/cron/notify-sidecar-agents.conf). A sender using channel post --await-ack derives the recipient from the dm topic name (crates/termlink-cli/src/commands/channel.rs:1240 derive_dm_recipient) and polls channel.receipts for THAT sender_id, so a receipt from 6738c073bbcc587a satisfies nobody: every --await-ack against this host exhausts and dead-letters even though auto-confirm is running. Measured live on dm:8e6fd77ec6f74b37:d1993c2c3ec44c94: receipts show 6738c073bbcc587a up_to=5 (sidecar) next to d1993c2c3ec44c94 up_to=3 (manual ack this session). T-3053 proved a receipt APPEARS; it did not prove the receipt is the one --await-ack looks for — the same shipped-not-live shape as T-2876. Deliverable: sign the auto-confirm receipt as the dm party (--sender-id or identity matching --self-fp), or make derive_dm_recipient accept a declared alias; add a fixture asserting receipt.sender_id == self_fp; then re-run scripts/notify-rail-e2e.sh RECEIPT stage. Origin: T-3062 AEF sidecar alignment.
+  scripts/notify-sidecar.sh:138 exports TERMLINK_AGENT_ID=<agent_id>, so every auto-confirm
+  receipt (T-3053) is signed by the per-agent key: on this host claude-termlink resolves
+  to 6738c073bbcc587a (termlink agent identity --resolve), while the dm topics it
+  acks for are keyed on the shared fp d1993c2c3ec44c94 (.context/cron/notify-sidecar-agents.conf).
+  A sender using channel post --await-ack derives the recipient from the dm topic
+  name (crates/termlink-cli/src/commands/channel.rs:1240 derive_dm_recipient) and
+  polls channel.receipts for THAT sender_id, so a receipt from 6738c073bbcc587a satisfies
+  nobody: every --await-ack against this host exhausts and dead-letters even though
+  auto-confirm is running. Measured live on dm:8e6fd77ec6f74b37:d1993c2c3ec44c94:
+  receipts show 6738c073bbcc587a up_to=5 (sidecar) next to d1993c2c3ec44c94 up_to=3
+  (manual ack this session). T-3053 proved a receipt APPEARS; it did not prove the
+  receipt is the one --await-ack looks for — the same shipped-not-live shape as T-2876.
+  Deliverable: sign the auto-confirm receipt as the dm party (--sender-id or identity
+  matching --self-fp), or make derive_dm_recipient accept a declared alias; add a
+  fixture asserting receipt.sender_id == self_fp; then re-run scripts/notify-rail-e2e.sh
+  RECEIPT stage. Origin: T-3062 AEF sidecar alignment.
 
 status: captured
 workflow_type: build
@@ -22,8 +38,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-22T09:03:18Z
-last_update: 2026-09-22T09:03:18Z
-date_finished: null
+last_update: '2026-09-22T14:57:41Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,6 +50,30 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-09-22T14:57:18Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-09-22T14:57:41Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius:
+      tier: 2
+      effort: 8
+    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
+      (workflow:build); effort=8 (lines=204,acs=4)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3065: notify-sidecar auto-confirm signs receipts with the per-agent key, not the dm-party fp — --await-ack senders never see them

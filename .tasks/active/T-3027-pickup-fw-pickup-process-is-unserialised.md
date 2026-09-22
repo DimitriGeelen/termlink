@@ -1,6 +1,7 @@
 ---
 id: T-3027
-name: "Pickup: fw pickup process is unserialised and records its dedup row ~60s after (from 010-termlink)"
+name: "Pickup: fw pickup process is unserialised and records its dedup row ~60s after
+  (from 010-termlink)"
 description: >
   Auto-created from pickup envelope. Source: 010-termlink, task T-3025. Type: bug-report.
 
@@ -22,8 +23,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-20T14:02:02Z
-last_update: 2026-09-20T14:05:06Z
-date_finished: null
+last_update: '2026-09-22T14:57:41Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -36,6 +37,30 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 source_task_id_in_origin: T-3025
 source_project_in_origin: "010-termlink"
+bvp_scores_proposed:
+  - ts: '2026-09-22T14:57:18Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-09-22T14:57:41Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius:
+      tier: 2
+      effort: 8
+    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
+      (workflow:build); effort=8 (lines=220,acs=4)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3027: Pickup: fw pickup process is unserialised and records its dedup row ~60s after (from 010-termlink)
