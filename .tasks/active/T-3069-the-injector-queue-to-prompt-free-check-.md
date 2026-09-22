@@ -26,7 +26,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-22T12:51:49Z
-last_update: 2026-09-22T14:42:57Z
+last_update: 2026-09-22T14:47:05Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -93,8 +93,22 @@ bvp_scores_proposed:
       journal, fixture flag) and pins: not-running ≠ busy, UNKNOWN defers,
       unverified injection posts no L3, a verified injection posts exactly one L3,
       and an empty queue is "nothing to do" rather than an error
-- [ ] Proven against a REAL session end to end, with the L3 receipt read back from
-      the hub — and if any stage fails, the failure is reported, not narrated away
+- [ ] **NOT MET — and deliberately left unticked.** Proven against a REAL session
+      end to end, with the L3 receipt read back from the hub.
+      **What WAS proven live (2026-09-22):**
+      * against the running AEF session `tl-vayovuqm`, the injector reached the
+        prompt check and returned **rc=4 (deferred)** — correct, because that is a
+        shell session carrying no Claude Code idle markers.
+      * the classifier's **fail-safe ORDERING was validated on a real screen**. A
+        freshly launched Claude REPL sat on a resume picker whose text matched BOTH
+        `resumesession` (modal → UNKNOWN) and `?forshortcuts` (→ READY). The
+        UNKNOWN-modal case is tested FIRST, so it deferred. A classifier checking
+        READY first would have injected into the picker's search box. That ordering
+        was a comment; it is now an observation.
+      **What was NOT proven:** the inject → verify → L3 path against a live REPL.
+      A session was spawned for it (`inj-proof`), never reached READY in 120s, and
+      its own picker text read `rate limited — wait and re…`. Session was stopped
+      and deregistered; 0 remain. No claim is made about the full path.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
