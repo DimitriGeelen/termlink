@@ -73,15 +73,24 @@ printf '%s' "$OUT" | grep -q 'unsubmitted' \
     || fail "T4 refusal does not explain the trap: $OUT"
 
 echo "T5: each valid evidence kind is accepted"
-for ev in idle-gated-inject wake-consumer observed-turn operator; do
+for ev in idle-gated-inject observed-turn operator; do
     : > "$WORK/posts.log"; rm -f "$ND"/.*.l3read 2>/dev/null
     ackrun --topic "dm:ev-$ev" --up-to 7 --evidence "$ev" --agent-id a --quiet >/dev/null 2>&1
     rc=$?
     [ "$rc" -eq 0 ] || { fail "T5 $ev rejected (rc=$rc)"; continue; }
 done
-pass "T5 all four evidence kinds accepted"
+pass "T5 all three evidence kinds accepted"
 
 # ---- what gets posted ------------------------------------------------------
+echo "T5c [REGRESSION]: wake-consumer is NO LONGER valid evidence"
+: > "$WORK/posts.log"; rm -f "$ND"/.*.l3read 2>/dev/null
+ackrun --topic dm:wc --up-to 5 --evidence wake-consumer --agent-id a >/dev/null 2>&1; rc=$?
+if [ "$rc" -eq 2 ] && [ ! -s "$WORK/posts.log" ]; then
+    pass "T5c refused (rc=$rc) — noticing a flag is not evidence of reaching a prompt"
+else
+    fail "T5c wake-consumer STILL ACCEPTED — L3 can assert a falsehood again (rc=$rc)"
+fi
+
 echo "T6: the posted envelope carries stage=read, up_to and evidence"
 : > "$WORK/posts.log"; rm -f "$ND"/.*.l3read 2>/dev/null
 ackrun --topic dm:shape --up-to 11 --evidence operator --agent-id a --quiet >/dev/null 2>&1

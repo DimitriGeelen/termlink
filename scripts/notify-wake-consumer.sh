@@ -278,13 +278,19 @@ while [ "$DEADLINE" -eq 0 ] || [ "$(date +%s)" -lt "$DEADLINE" ]; do
                 # an inference from a send. If the action had failed we would be
                 # back at "delivered means queued" one rung higher, which is the
                 # thing L3 exists to end, so a failed action posts nothing.
+                # NO L3 FROM HERE. This consumer notices a flag; it does not
+                # inject anything into a prompt, so it has no standing to claim the
+                # message was read. It used to post evidence=wake-consumer, which
+                # asserted exactly that and was false.
+                #
+                # L3 belongs to the INJECTOR — the step that checks the prompt is
+                # free, injects from the queue, and verifies the agent is working.
+                # That step does not exist yet (T-3069). Until it does, this rung
+                # stays silent rather than lying.
                 if [ "$action_rc" -eq 0 ]; then
-                    bash "$(dirname "${BASH_SOURCE[0]}")/notify-ack-read.sh" \
-                        --topic "$topic" --up-to latest \
-                        --evidence wake-consumer --agent-id "$AGENT_ID" --quiet \
-                        2>/dev/null || log "WARN: L3 receipt not posted for $topic"
+                    log "wake handled; L3 NOT posted (this process does not inject — see T-3069)"
                 else
-                    log "action failed (rc=$action_rc) — NOT posting L3; the message reached no prompt"
+                    log "action failed (rc=$action_rc)"
                 fi
                 # Advance the durable marker BEFORE any exit. It sat after the
                 # non-follow `exit 0` at first, so a one-shot consumer fired and

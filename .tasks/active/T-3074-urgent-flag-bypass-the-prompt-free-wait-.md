@@ -1,10 +1,10 @@
 ---
-id: T-3068
-name: "Give the wake consumer a trigger: supervised standing service so the flag is actually read"
+id: T-3074
+name: "Urgent flag: bypass the prompt-free wait and inject directly"
 description: >
-  Give the wake consumer a trigger: supervised standing service so the flag is actually read
+  Spec step 9. Operator: not yet defined, note for later. An urgent message should skip the wait for a free prompt and inject immediately. Flag semantics need defining before build.
 
-status: started-work
+status: captured
 workflow_type: build
 owner: agent
 horizon: now
@@ -21,8 +21,8 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-22T10:36:15Z
-last_update: 2026-09-22T12:18:29Z
+created: 2026-09-22T12:56:36Z
+last_update: 2026-09-22T12:56:36Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -36,7 +36,7 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-3068: Give the wake consumer a trigger: supervised standing service so the flag is actually read
+# T-3074: Urgent flag: bypass the prompt-free wait and inject directly
 
 ## Context
 
@@ -46,40 +46,8 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `scripts/notify-wake-supervisor.sh` keeps a `notify-wake-consumer.sh
-      --follow` alive per agent declared in `.context/cron/notify-wake-agents.conf`,
-      started if absent, left alone if healthy — the same contract as the sidecar
-      supervisor (T-3050)
-- [ ] The liveness probe is ANCHORED so the supervisor cannot match its own command
-      line and report a phantom as running. T-3050 hit exactly this and the fixture
-      harness killed itself over it
-- [ ] `.context/cron/notify-wake-supervisor.crontab` installs the trigger, using the
-      split-stream redirect idiom (`>> log 2>> log.stderr`, T-2685) so a tooling
-      error can never dirty the findings channel
-- [ ] The consumer writes a `<agent>.wake-heartbeat` each cycle, so "the consumer is
-      alive" is observable and a dead one is distinguishable from a quiet one — the
-      same reason the sidecar's own heartbeat exists
-- [ ] The consumer acts under the RIGHT IDENTITY: it exports `TERMLINK_AGENT_ID`
-      for the agent it serves, so L3 receipts are signed by that agent and not by
-      whatever key the cron happens to run as. A receipt attributed to the wrong
-      identity is worse than no receipt
-- [ ] `notify-rail-e2e.sh`'s WAKE stage reports the consumer as a live path-A
-      trigger once installed, and the full suite's WAKE verdict changes from
-      NOT-WIRED accordingly — verified by running it, not by reading the code
-- [ ] `tests/notify-wake-supervisor-fixtures.sh` is hermetic and pins: start-if-absent,
-      leave-alone-if-healthy, the anchored probe not matching itself, a conf with zero
-      agents being a tooling error rather than a silent success, and the heartbeat
-      being written
-- [x] Proven live end to end: a real message raises the flag, the SUPERVISED consumer
-      (not one I launched by hand for the test) fires, and an L3 `stage=read` receipt
-      appears on the topic — read back from the hub, not inferred.
-      **MET 2026-09-22**, offsets 107-110 on dm:3bba15e681b3a078:d1993c2c3ec44c94:
-      note -> stage=delivered (both sidecars) -> stage=read evidence=wake-consumer,
-      signed 3bba15e6 (the receiving agent, via --as-identity). L3 at t=8s. Topic
-      grew by exactly 4 envelopes — no runaway.
-      Required restarting the sidecars first: the running ones were executing
-      pre-change code and emitted no `last_mail_ts` at all (T-2405 stale-code class,
-      a long-lived detached process keeps the old version until restarted).
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -267,7 +235,7 @@ date_finished: null
 
 ## Updates
 
-### 2026-09-22T10:36:15Z — task-created [task-create-agent]
+### 2026-09-22T12:56:36Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3068-give-the-wake-consumer-a-trigger-supervi.md
+- **Output:** /opt/termlink/.tasks/active/T-3074-urgent-flag-bypass-the-prompt-free-wait-.md
 - **Context:** Initial task creation

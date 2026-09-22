@@ -30,8 +30,8 @@
 #   idle-gated-inject  the injector observed a READY prompt before injecting
 #                      (be-reachable-pushwaker.sh's READY/BUSY/UNKNOWN classifier,
 #                      T-2402 Stage 3 — READY only on a POSITIVE idle marker)
-#   wake-consumer      a consumer watching this agent's flag fired and its action
-#                      SUCCEEDED
+#   (wake-consumer)    REMOVED — see the gate below. Noticing a flag is not
+#                      evidence that anything reached a prompt.
 #   observed-turn      the message was seen in the agent's own transcript/session
 #   operator           a human is asserting it, and owns the claim
 # `blind-inject` is deliberately NOT a valid value. There is no evidence kind for
@@ -60,7 +60,7 @@ Requires evidence; there is no evidence kind for a blind inject.
 Required:
   --topic T          the dm: topic the message arrived on
   --up-to N          content offset being acknowledged as read
-  --evidence KIND    idle-gated-inject | wake-consumer | observed-turn | operator
+  --evidence KIND    idle-gated-inject | observed-turn | operator
 
 Options:
   --agent-id ID      agent doing the acking (for the idempotency guard)
@@ -113,20 +113,35 @@ fi
 case "$UP_TO" in ''|*[!0-9]*) echo "notify-ack-read: --up-to must be a non-negative integer or 'latest'" >&2; exit 2 ;; esac
 
 # The evidence gate. This is the whole integrity of the rung.
+# `wake-consumer` WAS accepted here and has been REMOVED. It was the wrong
+# evidence and it made this rung assert something false.
+#
+# A wake-consumer with no --action fires on NOTICING THE FLAG. Nothing is
+# injected, no prompt is checked, no agent is working. So a receipt carrying
+# evidence=wake-consumer says "this reached a prompt" when what happened was "a
+# script saw a flag" — the exact "delivered means queued" lie this gate exists to
+# prevent, one rung higher, committed inside the mechanism built to prevent it.
+# Offset 110 on dm:3bba15e681b3a078:d1993c2c3ec44c94 is such a receipt and should
+# be read as noticing, not reading.
+#
+# The remaining kinds each require an OBSERVATION of the message reaching a
+# prompt. When the injector lands (queue -> prompt-free -> inject -> verify), it
+# will post idle-gated-inject, and that will be true.
 case "$EVIDENCE" in
-    idle-gated-inject|wake-consumer|observed-turn|operator) ;;
+    idle-gated-inject|observed-turn|operator) ;;
     "")
         echo "notify-ack-read: --evidence is REQUIRED." >&2
         echo "  L3 asserts the message reached a PROMPT. A bare \`termlink inject\` returns" >&2
         echo "  before submission — if the session is busy or in manual-accept the text lands" >&2
         echo "  unsubmitted and is discarded (T-2396, proven live). Posting L3 on that would" >&2
         echo "  recreate 'delivered means queued' one rung higher." >&2
-        echo "  Valid: idle-gated-inject | wake-consumer | observed-turn | operator" >&2
+        echo "  Valid: idle-gated-inject | observed-turn | operator" >&2
         exit 2 ;;
     *)
         echo "notify-ack-read: unknown --evidence '$EVIDENCE'." >&2
-        echo "  Valid: idle-gated-inject | wake-consumer | observed-turn | operator" >&2
-        echo "  There is deliberately NO evidence kind for a blind inject." >&2
+        echo "  Valid: idle-gated-inject | observed-turn | operator" >&2
+        echo "  There is deliberately NO evidence kind for a blind inject, and none" >&2
+        echo "  for merely noticing a flag." >&2
         exit 2 ;;
 esac
 
