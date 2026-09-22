@@ -1,0 +1,22 @@
+# T-3068 — the trigger for PATH A of the wake rail.
+# Installed to: /etc/cron.d/termlink-notify-wake-supervisor
+#
+# Keeps one notify-wake-consumer alive per agent in
+# .context/cron/notify-wake-agents.conf, so a raised notify flag is actually READ.
+#
+# WHY A SUPERVISOR AND NOT THE CONSUMER DIRECTLY. The consumer runs --follow, a
+# long-lived poll loop. Cron cannot keep such a process alive; it can only re-check
+# that one exists. So cron runs the SUPERVISOR every 5 minutes and the supervisor
+# restarts anything missing. Worst case after a crash or reboot: 5 minutes dark,
+# bounded and known, rather than dark until someone notices — which is how the rail
+# managed 82 days (G-069).
+#
+# The redirect is SPLIT on purpose (T-2685). Merging stderr into the findings log
+# would let a tooling error dirty the one-bit "empty log = healthy" channel, after
+# which a genuine finding appends to an already-dirty file and changes nothing an
+# operator can see. `2>/dev/null` is equally wrong: it trades a false positive for
+# a silent failure, which is Directive #2 violated inside the monitoring layer.
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin:/root/.cargo/bin
+
+*/5 * * * * root cd /opt/termlink && bash scripts/notify-wake-supervisor.sh --quiet >> .context/working/.notify-wake-supervisor.log 2>> .context/working/.notify-wake-supervisor.log.stderr

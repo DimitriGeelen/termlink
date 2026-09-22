@@ -18,9 +18,16 @@
 # ------------
 # Polls THIS agent's own flag. When the flag has been rewritten since we started
 # AND names a topic we care about, it fires ACTION once and exits (or keeps going
-# under --follow). The default ACTION posts an acknowledgement back to the topic,
-# which is the smallest action that is observable by the sender — that is what
-# makes a closed-loop wake provable rather than asserted.
+# under --follow), then signals L3 stage=read so the SENDER learns the message
+# reached a prompt.
+#
+# WITH NO --action IT POSTS NOTHING BUT THE L3 RECEIPT, and that is deliberate.
+# The default used to publish a `wake-ack` NOTE to the topic it was watching. A
+# note is CONTENT, so it counts as new unread mail, so the sidecar raises the flag,
+# so the consumer wakes and posts another note. Run supervised, two consumers on
+# one topic amplified each other into ~100 envelopes in about two minutes before
+# being killed. A receipt cannot do that: the unread watermark excludes meta types,
+# so L3 cannot wake anybody, including itself.
 #
 # DESIGN CONSTRAINTS LEARNED THE HARD WAY
 # ---------------------------------------
@@ -51,6 +58,8 @@ INTERVAL=3
 HB_MAX_AGE=90
 FOLLOW=0
 QUIET=0
+AS_IDENTITY=""
+COOLDOWN="${WAKE_COOLDOWN:-30}"
 
 usage() {
     cat <<'USAGE'
@@ -65,10 +74,15 @@ Options:
   --topic-filter T    only fire when latest_topic equals T
   --action CMD        shell command to run on wake. Receives env:
                         WAKE_AGENT_ID, WAKE_TOPIC, WAKE_PENDING, WAKE_TS
-                      Default: post an ack to WAKE_TOPIC (observable by sender)
+                      Default: NOTHING but the L3 receipt. Do not post CONTENT to
+                      the watched topic from here — that feeds the flag you watch
   --timeout SECS      give up after this long with no wake (default 120)
   --interval SECS     poll interval (default 3)
   --hb-max-age SECS   producer heartbeat staleness limit (default 90)
+  --as-identity ID    TERMLINK_AGENT_ID to act as when posting L3. Declared,
+                      never derived from --agent-id (that is a flag label, not an
+                      identity, and deriving it mints a third fingerprint)
+  --cooldown SECS     minimum seconds between fires on the SAME topic (default 30)
   --follow            keep watching after firing instead of exiting
   --quiet             suppress progress output
   --help              this text
@@ -86,6 +100,8 @@ while [ $# -gt 0 ]; do
         --timeout)      TIMEOUT="${2:-}"; shift 2 ;;
         --interval)     INTERVAL="${2:-}"; shift 2 ;;
         --hb-max-age)   HB_MAX_AGE="${2:-}"; shift 2 ;;
+        --as-identity)  AS_IDENTITY="${2:-}"; shift 2 ;;
+        --cooldown)     COOLDOWN="${2:-}"; shift 2 ;;
         --follow)       FOLLOW=1; shift ;;
         --quiet)        QUIET=1; shift ;;
         --help|-h)      usage; exit 0 ;;
@@ -103,6 +119,32 @@ done
 FLAG="$NOTIFY_DIR/$AGENT_ID.flag"
 HEARTBEAT="$NOTIFY_DIR/$AGENT_ID.heartbeat"
 
+# T-3068 — OUR OWN heartbeat, distinct from the sidecar's above. Without it a
+# supervisor and a canary cannot tell a consumer that is alive-and-quiet from one
+# that died, which is the same ambiguity the sidecar's heartbeat exists to remove.
+# One layer down and it would have been the identical blind spot.
+WAKE_HEARTBEAT="$NOTIFY_DIR/$AGENT_ID.wake-heartbeat"
+
+# IDENTITY IS DECLARED, NEVER DERIVED FROM THE WATCHER LABEL.
+#
+# An earlier version did `export TERMLINK_AGENT_ID="$AGENT_ID"`, reasoning that the
+# consumer should act as the agent it serves. That is right in principle and wrong
+# in practice, because AGENT_ID is a FLAG-FILE LABEL, not an identity. Watching
+# `claude-termlink-alt.flag` and exporting TERMLINK_AGENT_ID=claude-termlink-alt
+# made termlink mint/resolve a THIRD fingerprint (84c04584) that had nothing to do
+# with the mailbox being served (6738c073) — inventing a new identity while trying
+# to attribute correctly. Receipts then came from a party to the conversation that
+# does not exist.
+#
+# So it must be stated explicitly by whoever knows, or left alone.
+[ -n "$AS_IDENTITY" ] && export TERMLINK_AGENT_ID="$AS_IDENTITY"
+
+# LOOP GUARD. Even with a safe default, an operator --action can post content to
+# the watched topic and spin. A minimum interval between fires ON THE SAME TOPIC
+# bounds the blast radius of that mistake to one wake per window instead of a
+# tight loop. Learned the hard way, in production, in about two minutes.
+declare -A LAST_FIRE_AT 2>/dev/null || true
+
 log() { [ "$QUIET" -eq 1 ] || echo "notify-wake-consumer: $*"; }
 
 now_ms() { date +%s%3N; }
@@ -113,10 +155,34 @@ START_MS="$(now_ms)"
 
 log "watching $FLAG (agent=$AGENT_ID, timeout=${TIMEOUT}s, since=$START_MS)"
 
-DEADLINE=$(( $(date +%s) + TIMEOUT ))
+# T-3068 — --follow means STANDING SERVICE, so it has no deadline.
+#
+# The first supervised run exposed this: --follow was documented as "keep watching
+# after firing", but the loop below still ended at --timeout, so both supervised
+# consumers exited after 120 seconds and the rail went quiet again. The supervisor
+# restarting them every 5 minutes is what made it visible — without the heartbeat
+# and the restart line it would have looked exactly like a consumer that was
+# running and simply had nothing to do. That is the whole argument for supervising
+# a thing rather than launching it.
+#
+# A one-shot run (no --follow) keeps its deadline: that form is used by tests and
+# by the E3 closed-loop experiment, where "gave up after N seconds" is the answer.
+if [ "$FOLLOW" -eq 1 ]; then
+    DEADLINE=0   # sentinel: no deadline
+    log "follow mode — running as a standing service, no deadline"
+else
+    DEADLINE=$(( $(date +%s) + TIMEOUT ))
+fi
 FIRED=0
 
-while [ "$(date +%s)" -lt "$DEADLINE" ]; do
+while [ "$DEADLINE" -eq 0 ] || [ "$(date +%s)" -lt "$DEADLINE" ]; do
+    # Our own heartbeat FIRST, before any early exit below. It must be written
+    # every cycle including the ones where nothing happens — that is the whole
+    # point: it separates "alive, nothing to do" from "dead".
+    mkdir -p "$NOTIFY_DIR" 2>/dev/null || true
+    now_ms > "$WAKE_HEARTBEAT.tmp" 2>/dev/null \
+        && mv -f "$WAKE_HEARTBEAT.tmp" "$WAKE_HEARTBEAT" 2>/dev/null || true
+
     # Producer liveness first. A stale heartbeat means the sidecar is not
     # cycling, so "no mail" would be a lie of omission.
     if [ -r "$HEARTBEAT" ]; then
@@ -140,6 +206,12 @@ while [ "$(date +%s)" -lt "$DEADLINE" ]; do
 
         if [ "$ts" -gt "$START_MS" ] 2>/dev/null && [ "$pending" -gt 0 ] && [ -n "$topic" ]; then
             if [ -z "$TOPIC_FILTER" ] || [ "$topic" = "$TOPIC_FILTER" ]; then
+                _now="$(date +%s)"
+                _last="${LAST_FIRE_AT[$topic]:-0}"
+                if [ $(( _now - _last )) -lt "$COOLDOWN" ]; then
+                    sleep "$INTERVAL"; continue
+                fi
+                LAST_FIRE_AT[$topic]="$_now"
                 log "WAKE: topic=$topic pending=$pending ts=$ts"
                 # The action's own rc is captured EXPLICITLY. Reading `$?` after the
                 # if/else would pick up whatever ran last — `log` in the else branch,
@@ -153,11 +225,22 @@ while [ "$(date +%s)" -lt "$DEADLINE" ]; do
                         bash -c "$ACTION"
                     action_rc=$?
                 else
-                    # Default action: the smallest thing the SENDER can observe.
-                    termlink channel post "$topic" \
-                        "wake-ack agent=$AGENT_ID pending=$pending ts=$ts" >/dev/null 2>&1
-                    action_rc=$?
-                    log "posted default wake-ack to $topic (rc=$action_rc)"
+                    # NO DEFAULT POST. This used to publish a `wake-ack` NOTE to the
+                    # topic it was watching, and that is a self-feeding loop: a note
+                    # is CONTENT, so it counts as new unread mail, so the sidecar
+                    # raises the flag, so the consumer wakes and posts another note.
+                    # Run supervised, two consumers on one topic amplified each other
+                    # into ~100 envelopes in a couple of minutes before being killed.
+                    #
+                    # L3 below is safe by construction where a note is not: it is
+                    # --msg-type receipt, and the sidecar's unread watermark EXCLUDES
+                    # meta types (receipt/reaction/redaction/edit/topic_metadata)
+                    # exactly as `channel unread` computes them. A receipt therefore
+                    # cannot wake anybody, including itself.
+                    #
+                    # It is also the right semantic: a consumer's job is to signal
+                    # READ, not to chatter on the channel.
+                    log "no --action configured; signalling L3 only (a note here would feed itself)"
                 fi
                 # T-3067 — L3. Posted ONLY after the action above returned, with
                 # evidence=wake-consumer: a consumer watching this agent's flag
