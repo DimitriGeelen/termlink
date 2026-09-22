@@ -4,7 +4,7 @@ name: "Binary blob on the notify rail via artifact.put"
 description: >
   Inception: Binary blob on the notify rail via artifact.put
 
-status: captured
+status: started-work
 workflow_type: inception
 owner: human
 horizon: now
@@ -15,7 +15,7 @@ components:
   - tests/notify-blob-fixtures.sh
 related_tasks: []
 created: 2026-09-22T14:25:34Z
-last_update: '2026-09-22T14:57:42Z'
+last_update: 2026-09-22T15:00:25Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -78,6 +78,40 @@ cost_estimate_proposed:
      FW_SKIP_DISPOSITION_GATE=1 (env-var, T-1890 producer/consumer parity).
 -->
 
+- **IW-1: Can a SHELL SCRIPT put and get artifact bytes, or only reference them?**
+  MEASURED, and this is the whole finding. `termlink channel post --artifact-ref
+  <ref>` exists, so the rail CAN attach a pointer to a topic message. But there is
+  **no `termlink artifact` subcommand at all** — `artifact.put` / `artifact.get`
+  are protocol methods (`control.rs:316,323`), routed by the hub
+  (`router.rs:143,146`), and wrapped by library functions
+  (`send_artifact_via_client`, `download_artifact_via_client` —
+  `artifact.rs:137,525`) whose ONLY CLI caller is `commands/file.rs`, i.e. the
+  session-targeted `file send` / `file receive`. So a shell script can carry the
+  REFERENCE and cannot move the BYTES.
+  confidence: 3
+  disposition: answered
+  rationale: grep of ARTIFACT_PUT/ARTIFACT_GET callers + `channel post --help`
+
+- **IW-2: Should TermLink grow `artifact put` / `artifact get` CLI verbs?**
+  THE SOVEREIGN QUESTION, and not mine. It is new CLI surface, which this project
+  prunes aggressively (P4 deleted 52 tools). FOR: it is a PRIMITIVE, not
+  orchestration — squarely TermLink's job under charter non-goal 4 — and both
+  verbs are thin wrappers over functions that already exist and are already
+  exercised by `file send`. AGAINST: every new verb is surface that must be
+  justified, and `file send` already covers the session-addressed case.
+  confidence: 2
+  disposition:
+  rationale:
+
+- **IW-3: eager or lazy fetch, and is `--expected-sha256` mandatory?**
+  Deferred behind IW-2 — the shape of the fetch depends on whether there is a verb
+  to fetch with. My position: mandatory, because `artifact_ref` IS a sha256 so
+  verification is free, and T-2472 already established that without it the output
+  must not claim "verified".
+  confidence: 2
+  disposition:
+  rationale:
+
 ## Exploration Plan
 
 <!-- How will we validate assumptions? Spikes, prototypes, research? Time-box each. -->
@@ -138,11 +172,36 @@ cost_estimate_proposed:
 
 ## Recommendation
 
-**Recommendation:** GO
+**Recommendation:** GO — but the GO is on two thin CLI verbs, and that is a
+sovereign call (IW-2), so this task is PARKED awaiting it rather than closed.
 
 **Rationale:**
 
-CORRECTION to my earlier finding. I reported TermLink's blob transport does not fit the rail, based on the CLI surface and the legacy path. Wrong. T-1249 added channel.post plus artifact.put with a content-addressed artifact_ref sha256 on the envelope (T-1164a), which is exactly blob-on-a-topic. The session-targeted file.init/chunk/complete path is the LEGACY fallback used only when a peer hub does not advertise artifact.put. So the rail can adopt the artifact path rather than inventing one. Remaining question is receiver-side fetch and whether --expected-sha256 verification is mandatory.
+My first answer ("TermLink's blob transport does not drop in") was wrong and the
+correction is now measured twice over. Blob-on-a-topic already exists end to end:
+`artifact.put` stores content-addressed bytes, `channel.post --artifact-ref
+<sha256>` attaches the pointer to a topic message, `artifact.get` fetches them
+back, and the hub routes all three. None of that needs building.
+
+What is missing is narrower and more mundane than a design problem: **there is no
+`termlink artifact` CLI subcommand**, so a shell script — which is what this whole
+rail is made of — can post the reference but cannot move the bytes. The
+put/get functions are reachable only from inside `file send` / `file receive`,
+which are session-addressed and require the receiver to be actively listening.
+
+So the remediation is two thin wrappers over `send_artifact_via_client` and
+`download_artifact_via_client`, both already exercised by `file send`. Small, and
+a primitive rather than orchestration — which puts it on TermLink's side of
+charter non-goal 4 rather than AEF's.
+
+**Evidence:**
+- `crates/termlink-protocol/src/control.rs:316,323` — ARTIFACT_PUT / ARTIFACT_GET
+- `crates/termlink-hub/src/router.rs:143,146` — both routed
+- `crates/termlink-session/src/artifact.rs:137,525` — send/download wrappers
+- `grep -rn 'download_artifact_via_client' crates/termlink-cli/src` → only file.rs
+- `termlink artifact --help` → `unrecognized subcommand`
+- `termlink channel post --help` → `--artifact-ref <ARTIFACT_REF>` present
+
 
 **Evidence:**
 
@@ -172,3 +231,6 @@ CORRECTION to my earlier finding. I reported TermLink's blob transport does not 
 
 ### 2026-09-22T14:27:43Z — status-update [task-update-agent]
 - **Change:** tags: +arc:arc-011
+
+### 2026-09-22T15:00:25Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

@@ -50,13 +50,16 @@ slices:
     spec_step: "2. payload may carry a binary blob"
     task: T-3076
     status: unbuilt
-    note: "CORRECTED 2026-09-22. TermLink ALREADY carries blobs on topics:
+    note: "REFINED 2026-09-22 (T-3076). Blob-on-a-topic exists END TO END:
            `artifact.put` + `channel.post {msg_type:artifact, artifact_ref:<sha256>}`
            (T-1249/T-1164a), content-addressed. The session-targeted
            file.init/chunk/complete path is the LEGACY FALLBACK, used only when a
-           peer hub does not advertise artifact.put. My first finding read only the
-           CLI surface and the legacy path and concluded it did not fit — wrong.
-           Open question is receiver-side fetch and mandatory --expected-sha256."
+           peer hub does not advertise artifact.put.
+           THE ACTUAL GAP, measured: there is NO `termlink artifact` subcommand,
+           so a SHELL SCRIPT can post --artifact-ref but cannot move the BYTES.
+           put/get are reachable only from inside file send/receive. Remediation
+           is two thin CLI wrappers over functions that already exist. That is
+           new CLI surface, hence a SOVEREIGN question (T-3076 IW-2), parked."
   - id: S3
     spec_step: "3. receiver stores it on local disk"
     task: T-2300
