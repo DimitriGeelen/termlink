@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-09-22T06:51:42Z
-last_update: 2026-09-22T06:52:55Z
+last_update: 2026-09-22T06:55:05Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -82,11 +82,13 @@ bvp_scores_proposed:
 - **IW-3: What does each enabled plugin COST? Tool-list budget, context per call, and
   a maintenance owner. An enabled plugin nobody uses is not free — it competes for the
   same attention as the guard layer.**
-  confidence: 1
-  disposition: deferred
-  rationale: Not measured. Tool-list budget per plugin was not quantified in this survey;
-    the recommendation to disable four rests on purpose mismatch, not on a cost figure.
-    Stated rather than implied.
+  confidence: 3
+  disposition: answered
+  rationale: Measured via `claude plugin details` after the operator's standalone
+    constraint made it decisive — ~2,275 tok always-on total, of which 1,835 (81%) is the
+    four zero-reference purpose-mismatch plugins. Also surfaced that context7 is the only
+    enabled plugin with an external SERVICE dependency (1 MCP server, remote docs API),
+    which reverses its endorsement. See the ADDENDUM in docs/reports/T-3055-plugin-survey.md.
 
 - **IW-4: Is anything enabled that duplicates something the repo already has? The repo
   ships its own guard layer, review tooling and comms rail; a plugin doing the same job
