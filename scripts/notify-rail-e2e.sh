@@ -364,23 +364,61 @@ stage_receipt() {
 # ===========================================================================
 # STAGE: WAKE — allowed, and expected, to be honest
 # ===========================================================================
+# WHAT "WOKEN" ACTUALLY MEANS HERE — corrected 2026-09-22 after operator review.
+#
+# The first version counted only processes that READ notify/<agent>.flag, concluded
+# "nobody is woken", and was too crude to name the real state. The designed chain
+# (docs/operations/deterministic-notify-sidecar.md) has TWO wake paths and a
+# 3-level confirm ladder:
+#
+#   path A (flag)     sidecar journals + raises flag -> a standing consumer polls
+#                     the flag -> checks the prompt is idle -> injects
+#   path B (doorbell) be-reachable-pushwaker.sh rings the PTY directly, idle-gated
+#                     by its own READY/BUSY/UNKNOWN classifier (T-2402 Stage 3;
+#                     'esctointerrupt' => BUSY, READY only on a positive idle
+#                     marker, UNKNOWN defers)
+#
+#   ladder            L2 stage=delivered (sidecar, auto, no LLM)      SHIPPED
+#                     L3 stage=read      (agent at its yield point)   "future slice"
+#                     C  acted           (the reply turn)             SHIPPED
+#
+# So the honest question is not "does anything read the flag" but "is EITHER path
+# armed". Path B is fully BUILT and merely UN-ARMED here — no waker process, no
+# be-reachable state file — which is a different and far more recoverable condition
+# than "never built". Reporting them as the same thing sends an operator to write
+# code when all they needed to do was start a daemon.
 count_wake_consumers() {
     if [ -n "${NOTIFY_E2E_TEST_WAKE_CONSUMERS:-}" ]; then
         printf '%s\n' "$NOTIFY_E2E_TEST_WAKE_CONSUMERS"; return 0
     fi
-    # A consumer is something OTHER than the sidecar (writer) and notify-check
-    # (a hand-run query) that reads the flag on a trigger: a systemd unit, a cron
-    # job, or a hook. Those are the only shapes that can wake anybody.
     local n=0 f
-    for f in /etc/cron.d/* ; do
+    # Path A — a cron/unit that polls the flag on a trigger.
+    for f in /etc/cron.d/* /etc/systemd/system/*.service ; do
         [ -r "$f" ] || continue
-        grep -lqE 'notify-check|notify/.*\.flag' "$f" 2>/dev/null && n=$((n+1))
+        grep -lqE 'notify-check|notify/.*\.flag|notify-wake-consumer' "$f" 2>/dev/null && n=$((n+1))
     done
-    for f in /etc/systemd/system/*.service ; do
-        [ -r "$f" ] || continue
-        grep -lqE 'notify-check|notify/.*\.flag' "$f" 2>/dev/null && n=$((n+1))
-    done
+    # Path B — an ARMED push-waker: a live pid AND a state file. Either alone is
+    # not a wake path (PL-253: a heartbeat proves the PROCESS is alive, not that
+    # the SESSION is reachable).
+    if pgrep -f 'be-reachable-pushwaker' >/dev/null 2>&1 &&
+       ls "$HOME"/.termlink/be-reachable*.state >/dev/null 2>&1; then
+        n=$((n+1))
+    fi
     printf '%s\n' "$n"
+}
+
+# Names WHICH path is missing, and whether it is unbuilt or merely unarmed.
+wake_diagnosis() {
+    local armed_b="no" built_b="no" cron_a=0 f
+    [ -r "$HERE/be-reachable-pushwaker.sh" ] && built_b="yes"
+    if pgrep -f 'be-reachable-pushwaker' >/dev/null 2>&1 &&
+       ls "$HOME"/.termlink/be-reachable*.state >/dev/null 2>&1; then armed_b="yes"; fi
+    for f in /etc/cron.d/* /etc/systemd/system/*.service ; do
+        [ -r "$f" ] || continue
+        grep -lqE 'notify-check|notify/.*\.flag|notify-wake-consumer' "$f" 2>/dev/null && cron_a=$((cron_a+1))
+    done
+    printf 'pathA(flag-consumer)=%s pathB(pushwaker built=%s armed=%s) L3(stage=read)=NOT-IMPLEMENTED' \
+        "$cron_a" "$built_b" "$armed_b"
 }
 
 stage_wake() {
@@ -391,7 +429,7 @@ stage_wake() {
         record WAKE PASS "$n consumer(s) react to a raised flag"
         return 0
     fi
-    record WAKE NOT-WIRED "nothing consumes the flag: mail -> sidecar -> flag -> (nobody). The mailbox fills; no one is woken. PL-168 at the wake layer."
+    record WAKE NOT-WIRED "no wake path is armed — $(wake_diagnosis). The mailbox fills and the ladder stops at L2/delivered: the sender is never told the message was INJECTED, because L3 stage=read was deferred as a future slice and never built."
     return 1
 }
 
