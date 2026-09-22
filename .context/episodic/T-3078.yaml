@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3078: Triage the 7 firing guard-layer members and establish which predate the T-3071 run
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-22T18:33:47Z
+# ============================================================================
+
+task_id: T-3078
+task_name: "Triage the 7 firing guard-layer members and establish which predate the T-3071 run"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-22T18:29:58Z
+completed: 2026-09-22T18:33:39Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  The first full guard-layer run of this session reports 127 passed / 7 fired (ok:false, exit_code:1). None of the 7 are the suites added or changed by T-3071, and both of those PASS. But only one of the 7 (check-arc-claim-drift, firing on the pre-existing arc-004 UNBOUND finding) has direct evidence of predating the run. The other six are unverified: check-installed-binary-drift, check-pickup-deferred-freshness, check-receiver-ack-lag, check-unpaired-capture, cron-drift-firing-fixtures, runme-fixtures. Establish for each whether it predates commit 9686c37c5 or was introduced by it, so the guard layer's red is attributed rather than assumed.
+
+# Key outcomes
+outcomes:
+  - 'Each of the 7 firing guard-layer members is classified PRE-EXISTING or'
+  - 'Any member found INTRODUCED by the T-3071 run is fixed, or its cause is recorded'
+  - 'The classification is written down where the next run will see it, rather than'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 3
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3078-triage-the-7-firing-guard-layer-members-.md
+generated_by: context-agent-hybrid

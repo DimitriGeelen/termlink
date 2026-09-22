@@ -217,4 +217,14 @@ sovereign_questions:
            rail's proof is pending a valid-evidence receipt, or (b) leave it dark and
            acknowledge the audit FAIL in writing so the red is explained rather than
            ignored. Not decided here — deciding it to keep momentum is exactly what
-           the mandate forbids."
+           the mandate forbids.
+           MEASURED COST OF (b), added 2026-09-22 after T-3078 triage: leaving it dark
+           is NOT free and is no longer just one audit line. check-cron-install-drift
+           reports it as the single MISSING crontab (SHIPPED BUT DARK, G-069), and
+           tests/cron-drift-firing-fixtures.sh has an assertion — 'the real tree passes
+           the firing check' — that FAILS for exactly this reason. That suite is a
+           guard-layer member, and the guard layer runs in CI on every push and PR
+           (doc-lint.yml, T-2686). So option (b) keeps a CI guard permanently red,
+           which is the T-2818 corrosion mechanism operating on the layer whose whole
+           job is to be believed. If (b) is chosen it needs an allowlist entry or an
+           explicit acknowledgement, not silence."

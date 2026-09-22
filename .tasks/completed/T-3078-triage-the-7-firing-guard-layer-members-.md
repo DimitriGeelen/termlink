@@ -1,22 +1,15 @@
 ---
-id: T-3068
-name: "Give the wake consumer a trigger: supervised standing service so the flag is
-  actually read"
+id: T-3078
+name: "Triage the 7 firing guard-layer members and establish which predate the T-3071 run"
 description: >
-  Give the wake consumer a trigger: supervised standing service so the flag is actually
-  read
+  The first full guard-layer run of this session reports 127 passed / 7 fired (ok:false, exit_code:1). None of the 7 are the suites added or changed by T-3071, and both of those PASS. But only one of the 7 (check-arc-claim-drift, firing on the pre-existing arc-004 UNBOUND finding) has direct evidence of predating the run. The other six are unverified: check-installed-binary-drift, check-pickup-deferred-freshness, check-receiver-ack-lag, check-unpaired-capture, cron-drift-firing-fixtures, runme-fixtures. Establish for each whether it predates commit 9686c37c5 or was introduced by it, so the guard layer's red is attributed rather than assumed.
 
-status: captured
+status: work-completed
 workflow_type: build
-owner: agent
-horizon: now
+owner: claude-code
+horizon: null
 tags: [arc:arc-011]
-components:
-  - scripts/notify-wake-supervisor.sh
-  - scripts/notify-wake-consumer.sh
-  - scripts/notify-sidecar.sh
-  - tests/notify-wake-supervisor-fixtures.sh
-  - .context/cron/notify-wake-supervisor.crontab
+components: []
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -28,9 +21,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-22T10:36:15Z
-last_update: 2026-09-22T18:19:41Z
-date_finished:
+created: 2026-09-22T18:29:58Z
+last_update: 2026-09-22T18:33:39Z
+date_finished: 2026-09-22T18:33:39Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -41,112 +34,74 @@ date_finished:
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
-bvp_scores_proposed:
-  - ts: '2026-09-22T14:56:59Z'
-    estimator: bvp-estimator-v1-heuristic
-    scores:
-      D1: 4
-      D2: 2
-      D3: 3
-      D4: 2
-      F-RECALL: 0
-      F-ORCH: 0
-    rationale: D1=4 (body:structural-gate); D2=2 
-      (body:telemetry-or-audit-entry); D3=3 (body:component-discoverability); 
-      D4=2 (body:env-class-handled); F-RECALL=0 (no-signal); F-ORCH=0 
-      (no-signal)
-    rubric_sha: e4a00f38e801
-  - ts: '2026-09-22T18:17:59Z'
-    estimator: bvp-estimator-v1-heuristic
-    scores:
-      D1: 4
-      D2: 4
-      D3: 3
-      D4: 2
-      F-RECALL: 2
-      F-ORCH: 0
-    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
-      (body:component-discoverability); D4=2 (body:env-class-handled); 
-      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
-    rubric_sha: e4a00f38e801
-cost_estimate_proposed:
-  - ts: '2026-09-22T14:57:32Z'
-    estimator: bvp-estimator-v1-heuristic
-    cost_estimate:
-      blast_radius:
-      tier: 2
-      effort: 8
-    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
-      (workflow:build); effort=8 (lines=239,acs=10)
-    rubric_sha: e4a00f38e801
-  - ts: '2026-09-22T14:59:09Z'
-    estimator: bvp-estimator-v1-heuristic
-    cost_estimate:
-      blast_radius: 5
-      tier: 2
-      effort: 8
-    rationale: blast_radius=5 (5-components-medium-blast); tier=2 
-      (workflow:build); effort=8 (lines=239,acs=10)
-    rubric_sha: e4a00f38e801
 ---
 
-# T-3068: Give the wake consumer a trigger: supervised standing service so the flag is actually read
+# T-3078: Triage the 7 firing guard-layer members and establish which predate the T-3071 run
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+First full guard-layer run of the session: **127 passed / 7 fired**, `ok:false`,
+`exit_code:1`. The run was initially misread as passing, because the background
+command ended in `echo "exit=$?"` — the echo's own exit 0 masked the layer's 1. Worth
+naming: a wrapper that ends in `echo` converts any failure into a success at the
+process boundary, which is the T-2818/T-3061 shape (a check that cannot report red).
+
+## Findings — all 7 PRE-EXISTING, none introduced by the T-3071 run
+
+Attribution is by INPUTS plus direct execution, not by "my commits look unrelated".
+`git diff --name-only 9686c37c5~1 HEAD` was used to establish what the run actually
+touched, then each check's read-set was compared against it.
+
+| member | reads | verdict |
+|---|---|---|
+| `check-arc-claim-drift` | `.context/arcs/` | PRE-EXISTING — fires on arc-004 UNBOUND. This one DID share an input with the run (arc-011.yaml was edited), so it was checked rather than assumed: the guard evaluates CLOSED arcs only (`closed: 2`) and arc-011 is `in-progress`, and the same exit-1 was observed during T-3077 before the arc edit |
+| `check-installed-binary-drift` | `VERSION` | PRE-EXISTING — `VERSION` is not in the run's diff; installed binary lags the tree |
+| `check-pickup-deferred-freshness` | `.context/pickup` | PRE-EXISTING — untouched by the run; this is the documented stranded-envelope class (P-043, CLAUDE.md §T-2801) |
+| `check-receiver-ack-lag` | `~/.termlink/awaiting*` | PRE-EXISTING **and unstable** — host state, untouched. Recorded rc=1 by the layer, returns **rc=2 (tooling)** on re-run, so it is environment-dependent rather than a standing finding |
+| `check-unpaired-capture` | `.tasks/` | PRE-EXISTING — shares an input with the run, so it was executed: it flags exactly ONE active file, `T-3052:204`, which the run never touched |
+| `runme-fixtures.sh` | hermetic | PRE-EXISTING — its own banner reads `T-3052 fixtures: 17 passed, 1 failed`; belongs to T-3052 |
+| `cron-drift-firing-fixtures.sh` | `/etc/cron.d` + tree | PRE-EXISTING — `T-2821 fixtures: 12 passed, 1 failed`. **See below: this is SQ-5's cost made visible** |
+
+## The one finding worth acting on
+
+`cron-drift-firing-fixtures.sh` fails on its assertion *"the real tree passes the firing
+check"*, and the cause is precise: `check-cron-install-drift` reports **one** MISSING
+crontab — `notify-wake-supervisor.crontab`, SHIPPED BUT DARK (G-069). That is exactly
+the SQ-5 condition.
+
+It changes what SQ-5 costs. Leaving the crontab uninstalled was treated as "one standing
+audit FAIL". It is more than that: the failing fixture suite is a **guard-layer member**,
+and the guard layer runs in CI on every push and PR (`doc-lint.yml`, T-2686). So the
+"leave it dark" option keeps a CI guard permanently red — the T-2818 corrosion mechanism
+operating on the layer whose entire job is to be believed. Recorded against SQ-5 in the
+arc register.
+
+**Not fixed here.** Installing the crontab is the substance of SQ-5 and is an operator
+decision; resolving it to clear a red would be deciding a sovereign question to tidy up,
+which is what the mandate forbids.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `scripts/notify-wake-supervisor.sh` keeps a `notify-wake-consumer.sh
-      --follow` alive per agent declared in `.context/cron/notify-wake-agents.conf`,
-      started if absent, left alone if healthy — the same contract as the sidecar
-      supervisor (T-3050)
-- [ ] The liveness probe is ANCHORED so the supervisor cannot match its own command
-      line and report a phantom as running. T-3050 hit exactly this and the fixture
-      harness killed itself over it
-- [ ] `.context/cron/notify-wake-supervisor.crontab` installs the trigger, using the
-      split-stream redirect idiom (`>> log 2>> log.stderr`, T-2685) so a tooling
-      error can never dirty the findings channel
-- [ ] The consumer writes a `<agent>.wake-heartbeat` each cycle, so "the consumer is
-      alive" is observable and a dead one is distinguishable from a quiet one — the
-      same reason the sidecar's own heartbeat exists
-- [ ] The consumer acts under the RIGHT IDENTITY: it exports `TERMLINK_AGENT_ID`
-      for the agent it serves, so L3 receipts are signed by that agent and not by
-      whatever key the cron happens to run as. A receipt attributed to the wrong
-      identity is worse than no receipt
-- [ ] `notify-rail-e2e.sh`'s WAKE stage reports the consumer as a live path-A
-      trigger once installed, and the full suite's WAKE verdict changes from
-      NOT-WIRED accordingly — verified by running it, not by reading the code
-- [ ] `tests/notify-wake-supervisor-fixtures.sh` is hermetic and pins: start-if-absent,
-      leave-alone-if-healthy, the anchored probe not matching itself, a conf with zero
-      agents being a tooling error rather than a silent success, and the heartbeat
-      being written
-- [ ] Proven live end to end: a real message raises the flag, the SUPERVISED consumer
-      (not one I launched by hand for the test) fires, and an L3 `stage=read` receipt
-      appears on the topic — read back from the hub, not inferred.
-
-      **UNTICKED 2026-09-22 (T-3071 run). The evidence behind this tick was later
-      WITHDRAWN, so the tick was asserting something retracted.**
-      It was MET on 2026-09-22 at offsets 107-110 on
-      dm:3bba15e681b3a078:d1993c2c3ec44c94: note -> stage=delivered (both sidecars) ->
-      stage=read **evidence=wake-consumer**, signed 3bba15e6 via --as-identity, L3 at
-      t=8s, topic grew by exactly 4 envelopes.
-      Every one of those observations still happened. What changed is what they MEAN.
-      `evidence=wake-consumer` was withdrawn as untruthful later the same day: a
-      consumer noticing a FLAG has injected nothing into any prompt, so a receipt
-      claiming `stage=read` on that basis asserts a read that did not occur.
-      `notify-ack-read.sh` dropped it from the valid evidence list, and
-      `notify-ledger.sh` (T-3070) refuses to advance a rung on it — with offset 110,
-      the very receipt cited above, named in its fixtures as the case to ignore.
-      Leaving this ticked would have the register assert, on evidence the rail itself
-      now rejects, exactly the thing arc-011 exists to stop overclaiming. Re-tick only
-      on a receipt carrying `idle-gated-inject` or `observed-turn`.
-      Required restarting the sidecars first: the running ones were executing
-      pre-change code and emitted no `last_mail_ts` at all (T-2405 stale-code class,
-      a long-lived detached process keeps the old version until restarted).
+- [x] Each of the 7 firing guard-layer members is classified PRE-EXISTING or
+      INTRODUCED — MEASURED, not inferred from which files the commits happened to touch.
+      (AMENDED: this originally specified "by running it against the tree at
+      `9686c37c5~1` as well as at HEAD", and that is NOT the method used. Four of the
+      seven read host state or directories outside the run's diff — `VERSION`,
+      `.context/pickup`, `~/.termlink/awaiting*`, and two hermetic fixture suites — so a
+      historical checkout would have re-measured the same host and proved nothing about
+      attribution. The method actually used was: establish the run's true diff with
+      `git diff --name-only 9686c37c5~1 HEAD`, extract each check's READ-SET from its
+      source, and EXECUTE the two whose read-set overlapped the diff
+      (`check-arc-claim-drift`, `check-unpaired-capture`) to see what they name.
+      Stronger where it matters, but not what the criterion said — corrected rather than
+      ticked as written.)
+- [x] Any member found INTRODUCED by the T-3071 run is fixed, or its cause is recorded
+      together with the reason it is being left
+- [x] The classification is written down where the next run will see it, rather than
+      left in session prose — the T-3077 lesson, that items surviving only as
+      narrative vanish
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -282,6 +237,35 @@ cost_estimate_proposed:
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-09-22 — a wrapper that ends in `echo` cannot report red
+
+- **What changed:** The task was filed to attribute 7 guard-layer failures. The first
+  thing it found was about the measurement, not the failures: the run had been reported
+  as **passing** because the background command was
+  `bash run-guard-layer.sh --json > out 2> err; echo "exit=$?"`. The `echo` succeeds
+  unconditionally, so the compound command exits 0 no matter what the guard layer did.
+  The layer's own envelope said `ok:false, exit_code:1` the whole time. A wrapper whose
+  last statement is `echo` converts every failure into a success at the process boundary
+  — the same shape as a check that cannot go red, committed in the act of running the
+  checks.
+- **Plan impact:** the planned method (check out `9686c37c5~1`, re-run there) turned out
+  to be the wrong instrument for four of the seven, which read host state or their own
+  hermetic fixtures rather than the repo. A historical checkout would have re-measured
+  the same host and proved nothing about attribution. Replaced with read-set analysis
+  plus targeted execution of the two checks whose inputs genuinely overlapped the run's
+  diff. AC1 was amended to say so rather than ticked as written.
+- **Outcome:** all 7 PRE-EXISTING; none introduced by the T-3071 run; both suites the
+  run touched PASS. One is unstable rather than standing (`check-receiver-ack-lag`
+  recorded rc=1, re-runs rc=2 tooling).
+- **The finding that outlived the triage:** `cron-drift-firing-fixtures` fails because
+  `notify-wake-supervisor.crontab` is uninstalled — the SQ-5 condition. That suite is a
+  guard-layer member and the guard layer runs in CI on every push, so "leave it dark"
+  costs a permanently red CI guard, not one audit line. SQ-5 updated with the measured
+  cost. Deliberately NOT resolved: installing the crontab IS the sovereign question, and
+  clearing a red by answering it myself is what the mandate forbids.
+- **Triggered:** nothing new. T-3052 (unpaired capture + runme fixture) and the
+  installed-binary lag are pre-existing and belong to their own owners.
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -334,21 +318,20 @@ cost_estimate_proposed:
 
 ## Updates
 
-### 2026-09-22T10:36:15Z — task-created [task-create-agent]
+### 2026-09-22T18:29:58Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3068-give-the-wake-consumer-a-trigger-supervi.md
+- **Output:** /opt/termlink/.tasks/active/T-3078-triage-the-7-firing-guard-layer-members-.md
 - **Context:** Initial task creation
 
-### 2026-09-22T13:10:21Z — status-update [task-update-agent]
-- **Change:** tags: +arc:arc-011
+## Reviewer Verdict (v1.5)
 
-### 2026-09-22T18:17:30Z — status-update [task-update-agent]
-- **Change:** status: started-work → captured
-- **Reason:** PARKED on SQ-5 (recorded in the arc register). The live-proof AC has been UNTICKED: it was ticked citing evidence=wake-consumer at offsets 107-110, and that evidence kind was withdrawn as untruthful the same day — notify-ledger.sh names offset 110 in its fixtures as the receipt to ignore. Installing the crontab would schedule a cron to drive a path whose only end-to-end proof has been retracted; leaving it dark keeps a permanent audit FAIL. Operator decision, not mine to make to keep momentum.
+- **Scan ID:** R-0ddd9b0b
+- **Timestamp:** 2026-09-22T18:33:40Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
 
-### 2026-09-22T18:17:58Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
-
-### 2026-09-22T18:19:41Z — status-update [task-update-agent]
-- **Change:** status: started-work → captured
-- **Reason:** PARKED on SQ-5 (arc register). Live-proof AC unticked — its evidence (wake-consumer) was withdrawn. Install-vs-leave-dark is an operator decision.
+### 2026-09-22T18:33:39Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** All 7 firing guard-layer members classified PRE-EXISTING by read-set analysis plus targeted execution; none introduced by the T-3071 run, and both suites that run touched PASS. cron-drift-firing fails on the SQ-5 condition, whose cost is now recorded in the arc register.
