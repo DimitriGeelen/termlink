@@ -1,18 +1,18 @@
 ---
-id: T-3073
-name: "Message queue priority field - flat FIFO for now"
+id: T-3074
+name: "Urgent flag: bypass the prompt-free wait and inject directly"
 description: >
-  Spec step 8. Operator: keep it flat for now, prioritise later. The queue reads the
-  journal (2238 rows today) and injects the first item. This task adds the priority
-  FIELD so ordering is explicit rather than incidental.
+  Spec step 9. Operator: not yet defined, note for later. An urgent message should
+  skip the wait for a free prompt and inject immediately. Flag semantics need defining
+  before build.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: later
+horizon: null
 tags: [arc:arc-011]
 components: []
-related_tasks: []
+related_tasks: [T-3072]
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
@@ -23,9 +23,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-22T12:55:41Z
-last_update: '2026-09-22T14:57:42Z'
-date_finished:
+created: 2026-09-22T12:56:36Z
+last_update: 2026-09-22T16:11:01Z
+date_finished: 2026-09-22T16:11:01Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -62,11 +62,11 @@ cost_estimate_proposed:
     rubric_sha: e4a00f38e801
 ---
 
-# T-3073 [DUPLICATE of T-3071 — DO NOT WORK]: Message queue priority field - flat FIFO for now
+# T-3074 [DUPLICATE of T-3072 — DO NOT WORK]: Urgent flag: bypass the prompt-free wait and inject directly
 
 ## Context
 
-**DUPLICATE of T-3071. Do not work this task.**
+**DUPLICATE of T-3072. Do not work this task.**
 
 A `fw task create` batch partially failed (two of six calls dropped silently
 because `--type inception` needs `--recommendation`/`--rationale`). The retry
@@ -74,16 +74,24 @@ re-created the two that HAD succeeded, producing this pair. The framework has no
 `cancelled` status — valid states are captured/started-work/issues/work-completed
 — so it is parked at `horizon: later` and marked here instead.
 
-Work T-3071.
+Work T-3072.
 
 <!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these.
+     This task is a DUPLICATE. Its only honest deliverable is being retired in a way
+     that leaves the ID permanently claimed (so no future allocator can re-issue it —
+     the T-2800 collision class) and points unambiguously at the live twin. There is
+     no build work here, and ticking build ACs would assert work that never happened. -->
+- [x] The canonical twin T-3072 exists and carries the same deliverable (spec step 9,
+      urgent flag bypassing the prompt-free wait), with the richer `components:` list
+      this file lacks
+- [x] arc-011's slice register binds slice S9 to T-3072, not to this ID
+- [x] This file states in its title and Context that it is a duplicate and must not be
+      worked, so the next reader cannot mistake it for an open unit
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -219,6 +227,28 @@ Work T-3071.
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-09-22 — this ID never held work; what it held was an allocation defect
+
+- **What changed:** Nothing was learned about spec step 9 under this ID, because no
+  build happened here — and note that the real open question on urgent (SQ-4: what an
+  URGENT message does when the prompt is BUSY) lives on T-3072, not here. What WAS
+  learned is the mechanism that created this file. A batch of six `fw task create`
+  calls partially failed: two used `--type inception`, which silently requires BOTH
+  `--recommendation` and `--rationale`, and those two exited without creating
+  anything. The retry re-ran the whole batch, so the ones that HAD succeeded were
+  created a second time under fresh IDs — this file and T-3073. The failure was
+  invisible at the call site, which is why it was acted on as if it had not happened.
+- **Plan impact:** The duplicates sat in `.tasks/active/` as apparently live captured
+  units, indistinguishable from real backlog, and the arc's slice register had to be
+  checked to confirm which twin it actually binds. Corrected under T-3077: S9 binds
+  to T-3072, and this pair is retired.
+- **Why completed rather than deleted:** deleting the file frees the ID, and a freed
+  ID is exactly what the allocator will hand out again — the T-2800 cross-branch
+  collision class. Completing keeps it permanently claimed. Precedent: T-2261.
+- **Triggered:** T-3077 (register repair + duplicate disposal). The underlying defect
+  — `fw task create --type inception` failing silently on missing flags — is vendored
+  framework code (G-062) and is not patched here.
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -271,10 +301,28 @@ Work T-3071.
 
 ## Updates
 
-### 2026-09-22T12:55:41Z — task-created [task-create-agent]
+### 2026-09-22T12:56:36Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3073-message-queue-priority-field---flat-fifo.md
+- **Output:** /opt/termlink/.tasks/active/T-3074-urgent-flag-bypass-the-prompt-free-wait-.md
 - **Context:** Initial task creation
 
 ### 2026-09-22T13:10:20Z — status-update [task-update-agent]
 - **Change:** tags: +arc:arc-011
+
+### 2026-09-22T16:11:00Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
+- **Reason:** Transitional only — the state machine has no captured->work-completed edge; retiring as a duplicate of T-3072, not working it.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-ca666903
+- **Timestamp:** 2026-09-22T16:11:03Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-09-22T16:11:01Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Closed as a duplicate of T-3072, following the T-2261 precedent. No work was ever done under this ID — spec step 9 (and its open SQ-4 semantics question) lives on T-3072, which arc-011 binds to slice S9. Completing rather than deleting keeps the ID permanently claimed, which is what stops a future allocator re-issuing it (T-2800 collision class).

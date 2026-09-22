@@ -82,9 +82,20 @@ slices:
   - id: S6
     spec_step: "6. sender records it in its own ledger"
     task: T-3070
-    status: unbuilt
-    note: "Sender can only poll hub receipts. A sender that restarts loses all
-           knowledge of what it is waiting on."
+    status: built
+    note: "scripts/notify-ledger.sh — one outbox row per message sent, carrying the
+           rung it reached (sent | delivered | read). Survives a restart, so the
+           sender no longer has to re-poll every topic it has ever used to answer
+           'what am I still waiting on?'. 15 hermetic fixtures.
+           TWO INTEGRITY RULES carry the whole value: a rung NEVER advances without
+           a receipt actually read back (absence is shown as absence, never assumed
+           to be progress), and a stage=read receipt carrying the WITHDRAWN
+           evidence=wake-consumer is ignored — such receipts exist on live topics
+           today (offset 110 on dm:3bba15e681b3a078:d1993c2c3ec44c94) and honouring
+           them would relaunder a retracted claim as fact.
+           Its first live sync earned its keep immediately: both messages to the AEF
+           agent read 'delivered' and NEITHER 'read'. 'Delivered but never read' is
+           now a state the sender can SEE rather than an absence it must notice."
   - id: S7
     spec_step: "7. independent process checks the prompt is free"
     task: T-3069

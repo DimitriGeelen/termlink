@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3077: Repair arc-011 slice register drift and dispose the duplicate task pair
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-22T16:13:56Z
+# ============================================================================
+
+task_id: T-3077
+task_name: "Repair arc-011 slice register drift and dispose the duplicate task pair"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-22T16:06:55Z
+completed: 2026-09-22T16:13:48Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  arc-011's slice register records S6 (sender ledger) as status:unbuilt with a note saying a restarted sender loses all knowledge of what it is waiting on. T-3070 shipped that slice and is in .tasks/completed/. The register that exists specifically to make slice status a structural query rather than archaeology is currently asserting something false about its own arc. Also dispose T-3073/T-3074, the orphan duplicates created when two fw task create --type inception calls failed silently and were re-run under fresh IDs; the register points at T-3071/T-3072.
+
+# Key outcomes
+outcomes:
+  - 'arc-011 slice S6 reads `status: built` and its note states what T-3070 actually'
+  - 'Every slice in `.context/arcs/arc-011.yaml` whose `task:` is in `.tasks/completed/`'
+  - 'T-3073 and T-3074 are disposed as duplicates: each names its canonical twin'
+  - 'Every `task:` reference in the arc''s slice register resolves to a task file that'
+  - '`bash scripts/check-arc-claim-drift.sh` exits the same as it did before this'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 6
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3077-repair-arc-011-slice-register-drift-and-.md
+generated_by: context-agent-hybrid
