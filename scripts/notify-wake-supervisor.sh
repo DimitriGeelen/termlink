@@ -86,8 +86,12 @@ now_ms() { date +%s%3N; }
 
 # Anchored so it cannot match this supervisor, or a DIFFERENT agent whose id is a
 # prefix of this one (agent "pen" must not satisfy the probe for "pen-agent").
+# Derived from $CONSUMER, not hardcoded: a supervisor that probes for a name it
+# was not told to run reports every consumer as absent and restarts forever. The
+# fixtures caught this by pointing WAKE_CONSUMER at a stand-in.
+CONSUMER_BASE="$(basename "$CONSUMER")"
 consumer_pid_for() {
-    pgrep -f -- "notify-wake-consumer.sh --agent-id $1( |\$)" 2>/dev/null | head -1
+    pgrep -f -- "$CONSUMER_BASE --agent-id $1( |\$)" 2>/dev/null | head -1
 }
 
 started=0; ok=0; failed=0; stale=0; declared=0
@@ -132,7 +136,13 @@ while IFS= read -r line; do
 
     # Detached so it outlives this cron invocation; its own --follow loop keeps it
     # alive and the next supervisor pass re-checks it.
-    TERMLINK_AGENT_ID="$agent" nohup setsid bash "$CONSUMER" "${args[@]}" \
+    # NO TERMLINK_AGENT_ID here. The agent field is a FLAG-FILE LABEL, not an
+    # identity; exporting it made termlink resolve a third fingerprint unrelated to
+    # the mailbox being served. Identity comes from an explicit --as-identity in the
+    # conf's extra flags, or not at all. Same defect the consumer carried — fixed in
+    # both places, because fixing one and leaving the sibling is how this repo's
+    # "hardened in one place, siblings not migrated" findings keep happening.
+    nohup setsid bash "$CONSUMER" "${args[@]}" \
         >/dev/null 2>&1 < /dev/null &
     sleep 1
     if [ -n "$(consumer_pid_for "$agent")" ]; then
