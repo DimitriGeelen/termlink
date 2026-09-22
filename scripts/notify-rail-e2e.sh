@@ -84,7 +84,7 @@ ITERATIONS=5
 JSON=0
 RUN_REVERSE=1
 EXPERIMENTS=""
-STAGES_REQUESTED="precond,deliver,receipt,wake,reverse"
+STAGES_REQUESTED="precond,deliver,receipt,ladder,wake,reverse"
 
 usage() {
     cat <<'USAGE'
@@ -99,7 +99,7 @@ Options:
   --peer-session TLID    peer's termlink session   (auto-resolved if omitted)
   --self-agent ID        sending agent id          (default claude-termlink)
   --self-fp FP           sending identity fp       (default d1993c2c3ec44c94)
-  --stages LIST          comma list of precond,deliver,receipt,wake,reverse
+  --stages LIST          comma list of precond,deliver,receipt,ladder,wake,reverse
   --experiment NAME      e1 (sidecar-dead) | e2 (latency) | e3 (closed-loop wake)
                          | e4 (identity split) | all
   --iterations N         iterations for the e2 latency experiment (default 5)
@@ -142,6 +142,7 @@ record() {  # record <stage> <PASS|FAIL|SKIP|NOT-WIRED|TOOLING> <detail>
     STAGE_NAMES+=("$1"); STAGE_VERDICTS+=("$2"); STAGE_DETAILS+=("$3")
     [ "$2" = "FAIL" ] && [ -z "$BROKEN_STAGE" ] && BROKEN_STAGE="$1"
     [ "$2" = "NOT-WIRED" ] && [ -z "$BROKEN_STAGE" ] && BROKEN_STAGE="$1"
+    [ "$2" = "L2-ONLY" ] && [ -z "$BROKEN_STAGE" ] && BROKEN_STAGE="$1"
     if [ "$JSON" -eq 0 ]; then
         printf '  %-10s %-10s %s\n' "$1" "$2" "$3"
     fi
@@ -358,6 +359,47 @@ stage_receipt() {
         return 0
     fi
     record RECEIPT FAIL "no receipt from peer $PEER_FP on $TOPIC — a sender using --await-ack would exhaust retries and dead-letter a message that actually arrived"
+    return 1
+}
+
+# ===========================================================================
+# STAGE: LADDER — which rung did this topic actually reach? (T-3067)
+# ===========================================================================
+# The confirm ladder is L2 stage=delivered < L3 stage=read < C acted. L2 says the
+# transport delivered it and the journal holds it. L3 says it reached a PROMPT.
+# Only L3 answers the question a sender actually has.
+#
+# This stage reads RAW ENVELOPES via `channel subscribe`, deliberately NOT
+# `channel receipts` — that surface aggregates to {sender_id, ts_unix_ms, up_to}
+# and DISCARDS metadata.stage, so it is structurally blind to the entire rung.
+# The RECEIPT stage above uses it and can therefore only ever confirm L2; this
+# stage is what can tell the two apart.
+stage_ladder() {
+    local blob
+    if [ -n "${NOTIFY_E2E_TEST_LADDER:-}" ]; then
+        blob="$(cat "$NOTIFY_E2E_TEST_LADDER" 2>/dev/null)" \
+            || { record LADDER FAIL "ladder fixture unreadable"; return 1; }
+    else
+        blob="$(timeout "$EXEC_TIMEOUT" "$TERMLINK" channel subscribe "$TOPIC" \
+                --cursor 0 --limit 1000 --json 2>/dev/null)" \
+            || { record LADDER FAIL "channel subscribe failed for $TOPIC"; return 1; }
+    fi
+
+    local n_l2 n_l3
+    n_l2="$(printf '%s\n' "$blob" | jq -rs '[.[] | (.envelope//.) | select(.msg_type=="receipt") | (.metadata//{}).stage | select(.=="delivered")] | length' 2>/dev/null)"
+    n_l3="$(printf '%s\n' "$blob" | jq -rs '[.[] | (.envelope//.) | select(.msg_type=="receipt") | (.metadata//{}).stage | select(.=="read")] | length' 2>/dev/null)"
+    case "$n_l2" in ''|*[!0-9]*) n_l2=0 ;; esac
+    case "$n_l3" in ''|*[!0-9]*) n_l3=0 ;; esac
+
+    if [ "$n_l3" -gt 0 ]; then
+        record LADDER PASS "reached L3 — $n_l2 delivered, $n_l3 read. The sender can learn the message reached a prompt."
+        return 0
+    fi
+    if [ "$n_l2" -gt 0 ]; then
+        record LADDER L2-ONLY "$n_l2 stage=delivered, 0 stage=read — the ladder stops at the mailbox. A sender can learn the message was DELIVERED and cannot learn whether it reached a prompt. Post L3 with scripts/notify-ack-read.sh."
+        return 1
+    fi
+    record LADDER FAIL "no staged receipts at all on $TOPIC — neither rung is being produced (is a sidecar running with --auto-confirm?)"
     return 1
 }
 
@@ -708,6 +750,7 @@ fi
 wants_stage precond && stage_precond
 wants_stage deliver && stage_deliver
 wants_stage receipt && stage_receipt
+wants_stage ladder  && stage_ladder
 wants_stage wake    && stage_wake
 if [ "$RUN_REVERSE" -eq 1 ] && wants_stage reverse; then stage_reverse; fi
 

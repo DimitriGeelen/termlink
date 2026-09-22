@@ -141,15 +141,37 @@ while [ "$(date +%s)" -lt "$DEADLINE" ]; do
         if [ "$ts" -gt "$START_MS" ] 2>/dev/null && [ "$pending" -gt 0 ] && [ -n "$topic" ]; then
             if [ -z "$TOPIC_FILTER" ] || [ "$topic" = "$TOPIC_FILTER" ]; then
                 log "WAKE: topic=$topic pending=$pending ts=$ts"
+                # The action's own rc is captured EXPLICITLY. Reading `$?` after the
+                # if/else would pick up whatever ran last — `log` in the else branch,
+                # which always succeeds — so L3 would be posted even when the action
+                # failed. That is the "delivered means queued" defect rebuilt one rung
+                # higher, and it would have been invisible.
+                action_rc=0
                 if [ -n "$ACTION" ]; then
                     WAKE_AGENT_ID="$AGENT_ID" WAKE_TOPIC="$topic" \
                     WAKE_PENDING="$pending" WAKE_TS="$ts" \
                         bash -c "$ACTION"
+                    action_rc=$?
                 else
                     # Default action: the smallest thing the SENDER can observe.
                     termlink channel post "$topic" \
                         "wake-ack agent=$AGENT_ID pending=$pending ts=$ts" >/dev/null 2>&1
-                    log "posted default wake-ack to $topic"
+                    action_rc=$?
+                    log "posted default wake-ack to $topic (rc=$action_rc)"
+                fi
+                # T-3067 — L3. Posted ONLY after the action above returned, with
+                # evidence=wake-consumer: a consumer watching this agent's flag
+                # fired and its action completed. That is a real observation, not
+                # an inference from a send. If the action had failed we would be
+                # back at "delivered means queued" one rung higher, which is the
+                # thing L3 exists to end, so a failed action posts nothing.
+                if [ "$action_rc" -eq 0 ]; then
+                    bash "$(dirname "${BASH_SOURCE[0]}")/notify-ack-read.sh" \
+                        --topic "$topic" --up-to latest \
+                        --evidence wake-consumer --agent-id "$AGENT_ID" --quiet \
+                        2>/dev/null || log "WARN: L3 receipt not posted for $topic"
+                else
+                    log "action failed (rc=$action_rc) — NOT posting L3; the message reached no prompt"
                 fi
                 FIRED=1
                 [ "$FOLLOW" -eq 1 ] || exit 0
