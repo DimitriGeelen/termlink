@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2982: File upstream: hook-telemetry flock fix (L-023)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-20T22:18:48Z
+# ============================================================================
+
+task_id: T-2982
+task_name: "File upstream: hook-telemetry flock fix (L-023)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-19T22:05:16Z
+completed: 2026-09-20T22:18:37Z
+duration_days: 1
+updates_count: 3
+first_commit: 2026-09-21T00:15:36+02:00
+last_commit: 2026-09-21T00:18:32+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  reproduce the L-023 hook-telemetry race; flock fits the 5ms budget. file L-023 hook-telemetry race upstream — framework:pickup@132
+
+# Key outcomes
+outcomes:
+  - 'The lost-update race in `_fw_telemetry_increment` is REPRODUCED by a concurrency'
+  - 'The corruption window is characterised: whether concurrent readers can observe a'
+  - 'A candidate fix is written and shown to eliminate the loss under the SAME harness'
+  - 'The fix''s per-call overhead is measured against the 5ms T-1626 budget that the'
+  - 'Defect + reproduction + measured fix are FILED at `framework:pickup` (the code is'
+  - 'The divergence is registered in `.vendor-divergence.yaml` with `status:'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/reports/T-2995-rpc-surface-wiring-sweep.md'
+  - '.tasks/active/T-2982-file-upstream-hook-telemetry-flock-fix-l.md'
+  - '.tasks/active/T-2995-inception-rpc-surface-wiring-check-sweep.md'
+  - 'tests/hook-telemetry-race-fixtures.sh'
+  - '.vendor-divergence.yaml'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-21T00:15:36'
+    action: 'T-2982: reproduce the L-023 hook-telemetry race; flock fits the 5ms budget'
+  - time: '2026-09-21T00:18:32'
+    action: 'T-2982: file L-023 hook-telemetry race upstream — framework:pickup@132'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 1453 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [value-review, arc:arc-009]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1453
+  commits: 2
+  files_changed: 5
+  lines_added: 310
+  lines_removed: 61
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2982-file-upstream-hook-telemetry-flock-fix-l.md
+generated_by: context-agent-hybrid

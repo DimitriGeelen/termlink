@@ -6,7 +6,7 @@ description: >
   Give the wake consumer a trigger: supervised standing service so the flag is actually
   read
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -29,7 +29,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-22T10:36:15Z
-last_update: 2026-09-22T18:19:41Z
+last_update: 2026-09-22T19:18:57Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -107,9 +107,20 @@ cost_estimate_proposed:
 - [ ] The liveness probe is ANCHORED so the supervisor cannot match its own command
       line and report a phantom as running. T-3050 hit exactly this and the fixture
       harness killed itself over it
-- [ ] `.context/cron/notify-wake-supervisor.crontab` installs the trigger, using the
+- [x] `.context/cron/notify-wake-supervisor.crontab` installs the trigger, using the
       split-stream redirect idiom (`>> log 2>> log.stderr`, T-2685) so a tooling
-      error can never dirty the findings channel
+      error can never dirty the findings channel.
+      **INSTALLED 2026-09-22 on operator approval (SQ-5 answered: install).**
+      `/etc/cron.d/termlink-notify-wake-supervisor`, 0644 root:root, byte-identical
+      to the tracked source (`diff` clean). `check-cron-install-drift` went 1 -> 0
+      ("healthy, 30 installed + matching"), and `tests/cron-drift-firing-fixtures.sh`
+      went 12/1 -> **13 passed, 0 failed** — the guard-layer red this was causing is
+      gone, not silenced.
+      VERIFIED FIRING, not merely present: `journalctl -u cron` shows
+      `21:20:01 CRON[97550]: (root) CMD (cd /opt/termlink && bash
+      scripts/notify-wake-supervisor.sh --quiet ...)` at the first */5 boundary after
+      install, and both log streams exist and are EMPTY — which is the healthy state
+      under the one-bit convention, and proves the split redirect works.
 - [ ] The consumer writes a `<agent>.wake-heartbeat` each cycle, so "the consumer is
       alive" is observable and a dead one is distinguishable from a quiet one — the
       same reason the sidecar's own heartbeat exists
@@ -117,9 +128,14 @@ cost_estimate_proposed:
       for the agent it serves, so L3 receipts are signed by that agent and not by
       whatever key the cron happens to run as. A receipt attributed to the wrong
       identity is worse than no receipt
-- [ ] `notify-rail-e2e.sh`'s WAKE stage reports the consumer as a live path-A
+- [x] `notify-rail-e2e.sh`'s WAKE stage reports the consumer as a live path-A
       trigger once installed, and the full suite's WAKE verdict changes from
-      NOT-WIRED accordingly — verified by running it, not by reading the code
+      NOT-WIRED accordingly — verified by running it, not by reading the code.
+      **MET 2026-09-22, by running it:** `WAKE PASS  1 consumer(s) react to a raised
+      flag`, where this previously read NOT-WIRED. Full suite
+      `--stages precond,deliver,receipt,ladder,wake` returns **verdict: PROVEN**
+      (PRECOND/DELIVER/RECEIPT/LADDER/WAKE all PASS; DELIVER observed on the peer in
+      6215ms, RECEIPT acked up_to=120).
 - [ ] `tests/notify-wake-supervisor-fixtures.sh` is hermetic and pins: start-if-absent,
       leave-alone-if-healthy, the anchored probe not matching itself, a conf with zero
       agents being a tooling error rather than a silent success, and the heartbeat
@@ -352,3 +368,6 @@ cost_estimate_proposed:
 ### 2026-09-22T18:19:41Z — status-update [task-update-agent]
 - **Change:** status: started-work → captured
 - **Reason:** PARKED on SQ-5 (arc register). Live-proof AC unticked — its evidence (wake-consumer) was withdrawn. Install-vs-leave-dark is an operator decision.
+
+### 2026-09-22T19:18:57Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

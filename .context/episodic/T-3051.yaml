@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3051: No canary detects a dead notify sidecar - declared-agent liveness canary
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-21T22:26:21Z
+# ============================================================================
+
+task_id: T-3051
+task_name: "No canary detects a dead notify sidecar - declared-agent liveness canary"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-21T22:22:19Z
+completed: 2026-09-21T22:26:12Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-22T00:26:03+02:00
+last_commit: 2026-09-22T00:26:03+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  nothing watched whether this host can still hear
+
+# Key outcomes
+outcomes:
+  - '`scripts/check-notify-sidecar-freshness.sh` fires (exit 1) when a DECLARED agent has'
+  - 'It is healthy (exit 0) when every declared agent has a fresh heartbeat, and it does'
+  - 'Fail-closed: an unreadable/missing conf, an absent notify dir, or a conf declaring'
+  - 'Independent of the supervisor: the canary reads heartbeats only, so it still fires'
+  - 'A crontab under `.context/cron/` with a self-declared `# Installed to:` path and the'
+  - 'A hermetic fixture suite (scratch notify dir, no hub, no real sidecar) pins every'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/cron/notify-sidecar-canary.crontab'
+  - 'scripts/check-notify-sidecar-freshness.sh'
+  - '.tasks/active/T-3051-no-canary-detects-a-dead-notify-sidecar-.md'
+  - '.tasks/completed/T-3050-notify-sidecar-has-no-launcher---cron-su.md'
+  - 'tests/notify-sidecar-canary-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-22T00:26:03'
+    action: 'T-3051: nothing watched whether this host can still hear'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 5
+  lines_added: 648
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3051-no-canary-detects-a-dead-notify-sidecar-.md
+generated_by: context-agent-hybrid

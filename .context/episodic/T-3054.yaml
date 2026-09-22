@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3054: AEF agent has its own identity and no ears - add it to the supervised rail
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-21T22:48:53Z
+# ============================================================================
+
+task_id: T-3054
+task_name: "AEF agent has its own identity and no ears - add it to the supervised rail"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-21T22:45:48Z
+completed: 2026-09-21T22:48:45Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-22T00:48:45+02:00
+last_commit: 2026-09-22T00:48:45+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  the AEF agent had no ears — give it its own sidecar
+
+# Key outcomes
+outcomes:
+  - 'The AEF agent''s fingerprint is DERIVED, not guessed: `TERMLINK_AGENT_ID=...'
+  - '`framework-agent-systemd 3bba15e681b3a078 --auto-confirm` is declared in the'
+  - 'One supervisor run starts a sidecar for it, and a `framework-agent-systemd.heartbeat`'
+  - '`notify-check.sh --agent-id framework-agent-systemd` returns a LIVE verdict (0 or 10),'
+  - 'The liveness canary now watches BOTH agents: it reports two declared agents and stays'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/cron/notify-sidecar-agents.conf'
+  - '.tasks/active/T-3054-aef-agent-has-its-own-identity-and-no-ea.md'
+  - '.tasks/completed/T-3053-recipient-never-acks---enable-auto-confi.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-22T00:48:45'
+    action: 'T-3054: the AEF agent had no ears — give it its own sidecar'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 3
+  lines_added: 310
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3054-aef-agent-has-its-own-identity-and-no-ea.md
+generated_by: context-agent-hybrid

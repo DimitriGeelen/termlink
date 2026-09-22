@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3057: Pin the playwright MCP server version - npx @latest is unpinned remote code execution
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-22T07:28:26Z
+# ============================================================================
+
+task_id: T-3057
+task_name: "Pin the playwright MCP server version - npx @latest is unpinned remote code execution"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-22T07:26:22Z
+completed: 2026-09-22T07:28:18Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-22T09:28:11+02:00
+last_commit: 2026-09-22T09:28:11+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  pin playwright — @latest is unpinned remote code execution
+
+# Key outcomes
+outcomes:
+  - '`.mcp.json` pins playwright to a concrete version: no `@latest`, so the code that'
+  - 'The pinned server still STARTS and serves — a pin that breaks the CLAUDE.md-mandated'
+  - 'The remaining unpinned server is named explicitly in the task, not silently left:'
+  - '`.mcp.json` still parses as JSON and the other three servers are untouched'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/reports/T-3055-plugin-survey.md'
+  - '.mcp.json'
+  - '.tasks/active/T-3057-pin-the-playwright-mcp-server-version---.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-22T09:28:11'
+    action: 'T-3057: pin playwright — @latest is unpinned remote code execution'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 3
+  lines_added: 379
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3057-pin-the-playwright-mcp-server-version---.md
+generated_by: context-agent-hybrid

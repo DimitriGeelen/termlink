@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3034: checkpoint.sh has no 'budget' subcommand — the G-087-safe read /resume prescribes is unimplemented
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-21T08:14:38Z
+# ============================================================================
+
+task_id: T-3034
+task_name: "checkpoint.sh has no 'budget' subcommand — the G-087-safe read /resume prescribes is unimplemented"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-21T07:35:12Z
+completed: 2026-09-21T08:14:31Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-21T09:40:40+02:00
+last_commit: 2026-09-21T10:14:25+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  real ACs + verification for the checkpoint.sh 'budget' defect. file the checkpoint.sh 'budget' contradiction upstream — framework:pickup@134
+
+# Key outcomes
+outcomes:
+  - 'The defect is reproduced by a recorded check, not asserted: invoking'
+  - 'The contradiction is stated in this task: `/resume` step 6 prescribes the'
+  - 'No local patch is made under `.agentic-framework/` (G-062: a local fix to'
+  - 'The defect is filed upstream at `framework:pickup` and the resulting offset is'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3034-checkpointsh-has-no-budget-subcommand--t.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-21T09:40:40'
+    action: 'T-3034: real ACs + verification for the checkpoint.sh ''budget'' defect'
+  - time: '2026-09-21T10:14:25'
+    action: 'T-3034: file the checkpoint.sh ''budget'' contradiction upstream — framework:pickup@134'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 39 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [governance, arc:arc-009]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 39
+  commits: 2
+  files_changed: 1
+  lines_added: 250
+  lines_removed: 40
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3034-checkpointsh-has-no-budget-subcommand--t.md
+generated_by: context-agent-hybrid

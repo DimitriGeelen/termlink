@@ -1,0 +1,93 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3061: Two-party notify-rail E2E harness: prove wake between claude-termlink and the AEF agent
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-22T10:15:35Z
+# ============================================================================
+
+task_id: T-3061
+task_name: "Two-party notify-rail E2E harness: prove wake between claude-termlink and the AEF agent"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-22T08:27:39Z
+completed: 2026-09-22T10:15:18Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-09-22T10:45:44+02:00
+last_commit: 2026-09-22T12:14:30+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  two-party notify-rail prover — and the two things it found. E3 closed-loop wake + E4 identity split — a proven silent-loss path. correct the WAKE finding — two paths, one unarmed, one unbuilt. close the identity-split silent-loss path — second mailbox now watched
+
+# Key outcomes
+outcomes:
+  - '`scripts/notify-rail-e2e.sh` exists, is executable, and runs five named stages'
+  - 'Every delivery verdict is asserted on the RECEIVER''s observable state (its'
+  - 'Exit contract: 0 = proven, 1 = broken (names the failing stage), 2 = tooling.'
+  - 'The WAKE stage reports `NOT-WIRED` (non-green) when no process consumes the'
+  - 'Experiment E1 (sidecar-dead) demonstrates `notify-check.sh` returns 3/DEAF, not'
+  - 'Experiment E2 (latency) sends N sentinels and reports observed flag-raise'
+  - 'Hermetic test seams allow the whole suite to run with no live hub and no live'
+  - '`tests/notify-rail-e2e-fixtures.sh` covers the stage logic with at least three'
+  - 'A live run against the real `framework-agent-systemd` peer is executed and its'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/cron/notify-sidecar-agents.conf'
+  - 'scripts/notify-rail-e2e.sh'
+  - 'scripts/notify-wake-consumer.py'
+  - 'scripts/notify-wake-consumer.sh'
+  - '.tasks/active/T-3061-two-party-notify-rail-e2e-harness-prove-.md'
+  - 'tests/notify-rail-e2e-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-22T10:45:44'
+    action: 'T-3061: two-party notify-rail prover — and the two things it found'
+  - time: '2026-09-22T10:51:12'
+    action: 'T-3061: E3 closed-loop wake + E4 identity split — a proven silent-loss path'
+  - time: '2026-09-22T11:19:41'
+    action: 'T-3061: correct the WAKE finding — two paths, one unarmed, one unbuilt'
+  - time: '2026-09-22T12:14:30'
+    action: 'T-3061: close the identity-split silent-loss path — second mailbox now watched'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 107 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 107
+  commits: 4
+  files_changed: 6
+  lines_added: 1547
+  lines_removed: 14
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3061-two-party-notify-rail-e2e-harness-prove-.md
+generated_by: context-agent-hybrid

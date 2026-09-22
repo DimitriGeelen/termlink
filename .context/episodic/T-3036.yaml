@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3036: Run substrate-smoke prover and report claim/claim-transfer stage verdicts (AEF T-3398 drift check)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-21T14:36:15Z
+# ============================================================================
+
+task_id: T-3036
+task_name: "Run substrate-smoke prover and report claim/claim-transfer stage verdicts (AEF T-3398 drift check)"
+workflow_type: test
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-21T08:58:02Z
+completed: 2026-09-21T14:36:08Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-21T10:59:20+02:00
+last_commit: 2026-09-21T16:36:03+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  queue substrate-smoke prover run — AEF arc-020 primitive drift check. run substrate-smoke prover for AEF arc-020 drift check — 10/10 stages PASS
+
+# Key outcomes
+outcomes:
+  - 'Hub reachability prechecked and its result recorded BEFORE the prover runs, so the exit code is interpretable (T-2696 remap: unreachable ⇒ tooling, not a stage regression)'
+  - '`scripts/substrate-smoke.sh` executed against the live hub and its **stage-by-stage** verdict recorded verbatim in this task — every stage named, not an aggregate pass/fail'
+  - 'The claim / claim-transfer stages AEF specifically asked about are reported individually, since those are the verbs arc-020 reuses'
+  - 'Verdict filed to the `framework:pickup` topic and **proven received by reading it back from the hub at a recorded offset** — not by trusting the `delivered` response (T-2876: delivered means queued, not received)'
+  - 'The standing canary-install audit gap is resolved in this task by recording WHY it was not installed here plus the exact operator command, since installing to `/etc/cron.d` needs sudo and is operator action this session must not take'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3036-run-substrate-smoke-prover-and-report-cl.md'
+  - '.tasks/active/T-3039-file-upstream-inception-decide-path-neve.md'
+  - '.tasks/active/T-3043-triage-32-auto-created-pickup-tasks--for.md'
+  - '.tasks/completed/T-3035-triage-frameworkpickup131--ring20s-fw-do.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-21T10:59:20'
+    action: 'T-3036: queue substrate-smoke prover run — AEF arc-020 primitive drift check'
+  - time: '2026-09-21T16:36:03'
+    action: 'T-3036: run substrate-smoke prover for AEF arc-020 drift check — 10/10 stages PASS'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 338 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-009]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 338
+  commits: 2
+  files_changed: 4
+  lines_added: 462
+  lines_removed: 17
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3036-run-substrate-smoke-prover-and-report-cl.md
+generated_by: context-agent-hybrid

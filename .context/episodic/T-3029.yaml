@@ -1,0 +1,88 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3029: CLAUDE.md's documented budget ladder contradicts the live gate: 170K 'handover immediately' vs 285K critical
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-20T18:17:03Z
+# ============================================================================
+
+task_id: T-3029
+task_name: "CLAUDE.md's documented budget ladder contradicts the live gate: 170K 'handover immediately' vs 285K critical"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-20T15:08:33Z
+completed: 2026-09-20T18:16:53Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-20T20:15:30+02:00
+last_commit: 2026-09-20T20:16:49+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  the documented budget ladder is 200K-shaped; the gate runs 300K — filed at framework:pickup@130. register fabric cards for the budget-ladder drift check and its fixtures. Evolution log — a false blocker, an AC that outran its check, and a vacuous pass in the guard itself
+
+# Key outcomes
+outcomes:
+  - 'Contradiction MEASURED on BOTH axes against the live gate, not inferred: the absolute'
+  - 'Every contradicting line LOCATED by line number and classified above or below the'
+  - 'Disposition decided ON EVIDENCE and recorded: provenance established before filing (no'
+  - 'No edit to the framework-managed region below the boundary — futile by construction'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'register fabric cards for the budget-ladder drift check and its fixtures'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/checks/budget-ladder-allowlist'
+  - '.fabric/components/scripts-check-budget-ladder-drift.yaml'
+  - '.fabric/components/tests-budget-ladder-drift-fixtures.yaml'
+  - 'scripts/check-budget-ladder-drift.sh'
+  - '.tasks/active/T-3029-claudemds-documented-budget-ladder-contr.md'
+  - '.tasks/completed/T-3017-d2-audit-check-prints-10-sub-threshold-t.md'
+  - 'tests/budget-ladder-drift-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-20T20:15:30'
+    action: 'T-3029: the documented budget ladder is 200K-shaped; the gate runs 300K — filed at framework:pickup@130'
+  - time: '2026-09-20T20:15:54'
+    action: 'T-3029: register fabric cards for the budget-ladder drift check and its fixtures'
+  - time: '2026-09-20T20:16:49'
+    action: 'T-3029: Evolution log — a false blocker, an AC that outran its check, and a vacuous pass in the guard itself'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 188 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 188
+  commits: 3
+  files_changed: 7
+  lines_added: 588
+  lines_removed: 27
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3029-claudemds-documented-budget-ladder-contr.md
+generated_by: context-agent-hybrid

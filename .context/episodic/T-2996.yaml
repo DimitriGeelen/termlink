@@ -1,0 +1,88 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2996: Per-tool/per-verb invocation telemetry instrument
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-21T07:30:45Z
+# ============================================================================
+
+task_id: T-2996
+task_name: "Per-tool/per-verb invocation telemetry instrument"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-19T22:19:23Z
+completed: 2026-09-21T07:29:53Z
+duration_days: 2
+updates_count: 3
+first_commit: 2026-09-21T01:07:35+02:00
+last_commit: 2026-09-21T09:29:47+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  per-tool MCP invocation telemetry — C-45, the gap was resolution not absence. tick 8 agent ACs — parity green, verification 7/7 under gate semantics
+
+# Key outcomes
+outcomes:
+  - 'Gap is demonstrated, not asserted: a recorded check shows `rpc_audit` cannot'
+  - 'An invocation sink lives in `termlink-hub` beside `rpc_audit` (both'
+  - 'Every MCP tool call is recorded by TOOL NAME at the dispatch choke point'
+  - 'Recording is best-effort and cannot fail a tool call: a sink write error leaves'
+  - 'A concurrency fixture proves the sink loses no records under >=8 concurrent'
+  - 'A reader reports per-tool invocation counts over a window, so the next review'
+  - '`cargo build` and the touched crates'' tests are green'
+  - 'Coverage scope is stated in the reader''s own output and in this task: this'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-hub/src/invocation_audit.rs'
+  - 'crates/termlink-hub/src/lib.rs'
+  - 'crates/termlink-mcp/src/server.rs'
+  - 'scripts/invocation-usage.sh'
+  - '.tasks/active/T-2996-per-toolper-verb-invocation-telemetry-in.md'
+  - 'tests/invocation-audit-concurrency-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-21T01:07:35'
+    action: 'T-2996: per-tool MCP invocation telemetry — C-45, the gap was resolution not absence'
+  - time: '2026-09-21T09:29:47'
+    action: 'T-2996: tick 8 agent ACs — parity green, verification 7/7 under gate semantics'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 1990 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [value-review, arc:arc-009]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1990
+  commits: 2
+  files_changed: 6
+  lines_added: 750
+  lines_removed: 128
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2996-per-toolper-verb-invocation-telemetry-in.md
+generated_by: context-agent-hybrid

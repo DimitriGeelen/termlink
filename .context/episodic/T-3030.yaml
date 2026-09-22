@@ -1,0 +1,91 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3030: P-002 read-only allowlist gap blocks pure-read guard scripts and command substitution
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-20T17:06:06Z
+# ============================================================================
+
+task_id: T-3030
+task_name: "P-002 read-only allowlist gap blocks pure-read guard scripts and command substitution"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-20T15:19:15Z
+completed: 2026-09-20T17:05:57Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-20T17:21:32+02:00
+last_commit: 2026-09-20T19:05:53+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  file the P-002 read-only allowlist gap after its fifth refusal. the allowlist gap is a missing arm, not the redirect pattern — and two-thirds of it is not upstream's
+
+# Key outcomes
+outcomes:
+  - 'The refusals are reproduced, not recalled. All five shapes were re-run through the real'
+  - 'The read-only claim is established, not assumed. The family is 66 `scripts/check-*.sh`, of'
+  - 'The `>/dev/null` misclassification is isolated, and it is narrower than the filing said.'
+  - 'The structural ordering conflict is recorded, and the answer is the opposite of the one the'
+  - 'Disposition recorded per G-062, and it splits by provenance rather than being one verdict.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/episodic/T-3018.yaml'
+  - '.context/project/learnings.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/feedback-stream.yaml'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/session.yaml'
+  - '.tasks/active/T-2723-handover-commit-under-t-1452-collides-wi.md'
+  - '.tasks/active/T-3030-p-002-read-only-allowlist-gap-blocks-pur.md'
+  - '.tasks/completed/T-3018-checkpointsh-has-no-budget-subcommand-so.md'
+  - '.termlink-task'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-20T17:21:32'
+    action: 'T-3030: file the P-002 read-only allowlist gap after its fifth refusal'
+  - time: '2026-09-20T19:05:53'
+    action: 'T-3030: the allowlist gap is a missing arm, not the redirect pattern — and two-thirds of it is not upstream''s'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 106 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 106
+  commits: 2
+  files_changed: 12
+  lines_added: 665
+  lines_removed: 114
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3030-p-002-read-only-allowlist-gap-blocks-pur.md
+generated_by: context-agent-hybrid

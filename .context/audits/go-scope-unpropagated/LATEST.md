@@ -15,9 +15,9 @@ A completed task qualifies when ALL of:
 
 ## Population examined
 
-- completed inceptions: 188
-- with a GO recorded:   158
-- findings:             77
+- completed inceptions: 200
+- with a GO recorded:   170
+- findings:             88
 
 These are candidates for triage, not confirmed abandoned decisions:
 some may have shipped work that was simply never linked back. Deciding
@@ -25,6 +25,17 @@ which is which is the judgement this check exists to force.
 
 ## Findings (most recent first)
 
+- T-3055 — .tasks/completed/T-3055-which-available-plugins-and-mcp-servers-.md
+- T-3048 — .tasks/completed/T-3048-is-the-86-finding-go-scope-not-propagate.md
+- T-3012 — .tasks/completed/T-3012-sovereign-question-review-session-12-que.md
+- T-3011 — .tasks/completed/T-3011-investigate-topic-createpost-ratio-anoma.md
+- T-3007 — .tasks/completed/T-3007-investigate-ack-lag-read-side-unconfirme.md
+- T-3005 — .tasks/completed/T-3005-investigate-fleet-version-floors-for-121.md
+- T-3004 — .tasks/completed/T-3004-investigate-chat-arc-traffic-collapse.md
+- T-3001 — .tasks/completed/T-3001-inception-presence-heartbeat-truthfulnes.md
+- T-2995 — .tasks/completed/T-2995-inception-rpc-surface-wiring-check-sweep.md
+- T-2989 — .tasks/completed/T-2989-inception-claudemd-split-design-clobber-.md
+- T-2971 — .tasks/completed/T-2971-project-value-review-delete--refactor--a.md
 - T-2702 — .tasks/completed/T-2702-termlink-purpose-review-7--are-the-archi.md
 - T-2698 — .tasks/completed/T-2698-termlink-purpose-review-6--is-the-refusa.md
 - T-2694 — .tasks/completed/T-2694-termlink-purpose-review-5--are-the-chart.md

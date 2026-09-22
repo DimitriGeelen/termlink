@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3028: Duplicate-work checker is blind to same-branch duplicates: all four axes exclude the base
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-20T18:47:05Z
+# ============================================================================
+
+task_id: T-3028
+task_name: "Duplicate-work checker is blind to same-branch duplicates: all four axes exclude the base"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-20T15:07:25Z
+completed: 2026-09-20T18:46:38Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-20T20:46:00+02:00
+last_commit: 2026-09-20T20:46:37+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  the duplicate checker's green is a cross-side statement, and now says so. Evolution log — a premise wrong twice, and a detector deliberately not shipped
+
+# Key outcomes
+outcomes:
+  - 'Blindness is measured per-axis and located by line, not asserted from the filing. For each of A/B/C/D, the specific construct that prevents it from seeing two same-side tasks is cited; the filing''s claim that "all four axes exclude the base" is TESTED, not inherited, and corrected if the code disagrees.'
+  - 'The ground-truth pair (T-3018 / T-2950) is fed to the real checker on the real tree and confirmed unreported; and axis B''s rare-word scorer is fed those two real titles directly, to separate "the signal exists but is unreachable" from "there is no signal" — a guard''s green is not evidence until it has been fed the violation it claims to catch (PL-328).'
+  - 'Disposition is decided on evidence with provenance BEFORE anything is filed or built: whether the remedy may land locally is settled by reading where the file actually lives (project-owned vs vendored, G-062), and any corpus-wide comparison is cost- and noise-measured on the real corpus before being committed to as the deliverable.'
+  - 'Whatever ships is proven load-bearing by a mutant, not by its own clean run: reverting the shipped change makes the fixture suite go RED, and restoring it returns it to GREEN. No permanently-red guard is left behind (T-2818/T-2833 fatigue trap).'
+  - 'No detector is shipped that only appears to work. If measurement shows no principled signal separates the ground-truth pair from corpus noise, that is RECORDED as the finding and no vacuous detector is built to satisfy a criterion — a guard that catches the right pair for the wrong reason is the T-2831 class, and shipping one here would reproduce inside the guard layer the exact defect this arc exists to catch. (This criterion replaces an earlier AC4 clause requiring the shipped artifact to fire on the ground-truth pair; that clause presumed a detector was the correct remedy, which the measurement under AC2/AC3 disproved. Recorded rather than silently reinterpreted.)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'scripts/check-task-id-collisions.sh'
+  - '.tasks/active/T-3028-duplicate-work-checker-is-blind-to-same-.md'
+  - 'tests/task-id-collision-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-20T20:46:00'
+    action: 'T-3028: the duplicate checker''s green is a cross-side statement, and now says so'
+  - time: '2026-09-20T20:46:37'
+    action: 'T-3028: Evolution log — a premise wrong twice, and a detector deliberately not shipped'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 219 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 219
+  commits: 2
+  files_changed: 3
+  lines_added: 132
+  lines_removed: 7
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3028-duplicate-work-checker-is-blind-to-same-.md
+generated_by: context-agent-hybrid

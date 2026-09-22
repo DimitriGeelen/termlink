@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2969: decisions.yaml register corruption has no local detector — three repairs, zero prevention
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-22T10:21:06Z
+# ============================================================================
+
+task_id: T-2969
+task_name: "decisions.yaml register corruption has no local detector — three repairs, zero prevention"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-16T19:41:24Z
+completed: 2026-09-22T10:20:56Z
+duration_days: 6
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  The completion-time decision auto-capture has corrupted .context/project/decisions.yaml three times (T-2892, T-2850, T-2968), most recently one entry after its own last repair (PD-156 IS the T-2850 fix). Each repair was reactive, triggered by the pre-push gate reporting a parse failure. The generator is vendored and on the upstream record (G-062), so it is not patched locally — but no LOCAL detector exists, and one axis of the corruption (ID collision) parses cleanly and is therefore invisible to every check the repo currently runs. Ship a guard-layer member that fires on duplicate ids, non-monotonic ids, and mis-indented entries in the register, with fixtures, following the T-2833 pattern (vendored defect filed upstream, local detection shipped alongside).
+
+# Key outcomes
+outcomes:
+  - '**The fourth occurrence is repaired.** This task was filed after the third'
+  - 'The repair is a targeted fix of the malformed entry — never a wholesale'
+  - '`scripts/check-decisions-register.sh` exists, is executable and carries the'
+  - 'It detects BOTH axes, because they fail differently: **(a) parse failure**'
+  - 'Exit contract 0 clean / 1 corrupt / 2 tooling, **fail-closed**: a missing'
+  - '`tests/decisions-register-fixtures.sh` is hermetic and pins both axes plus'
+  - 'The generator is NOT patched locally: it is vendored (G-062) and already on'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 8079 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 8079
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2969-decisionsyaml-register-corruption-has-no.md
+generated_by: context-agent-hybrid

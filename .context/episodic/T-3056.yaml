@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3056: rust-analyzer LSP crashes because the rustup component was never installed
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-22T07:01:23Z
+# ============================================================================
+
+task_id: T-3056
+task_name: "rust-analyzer LSP crashes because the rustup component was never installed"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-22T06:58:17Z
+completed: 2026-09-22T07:01:14Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-22T09:01:14+02:00
+last_commit: 2026-09-22T09:01:14+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  rust-analyzer was a shim, not a binary
+
+# Key outcomes
+outcomes:
+  - 'The `rust-analyzer` rustup component is installed: it appears in'
+  - '`rust-analyzer --version` prints a real version instead of'
+  - 'The LSP ANSWERS A QUERY against this repo''s Rust source, not merely starts. A'
+  - 'Satisfies the operator''s standalone constraint, recorded: the component is a local'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3056-rust-analyzer-lsp-crashes-because-the-ru.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-22T09:01:14'
+    action: 'T-3056: rust-analyzer was a shim, not a binary'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 1
+  lines_added: 322
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3056-rust-analyzer-lsp-crashes-because-the-ru.md
+generated_by: context-agent-hybrid

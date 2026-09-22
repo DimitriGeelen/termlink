@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3067: L3 stage=read: tell the sender its message reached the prompt, not just the mailbox
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-22T10:31:04Z
+# ============================================================================
+
+task_id: T-3067
+task_name: "L3 stage=read: tell the sender its message reached the prompt, not just the mailbox"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-22T10:25:22Z
+completed: 2026-09-22T10:30:47Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  L3 stage=read: tell the sender its message reached the prompt, not just the mailbox
+
+# Key outcomes
+outcomes:
+  - '`scripts/notify-ack-read.sh` exists and posts an L3 receipt —'
+  - '**It refuses to post L3 without positive evidence of injection.** A bare'
+  - 'Idempotent per (topic, up_to) via a durable guard file, mirroring the'
+  - 'It NEVER posts L2 and never advances the L2 guard — L2 is the sidecar''s to'
+  - 'The wake consumers (`notify-wake-consumer.sh` and `.py`) post L3 after their'
+  - '`notify-rail-e2e.sh` gains a **LADDER** stage that reads RAW envelopes via'
+  - 'The LADDER stage reports `L2-ONLY` as a non-green verdict when L3 is absent,'
+  - '`tests/notify-ack-read-fixtures.sh` is hermetic and pins: the evidence gate'
+  - 'Proven against a REAL envelope on a real topic, not only fixtures — PL-351'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 5
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3067-l3-stageread-tell-the-sender-its-message.md
+generated_by: context-agent-hybrid
