@@ -29,7 +29,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-22T10:36:15Z
-last_update: 2026-09-22T19:25:07Z
+last_update: 2026-09-23T07:00:22Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -100,11 +100,19 @@ cost_estimate_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `scripts/notify-wake-supervisor.sh` keeps a `notify-wake-consumer.sh
+- [x] VERIFIED 2026-09-23 (live): `--dry-run` reports `2 ok, 0 started, 0 stale,
+      0 failed (of 2 declared)`, and the consumer PIDs have CHANGED since last night
+      (965559 -> 694874), so the INSTALLED cron restarted them rather than me.
+      `scripts/notify-wake-supervisor.sh` keeps a `notify-wake-consumer.sh
       --follow` alive per agent declared in `.context/cron/notify-wake-agents.conf`,
       started if absent, left alone if healthy — the same contract as the sidecar
       supervisor (T-3050)
-- [ ] The liveness probe is ANCHORED so the supervisor cannot match its own command
+- [x] VERIFIED by fixture, and by the RIGHT one: T6 (start-if-absent) is what pins
+      self-match — a probe matching its own command line would see itself and never
+      start a consumer, so T6 could not pass. T14 covers the adjacent prefix-collision
+      case. Cited both rather than T14 alone, which would be evidence for a
+      neighbouring property.
+      The liveness probe is ANCHORED so the supervisor cannot match its own command
       line and report a phantom as running. T-3050 hit exactly this and the fixture
       harness killed itself over it
 - [x] `.context/cron/notify-wake-supervisor.crontab` installs the trigger, using the
@@ -121,10 +129,14 @@ cost_estimate_proposed:
       scripts/notify-wake-supervisor.sh --quiet ...)` at the first */5 boundary after
       install, and both log streams exist and are EMPTY — which is the healthy state
       under the one-bit convention, and proves the split redirect works.
-- [ ] The consumer writes a `<agent>.wake-heartbeat` each cycle, so "the consumer is
+- [x] VERIFIED 2026-09-23: two `.wake-heartbeat` files present, both 1s old.
+      The consumer writes a `<agent>.wake-heartbeat` each cycle, so "the consumer is
       alive" is observable and a dead one is distinguishable from a quiet one — the
       same reason the sidecar's own heartbeat exists
-- [ ] The consumer acts under the RIGHT IDENTITY: it exports `TERMLINK_AGENT_ID`
+- [x] VERIFIED: both declared agents carry `--as-identity` in
+      `.context/cron/notify-wake-agents.conf` (2 of 2), so identity is DECLARED and
+      never derived from the flag label (fixture T9).
+      The consumer acts under the RIGHT IDENTITY: it exports `TERMLINK_AGENT_ID`
       for the agent it serves, so L3 receipts are signed by that agent and not by
       whatever key the cron happens to run as. A receipt attributed to the wrong
       identity is worse than no receipt
@@ -136,7 +148,8 @@ cost_estimate_proposed:
       `--stages precond,deliver,receipt,ladder,wake` returns **verdict: PROVEN**
       (PRECOND/DELIVER/RECEIPT/LADDER/WAKE all PASS; DELIVER observed on the peer in
       6215ms, RECEIPT acked up_to=120).
-- [ ] `tests/notify-wake-supervisor-fixtures.sh` is hermetic and pins: start-if-absent,
+- [x] VERIFIED 2026-09-23: 14 passed, 0 failed.
+      `tests/notify-wake-supervisor-fixtures.sh` is hermetic and pins: start-if-absent,
       leave-alone-if-healthy, the anchored probe not matching itself, a conf with zero
       agents being a tooling error rather than a silent success, and the heartbeat
       being written
@@ -298,6 +311,40 @@ cost_estimate_proposed:
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-09-23 — five criteria earned, and the sixth turned out to forbid itself
+
+- **What changed:** the remaining ACs were assumed to be a verification chore. Five
+  were, and they verify well: the supervisor reports `2 ok, 0 started, 0 stale, 0
+  failed`, both heartbeats are 1s old, both agents declare `--as-identity`, and the
+  fixtures are 14/14. The strongest evidence was unplanned — the consumer PIDs had
+  changed overnight (965559 -> 694874) with fresh heartbeats, which means the INSTALLED
+  cron restarted them unattended. That is the loop running with nobody driving it, and
+  it is better proof than any check I could have written.
+- **The sixth AC cannot be met, and not for want of trying.** It asks the SUPERVISED
+  CONSUMER to produce an L3 `stage=read` receipt. `notify-wake-consumer.sh` now says,
+  in the code: *"NO L3 FROM HERE. This consumer notices a flag; it does not inject
+  anything into a prompt, so it has no standing to claim the message was read."* The
+  AC was written when the consumer posted `evidence=wake-consumer`; that kind was
+  withdrawn as untruthful and the capability deliberately removed. So the criterion now
+  asks for something the arc forbids — unachievable BY DESIGN, not by omission.
+- **I did not rewrite it.** Editing my own acceptance criterion until it passes is
+  producer-as-judge, which the mandate forbids outright, and it is the arc-003 failure
+  this whole arc exists to avoid: closing a gap by changing the question. Raised as
+  **SQ-7** with both coherent readings stated — (a) the AC is obsolete because the
+  truthful L3 now comes from the injector, which is proven; (b) T-3068 is genuinely
+  unfinished because path A still has no truthful receipt. Those differ in what this
+  task is FOR, which is a scope decision and not mine.
+- **Register corrected while here:** S11 read `unbuilt / Crontab written, NOT installed`
+  a full day after it was installed and verified firing. Third instance of that drift
+  class in two days, and the second time I have found it rather than a guard finding it.
+  The standing slice-drift check remains the right close and remains undone.
+- **Cost vs estimate:** scored BVP 97 / cost 4.4 (hv-hc, Q2). Actual cost of the five
+  verifiable ACs was minutes, because the work had been done and only the evidence was
+  missing — the estimate priced building, not confirming. Worth feeding back: a task
+  whose remaining ACs are verification-only is mis-priced by a cost model keyed on
+  components and line counts.
+- **Triggered:** SQ-7. T-3068 parked at 5/6, sixth intact.
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -370,4 +417,11 @@ cost_estimate_proposed:
 - **Reason:** PARKED on SQ-5 (arc register). Live-proof AC unticked — its evidence (wake-consumer) was withdrawn. Install-vs-leave-dark is an operator decision.
 
 ### 2026-09-22T19:18:57Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-09-23T07:00:04Z — status-update [task-update-agent]
+- **Change:** status: started-work → captured
+- **Reason:** Parked at 5/6. Five ACs verified with cited evidence (supervisor live, heartbeats, declared identity, anchored probe, 14/14 fixtures). The sixth is unachievable by design — it asks the consumer for an L3 the arc has forbidden it to post — and is raised as SQ-7 rather than rewritten.
+
+### 2026-09-23T07:00:22Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work

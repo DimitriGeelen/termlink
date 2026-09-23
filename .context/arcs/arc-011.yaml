@@ -179,9 +179,19 @@ slices:
   - id: S11
     spec_step: "11. a cron drives the whole loop"
     task: T-3068
-    status: unbuilt
-    note: "Crontab written, NOT installed. WAKE reports NOT-WIRED and that verdict is
-           correct until it is in."
+    status: built
+    note: "INSTALLED 2026-09-22 on operator approval (SQ-5) at
+           /etc/cron.d/termlink-notify-wake-supervisor, byte-identical to the tracked
+           source, and VERIFIED FIRING rather than merely present: journalctl shows
+           `21:20:01 CRON[97550] ... notify-wake-supervisor.sh --quiet` at the first
+           */5 boundary after install, with both log streams present and EMPTY (the
+           healthy state under the one-bit convention, and proof the split redirect
+           works).
+           Independently corroborated 2026-09-23: the supervised consumer PIDs had
+           CHANGED overnight (965559 -> 694874) with fresh 1s heartbeats, so cron is
+           restarting them unattended — the loop runs without anybody driving it.
+           Two guard-layer reds cleared as a result, not silenced:
+           check-cron-install-drift 1 -> 0, cron-drift-firing-fixtures 12/1 -> 13/0."
   - id: S12
     spec_step: "12. roles swap — the agent replies as sender"
     task: T-3075
@@ -268,6 +278,32 @@ sovereign_questions:
            claim the withdrawal existed to remove. Also wrong: deciding it here to
            keep momentum. The withdrawal of wake-consumer had a cost, and this is the
            bill arriving — it belongs to whoever withdrew it."
+  - id: SQ-7
+    question: "T-3068's live-proof AC asks the SUPERVISED CONSUMER to produce an L3
+               stage=read receipt. The arc has since decided that component must never
+               post one. Is the AC obsolete, or is T-3068 unfinished?"
+    task: T-3068
+    why: "SURFACED 2026-09-23 by T-3068 unit 2. The AC was written when the consumer
+           posted evidence=wake-consumer. That evidence kind was then WITHDRAWN as
+           untruthful and the capability deliberately removed —
+           notify-wake-consumer.sh now reads, verbatim: `NO L3 FROM HERE. This
+           consumer notices a flag; it does not inject anything into a prompt, so it
+           has no standing to claim the message was read.` So the AC now asks for
+           something the arc forbids this component from doing: it is unachievable BY
+           DESIGN, not by omission.
+           Two coherent readings, and they differ in what T-3068 IS FOR.
+           (a) OBSOLETE: the truthful L3 now comes from the injector, and that path is
+               proven (T-3069, evidence=idle-gated-inject, read back from the hub).
+               T-3068's real deliverable is `the flag is actually read and the consumer
+               is kept alive`, which is met and verified — 5 of 6 ACs now carry cited
+               evidence.
+           (b) UNFINISHED: the wake path (A) is still not proven end to end by any
+               truthful receipt, and retiring the AC would close that gap by editing
+               the question rather than answering it — precisely the arc-003 failure
+               this arc exists to avoid.
+           NOT DECIDED HERE. Rewriting my own acceptance criterion so it passes is
+           producer-as-judge, which the mandate forbids outright. T-3068 is parked at
+           5/6 with the sixth intact and unticked."
   - id: SQ-4
     question: "What does an URGENT message do when the prompt is BUSY?"
     task: T-3072
