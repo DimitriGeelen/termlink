@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3084: Record the operator's sovereign resolutions for arc-011 (SQ-1,3,4,6,7)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-23T11:58:12Z
+# ============================================================================
+
+task_id: T-3084
+task_name: "Record the operator's sovereign resolutions for arc-011 (SQ-1,3,4,6,7)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-23T11:54:09Z
+completed: 2026-09-23T11:58:04Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Five sovereign questions were answered by the operator: SQ-1 the injector belongs to TermLink; SQ-3 yes to termlink artifact put/get CLI verbs; SQ-4 urgent must never inject into a BUSY prompt, it shortens the wait rather than bypassing the check; SQ-6 backfill the delivered watermark once, recorded explicitly as a backfill rather than silently; SQ-7 T-3068's sixth AC is obsolete because the truthful L3 now comes from the proven injector path. Record each in the arc register with the decision and its consequence, and unpark the tasks each was blocking, so the decisions survive this session.
+
+# Key outcomes
+outcomes:
+  - 'All five answered questions (SQ-1, SQ-3, SQ-4, SQ-6, SQ-7) carry a `status:` and'
+  - 'The record attributes each decision to the operator and does not present my'
+  - 'SQ-7''s resolution is reflected where it bites: T-3068''s sixth AC is marked'
+  - 'No arc-011 sovereign question remains open, and the arc YAML parses with all 12'
+  - '`bash scripts/check-arc-slice-drift.sh` stays clean after the edits — the guard'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 3
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3084-record-the-operators-sovereign-resolutio.md
+generated_by: context-agent-hybrid

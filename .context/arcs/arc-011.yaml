@@ -203,6 +203,8 @@ slices:
 # that these are SURFACED, not resolved to keep momentum.
 sovereign_questions:
   - id: SQ-1
+    status: "RESOLVED 2026-09-23 - operator decided: the injector belongs to TERMLINK"
+    resolution: "Operator decision. The injector is a PRIMITIVE built over TermLink's own session control, not an orchestration engine: charter non-goal 4 disclaims the engine, not the verbs one would be built from. It already lives here, is proven end to end (T-3069), and moving it would put the PTY classifier and the hub read on opposite sides of a project boundary. CONSEQUENCE: T-3075 (sidecar API, slices S1/S12) is unblocked and stays in this repo."
     question: "Does the injector belong to AEF rather than TermLink?"
     task: T-3075
     why: "Charter non-goal 4 disclaims orchestration; queue -> inject -> verify IS
@@ -255,11 +257,15 @@ sovereign_questions:
            data points — its failure mode is a blind inject into a busy prompt, the
            exact T-2396 loss this arc exists to prevent."
   - id: SQ-3
+    status: "RESOLVED 2026-09-23 - operator decided: YES, add the artifact CLI verbs"
+    resolution: "Operator decision. 'termlink artifact put' / 'artifact get' are two thin wrappers over send_artifact_via_client / download_artifact_via_client, functions that already exist and are already exercised by 'file send'. Without them a shell script can post an --artifact-ref but cannot move the BYTES, which is the measured gap (T-3076 IW-1). CONSEQUENCE: T-3076 (blob, slice S2) is unblocked. This is new CLI surface on a project that pruned 52 tools in P4, justified as a primitive rather than breadth. IW-3 should be answered alongside it: artifact_ref IS a sha256, so --expected-sha256 verification is free and should be mandatory."
     question: "Add `termlink artifact put` / `artifact get` CLI verbs?"
     task: T-3076
     why: "Two thin wrappers over existing functions, but new CLI surface on a project
            that pruned 52 tools in P4."
   - id: SQ-6
+    status: "RESOLVED 2026-09-23 - operator decided: backfill ONCE, recorded AS a backfill"
+    resolution: "Operator decision. Topics whose only L3s carried the withdrawn evidence=wake-consumer get a one-time delivered watermark, written EXPLICITLY as a backfill declaring that this history predates truthful receipts. Not silent: a silent backfill would relaunder the retracted claim the withdrawal existed to remove, and a future reader could not tell a backfilled watermark from an earned one. CONSEQUENCE: the ~145 messages on dm:3bba15e681b3a078:6738c073bbcc587a are not walked into a live prompt one per cron tick. Needs its own task, and the marker must be distinguishable from one the injector earned."
     question: "Topics whose only L3 receipts carry the WITHDRAWN evidence=wake-consumer
                now have NO truthful delivered watermark. Should those be backfilled, or
                should the agent receive its whole backlog?"
@@ -279,6 +285,8 @@ sovereign_questions:
            keep momentum. The withdrawal of wake-consumer had a cost, and this is the
            bill arriving — it belongs to whoever withdrew it."
   - id: SQ-7
+    status: "RESOLVED 2026-09-23 - operator decided: the sixth AC is OBSOLETE"
+    resolution: "Operator decision. That AC asked the supervised consumer to produce an L3 stage=read receipt. The capability was deliberately removed when evidence=wake-consumer was withdrawn as untruthful, and the truthful L3 now comes from the injector path, which is proven (T-3069, read back from the hub). T-3068's real deliverable - the flag is actually read and the consumer kept alive - is met and evidenced at 5/6. CONSEQUENCE: the AC is marked OBSOLETE with this reason rather than ticked as though met. T-3068 closes on the remaining five."
     question: "T-3068's live-proof AC asks the SUPERVISED CONSUMER to produce an L3
                stage=read receipt. The arc has since decided that component must never
                post one. Is the AC obsolete, or is T-3068 unfinished?"
@@ -305,6 +313,8 @@ sovereign_questions:
            producer-as-judge, which the mandate forbids outright. T-3068 is parked at
            5/6 with the sixth intact and unticked."
   - id: SQ-4
+    status: "RESOLVED 2026-09-23 - operator decided: urgent NEVER injects into a BUSY prompt"
+    resolution: "Operator decision. Urgent shortens the WAIT; it does not bypass the prompt-free CHECK. Injecting into a busy prompt is the T-2396 failure where text lands unsubmitted and is discarded, so a bypass would silently lose exactly the messages most likely to be marked urgent - the inverse of what urgency is for. CONSEQUENCE: T-3072 (slice S9) is unblocked with its semantics settled: urgent may raise queue position and shorten the poll interval, and must still defer on BUSY/UNKNOWN like every other message."
     question: "What does an URGENT message do when the prompt is BUSY?"
     task: T-3072
     why: "Injecting into a busy prompt is the T-2396 failure — text lands unsubmitted

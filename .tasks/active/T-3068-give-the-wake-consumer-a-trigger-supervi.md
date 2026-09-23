@@ -153,7 +153,23 @@ cost_estimate_proposed:
       leave-alone-if-healthy, the anchored probe not matching itself, a conf with zero
       agents being a tooling error rather than a silent success, and the heartbeat
       being written
-- [ ] Proven live end to end: a real message raises the flag, the SUPERVISED consumer
+- [x] **OBSOLETE — resolved by the operator 2026-09-23 (SQ-7), not met and not ticked
+      as though it were.** This AC asked the supervised consumer to produce an L3
+      `stage=read` receipt. That capability was deliberately REMOVED when
+      `evidence=wake-consumer` was withdrawn as untruthful:
+      `notify-wake-consumer.sh` now reads, in the code, *"NO L3 FROM HERE. This consumer
+      notices a flag; it does not inject anything into a prompt, so it has no standing
+      to claim the message was read."* The criterion therefore asked for something the
+      arc forbids — unachievable by design, not by omission.
+      The operator's decision: the AC is obsolete. The truthful L3 now comes from the
+      INJECTOR path, which is proven (T-3069: `evidence=idle-gated-inject`, read back
+      from the hub, and the message confirmed as a `user` turn in the receiver's own
+      transcript). T-3068's real deliverable — the flag is actually read and the
+      consumer is kept alive — is met and evidenced by the five criteria above.
+      Marked obsolete WITH the reason rather than silently deleted, so a future reader
+      sees that the question was answered rather than quietly dropped.
+      Original text follows, unaltered:
+      > Proven live end to end: a real message raises the flag, the SUPERVISED consumer
       (not one I launched by hand for the test) fires, and an L3 `stage=read` receipt
       appears on the topic — read back from the hub, not inferred.
 
