@@ -70,8 +70,16 @@ mkqueue() {
     sqlite3 "$JOURNAL" "CREATE TABLE messages (topic TEXT, offset INTEGER, conversation_id TEXT DEFAULT '', sender_id TEXT DEFAULT '', msg_type TEXT DEFAULT '', ts INTEGER DEFAULT 0, payload TEXT DEFAULT '', observed_addr TEXT DEFAULT '');"
     sqlite3 "$JOURNAL" "INSERT INTO messages VALUES ('$TOPIC', 7, '', 'cafebabecafebabe', 'note', 100, 'hello from a peer', '');"
 }
+# T-3082: the delivered watermark is pinned OPEN (-1) for the general cases, so these
+# fixtures keep testing what they were written to test — the five outcomes, the
+# ordering, the verify step. Without this every one of them becomes coupled to hub
+# watermark state that leaks across cases through the stub's replay log, and a
+# failure would no longer say which behaviour broke.
+# The watermark itself is exercised by its own cases (W1..W5) against the real code
+# path, which is where that behaviour belongs.
 run() { # run [extra args...]
     PATH="$WORK/bin:$PATH" TERMLINK="$WORK/bin/termlink" \
+    INJECTOR_TEST_DELIVERED="${INJECTOR_TEST_DELIVERED:--1}" \
     bash "$INJ" --agent-id ag --session tl-fix --notify-dir "$ND" --journal "$JOURNAL" "$@"
 }
 
@@ -310,6 +318,93 @@ else
     fail "T24 expected rc=5 with no success claim, got rc=$rc: $OUT"
 fi
 rm -f "$ND/.ag.dm_aaaa_bbbb.l3read"
+
+# ---------------------------------------------------------------------------
+# T-3082 — the delivered watermark. These run the REAL code path (no
+# INJECTOR_TEST_DELIVERED), with a stub hub whose L3 receipts they control, because
+# the whole point is that the bound comes FROM THE HUB and not from local state.
+#
+# The defect: .injected-seen holds an arrival TIMESTAMP, never an OFFSET, so the
+# query took the oldest content row every time. On a topic with history the agent
+# was handed offset 0 for ever while the message that actually arrived was never
+# delivered. Measured live on a topic whose L3 stood at 145.
+# ---------------------------------------------------------------------------
+WB="$WORK/bin2"; mkdir -p "$WB"
+# stub hub with a settable L3 watermark: WM=<n> publishes a truthful read-receipt at
+# that offset; WM=none publishes none; WM=fail makes the topic unreadable.
+cat > "$WB/termlink" <<'EOS'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$CALLS"
+case "$1 $2" in
+  "channel subscribe")
+      [ "$WM" = "fail" ] && exit 1
+      printf '{"msg_type":"note","sender_id":"peer","offset":1,"metadata":{}}\n'
+      [ "$WM" = "none" ] && exit 0
+      printf '{"msg_type":"receipt","sender_id":"peer","offset":9001,"metadata":{"stage":"read","up_to":"%s","evidence":"idle-gated-inject"}}\n' "$WM"
+      ;;
+esac
+exit 0
+EOS
+chmod +x "$WB/termlink"
+
+wrun() { # wrun <WM> [args...]  — real watermark path, controlled hub
+    local wm="$1"; shift
+    WM="$wm" CALLS="$WORK/calls.log" PATH="$WB:$PATH" TERMLINK="$WB/termlink" \
+    bash "$INJ" --agent-id ag --session tl-fix --notify-dir "$ND" --journal "$JOURNAL" "$@"
+}
+wqueue() { # a topic WITH history: offsets 0 (ancient) and 42 (new)
+    rm -f "$JOURNAL"
+    sqlite3 "$JOURNAL" "CREATE TABLE messages (topic TEXT, offset INTEGER, conversation_id TEXT DEFAULT '', sender_id TEXT DEFAULT '', msg_type TEXT DEFAULT '', ts INTEGER DEFAULT 0, payload TEXT DEFAULT '', observed_addr TEXT DEFAULT '', priority INTEGER DEFAULT 0);"
+    sqlite3 "$JOURNAL" "INSERT INTO messages VALUES ('$TOPIC', 0,  '', 'f0',  'note', 10,  'ANCIENT_JULY_MESSAGE', '', 0);"
+    sqlite3 "$JOURNAL" "INSERT INTO messages VALUES ('$TOPIC', 42, '', 'f42', 'note', 999, 'THE_NEW_MESSAGE', '', 0);"
+}
+
+echo "W1 [THE DEFECT]: a topic with history serves the NEW message, not offset 0"
+wqueue; mkflag 40000; rm -f "$ND/.ag.injected-seen" "$ND"/.ag.*.delivered-offset "$ND"/.ag.*.l3read; : > "$WORK/calls.log"
+INJECTOR_TEST_SESSION_STATE=present INJECTOR_TEST_PTY_STATE=READY \
+  INJECTOR_TEST_VERIFY_STATE=BUSY wrun 41 >/dev/null 2>&1
+if grep -q 'THE_NEW_MESSAGE' "$WORK/calls.log" && ! grep -q 'ANCIENT_JULY_MESSAGE' "$WORK/calls.log"; then
+    pass "W1 history skipped, new message delivered"
+else
+    fail "W1 wrong message: $(grep -o 'ANCIENT_JULY_MESSAGE\|THE_NEW_MESSAGE' "$WORK/calls.log" | head -1)"
+fi
+
+echo "W2 [FIRST RUN, NO LOCAL STATE]: the bound comes from the HUB"
+# No local marker exists at all — exactly a fresh injector pointed at an established
+# topic. If the bound were local-only this would serve the July message.
+wqueue; mkflag 41000; rm -f "$ND/.ag.injected-seen" "$ND"/.ag.*.delivered-offset "$ND"/.ag.*.l3read; : > "$WORK/calls.log"
+INJECTOR_TEST_SESSION_STATE=present INJECTOR_TEST_PTY_STATE=READY \
+  INJECTOR_TEST_VERIFY_STATE=BUSY wrun 41 >/dev/null 2>&1
+grep -q 'THE_NEW_MESSAGE' "$WORK/calls.log" && pass "W2 hub watermark bounds the very first run" \
+                                             || fail "W2 first run did not use the hub watermark"
+
+echo "W3: a FRESH topic (no prior L3) still serves offset 0"
+# The fix must not make the first message on a new topic undeliverable.
+wqueue; mkflag 42000; rm -f "$ND/.ag.injected-seen" "$ND"/.ag.*.delivered-offset "$ND"/.ag.*.l3read; : > "$WORK/calls.log"
+INJECTOR_TEST_SESSION_STATE=present INJECTOR_TEST_PTY_STATE=READY \
+  INJECTOR_TEST_VERIFY_STATE=BUSY wrun none >/dev/null 2>&1
+grep -q 'ANCIENT_JULY_MESSAGE' "$WORK/calls.log" && pass "W3 nothing acked -> oldest is still served" \
+                                                  || fail "W3 a fresh topic became undeliverable"
+
+echo "W4 [FAIL-SAFE]: an unreadable hub does NOT re-open history"
+# The local marker is a floor. A hub read that fails may only fail to ADVANCE the
+# window; it must never widen it back over messages already delivered.
+wqueue; mkflag 43000; rm -f "$ND/.ag.injected-seen" "$ND"/.ag.*.l3read; : > "$WORK/calls.log"
+printf '42\n' > "$ND/.ag.${TOPIC//[^A-Za-z0-9._-]/_}.delivered-offset"
+INJECTOR_TEST_SESSION_STATE=present INJECTOR_TEST_PTY_STATE=READY \
+  INJECTOR_TEST_VERIFY_STATE=BUSY wrun fail >/dev/null 2>&1; rc=$?
+if ! grep -q 'ANCIENT_JULY_MESSAGE' "$WORK/calls.log"; then
+    pass "W4 unreadable hub kept the local floor (rc=$rc)"
+else
+    fail "W4 AN UNREADABLE HUB RE-OPENED HISTORY"
+fi
+
+echo "W5: everything delivered is 'nothing to do' (1), NOT a tooling alarm (2)"
+# Before the watermark, no-row had one cause and exit 2 was right. Keeping that
+# blanket verdict would make the ordinary all-delivered case a daily false alarm.
+wqueue; mkflag 44000; rm -f "$ND/.ag.injected-seen" "$ND"/.ag.*.delivered-offset "$ND"/.ag.*.l3read; : > "$WORK/calls.log"
+INJECTOR_TEST_SESSION_STATE=present INJECTOR_TEST_PTY_STATE=READY wrun 999 >/dev/null 2>&1; rc=$?
+[ "$rc" -eq 1 ] && pass "W5 rc=1" || fail "W5 expected 1 (nothing new) got $rc"
 
 echo
 echo "notify-injector fixtures: $PASS passed, $FAIL failed"

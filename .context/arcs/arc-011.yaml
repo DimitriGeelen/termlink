@@ -249,6 +249,25 @@ sovereign_questions:
     task: T-3076
     why: "Two thin wrappers over existing functions, but new CLI surface on a project
            that pruned 52 tools in P4."
+  - id: SQ-6
+    question: "Topics whose only L3 receipts carry the WITHDRAWN evidence=wake-consumer
+               now have NO truthful delivered watermark. Should those be backfilled, or
+               should the agent receive its whole backlog?"
+    task: T-3082
+    why: "SURFACED 2026-09-22 by T-3082, measured on the live topic
+           dm:3bba15e681b3a078:6738c073bbcc587a. The new watermark correctly excludes
+           disavowed evidence (T-3068), and on that topic EVERY stage=read receipt is
+           wake-consumer — so the honest watermark is -1 and the injector will start
+           from offset 0 and walk ~145 messages, oldest first, one per cron tick.
+           Every one of them is genuinely unconfirmed, so serving them is not a bug;
+           the rail is doing exactly what it should given what it can prove. The
+           question is whether the OPERATOR wants that backlog delivered into a live
+           prompt, or wants a one-time watermark backfill recording that history as
+           water under the bridge.
+           Cheap and wrong: backfilling silently, which would relaunder the retracted
+           claim the withdrawal existed to remove. Also wrong: deciding it here to
+           keep momentum. The withdrawal of wake-consumer had a cost, and this is the
+           bill arriving — it belongs to whoever withdrew it."
   - id: SQ-4
     question: "What does an URGENT message do when the prompt is BUSY?"
     task: T-3072

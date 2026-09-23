@@ -123,6 +123,26 @@ SEEN="$NOTIFY_DIR/.$AGENT_ID.injected-seen"
 
 kv() { grep -E "^$2=" "$1" 2>/dev/null | head -1 | cut -d= -f2-; }
 
+# T-3082 — the highest offset on a topic that has been TRUTHFULLY reported read.
+# Echoes an integer, or -1 when nothing qualifies or the topic cannot be read.
+#
+# Disavowed evidence is excluded (T-3068): a stage=read carrying
+# evidence=wake-consumer asserts a read that never happened, and treating it as a
+# delivered watermark would silently skip messages nobody ever saw — the inverse of
+# the bug this function exists to fix, and a worse one.
+l3_watermark() {
+    local topic="$1" blob max
+    blob="$(timeout 30 "$TERMLINK" channel subscribe "$topic" --cursor 0 --limit 1000 --json 2>/dev/null)" || { echo -1; return; }
+    [ -n "$blob" ] || { echo -1; return; }
+    max="$(printf '%s\n' "$blob" | jq -rs '[.[] | (.envelope//.) | select(.msg_type=="receipt")
+        | (.metadata//{}) | select(.stage=="read")
+        | select((.evidence // "") != "wake-consumer")
+        | (.up_to|tonumber?)] | max // -1' 2>/dev/null)"
+    case "$max" in ''|null) max=-1 ;; esac
+    case "$max" in ''|*[!0-9-]*) max=-1 ;; esac
+    echo "$max"
+}
+
 # ---- 1. is there anything to do? ------------------------------------------
 # Keyed on the ARRIVAL RECORD (last_mail_ts), not on `pending`. pending is cleared
 # by the L2 acker in the same cycle it detects mail, so it is a value the acker
@@ -193,6 +213,35 @@ esac
 # must sort it as normal rather than fail.
 #
 # Content only — meta envelopes (receipts/reactions/...) are not work.
+#
+# T-3082 — BOUND THE SELECTION BY WHAT HAS ALREADY BEEN DELIVERED.
+#
+# Without this the query takes the oldest content row on the topic, every time, for
+# ever: the .injected-seen marker holds an arrival TIMESTAMP ("has anything new
+# arrived?"), never an OFFSET ("what have we already handed over"). So on any topic
+# with history the agent is handed offset 0 while the message that actually arrived
+# is never delivered. Measured live 2026-09-22 on a topic whose L3 stood at 145: the
+# injector served offset 0, a July test message.
+#
+# The bound is taken from the HUB, not invented locally, so a fresh injector pointed
+# at an established topic skips its history on the FIRST run with no local state to
+# consult. The local marker is kept as a floor and the two compose by max(), so a
+# failed hub read can never re-open history that was already delivered — it can only
+# fail to advance, which costs a cycle rather than a duplicate injection.
+delivered=-1
+if [ -n "${INJECTOR_TEST_DELIVERED:-}" ]; then
+    delivered="$INJECTOR_TEST_DELIVERED"
+else
+    hub_wm="$(l3_watermark "$mail_topic")"
+    local_wm=-1
+    OFFSEEN="$NOTIFY_DIR/.$AGENT_ID.$(printf '%s' "$mail_topic" | tr -c 'A-Za-z0-9._-' '_').delivered-offset"
+    [ -r "$OFFSEEN" ] && local_wm="$(tr -dc '0-9' < "$OFFSEEN")"; : "${local_wm:=-1}"
+    case "$local_wm" in ''|*[!0-9-]*) local_wm=-1 ;; esac
+    delivered="$hub_wm"
+    [ "$local_wm" -gt "$delivered" ] 2>/dev/null && delivered="$local_wm"
+    [ "$hub_wm" -lt 0 ] 2>/dev/null && log "no truthful L3 on $mail_topic — window bounded by the local marker only ($delivered)"
+fi
+
 sql_topic="${mail_topic//\'/\'\'}"
 if sqlite3 "$JOURNAL" "SELECT 1 FROM pragma_table_info('messages') WHERE name='priority';" 2>/dev/null | grep -q 1; then
     prio_order="COALESCE(priority,0) DESC, "
@@ -203,14 +252,26 @@ fi
 row="$(sqlite3 -separator '|' "$JOURNAL" \
     "SELECT offset, sender_id, substr(payload,1,4000) FROM messages
       WHERE topic='$sql_topic'
+        AND offset > $delivered
         AND msg_type NOT IN ('receipt','reaction','redaction','edit','topic_metadata')
       ORDER BY ${prio_order}ts ASC, offset ASC
       LIMIT 1;" 2>/dev/null)"
 
 if [ -z "$row" ]; then
-    # The flag says mail arrived but the journal has no content row for it. That is
-    # a real inconsistency, not a quiet no-op: the journal mirror may have failed
-    # while the ack succeeded.
+    # T-3082 — "no row" now has TWO causes and they need opposite responses, so ask
+    # which one it is instead of assuming the alarming one. Before the watermark
+    # existed there was only one cause and exit 2 was right; keeping that blanket
+    # verdict would turn the ordinary "everything here is already delivered" case
+    # into a daily tooling alarm, which is how an operator learns to ignore exit 2.
+    any="$(sqlite3 "$JOURNAL" "SELECT COUNT(*) FROM messages WHERE topic='$sql_topic'
+              AND msg_type NOT IN ('receipt','reaction','redaction','edit','topic_metadata');" 2>/dev/null)"
+    case "$any" in ''|*[!0-9]*) any=0 ;; esac
+    if [ "$any" -gt 0 ]; then
+        log "nothing new on $mail_topic — all $any content message(s) are at or below the delivered watermark ($delivered)"
+        exit 1
+    fi
+    # Genuinely no content row at all: the flag says mail arrived, so the journal
+    # mirror may have failed while the ack succeeded. That IS an inconsistency.
     loud "QUEUE EMPTY for $mail_topic though the flag reports an arrival at $mail_ts — journal mirror may have failed. Not injecting."
     exit 2
 fi
@@ -323,5 +384,12 @@ if [ "$l3_covered" -ne 1 ]; then
 fi
 
 printf '%s\n' "$mail_ts" > "$SEEN.tmp" 2>/dev/null && mv -f "$SEEN.tmp" "$SEEN" 2>/dev/null || true
+# T-3082 — advance the per-topic delivered watermark. Written ONLY here, after the
+# L3 has been confirmed on the hub, so the marker can never claim a delivery the
+# hub does not corroborate. It is a floor, not the authority: the hub's own L3 is
+# re-read on every run and the higher of the two wins.
+if [ -n "${OFFSEEN:-}" ]; then
+    printf '%s\n' "$offset" > "$OFFSEEN.tmp" 2>/dev/null && mv -f "$OFFSEEN.tmp" "$OFFSEEN" 2>/dev/null || true
+fi
 log "INJECTED + VERIFIED: offset=$offset on $mail_topic; L3 confirmed on the hub (evidence=idle-gated-inject, read back — not inferred)"
 exit 0

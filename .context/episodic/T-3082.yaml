@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3082: Queue has no watermark tied to the injected rung, so it re-serves ancient offsets
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-23T06:56:54Z
+# ============================================================================
+
+task_id: T-3082
+task_name: "Queue has no watermark tied to the injected rung, so it re-serves ancient offsets"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-23T06:49:08Z
+completed: 2026-09-23T06:56:38Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  notify-injector.sh picks the OLDEST content message on the flagged topic with no cursor tied to what has already been injected or acked. The .injected-seen marker stores an arrival TIMESTAMP (has anything new arrived?) not an OFFSET (what have we already delivered?), so on any topic with history the injector re-serves offset 0 every time new mail arrives. Measured live 2026-09-22: with the L3 guard at 145 the injector served offset 0, a July test message, and would have injected it into the agent's prompt. The agent receives stale mail while the actual new message is never delivered. Found while proving T-3069 end to end.
+
+# Key outcomes
+outcomes:
+  - '**The queue never serves an offset already reported as read.** The selection is'
+  - '**The watermark is derived from the hub, not invented locally.** A fresh injector'
+  - 'The local marker and the hub watermark compose: whichever is higher wins, so a'
+  - '**A fresh topic is unaffected.** With no prior L3, offset 0 is still served — the'
+  - 'Behaviour is unchanged when the hub read fails or returns nothing: the injector'
+  - 'Fixtures pin: history skipped, fresh topic served, marker-vs-hub precedence, and'
+  - 'Mutation-proven: removing the watermark bound makes a named fixture fail'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 7 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 7
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3082-queue-has-no-watermark-tied-to-the-injec.md
+generated_by: context-agent-hybrid
