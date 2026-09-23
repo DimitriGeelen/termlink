@@ -1,22 +1,24 @@
 ---
-id: T-3068
-name: "Give the wake consumer a trigger: supervised standing service so the flag is
-  actually read"
+id: T-3083
+name: "Standing check: arc slice status drifts from its task register with nothing
+  detecting it"
 description: >
-  Give the wake consumer a trigger: supervised standing service so the flag is actually
-  read
+  An arc slice register records status per slice (built/partial/unbuilt) and binds
+  each slice to a task. The status is hand-maintained, so a slice goes stale the moment
+  its task completes and nobody returns to it. Caught by hand three times in two days
+  on arc-011: S6 read unbuilt after T-3070 shipped, S11 read 'Crontab written, NOT
+  installed' a full day after it was installed and verified firing, and S7/S10 read
+  unbuilt after the rail was proven live. The drift UNDER-claims, which invites work
+  to be done twice. check-arc-claim-drift.sh cannot see it: it judges CLOSED arcs
+  for prover bindings and says so in its own scope line. T-3077 added a cross-check
+  but it runs only at that task's completion — a one-shot, not a standing guard.
 
-status: captured
+status: work-completed
 workflow_type: build
-owner: agent
-horizon: now
+owner: claude-code
+horizon: null
 tags: [arc:arc-011]
-components:
-  - scripts/notify-wake-supervisor.sh
-  - scripts/notify-wake-consumer.sh
-  - scripts/notify-sidecar.sh
-  - tests/notify-wake-supervisor-fixtures.sh
-  - .context/cron/notify-wake-supervisor.crontab
+components: []
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -28,9 +30,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-22T10:36:15Z
-last_update: 2026-09-23T07:05:51Z
-date_finished:
+created: 2026-09-23T09:46:25Z
+last_update: 2026-09-23T09:51:31Z
+date_finished: 2026-09-23T09:51:31Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -42,55 +44,22 @@ date_finished:
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 bvp_scores_proposed:
-  - ts: '2026-09-22T14:56:59Z'
+  - ts: '2026-09-23T09:47:27Z'
     estimator: bvp-estimator-v1-heuristic
     scores:
       D1: 4
-      D2: 2
+      D2: 0
       D3: 3
       D4: 2
       F-RECALL: 0
       F-ORCH: 0
-    rationale: D1=4 (body:structural-gate); D2=2 
-      (body:telemetry-or-audit-entry); D3=3 (body:component-discoverability); 
-      D4=2 (body:env-class-handled); F-RECALL=0 (no-signal); F-ORCH=0 
-      (no-signal)
-    rubric_sha: e4a00f38e801
-  - ts: '2026-09-22T18:17:59Z'
-    estimator: bvp-estimator-v1-heuristic
-    scores:
-      D1: 4
-      D2: 4
-      D3: 3
-      D4: 2
-      F-RECALL: 2
-      F-ORCH: 0
-    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
       (body:component-discoverability); D4=2 (body:env-class-handled); 
-      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
-    rubric_sha: e4a00f38e801
-cost_estimate_proposed:
-  - ts: '2026-09-22T14:57:32Z'
-    estimator: bvp-estimator-v1-heuristic
-    cost_estimate:
-      blast_radius:
-      tier: 2
-      effort: 8
-    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
-      (workflow:build); effort=8 (lines=239,acs=10)
-    rubric_sha: e4a00f38e801
-  - ts: '2026-09-22T14:59:09Z'
-    estimator: bvp-estimator-v1-heuristic
-    cost_estimate:
-      blast_radius: 5
-      tier: 2
-      effort: 8
-    rationale: blast_radius=5 (5-components-medium-blast); tier=2 
-      (workflow:build); effort=8 (lines=239,acs=10)
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
 ---
 
-# T-3068: Give the wake consumer a trigger: supervised standing service so the flag is actually read
+# T-3083: Standing check: arc slice status drifts from its task register with nothing detecting it
 
 ## Context
 
@@ -100,82 +69,35 @@ cost_estimate_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] VERIFIED 2026-09-23 (live): `--dry-run` reports `2 ok, 0 started, 0 stale,
-      0 failed (of 2 declared)`, and the consumer PIDs have CHANGED since last night
-      (965559 -> 694874), so the INSTALLED cron restarted them rather than me.
-      `scripts/notify-wake-supervisor.sh` keeps a `notify-wake-consumer.sh
-      --follow` alive per agent declared in `.context/cron/notify-wake-agents.conf`,
-      started if absent, left alone if healthy — the same contract as the sidecar
-      supervisor (T-3050)
-- [x] VERIFIED by fixture, and by the RIGHT one: T6 (start-if-absent) is what pins
-      self-match — a probe matching its own command line would see itself and never
-      start a consumer, so T6 could not pass. T14 covers the adjacent prefix-collision
-      case. Cited both rather than T14 alone, which would be evidence for a
-      neighbouring property.
-      The liveness probe is ANCHORED so the supervisor cannot match its own command
-      line and report a phantom as running. T-3050 hit exactly this and the fixture
-      harness killed itself over it
-- [x] `.context/cron/notify-wake-supervisor.crontab` installs the trigger, using the
-      split-stream redirect idiom (`>> log 2>> log.stderr`, T-2685) so a tooling
-      error can never dirty the findings channel.
-      **INSTALLED 2026-09-22 on operator approval (SQ-5 answered: install).**
-      `/etc/cron.d/termlink-notify-wake-supervisor`, 0644 root:root, byte-identical
-      to the tracked source (`diff` clean). `check-cron-install-drift` went 1 -> 0
-      ("healthy, 30 installed + matching"), and `tests/cron-drift-firing-fixtures.sh`
-      went 12/1 -> **13 passed, 0 failed** — the guard-layer red this was causing is
-      gone, not silenced.
-      VERIFIED FIRING, not merely present: `journalctl -u cron` shows
-      `21:20:01 CRON[97550]: (root) CMD (cd /opt/termlink && bash
-      scripts/notify-wake-supervisor.sh --quiet ...)` at the first */5 boundary after
-      install, and both log streams exist and are EMPTY — which is the healthy state
-      under the one-bit convention, and proves the split redirect works.
-- [x] VERIFIED 2026-09-23: two `.wake-heartbeat` files present, both 1s old.
-      The consumer writes a `<agent>.wake-heartbeat` each cycle, so "the consumer is
-      alive" is observable and a dead one is distinguishable from a quiet one — the
-      same reason the sidecar's own heartbeat exists
-- [x] VERIFIED: both declared agents carry `--as-identity` in
-      `.context/cron/notify-wake-agents.conf` (2 of 2), so identity is DECLARED and
-      never derived from the flag label (fixture T9).
-      The consumer acts under the RIGHT IDENTITY: it exports `TERMLINK_AGENT_ID`
-      for the agent it serves, so L3 receipts are signed by that agent and not by
-      whatever key the cron happens to run as. A receipt attributed to the wrong
-      identity is worse than no receipt
-- [x] `notify-rail-e2e.sh`'s WAKE stage reports the consumer as a live path-A
-      trigger once installed, and the full suite's WAKE verdict changes from
-      NOT-WIRED accordingly — verified by running it, not by reading the code.
-      **MET 2026-09-22, by running it:** `WAKE PASS  1 consumer(s) react to a raised
-      flag`, where this previously read NOT-WIRED. Full suite
-      `--stages precond,deliver,receipt,ladder,wake` returns **verdict: PROVEN**
-      (PRECOND/DELIVER/RECEIPT/LADDER/WAKE all PASS; DELIVER observed on the peer in
-      6215ms, RECEIPT acked up_to=120).
-- [x] VERIFIED 2026-09-23: 14 passed, 0 failed.
-      `tests/notify-wake-supervisor-fixtures.sh` is hermetic and pins: start-if-absent,
-      leave-alone-if-healthy, the anchored probe not matching itself, a conf with zero
-      agents being a tooling error rather than a silent success, and the heartbeat
-      being written
-- [ ] Proven live end to end: a real message raises the flag, the SUPERVISED consumer
-      (not one I launched by hand for the test) fires, and an L3 `stage=read` receipt
-      appears on the topic — read back from the hub, not inferred.
-
-      **UNTICKED 2026-09-22 (T-3071 run). The evidence behind this tick was later
-      WITHDRAWN, so the tick was asserting something retracted.**
-      It was MET on 2026-09-22 at offsets 107-110 on
-      dm:3bba15e681b3a078:d1993c2c3ec44c94: note -> stage=delivered (both sidecars) ->
-      stage=read **evidence=wake-consumer**, signed 3bba15e6 via --as-identity, L3 at
-      t=8s, topic grew by exactly 4 envelopes.
-      Every one of those observations still happened. What changed is what they MEAN.
-      `evidence=wake-consumer` was withdrawn as untruthful later the same day: a
-      consumer noticing a FLAG has injected nothing into any prompt, so a receipt
-      claiming `stage=read` on that basis asserts a read that did not occur.
-      `notify-ack-read.sh` dropped it from the valid evidence list, and
-      `notify-ledger.sh` (T-3070) refuses to advance a rung on it — with offset 110,
-      the very receipt cited above, named in its fixtures as the case to ignore.
-      Leaving this ticked would have the register assert, on evidence the rail itself
-      now rejects, exactly the thing arc-011 exists to stop overclaiming. Re-tick only
-      on a receipt carrying `idle-gated-inject` or `observed-turn`.
-      Required restarting the sidecars first: the running ones were executing
-      pre-change code and emitted no `last_mail_ts` at all (T-2405 stale-code class,
-      a long-lived detached process keeps the old version until restarted).
+- [x] **It fires on the drift that actually happened.** Pointed at arc-011 as it stood
+      at `3f0962566` — extracted from git, not synthesised — it names **S6, S7, S8 and
+      S10**. Against the current tree it is clean.
+      (AMENDED mid-build: this originally claimed all THREE manual catches including
+      S11. It does not catch S11, and that is not a bug. At that commit S11 read
+      `unbuilt` while T-3068 was still ACTIVE, so status and location agreed. S11's
+      drift was a stale NOTE — "Crontab written, NOT installed" after it was installed —
+      which is note-vs-reality and undecidable mechanically. Corrected rather than
+      ticked as written, and the limitation is now stated in the check's own SCOPE.)
+- [x] **Scope is stated in every output path** (T-2680): it detects a slice status
+      STALE against its task's location. It does NOT judge whether a note is accurate,
+      whether `partial` is the right call, or whether a slice should exist — a green
+      must not read as "the register is correct"
+- [x] **It covers the arcs the existing guard cannot see.** `check-arc-claim-drift.sh`
+      judges CLOSED arcs for prover bindings; this judges IN-PROGRESS arcs for slice
+      staleness. The boundary is stated so the two are not mistaken for each other
+- [x] **Fail-closed:** an unparseable arc file, an arc with zero slices, or absent
+      python3 exits 2 — never a clean pass. "I could not look" and "I looked and found
+      nothing" must not share an exit code
+- [x] An unresolvable `task:` reference fires too — a slice bound to a task that exists
+      nowhere is un-auditable by construction
+- [x] Allowlist at `.context/checks/arc-slice-drift-allowlist` (git-tracked per T-2681),
+      entries counted and reported but non-firing, each needing a cited reason
+- [x] Hermetic fixtures with a seam for the arcs dir and tasks dir (PL-213), covering:
+      the real drift, a clean tree, an unresolvable task, zero-slices, and an
+      allowlisted entry. Mutation-proven — disabling the staleness arm reddens a named
+      fixture
+- [x] Carries the `# guard-layer: source` marker so `run-guard-layer.sh` picks it up,
+      and the runner still reports it as a member
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -271,6 +193,21 @@ cost_estimate_proposed:
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+bash -n scripts/check-arc-slice-drift.sh
+
+# 15 assertions. D1 runs against arc-011 as it stood at 3f0962566, extracted from git
+# rather than synthesised, and must name the slices that were genuinely stale. D6 pins
+# what this CANNOT see (a stale note) so the limit is a claim, not a later surprise.
+bash tests/arc-slice-drift-fixtures.sh
+
+# The current register is clean by the check's own reckoning.
+bash scripts/check-arc-slice-drift.sh --quiet
+
+# Structural pins: the guard-layer marker (without it the check never runs
+# automatically, which is the dormant-tooling class PL-168), and the scope constant.
+head -3 scripts/check-arc-slice-drift.sh > /tmp/.t3083h 2>&1 && grep -q 'guard-layer: source' /tmp/.t3083h
+grep -q 'SCOPE = ' scripts/check-arc-slice-drift.sh
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -311,39 +248,38 @@ cost_estimate_proposed:
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
-### 2026-09-23 — five criteria earned, and the sixth turned out to forbid itself
+### 2026-09-23 — the guard I deferred three times, and the catch it would have missed
 
-- **What changed:** the remaining ACs were assumed to be a verification chore. Five
-  were, and they verify well: the supervisor reports `2 ok, 0 started, 0 stale, 0
-  failed`, both heartbeats are 1s old, both agents declare `--as-identity`, and the
-  fixtures are 14/14. The strongest evidence was unplanned — the consumer PIDs had
-  changed overnight (965559 -> 694874) with fresh heartbeats, which means the INSTALLED
-  cron restarted them unattended. That is the loop running with nobody driving it, and
-  it is better proof than any check I could have written.
-- **The sixth AC cannot be met, and not for want of trying.** It asks the SUPERVISED
-  CONSUMER to produce an L3 `stage=read` receipt. `notify-wake-consumer.sh` now says,
-  in the code: *"NO L3 FROM HERE. This consumer notices a flag; it does not inject
-  anything into a prompt, so it has no standing to claim the message was read."* The
-  AC was written when the consumer posted `evidence=wake-consumer`; that kind was
-  withdrawn as untruthful and the capability deliberately removed. So the criterion now
-  asks for something the arc forbids — unachievable BY DESIGN, not by omission.
-- **I did not rewrite it.** Editing my own acceptance criterion until it passes is
-  producer-as-judge, which the mandate forbids outright, and it is the arc-003 failure
-  this whole arc exists to avoid: closing a gap by changing the question. Raised as
-  **SQ-7** with both coherent readings stated — (a) the AC is obsolete because the
-  truthful L3 now comes from the injector, which is proven; (b) T-3068 is genuinely
-  unfinished because path A still has no truthful receipt. Those differ in what this
-  task is FOR, which is a scope decision and not mine.
-- **Register corrected while here:** S11 read `unbuilt / Crontab written, NOT installed`
-  a full day after it was installed and verified firing. Third instance of that drift
-  class in two days, and the second time I have found it rather than a guard finding it.
-  The standing slice-drift check remains the right close and remains undone.
-- **Cost vs estimate:** scored BVP 97 / cost 4.4 (hv-hc, Q2). Actual cost of the five
-  verifiable ACs was minutes, because the work had been done and only the evidence was
-  missing — the estimate priced building, not confirming. Worth feeding back: a task
-  whose remaining ACs are verification-only is mis-priced by a cost model keyed on
-  components and line counts.
-- **Triggered:** SQ-7. T-3068 parked at 5/6, sixth intact.
+- **What changed:** this was deferred three times as "the real G-019 close", each time
+  with the note that T-3077's cross-check "runs only at that task's completion — a
+  one-shot, not a standing guard". In between I caught the same drift by hand three
+  times in two days. The recurrence rate, not the idea, is what finally justified it:
+  a defect I personally re-discover every ~16 hours is not folklore, it is an unguarded
+  mechanism.
+- **The load-bearing fixture is extracted from git, not written from memory.** D1 runs
+  the check against arc-011 exactly as it stood at `3f0962566` — the tree in which I
+  caught S6 by hand — and it names S6, S7, S8 and S10. A fixture built from what I
+  BELIEVE the drift looked like would encode the same assumption that let the drift
+  survive in the first place.
+- **It does NOT catch one of the three, and I amended the AC rather than the claim.**
+  AC1 originally said it fires on all three manual catches including S11. It does not.
+  At that commit S11 read `unbuilt` while T-3068 was still ACTIVE, so status and
+  location AGREED — the falsehood was in the NOTE ("Crontab written, NOT installed",
+  a full day after it was installed and verified firing). Note-vs-reality is
+  undecidable mechanically: nothing in the repo knows what `/etc/cron.d` contains.
+  So the limit is now stated in the check's own SCOPE line, printed on every output
+  path, and pinned by fixture D6 — a passing assertion that this case passes, so the
+  gap is a documented claim rather than something discovered later by someone trusting
+  a green.
+- **Why `partial` is not judged either:** a slice can legitimately read `partial` with
+  its task completed (arc-011 S5 does — the right event on the wrong mechanism). Firing
+  on that would make the check permanently red on a correct register, which is the
+  T-2818 corrosion shape. Only `unbuilt`-with-a-completed-task is unambiguous.
+- **Cost vs estimate:** BVP 57, cost unmeasured — the estimator still refuses an
+  un-started task on the cost axis, so the quadrant was inferred from T-3082, its value
+  twin, which measured hv-lc. Actual scope matched: one check, one fixture suite.
+- **Triggered:** nothing new. The check is a guard-layer member (verified via
+  `run-guard-layer.sh --list`), so it runs in CI on every push without further wiring.
 
 ## Recommendation
 
@@ -397,42 +333,23 @@ cost_estimate_proposed:
 
 ## Updates
 
-### 2026-09-22T10:36:15Z — task-created [task-create-agent]
+### 2026-09-23T09:46:25Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3068-give-the-wake-consumer-a-trigger-supervi.md
+- **Output:** /opt/termlink/.tasks/active/T-3083-standing-check-arc-slice-status-drifts-f.md
 - **Context:** Initial task creation
 
-### 2026-09-22T13:10:21Z — status-update [task-update-agent]
-- **Change:** tags: +arc:arc-011
-
-### 2026-09-22T18:17:30Z — status-update [task-update-agent]
-- **Change:** status: started-work → captured
-- **Reason:** PARKED on SQ-5 (recorded in the arc register). The live-proof AC has been UNTICKED: it was ticked citing evidence=wake-consumer at offsets 107-110, and that evidence kind was withdrawn as untruthful the same day — notify-ledger.sh names offset 110 in its fixtures as the receipt to ignore. Installing the crontab would schedule a cron to drive a path whose only end-to-end proof has been retracted; leaving it dark keeps a permanent audit FAIL. Operator decision, not mine to make to keep momentum.
-
-### 2026-09-22T18:17:58Z — status-update [task-update-agent]
+### 2026-09-23T09:47:50Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 
-### 2026-09-22T18:19:41Z — status-update [task-update-agent]
-- **Change:** status: started-work → captured
-- **Reason:** PARKED on SQ-5 (arc register). Live-proof AC unticked — its evidence (wake-consumer) was withdrawn. Install-vs-leave-dark is an operator decision.
+## Reviewer Verdict (v1.5)
 
-### 2026-09-22T19:18:57Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
+- **Scan ID:** R-728cc755
+- **Timestamp:** 2026-09-23T09:51:35Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
 
-### 2026-09-23T07:00:04Z — status-update [task-update-agent]
-- **Change:** status: started-work → captured
-- **Reason:** Parked at 5/6. Five ACs verified with cited evidence (supervisor live, heartbeats, declared identity, anchored probe, 14/14 fixtures). The sixth is unachievable by design — it asks the consumer for an L3 the arc has forbidden it to post — and is raised as SQ-7 rather than rewritten.
-
-### 2026-09-23T07:00:22Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
-
-### 2026-09-23T07:02:44Z — status-update [task-update-agent]
-- **Change:** status: started-work → captured
-- **Reason:** Parked at 5/6 on SQ-7: the sixth AC asks the consumer for an L3 the arc forbids it to post. Restarted only to satisfy the commit gate; returning to parked.
-
-### 2026-09-23T07:05:36Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
-
-### 2026-09-23T07:05:51Z — status-update [task-update-agent]
-- **Change:** status: started-work → captured
-- **Reason:** Parked at 5/6 on SQ-7. Started only to permit a push retry that the background waiter had already completed; returning to parked.
+### 2026-09-23T09:51:31Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Standing slice-drift check shipped: fires on the real historical drift extracted from git (S6/S7/S8/S10), clean on the current tree, 15 fixtures, both arms mutation-proven, discovered by the guard-layer runner. Its one blind spot (stale notes) is stated in its own scope and pinned by fixture D6.

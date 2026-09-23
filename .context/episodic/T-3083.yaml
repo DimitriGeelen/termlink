@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3083: Standing check: arc slice status drifts from its task register with nothing detecting it
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-23T09:51:41Z
+# ============================================================================
+
+task_id: T-3083
+task_name: "Standing check: arc slice status drifts from its task register with nothing detecting it"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-23T09:46:25Z
+completed: 2026-09-23T09:51:31Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  An arc slice register records status per slice (built/partial/unbuilt) and binds each slice to a task. The status is hand-maintained, so a slice goes stale the moment its task completes and nobody returns to it. Caught by hand three times in two days on arc-011: S6 read unbuilt after T-3070 shipped, S11 read 'Crontab written, NOT installed' a full day after it was installed and verified firing, and S7/S10 read unbuilt after the rail was proven live. The drift UNDER-claims, which invites work to be done twice. check-arc-claim-drift.sh cannot see it: it judges CLOSED arcs for prover bindings and says so in its own scope line. T-3077 added a cross-check but it runs only at that task's completion — a one-shot, not a standing guard.
+
+# Key outcomes
+outcomes:
+  - '**It fires on the drift that actually happened.** Pointed at arc-011 as it stood'
+  - '**Scope is stated in every output path** (T-2680): it detects a slice status'
+  - '**It covers the arcs the existing guard cannot see.** `check-arc-claim-drift.sh`'
+  - '**Fail-closed:** an unparseable arc file, an arc with zero slices, or absent'
+  - 'An unresolvable `task:` reference fires too — a slice bound to a task that exists'
+  - 'Allowlist at `.context/checks/arc-slice-drift-allowlist` (git-tracked per T-2681),'
+  - 'Hermetic fixtures with a seam for the arcs dir and tasks dir (PL-213), covering:'
+  - 'Carries the `# guard-layer: source` marker so `run-guard-layer.sh` picks it up,'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 5
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3083-standing-check-arc-slice-status-drifts-f.md
+generated_by: context-agent-hybrid
