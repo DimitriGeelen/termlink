@@ -122,14 +122,34 @@ steps:
 - id: R4
   round: 4
   prompt: proc_as_fit
-  state: dispatched
+  state: complete
   worker: procasfit-r4
   feeds: null
   fed_by: R3
   result_file: .context/runs/T-3089-R4-handback.md
   dispatched_utc: '2026-09-24T21:30:00Z'
+  completed_utc: '2026-09-25T00:20:00Z'
   fed_with: R3 handback inlined, plus a MANDATORY PRE-ACTION PROTOCOL derived from R3's incident, plus
     all three operator rulings marked not-to-be-reopened.
+  attempt_1_note: 'Attempt 1 selected T-3090, backgrounded the guard-layer run via the native
+    Bash run_in_background parameter, then ended its turn assuming a later notification would
+    resume it. It does not for a non-interactive claude -p worker; the process exited with no
+    handback written. Its per-member timing instrumentation to scripts/run-guard-layer.sh was
+    real and was preserved by a follow-up commit (50f710d42) before this attempt (attempt 2,
+    this record) began. Attempt 2 completed the same task in the foreground, polling a
+    backgrounded run without ever ending its turn before the result was captured.'
+  head_start: 50f710d42
+  head_end: d410057d4
+  closed: []
+  advanced:
+  - T-3090
+  sovereign_raised:
+  - 'NEW: does a labelled-contended guard-layer timing measurement satisfy the quiet-host
+    ruling on T-3090, or is a dedicated quiet window required before close'
+  - 'carried unresolved: T-2978 jurisdiction question (R3)'
+  - 'carried unresolved: T-2980 canonical-bytes signing design (R2/R3)'
+  - 'carried unresolved: T-3091 sibling-liveness mechanism itself (R3), deliberately not built
+    this round for the same reason R3 gave - it needs a full uninterrupted budget'
 orchestrator_bindings:
 - The orchestrator does NOT execute the mandate itself.
 - Completion is verified by reading the worker's result file, never by the dispatch return code (T-2876
