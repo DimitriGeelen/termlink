@@ -6,17 +6,12 @@ description: >
   Give the wake consumer a trigger: supervised standing service so the flag is actually
   read
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-011]
-components:
-  - scripts/notify-wake-supervisor.sh
-  - scripts/notify-wake-consumer.sh
-  - scripts/notify-sidecar.sh
-  - tests/notify-wake-supervisor-fixtures.sh
-  - .context/cron/notify-wake-supervisor.crontab
+components: [scripts/check-arc-slice-drift.sh, scripts/notify-sidecar.sh, tests/arc-slice-drift-fixtures.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -29,8 +24,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-22T10:36:15Z
-last_update: 2026-09-23T07:05:51Z
-date_finished:
+last_update: 2026-09-23T16:53:59Z
+date_finished: 2026-09-23T16:53:59Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -287,6 +282,31 @@ cost_estimate_proposed:
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+# This block was EMPTY until closure, which would have let P-011 pass vacuously —
+# the T-2831 shape, on a task whose whole subject is a rail that must not overclaim.
+# What follows asserts the five criteria that were earned, and nothing wider.
+#
+# The live observations cited IN the ACs — the supervisor reporting 2 ok / 0 failed,
+# both heartbeats 1s old, the consumer PIDs changing overnight under cron, journalctl
+# showing the */5 fire — are deliberately NOT here. They are point-in-time readings of
+# host state, not repeatable checks; a host without this cron installed would fail them
+# for the right reason but at the wrong time (PL-213). They stand as cited evidence in
+# the criteria themselves.
+
+bash tests/notify-wake-supervisor-fixtures.sh
+
+# AC3: the crontab is installed, and with the split-stream redirect (T-2685) so a
+# tooling error can never dirty the one-bit findings channel.
+bash scripts/check-cron-install-drift.sh --quiet
+grep -q '2>> .context/working/.notify-wake-supervisor.log.stderr' .context/cron/notify-wake-supervisor.crontab
+
+# AC5: identity is DECLARED per agent, never derived from the flag label.
+test "$(grep -c -- '--as-identity' .context/cron/notify-wake-agents.conf)" = "2"
+
+# The sixth criterion is marked obsolete WITH its reason (operator, SQ-7), not ticked
+# as though met and not silently deleted.
+grep -q 'OBSOLETE — resolved by the operator' .tasks/active/T-3068-give-the-wake-consumer-a-trigger-supervi.md
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -452,3 +472,24 @@ cost_estimate_proposed:
 ### 2026-09-23T07:05:51Z — status-update [task-update-agent]
 - **Change:** status: started-work → captured
 - **Reason:** Parked at 5/6 on SQ-7. Started only to permit a push retry that the background waiter had already completed; returning to parked.
+
+### 2026-09-23T16:52:55Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-6f243ed8
+- **Timestamp:** 2026-09-23T16:54:16Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Verification-level findings:**
+
+  1. **mock-only-integration** (partial, heuristic) @ AC vs Verification cross-check
+     - evidence: `bash tests/notify-wake-supervisor-fixtures.sh`
+
+### 2026-09-23T16:53:59Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Closing on five earned criteria after the operator resolved SQ-7 (sixth AC obsolete). Verification block written before closing — it was empty, which would have let P-011 pass vacuously on a task whose subject is a rail that must not overclaim.

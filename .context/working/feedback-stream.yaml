@@ -11868,3 +11868,309 @@ scan_id: R-0ddd9b0b
 task_id: T-3078
 payload:
   task_file: .tasks/active/T-3078-triage-the-7-firing-guard-layer-members-.md
+---
+kind: scan_emitted
+timestamp: '2026-09-22T21:20:17Z'
+scan_id: R-ba376943
+task_id: T-3079
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-22T21:20:17Z'
+scan_id: R-ba376943
+task_id: T-3079
+payload:
+  task_file: .tasks/active/T-3079-idle-classifier-is-blind-to-the-current-.md
+---
+kind: scan_emitted
+timestamp: '2026-09-22T21:21:23Z'
+scan_id: R-15e1982c
+task_id: T-3069
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-22T21:21:23Z'
+scan_id: R-15e1982c
+task_id: T-3069
+payload:
+  task_file: .tasks/active/T-3069-the-injector-queue-to-prompt-free-check-.md
+---
+kind: scan_emitted
+timestamp: '2026-09-22T21:24:26Z'
+scan_id: R-ebcd0026
+task_id: T-3080
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-22T21:24:26Z'
+scan_id: R-ebcd0026
+task_id: T-3080
+payload:
+  task_file: .tasks/active/T-3080-record-the-arc-011-live-proof-in-the-sli.md
+---
+kind: scan_emitted
+timestamp: '2026-09-22T21:29:29Z'
+scan_id: R-52a5ff5a
+task_id: T-3081
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-22T21:29:29Z'
+scan_id: R-52a5ff5a
+task_id: T-3081
+payload:
+  task_file: .tasks/active/T-3081-close-out-the-arc-011-live-proof-session.md
+---
+kind: scan_emitted
+timestamp: '2026-09-23T06:56:45Z'
+scan_id: R-5b7b06ff
+task_id: T-3082
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-23T06:56:45Z'
+scan_id: R-5b7b06ff
+task_id: T-3082
+payload:
+  task_file: .tasks/active/T-3082-queue-has-no-watermark-tied-to-the-injec.md
+---
+kind: scan_emitted
+timestamp: '2026-09-23T09:51:35Z'
+scan_id: R-728cc755
+task_id: T-3083
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-23T09:51:35Z'
+scan_id: R-728cc755
+task_id: T-3083
+payload:
+  task_file: .tasks/active/T-3083-standing-check-arc-slice-status-drifts-f.md
+---
+kind: scan_emitted
+timestamp: '2026-09-23T11:58:06Z'
+scan_id: R-92db7eb9
+task_id: T-3084
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-23T11:58:06Z'
+scan_id: R-92db7eb9
+task_id: T-3084
+payload:
+  task_file: .tasks/active/T-3084-record-the-operators-sovereign-resolutio.md
+---
+kind: scan_emitted
+timestamp: '2026-09-23T16:54:16Z'
+scan_id: R-6f243ed8
+task_id: T-3068
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-23T16:54:16Z'
+scan_id: R-6f243ed8
+task_id: T-3068
+payload:
+  task_file: .tasks/active/T-3068-give-the-wake-consumer-a-trigger-supervi.md
+---
+kind: scan_emitted
+timestamp: '2026-09-23T17:01:23Z'
+scan_id: R-95376312
+task_id: T-3072
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-23T17:01:23Z'
+scan_id: R-95376312
+task_id: T-3072
+payload:
+  task_file: .tasks/active/T-3072-urgent-flag-bypass-the-prompt-free-wait-.md
+---
+kind: scan_emitted
+timestamp: '2026-09-23T17:03:52Z'
+scan_id: R-0d8e0340
+task_id: T-3085
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-23T17:03:52Z'
+scan_id: R-0d8e0340
+task_id: T-3085
+payload:
+  task_file: .tasks/active/T-3085-mark-arc-011-s9-built-after-t-3072-and-c.md
+---
+kind: scan_emitted
+timestamp: '2026-09-24T20:21:14Z'
+scan_id: R-4dfb64e6
+task_id: T-3086
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-24T20:21:14Z'
+scan_id: R-4dfb64e6
+task_id: T-3086
+payload:
+  task_file: .tasks/active/T-3086-land-the-stranded-arc-011-work-and-cut-a.md
+---
+kind: scan_emitted
+timestamp: '2026-09-24T20:37:21Z'
+scan_id: R-bea654aa
+task_id: T-2986
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-24T20:37:21Z'
+scan_id: R-bea654aa
+task_id: T-2986
+payload:
+  task_file: .tasks/active/T-2986-fix-stale-claudemd-factual-claims.md
+---
+kind: scan_emitted
+timestamp: '2026-09-24T20:48:27Z'
+scan_id: R-b3e50c23
+task_id: T-2976
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-24T20:48:27Z'
+scan_id: R-b3e50c23
+task_id: T-2976
+payload:
+  task_file: .tasks/active/T-2976-fix-substrate-preflight-binary-comparato.md
+---
+kind: scan_emitted
+timestamp: '2026-09-24T20:52:39Z'
+scan_id: R-03aedde3
+task_id: T-2979
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-24T20:52:39Z'
+scan_id: R-03aedde3
+task_id: T-2979
+payload:
+  task_file: .tasks/active/T-2979-triage-and-ack-the-11-inbound-frameworkp.md
+---
+kind: scan_emitted
+timestamp: '2026-09-24T20:56:13Z'
+scan_id: R-0db053df
+task_id: T-3039
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-24T20:56:13Z'
+scan_id: R-0db053df
+task_id: T-3039
+payload:
+  task_file: .tasks/active/T-3039-file-upstream-inception-decide-path-neve.md
+---
+kind: scan_emitted
+timestamp: '2026-09-24T21:18:02Z'
+scan_id: R-4878b203
+task_id: T-2977
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-24T21:18:02Z'
+scan_id: R-4878b203
+task_id: T-2977
+payload:
+  task_file: .tasks/active/T-2977-reinstall-current-binary-resolve-3-binar.md
+---
+kind: scan_emitted
+timestamp: '2026-09-24T22:31:18Z'
+scan_id: R-aee3b8ac
+task_id: T-3090
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-24T22:31:18Z'
+scan_id: R-aee3b8ac
+task_id: T-3090
+payload:
+  task_file: .tasks/active/T-3090-measure-the-guard-layer-properly-per-mem.md

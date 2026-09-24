@@ -17,7 +17,7 @@ components:
   - docs/design/arc-011-sidecar-api-architecture.md
 related_tasks: []
 created: 2026-09-22T14:24:30Z
-last_update: '2026-09-22T14:57:32Z'
+last_update: 2026-09-24T20:29:06Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable

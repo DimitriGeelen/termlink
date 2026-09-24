@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3090: Measure the guard layer properly: per-member timing on a quiet host, then correct or drop CLAUDE.md's '(seconds)' claim
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-24T22:31:26Z
+# ============================================================================
+
+task_id: T-3090
+task_name: "Measure the guard layer properly: per-member timing on a quiet host, then correct or drop CLAUDE.md's '(seconds)' claim"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-24T21:14:32Z
+completed: 2026-09-24T22:31:07Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-25T00:31:05+02:00
+last_commit: 2026-09-25T00:31:05+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  operator rules A — the contended number IS the answer; correct the CI claim
+
+# Key outcomes
+outcomes:
+  - '`scripts/run-guard-layer.sh` reports per-member elapsed time (JSON `elapsed_s` field on every member, present regardless of verdict) — done by attempt-1, preserved in commit `50f710d42`'
+  - '`tests/guard-layer-runner-fixtures.sh` gains at least one assertion pinning the `elapsed_s` field''s presence/shape, and the full suite still passes — commit `a6d8ef16e`, 48/48 passed'
+  - 'A real run''s per-member timings + host-load context are recorded in `docs/reports/T-3090-guard-layer-timing.md`, explicitly labelled as contended (not quiet-host) given this host''s load during the run, with the total wall time reported — 945s wall / 939.5s sum, load avg ~10-15 on 24 cores, see report'
+  - '`CLAUDE.md`''s `bash scripts/run-guard-layer.sh # all static checks + fixture suites (seconds)` line is corrected to reflect the measured order of magnitude, with a pointer to the report'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - '.context/runs/T-3089-procasfit-x4.yaml'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-25T00:31:05'
+    action: 'T-3090: operator rules A — the contended number IS the answer; correct the CI claim'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 76 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 76
+  commits: 1
+  files_changed: 2
+  lines_added: 30
+  lines_removed: 12
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3090-measure-the-guard-layer-properly-per-mem.md
+generated_by: context-agent-hybrid

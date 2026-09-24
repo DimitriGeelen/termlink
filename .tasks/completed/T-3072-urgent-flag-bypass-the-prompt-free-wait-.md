@@ -6,10 +6,10 @@ description: >
   skip the wait for a free prompt and inject immediately. Needs the flag semantics
   defined before build.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-011]
 components:
   - scripts/notify-injector.sh
@@ -27,8 +27,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-22T12:54:39Z
-last_update: '2026-09-22T14:59:18Z'
-date_finished:
+last_update: 2026-09-23T17:01:15Z
+date_finished: 2026-09-23T17:01:15Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -84,8 +84,25 @@ cost_estimate_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] **Urgent shortens the WAIT, never the CHECK** (SQ-4, operator). When the queued
+      head message is urgent, the injector re-probes the prompt within a bounded window
+      instead of deferring on the first non-READY probe. The wait it shortens is the
+      cron interval — up to 5 minutes — not the prompt-free test
+- [x] **It still NEVER injects into BUSY or UNKNOWN.** After the window expires it
+      defers exactly as before (exit 4). This is the criterion the others serve:
+      injecting into a busy prompt is the T-2396 loss, and a bypass would silently lose
+      exactly the messages most likely to be marked urgent
+- [x] Urgency is read from the DECLARED priority band and is bounded by the delivered
+      watermark, so an already-delivered urgent message cannot re-trigger the wait
+- [x] **Non-urgent behaviour is unchanged** — one probe, immediate defer. Proven by the
+      existing 29 assertions staying green, not by inspection
+- [x] The threshold and window are declared and overridable (`INJECTOR_URGENT_THRESHOLD`,
+      `INJECTOR_URGENT_WAIT`), not magic numbers buried in a condition
+- [x] Fixtures pin: urgent waits and then injects when the prompt frees; urgent still
+      defers when it never frees; non-urgent does not wait; an already-delivered urgent
+      message does not trigger waiting
+- [x] Mutation-proven — disabling the urgency arm reddens a named fixture, and so does
+      removing the post-window defer
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -181,6 +198,24 @@ cost_estimate_proposed:
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+bash -n scripts/notify-injector.sh
+
+# 34 assertions. U2 is the criterion SQ-4 exists to protect: urgent must still defer on
+# BUSY. The other 29 staying green is the proof that non-urgent behaviour is unchanged.
+bash tests/notify-injector-fixtures.sh
+
+# The knobs are declared, not magic numbers buried in a condition.
+grep -q 'URGENT_THRESHOLD="${INJECTOR_URGENT_THRESHOLD:-5}"' scripts/notify-injector.sh
+grep -q 'URGENT_WAIT="${INJECTOR_URGENT_WAIT:-120}"' scripts/notify-injector.sh
+
+# Urgency is bounded by the delivered watermark — an already-handed-over urgent message
+# must not re-arm the wait for ever (T-3082's defect in a different hat).
+grep -q 'AND offset > \$delivered' scripts/notify-injector.sh
+
+# The BUSY arm still exits 4 unconditionally. If this line ever grows an urgent
+# exemption, the bypass is back and U2 is the fixture that catches it.
+grep -q 'prompt BUSY — deferring (the agent is mid-turn)' scripts/notify-injector.sh
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -220,6 +255,41 @@ cost_estimate_proposed:
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-09-23 — the task title says "bypass", and the operator's answer says do not
+
+- **What changed:** this task is literally named *"Urgent flag: bypass the prompt-free
+  wait and inject directly"*, and its description says an urgent message "should skip
+  the wait for a free prompt and inject immediately". SQ-4 asked what that means when
+  the prompt is BUSY, and the operator's answer inverts the title: urgent shortens the
+  WAIT, never the CHECK. I built the operator's answer, not the title, and the title is
+  now the most misleading thing in the file — worth renaming if this is ever revisited.
+- **What "the wait" actually was.** I expected to find a wait loop to shorten. There is
+  none: the injector is single-shot and the wait a normal message serves is the CRON
+  INTERVAL — defer now, be looked at again in up to five minutes. So urgency could not
+  mean "skip a loop"; it had to mean "re-probe within a bounded window instead of
+  surrendering the tick". That reframing is the whole design, and it only became
+  visible by reading the code rather than the ticket.
+- **Most of the slice was already built.** T-3071 shipped the priority column and
+  `COALESCE(priority,0) DESC` ordering, so "urgent goes first in the queue" needed
+  nothing. What remained was purely the latency, which is why this closed inside a
+  budget that could not have carried T-3076.
+- **The watermark had to move earlier, and that costs something.** Urgency must be
+  judged against what is UNDELIVERED, or an already-handed-over urgent message re-arms
+  the wait for ever — T-3082's defect in a different hat. So the hub read now happens
+  before the prompt check, which means a deferred tick does one read it previously
+  skipped. One read per agent per cron interval, accepted deliberately and recorded
+  rather than discovered later by someone profiling it.
+- **The mutation that matters:** making the BUSY arm exempt urgent — the tempting
+  reading of the title — is caught by U2 with the message *"URGENT INJECTED INTO A BUSY
+  PROMPT — the T-2396 loss"*. That is the criterion SQ-4 exists to protect, and it is
+  now mechanically defended rather than merely agreed.
+- **Cost vs estimate:** BVP 57 / cost 3.2 (hv-lc). Accurate this time — one script, one
+  fixture suite, closed within a tight budget. The earlier calibration complaints were
+  about tasks whose remaining work was verification; this one was a genuine build and
+  the estimate held.
+- **Triggered:** nothing new. Selected over the higher-value T-3076 (70) on
+  executability at 724k context, declared at selection time rather than reconstructed.
 
 ## Recommendation
 
@@ -280,3 +350,19 @@ cost_estimate_proposed:
 
 ### 2026-09-22T13:10:19Z — status-update [task-update-agent]
 - **Change:** tags: +arc:arc-011
+
+### 2026-09-23T16:57:32Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-95376312
+- **Timestamp:** 2026-09-23T17:01:23Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-09-23T17:01:15Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Urgent shortens the wait (re-probe within a bounded window) and never the check (still defers on BUSY/UNKNOWN), per the operator's SQ-4 decision. 34 fixtures, both arms mutation-proven — including the bypass mutation that U2 catches as the T-2396 loss.
