@@ -33,13 +33,17 @@ steps:
 - id: R1
   round: 1
   prompt: proc_as_fit
-  state: dispatched
+  state: done
   worker: procasfit-r1
   feeds: R2
   fed_by: null
   result_file: .context/runs/T-3089-R1-handback.md
   dispatched_utc: '2026-09-24T19:10:00Z'
+  completed_utc: '2026-09-24T20:45:00Z'
   wdir: /tmp/tl-dispatch/procasfit-r1
+  head_start: a2b4c3194
+  head_end: b1e80d46a
+  stopped_reason: context ~347K tokens (~43%), past ~300K threshold, clean task boundary
 - id: R2
   round: 2
   prompt: proc_as_fit
