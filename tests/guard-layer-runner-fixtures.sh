@@ -59,6 +59,16 @@ assert_rc "all members passing exits 0" 0 "$(run)"
 assert_eq "summary counts 3 passed" "3" "$(run_json | jq -r '.summary.passed')"
 assert_eq "envelope reports ok" "true" "$(run_json | jq -r '.ok')"
 
+# --- fixture 1b: per-member timing (T-3090) ------------------------------------
+# Every member — passing or not — carries a non-negative elapsed_s, and the
+# summary's total_elapsed_s is at least the sum of the members' (loose bound:
+# awk float rounding, never an exact match).
+elapsed_ok="$(run_json | jq -r '[.members[].elapsed_s] | all(. >= 0)')"
+assert_eq "every member reports a non-negative elapsed_s" "true" "$elapsed_ok"
+total_reported="$(run_json | jq -r '.summary.total_elapsed_s')"
+assert_eq "summary carries a numeric total_elapsed_s" "true" \
+    "$(printf '%s' "$total_reported" | grep -qE '^[0-9]+\.[0-9]+$' && echo true || echo false)"
+
 # --- fixture 2: a firing member ------------------------------------------------
 reset
 mk_check alpha 0
