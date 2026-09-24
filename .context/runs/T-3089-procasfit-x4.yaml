@@ -84,7 +84,7 @@ steps:
 - id: R3
   round: 3
   prompt: proc_as_fit
-  state: complete
+  state: complete-with-incident
   worker: procasfit-r3
   feeds: R4
   fed_by: R2
@@ -100,32 +100,36 @@ steps:
   - T-2977
   advanced: []
   incident:
-  - "R3 executed T-2977 (rebuild+reinstall+restart termlink-hub.service) at 21:16:57Z, ~82s AFTER commit\
-    \ adb393471 (21:15:35Z CEST author time) had already landed the operator's explicit ruling to DEFER\
-    \ T-2977/T-2978 until T-3091's sibling-liveness-check mechanism exists. R3 read the run record once\
-    \ at dispatch start (before the ruling existed) and did not re-check it immediately before the\
-    \ hard-to-reverse action. Verified after the fact: no observed harm (hub.secret persisted, all\
-    \ procasfit-r1/r2/r3 tmux sessions and the 4 other systemd-managed sessions on host 107 show state\
-    \ ready with fresh heartbeats post-restart, local-hub reads ok in fleet doctor) - but the ruling was\
-    \ right to require deferral regardless of this outcome, since R3 had no way to know that in advance.\
-    \ Not reverted: undoing it means a second hub restart plus reintroducing the live SHIPPED-BUT-NOT-LIVE\
-    \ binary-staleness defect C-12 already fixed. Full account in the R3 handback's top section."
+  - 'R3 executed T-2977 (rebuild+reinstall+restart termlink-hub.service) at 21:16:57Z, ~82s AFTER commit
+    adb393471 (21:15:35Z CEST author time) had already landed the operator''s explicit ruling to DEFER
+    T-2977/T-2978 until T-3091''s sibling-liveness-check mechanism exists. R3 read the run record once
+    at dispatch start (before the ruling existed) and did not re-check it immediately before the hard-to-reverse
+    action. Verified after the fact: no observed harm (hub.secret persisted, all procasfit-r1/r2/r3 tmux
+    sessions and the 4 other systemd-managed sessions on host 107 show state ready with fresh heartbeats
+    post-restart, local-hub reads ok in fleet doctor) - but the ruling was right to require deferral regardless
+    of this outcome, since R3 had no way to know that in advance. Not reverted: undoing it means a second
+    hub restart plus reintroducing the live SHIPPED-BUT-NOT-LIVE binary-staleness defect C-12 already
+    fixed. Full account in the R3 handback''s top section.'
   sovereign_raised:
   - 'carried: T-3075 IW-4, guard-layer ''(seconds)'' (now T-3090), hub-restart-safety (now T-3091) - all
     three already operator-ruled by commit adb393471, see operator_rulings above'
-  - T-2978 (relaunch penelope/pen-agent-systemd) - deferred, and now additionally confirmed out of THIS
-    project's scope: penelope is /opt/050-email-archive's production agent, not termlink's
+  - 'T-2978 (relaunch penelope/pen-agent-systemd) - deferred, and now additionally confirmed out of THIS
+    project''s scope: penelope is /opt/050-email-archive''s production agent, not termlink''s'
   - T-2980 (claim-verb identity binding) - re-verified current (not stale) via direct code read; still
     Q2, genuinely multi-crate + needs a canonical-bytes design decision per verb; deliberately not started
     given budget and the operator's just-stated solid-over-quick principle
+  incident_recorded_in: T-3091 (ground-truth section)
 - id: R4
   round: 4
   prompt: proc_as_fit
-  state: pending
-  worker: null
+  state: dispatched
+  worker: procasfit-r4
   feeds: null
   fed_by: R3
-  result_file: null
+  result_file: .context/runs/T-3089-R4-handback.md
+  dispatched_utc: '2026-09-24T21:30:00Z'
+  fed_with: R3 handback inlined, plus a MANDATORY PRE-ACTION PROTOCOL derived from R3's incident, plus
+    all three operator rulings marked not-to-be-reopened.
 orchestrator_bindings:
 - The orchestrator does NOT execute the mandate itself.
 - Completion is verified by reading the worker's result file, never by the dispatch return code (T-2876
@@ -136,6 +140,9 @@ cross_round_findings:
   of 6 cited claims still live) and T-2976 (fixed by T-2226 three months before the 2026-09-19 review
   ran). Two independent hits is a pattern in the REVIEW, not luck in the rounds. R3 was explicitly told
   to verify findings against the current tree before building from them.'
+- 'R3 proved T-3091''s gap is real rather than theoretical: R2 declined the hub restart by correct guess;
+  R3 took it 82s after the operator ruled against it, because its information was STALE, not absent. Staleness
+  is why a sterner prompt cannot fix this and an at-the-moment checkable predicate can.'
 operator_rulings:
 - ts: '2026-09-24T21:55:00Z'
   principle_verbatim: reliability and fragility, so I'm not to save a few tokens just to get a quick solution.
@@ -155,3 +162,13 @@ operator_rulings:
     recorded_at: T-3091
     ruling: Defer to a quiet window AND close the structural gap - a worker cannot currently tell whether
       a sibling round is mid-flight.
+run_record_incidents:
+- ts: '2026-09-24T21:32:00Z'
+  what: R3's write left the run record UNPARSEABLE at line 117 (yaml.scanner.ScannerError).
+  cause: 'An unquoted list scalar wrapped onto a continuation line containing '': '' ("project''s scope:
+    penelope ..."), which YAML reads as a mapping key.'
+  class: T-3084 recurrence - the same unquoted-scalar-with-colon-space corruption, same repo
+  impact: The load-bearing state carrier for the sequence was unreadable. The orchestrator's own update
+    failed closed on the read rather than writing over it, which is the only reason nothing was lost.
+  fix: Quoted the scalar and folded the continuation; re-parsed before trusting (T-3084 lesson).
+  follow_up: A parse check on this file belongs in the guard layer - nothing currently validates it.

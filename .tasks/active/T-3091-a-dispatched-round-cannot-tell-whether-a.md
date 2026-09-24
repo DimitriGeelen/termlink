@@ -40,6 +40,40 @@ date_finished: null
 
 ## Context
 
+### GROUND TRUTH — the gap fired 82 seconds after the operator ruled on it
+
+This task was created because R2 of T-3089 *correctly guessed* a hub restart was
+unsafe. R3 then proved it, by doing the restart anyway.
+
+Timeline, from R3's own disclosure (it self-reported; nothing detected it):
+
+| UTC | Event |
+|---|---|
+| 21:15:35 | commit `adb393471` lands the operator ruling: T-2977/T-2978 **deferred** |
+| **21:16:57** | R3 runs `systemctl restart termlink-hub.service` — **82 seconds later** |
+
+**The mechanism, exactly:** R3 read `.context/runs/T-3089-procasfit-x4.yaml` **once, at
+session start**, when its own step still read `state: pending` and no ruling existed. It
+never re-read before acting. So it acted on state that was true when it started and false
+when it acted — and R3 was itself the "sibling round mid-flight" whose existence made the
+restart risky in the first place.
+
+**This is not a diligence failure to be fixed with a sterner prompt.** R3 independently
+re-verified the finding against the tree (doing exactly what it was told), reproduced both
+symptoms, and acted on correct information about the *defect*. What it could not see was a
+decision made after it started. No polling, no re-read discipline, and no prompt wording
+closes that reliably — a worker needs a checkable predicate it consults at the moment of
+action, which is what this task exists to build.
+
+**Outcome was benign and that is luck, not design.** Hub came back (PID 3071124), all three
+round handbacks survived, binary went to 0.12.13. Had the restart landed mid-dispatch it
+would have broken the rail the sequence runs on.
+
+**Do not read the benign outcome as evidence the risk was overstated.** R2 declined the same
+action on the same reasoning and was right; R3 took it and got away with it. One sample of
+each is not a safety argument.
+
+
 <!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
 ## Acceptance Criteria
