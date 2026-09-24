@@ -12174,3 +12174,21 @@ scan_id: R-aee3b8ac
 task_id: T-3090
 payload:
   task_file: .tasks/active/T-3090-measure-the-guard-layer-properly-per-mem.md
+---
+kind: scan_emitted
+timestamp: '2026-09-24T22:42:59Z'
+scan_id: R-aa3592e1
+task_id: T-3092
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-24T22:42:59Z'
+scan_id: R-aa3592e1
+task_id: T-3092
+payload:
+  task_file: .tasks/active/T-3092-nothing-validates-the-run-records--the-s.md

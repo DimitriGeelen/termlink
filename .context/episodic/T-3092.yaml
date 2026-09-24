@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3092: Nothing validates the run records — the state carrier for multi-round sequences can be left unparseable with no detection
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-24T22:43:07Z
+# ============================================================================
+
+task_id: T-3092
+task_name: "Nothing validates the run records — the state carrier for multi-round sequences can be left unparseable with no detection"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-24T22:39:37Z
+completed: 2026-09-24T22:42:53Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-25T00:42:47+02:00
+last_commit: 2026-09-25T00:42:47+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  guard the run records — the state carrier nothing was validating
+
+# Key outcomes
+outcomes:
+  - '`scripts/check-run-record-parse.sh` exists, carries the `# guard-layer: source` marker, and is discovered by `run-guard-layer.sh --list`'
+  - 'It asserts the REAL consumer''s property: every `.context/runs/*.yaml` must `yaml.safe_load` into a **mapping** — not merely "is valid YAML"'
+  - 'Fail-closed: missing python3, missing PyYAML, and an unreadable file each exit **2**, never 0'
+  - 'An absent `.context/runs/` directory exits 0 (nothing was ever recorded is not a fault), but a directory containing **zero** `*.yaml` files exits 2 — a corpus of zero is a vacuous pass (T-2831)'
+  - '**Load-bearing:** pointed at the T-3089 run record as it stood corrupted at commit `8288d7fa8~`, extracted from git rather than synthesised, it FIRES; against the repaired tree it is clean'
+  - '`tests/run-record-parse-fixtures.sh` covers each class above, and the new member adds **no new failure** to the guard layer'
+  - '**Mutation-tested:** weakening the mapping assertion to a bare parse check reddens the suite; restoring it returns 14/14'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'scripts/check-run-record-parse.sh'
+  - '.tasks/active/T-3092-nothing-validates-the-run-records--the-s.md'
+  - 'tests/run-record-parse-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-25T00:42:47'
+    action: 'T-3092: guard the run records — the state carrier nothing was validating'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 3
+  lines_added: 563
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3092-nothing-validates-the-run-records--the-s.md
+generated_by: context-agent-hybrid
