@@ -142,8 +142,21 @@ slices:
   - id: S9
     spec_step: "9. urgent messages inject directly"
     task: T-3072
-    status: unbuilt
-    note: "Semantics undefined. Operator: note it for later."
+    status: built
+    note: "Semantics settled by the operator (SQ-4) and built to that answer, NOT to this
+           slice's own title. The task is named 'bypass the prompt-free wait and inject
+           directly'; the decision inverts it - urgent shortens the WAIT, never the CHECK.
+           There was no wait loop to shorten: the injector is single-shot, and the wait a
+           normal message serves is the CRON INTERVAL, up to five minutes. So urgency means
+           re-probing the prompt within a bounded window (INJECTOR_URGENT_WAIT, default
+           120s; band >= INJECTOR_URGENT_THRESHOLD, default 5) instead of surrendering the
+           tick. After the window it defers exactly as before, exit 4.
+           Queue POSITION needed nothing: T-3071 already orders by COALESCE(priority,0) DESC.
+           Urgency is bounded by the delivered watermark, or an already-handed-over urgent
+           message would re-arm the wait for ever. Cost: a deferred tick now does one hub
+           read it previously skipped.
+           34 fixtures. The load-bearing one is U2 - making the BUSY arm exempt urgent is
+           caught with 'URGENT INJECTED INTO A BUSY PROMPT - the T-2396 loss'."
   - id: S10
     spec_step: "10. inject, verify the agent is working, report INJECTED"
     task: T-3069

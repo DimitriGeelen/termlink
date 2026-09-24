@@ -66,6 +66,10 @@ TOPIC_FILTER=""
 DRY=0
 QUIET=0
 VERIFY_TIMEOUT="${INJECTOR_VERIFY_TIMEOUT:-20}"
+# T-3072 — urgency. Band >= THRESHOLD re-probes the prompt for up to WAIT seconds
+# instead of deferring to the next cron tick. Declared, not buried in a condition.
+URGENT_THRESHOLD="${INJECTOR_URGENT_THRESHOLD:-5}"
+URGENT_WAIT="${INJECTOR_URGENT_WAIT:-120}"
 
 usage() {
     cat <<'USAGE'
@@ -180,39 +184,6 @@ if [ "$sess_state" != "present" ]; then
     exit 3
 fi
 
-# ---- 3. is the prompt free? -----------------------------------------------
-if [ -n "${INJECTOR_TEST_PTY_STATE:-}" ]; then
-    state="$INJECTOR_TEST_PTY_STATE"
-else
-    state="$(pushwaker_probe_pty "$SESSION")"
-fi
-case "$state" in
-    READY) : ;;
-    BUSY)    log "prompt BUSY — deferring (the agent is mid-turn)"; exit 4 ;;
-    *)       log "prompt UNKNOWN — deferring. Ambiguity never resolves to READY: a wrong READY is a blind inject."; exit 4 ;;
-esac
-
-# ---- 4. read the queue ----------------------------------------------------
-# T-3071 (arc-011 S8) — priority band FIRST, then FIFO within the band.
-#
-# The operator's direction is "keep it flat for now", and it stays flat: every message
-# in the corpus today resolves to band 0, so `priority DESC` is constant across the
-# comparison and the surviving order is exactly the old `ts ASC, offset ASC`. What
-# changes is that flatness is now DECLARED rather than incidental — before this, there
-# was no notion of priority for the ordering to be flat with respect to, so the
-# guarantee lived only in a comment and would evaporate the first time someone added
-# an index or rewrote the query.
-#
-# FIFO is retained INSIDE the band on purpose: priority decides which band goes first,
-# never which message within one jumps its neighbours. Without the (ts, offset) tail a
-# same-band tie falls to whatever order SQLite happens to return, which is the
-# incidental ordering this slice exists to remove.
-#
-# COALESCE guards the pre-migration case: a journal written before the column exists
-# is migrated by journal-mirror.sh, but a caller pointing --journal at an old database
-# must sort it as normal rather than fail.
-#
-# Content only — meta envelopes (receipts/reactions/...) are not work.
 #
 # T-3082 — BOUND THE SELECTION BY WHAT HAS ALREADY BEEN DELIVERED.
 #
@@ -243,6 +214,82 @@ else
 fi
 
 sql_topic="${mail_topic//\'/\'\'}"
+
+# T-3072 (arc-011 S9) — IS THE HEAD MESSAGE URGENT?
+#
+# Peeked BEFORE the prompt check, which is why the watermark block above had to move
+# ahead of it: urgency must be judged against what is actually UNDELIVERED. Without
+# that bound an urgent message already handed over would keep re-arming the wait for
+# ever, which is the T-3082 defect wearing a different hat.
+#
+# The cost of moving it: a deferred tick now does one hub read before exiting 4 where
+# it previously exited without one. That is one read per agent per cron interval —
+# accepted deliberately, and cheaper than the alternative of deciding urgency blind.
+urgent=0
+if [ -n "${INJECTOR_TEST_URGENT:-}" ]; then
+    urgent="$INJECTOR_TEST_URGENT"
+elif sqlite3 "$JOURNAL" "SELECT 1 FROM pragma_table_info('messages') WHERE name='priority';" 2>/dev/null | grep -q 1; then
+    top_prio="$(sqlite3 "$JOURNAL" "SELECT MAX(COALESCE(priority,0)) FROM messages
+        WHERE topic='$sql_topic' AND offset > $delivered
+          AND msg_type NOT IN ('receipt','reaction','redaction','edit','topic_metadata');" 2>/dev/null)"
+    case "$top_prio" in ''|*[!0-9-]*) top_prio=0 ;; esac
+    [ "$top_prio" -ge "$URGENT_THRESHOLD" ] 2>/dev/null && urgent=1
+fi
+
+# ---- 3. is the prompt free? -----------------------------------------------
+#
+# T-3072 (SQ-4, operator): URGENT SHORTENS THE WAIT, NEVER THE CHECK.
+#
+# The "wait" a normal message serves is the CRON INTERVAL — defer now, be looked at
+# again in up to five minutes. For an urgent message that is the wrong latency, so we
+# re-probe within a bounded window instead of giving up on the first non-READY read.
+#
+# What we do NOT do is inject into a prompt that is not READY. That was the tempting
+# reading of "urgent bypasses the wait", and it is the T-2396 loss: text injected into
+# a busy prompt lands unsubmitted and is discarded on the next --continue. A bypass
+# would therefore silently drop exactly the messages most likely to be marked urgent —
+# the inverse of what urgency is for. After the window, urgent defers like anything else.
+probe_state() {
+    if [ -n "${INJECTOR_TEST_PTY_STATE:-}" ]; then printf '%s' "$INJECTOR_TEST_PTY_STATE"
+    else pushwaker_probe_pty "$SESSION"; fi
+}
+state="$(probe_state)"
+if [ "$state" != "READY" ] && [ "$urgent" = "1" ]; then
+    log "urgent message queued and the prompt is $state — re-probing for up to ${URGENT_WAIT}s rather than waiting for the next cron tick"
+    u_deadline=$(( $(date +%s) + URGENT_WAIT ))
+    while [ "$(date +%s)" -lt "$u_deadline" ]; do
+        sleep "${URGENT_POLL:-5}"
+        state="$(probe_state)"
+        [ "$state" = "READY" ] && break
+    done
+fi
+case "$state" in
+    READY) [ "$urgent" = "1" ] && log "prompt reached READY — injecting the urgent message" ; : ;;
+    BUSY)    log "prompt BUSY — deferring (the agent is mid-turn)${urgent:+; urgent waited ${URGENT_WAIT}s and still did not inject blind}"; exit 4 ;;
+    *)       log "prompt UNKNOWN — deferring. Ambiguity never resolves to READY: a wrong READY is a blind inject."; exit 4 ;;
+esac
+
+# ---- 4. read the queue ----------------------------------------------------
+# T-3071 (arc-011 S8) — priority band FIRST, then FIFO within the band.
+#
+# The operator's direction is "keep it flat for now", and it stays flat: every message
+# in the corpus today resolves to band 0, so `priority DESC` is constant across the
+# comparison and the surviving order is exactly the old `ts ASC, offset ASC`. What
+# changes is that flatness is now DECLARED rather than incidental — before this, there
+# was no notion of priority for the ordering to be flat with respect to, so the
+# guarantee lived only in a comment and would evaporate the first time someone added
+# an index or rewrote the query.
+#
+# FIFO is retained INSIDE the band on purpose: priority decides which band goes first,
+# never which message within one jumps its neighbours. Without the (ts, offset) tail a
+# same-band tie falls to whatever order SQLite happens to return, which is the
+# incidental ordering this slice exists to remove.
+#
+# COALESCE guards the pre-migration case: a journal written before the column exists
+# is migrated by journal-mirror.sh, but a caller pointing --journal at an old database
+# must sort it as normal rather than fail.
+#
+# Content only — meta envelopes (receipts/reactions/...) are not work.
 if sqlite3 "$JOURNAL" "SELECT 1 FROM pragma_table_info('messages') WHERE name='priority';" 2>/dev/null | grep -q 1; then
     prio_order="COALESCE(priority,0) DESC, "
 else

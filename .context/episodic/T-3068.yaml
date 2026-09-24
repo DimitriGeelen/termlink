@@ -1,0 +1,206 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3068: Give the wake consumer a trigger: supervised standing service so the flag is actually read
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-23T16:54:25Z
+# ============================================================================
+
+task_id: T-3068
+task_name: "Give the wake consumer a trigger: supervised standing service so the flag is actually read"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-22T10:36:15Z
+completed: 2026-09-23T16:53:59Z
+duration_days: 1
+updates_count: 12
+first_commit: 2026-09-22T12:50:44+02:00
+last_commit: 2026-09-23T09:00:38+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  wake supervisor + three defects it found. NOT wired — L2 races L3.. the fixtures that would have caught the loop, plus two bugs they found. fix the wake race at its source — the flag had no memory. the wake path is PROVEN LIVE — full ladder, end to end, no runaway. withdraw the L3 claim — it was asserting something false. untick a live-proof AC whose evidence was withdrawn, and raise SQ-5. install the wake-supervisor crontab — SQ-5 answered by the operator. five ACs earned, the sixth forbids itself — parked on SQ-7
+
+# Key outcomes
+outcomes:
+  - 'VERIFIED 2026-09-23 (live): `--dry-run` reports `2 ok, 0 started, 0 stale,'
+  - 'VERIFIED by fixture, and by the RIGHT one: T6 (start-if-absent) is what pins'
+  - '`.context/cron/notify-wake-supervisor.crontab` installs the trigger, using the'
+  - 'VERIFIED 2026-09-23: two `.wake-heartbeat` files present, both 1s old.'
+  - 'VERIFIED: both declared agents carry `--as-identity` in'
+  - '`notify-rail-e2e.sh`''s WAKE stage reports the consumer as a live path-A'
+  - 'VERIFIED 2026-09-23: 14 passed, 0 failed.'
+  - '**OBSOLETE — resolved by the operator 2026-09-23 (SQ-7), not met and not ticked'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fix the wake race at its source — the flag had no memory'
+    source: git-mined
+  - description: 'the fixtures that would have caught the loop, plus two bugs they found'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/arcs/arc-011.yaml'
+  - '.context/audits/2026-09-20.yaml'
+  - '.context/audits/2026-09-21.yaml'
+  - '.context/audits/2026-09-22.yaml'
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/audits/go-scope-unpropagated/LATEST.md'
+  - '.context/audits/unclosed-satisfied/LATEST.md'
+  - '.context/cron/notify-wake-agents.conf'
+  - '.context/cron/notify-wake-supervisor.crontab'
+  - '.context/episodic/T-2960.yaml'
+  - '.context/episodic/T-2969.yaml'
+  - '.context/episodic/T-2971.yaml'
+  - '.context/episodic/T-2975.yaml'
+  - '.context/episodic/T-2982.yaml'
+  - '.context/episodic/T-2989.yaml'
+  - '.context/episodic/T-2995.yaml'
+  - '.context/episodic/T-2996.yaml'
+  - '.context/episodic/T-3001.yaml'
+  - '.context/episodic/T-3004.yaml'
+  - '.context/episodic/T-3005.yaml'
+  - '.context/episodic/T-3007.yaml'
+  - '.context/episodic/T-3011.yaml'
+  - '.context/episodic/T-3012.yaml'
+  - '.context/episodic/T-3017.yaml'
+  - '.context/episodic/T-3028.yaml'
+  - '.context/episodic/T-3029.yaml'
+  - '.context/episodic/T-3030.yaml'
+  - '.context/episodic/T-3034.yaml'
+  - '.context/episodic/T-3035.yaml'
+  - '.context/episodic/T-3036.yaml'
+  - '.context/episodic/T-3045.yaml'
+  - '.context/episodic/T-3046.yaml'
+  - '.context/episodic/T-3047.yaml'
+  - '.context/episodic/T-3048.yaml'
+  - '.context/episodic/T-3049.yaml'
+  - '.context/episodic/T-3050.yaml'
+  - '.context/episodic/T-3051.yaml'
+  - '.context/episodic/T-3053.yaml'
+  - '.context/episodic/T-3054.yaml'
+  - '.context/episodic/T-3055.yaml'
+  - '.context/episodic/T-3056.yaml'
+  - '.context/episodic/T-3057.yaml'
+  - '.context/episodic/T-3058.yaml'
+  - '.context/episodic/T-3059.yaml'
+  - '.context/episodic/T-3061.yaml'
+  - '.context/episodic/T-3066.yaml'
+  - '.context/episodic/T-3067.yaml'
+  - '.context/episodic/T-3070.yaml'
+  - '.context/handovers/S-2026-0920-1817.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0920-1909.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0920-1956.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0920-2021.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0920-2049.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0920-2110.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0920-2158.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0920-2235.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0920-2252.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0920-2311.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0920-2343.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0921-0002.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0921-0038.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0921-0114.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0921-0820.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0921-0952.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0921-1021.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0921-1242.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0921-1411.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0921-1540.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0921-1609.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0921-1625.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0921-1638.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0921-1710.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0921-2126.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0921-2130.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0921-2218.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0921-2223.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0921-2256.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0922-1012.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0922-1352.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0922-1720.discard-manifest.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/.compact-log'
+  - '.context/working/feedback-stream.yaml'
+  - '.context/working/.fleet-failure-state.json'
+  - '.context/working/focus.yaml'
+  - '.context/working/.gate-bypass-log.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.hook-crashes.log'
+  - '.context/working/.pre-compact.last-run'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/.session-start-ts'
+  - '.context/working/session.yaml'
+  - 'runme.sh'
+  - 'scripts/notify-ack-read.sh'
+  - 'scripts/notify-rail-e2e.sh'
+  - 'scripts/notify-sidecar.sh'
+  - 'scripts/notify-wake-consumer.sh'
+  - 'scripts/notify-wake-supervisor.sh'
+  - '.tasks/active/T-3060-six-unassessed-plugins-appeared-after-th.md'
+  - '.tasks/active/T-3068-give-the-wake-consumer-a-trigger-supervi.md'
+  - '.tasks/active/T-3069-the-injector-queue-to-prompt-free-check-.md'
+  - '.tasks/active/T-3070-sender-side-ledger-record-delivered-and-.md'
+  - '.tasks/active/T-3071-message-queue-priority-field---flat-fifo.md'
+  - '.tasks/active/T-3072-urgent-flag-bypass-the-prompt-free-wait-.md'
+  - '.tasks/active/T-3073-message-queue-priority-field---flat-fifo.md'
+  - '.tasks/active/T-3074-urgent-flag-bypass-the-prompt-free-wait-.md'
+  - 'tests/notify-ack-read-fixtures.sh'
+  - 'tests/notify-wake-supervisor-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-22T12:50:44'
+    action: 'T-3068: wake supervisor + three defects it found. NOT wired — L2 races L3.'
+  - time: '2026-09-22T13:48:07'
+    action: 'T-3068: the fixtures that would have caught the loop, plus two bugs they found'
+  - time: '2026-09-22T14:12:36'
+    action: 'T-3068: fix the wake race at its source — the flag had no memory'
+  - time: '2026-09-22T14:18:28'
+    action: 'T-3068: the wake path is PROVEN LIVE — full ladder, end to end, no runaway'
+  - time: '2026-09-22T14:57:54'
+    action: 'T-3068: withdraw the L3 claim — it was asserting something false'
+  - time: '2026-09-22T20:18:11'
+    action: 'T-3068: untick a live-proof AC whose evidence was withdrawn, and raise SQ-5'
+  - time: '2026-09-22T21:25:05'
+    action: 'T-3068: install the wake-supervisor crontab — SQ-5 answered by the operator'
+  - time: '2026-09-23T09:00:38'
+    action: 'T-3068: five ACs earned, the sixth forbids itself — parked on SQ-7'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 9 commit(s), 1817 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1817
+  commits: 9
+  files_changed: 111
+  lines_added: 14036
+  lines_removed: 4087
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3068-give-the-wake-consumer-a-trigger-supervi.md
+generated_by: context-agent-hybrid

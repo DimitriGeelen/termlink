@@ -406,6 +406,71 @@ wqueue; mkflag 44000; rm -f "$ND/.ag.injected-seen" "$ND"/.ag.*.delivered-offset
 INJECTOR_TEST_SESSION_STATE=present INJECTOR_TEST_PTY_STATE=READY wrun 999 >/dev/null 2>&1; rc=$?
 [ "$rc" -eq 1 ] && pass "W5 rc=1" || fail "W5 expected 1 (nothing new) got $rc"
 
+# ---------------------------------------------------------------------------
+# T-3072 (arc-011 S9) — URGENT SHORTENS THE WAIT, NEVER THE CHECK (SQ-4, operator).
+#
+# The wait a normal message serves is the CRON INTERVAL: defer now, be looked at again
+# in up to five minutes. Urgent re-probes within a bounded window instead. What it must
+# NEVER do is inject into a prompt that is not READY — that is the T-2396 loss, and a
+# bypass would silently drop exactly the messages most likely to be marked urgent.
+# U2 is the criterion the others serve.
+# ---------------------------------------------------------------------------
+echo "U1: an urgent message RE-PROBES instead of deferring on the first read"
+# Prompt is BUSY on the first probe and the seam keeps it BUSY, so the only way to
+# observe the wait is that it lasted. Window and poll are shrunk so the test is quick.
+mkqueue_p; mkflag 50000; rm -f "$ND/.ag.injected-seen"; : > "$WORK/calls.log"
+addp 10 50 7 PICK_URGENT
+t0=$(date +%s)
+INJECTOR_TEST_SESSION_STATE=present INJECTOR_TEST_PTY_STATE=BUSY \
+  INJECTOR_URGENT_WAIT=4 URGENT_POLL=1 run >/dev/null 2>&1; rc=$?
+elapsed=$(( $(date +%s) - t0 ))
+if [ "$rc" -eq 4 ] && [ "$elapsed" -ge 3 ]; then
+    pass "U1 waited ${elapsed}s before deferring (rc=$rc)"
+else
+    fail "U1 expected rc=4 after ~4s, got rc=$rc after ${elapsed}s"
+fi
+
+echo "U2 [THE CRITERION]: urgent STILL defers on BUSY — it never injects blind"
+# Same run as U1: after the window it must exit 4 having injected NOTHING.
+if ! grep -q 'PICK_URGENT' "$WORK/calls.log"; then
+    pass "U2 nothing was injected into a busy prompt"
+else
+    fail "U2 URGENT INJECTED INTO A BUSY PROMPT — the T-2396 loss"
+fi
+
+echo "U3: a NON-urgent message does not wait"
+mkqueue_p; mkflag 51000; rm -f "$ND/.ag.injected-seen"; : > "$WORK/calls.log"
+addp 10 50 0 PICK_NORMAL
+t0=$(date +%s)
+INJECTOR_TEST_SESSION_STATE=present INJECTOR_TEST_PTY_STATE=BUSY \
+  INJECTOR_URGENT_WAIT=6 URGENT_POLL=1 run >/dev/null 2>&1; rc=$?
+elapsed=$(( $(date +%s) - t0 ))
+if [ "$rc" -eq 4 ] && [ "$elapsed" -lt 3 ]; then
+    pass "U3 deferred immediately (${elapsed}s, rc=$rc)"
+else
+    fail "U3 a normal message waited ${elapsed}s — urgency leaked into the default path"
+fi
+
+echo "U4: an ALREADY-DELIVERED urgent message does not re-arm the wait"
+# Bounded by the delivered watermark. Without that bound an urgent message already
+# handed over would re-arm the wait for ever — T-3082's defect in a different hat.
+mkqueue_p; mkflag 52000; rm -f "$ND/.ag.injected-seen"; : > "$WORK/calls.log"
+addp 10 50 7 PICK_OLD_URGENT
+t0=$(date +%s)
+INJECTOR_TEST_SESSION_STATE=present INJECTOR_TEST_PTY_STATE=BUSY \
+  INJECTOR_TEST_DELIVERED=10 INJECTOR_URGENT_WAIT=6 URGENT_POLL=1 run >/dev/null 2>&1
+elapsed=$(( $(date +%s) - t0 ))
+[ "$elapsed" -lt 3 ] && pass "U4 delivered urgency does not re-arm the wait (${elapsed}s)" \
+                     || fail "U4 waited ${elapsed}s on an already-delivered message"
+
+echo "U5: once the prompt frees, the urgent message IS injected"
+mkqueue_p; mkflag 53000; rm -f "$ND/.ag.injected-seen"; : > "$WORK/calls.log"
+addp 10 50 7 PICK_URGENT2
+INJECTOR_TEST_SESSION_STATE=present INJECTOR_TEST_PTY_STATE=READY \
+  INJECTOR_TEST_VERIFY_STATE=BUSY run >/dev/null 2>&1
+grep -q 'PICK_URGENT2' "$WORK/calls.log" && pass "U5 urgent delivered at a READY prompt" \
+                                          || fail "U5 urgent was not injected at a READY prompt"
+
 echo
 echo "notify-injector fixtures: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ] || exit 1
