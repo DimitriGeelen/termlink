@@ -523,7 +523,7 @@ not_divergence:
       decision and recording it.
 
   - kind: mode-only
-    tasks: [T-2979]
+    tasks: [T-2979, T-3089]
     file: .agentic-framework/agents/designer/designer.sh
     reason: >
       `chmod +x` only, applied locally 2026-09-24 — no file content changed.
