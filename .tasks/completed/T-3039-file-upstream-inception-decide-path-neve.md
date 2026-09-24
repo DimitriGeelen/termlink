@@ -8,10 +8,10 @@ description: >
   Proposes a decide-time --follow-on flag so scope propagation is a verb, not a convention.
   Vendored under .agentic-framework/, so filed upstream and never patched locally.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-009, go-propagation, upstream]
 components: []
 related_tasks: []
@@ -26,8 +26,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-21T11:10:14Z
-last_update: '2026-09-21T14:30:44Z'
-date_finished:
+last_update: 2026-09-24T20:56:11Z
+date_finished: 2026-09-24T20:56:11Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -68,14 +68,33 @@ cost_estimate_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Filed as follow-on item (2) of T-3003's human-recorded GO decision (2026-09-20):
+"(2) upstream filing for a decide-time --follow-on flag (vendored, G-062)". T-3003
+found the "80 unlinked GO inceptions" headline collapses to 4 genuine orphans once
+loose-vs-strict linkage is measured correctly — the real defect is that
+`do_inception_decide()` (`.agentic-framework/lib/inception.sh:755-780`) prints
+"Next: Create build tasks for implementation" on a `go` decision but never writes
+`related_tasks`, so scope propagation from inception to build task is a human
+convention, not a verb. Re-confirmed current code still matches (no `--follow-on`
+flag exists; grep for it in `lib/inception.sh` / `bin/fw` returns nothing). Item (1)
+of the same GO decision (local `check-go-propagation.sh` + baseline ledger) is
+already built and green (0 firing, 6 informational orphans within grace). Item (3)
+(surface the 4 genuine orphans to the human) is already filed as T-3040. This task
+closes item (2): file upstream per G-062 (never patch vendored code locally).
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Current vendored `.agentic-framework/lib/inception.sh` re-confirmed to still
+      lack any `--follow-on`/`related_tasks`-writing mechanism at decide time (no
+      local code change — G-062).
+- [x] Defect + proposed fix posted to `framework:pickup` (msg_type `pickup-bug-report`,
+      offset 146), citing the exact line, the measured impact (T-3003's evidence),
+      and the two items already closed locally (check-go-propagation.sh, T-3040).
+- [x] Filing registered in `.vendor-divergence.yaml` (status: filed-upstream,
+      `filed_at: "framework:pickup offset 146"`) with a `reverify` step so a future
+      session — or the pre-re-vendor checklist — can confirm whether it landed.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -111,6 +130,11 @@ cost_estimate_proposed:
 -->
 
 ## Verification
+
+grep -q "T-3039" .vendor-divergence.yaml
+grep -q "framework:pickup offset 146" .vendor-divergence.yaml
+python3 -c "import yaml; yaml.safe_load(open('.vendor-divergence.yaml'))"
+grep -n "related_tasks\|follow-on\|follow_on" .agentic-framework/lib/inception.sh > /tmp/.t3039.out; test ! -s /tmp/.t3039.out
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -211,6 +235,17 @@ cost_estimate_proposed:
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-09-24 — confirmed already-scoped by a prior human decision
+- **What changed:** Nothing about the defect itself — re-confirmed
+  `lib/inception.sh` unchanged since T-3003's 2026-09-20 measurement. What
+  changed is confirmation this task is not new scope: it's literally item (2) of
+  T-3003's own recorded GO decision ("upstream filing for a decide-time
+  --follow-on flag"), with items (1) and (3) already independently closed
+  (check-go-propagation.sh; T-3040). Filing it here completes that 3-item set.
+- **Plan impact:** None — executed exactly as scoped at filing.
+- **Triggered:** No new sub-task. `.vendor-divergence.yaml` gained a
+  `filed-upstream` entry with a `reverify` step for the pre-re-vendor checklist.
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -267,3 +302,18 @@ cost_estimate_proposed:
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3039-file-upstream-inception-decide-path-neve.md
 - **Context:** Initial task creation
+
+### 2026-09-24T20:54:21Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-0db053df
+- **Timestamp:** 2026-09-24T20:56:13Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-09-24T20:56:11Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

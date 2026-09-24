@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3039: File upstream: inception decide path never writes related_tasks — need a --follow-on flag (G-062)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-24T20:56:20Z
+# ============================================================================
+
+task_id: T-3039
+task_name: "File upstream: inception decide path never writes related_tasks — need a --follow-on flag (G-062)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-21T11:10:14Z
+completed: 2026-09-24T20:56:11Z
+duration_days: 3
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  lib/inception.sh:775 prints advice only; nothing writes related_tasks at decide time, which is the mechanism behind the 80 unlinked GO inceptions T-3003 measured. Proposes a decide-time --follow-on flag so scope propagation is a verb, not a convention. Vendored under .agentic-framework/, so filed upstream and never patched locally.
+
+# Key outcomes
+outcomes:
+  - 'Current vendored `.agentic-framework/lib/inception.sh` re-confirmed to still'
+  - 'Defect + proposed fix posted to `framework:pickup` (msg_type `pickup-bug-report`,'
+  - 'Filing registered in `.vendor-divergence.yaml` (status: filed-upstream,'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 4905 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-009, go-propagation, upstream]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 4905
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3039-file-upstream-inception-decide-path-neve.md
+generated_by: context-agent-hybrid

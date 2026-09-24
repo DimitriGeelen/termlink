@@ -389,6 +389,52 @@ divergences:
       gate permits. On-disk hotfix applied; recorded as PL-265.
     upstream_ref: "framework:pickup offset 27"
 
+  - task: T-3039
+    also_task_ids: [T-3089]
+    commit: pending-same-commit
+    commit_note: >
+      Registered in the SAME commit that closes the task (T-2982 precedent); the
+      checker's match key is the task id parsed from the commit subject.
+    date: 2026-09-24
+    file: .agentic-framework/lib/inception.sh
+    status: filed-upstream
+    filed_at: "framework:pickup offset 146"
+    kind: defect-report
+    generality: GENERIC
+    local_patch: none
+    local_patch_note: >
+      IMPORTANT — this entry records a defect filed upstream, NOT a local code
+      change. do_inception_decide() (lines ~755-780) is untouched (G-062).
+      Nothing here is at risk from a re-vendor; the entry exists so the
+      pre-re-vendor checklist has a concrete re-verification step.
+    symptom: >
+      `fw inception decide <id> go` prints "Next: Create build tasks for
+      implementation" but writes nothing — related_tasks on the inception task
+      is never populated at decide time. Scope propagation from inception to
+      build task depends entirely on the operator remembering to link it by
+      hand.
+    impact: >
+      Measured by T-3003 (2026-09-20, this repo): a naive scan read 80/167 GO
+      inceptions as unlinked (48.7%); a strict scan (also counting
+      cross-references in task bodies/commit messages) collapses that to ~4
+      genuine orphans. So the missing write is real and ongoing (13 new
+      unlinked in 2026-08 alone) but smaller in practice than the raw scan
+      suggests — most "unlinked" GOs are actually linked informally, just not
+      by the field this defect is about.
+    proposed_fix: >
+      Add a decide-time `--follow-on <task-id>` flag (repeatable) to
+      `fw inception decide` that writes the given id(s) into related_tasks at
+      the moment of decision. Scoping/priority left to whoever owns AEF
+      (G-020 framing — proposal, not instruction).
+    evidence:
+      local_detector: scripts/check-go-propagation.sh (daily-checkable, baseline-ledgered so it fires only on NEW unlinked GOs)
+      orphan_triage: T-3040 (separately tracks the ~4 genuine orphans in this repo)
+      investigation: docs/reports/T-3003-go-propagation-leak-investigation.md
+    reverify: >
+      AFTER ANY RE-VENDOR: `grep -n "related_tasks\|follow-on\|follow_on"
+      .agentic-framework/lib/inception.sh`. A hit means the flag landed — move
+      this entry to landed-upstream. No hit means it hasn't; leave it here.
+
 # Deliberately NOT divergence. Recorded so the register does not grow to include
 # everything that touches the vendored tree, which would make it as unreadable as
 # the commit log it replaces.
