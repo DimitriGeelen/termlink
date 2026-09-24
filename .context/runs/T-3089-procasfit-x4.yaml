@@ -1,0 +1,71 @@
+run_id: R-3089-procasfit-x4
+orchestrator_task: T-3089
+created: '2026-09-24T19:05:00Z'
+requested_by: human
+instruction: 'Use TermLink to sequentially run the prompt sequence [procAsFit]. Repeat the whole sequence
+  4 times, feeding each round''s result into the next. Run them in order; each prompt acts on the previous
+  result. The orchestrator must NOT execute the prompts itself outside this sequence.
+
+  '
+prompts:
+  proc_as_fit: docs/prompts/proc-as-fit.md
+prompt_verification:
+  checked_utc: '2026-09-24T19:04:00Z'
+  method: "Fixed-string match of five distinctive lines from the pasted mandate against docs/prompts/proc-as-fit.md.\
+    \ Four matched directly. The fifth (\"counts as an open task and not a closed one\") reported ABSENT\
+    \ on the first pass; that was a FALSE NEGATIVE of the check, not a difference in the file \u2014 the\
+    \ phrase is line-wrapped across a newline, which a fixed-string grep cannot span. Confirmed present\
+    \ by reading the Auditability section directly.\n"
+  verdict: verbatim-equivalent modulo line wrapping
+state_at_run_start:
+  head: a2b4c3194
+  tag: v0.12.0
+  guard_layer: FIRING 7 / passed 130 / errored 0
+  arc_011_slices: 8 built, 1 partial, 3 unbuilt of 12
+  open_q1_q2_arc_011:
+  - T-3076
+  - T-3075
+  known_red:
+  - T-3088
+  - T-3087
+  worktrees: none
+steps:
+- id: R1
+  round: 1
+  prompt: proc_as_fit
+  state: dispatched
+  worker: procasfit-r1
+  feeds: R2
+  fed_by: null
+  result_file: .context/runs/T-3089-R1-handback.md
+  dispatched_utc: '2026-09-24T19:10:00Z'
+  wdir: /tmp/tl-dispatch/procasfit-r1
+- id: R2
+  round: 2
+  prompt: proc_as_fit
+  state: pending
+  worker: null
+  feeds: R3
+  fed_by: R1
+  result_file: null
+- id: R3
+  round: 3
+  prompt: proc_as_fit
+  state: pending
+  worker: null
+  feeds: R4
+  fed_by: R2
+  result_file: null
+- id: R4
+  round: 4
+  prompt: proc_as_fit
+  state: pending
+  worker: null
+  feeds: null
+  fed_by: R3
+  result_file: null
+orchestrator_bindings:
+- The orchestrator does NOT execute the mandate itself.
+- Completion is verified by reading the worker's result file, never by the dispatch return code (T-2876
+  - delivered means queued, not received).
+- Each round's handback is passed into the next round's prompt as prior context.
