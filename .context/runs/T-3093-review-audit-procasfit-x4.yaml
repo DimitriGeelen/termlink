@@ -1,0 +1,156 @@
+run_id: R-3093-review-audit-procasfit-x4
+orchestrator_task: T-3093
+created: '2026-09-25T00:55:00Z'
+requested_by: human
+instruction: Use TermLink to sequentially run [Review, Audit, procAsFit]. Repeat the whole sequence 4
+  times, feeding each round's result into the next. Run them in order; each prompt acts on the previous
+  result. The orchestrator must NOT execute the prompts itself outside this sequence.
+prompts:
+  value_review: docs/prompts/value-review.md
+  audit_remediation: docs/prompts/audit-remediation.md
+  proc_as_fit: docs/prompts/proc-as-fit.md
+prompt_verification:
+  checked_utc: '2026-09-25T00:54:00Z'
+  value_review: pre-existing (T-3044), 452 lines; 3 distinctive phrases matched
+  proc_as_fit: pre-existing (T-3044), 101 lines; verified verbatim-equivalent during T-3089
+  audit_remediation: NEW this run, 123 lines, written verbatim from the paste; 5 distinctive phrases matched
+  note: Fixed-string matching cannot span a line wrap - during T-3089 that produced a FALSE 'ABSENT' on
+    a phrase that was present. Phrases here were chosen short enough to sit on one line.
+placeholder_fill:
+  SCOPE: whole repo (/opt/termlink)
+  PURPOSE_SOURCE: docs/CHARTER.md + policy/value-drivers.yaml
+  EXTERNAL_DATA: none
+  BUDGET: 200k tokens
+  filled_by: orchestrator T-3093
+  rationale: Same fill as T-3044, for comparability across reviews. Left unfilled by the requester; recorded
+    here so they can be corrected rather than silently assumed.
+carried_fixes:
+- 'NON-INTERACTIVE WORKER: never background a long command and end your turn. A claude -p worker''s turn
+  end IS its process end. T-3089 R4-attempt-1 did exactly this, exited 0, status read ''complete'', and
+  no deliverable was ever written.'
+- 'AT-THE-MOMENT RE-READ: before any shared/live-infra action, re-read the run record AND git log right
+  then. T-3089 R3 restarted the shared hub 82s after the operator ruled to defer it, because its information
+  was stale, not absent.'
+- WRITE THE HANDBACK EARLY as a skeleton and fill it as you go. A handback written only at the end is
+  a handback you may never write.
+operator_rulings_carried:
+- 'arc-011 SQ-8 / T-3075 IW-4: systemd-only respawn REJECTED; portable fallback required before the S1/S12
+  build.'
+- 'T-3090: CLOSED - operator ruled the contended 945s measurement IS the answer; CLAUDE.md corrected.'
+- 'T-3091: T-2978 REMAINS DEFERRED. T-2977 was executed by T-3089''s R3 against the ruling - do not repeat,
+  do not revert.'
+known_gates:
+- The value-review prompt HALTS at PHASE 5 [ASK] for per-item human approval before PHASE 6 EXECUTE. A
+  review step that halts there is COMPLETE, not failed (the T-3044 precedent).
+- fw inception decide on T-3076/T-3075 is human-only and blocked all four rounds of T-3089.
+steps:
+- id: R1S1
+  round: 1
+  step: 1
+  prompt: value_review
+  state: dispatched
+  worker: t3093-r1s1-review
+  fed_by: null
+  feeds: R1S2
+  result_file: .context/runs/T-3093-R1S1-handback.md
+  dispatched_utc: '2026-09-25T01:00:00Z'
+  fed_with: placeholders substituted inline; no prior step (first of 12)
+- id: R1S2
+  round: 1
+  step: 2
+  prompt: audit_remediation
+  state: pending
+  worker: null
+  fed_by: R1S1
+  feeds: R1S3
+  result_file: .context/runs/T-3093-R1S2-handback.md
+- id: R1S3
+  round: 1
+  step: 3
+  prompt: proc_as_fit
+  state: pending
+  worker: null
+  fed_by: R1S2
+  feeds: R2S1
+  result_file: .context/runs/T-3093-R1S3-handback.md
+- id: R2S1
+  round: 2
+  step: 1
+  prompt: value_review
+  state: pending
+  worker: null
+  fed_by: R1S3
+  feeds: R2S2
+  result_file: .context/runs/T-3093-R2S1-handback.md
+- id: R2S2
+  round: 2
+  step: 2
+  prompt: audit_remediation
+  state: pending
+  worker: null
+  fed_by: R2S1
+  feeds: R2S3
+  result_file: .context/runs/T-3093-R2S2-handback.md
+- id: R2S3
+  round: 2
+  step: 3
+  prompt: proc_as_fit
+  state: pending
+  worker: null
+  fed_by: R2S2
+  feeds: R3S1
+  result_file: .context/runs/T-3093-R2S3-handback.md
+- id: R3S1
+  round: 3
+  step: 1
+  prompt: value_review
+  state: pending
+  worker: null
+  fed_by: R2S3
+  feeds: R3S2
+  result_file: .context/runs/T-3093-R3S1-handback.md
+- id: R3S2
+  round: 3
+  step: 2
+  prompt: audit_remediation
+  state: pending
+  worker: null
+  fed_by: R3S1
+  feeds: R3S3
+  result_file: .context/runs/T-3093-R3S2-handback.md
+- id: R3S3
+  round: 3
+  step: 3
+  prompt: proc_as_fit
+  state: pending
+  worker: null
+  fed_by: R3S2
+  feeds: R4S1
+  result_file: .context/runs/T-3093-R3S3-handback.md
+- id: R4S1
+  round: 4
+  step: 1
+  prompt: value_review
+  state: pending
+  worker: null
+  fed_by: R3S3
+  feeds: R4S2
+  result_file: .context/runs/T-3093-R4S1-handback.md
+- id: R4S2
+  round: 4
+  step: 2
+  prompt: audit_remediation
+  state: pending
+  worker: null
+  fed_by: R4S1
+  feeds: R4S3
+  result_file: .context/runs/T-3093-R4S2-handback.md
+- id: R4S3
+  round: 4
+  step: 3
+  prompt: proc_as_fit
+  state: pending
+  worker: null
+  fed_by: R4S2
+  feeds: null
+  result_file: .context/runs/T-3093-R4S3-handback.md
