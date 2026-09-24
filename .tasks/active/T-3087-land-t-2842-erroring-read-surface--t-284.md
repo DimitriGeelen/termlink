@@ -2,7 +2,14 @@
 id: T-3087
 name: "Land T-2842 ERRORING read surface + T-2843 EXIT-trap heartbeat from worktree-governance-canary-signal"
 description: >
-  Semantic merge, not a cherry-pick. Main has 0 ERRORING and 0 stderr reads in canary-status.sh so an erroring canary reads HEALTHY on every operator surface; main has 0 of 40 check-scripts using an EXIT-trap heartbeat so a hung canary still writes a fresh one. Both fixes exist on worktree-governance-canary-signal (pushed to origin). A 3-way apply produced 5 conflicts because both sides renamed the same concepts: main is_cron_scheduled/NOT_SCHED plus T-2763 worktree resolution and T-2975 firing predicate; branch crontab_declares/NOT_SCHEDULED plus ERRORING and stderr_size. Must reconcile both, not pick a side.
+  Semantic merge, not a cherry-pick. Main has 0 ERRORING and 0 stderr reads in canary-status.sh
+  so an erroring canary reads HEALTHY on every operator surface; main has 0 of 40
+  check-scripts using an EXIT-trap heartbeat so a hung canary still writes a fresh
+  one. Both fixes exist on worktree-governance-canary-signal (pushed to origin). A
+  3-way apply produced 5 conflicts because both sides renamed the same concepts: main
+  is_cron_scheduled/NOT_SCHED plus T-2763 worktree resolution and T-2975 firing predicate;
+  branch crontab_declares/NOT_SCHEDULED plus ERRORING and stderr_size. Must reconcile
+  both, not pick a side.
 
 status: captured
 workflow_type: build
@@ -22,8 +29,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-24T18:21:42Z
-last_update: 2026-09-24T18:21:42Z
-date_finished: null
+last_update: '2026-09-24T20:18:57Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,6 +41,30 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-09-24T20:18:56Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-09-24T20:18:57Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius:
+      tier: 2
+      effort: 8
+    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
+      (workflow:build); effort=8 (lines=227,acs=4)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3087: Land T-2842 ERRORING read surface + T-2843 EXIT-trap heartbeat from worktree-governance-canary-signal

@@ -1,0 +1,97 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3086: Land the stranded arc-011 work and cut a release
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-24T20:21:23Z
+# ============================================================================
+
+task_id: T-3086
+task_name: "Land the stranded arc-011 work and cut a release"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-24T14:03:44Z
+completed: 2026-09-24T20:21:05Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-09-24T16:06:36+02:00
+last_commit: 2026-09-24T20:50:15+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  land the stranded T-3072/T-3085 work — reported pushed, never committed. never use a worktree unless explicitly instructed (operator standing rule). remove all five worktrees; record the unlanded canary fixes as T-3087. guard layer is FIRING (7) — do not tag; record the wake-rail regression
+
+# Key outcomes
+outcomes:
+  - 'The T-3072 urgent-flag code is in HEAD, not merely in the working tree'
+  - 'The notify-injector fixture suite passes with 0 failures'
+  - '`check-arc-slice-drift.sh` is clean against the committed register'
+  - 'No arc-011 source change is left uncommitted in the working tree'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'remove all five worktrees; record the unlanded canary fixes as T-3087'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - '.context/arcs/arc-011.yaml'
+  - '.context/episodic/T-3068.yaml'
+  - '.context/episodic/T-3072.yaml'
+  - '.context/episodic/T-3085.yaml'
+  - 'scripts/notify-injector.sh'
+  - '.tasks/active/T-3086-land-the-stranded-arc-011-work-and-cut-a.md'
+  - '.tasks/active/T-3087-land-t-2842-erroring-read-surface--t-284.md'
+  - '.tasks/active/T-3088-test-pushwaker-ready-loop-is-red-t-3079-.md'
+  - '.tasks/completed/T-3068-give-the-wake-consumer-a-trigger-supervi.md'
+  - '.tasks/completed/T-3072-urgent-flag-bypass-the-prompt-free-wait-.md'
+  - '.tasks/completed/T-3085-mark-arc-011-s9-built-after-t-3072-and-c.md'
+  - 'tests/notify-injector-fixtures.sh'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-24T16:06:36'
+    action: 'T-3086: land the stranded T-3072/T-3085 work — reported pushed, never committed'
+  - time: '2026-09-24T20:20:36'
+    action: 'T-3086: never use a worktree unless explicitly instructed (operator standing rule)'
+  - time: '2026-09-24T20:24:37'
+    action: 'T-3086: remove all five worktrees; record the unlanded canary fixes as T-3087'
+  - time: '2026-09-24T20:50:15'
+    action: 'T-3086: guard layer is FIRING (7) — do not tag; record the wake-rail regression'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 377 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 377
+  commits: 4
+  files_changed: 13
+  lines_added: 1556
+  lines_removed: 36
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3086-land-the-stranded-arc-011-work-and-cut-a.md
+generated_by: context-agent-hybrid
