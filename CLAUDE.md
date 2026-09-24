@@ -1905,7 +1905,15 @@ else any ERROR → exit 2; else 0 — findings dominate tooling errors, mirrorin
 `GUARD_LAYER_TIMEOUT` (default 300s) and counts as ERROR, never PASS.
 
 **Wired into CI by T-2686.** `doc-lint.yml` gains a `guard-layer` job (runs on every
-push and PR — no Rust build, seconds), and `release.yml` gains a `test` job running
+push and PR — no Rust build, but **~16 minutes, not seconds**: measured 945s wall on
+this host under its normal load of ~450 concurrent agent processes, T-3090. The
+operator ruled that the contended figure IS the answer, because this host is never
+quiet — busy is its steady state, so a quiet-host number would be a promise the
+machine never keeps. Budget CI accordingly; a single member,
+`check-verification-heading-shadow.sh`, is ~29% of the total, so the cost is
+concentrated and reducible. The old "seconds" claim mattered because it taught
+operators to kill a slow-but-healthy run, and a check people stop running protects
+nothing), and `release.yml` gains a `test` job running
 `cargo test --workspace` **plus** the guard layer, which both build jobs now `needs:`
 — so a red suite blocks the build and no binary is produced at all. That gate found
 its first real defect immediately: `parity_topics` had been failing since 2026-08-12
