@@ -1,0 +1,72 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2986: Fix stale CLAUDE.md factual claims
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-24T20:37:29Z
+# ============================================================================
+
+task_id: T-2986
+task_name: "Fix stale CLAUDE.md factual claims"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-19T22:10:08Z
+completed: 2026-09-24T20:37:19Z
+duration_days: 5
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  S-12/C-24: correct stale claims (FRAMEWORK.md reference, guard-layer '(seconds)', 'per session' wording, api-usage, canary tally). Evidence: docs/reports/VALUE-REVIEW-repo-2026-09-19-consolidated.md C-24.
+
+# Key outcomes
+outcomes:
+  - 'The dead `FRAMEWORK.md` reference in CLAUDE.md''s header points to the'
+  - 'Every other C-24 sub-claim re-checked against the current file (not'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 7107 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [value-review, arc:arc-009]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 7107
+  commits: 1
+  files_changed: 2
+  lines_added: 259
+  lines_removed: 5
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2986-fix-stale-claudemd-factual-claims.md
+generated_by: context-agent-hybrid

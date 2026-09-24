@@ -1,7 +1,9 @@
 # CLAUDE.md
 
 Claude Code integration for the Agentic Engineering Framework.
-For the provider-neutral framework guide, see `FRAMEWORK.md`.
+For the provider-neutral framework guide, see `.agentic-framework/FRAMEWORK.md`
+(vendored — this project uses the vendored path convention throughout, never
+a bare `FRAMEWORK.md` at project root, which does not exist here).
 
 This file is auto-loaded by Claude Code. It contains the full operating guide
 plus Claude Code-specific integration notes.

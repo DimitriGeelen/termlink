@@ -4489,3 +4489,9 @@ learnings:
   task: T-3062
   date: 2026-09-22
   context: Added via context agent
+- id: PL-383
+  learning: "Value-review findings age: re-verify each cited sub-claim against the CURRENT file before fixing it, not the file as it stood when the finding was measured. On T-2986, 5 of 6 C-24 sub-claims had already dissolved (fixed by unrelated edits, or belonged to a different task) between the 2026-09-19 measurement and 2026-09-24 — only 1 was still live."
+  source: P-001
+  task: T-2986
+  date: 2026-09-24
+  context: Added via context agent
