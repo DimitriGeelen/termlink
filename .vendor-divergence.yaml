@@ -521,3 +521,30 @@ not_divergence:
       just written. The task prose listed "T-2194..2201" among the artifact class
       and the register did not — which is precisely the gap between describing a
       decision and recording it.
+
+  - kind: mode-only
+    tasks: [T-2979]
+    file: .agentic-framework/agents/designer/designer.sh
+    reason: >
+      `chmod +x` only, applied locally 2026-09-24 — no file content changed.
+      `bin/fw:5578` execs this script directly (`exec "$AGENTS_DIR/designer/designer.sh"
+      "$@"`) and the vendored file ships mode 644, so `fw designer` died with
+      "Permission denied" for every user on this vendor drop. Reported inbound on
+      framework:pickup offset 143 by peer project 1409-sprind (relaying a report
+      originally from a ZCode/Z.ai satellite on sprind:pickup, re-measured by
+      1409-sprind before forwarding); independently reproduced here (same failure,
+      same file, same fw:5578 call site) before applying the local chmod.
+      1409-sprind's own scan found this is the ONLY broken direct-exec site of 19 in
+      their tree; re-checked all 19 `exec "$AGENTS_DIR/..."` call sites in THIS repo's
+      bin/fw and confirmed the same — designer.sh was the sole non-executable one.
+    caveat: >
+      A re-vendor restores UPSTREAM's mode for this file — unfixed upstream, `fw
+      designer` breaks again on the next `fw upgrade`/`fw update`. Re-check the mode
+      after any re-vendor. 1409-sprind's filing names two upstream fix candidates
+      (ship the execute bit + a packaging check comparing exec call sites to shipped
+      modes, or route designer through an interpreter like hooks are — `bash
+      "$AGENTS_DIR/..."` — removing the mode dependency entirely) and defers the
+      choice to whoever owns AEF (PL-034 — not authored from a consumer project).
+    found_by: >
+      Inbound framework:pickup triage (T-2979) — read as part of clearing the 3
+      then-unprocessed inbound filings (framework-pickup-canary, T-2231/T-2816).

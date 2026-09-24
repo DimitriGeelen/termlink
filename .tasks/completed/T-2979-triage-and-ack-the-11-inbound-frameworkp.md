@@ -6,10 +6,10 @@ description: >
   class). Triage each (file tasks / reply on peer hub), then check-framework-pickup-freshness.sh
   --ack. Evidence: consolidated C-22.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [value-review, arc:arc-009]
 components: []
 related_tasks: []
@@ -24,8 +24,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-19T22:02:02Z
-last_update: '2026-09-20T08:45:19Z'
-date_finished:
+last_update: 2026-09-24T20:52:37Z
+date_finished: 2026-09-24T20:52:37Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -66,49 +66,58 @@ cost_estimate_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Filed from value-review S-5/C-22 (2026-09-19): 11 inbound framework:pickup filings
+were unprocessed at filing time. By the time this round picked the task up
+(2026-09-24), prior sessions had already cleared most of them; only 3 remained
+unprocessed (offsets 136, 140, 143 — verified via
+`check-framework-pickup-freshness.sh --json`). Triaged each:
+
+- **offset 136** (`pickup-bug-report`, `pickup_id: P-900`) — a synthetic canary/test
+  fixture (`summary: "FIXTURE: widget daemon drops every second frame..."`,
+  `detail` carries a literal `SENTINEL-DETAIL-9F2A` marker and a `SENTINEL-TAG-RINGBUF`
+  tag, `source.project: fixture-peer-project`). Not a real defect — no task filed,
+  no reply needed.
+- **offset 140** (`proposal` from `1409-sprind`) — "zai-adapter", a proposal to make
+  Z.ai/ZCode a first-class AEF citizen. Addressed to whoever owns AEF (explicitly
+  scoped per its own G-020 framing: "Scoping, prioritisation and go/no-go are
+  yours"), not to termlink specifically, and not a termlink defect or a decision
+  termlink has standing to make for the framework. Informational only — no task,
+  no reply.
+- **offset 143** (`note` from `1409-sprind`) — DEFECT: `fw designer` dead on
+  v1.6.769 (`agents/designer/designer.sh` shipped mode 644;
+  `exec "$AGENTS_DIR/designer/designer.sh" "$@"` at `bin/fw:5578` requires the
+  execute bit). **This one is real and affects us** — independently reproduced
+  locally (see Verification), confirmed the peer's own scope claim (1 broken of 19
+  direct-exec call sites — same result here), applied the mode-only unblock
+  (`chmod +x`), and registered it in `.vendor-divergence.yaml` under the T-2812
+  `mode-only` convention so it's flagged for re-check after the next re-vendor.
+  Replied on framework:pickup (offset 145) confirming independent reproduction —
+  a second-source confirmation, mirroring this project's own value-review emphasis
+  on independently-converging evidence.
+
+Cleared the canary: `check-framework-pickup-freshness.sh --ack` → seen_offset=145,
+max_offset=145, 0 unprocessed.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
-
-### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-
-     ── Prefix routing (T-1811, T-1878): default to [REVIEWER] if Expected is grep-able ──
-     If your Expected clause is grep-able / file-exists / structural (a deterministic
-     shell check), prefer [REVIEWER] — that AC should be an Agent AC with the reviewer
-     command in `## Verification` instead of a Human AC here. Only keep [REVIEW] if
-     verification genuinely needs human taste (tone, feel, layout rhythm).
-     See CLAUDE.md §AC Classification Guidance for the conversion rule.
-
-     [REVIEW] example (genuine human judgment):
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
-
-     [REVIEWER] example (static-scan-verifiable — convert to Agent AC + Verification):
-       - [ ] [REVIEWER] Block message names both bypass mechanisms
-         **Steps:**
-         1. Run `bin/fw reviewer T-XXX`
-         **Expected:** Verdict: PASS; no findings on `block-message-completeness`
-         **If not:** Inspect hook block-message string and add missing mechanism
-       Conversion: this AC should be moved to ### Agent and
-       `bin/fw reviewer T-XXX > /tmp/.rev 2>&1 && grep -q "Overall:.*PASS" /tmp/.rev`
-       added to ## Verification. NEVER `... 2>&1 | grep -q ...` — that is the shape the
-       Pipefail/SIGPIPE section below forbids, and this line used to prescribe it.
--->
+- [x] All inbound framework:pickup filings triaged: `check-framework-pickup-freshness.sh
+      --json` reports 0 unprocessed (own filings correctly excluded per the T-2816
+      self-filter).
+- [x] The one genuine defect found (offset 143, `fw designer` dead — mode 644)
+      independently reproduced locally before any fix applied.
+- [x] Reproduced defect fixed locally (mode-only `chmod +x`) and registered in
+      `.vendor-divergence.yaml` (T-2812 convention) so a re-vendor regression is
+      flagged, not silent.
+- [x] Confirmation reply posted to framework:pickup (offset 145, `--reply-to 143`).
 
 ## Verification
+
+bash scripts/check-framework-pickup-freshness.sh --json > /tmp/.t2979a.out && grep -q '"unprocessed": \[\]' /tmp/.t2979a.out
+test -x .agentic-framework/agents/designer/designer.sh
+grep -q "designer/designer.sh" .vendor-divergence.yaml
+bash scripts/check-vendor-divergence.sh > /tmp/.t2979b.out 2>&1; grep -q "all registered" /tmp/.t2979b.out
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -209,6 +218,20 @@ cost_estimate_proposed:
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-09-24 — 11 filed down to 3 by the time of pickup; one genuine, two not
+- **What changed:** At filing (2026-09-19) the canary reported 11 unprocessed
+  inbound items; by execution time only 3 remained (prior sessions had cleared the
+  rest incidentally). Of those 3, only one (offset 143) was a real, actionable
+  defect — the other two were a test fixture (offset 136) and an out-of-scope
+  framework proposal (offset 140) that neither warranted a task nor a reply.
+- **Plan impact:** The task's original framing ("triage each: file tasks / reply")
+  undersold how much of triage is *deciding something needs no action* — 2 of 3
+  closed with zero output, which is itself the correct outcome, not a shortfall.
+- **Triggered:** No new sub-task. The one real defect (offset 143, `fw designer`
+  mode-644) was small enough (one-line `chmod +x`) to fix inline as part of this
+  task rather than spinning off a separate one; registered per T-2812 convention
+  instead.
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -268,3 +291,18 @@ cost_estimate_proposed:
 
 ### 2026-09-19T22:08:35Z — status-update [task-update-agent]
 - **Change:** tags: +arc:arc-009
+
+### 2026-09-24T20:52:31Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-03aedde3
+- **Timestamp:** 2026-09-24T20:52:39Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-09-24T20:52:37Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
