@@ -58,13 +58,32 @@ steps:
 - id: R2
   round: 2
   prompt: proc_as_fit
-  state: dispatched
+  state: complete
   worker: procasfit-r2
   feeds: R3
   fed_by: R1
   result_file: .context/runs/T-3089-R2-handback.md
   dispatched_utc: '2026-09-24T20:49:00Z'
+  completed_utc: '2026-09-24T21:00:00Z'
   fed_with: full text of T-3089-R1-handback.md (194 lines) inlined in the prompt
+  head_start: b1e80d46a
+  head_end: 8de32b7fc
+  stopped_reason: Q1 arc-009 items safely actionable without live-infra risk or
+    a second ungated structural change exhausted; natural clean-boundary stop
+    well under the ~300k context threshold.
+  closed:
+  - T-2976
+  - T-2979
+  - T-3039
+  advanced: []
+  sovereign_raised:
+  - T-2977/T-2978 (hub restart / push-wake re-arm) deliberately NOT executed —
+    live shared-infra risk judgment call, not a scope block; flagged for R3
+    with an explicit go/no-go read rather than silently skipped.
+  - T-2980 (bind claim-verb identity to verified fingerprint) investigated and
+    reclassified Q2 (needs a channel.post-style per-call signing extension
+    across 4+ RPC methods + CLI/MCP + tests) — not started this round, see
+    handback Cost-vs-estimate section.
 - id: R3
   round: 3
   prompt: proc_as_fit
