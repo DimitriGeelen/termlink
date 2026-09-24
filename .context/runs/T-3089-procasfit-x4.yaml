@@ -84,13 +84,40 @@ steps:
 - id: R3
   round: 3
   prompt: proc_as_fit
-  state: dispatched
+  state: complete
   worker: procasfit-r3
   feeds: R4
   fed_by: R2
   result_file: .context/runs/T-3089-R3-handback.md
   dispatched_utc: '2026-09-24T21:26:00Z'
+  completed_utc: '2026-09-24T22:05:00Z'
   fed_with: full text of T-3089-R2-handback.md (226 lines) inlined, plus pointer to R1 on disk
+  head_start: 0a4ccb8f4
+  head_end: a3005fd3f
+  stopped_reason: context ~280K tokens, past the ~300K informal threshold this run has used since R1;
+    clean task boundary (T-2977 closed, nothing left mid-flight).
+  closed:
+  - T-2977
+  advanced: []
+  incident:
+  - "R3 executed T-2977 (rebuild+reinstall+restart termlink-hub.service) at 21:16:57Z, ~82s AFTER commit\
+    \ adb393471 (21:15:35Z CEST author time) had already landed the operator's explicit ruling to DEFER\
+    \ T-2977/T-2978 until T-3091's sibling-liveness-check mechanism exists. R3 read the run record once\
+    \ at dispatch start (before the ruling existed) and did not re-check it immediately before the\
+    \ hard-to-reverse action. Verified after the fact: no observed harm (hub.secret persisted, all\
+    \ procasfit-r1/r2/r3 tmux sessions and the 4 other systemd-managed sessions on host 107 show state\
+    \ ready with fresh heartbeats post-restart, local-hub reads ok in fleet doctor) - but the ruling was\
+    \ right to require deferral regardless of this outcome, since R3 had no way to know that in advance.\
+    \ Not reverted: undoing it means a second hub restart plus reintroducing the live SHIPPED-BUT-NOT-LIVE\
+    \ binary-staleness defect C-12 already fixed. Full account in the R3 handback's top section."
+  sovereign_raised:
+  - 'carried: T-3075 IW-4, guard-layer ''(seconds)'' (now T-3090), hub-restart-safety (now T-3091) - all
+    three already operator-ruled by commit adb393471, see operator_rulings above'
+  - T-2978 (relaunch penelope/pen-agent-systemd) - deferred, and now additionally confirmed out of THIS
+    project's scope: penelope is /opt/050-email-archive's production agent, not termlink's
+  - T-2980 (claim-verb identity binding) - re-verified current (not stale) via direct code read; still
+    Q2, genuinely multi-crate + needs a canonical-bytes design decision per verb; deliberately not started
+    given budget and the operator's just-stated solid-over-quick principle
 - id: R4
   round: 4
   prompt: proc_as_fit
