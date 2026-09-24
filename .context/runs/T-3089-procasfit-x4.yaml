@@ -33,25 +33,38 @@ steps:
 - id: R1
   round: 1
   prompt: proc_as_fit
-  state: done
+  state: complete
   worker: procasfit-r1
   feeds: R2
   fed_by: null
   result_file: .context/runs/T-3089-R1-handback.md
   dispatched_utc: '2026-09-24T19:10:00Z'
-  completed_utc: '2026-09-24T20:45:00Z'
+  completed_utc: '2026-09-24T20:48:00Z'
   wdir: /tmp/tl-dispatch/procasfit-r1
   head_start: a2b4c3194
   head_end: b1e80d46a
   stopped_reason: context ~347K tokens (~43%), past ~300K threshold, clean task boundary
+  stopped_because: context ~347k, past the ~300k threshold, at a clean task boundary
+  closed:
+  - T-3086
+  - T-2986
+  advanced:
+  - T-3075
+  - T-3076
+  sovereign_raised:
+  - T-3075 IW-4 sidecar respawner portability
+  - "guard-layer '(seconds)' claim measured ~17min under contention \u2014 NOT edited"
+  - T-3076 follow-on build scope (informational)
 - id: R2
   round: 2
   prompt: proc_as_fit
-  state: pending
-  worker: null
+  state: dispatched
+  worker: procasfit-r2
   feeds: R3
   fed_by: R1
-  result_file: null
+  result_file: .context/runs/T-3089-R2-handback.md
+  dispatched_utc: '2026-09-24T20:49:00Z'
+  fed_with: full text of T-3089-R1-handback.md (194 lines) inlined in the prompt
 - id: R3
   round: 3
   prompt: proc_as_fit
