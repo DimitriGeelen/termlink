@@ -48,13 +48,18 @@ steps:
   round: 1
   step: 1
   prompt: value_review
-  state: dispatched
+  state: complete
   worker: t3093-r1s1-review
   fed_by: null
   feeds: R1S2
   result_file: .context/runs/T-3093-R1S1-handback.md
   dispatched_utc: '2026-09-25T01:00:00Z'
   fed_with: placeholders substituted inline; no prior step (first of 12)
+  completed_note: 'Halted at Phase 5 [ASK] per known_gates — COMPLETE not failed. Delta review
+    (8th pass over this repo): 2 new verified DELETE candidates (4 unused Cargo deps), D-1
+    invocation-audit sink confirmed live (reading B), arc-009 progress 3/18->7/18, Human-AC
+    review-queue backlog measured (144, oldest 147d) and raised as a Sovereign question, not
+    executed. See docs/reports/VALUE-REVIEW-repo-2026-09-25-R1.md + -evidence.md.'
 - id: R1S2
   round: 1
   step: 2
