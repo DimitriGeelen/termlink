@@ -1,10 +1,25 @@
 ---
 id: T-3090
-name: "Measure the guard layer properly: per-member timing on a quiet host, then correct or drop CLAUDE.md's '(seconds)' claim"
+name: "Measure the guard layer properly: per-member timing on a quiet host, then correct
+  or drop CLAUDE.md's '(seconds)' claim"
 description: >
-  Operator ruled solid-over-quick: do NOT simply drop the claim as aspirational, measure it. Two independent samples now contradict CLAUDE.md's '(seconds)': R1 of T-3089 measured a full run at ~17 minutes (22:18-22:35), and the orchestrator's own earlier run exceeded a 550s timeout, had to be backgrounded, and took ~15 more minutes - different time, different process, no rounds running. 'Seconds' means under 60s; observed is 900-1000s+, a 15-20x gap. Host contention plausibly explains 2-3x, not 15-20x, so the documented claim is very likely wrong regardless of noise. Why it matters beyond a doc nit: '(seconds)' is the stated justification for running the layer on every push and before every release, so a wrong cost assumption propagates into CI design; and an operator who believes 'seconds', sees nothing after two minutes and kills it will conclude the layer is broken rather than slow. Deliverable: one clean run on a quiet host with all 137 members timed individually, so the fix is actionable rather than just a corrected adjective - the orchestrator's run appeared to crawl in the fixture suites, not the static checks. Then correct CLAUDE.md to the measured figure.
+  Operator ruled solid-over-quick: do NOT simply drop the claim as aspirational, measure
+  it. Two independent samples now contradict CLAUDE.md's '(seconds)': R1 of T-3089
+  measured a full run at ~17 minutes (22:18-22:35), and the orchestrator's own earlier
+  run exceeded a 550s timeout, had to be backgrounded, and took ~15 more minutes -
+  different time, different process, no rounds running. 'Seconds' means under 60s;
+  observed is 900-1000s+, a 15-20x gap. Host contention plausibly explains 2-3x, not
+  15-20x, so the documented claim is very likely wrong regardless of noise. Why it
+  matters beyond a doc nit: '(seconds)' is the stated justification for running the
+  layer on every push and before every release, so a wrong cost assumption propagates
+  into CI design; and an operator who believes 'seconds', sees nothing after two minutes
+  and kills it will conclude the layer is broken rather than slow. Deliverable: one
+  clean run on a quiet host with all 137 members timed individually, so the fix is
+  actionable rather than just a corrected adjective - the orchestrator's run appeared
+  to crawl in the fixture suites, not the static checks. Then correct CLAUDE.md to
+  the measured figure.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -22,8 +37,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-24T21:14:32Z
-last_update: 2026-09-24T21:14:32Z
-date_finished: null
+last_update: 2026-09-24T21:37:08Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,6 +49,43 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-09-24T21:33:16Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+  - ts: '2026-09-24T21:37:09Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-09-24T21:33:28Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius:
+      tier: 2
+      effort: 8
+    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
+      (workflow:build); effort=8 (lines=204,acs=4)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3090: Measure the guard layer properly: per-member timing on a quiet host, then correct or drop CLAUDE.md's '(seconds)' claim
@@ -46,41 +98,10 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
-
-### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-
-     ── Prefix routing (T-1811, T-1878): default to [REVIEWER] if Expected is grep-able ──
-     If your Expected clause is grep-able / file-exists / structural (a deterministic
-     shell check), prefer [REVIEWER] — that AC should be an Agent AC with the reviewer
-     command in `## Verification` instead of a Human AC here. Only keep [REVIEW] if
-     verification genuinely needs human taste (tone, feel, layout rhythm).
-     See CLAUDE.md §AC Classification Guidance for the conversion rule.
-
-     [REVIEW] example (genuine human judgment):
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
-
-     [REVIEWER] example (static-scan-verifiable — convert to Agent AC + Verification):
-       - [ ] [REVIEWER] Block message names both bypass mechanisms
-         **Steps:**
-         1. Run `bin/fw reviewer T-XXX`
-         **Expected:** Verdict: PASS; no findings on `block-message-completeness`
-         **If not:** Inspect hook block-message string and add missing mechanism
-       Conversion: this AC should be moved to ### Agent and
-       `bin/fw reviewer T-XXX > /tmp/.rev 2>&1 && grep -q "Overall:.*PASS" /tmp/.rev`
-       added to ## Verification. NEVER `... 2>&1 | grep -q ...` — that is the shape the
-       Pipefail/SIGPIPE section below forbids, and this line used to prescribe it.
--->
+- [ ] `scripts/run-guard-layer.sh` reports per-member elapsed time (JSON `elapsed_s` field on every member, present regardless of verdict)
+- [ ] `tests/guard-layer-runner-fixtures.sh` gains at least one assertion pinning the `elapsed_s` field's presence/shape, and the full suite still passes
+- [ ] A real run's per-member timings + host-load context are recorded in `docs/reports/T-3090-guard-layer-timing.md`, explicitly labelled as contended (not quiet-host) given this host's load during the run, with the total wall time reported
+- [ ] `CLAUDE.md`'s `bash scripts/run-guard-layer.sh # all static checks + fixture suites (seconds)` line is corrected to reflect the measured order of magnitude, with a pointer to the report
 
 ## Verification
 
@@ -142,6 +163,12 @@ date_finished: null
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+bash tests/guard-layer-runner-fixtures.sh > /tmp/.t3090-fixtures.out 2>&1 && grep -qE "[0-9]+ passed, 0 failed" /tmp/.t3090-fixtures.out
+bash scripts/run-guard-layer.sh --json --list > /tmp/.t3090-list.out 2>&1 && grep -q '"kind"' /tmp/.t3090-list.out
+test -f docs/reports/T-3090-guard-layer-timing.md
+grep -q "elapsed_s" scripts/run-guard-layer.sh
+grep -q "docs/reports/T-3090-guard-layer-timing.md" CLAUDE.md
 
 ## RCA
 
@@ -239,3 +266,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3090-measure-the-guard-layer-properly-per-mem.md
 - **Context:** Initial task creation
+
+### 2026-09-24T21:37:08Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

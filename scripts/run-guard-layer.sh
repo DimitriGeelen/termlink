@@ -106,6 +106,10 @@ Usage: run-guard-layer.sh [OPTIONS]
 Verdicts: PASS (rc 0) · FAIL (rc 1, guard fired) · ERROR (rc 2, guard could not
 run) · SKIP (not a member / unclassified).
 
+Every member is timed (T-3090): human output shows elapsed seconds per member,
+--json carries "elapsed_s" per member plus a summary "total_elapsed_s" — so a
+cost question about the layer never again needs an ad-hoc timing wrapper.
+
 Exit: 0 all passed · 1 a member fired · 2 a member errored or enumeration failed.
 Findings dominate tooling errors.
 
@@ -262,12 +266,19 @@ if [ "$LIST_ONLY" -eq 1 ]; then
 fi
 
 # -------------------------------------------------------------------- run -----
-r_verdict=(); r_rc=()
+# T-3090: per-member elapsed_s is timed unconditionally (two `date` reads around
+# an already-subprocessed member — negligible overhead) so a cost question about
+# the layer never again needs an ad-hoc, one-off timing wrapper. `date +%s.%N` is
+# GNU-coreutils (the layer already assumes bash arrays, not POSIX sh).
+r_verdict=(); r_rc=(); r_elapsed=()
 pass_n=0; fail_n=0; err_n=0
 
 i=0
 while [ "$i" -lt "$total" ]; do
+    t0="$(date +%s.%N)"
     out="$(timeout "$MEMBER_TIMEOUT" bash -c "${m_cmd[$i]}" 2>&1)"; rc=$?
+    t1="$(date +%s.%N)"
+    elapsed="$(awk -v a="$t0" -v b="$t1" 'BEGIN{printf "%.3f", (b-a)}')"
     # `timeout` reports 124 on expiry — a member that hangs is a tooling error,
     # never a pass. Any rc outside {0,1} is treated as ERROR for the same reason:
     # an unexpected status means we do not know what the guard found.
@@ -276,11 +287,11 @@ while [ "$i" -lt "$total" ]; do
         1) verdict=FAIL;  fail_n=$((fail_n+1)) ;;
         *) verdict=ERROR; err_n=$((err_n+1)) ;;
     esac
-    r_verdict+=("$verdict"); r_rc+=("$rc")
+    r_verdict+=("$verdict"); r_rc+=("$rc"); r_elapsed+=("$elapsed")
 
     if [ "$FORMAT" = human ]; then
         if [ "$verdict" != PASS ] || [ "$QUIET" -eq 0 ]; then
-            printf '  %-5s %-14s %s\n' "$verdict" "${m_kind[$i]}" "${m_name[$i]}"
+            printf '  %-5s %-14s %-6s %s\n' "$verdict" "${m_kind[$i]}" "${elapsed}s" "${m_name[$i]}"
         fi
         if [ "$verdict" != PASS ]; then
             # Surface the member's own words — the runner never paraphrases a
@@ -305,32 +316,35 @@ else exit_rc=0
 fi
 
 # ------------------------------------------------------------------ report ----
+total_elapsed="$(printf '%s\n' "${r_elapsed[@]}" | awk '{s+=$1} END{printf "%.3f", s+0}')"
+
 if [ "$FORMAT" = json ]; then
     printf '{"ok":%s,"members":[' "$([ "$exit_rc" -eq 0 ] && echo true || echo false)"
     i=0
     while [ "$i" -lt "$total" ]; do
         [ "$i" -eq 0 ] || printf ','
-        printf '{"name":%s,"kind":%s,"rc":%s,"verdict":%s}' \
+        printf '{"name":%s,"kind":%s,"rc":%s,"verdict":%s,"elapsed_s":%s}' \
             "$(printf '%s' "${m_name[$i]}" | jq -R .)" \
             "$(printf '%s' "${m_kind[$i]}" | jq -R .)" \
             "${r_rc[$i]}" \
-            "$(printf '%s' "${r_verdict[$i]}" | jq -R .)"
+            "$(printf '%s' "${r_verdict[$i]}" | jq -R .)" \
+            "${r_elapsed[$i]}"
         i=$((i+1))
     done
-    printf '],"summary":{"total":%s,"passed":%s,"fired":%s,"errored":%s,"unclassified":%s,"with_tests":%s,"exit_code":%s}}\n' \
+    printf '],"summary":{"total":%s,"passed":%s,"fired":%s,"errored":%s,"unclassified":%s,"with_tests":%s,"exit_code":%s,"total_elapsed_s":%s}}\n' \
         "$total" "$pass_n" "$fail_n" "$err_n" "${#unclassified[@]}" \
-        "$([ "$WITH_TESTS" -eq 1 ] && echo true || echo false)" "$exit_rc"
+        "$([ "$WITH_TESTS" -eq 1 ] && echo true || echo false)" "$exit_rc" "$total_elapsed"
     exit "$exit_rc"
 fi
 
 echo
 if [ "$exit_rc" -eq 0 ]; then
-    echo "guard layer: PASS — $pass_n/$total members clean"
+    echo "guard layer: PASS — $pass_n/$total members clean (${total_elapsed}s wall)"
 elif [ "$exit_rc" -eq 1 ]; then
-    echo "guard layer: FIRING — $fail_n guard(s) found something ($pass_n passed, $err_n errored)"
+    echo "guard layer: FIRING — $fail_n guard(s) found something ($pass_n passed, $err_n errored, ${total_elapsed}s wall)"
     echo "  A firing guard is a real finding. Act on the member's own message above."
 else
-    echo "guard layer: TOOLING ERROR — $err_n member(s) could not run ($pass_n passed)"
+    echo "guard layer: TOOLING ERROR — $err_n member(s) could not run ($pass_n passed, ${total_elapsed}s wall)"
     echo "  This is NOT a clean bill: those guards found nothing because they never looked."
 fi
 if [ "${#unclassified[@]}" -gt 0 ] && [ "$QUIET" -eq 0 ]; then
