@@ -5,10 +5,11 @@ value-review prompt HALTS at PHASE 5 [ASK] for per-item human approval before PH
 EXECUTE. A review step that halts there is COMPLETE, not failed — the T-3044 precedent.").
 No Phase 6 execution was taken; nothing was deleted, restructured, or built.
 
-**Started/ended:** HEAD `c9cefa531` throughout (no other commits landed during this step;
-re-verified with a fresh `git log --oneline -15` immediately before writing the run-record
-update below, per the T-3089-carried "re-read at the moment of action" rule — there was no
-shared/live-infra action this step to gate on, but the check was still run).
+**Started:** HEAD `c9cefa531`. **Ended:** HEAD `d6e1ebfe6` (this step's own commit — no
+other commits landed in between; re-verified with a fresh `git log --oneline -15`
+immediately before committing, per the T-3089-carried "re-read at the moment of action"
+rule — there was no shared/live-infra action this step to gate on, but the check was still
+run).
 
 ## What this step is
 
