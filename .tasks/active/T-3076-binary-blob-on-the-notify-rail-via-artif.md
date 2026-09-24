@@ -54,11 +54,25 @@ cost_estimate_proposed:
 
 ## Problem Statement
 
-<!-- What problem are we exploring? For whom? Why now? -->
+arc-011 slice S2 ("payload may carry a binary blob") requires the notify rail
+(a shell script, `scripts/notify-sidecar.sh`) to move artifact BYTES over
+`termlink channel post`, not merely a reference. Measured (IW-1, re-confirmed
+2026-09-24): `send_artifact_via_client`/`download_artifact_via_client`
+(`crates/termlink-session/src/artifact.rs:137,525`) are the only functions
+that move the bytes, and their only callers are `commands/file.rs` (`file
+send`/`file receive`), `commands/remote.rs`, and the MCP tool layer — no
+`termlink artifact` CLI subcommand exists. A shell script can attach
+`--artifact-ref` but cannot produce it. Full writeup:
+`docs/reports/T-3076-artifact-cli-verbs-inception.md`.
 
 ## Assumptions
 
-<!-- Key assumptions to test. Register with: fw assumption add "Statement" --task T-XXX -->
+- **A-049** (validated 2026-09-24): `send_artifact_via_client` /
+  `download_artifact_via_client` are safe to call from a 4th site (CLI
+  `artifact put`/`get`) without modification. Evidence: both take only
+  generic parameters (`Client`, peer/target string, payload/sha256,
+  manifest, identity, cache, ctx) — no session-specific coupling found on
+  direct read of `artifact.rs:130-175` and `:525-545`.
 
 ## Open Questions
 
@@ -99,34 +113,65 @@ cost_estimate_proposed:
   verbs are thin wrappers over functions that already exist and are already
   exercised by `file send`. AGAINST: every new verb is surface that must be
   justified, and `file send` already covers the session-addressed case.
-  confidence: 2
-  disposition:
-  rationale:
+  confidence: 3
+  disposition: answered
+  rationale: RESOLVED by the operator 2026-09-23, recorded in
+    `.context/arcs/arc-011.yaml` SQ-3 — "YES, add the artifact CLI verbs".
+    Recorded here verbatim, not re-decided: this agent hit the Tier-0 gate
+    directly attempting `fw inception decide --help` (2026-09-24), confirming
+    the decide-verb itself is human-only. This entry only transcribes the
+    already-made Sovereign decision so the human's `fw inception decide`
+    pass is a one-line confirmation, not a re-litigation.
 
 - **IW-3: eager or lazy fetch, and is `--expected-sha256` mandatory?**
   Deferred behind IW-2 — the shape of the fetch depends on whether there is a verb
   to fetch with. My position: mandatory, because `artifact_ref` IS a sha256 so
   verification is free, and T-2472 already established that without it the output
   must not claim "verified".
-  confidence: 2
-  disposition:
-  rationale:
+  confidence: 3
+  disposition: answered
+  rationale: IW-2 resolved YES, so the deferral clears. `artifact_ref` IS the
+    sha256 (confirmed at `artifact.rs:525` — `download_artifact_via_client`
+    takes `sha256: &str` directly), so verification is free; making
+    `--expected-sha256` mandatory rather than optional on the future `get`
+    verb costs nothing and pre-empts a T-2472-class "output claims verified
+    but wasn't" gap. This is a build-time detail, not a second Sovereign
+    question — no operator counter-signal exists.
 
 ## Exploration Plan
 
-<!-- How will we validate assumptions? Spikes, prototypes, research? Time-box each. -->
+Single spike, time-boxed to reading (no code written — Inception Discipline
+forbids build artifacts pre-GO):
+1. Grep confirmed IW-1's claim still holds (2026-09-24 re-check: still true —
+   `send_artifact_via_client`/`download_artifact_via_client` have exactly 3
+   caller sites, none of them a bare CLI verb).
+2. Read both functions' signatures to test A-049 (do they need anything
+   session-specific that would block a 4th, CLI-only caller?). Validated:
+   no — both take only generic params.
+3. Confirmed no CLI name collision (`grep '"artifact"' cli.rs` → empty).
+Findings written to `docs/reports/T-3076-artifact-cli-verbs-inception.md`.
 
 ## Technical Constraints
 
-<!-- What platform, browser, network, or hardware constraints apply?
-     For web apps: HTTPS requirements, browser API restrictions, CORS, device support.
-     For hardware APIs (mic, camera, GPS, Bluetooth): access requirements, permissions model.
-     For infrastructure: network topology, firewall rules, latency bounds.
-     Fill this BEFORE building. Discovering constraints after implementation wastes sessions. -->
+None found beyond what governs the existing `file send`/`file receive`
+callers: the hub must advertise `artifact.put`/`artifact.get`
+(capability-gated fallback to legacy `file.*` events already exists and is
+reused, not reimplemented) and `download_artifact_via_client` already caps
+in-memory accumulation at `max_artifact_download_bytes()` (no new unbounded
+sink — relevant to the T-2531 drain-sink convention this repo enforces).
 
 ## Scope Fence
 
-<!-- What's IN scope for this exploration? What's explicitly OUT? -->
+**IN:** two thin CLI wrapper subcommands, `termlink artifact put <path> --to
+<peer>` and `termlink artifact get <sha256> --expected-sha256 <sha256> -o
+<path>`, calling the existing `send_artifact_via_client` /
+`download_artifact_via_client` with no changes to those functions.
+`--expected-sha256` mandatory on `get` (IW-3).
+
+**OUT:** any change to the artifact.put/get protocol methods, the hub-side
+router, or the capability-fallback logic; MCP tool changes (already covered);
+the notify-rail's own consumption of the new verb (that is arc-011 S2's build
+task, filed separately on GO, not this inception).
 
 ## Acceptance Criteria
 
@@ -172,8 +217,13 @@ cost_estimate_proposed:
 
 ## Recommendation
 
-**Recommendation:** GO — but the GO is on two thin CLI verbs, and that is a
-sovereign call (IW-2), so this task is PARKED awaiting it rather than closed.
+**Recommendation:** GO. (Updated 2026-09-24: IW-2, the sovereign call this
+recommendation was parked on, is now RESOLVED — operator decided YES,
+`.context/arcs/arc-011.yaml` SQ-3, 2026-09-23. IW-3's mandatory
+`--expected-sha256` follows directly. This task is ready for
+`fw inception decide T-3076 go` — Tier-0, human-only; this agent confirmed
+the gate directly by attempting `fw inception decide --help`, which the
+Tier-0 hook refused. Nothing found today changes the recommendation below.)
 
 **Rationale:**
 

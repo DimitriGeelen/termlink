@@ -478,3 +478,16 @@ assumptions:
   linked_task: T-2838
   created: '2026-08-24'
   resolved_date: null
+- id: A-049
+  statement: send_artifact_via_client/download_artifact_via_client are safe to call
+    from a 4th site (CLI artifact put/get) without modification
+  status: validated
+  validation_method: TBD
+  evidence:
+  - outcome: artifact.rs:137 send_artifact_via_client takes generic Client/target/payload/manifest/identity/cache/ctx;
+      artifact.rs:525 download_artifact_via_client takes only client+sha256 — neither
+      has session-specific coupling, confirmed by direct read 2026-09-24
+    date: '2026-09-24'
+  linked_task: T-3076
+  created: '2026-09-24'
+  resolved_date: '2026-09-24'
