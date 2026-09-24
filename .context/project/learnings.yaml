@@ -4495,3 +4495,9 @@ learnings:
   task: T-2986
   date: 2026-09-24
   context: Added via context agent
+- id: PL-384
+  learning: "A REPAIR-class finding filed from a canary/log-pattern read alone (without checking current source) can duplicate work a prior task already closed — T-2226 (2026-06-14) already implemented the exact tag/mtime feature-aware comparator that value-review C-12/F9 (2026-09-19, 3 months later) proposed as new work. Grep the fix into existence before filing a REPAIR task from a firing-streak observation."
+  source: P-001
+  task: T-2976
+  date: 2026-09-24
+  context: Added via context agent

@@ -6,10 +6,10 @@ description: >
   comparison to be tag/mtime-based. Evidence: consolidated C-12; run2 contradiction
   4.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [value-review, arc:arc-009]
 components: []
 related_tasks: []
@@ -24,8 +24,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-19T21:58:50Z
-last_update: '2026-09-20T08:45:19Z'
-date_finished:
+last_update: 2026-09-24T20:48:26Z
+date_finished: 2026-09-24T20:48:26Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -66,49 +66,43 @@ cost_estimate_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Filed from value-review C-12 (2026-09-19, citing run2 F9 / run4 A4 / run5 F-02+E-49):
+"the preflight comparator can't distinguish '174 versions behind' from '1 product
+commit behind'" and proposes "compare against last tagged release or build-vs-source
+mtime, not the governance-inflated commit counter." **Investigation (this round)
+found the proposed fix already landed as T-2226 (commit `622173df4`, 2026-06-14 —
+over 3 months before the review ran).** `crates_unchanged_since_binary()` in
+`scripts/substrate-preflight.sh:526` does exactly the ask: within a release line it
+walks `git log HEAD~delta..HEAD -- crates/` to distinguish a real feature-relevant
+gap from a governance-inflated patch-counter drift, and fails safe to WARN (never
+silently PASS) on any uncertainty — cross-minor/major boundary, shallow clone,
+unparseable version. `PL-220` (learnings.yaml, sourced from T-2226) documents this
+exact fix. Run2's own F9 framing ("structurally unsatisfiable") reads as a
+misdiagnosis made without checking current code; run4/run5's independent reading —
+the check is *correctly* detecting real staleness, and the 74-75 day firing streak
+is an *unactioned ops gap* (S-3/T-2977: reinstall + restart), not a comparator bug —
+is what this session's direct code read + live run confirms. See Verification.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `crates_unchanged_since_binary()` exists in `scripts/substrate-preflight.sh`
+      and implements a feature-relevant (crates/-diff-based), not raw-counter-based,
+      staleness comparison, with fail-safe-to-WARN on any uncertainty.
+- [x] The fix predates the value-review finding that requested it (T-2226,
+      2026-06-14, commit `622173df4`) — the C-12/F9/S-2 ask is already satisfied
+      in the current tree; no further comparator code change is required.
+- [x] A live run of `substrate-preflight.sh` on this host confirms the comparator
+      is exercising the intended logic (not dead code) and reports a real,
+      explained staleness reason rather than an inflated-counter false positive.
 
-### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-
-     ── Prefix routing (T-1811, T-1878): default to [REVIEWER] if Expected is grep-able ──
-     If your Expected clause is grep-able / file-exists / structural (a deterministic
-     shell check), prefer [REVIEWER] — that AC should be an Agent AC with the reviewer
-     command in `## Verification` instead of a Human AC here. Only keep [REVIEW] if
-     verification genuinely needs human taste (tone, feel, layout rhythm).
-     See CLAUDE.md §AC Classification Guidance for the conversion rule.
-
-     [REVIEW] example (genuine human judgment):
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
-
-     [REVIEWER] example (static-scan-verifiable — convert to Agent AC + Verification):
-       - [ ] [REVIEWER] Block message names both bypass mechanisms
-         **Steps:**
-         1. Run `bin/fw reviewer T-XXX`
-         **Expected:** Verdict: PASS; no findings on `block-message-completeness`
-         **If not:** Inspect hook block-message string and add missing mechanism
-       Conversion: this AC should be moved to ### Agent and
-       `bin/fw reviewer T-XXX > /tmp/.rev 2>&1 && grep -q "Overall:.*PASS" /tmp/.rev`
-       added to ## Verification. NEVER `... 2>&1 | grep -q ...` — that is the shape the
-       Pipefail/SIGPIPE section below forbids, and this line used to prescribe it.
--->
 
 ## Verification
+
+grep -n "crates_unchanged_since_binary" scripts/substrate-preflight.sh > /tmp/.t2976a.out && grep -q "crates_unchanged_since_binary()" /tmp/.t2976a.out
+git log --format=%H -1 622173df4 > /tmp/.t2976b.out 2>&1 && grep -q "622173df4" /tmp/.t2976b.out
+bash scripts/substrate-preflight.sh --no-heartbeat > /tmp/.t2976c.out 2>&1; grep -qE "T-2226|older than project VERSION" /tmp/.t2976c.out
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -185,6 +179,31 @@ cost_estimate_proposed:
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
+**Symptom:** Value-review finding C-12/F9 (2026-09-19) asserted the preflight binary
+comparator was "structurally unsatisfiable" (can't tell 174-versions-behind from
+1-commit-behind) and proposed a tag/mtime-aware, feature-relevant comparison as the fix.
+
+**Root cause:** Not a defect in `scripts/substrate-preflight.sh` — the defect was in the
+review's own diagnosis. `crates_unchanged_since_binary()` (T-2226, commit `622173df4`,
+2026-06-14) already implements exactly the proposed fix and has been live for over 3
+months before the review ran. The review inferred "comparator broken" purely from the
+canary log's long unbroken firing streak, without reading current source to check
+whether that streak reflected a false positive (comparator bug) or a true positive
+(genuine unaddressed staleness, i.e. the S-3/T-2977 ops half). It was the latter — run4
+and run5's independent readings of the same evidence ("the tools work, nobody acted on
+them") were correct; run2's F9 framing was not.
+
+**Why structurally allowed:** The value-review methodology has no step requiring a
+REPAIR-class finding to grep/read current source for an existing fix before filing new
+remediation work — it can file a task against a defect that a prior task already closed,
+and nothing catches the duplication until someone works the new task and checks.
+
+**Prevention:** This task's own `## Verification` block is now that check, permanently
+recorded (asserts the fix function exists, cites the commit, and confirms the live
+script exercises the fixed logic). No new lint/gate is added — the general fix (review
+process re-checking source before filing REPAIR items) is a methodology change for the
+human running future value-review passes, not something this task can enforce in code.
+
 ## Evolution
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
@@ -208,6 +227,16 @@ cost_estimate_proposed:
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-09-24 — already-fixed, closing via re-verification
+- **What changed:** Filed as a code-fix task; investigation found the code fix (T-2226)
+  already landed 2026-06-14, over 3 months before this task was filed from the
+  2026-09-19 value review. No code change was needed — only re-verification.
+- **Plan impact:** S-2 (this task, C-12 check-half) closes as already-satisfied. S-3
+  (T-2977, C-12 ops-half: reinstall binary, restart hub) remains the genuine open gap
+  and is unaffected by this closure.
+- **Triggered:** No new sub-task. Cross-referenced in T-2977 is not required — its own
+  filing already stands on its own evidence (E-49, three installed binaries).
 
 ## Recommendation
 
@@ -268,3 +297,18 @@ cost_estimate_proposed:
 
 ### 2026-09-19T22:08:33Z — status-update [task-update-agent]
 - **Change:** tags: +arc:arc-009
+
+### 2026-09-24T20:46:53Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-b3e50c23
+- **Timestamp:** 2026-09-24T20:48:27Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-09-24T20:48:26Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
