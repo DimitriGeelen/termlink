@@ -56,7 +56,15 @@ cost_estimate_proposed:
 
 ## Problem Statement
 
-<!-- What problem are we exploring? For whom? Why now? -->
+The operator specified a "sidecar API — a separate, always-respawning process,
+independent of the hub, because the hub goes down" for arc-011 slices S1
+(sender-side sidecar API) and S12 (role-swap reply). Read literally that
+collides with TermLink's charter (hub-mediated strict star,
+`no_federation_tripwire.rs`), so before any build the question is: what can
+that API carry without becoming a second bus, and does the surrounding
+orchestration (queue, priority, inject, verify) even belong in this repo?
+Full analysis: `docs/design/arc-011-sidecar-api-architecture.md`. Answered so
+far via operator resolution (IW-1/IW-2, citing SQ-1) — see Open Questions.
 
 ## Assumptions
 
@@ -88,9 +96,17 @@ cost_estimate_proposed:
   what the API CARRIES: agent-to-agent DELIVERY (contradicts) vs LOCAL control of
   this host's own mailbox and prompt (does not — every inter-agent hop still goes
   through the hub).
-  confidence: 2
-  disposition:
-  rationale:
+  confidence: 3
+  disposition: answered
+  rationale: `docs/design/arc-011-sidecar-api-architecture.md` §6 draws the bright
+    line (may read/act on this host's OWN state; may never move a message
+    *between* hosts) and SQ-1's resolution (arc-011.yaml, operator, 2026-09-23:
+    "the injector is a PRIMITIVE built over TermLink's own session control, not
+    an orchestration engine") confirms the LOCAL-CONTROL reading is the one the
+    operator approved by keeping this work in TermLink — building a second bus
+    here would be incompatible with that same decision. Conditional on staying
+    inside the §6 bright line; a tripwire test enforcing it (mirroring
+    `no_federation_tripwire.rs`) is a build-time item, not an inception gate.
 
 - **IW-2: Does this functionality belong to TermLink or to AEF?**
   Charter non-goal 4: "**Not a workflow or orchestration engine** — TermLink
@@ -98,9 +114,14 @@ cost_estimate_proposed:
   IS orchestration. If that is true, the injector belongs to AEF and TermLink
   supplies only the primitives it already has (durable topics, artifact.put, PTY
   inject, presence). Getting this wrong builds the right thing in the wrong repo.
-  confidence: 2
-  disposition:
-  rationale:
+  confidence: 3
+  disposition: answered
+  rationale: RESOLVED by the operator 2026-09-23 as SQ-1 in
+    `.context/arcs/arc-011.yaml` — the injector stays in TermLink, reframed as a
+    primitive rather than an orchestration engine, because it "already lives
+    here, is proven end to end (T-3069), and moving it would put the PTY
+    classifier and the hub read on opposite sides of a project boundary."
+    Recorded here verbatim, not re-decided by this agent.
 
 - **IW-3: What is the failure model the API is actually buying?**
   "The hub goes down" is the stated reason. But the hub going down does not stop
@@ -109,17 +130,33 @@ cost_estimate_proposed:
   does not? Candidate answers: cross-host delivery when the hub is down (needs
   peer-to-peer, contradicts IW-1), or a stable control surface for the startup
   chain. These have very different scopes.
-  confidence: 1
-  disposition:
-  rationale:
+  confidence: 2
+  disposition: answered
+  rationale: Design-doc §3 (steelman) gives the defensible answer under the
+    now-confirmed local-control reading: today's poller is opaque (liveness only
+    inferred from a heartbeat-file mtime); a local API turns it into something
+    addressable ("what's in my queue", "inject this now", "are you alive") —
+    which keeps answering during a hub outage precisely because none of those
+    questions crosses the host boundary. This is analysis, not a fresh operator
+    decision, so confidence is capped at 2 rather than 3 — nothing has tested it
+    against a real outage yet. Not reopened as a second Sovereign question: it
+    describes what the already-approved local-control scope buys, it does not
+    ask for a new scope.
 
 - **IW-4: Who respawns the respawner, portably?**
   systemd answers it on .107 and not elsewhere. D4 Portability (weight 3) is the
   lowest-weighted directive, so a systemd-only answer may be acceptable — but that
   should be a decision, not a default.
   confidence: 1
-  disposition:
-  rationale:
+  disposition: deferred
+  rationale: GENUINELY OPEN — the one item on this task with no existing
+    operator ruling anywhere (arc-011.yaml carries no SQ for it). Surfaced to
+    the human as a Sovereign question rather than defaulted: "systemd-only
+    respawn is D4-acceptable (lowest-weighted directive) given the current
+    single-host (.107) deployment — confirm, or require a portable fallback
+    before build?" Deferring rather than dissolving because it gates a real
+    build decision (T-3075's own S1/S12 build task would need to pick one),
+    not because it is moot.
 
 ## Exploration Plan
 
@@ -135,8 +172,14 @@ cost_estimate_proposed:
 
 ## Scope Fence
 
-<!-- What's IN scope for this exploration? What's explicitly OUT? -->
+**IN (local-control reading, confirmed by SQ-1):** a local API answering
+`status` / `queue` / `inject <id>` / `agent-state` / `ack <offset>` about
+*this host's own* mailbox and prompt; an always-respawning supervisor for it;
+re-resolving this host's own FQDN/IP on change.
 
+**OUT:** anything that moves a message *between* hosts (that is `channel.post`
+via the hub, full stop); the respawn mechanism's portability (IW-4, open);
+writing any of this code before a GO decision (Inception Discipline).
 ## Acceptance Criteria
 
 ### Agent
@@ -185,13 +228,29 @@ cost_estimate_proposed:
 
 **Rationale:**
 
-GO on the ANALYSIS, not a build. Genuinely contested: TermLink's charter names hub-mediated, a strict star, spokes never talk peer-to-peer as a load-bearing noun, enforced by no_federation_tripwire.rs. A sidecar API carrying agent-to-agent DELIVERY contradicts it; one carrying only LOCAL control does not. That choice also decides whether this belongs to TermLink or AEF, since charter non-goal 4 disclaims orchestration and queue-plus-inject-plus-verify is orchestration. Operator decision required.
+GO on the ANALYSIS, not a build. (Updated 2026-09-24.) IW-2 — TermLink or AEF —
+is now RESOLVED (SQ-1, arc-011.yaml, operator, 2026-09-23): the injector stays
+in TermLink as a primitive, not an orchestration engine. That resolution
+carries IW-1: the operator kept this work in TermLink specifically under a
+"primitive, not orchestration engine" framing, which is only charter-consistent
+under the LOCAL-CONTROL reading described in
+`docs/design/arc-011-sidecar-api-architecture.md` §6 — so IW-1 is answered
+(no charter violation, conditional on staying inside the §6 bright line, which
+a future tripwire test should enforce rather than merely document). IW-3 has a
+defensible analytical answer in the same doc §3. **IW-4 (portable respawn) is
+the one item with no existing operator ruling anywhere** — surfaced above as a
+live Sovereign question, not decided here. This task is ready for
+`fw inception decide T-3075 go` once the human either answers IW-4 or accepts
+it as a build-time detail to settle inside the follow-up build task; this
+agent cannot invoke that verb itself (Tier-0, confirmed by the gate refusing
+even `fw inception decide --help`).
 
 **Evidence:**
-
-<!-- Add evidence bullets as exploration progresses (file paths,
-     commit hashes, test results). The filing-time recommendation
-     can be revised before fw inception decide. -->
+- `docs/design/arc-011-sidecar-api-architecture.md` §1-§9 — full charter/AEF
+  analysis, written 2026-09-22, re-checked against SQ-1's resolution today.
+- `.context/arcs/arc-011.yaml` SQ-1 — operator resolution text, verbatim.
+- `crates/termlink-hub/tests/no_federation_tripwire.rs` (T-2569) — the existing
+  enforcement mechanism a future local-control tripwire would mirror.
 
 ## Decisions
 
