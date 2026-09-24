@@ -11,11 +11,13 @@ prompts:
   proc_as_fit: docs/prompts/proc-as-fit.md
 prompt_verification:
   checked_utc: '2026-09-24T19:04:00Z'
-  method: "Fixed-string match of five distinctive lines from the pasted mandate against docs/prompts/proc-as-fit.md.\
-    \ Four matched directly. The fifth (\"counts as an open task and not a closed one\") reported ABSENT\
-    \ on the first pass; that was a FALSE NEGATIVE of the check, not a difference in the file \u2014 the\
-    \ phrase is line-wrapped across a newline, which a fixed-string grep cannot span. Confirmed present\
-    \ by reading the Auditability section directly.\n"
+  method: 'Fixed-string match of five distinctive lines from the pasted mandate against docs/prompts/proc-as-fit.md.
+    Four matched directly. The fifth ("counts as an open task and not a closed one") reported ABSENT on
+    the first pass; that was a FALSE NEGATIVE of the check, not a difference in the file — the phrase
+    is line-wrapped across a newline, which a fixed-string grep cannot span. Confirmed present by reading
+    the Auditability section directly.
+
+    '
   verdict: verbatim-equivalent modulo line wrapping
 state_at_run_start:
   head: a2b4c3194
@@ -53,7 +55,7 @@ steps:
   - T-3076
   sovereign_raised:
   - T-3075 IW-4 sidecar respawner portability
-  - "guard-layer '(seconds)' claim measured ~17min under contention \u2014 NOT edited"
+  - guard-layer '(seconds)' claim measured ~17min under contention — NOT edited
   - T-3076 follow-on build scope (informational)
 - id: R2
   round: 2
@@ -64,34 +66,31 @@ steps:
   fed_by: R1
   result_file: .context/runs/T-3089-R2-handback.md
   dispatched_utc: '2026-09-24T20:49:00Z'
-  completed_utc: '2026-09-24T21:00:00Z'
+  completed_utc: '2026-09-24T21:25:00Z'
   fed_with: full text of T-3089-R1-handback.md (194 lines) inlined in the prompt
   head_start: b1e80d46a
   head_end: 8de32b7fc
-  stopped_reason: Q1 arc-009 items safely actionable without live-infra risk or
-    a second ungated structural change exhausted; natural clean-boundary stop
-    well under the ~300k context threshold.
+  stopped_reason: Q1 arc-009 items safely actionable without live-infra risk or a second ungated structural
+    change exhausted; natural clean-boundary stop well under the ~300k context threshold.
   closed:
   - T-2976
   - T-2979
-  - T-3039
   advanced: []
   sovereign_raised:
-  - T-2977/T-2978 (hub restart / push-wake re-arm) deliberately NOT executed —
-    live shared-infra risk judgment call, not a scope block; flagged for R3
-    with an explicit go/no-go read rather than silently skipped.
-  - T-2980 (bind claim-verb identity to verified fingerprint) investigated and
-    reclassified Q2 (needs a channel.post-style per-call signing extension
-    across 4+ RPC methods + CLI/MCP + tests) — not started this round, see
-    handback Cost-vs-estimate section.
+  - 'carried: T-3075 IW-4 and guard-layer ''(seconds)'''
+  - 'NEW: is it safe for an autonomous round to restart the shared local hub mid-run?'
+  - T-2980 scope (informational)
+  stopped_because: safely-actionable Q1 exhausted at a clean task boundary; NOT a context stop
 - id: R3
   round: 3
   prompt: proc_as_fit
-  state: pending
-  worker: null
+  state: dispatched
+  worker: procasfit-r3
   feeds: R4
   fed_by: R2
-  result_file: null
+  result_file: .context/runs/T-3089-R3-handback.md
+  dispatched_utc: '2026-09-24T21:26:00Z'
+  fed_with: full text of T-3089-R2-handback.md (226 lines) inlined, plus pointer to R1 on disk
 - id: R4
   round: 4
   prompt: proc_as_fit
@@ -105,3 +104,27 @@ orchestrator_bindings:
 - Completion is verified by reading the worker's result file, never by the dispatch return code (T-2876
   - delivered means queued, not received).
 - Each round's handback is passed into the next round's prompt as prior context.
+cross_round_findings:
+- 'R1 and R2 INDEPENDENTLY found the value-review finding they picked up was already stale: T-2986 (1
+  of 6 cited claims still live) and T-2976 (fixed by T-2226 three months before the 2026-09-19 review
+  ran). Two independent hits is a pattern in the REVIEW, not luck in the rounds. R3 was explicitly told
+  to verify findings against the current tree before building from them.'
+operator_rulings:
+- ts: '2026-09-24T21:55:00Z'
+  principle_verbatim: reliability and fragility, so I'm not to save a few tokens just to get a quick solution.
+    I want a solid solution. Same two, for two, and same for three.
+  applies_to: all three open Sovereign questions
+  note: Dispositions below are DERIVED from the principle, not operator wording. Recorded as derived so
+    they can be corrected rather than silently assumed - the T-3044 placeholder_fill convention.
+  dispositions:
+  - sq: T-3075 IW-4 portable respawn
+    recorded_at: arc-011.yaml SQ-8
+    ruling: REJECT systemd-only. A portable respawn fallback is required before the S1/S12 build.
+  - sq: guard-layer '(seconds)' claim
+    recorded_at: T-3090
+    ruling: 'Do NOT drop the claim as aspirational. Measure it properly: per-member timing, quiet host,
+      then correct CLAUDE.md.'
+  - sq: hub-restart safety (T-2977/T-2978)
+    recorded_at: T-3091
+    ruling: Defer to a quiet window AND close the structural gap - a worker cannot currently tell whether
+      a sibling round is mid-flight.
