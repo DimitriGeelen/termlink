@@ -1860,7 +1860,10 @@ detection that survives a re-vendor.
 nothing automatic ran them at all.
 
 ```bash
-bash scripts/run-guard-layer.sh            # all static checks + fixture suites (seconds)
+bash scripts/run-guard-layer.sh            # all static checks + fixture suites (minutes, not
+                                            # seconds — measured ~16min contended-host wall time,
+                                            # see docs/reports/T-3090-guard-layer-timing.md; a
+                                            # 3-member long pole accounts for over half of it)
 bash scripts/run-guard-layer.sh --list     # what the layer consists of
 bash scripts/run-guard-layer.sh --tests    # ...plus `cargo test --workspace` (minutes)
 bash scripts/run-guard-layer.sh --json     # {ok, members[], summary} for scripting

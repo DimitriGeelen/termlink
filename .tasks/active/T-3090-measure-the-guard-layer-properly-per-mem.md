@@ -98,10 +98,21 @@ cost_estimate_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `scripts/run-guard-layer.sh` reports per-member elapsed time (JSON `elapsed_s` field on every member, present regardless of verdict)
-- [ ] `tests/guard-layer-runner-fixtures.sh` gains at least one assertion pinning the `elapsed_s` field's presence/shape, and the full suite still passes
-- [ ] A real run's per-member timings + host-load context are recorded in `docs/reports/T-3090-guard-layer-timing.md`, explicitly labelled as contended (not quiet-host) given this host's load during the run, with the total wall time reported
-- [ ] `CLAUDE.md`'s `bash scripts/run-guard-layer.sh # all static checks + fixture suites (seconds)` line is corrected to reflect the measured order of magnitude, with a pointer to the report
+- [x] `scripts/run-guard-layer.sh` reports per-member elapsed time (JSON `elapsed_s` field on every member, present regardless of verdict) — done by attempt-1, preserved in commit `50f710d42`
+- [x] `tests/guard-layer-runner-fixtures.sh` gains at least one assertion pinning the `elapsed_s` field's presence/shape, and the full suite still passes — commit `a6d8ef16e`, 48/48 passed
+- [x] A real run's per-member timings + host-load context are recorded in `docs/reports/T-3090-guard-layer-timing.md`, explicitly labelled as contended (not quiet-host) given this host's load during the run, with the total wall time reported — 945s wall / 939.5s sum, load avg ~10-15 on 24 cores, see report
+- [x] `CLAUDE.md`'s `bash scripts/run-guard-layer.sh # all static checks + fixture suites (seconds)` line is corrected to reflect the measured order of magnitude, with a pointer to the report
+
+**Status held at `started-work` deliberately, not closed.** All four ACs above are literally
+satisfied and independently checkable (see Verification block, all 5 lines pass). But R4's own
+dispatch instructions carried a stricter reading of the operator's ruling than this task's own AC
+wording: *"What remains is a measurement on a QUIET host... If you cannot get a clean measurement,
+SAY SO and leave T-3090 open rather than recording a contended number."* This host was not quiet
+(load average ~10-15 on 24 cores, ~450 concurrent agent processes) and R4 had no authority to make
+it quiet. R4 recorded the honest contended number rather than withholding it, but is leaving the
+CLOSE decision to the operator: does a labelled-contended measurement satisfy the "quiet host"
+ruling given this host's apparent normal operating load, or is a dedicated quiet window required?
+See the R4 handback's Sovereign Questions, item 1.
 
 ## Verification
 
