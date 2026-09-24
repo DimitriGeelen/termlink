@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2977: Reinstall current binary, resolve 3-binary PATH ambiguity, restart hub via systemd
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-24T21:18:10Z
+# ============================================================================
+
+task_id: T-2977
+task_name: "Reinstall current binary, resolve 3-binary PATH ambiguity, restart hub via systemd"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-19T21:59:56Z
+completed: 2026-09-24T21:17:56Z
+duration_days: 5
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  S-3/C-12 ops half: 3 installed termlink binaries at 2 versions; arc-live-probe reports SHIPPED-NOT-LIVE. Reinstall current build, resolve PATH ambiguity, restart hub THROUGH the systemd unit (G-070), verify with scripts/arc-live-probe.sh. Evidence: consolidated C-12.
+
+# Key outcomes
+outcomes:
+  - 'All 3 installed `termlink` binaries (`~/.local/bin`, `~/.cargo/bin`, `/usr/local/bin`) report the same version, built from current HEAD'
+  - '`termlink-hub.service` restarted through systemd (not a raw kill+relaunch, per G-070) and is `active (running)` afterward'
+  - '`scripts/arc-live-probe.sh --hub 127.0.0.1:9100 --min-version "$(cat VERSION)" --capability cv-keys` exits 0 (live-confirmed, not SHIPPED-BUT-NOT-LIVE)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 7158 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [value-review, arc:arc-009]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 7158
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2977-reinstall-current-binary-resolve-3-binar.md
+generated_by: context-agent-hybrid

@@ -8,10 +8,10 @@ description: >
   the systemd unit (G-070), verify with scripts/arc-live-probe.sh. Evidence: consolidated
   C-12.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [value-review, arc:arc-009]
 components: []
 related_tasks: []
@@ -26,8 +26,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-19T21:59:56Z
-last_update: '2026-09-20T08:45:19Z'
-date_finished:
+last_update: 2026-09-24T21:17:56Z
+date_finished: 2026-09-24T21:17:56Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -74,8 +74,9 @@ cost_estimate_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] All 3 installed `termlink` binaries (`~/.local/bin`, `~/.cargo/bin`, `/usr/local/bin`) report the same version, built from current HEAD
+- [x] `termlink-hub.service` restarted through systemd (not a raw kill+relaunch, per G-070) and is `active (running)` afterward
+- [x] `scripts/arc-live-probe.sh --hub 127.0.0.1:9100 --min-version "$(cat VERSION)" --capability cv-keys` exits 0 (live-confirmed, not SHIPPED-BUT-NOT-LIVE)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -171,6 +172,10 @@ cost_estimate_proposed:
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+test "$(~/.local/bin/termlink --version)" = "$(~/.cargo/bin/termlink --version)" && test "$(~/.cargo/bin/termlink --version)" = "$(/usr/local/bin/termlink --version)"
+systemctl is-active termlink-hub.service > /tmp/.hubactive.out 2>&1 && grep -q "^active$" /tmp/.hubactive.out
+bash scripts/arc-live-probe.sh --hub 127.0.0.1:9100 --min-version "$(cat VERSION)" --capability cv-keys
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -210,6 +215,22 @@ cost_estimate_proposed:
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-09-24 — finding verified live before building
+- **What changed:** The orchestrator (T-3089) flagged that R1 and R2 had each independently
+  found their picked-up value-review finding already stale. Re-verified C-12 against the
+  current tree before touching anything: `arc-live-probe.sh` genuinely reported
+  SHIPPED-BUT-NOT-LIVE (served 0.11.1766, floor read from `VERSION`=0.12.0), and `$PATH`
+  genuinely resolved `termlink` to a stale 0.11.1716 copy in `/root/.local/bin` ahead of the
+  systemd-used `/root/.cargo/bin` copy at 0.11.1766 — both a 2-version, 3-binary skew. Unlike
+  T-3086/T-2986/T-2976, this finding was still current.
+- **Plan impact:** None — the fix was exactly as scoped (rebuild, reinstall to all 3 known
+  install locations, restart hub through the systemd unit, verify). No local hub `hub.secret`
+  rotation occurred (persist-if-present held); the 4 other systemd-managed persistent
+  sessions on this host (cashweb-integration, email-archive/penelope, framework-agent,
+  termlink-agent) stayed `active` through the restart, confirming the restart's blast radius
+  was limited to the hub's own TCP listener as documented.
+- **Triggered:** none — closed in one pass, no follow-on task needed.
 
 ## Recommendation
 
@@ -270,3 +291,18 @@ cost_estimate_proposed:
 
 ### 2026-09-19T22:08:34Z — status-update [task-update-agent]
 - **Change:** tags: +arc:arc-009
+
+### 2026-09-24T21:03:16Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-4878b203
+- **Timestamp:** 2026-09-24T21:18:02Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-09-24T21:17:56Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
