@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3076: Binary blob on the notify rail via artifact.put
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-25T06:53:15Z
+# ============================================================================
+
+task_id: T-3076
+task_name: "Binary blob on the notify rail via artifact.put"
+workflow_type: inception
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-22T14:25:34Z
+completed: 2026-09-25T06:53:03Z
+duration_days: 3
+updates_count: 3
+first_commit: 2026-09-22T17:02:29+02:00
+last_commit: 2026-09-25T08:53:09+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  blob — the gap is a missing CLI verb, not a missing mechanism. fill inception exploration — IW-2/IW-3 disposition recorded, ready for human GO. inception decision GO (via Watchtower)
+
+# Key outcomes
+outcomes:
+  - 'Problem statement validated'
+  - 'Assumptions tested'
+  - 'Recommendation written with rationale'
+  - '[REVIEW] Review exploration findings and approve go/no-go decision'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/arcs/arc-011.yaml'
+  - '.context/project/assumptions.yaml'
+  - 'docs/reports/T-3076-artifact-cli-verbs-inception.md'
+  - '.tasks/active/T-3076-binary-blob-on-the-notify-rail-via-artif.md'
+  - '.tasks/completed/T-3076-binary-blob-on-the-notify-rail-via-artif.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-22T17:02:29'
+    action: 'T-3076: blob — the gap is a missing CLI verb, not a missing mechanism'
+  - time: '2026-09-24T22:25:40'
+    action: 'T-3076: fill inception exploration — IW-2/IW-3 disposition recorded, ready for human GO'
+  - time: '2026-09-25T08:53:09'
+    action: 'T-3076: inception decision GO (via Watchtower)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 3867 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 3867
+  commits: 3
+  files_changed: 5
+  lines_added: 347
+  lines_removed: 34
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3076-binary-blob-on-the-notify-rail-via-artif.md
+generated_by: context-agent-hybrid
