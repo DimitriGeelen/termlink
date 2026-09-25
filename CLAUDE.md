@@ -1348,6 +1348,43 @@ complementary axes**, because each is blind exactly where the other fires:
   `"$FRAMEWORK_ROOT/<path>"` that does not resolve. Only visible where the file is
   MISSING — a clean clone, a fresh deploy, or a git worktree (which materialises tracked
   files only).
+- **Axis B — NOT-EXEC** (T-3145): the reference RESOLVES but cannot be executed. Distinct
+  class, distinct errno (**126**, not 127) and distinct remediation (chmod, not recover the
+  file), so it is counted and reported separately — telling an operator to go find a file
+  that is sitting right there is how a check earns being ignored.
+
+  **The verb list omitted `exec`, which is the only form where file mode is load-bearing.**
+  `bash foo.sh` runs a mode-644 file perfectly well; `exec foo.sh` returns 126 Permission
+  denied. The anchor matched `.` · `source` · `bash` · `sh` · `python3` · `python` and not
+  `exec`, so all three exec-position references in the tree were outside the candidate set —
+  including `exec "$FRAMEWORK_ROOT/lib/build.sh"` at `bin/fw:7534` against a file vendored at
+  **100644**. `fw build`, advertised at `fw help` line 85, exits 126, and every existing test
+  reported clean: axis A saw a tracked file, a mode-drift comparison saw the index agreeing
+  with the disk (**both wrong** — index-vs-disk cannot see a value both sides got wrong), and
+  axis B never looked. Measured 59 → 62 references after adding `exec`; the three new ones are
+  exactly the exec sites, and one of them was dead. Filed upstream at `framework:pickup`
+  offset 162; **not patched here** (`lib/build.sh` is vendored, G-062), which is why the local
+  detector is the half that survives a re-vendor — same split as T-2859 and T-2833.
+
+  Executability is required for `exec` position **only**. Testing `-x` on every verb would
+  also "catch" `build.sh` and would be wrong: nearly every `. "$FRAMEWORK_ROOT/lib/*.sh"` in
+  a real tree targets a non-executable library. That precision is pinned by a fixture, and
+  by a mutant — stripping the `-x` test makes the check report the dead reference as clean,
+  which is exactly what the real tree did for as long as the omission stood.
+
+  Acknowledgements live in `.context/checks/framework-notexec-allowlist` (git-tracked per
+  T-2681), `<path>  # reason`, and are **counted and reported on the clean path** so a green
+  never conflates "clean" with "acknowledged". An entry is only appropriate when the finding
+  is real and we are structurally barred from fixing it — anything fixable here gets fixed,
+  not listed — and each entry must state what would let it be deleted. Currently one:
+  `lib/build.sh`, pending the upstream fix. `--allowlist PATH` /
+  `FW_TRACKING_NOTEXEC_ALLOWLIST` override; an ABSENT ledger acknowledges nothing rather
+  than excusing everything (pinned by fixture).
+
+  **Scope (T-2680):** this covers references in the listed VERB positions only. A bare
+  `"$FRAMEWORK_ROOT/bin/foo" --args` invoked with no verb also needs the bit and is NOT
+  covered — matching that shape is the broad anchor the T-2817 narrowing rejected as 44-of-47
+  noise. Both output paths say so.
 
 Axis A alone reports a worktree as clean while `fw bvp` is broken in it — that is how
 T-2817 was found, the detector saying "no drift" seconds after the tool it protects failed

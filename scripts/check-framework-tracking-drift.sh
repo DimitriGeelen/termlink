@@ -58,6 +58,7 @@
 #
 # Usage:
 #   bash scripts/check-framework-tracking-drift.sh [--json] [--quiet] [--root DIR]
+#                                                  [--allowlist PATH]
 #
 # Exit codes:
 #   0 — no load-bearing drift (informational drift may still be reported)
@@ -72,6 +73,13 @@ set -uo pipefail
 FW_ROOT=".agentic-framework"
 JSON=0
 QUIET=0
+# T-3145: acknowledgement ledger for the NOT-EXEC class, mirroring the sibling static
+# checks (alloc-sink, drain-sink, silent-exit, busy-spin, platform-lock) and git-tracked
+# per T-2681 so a fresh clone or CI runner reads the same ledger this host does.
+# Entries are COUNTED AND REPORTED, never silently dropped — the point is to distinguish
+# "nobody has looked" from "looked, cannot fix here, and here is why".
+ALLOWLIST=""
+ALLOWLIST_DEFAULT=".context/checks/framework-notexec-allowlist"
 
 usage() {
     sed -n '2,/^set -uo pipefail$/p' "$0" | sed 's/^# \{0,1\}//' | head -n -2
@@ -87,11 +95,37 @@ while [ $# -gt 0 ]; do
             [ $# -ge 1 ] || { echo "check-framework-tracking-drift: --root requires a value" >&2; exit 2; }
             FW_ROOT="$1"
             ;;
+        --allowlist)
+            shift
+            [ $# -ge 1 ] || { echo "check-framework-tracking-drift: --allowlist requires a value" >&2; exit 2; }
+            ALLOWLIST="$1"
+            ;;
         -h|--help) usage ;;
         *) echo "check-framework-tracking-drift: unknown flag: $1" >&2; exit 2 ;;
     esac
     shift
 done
+
+# Explicit flag wins; else the tracked default; else no ledger at all (which is the
+# right state for a fixture tree, and must read as "nothing acknowledged", never as
+# a tooling error — an absent ledger acknowledges nothing, it does not excuse
+# everything).
+if [ -z "$ALLOWLIST" ]; then
+    ALLOWLIST="${FW_TRACKING_NOTEXEC_ALLOWLIST:-$ALLOWLIST_DEFAULT}"
+fi
+ACK_COUNT=0
+ACKED=""
+notexec_is_acked() {
+    [ -f "$ALLOWLIST" ] || return 1
+    local want="$1" line entry
+    while IFS= read -r line || [ -n "$line" ]; do
+        entry="${line%%#*}"
+        entry="$(printf '%s' "$entry" | sed -e 's|^[[:space:]]*||' -e 's|[[:space:]]*$||')"
+        [ -n "$entry" ] || continue
+        [ "$entry" = "$want" ] && return 0
+    done < "$ALLOWLIST"
+    return 1
+}
 
 if [ ! -d "$FW_ROOT" ]; then
     echo "check-framework-tracking-drift: framework dir not found: $FW_ROOT" >&2
@@ -185,6 +219,12 @@ DANGLING=""
 DANGLING_COUNT=0
 DANGLING_SKIPPED=0
 REFS_CHECKED=0
+# T-3145: resolves-but-cannot-execute is its OWN class, not a DANGLING variant.
+# Different errno (126, not 127) and different remediation (chmod, not recover the
+# file) — telling an operator to go find a file that is sitting right there is how a
+# check earns being ignored.
+NOTEXEC=""
+NOTEXEC_COUNT=0
 
 # The anchor is deliberately NARROW: only a reference in SOURCE-or-EXECUTE position
 # counts. A first pass matched every "$FRAMEWORK_ROOT/..." string and produced 47 hits of
@@ -198,7 +238,27 @@ REFS_CHECKED=0
 # lib/bvp.sh"` shape that broke `fw bvp` here. Same philosophy as the sibling static
 # checks (T-2666 anchors on a precise preceding-line shape, T-2672 on specific RPC method
 # strings) — a narrow anchor with few false positives beats a broad one nobody trusts.
-while IFS= read -r rel; do
+#
+# T-3145: the anchor now also matches `exec`, and the scan carries the VERB alongside
+# the path. The verb is load-bearing, not decoration: `bash foo.sh` runs a mode-644
+# file perfectly well, while `exec foo.sh` returns 126 Permission denied. So `-x` is
+# required for exec-position references and for nothing else — testing it on every
+# form would fire on every correct `. "$FRAMEWORK_ROOT/lib/*.sh"` in the tree.
+#
+# Omitting `exec` cost us a live defect: `exec "$FRAMEWORK_ROOT/lib/build.sh"` at
+# bin/fw:7534 against a file vendored 100644, so `fw build` — advertised at `fw help`
+# line 85 — exits 126, while this check reported the tree clean. Axis A saw a tracked
+# file; a mode-drift comparison saw the index agreeing with the disk (both wrong); and
+# axis B never examined the reference, because `exec` was not in the verb list.
+#
+# SCOPE (T-2680 — read a green narrowly): this covers references in the listed VERB
+# positions only. A bare `"$FRAMEWORK_ROOT/bin/foo" --args` invoked with no verb also
+# needs the bit and is NOT covered here — matching that shape is the broad anchor the
+# comment above rejects as 44-of-47 noise.
+while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    verb="${line%%	*}"
+    rel="${line#*	}"
     [ -n "$rel" ] || continue
     # A path still carrying a shell interpolation cannot be resolved statically.
     # Nor can a documentation placeholder: `lib/<name>.py` in a usage string is a
@@ -216,22 +276,39 @@ while IFS= read -r rel; do
             ;;
     esac
     REFS_CHECKED=$((REFS_CHECKED + 1))
-    [ -e "$FW_ROOT/$rel" ] && continue
-    case "$DANGLING" in
+    if [ ! -e "$FW_ROOT/$rel" ]; then
+        case "$DANGLING" in
+            *"$rel"$'\n'*) continue ;;   # already reported
+        esac
+        DANGLING="${DANGLING}${rel}"$'\n'
+        DANGLING_COUNT=$((DANGLING_COUNT + 1))
+        continue
+    fi
+    # Present. Only an exec-position reference additionally needs the bit.
+    [ "$verb" = "exec" ] || continue
+    [ -x "$FW_ROOT/$rel" ] && continue
+    case "$NOTEXEC$ACKED" in
         *"$rel"$'\n'*) continue ;;   # already reported
     esac
-    DANGLING="${DANGLING}${rel}"$'\n'
-    DANGLING_COUNT=$((DANGLING_COUNT + 1))
+    if notexec_is_acked "$rel"; then
+        ACKED="${ACKED}${rel}"$'\n'
+        ACK_COUNT=$((ACK_COUNT + 1))
+        continue
+    fi
+    NOTEXEC="${NOTEXEC}${rel}"$'\n'
+    NOTEXEC_COUNT=$((NOTEXEC_COUNT + 1))
 done <<EOF
-$(grep -rhE '(^|[;&|]|[[:space:]])(\.|source|bash|sh|python3|python)[[:space:]]+"\$FRAMEWORK_ROOT/[^"]*"' \
+$(grep -rhE '(^|[;&|]|[[:space:]])(\.|source|bash|sh|python3|python|exec)[[:space:]]+"\$FRAMEWORK_ROOT/[^"]*"' \
     "$FW_ROOT/bin" "$FW_ROOT/lib" "$FW_ROOT/agents" 2>/dev/null \
   | grep -vE '^[[:space:]]*#' \
-  | grep -oE '"\$FRAMEWORK_ROOT/[^"]*"' \
-  | sed -e 's|^"\$FRAMEWORK_ROOT/||' -e 's|"$||' \
+  | grep -oE '(^|[;&|]|[[:space:]])(\.|source|bash|sh|python3|python|exec)[[:space:]]+"\$FRAMEWORK_ROOT/[^"]*"' \
+  | sed -E -e 's|^[;&|[:space:]]+||' \
+           -e 's|[[:space:]]+"\$FRAMEWORK_ROOT/|\t|' \
+           -e 's|"$||' \
   | sort -u)
 EOF
 
-TOTAL_FIRING=$((FIRING_COUNT + DANGLING_COUNT))
+TOTAL_FIRING=$((FIRING_COUNT + DANGLING_COUNT + NOTEXEC_COUNT))
 
 if [ "$JSON" = "1" ]; then
     printf '{"ok":%s,"checked":%d,"firing_count":%d,"informational_count":%d,"firing":[' \
@@ -257,13 +334,45 @@ EOF
     done <<EOF
 $DANGLING
 EOF
-    printf ']}\n'
+    printf '],"not_executable_count":%d,"not_executable":[' "$NOTEXEC_COUNT"
+    first=1
+    while IFS= read -r r; do
+        [ -n "$r" ] || continue
+        [ "$first" = "1" ] || printf ','
+        first=0
+        printf '"%s"' "$r"
+    done <<EOF
+$NOTEXEC
+EOF
+    printf '],"not_executable_acknowledged_count":%d,"not_executable_acknowledged":[' "$ACK_COUNT"
+    first=1
+    while IFS= read -r r; do
+        [ -n "$r" ] || continue
+        [ "$first" = "1" ] || printf ','
+        first=0
+        printf '"%s"' "$r"
+    done <<EOF
+$ACKED
+EOF
+    printf '],"scope":"axis B covers $FRAMEWORK_ROOT references in . source bash sh python3 python exec position; exec position additionally requires the executable bit. A bare \\"$FRAMEWORK_ROOT/bin/foo\\" invoked with no verb also needs the bit and is NOT covered."}\n'
     [ "$TOTAL_FIRING" -eq 0 ] && exit 0 || exit 1
 fi
 
 if [ "$TOTAL_FIRING" -eq 0 ]; then
     if [ "$QUIET" != "1" ]; then
         echo "check-framework-tracking-drift: no load-bearing drift ($CHECKED file(s) scanned, $REFS_CHECKED reference(s) resolved, $INFO_COUNT informational)"
+        echo "  Scope: axis B resolves \$FRAMEWORK_ROOT references in . source bash sh python3 python exec position;"
+        echo "  exec position additionally requires the executable bit. A bare \"\$FRAMEWORK_ROOT/bin/foo\" invoked"
+        echo "  with no verb also needs the bit and is NOT covered — a green is not 'every invocation resolves'."
+        if [ "$ACK_COUNT" -gt 0 ]; then
+            echo "  $ACK_COUNT non-executable exec target(s) ACKNOWLEDGED in $ALLOWLIST — counted, not firing:"
+            while IFS= read -r r; do
+                [ -n "$r" ] || continue
+                printf '    ACK  %s\n' "\$FRAMEWORK_ROOT/$r"
+            done <<EOF
+$ACKED
+EOF
+        fi
         if [ "$INFO_COUNT" -gt 0 ]; then
             echo "  ($INFO_COUNT untracked file(s) under docs/ or web/ — content drift, not clean-clone-breaking)"
         fi
@@ -294,8 +403,21 @@ $DANGLING
 EOF
 fi
 
+if [ "$NOTEXEC_COUNT" -gt 0 ]; then
+    echo "check-framework-tracking-drift: $NOTEXEC_COUNT reference(s) resolve but cannot execute — \`exec\` on a non-executable file:"
+    while IFS= read -r r; do
+        [ -n "$r" ] || continue
+        printf '  NOT-EXEC   %s  (mode %s)\n' "\$FRAMEWORK_ROOT/$r" "$(stat -c '%a' "$FW_ROOT/$r" 2>/dev/null || echo '?')"
+    done <<EOF
+$NOTEXEC
+EOF
+fi
+
 if [ "$QUIET" != "1" ]; then
     echo ""
+    echo "  Scope: axis B resolves \$FRAMEWORK_ROOT references in . source bash sh python3 python exec position;"
+    echo "  exec position additionally requires the executable bit. A bare \"\$FRAMEWORK_ROOT/bin/foo\" invoked"
+    echo "  with no verb also needs the bit and is NOT covered."
     echo "  $INFO_COUNT further untracked file(s) under docs/ or web/ (informational)."
     if [ "$DANGLING_SKIPPED" -gt 0 ]; then
         echo "  $DANGLING_SKIPPED dynamic reference(s) skipped (not statically resolvable)."
@@ -309,6 +431,14 @@ if [ "$QUIET" != "1" ]; then
         echo "    git add -f $FW_ROOT/bin $FW_ROOT/lib $FW_ROOT/policy $FW_ROOT/agents"
         echo "  Review before committing — confirm nothing machine-local or secret-bearing is"
         echo "  swept in (host paths, tokens, per-machine config)."
+    fi
+    if [ "$NOTEXEC_COUNT" -gt 0 ]; then
+        echo "  NOT-EXEC — the file IS here; it just cannot be exec'd. \`exec\` does not fall back"
+        echo "  to an interpreter, so the calling verb dies with 126 Permission denied while every"
+        echo "  existence test and every index-vs-disk mode comparison reports clean (the index can"
+        echo "  agree with the disk on the WRONG value). If the path is under .agentic-framework/ it"
+        echo "  is vendored: file it upstream rather than chmod-ing here, because the next re-vendor"
+        echo "  erases a local mode change (G-062). Otherwise: chmod +x and commit the mode."
     fi
     if [ "$DANGLING_COUNT" -gt 0 ]; then
         echo "  DANGLING — this checkout is MISSING files that tracked framework code needs."

@@ -1,0 +1,13 @@
+# framework-notexec-allowlist — acknowledged NOT-EXEC findings (T-3145).
+#
+# Format: <path relative to $FRAMEWORK_ROOT>  # reason
+#
+# An entry here is still COUNTED AND REPORTED by check-framework-tracking-drift.sh;
+# it just does not fire. The ledger exists to distinguish "nobody has looked" from
+# "looked, cannot fix it here, and here is why" — it is NOT a way to make a finding
+# go away, and every entry must state what would let it be deleted.
+#
+# An entry is appropriate ONLY when the finding is real and we are structurally
+# barred from fixing it. Anything fixable here gets fixed, not listed.
+
+lib/build.sh  # VENDORED (G-062) — a local `chmod +x` is erased by the next re-vendor, so the fix has to land upstream. bin/fw:7534 does `exec "$FRAMEWORK_ROOT/lib/build.sh"` against a file vendored at mode 100644, so `fw build` (advertised at `fw help` line 85) exits 126 Permission denied. Filed upstream at framework:pickup offset 162 on 2026-09-25 with the one-line remediation (ship it 100755) and the argument for the check. REMOVE THIS LINE when a re-vendor lands, then re-run the check: if it stays clean, upstream carried the fix; if it fires again, upstream did not, and the filing needs chasing rather than this line restoring.
