@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3147: Add the absence-assertion rule to the task template (T-3144 GO)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-25T14:55:26Z
+# ============================================================================
+
+task_id: T-3147
+task_name: "Add the absence-assertion rule to the task template (T-3144 GO)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-25T14:52:49Z
+completed: 2026-09-25T14:55:18Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-09-25T16:54:31+02:00
+last_commit: 2026-09-25T16:55:14+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  teach the template to prove an absence search could have succeeded. restore T-3144's episodic — my previous commit dropped it from git
+
+# Key outcomes
+outcomes:
+  - '`.tasks/templates/default.md` gains an absence-assertion rule inside the existing'
+  - 'The rule shows all three correct shapes (existence test first, positive-companion grep,'
+  - 'It carries a measured example rather than an abstract warning — the'
+  - 'The template still parses as a task: creating a task from it produces a file whose'
+  - 'The census re-run is unchanged (71/41/30) — this task edits guidance only and must not'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/episodic/T-3144.yaml'
+  - '.tasks/active/T-3147-add-the-absence-assertion-rule-to-the-ta.md'
+  - '.tasks/completed/T-3144-census-verification-legs-that-assert-an-.md'
+  - '.tasks/templates/default.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-25T16:54:31'
+    action: 'T-3147: teach the template to prove an absence search could have succeeded'
+  - time: '2026-09-25T16:55:14'
+    action: 'T-3147: restore T-3144''s episodic — my previous commit dropped it from git'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 2
+  commits: 2
+  files_changed: 4
+  lines_added: 393
+  lines_removed: 183
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3147-add-the-absence-assertion-rule-to-the-ta.md
+generated_by: context-agent-hybrid
