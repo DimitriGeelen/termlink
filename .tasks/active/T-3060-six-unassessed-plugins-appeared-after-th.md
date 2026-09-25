@@ -112,15 +112,15 @@ cost_estimate_proposed:
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -187,7 +187,17 @@ GO on assessing, not adopting. T-3055 surveyed 19 plugins on 2026-09-22 and the 
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO
+
+Rationale:
+
+GO on assessing, not adopting. T-3055 surveyed 19 plugins on 2026-09-22 and the operator disabled four on its recommendation - confirmed disabled - yet the enabled count went 13 to 15, not 13 to 9, because SIX plugins absent from that survey are now present: semgrep, pyright-lsp, claude-md-management, hookify, mcp-server-dev, plugin-dev. None were assessed and several look materially more relevant than anything the survey covered. semgrep is industrial static analysis while this project hand-rolls eleven-plus source-level guard checks in bash and grep. pyright-lsp would cover the Python in web/ and lib/ the way rust-analyzer now covers the crates. claude-md-management bears on a 2500-line CLAUDE.md with a documented clobber defect (T-2015, 844 lines destroyed per upgrade). mcp-server-dev and plugin-dev bear on termlink-mcp, which this repo builds. Assess each against the operator standing constraint - stand-alone, no service dependency commercial or otherwise - via claude plugin details, where an MCP server is the tell for an external call and an LSP server is a local binary. Also establish WHY the set changed: a plugin set that shifts without anyone noticing makes every survey a snapshot with an unknown shelf life, which is the more durable finding.
+
+Evidence:
+
+**Date**: 2026-09-25T06:52:36Z
 
 ## Updates
 
@@ -196,3 +206,25 @@ GO on assessing, not adopting. T-3055 surveyed 19 plugins on 2026-09-22 and the 
 
 ### 2026-09-22T08:22:03Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-09-25T06:52:30Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+
+Rationale:
+
+GO on assessing, not adopting. T-3055 surveyed 19 plugins on 2026-09-22 and the operator disabled four on its recommendation - confirmed disabled - yet the enabled count went 13 to 15, not 13 to 9, because SIX plugins absent from that survey are now present: semgrep, pyright-lsp, claude-md-management, hookify, mcp-server-dev, plugin-dev. None were assessed and several look materially more relevant than anything the survey covered. semgrep is industrial static analysis while this project hand-rolls eleven-plus source-level guard checks in bash and grep. pyright-lsp would cover the Python in web/ and lib/ the way rust-analyzer now covers the crates. claude-md-management bears on a 2500-line CLAUDE.md with a documented clobber defect (T-2015, 844 lines destroyed per upgrade). mcp-server-dev and plugin-dev bear on termlink-mcp, which this repo builds. Assess each against the operator standing constraint - stand-alone, no service dependency commercial or otherwise - via claude plugin details, where an MCP server is the tell for an external call and an LSP server is a local binary. Also establish WHY the set changed: a plugin set that shifts without anyone noticing makes every survey a snapshot with an unknown shelf life, which is the more durable finding.
+
+Evidence:
+
+### 2026-09-25T06:52:36Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+
+Rationale:
+
+GO on assessing, not adopting. T-3055 surveyed 19 plugins on 2026-09-22 and the operator disabled four on its recommendation - confirmed disabled - yet the enabled count went 13 to 15, not 13 to 9, because SIX plugins absent from that survey are now present: semgrep, pyright-lsp, claude-md-management, hookify, mcp-server-dev, plugin-dev. None were assessed and several look materially more relevant than anything the survey covered. semgrep is industrial static analysis while this project hand-rolls eleven-plus source-level guard checks in bash and grep. pyright-lsp would cover the Python in web/ and lib/ the way rust-analyzer now covers the crates. claude-md-management bears on a 2500-line CLAUDE.md with a documented clobber defect (T-2015, 844 lines destroyed per upgrade). mcp-server-dev and plugin-dev bear on termlink-mcp, which this repo builds. Assess each against the operator standing constraint - stand-alone, no service dependency commercial or otherwise - via claude plugin details, where an MCP server is the tell for an external call and an LSP server is a local binary. Also establish WHY the set changed: a plugin set that shifts without anyone noticing makes every survey a snapshot with an unknown shelf life, which is the more durable finding.
+
+Evidence:

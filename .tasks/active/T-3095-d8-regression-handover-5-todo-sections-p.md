@@ -10,7 +10,7 @@ description: >
 
 status: captured
 workflow_type: build
-owner:
+owner: agent
 horizon: now
 tags: [arc:arc-008]
 components: []

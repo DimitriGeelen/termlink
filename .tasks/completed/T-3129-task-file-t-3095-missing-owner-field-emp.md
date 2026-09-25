@@ -1,18 +1,19 @@
 ---
-id: T-3010
-name: "Set 90-day revisit_at on artifact.* surface decision"
+id: T-3129
+name: "Task file T-3095 missing owner field (empty frontmatter value)"
 description: >
-  S-29/C-29: the artifact.* surface was deferred with no structural reminder; set
-  revisit_at + revisit_evidence_needed per T-1451 so G-053 resurfaces it. Evidence:
-  docs/reports/VALUE-REVIEW-repo-2026-09-19-consolidated.md C-29.
+  fw audit WARN: Task T-3095-d8-regression-handover-5-todo-sections-p.md missing field:
+  owner. Inspection shows the owner: agent key exists but its value is blank, unlike
+  its sibling T-3096 (filed in the same R1S2 batch) which correctly reads owner: agent.
+  Simple data-entry omission from the R1S2 audit-remediation batch.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
-tags: [value-review, arc:arc-009]
+horizon: null
+tags: [arc:arc-008, housekeeping]
 components: []
-related_tasks: []
+related_tasks: [T-3095, T-3096]
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
@@ -23,11 +24,11 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-19T22:32:15Z
-last_update: 2026-09-25T06:04:19Z
-date_finished:
-revisit_at: 2026-12-18          # 90 days after the C-29 measurement date (2026-09-19)
-revisit_evidence_needed: "Re-measure termlink artifact.get/put call volume (hub logs / termlink_channel_cv_keys or equivalent telemetry). If still ~zero after 90+ days total, treat as a real DELETE/deprecation candidate per the value-review's original C-29 recommendation; if non-zero, close this task as no-op."
+created: 2026-09-25T06:58:07Z
+last_update: 2026-09-25T07:06:35Z
+date_finished: 2026-09-25T07:06:35Z
+# revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
+# revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
 # bvp_scores:                     # confirmed per-driver scores 0-5, set by `fw bvp confirm` (T-1924).
 #                                 # Sovereignty boundary — only set after human or agent confirmation.
@@ -37,64 +38,36 @@ revisit_evidence_needed: "Re-measure termlink artifact.get/put call volume (hub 
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 bvp_scores_proposed:
-  - ts: '2026-09-20T08:45:11Z'
+  - ts: '2026-09-25T06:59:15Z'
     estimator: bvp-estimator-v1-heuristic
     scores:
       D1: 4
-      D2: 0
+      D2: 4
       D3: 3
       D4: 2
-      F-RECALL: 0
+      F-RECALL: 1
       F-ORCH: 0
-    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
       (body:component-discoverability); D4=2 (body:env-class-handled); 
-      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
-    rubric_sha: e4a00f38e801
-cost_estimate_proposed:
-  - ts: '2026-09-20T08:45:20Z'
-    estimator: bvp-estimator-v1-heuristic
-    cost_estimate:
-      blast_radius:
-      tier: 2
-      effort: 8
-    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
-      (workflow:build); effort=8 (lines=207,acs=4)
+      F-RECALL=1 (body:episodic-only); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
 ---
 
-# T-3010: Set 90-day revisit_at on artifact.* surface decision
+# T-3129: Task file T-3095 missing owner field (empty frontmatter value)
 
 ## Context
 
-Value-review C-29 (docs/reports/VALUE-REVIEW-repo-2026-09-19-consolidated.md line 58):
-`artifact.get`/`put` is fully wired (hub + CLI + MCP) but measured at zero calls in
-34.2 days. The review's own recommendation was INVESTIGATE, not DELETE — "extend
-window to 90+ days before any verdict; no code action" — because a short sample is
-not enough evidence to remove a built capability (Directive #2: no premature,
-unverified action). T-3010 was filed (S-29h in the review's task table) specifically
-to be the structural carrier of that 90-day reminder, since without one the finding
-would sit unread in a report until someone happened to re-read it. There is no other
-existing task or concerns.yaml entry recording this deferral.
-
-The deliverable is the frontmatter fields above (`revisit_at`, `revisit_evidence_needed`)
-plus this note — not a code change. `agents/context/revisit-due-scan.sh` (T-1452/G-053)
-scans every file under `.tasks/active/` for a ripe `revisit_at`, independent of
-`workflow_type`, so this works as a build-type task exactly as it would on an
-inception. **This task intentionally stays open (not `work-completed`)** — closing
-it would move the file to `.tasks/completed/`, which the daily scan does not read,
-silently defeating the reminder it exists to carry. It is expected to sit dormant
-in `active/` until 2026-12-18, at which point the daily G-053 scan will surface it
-(`.context/working/.revisits-due.txt`) for whoever is on session then to re-measure
-call volume and decide.
+R1S2 filed T-3095/T-3096 as a matched pair (D8/D8b regressions), but T-3095's
+`owner:` frontmatter key was left blank while T-3096's correctly reads `owner: agent`.
+Filled T-3095's `owner:` to `agent` to match its sibling and the tag/type/status
+already present.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] `revisit_at` set to a valid ISO date ≥90 days after the 2026-09-19 C-29 measurement
-- [x] `revisit_evidence_needed` states exactly what re-check resolves the deferral
-- [x] Task recorded as intentionally-open (not completed) so `.tasks/active/`-only
-      scan (`revisit-due-scan.sh`) can still find it on the revisit date
+- [x] T-3095's `owner:` field set to `agent`
+- [x] fw audit's "missing field: owner" WARN for T-3095 clears on re-run
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -130,6 +103,9 @@ call volume and decide.
 -->
 
 ## Verification
+
+grep -q "^owner: agent" .tasks/active/T-3095-d8-regression-handover-5-todo-sections-p.md
+
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -190,10 +166,6 @@ call volume and decide.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
-grep -q "^revisit_at: 2026-12-18" .tasks/active/T-3010-set-90-day-revisitat-on-artifact-surface.md
-grep -q "^revisit_evidence_needed:" .tasks/active/T-3010-set-90-day-revisitat-on-artifact-surface.md
-python3 -c "import yaml,re; body=open('.tasks/active/T-3010-set-90-day-revisitat-on-artifact-surface.md').read(); fm=body.split('---')[1]; d=yaml.safe_load(fm); assert d['revisit_at'].isoformat() == '2026-12-18', d['revisit_at']"
-
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -211,6 +183,14 @@ python3 -c "import yaml,re; body=open('.tasks/active/T-3010-set-90-day-revisitat
 -->
 
 ## Evolution
+
+### 2026-09-25 — reproduced the same defect live via fw task update
+- **What changed:** filed as a simple data-entry typo fix, but running
+  `fw task update T-3129 --status started-work` moments later blanked THIS
+  task's own `owner:` field the same way, proving it is a live, reproducible
+  tool behavior rather than a one-off filing mistake in T-3095.
+- **Plan impact:** none for this task (owner re-fixed by hand both times).
+- **Triggered:** filed T-3130 to bisect the reproducible root cause.
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
@@ -265,18 +245,14 @@ python3 -c "import yaml,re; body=open('.tasks/active/T-3010-set-90-day-revisitat
 
 ## Decisions
 
-### 2026-09-25 — Where the revisit reminder lives, and whether to close this task
-- **Chose:** Set `revisit_at`/`revisit_evidence_needed` directly on T-3010's own
-  frontmatter and leave the task open in `.tasks/active/` (status `started-work`,
-  not `work-completed`).
-- **Why:** `revisit-due-scan.sh` only scans `.tasks/active/*.md`; closing the task
-  would move it to `completed/` and silently defeat the reminder. T-3010 is already
-  the task the value-review filed specifically to carry this deferral (S-29h/C-29),
-  so there is no separate "real" decision task to attach the fields to instead.
-- **Rejected:** Registering a new `concerns.yaml` entry with its own revisit
-  mechanism — rejected because no such mechanism exists for `concerns.yaml` entries
-  today (only tasks are scanned), and inventing one would be new-tooling scope well
-  beyond a 90-day-reminder task.
+<!-- Record decisions ONLY when choosing between alternatives.
+     Skip for tasks with no meaningful choices.
+     Format:
+     ### [date] — [topic]
+     - **Chose:** [what was decided]
+     - **Why:** [rationale]
+     - **Rejected:** [alternatives and why not]
+-->
 
 ## Decision
 
@@ -290,14 +266,22 @@ python3 -c "import yaml,re; body=open('.tasks/active/T-3010-set-90-day-revisitat
 
 ## Updates
 
-### 2026-09-19T22:32:15Z — task-created [task-create-agent]
+### 2026-09-25T06:58:07Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3010-set-90-day-revisitat-on-artifact-surface.md
+- **Output:** /opt/termlink/.tasks/active/T-3129-task-file-t-3095-missing-owner-field-emp.md
 - **Context:** Initial task creation
 
-### 2026-09-19T22:35:37Z — status-update [task-update-agent]
-- **Change:** tags: +arc:arc-009
-
-### 2026-09-25T05:51:51Z — status-update [task-update-agent]
+### 2026-09-25T06:59:14Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
-- **Change:** horizon: later → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-9dce11a8
+- **Timestamp:** 2026-09-25T07:06:37Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-09-25T07:06:35Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

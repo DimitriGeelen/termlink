@@ -12354,3 +12354,73 @@ scan_id: R-b2a433f8
 task_id: T-2998
 payload:
   task_file: .tasks/active/T-2998-governance-artifact-archival-90d-handove.md
+---
+kind: scan_emitted
+timestamp: '2026-09-25T06:52:49Z'
+scan_id: R-c2158d5d
+task_id: T-3075
+payload:
+  overall: CONCERN
+  finding_count: 2
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-25T06:52:49Z'
+scan_id: R-c2158d5d
+task_id: T-3075
+payload:
+  task_file: .tasks/active/T-3075-sidecar-api---separate-respawning-proces.md
+---
+kind: recommendation_claims_verdict
+timestamp: '2026-09-25T06:52:49Z'
+scan_id: RC-fc5b600f
+task_id: T-3075
+payload:
+  overall: CONFIRMED
+  claim_count: 4
+---
+kind: scan_emitted
+timestamp: '2026-09-25T06:53:05Z'
+scan_id: R-cc10cd22
+task_id: T-3076
+payload:
+  overall: CONCERN
+  finding_count: 2
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-25T06:53:05Z'
+scan_id: R-cc10cd22
+task_id: T-3076
+payload:
+  task_file: .tasks/active/T-3076-binary-blob-on-the-notify-rail-via-artif.md
+---
+kind: recommendation_claims_verdict
+timestamp: '2026-09-25T06:53:05Z'
+scan_id: RC-41c53749
+task_id: T-3076
+payload:
+  overall: CONTRADICTED
+  claim_count: 5
+---
+kind: scan_emitted
+timestamp: '2026-09-25T07:06:37Z'
+scan_id: R-9dce11a8
+task_id: T-3129
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-25T07:06:37Z'
+scan_id: R-9dce11a8
+task_id: T-3129
+payload:
+  task_file: .tasks/active/T-3129-task-file-t-3095-missing-owner-field-emp.md

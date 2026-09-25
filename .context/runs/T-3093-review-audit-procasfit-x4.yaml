@@ -128,29 +128,51 @@ steps:
   result_file: .context/runs/T-3093-R2S1-handback.md
   dispatched_utc: '2026-09-25T08:06:00Z'
   fed_with: R1S3 handback inlined (19073B)
-  completed_utc: '2026-09-25T08:35:00Z'
-  completed_note: 'Halted at Phase 5 [ASK] per known_gates — COMPLETE not failed. Ninth value-review
-    pass overall, second in this sequence; ran as a delta round per R1S1''s own precedent. Closed
-    out all 3 of R1S1''s carried INVESTIGATE items: invocation-audit growth (falsified — still
-    stalled at 4 records ~7h later, filed R2-F1 ADD); 30/31 long-lived mcp-serve processes confirmed
-    legitimate via pts/who cross-check (R2-F3, KEEP), 1 anomalous no-tty process left INVESTIGATE
-    (R2-F4); DEFER-inception revisit_at coverage confirmed working-as-designed (field set at decide
-    time, not before). Surfaced one new finding organically: the run record''s own cross_step_findings
-    G-087-class "budget-status stale" note turned out to be a 4th recurrence of an already-3x-closed
-    defect (T-2950/T-3018/T-3034) but in a genuinely new concurrent-orchestrated-worker framing
-    CLAUDE.md doesn''t document — filed R2-F2 (ADD-SURFACE, one CLAUDE.md paragraph). Carried R1-F1/F1b
-    (4 unused Cargo deps) forward unchanged, still pending R1S1''s original [ASK], not re-litigated.
-    No Sovereign question reopened; no new one raised. See docs/reports/VALUE-REVIEW-repo-2026-09-25-R2.md
+  completed_utc: '2026-09-25T08:40:00Z'
+  completed_note: 'Halted at Phase 5 [ASK] per known_gates — COMPLETE not failed. Ninth value-review pass
+    overall, second in this sequence; ran as a delta round per R1S1''s own precedent. Closed out all 3
+    of R1S1''s carried INVESTIGATE items: invocation-audit growth (falsified — still stalled at 4 records
+    ~7h later, filed R2-F1 ADD); 30/31 long-lived mcp-serve processes confirmed legitimate via pts/who
+    cross-check (R2-F3, KEEP), 1 anomalous no-tty process left INVESTIGATE (R2-F4); DEFER-inception revisit_at
+    coverage confirmed working-as-designed (field set at decide time, not before). Surfaced one new finding
+    organically: the run record''s own cross_step_findings G-087-class "budget-status stale" note turned
+    out to be a 4th recurrence of an already-3x-closed defect (T-2950/T-3018/T-3034) but in a genuinely
+    new concurrent-orchestrated-worker framing CLAUDE.md doesn''t document — filed R2-F2 (ADD-SURFACE,
+    one CLAUDE.md paragraph). Carried R1-F1/F1b (4 unused Cargo deps) forward unchanged, still pending
+    R1S1''s original [ASK], not re-litigated. No Sovereign question reopened; no new one raised. See docs/reports/VALUE-REVIEW-repo-2026-09-25-R2.md
     + -evidence.md.'
 - id: R2S2
   round: 2
   step: 2
   prompt: audit_remediation
-  state: pending
-  worker: null
+  state: complete-partial
+  worker: t3093-r2s2-audit
   fed_by: R2S1
   feeds: R2S3
   result_file: .context/runs/T-3093-R2S2-handback.md
+  dispatched_utc: '2026-09-25T08:52:00Z'
+  fed_with: R2S1 handback inlined + explicit T-3127 budget-status warning
+  completed_note: 'Cycle 1 of 3 only (stopped near the mandate''s ~300k context ceiling per
+    checkpoint.sh status, not the shared .budget-status file — heeded this run''s own T-3127
+    warning). Reused arc-008 (already existed, 63 tasks from prior runs). Ran fresh fw audit
+    (400 pass/86 warn/3 fail) and reconciled against arc-008''s existing 63 tasks: most
+    WARN/FAIL lines were already covered by unworked backlog (30 tasks) from R1S2''s cycle 1.
+    Filed 6 new tasks for genuinely new/regressed findings: T-3128 (CTL-003 budget-status
+    staleness, root-cause-linked to T-3127, fixed via a CLAUDE.md doc addition — the vendored
+    check itself cannot be fixed locally), T-3129 (T-3095''s blank owner field, fixed and
+    closed work-completed), T-3130 (INVESTIGATE — reproduced fw task update --status blanking
+    the owner field live on T-3129 itself, not yet bisected), T-3131 (fabric-drift residual —
+    root-caused to a genuine extension-stripping slug-collision bug in vendored
+    register.sh, mitigated with a manually-authored disambiguated card, verified via fw
+    fabric drift), T-3132 (CTL-029 bundle, 26 tasks completable-not-closed, correctly parked
+    per the Human Task Completion Rule rather than bulk-closed), T-3133 (uncommitted-changes
+    snapshot, resolved by this step''s own closing commit). Findings reconciliation: 92 audit
+    WARN+FAIL lines this cycle, all traced to either existing arc-008 tasks (86) or one of
+    the 6 new tasks (6) — zero left outside the arc. Scored all 6 new tasks with fw bvp
+    estimate. Did not attempt Step 5 quadrant prioritization or Step 6 execution of the
+    pre-existing 30-task backlog — budget was consumed by the audit run itself (~13min
+    wall-clock) plus reconciling/filing the 6 new findings faithfully. Cycles 2/3 not run.
+    Committed as (this step''s closing commit).'
 - id: R2S3
   round: 2
   step: 3
@@ -222,3 +244,20 @@ cross_step_findings:
   workers - R1S2 and R1S3 both saw ~504K there against a real per-session ~169K, and both fell back to
   checkpoint.sh status. That is the G-087 false-healthy class inverted: not a plausible zero, a plausible
   panic. Worth its own task.'
+state_changes_during_run:
+- ts: '2026-09-25T09:20:00Z'
+  what: 'OPERATOR made the inception decisions via Watchtower: T-3075 GO and T-3076 GO.'
+  significance: This is the human-only Tier-0 gate that blocked arc-011 across ALL FOUR rounds of T-3089
+    and the first four steps of this sequence. arc-011 is no longer blocked, so the mandate's 'prefer
+    an arc already in flight' now points AT it rather than past it.
+  immediate_consequence: 'check-arc-slice-drift.sh now FIRES (verified rc=1) on S1, S2 and S12: their
+    tasks are COMPLETED but the slices still read unbuilt. Second unprompted live catch for that guard.'
+  but_read_it_correctly: The drift is REAL but its cause differs from what the guard's remediation text
+    assumes. The text says 'correct the slice status to match what shipped' - nothing shipped. These were
+    INCEPTIONS that went GO, so the slices are genuinely unbuilt. The correct fix is CLAUDE.md:3098 -
+    create separate build tasks after a GO and re-point the slices at them. Do NOT mark the slices built.
+  carried_constraint: 'Operator ruling SQ-8 still binds the S1/S12 build: systemd-only respawn is REJECTED,
+    a portable fallback is REQUIRED. The GO is on the inception, not on a systemd-only design.'
+  not_acted_on_here: R2S2 is mid-flight. Creating tasks now means two writers allocating IDs by scanning
+    .tasks/ - the T-2800 collision defect. Left for R2S3 (procAsFit), whose job this precisely is, and
+    fed to it explicitly.
