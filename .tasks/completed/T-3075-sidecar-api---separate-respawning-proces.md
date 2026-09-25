@@ -4,10 +4,10 @@ name: "Sidecar API - separate respawning process independent of the hub"
 description: >
   Inception: Sidecar API - separate respawning process independent of the hub
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: [arc:arc-011]
 components:
   - scripts/notify-sidecar-api.sh
@@ -17,8 +17,8 @@ components:
   - docs/design/arc-011-sidecar-api-architecture.md
 related_tasks: []
 created: 2026-09-22T14:24:30Z
-last_update: '2026-09-25T00:07:07Z'
-date_finished:
+last_update: 2026-09-25T06:52:47Z
+date_finished: 2026-09-25T06:52:47Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -193,15 +193,15 @@ writing any of this code before a GO decision (Inception Discipline).
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -274,7 +274,37 @@ even `fw inception decide --help`).
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO
+
+Rationale:
+
+GO on the ANALYSIS, not a build. (Updated 2026-09-24.) IW-2 — TermLink or AEF —
+is now RESOLVED (SQ-1, arc-011.yaml, operator, 2026-09-23): the injector stays
+in TermLink as a primitive, not an orchestration engine. That resolution
+carries IW-1: the operator kept this work in TermLink specifically under a
+"primitive, not orchestration engine" framing, which is only charter-consistent
+under the LOCAL-CONTROL reading described in
+`docs/design/arc-011-sidecar-api-architecture.md` §6 — so IW-1 is answered
+(no charter violation, conditional on staying inside the §6 bright line, which
+a future tripwire test should enforce rather than merely document). IW-3 has a
+defensible analytical answer in the same doc §3. IW-4 (portable respawn) is
+the one item with no existing operator ruling anywhere — surfaced above as a
+live Sovereign question, not decided here. This task is ready for
+`fw inception decide T-3075 go` once the human either answers IW-4 or accepts
+it as a build-time detail to settle inside the follow-up build task; this
+agent cannot invoke that verb itself (Tier-0, confirmed by the gate refusing
+even `fw inception decide --help`).
+
+Evidence:
+- `docs/design/arc-011-sidecar-api-architecture.md` §1-§9 — full charter/AEF
+  analysis, written 2026-09-22, re-checked against SQ-1's resolution today.
+- `.context/arcs/arc-011.yaml` SQ-1 — operator resolution text, verbatim.
+- `crates/termlink-hub/tests/no_federation_tripwire.rs` (T-2569) — the existing
+  enforcement mechanism a future local-control tripwire would mirror.
+
+**Date**: 2026-09-25T06:52:47Z
 
 ## Updates
 
@@ -286,3 +316,68 @@ even `fw inception decide --help`).
 
 ### 2026-09-22T14:27:42Z — status-update [task-update-agent]
 - **Change:** tags: +arc:arc-011
+
+### 2026-09-25T06:52:47Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+
+Rationale:
+
+GO on the ANALYSIS, not a build. (Updated 2026-09-24.) IW-2 — TermLink or AEF —
+is now RESOLVED (SQ-1, arc-011.yaml, operator, 2026-09-23): the injector stays
+in TermLink as a primitive, not an orchestration engine. That resolution
+carries IW-1: the operator kept this work in TermLink specifically under a
+"primitive, not orchestration engine" framing, which is only charter-consistent
+under the LOCAL-CONTROL reading described in
+`docs/design/arc-011-sidecar-api-architecture.md` §6 — so IW-1 is answered
+(no charter violation, conditional on staying inside the §6 bright line, which
+a future tripwire test should enforce rather than merely document). IW-3 has a
+defensible analytical answer in the same doc §3. IW-4 (portable respawn) is
+the one item with no existing operator ruling anywhere — surfaced above as a
+live Sovereign question, not decided here. This task is ready for
+`fw inception decide T-3075 go` once the human either answers IW-4 or accepts
+it as a build-time detail to settle inside the follow-up build task; this
+agent cannot invoke that verb itself (Tier-0, confirmed by the gate refusing
+even `fw inception decide --help`).
+
+Evidence:
+- `docs/design/arc-011-sidecar-api-architecture.md` §1-§9 — full charter/AEF
+  analysis, written 2026-09-22, re-checked against SQ-1's resolution today.
+- `.context/arcs/arc-011.yaml` SQ-1 — operator resolution text, verbatim.
+- `crates/termlink-hub/tests/no_federation_tripwire.rs` (T-2569) — the existing
+  enforcement mechanism a future local-control tripwire would mirror.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-c2158d5d
+- **Timestamp:** 2026-09-25T06:52:49Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 2
+
+**Verification-level findings:**
+
+  1. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-1
+     - evidence: `IW-1 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+  2. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-3
+     - evidence: `IW-3 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+
+## Recommendation Verdict (v1.0)
+
+- **Scan ID:** RC-fc5b600f
+- **Timestamp:** 2026-09-25T06:52:49Z
+- **Overall:** CONFIRMED
+- **Claims:** 4
+
+| Claim | Type | Status |
+|-------|------|--------|
+| `docs/design/arc-011-sidecar-api-architecture.md` | file | ✓ pass |
+| `.context/arcs/arc-011.yaml` | file | ✓ pass |
+| `crates/termlink-hub/tests/no_federation_tripwire.rs` | file | ✓ pass |
+| `T-2569` | task | ✓ pass |
+
+### 2026-09-25T06:52:47Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
