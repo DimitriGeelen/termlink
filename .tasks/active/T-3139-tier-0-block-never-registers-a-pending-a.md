@@ -1,10 +1,34 @@
 ---
 id: T-3139
-name: "Tier-0 block never registers a pending approval — the human is told to approve something that was never queued"
+name: "Tier-0 block never registers a pending approval — the human is told to approve
+  something that was never queued"
 description: >
-  Reported by the operator: 'There is nothing for me to approve in approval route.' Confirmed, and it is two defects. DEFECT 1, the serious one: a Tier-0 PreToolUse block tells the agent to have the human approve in Watchtower or via fw tier0 approve, but the blocked command is NOT written to .context/working/.tier0-approval.pending. Measured: an agent inception-decide attempt was blocked at about 09:51 UTC and created no pending entry; the only entry present was hash 4f292ea1 written 08:23:56, i.e. 88 minutes earlier. So the approval surface is empty and the instruction the block prints is a dead end - the operator cannot approve what was never queued. This matters more than an ordinary broken remediation because Tier-0 IS the sovereignty boundary: an agent correctly refuses to proceed, tells the human how to authorise it, and the authorisation channel does not receive the request. The only remaining paths are the human running the command in their own shell (the hook is a Claude Code PreToolUse hook and does not gate a human terminal) or an agent bypass, which is exactly what Tier-0 exists to prevent. DEFECT 2: the pending file is never cleared on approval. Hash 4f292ea1 appears in BOTH .tier0-approval.pending (PENDING, 08:23:56) and .tier0-approval (approved, 08:24:37) - same hash, resolved 41 seconds later - and .approval-notified reads resolved-4f292ea10f30.yaml. Because the stale PENDING line survives, fw tier0 status reports 'Pending block: A command is waiting for approval' indefinitely, so a real pending block is indistinguishable from stale debris. That is the T-2556 monotonic-latch class applied to the approval surface. The writer is .agentic-framework/bin/fw - VENDORED, so per G-062 this is filed upstream, not patched locally. Note T-608 already produced a report on the tier0 approval surface; whether this is a regression against it or was never covered needs checking before a fix is proposed.
+  Reported by the operator: 'There is nothing for me to approve in approval route.'
+  Confirmed, and it is two defects. DEFECT 1, the serious one: a Tier-0 PreToolUse
+  block tells the agent to have the human approve in Watchtower or via fw tier0 approve,
+  but the blocked command is NOT written to .context/working/.tier0-approval.pending.
+  Measured: an agent inception-decide attempt was blocked at about 09:51 UTC and created
+  no pending entry; the only entry present was hash 4f292ea1 written 08:23:56, i.e.
+  88 minutes earlier. So the approval surface is empty and the instruction the block
+  prints is a dead end - the operator cannot approve what was never queued. This matters
+  more than an ordinary broken remediation because Tier-0 IS the sovereignty boundary:
+  an agent correctly refuses to proceed, tells the human how to authorise it, and
+  the authorisation channel does not receive the request. The only remaining paths
+  are the human running the command in their own shell (the hook is a Claude Code
+  PreToolUse hook and does not gate a human terminal) or an agent bypass, which is
+  exactly what Tier-0 exists to prevent. DEFECT 2: the pending file is never cleared
+  on approval. Hash 4f292ea1 appears in BOTH .tier0-approval.pending (PENDING, 08:23:56)
+  and .tier0-approval (approved, 08:24:37) - same hash, resolved 41 seconds later
+  - and .approval-notified reads resolved-4f292ea10f30.yaml. Because the stale PENDING
+  line survives, fw tier0 status reports 'Pending block: A command is waiting for
+  approval' indefinitely, so a real pending block is indistinguishable from stale
+  debris. That is the T-2556 monotonic-latch class applied to the approval surface.
+  The writer is .agentic-framework/bin/fw - VENDORED, so per G-062 this is filed upstream,
+  not patched locally. Note T-608 already produced a report on the tier0 approval
+  surface; whether this is a regression against it or was never covered needs checking
+  before a fix is proposed.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -22,8 +46,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-25T09:52:54Z
-last_update: 2026-09-25T09:52:54Z
-date_finished: null
+last_update: 2026-09-25T09:58:13Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,6 +58,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-09-25T09:58:14Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3139: Tier-0 block never registers a pending approval — the human is told to approve something that was never queued
@@ -46,8 +84,23 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Both defects are filed upstream at `framework:pickup` with the measured evidence, and the post is verified present by reading the topic back — not by the post's own return code (T-2876)
+- [x] A local guard detects the stale-`PENDING` latch (defect 2), carries `# guard-layer: source`, and is discovered by `run-guard-layer.sh --list` — detection that survives a re-vendor, since the writer is vendored and must not be patched (G-062)
+- [x] The guard is **load-bearing**: it fires against the stale state captured today (same hash in `.tier0-approval.pending` and `.tier0-approval`) and is clean once the pending record is cleared
+- [x] Fixtures cover the firing case, the clean case, and fail-closed on an unreadable/absent state dir
+- [x] Whether this is a regression against T-608 or was never covered by it is checked and recorded — not assumed either way
+
+<!-- DEFECT 1 (the block never queues the approval) is NOT agent-fixable here: the writer
+     is vendored bin/fw. It is filed upstream and deliberately left without a local
+     workaround — a local shim would make routing around a broken sovereignty gate
+     look routine, which is the operator's stated objection. -->
+
+### Human
+- [ ] [REVIEW] Confirm the upstream filing is the right route, or direct a different one
+  **Steps:**
+  1. `cd /opt/termlink && termlink channel subscribe framework:pickup --from <offset> --limit 1`
+  **Expected:** the two-defect report is present and legible
+  **If not:** say so and I will re-file or route it differently
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -83,6 +136,10 @@ date_finished: null
 -->
 
 ## Verification
+
+bash tests/tier0-approval-latch-fixtures.sh > /tmp/.t3139-fx 2>&1 && grep -q "0 failed" /tmp/.t3139-fx
+bash scripts/run-guard-layer.sh --list > /tmp/.t3139-list 2>&1 && grep -q "check-tier0-approval-latch.sh" /tmp/.t3139-list
+grep -q "not detectable here" scripts/check-tier0-approval-latch.sh
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -239,3 +296,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3139-tier-0-block-never-registers-a-pending-a.md
 - **Context:** Initial task creation
+
+### 2026-09-25T09:58:13Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

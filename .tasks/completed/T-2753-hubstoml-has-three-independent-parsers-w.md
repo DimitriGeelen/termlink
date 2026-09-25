@@ -7,16 +7,16 @@ description: >
   same file. Same shape as the three artifact lists T-2751 closed. Options: cross-check,
   consolidate, or accept-and-document. Found while declining herdr rank 21 (T-2752).
 
-status: work-completed
+status: started-work
 workflow_type: inception
 owner: agent
-horizon: null
+horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-08-15T21:38:37Z
-last_update: 2026-09-25T09:58:04Z
-date_finished: 2026-09-25T09:58:04Z
+last_update: 2026-09-18T19:39:48Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -129,15 +129,15 @@ whether a remedy is warranted now. OUT: implementing any consolidation or parity
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [x] Problem statement validated
+- [ ] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [x] Assumptions tested
+- [ ] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [x] Recommendation written with rationale
+- [ ] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [x] [REVIEW] Review exploration findings and approve go/no-go decision
+- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -186,11 +186,7 @@ whether a remedy is warranted now. OUT: implementing any consolidation or parity
 
 ## Decision
 
-**Decision**: GO
-
-**Rationale**: The triplication is real and measured (toml-crate loader in termlink-cli/src/config.rs, hand-rolled substring parser in termlink-mcp/src/tools.rs with no section-parsing unit tests, ~11 shell greppers, feeding ~24 Rust call sites and ~15 MCP paths), but no divergence has been OBSERVED — the risk is structural, not a reported defect. DEFER rather than GO because the right remedy is genuinely undecided: a cross-check asserting all three see the same profile set may be cheaper and safer than consolidating MCP onto the CLI loader, and consolidating blind could remove a dependency-avoidance rationale nobody has verified. Revisit when a CLI-vs-MCP fleet-membership disagreement is actually observed, or when hubs.toml gains a new field (the moment three parsers must change together).
-
-**Date**: 2026-09-25T09:58:02Z
+<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
 
 ## Updates
 
@@ -200,49 +196,3 @@ whether a remedy is warranted now. OUT: implementing any consolidation or parity
 ### 2026-09-18T18:45:11Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: later → now (auto-sync)
-
-### 2026-09-25T09:57:23Z — inception-decision [inception-workflow]
-- **Action:** Recorded inception decision
-- **Decision:** DEFER
-- **Rationale:** IW-1 answered, IW-2 deferred per the task's recorded recommendation
-
-### 2026-09-25T09:57:23Z — status-update [task-update-agent]
-- **Change:** horizon: now → later
-- **Change:** status: started-work → captured (auto-sync)
-- **Reason:** Inception decision: DEFER — parking task
-
-### 2026-09-25T09:58:02Z — inception-decision [inception-workflow]
-- **Action:** Recorded inception decision
-- **Decision:** GO
-- **Rationale:** The triplication is real and measured (toml-crate loader in termlink-cli/src/config.rs, hand-rolled substring parser in termlink-mcp/src/tools.rs with no section-parsing unit tests, ~11 shell greppers, feeding ~24 Rust call sites and ~15 MCP paths), but no divergence has been OBSERVED — the risk is structural, not a reported defect. DEFER rather than GO because the right remedy is genuinely undecided: a cross-check asserting all three see the same profile set may be cheaper and safer than consolidating MCP onto the CLI loader, and consolidating blind could remove a dependency-avoidance rationale nobody has verified. Revisit when a CLI-vs-MCP fleet-membership disagreement is actually observed, or when hubs.toml gains a new field (the moment three parsers must change together).
-
-### 2026-09-25T09:58:03Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
-- **Change:** horizon: later → now (auto-sync)
-- **Reason:** Inception decision in progress
-
-## Reviewer Verdict (v1.5)
-
-- **Scan ID:** R-9c14bb40
-- **Timestamp:** 2026-09-25T09:58:05Z
-- **Catalogue:** v1.3-seed
-- **Overall:** CONCERN
-- **Needs Human:** no
-- **Findings:** 1
-
-**Verification-level findings:**
-
-  1. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-1
-     - evidence: `IW-1 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
-
-## Recommendation Verdict (v1.0)
-
-- **Scan ID:** RC-3aba3f32
-- **Timestamp:** 2026-09-25T09:58:05Z
-- **Overall:** UNVERIFIED
-- **Claims:** 0
-- No verifiable claims found in ## Recommendation
-
-### 2026-09-25T09:58:04Z — status-update [task-update-agent]
-- **Change:** status: started-work → work-completed
-- **Reason:** Inception decision: GO
