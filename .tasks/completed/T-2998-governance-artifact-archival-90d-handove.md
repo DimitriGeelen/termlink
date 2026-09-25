@@ -6,10 +6,10 @@ description: >
   audits) to bound working-set size. Evidence: docs/reports/VALUE-REVIEW-repo-2026-09-19-consolidated.md
   C-25.
 
-status: captured
+status: work-completed
 workflow_type: refactor
 owner: agent
-horizon: next
+horizon: null
 tags: [value-review, arc:arc-009]
 components: []
 related_tasks: []
@@ -24,8 +24,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-19T22:21:14Z
-last_update: '2026-09-20T08:45:20Z'
-date_finished:
+last_update: 2026-09-25T06:03:14Z
+date_finished: 2026-09-25T06:03:14Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -66,14 +66,25 @@ cost_estimate_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Value-review C-25: `.context/handovers` (59MB/1,706 files at review time) and
+`.context/audits` are growing unboundedly against a ~6MB product-source baseline,
+a 24:1 touch ratio. Recommendation: REFACTOR — apply this project's own T-2562
+retention discipline (archive, never delete) to its own filesystem trees, the
+same way T-2562 already bounds TermLink channel topics. New script
+`scripts/archive-governance-artifacts.sh` relocates (does not delete or modify
+content of) files older than 90 days, by filename-embedded date (never mtime —
+several long-lived reference docs in this corpus have no date in their name and
+must not be touched on an mtime guess, e.g. `orchestrator-mcp-baseline.yaml`,
+`arc-008-cycle*-census.md`), into a same-directory `archive/` subtree preserving
+relative structure. `LATEST*` pointers and symlinks are never touched.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `scripts/archive-governance-artifacts.sh` exists, supports `--dry-run`/`--json`, and was dry-run-verified before any real move
+- [x] Real run executed: files older than 90 days moved (via `git mv` for tracked files, plain `mv` for gitignored ones) into `<dir>/archive/...`; `LATEST*` pointers, symlinks, and undated reference docs left untouched
+- [x] `git status` shows the moves as renames (`R`) for tracked files, not delete+add, confirming content/history is preserved
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -169,6 +180,14 @@ cost_estimate_proposed:
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+test -x scripts/archive-governance-artifacts.sh
+bash scripts/archive-governance-artifacts.sh --dry-run --json > /tmp/.t2998out 2>&1 && grep -q '"ok": true' /tmp/.t2998out
+test -d .context/handovers/archive
+test -d .context/audits/archive
+test -f .context/handovers/LATEST.md
+test -f .context/audits/discoveries/LATEST.yaml
+git status --porcelain .context/handovers .context/audits > /tmp/.t2998status 2>&1 && grep -q "^R" /tmp/.t2998status
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -208,6 +227,32 @@ cost_estimate_proposed:
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-09-25 — mtime vs filename-date, and a guard-layer marker mistake caught before shipping
+- **What changed:** The original filing implied a straightforward "files older than
+  90 days" sweep. Reading the actual corpus surfaced two things not visible from
+  the task description: (1) several long-lived reference docs
+  (`orchestrator-mcp-baseline.yaml`, `arc-008-cycle*-census.md`, `upgrades.yaml`)
+  have no date in their filename and would have been silently mis-archived on an
+  mtime fallback (the exact T-2801/T-2811 mtime-is-unreliable class this repo's
+  own CLAUDE.md warns about repeatedly) — the script instead skips undated files
+  entirely rather than guessing; (2) `.context/audits/cron/` is gitignored, so a
+  naive `git mv -k || mv` fallback silently no-ops on those files (verified by
+  hand in a throwaway repo before running for real) — fixed by checking
+  `git ls-files --error-unmatch` explicitly instead of trusting `-k`'s exit code.
+- **Plan impact:** Also caught and removed an incorrect `# guard-layer: source`
+  marker on the new script before committing — it mutates the filesystem
+  (disqualifying it from guard-layer's "safe to run anywhere, no host state"
+  contract) and would never have been picked up anyway since
+  `run-guard-layer.sh` only globs `scripts/check-*.sh` by name.
+- **Triggered:** No new sub-tasks. The 90-day sweep reduced `.context/handovers`
+  active size from 61MB to 31MB and `.context/audits` active size from ~8.8MB to
+  ~5.9MB (1269 files moved total) — short of C-25's own back-of-envelope
+  "<20MB active" framing for handovers, because the corpus has grown since that
+  estimate was made (1,706 files → 1,933 in five weeks) and a fixed 90-day window
+  does not scale with corpus growth. Re-running this script periodically (or on
+  a cron, out of scope for this task) will continue shrinking the active set as
+  more content ages past the cutoff.
 
 ## Recommendation
 
@@ -268,3 +313,19 @@ cost_estimate_proposed:
 
 ### 2026-09-19T22:35:33Z — status-update [task-update-agent]
 - **Change:** tags: +arc:arc-009
+
+### 2026-09-25T05:59:10Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-b2a433f8
+- **Timestamp:** 2026-09-25T06:03:28Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-09-25T06:03:14Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

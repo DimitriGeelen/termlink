@@ -12336,3 +12336,21 @@ scan_id: R-6a61965d
 task_id: T-3108
 payload:
   task_file: .tasks/active/T-3108-7-episodics-have-empty-or-todo-summaries.md
+---
+kind: scan_emitted
+timestamp: '2026-09-25T06:03:28Z'
+scan_id: R-b2a433f8
+task_id: T-2998
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-25T06:03:28Z'
+scan_id: R-b2a433f8
+task_id: T-2998
+payload:
+  task_file: .tasks/active/T-2998-governance-artifact-archival-90d-handove.md

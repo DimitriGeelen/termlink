@@ -33,6 +33,6 @@ nothing mechanical would gate their close.
 | T-1428 | started-work | build | Foundation soak audit — T-1426 + T-1427 ship status ... | 6 | yes |
 | T-1451 | started-work | build | revisit_at frontmatter field + template update (T-14... | 6 | yes |
 | T-212 | started-work | build | Create Homebrew tap for TermLink distribution | 5 | yes |
+| T-3010 | started-work | build | Set 90-day revisit_at on artifact.* surface decision | 3 | yes |
 | T-3044 | started-work | build | Orchestrate value-review + procAsFit prompt sequence... | 4 | yes |
-| T-3108 | started-work | build | 7 episodics have empty or TODO summaries | 2 | yes |
 

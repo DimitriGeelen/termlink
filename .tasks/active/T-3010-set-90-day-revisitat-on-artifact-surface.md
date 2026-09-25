@@ -6,10 +6,10 @@ description: >
   revisit_at + revisit_evidence_needed per T-1451 so G-053 resurfaces it. Evidence:
   docs/reports/VALUE-REVIEW-repo-2026-09-19-consolidated.md C-29.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: later
+horizon: now
 tags: [value-review, arc:arc-009]
 components: []
 related_tasks: []
@@ -24,10 +24,10 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-19T22:32:15Z
-last_update: '2026-09-20T08:45:20Z'
+last_update: 2026-09-25T05:51:51Z
 date_finished:
-# revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
-# revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
+revisit_at: 2026-12-18          # 90 days after the C-29 measurement date (2026-09-19)
+revisit_evidence_needed: "Re-measure termlink artifact.get/put call volume (hub logs / termlink_channel_cv_keys or equivalent telemetry). If still ~zero after 90+ days total, treat as a real DELETE/deprecation candidate per the value-review's original C-29 recommendation; if non-zero, close this task as no-op."
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
 # bvp_scores:                     # confirmed per-driver scores 0-5, set by `fw bvp confirm` (T-1924).
 #                                 # Sovereignty boundary — only set after human or agent confirmation.
@@ -66,14 +66,35 @@ cost_estimate_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Value-review C-29 (docs/reports/VALUE-REVIEW-repo-2026-09-19-consolidated.md line 58):
+`artifact.get`/`put` is fully wired (hub + CLI + MCP) but measured at zero calls in
+34.2 days. The review's own recommendation was INVESTIGATE, not DELETE — "extend
+window to 90+ days before any verdict; no code action" — because a short sample is
+not enough evidence to remove a built capability (Directive #2: no premature,
+unverified action). T-3010 was filed (S-29h in the review's task table) specifically
+to be the structural carrier of that 90-day reminder, since without one the finding
+would sit unread in a report until someone happened to re-read it. There is no other
+existing task or concerns.yaml entry recording this deferral.
+
+The deliverable is the frontmatter fields above (`revisit_at`, `revisit_evidence_needed`)
+plus this note — not a code change. `agents/context/revisit-due-scan.sh` (T-1452/G-053)
+scans every file under `.tasks/active/` for a ripe `revisit_at`, independent of
+`workflow_type`, so this works as a build-type task exactly as it would on an
+inception. **This task intentionally stays open (not `work-completed`)** — closing
+it would move the file to `.tasks/completed/`, which the daily scan does not read,
+silently defeating the reminder it exists to carry. It is expected to sit dormant
+in `active/` until 2026-12-18, at which point the daily G-053 scan will surface it
+(`.context/working/.revisits-due.txt`) for whoever is on session then to re-measure
+call volume and decide.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `revisit_at` set to a valid ISO date ≥90 days after the 2026-09-19 C-29 measurement
+- [x] `revisit_evidence_needed` states exactly what re-check resolves the deferral
+- [x] Task recorded as intentionally-open (not completed) so `.tasks/active/`-only
+      scan (`revisit-due-scan.sh`) can still find it on the revisit date
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -169,6 +190,10 @@ cost_estimate_proposed:
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+grep -q "^revisit_at: 2026-12-18" .tasks/active/T-3010-set-90-day-revisitat-on-artifact-surface.md
+grep -q "^revisit_evidence_needed:" .tasks/active/T-3010-set-90-day-revisitat-on-artifact-surface.md
+python3 -c "import yaml,re; body=open('.tasks/active/T-3010-set-90-day-revisitat-on-artifact-surface.md').read(); fm=body.split('---')[1]; d=yaml.safe_load(fm); assert d['revisit_at'].isoformat() == '2026-12-18', d['revisit_at']"
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -240,14 +265,18 @@ cost_estimate_proposed:
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+### 2026-09-25 — Where the revisit reminder lives, and whether to close this task
+- **Chose:** Set `revisit_at`/`revisit_evidence_needed` directly on T-3010's own
+  frontmatter and leave the task open in `.tasks/active/` (status `started-work`,
+  not `work-completed`).
+- **Why:** `revisit-due-scan.sh` only scans `.tasks/active/*.md`; closing the task
+  would move it to `completed/` and silently defeat the reminder. T-3010 is already
+  the task the value-review filed specifically to carry this deferral (S-29h/C-29),
+  so there is no separate "real" decision task to attach the fields to instead.
+- **Rejected:** Registering a new `concerns.yaml` entry with its own revisit
+  mechanism — rejected because no such mechanism exists for `concerns.yaml` entries
+  today (only tasks are scanned), and inventing one would be new-tooling scope well
+  beyond a 90-day-reminder task.
 
 ## Decision
 
@@ -268,3 +297,7 @@ cost_estimate_proposed:
 
 ### 2026-09-19T22:35:37Z — status-update [task-update-agent]
 - **Change:** tags: +arc:arc-009
+
+### 2026-09-25T05:51:51Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)

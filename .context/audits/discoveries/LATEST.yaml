@@ -1,8 +1,8 @@
-timestamp: 2026-09-25T00:32:16Z
+timestamp: 2026-09-25T05:00:01Z
 findings:
   - id: D1
     level: PASS
-    check: "D1: Episodic quality — 0% [TODO] (10/2518)"
+    check: "D1: Episodic quality — 0% [TODO] (10/2519)"
   - id: D2
     level: FAIL
     check: "D2: Human review queue — 61 task(s) waiting >30d: T-1417(147d) T-1419(147d) T-1435(146d) T-1442(146d) T-1482(143d) T-1483(143d) T-1484(143d) T-1485(143d) T-1486(143d) T-1487(143d) T-1488(143d) T-1489(143d) T-1490(143d) T-1491(143d) T-1492(143d) T-1493(143d) T-1494(143d) T-1495(143d) T-1496(143d) T-1498(143d) T-1499(143d) T-1500(143d) T-1501(143d) T-1502(143d) T-1506(142d) T-1529(142d) T-1530(142d) T-1531(142d) T-1532(142d) T-1533(142d) T-1534(142d) T-1535(142d) T-1536(142d) T-1537(142d) T-1557(142d) T-1558(142d) T-1559(142d) T-1570(142d) T-1635(132d) T-1673(130d) T-1691(129d) T-1695(103d) T-1696(129d) T-1722(121d) T-1723(121d) T-1795(125d) T-2013(103d) T-2014(103d) T-2209(103d) T-2210(103d) T-2211(103d) T-2212(103d) T-2213(103d) T-2297(84d) T-2385(77d) T-2402(75d) T-2408(75d) T-2409(32d) T-2696(16d) T-2706(28d) T-2709(28d) T-2711(28d) T-2723(40d) T-2822(32d) T-2836(32d) T-2839(29d) T-2861(25d) T-2873(22d) T-2878(23d) T-2919(16d)"
@@ -17,42 +17,9 @@ findings:
   - id: D11
     level: PASS
     check: "D11: Gap register staleness — all gaps fresh"
-  - id: D4
-    level: PASS
-    check: "D4: Audit trend — insufficient history (<3 entries)"
-  - id: D5
-    level: WARN
-    check: "D5: Task lifecycle — 33 anomaly(s): T-2486(53d-active) T-2725(40d-active) T-1137(158d-active) T-1296(151d-active) T-1428(147d-active) T-1429(147d-active) T-1451(145d-active) T-1457(144d-active) T-1665(130d-active) T-1699(129d-active) (+23 more)"
-    mitigation: "Review flagged tasks for process issues"
-  - id: D13
-    level: WARN
-    check: "D13: Inception limbo — 1 task(s): A=1/B=0 T-1635(A:1hu)"
-    mitigation: "Recover both classes with: bin/fw inception sweep (T-1514)"
-  - id: D3
-    level: PASS
-    check: "D3: Commit velocity — normal (PASS today=10 avg=34 ratio=0.3x)"
-  - id: D7
-    level: PASS
-    check: "D7: Commit bunching — detected (INFO 1_bunch(es) 33_commits_24h)"
-  - id: D6
-    level: PASS
-    check: "D6: Completion velocity — normal (PASS recent=7.0 earlier=10.4)"
-  - id: D12
-    level: PASS
-    check: "D12: Bypass log — no log file"
-  - id: D9
-    level: PASS
-    check: "D9: Control drift — normal (PASS 10_audits_checked)"
-  - id: D14
-    level: WARN
-    check: "D14: Empty inception Recommendation — 17_empty: T-2862 T-2864 T-2867 T-2898 T-2907 (+12 more)"
-    mitigation: "Fill ## Recommendation block with **Recommendation:** + rationale before decide"
-  - id: D15
-    level: PASS
-    check: "D15: Inception limbo state — none (PASS no_limbo)"
 
 summary:
-  pass: 10
-  warn: 3
+  pass: 3
+  warn: 0
   fail: 2
-  total: 15
+  total: 5
