@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3150: decisions.yaml auto-capture corruption RECURRED on T-3087 — deterministic, not a one-off
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-25T21:31:20Z
+# ============================================================================
+
+task_id: T-3150
+task_name: "decisions.yaml auto-capture corruption RECURRED on T-3087 — deterministic, not a one-off"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-25T21:27:33Z
+completed: 2026-09-25T21:31:12Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  decisions.yaml auto-capture corruption RECURRED on T-3087 — deterministic, not a one-off
+
+# Key outcomes
+outcomes:
+  - '`.context/project/decisions.yaml` parses as YAML again, and the pre-push audit gate stops blocking.'
+  - 'The three T-3087 entries are repaired in all three respects the vendored auto-capture got wrong: correct **indentation** (column 0, matching every other entry), correct **IDs** continuing the sequence (PD-170/171/172, not a reset to PD-001), and the **full decision text** restored from the task file rather than truncated at the first line.'
+  - 'No pre-existing entry is altered — the repair is confined to the malformed tail.'
+  - 'The recurrence is reported upstream at `framework:pickup` as **new evidence on the existing filing** (offset 164 from T-3146), stating that the defect is deterministic and re-fires on any task whose `## Decisions` section holds multiple entries — not the one-off the first report could have been read as.'
+  - 'The filing is verified by read-back from the topic, not assumed from a `success:true` send (T-2876).'
+  - 'The vendored `update-task.sh` is **not** patched locally (G-062).'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 3
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3150-decisionsyaml-auto-capture-corruption-re.md
+generated_by: context-agent-hybrid

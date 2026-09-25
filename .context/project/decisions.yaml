@@ -1232,3 +1232,24 @@ decisions:
   date: 2026-09-25
   task: T-3145
   rationale: "Repaired by T-3146 — auto-capture emitted this indented, mis-numbered PD-001, and truncated at the first line."
+
+- id: PD-170
+  decision: "keep main's `is_cron_scheduled()` (anchors on `\\.<name>\\.log`, fails OPEN on an absent cron dir, consulted only inside the STALE branch) and REJECT the source branch's `crontab_declares()`. Three reasons: the log-filename anchor cannot be satisfied by a canary merely mentioned in a crontab comment, whereas a bare-name grep can; failing open keeps the prior behaviour when the check cannot tell, whereas failing closed would mass-downgrade every genuinely STALE canary to 'not a problem' exactly when the cron dir goes missing (the vacuous-pass class, T-2831); and only downgrading something already STALE is the narrower blast radius. Nothing in the rejected variant is unavailable in the kept one, so adopting it would trade strictness for nothing. Pinned by fixtures Case 8 (fail-open direction) and Case 13 (the rejected predicate has not crept back, since two predicates would disagree silently)."
+  scope: project
+  date: 2026-09-25
+  task: T-3087
+  rationale: "Repaired by T-3150 — auto-capture emitted this indented, mis-numbered PD-001, truncated at the first line."
+
+- id: PD-171
+  decision: "apply the EXIT-trap heartbeat to every script that writes a heartbeat (31), not only the 24 the source branch touched. Main gained six such scripts after the branch forked, and check-addressed-posts.sh used a fourth block shape (a local hb variable rather than HEARTBEAT_FILE) that the sweep's anchor did not reach. Landing only the branch's 24 would have reproduced the 'hardened in one place, siblings not migrated' divergence the guard layer exists to catch. Rejected a literal git-apply of the branch patch: cleaner to review, but it would have left the six newer scripts and the fourth shape behind."
+  scope: project
+  date: 2026-09-25
+  task: T-3087
+  rationale: "Repaired by T-3150 — auto-capture emitted this indented, mis-numbered PD-002."
+
+- id: PD-172
+  decision: "for the four scripts that install their own cleanup `trap ... EXIT` later in the file (check-fleet-doorbell-mail-health, check-forever-archival-freshness, check-topic-growth-freshness, substrate-preflight), use a SELF-GUARDING helper armed early and CHAINED onto that later trap. `trap ... EXIT` replaces any previous EXIT trap, so a naive second trap at the heartbeat site would have been silently overwritten by the cleanup trap below it — stopping those four heartbeats entirely and pinning four canaries permanently STALE, a worse failure than the one being fixed and invisible until someone read /canaries a day later. Rejected moving the heartbeat into the cleanup trap only: that leaves an early exit-2, before the cleanup trap is installed, with no heartbeat at all."
+  scope: project
+  date: 2026-09-25
+  task: T-3087
+  rationale: "Repaired by T-3150 — auto-capture emitted this indented, mis-numbered PD-003, truncated at the first line."
