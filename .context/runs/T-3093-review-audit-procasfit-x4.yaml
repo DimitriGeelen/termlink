@@ -187,36 +187,42 @@ steps:
   feeds: R3S1
   result_file: .context/runs/T-3093-R2S3-handback.md
   dispatched_utc: '2026-09-25T09:57:00Z'
-  completed_utc: '2026-09-25T10:35:00Z'
-  completed_note: 'Stopped near the ~300k context ceiling (267,651 tokens/~33% per checkpoint.sh
-    immediately after this step''s commit), between tasks not mid-task. Closed T-3133 (housekeeping
-    bookkeeping only, fix already landed in R2S2). Bisected T-3130 (owner-field clobber) 3x against
-    minimal fixtures matching T-3129''s exact shape -- did NOT reproduce; rules out the auto
-    bvp-estimate rewrite and tag-insertion regex as sole cause; negative result recorded, left
-    captured/parked per the "three attempts" rule. MAIN WORK: acted on this step''s flagged
-    consequence -- arc-011 unblocked by the T-3075/T-3076 GO decisions, check-arc-slice-drift.sh
-    fired on S1/S2/S12 exactly as predicted. Read both inception tasks in full, independently
-    re-verified the underlying claims against current source (no termlink artifact CLI subcommand
-    exists; ARTIFACT_PUT/GET are real routed methods). Created T-3134 (S2, artifact CLI verbs,
-    scored hv-lc/Q1) and T-3135 (S1+S12, sidecar API + portable respawn supervisor, scored hv-hc/Q2,
-    carries operator SQ-8 ruling verbatim: systemd-only respawn REJECTED, portable fallback
-    REQUIRED). Re-pointed all three slices at the new tasks with explicit RE-POINTED notes
-    explaining the GO-was-on-analysis-not-build distinction -- did NOT mark anything built.
-    Verified: check-arc-slice-drift.sh 3 firing -> 0 firing. Flagged S12''s remaining blocker
-    (framework-agent-systemd''s systemd allowed-commands) as a T-559 cross-project item, not
-    resolved here. Did NOT execute T-3134/T-3135 -- budget consumed by scoping/scoring/re-pointing
+  completed_utc: '2026-09-25T10:40:00Z'
+  completed_note: 'Stopped near the ~300k context ceiling (267,651 tokens/~33% per checkpoint.sh immediately
+    after this step''s commit), between tasks not mid-task. Closed T-3133 (housekeeping bookkeeping only,
+    fix already landed in R2S2). Bisected T-3130 (owner-field clobber) 3x against minimal fixtures matching
+    T-3129''s exact shape -- did NOT reproduce; rules out the auto bvp-estimate rewrite and tag-insertion
+    regex as sole cause; negative result recorded, left captured/parked per the "three attempts" rule.
+    MAIN WORK: acted on this step''s flagged consequence -- arc-011 unblocked by the T-3075/T-3076 GO
+    decisions, check-arc-slice-drift.sh fired on S1/S2/S12 exactly as predicted. Read both inception tasks
+    in full, independently re-verified the underlying claims against current source (no termlink artifact
+    CLI subcommand exists; ARTIFACT_PUT/GET are real routed methods). Created T-3134 (S2, artifact CLI
+    verbs, scored hv-lc/Q1) and T-3135 (S1+S12, sidecar API + portable respawn supervisor, scored hv-hc/Q2,
+    carries operator SQ-8 ruling verbatim: systemd-only respawn REJECTED, portable fallback REQUIRED).
+    Re-pointed all three slices at the new tasks with explicit RE-POINTED notes explaining the GO-was-on-analysis-not-build
+    distinction -- did NOT mark anything built. Verified: check-arc-slice-drift.sh 3 firing -> 0 firing.
+    Flagged S12''s remaining blocker (framework-agent-systemd''s systemd allowed-commands) as a T-559
+    cross-project item, not resolved here. Did NOT execute T-3134/T-3135 -- budget consumed by scoping/scoring/re-pointing
     before either could be safely started without risking a mid-task stop. Committed as f80a14913.'
   fed_with: R2S2 handback + the arc-011 UNBLOCK (operator GO on T-3075/T-3076) + the slice-drift reading
     correction + the SQ-8 portable-respawn constraint
+  note: 'Resolved the S1/S2/S12 drift CORRECTLY rather than easily: created build tasks T-3134 (S2) and
+    T-3135 (S1+S12), re-pointed the slices, and left status honestly ''unbuilt'' because nothing shipped.
+    Verified by the orchestrator: drift guard now rc=0, and it is clean because the bound tasks are ACTIVE,
+    not because anything was marked built.'
+  sq8_survived: T-3135 is named '...portable...' and references the portable-respawn constraint 6 times.
+    The operator's SQ-8 ruling survived two dispatch hops intact.
 - id: R3S1
   round: 3
   step: 1
   prompt: value_review
-  state: pending
-  worker: null
+  state: dispatched
+  worker: t3093-r3s1-review
   fed_by: R2S3
   feeds: R3S2
   result_file: .context/runs/T-3093-R3S1-handback.md
+  dispatched_utc: '2026-09-25T10:42:00Z'
+  fed_with: R2S3 handback inlined
 - id: R3S2
   round: 3
   step: 2
