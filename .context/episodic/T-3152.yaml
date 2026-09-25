@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3152: Vendored lib/bvp.sh hardcodes a consumer task ID (see T-3068) in the no-cost hint — misdirects the fix for the 84% unquadranted corpus
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-25T21:53:08Z
+# ============================================================================
+
+task_id: T-3152
+task_name: "Vendored lib/bvp.sh hardcodes a consumer task ID (see T-3068) in the no-cost hint — misdirects the fix for the 84% unquadranted corpus"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-25T21:51:01Z
+completed: 2026-09-25T21:53:00Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Vendored lib/bvp.sh hardcodes a consumer task ID (see T-3068) in the no-cost hint — misdirects the fix for the 84% unquadranted corpus
+
+# Key outcomes
+outcomes:
+  - 'The defect is stated precisely: `.agentic-framework/lib/bvp.sh:369` prints `Cost becomes measurable once \`components:\` is resolved; see T-3068.` — a **consumer-project task ID hardcoded inside vendored framework code**. Task IDs are per-project, so the pointer resolves to a different task in every consumer.'
+  - 'The misdirection is **demonstrated, not asserted**: in 010-termlink, T-3068 is "Give the wake consumer a trigger: supervised standing service" (`work-completed`), which has nothing to do with cost or `components:`.'
+  - 'The impact is quantified: this hint is the ONLY guidance the tool offers for the unquadranted corpus, currently **207 of 245 tasks (84%)** — so the one signpost for fixing it points somewhere wrong.'
+  - 'Filed upstream at `framework:pickup`, and **verified by read-back from the topic** (T-2876), not assumed from the send''s own success report.'
+  - '`lib/bvp.sh` is **not patched locally** (G-062) and no entry is added to `.vendor-divergence.yaml`, because nothing local diverged.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3152-vendored-libbvpsh-hardcodes-a-consumer-t.md
+generated_by: context-agent-hybrid
