@@ -5,10 +5,12 @@ subsystem: unknown
 location: scripts/agent-listeners-fleet.sh
 tags: []
 purpose: 'TODO: describe what this component does'
-depends_on: []
+depends_on:
+- target: scripts/lib/hubs-toml-walk.sh
+  type: calls
 depended_by:
 - target: scripts/peer-presence-lookup.sh
   type: called_by
 last_verified: 2026-08-14
 created_by: unknown
-last_enriched: '2026-08-14'
+last_enriched: '2026-09-25'

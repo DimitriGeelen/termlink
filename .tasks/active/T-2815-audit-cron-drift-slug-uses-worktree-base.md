@@ -265,3 +265,9 @@ test -d /opt/002-Claude-Partner-Network                                         
 
 Both the worktree and the parent repo exist, so B is live and firing — not an orphan left by a
 deleted worktree.
+
+## Updates
+
+### 2026-09-25T00:09:54Z — audit-remediation [T-3104]
+- **Action:** Added the missing ## Updates section flagged by fw audit's task-compliance check (arc-008 T-3104)
+- **Context:** This file had dated status-update entries embedded under other headings but no Updates heading of its own

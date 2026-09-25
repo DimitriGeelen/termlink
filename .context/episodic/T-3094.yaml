@@ -1,0 +1,72 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3094: Untracked 327MB voxtype .deb sitting in repo root (fw doctor WARN)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-25T00:14:27Z
+# ============================================================================
+
+task_id: T-3094
+task_name: "Untracked 327MB voxtype .deb sitting in repo root (fw doctor WARN)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-24T23:51:01Z
+completed: 2026-09-25T00:14:18Z
+duration_days: 1
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fw doctor WARN: 327MB voxtype_0.7.5-1_amd64.deb sits untracked in the repo root. Untracked means the T-1845 large-file pre-commit gate never sees it, but doctor is right to flag it: this is exactly the G-058 shape (a huge stray binary one 'git add -A' away from entering history). Cycle-2 census (2026-09-20) explicitly chose NOT to file this WARN as a task; this run's binding constraint (one finding, one task, every WARN) requires filing it now regardless.
+
+# Key outcomes
+outcomes:
+  - '`voxtype_0.7.5-1_amd64.deb` is no longer present in the repo root'
+  - '`fw doctor` re-run no longer emits the "untracked binary file(s)" WARN for this file'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 23 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-008]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 23
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3094-untracked-327mb-voxtype-deb-sitting-in-r.md
+generated_by: context-agent-hybrid

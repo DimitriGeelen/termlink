@@ -12192,3 +12192,93 @@ scan_id: R-aa3592e1
 task_id: T-3092
 payload:
   task_file: .tasks/active/T-3092-nothing-validates-the-run-records--the-s.md
+---
+kind: scan_emitted
+timestamp: '2026-09-25T00:14:19Z'
+scan_id: R-504c2d01
+task_id: T-3094
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-25T00:14:19Z'
+scan_id: R-504c2d01
+task_id: T-3094
+payload:
+  task_file: .tasks/active/T-3094-untracked-327mb-voxtype-deb-sitting-in-r.md
+---
+kind: scan_emitted
+timestamp: '2026-09-25T00:15:10Z'
+scan_id: R-f2c0d70c
+task_id: T-3101
+payload:
+  overall: FAIL
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-25T00:15:10Z'
+scan_id: R-f2c0d70c
+task_id: T-3101
+payload:
+  task_file: .tasks/active/T-3101-fabric-coverage-335500-cards-have-no-edg.md
+---
+kind: scan_emitted
+timestamp: '2026-09-25T00:15:39Z'
+scan_id: R-87a524fb
+task_id: T-3102
+payload:
+  overall: FAIL
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-25T00:15:39Z'
+scan_id: R-87a524fb
+task_id: T-3102
+payload:
+  task_file: .tasks/active/T-3102-fabric-drift-30-source-files-have-no-fab.md
+---
+kind: scan_emitted
+timestamp: '2026-09-25T00:18:52Z'
+scan_id: R-bf6a3972
+task_id: T-3113
+payload:
+  overall: FAIL
+  finding_count: 2
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-25T00:18:52Z'
+scan_id: R-bf6a3972
+task_id: T-3113
+payload:
+  task_file: .tasks/active/T-3113-ctl-031-t-2402-stuck-partial-complete-al.md
+---
+kind: scan_emitted
+timestamp: '2026-09-25T00:19:34Z'
+scan_id: R-418c7dbb
+task_id: T-3116
+payload:
+  overall: FAIL
+  finding_count: 2
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-25T00:19:34Z'
+scan_id: R-418c7dbb
+task_id: T-3116
+payload:
+  task_file: .tasks/active/T-3116-d13-2-inception-tasks-stuck-in-limbo-dec.md

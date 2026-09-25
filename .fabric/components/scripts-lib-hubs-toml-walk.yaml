@@ -4,17 +4,19 @@ type: script
 subsystem: unknown
 location: scripts/lib/hubs-toml-walk.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
+purpose: 'TODO: describe what this component does'
+depends_on: []
 depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+- target: scripts/agent-listeners-fleet.sh
+  type: called_by
+- target: scripts/chat-arc-broadcast.sh
+  type: called_by
+- target: scripts/chat-arc-multicast.sh
+  type: called_by
+- target: scripts/check-fleet-doorbell-mail-health.sh
+  type: called_by
+- target: scripts/fleet-adoption-snapshot.sh
+  type: called_by
 last_verified: 2026-05-31
 created_by: unknown
+last_enriched: '2026-09-25'

@@ -1,4 +1,6 @@
 task_name: Refactor too_many_arguments functions into parameter structs
+summary: |
+  Refactor too_many_arguments functions into parameter structs
 chose: '[what was decided]'
 rationale: '[rationale]'
 action: 'T-836: Refactor all too_many_arguments functions into parameter structs — zero annotations remain'

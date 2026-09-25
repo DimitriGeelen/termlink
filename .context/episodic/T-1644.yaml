@@ -1,4 +1,6 @@
 task_name: 'termlink agent contact: surface agent-chat-arc fallback in pre-T-1436-peer error message'
+summary: |
+  termlink agent contact: surface agent-chat-arc fallback in pre-T-1436-peer error message
 chose: '[what was decided]'
 rationale: '[rationale]'
 action: 'T-1644: surface agent-chat-arc fallback in pre-T-1436-peer error'

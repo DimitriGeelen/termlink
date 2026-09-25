@@ -4,17 +4,19 @@ type: script
 subsystem: unknown
 location: scripts/be-reachable.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
+purpose: 'TODO: describe what this component does'
+depends_on: []
 depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+- target: scripts/bench-pushwake-latency.sh
+  type: called_by
+- target: scripts/demo-dm-rail-pushwake.sh
+  type: called_by
+- target: scripts/demo-pushwaker-e2e.sh
+  type: called_by
+- target: scripts/test-pushwaker-reap.sh
+  type: called_by
+- target: scripts/tl-claude.sh
+  type: called_by
 last_verified: 2026-05-28
 created_by: unknown
+last_enriched: '2026-09-25'

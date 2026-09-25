@@ -4,17 +4,11 @@ type: script
 subsystem: unknown
 location: scripts/fleet-adoption-snapshot.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
+purpose: 'TODO: describe what this component does'
 depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+- target: scripts/lib/hubs-toml-walk.sh
+  type: calls
+depended_by: []
 last_verified: 2026-05-28
 created_by: unknown
+last_enriched: '2026-09-25'

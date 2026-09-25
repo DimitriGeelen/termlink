@@ -3,18 +3,16 @@ name: comms-selftest-fixtures
 type: script
 subsystem: guard-layer
 location: tests/comms-selftest-fixtures.sh
-tags: [fixture-suite, comms, T-2696]
-
-purpose: "Guard-layer entry point (T-2696): exec-thin wrapper putting the hermetic comms-selftest harness (scripts/test-comms-selftest.sh, T-2482) where the runner and CI look"
-
+tags:
+- fixture-suite
+- comms
+- T-2696
+purpose: 'Guard-layer entry point (T-2696): exec-thin wrapper putting the hermetic comms-selftest harness (scripts/test-comms-selftest.sh,
+  T-2482) where the runner and CI look'
 depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+- target: scripts/test-comms-selftest.sh
+  type: calls
+depended_by: []
 last_verified: 2026-09-08
 created_by: unknown
+last_enriched: '2026-09-25'

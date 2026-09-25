@@ -14,7 +14,7 @@ components: []
 arc_id: comms-loudness
 related_tasks: []
 created: 2026-07-11T07:37:06Z
-last_update: 2026-08-27T08:56:40Z
+last_update: 2026-09-25T00:18:50Z
 date_finished: 2026-07-11T12:08:32Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable

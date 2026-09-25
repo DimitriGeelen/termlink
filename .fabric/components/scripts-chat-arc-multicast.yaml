@@ -5,17 +5,12 @@ subsystem: unknown
 location: scripts/chat-arc-multicast.sh
 tags: []
 standalone: true
-
-purpose: "Operational helper: posts a message to agent-chat-arc via termlink CLI. Black-box CLI invocation; no source-level fabric edges."
-
+purpose: 'Operational helper: posts a message to agent-chat-arc via termlink CLI. Black-box CLI invocation; no source-level
+  fabric edges.'
 depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+- target: scripts/lib/hubs-toml-walk.sh
+  type: calls
+depended_by: []
 last_verified: 2026-05-02
 created_by: unknown
+last_enriched: '2026-09-25'

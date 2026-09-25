@@ -1,0 +1,16 @@
+id: scripts/notify-rail-e2e.sh
+name: notify-rail-e2e
+type: script
+subsystem: unknown
+location: scripts/notify-rail-e2e.sh
+tags: []
+purpose: 'TODO: describe what this component does'
+depends_on:
+- target: scripts/notify-sidecar.sh
+  type: calls
+- target: scripts/notify-check.sh
+  type: calls
+depended_by: []
+last_verified: 2026-09-25
+created_by: unknown
+last_enriched: '2026-09-25'

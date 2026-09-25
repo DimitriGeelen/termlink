@@ -4,17 +4,23 @@ type: script
 subsystem: unknown
 location: scripts/agent-send.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
+purpose: 'TODO: describe what this component does'
 depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
+- target: scripts/wake-confirm.sh
+  type: calls
+- target: scripts/diagnose-unconsumed.sh
+  type: calls
 depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+- target: scripts/orchestrator-backlog-drain.sh
+  type: called_by
+- target: tests/agent-send-idle-gate.sh
+  type: called_by
+- target: tests/relay-b1-doorbell-rail.sh
+  type: called_by
+- target: tests/relay-b2-send-hops.sh
+  type: called_by
+- target: tests/wake-confirm-reply-match.sh
+  type: called_by
 last_verified: 2026-08-14
 created_by: unknown
+last_enriched: '2026-09-25'

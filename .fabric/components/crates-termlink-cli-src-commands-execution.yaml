@@ -37,4 +37,6 @@ depended_by:
   type: called_by
 - target: workflow/aef-dispatch-loop/dl_spawn
   type: implemented_by
-last_enriched: '2026-04-21'
+- target: workflow/aef-dispatch-loop/dl_spawn
+  type: implements_by
+last_enriched: '2026-09-25'

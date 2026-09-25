@@ -1,0 +1,14 @@
+id: scripts/notify-ack-read.sh
+name: notify-ack-read
+type: script
+subsystem: unknown
+location: scripts/notify-ack-read.sh
+tags: []
+purpose: 'TODO: describe what this component does'
+depends_on: []
+depended_by:
+- target: scripts/notify-injector.sh
+  type: called_by
+last_verified: 2026-09-25
+created_by: unknown
+last_enriched: '2026-09-25'

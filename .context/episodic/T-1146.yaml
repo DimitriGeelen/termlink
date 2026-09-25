@@ -1,4 +1,6 @@
 task_name: Batch-evidence 4 code-grep Human ACs for T-1131/1133/1135/1136 (G-008 remediation)
+summary: |
+  Batch-evidence 4 code-grep Human ACs for T-1131/1133/1135/1136 (G-008 remediation)
 chose: '[what was decided]'
 rationale: '[rationale]'
 action: 'T-1146: Batch-evidence 4 code-grep Human ACs for T-1131/1133/1135/1136 (G-008 remediation)'

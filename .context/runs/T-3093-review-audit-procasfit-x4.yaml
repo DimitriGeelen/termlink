@@ -64,8 +64,8 @@ steps:
   round: 1
   step: 2
   prompt: audit_remediation
-  state: pending
-  worker: null
+  state: dispatched
+  worker: t3093-r1s2-audit
   fed_by: R1S1
   feeds: R1S3
   result_file: .context/runs/T-3093-R1S2-handback.md

@@ -57,9 +57,21 @@ Phase 4). Facts only.
 - **fw audit (cron, 2026-09-21T14:38:24Z, `sections: "structure"` only):** 38 PASS / 9 WARN
   / 1 FAIL. FAIL = `cron(substrate-smoke-canary): USER-field syntax but no install in
   /etc/cron.d`. Note the audit runs the **structure section only** — it is not full coverage.
-- **Guard layer** (`scripts/run-guard-layer.sh`): launched 17:05 local, still running at
-  time of halt — corroborating prior finding C-18 that its documented "(seconds)" budget is
-  wrong. First 8 members all PASS. Full result pending; recorded as PARTIAL.
+- **Guard layer** (`scripts/run-guard-layer.sh`): COMPLETE, exit 1 (FIRING).
+  **117 PASS / 3 FAIL / 1 ERROR** across 121 members.
+  - `check-installed-binary-drift.sh` **FAIL** — independent corroboration of D-1 below.
+  - `check-pickup-deferred-freshness.sh` **FAIL** (stranded/stale pickup envelope).
+  - `cron-drift-firing-fixtures.sh` **FAIL** — consistent with the `fw audit` FAIL
+    (`substrate-smoke-canary` declared but not installed in `/etc/cron.d`).
+  - `check-receiver-ack-lag.sh` **ERROR** — the guard could not run; per the layer's own
+    contract ERROR is deliberately not PASS, so this is an unknown, not a clean bill.
+  - **Measured runtime 17:05:30 → 17:17:13 = ~11m43s (703 s)** against a documented
+    "(seconds)" budget — a third independent measurement of prior finding C-18
+    (run4 ~20 min, run5 >600 s), and it gates every push/PR against a 10-min CI cap.
+  - **Coverage caveat (read this green narrowly):** the runner reports that **75
+    check/suite scripts carry no `# guard-layer:` marker and were not run**. 117 PASS
+    describes the marked members only, not the repo's whole guard surface.
+  - `cargo test --workspace` was NOT included (needs `--tests`).
 - **cargo test --workspace:** NOT RUN this phase (minutes-scale; deferred to Phase 3).
 
 ## 4. Data availability map
@@ -133,9 +145,35 @@ Verified state:
 - Cause: T-2996 landed **today**, commit `c1c8165f6` (2026-09-21). The running MCP server
   (pid 35408) started **08:52 today** on binary **0.11.1716**, which predates the commit.
 
+**The writer is demonstrably functional.** A bounded search found exactly one sink on this
+host — `/tmp/tl-test-0-parity-list-sessions/invocation-audit.jsonl`, a TEST fixture dir,
+25 well-formed records written 2026-09-21 09:28, schema `{ts, surface, name}`, e.g.
+`{"ts":1789975683863,"surface":"mcp","name":"termlink_kv_set"}`. The commit landed 01:07
+local; the test exercised it at 09:28; the serving MCP process started 08:52 on the older
+binary. So the code WORKS in isolation and NO production runtime_dir has a sink.
+
+Both halves are recorded deliberately: the prompt's NON-USE DIAGNOSIS needs exactly this
+evidence to separate reading **A (BROKEN)** from reading **B (NEVER WIRED / not yet
+running)**, and the working test sink points away from A. I do not pick the reading — that
+is the JUDGE's call in Phase 4.
+
+Two incidental facts for the JUDGE: the schema carries a `surface` field (consistent with
+the reader's note that CLI verbs are not instrumented, so a future CLI surface is
+anticipated), and the test records include `termlink_kv_set/get/list/del` — the very tools
+prior finding **C-30** called "structurally invisible". Once live, this sink would speak to
+C-30, C-29, C-31 and the C-01/C-02 external-consumer checks (IW-1) that prior runs could
+not discharge.
+
 So the capability is **shipped but not live** — the project's own G-069 class. Consequence
 for this run: **per-tool usage is still UNMEASURED**, and a rebuild + MCP restart would
 begin producing the data (a Phase-6 action requiring approval; I have not taken it).
+
+**Evidence scope (stated precisely).** Absence was verified in the three runtime dirs the
+binary's own resolution order can select (`/tmp/termlink-0`, `/var/lib/termlink`,
+`~/.termlink`) and by a bounded `find` over `/tmp /var/lib /root` (maxdepth 6). It is not
+a whole-filesystem proof; a first attempt at that was killed by the OOM reaper before
+producing output. `/run` could not be searched — the project-boundary hook blocked the
+read (see contradiction 6).
 
 ## 5. Material context the human should weigh before Phase 2
 
@@ -169,6 +207,14 @@ the same evidence, while 83% of the previous round's findings remain unexecuted.
    has not changed since 2026-03-14 and holds 12 patterns against 2,465 completed tasks.
 5. **Audit coverage.** `fw audit` is described as a compliance audit; the daily cron runs
    `sections: "structure"` only, so its PASS count speaks for one section.
+6. **Project-boundary gate blocks read-only access twice this session.** Attempts to
+   `find`/stat `/run/user/0/termlink` and `/run` were refused by the
+   `check-project-boundary` hook although both were read-only and one targeted this
+   project's own hub runtime path. This is live corroboration of prior finding **C-23**,
+   observed independently here rather than inherited from the earlier run.
+7. **Guard-layer coverage.** The runner reports 75 `check-*`/suite scripts carrying no
+   `# guard-layer:` marker, so they were not run. Its 117 PASS is not a whole-surface
+   green — the same "read a green narrowly" caveat (T-2680) the repo applies elsewhere.
 
 ## 7. Not yet done (Phases 2–7)
 

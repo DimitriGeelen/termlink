@@ -10,7 +10,9 @@ depends_on:
   type: calls
 - target: scripts/tl-claude.sh
   type: calls
+- target: agents/mesh/merge-branches.sh
+  type: calls
 depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
-last_enriched: '2026-08-14'
+last_enriched: '2026-09-25'

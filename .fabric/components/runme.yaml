@@ -1,0 +1,14 @@
+id: runme.sh
+name: runme
+type: script
+subsystem: unknown
+location: runme.sh
+tags: []
+purpose: 'TODO: describe what this component does'
+depends_on:
+- target: scripts/check-cron-install-drift.sh
+  type: calls
+depended_by: []
+last_verified: 2026-09-25
+created_by: unknown
+last_enriched: '2026-09-25'

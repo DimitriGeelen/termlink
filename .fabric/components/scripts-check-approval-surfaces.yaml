@@ -13,5 +13,12 @@ depended_by:
   type: tests
 - target: workflow/aef-audit-cron/ac_triage
   type: tests
+- target: workflow/aef-audit-cron/ac_triage
+  type: tested_by_by
+- target: workflow/aef-session-lifecycle/sl_review
+  type: tested_by_by
+- target: workflow/aef-task-lifecycle/tl_human_review
+  type: tested_by_by
 last_verified: 2026-08-26
 created_by: unknown
+last_enriched: '2026-09-25'

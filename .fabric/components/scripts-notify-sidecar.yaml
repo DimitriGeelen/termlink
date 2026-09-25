@@ -4,17 +4,15 @@ type: script
 subsystem: unknown
 location: scripts/notify-sidecar.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
+purpose: 'TODO: describe what this component does'
 depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
+- target: scripts/journal-mirror.sh
+  type: calls
 depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+- target: scripts/notify-rail-e2e.sh
+  type: called_by
+- target: scripts/notify-sidecar-supervisor.sh
+  type: called_by
 last_verified: 2026-08-14
 created_by: unknown
+last_enriched: '2026-09-25'

@@ -5,10 +5,14 @@ subsystem: unknown
 location: scripts/tl-claude.sh
 tags: []
 purpose: 'TODO: describe what this component does'
-depends_on: []
+depends_on:
+- target: scripts/be-reachable.sh
+  type: calls
 depended_by:
 - target: scripts/sim-verify.sh
   type: called_by
+- target: tests/tl-claude-identity-binding.sh
+  type: called_by
 last_verified: 2026-08-14
 created_by: unknown
-last_enriched: '2026-08-14'
+last_enriched: '2026-09-25'

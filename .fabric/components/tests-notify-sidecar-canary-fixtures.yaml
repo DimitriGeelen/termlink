@@ -1,0 +1,20 @@
+id: tests/notify-sidecar-canary-fixtures.sh
+name: notify-sidecar-canary-fixtures
+type: script
+subsystem: unknown
+location: tests/notify-sidecar-canary-fixtures.sh
+tags: []
+
+purpose: "TODO: describe what this component does"
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-09-25
+created_by: unknown

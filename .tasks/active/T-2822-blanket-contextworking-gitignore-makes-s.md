@@ -280,3 +280,9 @@ half is T-2819 (`owner: human`, still open) — the two are siblings, not duplic
 
 ### 2026-08-23T20:41:38Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+## Updates
+
+### 2026-09-25T00:09:54Z — audit-remediation [T-3104]
+- **Action:** Added the missing ## Updates section flagged by fw audit's task-compliance check (arc-008 T-3104)
+- **Context:** This file had dated status-update entries embedded under other headings but no Updates heading of its own

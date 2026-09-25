@@ -217,3 +217,9 @@ not perform from here.
 
 ### 2026-08-22T10:16:52Z — status-update [task-update-agent]
 - **Change:** owner: claude-code → human
+
+## Updates
+
+### 2026-09-25T00:09:54Z — audit-remediation [T-3104]
+- **Action:** Added the missing ## Updates section flagged by fw audit's task-compliance check (arc-008 T-3104)
+- **Context:** This file had dated status-update entries embedded under other headings but no Updates heading of its own

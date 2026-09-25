@@ -3,13 +3,18 @@ name: merge-branches
 type: script
 subsystem: agent-mesh
 location: agents/mesh/merge-branches.sh
-tags: [agent-mesh, isolation, git]
-
-purpose: "Sequentially rebase and merge N worktree branches onto main after parallel dispatch. Runs tests after each merge, stops on conflict."
-
+tags:
+- agent-mesh
+- isolation
+- git
+purpose: Sequentially rebase and merge N worktree branches onto main after parallel dispatch. Runs tests after each merge,
+  stops on conflict.
 depends_on:
-  - target: agents/mesh/dispatch.sh
-    type: workflow
-
+- target: agents/mesh/dispatch.sh
+  type: workflow
 last_verified: 2026-03-14
 created_by: unknown
+depended_by:
+- target: scripts/sim-verify.sh
+  type: called_by
+last_enriched: '2026-09-25'

@@ -15,9 +15,9 @@ A completed task qualifies when ALL of:
 
 ## Population examined
 
-- completed inceptions: 200
-- with a GO recorded:   170
-- findings:             88
+- completed inceptions: 201
+- with a GO recorded:   171
+- findings:             89
 
 These are candidates for triage, not confirmed abandoned decisions:
 some may have shipped work that was simply never linked back. Deciding
@@ -36,6 +36,7 @@ which is which is the judgement this check exists to force.
 - T-2995 — .tasks/completed/T-2995-inception-rpc-surface-wiring-check-sweep.md
 - T-2989 — .tasks/completed/T-2989-inception-claudemd-split-design-clobber-.md
 - T-2971 — .tasks/completed/T-2971-project-value-review-delete--refactor--a.md
+- T-2828 — .tasks/completed/T-2828-duplicate-work-detector-is-blind-to-dupl.md
 - T-2702 — .tasks/completed/T-2702-termlink-purpose-review-7--are-the-archi.md
 - T-2698 — .tasks/completed/T-2698-termlink-purpose-review-6--is-the-refusa.md
 - T-2694 — .tasks/completed/T-2694-termlink-purpose-review-5--are-the-chart.md

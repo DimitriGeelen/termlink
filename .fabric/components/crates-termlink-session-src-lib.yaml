@@ -91,6 +91,8 @@ depends_on:
   type: calls
 - target: crates/termlink-session/src/ws_consumer.rs
   type: calls
+- target: crates/termlink-session/src/assignment.rs
+  type: calls
 last_verified: 2026-03-14
 created_by: T-043
 depended_by:
@@ -164,4 +166,4 @@ depended_by:
   type: called_by
 - target: crates/termlink-session/tests/integration.rs
   type: called_by
-last_enriched: '2026-08-14'
+last_enriched: '2026-09-25'
