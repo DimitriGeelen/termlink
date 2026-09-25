@@ -4,10 +4,10 @@ name: "Binary blob on the notify rail via artifact.put"
 description: >
   Inception: Binary blob on the notify rail via artifact.put
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: [arc:arc-011]
 components:
   - scripts/notify-sidecar.sh
@@ -15,8 +15,8 @@ components:
   - tests/notify-blob-fixtures.sh
 related_tasks: []
 created: 2026-09-22T14:25:34Z
-last_update: '2026-09-25T00:07:07Z'
-date_finished:
+last_update: 2026-09-25T06:53:03Z
+date_finished: 2026-09-25T06:53:03Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -186,15 +186,15 @@ task, filed separately on GO, not this inception).
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -281,7 +281,47 @@ charter non-goal 4 rather than AEF's.
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO. (Updated 2026-09-24: IW-2, the sovereign call this
+recommendation was parked on, is now RESOLVED — operator decided YES,
+`.context/arcs/arc-011.yaml` SQ-3, 2026-09-23. IW-3's mandatory
+`--expected-sha256` follows directly. This task is ready for
+`fw inception decide T-3076 go` — Tier-0, human-only; this agent confirmed
+the gate directly by attempting `fw inception decide --help`, which the
+Tier-0 hook refused. Nothing found today changes the recommendation below.)
+
+Rationale:
+
+My first answer ("TermLink's blob transport does not drop in") was wrong and the
+correction is now measured twice over. Blob-on-a-topic already exists end to end:
+`artifact.put` stores content-addressed bytes, `channel.post --artifact-ref
+<sha256>` attaches the pointer to a topic message, `artifact.get` fetches them
+back, and the hub routes all three. None of that needs building.
+
+What is missing is narrower and more mundane than a design problem: there is no
+`termlink artifact` CLI subcommand, so a shell script — which is what this whole
+rail is made of — can post the reference but cannot move the bytes. The
+put/get functions are reachable only from inside `file send` / `file receive`,
+which are session-addressed and require the receiver to be actively listening.
+
+So the remediation is two thin wrappers over `send_artifact_via_client` and
+`download_artifact_via_client`, both already exercised by `file send`. Small, and
+a primitive rather than orchestration — which puts it on TermLink's side of
+charter non-goal 4 rather than AEF's.
+
+Evidence:
+- `crates/termlink-protocol/src/control.rs:316,323` — ARTIFACT_PUT / ARTIFACT_GET
+- `crates/termlink-hub/src/router.rs:143,146` — both routed
+- `crates/termlink-session/src/artifact.rs:137,525` — send/download wrappers
+- `grep -rn 'download_artifact_via_client' crates/termlink-cli/src` → only file.rs
+- `termlink artifact --help` → `unrecognized subcommand`
+- `termlink channel post --help` → `--artifact-ref <ARTIFACT_REF>` present
+
+
+Evidence:
+
+**Date**: 2026-09-25T06:53:03Z
 
 ## Updates
 
@@ -293,3 +333,79 @@ charter non-goal 4 rather than AEF's.
 
 ### 2026-09-22T15:00:25Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-09-25T06:53:03Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO. (Updated 2026-09-24: IW-2, the sovereign call this
+recommendation was parked on, is now RESOLVED — operator decided YES,
+`.context/arcs/arc-011.yaml` SQ-3, 2026-09-23. IW-3's mandatory
+`--expected-sha256` follows directly. This task is ready for
+`fw inception decide T-3076 go` — Tier-0, human-only; this agent confirmed
+the gate directly by attempting `fw inception decide --help`, which the
+Tier-0 hook refused. Nothing found today changes the recommendation below.)
+
+Rationale:
+
+My first answer ("TermLink's blob transport does not drop in") was wrong and the
+correction is now measured twice over. Blob-on-a-topic already exists end to end:
+`artifact.put` stores content-addressed bytes, `channel.post --artifact-ref
+<sha256>` attaches the pointer to a topic message, `artifact.get` fetches them
+back, and the hub routes all three. None of that needs building.
+
+What is missing is narrower and more mundane than a design problem: there is no
+`termlink artifact` CLI subcommand, so a shell script — which is what this whole
+rail is made of — can post the reference but cannot move the bytes. The
+put/get functions are reachable only from inside `file send` / `file receive`,
+which are session-addressed and require the receiver to be actively listening.
+
+So the remediation is two thin wrappers over `send_artifact_via_client` and
+`download_artifact_via_client`, both already exercised by `file send`. Small, and
+a primitive rather than orchestration — which puts it on TermLink's side of
+charter non-goal 4 rather than AEF's.
+
+Evidence:
+- `crates/termlink-protocol/src/control.rs:316,323` — ARTIFACT_PUT / ARTIFACT_GET
+- `crates/termlink-hub/src/router.rs:143,146` — both routed
+- `crates/termlink-session/src/artifact.rs:137,525` — send/download wrappers
+- `grep -rn 'download_artifact_via_client' crates/termlink-cli/src` → only file.rs
+- `termlink artifact --help` → `unrecognized subcommand`
+- `termlink channel post --help` → `--artifact-ref <ARTIFACT_REF>` present
+
+
+Evidence:
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-cc10cd22
+- **Timestamp:** 2026-09-25T06:53:05Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 2
+
+**Verification-level findings:**
+
+  1. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-1
+     - evidence: `IW-1 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+  2. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-2
+     - evidence: `IW-2 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+
+## Recommendation Verdict (v1.0)
+
+- **Scan ID:** RC-41c53749
+- **Timestamp:** 2026-09-25T06:53:05Z
+- **Overall:** CONTRADICTED
+- **Claims:** 5
+
+| Claim | Type | Status |
+|-------|------|--------|
+| `.context/arcs/arc-011.yaml` | file | ✓ pass |
+| `artifact.put` | module | ✓ pass |
+| `crates/termlink-protocol/src/control.rs:316,323` | file | ✗ fail — file not found at PROJECT_ROOT |
+| `crates/termlink-hub/src/router.rs:143,146` | file | ✗ fail — file not found at PROJECT_ROOT |
+| `crates/termlink-session/src/artifact.rs:137,525` | file | ✗ fail — file not found at PROJECT_ROOT |
+
+### 2026-09-25T06:53:03Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
