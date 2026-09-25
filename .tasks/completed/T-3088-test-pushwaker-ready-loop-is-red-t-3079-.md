@@ -14,12 +14,12 @@ description: >
   proves nothing. Confirmed NOT caused by T-3086/T-3072 - that commit touched only
   notify-injector.sh, which is not in this test's dependency chain (it sources lib/pty-state.sh).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [scripts/check-run-record-parse.sh, scripts/test-pushwaker-ready-loop.sh, tests/run-record-parse-fixtures.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -32,8 +32,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-24T18:49:53Z
-last_update: 2026-09-25T20:05:56Z
-date_finished:
+last_update: 2026-09-25T20:12:14Z
+date_finished: 2026-09-25T20:12:14Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -393,3 +393,20 @@ grep -q "isolates the BUSY arm" /tmp/.t3088-head
 
 ### 2026-09-25T20:05:56Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-72a3eb1c
+- **Timestamp:** 2026-09-25T20:12:16Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Agent)** — The adjudication cites the actual T-3079 contract change — what `lib/pty-state.sh`
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=lib/pty-state.sh in: The adjudication cites the actual T-3079 contract change — what `lib/pty-state.sh``
+
+### 2026-09-25T20:12:14Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

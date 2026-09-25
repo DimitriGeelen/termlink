@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3088: test-pushwaker-ready-loop is red: T-3079 rewrote the idle classifier and left its consumer's test stale
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-25T20:12:23Z
+# ============================================================================
+
+task_id: T-3088
+task_name: "test-pushwaker-ready-loop is red: T-3079 rewrote the idle classifier and left its consumer's test stale"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-24T18:49:53Z
+completed: 2026-09-25T20:12:14Z
+duration_days: 1
+updates_count: 2
+first_commit: 2026-09-25T22:12:08+02:00
+last_commit: 2026-09-25T22:12:08+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  adjudicate the red wake-rail test — stale shim, and a gap the mutation found
+
+# Key outcomes
+outcomes:
+  - 'Each of the three failing assertions is adjudicated INDIVIDUALLY and the verdict'
+  - 'The adjudication cites the actual T-3079 contract change — what `lib/pty-state.sh`'
+  - 'Whatever is wrong is FIXED in the place that is wrong. If an assertion encodes a'
+  - '`bash scripts/test-pushwaker-ready-loop.sh` exits 0 with every assertion passing,'
+  - 'If any assertion cannot be honestly resolved in this task, it is left FAILING and'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'scripts/test-pushwaker-ready-loop.sh'
+  - '.tasks/active/T-3088-test-pushwaker-ready-loop-is-red-t-3079-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-25T22:12:08'
+    action: 'T-3088: adjudicate the red wake-rail test — stale shim, and a gap the mutation found'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1522 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1522
+  commits: 1
+  files_changed: 2
+  lines_added: 171
+  lines_removed: 13
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3088-test-pushwaker-ready-loop-is-red-t-3079-.md
+generated_by: context-agent-hybrid
