@@ -26,7 +26,7 @@ alone (CLAUDE.md Human Task Completion Rule).
 Rows with an empty `## Verification` block need that scrutiny most —
 nothing mechanical would gate their close.
 
-## Qualifying tasks (6)
+## Qualifying tasks (7)
 
 | Task | Status | Workflow | Name | Agent ACs | Verification cmds? |
 |------|--------|----------|------|----------:|--------------------|
@@ -36,4 +36,5 @@ nothing mechanical would gate their close.
 | T-3010 | started-work | build | Set 90-day revisit_at on artifact.* surface decision | 3 | yes |
 | T-3044 | started-work | build | Orchestrate value-review + procAsFit prompt sequence... | 4 | yes |
 | T-3060 | started-work | inception | Six unassessed plugins appeared after the T-3055 sur... | 3 | **no** |
+| T-3138 | started-work | build | Uncommitted changes present at R3S2 audit-run snapshot | 2 | yes |
 

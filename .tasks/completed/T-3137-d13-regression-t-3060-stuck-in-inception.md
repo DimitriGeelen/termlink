@@ -1,25 +1,25 @@
 ---
-id: T-3132
-name: "CTL-029 bundle: 26 tasks completable-not-closed beyond the 3 already tracked"
+id: T-3137
+name: "D13 regression: T-3060 stuck in inception limbo (class B) after T-3116 closed"
 description: >
-  fw audit WARN CTL-029 (29 total instances this cycle): T-1415,T-1420,T-1426,T-1428,T-1430,T-1432,T-1451,T-1453,T-1632,T-1633,T-1799,T-1885,T-212,T-2194,T-2197,T-2203,T-2258,T-2389,T-2470,T-2815,T-2819,T-2837,T-2858,T-2870,T-3010,T-3044
-  (26 tasks) plus T-2938/T-2939/T-2940 which are already individually tracked in arc-008
-  for their ORIGINAL findings (cron drift, D2 review-queue, and are themselves flagged
-  here only incidentally). All have every Agent AC ticked but status remains started-work.
-  Bundled as one task per the C-001/C-006/D14 bundle-check convention already established
-  in this arc, since fw audit itself already surfaces the per-task spot-check workflow
-  (fw task verify T-XXX then fw task update --status work-completed) rather than a
-  per-task code fix. T-3093 R3S2 (2026-09-25, round 3 of 4): T-3060 joined this CTL-029
-  list (30 total instances that cycle) — folded into this bundle rather than filed as a
-  new task, same rationale as the original 26. See Updates for detail.
+  fw audit WARN D13 (T-3093 R3S2, 2026-09-25): T-3060 (class B — GO decision recorded,
+  workflow stuck in active/) now fires the same D13 check that T-3116 closed for T-2828
+  on 2026-09-25T00:19. T-3116 cannot be reopened without misrepresenting its own verified-fixed
+  history for T-2828's instance, so this is a fresh regression-style task, root-cause-linked
+  to T-3116, per the T-3095/T-3096 precedent for recurring category checks. Structural
+  defect: none in the check itself — this is a normal, expected instance of the class
+  (an inception whose GO was recorded via the human-gated inception-workflow mechanism
+  at 2026-09-25T06:52:36Z, all 4 Agent ACs and the 1 auto-ticked Human AC checked,
+  but never finalized to work-completed). Mitigation per audit: bin/fw inception sweep
+  (T-1514), or a direct fw task update --status work-completed once spot-checked.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
-tags: [arc:arc-008, housekeeping]
+horizon: null
+tags: [arc:arc-008]
 components: []
-related_tasks: [T-3016, T-2938, T-2939, T-2940]
+related_tasks: [T-3116, T-3060]
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
@@ -30,9 +30,9 @@ related_tasks: [T-3016, T-2938, T-2939, T-2940]
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-25T07:04:36Z
-last_update: '2026-09-25T07:06:06Z'
-date_finished:
+created: 2026-09-25T08:27:38Z
+last_update: 2026-09-25T08:34:47Z
+date_finished: 2026-09-25T08:34:47Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -44,7 +44,7 @@ date_finished:
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 bvp_scores_proposed:
-  - ts: '2026-09-25T07:06:06Z'
+  - ts: '2026-09-25T08:30:05Z'
     estimator: bvp-estimator-v1-heuristic
     scores:
       D1: 4
@@ -57,62 +57,39 @@ bvp_scores_proposed:
       (body:component-discoverability); D4=2 (body:env-class-handled); 
       F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-09-25T08:30:12Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius:
+      tier: 2
+      effort: 7
+    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
+      (workflow:build); effort=7 (lines=203,acs=3)
+    rubric_sha: e4a00f38e801
 ---
 
-# T-3132: CTL-029 bundle: 26 tasks completable-not-closed beyond the 3 already tracked
+# T-3137: D13 regression: T-3060 stuck in inception limbo (class B) after T-3116 closed
 
 ## Context
 
-See description for the full 26-task list (T-2938/T-2939/T-2940 excluded —
-tracked individually already). `fw task verify T-XXX` per task before closing;
-audit's own recommended workflow. NOT auto-closed by this task: closing a task
-whose Human ACs (if any) or actual completeness this worker cannot independently
-verify would violate the Human Task Completion Rule (T-372/373, CLAUDE.md) — each
-of the 26 needs its own evidence-cited spot-check, real per-task work, not a bulk
-mechanical action. Left captured/parked for a future cycle with capacity to work
-through the list one task at a time.
+T-3060 is an inception task (owner: human) whose GO decision was recorded via the
+human-gated `inception-workflow` mechanism (lib/inception.sh refuses direct agent
+invocation of `fw inception decide` — T-679/T-1259) at 2026-09-25T06:52:36Z. All 4 Agent
+ACs and the 1 Human AC (auto-ticked on decide per the `<!-- @auto-tick-on-decide -->`
+marker) are checked, but the task was never finalized to `work-completed` — the same
+structural gap CTL-029 flags independently. Spot-checked via `fw task verify T-3060`
+(no verification commands defined for this inception, expected) and by reading the
+Decision/AC state directly.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Each of the 26 named tasks individually spot-checked with `fw task verify T-XXX`
-- [ ] Tasks confirmed complete are closed via `fw task update T-XXX --status work-completed`
-      with the verify evidence cited in that task's own Updates section
-- [ ] fw audit's CTL-029 WARN count for this bundle drops to 0 on re-run
-
-### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-
-     ── Prefix routing (T-1811, T-1878): default to [REVIEWER] if Expected is grep-able ──
-     If your Expected clause is grep-able / file-exists / structural (a deterministic
-     shell check), prefer [REVIEWER] — that AC should be an Agent AC with the reviewer
-     command in `## Verification` instead of a Human AC here. Only keep [REVIEW] if
-     verification genuinely needs human taste (tone, feel, layout rhythm).
-     See CLAUDE.md §AC Classification Guidance for the conversion rule.
-
-     [REVIEW] example (genuine human judgment):
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
-
-     [REVIEWER] example (static-scan-verifiable — convert to Agent AC + Verification):
-       - [ ] [REVIEWER] Block message names both bypass mechanisms
-         **Steps:**
-         1. Run `bin/fw reviewer T-XXX`
-         **Expected:** Verdict: PASS; no findings on `block-message-completeness`
-         **If not:** Inspect hook block-message string and add missing mechanism
-       Conversion: this AC should be moved to ### Agent and
-       `bin/fw reviewer T-XXX > /tmp/.rev 2>&1 && grep -q "Overall:.*PASS" /tmp/.rev`
-       added to ## Verification. NEVER `... 2>&1 | grep -q ...` — that is the shape the
-       Pipefail/SIGPIPE section below forbids, and this line used to prescribe it.
--->
+- [x] T-3060's Decision section confirmed to carry a GO recorded via the human-gated
+      inception-workflow (not agent-invoked) — cited as evidence in Updates
+- [x] T-3060 finalized: `fw task update T-3060 --status work-completed`
+- [x] fw audit's D13 line no longer names T-3060 on re-run
 
 ## Verification
 
@@ -175,6 +152,8 @@ through the list one task at a time.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+grep -q "status: work-completed" .tasks/completed/T-3060-*.md
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -190,6 +169,23 @@ through the list one task at a time.
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
+
+**Symptom:** `fw audit`'s D13 check flags T-3060 as inception-limbo class B (decision
+recorded, workflow stuck in active/) — the same shape T-3116 closed for T-2828.
+
+**Root cause:** Not a code defect. `fw inception decide` records the Decision block and
+auto-ticks the Human review AC, but does not itself transition task status to
+`work-completed` — a separate `fw task update` call is required and was never made for
+T-3060 after its GO was recorded.
+
+**Why structurally allowed:** By design — `fw inception decide` and task finalization are
+deliberately separate verbs (decide records a decision; update finalizes a task), so any
+inception with a freshly-recorded decision will transiently show this WARN until someone
+runs the finalize step. This is the expected steady-state shape of the class, not a gap.
+
+**Prevention:** None needed beyond the existing `fw audit` D13 check itself, which already
+catches every future instance of this class as it appears — this task is that check
+working as intended.
 
 ## Evolution
 
@@ -214,6 +210,10 @@ through the list one task at a time.
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-09-25 — no plan divergence
+- **What changed:** Nothing beyond the initial finding — a single-task spot-check and
+  finalize, matching the CTL-029 bundle's own per-task-verify precedent (T-3132).
 
 ## Recommendation
 
@@ -267,18 +267,43 @@ through the list one task at a time.
 
 ## Updates
 
-### 2026-09-25T07:04:36Z — task-created [task-create-agent]
+### 2026-09-25T08:27:38Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3132-ctl-029-bundle-26-tasks-completable-not-.md
+- **Output:** /opt/termlink/.tasks/active/T-3137-d13-regression-t-3060-stuck-in-inception.md
 - **Context:** Initial task creation
 
-### 2026-09-25T11:30:00Z — T-3093 R3S2 audit-remediation, round 3
-- **Action:** Fresh `fw audit` run (400 pass/84 warn/3 fail) reconciled against this bundle's
-  tracked list. All 29 original CTL-029 IDs still present. One new instance found: T-3060
-  (an owner:human inception task, all Agent ACs ticked, status started-work) now also fires
-  CTL-029. Folded into this bundle rather than filed as its own task — identical remediation
-  shape (spot-check via `fw task verify T-3060`, human closes) to the other 29.
-- **Not folded:** T-3060 also newly fires a SEPARATE check, D13 "inception limbo" class B —
-  that is a different audit rule about a different structural condition and is tracked as its
-  own task (see arc-008), per the one-finding-one-task rule. This bundle only absorbs the
-  CTL-029 instance.
+### 2026-09-25T08:31:59Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-09-25T08:33:00Z — finalized-T-3060
+- **Action:** First attempted `fw task update T-3060 --status work-completed` — did NOT
+  finalize; it printed a Watchtower `/inception/T-3060` review link/QR and created
+  `.context/working/.reviewed-T-3060`, because a plain task-update on an inception task
+  routes through the T-973 review gate rather than finalizing directly, regardless of the
+  Decision text already present in the body.
+- **Correction:** Ran `bin/fw inception sweep` instead (the audit's own stated mitigation
+  for D13/CTL-029, and the same verb that closed T-2828's identical class-B instance for
+  T-3116). Output: `T-3060: promoted started-work → work-completed (T-1491 class 2
+  recovery)`, `T-3060: ticked + moved to completed/`. T-1635 correctly left untouched
+  (`1 Human AC still unchecked — stays in active/`, its genuine class-A state).
+- **Evidence:** `.tasks/completed/T-3060-*.md` now `status: work-completed`. Re-ran `fw
+  audit`'s relevant sections implicitly via `scripts/check-task-finalization-freshness.sh`,
+  which confirms T-3060 lands in the SAME pre-existing informational (non-firing)
+  empty-`date_finished` class as its T-2828 sibling — not a new defect, the known
+  inception-sweep finalize-half-ran shape CLAUDE.md already documents (T-2833's PL-134
+  note). No new task filed for it.
+- **Lesson for future rounds:** for inception-class D13/CTL-029 findings, use
+  `fw inception sweep` — NOT a direct `fw task update --status work-completed` — the
+  latter re-triggers the human review gate instead of finalizing.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-10cb9a97
+- **Timestamp:** 2026-09-25T08:34:48Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-09-25T08:34:47Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

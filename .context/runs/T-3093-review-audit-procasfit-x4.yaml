@@ -245,13 +245,34 @@ steps:
   round: 3
   step: 2
   prompt: audit_remediation
-  state: dispatched
+  state: complete-partial
   worker: t3093-r3s2-audit
   fed_by: R3S1
   feeds: R3S3
   result_file: .context/runs/T-3093-R3S2-handback.md
   dispatched_utc: '2026-09-25T11:22:00Z'
   fed_with: R3S1 handback + T-3127 budget warning + the 1-cycle capacity finding
+  completed_note: 'Cycle 1 of 3 only (stopped at ~295K/~36% via checkpoint.sh status, matching R2S2''s
+    verified real capacity finding). Reused arc-008 (70 tasks pre-existing). Ran fresh fw audit (400
+    pass/84 warn/3 fail, net -2 warn vs R2S2''s baseline, no FAIL growth) + fw doctor (3 warn) and
+    reconciled line-by-line against arc-008''s existing tasks: 87/90 findings already governed by open
+    tasks (including one CTL-029 addition folded into the already-open T-3132 bundle, and one confirmed
+    non-regression on T-3101''s fabric-edges AC). Filed 2 new tasks: T-3137 (D13 regression on T-3060,
+    root-cause-linked to T-3116/T-2828) and T-3138 (uncommitted-changes snapshot, root-cause-linked to
+    T-3106/T-3133). Both scored via fw bvp estimate/estimate-cost and worked to completion this cycle.
+    T-3137 surfaced a genuine verb-mismatch mid-execution: a direct fw task update --status work-completed
+    on an inception task with an already-recorded decision does NOT finalize it — it re-routes through
+    the T-973 human review gate. Investigated via Hypothesis-Driven Debugging rather than shotgunning;
+    confirmed via lib/inception.sh that fw inception decide is itself human-gated (agents structurally
+    refused direct invocation, T-679/T-1259), so the block was a verb mismatch not a sovereignty question.
+    Corrected by running bin/fw inception sweep (the audit''s own stated mitigation) which promoted T-3060
+    to work-completed and moved it to completed/, correctly leaving T-1635''s genuine class-A instance
+    untouched. Verified D13''s class B is now empty by reproducing the audit''s own predicate directly.
+    T-3138 closed via this step''s own closing commit. Cycles 2/3 not run — same capacity ceiling R2S2
+    established. Committed as (this step''s closing commit).'
+  capacity_note: 'Third data point confirming ~1 cycle per dispatched worker is genuine capacity against
+    the 3-cycle mandate (R1S2, R2S2, now R3S2), all on verified checkpoint.sh readings, not the shared
+    .budget-status false-positive.'
 - id: R3S3
   round: 3
   step: 3

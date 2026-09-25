@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3137: D13 regression: T-3060 stuck in inception limbo (class B) after T-3116 closed
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-25T08:34:55Z
+# ============================================================================
+
+task_id: T-3137
+task_name: "D13 regression: T-3060 stuck in inception limbo (class B) after T-3116 closed"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-25T08:27:38Z
+completed: 2026-09-25T08:34:47Z
+duration_days: 0
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fw audit WARN D13 (T-3093 R3S2, 2026-09-25): T-3060 (class B — GO decision recorded, workflow stuck in active/) now fires the same D13 check that T-3116 closed for T-2828 on 2026-09-25T00:19. T-3116 cannot be reopened without misrepresenting its own verified-fixed history for T-2828's instance, so this is a fresh regression-style task, root-cause-linked to T-3116, per the T-3095/T-3096 precedent for recurring category checks. Structural defect: none in the check itself — this is a normal, expected instance of the class (an inception whose GO was recorded via the human-gated inception-workflow mechanism at 2026-09-25T06:52:36Z, all 4 Agent ACs and the 1 auto-ticked Human AC checked, but never finalized to work-completed). Mitigation per audit: bin/fw inception sweep (T-1514), or a direct fw task update --status work-completed once spot-checked.
+
+# Key outcomes
+outcomes:
+  - 'T-3060''s Decision section confirmed to carry a GO recorded via the human-gated'
+  - 'T-3060 finalized: `fw task update T-3060 --status work-completed`'
+  - 'fw audit''s D13 line no longer names T-3060 on re-run'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 7 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-008]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 7
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3137-d13-regression-t-3060-stuck-in-inception.md
+generated_by: context-agent-hybrid
