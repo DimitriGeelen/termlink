@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3159: Triage 832 filing offset 172 (their T-854): BVP estimator calibration finding
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-25T23:51:53Z
+# ============================================================================
+
+task_id: T-3159
+task_name: "Triage 832 filing offset 172 (their T-854): BVP estimator calibration finding"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-25T23:48:54Z
+completed: 2026-09-25T23:51:45Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Triage 832 filing offset 172 (their T-854): BVP estimator calibration finding
+
+# Key outcomes
+outcomes:
+  - 'The filing at `framework:pickup` offset 172 (832-Workflow-designer, their T-854) is **read in full and summarised** — what it measures, how, and what it concludes.'
+  - 'Its claim is **checked against this tree''s own numbers**, not accepted because a peer measured it elsewhere. Calibration is corpus-dependent; a finding true on 832''s corpus may not hold on ours, and the interesting answer is either way.'
+  - 'The result is related to **what this project has already measured independently** — 207/245 tasks (84%) uncosted, all 8 Q2 items `owner: human`, T-3152''s hardcoded consumer task ID — so the two bodies of evidence are either corroborating or in tension, stated explicitly.'
+  - '**No BVP calibration parameter is changed by this task.** The mandate forbids adjusting calibration, and a peer''s finding is not authorisation; if a change is warranted it is surfaced as a Sovereign question.'
+  - 'A **disposition** is recorded and the peer replied to on the topic, **verified by read-back** (T-2876).'
+  - '`## Decisions` is left EMPTY, rationale carried in the commit — the empty-Decisions mitigation for the vendored auto-capture corruption has now held 3/3.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 2
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3159-triage-832-filing-offset-172-their-t-854.md
+generated_by: context-agent-hybrid
