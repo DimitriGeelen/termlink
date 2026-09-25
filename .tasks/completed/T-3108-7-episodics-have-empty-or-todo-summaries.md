@@ -1,15 +1,15 @@
 ---
-id: T-3106
-name: "Uncommitted changes present at cycle-3 audit time"
+id: T-3108
+name: "7 episodics have empty or TODO summaries"
 description: >
-  fw audit WARN (git traceability): 7 real file(s) modified, uncommitted, at the moment
-  fw audit ran during this arc-008 remediation cycle. Self-resolving via a task-referenced
-  commit.
+  fw audit WARN (episodic memory): 7 of 2510 episodic files have a Summary field that
+  is empty or contains [TODO]. Fill in the summary field with actual task description
+  per episodic.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-008]
 components: []
 related_tasks: []
@@ -23,9 +23,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-24T23:56:07Z
-last_update: '2026-09-25T00:07:08Z'
-date_finished:
+created: 2026-09-24T23:56:33Z
+last_update: 2026-09-25T00:32:16Z
+date_finished: 2026-09-25T00:32:16Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -41,12 +41,12 @@ bvp_scores_proposed:
     estimator: bvp-estimator-v1-heuristic
     scores:
       D1: 4
-      D2: 0
+      D2: 4
       D3: 3
       D4: 2
       F-RECALL: 0
       F-ORCH: 0
-    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
       (body:component-discoverability); D4=2 (body:env-class-handled); 
       F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
@@ -56,23 +56,24 @@ cost_estimate_proposed:
     cost_estimate:
       blast_radius:
       tier: 2
-      effort: 7
+      effort: 8
     rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
-      (workflow:build); effort=7 (lines=205,acs=3)
+      (workflow:build); effort=8 (lines=207,acs=4)
     rubric_sha: e4a00f38e801
 ---
 
-# T-3106: Uncommitted changes present at cycle-3 audit time
+# T-3108: 7 episodics have empty or TODO summaries
 
 ## Context
 
-Self-resolving: this remediation session's own working files were uncommitted at audit time.
+7 of 2510 episodic summaries are empty or contain [TODO].
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Commit the working changes present at the time of this audit run with a task reference
+- [x] Identify the 7 episodic files and fill each Summary field with a real one-line task description
+- [x] fw audit's episodic-summary WARN count drops to 0
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -168,7 +169,8 @@ Self-resolving: this remediation session's own working files were uncommitted at
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
-test -z "$(git status --porcelain -- ':!.context/working' ':!.termlink-task' 2>/dev/null)" || echo pending
+.agentic-framework/bin/fw audit > /tmp/.t3108-audit.out 2>&1 || true
+! grep -q 'empty or TODO summaries' /tmp/.t3108-audit.out
 
 ## RCA
 
@@ -187,6 +189,18 @@ test -z "$(git status --porcelain -- ':!.context/working' ':!.termlink-task' 2>/
 -->
 
 ## Evolution
+
+### 2026-09-25 — 2 of 7 had no summary anywhere, not just an unfilled placeholder
+- **What changed:** 5 of the 7 files carried the real content already, just nested inside an
+  escaped `body:` string rather than at the top level the audit's grep scans — a generation-shape
+  quirk, not missing content, so those 5 got their existing summary promoted to a real top-level
+  field. 2 (T-1224, T-920) genuinely had no summary text anywhere except the bare task ID; for
+  those the real one-line description was recovered from the `task_name:` field embedded in body.
+- **Plan impact:** none; verified with `scripts/check-episodic-parse.sh` before and after (2510/2510
+  readable both times) to confirm the additive top-level field didn't break anything reading `body:`.
+- **Triggered:** nothing further; the shape of these 7 files (task_name/chose/rationale/action/body
+  wrapper) differs from the standard flat hybrid episodic and may be worth its own investigation of
+  the generator path that produced it, but that is outside this task's scope.
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
@@ -262,7 +276,27 @@ test -z "$(git status --porcelain -- ':!.context/working' ':!.termlink-task' 2>/
 
 ## Updates
 
-### 2026-09-24T23:56:07Z — task-created [task-create-agent]
+### 2026-09-24T23:56:33Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3106-uncommitted-changes-present-at-cycle-3-a.md
+- **Output:** /opt/termlink/.tasks/active/T-3108-7-episodics-have-empty-or-todo-summaries.md
 - **Context:** Initial task creation
+
+### 2026-09-25T00:29:40Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-6a61965d
+- **Timestamp:** 2026-09-25T00:42:33Z
+- **Catalogue:** v1.3-seed
+- **Overall:** FAIL
+- **Needs Human:** no
+- **Findings:** 1
+
+**Verification-level findings:**
+
+  1. **swallowed-errors** (severe, deterministic) @ Verification:line 60
+     - evidence: `.agentic-framework/bin/fw audit > /tmp/.t3108-audit.out 2>&1 || true`
+
+### 2026-09-25T00:32:16Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

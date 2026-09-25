@@ -1,16 +1,15 @@
 ---
-id: T-3104
-name: "3 task files missing Updates section (T-2815, T-2819, T-2822)"
+id: T-3106
+name: "Uncommitted changes present at cycle-3 audit time"
 description: >
-  fw audit WARN (task compliance): T-2815-audit-cron-drift-slug-uses-worktree-base.md,
-  T-2819-narrow-the-stale-agentic-framework-gitig.md, T-2822-blanket-contextworking-gitignore-makes-s.md
-  are each missing an ## Updates section. Bundled as one task per this arc's established
-  D2/T-2940 precedent (one check-line, many named instances, one governed task).
+  fw audit WARN (git traceability): 7 real file(s) modified, uncommitted, at the moment
+  fw audit ran during this arc-008 remediation cycle. Self-resolving via a task-referenced
+  commit.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-008]
 components: []
 related_tasks: []
@@ -24,9 +23,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-24T23:55:42Z
-last_update: '2026-09-25T00:07:08Z'
-date_finished:
+created: 2026-09-24T23:56:07Z
+last_update: 2026-09-25T00:21:39Z
+date_finished: 2026-09-25T00:21:39Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -42,12 +41,12 @@ bvp_scores_proposed:
     estimator: bvp-estimator-v1-heuristic
     scores:
       D1: 4
-      D2: 4
+      D2: 0
       D3: 3
       D4: 2
       F-RECALL: 0
       F-ORCH: 0
-    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
       (body:component-discoverability); D4=2 (body:env-class-handled); 
       F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
@@ -57,24 +56,23 @@ cost_estimate_proposed:
     cost_estimate:
       blast_radius:
       tier: 2
-      effort: 8
+      effort: 7
     rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
-      (workflow:build); effort=8 (lines=207,acs=4)
+      (workflow:build); effort=7 (lines=205,acs=3)
     rubric_sha: e4a00f38e801
 ---
 
-# T-3104: 3 task files missing Updates section (T-2815, T-2819, T-2822)
+# T-3106: Uncommitted changes present at cycle-3 audit time
 
 ## Context
 
-Bundled per the D2/T-2940 precedent: one check-class task for a WARN that names several task files.
+Self-resolving: this remediation session's own working files were uncommitted at audit time.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] Add a real ## Updates entry to T-2815, T-2819 and T-2822
-- [x] fw audit's task-compliance section no longer WARNs on these 3 files
+- [x] Commit the working changes present at the time of this audit run with a task reference
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -170,8 +168,7 @@ Bundled per the D2/T-2940 precedent: one check-class task for a WARN that names 
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
-.agentic-framework/bin/fw audit > /tmp/.t3104-audit.out 2>&1 || true
-! grep -q 'missing Updates section' /tmp/.t3104-audit.out
+git cat-file -e e0f9158dc
 
 ## RCA
 
@@ -190,6 +187,13 @@ Bundled per the D2/T-2940 precedent: one check-class task for a WARN that names 
 -->
 
 ## Evolution
+
+### 2026-09-25 — folded into the cycle-1 batch commit
+- **What changed:** rather than a standalone commit, this cleared as part of committing all of
+  this cycle's work at once (commit e0f9158dc) — the natural end-of-cycle checkpoint already
+  covered it.
+- **Plan impact:** none.
+- **Triggered:** nothing further.
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
@@ -265,7 +269,22 @@ Bundled per the D2/T-2940 precedent: one check-class task for a WARN that names 
 
 ## Updates
 
-### 2026-09-24T23:55:42Z — task-created [task-create-agent]
+### 2026-09-24T23:56:07Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3104-3-task-files-missing-updates-section-t-2.md
+- **Output:** /opt/termlink/.tasks/active/T-3106-uncommitted-changes-present-at-cycle-3-a.md
 - **Context:** Initial task creation
+
+### 2026-09-25T00:21:38Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-ff8f8cc1
+- **Timestamp:** 2026-09-25T00:21:41Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-09-25T00:21:39Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -26,7 +26,7 @@ alone (CLAUDE.md Human Task Completion Rule).
 Rows with an empty `## Verification` block need that scrutiny most —
 nothing mechanical would gate their close.
 
-## Qualifying tasks (4)
+## Qualifying tasks (5)
 
 | Task | Status | Workflow | Name | Agent ACs | Verification cmds? |
 |------|--------|----------|------|----------:|--------------------|
@@ -34,4 +34,5 @@ nothing mechanical would gate their close.
 | T-1451 | started-work | build | revisit_at frontmatter field + template update (T-14... | 6 | yes |
 | T-212 | started-work | build | Create Homebrew tap for TermLink distribution | 5 | yes |
 | T-3044 | started-work | build | Orchestrate value-review + procAsFit prompt sequence... | 4 | yes |
+| T-3108 | started-work | build | 7 episodics have empty or TODO summaries | 2 | yes |
 

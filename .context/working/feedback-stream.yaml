@@ -12282,3 +12282,57 @@ scan_id: R-418c7dbb
 task_id: T-3116
 payload:
   task_file: .tasks/active/T-3116-d13-2-inception-tasks-stuck-in-limbo-dec.md
+---
+kind: scan_emitted
+timestamp: '2026-09-25T00:21:41Z'
+scan_id: R-ff8f8cc1
+task_id: T-3106
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-25T00:21:41Z'
+scan_id: R-ff8f8cc1
+task_id: T-3106
+payload:
+  task_file: .tasks/active/T-3106-uncommitted-changes-present-at-cycle-3-a.md
+---
+kind: scan_emitted
+timestamp: '2026-09-25T00:29:28Z'
+scan_id: R-2f8557bb
+task_id: T-3104
+payload:
+  overall: FAIL
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-25T00:29:28Z'
+scan_id: R-2f8557bb
+task_id: T-3104
+payload:
+  task_file: .tasks/active/T-3104-3-task-files-missing-updates-section-t-2.md
+---
+kind: scan_emitted
+timestamp: '2026-09-25T00:42:33Z'
+scan_id: R-6a61965d
+task_id: T-3108
+payload:
+  overall: FAIL
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-25T00:42:33Z'
+scan_id: R-6a61965d
+task_id: T-3108
+payload:
+  task_file: .tasks/active/T-3108-7-episodics-have-empty-or-todo-summaries.md

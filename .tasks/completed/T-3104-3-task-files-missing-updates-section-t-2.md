@@ -1,15 +1,16 @@
 ---
-id: T-3108
-name: "7 episodics have empty or TODO summaries"
+id: T-3104
+name: "3 task files missing Updates section (T-2815, T-2819, T-2822)"
 description: >
-  fw audit WARN (episodic memory): 7 of 2510 episodic files have a Summary field that
-  is empty or contains [TODO]. Fill in the summary field with actual task description
-  per episodic.
+  fw audit WARN (task compliance): T-2815-audit-cron-drift-slug-uses-worktree-base.md,
+  T-2819-narrow-the-stale-agentic-framework-gitig.md, T-2822-blanket-contextworking-gitignore-makes-s.md
+  are each missing an ## Updates section. Bundled as one task per this arc's established
+  D2/T-2940 precedent (one check-line, many named instances, one governed task).
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-008]
 components: []
 related_tasks: []
@@ -23,9 +24,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-24T23:56:33Z
-last_update: '2026-09-25T00:07:08Z'
-date_finished:
+created: 2026-09-24T23:55:42Z
+last_update: 2026-09-25T00:29:27Z
+date_finished: 2026-09-25T00:29:27Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -62,18 +63,18 @@ cost_estimate_proposed:
     rubric_sha: e4a00f38e801
 ---
 
-# T-3108: 7 episodics have empty or TODO summaries
+# T-3104: 3 task files missing Updates section (T-2815, T-2819, T-2822)
 
 ## Context
 
-7 of 2510 episodic summaries are empty or contain [TODO].
+Bundled per the D2/T-2940 precedent: one check-class task for a WARN that names several task files.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] Identify the 7 episodic files and fill each Summary field with a real one-line task description
-- [x] fw audit's episodic-summary WARN count drops to 0
+- [x] Add a real ## Updates entry to T-2815, T-2819 and T-2822
+- [x] fw audit's task-compliance section no longer WARNs on these 3 files
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -169,8 +170,8 @@ cost_estimate_proposed:
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
-.agentic-framework/bin/fw audit > /tmp/.t3108-audit.out 2>&1 || true
-! grep -q 'empty or TODO summaries' /tmp/.t3108-audit.out
+.agentic-framework/bin/fw audit > /tmp/.t3104-audit.out 2>&1 || true
+! grep -q 'missing Updates section' /tmp/.t3104-audit.out
 
 ## RCA
 
@@ -190,17 +191,15 @@ cost_estimate_proposed:
 
 ## Evolution
 
-### 2026-09-25 — 2 of 7 had no summary anywhere, not just an unfilled placeholder
-- **What changed:** 5 of the 7 files carried the real content already, just nested inside an
-  escaped `body:` string rather than at the top level the audit's grep scans — a generation-shape
-  quirk, not missing content, so those 5 got their existing summary promoted to a real top-level
-  field. 2 (T-1224, T-920) genuinely had no summary text anywhere except the bare task ID; for
-  those the real one-line description was recovered from the `task_name:` field embedded in body.
-- **Plan impact:** none; verified with `scripts/check-episodic-parse.sh` before and after (2510/2510
-  readable both times) to confirm the additive top-level field didn't break anything reading `body:`.
-- **Triggered:** nothing further; the shape of these 7 files (task_name/chose/rationale/action/body
-  wrapper) differs from the standard flat hybrid episodic and may be worth its own investigation of
-  the generator path that produced it, but that is outside this task's scope.
+### 2026-09-25 — dated entries existed, just under the wrong heading
+- **What changed:** all 3 files already had real dated status-update entries; the
+  audit's check needs the literal `## Updates` heading to exist, and none of the 3 had
+  one — the entries were stranded under `## Decisions` or after `## Reviewer Verdict`.
+  Appended a proper `## Updates` heading + entry to each rather than restructuring
+  existing content.
+- **Plan impact:** none.
+- **Triggered:** nothing further; re-verified clean via a full fw audit re-run
+  ("319 of 320 tasks fully valid", 0 missing-Updates WARN lines).
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
@@ -276,7 +275,27 @@ cost_estimate_proposed:
 
 ## Updates
 
-### 2026-09-24T23:56:33Z — task-created [task-create-agent]
+### 2026-09-24T23:55:42Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3108-7-episodics-have-empty-or-todo-summaries.md
+- **Output:** /opt/termlink/.tasks/active/T-3104-3-task-files-missing-updates-section-t-2.md
 - **Context:** Initial task creation
+
+### 2026-09-25T00:29:16Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-2f8557bb
+- **Timestamp:** 2026-09-25T00:29:28Z
+- **Catalogue:** v1.3-seed
+- **Overall:** FAIL
+- **Needs Human:** no
+- **Findings:** 1
+
+**Verification-level findings:**
+
+  1. **swallowed-errors** (severe, deterministic) @ Verification:line 60
+     - evidence: `.agentic-framework/bin/fw audit > /tmp/.t3104-audit.out 2>&1 || true`
+
+### 2026-09-25T00:29:27Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
