@@ -1,19 +1,13 @@
 ---
-id: T-2858
-name: "Install-path drift: /root/.local/bin/termlink is stale behind the other two
-  install paths"
+id: T-3156
+name: "SQ-1 tranche 2: convert three more mechanically-checkable Human ACs (T-1723, T-2858, T-2822)"
 description: >
-  check-installed-binary-drift has been the guard layer's only firing member for two
-  sessions. /root/.local/bin/termlink is 0.11.1612 (2026-08-26) while /root/.cargo/bin
-  and /usr/local/bin both carry 0.11.1716. The fix is one cp, but the path is outside
-  /opt/termlink so the T-559 project boundary correctly refuses it from an agent session.
-  Filing so the operator action has an approval record instead of being re-stated
-  verbally each session.
+  SQ-1 tranche 2: convert three more mechanically-checkable Human ACs (T-1723, T-2858, T-2822)
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: human
-horizon: now
+owner: agent
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -27,9 +21,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-08-30T10:13:13Z
-last_update: '2026-09-08T21:28:26Z'
-date_finished:
+created: 2026-09-25T23:07:22Z
+last_update: 2026-09-25T23:10:10Z
+date_finished: 2026-09-25T23:10:10Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -40,74 +34,27 @@ date_finished:
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
-bvp_scores_proposed:
-  - ts: '2026-09-02T06:40:17Z'
-    estimator: bvp-estimator-v1-heuristic
-    scores:
-      D1: 4
-      D2: 0
-      D3: 3
-      D4: 2
-      F-RECALL: 0
-      F-ORCH: 0
-    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
-      (body:component-discoverability); D4=2 (body:env-class-handled); 
-      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
-    rubric_sha: e4a00f38e801
-cost_estimate_proposed:
-  - ts: '2026-09-08T21:28:26Z'
-    estimator: bvp-estimator-v1-heuristic
-    cost_estimate:
-      blast_radius:
-      tier: 2
-      effort: 8
-    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
-      (workflow:build); effort=8 (lines=293,acs=5)
-    rubric_sha: e4a00f38e801
 ---
 
-# T-2858: Install-path drift: /root/.local/bin/termlink is stale behind the other two install paths
+# T-3156: SQ-1 tranche 2: convert three more mechanically-checkable Human ACs (T-1723, T-2858, T-2822)
 
 ## Context
 
-`check-installed-binary-drift.sh` has been the guard layer's **only** firing member for
-two consecutive sessions (85 passed / 0 errored / 1 FAIL). Measured now:
-
-```
-/root/.cargo/bin/termlink     0.11.1716   2026-08-29
-/root/.local/bin/termlink     0.11.1612   2026-08-26   <-- stale
-/usr/local/bin/termlink       0.11.1716   2026-08-29
-DRIFT(1): 2 distinct versions across installed paths
-```
-
-Why this is not cosmetic: **different consumers on this host execute different code.**
-Whichever tool resolves `termlink` via `~/.local/bin` runs a build from three days and
-~104 commits earlier, so a fix that is landed, tested and green in git is simply not
-running for that caller — and nothing about the failure says "you are on an old binary".
-That is the G-069 shipped≠live class the fleet-binary canary exists to catch, reproduced
-locally on one host.
-
-**Why an agent cannot do it:** the target is `/root/.local/bin`, outside `/opt/termlink`,
-so the T-559 project boundary refuses the write — correctly. It was declined, not
-attempted. This task exists so the action has an approval record rather than being
-re-stated verbally each session.
+<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] The drift is measured and recorded with per-path version and mtime (see Context)
-- [x] The blocked action is attributed to the specific gate that refused it (T-559 project boundary), not left as an unexplained omission
-- [ ] [REVIEWER] All known install paths agree on one version — no install-path drift
-  **Converted from a `### Human` `[RUBBER-STAMP]` AC on 2026-09-26 (T-3156, operator GO on SQ-1).**
-  **The literal Expected string is STALE and I substituted the current equivalent — flagged rather than done quietly.** The original clause required the last line to read `check-installed-binary-drift: clean`. That string **no longer exists** in the script's output (`grep -c` → 0); its verdict line is now `installed paths agree: <version>`. The semantic claim is unchanged — all known paths on one version — and rc 0 confirms it, but a reviewer should know the assertion was rewritten rather than matched.
-  **Measured 2026-09-26:** `check-installed-binary-drift.sh` → `installed paths agree: 0.12.13`, rc 0, across 4 known install paths. The AC was written when the target was 0.11.1766 with two paths stale at 0.11.1716; the tree has since moved past both, so the condition is satisfied more strongly than it was specified.
-  **Scope, from the script's own disclaimer:** *"Paths not listed above were NOT examined. This check asserts nothing about install locations it does not know about."*
-  **Left unticked deliberately** — conversion is not closure.
+- [x] Each candidate's full `### Human` AC block is **read before conversion**. T-3154 excluded T-2878 for exactly this reason; converting an AC I have not read is the failure this work exists to avoid.
+- [x] Each converted AC moves to `### Agent` as `[REVIEWER]`, **unticked**, with a real command added to that task's `## Verification`, per CLAUDE.md T-1811/T-1878.
+- [x] **Every command written is executed and its verdict recorded before commit.** A converted AC whose command has never run replaces a human gate with an unverified one.
+- [x] Any candidate whose Expected clause turns out not to be settleable by a command is **left as a Human AC** with the reason recorded — the conversion target is the mechanical subset, not the whole queue.
+- [x] **No AC is ticked and no task is closed**, verified mechanically (no `+- [x]` and no `+owner:` under `.tasks/active` outside this task's own file).
+- [x] The queue delta is measured with `fw review-queue`, so the tranche's effect is a number rather than a claim.
+- [x] `## Decisions` is left EMPTY on this task and the rationale carried in the task body and commit instead — every task completed today carrying a Decisions entry corrupted `.context/project/decisions.yaml` via the vendored auto-capture (3/3: T-3146, T-3150, T-3155), so this avoids the defect rather than repairing after it.
 
 ### Human
-_The `[RUBBER-STAMP]` AC that was here has moved to `### Agent` as a `[REVIEWER]` AC — T-3156, operator GO on SQ-1. Its Expected clause was the output of `check-installed-binary-drift.sh`, so per T-1811/T-1878 it does not belong in the human queue. The `cp` of the newer binary over the two stale paths was an operator act and has already been performed. NOTE: the original Expected named the literal string `check-installed-binary-drift: clean`, which the script no longer emits — see the converted AC for the substitution and its evidence._
-
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
      Remove this section if all criteria are agent-verifiable.
      Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
@@ -178,6 +125,34 @@ _The `[RUBBER-STAMP]` AC that was here has moved to `### Agent` as a `[REVIEWER]
 # on, and grep scans the whole captured string anyway, so the `tail -3` was
 # cosmetic. `echo "$out" | grep -q PAT`, nothing between.
 #
+# ── Asserting an ABSENCE: prove the search could have succeeded (T-3144) ──
+#
+# `! grep -q "PATTERN" file` exits 0 when the pattern is absent. It ALSO exits 0
+# when the file was renamed, deleted, or is empty — so the leg cannot distinguish
+# "the bad thing is not there" from "I could not look", and the gate reports green
+# over a check that never ran. Pair every absence assertion with something that
+# fails if the search could not happen:
+#
+#     test -f path/to/file && ! grep -q "PATTERN" path/to/file    # existence first
+#     grep -q "KNOWN_MARKER" f && ! grep -q "PATTERN" f           # positive companion
+#     cmd > /tmp/.out 2>&1 && ! grep -q "PATTERN" /tmp/.out       # &&-joined producer
+#
+# Count-equals-zero is the same defect wearing a different hat, and it is the one
+# that bites hardest over a COMMAND's output rather than a file:
+#
+#     [ "$(cargo clippy --workspace 2>&1 | grep -c "^error")" = "0" ]   # WRONG
+#
+# If cargo is missing, or dies before emitting diagnostics, there are no `^error`
+# lines, the count is 0, and the leg passes — a build gate that goes green
+# precisely when the build could not run. Measured in this corpus, not invented.
+# Keep the producer's exit code in the verdict:
+#
+#     cargo clippy --workspace > /tmp/.out 2>&1 && ! grep -q "^error" /tmp/.out
+#
+# T-3144 censused 2853 task files: 71 absence assertions, 41 already correct, 30
+# not. The convention mostly works — this note is here so the next one is written
+# right, because a vacuous leg is invisible until the day the path moves.
+#
 # TEST RUNNERS need a guard either way (T-2738). `set -e` is suppressed inside the
 # `if` condition the gate runs each line in, so in `cmd1; cmd2` only cmd2 is the
 # verdict — and the pass marker you grep for survives a partial failure: a suite
@@ -201,10 +176,19 @@ _The `[RUBBER-STAMP]` AC that was here has moved to `### Agent` as a `[REVIEWER]
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+# the two converted ACs exist as [REVIEWER] in ### Agent
+grep -q "REVIEWER\] The meta-canary cron entry is installed" .tasks/active/T-1723-meta-canary--warn-when-release-mirror-ca.md
+grep -q "REVIEWER\] All known install paths agree" .tasks/active/T-2858-install-path-drift-rootlocalbintermlink-.md
+# every command written into those blocks runs and passes
+test -f /etc/cron.d/termlink-release-mirror-canary
+grep -q "check-canary-aliveness.sh" /etc/cron.d/termlink-release-mirror-canary
+bash scripts/check-installed-binary-drift.sh > /tmp/.t3156-drift.out 2>&1 && grep -q "installed paths agree" /tmp/.t3156-drift.out
+# T-2822 was NOT converted — its Steps carry a security review that must stay human
+grep -q "RUBBER-STAMP\] Commit the four static-check allowlists" .tasks/active/T-2822*.md
+# SAFETY INVARIANT: no AC ticked, no task re-owned
+test -z "$(git diff -U0 -- .tasks/active ':(exclude).tasks/active/T-3156*' | grep -E '^\+- \[x\]' || true)"
+test -z "$(git diff -U0 -- .tasks/active ':(exclude).tasks/active/T-3156*' | grep -E '^\+owner:' || true)"
 
-# T-3156: the converted [REVIEWER] AC — all KNOWN install paths on one version.
-# Asserts the script verdict + rc, not the stale literal "…: clean" it no longer emits.
-bash scripts/check-installed-binary-drift.sh > /tmp/.t2858-drift.out 2>&1 && grep -q "installed paths agree" /tmp/.t2858-drift.out
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -246,20 +230,6 @@ bash scripts/check-installed-binary-drift.sh > /tmp/.t2858-drift.out 2>&1 && gre
 -->
 
 ## Recommendation
-
-**Recommendation:** GO
-
-**Rationale:** One `cp`, fully reversible, and it clears the guard layer's only firing
-member — taking the layer to 86 passed / 0 firing / 0 errored. The cost of leaving it is
-not the red line itself; it is that a permanently-firing guard trains the reader to skim
-past a FAIL, the same fatigue mechanism T-2818 documented from the other direction. A
-guard nobody reads has stopped working.
-
-**Evidence:**
-- Firing in the guard layer for two consecutive sessions; every other member green
-- `/root/.local/bin` = 0.11.1612 (2026-08-26) vs 0.11.1716 (2026-08-29) on the other two paths
-- Refused from the agent session by the T-559 project boundary — declined, not skipped
-- Reversible: the prior binary is restorable from `~/.cargo/bin` or a rebuild
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
      (audit_inception_recommendation, lib/task-audit.sh:117) is shared, so the
@@ -311,47 +281,24 @@ guard nobody reads has stopped working.
 
 ## Updates
 
-### 2026-08-30T10:13:13Z — task-created [task-create-agent]
+### 2026-09-25T23:07:22Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2858-install-path-drift-rootlocalbintermlink-.md
+- **Output:** /opt/termlink/.tasks/active/T-3156-sq-1-tranche-2-convert-three-more-mechan.md
 - **Context:** Initial task creation
 
-### 2026-09-02T06:40:17Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
+## Reviewer Verdict (v1.5)
 
-### 2026-09-02T09:05Z — re-measured: the drift is now TWO paths, and both are pre-T-2873 [claude-code]
+- **Scan ID:** R-372ac91d
+- **Timestamp:** 2026-09-25T23:10:12Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
 
-`check-installed-binary-drift.sh` fired again in today's guard-layer sweep. The picture
-has changed since this task was filed, in a way that changes the human action from one
-path to two:
+**Per-AC findings:**
 
-```
-/root/.cargo/bin/termlink     0.11.1766   2026-09-01   <- current
-/root/.local/bin/termlink     0.11.1716   2026-08-29   <- STALE
-/usr/local/bin/termlink       0.11.1716   2026-08-29   <- STALE (new; was not stale at filing)
-/usr/bin/termlink             (absent)
-build artifact                0.11.1766                 (pending deploy, informational)
-```
+- **AC#7 (Agent)** — `## Decisions` is left EMPTY on this task and the rationale carried in the task body and commit instead — every task completed today carrying a Decisions entry corrupted `.context/project/decisions.ya
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=context/project/decisions.yaml in: `## Decisions` is left EMPTY on this task and the rationale carried in the task body and commit instead — every task completed today carrying a Decisi`
 
-The T-2873 rebuild advanced **only** `/root/.cargo/bin` — it was installed there by
-temp-file + `mv -f` because the destination was being executed by live processes. So
-`/usr/local/bin` did not fall behind through neglect; it fell behind because the T-2873
-install deliberately touched one path.
-
-**Why this is now more than cosmetic.** `0.11.1716` is the **pre-fix** binary for T-2873:
-its `termlink_remote_inject` builds `command.inject` keys as bare strings and is rejected
-by every hub with `-32602`. So any caller resolving `termlink` through `/root/.local/bin`
-or `/usr/local/bin` still gets the broken tool, while a caller on PATH gets the fix. That
-is the check's own DRIFT wording — *"a fix landed in git is running for some callers and
-not others"* — with a named, currently-live defect behind it.
-
-**Still blocked for the same reason.** Writing to either path is refused by the T-559
-project-boundary gate, which is exactly what this task's second AC already records. The
-`[RUBBER-STAMP]` step below now covers two paths rather than one.
-
-**Unexamined by construction.** The check probes 4 known paths and says so explicitly. A
-**fifth** install exists — `/opt/termlink/.termlink/bin/termlink`, the T-288 per-project
-vendored binary, **0.9.13 dated 2026-03-27** (~5 months and ~1000 commits stale). It is
-gitignored (`.gitignore:68`), so it is invisible to git and to this check both. Nothing in
-the main checkout's config points at it any more — T-2874 removed that pin — but four
-git worktrees still carry it, filed separately.
+### 2026-09-25T23:10:10Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

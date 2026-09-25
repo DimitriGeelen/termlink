@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3156: SQ-1 tranche 2: convert three more mechanically-checkable Human ACs (T-1723, T-2858, T-2822)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-25T23:10:18Z
+# ============================================================================
+
+task_id: T-3156
+task_name: "SQ-1 tranche 2: convert three more mechanically-checkable Human ACs (T-1723, T-2858, T-2822)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-25T23:07:22Z
+completed: 2026-09-25T23:10:10Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  SQ-1 tranche 2: convert three more mechanically-checkable Human ACs (T-1723, T-2858, T-2822)
+
+# Key outcomes
+outcomes:
+  - 'Each candidate''s full `### Human` AC block is **read before conversion**. T-3154 excluded T-2878 for exactly this reason; converting an AC I have not read is the failure this work exists to avoid.'
+  - 'Each converted AC moves to `### Agent` as `[REVIEWER]`, **unticked**, with a real command added to that task''s `## Verification`, per CLAUDE.md T-1811/T-1878.'
+  - '**Every command written is executed and its verdict recorded before commit.** A converted AC whose command has never run replaces a human gate with an unverified one.'
+  - 'Any candidate whose Expected clause turns out not to be settleable by a command is **left as a Human AC** with the reason recorded — the conversion target is the mechanical subset, not the whole queue.'
+  - '**No AC is ticked and no task is closed**, verified mechanically (no `+- [x]` and no `+owner:` under `.tasks/active` outside this task''s own file).'
+  - 'The queue delta is measured with `fw review-queue`, so the tranche''s effect is a number rather than a claim.'
+  - '`## Decisions` is left EMPTY on this task and the rationale carried in the task body and commit instead — every task completed today carrying a Decisions entry corrupted `.context/project/decisions.yaml` via the vendored auto-capture (3/3: T-3146, T-3150, T-3155), so this avoids the defect rather than repairing after it.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 2
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3156-sq-1-tranche-2-convert-three-more-mechan.md
+generated_by: context-agent-hybrid

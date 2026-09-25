@@ -39,16 +39,14 @@ signal that the meta-check can stat.
 - [x] `.context/cron/release-mirror-canary.crontab` has a new line invoking `check-canary-aliveness.sh --quiet` daily (33 8 * * *, 80 min after the canary at 13 7 * * * so a load-time race can't take both); the file still parses as `/etc/cron.d/`-style USER-field syntax (15-field rows, header comment unchanged).
 - [x] After a manual run of `check-mirror-freshness.sh` in this repo, the heartbeat file exists at `.context/working/.release-mirror-canary.heartbeat`.
 - [x] `check-canary-aliveness.sh` against the fresh heartbeat exits 0. Negative test: backdated heartbeat to 72h → exit 1 with full diagnostic, AND the side-effect-free probe (via `--no-heartbeat`) preserved the stale mtime across multiple meta-canary invocations.
+- [ ] [REVIEWER] The meta-canary cron entry is installed on this host, so it actually fires
+  **Converted from a `### Human` `[RUBBER-STAMP]` AC on 2026-09-26 (T-3156, operator GO on SQ-1).** Its Expected clause was a grep, so per T-1811/T-1878 it belongs here with the check in `## Verification`. The `sudo cp` + `systemctl reload cron` install was an operator act already performed.
+  **Measured 2026-09-26:** `grep aliveness /etc/cron.d/termlink-release-mirror-canary` returns `33 8 * * * root cd /opt/termlink && bash scripts/check-canary-aliveness.sh --quiet >> …`, rc 0.
+  **Left unticked deliberately** — conversion is not closure.
 
 ### Human
 
-- [ ] [RUBBER-STAMP] Cron entry installed on .107 so the meta-canary actually fires.
-  **Steps:**
-  1. `sudo cp /opt/termlink/.context/cron/release-mirror-canary.crontab /etc/cron.d/termlink-release-mirror-canary`
-  2. `sudo systemctl reload cron`
-  3. `grep aliveness /etc/cron.d/termlink-release-mirror-canary`
-  **Expected:** The grep returns the new meta-canary line.
-  **If not:** Inspect `/etc/cron.d/termlink-release-mirror-canary` for syntax / permission issues; cron does NOT load files that are group/world-writable.
+_The `[RUBBER-STAMP]` AC that was here has moved to `### Agent` as a `[REVIEWER]` AC — T-3156, operator GO on SQ-1. Its Expected clause ("the grep returns the new meta-canary line") is literally a grep, so per T-1811/T-1878 it does not belong in the human queue. The `sudo cp` + `systemctl reload cron` install was an operator act and has already been performed. Preserved diagnosis if it ever fires again: inspect the installed file for syntax/permission issues — cron does NOT load files that are group- or world-writable._
 
 ## Verification
 
@@ -60,6 +58,10 @@ test -f .context/working/.release-mirror-canary.heartbeat
 bash scripts/check-canary-aliveness.sh --quiet
 grep -q "check-canary-aliveness.sh" .context/cron/release-mirror-canary.crontab
 
+
+# T-3156: the converted [REVIEWER] AC — the meta-canary cron entry is actually installed
+test -f /etc/cron.d/termlink-release-mirror-canary
+grep -q "check-canary-aliveness.sh" /etc/cron.d/termlink-release-mirror-canary
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
