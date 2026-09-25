@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3148: Guard: verification legs that assert an absence without proving the search could succeed (active tasks only)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-25T16:00:39Z
+# ============================================================================
+
+task_id: T-3148
+task_name: "Guard: verification legs that assert an absence without proving the search could succeed (active tasks only)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-25T15:54:29Z
+completed: 2026-09-25T16:00:21Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-09-25T18:00:10+02:00
+last_commit: 2026-09-25T18:00:10+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  the robot, scoped so it has nothing to scream about
+
+# Key outcomes
+outcomes:
+  - '`scripts/check-absence-assertion.sh` exists, carries the `# guard-layer: source` marker,'
+  - 'It fires on the two real instances in T-1415 as the tree stands today — ground truth'
+  - 'It does NOT fire on a leg carrying any of the three correct companions: a preceding'
+  - 'Count-equals-zero over a COMMAND''s output is detected too (`[ "$(cmd | grep -c X)" = "0" ]`),'
+  - 'Exit codes follow the layer''s contract: 0 clean, 1 firing, 2 tooling — and it is'
+  - '`--json` carries `firing[]`, counts, the acknowledged set separately, and an explicit'
+  - 'Allowlist at `.context/checks/absence-assertion-allowlist` (git-tracked per T-2681),'
+  - 'Fixtures pin: the firing case, all three false-positive guards, the fail-closed paths,'
+  - 'The check is a member of `run-guard-layer.sh --list`, it fired on exactly 2 findings'
+  - 'T-1415''s two legs keep their original verdict when `crates/` is present (rc 0, measured'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/checks/absence-assertion-allowlist'
+  - 'scripts/check-absence-assertion.sh'
+  - '.tasks/active/T-1415-t-1166-post-cut-cleanup-delete-retired-p.md'
+  - '.tasks/active/T-3148-guard-verification-legs-that-assert-an-a.md'
+  - 'tests/absence-assertion-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-25T18:00:10'
+    action: 'T-3148: the robot, scoped so it has nothing to scream about'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 5
+  lines_added: 870
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3148-guard-verification-legs-that-assert-an-a.md
+generated_by: context-agent-hybrid
