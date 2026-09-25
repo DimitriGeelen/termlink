@@ -12514,3 +12514,47 @@ scan_id: R-49ca2efe
 task_id: T-3138
 payload:
   task_file: .tasks/active/T-3138-uncommitted-changes-present-at-r3s2-audi.md
+---
+kind: scan_emitted
+timestamp: '2026-09-25T09:58:05Z'
+scan_id: R-9c14bb40
+task_id: T-2753
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-25T09:58:05Z'
+scan_id: R-9c14bb40
+task_id: T-2753
+payload:
+  task_file: .tasks/active/T-2753-hubstoml-has-three-independent-parsers-w.md
+---
+kind: recommendation_claims_verdict
+timestamp: '2026-09-25T09:58:05Z'
+scan_id: RC-3aba3f32
+task_id: T-2753
+payload:
+  overall: UNVERIFIED
+  claim_count: 0
+---
+kind: scan_emitted
+timestamp: '2026-09-25T10:23:26Z'
+scan_id: R-e890ea40
+task_id: T-3134
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-25T10:23:26Z'
+scan_id: R-e890ea40
+task_id: T-3134
+payload:
+  task_file: .tasks/active/T-3134-artifact-cli-verbs-termlink-artifact-put.md

@@ -40,7 +40,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-25T06:32:43Z
-last_update: 2026-09-25T11:10:40Z
+last_update: 2026-09-25T11:14:44Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -78,11 +78,11 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] The defect is filed at `framework:pickup` with the measured evidence, verified by reading the topic back (T-2876) — **informing AEF before experimenting**, per the operator's sequencing
-- [ ] The mechanism is located precisely in the vendored writer(s) and stated as file:line, not inferred
-- [ ] A candidate fix is prototyped locally and **proven against the actual failure**: two concurrent readers must not see each other's figure
-- [ ] The local change is registered in `.vendor-divergence.yaml` as `filed-upstream` — a re-vendor deletes it, and an unregistered local patch is exactly the T-2813 trap
-- [ ] The proven fix is sent to AEF as a follow-up filing, with the diff and the proof, not just a description
+- [x] The defect is filed at `framework:pickup` with the measured evidence, verified by reading the topic back (T-2876) — **informing AEF before experimenting**, per the operator's sequencing
+- [x] The mechanism is located precisely in the vendored writer(s) and stated as file:line, not inferred
+- [x] A candidate fix is prototyped locally and **proven against the actual failure**: two concurrent readers must not see each other's figure
+- [x] The local change is registered in `.vendor-divergence.yaml` as `filed-upstream` — a re-vendor deletes it, and an unregistered local patch is exactly the T-2813 trap
+- [x] The proven fix is sent to AEF as a follow-up filing, with the diff and the proof, not just a description
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -118,6 +118,10 @@ bvp_scores_proposed:
 -->
 
 ## Verification
+
+bash tests/budget-status-session-key-fixtures.sh > /tmp/.t3127-fx 2>&1 && grep -q "0 failed" /tmp/.t3127-fx
+bash scripts/check-vendor-divergence.sh
+grep -q 'session_key' .agentic-framework/agents/context/budget-gate.sh
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
