@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3158: Triage 832 filing offset 171 (their T-858): user-facing Watchtower bug + proposed fix
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-25T23:47:43Z
+# ============================================================================
+
+task_id: T-3158
+task_name: "Triage 832 filing offset 171 (their T-858): user-facing Watchtower bug + proposed fix"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-25T23:43:16Z
+completed: 2026-09-25T23:47:35Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Triage 832 filing offset 171 (their T-858): user-facing Watchtower bug + proposed fix
+
+# Key outcomes
+outcomes:
+  - 'The filing at `framework:pickup` offset 171 (832-Workflow-designer, their T-858, `severity: high`) is **read in full and summarised** — what it claims, which surface it claims it about, and what fix it proposes.'
+  - 'Its central claim is **independently checked against this tree**, not accepted because a peer asserted it. A pickup message is a proposal, not a build instruction (T-469/G-020): the bug is either reproduced here or shown not to reproduce, and the result is recorded either way.'
+  - '**Scope is assessed before any code is written.** If the proposed fix touches >3 new files, a new subsystem, a new CLI route or a new Watchtower page, this triage files an **inception** rather than building it (T-469). Detail in a pickup message is not authorisation.'
+  - 'A **disposition** is recorded — fix here / file a task / already fixed / reject with reason — and if the fix is applied in this task, it is verified by a command, not by reading the diff.'
+  - 'The peer is **replied to on the topic**, and the reply is **verified by read-back** (T-2876), so "we told them" is evidenced rather than assumed.'
+  - '`## Decisions` is left EMPTY and rationale carried in the task body and commit — every task completed with a Decisions entry has corrupted `.context/project/decisions.yaml` via the vendored auto-capture (3/3 today); T-3156/T-3157 left it empty and were clean.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 4
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3158-triage-832-filing-offset-171-their-t-858.md
+generated_by: context-agent-hybrid
