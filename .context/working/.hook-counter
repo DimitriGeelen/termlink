@@ -2,18 +2,18 @@ check-human-ac-tick=4
 
 check-active-completed-dup=2
 
-checkpoint=13
+checkpoint=15
 check-inception-schema=3
 check-arc-id=3
 check-onboarding-gate=3
 check-inception-decisions=3
-check-project-boundary=13
-budget-gate=13
-check-active-task=13
-loop-detect=12
+check-project-boundary=15
+budget-gate=15
+check-active-task=15
+loop-detect=14
 check-settings-edit=3
 commit-cadence=3
-audit-task-tools=12
-check-tier0=10
-error-watchdog=8
+audit-task-tools=14
+check-tier0=12
+error-watchdog=10
 check-heredoc-cmd-sub=2
