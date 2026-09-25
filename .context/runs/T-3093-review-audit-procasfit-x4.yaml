@@ -229,23 +229,29 @@ steps:
     has zero production call sites — only the MCP choke point (termlink-mcp/src/server.rs) records — and
     every step in this sequence so far has worked exclusively via the CLI/fw surface, which is structurally
     invisible to the sink. Found this is not a new gap: T-3032/T-3033 already capture it verbatim (filed
-    2026-09-21, unworked). Filed as R3-F1 (ADD-WIRE, strengthens existing tasks, recommends horizon
-    now). Resolved R2-F4 (anomalous no-tty mcp-serve process, pid 1895596) to KEEP: parent pid 1895454
-    is a live, non-orphaned Claude Code Desktop-app session (ccd_*/computer-use tool grants) — no
-    controlling tty by construction, not a leak (R3-F2). Confirmed R2-F2''s CLAUDE.md concurrency-warning
-    paragraph landed cleanly between rounds (T-3127/T-3128 both exist). Carried R1-F1/F1b/R2-F5 (4 unused
-    Cargo deps) forward unchanged as R3-F3, now flagging the 3-round zero-engagement on its [ASK] as its
-    own process observation (not reopening the DELETE). No Sovereign question reopened; no new one raised.
+    2026-09-21, unworked). Filed as R3-F1 (ADD-WIRE, strengthens existing tasks, recommends horizon now).
+    Resolved R2-F4 (anomalous no-tty mcp-serve process, pid 1895596) to KEEP: parent pid 1895454 is a
+    live, non-orphaned Claude Code Desktop-app session (ccd_*/computer-use tool grants) — no controlling
+    tty by construction, not a leak (R3-F2). Confirmed R2-F2''s CLAUDE.md concurrency-warning paragraph
+    landed cleanly between rounds (T-3127/T-3128 both exist). Carried R1-F1/F1b/R2-F5 (4 unused Cargo
+    deps) forward unchanged as R3-F3, now flagging the 3-round zero-engagement on its [ASK] as its own
+    process observation (not reopening the DELETE). No Sovereign question reopened; no new one raised.
     See docs/reports/VALUE-REVIEW-repo-2026-09-25-R3.md + -evidence.md.'
+  completed_utc: '2026-09-25T11:20:00Z'
+  note: Halted at Phase 5 [ASK] like R1S1/R2S1 - COMPLETE by this run's known_gates entry, not failed.
+    Read R1S1's and R2S1's reports in full before gathering, and again ran a delta round rather than re-deriving
+    the Phase 2 inventory a third time - this is the 10th value-review pass over the repo.
 - id: R3S2
   round: 3
   step: 2
   prompt: audit_remediation
-  state: pending
-  worker: null
+  state: dispatched
+  worker: t3093-r3s2-audit
   fed_by: R3S1
   feeds: R3S3
   result_file: .context/runs/T-3093-R3S2-handback.md
+  dispatched_utc: '2026-09-25T11:22:00Z'
+  fed_with: R3S1 handback + T-3127 budget warning + the 1-cycle capacity finding
 - id: R3S3
   round: 3
   step: 3
