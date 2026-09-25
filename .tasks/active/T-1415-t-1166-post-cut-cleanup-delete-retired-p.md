@@ -194,9 +194,9 @@ delete any remaining references.
 # `cmd | grep -q` exits 141 when the pattern MATCHES (L-387).
 
 # The cut mechanism itself is gone — no const, no cargo feature.
-f=$(mktemp); grep -rn 'LEGACY_PRIMITIVES_ENABLED\|legacy_primitives_disabled' crates/ --include='*.rs' > "$f" 2>/dev/null; n=$(wc -l < "$f"); rm -f "$f"; test "$n" -eq 0
+test -d crates && { f=$(mktemp); grep -rn 'LEGACY_PRIMITIVES_ENABLED\|legacy_primitives_disabled' crates/ --include='*.rs' > "$f" 2>/dev/null; n=$(wc -l < "$f"); rm -f "$f"; test "$n" -eq 0; }
 # The session-layer legacy fallback helpers are gone.
-f=$(mktemp); grep -rn 'call_legacy_inbox_\|status_with_fallback\|list_with_fallback\|clear_with_fallback' crates/ --include='*.rs' > "$f" 2>/dev/null; n=$(wc -l < "$f"); rm -f "$f"; test "$n" -eq 0
+test -d crates && { f=$(mktemp); grep -rn 'call_legacy_inbox_\|status_with_fallback\|list_with_fallback\|clear_with_fallback' crates/ --include='*.rs' > "$f" 2>/dev/null; n=$(wc -l < "$f"); rm -f "$f"; test "$n" -eq 0; }
 # The hub no longer routes the retired methods, and still says so to consumers.
 f=$(mktemp); grep -n '"legacy_primitives": false' crates/termlink-hub/src/router.rs > "$f" 2>/dev/null; n=$(wc -l < "$f"); rm -f "$f"; test "$n" -ge 1
 # The regression guard against NEW direct callers still passes.

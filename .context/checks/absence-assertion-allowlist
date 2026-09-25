@@ -1,0 +1,16 @@
+# absence-assertion-allowlist — acknowledged findings for check-absence-assertion.sh (T-3148).
+#
+# Format: <task-filename>::<first ~60 chars of the leg>  # reason
+#
+# An entry is still COUNTED AND REPORTED on the clean path; it just does not fire.
+#
+# THIS FILE SHIPS EMPTY AND EMPTY IS THE HEALTHY STATE.
+#
+# The check scans .tasks/active/ only. Completed tasks are out of SCOPE by construction,
+# precisely so that 28 un-fixable historical findings never needed listing here — a long
+# silence list is its own slow failure (T-2818/T-2833: entries get added, never removed,
+# and the ledger stops being read).
+#
+# So an entry here is only for a finding that is real, in an ACTIVE task, and genuinely
+# cannot be fixed. Anything fixable gets fixed. If this file starts growing, that is a
+# signal the check or the convention is wrong — not a signal to keep adding lines.
