@@ -1,0 +1,129 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3087: Land T-2842 ERRORING read surface + T-2843 EXIT-trap heartbeat from worktree-governance-canary-signal
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-25T21:26:24Z
+# ============================================================================
+
+task_id: T-3087
+task_name: "Land T-2842 ERRORING read surface + T-2843 EXIT-trap heartbeat from worktree-governance-canary-signal"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-09-24T18:21:42Z
+completed: 2026-09-25T21:26:11Z
+duration_days: 1
+updates_count: 2
+first_commit: 2026-09-25T23:18:26+02:00
+last_commit: 2026-09-25T23:25:51+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  land T-2843 — heartbeat proves the run FINISHED, not that cron started it. land T-2842 — the canary stderr sink finally has a reader
+
+# Key outcomes
+outcomes:
+  - '`scripts/canary-status.sh` classifies a canary whose `<log>.stderr` has content written inside the staleness window as **ERRORING**, and ERRORING outranks FIRING / STALE / HEALTHY — a canary that could not complete its run cannot be trusted to have found or missed anything.'
+  - 'ERRORING counts toward `PROBLEMS` (the verb exits 1) and is surfaced on **every** output path: the full human summary line, `--quiet`, the `Action needed:` block naming the stderr sink, and `--json` (`summary.erroring` plus per-canary `stderr_bytes`).'
+  - 'When a canary is ERRORING, `latest_entry` is read from the **stderr sink**, not the firing log.'
+  - 'All four of main''s post-branch hardenings survive the merge unchanged and are re-asserted by fixtures: T-2763 worktree resolution (`RESOLUTION`, refuse-never-fallback), T-2975 `SCOPE_NOTE` on every path, T-2826 `-ge` firing predicate, T-2840 `is_cron_scheduled` NOT_SCHEDULED predicate.'
+  - 'The branch''s looser `crontab_declares` NOT_SCHEDULED variant is **deliberately not adopted**, with the reason recorded in `## Decisions` (bare-name grep vs `.<name>.log` anchor; fail-closed vs fail-open on an absent cron dir).'
+  - 'Every check script carrying the uniform `if [ "$HEARTBEAT" -eq 1 ]; then touch ...; fi` block defers the touch to an `EXIT` trap, so a hung or killed run leaves the heartbeat untouched and surfaces as STALE instead of reading alive.'
+  - 'No check script is left un-migrated — the migrated set covers every script matching the uniform block, not only the 24 the branch happened to touch (the "hardened in one place, siblings not migrated" divergence).'
+  - '`bash tests/canary-status-fixtures.sh` and `bash tests/canary-heartbeat-fixtures.sh` both pass, and the canary-status suite carries a **mutant** that removes the ERRORING branch and is caught by it.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-09-25 — NOT_SCHEDULED: which of the two predicates survives'
+    chose: 'main''s `is_cron_scheduled()` — greps the crontabs for `\.<name>\.log`, **fails OPEN** on an absent cron dir, and is consulted only inside the STALE branch (heartbeat ancient AND log never written AND nothing schedules it).'
+    rationale: 'three independent reasons, all pointing the same way. (1) The anchor is the LOG FILENAME, which is what a crontab necessarily names; the branch''s bare `grep -F <name>` also matches a canary merely *mentioned* in a comment, so it would silence a genuinely stale canary on a coincidence. (2) Fail direction: on an absent cron dir main keeps the old behaviour, while the branch''s variant returns "not declared" for everything — mass-downgrading every real STALE canary to "not a problem" precisely when the check can no longer tell. A guard that goes quiet when it loses its footing is the vacuous-pass class (T-2831). (3) Placement: main only downgrades something already STALE, so the blast radius is the narrower one.'
+    alternatives_rejected: ['the branch''s `crontab_declares()`. Nothing in it is unavailable in main''s version, so adopting it would have traded strictness for nothing. Case 8 pins the fail-open direction and Case 13 pins that the rejected predicate has not crept back — if it ever does, two predicates would disagree silently.']
+  - decision: '2026-09-25 — migrate 31 scripts, not the branch''s 24'
+    chose: 'apply the EXIT-trap heartbeat to every script that writes a heartbeat.'
+    rationale: 'main gained six such scripts after the branch forked, and `check-addressed-posts.sh` used a fourth block shape (a local `$hb` rather than `$HEARTBEAT_FILE`) that the sweep''s anchor did not reach. Landing only the branch''s 24 would have reproduced the "hardened in one place, siblings not migrated" divergence that the guard layer exists to catch.'
+    alternatives_rejected: ['a literal `git apply` of the branch patch. It would have been cleaner to review but would have left the six newer scripts and the fourth shape behind, and would have missed that the heartbeat regions were byte-identical anyway — which is what made a surgical transform safe.']
+  - decision: '2026-09-25 — the chained-trap hazard'
+    chose: 'for the four scripts that install their own cleanup `trap ... EXIT` later in the file, use a self-guarding helper armed early and chained onto that later trap.'
+    rationale: '`trap ... EXIT` REPLACES any previous EXIT trap. A naive `trap _canary_hb EXIT` at the heartbeat site would have been silently overwritten by the cleanup trap installed further down, stopping those heartbeats entirely and pinning four canaries permanently STALE — a worse failure than the one being fixed, and invisible until someone read /canaries a day later.'
+    alternatives_rejected: ['moving the heartbeat call into each cleanup trap only. That leaves an early `exit 2` (before the cleanup trap is installed) with no heartbeat at all.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - 'scripts/canary-status.sh'
+  - 'scripts/check-addressed-posts.sh'
+  - 'scripts/check-alloc-sink-clamps.sh'
+  - 'scripts/check-busy-spin.sh'
+  - 'scripts/check-charter-drift-freshness.sh'
+  - 'scripts/check-charter-sentence-drift.sh'
+  - 'scripts/check-dead-letter-freshness.sh'
+  - 'scripts/check-drain-sink-caps.sh'
+  - 'scripts/check-error-swallowing-predicate.sh'
+  - 'scripts/check-fleet-binary-freshness.sh'
+  - 'scripts/check-fleet-capability-freshness.sh'
+  - 'scripts/check-fleet-doorbell-mail-health.sh'
+  - 'scripts/check-forever-archival-freshness.sh'
+  - 'scripts/check-framework-pickup-freshness.sh'
+  - 'scripts/check-frozen-husk-freshness.sh'
+  - 'scripts/check-hook-counter-integrity.sh'
+  - 'scripts/check-mcp-parity-census.sh'
+  - 'scripts/check-mirror-freshness.sh'
+  - 'scripts/check-preflight-doc-set-drift.sh'
+  - 'scripts/check-release-artifact-drift.sh'
+  - 'scripts/check-session-control-freshness.sh'
+  - 'scripts/check-silent-exit.sh'
+  - 'scripts/check-stale-waker-code-freshness.sh'
+  - 'scripts/check-stuck-claims-freshness.sh'
+  - 'scripts/check-substrate-smoke-freshness.sh'
+  - 'scripts/check-task-finalization-freshness.sh'
+  - 'scripts/check-topic-growth-freshness.sh'
+  - 'scripts/check-unbounded-rpc-call.sh'
+  - 'scripts/check-unconfirmed-delivery-freshness.sh'
+  - 'scripts/check-version-derivation.sh'
+  - 'scripts/check-waker-liveness-freshness.sh'
+  - 'scripts/substrate-preflight.sh'
+  - '.tasks/active/T-3087-land-t-2842-erroring-read-surface--t-284.md'
+  - 'tests/canary-heartbeat-fixtures.sh'
+  - 'tests/canary-status-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-25T23:18:26'
+    action: 'T-3087: land T-2843 — heartbeat proves the run FINISHED, not that cron started it'
+  - time: '2026-09-25T23:25:51'
+    action: 'T-3087: land T-2842 — the canary stderr sink finally has a reader'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 1624 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1624
+  commits: 2
+  files_changed: 36
+  lines_added: 895
+  lines_removed: 99
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3087-land-t-2842-erroring-read-surface--t-284.md
+generated_by: context-agent-hybrid

@@ -11,12 +11,12 @@ description: >
   branch crontab_declares/NOT_SCHEDULED plus ERRORING and stderr_size. Must reconcile
   both, not pick a side.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [scripts/canary-status.sh, scripts/check-addressed-posts.sh, scripts/check-alloc-sink-clamps.sh, scripts/check-busy-spin.sh, scripts/check-charter-drift-freshness.sh, scripts/check-charter-sentence-drift.sh, scripts/check-dead-letter-freshness.sh, scripts/check-drain-sink-caps.sh, scripts/check-error-swallowing-predicate.sh, scripts/check-fleet-binary-freshness.sh, scripts/check-fleet-capability-freshness.sh, scripts/check-fleet-doorbell-mail-health.sh, scripts/check-forever-archival-freshness.sh, scripts/check-framework-pickup-freshness.sh, scripts/check-frozen-husk-freshness.sh, scripts/check-hook-counter-integrity.sh, scripts/check-mcp-parity-census.sh, scripts/check-mirror-freshness.sh, scripts/check-preflight-doc-set-drift.sh, scripts/check-release-artifact-drift.sh, scripts/check-session-control-freshness.sh, scripts/check-silent-exit.sh, scripts/check-stale-waker-code-freshness.sh, scripts/check-stuck-claims-freshness.sh, scripts/check-substrate-smoke-freshness.sh, scripts/check-task-finalization-freshness.sh, scripts/check-topic-growth-freshness.sh, scripts/check-unbounded-rpc-call.sh, scripts/check-unconfirmed-delivery-freshness.sh, scripts/check-version-derivation.sh, scripts/check-waker-liveness-freshness.sh, scripts/substrate-preflight.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -29,8 +29,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-24T18:21:42Z
-last_update: 2026-09-25T21:18:42Z
-date_finished:
+last_update: 2026-09-25T21:26:11Z
+date_finished: 2026-09-25T21:26:11Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -100,14 +100,14 @@ content main lacks.
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `scripts/canary-status.sh` classifies a canary whose `<log>.stderr` has content written inside the staleness window as **ERRORING**, and ERRORING outranks FIRING / STALE / HEALTHY — a canary that could not complete its run cannot be trusted to have found or missed anything.
-- [ ] ERRORING counts toward `PROBLEMS` (the verb exits 1) and is surfaced on **every** output path: the full human summary line, `--quiet`, the `Action needed:` block naming the stderr sink, and `--json` (`summary.erroring` plus per-canary `stderr_bytes`).
-- [ ] When a canary is ERRORING, `latest_entry` is read from the **stderr sink**, not the firing log.
-- [ ] All four of main's post-branch hardenings survive the merge unchanged and are re-asserted by fixtures: T-2763 worktree resolution (`RESOLUTION`, refuse-never-fallback), T-2975 `SCOPE_NOTE` on every path, T-2826 `-ge` firing predicate, T-2840 `is_cron_scheduled` NOT_SCHEDULED predicate.
-- [ ] The branch's looser `crontab_declares` NOT_SCHEDULED variant is **deliberately not adopted**, with the reason recorded in `## Decisions` (bare-name grep vs `.<name>.log` anchor; fail-closed vs fail-open on an absent cron dir).
-- [ ] Every check script carrying the uniform `if [ "$HEARTBEAT" -eq 1 ]; then touch ...; fi` block defers the touch to an `EXIT` trap, so a hung or killed run leaves the heartbeat untouched and surfaces as STALE instead of reading alive.
-- [ ] No check script is left un-migrated — the migrated set covers every script matching the uniform block, not only the 24 the branch happened to touch (the "hardened in one place, siblings not migrated" divergence).
-- [ ] `bash tests/canary-status-fixtures.sh` and `bash tests/canary-heartbeat-fixtures.sh` both pass, and the canary-status suite carries a **mutant** that removes the ERRORING branch and is caught by it.
+- [x] `scripts/canary-status.sh` classifies a canary whose `<log>.stderr` has content written inside the staleness window as **ERRORING**, and ERRORING outranks FIRING / STALE / HEALTHY — a canary that could not complete its run cannot be trusted to have found or missed anything.
+- [x] ERRORING counts toward `PROBLEMS` (the verb exits 1) and is surfaced on **every** output path: the full human summary line, `--quiet`, the `Action needed:` block naming the stderr sink, and `--json` (`summary.erroring` plus per-canary `stderr_bytes`).
+- [x] When a canary is ERRORING, `latest_entry` is read from the **stderr sink**, not the firing log.
+- [x] All four of main's post-branch hardenings survive the merge unchanged and are re-asserted by fixtures: T-2763 worktree resolution (`RESOLUTION`, refuse-never-fallback), T-2975 `SCOPE_NOTE` on every path, T-2826 `-ge` firing predicate, T-2840 `is_cron_scheduled` NOT_SCHEDULED predicate.
+- [x] The branch's looser `crontab_declares` NOT_SCHEDULED variant is **deliberately not adopted**, with the reason recorded in `## Decisions` (bare-name grep vs `.<name>.log` anchor; fail-closed vs fail-open on an absent cron dir).
+- [x] Every check script carrying the uniform `if [ "$HEARTBEAT" -eq 1 ]; then touch ...; fi` block defers the touch to an `EXIT` trap, so a hung or killed run leaves the heartbeat untouched and surfaces as STALE instead of reading alive.
+- [x] No check script is left un-migrated — the migrated set covers every script matching the uniform block, not only the 24 the branch happened to touch (the "hardened in one place, siblings not migrated" divergence).
+- [x] `bash tests/canary-status-fixtures.sh` and `bash tests/canary-heartbeat-fixtures.sh` both pass, and the canary-status suite carries a **mutant** that removes the ERRORING branch and is caught by it.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -373,3 +373,15 @@ thing, which is what produced the conflict. They are not equivalent.
 
 ### 2026-09-25T21:11:25Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-6d6d3f23
+- **Timestamp:** 2026-09-25T21:26:16Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-09-25T21:26:11Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
