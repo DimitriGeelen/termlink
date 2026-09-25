@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3157: D2 review-queue thresholds are hardcoded in vendored audit.sh — file upstream request to make them configurable
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-25T23:13:43Z
+# ============================================================================
+
+task_id: T-3157
+task_name: "D2 review-queue thresholds are hardcoded in vendored audit.sh — file upstream request to make them configurable"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-25T23:11:41Z
+completed: 2026-09-25T23:13:35Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  D2 review-queue thresholds are hardcoded in vendored audit.sh — file upstream request to make them configurable
+
+# Key outcomes
+outcomes:
+  - 'The finding is stated with the exact location and values: `agents/audit/audit.sh` gates D2 on `age_hours >= 720` (FAIL) and `>= 336` (WARN), both **hardcoded integers with no env override**, unlike its siblings `FW_STALE_ARC_DAYS`, `FW_AUDIT_TREND_WINDOW_DAYS`, `FW_ARC_COMPLETION_THRESHOLD`, `FW_VERIFY_QUEUE_AUDIT_LIMIT`.'
+  - 'The **operational consequence** is quantified, not asserted: with 136 items in the queue and the oldest at 148 days, D2 cannot reach PASS by any action short of clearing the whole backlog — and T-3153 measured that ~57% of it genuinely needs a human, so it cannot be cleared by reclassification either. A gate that cannot go green is a gate people stop reading (T-2818/T-2833).'
+  - 'The request is **filed upstream** at `framework:pickup` and **verified by read-back from the topic** (T-2876), not assumed from the send''s own status.'
+  - '`audit.sh` is **not patched locally** (G-062), and no `.vendor-divergence.yaml` entry is added because nothing local diverged.'
+  - 'The operator''s instruction is answered honestly: they asked to "change that config setting" — this records that **no such setting exists** to change, which is why the action taken is a filing rather than an edit.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3157-d2-review-queue-thresholds-are-hardcoded.md
+generated_by: context-agent-hybrid
