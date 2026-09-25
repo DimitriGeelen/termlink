@@ -75,6 +75,116 @@ last_vendor_event:
 #   5. diff CLAUDE.md.prevendor CLAUDE.md            # re-apply what was dropped
 #   6. Re-check the modes listed under `mode-only` (PL-205 fail-open).
 #   7. Update `last_vendor_event` here.
+#   8. Read KNOWN HAZARDS IN THE TARGET VERSION below and run each DETECT: line
+#      AFTER the re-vendor. They are the only empirical reports we have about
+#      versions ahead of us, and they came from peers who already took them.
+#   9. Re-run the four DETECT: lines a second time a day later. Two of the three
+#      hazards below are silent — they do not fail loudly at upgrade time.
+#
+# ---------------------------------------------------------------------------
+# KNOWN HAZARDS IN THE TARGET VERSION (recorded 2026-09-25, T-3143)
+# ---------------------------------------------------------------------------
+# We run 1.6.29. On 2026-09-25 the framework-pickup canary surfaced 8 inbound
+# filings; none addressed to us, all peers reporting at AEF. Three of them were
+# measured on 1.7.68 by 832-Workflow-designer, who upgraded 1.6.354 -> 1.7.68 on
+# their operator's instruction the day before. That makes their report the only
+# evidence we have about the version we would be taking, so it is recorded here
+# rather than left on a retention-bounded topic that nothing in this repo reads.
+#
+# These are NOT our divergences. They are hazards in code we do not yet have.
+# Treat each as a claim to be re-measured, not a fact: every DETECT: line below
+# tests the hazard in THIS tree, so a future session can find out rather than
+# believe. Where we could measure now, OUR result is recorded, not the peer's.
+#
+# H1 — 1.7.68 REGRESSED the T-652 / T-2054 commit-checkpoint exemption.
+#   Source: 832-Workflow-designer, framework:pickup offsets 149 + 151, tasks
+#           T-840/T-842, measured by sourcing the framework's own
+#           safe-commands.sh and calling the predicate directly (not simulated).
+#   Claim:  `_fw_is_git_commit_clause()` ends anchored on `^git`, so the three-
+#           token `fw git commit` spelling can never match. Bare `git commit` is
+#           ADMITTED; `fw git commit` is BLOCKED.
+#   Why it matters HERE specifically: CLAUDE.md's Quick Reference mandates
+#           `fw git commit -m "T-XXX: ..."`, and the fw wrapper is the path that
+#           runs traceability enforcement and the secret scan. So the gate would
+#           refuse our documented command and admit the one that skips both
+#           checks — an agent following this project's own instructions is the
+#           one that gets blocked. This is T-652's defect verbatim, reintroduced.
+#   OUR MEASUREMENT (2026-09-25, at 1.6.29): the exemption DOES NOT EXIST here
+#           at all. safe-commands.sh is 796 lines and defines exactly four
+#           functions — _fw_chain_split, is_bash_safe_command,
+#           _fw_single_command_is_safe, has_bash_write_pattern. Neither 832's
+#           1.6.354 name (_sc_is_commit_only_command) nor the 1.7.68 name
+#           (is_commit_checkpoint_command) is present. So we are not below a
+#           regression; we are below the FEATURE. An upgrade would introduce the
+#           exemption and its regression in the same step, and the regression is
+#           the state we would land in.
+#   DETECT — three-state, and the third state is why this line is written this
+#           way. The first draft called the predicate and printed BLOCK-REGRESSED
+#           on non-zero, which is what a MISSING FUNCTION also returns: it
+#           reported a regression we do not have, from a version we are not on.
+#           A check that cannot tell "broken" from "absent" is the defect it is
+#           looking for. Name the root before reading the verdict:
+#   DETECT: bash -c 'source .agentic-framework/agents/context/lib/safe-commands.sh 2>/dev/null; fn=""; for c in is_commit_checkpoint_command _sc_is_commit_only_command; do declare -F "$c" >/dev/null 2>&1 && fn="$c"; done; if [ -z "$fn" ]; then echo "ABSENT — no commit-exemption predicate at this version (1.6.29 baseline state)"; elif "$fn" "fw git commit -m \"T-1: x\"" 2>/dev/null; then echo "ALLOW via $fn — exemption healthy"; else echo "BLOCK-REGRESSED via $fn — H1 has landed, see framework:pickup 149/151"; fi'
+#
+# H2 — `fw upgrade` does not preserve exec bits.
+#   Source: 832-Workflow-designer, offset 149 item A. Their upgrade ended on
+#           FAIL with 5 files indexed 100755 but not executable on disk.
+#   Why it compounds: their own audit names the hazard — "a drifted audit.sh
+#           disables this audit rail itself (OBS-336)" — so the upgrade can
+#           silently disable the rail that would have caught it. Our T-2807
+#           found the sibling disease: three of four pre-commit guards failing
+#           open because the hook gates each scanner on `-f` and cannot tell
+#           "absent because optional" from "absent because never committed".
+#   OUR MEASUREMENT (2026-09-25, at 1.6.29): repo-wide exec-bit drift is ZERO.
+#           355 files tracked 100755, all executable on disk. So the 1.7.x
+#           stripping has not reached us.
+#   BUT the same symptom is already live here by a different route, and a
+#           mode-comparison check is structurally blind to it: four of the five
+#           files 832 named are non-executable HERE too, and produce no drift
+#           because the INDEX agrees with the wrong value (tracked 100644).
+#           One of them is load-bearing: bin/fw:7534 does
+#           `exec "$FRAMEWORK_ROOT/lib/build.sh"`, lib/build.sh is 100644, so
+#           `fw build` — advertised in `fw help` line 85 — exits 126 Permission
+#           denied. A verb that exists in help and cannot run. Filed upstream;
+#           it is vendored, so per G-062 it is not patched here.
+#   DETECT: git ls-files -s | awk '$1=="100755"{print $4}' > /tmp/.x; while IFS= read -r f; do [ -f "$f" ] && [ ! -x "$f" ] && echo "MODE-DRIFT $f"; done < /tmp/.x
+#   DETECT: bash -c 'for p in bin/watchtower.sh lib/build.sh metrics.sh; do f=".agentic-framework/$p"; [ -e "$f" ] && [ ! -x "$f" ] && echo "DEAD-EXEC-TARGET $p"; done'
+#
+# H3 — the vendor-completeness FAIL gives advice that commits a secret key.
+#   Source: 832-Workflow-designer, offset 149 item B. The check told them to
+#           re-include `!.agentic-framework/.context` in .gitignore. The only
+#           ignored entry under that path is `.fw-secret-key` — a 64-byte secret
+#           at .agentic-framework/.context/working/.fw-secret-key. Following the
+#           remediation commits it. They refused it and verified 0 staged paths.
+#   OUR MEASUREMENT (2026-09-25): the file DOES NOT EXIST here, and the path is
+#           ignored via .gitignore:37 (`.agentic-framework/*`). So the advice is
+#           currently harmless for us — but only because the key has never been
+#           generated. An upgrade that generates one makes it live, which is the
+#           wrong order to find out in.
+#   DETECT: bash -c 'test ! -e .agentic-framework/.context/working/.fw-secret-key || echo "SECRET-KEY NOW EXISTS — never un-ignore .agentic-framework/.context"'
+#
+# H4 — `upstream_repo` unreadable on a YAML continuation line.
+#   Source: 832-Workflow-designer, offset 148, task T-840, severity
+#           "blocks-all-consumer-upgrades" (lib/upstream.sh:22 and 108-116; two
+#           readers disagree about the same field).
+#   OUR MEASUREMENT: .framework.yaml:8 carries
+#           `upstream_repo: DimitriGeelen/agentic-engineering-framework` on ONE
+#           line, so the continuation-line parse never triggers. Do not reflow it.
+#   DETECT: grep -q '^upstream_repo: [^ ]*$' .framework.yaml || echo "UPSTREAM_REPO WRAPPED — see framework:pickup offset 148"
+#
+# NOT a hazard for us — recorded so the next reader does not re-derive it:
+#   offset 156 (050-email-archive, task T-2248) reports six vendored files
+#   carrying local patches a re-vendor would revert. Their finding #1 is the
+#   fabric drift check forking `echo | grep` per candidate path and reporting a
+#   different random set every run (they measured 7,10,12,15,4,8 against a true
+#   value of 0). THAT DEFECT IS ALREADY FIXED IN OUR TREE: drift.sh:40 uses a
+#   herestring with `grep -qxF`, attributed to T-2518 / OBS-092, with the same
+#   L-387 SIGPIPE root cause independently diagnosed. Measured here: 5 runs of
+#   `fw fabric drift`, all returned 6 — stable, no nondeterminism. The fix
+#   arrived via vendor event 9b47462c5, i.e. it came FROM upstream, which is why
+#   it is correctly absent from `divergences:` below. Two projects hit and fixed
+#   the same defect independently; AEF already ships one of the fixes.
+# ---------------------------------------------------------------------------
 
 divergences:
   - task: T-3127
