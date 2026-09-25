@@ -196,3 +196,10 @@ and reconcile).
 Status at handback: focus is T-3093, working tree carries only the same
 unavoidable-residual class (if any) that every prior step in this sequence has also
 carried at its own handback point.
+
+**Observation, not acted on:** `git log --oneline` at handback time shows T-3136 ("DELETE
+4 unused deps") landed between this step's start and its close — the 3-round-stale
+R1-F1/F1b/R3-F3 [ASK] from the value-review chain appears to have finally been approved
+and executed outside this step (not by this worker). Left for R3S3/the next round to
+confirm and reconcile if relevant; out of this step's scope to investigate further given
+the context ceiling.
