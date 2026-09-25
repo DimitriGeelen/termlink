@@ -4,12 +4,12 @@ name: "Axis B omits exec — the one invocation form that needs the exec bit, an
 description: >
   Axis B omits exec — the one invocation form that needs the exec bit, and the one that is dead
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [scripts/check-framework-tracking-drift.sh, tests/framework-dangling-ref-fixtures.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -22,8 +22,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-25T14:08:56Z
-last_update: 2026-09-25T14:08:56Z
-date_finished: null
+last_update: 2026-09-25T14:16:12Z
+date_finished: 2026-09-25T14:16:12Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -71,28 +71,28 @@ errno (126, not 127) and a different remediation (chmod, not recover-the-file).
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `exec` is added to the axis-B verb anchor, and the scan carries the VERB alongside the
+- [x] `exec` is added to the axis-B verb anchor, and the scan carries the VERB alongside the
       path — resolution alone cannot decide executability, so the verb must survive the
       extraction rather than being discarded by the second grep as it is today.
-- [ ] Executability is required **only** for `exec`-position references. A `bash` / `sh` /
+- [x] Executability is required **only** for `exec`-position references. A `bash` / `sh` /
       `.` / `source` / `python3` reference to a mode-644 file is correct and must NOT fire —
       that precision is the reason to key on the verb instead of testing `-x` on everything.
-- [ ] `resolves-but-not-executable` is reported as its own class, distinct from DANGLING,
+- [x] `resolves-but-not-executable` is reported as its own class, distinct from DANGLING,
       with its own count and its own remediation line. Collapsing it into DANGLING would
       tell an operator to recover a file that is present.
-- [ ] The check FIRES on the real tree as it stands today, naming `lib/build.sh` — this is
+- [x] The check FIRES on the real tree as it stands today, naming `lib/build.sh` — this is
       ground truth extracted from the live defect, not a synthetic mutant.
-- [ ] `--json` carries the new class separately (`not_executable_count` + `not_executable[]`)
+- [x] `--json` carries the new class separately (`not_executable_count` + `not_executable[]`)
       and the exit code accounts for it, so a scripted caller cannot read green over it.
-- [ ] Both output paths state the scope: the check covers `exec`-POSITION references only,
+- [x] Both output paths state the scope: the check covers `exec`-POSITION references only,
       and a bare `"$FRAMEWORK_ROOT/bin/foo"` invoked with no verb also needs the bit and is
       NOT covered. A green must not read as "every framework invocation resolves" (T-2680).
-- [ ] Fixtures extend `tests/framework-dangling-ref-fixtures.sh` and pin, at minimum: the
+- [x] Fixtures extend `tests/framework-dangling-ref-fixtures.sh` and pin, at minimum: the
       firing case, the `bash`-on-644 false-positive guard, and a mutant — removing the `-x`
       test must redden the firing assertion and nothing else.
-- [ ] The full fixture suite passes and the check still runs clean as a guard-layer member
+- [x] The full fixture suite passes and the check still runs clean as a guard-layer member
       apart from the one genuine finding it now reports.
-- [ ] **(added mid-build — see Decisions)** The finding is acknowledged in a git-tracked
+- [x] **(added mid-build — see Decisions)** The finding is acknowledged in a git-tracked
       ledger rather than left permanently red, and the ledger is itself pinned by fixtures:
       an acknowledged entry must still be NAMED on the clean path, removing the entry must
       re-fire, a commented-out path must NOT acknowledge, and an ABSENT ledger must
@@ -355,3 +355,15 @@ carry it.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3145-axis-b-omits-exec--the-one-invocation-fo.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-37754b66
+- **Timestamp:** 2026-09-25T14:16:15Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-09-25T14:16:12Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

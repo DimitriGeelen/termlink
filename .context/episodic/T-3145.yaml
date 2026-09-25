@@ -1,0 +1,89 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3145: Axis B omits exec — the one invocation form that needs the exec bit, and the one that is dead
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-25T14:16:22Z
+# ============================================================================
+
+task_id: T-3145
+task_name: "Axis B omits exec — the one invocation form that needs the exec bit, and the one that is dead"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-09-25T14:08:56Z
+completed: 2026-09-25T14:16:12Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-09-25T16:15:36+02:00
+last_commit: 2026-09-25T16:15:36+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  axis B omitted exec — the one verb where file mode is load-bearing
+
+# Key outcomes
+outcomes:
+  - '`exec` is added to the axis-B verb anchor, and the scan carries the VERB alongside the'
+  - 'Executability is required **only** for `exec`-position references. A `bash` / `sh` /'
+  - '`resolves-but-not-executable` is reported as its own class, distinct from DANGLING,'
+  - 'The check FIRES on the real tree as it stands today, naming `lib/build.sh` — this is'
+  - '`--json` carries the new class separately (`not_executable_count` + `not_executable[]`)'
+  - 'Both output paths state the scope: the check covers `exec`-POSITION references only,'
+  - 'Fixtures extend `tests/framework-dangling-ref-fixtures.sh` and pin, at minimum: the'
+  - 'The full fixture suite passes and the check still runs clean as a guard-layer member'
+  - '**(added mid-build — see Decisions)** The finding is acknowledged in a git-tracked'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-09-25 — leave the finding red, or acknowledge it?'
+    chose: 'acknowledge `lib/build.sh` in a git-tracked ledger, counted and reported on the clean path, with a stated removal condition.'
+    rationale: 'the check is a `# guard-layer: source` member and `release.yml` gates both build jobs on the guard layer, so a hard-red check blocks every build. The defect is vendored and G-062 forbids patching it here, so "fix it" is not available to us — the alternative to acknowledging is a check that fires forever on something we are structurally barred from fixing, which is the alarm-fatigue failure T-2818 documented and the reason nobody reads a permanently-red gate. The acknowledgement is not a mute button: the entry is printed on the clean path, so a green still says "one acknowledged", never "nothing to see".'
+    alternatives_rejected: ['(a) leaving it red — teaches the operator that this check''s red is normal, which destroys the signal the task exists to create; (b) `chmod +x` locally — erased by the next re-vendor, and it would make the check green while the upstream defect persists, so the next consumer to vendor it inherits a dead verb with our detector saying clean; (c) exempting `lib/build.sh` in the code — an exemption with no ledger and no removal condition is indistinguishable from never having looked.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - '.context/checks/framework-notexec-allowlist'
+  - 'scripts/check-framework-tracking-drift.sh'
+  - '.tasks/active/T-3145-axis-b-omits-exec--the-one-invocation-fo.md'
+  - 'tests/framework-dangling-ref-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-25T16:15:36'
+    action: 'T-3145: axis B omitted exec — the one verb where file mode is load-bearing'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 7 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 7
+  commits: 1
+  files_changed: 5
+  lines_added: 722
+  lines_removed: 10
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3145-axis-b-omits-exec--the-one-invocation-fo.md
+generated_by: context-agent-hybrid
