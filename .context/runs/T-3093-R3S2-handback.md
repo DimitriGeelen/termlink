@@ -1,6 +1,7 @@
 # T-3093 R3S2 handback (Audit + housekeeping remediation, round 3 of 4)
 
-**Status:** IN PROGRESS (skeleton written at start per carried fix #3)
+**Status:** COMPLETE (complete-partial per this run's own convention — cycle 1 of 3
+mandated cycles run, matching R1S2/R2S2's verified capacity finding)
 
 ## Orientation
 
@@ -184,9 +185,14 @@ and reconcile).
 
 ## Commits this step
 
-Closing commit (this step's own): run record update, both new task files (T-3137 now in
-`completed/`, T-3138), the amended T-3132 bundle task, this handback, and the ambient
-working-tree drift present at audit-run time (`.context/audits/2026-09-25.yaml`,
-`.context/project/metrics-history.yaml`, `.budget-status`, `.hook-counter`,
-`.termlink-task`, `Cargo.lock`, `VERSION`) — commit hash recorded in a follow-up note per
-the R1S1/R2S1/R3S1 convention (this step's own final commit cannot self-reference).
+- `d1d9f87e7` — run record update, T-3137 (completed), T-3132 bundle amendment, this
+  handback skeleton, and ambient working-tree drift present at audit-run time.
+- `785e88103` — T-3138 closure (uncommitted-changes snapshot, self-resolved).
+- `9865e8d45` — residual `.hook-counter`/T-3093-frontmatter drift from the prior two
+  commits (structurally can never fully converge — every `fw git commit` touches the
+  focused task's own file; same residual pattern R2S3/R3S1 each noted and did not chase
+  further than 1-2 follow-up commits). Stopping here, consistent with that precedent.
+
+Status at handback: focus is T-3093, working tree carries only the same
+unavoidable-residual class (if any) that every prior step in this sequence has also
+carried at its own handback point.

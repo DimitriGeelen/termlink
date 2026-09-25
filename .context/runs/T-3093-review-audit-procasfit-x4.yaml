@@ -269,7 +269,8 @@ steps:
     to work-completed and moved it to completed/, correctly leaving T-1635''s genuine class-A instance
     untouched. Verified D13''s class B is now empty by reproducing the audit''s own predicate directly.
     T-3138 closed via this step''s own closing commit. Cycles 2/3 not run — same capacity ceiling R2S2
-    established. Committed as (this step''s closing commit).'
+    established. Committed as d1d9f87e7 + 785e88103 (T-3138 close) + 9865e8d45 (residual drift).'
+  completed_utc: '2026-09-25T12:05:00Z'
   capacity_note: 'Third data point confirming ~1 cycle per dispatched worker is genuine capacity against
     the 3-cycle mandate (R1S2, R2S2, now R3S2), all on verified checkpoint.sh readings, not the shared
     .budget-status false-positive.'
