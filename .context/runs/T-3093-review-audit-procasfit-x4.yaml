@@ -55,45 +55,49 @@ steps:
   result_file: .context/runs/T-3093-R1S1-handback.md
   dispatched_utc: '2026-09-25T01:00:00Z'
   fed_with: placeholders substituted inline; no prior step (first of 12)
-  completed_note: 'Halted at Phase 5 [ASK] per known_gates — COMPLETE not failed. Delta review
-    (8th pass over this repo): 2 new verified DELETE candidates (4 unused Cargo deps), D-1
-    invocation-audit sink confirmed live (reading B), arc-009 progress 3/18->7/18, Human-AC
-    review-queue backlog measured (144, oldest 147d) and raised as a Sovereign question, not
-    executed. See docs/reports/VALUE-REVIEW-repo-2026-09-25-R1.md + -evidence.md.'
+  completed_note: 'Halted at Phase 5 [ASK] per known_gates — COMPLETE not failed. Delta review (8th pass
+    over this repo): 2 new verified DELETE candidates (4 unused Cargo deps), D-1 invocation-audit sink
+    confirmed live (reading B), arc-009 progress 3/18->7/18, Human-AC review-queue backlog measured (144,
+    oldest 147d) and raised as a Sovereign question, not executed. See docs/reports/VALUE-REVIEW-repo-2026-09-25-R1.md
+    + -evidence.md.'
 - id: R1S2
   round: 1
   step: 2
   prompt: audit_remediation
-  state: complete
+  state: complete-partial
   worker: t3093-r1s2-audit
   fed_by: R1S1
   feeds: R1S3
   result_file: .context/runs/T-3093-R1S2-handback.md
-  completed_note: 'Cycle 1 of 3 only (stopped after cycle 1 — checkpoint.sh reported
-    ~518-522K context tokens, past this prompt''s own ~300k stop condition, even
-    though the live budget-gate itself read "ok"; treated the prompt''s literal
-    numeric threshold as authoritative). fw audit (401 pass/89 warn/3 fail) + fw
-    doctor (4 warn) reconciled: 96 raw findings, 30 already governed by existing
-    tasks (D2->T-2940, CTL-029->T-3016+T-2938/9/40, cited not duplicated), 66
-    covered by 33 new arc-008 tasks (T-3094-T-3126). Scored via fw bvp
-    estimate/estimate-cost; --quadrant degenerate per CLAUDE.md''s own documented
-    F-14/T-237 caveat, so selected Q1 by measured BVP norm with tier/effort as a
-    stated tiebreak. Worked all 8 Q1 tasks to completion (T-3094, T-3101, T-3102,
-    T-3104, T-3106, T-3108, T-3113, T-3116). Caught and fixed an L-387 SIGPIPE bug
-    and 6 bare-fw-path bugs in my own first-draft Verification lines before they
-    shipped. 2 genuine regressions found (D8, D8b vs T-3015) filed as
-    T-3095/T-3096 (Q2, not worked). 3 Q2 + 22 parked tasks left scored, not
-    worked. Committed as e0f9158dc + a closing commit. Cycles 2/3 NOT run — see
-    handback for full reasoning.'
+  completed_note: 'Cycle 1 of 3 only (stopped after cycle 1 — checkpoint.sh reported ~518-522K context
+    tokens, past this prompt''s own ~300k stop condition, even though the live budget-gate itself read
+    "ok"; treated the prompt''s literal numeric threshold as authoritative). fw audit (401 pass/89 warn/3
+    fail) + fw doctor (4 warn) reconciled: 96 raw findings, 30 already governed by existing tasks (D2->T-2940,
+    CTL-029->T-3016+T-2938/9/40, cited not duplicated), 66 covered by 33 new arc-008 tasks (T-3094-T-3126).
+    Scored via fw bvp estimate/estimate-cost; --quadrant degenerate per CLAUDE.md''s own documented F-14/T-237
+    caveat, so selected Q1 by measured BVP norm with tier/effort as a stated tiebreak. Worked all 8 Q1
+    tasks to completion (T-3094, T-3101, T-3102, T-3104, T-3106, T-3108, T-3113, T-3116). Caught and fixed
+    an L-387 SIGPIPE bug and 6 bare-fw-path bugs in my own first-draft Verification lines before they
+    shipped. 2 genuine regressions found (D8, D8b vs T-3015) filed as T-3095/T-3096 (Q2, not worked).
+    3 Q2 + 22 parked tasks left scored, not worked. Committed as e0f9158dc + a closing commit. Cycles
+    2/3 NOT run — see handback for full reasoning.'
+  completed_utc: '2026-09-25T07:00:00Z'
+  note: Cycle 1 of 3 only. 33 findings filed as tasks in arc-008 (reused, not created); all 8 Q1 tasks
+    executed and closed with verified re-runs. Cycles 2 and 3 not run - stopped on the mandate's own context
+    condition and said so rather than reporting three cycles.
+  verb_surface_note: 'No literal ''housekeeping'' verb exists. The worker checked fw --help rather than
+    inventing one, and adopted this project''s established convention: fw doctor paired with fw audit.'
 - id: R1S3
   round: 1
   step: 3
   prompt: proc_as_fit
-  state: pending
-  worker: null
+  state: dispatched
+  worker: t3093-r1s3-procasfit
   fed_by: R1S2
   feeds: R2S1
   result_file: .context/runs/T-3093-R1S3-handback.md
+  dispatched_utc: '2026-09-25T07:02:00Z'
+  fed_with: R1S2 handback inlined (15129B)
 - id: R2S1
   round: 2
   step: 1
@@ -175,3 +179,7 @@ steps:
   fed_by: R4S2
   feeds: null
   result_file: .context/runs/T-3093-R4S3-handback.md
+cross_step_findings:
+- 'CAPACITY, recorded early rather than at the end: the Audit prompt asks for 3 cycles per run, and R1S2
+  completed 1 before hitting its context stop. If that holds, the four Audit steps in this sequence deliver
+  4 cycles, not 12. Not a failure - the honest capacity of one dispatched worker against a 3-cycle mandate.'
