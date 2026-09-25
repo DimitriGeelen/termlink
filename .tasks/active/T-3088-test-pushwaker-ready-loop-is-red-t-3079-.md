@@ -14,7 +14,7 @@ description: >
   proves nothing. Confirmed NOT caused by T-3086/T-3072 - that commit touched only
   notify-injector.sh, which is not in this test's dependency chain (it sources lib/pty-state.sh).
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -32,7 +32,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-24T18:49:53Z
-last_update: '2026-09-24T20:19:03Z'
+last_update: 2026-09-25T20:05:56Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -74,14 +74,38 @@ cost_estimate_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+`scripts/test-pushwaker-ready-loop.sh` has been red since T-3079 rewrote the idle
+classifier (`lib/pty-state.sh`, 2026-09-22: quiescence + composer-row emptiness replacing
+UI-prose markers) while the test last changed 2026-09-09 under T-2933. Its shim still
+models the pre-T-3079 contract.
+
+**The governing constraint, from this task's own filing: a test rewritten to match new
+behaviour proves nothing.** Each failing assertion has to be adjudicated — is the TEST
+stale, or is the CLASSIFIER wrong? — before either is touched. The cheap move is to edit
+the test until it passes, and that would convert a red test into a green one that asserts
+whatever the code now happens to do. This whole session has been about checks that report
+success without having verified anything; doing it here deliberately would be worse than
+leaving it red.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Each of the three failing assertions is adjudicated INDIVIDUALLY and the verdict
+      recorded with its evidence: *test stale* (the contract changed legitimately) or
+      *classifier wrong* (the code regressed). A blanket "updated the test" is a failed
+      criterion, not a shortcut.
+- [x] The adjudication cites the actual T-3079 contract change — what `lib/pty-state.sh`
+      now returns and why — rather than inferring the intended behaviour from what makes
+      the assertion pass.
+- [x] Whatever is wrong is FIXED in the place that is wrong. If an assertion encodes a
+      real requirement the classifier no longer meets, the classifier is fixed; the
+      assertion is only rewritten where the requirement itself legitimately changed.
+- [x] `bash scripts/test-pushwaker-ready-loop.sh` exits 0 with every assertion passing,
+      and the run is not made green by deleting, skipping or weakening an assertion —
+      the assertion COUNT must not drop.
+- [x] If any assertion cannot be honestly resolved in this task, it is left FAILING and
+      recorded, not weakened. A partially-red suite with a written reason beats a green
+      one that lies.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -115,6 +139,82 @@ cost_estimate_proposed:
        added to ## Verification. NEVER `... 2>&1 | grep -q ...` — that is the shape the
        Pipefail/SIGPIPE section below forbids, and this line used to prescribe it.
 -->
+
+## Adjudication — per assertion, before either side was edited
+
+All **four** failures (the filing recorded three; `deferred 3 times while BUSY — expected
+'3' got '30'` was the fourth) trace to a **single** root, and the verdict is the same for
+each: **the TEST was stale, specifically its environment shim. The classifier is right.**
+
+| assertion | was | verdict |
+|---|---|---|
+| ring returns 0 (rung at idle) | got 3 | test stale — never reached READY, so the ring gave up |
+| injected exactly once | got 0 | test stale — same cause |
+| inject fired only after READY (probe>=4) | got empty | test stale — same cause |
+| deferred 3 times while BUSY | got 30 | test stale — deferred all 30 attempts, same cause |
+
+**The contract that changed (read, not inferred).** T-3079 replaced a one-sample,
+marker-only verdict with a two-sample QUIESCENT one. `pushwaker_probe_pty`
+(`lib/pty-state.sh:134`) now takes two tails a moment apart and calls
+`pushwaker_quiescent_state`, which returns READY only when *all four* hold: not BUSY, not
+modal, **`raw_a == raw_b`**, and **`composer-state.py` judges the composer row EMPTY**.
+
+The shim modelled none of that. Its READY blob was a UI-prose footer
+(`── **agent** ──> ⏸ ? for shortcuts`) carrying no `❯` glyph, so `composer_is_empty`
+returned False and every verdict fell to UNKNOWN — deferring all 30 attempts. The blob is
+still recognised by the *marker* path (`pushwaker_pty_state`, line 41), which is exactly
+what made this look like a live break rather than staleness.
+
+**Why "test stale" rather than "classifier wrong".** Two independent reasons, neither of
+them "it passes now":
+
+1. The T-3079 rewrite is documented and justified in-file — 269 paired samples across
+   plain, long and tool-using turns, FALSE-READY = 0 — and it closes a named hole (during
+   streaming, response text fills the tail and mid-stream samples showed NO busy marker, so
+   marker-absence never meant idle).
+2. **Every assertion keeps its original literal value** once the shim models the new
+   contract — 0, 1, 4, 3, 3, 0, unchanged. If the requirements themselves had changed, the
+   expected values would have had to move. They did not. The requirement ("wait while busy,
+   inject exactly once the instant the REPL goes idle") was always right; only the model of
+   the environment was obsolete.
+
+**What changed in the test:** the shim scripts on a derived LOGICAL PROBE (two `pty output`
+calls per probe) and returns identical bytes for both calls of one probe — a shim that
+flipped mid-probe would make `a != b` and force UNKNOWN forever. Its READY blob is a real
+composer frame with a bare `❯` (verified directly: `'❯ '` → exit 0, `'❯ hello'` → exit 1).
+`PUSHWAKER_QUIESCE_DELAY=0` keeps it hermetic — a documented knob; both samples still
+happen and still have to agree. No assertion was deleted, skipped or weakened.
+
+## Mutation findings — and a real gap the mutation exposed
+
+A test made to agree with the code proves nothing unless it can still go red, so both arms
+were mutated:
+
+- **`pushwaker_quiescent_state` → always READY** (the blind-ring regression): **CAUGHT**,
+  4 assertions red including `always-busy NEVER injected (no blind ring)`.
+- **`pushwaker_pty_busy` → never busy**: **NOT CAUGHT.** The suite passed with the BUSY
+  detector entirely disabled.
+
+The second one is the finding. The always-busy fixture emitted prose with no `❯`, so
+`composer_is_empty` returned False and the verdict fell to UNKNOWN — the test was defending
+the right behaviour *through the wrong arm*, and would have sat green through a real
+regression in busy detection. The fixture now carries both the busy marker AND an empty `❯`
+composer row, which isolates the BUSY arm: with it broken, the blob reads quiescent +
+composer-empty = READY = a blind inject, and the assertion fires. **Re-verified: mutant now
+CAUGHT (2 assertions red), and the unmutated tree still passes 6/6.**
+
+## Observation — not acted on, recorded for whoever owns the rail
+
+`pushwaker_pty_state` (the pre-T-3079 marker-only classifier, `lib/pty-state.sh:31`) has
+**no production caller**. The only things referencing it are its own suite
+(`test-pushwaker-filter.sh`, 8 cases, all passing) and a stale comment at
+`lib-idle-gate.sh:18` that still tells readers the state comes from it.
+
+That is the T-2699 shape — a covered, green, and uncalled surface, whose passing tests say
+nothing about the rail actually in use. It is not deleted here: that is a scope decision for
+whoever owns the waker, and this task's mandate was to adjudicate four assertions. But it is
+the reason the diagnosis looked ambiguous, and the comment at `lib-idle-gate.sh:18` is
+actively misleading about which function decides the verdict.
 
 ## Verification
 
@@ -176,6 +276,23 @@ cost_estimate_proposed:
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+# The suite is green and NO assertion was lost — the count is pinned at 6, so a future
+# "fix" that deletes a failing assertion fails this line instead.
+bash scripts/test-pushwaker-ready-loop.sh > /tmp/.t3088 2>&1 && grep -q "RESULT: PASS" /tmp/.t3088
+test "$(grep -c '^ok: ' /tmp/.t3088)" = "6"
+
+# The shim models the TWO-SAMPLE contract, asserted against the committed file (T-3086).
+git show HEAD:scripts/test-pushwaker-ready-loop.sh > /tmp/.t3088-head 2>&1 && grep -q 'probe=$(( (n + 1) / 2 ))' /tmp/.t3088-head
+
+# The READY blob carries the composer glyph the new classifier actually requires,
+# and that glyph genuinely reads EMPTY to the helper (not asserted by eye).
+grep -q '❯ ' /tmp/.t3088-head
+printf '❯ ' > /tmp/.t3088-glyph && python3 scripts/lib/composer-state.py < /tmp/.t3088-glyph
+printf '❯ hello' > /tmp/.t3088-glyph2 && ! python3 scripts/lib/composer-state.py < /tmp/.t3088-glyph2
+
+# The always-busy fixture isolates the BUSY arm (the mutation finding).
+grep -q "isolates the BUSY arm" /tmp/.t3088-head
 
 ## RCA
 
@@ -273,3 +390,6 @@ cost_estimate_proposed:
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3088-test-pushwaker-ready-loop-is-red-t-3079-.md
 - **Context:** Initial task creation
+
+### 2026-09-25T20:05:56Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
