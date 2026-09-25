@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3151: Verify arc-005 mcp-slimming headline mechanic holds, then close the arc or record what is missing
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-25T21:44:00Z
+# ============================================================================
+
+task_id: T-3151
+task_name: "Verify arc-005 mcp-slimming headline mechanic holds, then close the arc or record what is missing"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-25T21:39:43Z
+completed: 2026-09-25T21:43:47Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Verify arc-005 mcp-slimming headline mechanic holds, then close the arc or record what is missing
+
+# Key outcomes
+outcomes:
+  - 'The current MCP description budget is **measured**, not assumed: `scripts/test-mcp-desc-budget.sh --report-only` is run and its count / total / max recorded against the ceilings the arc''s slices declared (1560 / 109000).'
+  - 'The guard is **wired to something that runs it**. Its header claims "so `cargo test`/CI catches a regrowth", and that claim is currently false — the script carries no `# guard-layer:` marker and has no caller anywhere in CI, cargo, or cron. Either it joins the guard layer (T-2684 marker convention, so the T-2686 CI job executes it on every push/PR) or the false claim in its header is corrected. An anti-regrowth guard nothing executes is the T-2683 class.'
+  - 'Wiring is **proven load-bearing**, not asserted: the guard is shown to FAIL when a ceiling is breached (drive it with a lowered ceiling via its own `MAX_DESC_CEILING` / `TOTAL_DESC_CEILING` env seams) and to PASS on the untouched tree. A guard that cannot go red protects nothing.'
+  - '`scripts/run-guard-layer.sh --list` reports the guard as a member (or, if it is deliberately excluded, the exclusion is recorded with a reason).'
+  - '**T-2408 (arc-005 S3) is tagged to the arc.** It carries `tags: []`, so `fw arc show arc-005` lists 2 of the arc''s 3 slices and the arc''s own record understates what shipped. The guard''s ceiling history documents S3 as landed.'
+  - 'arc-005 is then **closed through `fw arc close`** with the measurement as evidence — or, if the close is refused or the mechanic does not hold, the refusal/shortfall is recorded verbatim and the arc is left open. Closing an arc whose headline mechanic I could not check would be certifying my own output.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 4
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3151-verify-arc-005-mcp-slimming-headline-mec.md
+generated_by: context-agent-hybrid

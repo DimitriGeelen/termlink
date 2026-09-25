@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# guard-layer: source
 # test-mcp-desc-budget.sh (arc-005 mcp-slimming, T-2406) — anti-regrowth guard for
 # MCP tool-description bloat.
 #
@@ -6,7 +7,22 @@
 # loaded into EVERY agent's context each session. Left ungoverned it creeps back
 # (task-ID archaeology, PL cross-refs, param restatement). This guard reports the
 # current budget and FAILS if any single description exceeds MAX_DESC_CEILING or the
-# total exceeds TOTAL_DESC_CEILING — so `cargo test`/CI catches a regrowth.
+# total exceeds TOTAL_DESC_CEILING.
+#
+# WHAT RUNS IT (T-3151). For its first two months, nothing did. The sentence above
+# used to end by asserting that the Rust test suite and CI would catch a regrowth,
+# and that was false: the script
+# carried no guard-layer marker and had no caller in CI, cargo, or cron. The only
+# references in the tree were two episodic records and its own fabric card. An
+# anti-regrowth guard that nothing executes does not bound regrowth; it documents an
+# intention to. That is the T-2683 class — the same "static checks nobody ran"
+# finding that created the guard layer — reproduced inside a guard whose own header
+# asserted it was covered.
+#
+# The `# guard-layer: source` marker above is the fix: T-2684's runner enrols every
+# marked `scripts/test-*.sh`, and T-2686's CI job runs the layer on every push and
+# PR. The claim in this header is now true, and `run-guard-layer.sh --list` is where
+# you check that rather than taking this comment's word for it.
 #
 # Ceilings start GENEROUS (pass at today's baseline) and are TIGHTENED as the
 # mcp-slimming slices land (S1 worst-offenders → S2 600-1000 band → S3 long-tail).

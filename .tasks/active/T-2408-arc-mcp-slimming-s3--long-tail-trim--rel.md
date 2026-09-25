@@ -8,7 +8,7 @@ status: work-completed
 workflow_type: build
 owner: human
 horizon: now
-tags: []
+tags: [arc:mcp-slimming]
 components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-11T14:16:26Z
-last_update: 2026-07-11T21:33:03Z
+last_update: 2026-09-25T21:41:52Z
 date_finished: 2026-07-11T21:32:35Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -258,3 +258,6 @@ weigh, only the sovereignty formality that arc closure belongs to the human.
 
 ### 2026-07-11T21:32:35Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-09-25T21:41:52Z — status-update [task-update-agent]
+- **Change:** tags: +arc:mcp-slimming
