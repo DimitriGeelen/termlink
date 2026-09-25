@@ -1,10 +1,28 @@
 ---
 id: T-3127
-name: ".budget-status is shared across dispatched workers — every worker reads another session's token count"
+name: ".budget-status is shared across dispatched workers — every worker reads another
+  session's token count"
 description: >
-  TWO T-3093 workers independently hit this, neither told about it by the other. R1S2 and R1S3 both read ~504K tokens from .context/working/.budget-status at session start while their real per-session figure was ~169K, and both fell back to checkpoint.sh status (the actual transcript reader). The file is a SINGLE path shared by every concurrently dispatched worker, so each reads whichever session wrote last. This is the G-087 class inverted. G-087 was a plausible ZERO that read healthy and hid real exhaustion; this is a plausible PANIC that makes a healthy worker believe it is nearly out of context. The consequence is silent truncation: the procAsFit and audit mandates both carry a ~300k context stop condition, so a worker reading 504K can stop at once, report a context stop it never actually hit, and leave its queue unworked - indistinguishable in the handback from a genuine stop. R1S2 delivered 1 of 3 audit cycles citing a context stop; whether that reading was real or inherited is now unverifiable. The writers are VENDORED (agents/context/budget-gate.sh, pre-compact.sh, post-compact-resume.sh) so per G-062 this is filed upstream, not patched locally. Note the /resume skill already warns the raw file is unsafe to read and prescribes checkpoint.sh budget - a subcommand that does not exist in this build (filed at framework:pickup offset 144), so the documented safe path is unavailable and the unsafe one is what workers reach for.
+  TWO T-3093 workers independently hit this, neither told about it by the other. R1S2
+  and R1S3 both read ~504K tokens from .context/working/.budget-status at session
+  start while their real per-session figure was ~169K, and both fell back to checkpoint.sh
+  status (the actual transcript reader). The file is a SINGLE path shared by every
+  concurrently dispatched worker, so each reads whichever session wrote last. This
+  is the G-087 class inverted. G-087 was a plausible ZERO that read healthy and hid
+  real exhaustion; this is a plausible PANIC that makes a healthy worker believe it
+  is nearly out of context. The consequence is silent truncation: the procAsFit and
+  audit mandates both carry a ~300k context stop condition, so a worker reading 504K
+  can stop at once, report a context stop it never actually hit, and leave its queue
+  unworked - indistinguishable in the handback from a genuine stop. R1S2 delivered
+  1 of 3 audit cycles citing a context stop; whether that reading was real or inherited
+  is now unverifiable. The writers are VENDORED (agents/context/budget-gate.sh, pre-compact.sh,
+  post-compact-resume.sh) so per G-062 this is filed upstream, not patched locally.
+  Note the /resume skill already warns the raw file is unsafe to read and prescribes
+  checkpoint.sh budget - a subcommand that does not exist in this build (filed at
+  framework:pickup offset 144), so the documented safe path is unavailable and the
+  unsafe one is what workers reach for.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -22,8 +40,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-25T06:32:43Z
-last_update: 2026-09-25T06:56:16Z
-date_finished: null
+last_update: 2026-09-25T11:10:40Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,6 +52,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-09-25T11:10:40Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3127: .budget-status is shared across dispatched workers — every worker reads another session's token count
@@ -46,8 +78,11 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] The defect is filed at `framework:pickup` with the measured evidence, verified by reading the topic back (T-2876) — **informing AEF before experimenting**, per the operator's sequencing
+- [ ] The mechanism is located precisely in the vendored writer(s) and stated as file:line, not inferred
+- [ ] A candidate fix is prototyped locally and **proven against the actual failure**: two concurrent readers must not see each other's figure
+- [ ] The local change is registered in `.vendor-divergence.yaml` as `filed-upstream` — a re-vendor deletes it, and an unregistered local patch is exactly the T-2813 trap
+- [ ] The proven fix is sent to AEF as a follow-up filing, with the diff and the proof, not just a description
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -242,3 +277,6 @@ date_finished: null
 
 ### 2026-09-25T06:56:16Z — status-update [task-update-agent]
 - **Change:** tags: +arc:arc-008
+
+### 2026-09-25T11:10:40Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

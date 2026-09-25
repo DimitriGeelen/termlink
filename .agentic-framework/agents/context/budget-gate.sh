@@ -137,13 +137,34 @@ level = 'unknown'
 tokens = 0
 age = 999
 
+# T-3127: .budget-status is ONE shared path. Every concurrently dispatched
+# worker in this project writes and reads it, so without a discriminator each
+# reads whichever session wrote last. Measured: two workers read ~504k while
+# their real figures were ~169k/~160k. That is a plausible PANIC - mandates
+# carry context stop conditions, so a healthy worker can stop at once and
+# report an exhaustion it never hit. The discriminator is transcript_path,
+# which Claude Code passes to the hook on stdin and which is genuinely
+# per-session (session.yaml is shared and would NOT discriminate).
+_sess_key = os.path.basename(data.get('transcript_path') or '')
+if _sess_key.endswith('.jsonl'):
+    _sess_key = _sess_key[:-6]
+
 if os.path.exists(status_file):
     try:
         with open(status_file) as f:
             s = json.load(f)
-        level = s.get('level', 'unknown')
-        tokens = s.get('tokens', 0)
-        age = int(time.time()) - s.get('timestamp', 0)
+        _cached_key = s.get('session_key', '')
+        # A record from ANOTHER session is not evidence about this one. Leave
+        # level='unknown'/age=999 so the caller falls through to the slow path
+        # and re-reads this session's own transcript. Degrades safely: a record
+        # with no session_key (pre-fix writer) is still trusted, so this is
+        # backward compatible and never makes a single-session run worse.
+        if _sess_key and _cached_key and _cached_key != _sess_key:
+            pass
+        else:
+            level = s.get('level', 'unknown')
+            tokens = s.get('tokens', 0)
+            age = int(time.time()) - s.get('timestamp', 0)
     except:
         pass
 
@@ -371,8 +392,13 @@ elif [ "$TOKENS" -ge "$TOKEN_WARN" ]; then
 fi
 
 # Write status file (fast-path cache for subsequent gate calls)
-printf '{"level": "%s", "tokens": %d, "timestamp": %d, "source": "budget-gate"}' \
-    "$LEVEL" "$TOKENS" "$(date +%s)" > "$STATUS_FILE" 2>/dev/null || true
+# T-3127: stamp the per-session key so a concurrent worker can tell this
+# record is not its own. Derived with sed rather than a second python start,
+# to hold the script's stated <100ms budget.
+BG_SESSION_KEY=$(printf '%s' "$INPUT" | sed -n 's/.*"transcript_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
+BG_SESSION_KEY=$(basename "${BG_SESSION_KEY:-}" 2>/dev/null); BG_SESSION_KEY="${BG_SESSION_KEY%.jsonl}"
+printf '{"level": "%s", "tokens": %d, "timestamp": %d, "source": "budget-gate", "session_key": "%s"}' \
+    "$LEVEL" "$TOKENS" "$(date +%s)" "${BG_SESSION_KEY:-}" > "$STATUS_FILE" 2>/dev/null || true
 LEVEL=${LEVEL:-ok}
 TOKENS=${TOKENS:-0}
 

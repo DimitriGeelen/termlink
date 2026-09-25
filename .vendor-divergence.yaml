@@ -77,6 +77,44 @@ last_vendor_event:
 #   7. Update `last_vendor_event` here.
 
 divergences:
+  - task: T-3127
+    commit: pending-same-commit
+    commit_note: >
+      Registered in the SAME commit that applies the fix, so the hash is not knowable
+      when this line is written. The checker's match key is the task id in the commit
+      subject — `T-3127:` — which IS knowable.
+    date: 2026-09-25
+    file: .agentic-framework/agents/context/budget-gate.sh
+    status: filed-upstream
+    filed_at: "framework:pickup offset 157 (defect), plus the fix on the same thread"
+    kind: defect-fix
+    generality: GENERIC
+    why: >
+      .budget-status is ONE shared path. Every concurrently dispatched worker in a
+      project writes and reads it, so each reads whichever session wrote last.
+      MEASURED: two workers read ~504k tokens while their real per-session figures
+      were ~169k and ~160k. This is the G-087 class INVERTED — not a plausible zero
+      that hides exhaustion, but a plausible PANIC. Autonomous mandates carry context
+      stop conditions, so a healthy worker can stop immediately, report an exhaustion
+      it never hit, and leave its queue unworked — indistinguishable in a handback
+      from a genuine stop.
+    fix: >
+      Stamp a per-session key (derived from transcript_path, which Claude Code passes
+      to the hook on stdin) into the record, and have the reader ignore a record whose
+      key is not its own, falling through to the slow path that re-reads this session's
+      own transcript. Two sites: the read block and the printf write.
+      transcript_path is the RIGHT discriminator — session.yaml is itself a shared path
+      and would not have discriminated, which the first draft of the upstream filing got
+      wrong and the follow-up corrected.
+    backward_compatible: >
+      A record with NO session_key (written by a pre-fix gate) is still trusted, so a
+      single-session run is unaffected. A hook invocation without transcript_path also
+      degrades to the old behaviour. Both pinned by fixtures.
+    proof: tests/budget-status-session-key-fixtures.sh (6 assertions, all passing)
+    on_revendor: >
+      DELETED unless upstream carried it. Re-check by running the fixture suite: if the
+      two-session assertion fails, the fix is gone and this entry must return to
+      local-only. The suite is the detector; this register is the reminder.
   - task: T-2982
     commit: pending-same-commit
     commit_note: >
