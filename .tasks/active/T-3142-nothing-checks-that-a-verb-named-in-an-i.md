@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-25T11:25:00Z
-last_update: 2026-09-25T11:29:12Z
+last_update: 2026-09-25T16:42:17Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -75,13 +75,34 @@ bvp_scores_proposed:
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] **FAILED — PARKED.** The script exists but is deliberately NOT a guard-layer member: it reported clean/exit-0 on a file naming `fw sidecar`, a verb verified absent. Marker withheld; runner lists it as unclassified (line 162 of --list), never executes it.
-- [x] **Every output path declares the framework root it resolved against** — the retraction at offset 160 happened because measurements taken inside a worktree were reported as framework facts; a check without this repeats it
-- [ ] It resolves `fw <verb>` references found in instructional surfaces against the live verb table, and fires on one that does not resolve
-- [ ] **Load-bearing:** it fires on a fixture instructing `fw sidecar` (genuinely absent, verified today) and does NOT fire on `fw integrate` (genuinely present, 28 refs — the one I wrongly retracted)
-- [ ] Fail-closed: an unresolvable `fw` binary, or a verb table that comes back empty, exits 2 — never a clean bill (an empty table would clear every reference vacuously)
-- [ ] Fixtures cover firing, clean, the false-positive guard, and fail-closed
+- [x] **UNPARKED 2026-09-25.** The `# guard-layer: source` marker is restored and the runner
+      adopts it as a `static-check`; it no longer appears under "unclassified". The park
+      held while it stood: the previous AC text read "FAILED — PARKED … marker withheld",
+      and it is replaced rather than quietly reworded, because the parked state was real
+      and the record of it is the point.
+- [x] **Every output path declares the framework root it resolved against** — the retraction
+      at offset 160 happened because measurements taken inside a worktree were reported as
+      framework facts; a check without this repeats it
+- [x] It resolves `fw <verb>` references found in instructional surfaces against the live
+      verb table, and fires on one that does not resolve
+- [x] **Load-bearing:** it fires on a fixture instructing `fw sidecar` (genuinely absent,
+      verified today) and does NOT fire on `fw integrate` (genuinely present, 28 refs — the
+      one I wrongly retracted). Both measured: `fw sidecar` → rc 1 naming the verb,
+      `fw integrate` → rc 0. This is the assertion that failed and caused the park.
+- [x] Fail-closed: an unresolvable `fw` binary, or a verb table that comes back empty,
+      exits 2 — never a clean bill (an empty table would clear every reference vacuously)
+- [x] **Reference floor (the parked defect).** Too few references on the default surface
+      exits **2**, not 0. "Found nothing to check" and "everything checks out" no longer
+      share an exit code. Proven by a mutant that kills the anchor: it drops to 4
+      references — the exact number the broken script reported as *clean* — and the floor
+      now refuses instead.
+- [x] **The anchor defect is fixed and pinned.** The backtick branch was written `` \` ``,
+      which GNU ERE reads as the start-of-buffer anchor, so it never matched. Corrected to
+      a literal backtick; the real surface went from **4 references to 10** — the check had
+      been passing because it was reading 40% of its subject.
+- [x] Fixtures cover firing, clean, the false-positive guard, both fail-closed paths, the
+      floor, the ROOT line on both output paths, the JSON envelope, and the dead-anchor
+      mutant. 12/12.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -176,6 +197,27 @@ bvp_scores_proposed:
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+# The suite, including the dead-anchor mutant and both fail-closed paths.
+bash tests/instructed-verb-resolves-fixtures.sh > /tmp/.t3142-fix 2>&1 && grep -q "12 passed, 0 failed" /tmp/.t3142-fix
+
+# UNPARKED: the marker is restored in the COMMITTED script and the runner adopts it.
+git show HEAD:scripts/check-instructed-verb-resolves.sh > /tmp/.t3142-head 2>&1 && grep -q "^# guard-layer: source" /tmp/.t3142-head
+bash scripts/run-guard-layer.sh --list > /tmp/.t3142-list 2>&1 && grep -q "static-check   check-instructed-verb-resolves.sh" /tmp/.t3142-list
+grep -q "fixture-suite  instructed-verb-resolves-fixtures.sh" /tmp/.t3142-list
+
+# The backtick is LITERAL, not the GNU start-of-buffer anchor. One character; the whole defect.
+grep -q "grep -oE '(\`fw |bin/fw |" /tmp/.t3142-head
+
+# The anchor sees the surface it was blind to: 10 references, not the 4 it reported broken.
+bash scripts/check-instructed-verb-resolves.sh --json > /tmp/.t3142-json 2>&1
+python3 -c "import json; d=json.load(open('/tmp/.t3142-json')); assert d['checked']==10, d['checked']; assert d['ok'] is True, d; print('10 references, all resolve')"
+
+# THE LOAD-BEARING ONE, run against the real GNU grep a script gets, not the shell's ugrep alias:
+# a surface naming an absent verb must FIRE. This is the assertion that failed and got it parked.
+printf 'Run `fw sidecar` now.\n' > /tmp/.t3142-fx/probe.md 2>/dev/null || { mkdir -p /tmp/.t3142-fx && printf 'Run `fw sidecar` now.\n' > /tmp/.t3142-fx/probe.md; }
+bash scripts/check-instructed-verb-resolves.sh --dirs /tmp/.t3142-fx > /tmp/.t3142-probe 2>&1; test $? -eq 1
+grep -q "sidecar" /tmp/.t3142-probe
 
 ## RCA
 
@@ -291,6 +333,26 @@ bvp_scores_proposed:
    that look right and are not.
 2. **`VERB_CHECK_DIRS` override does not take effect.** The fixture directory was not
    scanned at all, which is what produced (1).
+
+   **CORRECTION (2026-09-25, on unparking) — defect 2 as written above is WRONG.** The
+   override works, and always did; `--dirs` and `VERB_CHECK_DIRS` both reach the scan
+   loop, which was confirmed by tracing the script rather than inferring from the
+   symptom. The real cause of the vacuous pass was **one character in the anchor**: the
+   backtick branch was written `` \` ``, and GNU ERE reads `\`` as the **start-of-buffer
+   anchor**, not a literal backtick. So the branch could never match anything, and every
+   backticked `` `fw x` `` reference in the corpus was invisible.
+
+   That is why the fixture reported zero: its only reference was backticked. It is also
+   why the real surface reported `clean — 4 references` when the true figure is **10** —
+   the check was passing because it was looking at 40% of its subject.
+
+   **The diagnosis was wrong because of a tooling accident worth remembering.** This
+   host's interactive shell has `grep` aliased to **ugrep**, which treats `` \` `` as a
+   literal backtick. Every by-hand verification of the anchor therefore PASSED while the
+   script — which gets `/usr/bin/grep` — was broken. Three hypotheses were wrong in a row
+   here (backtick regex, then heredoc re-expansion, then back to the backtick) before
+   printing the pattern bytes and the engine name settled it. A check verified by hand in
+   a shell whose tools differ from the script's is not verified.
 
 **Why it is parked and not patched:** the acceptance criteria failed twice — three
 anchor tightenings (13 → 4 → 6 findings, all prose) and then the vacuous pass. The

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# guard-layer-PARKED: not a member until the vacuous-pass defect is fixed (T-3142)
+# guard-layer: source --no-heartbeat
 # T-3142 — an instruction names a verb that does not exist.
 #
 # WHY THIS EXISTS
@@ -70,6 +70,10 @@ set -u
 
 FW_BIN="${VERB_CHECK_FW:-.agentic-framework/bin/fw}"
 SCAN_DIRS="${VERB_CHECK_DIRS:-.claude/commands}"
+# Was the scan surface overridden? A fixture tree legitimately holds one reference; the
+# DEFAULT surface does not, so the reference floor below applies only to the real one.
+DIRS_OVERRIDDEN=0; [ -n "${VERB_CHECK_DIRS:-}" ] && DIRS_OVERRIDDEN=1
+MIN_REFS="${VERB_CHECK_MIN_REFS:-}"
 ALLOWLIST="${VERB_CHECK_ALLOWLIST:-.context/checks/instructed-verb-allowlist}"
 JSON=0; QUIET=0
 
@@ -92,7 +96,8 @@ USAGE
 while [ $# -gt 0 ]; do
     case "$1" in
         --fw) FW_BIN="${2:-}"; shift 2 ;;
-        --dirs) SCAN_DIRS="${2:-}"; shift 2 ;;
+        --dirs) SCAN_DIRS="${2:-}"; DIRS_OVERRIDDEN=1; shift 2 ;;
+        --min-refs) MIN_REFS="${2:-}"; shift 2 ;;
         --allowlist) ALLOWLIST="${2:-}"; shift 2 ;;
         --json) JSON=1; shift ;;
         --quiet) QUIET=1; shift ;;
@@ -142,12 +147,40 @@ for d in $SCAN_DIRS; do
             case "$firing" in *"|$v:$f|"*) continue ;; esac
             firing="$firing|$v:$f|"
         done <<EOF
-$(sed 's/\x1b\[[0-9;]*m//g' "$f" 2>/dev/null | grep -oE '(\`fw |bin/fw |^ *fw |\$ fw )[a-z][a-z0-9_-]+' | awk '{print $NF}' | sort -u)
+$(sed 's/\x1b\[[0-9;]*m//g' "$f" 2>/dev/null | grep -oE '(`fw |bin/fw |^ *fw |\$ fw )[a-z][a-z0-9_-]+' | awk '{print $NF}' | sort -u)
 EOF
     done <<EOF
 $(find "$d" -type f \( -name '*.md' -o -name '*.sh' \) 2>/dev/null)
 EOF
 done
+
+# ############################################################################
+# THE REFERENCE FLOOR (T-3142, the defect this check was parked for).
+#
+# "0 references, all resolve" is not a clean bill — it is the check reporting that it
+# could not look, in the same words it uses for success. That is the exact defect this
+# script exists to detect, committed inside the detector (T-2831).
+#
+# It is not hypothetical here. The anchor's backtick branch was written `\\`` and GNU
+# ERE reads \` as the START-OF-BUFFER anchor, not a literal backtick — so every
+# backticked `fw x` reference in the corpus was invisible. The check reported "clean, 4
+# references" for as long as that stood; the true figure is 10. A floor turns that from
+# a quiet green into a loud refusal.
+#
+# The floor applies to the DEFAULT surface only. A fixture tree legitimately holds one
+# reference, so an explicit --dirs / VERB_CHECK_DIRS drops it to 0 unless --min-refs
+# says otherwise.
+# ############################################################################
+if [ -z "$MIN_REFS" ]; then
+    if [ "$DIRS_OVERRIDDEN" = "1" ]; then MIN_REFS=0; else MIN_REFS=5; fi
+fi
+if [ "$checked" -lt "$MIN_REFS" ]; then
+    echo "check-instructed-verb-resolves: only $checked reference(s) found in [$SCAN_DIRS], floor is $MIN_REFS — refusing to report clean (fail-closed)" >&2
+    echo "  The anchor has most likely stopped matching. 'No references' and 'no broken references'" >&2
+    echo "  are the same output otherwise, which is the defect this check detects." >&2
+    echo "  ROOT: resolved against: $FW_ABS ($VERB_COUNT verbs) — cwd $(pwd)" >&2
+    exit 2
+fi
 
 ROOTLINE="resolved against: $FW_ABS ($VERB_COUNT verbs) — cwd $(pwd)"
 SCOPE="resolves 'fw <verb>' references in instructional surfaces against the SHIPPED verb table. It does NOT check subcommands, flags, whether the verb does what the instruction claims, or non-fw tools."
