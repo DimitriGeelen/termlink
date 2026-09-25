@@ -129,6 +129,6 @@ left after its own audit findings.
 
 ## Commits this step
 
-None — this step produced two new report files
-(`docs/reports/VALUE-REVIEW-repo-2026-09-25-R2{,-evidence}.md`) and this handback; commit
-happens as the final action of this handback, referencing this step.
+`2af9c018d` — run record update + both report files (this handback's own final commit
+hash is not self-referencing by construction; recorded here after the fact, matching
+R1S1's `131c864a6` convention of a small follow-up note rather than amending).
