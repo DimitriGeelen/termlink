@@ -9,16 +9,16 @@ description: >
   2026-09-01, count rose 78 -> 122 in that window. We have NO count of the shape here.
   Same class as T-2831 and the reason T-3142 was parked.
 
-status: work-completed
+status: started-work
 workflow_type: inception
 owner: agent
-horizon: null
+horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-09-25T11:49:26Z
-last_update: 2026-09-25T14:52:00Z
-date_finished: 2026-09-25T14:52:00Z
+last_update: 2026-09-25T14:22:11Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -158,15 +158,15 @@ scanning anything outside the task corpus.
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [x] Problem statement validated
+- [ ] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [x] Assumptions tested
+- [ ] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [x] Recommendation written with rationale
+- [ ] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [x] [REVIEW] Review exploration findings and approve go/no-go decision
+- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -261,34 +261,7 @@ task in the project, which is a convention decision for the operator, not agent 
 
 ## Decision
 
-**Decision**: GO
-
-**Rationale**: Measured 30 firing legs of 71 candidates across 2853
-task files — real, and a quarter of 832's 122. The count is not what decides it; the
-composition is. **28 of the 30 sit in `.tasks/completed/`**, whose verification blocks will
-never execute again, so a new member would report 30 findings on day one of which 28 are
-structurally un-actionable and would need a 28-entry allowlist before it could ever go green.
-That is the T-2833 shape exactly — a draft that fired on 58 legitimate-but-unfixable
-instances and had to be re-scoped because a permanently-red check is one nobody reads — on a
-layer already costing ~16 minutes (T-3090). **Zero firing legs are vacuous today**: 14 of 14
-resolvable literal paths exist, so every instance is a latent trap rather than a gate
-currently reporting green over nothing. The 2 live instances are a single task searching
-`crates/`, the repository's core source directory.
-
-Against the pre-stated GO criteria: the count is not 832-scale, the instances are not
-actionable, none are vacuous today, and **the convention is demonstrably working** — 41 of 71
-candidates (58%) already carry the correct companion, verified by hand on two of them
-(T-1417 pairs its negated grep with `test -f` on the same path; T-2873 with a positive
-`grep -q` on the same file). Four of four GO conditions fail; two of two NO-GO conditions hold.
-
-The leverage point is therefore the task template, not a detector: the template is read while
-a verification block is being written, which is where 832's 78 → 122 growth would come from.
-The proposed three-line addition sits beside the existing Pipefail/SIGPIPE guidance and is
-written out in `docs/reports/T-3144-vacuous-absence-census.md` § Recommendation. It is
-
-Measure before deciding. The count is the whole question and we do not have it: 832 measured 122 in their corpus and ours is 2850 task files, so the shape is either widespread here or our '## Verification' convention already closes it, and those two worlds want opposite actions. The census itself is cheap — one pass over .tasks/ for a negated absence-assertion with no companion existence check — and it is the evidence gap, not a confidence gap. Two independent reasons to think the rate is non-zero here: T-2831 found the sibling defect (commands filed under the wrong heading) in this corpus, and T-3142 was parked THIS SESSION because its own load-bearing test passed vacuously. GO is to run the census and report a number, explicitly NOT to build a guard-layer member before that number exists.
-
-**Date**: 2026-09-25T14:52:00Z
+<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
 
 ## Updates
 
@@ -297,67 +270,3 @@ Measure before deciding. The count is the whole question and we do not have it: 
 
 ### 2026-09-25T14:22:11Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
-
-### 2026-09-25T14:52:00Z — inception-decision [inception-workflow]
-- **Action:** Recorded inception decision
-- **Decision:** GO
-- **Rationale:** Measured 30 firing legs of 71 candidates across 2853
-task files — real, and a quarter of 832's 122. The count is not what decides it; the
-composition is. **28 of the 30 sit in `.tasks/completed/`**, whose verification blocks will
-never execute again, so a new member would report 30 findings on day one of which 28 are
-structurally un-actionable and would need a 28-entry allowlist before it could ever go green.
-That is the T-2833 shape exactly — a draft that fired on 58 legitimate-but-unfixable
-instances and had to be re-scoped because a permanently-red check is one nobody reads — on a
-layer already costing ~16 minutes (T-3090). **Zero firing legs are vacuous today**: 14 of 14
-resolvable literal paths exist, so every instance is a latent trap rather than a gate
-currently reporting green over nothing. The 2 live instances are a single task searching
-`crates/`, the repository's core source directory.
-
-Against the pre-stated GO criteria: the count is not 832-scale, the instances are not
-actionable, none are vacuous today, and **the convention is demonstrably working** — 41 of 71
-candidates (58%) already carry the correct companion, verified by hand on two of them
-(T-1417 pairs its negated grep with `test -f` on the same path; T-2873 with a positive
-`grep -q` on the same file). Four of four GO conditions fail; two of two NO-GO conditions hold.
-
-The leverage point is therefore the task template, not a detector: the template is read while
-a verification block is being written, which is where 832's 78 → 122 growth would come from.
-The proposed three-line addition sits beside the existing Pipefail/SIGPIPE guidance and is
-written out in `docs/reports/T-3144-vacuous-absence-census.md` § Recommendation. It is
-
-Measure before deciding. The count is the whole question and we do not have it: 832 measured 122 in their corpus and ours is 2850 task files, so the shape is either widespread here or our '## Verification' convention already closes it, and those two worlds want opposite actions. The census itself is cheap — one pass over .tasks/ for a negated absence-assertion with no companion existence check — and it is the evidence gap, not a confidence gap. Two independent reasons to think the rate is non-zero here: T-2831 found the sibling defect (commands filed under the wrong heading) in this corpus, and T-3142 was parked THIS SESSION because its own load-bearing test passed vacuously. GO is to run the census and report a number, explicitly NOT to build a guard-layer member before that number exists.
-
-## Reviewer Verdict (v1.5)
-
-- **Scan ID:** R-f3a2ddf2
-- **Timestamp:** 2026-09-25T14:52:01Z
-- **Catalogue:** v1.3-seed
-- **Overall:** CONCERN
-- **Needs Human:** no
-- **Findings:** 1
-
-**Verification-level findings:**
-
-  1. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-2
-     - evidence: `IW-2 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
-
-## Recommendation Verdict (v1.0)
-
-- **Scan ID:** RC-715cf9d4
-- **Timestamp:** 2026-09-25T14:52:01Z
-- **Overall:** CONFIRMED
-- **Claims:** 8
-
-| Claim | Type | Status |
-|-------|------|--------|
-| `docs/reports/T-3144-vacuous-absence-census.md` | file | ✓ pass |
-| `T-2833` | task | ✓ pass |
-| `T-3090` | task | ✓ pass |
-| `T-1417` | task | ✓ pass |
-| `T-2873` | task | ✓ pass |
-| `T-1415` | task | ✓ pass |
-| `T-2831` | task | ✓ pass |
-| `T-3142` | task | ✓ pass |
-
-### 2026-09-25T14:52:00Z — status-update [task-update-agent]
-- **Change:** status: started-work → work-completed
-- **Reason:** Inception decision: GO

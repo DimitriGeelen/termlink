@@ -1,11 +1,12 @@
 ---
-id: T-XXX
-name:
+id: T-3147
+name: "Add the absence-assertion rule to the task template (T-3144 GO)"
 description: >
+  Add the absence-assertion rule to the task template (T-3144 GO)
 
-status: captured
-workflow_type:
-owner:
+status: started-work
+workflow_type: build
+owner: agent
 horizon: now
 tags: []
 components: []
@@ -20,8 +21,8 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created:
-last_update:
+created: 2026-09-25T14:52:49Z
+last_update: 2026-09-25T14:52:49Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -35,18 +36,39 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-XXX: [Task Name]
+# T-3147: Add the absence-assertion rule to the task template (T-3144 GO)
 
 ## Context
 
 <!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
+## Context
+
+T-3144's census measured **30** verification legs asserting an absence with nothing proving
+the search could have succeeded — `! grep -q P F` passes just as happily when `F` is gone.
+The census recommended NOT building a guard member (28 of 30 are in closed tasks, 0 are
+vacuous today) and instead amending the task template, because **41 of 71 candidates already
+carry the correct companion** — authors get this right more often than not, so the leverage
+is the text they read *while writing* a block, not a detector that runs after.
+
+Operator recorded GO on T-3144. This is the template half of that recommendation.
+
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `.tasks/templates/default.md` gains an absence-assertion rule inside the existing
+      `## Verification` guidance, adjacent to the Pipefail/SIGPIPE block — the same place a
+      task author is already reading when they write a verification line.
+- [x] The rule shows all three correct shapes (existence test first, positive-companion grep,
+      `&&`-joined producer) and names why the naked form is wrong: exit 0 cannot distinguish
+      "absent" from "could not look".
+- [x] It carries a measured example rather than an abstract warning — the
+      `cargo clippy | grep -c "^error"` gate that goes green precisely when the build could
+      not run, which the census found in this corpus.
+- [x] The template still parses as a task: creating a task from it produces a file whose
+      frontmatter loads as YAML, so the addition cannot break task creation.
+- [x] The census re-run is unchanged (71/41/30) — this task edits guidance only and must not
+      move the number it is responding to.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -119,34 +141,6 @@ date_finished: null
 # on, and grep scans the whole captured string anyway, so the `tail -3` was
 # cosmetic. `echo "$out" | grep -q PAT`, nothing between.
 #
-# ── Asserting an ABSENCE: prove the search could have succeeded (T-3144) ──
-#
-# `! grep -q "PATTERN" file` exits 0 when the pattern is absent. It ALSO exits 0
-# when the file was renamed, deleted, or is empty — so the leg cannot distinguish
-# "the bad thing is not there" from "I could not look", and the gate reports green
-# over a check that never ran. Pair every absence assertion with something that
-# fails if the search could not happen:
-#
-#     test -f path/to/file && ! grep -q "PATTERN" path/to/file    # existence first
-#     grep -q "KNOWN_MARKER" f && ! grep -q "PATTERN" f           # positive companion
-#     cmd > /tmp/.out 2>&1 && ! grep -q "PATTERN" /tmp/.out       # &&-joined producer
-#
-# Count-equals-zero is the same defect wearing a different hat, and it is the one
-# that bites hardest over a COMMAND's output rather than a file:
-#
-#     [ "$(cargo clippy --workspace 2>&1 | grep -c "^error")" = "0" ]   # WRONG
-#
-# If cargo is missing, or dies before emitting diagnostics, there are no `^error`
-# lines, the count is 0, and the leg passes — a build gate that goes green
-# precisely when the build could not run. Measured in this corpus, not invented.
-# Keep the producer's exit code in the verdict:
-#
-#     cargo clippy --workspace > /tmp/.out 2>&1 && ! grep -q "^error" /tmp/.out
-#
-# T-3144 censused 2853 task files: 71 absence assertions, 41 already correct, 30
-# not. The convention mostly works — this note is here so the next one is written
-# right, because a vacuous leg is invisible until the day the path moves.
-#
 # TEST RUNNERS need a guard either way (T-2738). `set -e` is suppressed inside the
 # `if` condition the gate runs each line in, so in `cmd1; cmd2` only cmd2 is the
 # verdict — and the pass marker you grep for survives a partial failure: a suite
@@ -169,6 +163,21 @@ date_finished: null
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+# The rule is in the COMMITTED template (T-3086: assert against HEAD, not the worktree).
+git show HEAD:.tasks/templates/default.md > /tmp/.t3147-tpl 2>&1 && grep -q "Asserting an ABSENCE" /tmp/.t3147-tpl
+
+# All three correct shapes are shown, not just named.
+grep -q 'test -f path/to/file && ! grep -q' /tmp/.t3147-tpl
+grep -q 'grep -q "KNOWN_MARKER" f && ! grep -q' /tmp/.t3147-tpl
+grep -q 'cmd > /tmp/.out 2>&1 && ! grep -q' /tmp/.t3147-tpl
+
+# The measured example is carried, not an abstract warning.
+grep -q 'cargo clippy --workspace 2>&1 | grep -c' /tmp/.t3147-tpl
+
+# The template still yields a task whose frontmatter loads — the addition sits inside a
+# comment block, and a stray '---' there would silently break every future task creation.
+python3 -c "import yaml,sys; t=open('.tasks/templates/default.md').read(); fm=t.split('---')[1]; d=yaml.safe_load(fm); assert isinstance(d,dict), type(d); assert 'id' in d, sorted(d); print('template frontmatter loads as a mapping with', len(d), 'keys')"
 
 ## RCA
 
@@ -262,5 +271,7 @@ date_finished: null
 
 ## Updates
 
-<!-- Auto-populated by git mining at task completion.
-     Manual entries optional during execution. -->
+### 2026-09-25T14:52:49Z — task-created [task-create-agent]
+- **Action:** Created task via task-create agent
+- **Output:** /opt/termlink/.tasks/active/T-3147-add-the-absence-assertion-rule-to-the-ta.md
+- **Context:** Initial task creation
