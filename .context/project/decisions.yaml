@@ -1225,3 +1225,10 @@ decisions:
   date: 2026-09-22
   task: T-3062
   rationale: "Auto-captured from task file on completion"
+
+- id: PD-169
+  decision: "acknowledge `lib/build.sh` in a git-tracked ledger, counted and reported on the clean path, with a stated removal condition — rather than leaving check-framework-tracking-drift.sh permanently red on a vendored defect that G-062 forbids fixing locally. Rejected: leaving it red (teaches the operator this check's red is normal), chmod +x locally (erased by the next re-vendor, and it would make our detector green while the upstream defect persists), and a code-level exemption (no ledger, no removal condition — indistinguishable from never having looked)."
+  scope: project
+  date: 2026-09-25
+  task: T-3145
+  rationale: "Repaired by T-3146 — auto-capture emitted this indented, mis-numbered PD-001, and truncated at the first line."
