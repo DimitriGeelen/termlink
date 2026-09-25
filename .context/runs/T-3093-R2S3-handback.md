@@ -203,7 +203,8 @@ still `captured`, no quadrant — it's an INVESTIGATE, not yet cost-scored for a
   the carried fix #2. No action touched shared/live infrastructure this step (no
   hub restart, no other session's PTY, nothing under systemd), so no further
   at-the-moment re-read was required mid-step.
-- This step's own closing commit: `f80a14913`.
+- This step's own closing commits: `f80a14913` (the work) and `0c8b99a37` (this
+  handback + run record finalization).
 
 ## For R3S1 (value_review, next in sequence)
 
