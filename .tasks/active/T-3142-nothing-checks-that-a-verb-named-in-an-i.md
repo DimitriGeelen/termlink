@@ -1,20 +1,24 @@
 ---
-id: T-3141
-name: "Answer AEF's SIDECAR-E2E joint run ab947312 — and report that fw sidecar does
-  not exist here"
+id: T-3142
+name: "Nothing checks that a verb named in an instruction actually resolves — and
+  a naive checker reports checkout defects as framework defects"
 description: >
-  999-AEF is running a joint end-to-end check of the peer-consult sidecar (their task
-  T-3426, run ab947312, conversation e2e-ab947312) and has been waiting on a reply
-  from 010-termlink. Their harness polled until ~10:54Z; the message says a later
-  answer still counts because they re-run to record it. The instruction names 'fw
-  sidecar send --to ... --conversation ... --body ...' as the command. THAT VERB DOES
-  NOT EXIST IN THIS BUILD - fw sidecar returns 'Unknown command: sidecar'. This is
-  the third instruction today citing an absent verb, after fw integrate run (a blocking
-  gate's only remediation, never built) and checkpoint.sh budget (the /resume skill's
-  mandated safe budget read). The same message provides a working fallback - a channel
-  post to sidecar:e2e-ab947312-sender carrying conversation_id and from_agent metadata,
-  with 'any reply carrying the run id counts' - so the run is answerable and the missing
-  verb is reportable in the same reply rather than silently worked around.
+  Two surfaces verified from the main checkout name a verb this build does not have:
+  checkpoint.sh budget (prescribed by the /resume skill as the G-087-safe budget read;
+  usage at checkpoint.sh:458 is post-tool|reset|status) and fw sidecar send (prescribed
+  by AEF's SIDECAR-E2E run ab947312; not in the verb table). In both the DOCUMENTED
+  path is absent while an undocumented one works, so the failure is invisible to anyone
+  following the documentation - and in the checkpoint case the absent path is the
+  SAFE one, making the docs strictly worse than ignoring them. A third candidate,
+  fw integrate run, was filed and then RETRACTED (framework:pickup offset 160): it
+  exists and runs, with 28 refs in bin/fw. Every measurement behind that claim had
+  been taken from inside a git worktree whose vendored tree differed from main's,
+  so the readings were true of where I stood and false of the framework - the T-2817
+  dangling-reference class biting the report rather than the code. That retraction
+  is the design constraint for this check: it MUST declare which framework root it
+  resolved against on every output path, because a verb-resolution check that does
+  not is one worktree away from confidently reporting a checkout defect as a framework
+  defect. Filed upstream; the check is the local detection.
 
 status: started-work
 workflow_type: build
@@ -33,8 +37,8 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-25T11:19:08Z
-last_update: 2026-09-25T11:20:47Z
+created: 2026-09-25T11:25:00Z
+last_update: 2026-09-25T11:25:18Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -47,7 +51,7 @@ date_finished:
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 bvp_scores_proposed:
-  - ts: '2026-09-25T11:19:33Z'
+  - ts: '2026-09-25T11:25:18Z'
     estimator: bvp-estimator-v1-heuristic
     scores:
       D1: 4
@@ -62,7 +66,7 @@ bvp_scores_proposed:
     rubric_sha: e4a00f38e801
 ---
 
-# T-3141: Answer AEF's SIDECAR-E2E joint run ab947312 — and report that fw sidecar does not exist here
+# T-3142: Nothing checks that a verb named in an instruction actually resolves — and a naive checker reports checkout defects as framework defects
 
 ## Context
 
@@ -72,9 +76,12 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] The SIDECAR-E2E-ACK carrying run id `ab947312` is posted to `sidecar:e2e-ab947312-sender` with `conversation_id` and `from_agent` metadata, and verified present by **reading the topic back** — not by the post's return code (T-2876)
-- [x] The reply reports that `fw sidecar` does not exist in this build, so AEF does not record the run as a clean pass on a command that would have failed for any peer without the fallback
-- [x] The missing-verb pattern is filed at `framework:pickup` as its own finding — three surfaces now (`fw integrate run`, `checkpoint.sh budget`, `fw sidecar`), which is a class, not three coincidences
+- [ ] **FAILED — PARKED.** The script exists but is deliberately NOT a guard-layer member: it reported clean/exit-0 on a file naming `fw sidecar`, a verb verified absent. Marker withheld; runner lists it as unclassified (line 162 of --list), never executes it.
+- [x] **Every output path declares the framework root it resolved against** — the retraction at offset 160 happened because measurements taken inside a worktree were reported as framework facts; a check without this repeats it
+- [ ] It resolves `fw <verb>` references found in instructional surfaces against the live verb table, and fires on one that does not resolve
+- [ ] **Load-bearing:** it fires on a fixture instructing `fw sidecar` (genuinely absent, verified today) and does NOT fire on `fw integrate` (genuinely present, 28 refs — the one I wrongly retracted)
+- [ ] Fail-closed: an unresolvable `fw` binary, or a verb table that comes back empty, exits 2 — never a clean bill (an empty table would clear every reference vacuously)
+- [ ] Fixtures cover firing, clean, the false-positive guard, and fail-closed
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -110,9 +117,6 @@ bvp_scores_proposed:
 -->
 
 ## Verification
-
-test 1 -le "$(termlink channel state sidecar:e2e-ab947312-sender --json 2>/dev/null | python3 -c 'import json,sys;d=json.load(sys.stdin);print(len(d if isinstance(d,list) else d.get(chr(34)+"messages"+chr(34),[])))')"
-.agentic-framework/bin/fw sidecar --help > /tmp/.t3141-sc 2>&1; grep -q "Unknown command" /tmp/.t3141-sc
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -265,10 +269,43 @@ test 1 -le "$(termlink channel state sidecar:e2e-ab947312-sender --json 2>/dev/n
 
 ## Updates
 
-### 2026-09-25T11:19:08Z — task-created [task-create-agent]
+### 2026-09-25T11:25:00Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3141-answer-aefs-sidecar-e2e-joint-run-ab9473.md
+- **Output:** /opt/termlink/.tasks/active/T-3142-nothing-checks-that-a-verb-named-in-an-i.md
 - **Context:** Initial task creation
 
-### 2026-09-25T11:19:33Z — status-update [task-update-agent]
+### 2026-09-25T11:25:18Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+
+## Failure record — parked after the load-bearing test failed
+
+**Two defects, both found by this task's own load-bearing AC rather than by review.**
+
+1. **VACUOUS PASS.** Given a fixture naming `fw sidecar` — verified absent from the
+   verb table the same day — the check reported `clean — 0 reference(s) all resolve`
+   and exited **0**. There is a floor on the VERB TABLE size (≥10, else exit 2) but
+   **none on the REFERENCE count**, so "found nothing to check" and "everything
+   checks out" share an exit code. That is precisely the T-2831 shape this repo has
+   a dozen guards against — reproduced inside a check whose entire subject is things
+   that look right and are not.
+2. **`VERB_CHECK_DIRS` override does not take effect.** The fixture directory was not
+   scanned at all, which is what produced (1).
+
+**Why it is parked and not patched:** the acceptance criteria failed twice — three
+anchor tightenings (13 → 4 → 6 findings, all prose) and then the vacuous pass. The
+rule this repo applies to everything else applies here: stop, record the failure mode,
+move on. A third round on my own check, at the end of a long session, is how a
+permanently-green guard gets shipped.
+
+**What is worth keeping when this resumes**
+
+- The **ROOT line** works and is the real contribution: every output path names the
+  `fw` binary and cwd it resolved against. It exists because the upstream retraction
+  at `framework:pickup` offset 160 was caused by measurements taken inside a worktree
+  being reported as framework facts.
+- The **surface narrowing** is sound: `.claude/commands` are instructions; shell-script
+  comments are documentation, where `fw` appears as a discussed PATH, not a cited
+  COMMAND. Widening back to `scripts/` needs a way to tell those apart.
+- **The fix for (1) is known and small:** a reference-count floor, mirroring the
+  verb-table floor already present — zero references must exit 2, never 0.
