@@ -129,6 +129,15 @@ corrupting `owner:` fields on other tasks across this whole run without anyone n
 
 ## Commits this step
 
-Closing commit (this handback + run record update + all 6 new/modified task files +
-CLAUDE.md + the fabric card + T-3095's fix) — see git log immediately following this file's
-commit for the hash.
+`7adb5712b` — this handback + run record update + all 6 new/modified task files +
+CLAUDE.md + the fabric card + T-3095's fix.
+
+**Stop condition hit:** `checkpoint.sh status` read 299,773 tokens (~37%) immediately after
+that commit — at the mandate's ~300k ceiling. T-3133 was set to `started-work` (its fix —
+the commit itself — already happened) but not formally transitioned to `work-completed`
+(that requires an Evolution-section entry per T-1718's gate, which there was no budget left
+to add safely). Per this step's own stop-condition instructions ("do not stop mid-task"),
+this is the least-mid-task place available: T-3133's underlying work is done and verifiable
+by any future step (`git status --porcelain` was clean immediately after the commit above);
+only its own status-field bookkeeping is left for R2S3 or a future audit cycle to close with
+one `fw task update T-3133 --status work-completed` plus a one-line Evolution entry.

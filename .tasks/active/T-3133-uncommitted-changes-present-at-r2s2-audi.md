@@ -7,7 +7,7 @@ description: >
   AT THAT TIME). This is a new snapshot with different files, not a regression of
   T-3106's fix. Resolved by this step's own closing commit.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -25,7 +25,7 @@ related_tasks: [T-3106]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-25T07:05:12Z
-last_update: '2026-09-25T07:06:06Z'
+last_update: 2026-09-25T07:08:40Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -258,3 +258,6 @@ step's closing commit.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3133-uncommitted-changes-present-at-r2s2-audi.md
 - **Context:** Initial task creation
+
+### 2026-09-25T07:08:40Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
