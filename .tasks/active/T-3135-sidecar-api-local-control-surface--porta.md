@@ -1,25 +1,35 @@
 ---
-id: T-3130
-name: "fw task update --status blanks owner field on frontmatter rewrite (reproduced
-  live)"
+id: T-3135
+name: "Sidecar API: local control surface + portable respawn supervisor"
 description: >
-  Reproduced live during T-3093 R2S2: running fw task update T-3129 --status started-work
-  (no --owner flag passed) on a task created moments earlier with --owner agent left
-  owner blank in the frontmatter afterward. The explicit --owner code path in update-task.sh
-  is guarded by NEW_OWNER being set and never ran, so something else in the status-transition
-  or frontmatter-rewrite path (candidates: the auto-triggered bvp-estimate rewrite,
-  or a regex/YAML rewrite step keyed on the owner line) is clobbering the value. Possibly
-  related to T-3095 (filed by R1S2 with owner blank) but T-3095 never underwent a
-  status transition since creation so that link is suspected not proven. INVESTIGATE:
-  bisect which step in update-task.sh status-transition path touches the owner line.
+  Build task for arc-011 slices S1 (sender sends via a sidecar API) and S12 (roles
+  swap - agent replies as sender), created after T-3075's inception went GO. Scope
+  per T-3075 Scope Fence: a LOCAL API answering status/queue/inject <id>/agent-state/ack
+  <offset> about this host's own mailbox and prompt; an always-respawning supervisor
+  for it; re-resolving this host's own FQDN/IP on change. BINDING per operator ruling
+  SQ-8 (arc-011.yaml, 2026-09-24, verbatim principle: reliability and fragility, not
+  saving a few tokens for a quick solution -- I want a solid solution): systemd-only
+  respawn is REJECTED as the cheap answer; the respawn supervisor MUST carry a portable
+  fallback (README asserts macOS support in five places and release.yml cross-builds
+  two Darwin targets -- a systemd-only respawn would silently narrow what the product
+  claims to be). S12's role-swap reply is code-complete once S1's sidecar API exists
+  (the agent replies via the same channel.post path already proven end-to-end by T-3069/T-3079);
+  its remaining blocker is external to this repo -- framework-agent-systemd's systemd
+  unit does not have termlink in --allowed-commands, which is a different project's
+  config (T-559 boundary) and cannot be fixed from here.
 
 status: captured
 workflow_type: build
 owner: agent
 horizon: now
-tags: [arc:arc-008, housekeeping]
-components: []
-related_tasks: [T-3129, T-3095]
+tags: [arc:arc-011]
+components:
+  - scripts/notify-sidecar-api.sh
+  - scripts/notify-sidecar.sh
+  - scripts/notify-injector.sh
+  - tests/notify-sidecar-api-fixtures.sh
+  - docs/design/arc-011-sidecar-api-architecture.md
+related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
@@ -30,8 +40,8 @@ related_tasks: [T-3129, T-3095]
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-25T07:00:52Z
-last_update: '2026-09-25T07:06:05Z'
+created: 2026-09-25T07:15:32Z
+last_update: '2026-09-25T07:16:38Z'
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -44,7 +54,7 @@ date_finished:
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 bvp_scores_proposed:
-  - ts: '2026-09-25T07:06:05Z'
+  - ts: '2026-09-25T07:15:51Z'
     estimator: bvp-estimator-v1-heuristic
     scores:
       D1: 4
@@ -57,54 +67,39 @@ bvp_scores_proposed:
       (body:component-discoverability); D4=2 (body:env-class-handled); 
       F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-09-25T07:16:00Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius:
+      tier: 2
+      effort: 8
+    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
+      (workflow:build); effort=8 (lines=204,acs=4)
+    rubric_sha: e4a00f38e801
+  - ts: '2026-09-25T07:16:38Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 5
+      tier: 2
+      effort: 8
+    rationale: blast_radius=5 (5-components-medium-blast); tier=2 
+      (workflow:build); effort=8 (lines=204,acs=4)
+    rubric_sha: e4a00f38e801
 ---
 
-# T-3130: fw task update --status blanks owner field on frontmatter rewrite (reproduced live)
+# T-3135: Sidecar API: local control surface + portable respawn supervisor
 
 ## Context
 
-Live reproduction during this session (see description). Root cause not yet
-bisected — vendored code (`.agentic-framework/agents/task-create/update-task.sh`,
-G-062), and a proper bisect (isolating whether the culprit is the auto bvp-estimate
-rewrite step, an arc-tag insertion regex, or something else) is real engineering
-work out of scope for a housekeeping-remediation pass. Filed as INVESTIGATE, not
-executed further this cycle, to respect the "no scope drift" binding constraint —
-a fix here would need to touch vendored update logic without first confirming which
-of several candidate rewrite steps is responsible.
-
-**R2S3 bisect attempt (3 tries, then stopped per the mandate's "three attempts is
-context burned, not progress"):** built a minimal fixture (`fw task create --owner
-agent --tags "arc:arc-008,housekeeping"`, matching T-3129's shape exactly —
-folded `description: >` block, same tags, same owner) and drove it through
-(1) `captured → started-work`, (2) a second fresh fixture through the identical
-transition, (3) the same fixture pushed all the way to `work-completed`
-(AC-ticking, Evolution entry, git-mv-to-completed/, episodic generation — the
-whole finalize path). **`owner:` survived intact in all three runs.** This rules
-out the two leading candidates from the original description (the auto
-bvp-estimate rewrite step, and the tag-insertion regex at line ~1941) as the
-SOLE cause under these conditions, and also rules out the finalize/git-mv path
-in isolation. The defect is real (R2S2 measured it live, directly, on T-3129)
-but is not reproducible from a clean minimal fixture — so the trigger is either
-something about the ORIGINAL T-3129/T-3095 file content this fixture didn't
-capture (a specific frontmatter byte sequence, a stray CR, an unusual field
-ordering), or a condition specific to the orchestrated multi-step run
-(concurrent file access, a stale hook cache) rather than the command in
-isolation. Scratch fixtures (T-3134, T-9999) were used and deleted, not
-committed. Next bisect attempt should diff the actual byte-for-byte frontmatter
-of T-3095/T-3129 as they stood in the dirty tree at the moment of the incident
-(if recoverable from shell history / T-3093 R2S2's own working notes) rather
-than reconstructing a fixture from the description.
+<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Bisect which rewrite step in update-task.sh's status-transition path clobbers
-      `owner:` (candidates: auto bvp-estimate rewrite, arc-tag regex insertion, other)
-- [ ] Reproduce with a minimal fixture (fresh task, single --status update, diff
-      frontmatter before/after) to confirm it is not specific to this task's folded
-      YAML description
-- [ ] File the confirmed root cause upstream per G-062 (vendored file)
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -292,7 +287,7 @@ than reconstructing a fixture from the description.
 
 ## Updates
 
-### 2026-09-25T07:00:52Z — task-created [task-create-agent]
+### 2026-09-25T07:15:32Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3130-fw-task-update---status-blanks-owner-fie.md
+- **Output:** /opt/termlink/.tasks/active/T-3135-sidecar-api-local-control-surface--porta.md
 - **Context:** Initial task creation

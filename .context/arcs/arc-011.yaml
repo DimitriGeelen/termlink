@@ -23,14 +23,20 @@ prover: bash scripts/notify-rail-e2e.sh --stages precond,deliver,receipt,ladder,
 slices:
 - id: S1
   spec_step: 1. sender sends via a sidecar API
-  task: T-3075
+  task: T-3135
   status: unbuilt
-  note: Sends ride hub RPC today. No sidecar API exists. Operator wants a separate always-respawning process,
-    independent of the hub because the hub goes down, also carrying the startup chain (agent/session/project/hub,
-    re-resolve FQDN/IP on change). NEEDS OPERATOR DISCUSSION BEFORE BUILD.
+  note: 'RE-POINTED 2026-09-25 (T-3093 R2S3): T-3075 (inception) went GO 2026-09-24 and is now
+    work-completed, which is what made check-arc-slice-drift.sh fire on this slice — the
+    inception decided the analysis, not the build (see T-3075''s own Recommendation: "GO on
+    the ANALYSIS, not a build"). Re-pointed at T-3135, the build task created from that GO,
+    which carries the operator''s SQ-8 ruling forward: systemd-only respawn is REJECTED, a
+    portable fallback is REQUIRED. Sends ride hub RPC today. No sidecar API exists. Operator
+    wants a separate always-respawning process, independent of the hub because the hub goes
+    down, also carrying the startup chain (agent/session/project/hub, re-resolve FQDN/IP on
+    change).'
 - id: S2
   spec_step: 2. payload may carry a binary blob
-  task: T-3076
+  task: T-3134
   status: unbuilt
   note: 'REFINED 2026-09-22 (T-3076). Blob-on-a-topic exists END TO END: `artifact.put` + `channel.post
     {msg_type:artifact, artifact_ref:<sha256>}` (T-1249/T-1164a), content-addressed. The session-targeted
@@ -38,7 +44,10 @@ slices:
     artifact.put. THE ACTUAL GAP, measured: there is NO `termlink artifact` subcommand, so a SHELL SCRIPT
     can post --artifact-ref but cannot move the BYTES. put/get are reachable only from inside file send/receive.
     Remediation is two thin CLI wrappers over functions that already exist. That is new CLI surface, hence
-    a SOVEREIGN question (T-3076 IW-2), parked.'
+    a SOVEREIGN question (T-3076 IW-2). RESOLVED 2026-09-23 (SQ-3): operator decided YES, add the verbs.
+    RE-POINTED 2026-09-25 (T-3093 R2S3): T-3076 (inception) went GO 2026-09-24 and is now work-completed,
+    which is what made check-arc-slice-drift.sh fire on this slice. Re-pointed at T-3134, the build task
+    created from that GO — the two thin wrappers described above, scored hv-lc (Q1) by the estimator.'
 - id: S3
   spec_step: 3. receiver stores it on local disk
   task: T-2300
@@ -154,10 +163,17 @@ slices:
     check-cron-install-drift 1 -> 0, cron-drift-firing-fixtures 12/1 -> 13/0.'
 - id: S12
   spec_step: 12. roles swap — the agent replies as sender
-  task: T-3075
+  task: T-3135
   status: unbuilt
-  note: 'Blocked for framework-agent-systemd: `termlink` is not in its systemd --allowed-commands, so
-    it can receive and cannot reply. Operator decision.'
+  note: 'RE-POINTED 2026-09-25 (T-3093 R2S3): re-pointed at T-3135 (the S1 build task) alongside
+    S1 — T-3135''s scope note explains why the two share one task: the reply mechanism is
+    code-complete the moment S1''s sidecar API exists (the agent replies via the same
+    channel.post path already proven end-to-end by T-3069/T-3079), so this slice''s CODE-SIDE
+    blocker is S1 itself, not a separate build. STILL BLOCKED, unchanged, and NOT something
+    T-3135 can close: framework-agent-systemd''s systemd unit does not have `termlink` in its
+    --allowed-commands, so it can receive and cannot reply. That is a different project''s
+    config (T-559 project-boundary — cannot be edited from this repo/session) and remains an
+    operator decision on the other host.'
 sovereign_questions:
 - id: SQ-1
   status: 'RESOLVED 2026-09-23 - operator decided: the injector belongs to TERMLINK'

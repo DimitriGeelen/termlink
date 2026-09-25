@@ -1,25 +1,19 @@
 ---
-id: T-3130
-name: "fw task update --status blanks owner field on frontmatter rewrite (reproduced
-  live)"
+id: T-3133
+name: "Uncommitted changes present at R2S2 audit-run snapshot"
 description: >
-  Reproduced live during T-3093 R2S2: running fw task update T-3129 --status started-work
-  (no --owner flag passed) on a task created moments earlier with --owner agent left
-  owner blank in the frontmatter afterward. The explicit --owner code path in update-task.sh
-  is guarded by NEW_OWNER being set and never ran, so something else in the status-transition
-  or frontmatter-rewrite path (candidates: the auto-triggered bvp-estimate rewrite,
-  or a regex/YAML rewrite step keyed on the owner line) is clobbering the value. Possibly
-  related to T-3095 (filed by R1S2 with owner blank) but T-3095 never underwent a
-  status transition since creation so that link is suspected not proven. INVESTIGATE:
-  bisect which step in update-task.sh status-transition path touches the owner line.
+  fw audit WARN: uncommitted changes present at the moment of this cycle's audit run.
+  Same recurring WARN class as T-3106 (closed, narrow AC: commit the changes present
+  AT THAT TIME). This is a new snapshot with different files, not a regression of
+  T-3106's fix. Resolved by this step's own closing commit.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-008, housekeeping]
 components: []
-related_tasks: [T-3129, T-3095]
+related_tasks: [T-3106]
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
@@ -30,9 +24,9 @@ related_tasks: [T-3129, T-3095]
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-25T07:00:52Z
-last_update: '2026-09-25T07:06:05Z'
-date_finished:
+created: 2026-09-25T07:05:12Z
+last_update: 2026-09-25T07:11:38Z
+date_finished: 2026-09-25T07:11:38Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -44,7 +38,7 @@ date_finished:
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 bvp_scores_proposed:
-  - ts: '2026-09-25T07:06:05Z'
+  - ts: '2026-09-25T07:06:06Z'
     estimator: bvp-estimator-v1-heuristic
     scores:
       D1: 4
@@ -59,52 +53,20 @@ bvp_scores_proposed:
     rubric_sha: e4a00f38e801
 ---
 
-# T-3130: fw task update --status blanks owner field on frontmatter rewrite (reproduced live)
+# T-3133: Uncommitted changes present at R2S2 audit-run snapshot
 
 ## Context
 
-Live reproduction during this session (see description). Root cause not yet
-bisected — vendored code (`.agentic-framework/agents/task-create/update-task.sh`,
-G-062), and a proper bisect (isolating whether the culprit is the auto bvp-estimate
-rewrite step, an arc-tag insertion regex, or something else) is real engineering
-work out of scope for a housekeeping-remediation pass. Filed as INVESTIGATE, not
-executed further this cycle, to respect the "no scope drift" binding constraint —
-a fix here would need to touch vendored update logic without first confirming which
-of several candidate rewrite steps is responsible.
-
-**R2S3 bisect attempt (3 tries, then stopped per the mandate's "three attempts is
-context burned, not progress"):** built a minimal fixture (`fw task create --owner
-agent --tags "arc:arc-008,housekeeping"`, matching T-3129's shape exactly —
-folded `description: >` block, same tags, same owner) and drove it through
-(1) `captured → started-work`, (2) a second fresh fixture through the identical
-transition, (3) the same fixture pushed all the way to `work-completed`
-(AC-ticking, Evolution entry, git-mv-to-completed/, episodic generation — the
-whole finalize path). **`owner:` survived intact in all three runs.** This rules
-out the two leading candidates from the original description (the auto
-bvp-estimate rewrite step, and the tag-insertion regex at line ~1941) as the
-SOLE cause under these conditions, and also rules out the finalize/git-mv path
-in isolation. The defect is real (R2S2 measured it live, directly, on T-3129)
-but is not reproducible from a clean minimal fixture — so the trigger is either
-something about the ORIGINAL T-3129/T-3095 file content this fixture didn't
-capture (a specific frontmatter byte sequence, a stray CR, an unusual field
-ordering), or a condition specific to the orchestrated multi-step run
-(concurrent file access, a stale hook cache) rather than the command in
-isolation. Scratch fixtures (T-3134, T-9999) were used and deleted, not
-committed. Next bisect attempt should diff the actual byte-for-byte frontmatter
-of T-3095/T-3129 as they stood in the dirty tree at the moment of the incident
-(if recoverable from shell history / T-3093 R2S2's own working notes) rather
-than reconstructing a fixture from the description.
+Files dirty at audit time included hook-touched state
+(`.context/working/.budget-status`, `.hook-counter`), other in-flight T-3093
+steps' task-file edits, and this step's own work. Committed as part of this
+step's closing commit.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Bisect which rewrite step in update-task.sh's status-transition path clobbers
-      `owner:` (candidates: auto bvp-estimate rewrite, arc-tag regex insertion, other)
-- [ ] Reproduce with a minimal fixture (fresh task, single --status update, diff
-      frontmatter before/after) to confirm it is not specific to this task's folded
-      YAML description
-- [ ] File the confirmed root cause upstream per G-062 (vendored file)
+- [x] Working changes present at audit time committed with a task reference
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -218,27 +180,13 @@ than reconstructing a fixture from the description.
 
 ## Evolution
 
-<!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
-     understanding evolved during build — what was learned that wasn't known at
-     filing, what in the original plan no longer fits, what triggered pivots
-     or new sub-tasks. Mandatory at slice boundaries (when applicable) and
-     before --status work-completed.
-
-     Origin: T-1717 grill Q4 — "the understanding of what we need and want
-     evolves with the process of materialisation." Structural counter to §ACD:
-     spec-vs-build divergence is logged as soon as it happens, not lost as
-     folklore.
-
-     Format (one entry per slice boundary or significant insight):
-       ### YYYY-MM-DD — [topic]
-       - **What changed:** [what we learned that we didn't know at filing]
-       - **Plan impact:** [what in the plan no longer fits]
-       - **Triggered:** [new sub-task / pivot / scope cut, with task ID if filed]
-
-     The completion gate (T-1718) blocks --status work-completed when this
-     section exists but is empty/template-only. Use --skip-evolution to bypass
-     (logged Tier-2). Non-arc tasks may leave this empty.
--->
+### 2026-09-25 — closed as-filed
+- **What changed:** Nothing — the fix was the closing commit R2S2 already made
+  (`7adb5712b`), so this task exists purely to give that fix a task reference
+  and a formal `work-completed` transition rather than leaving it in an
+  ambiguous `started-work` state with no further work pending.
+- **Plan impact:** None. No new findings surfaced while closing it.
+- **Triggered:** Nothing new — same recurring housekeeping class as T-3106.
 
 ## Recommendation
 
@@ -292,7 +240,23 @@ than reconstructing a fixture from the description.
 
 ## Updates
 
-### 2026-09-25T07:00:52Z — task-created [task-create-agent]
+### 2026-09-25T07:05:12Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3130-fw-task-update---status-blanks-owner-fie.md
+- **Output:** /opt/termlink/.tasks/active/T-3133-uncommitted-changes-present-at-r2s2-audi.md
 - **Context:** Initial task creation
+
+### 2026-09-25T07:08:40Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-9ef90953
+- **Timestamp:** 2026-09-25T07:11:39Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-09-25T07:11:38Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Fix already landed in R2S2's closing commit 7adb5712b; closing the status/Evolution bookkeeping this step.

@@ -1,19 +1,24 @@
 ---
-id: T-3133
-name: "Uncommitted changes present at R2S2 audit-run snapshot"
+id: T-3134
+name: "artifact CLI verbs: termlink artifact put/get"
 description: >
-  fw audit WARN: uncommitted changes present at the moment of this cycle's audit run.
-  Same recurring WARN class as T-3106 (closed, narrow AC: commit the changes present
-  AT THAT TIME). This is a new snapshot with different files, not a regression of
-  T-3106's fix. Resolved by this step's own closing commit.
+  Build task for arc-011 slice S2 (payload may carry a binary blob), created after
+  T-3076's inception went GO. Add termlink artifact put <path> --to <peer> and termlink
+  artifact get <sha256> --expected-sha256 <sha256> -o <path> as thin CLI wrappers
+  over the existing send_artifact_via_client/download_artifact_via_client functions
+  (crates/termlink-session/src/artifact.rs), per T-3076's Scope Fence. --expected-sha256
+  is mandatory on get per IW-3.
 
-status: started-work
+status: captured
 workflow_type: build
 owner: agent
 horizon: now
-tags: [arc:arc-008, housekeeping]
-components: []
-related_tasks: [T-3106]
+tags: [arc:arc-011]
+components:
+  - crates/termlink-cli/src/commands/artifact.rs
+  - crates/termlink-cli/src/cli.rs
+  - tests/artifact-cli-fixtures.sh
+related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
@@ -24,8 +29,8 @@ related_tasks: [T-3106]
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-25T07:05:12Z
-last_update: 2026-09-25T07:08:40Z
+created: 2026-09-25T07:15:06Z
+last_update: '2026-09-25T07:16:38Z'
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -38,7 +43,7 @@ date_finished:
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 bvp_scores_proposed:
-  - ts: '2026-09-25T07:06:06Z'
+  - ts: '2026-09-25T07:15:51Z'
     estimator: bvp-estimator-v1-heuristic
     scores:
       D1: 4
@@ -51,22 +56,39 @@ bvp_scores_proposed:
       (body:component-discoverability); D4=2 (body:env-class-handled); 
       F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-09-25T07:16:00Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius:
+      tier: 2
+      effort: 8
+    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
+      (workflow:build); effort=8 (lines=204,acs=4)
+    rubric_sha: e4a00f38e801
+  - ts: '2026-09-25T07:16:38Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 8
+    rationale: blast_radius=3 (3-components); tier=2 (workflow:build); effort=8 
+      (lines=204,acs=4)
+    rubric_sha: e4a00f38e801
 ---
 
-# T-3133: Uncommitted changes present at R2S2 audit-run snapshot
+# T-3134: artifact CLI verbs: termlink artifact put/get
 
 ## Context
 
-Files dirty at audit time included hook-touched state
-(`.context/working/.budget-status`, `.hook-counter`), other in-flight T-3093
-steps' task-file edits, and this step's own work. Committed as part of this
-step's closing commit.
+<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] Working changes present at audit time committed with a task reference
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -254,10 +276,7 @@ step's closing commit.
 
 ## Updates
 
-### 2026-09-25T07:05:12Z — task-created [task-create-agent]
+### 2026-09-25T07:15:06Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3133-uncommitted-changes-present-at-r2s2-audi.md
+- **Output:** /opt/termlink/.tasks/active/T-3134-artifact-cli-verbs-termlink-artifact-put.md
 - **Context:** Initial task creation
-
-### 2026-09-25T07:08:40Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
