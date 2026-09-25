@@ -134,4 +134,6 @@ closing exactly the two items R2S1 left open.
 
 ## Commits this step
 
-[commit hash recorded after this handback + run record update are committed together]
+`e11430230` — run record update + both report files + this handback (committed together;
+this step's own final commit hash is not self-referencing by construction, recorded here
+after the fact, matching R1S1/R2S1's `131c864a6`/`bd54592f8` convention).
