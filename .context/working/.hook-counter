@@ -1,18 +1,19 @@
-check-human-ac-tick=2
+check-human-ac-tick=4
 
-check-active-completed-dup=1
+check-active-completed-dup=2
 
-checkpoint=5
-check-inception-schema=1
-check-arc-id=1
-check-onboarding-gate=1
-check-inception-decisions=1
-check-project-boundary=5
-budget-gate=5
-check-active-task=5
-loop-detect=4
-check-settings-edit=1
-commit-cadence=1
-audit-task-tools=4
-check-tier0=4
-error-watchdog=3
+checkpoint=13
+check-inception-schema=3
+check-arc-id=3
+check-onboarding-gate=3
+check-inception-decisions=3
+check-project-boundary=13
+budget-gate=13
+check-active-task=13
+loop-detect=12
+check-settings-edit=3
+commit-cadence=3
+audit-task-tools=12
+check-tier0=10
+error-watchdog=8
+check-heredoc-cmd-sub=2

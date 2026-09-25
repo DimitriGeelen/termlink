@@ -1,0 +1,72 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3138: Uncommitted changes present at R3S2 audit-run snapshot
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-25T08:37:29Z
+# ============================================================================
+
+task_id: T-3138
+task_name: "Uncommitted changes present at R3S2 audit-run snapshot"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-25T08:28:04Z
+completed: 2026-09-25T08:37:20Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fw audit WARN: uncommitted changes present at audit-run time (T-3093 R3S2, 2026-09-25, round 3 of 4). Same recurring per-run instance as T-3106 (cycle-3) and T-3133 (R2S2), both already closed. This instance covers: .context/audits/2026-09-25.yaml, .context/project/metrics-history.yaml, .context/working/.budget-status, .context/working/.hook-counter, .termlink-task, Cargo.lock, VERSION (background/tooling churn) plus this step's own new/edited files. Self-resolves via this step's own closing commit, mirroring the T-3133 precedent exactly.
+
+# Key outcomes
+outcomes:
+  - 'Working tree committed as part of this step''s closing commit'
+  - '`git status --porcelain` reported empty immediately after that commit (checked by'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 9 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-008]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 9
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3138-uncommitted-changes-present-at-r3s2-audi.md
+generated_by: context-agent-hybrid
