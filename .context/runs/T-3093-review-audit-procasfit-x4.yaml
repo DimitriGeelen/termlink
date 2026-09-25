@@ -91,13 +91,29 @@ steps:
   round: 1
   step: 3
   prompt: proc_as_fit
-  state: dispatched
+  state: complete
   worker: t3093-r1s3-procasfit
   fed_by: R1S2
   feeds: R2S1
   result_file: .context/runs/T-3093-R1S3-handback.md
   dispatched_utc: '2026-09-25T07:02:00Z'
   fed_with: R1S2 handback inlined (15129B)
+  completed_utc: '2026-09-25T08:15:00Z'
+  completed_note: 'Selected arc-009 (Value-review execution) over continuing arc-008 (R1S2''s
+    Q1 already exhausted there) and over arc-011 (blocked on operator decisions). Worked 2 of
+    19 untouched owner:agent captured tasks to exhaustion given context budget: T-3010 (set
+    90-day revisit_at on C-29 artifact.* deferral; intentionally left open, not work-completed,
+    since revisit-due-scan.sh only reads .tasks/active/) and T-2998 (new
+    scripts/archive-governance-artifacts.sh; archived 1269 files >90d from .context/handovers
+    (61MB->31MB active) and .context/audits (~8.8MB->~5.9MB active), never deleting; caught
+    and fixed a silent git-mv-k no-op bug and a wrong guard-layer marker before shipping;
+    closed clean, 7/7 verification passed). Stopped at ~284K/~35% context (well before the
+    ~300k mandate ceiling but conservatively, since each unit cost 50-115K tokens and a third
+    risked crossing it mid-task). 17 tasks remain in arc-009, judged and prioritized
+    (T-2987/T-2981/T-3037/T-2990 next as Q1-equivalent; T-3006 as the one real
+    measured-cost Q2 candidate). No new Sovereign questions raised; T-2753''s pre-existing
+    DEFER-pending-decide and arc-011''s blocked build slice re-surfaced, not re-litigated.
+    Committed as cedd6b514.'
 - id: R2S1
   round: 2
   step: 1
