@@ -1,23 +1,22 @@
 ---
-id: T-3134
-name: "artifact CLI verbs: termlink artifact put/get"
+id: T-3140
+name: "artifact manifest.from must be identity fingerprint, not cli-pid label"
 description: >
-  Build task for arc-011 slice S2 (payload may carry a binary blob), created after
-  T-3076's inception went GO. Add termlink artifact put <path> --to <peer> and termlink
-  artifact get <sha256> --expected-sha256 <sha256> -o <path> as thin CLI wrappers
-  over the existing send_artifact_via_client/download_artifact_via_client functions
-  (crates/termlink-session/src/artifact.rs), per T-3076's Scope Fence. --expected-sha256
-  is mandatory on get per IW-3.
+  send_artifact_via_client copies manifest.from verbatim into the signed channel.post
+  envelope's sender_id, and the hub rejects a sender_id that doesn't match the pubkey-derived
+  fingerprint (T-1427, CHANNEL_IDENTITY_MISMATCH -32014). All three existing callers
+  (commands/file.rs::try_send_via_artifact, commands/remote.rs, mcp/src/tools.rs file_send
+  handler) construct manifest.from as format!("<prefix>-{pid}") instead of identity.fingerprint()
+  -- discovered live while proving T-3134's new artifact put verb end-to-end against
+  a real hub (channel.post error -32014). Every one of these three paths is broken
+  today for any peer/hub pairing that enforces T-1427 identity verification.
 
 status: captured
 workflow_type: build
 owner: agent
 horizon: now
-tags: [arc:arc-011]
-components:
-  - crates/termlink-cli/src/commands/artifact.rs
-  - crates/termlink-cli/src/cli.rs
-  - tests/artifact-cli-fixtures.sh
+tags: []
+components: []
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -29,8 +28,8 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-25T07:15:06Z
-last_update: '2026-09-25T07:16:38Z'
+created: 2026-09-25T10:22:14Z
+last_update: '2026-09-25T10:22:38Z'
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -43,7 +42,7 @@ date_finished:
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 bvp_scores_proposed:
-  - ts: '2026-09-25T07:15:51Z'
+  - ts: '2026-09-25T10:22:38Z'
     estimator: bvp-estimator-v1-heuristic
     scores:
       D1: 4
@@ -56,28 +55,9 @@ bvp_scores_proposed:
       (body:component-discoverability); D4=2 (body:env-class-handled); 
       F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
-cost_estimate_proposed:
-  - ts: '2026-09-25T07:16:00Z'
-    estimator: bvp-estimator-v1-heuristic
-    cost_estimate:
-      blast_radius:
-      tier: 2
-      effort: 8
-    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
-      (workflow:build); effort=8 (lines=204,acs=4)
-    rubric_sha: e4a00f38e801
-  - ts: '2026-09-25T07:16:38Z'
-    estimator: bvp-estimator-v1-heuristic
-    cost_estimate:
-      blast_radius: 3
-      tier: 2
-      effort: 8
-    rationale: blast_radius=3 (3-components); tier=2 (workflow:build); effort=8 
-      (lines=204,acs=4)
-    rubric_sha: e4a00f38e801
 ---
 
-# T-3134: artifact CLI verbs: termlink artifact put/get
+# T-3140: artifact manifest.from must be identity fingerprint, not cli-pid label
 
 ## Context
 
@@ -276,7 +256,7 @@ cost_estimate_proposed:
 
 ## Updates
 
-### 2026-09-25T07:15:06Z — task-created [task-create-agent]
+### 2026-09-25T10:22:14Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3134-artifact-cli-verbs-termlink-artifact-put.md
+- **Output:** /opt/termlink/.tasks/active/T-3140-artifact-manifestfrom-must-be-identity-f.md
 - **Context:** Initial task creation

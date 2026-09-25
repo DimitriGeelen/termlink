@@ -978,6 +978,14 @@ pub(crate) enum Command {
         action: FileAction,
     },
 
+    /// T-3134 (arc-011 S2): move a content-addressed blob via `artifact.put`/`artifact.get`.
+    /// Thin wrappers over `send_artifact_via_client`/`download_artifact_via_client`
+    /// (`crates/termlink-session/src/artifact.rs`) — local hub only, no protocol changes.
+    Artifact {
+        #[command(subcommand)]
+        action: ArtifactAction,
+    },
+
     // === Remote Operations ===
 
     /// Interact with sessions on remote hubs (cross-machine)
@@ -6429,6 +6437,54 @@ pub(crate) enum FileAction {
     },
 }
 
+/// T-3134 (arc-011 S2): `artifact put`/`artifact get` — content-addressed blob transfer.
+#[derive(Subcommand)]
+pub(crate) enum ArtifactAction {
+    /// Upload a file's bytes to a peer's inbox via artifact.put + channel.post
+    Put {
+        /// Path to the file to upload
+        path: String,
+
+        /// Target peer agent id
+        #[arg(long = "to")]
+        to: String,
+
+        /// Output result as JSON
+        #[arg(long)]
+        json: bool,
+
+        /// Timeout for the upload RPC exchange, in seconds
+        #[arg(long, default_value = "30")]
+        timeout: u64,
+    },
+
+    /// Download an artifact's bytes by sha256 via artifact.get
+    Get {
+        /// Content-addressed sha256 of the artifact to fetch
+        sha256: String,
+
+        /// Mandatory confirmation of the hash you expect (T-3076 IW-3) — must
+        /// match the positional `<sha256>`. Unlike `file receive`'s optional
+        /// `--expected-sha256`, this one is required: the sha256 IS the fetch
+        /// key, so verification is free and a mismatch is a caller bug worth
+        /// catching before any network call.
+        #[arg(long = "expected-sha256")]
+        expected_sha256: String,
+
+        /// Output file path
+        #[arg(short = 'o', long = "output")]
+        output: String,
+
+        /// Output result as JSON
+        #[arg(long)]
+        json: bool,
+
+        /// Timeout for the download RPC exchange, in seconds
+        #[arg(long, default_value = "30")]
+        timeout: u64,
+    },
+}
+
 /// PTY terminal operations
 #[derive(Subcommand)]
 pub(crate) enum PtyCommand {
@@ -6996,6 +7052,62 @@ mod cli_tests {
                 assert_eq!(targets, vec!["alpha".to_string(), "beta".to_string()]);
             }
             _ => panic!("expected Event::Watch"),
+        }
+    }
+
+    /// T-3134: `artifact put <path> --to <peer>` parses.
+    #[test]
+    fn artifact_put_parses_to_flag() {
+        let cli = Cli::try_parse_from([
+            "termlink", "artifact", "put", "/tmp/blob.bin", "--to", "peer-1",
+        ])
+        .expect("parse");
+        match cli.command {
+            Command::Artifact { action: ArtifactAction::Put { path, to, json, timeout } } => {
+                assert_eq!(path, "/tmp/blob.bin");
+                assert_eq!(to, "peer-1");
+                assert!(!json);
+                assert_eq!(timeout, 30);
+            }
+            _ => panic!("expected Artifact::Put"),
+        }
+    }
+
+    /// T-3134 IW-3: `artifact get` without `--expected-sha256` is rejected — the
+    /// flag is mandatory, unlike `file receive`'s optional one.
+    #[test]
+    fn artifact_get_requires_expected_sha256() {
+        let err = Cli::try_parse_from([
+            "termlink", "artifact", "get", "abc123", "-o", "/tmp/out.bin",
+        ])
+        .err()
+        .expect("should reject missing --expected-sha256");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("required") || msg.contains("expected-sha256"),
+            "expected a required-argument error, got: {msg}"
+        );
+    }
+
+    /// T-3134: `artifact get <sha256> --expected-sha256 <sha256> -o <path>` parses.
+    #[test]
+    fn artifact_get_parses_output_short_flag() {
+        let cli = Cli::try_parse_from([
+            "termlink", "artifact", "get", "abc123",
+            "--expected-sha256", "abc123", "-o", "/tmp/out.bin",
+        ])
+        .expect("parse");
+        match cli.command {
+            Command::Artifact {
+                action: ArtifactAction::Get { sha256, expected_sha256, output, json, timeout },
+            } => {
+                assert_eq!(sha256, "abc123");
+                assert_eq!(expected_sha256, "abc123");
+                assert_eq!(output, "/tmp/out.bin");
+                assert!(!json);
+                assert_eq!(timeout, 30);
+            }
+            _ => panic!("expected Artifact::Get"),
         }
     }
 }

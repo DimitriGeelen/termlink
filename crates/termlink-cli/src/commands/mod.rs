@@ -11,6 +11,7 @@ pub(crate) mod token;
 pub(crate) mod remote;
 pub(crate) mod agent;
 pub(crate) mod file;
+pub(crate) mod artifact;
 pub(crate) mod push;
 pub(crate) mod vendor;
 pub(crate) mod identity;

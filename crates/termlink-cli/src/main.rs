@@ -617,6 +617,14 @@ async fn main() -> Result<()> {
                 commands::file::cmd_file_receive(&target, &output_dir, timeout, interval, replay, expected_sha256.as_deref(), json).await
             }
         },
+        Command::Artifact { action } => match action {
+            ArtifactAction::Put { path, to, json, timeout } => {
+                commands::artifact::cmd_artifact_put(&path, &to, json, timeout).await
+            }
+            ArtifactAction::Get { sha256, expected_sha256, output, json, timeout } => {
+                commands::artifact::cmd_artifact_get(&sha256, &expected_sha256, &output, json, timeout).await
+            }
+        },
         Command::Remote { action } => match action {
             RemoteAction::Ping { hub, session, secret_file, secret, scope, json, timeout } => {
                 let p = resolve_hub_profile(&hub, secret_file.as_deref(), secret.as_deref(), &scope)?;

@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3134: artifact CLI verbs: termlink artifact put/get
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-25T10:23:32Z
+# ============================================================================
+
+task_id: T-3134
+task_name: "artifact CLI verbs: termlink artifact put/get"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-25T07:15:06Z
+completed: 2026-09-25T10:23:23Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Build task for arc-011 slice S2 (payload may carry a binary blob), created after T-3076's inception went GO. Add termlink artifact put <path> --to <peer> and termlink artifact get <sha256> --expected-sha256 <sha256> -o <path> as thin CLI wrappers over the existing send_artifact_via_client/download_artifact_via_client functions (crates/termlink-session/src/artifact.rs), per T-3076's Scope Fence. --expected-sha256 is mandatory on get per IW-3.
+
+# Key outcomes
+outcomes:
+  - '`termlink artifact put <path> --to <peer> [--json] [--timeout N]` uploads the file via'
+  - '`termlink artifact get <sha256> --expected-sha256 <sha256> -o <path> [--json] [--timeout N]`'
+  - 'Both verbs connect to the LOCAL hub only (`super::infrastructure::resolve_hub_paths()`,'
+  - '`cargo build -p termlink` succeeds with the new `Command::Artifact` variant wired'
+  - 'Unit tests: clap parse tests (`put` parses `--to`; `get` rejects a missing'
+  - '`tests/artifact-cli-fixtures.sh` exercises the fail-fast mismatch path and both verbs'''
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 188 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 188
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3134-artifact-cli-verbs-termlink-artifact-put.md
+generated_by: context-agent-hybrid

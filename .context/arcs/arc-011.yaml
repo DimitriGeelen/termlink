@@ -37,8 +37,19 @@ slices:
 - id: S2
   spec_step: 2. payload may carry a binary blob
   task: T-3134
-  status: unbuilt
-  note: 'REFINED 2026-09-22 (T-3076). Blob-on-a-topic exists END TO END: `artifact.put` + `channel.post
+  status: built
+  note: 'BUILT 2026-09-25 (T-3093 R3S3): `termlink artifact put <path> --to <peer>` and
+    `termlink artifact get <sha256> --expected-sha256 <sha256> -o <path>` shipped as thin
+    wrappers over send_artifact_via_client/download_artifact_via_client
+    (crates/termlink-cli/src/commands/artifact.rs). Proven end-to-end against a real
+    (isolated, disposable) local hub: put of a 200KB payload went via the chunked
+    artifact.put path (channel.artifact), get downloaded it byte-identical with sha256
+    verified. Found and fixed a latent bug live: ArtifactManifest.from must be
+    identity.fingerprint(), not a cli-<pid> label, or the hub rejects the signed
+    channel.post with CHANNEL_IDENTITY_MISMATCH (-32014, T-1427) — the same bug is
+    latent in the 3 pre-existing callers (file.rs/remote.rs/tools.rs), filed
+    separately as T-3140 (not fixed here, out of T-3134''s Scope Fence).'
+  note_prior: 'REFINED 2026-09-22 (T-3076). Blob-on-a-topic exists END TO END: `artifact.put` + `channel.post
     {msg_type:artifact, artifact_ref:<sha256>}` (T-1249/T-1164a), content-addressed. The session-targeted
     file.init/chunk/complete path is the LEGACY FALLBACK, used only when a peer hub does not advertise
     artifact.put. THE ACTUAL GAP, measured: there is NO `termlink artifact` subcommand, so a SHELL SCRIPT
