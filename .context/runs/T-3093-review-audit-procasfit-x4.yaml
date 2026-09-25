@@ -98,31 +98,50 @@ steps:
   result_file: .context/runs/T-3093-R1S3-handback.md
   dispatched_utc: '2026-09-25T07:02:00Z'
   fed_with: R1S2 handback inlined (15129B)
-  completed_utc: '2026-09-25T08:15:00Z'
-  completed_note: 'Selected arc-009 (Value-review execution) over continuing arc-008 (R1S2''s
-    Q1 already exhausted there) and over arc-011 (blocked on operator decisions). Worked 2 of
-    19 untouched owner:agent captured tasks to exhaustion given context budget: T-3010 (set
-    90-day revisit_at on C-29 artifact.* deferral; intentionally left open, not work-completed,
-    since revisit-due-scan.sh only reads .tasks/active/) and T-2998 (new
-    scripts/archive-governance-artifacts.sh; archived 1269 files >90d from .context/handovers
-    (61MB->31MB active) and .context/audits (~8.8MB->~5.9MB active), never deleting; caught
-    and fixed a silent git-mv-k no-op bug and a wrong guard-layer marker before shipping;
-    closed clean, 7/7 verification passed). Stopped at ~284K/~35% context (well before the
-    ~300k mandate ceiling but conservatively, since each unit cost 50-115K tokens and a third
-    risked crossing it mid-task). 17 tasks remain in arc-009, judged and prioritized
-    (T-2987/T-2981/T-3037/T-2990 next as Q1-equivalent; T-3006 as the one real
-    measured-cost Q2 candidate). No new Sovereign questions raised; T-2753''s pre-existing
-    DEFER-pending-decide and arc-011''s blocked build slice re-surfaced, not re-litigated.
-    Committed as cedd6b514.'
+  completed_utc: '2026-09-25T08:05:00Z'
+  completed_note: 'Selected arc-009 (Value-review execution) over continuing arc-008 (R1S2''s Q1 already
+    exhausted there) and over arc-011 (blocked on operator decisions). Worked 2 of 19 untouched owner:agent
+    captured tasks to exhaustion given context budget: T-3010 (set 90-day revisit_at on C-29 artifact.*
+    deferral; intentionally left open, not work-completed, since revisit-due-scan.sh only reads .tasks/active/)
+    and T-2998 (new scripts/archive-governance-artifacts.sh; archived 1269 files >90d from .context/handovers
+    (61MB->31MB active) and .context/audits (~8.8MB->~5.9MB active), never deleting; caught and fixed
+    a silent git-mv-k no-op bug and a wrong guard-layer marker before shipping; closed clean, 7/7 verification
+    passed). Stopped at ~284K/~35% context (well before the ~300k mandate ceiling but conservatively,
+    since each unit cost 50-115K tokens and a third risked crossing it mid-task). 17 tasks remain in arc-009,
+    judged and prioritized (T-2987/T-2981/T-3037/T-2990 next as Q1-equivalent; T-3006 as the one real
+    measured-cost Q2 candidate). No new Sovereign questions raised; T-2753''s pre-existing DEFER-pending-decide
+    and arc-011''s blocked build slice re-surfaced, not re-litigated. Committed as cedd6b514.'
+  note: Selected arc-009 after correctly excluding arc-011 as BLOCKED (S1 needs the operator's portable-respawn
+    decision, S12 a separate one) and arc-008 as Q1-exhausted by R1S2. Mandate's 'prefer in-flight unless
+    blocked' applied as written.
+  notable: 'Caught that .context/working/.budget-status is stale/shared across workers - it read 504K
+    at session start while the real per-session figure was 169K. Used checkpoint.sh status instead. R1S2
+    hit the same discrepancy independently: two workers, same defect, the G-087 class again.'
 - id: R2S1
   round: 2
   step: 1
   prompt: value_review
-  state: pending
-  worker: null
+  state: complete
+  worker: t3093-r2s1-review
   fed_by: R1S3
   feeds: R2S2
   result_file: .context/runs/T-3093-R2S1-handback.md
+  dispatched_utc: '2026-09-25T08:06:00Z'
+  fed_with: R1S3 handback inlined (19073B)
+  completed_utc: '2026-09-25T08:35:00Z'
+  completed_note: 'Halted at Phase 5 [ASK] per known_gates — COMPLETE not failed. Ninth value-review
+    pass overall, second in this sequence; ran as a delta round per R1S1''s own precedent. Closed
+    out all 3 of R1S1''s carried INVESTIGATE items: invocation-audit growth (falsified — still
+    stalled at 4 records ~7h later, filed R2-F1 ADD); 30/31 long-lived mcp-serve processes confirmed
+    legitimate via pts/who cross-check (R2-F3, KEEP), 1 anomalous no-tty process left INVESTIGATE
+    (R2-F4); DEFER-inception revisit_at coverage confirmed working-as-designed (field set at decide
+    time, not before). Surfaced one new finding organically: the run record''s own cross_step_findings
+    G-087-class "budget-status stale" note turned out to be a 4th recurrence of an already-3x-closed
+    defect (T-2950/T-3018/T-3034) but in a genuinely new concurrent-orchestrated-worker framing
+    CLAUDE.md doesn''t document — filed R2-F2 (ADD-SURFACE, one CLAUDE.md paragraph). Carried R1-F1/F1b
+    (4 unused Cargo deps) forward unchanged, still pending R1S1''s original [ASK], not re-litigated.
+    No Sovereign question reopened; no new one raised. See docs/reports/VALUE-REVIEW-repo-2026-09-25-R2.md
+    + -evidence.md.'
 - id: R2S2
   round: 2
   step: 2
@@ -199,3 +218,7 @@ cross_step_findings:
 - 'CAPACITY, recorded early rather than at the end: the Audit prompt asks for 3 cycles per run, and R1S2
   completed 1 before hitting its context stop. If that holds, the four Audit steps in this sequence deliver
   4 cycles, not 12. Not a failure - the honest capacity of one dispatched worker against a 3-cycle mandate.'
+- 'TWO workers independently found .context/working/.budget-status stale and shared across dispatched
+  workers - R1S2 and R1S3 both saw ~504K there against a real per-session ~169K, and both fell back to
+  checkpoint.sh status. That is the G-087 false-healthy class inverted: not a plausible zero, a plausible
+  panic. Worth its own task.'
