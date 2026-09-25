@@ -12558,3 +12558,21 @@ scan_id: R-e890ea40
 task_id: T-3134
 payload:
   task_file: .tasks/active/T-3134-artifact-cli-verbs-termlink-artifact-put.md
+---
+kind: scan_emitted
+timestamp: '2026-09-25T11:50:43Z'
+scan_id: R-9e4e68e9
+task_id: T-3143
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-25T11:50:43Z'
+scan_id: R-9e4e68e9
+task_id: T-3143
+payload:
+  task_file: .tasks/active/T-3143-triage-8-inbound-frameworkpickup-filings.md

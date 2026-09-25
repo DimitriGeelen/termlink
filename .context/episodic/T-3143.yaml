@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3143: Triage 8 inbound framework:pickup filings — record the 1.7.x re-vendor hazards peers measured
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-25T11:50:50Z
+# ============================================================================
+
+task_id: T-3143
+task_name: "Triage 8 inbound framework:pickup filings — record the 1.7.x re-vendor hazards peers measured"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-25T11:41:35Z
+completed: 2026-09-25T11:50:41Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-09-25T13:50:24+02:00
+last_commit: 2026-09-25T13:50:24+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  triage 8 inbound pickup filings — record what a re-vendor would cost us
+
+# Key outcomes
+outcomes:
+  - 'All 8 filings (147-153, 156) are read and individually classified as either'
+  - 'Every hazard-carrying filing is recorded in the PRE-RE-VENDOR CHECKLIST in'
+  - 'Each recorded hazard carries a **detection step runnable in this tree** — what to run to'
+  - 'Hazards that can be measured here are measured here, and the recorded entry states OUR'
+  - '`.vendor-divergence.yaml` still parses as YAML and `scripts/check-vendor-divergence.sh`'
+  - 'The canary is acked and goes quiet (exit 0), so the next genuine inbound filing is'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3143-triage-8-inbound-frameworkpickup-filings.md'
+  - '.tasks/active/T-3144-census-verification-legs-that-assert-an-.md'
+  - '.vendor-divergence.yaml'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-25T13:50:24'
+    action: 'T-3143: triage 8 inbound pickup filings — record what a re-vendor would cost us'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 9 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 9
+  commits: 1
+  files_changed: 3
+  lines_added: 571
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3143-triage-8-inbound-frameworkpickup-filings.md
+generated_by: context-agent-hybrid
