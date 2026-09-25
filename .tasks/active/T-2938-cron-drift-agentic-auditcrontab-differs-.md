@@ -77,19 +77,23 @@ Shares host-state root cause with T-2939 (a declared canary crontab never instal
 
 ### Agent
 - [x] Finding is reproduced and recorded with the exact audit line, and the remediation command is verified to be the correct one before the human runs it
+- [ ] [REVIEWER] The deployed crontab matches the registry — no drift, nothing uninstalled
+  **Converted from a `### Human` `[RUBBER-STAMP]` AC on 2026-09-26 (T-3154, operator GO on SQ-1).**
+  Its `**Expected:**` clause — *"command exits 0; re-running `fw audit --sections structure` no longer prints `[FAIL] Cron drift`"* — is settled by a deterministic command, so per CLAUDE.md T-1811/T-1878 it belongs here with the check in `## Verification`. The `sudo fw cron install` action was an operator act and has already been performed.
+  **Measured 2026-09-26:** `check-cron-install-drift.sh` reports *healthy — 30 installed + matching, 0 acknowledged, 0 skipped*, `ok:true`, missing 0 / uninstalled_jobs 0 / drift 0, rc 0. The audit's structure section prints `[PASS] Cron registry in sync with /etc/cron.d/agentic-audit-termlink`.
+  **Left unticked deliberately** — conversion changes who *can* verify, not whether the task is done.
 
 ### Human
-- [ ] [RUBBER-STAMP] Deployed crontab matches the registry
-  **Steps:**
-    `cd /opt/termlink && sudo .agentic-framework/bin/fw cron install`
-  **Expected:** command exits 0; re-running `cd /opt/termlink && .agentic-framework/bin/fw audit --sections structure` no longer prints `[FAIL] Cron drift`.
-  **If not:** run `diff /opt/termlink/.context/cron/agentic-audit.crontab /etc/cron.d/agentic-audit-termlink` and inspect. If the deployed copy carries an operator-added job the registry lacks, that job must be added to the registry first — do not let `cron install` silently discard it.
+_The `[RUBBER-STAMP]` AC that was here has moved to `### Agent` as a `[REVIEWER]` AC — T-3154, operator GO on SQ-1. Its Expected clause was settled by a deterministic command, so per T-1811/T-1878 it does not belong in the human queue. The original Steps (`sudo fw cron install`) were an operator act and have already been performed. The "If not" guidance is preserved here because it remains the right diagnosis if the check ever fires again: run `diff .context/cron/agentic-audit.crontab /etc/cron.d/agentic-audit-termlink`; if the deployed copy carries an operator-added job the registry lacks, add it to the registry FIRST — do not let `cron install` silently discard it._
 
 ## Verification
 
-```bash
-diff -q /opt/termlink/.context/cron/agentic-audit.crontab /etc/cron.d/agentic-audit-termlink
-```
+# T-3154: de-fenced. P-011 extracts plain non-comment lines, so a ```bash fence risks
+# the fence markers being executed as commands — verification that cannot run gates
+# nothing (T-2831 class).
+diff -q .context/cron/agentic-audit.crontab /etc/cron.d/agentic-audit-termlink
+# the converted [REVIEWER] AC: registry-wide, not just this one file
+bash scripts/check-cron-install-drift.sh > /tmp/.t2938-cron.out 2>&1 && grep -q "healthy" /tmp/.t2938-cron.out
 
 ## RCA
 

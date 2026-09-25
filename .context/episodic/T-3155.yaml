@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3155: Repair decisions.yaml after T-3154 — third auto-capture corruption today (n=3 confirms deterministic)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-25T23:06:00Z
+# ============================================================================
+
+task_id: T-3155
+task_name: "Repair decisions.yaml after T-3154 — third auto-capture corruption today (n=3 confirms deterministic)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-25T23:04:57Z
+completed: 2026-09-25T23:05:52Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Repair decisions.yaml after T-3154 — third auto-capture corruption today (n=3 confirms deterministic)
+
+# Key outcomes
+outcomes:
+  - '`.context/project/decisions.yaml` parses as a YAML mapping again and the pre-push audit stops blocking.'
+  - 'The two T-3154 entries are repaired in all three respects the vendored auto-capture got wrong — column-0 **indentation**, **IDs** continuing the sequence (PD-173/174, not a reset to PD-001/002), and the **full decision text** restored from the task file rather than truncated at the first line.'
+  - 'No pre-existing entry is altered; the repair is confined to the malformed tail.'
+  - 'The recurrence count is recorded: this is the **third** instance today (T-3145→T-3146, T-3087→T-3150, T-3154→this), which raises the evidence for the already-filed claim that the defect is deterministic on any task carrying multiple `## Decisions` entries.'
+  - '`update-task.sh` is **not** patched locally (G-062); no new `.vendor-divergence.yaml` entry, because nothing local diverged.'
+  - 'No fourth upstream filing is sent. The defect is already filed twice (offsets 164 and 169) with the deterministic claim stated; a third report of the same bug on the same day is noise on a shared topic, and the count is carried in this task instead.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 0
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3155-repair-decisionsyaml-after-t-3154--third.md
+generated_by: context-agent-hybrid

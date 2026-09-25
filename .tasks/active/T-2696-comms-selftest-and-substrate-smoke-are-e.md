@@ -92,15 +92,13 @@ Scoped 2026-09-07 (ground truth re-measured — the filing still holds):
 - [x] `.context/cron/substrate-smoke-canary.crontab` written with the `# Installed to:`
       header and the T-2685 split-stream redirect idiom; `check-cron-install-drift.sh`
       sees it (fires MISSING until the human installs — that is the intended signal).
+- [ ] [REVIEWER] The smoke-canary crontab is installed and not drifted from the tracked source
+  **Converted from a `### Human` `[RUBBER-STAMP]` AC on 2026-09-26 (T-3154, operator GO on SQ-1).** Its Expected clause was the output of a command, so per T-1811/T-1878 it belongs here with the check in `## Verification`. **Measured 2026-09-26:** `check-cron-install-drift.sh` → *healthy, 30 installed + matching*, `ok:true`, missing 0 / uninstalled_jobs 0 / drift 0, rc 0; `/etc/cron.d/termlink-substrate-smoke-canary` byte-identical to source (`cmp` clean). **Left unticked deliberately** — conversion is not closure.
 - [x] CLAUDE.md canary section gains the new canary paragraph (18th), same
       empty-log-healthy convention.
 
 ### Human
-- [ ] [RUBBER-STAMP] Install the smoke-canary crontab:
-  **Steps:**
-  1. `cd /opt/termlink && sudo cp .context/cron/substrate-smoke-canary.crontab /etc/cron.d/termlink-substrate-smoke-canary && bash scripts/check-cron-install-drift.sh`
-  **Expected:** drift check reports OK for the new crontab.
-  **If not:** the declared `# Installed to:` path and the cp destination differ — fix the header, not the check.
+_The `[RUBBER-STAMP]` AC that was here has moved to `### Agent` as a `[REVIEWER]` AC — T-3154, operator GO on SQ-1. Its Expected clause ("drift check reports OK for the new crontab") is literally the output of a command, so per T-1811/T-1878 it does not belong in the human queue. The `sudo cp` install was an operator act and has already been performed. Preserved diagnosis if it ever fires again: the declared `# Installed to:` path and the cp destination differ — fix the header, not the check._
 
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
      Remove this section if all criteria are agent-verifiable.
@@ -170,6 +168,9 @@ TERMLINK_SMOKE_CANARY_TEST_HUB_RC=1 bash scripts/check-substrate-smoke-freshness
 # AC4: crontab written with self-declared install path + split-stream idiom; drift check sees it.
 grep -q "^# Installed to:.*termlink-substrate-smoke-canary" .context/cron/substrate-smoke-canary.crontab
 grep -q "2>> .context/working/.substrate-smoke-canary.log.stderr" .context/cron/substrate-smoke-canary.crontab
+# T-3154: the converted [REVIEWER] AC — crontab installed AND not drifted
+cmp -s .context/cron/substrate-smoke-canary.crontab /etc/cron.d/termlink-substrate-smoke-canary
+bash scripts/check-cron-install-drift.sh > /tmp/.t2696-cron.out 2>&1 && grep -q "healthy" /tmp/.t2696-cron.out
 bash scripts/check-canary-log-hygiene.sh > /tmp/.t2696-hyg 2>&1
 # Either the crontab is already installed, or the drift check names it MISSING —
 # both states prove the check SEES it (state-tolerant so the human's finalize re-run passes post-install).

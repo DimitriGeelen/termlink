@@ -1253,3 +1253,17 @@ decisions:
   date: 2026-09-25
   task: T-3087
   rationale: "Repaired by T-3150 — auto-capture emitted this indented, mis-numbered PD-003, truncated at the first line."
+
+- id: PD-173
+  decision: "convert mechanically-checkable Human ACs to `### Agent` `[REVIEWER]` ACs with a real command in `## Verification`, per CLAUDE.md T-1811/T-1878 prefix routing. Operator GO on SQ-1, verbatim: 'On 1, yes, do that.' — answering the T-3153 question which stated its own accepted risk: it moves completion gates from human sign-off to automated check, which is the point and also the risk. Executed as a TRANCHE of 3 (T-2938, T-2939, T-2696), all settled by one command (check-cron-install-drift.sh), measured effect fw review-queue 141 -> 138. DELIBERATELY NOT CROSSED: no AC ticked, no task closed — the GO authorised reclassification, not closure; a converted AC still gates its task, what changed is who can settle it. Batch-closing on the back of a reclassification would launder a sovereignty boundary rather than respect the decision that moved it. Rejected: T-3052 (Expected names a different script's exact output, so asserting it via another check substitutes a weaker proxy), T-2878 (bullet not read, and converting an unread AC is the failure this task exists to avoid), T-1296/T-1420/T-1457/T-2013/T-2297/T-2972/T-2873 (need a remote host or live fleet), T-1885/T-2194/T-2711/T-2723 (Expected is a judgement), T-2566/T-2567/T-2570/T-2576/T-2577 (no Expected clause at all — nothing to convert)."
+  scope: project
+  date: 2026-09-26
+  task: T-3154
+  rationale: "Repaired by T-3155 — auto-capture emitted this indented, mis-numbered PD-001, truncated at the first line."
+
+- id: PD-174
+  decision: "replace the ```bash fences in T-2938's and T-2939's `## Verification` with the repo's plain-line convention. P-011 extracts plain non-comment lines from that section, so a fence risks the fence markers themselves being executed as commands. Neither task had ever completed, so this had never fired — a latent T-2831 instance (verification that cannot execute gates nothing), found incidentally while adding the converted ACs' commands."
+  scope: project
+  date: 2026-09-26
+  task: T-3154
+  rationale: "Repaired by T-3155 — auto-capture emitted this indented, mis-numbered PD-002, truncated at the first line."

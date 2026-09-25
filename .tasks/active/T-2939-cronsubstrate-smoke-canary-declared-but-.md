@@ -77,19 +77,24 @@ Scope is `worktree` (host state), non-blocking for push. Shares host-state root 
 
 ### Agent
 - [x] Finding is reproduced and recorded with the exact audit line, and the remediation command is verified to be the correct one before the human runs it
+- [ ] [REVIEWER] substrate-smoke canary is installed and scheduled, and not drifted from the tracked source
+  **Converted from a `### Human` `[RUBBER-STAMP]` AC on 2026-09-26 (T-3154, operator GO on SQ-1).**
+  Its `**Expected:**` clause — *"`/etc/cron.d/termlink-substrate-smoke-canary` exists; `fw audit --sections structure` no longer prints `[FAIL] cron(substrate-smoke-canary)`"* — is settled by a deterministic command, so per CLAUDE.md T-1811/T-1878 prefix routing it belongs here with the check in `## Verification`, not in the human queue. The install action itself was an operator act and has already happened; what remains is the assertion, which is mechanical.
+  **Measured 2026-09-26:** the file exists and is **byte-identical** to `.context/cron/substrate-smoke-canary.crontab` (`cmp` clean); `check-cron-install-drift.sh` reports *healthy — 30 installed + matching*, `ok:true`, missing 0 / uninstalled_jobs 0 / drift 0, rc 0.
+  **Left unticked deliberately.** Conversion changes who *can* verify; it does not assert the task is done, and T-3154 closes no task.
 
 ### Human
-- [ ] [RUBBER-STAMP] substrate-smoke canary is installed and scheduled
-  **Steps:**
-    `sudo cp /opt/termlink/.context/cron/substrate-smoke-canary.crontab /etc/cron.d/termlink-substrate-smoke-canary && sudo systemctl reload cron`
-  **Expected:** `/etc/cron.d/termlink-substrate-smoke-canary` exists; `cd /opt/termlink && .agentic-framework/bin/fw audit --sections structure` no longer prints `[FAIL] cron(substrate-smoke-canary)`.
-  **If not:** confirm the source file exists and carries USER-field syntax (`ls -l /opt/termlink/.context/cron/substrate-smoke-canary.crontab`). Check `systemctl status cron` for a parse rejection — a malformed crontab is silently ignored by cron.
+_The `[RUBBER-STAMP]` AC that was here has moved to `### Agent` as a `[REVIEWER]` AC — T-3154, operator GO on SQ-1. Its Expected clause was settled by a deterministic command, so per T-1811/T-1878 it does not belong in the human queue. The original Steps (the `sudo cp` + `systemctl reload cron` install) were an operator act and have already been performed; the crontab is installed and byte-identical to the tracked source._
 
 ## Verification
 
-```bash
+# T-3154: de-fenced. P-011 extracts plain non-comment lines from this section, so a
+# ```bash fence risks the fence markers themselves being run. Same class as T-2831
+# (verification that cannot execute is verification that gates nothing).
 test -f /etc/cron.d/termlink-substrate-smoke-canary
-```
+# the converted [REVIEWER] AC: installed AND not drifted from the tracked source
+cmp -s .context/cron/substrate-smoke-canary.crontab /etc/cron.d/termlink-substrate-smoke-canary
+bash scripts/check-cron-install-drift.sh > /tmp/.t2939-cron.out 2>&1 && grep -q "healthy" /tmp/.t2939-cron.out
 
 ## RCA
 

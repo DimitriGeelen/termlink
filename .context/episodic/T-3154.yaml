@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3154: SQ-1 GO: convert mechanically-checkable Human ACs to Agent ACs + Verification (T-1811/T-1878 prefix routing)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-25T23:04:34Z
+# ============================================================================
+
+task_id: T-3154
+task_name: "SQ-1 GO: convert mechanically-checkable Human ACs to Agent ACs + Verification (T-1811/T-1878 prefix routing)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-09-25T22:59:17Z
+completed: 2026-09-25T23:04:26Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  SQ-1 GO: convert mechanically-checkable Human ACs to Agent ACs + Verification (T-1811/T-1878 prefix routing)
+
+# Key outcomes
+outcomes:
+  - 'Operator GO is recorded verbatim in `## Decisions` with its scope and its accepted risk, because this moves completion gates off human sign-off: *"it moves 72 completion gates from human sign-off to automated check — which is the point, and also the risk."*'
+  - 'A **tranche** is converted, not a blind sweep of all ~72. Each conversion moves the AC bullet from `### Human` to `### Agent` **unticked**, and adds a real command to that task''s `## Verification`. Converting is not closing.'
+  - '**Every command written is executed and its verdict recorded before the conversion is committed.** A converted AC whose command has never been run replaces a human gate with an unverified one, which is strictly worse than the Human AC it replaced.'
+  - 'Any candidate whose Expected clause cannot be settled by a command **is left as a Human AC**, and the reason is recorded. The T-3153 measurement found ~57% genuinely need a human; a conversion pass that converts everything would be contradicting its own evidence.'
+  - '**No task is closed and no AC is ticked by this task.** Conversion changes who *can* verify, not whether the work is done. Batch-closing on the back of a reclassification is the mass unreviewed action the review queue exists to prevent.'
+  - 'The tranche''s scope and the remaining backlog are stated with numbers, so "how far did this get" is answerable without re-deriving it.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-09-26 — operator GO on SQ-1, and the boundary it does NOT cross'
+    chose: 'convert mechanically-checkable Human ACs to `### Agent` `[REVIEWER]` ACs with a real command in `## Verification`, per CLAUDE.md T-1811/T-1878 prefix routing. - **Operator decision, verbatim:** *"On 1, yes, do that."* — answering the T-3153 Sovereign question, which stated the accepted risk in its own words: *"it moves 72 completion gates from human sign-off to automated check — which is the point, and also the risk."* - **Scope executed:** a TRANCHE of 3 (T-2938, T-2939, T-2696), not the full ~72. All three are settled by one command (`check-cron-install-drift.sh`), so one run is the evidence for all three. Measured effect: `fw review-queue` 141 -> 138, exactly the three. - **Deliberately NOT crossed:** no AC was ticked and no task was closed. The GO authorised reclassification, not closure. A converted AC still gates its task; what changed is who is able to settle it. Batch-closing on the back of a reclassification would be the mass unreviewed action the review queue exists to prevent, and it would launder a sovereignty boundary rather than respect the decision that moved it. - **Rejected candidates, and why** — the point of T-3153 was that ~57% genuinely need a human, so a pass that converted everything would contradict its own evidence: - **T-3052** — Expected names a *different* script''s exact output strings (`sudo ./runme.sh` printing `OK installed and verified:`). Asserting it via `check-cron-install-drift.sh` would substitute a weaker proxy of my own choosing for the check the AC actually specifies. - **T-2878** — its bullet did not render in the section read, and converting an AC I have not read is exactly the failure this task is supposed to avoid. - **T-1296 / T-1420 / T-1457 / T-2013 / T-2297 / T-2972 / T-2873** — require a remote host or a live fleet; not settleable from this session. - **T-1885 / T-2194 / T-2711 / T-2723** — Expected is a judgement ("well-formed and operator-actionable", "queue depth drops by 10+", "or a deliberate decision not to file"). - **T-2566 / T-2567 / T-2570 / T-2576 / T-2577** — no `Expected:` clause at all. Nothing to convert; they need an Expected written first, which is the task owner''s call.'
+  - decision: '2026-09-26 — de-fencing two verification blocks'
+    chose: 'replace the ```` ```bash ```` fences in T-2938''s and T-2939''s `## Verification` with the repo''s plain-line convention.'
+    rationale: 'P-011 extracts plain non-comment lines from that section, so a fence risks the fence markers themselves being executed. Neither task had ever completed, so this had never fired — a latent T-2831 instance (verification that cannot execute gates nothing). Found incidentally while adding the converted ACs'' commands.'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 5
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3154-sq-1-go-convert-mechanically-checkable-h.md
+generated_by: context-agent-hybrid
