@@ -216,13 +216,27 @@ steps:
   round: 3
   step: 1
   prompt: value_review
-  state: dispatched
+  state: complete
   worker: t3093-r3s1-review
   fed_by: R2S3
   feeds: R3S2
   result_file: .context/runs/T-3093-R3S1-handback.md
   dispatched_utc: '2026-09-25T10:42:00Z'
   fed_with: R2S3 handback inlined
+  completed_note: 'Halted at Phase 5 [ASK] per known_gates — COMPLETE not failed. Tenth value-review pass
+    overall, third in this sequence; delta round per R1S1/R2S1 precedent. Root-caused R2-F1 (invocation-audit
+    sink stall, open since R1S1): grep confirmed SURFACE_CLI (crates/termlink-hub/src/invocation_audit.rs)
+    has zero production call sites — only the MCP choke point (termlink-mcp/src/server.rs) records — and
+    every step in this sequence so far has worked exclusively via the CLI/fw surface, which is structurally
+    invisible to the sink. Found this is not a new gap: T-3032/T-3033 already capture it verbatim (filed
+    2026-09-21, unworked). Filed as R3-F1 (ADD-WIRE, strengthens existing tasks, recommends horizon
+    now). Resolved R2-F4 (anomalous no-tty mcp-serve process, pid 1895596) to KEEP: parent pid 1895454
+    is a live, non-orphaned Claude Code Desktop-app session (ccd_*/computer-use tool grants) — no
+    controlling tty by construction, not a leak (R3-F2). Confirmed R2-F2''s CLAUDE.md concurrency-warning
+    paragraph landed cleanly between rounds (T-3127/T-3128 both exist). Carried R1-F1/F1b/R2-F5 (4 unused
+    Cargo deps) forward unchanged as R3-F3, now flagging the 3-round zero-engagement on its [ASK] as its
+    own process observation (not reopening the DELETE). No Sovereign question reopened; no new one raised.
+    See docs/reports/VALUE-REVIEW-repo-2026-09-25-R3.md + -evidence.md.'
 - id: R3S2
   round: 3
   step: 2
