@@ -1,7 +1,10 @@
-# T-3093 R2S3 handback (procAsFit, round 2 of 4) — IN PROGRESS
+# T-3093 R2S3 handback (procAsFit, round 2 of 4)
 
-**Status:** DRAFT skeleton, being filled as work proceeds. Do not trust this file as complete
-until the "Status: COMPLETE" line appears in place of this one.
+**Status:** COMPLETE. Stopped at the mandate's ~300k context ceiling
+(checkpoint.sh: 267,651 tokens / ~33% immediately after this step's commit, climbing
+toward the threshold with only bookkeeping left to do) — stopped between tasks, not
+mid-task: every task touched this step is either closed, or created+scored+parked
+with an explicit reason, never left half-edited.
 
 ## Orientation (Step 0)
 - Re-read run record + `git log --oneline -15` at start of this step (carried fix #2). Confirmed:
@@ -84,7 +87,135 @@ this unit's job was creating the right tasks. Quadrant: n/a (task-creation step)
   Verified: `python3 -c "import yaml; yaml.safe_load(...)"` parses clean;
   `check-arc-slice-drift.sh` now reports **clean — 0 firing**.
 
-(next: execute the Q1 task T-3134; T-3135 (Q2) scoping/partial-design only, given
-budget and the "one lock at a time" / "solid not fast" operator rulings — full
-implementation of a portable respawn daemon is not something to rush inside this
-step's remaining budget)
+## Objectives advanced, against run-start state
+
+- **arc-008 (repo hygiene / task-register truthfulness):** +1 task closed (T-3133),
+  +1 investigation advanced with a recorded negative result (T-3130, still open).
+  No regressions introduced.
+- **arc-011 (charter-core "exchange durable messages", the arc this round's state
+  change unblocked):** the run record's flagged consequence — 3 stale slices
+  (S1/S2/S12) reading `unbuilt` against completed inception tasks — is now fully
+  resolved structurally: `check-arc-slice-drift.sh` went from **3 firing → 0
+  firing**. Two new, correctly-scoped, BVP-scored build tasks exist where before
+  there was only a dangling reference back to closed inception tasks. This is real
+  forward motion on the arc even though neither build task's CODE was written this
+  step — the actionable next step for the arc is now unambiguous and gated
+  correctly (Q1 first, Q2 second) rather than sitting behind stale bookkeeping.
+
+## Arc state: tasks by status and quadrant
+
+**arc-008** (in-progress, reused from R1S2/R2S2, not touched structurally this step):
+30-task backlog from R1S2 remains un-prioritized/un-executed (R2S2 ran out of budget
+before Step 5); this step closed 1 (T-3133) and advanced 1 investigation (T-3130,
+still `captured`, no quadrant — it's an INVESTIGATE, not yet cost-scored for a fix).
+
+**arc-011** (in-progress, unblocked this round):
+- T-3134 (S2, artifact CLI verbs) — `captured`, horizon `now`, **Q1 (hv-lc)**.
+- T-3135 (S1+S12, sidecar API + portable respawn) — `captured`, horizon `now`,
+  **Q2 (hv-hc)**.
+- All 19 prior arc-011 tasks (T-3067–T-3085) remain `work-completed`, untouched.
+
+## What remains in Q1/Q2, per task, with reason not done
+
+- **T-3134 (Q1, arc-011 S2)** — NOT STARTED. Reason: created and scored late in
+  this step (context already at ~264k/300k by the time scoring finished); starting
+  a real Rust CLI change (new `commands/artifact.rs`, `cli.rs` wiring, a fixture
+  suite, and a `cargo build`/`cargo test` verification pass, which can itself be
+  slow and output-heavy) with ~30k tokens of margin against the stop condition
+  risked leaving it mid-edit at the ceiling — exactly what "do not stop mid-task"
+  forbids. Left `captured`, fully scoped (Scope Fence carried over from T-3076
+  verbatim) and BVP-scored, ready for the next procAsFit or a dedicated build step
+  to pick up as the obvious next Q1 action on this arc.
+- **T-3135 (Q2, arc-011 S1+S12)** — NOT STARTED, and deliberately not even
+  design-sketched beyond what's already in the task body. Reason: (a) budget — see
+  above, worse for Q2 than Q1; (b) the operator's own principle this run carries
+  verbatim ("reliability and fragility... I want a solid solution") argues against
+  a rushed partial sketch of a portable-respawn daemon under time pressure — a
+  half-designed answer to SQ-8 risks becoming the "quick solution" the ruling
+  explicitly rejected; (c) "one lock at a time" — arc-011 already has one real
+  build motion queued (T-3134); opening a second, larger structural change
+  (a new always-running supervisor process with cross-platform respawn semantics)
+  in the same breath is exactly the "reliable-but-ungated" state the mandate warns
+  against. Correctly Q2 — high value (closes 2 of 3 remaining unbuilt slices) but
+  genuinely high cost (blast_radius=5, new daemon, portable-respawn design work
+  the inception explicitly deferred rather than answered).
+
+## Sovereign questions raised, unresolved, in priority order
+
+1. **S12's external blocker (new, surfaced this step, not decided here):**
+   framework-agent-systemd's systemd unit lacks `termlink` in its
+   `--allowed-commands`, so even after T-3135 ships, S12 (role-swap reply) stays
+   blocked until that OTHER project's systemd config is changed. This is a T-559
+   project-boundary item — cannot be resolved or even investigated from this
+   session/repo. Recorded on T-3135 and the arc-011 slice note so it isn't lost;
+   whoever has access to that host/project needs to pick it up. Not assigned a
+   task here because assigning cross-project work from inside this repo would
+   itself be a boundary violation.
+2. No other new Sovereign questions raised this step. arc-011's existing SQ-1..SQ-8
+   are all RESOLVED (verified by reading `.context/arcs/arc-011.yaml` directly
+   before acting). T-3130's bisect remains genuinely open but is an INVESTIGATE
+   task, not a Sovereign question — no human decision is being blocked on it, just
+   unfinished engineering.
+
+## Gates that refused you, and what you did instead
+
+- `fw task update T-3134/T-3135(scratch) --status work-completed` refused on
+  placeholder ACs (`[First criterion]`/`[Second criterion]`) during the T-3130
+  bisect fixture run — expected P-010 behavior on an unedited template. Ticked
+  real placeholder boxes on the throwaway fixture to continue the bisect, then
+  deleted the fixture entirely (never committed).
+- Same bisect fixture also hit the T-1718 Evolution-section gate on
+  `work-completed` for an arc-tagged task — added a one-line Evolution entry
+  rather than reaching for `--skip-evolution`, to keep the bisect's own audit
+  trail honest even though the fixture was disposable.
+- No Tier-0 gate fired. No `--force`/`--skip-*` bypass used on any REAL (non-
+  scratch) task this step.
+
+## Cost-vs-estimate deltas worth feeding back into calibration
+
+- T-3134/T-3135 cost estimates (`blast_radius=3/5, tier=2, effort=8`) are
+  ESTIMATES ONLY — neither task was executed this step, so there is no actual
+  cost yet to compare against. Flagging for whichever step executes T-3134 next:
+  report the real cost delta once it closes, since this is the first time this
+  run has scored a build task immediately after an inception GO rather than
+  scoring pure housekeeping/remediation tasks, and the estimator's effort=8 for
+  both (identical) despite a real blast_radius difference (3 vs 5) is worth a
+  sanity check once real data exists.
+- No delta to report for T-3133 (housekeeping, cost was ~0 as expected) or T-3130
+  (INVESTIGATE, no cost estimate was ever produced for the fix itself — only for
+  the investigation, which is now spent with a negative result, itself useful
+  signal: 3 bisect attempts costed roughly 15-20k context tokens combined, useful
+  baseline for "how much does a live-repro bisect attempt cost" going forward).
+
+## Governance notes
+
+- Selection stated before each unit of work, per the mandate (see the three "##
+  Unit of work" sections above) — objective → arc → task → quadrant → why this one
+  over the next candidate, in each case.
+- Producer-not-judge respected throughout: the arc-011 slice-drift clearance was
+  verified by RE-RUNNING `check-arc-slice-drift.sh` (0 firing), not asserted from
+  memory of having edited the YAML correctly. The artifact-CLI-gap claim T-3134
+  inherits from T-3076 was independently re-verified by grep against the current
+  source tree before being carried into the new task, not trusted from the
+  inception task's own (partially reviewer-CONTRADICTED, on a line-number
+  technicality) text.
+- Re-read the run record + `git log --oneline -15` at the start of this step per
+  the carried fix #2. No action touched shared/live infrastructure this step (no
+  hub restart, no other session's PTY, nothing under systemd), so no further
+  at-the-moment re-read was required mid-step.
+- This step's own closing commit: `f80a14913`.
+
+## For R3S1 (value_review, next in sequence)
+
+- T-3134 is the obvious next Q1 pickup on arc-011 if a future procAsFit step wants
+  build work rather than remediation.
+- T-3130's negative bisect result narrows the search space; a future attempt
+  should diff the ORIGINAL dirty-tree byte content of T-3095/T-3129 if recoverable,
+  rather than reconstructing fixtures from the incident description as this step
+  did (three times, unsuccessfully).
+- Cross-step finding for the record: this is the SECOND time in this run a step
+  stopped near the ~300k ceiling with meaningful work still queued but correctly
+  parked rather than rushed (R2S2 did the same at cycle boundary). Capacity per
+  dispatched procAsFit/audit worker against a "keep going until Q1/Q2 exhausted"
+  mandate continues to look like "one substantial unit or a small handful of small
+  ones," not "clear an entire backlog" — consistent with R1S2/R2S2's own findings.
