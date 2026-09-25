@@ -29,7 +29,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-24T18:21:42Z
-last_update: 2026-09-25T21:11:25Z
+last_update: 2026-09-25T21:18:42Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -217,9 +217,13 @@ grep -q 'SCOPE_NOTE' scripts/canary-status.sh
 grep -q 'log_mtime" -ge "\$heartbeat_mtime' scripts/canary-status.sh
 # the branch's looser variant was NOT adopted
 test -f scripts/canary-status.sh && ! grep -q 'crontab_declares' scripts/canary-status.sh
-# T-2843 EXIT-trap migration is complete, not partial
-test "$(grep -l 'trap _canary_hb EXIT' scripts/*.sh 2>/dev/null | wc -l)" -ge 24
-test "$(grep -l 'touch "$HEARTBEAT_FILE" 2>/dev/null || true' scripts/*.sh 2>/dev/null | wc -l)" -eq 0
+# T-2843 EXIT-trap migration is complete, not partial. The second line is the
+# one that matters: the OLD inline guard was a bare `if ...; then` opening a
+# multi-line block, and every migrated script now carries the one-line
+# `if ...; then trap _canary_hb EXIT; fi` instead. Asserting the absence of the
+# touch itself would be wrong — it still exists, inside the helper.
+test "$(grep -l 'trap _canary_hb EXIT' scripts/*.sh 2>/dev/null | wc -l)" -ge 31
+test -z "$(grep -lE '^if \[ "\$HEARTBEAT" (-eq|=) 1 \]; then$' scripts/*.sh 2>/dev/null)"
 
 ## RCA
 
@@ -300,6 +304,55 @@ test "$(grep -l 'touch "$HEARTBEAT_FILE" 2>/dev/null || true' scripts/*.sh 2>/de
      - **Why:** [rationale]
      - **Rejected:** [alternatives and why not]
 -->
+
+### 2026-09-25 — NOT_SCHEDULED: which of the two predicates survives
+
+Both sides independently invented the same class and named it almost the same
+thing, which is what produced the conflict. They are not equivalent.
+
+- **Chose:** main's `is_cron_scheduled()` — greps the crontabs for `\.<name>\.log`,
+  **fails OPEN** on an absent cron dir, and is consulted only inside the STALE
+  branch (heartbeat ancient AND log never written AND nothing schedules it).
+- **Why:** three independent reasons, all pointing the same way. (1) The anchor is
+  the LOG FILENAME, which is what a crontab necessarily names; the branch's bare
+  `grep -F <name>` also matches a canary merely *mentioned* in a comment, so it
+  would silence a genuinely stale canary on a coincidence. (2) Fail direction: on
+  an absent cron dir main keeps the old behaviour, while the branch's variant
+  returns "not declared" for everything — mass-downgrading every real STALE canary
+  to "not a problem" precisely when the check can no longer tell. A guard that
+  goes quiet when it loses its footing is the vacuous-pass class (T-2831). (3)
+  Placement: main only downgrades something already STALE, so the blast radius is
+  the narrower one.
+- **Rejected:** the branch's `crontab_declares()`. Nothing in it is unavailable in
+  main's version, so adopting it would have traded strictness for nothing. Case 8
+  pins the fail-open direction and Case 13 pins that the rejected predicate has not
+  crept back — if it ever does, two predicates would disagree silently.
+
+### 2026-09-25 — migrate 31 scripts, not the branch's 24
+
+- **Chose:** apply the EXIT-trap heartbeat to every script that writes a heartbeat.
+- **Why:** main gained six such scripts after the branch forked, and
+  `check-addressed-posts.sh` used a fourth block shape (a local `$hb` rather than
+  `$HEARTBEAT_FILE`) that the sweep's anchor did not reach. Landing only the
+  branch's 24 would have reproduced the "hardened in one place, siblings not
+  migrated" divergence that the guard layer exists to catch.
+- **Rejected:** a literal `git apply` of the branch patch. It would have been
+  cleaner to review but would have left the six newer scripts and the fourth shape
+  behind, and would have missed that the heartbeat regions were byte-identical
+  anyway — which is what made a surgical transform safe.
+
+### 2026-09-25 — the chained-trap hazard
+
+- **Chose:** for the four scripts that install their own cleanup `trap ... EXIT`
+  later in the file, use a self-guarding helper armed early and chained onto that
+  later trap.
+- **Why:** `trap ... EXIT` REPLACES any previous EXIT trap. A naive
+  `trap _canary_hb EXIT` at the heartbeat site would have been silently overwritten
+  by the cleanup trap installed further down, stopping those heartbeats entirely
+  and pinning four canaries permanently STALE — a worse failure than the one being
+  fixed, and invisible until someone read /canaries a day later.
+- **Rejected:** moving the heartbeat call into each cleanup trap only. That leaves
+  an early `exit 2` (before the cleanup trap is installed) with no heartbeat at all.
 
 ## Decision
 

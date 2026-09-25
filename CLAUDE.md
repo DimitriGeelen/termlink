@@ -1996,6 +1996,52 @@ seam `CANARY_HYGIENE_SRC_DIR`). Fixtures: `bash tests/canary-log-hygiene-fixture
 (19 assertions). See `docs/operations/substrate-cron-recipes.md` § "The redirect
 idiom".
 
+### The stderr sink had no reader — ERRORING (T-2842) + completion heartbeats (T-2843)
+
+Splitting the streams (T-2685 above) was correct and incomplete. It gave each canary a
+clean firing log **and a diagnostic sink that nothing ever opened.** Three locally
+reasonable decisions composed into a blind spot:
+
+- every canary touched its `.heartbeat` **unconditionally at startup**, before doing any
+  work, so freshness proved "cron fired", never "the canary succeeded";
+- on a tooling error a canary writes its diagnostic to **stderr and nothing to stdout**;
+- the crontabs route stderr to `<log>.stderr`, keeping `.log` purely a firing log.
+
+Compose them and a canary erroring **every single day** shows an empty `.log` (HEALTHY on
+`/canaries`), a fresh heartbeat (ALIVE to the T-1723 meta-canary), and its diagnostic in a
+file no surface reads. That is the G-063 write-only-sink class landing on the detection
+layer itself — the layer whose whole job is to notice.
+
+**`ERRORING`** is the class that reads it. A canary whose `<log>.stderr` has content
+written inside the staleness window is ERRORING; it counts toward `PROBLEMS` (exit 1),
+carries `stderr_bytes` in `--json`, and renders the stderr line itself rather than the
+firing log. It **outranks FIRING deliberately**: a canary that could not complete its run
+cannot be trusted to have found *or missed* anything, so canary integrity is the more
+urgent signal. The window is bounded by the same staleness threshold, so a long-resolved
+transient error does not pin the verb red forever (T-2818). Truncating the sink clears it.
+
+**The heartbeat now proves completion, not scheduling.** All 31 scripts that write one
+defer the write to an `EXIT` trap. A SIGKILLed or hung canary leaves the heartbeat
+untouched and surfaces as STALE; an exit-2 tooling error still writes it, because that run
+did complete. **`trap ... EXIT` REPLACES any previous EXIT trap** — four scripts
+(`check-fleet-doorbell-mail-health`, `check-forever-archival-freshness`,
+`check-topic-growth-freshness`, `substrate-preflight`) install their own tmpfile cleanup
+later in the file, so they use a self-guarding helper armed early and **chained** onto that
+cleanup. A naive second `trap` there would have silently killed those four heartbeats — a
+worse failure than the one being fixed. Copy the chained shape, not the plain one, into any
+canary that owns a cleanup trap.
+
+Two NOT_SCHEDULED predicates were written independently; only `is_cron_scheduled` (anchored
+on `.<name>.log`, **fail-open** on an absent cron dir) survives. The rejected variant grepped
+a bare name and failed closed, which would mass-downgrade real STALE canaries to "not a
+problem" exactly when the check could no longer tell.
+
+Fixtures: `bash tests/canary-status-fixtures.sh` (16 assertions; Case 2 is the load-bearing
+empty-log/fresh-heartbeat state, Case 14 is a mutant that disables the ERRORING branch and
+must reproduce the pre-fix HEALTHY/0) and `bash tests/canary-heartbeat-fixtures.sh`
+(6 assertions, driving a REAL canary — deliberately one of the four chained ones — with Case
+3 SIGKILLing it, since EXIT traps do not run on SIGKILL).
+
 ## Project-Specific Rules
 
 ### TermLink Substrate + Skills Reference (clobber-safe — T-2015)
