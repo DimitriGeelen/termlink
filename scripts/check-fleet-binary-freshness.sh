@@ -77,10 +77,14 @@ die_setup() {
 # T-1723 heartbeat: prove this canary ran, even on healthy/error cycles.
 # Placed BEFORE the network call so a fleet-doctor hang still leaves a beat.
 HEARTBEAT_FILE="${HEARTBEAT_FILE:-.context/working/.fleet-binary-canary.heartbeat}"
-if [ "$HEARTBEAT" = 1 ]; then
+_canary_hb() {
     mkdir -p "$(dirname "$HEARTBEAT_FILE")" 2>/dev/null || true
     touch "$HEARTBEAT_FILE" 2>/dev/null || true
-fi
+}
+# T-2691: deferred to EXIT so heartbeat freshness proves the run FINISHED,
+# not merely that cron started it. A hung or killed canary now leaves the
+# heartbeat untouched and surfaces as STALE instead of silently reading alive.
+if [ "$HEARTBEAT" = 1 ]; then trap _canary_hb EXIT; fi
 
 command -v jq >/dev/null 2>&1 || die_setup "jq not found"
 [ -r "$FLOORS_FILE" ] || die_setup "floors file not readable: $FLOORS_FILE"

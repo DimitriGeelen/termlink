@@ -90,9 +90,13 @@ command -v grep >/dev/null 2>&1 || { echo "check-mcp-parity-census: grep not fou
 [ -f "$PARITY_FILE" ] || { echo "check-mcp-parity-census: parity file not found: $PARITY_FILE" >&2; exit 2; }
 
 HEARTBEAT_FILE="${HEARTBEAT_FILE:-.context/working/.mcp-parity-census-canary.heartbeat}"
-if [ "$HEARTBEAT" -eq 1 ]; then
+_canary_hb() {
     touch "$HEARTBEAT_FILE" 2>/dev/null || true
-fi
+}
+# T-2691: deferred to EXIT so heartbeat freshness proves the run FINISHED,
+# not merely that cron started it. A hung or killed canary now leaves the
+# heartbeat untouched and surfaces as STALE instead of silently reading alive.
+if [ "$HEARTBEAT" -eq 1 ]; then trap _canary_hb EXIT; fi
 
 # strip_comments <file> — drop whole-line // comments before matching. Prose ABOUT a tool
 # name is not a declaration of it and not an assertion about it (both directions matter).

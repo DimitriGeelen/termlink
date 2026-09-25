@@ -78,10 +78,20 @@ done
 # Heartbeat: prove this canary ran. Placed BEFORE network so a network
 # error still leaves a heartbeat. Mirror of T-1723 pattern.
 HEARTBEAT_FILE="${HEARTBEAT_FILE:-.context/working/.fleet-doorbell-mail-canary.heartbeat}"
-if [ "$HEARTBEAT" = 1 ]; then
+# T-2691: heartbeat is written on COMPLETION, not on start, so its freshness proves
+# the run FINISHED rather than merely that cron began it. This script already owns an
+# EXIT trap, so the helper is SELF-GUARDING and is chained onto that trap below —
+# registering a second `trap ... EXIT` here would silently replace the cleanup.
+_canary_hb() {
+    [ "$HEARTBEAT" = 1 ] || return 0
     mkdir -p "$(dirname "$HEARTBEAT_FILE")" 2>/dev/null || true
     touch -- "$HEARTBEAT_FILE" 2>/dev/null || true
-fi
+}
+# Arm immediately so an early tooling-error exit (before the combined trap below
+# is installed) still records that the run completed. The later
+# `trap '<cleanup>; _canary_hb' EXIT` supersedes this one and calls the helper too,
+# so the heartbeat is covered continuously rather than only after that point.
+trap _canary_hb EXIT
 
 command -v jq >/dev/null 2>&1 || die "jq not in PATH"
 [ -f "$HUBS_FILE" ] || die "hubs file not found: $HUBS_FILE"
@@ -183,7 +193,7 @@ transient_skipped_count=0
 
 # Use a temp file to collect jq-shaped objects line-by-line.
 tmp_results="$(mktemp -t fleet-dm-canary.XXXXXX)"
-trap 'rm -f "$tmp_results"' EXIT
+trap 'rm -f "$tmp_results"; _canary_hb' EXIT
 
 for i in "${!profile_names[@]}"; do
     name="${profile_names[$i]}"

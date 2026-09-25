@@ -339,11 +339,15 @@ elif [ "${ACK_ROW_FOUND:-0}" -eq 0 ]; then
     IDENTITY_WARNING="identity resolved to '$SELF_ID' but NO ack row on this topic has that sender_id, so the ack frontier collapsed to 0 and every addressed post below is reported as unacked regardless of what you have already read. Ack rows exist for: ${ACK_KNOWN_SENDERS:-<none>}. If one of those is you, re-run with --self-id <that value>."
 fi
 
-if [ "$HEARTBEAT" -eq 1 ]; then
+_canary_hb() {
     hb="$REPO_ROOT/.context/working/.addressed-posts-canary.heartbeat"
     mkdir -p "$(dirname "$hb")" 2>/dev/null || true
     date -u +%FT%TZ > "$hb" 2>/dev/null || true
-fi
+}
+# T-2691: deferred to EXIT so heartbeat freshness proves the run FINISHED,
+# not merely that cron started it. A hung or killed canary now leaves the
+# heartbeat untouched and surfaces as STALE instead of silently reading alive.
+if [ "$HEARTBEAT" -eq 1 ]; then trap _canary_hb EXIT; fi
 
 if [ "$FORMAT" = json ]; then
     # Compact, matching the die() path — one line is what a cron consumer greps and what

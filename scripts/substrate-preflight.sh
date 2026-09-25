@@ -159,15 +159,25 @@ done
 # meta-canary can probe the substrate state without side-effecting the very
 # signal it's checking.
 HEARTBEAT_FILE="${HEARTBEAT_FILE:-.context/working/.substrate-preflight-canary.heartbeat}"
-if [ "$HEARTBEAT" = 1 ]; then
+# T-2691: heartbeat is written on COMPLETION, not on start, so its freshness proves
+# the run FINISHED rather than merely that cron began it. This script already owns an
+# EXIT trap, so the helper is SELF-GUARDING and is chained onto that trap below —
+# registering a second `trap ... EXIT` here would silently replace the cleanup.
+_canary_hb() {
+    [ "$HEARTBEAT" = 1 ] || return 0
     mkdir -p "$(dirname "$HEARTBEAT_FILE")" 2>/dev/null || true
     touch -- "$HEARTBEAT_FILE" 2>/dev/null || true
-fi
+}
+# Arm immediately so an early tooling-error exit (before the combined trap below
+# is installed) still records that the run completed. The later
+# `trap '<cleanup>; _canary_hb' EXIT` supersedes this one and calls the helper too,
+# so the heartbeat is covered continuously rather than only after that point.
+trap _canary_hb EXIT
 
 # --quiet buffers all stdout to a temp file; on exit, only emit if non-zero.
 if [ "$QUIET" -eq 1 ]; then
     QUIET_BUF=$(mktemp)
-    trap 'rm -f "$QUIET_BUF"' EXIT
+    trap 'rm -f "$QUIET_BUF"; _canary_hb' EXIT
     exec 3>&1
     exec >"$QUIET_BUF"
 fi

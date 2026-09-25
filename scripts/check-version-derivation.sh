@@ -113,9 +113,13 @@ done
 
 # T-1723 heartbeat: prove this check ran, even on clean/error cycles.
 HEARTBEAT_FILE="${HEARTBEAT_FILE:-.context/working/.version-derivation-canary.heartbeat}"
-if [ "$HEARTBEAT" -eq 1 ]; then
+_canary_hb() {
     touch "$HEARTBEAT_FILE" 2>/dev/null || true
-fi
+}
+# T-2691: deferred to EXIT so heartbeat freshness proves the run FINISHED,
+# not merely that cron started it. A hung or killed canary now leaves the
+# heartbeat untouched and surfaces as STALE instead of silently reading alive.
+if [ "$HEARTBEAT" -eq 1 ]; then trap _canary_hb EXIT; fi
 
 # A read of the compiled-in version. build.rs is excluded by path below: a build script
 # reading CARGO_PKG_VERSION from its own environment is how the derivation works.

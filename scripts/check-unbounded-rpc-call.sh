@@ -85,9 +85,13 @@ done
 
 # T-1723 heartbeat: prove this check ran, even on clean/error cycles.
 HEARTBEAT_FILE="${HEARTBEAT_FILE:-.context/working/.unbounded-rpc-call-canary.heartbeat}"
-if [ "$HEARTBEAT" -eq 1 ]; then
+_canary_hb() {
     touch "$HEARTBEAT_FILE" 2>/dev/null || true
-fi
+}
+# T-2691: deferred to EXIT so heartbeat freshness proves the run FINISHED,
+# not merely that cron started it. A hung or killed canary now leaves the
+# heartbeat untouched and surfaces as STALE instead of silently reading alive.
+if [ "$HEARTBEAT" -eq 1 ]; then trap _canary_hb EXIT; fi
 
 # The UNBOUNDED client entry points. Anchored so the bounded variants cannot match:
 # after `rpc_call` the next char must be `(`, or the suffix must be exactly `_addr(`.

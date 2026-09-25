@@ -11,7 +11,7 @@ description: >
   branch crontab_declares/NOT_SCHEDULED plus ERRORING and stderr_size. Must reconcile
   both, not pick a side.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -29,7 +29,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-24T18:21:42Z
-last_update: '2026-09-24T20:18:57Z'
+last_update: 2026-09-25T21:11:25Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -100,8 +100,14 @@ content main lacks.
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] `scripts/canary-status.sh` classifies a canary whose `<log>.stderr` has content written inside the staleness window as **ERRORING**, and ERRORING outranks FIRING / STALE / HEALTHY — a canary that could not complete its run cannot be trusted to have found or missed anything.
+- [ ] ERRORING counts toward `PROBLEMS` (the verb exits 1) and is surfaced on **every** output path: the full human summary line, `--quiet`, the `Action needed:` block naming the stderr sink, and `--json` (`summary.erroring` plus per-canary `stderr_bytes`).
+- [ ] When a canary is ERRORING, `latest_entry` is read from the **stderr sink**, not the firing log.
+- [ ] All four of main's post-branch hardenings survive the merge unchanged and are re-asserted by fixtures: T-2763 worktree resolution (`RESOLUTION`, refuse-never-fallback), T-2975 `SCOPE_NOTE` on every path, T-2826 `-ge` firing predicate, T-2840 `is_cron_scheduled` NOT_SCHEDULED predicate.
+- [ ] The branch's looser `crontab_declares` NOT_SCHEDULED variant is **deliberately not adopted**, with the reason recorded in `## Decisions` (bare-name grep vs `.<name>.log` anchor; fail-closed vs fail-open on an absent cron dir).
+- [ ] Every check script carrying the uniform `if [ "$HEARTBEAT" -eq 1 ]; then touch ...; fi` block defers the touch to an `EXIT` trap, so a hung or killed run leaves the heartbeat untouched and surfaces as STALE instead of reading alive.
+- [ ] No check script is left un-migrated — the migrated set covers every script matching the uniform block, not only the 24 the branch happened to touch (the "hardened in one place, siblings not migrated" divergence).
+- [ ] `bash tests/canary-status-fixtures.sh` and `bash tests/canary-heartbeat-fixtures.sh` both pass, and the canary-status suite carries a **mutant** that removes the ERRORING branch and is caught by it.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -196,6 +202,24 @@ content main lacks.
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+bash -n scripts/canary-status.sh
+bash tests/canary-status-fixtures.sh > /tmp/.t3087-cs.out 2>&1 && grep -q ", 0 failed" /tmp/.t3087-cs.out
+bash tests/canary-heartbeat-fixtures.sh > /tmp/.t3087-hb.out 2>&1 && grep -q ", 0 failed" /tmp/.t3087-hb.out
+# ERRORING landed (T-2842 payload)
+grep -q 'status="ERRORING"' scripts/canary-status.sh
+grep -q 'stderr_bytes' scripts/canary-status.sh
+grep -q 'erroring' scripts/canary-status.sh
+# main's four post-branch hardenings survived the reconcile
+grep -q 'is_cron_scheduled' scripts/canary-status.sh
+grep -q 'RESOLUTION' scripts/canary-status.sh
+grep -q 'SCOPE_NOTE' scripts/canary-status.sh
+grep -q 'log_mtime" -ge "\$heartbeat_mtime' scripts/canary-status.sh
+# the branch's looser variant was NOT adopted
+test -f scripts/canary-status.sh && ! grep -q 'crontab_declares' scripts/canary-status.sh
+# T-2843 EXIT-trap migration is complete, not partial
+test "$(grep -l 'trap _canary_hb EXIT' scripts/*.sh 2>/dev/null | wc -l)" -ge 24
+test "$(grep -l 'touch "$HEARTBEAT_FILE" 2>/dev/null || true' scripts/*.sh 2>/dev/null | wc -l)" -eq 0
 
 ## RCA
 
@@ -293,3 +317,6 @@ content main lacks.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3087-land-t-2842-erroring-read-surface--t-284.md
 - **Context:** Initial task creation
+
+### 2026-09-25T21:11:25Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

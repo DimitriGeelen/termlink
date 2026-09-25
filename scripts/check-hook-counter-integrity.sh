@@ -116,10 +116,14 @@ done
 # non-empty log straight to FIRING, with no arm that can ever return it to HEALTHY. One
 # real finding on 2026-08-31 therefore latched it red permanently — the stuck-on
 # direction of the same one-bit channel T-2685 unstuck from the other side.
-if [ "$HEARTBEAT" -eq 1 ]; then
+_canary_hb() {
     mkdir -p "$(dirname "$HEARTBEAT_FILE")" 2>/dev/null \
         && date -u +%Y-%m-%dT%H:%M:%SZ > "$HEARTBEAT_FILE" 2>/dev/null || true
-fi
+}
+# T-2691: deferred to EXIT so heartbeat freshness proves the run FINISHED,
+# not merely that cron started it. A hung or killed canary now leaves the
+# heartbeat untouched and surfaces as STALE instead of silently reading alive.
+if [ "$HEARTBEAT" -eq 1 ]; then trap _canary_hb EXIT; fi
 
 [ -n "$COUNTER" ]     || COUNTER=".context/working/.hook-counter"
 [ -n "$FAILCOUNTER" ] || FAILCOUNTER=".context/working/.hook-failure-counter"
