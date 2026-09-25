@@ -292,61 +292,75 @@ steps:
   result_file: .context/runs/T-3093-R3S3-handback.md
   dispatched_utc: '2026-09-25T09:42:00Z'
   fed_with: R3S2 handback + the operator-approved ADOPT-FINDINGS authorisation
-  completed_utc: '2026-09-25T10:35:00Z'
-  completed_note: 'Selected arc-011 (in-flight, unblocked since the operator''s 2026-09-24 GO
-    on T-3075/T-3076) over continuing arc-008/arc-009 per the mandate''s ''prefer an arc
-    already in flight'' rule — arc-011''s founding message-delivery capability outranks
-    housekeeping/archival work. Worked T-3134 (S2, Q1 hv-lc) to completion: wrote real ACs
-    (was placeholder-only), implemented `termlink artifact put/get` as thin CLI wrappers over
-    send_artifact_via_client/download_artifact_via_client per T-3076''s Scope Fence, added
-    clap parse tests + a pure sha256-mismatch unit test + a hermetic shell fixture suite (14
-    assertions, no live hub needed), then PROVED it end-to-end against a real disposable
-    isolated local hub (200KB payload, chunked upload, byte-identical download, sha256
-    verified) rather than stopping at unit tests. That live proof caught a genuine bug:
-    ArtifactManifest.from must be identity.fingerprint(), not a cli-<pid> label, or the hub
-    rejects the signed post with CHANNEL_IDENTITY_MISMATCH (-32014, T-1427) — fixed in my own
-    new call site; the same latent bug exists in the 3 pre-existing callers
-    (file.rs/remote.rs/tools.rs), filed as T-3140 (captured, scored, correctly left unworked
-    — out of T-3134''s Scope Fence and this unit''s selection). Re-marked arc-011 slice S2
-    built with the live-proof note. Stopped after this one unit at ~317K/~39% (past the
-    ~300k mandate ceiling), between tasks, not mid-task — T-3140 was deliberately filed and
-    parked rather than started. Committed as 5f5ae0143 + 9bc77c6cb.'
-  observed_not_acted_on: 'Working tree carries ambient uncommitted drift from what appears to
-    be a DIFFERENT, currently-active concurrent session on this shared host — T-3139 (Tier-0
-    defect task, 2 commits already landed, small residual diff) and T-2753 (operator''s own
-    GO decision via Watchtower, 1 commit landed, larger residual diff with reviewer-verdict
-    sections). Neither relates to arc-011/T-3093. Left uncommitted rather than folded into
-    this step''s commits (unlike prior steps'' own trailing residuals) — it is not this
-    step''s work to close out, and that session may still be mid-edit. Also observed repeated
-    focus.yaml flapping back to T-3093 within seconds of setting it to T-3134, consistent with
-    the same concurrent session actively writing shared working-memory state.'
+  completed_utc: '2026-09-25T10:45:00Z'
+  completed_note: 'Selected arc-011 (in-flight, unblocked since the operator''s 2026-09-24 GO on T-3075/T-3076)
+    over continuing arc-008/arc-009 per the mandate''s ''prefer an arc already in flight'' rule — arc-011''s
+    founding message-delivery capability outranks housekeeping/archival work. Worked T-3134 (S2, Q1 hv-lc)
+    to completion: wrote real ACs (was placeholder-only), implemented `termlink artifact put/get` as thin
+    CLI wrappers over send_artifact_via_client/download_artifact_via_client per T-3076''s Scope Fence,
+    added clap parse tests + a pure sha256-mismatch unit test + a hermetic shell fixture suite (14 assertions,
+    no live hub needed), then PROVED it end-to-end against a real disposable isolated local hub (200KB
+    payload, chunked upload, byte-identical download, sha256 verified) rather than stopping at unit tests.
+    That live proof caught a genuine bug: ArtifactManifest.from must be identity.fingerprint(), not a
+    cli-<pid> label, or the hub rejects the signed post with CHANNEL_IDENTITY_MISMATCH (-32014, T-1427)
+    — fixed in my own new call site; the same latent bug exists in the 3 pre-existing callers (file.rs/remote.rs/tools.rs),
+    filed as T-3140 (captured, scored, correctly left unworked — out of T-3134''s Scope Fence and this
+    unit''s selection). Re-marked arc-011 slice S2 built with the live-proof note. Stopped after this
+    one unit at ~317K/~39% (past the ~300k mandate ceiling), between tasks, not mid-task — T-3140 was
+    deliberately filed and parked rather than started. Committed as 5f5ae0143 + 9bc77c6cb.'
+  observed_not_acted_on: Working tree carries ambient uncommitted drift from what appears to be a DIFFERENT,
+    currently-active concurrent session on this shared host — T-3139 (Tier-0 defect task, 2 commits already
+    landed, small residual diff) and T-2753 (operator's own GO decision via Watchtower, 1 commit landed,
+    larger residual diff with reviewer-verdict sections). Neither relates to arc-011/T-3093. Left uncommitted
+    rather than folded into this step's commits (unlike prior steps' own trailing residuals) — it is not
+    this step's work to close out, and that session may still be mid-edit. Also observed repeated focus.yaml
+    flapping back to T-3093 within seconds of setting it to T-3134, consistent with the same concurrent
+    session actively writing shared working-memory state.
+  note: Built, live-proved and CLOSED T-3134 (artifact CLI verbs, arc-011 slice S2) - the first product
+    capability this sequence shipped, unblocked by the operator's T-3076 GO. Filed and parked T-3140 as
+    out of scope rather than widening the unit.
 - id: R4S1
   round: 4
   step: 1
   prompt: value_review
-  state: pending
+  state: cancelled-by-operator
   worker: null
   fed_by: R3S3
   feeds: R4S2
   result_file: .context/runs/T-3093-R4S1-handback.md
+  reason: 'Operator decision 2026-09-25 after being shown the throughput arithmetic: 41 tasks created
+    today against 22 closed, 318 open. These sequences are excellent at FINDING and structurally poor
+    at CLOSING - each dispatched step gets ~1 cycle of context, and the Review and Audit prompts are designed
+    to enumerate. A fourth round would have netted more diagnosis onto a backlog already larger than the
+    capacity to act on it. Stopped at 10 of 12 deliberately, not through failure.'
 - id: R4S2
   round: 4
   step: 2
   prompt: audit_remediation
-  state: pending
+  state: cancelled-by-operator
   worker: null
   fed_by: R4S1
   feeds: R4S3
   result_file: .context/runs/T-3093-R4S2-handback.md
+  reason: 'Operator decision 2026-09-25 after being shown the throughput arithmetic: 41 tasks created
+    today against 22 closed, 318 open. These sequences are excellent at FINDING and structurally poor
+    at CLOSING - each dispatched step gets ~1 cycle of context, and the Review and Audit prompts are designed
+    to enumerate. A fourth round would have netted more diagnosis onto a backlog already larger than the
+    capacity to act on it. Stopped at 10 of 12 deliberately, not through failure.'
 - id: R4S3
   round: 4
   step: 3
   prompt: proc_as_fit
-  state: pending
+  state: cancelled-by-operator
   worker: null
   fed_by: R4S2
   feeds: null
   result_file: .context/runs/T-3093-R4S3-handback.md
+  reason: 'Operator decision 2026-09-25 after being shown the throughput arithmetic: 41 tasks created
+    today against 22 closed, 318 open. These sequences are excellent at FINDING and structurally poor
+    at CLOSING - each dispatched step gets ~1 cycle of context, and the Review and Audit prompts are designed
+    to enumerate. A fourth round would have netted more diagnosis onto a backlog already larger than the
+    capacity to act on it. Stopped at 10 of 12 deliberately, not through failure.'
 cross_step_findings:
 - 'CAPACITY, recorded early rather than at the end: the Audit prompt asks for 3 cycles per run, and R1S2
   completed 1 before hitting its context stop. If that holds, the four Audit steps in this sequence deliver
@@ -372,3 +386,24 @@ state_changes_during_run:
   not_acted_on_here: R2S2 is mid-flight. Creating tasks now means two writers allocating IDs by scanning
     .tasks/ - the T-2800 collision defect. Left for R2S3 (procAsFit), whose job this precisely is, and
     fed to it explicitly.
+closed:
+  ts: '2026-09-25T10:50:00Z'
+  steps_run: 9
+  steps_planned: 12
+  closed_by: operator decision
+  delivered:
+  - 3 value reviews (all halted at Phase 5 ASK by design)
+  - 3 audit cycles, 1 per dispatched worker - capacity confirmed on 3 independent honest readings
+  - 3 procAsFit steps, the last of which built and live-proved T-3134
+  - arc-011 unblocked mid-sequence by the operator's T-3075/T-3076 GO, build tasks T-3134 (done) and T-3135
+    (ready) created
+  found_out_of_band_by_orchestrator:
+  - T-3092 run-record parse guard
+  - T-3127 shared .budget-status
+  - T-3136 the first review finding ever executed
+  - T-3139 Tier-0 approval regression, filed upstream at offsets 154/155
+  next: T-3135 (sidecar API, portable respawn per SQ-8) in a FRESH session - the orchestrator was at ~75%
+    context at close.
+  correction: 'The orchestrator repeatedly reported ''10 of 12'' during the run. It is 9: three complete
+    rounds of three steps each. Caught by this task''s own verification line asserting 10 handbacks and
+    failing against the 9 on disk - the check was right and the narration was wrong.'

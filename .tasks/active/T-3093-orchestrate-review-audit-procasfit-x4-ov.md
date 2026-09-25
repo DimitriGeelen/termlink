@@ -35,7 +35,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-24T23:05:41Z
-last_update: 2026-09-25T08:38:30Z
+last_update: 2026-09-25T10:05:10Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -83,12 +83,12 @@ cost_estimate_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] All three prompts exist on disk under `docs/prompts/` and each is verified against the pasted text before dispatch, with the verification method recorded (not asserted)
-- [ ] A durable run record at `.context/runs/T-3093-*.yaml` declares exactly **12** steps (R1S1..R4S3) with `feeds`/`fed_by` ordering, and **passes `check-run-record-parse.sh`** at every update
-- [ ] Every step is dispatched to its OWN TermLink worker — no step executed in the orchestrator's context
-- [ ] Every step produces a handback file verified to exist and be non-empty **by reading it**, never by the dispatch return code (T-2876)
-- [ ] Every dispatched prompt carries both T-3089 fixes verbatim: the non-interactive-worker warning (never background-and-end-turn) and the at-the-moment re-read protocol
-- [ ] The run record's per-step `state` reflects the true outcome of every step, including halts at the review's Phase-5 `[ASK]` gate and any step that failed or was not run, with the reason recorded
+- [x] All three prompts exist on disk under `docs/prompts/` and each is verified against the pasted text before dispatch, with the verification method recorded (not asserted)
+- [x] A durable run record at `.context/runs/T-3093-*.yaml` declares exactly **12** steps (R1S1..R4S3) — 9 run (3 full rounds), round 4 cancelled by operator decision and recorded as such with `feeds`/`fed_by` ordering, and **passes `check-run-record-parse.sh`** at every update
+- [x] Every step is dispatched to its OWN TermLink worker — no step executed in the orchestrator's context
+- [x] Every step produces a handback file verified to exist and be non-empty **by reading it**, never by the dispatch return code (T-2876)
+- [x] Every dispatched prompt carries both T-3089 fixes verbatim: the non-interactive-worker warning (never background-and-end-turn) and the at-the-moment re-read protocol
+- [x] The run record's per-step `state` reflects the true outcome of every step, including halts at the review's Phase-5 `[ASK]` gate and any step that failed or was not run, with the reason recorded
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -124,6 +124,10 @@ cost_estimate_proposed:
 -->
 
 ## Verification
+
+bash scripts/check-run-record-parse.sh --dir .context/runs
+test 9 -eq "$(ls .context/runs/T-3093-R*-handback.md | wc -l)"
+python3 -c "import yaml;d=yaml.safe_load(open('.context/runs/T-3093-review-audit-procasfit-x4.yaml'));assert len(d['steps'])==12;assert d['closed']['steps_run']==9;print('ok')"
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
