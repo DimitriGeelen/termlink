@@ -285,13 +285,41 @@ steps:
   round: 3
   step: 3
   prompt: proc_as_fit
-  state: dispatched
+  state: complete
   worker: t3093-r3s3-procasfit
   fed_by: R3S2
   feeds: R4S1
   result_file: .context/runs/T-3093-R3S3-handback.md
   dispatched_utc: '2026-09-25T09:42:00Z'
   fed_with: R3S2 handback + the operator-approved ADOPT-FINDINGS authorisation
+  completed_utc: '2026-09-25T10:35:00Z'
+  completed_note: 'Selected arc-011 (in-flight, unblocked since the operator''s 2026-09-24 GO
+    on T-3075/T-3076) over continuing arc-008/arc-009 per the mandate''s ''prefer an arc
+    already in flight'' rule — arc-011''s founding message-delivery capability outranks
+    housekeeping/archival work. Worked T-3134 (S2, Q1 hv-lc) to completion: wrote real ACs
+    (was placeholder-only), implemented `termlink artifact put/get` as thin CLI wrappers over
+    send_artifact_via_client/download_artifact_via_client per T-3076''s Scope Fence, added
+    clap parse tests + a pure sha256-mismatch unit test + a hermetic shell fixture suite (14
+    assertions, no live hub needed), then PROVED it end-to-end against a real disposable
+    isolated local hub (200KB payload, chunked upload, byte-identical download, sha256
+    verified) rather than stopping at unit tests. That live proof caught a genuine bug:
+    ArtifactManifest.from must be identity.fingerprint(), not a cli-<pid> label, or the hub
+    rejects the signed post with CHANNEL_IDENTITY_MISMATCH (-32014, T-1427) — fixed in my own
+    new call site; the same latent bug exists in the 3 pre-existing callers
+    (file.rs/remote.rs/tools.rs), filed as T-3140 (captured, scored, correctly left unworked
+    — out of T-3134''s Scope Fence and this unit''s selection). Re-marked arc-011 slice S2
+    built with the live-proof note. Stopped after this one unit at ~317K/~39% (past the
+    ~300k mandate ceiling), between tasks, not mid-task — T-3140 was deliberately filed and
+    parked rather than started. Committed as 5f5ae0143 + 9bc77c6cb.'
+  observed_not_acted_on: 'Working tree carries ambient uncommitted drift from what appears to
+    be a DIFFERENT, currently-active concurrent session on this shared host — T-3139 (Tier-0
+    defect task, 2 commits already landed, small residual diff) and T-2753 (operator''s own
+    GO decision via Watchtower, 1 commit landed, larger residual diff with reviewer-verdict
+    sections). Neither relates to arc-011/T-3093. Left uncommitted rather than folded into
+    this step''s commits (unlike prior steps'' own trailing residuals) — it is not this
+    step''s work to close out, and that session may still be mid-edit. Also observed repeated
+    focus.yaml flapping back to T-3093 within seconds of setting it to T-3134, consistent with
+    the same concurrent session actively writing shared working-memory state.'
 - id: R4S1
   round: 4
   step: 1
