@@ -152,36 +152,43 @@ steps:
   result_file: .context/runs/T-3093-R2S2-handback.md
   dispatched_utc: '2026-09-25T08:52:00Z'
   fed_with: R2S1 handback inlined + explicit T-3127 budget-status warning
-  completed_note: 'Cycle 1 of 3 only (stopped near the mandate''s ~300k context ceiling per
-    checkpoint.sh status, not the shared .budget-status file — heeded this run''s own T-3127
-    warning). Reused arc-008 (already existed, 63 tasks from prior runs). Ran fresh fw audit
-    (400 pass/86 warn/3 fail) and reconciled against arc-008''s existing 63 tasks: most
-    WARN/FAIL lines were already covered by unworked backlog (30 tasks) from R1S2''s cycle 1.
-    Filed 6 new tasks for genuinely new/regressed findings: T-3128 (CTL-003 budget-status
-    staleness, root-cause-linked to T-3127, fixed via a CLAUDE.md doc addition — the vendored
-    check itself cannot be fixed locally), T-3129 (T-3095''s blank owner field, fixed and
-    closed work-completed), T-3130 (INVESTIGATE — reproduced fw task update --status blanking
-    the owner field live on T-3129 itself, not yet bisected), T-3131 (fabric-drift residual —
-    root-caused to a genuine extension-stripping slug-collision bug in vendored
-    register.sh, mitigated with a manually-authored disambiguated card, verified via fw
-    fabric drift), T-3132 (CTL-029 bundle, 26 tasks completable-not-closed, correctly parked
-    per the Human Task Completion Rule rather than bulk-closed), T-3133 (uncommitted-changes
-    snapshot, resolved by this step''s own closing commit). Findings reconciliation: 92 audit
-    WARN+FAIL lines this cycle, all traced to either existing arc-008 tasks (86) or one of
-    the 6 new tasks (6) — zero left outside the arc. Scored all 6 new tasks with fw bvp
-    estimate. Did not attempt Step 5 quadrant prioritization or Step 6 execution of the
-    pre-existing 30-task backlog — budget was consumed by the audit run itself (~13min
-    wall-clock) plus reconciling/filing the 6 new findings faithfully. Cycles 2/3 not run.
-    Committed as (this step''s closing commit).'
+  completed_note: 'Cycle 1 of 3 only (stopped near the mandate''s ~300k context ceiling per checkpoint.sh
+    status, not the shared .budget-status file — heeded this run''s own T-3127 warning). Reused arc-008
+    (already existed, 63 tasks from prior runs). Ran fresh fw audit (400 pass/86 warn/3 fail) and reconciled
+    against arc-008''s existing 63 tasks: most WARN/FAIL lines were already covered by unworked backlog
+    (30 tasks) from R1S2''s cycle 1. Filed 6 new tasks for genuinely new/regressed findings: T-3128 (CTL-003
+    budget-status staleness, root-cause-linked to T-3127, fixed via a CLAUDE.md doc addition — the vendored
+    check itself cannot be fixed locally), T-3129 (T-3095''s blank owner field, fixed and closed work-completed),
+    T-3130 (INVESTIGATE — reproduced fw task update --status blanking the owner field live on T-3129 itself,
+    not yet bisected), T-3131 (fabric-drift residual — root-caused to a genuine extension-stripping slug-collision
+    bug in vendored register.sh, mitigated with a manually-authored disambiguated card, verified via fw
+    fabric drift), T-3132 (CTL-029 bundle, 26 tasks completable-not-closed, correctly parked per the Human
+    Task Completion Rule rather than bulk-closed), T-3133 (uncommitted-changes snapshot, resolved by this
+    step''s own closing commit). Findings reconciliation: 92 audit WARN+FAIL lines this cycle, all traced
+    to either existing arc-008 tasks (86) or one of the 6 new tasks (6) — zero left outside the arc. Scored
+    all 6 new tasks with fw bvp estimate. Did not attempt Step 5 quadrant prioritization or Step 6 execution
+    of the pre-existing 30-task backlog — budget was consumed by the audit run itself (~13min wall-clock)
+    plus reconciling/filing the 6 new findings faithfully. Cycles 2/3 not run. Committed as (this step''s
+    closing commit).'
+  completed_utc: '2026-09-25T09:55:00Z'
+  note: '1 of 3 cycles again, but this time on a REAL context reading: it heeded the T-3127 warning, used
+    checkpoint.sh status (160,405 tokens at start), and hit the ~300k ceiling genuinely. Reused arc-008
+    (63 tasks), created no new arc.'
+  capacity_confirmed: This SETTLES the capacity question R1S2 left ambiguous. R1S2 stopped citing a context
+    reading that may have been the shared false 504K. R2S2 stopped on a verified per-session figure. So
+    1 cycle per dispatched worker is GENUINE capacity against a 3-cycle mandate, not an artifact of T-3127.
 - id: R2S3
   round: 2
   step: 3
   prompt: proc_as_fit
-  state: pending
-  worker: null
+  state: dispatched
+  worker: t3093-r2s3-procasfit
   fed_by: R2S2
   feeds: R3S1
   result_file: .context/runs/T-3093-R2S3-handback.md
+  dispatched_utc: '2026-09-25T09:57:00Z'
+  fed_with: R2S2 handback + the arc-011 UNBLOCK (operator GO on T-3075/T-3076) + the slice-drift reading
+    correction + the SQ-8 portable-respawn constraint
 - id: R3S1
   round: 3
   step: 1
