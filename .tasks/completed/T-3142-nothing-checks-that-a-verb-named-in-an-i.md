@@ -20,10 +20,10 @@ description: >
   not is one worktree away from confidently reporting a checkout defect as a framework
   defect. Filed upstream; the check is the local detection.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -38,8 +38,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-25T11:25:00Z
-last_update: 2026-09-25T16:42:17Z
-date_finished:
+last_update: 2026-09-25T16:48:53Z
+date_finished: 2026-09-25T16:48:53Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -371,3 +371,15 @@ permanently-green guard gets shipped.
   COMMAND. Widening back to `scripts/` needs a way to tell those apart.
 - **The fix for (1) is known and small:** a reference-count floor, mirroring the
   verb-table floor already present — zero references must exit 2, never 0.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-4a9e1a95
+- **Timestamp:** 2026-09-25T16:48:57Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-09-25T16:48:53Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

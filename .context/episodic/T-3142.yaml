@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3142: Nothing checks that a verb named in an instruction actually resolves — and a naive checker reports checkout defects as framework defects
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-25T16:49:03Z
+# ============================================================================
+
+task_id: T-3142
+task_name: "Nothing checks that a verb named in an instruction actually resolves — and a naive checker reports checkout defects as framework defects"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-25T11:25:00Z
+completed: 2026-09-25T16:48:53Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-25T13:29:09+02:00
+last_commit: 2026-09-25T18:48:44+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  park the verb-resolution check — it failed its own load-bearing test. unpark — the vacuous pass was one character, and the floor is what catches it
+
+# Key outcomes
+outcomes:
+  - '**UNPARKED 2026-09-25.** The `# guard-layer: source` marker is restored and the runner'
+  - '**Every output path declares the framework root it resolved against** — the retraction'
+  - 'It resolves `fw <verb>` references found in instructional surfaces against the live'
+  - '**Load-bearing:** it fires on a fixture instructing `fw sidecar` (genuinely absent,'
+  - 'Fail-closed: an unresolvable `fw` binary, or a verb table that comes back empty,'
+  - '**Reference floor (the parked defect).** Too few references on the default surface'
+  - '**The anchor defect is fixed and pinned.** The backtick branch was written `` \` ``,'
+  - 'Fixtures cover firing, clean, the false-positive guard, both fail-closed paths, the'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'scripts/check-instructed-verb-resolves.sh'
+  - '.tasks/active/T-3141-answer-aefs-sidecar-e2e-joint-run-ab9473.md'
+  - '.tasks/active/T-3142-nothing-checks-that-a-verb-named-in-an-i.md'
+  - 'tests/instructed-verb-resolves-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-25T13:29:09'
+    action: 'T-3142: park the verb-resolution check — it failed its own load-bearing test'
+  - time: '2026-09-25T18:48:44'
+    action: 'T-3142: unpark — the vacuous pass was one character, and the floor is what catches it'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 323 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 323
+  commits: 2
+  files_changed: 4
+  lines_added: 826
+  lines_removed: 12
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3142-nothing-checks-that-a-verb-named-in-an-i.md
+generated_by: context-agent-hybrid
