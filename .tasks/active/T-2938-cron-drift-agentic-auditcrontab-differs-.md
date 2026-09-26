@@ -25,7 +25,7 @@ arc_id: arc-008
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-09T17:54:17Z
-last_update: 2026-09-18T18:41:57Z
+last_update: 2026-09-26T23:47:54Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -77,7 +77,7 @@ Shares host-state root cause with T-2939 (a declared canary crontab never instal
 
 ### Agent
 - [x] Finding is reproduced and recorded with the exact audit line, and the remediation command is verified to be the correct one before the human runs it
-- [ ] [REVIEWER] The deployed crontab matches the registry — no drift, nothing uninstalled
+- [x] [REVIEWER] The deployed crontab matches the registry — no drift, nothing uninstalled
   **Converted from a `### Human` `[RUBBER-STAMP]` AC on 2026-09-26 (T-3154, operator GO on SQ-1).**
   Its `**Expected:**` clause — *"command exits 0; re-running `fw audit --sections structure` no longer prints `[FAIL] Cron drift`"* — is settled by a deterministic command, so per CLAUDE.md T-1811/T-1878 it belongs here with the check in `## Verification`. The `sudo fw cron install` action was an operator act and has already been performed.
   **Measured 2026-09-26:** `check-cron-install-drift.sh` reports *healthy — 30 installed + matching, 0 acknowledged, 0 skipped*, `ok:true`, missing 0 / uninstalled_jobs 0 / drift 0, rc 0. The audit's structure section prints `[PASS] Cron registry in sync with /etc/cron.d/agentic-audit-termlink`.

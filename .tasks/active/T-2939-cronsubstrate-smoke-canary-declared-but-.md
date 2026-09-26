@@ -25,7 +25,7 @@ arc_id: arc-008
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-09T17:55:23Z
-last_update: 2026-09-25T22:33:26Z
+last_update: 2026-09-26T23:46:53Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -77,7 +77,7 @@ Scope is `worktree` (host state), non-blocking for push. Shares host-state root 
 
 ### Agent
 - [x] Finding is reproduced and recorded with the exact audit line, and the remediation command is verified to be the correct one before the human runs it
-- [ ] [REVIEWER] substrate-smoke canary is installed and scheduled, and not drifted from the tracked source
+- [x] [REVIEWER] substrate-smoke canary is installed and scheduled, and not drifted from the tracked source
   **Converted from a `### Human` `[RUBBER-STAMP]` AC on 2026-09-26 (T-3154, operator GO on SQ-1).**
   Its `**Expected:**` clause — *"`/etc/cron.d/termlink-substrate-smoke-canary` exists; `fw audit --sections structure` no longer prints `[FAIL] cron(substrate-smoke-canary)`"* — is settled by a deterministic command, so per CLAUDE.md T-1811/T-1878 prefix routing it belongs here with the check in `## Verification`, not in the human queue. The install action itself was an operator act and has already happened; what remains is the assertion, which is mechanical.
   **Measured 2026-09-26:** the file exists and is **byte-identical** to `.context/cron/substrate-smoke-canary.crontab` (`cmp` clean); `check-cron-install-drift.sh` reports *healthy — 30 installed + matching*, `ok:true`, missing 0 / uninstalled_jobs 0 / drift 0, rc 0.
