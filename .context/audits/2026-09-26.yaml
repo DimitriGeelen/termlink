@@ -1,9 +1,9 @@
-# Audit Results - 2026-09-26-0929
-timestamp: 2026-09-26T07:29:22Z
+# Audit Results - 2026-09-26-1122
+timestamp: 2026-09-26T09:22:10Z
 sections: "structure"
 summary:
-  pass: 43
-  warn: 8
+  pass: 44
+  warn: 7
   fail: 0
 findings:
   - level: PASS
@@ -17,7 +17,7 @@ findings:
   - level: PASS
     check: "Task template exists"
   - level: PASS
-    check: "No duplicate task IDs — examined 2870 task file(s) across 1 corpus view(s)"
+    check: "No duplicate task IDs — examined 2875 task file(s) across 1 corpus view(s)"
   - level: PASS
     check: "All project YAML files parse correctly — examined 18 project YAML file(s)"
   - level: PASS
@@ -39,16 +39,15 @@ findings:
     check: "No stale-slice-references (L-417) — NOT EVALUATED: candidate set empty (0 file(s) under web/templates web/blueprints lib)"
     mitigation: "The scan walked no files — the L-417 rail asserted nothing this run"
   - level: WARN
-    check: "Found 93 GO-scope-not-propagated inception(s) of 176 GO-recorded completed inception(s) examined — GO recorded, related_tasks empty, nobody back-references, no unlocks_inception_decision"
+    check: "Found 94 GO-scope-not-propagated inception(s) of 177 GO-recorded completed inception(s) examined — GO recorded, related_tasks empty, nobody back-references, no unlocks_inception_decision"
     mitigation: "Triage: per inception either backfill related_tasks: / unlocks_inception_decision:, or file the slices its GO approved. Full list: cat /opt/termlink/.context/audits/go-scope-unpropagated/LATEST.md (origin: T-2078, T-2091, T-3099; sibling to L-417/T-1975)"
   - level: PASS
-    check: "Fabric: 505 registered card(s)"
+    check: "Fabric: 514 registered card(s)"
   - level: WARN
-    check: "Fabric: 297/535 cards have no edges"
+    check: "Fabric: 305/544 cards have no edges"
     mitigation: "Run: fw fabric enrich"
-  - level: WARN
-    check: "Fabric drift: 7 source file(s) have no fabric card"
-    mitigation: "Run: fw fabric scan"
+  - level: PASS
+    check: "Fabric drift: all watched files registered — examined 504 watched file(s)"
   - level: WARN
     check: "Fabric: 10 card(s) point at files no watch pattern covers"
     mitigation: "Widen .fabric/watch-patterns.yaml, or remove the cards if they are not components"

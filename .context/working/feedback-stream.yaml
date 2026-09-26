@@ -13070,3 +13070,83 @@ scan_id: R-e799070d
 task_id: T-3165
 payload:
   task_file: .tasks/active/T-3165-checkpointsh-has-no-budget-subcommand-bu.md
+---
+kind: scan_emitted
+timestamp: '2026-09-26T08:42:21Z'
+scan_id: R-a33ee3ae
+task_id: T-3166
+payload:
+  overall: CONCERN
+  finding_count: 3
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-26T08:42:21Z'
+scan_id: R-a33ee3ae
+task_id: T-3166
+payload:
+  task_file: .tasks/active/T-3166-examine-the-arc-008-open-backlog-against.md
+---
+kind: recommendation_claims_verdict
+timestamp: '2026-09-26T08:42:21Z'
+scan_id: RC-8d13a709
+task_id: T-3166
+payload:
+  overall: CONFIRMED
+  claim_count: 12
+---
+kind: scan_emitted
+timestamp: '2026-09-26T08:52:46Z'
+scan_id: R-69b34c58
+task_id: T-3167
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-26T08:52:46Z'
+scan_id: R-69b34c58
+task_id: T-3167
+payload:
+  task_file: .tasks/active/T-3167-audit-warning-acknowledgement-ledger---t.md
+---
+kind: scan_emitted
+timestamp: '2026-09-26T09:20:08Z'
+scan_id: R-067f222c
+task_id: T-3168
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-26T09:20:08Z'
+scan_id: R-067f222c
+task_id: T-3168
+payload:
+  task_file: .tasks/active/T-3168-ledger-must-disclose-the-audit-section-s.md
+---
+kind: scan_emitted
+timestamp: '2026-09-26T09:28:37Z'
+scan_id: R-f2c59965
+task_id: T-3131
+payload:
+  overall: FAIL
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-26T09:28:37Z'
+scan_id: R-f2c59965
+task_id: T-3131
+payload:
+  task_file: .tasks/active/T-3131-fabric-drift-regression-scriptsnotify-wa.md

@@ -15,9 +15,9 @@ A completed task qualifies when ALL of:
 
 ## Population examined
 
-- completed inceptions: 206
-- with a GO recorded:   176
-- findings:             93
+- completed inceptions: 207
+- with a GO recorded:   177
+- findings:             94
 
 These are candidates for triage, not confirmed abandoned decisions:
 some may have shipped work that was simply never linked back. Deciding
@@ -25,6 +25,7 @@ which is which is the judgement this check exists to force.
 
 ## Findings (most recent first)
 
+- T-3166 — .tasks/completed/T-3166-examine-the-arc-008-open-backlog-against.md
 - T-3144 — .tasks/completed/T-3144-census-verification-legs-that-assert-an-.md
 - T-3076 — .tasks/completed/T-3076-binary-blob-on-the-notify-rail-via-artif.md
 - T-3075 — .tasks/completed/T-3075-sidecar-api---separate-respawning-proces.md

@@ -7,12 +7,12 @@ description: >
   added to the repo after T-3102 ran fw fabric scan. Not a regression of T-3102's
   fix (that AC was 0-at-the-time, satisfied), just a new file that arrived after.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-008, housekeeping]
-components: []
+components: [scripts/check-audit-warning-acknowledgement.sh, tests/audit-warning-acknowledgement-fixtures.sh]
 related_tasks: [T-3102]
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -25,8 +25,8 @@ related_tasks: [T-3102]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-25T07:02:15Z
-last_update: 2026-09-25T07:07:00Z
-date_finished:
+last_update: 2026-09-26T09:28:30Z
+date_finished: 2026-09-26T09:28:30Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -216,7 +216,42 @@ grep -q "unregistered: 0" /tmp/.fabdrift-3131
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
-## Evolution
+**Symptom:** `fw audit` reported "Fabric drift: 1 source file has no fabric card" naming
+`scripts/notify-wake-consumer.py`, and `fw fabric register scripts/notify-wake-consumer.py`
+printed "Card already exists" and exited 0 — so the supported command reported success while
+the file stayed uncarded and drift kept reporting it missing.
+
+**Root cause:** `agents/fabric/lib/register.sh:199` derives the card filename by stripping the
+trailing extension (`sed 's|/|-|g; s|\.[^./-]*$||; s|^\.||'`), so `notify-wake-consumer.sh` and
+`notify-wake-consumer.py` both map to the slug `scripts-notify-wake-consumer`. The
+already-exists branch at :202-205 then prints a yellow notice and `return 0`.
+
+**Why structurally allowed:** the `return 0` is the actual defect, not the collision. It makes
+two cases with opposite meanings indistinguishable — (a) this exact file is already registered,
+correct idempotency, and (b) a different file owns the slug and yours was never carded. Both
+print the same line and both exit 0, so no caller and no scan loop can detect (b). The
+occupying card's `location:` points at the other file, which is why `register` and `drift`
+disagree permanently about one file with neither surface raising an error. The slug rule also
+exists in three copies (:44 Python, :112 and :199 bash) that are not equivalent on dotted
+directory paths, so a partial fix re-diverges quietly; T-1659 already fixed a different bug in
+this same expression.
+
+**Prevention.** Two parts, and the second is the one that generalises:
+
+1. The structural fix is upstream's (vendored, G-062) and is now genuinely **filed at
+   `framework:pickup` offset 182**, read-back verified 6/6, recommending the cheap loud-refusal
+   (compare the existing card's `location:` to the path being registered) ahead of any
+   extension-aware slug migration. Locally, the disambiguated card stands as the workaround and
+   `fw fabric drift` reports unregistered 0.
+
+2. **The AC that claimed this was already filed cited no offset, and was false.** Offsets
+   120-179 carried no such filing. The failure mode is self-concealing: the box stayed unticked,
+   so the task could never reach `work-completed`, so no gate ever forced anyone to re-check the
+   assertion — an unticked AC reads as "work remaining" rather than "claim unverified". Same
+   class as the P-043 stranded envelope (filed nowhere, re-discovered and re-fixed 73 days
+   later). The durable lesson: an AC asserting that something was REPORTED must cite the
+   offset/id that proves it, because "filed upstream" with no identifier is not checkable, and
+   the surrounding machinery will not notice.
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
@@ -299,3 +334,20 @@ grep -q "unregistered: 0" /tmp/.fabdrift-3131
 
 ### 2026-09-25T07:07:00Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-f2c59965
+- **Timestamp:** 2026-09-26T09:28:37Z
+- **Catalogue:** v1.3-seed
+- **Overall:** FAIL
+- **Needs Human:** no
+- **Findings:** 1
+
+**Verification-level findings:**
+
+  1. **swallowed-errors** (severe, deterministic) @ Verification:line 1
+     - evidence: `.agentic-framework/bin/fw fabric drift > /tmp/.fabdrift-3131 2>&1 || true`
+
+### 2026-09-26T09:28:30Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

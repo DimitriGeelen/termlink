@@ -2915,3 +2915,8 @@ FW_SWITCH_FOCUS=1 git commit -m "T-2892: fix decisions.yaml corruption from T-28
   flag: '--skip-render-review'
   caller: 'check_render_surface_human_ac: False positive: T-1766 keys on render-surface paths MENTIONED in the task text, not files modified. This is a triage task that deliberately patched nothing — the files are vendored (.agentic-framework/web/), G-062 forbids a local patch, and ''git status --porcelain .agentic-framework/web/'' is empty (pinned as verification V5). The two paths the gate names, web/app.py and web/static/htmx-toast.js, do not exist at those paths in this project at all. Adding a [REVIEW] Human AC would assert a rendered change that does not exist and would add a phantom item to the 136-item human review queue measured in T-3153.'
   reason: ''
+- timestamp: '2026-09-26T08:42:20Z'
+  task: 'T-3166'
+  flag: '--skip-sovereignty'
+  caller: 'check_human_sovereignty'
+  reason: 'Inception decision: GO'

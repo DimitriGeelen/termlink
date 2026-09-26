@@ -1,0 +1,100 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3131: Fabric drift regression: scripts/notify-wake-consumer.py has no fabric card
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-26T09:28:44Z
+# ============================================================================
+
+task_id: T-3131
+task_name: "Fabric drift regression: scripts/notify-wake-consumer.py has no fabric card"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-25T07:02:15Z
+completed: 2026-09-26T09:28:30Z
+duration_days: 1
+updates_count: 2
+first_commit: 2026-09-26T11:07:26+02:00
+last_commit: 2026-09-26T11:27:35+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  one Fabric warning fixed, two acknowledged with cited reasons. reconcile the card counts, refresh T-3009's stale premise, PL-386. the AC claimed a filing that did not exist — filed it (offset 182)
+
+# Key outcomes
+outcomes:
+  - 'Root cause identified: extension-stripping slug collision in'
+  - 'Local workaround: manually authored a disambiguated card for'
+  - '`fw fabric drift` reports 0 unregistered (confirmed)'
+  - 'Structural fix NOT patched locally (vendored, G-062) and **filed upstream'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'one Fabric warning fixed, two acknowledged with cited reasons'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/checks/audit-warning-allowlist'
+  - '.context/project/learnings.yaml'
+  - '.fabric/components/crates-termlink-cli-src-commands-artifact.yaml'
+  - '.fabric/components/crates-termlink-cli-src-commands-mod.yaml'
+  - '.fabric/components/crates-termlink-protocol-src-lib.yaml'
+  - '.fabric/components/crates-termlink-session-src-lib.yaml'
+  - '.fabric/components/scripts-check-absence-assertion.yaml'
+  - '.fabric/components/scripts-check-audit-warning-acknowledgement.yaml'
+  - '.fabric/components/scripts-check-instructed-verb-resolves.yaml'
+  - '.fabric/components/scripts-check-tier0-approval-latch.yaml'
+  - '.fabric/components/tests-absence-assertion-fixtures.yaml'
+  - '.fabric/components/tests-audit-warning-acknowledgement-fixtures.yaml'
+  - '.fabric/components/tests-budget-status-session-key-fixtures.yaml'
+  - '.fabric/components/tests-instructed-verb-resolves-fixtures.yaml'
+  - '.fabric/components/tests-tier0-approval-latch-fixtures.yaml'
+  - '.tasks/active/T-3009-fabric-edge-enrichment-326491-cards-edge.md'
+  - '.tasks/active/T-3131-fabric-drift-regression-scriptsnotify-wa.md'
+  - '.tasks/completed/T-3167-audit-warning-acknowledgement-ledger---t.md'
+  - '.tasks/completed/T-3168-ledger-must-disclose-the-audit-section-s.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-26T11:07:26'
+    action: 'T-3131: one Fabric warning fixed, two acknowledged with cited reasons'
+  - time: '2026-09-26T11:22:01'
+    action: 'T-3131: reconcile the card counts, refresh T-3009''s stale premise, PL-386'
+  - time: '2026-09-26T11:27:35'
+    action: 'T-3131: the AC claimed a filing that did not exist — filed it (offset 182)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 1586 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-008, housekeeping]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1586
+  commits: 4
+  files_changed: 42
+  lines_added: 3421
+  lines_removed: 141
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3131-fabric-drift-regression-scriptsnotify-wa.md
+generated_by: context-agent-hybrid
