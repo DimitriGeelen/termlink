@@ -115,4 +115,6 @@ depended_by:
   type: called_by
 - target: crates/termlink-session/tests/integration.rs
   type: called_by
-last_enriched: '2026-08-14'
+- target: crates/termlink-cli/src/commands/artifact.rs
+  type: called_by
+last_enriched: '2026-09-26'

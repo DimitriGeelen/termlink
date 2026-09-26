@@ -77,6 +77,8 @@ depends_on:
   type: calls
 - target: crates/termlink-cli/src/commands/webhook.rs
   type: calls
+- target: crates/termlink-cli/src/commands/artifact.rs
+  type: calls
 depended_by:
 - target: crates/termlink-cli/src/main.rs
   type: uses
@@ -86,4 +88,4 @@ depended_by:
   type: called_by
 last_verified: 2026-03-21
 created_by: T-223
-last_enriched: '2026-08-14'
+last_enriched: '2026-09-26'
