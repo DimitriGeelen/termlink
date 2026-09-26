@@ -168,7 +168,7 @@ cost_estimate_proposed:
 
 ## Recommendation
 
-**Recommendation (2026-09-25, after measurement):** NO-GO on any build — **dissolve into T-2389**.
+**Recommendation:** NO-GO on any build — dissolve into T-2389. (Measured 2026-09-25.)
 
 **Rationale:** The DEFER below was correct as written and asked for exactly one thing: partition the sessions into should-have-enrolled versus correctly-abstained before proposing anything. That partition has now been done (`docs/reports/T-2879-rail-enrolment-gap.md`), and it answers the question rather than refining it.
 
@@ -187,6 +187,17 @@ There is nothing to build. PL-237 forecloses a retrofit (reach must be arranged 
 ---
 
 _Superseded rationale (at capture, before measurement):_ DEFER because the headline number may not be a defect. CLAUDE.md's own session rules say to skip /be-reachable on throw-away sessions and on hosts that should not appear on the fleet, so an unknown share of the 13 non-enrolled sessions are behaving exactly as documented. Filing at DEFER rather than GO keeps this from becoming a fix in search of a problem: the first move is to partition the 14 into should-have-enrolled versus correctly-abstained, using what fleet-adoption-snapshot already records, and only then ask whether a launcher default is warranted. What makes it worth filing at all rather than dropping is the failure DIRECTION - a rail nobody joined is indistinguishable from a rail that does not exist, and T-2875 caught a .122 peer making precisely that inference from an empty ListAgents. So even a fully-correct low enrolment number has a real cost that is worth naming.
+
+**Evidence:**
+
+- `docs/reports/T-2879-rail-enrolment-gap.md` — the partition the DEFER asked for
+- **84** local Claude session records measured; **9** reachable by the T-2876 predicate; **76** `blocked`/at rest and correctly absent (CLAUDE.md makes opting in optional)
+- Of the 9 live enough to be worth reaching, **0 are wakeable** — the single rail entry (`penelope`) carries no `pty_session`
+- The original "1 of 14" framing flattered the denominator; the defensible statement is narrower and worse
+- The framework is **not** blind: the T-2387 waker-liveness canary fires correctly and names both classes (`LIVE-no-waker`, `rail-dark`), and `/canaries` agrees — 36,053-byte log
+- **42 `rail-dark` firings** — roughly six weeks of a daily cron reporting the condition correctly with no action taken. Loud and unheeded: alarm fatigue (T-2818/T-2833) seen from the receiving end
+- PL-237 forecloses a retrofit — reach must be arranged at LAUNCH — and the remediation the canary itself prints (relaunch via the T-2388 launcher) is already ticketed as **T-2389** (`started-work`, arc-007, `owner: human`)
+- Therefore there is nothing to build here; filing build work would add a fourth artefact describing what three already describe, and would not make one agent wakeable
 
 ## Decisions
 
