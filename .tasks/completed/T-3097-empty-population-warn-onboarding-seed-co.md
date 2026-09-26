@@ -9,10 +9,10 @@ description: >
   check's behavior (correct, by design) but WHY the population is empty: did lib/seeds/tasks
   stop routing to maps, or is it genuinely absent/retired?
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-008]
 components: []
 related_tasks: []
@@ -27,8 +27,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-24T23:53:55Z
-last_update: '2026-09-25T00:07:07Z'
-date_finished:
+last_update: 2026-09-26T00:45:13Z
+date_finished: 2026-09-26T00:45:13Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -75,8 +75,13 @@ T-3105 (verdict-over-a-set emitter) makes an empty-population WARN loud on purpo
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Determine whether lib/seeds/tasks legitimately has 0 onboarding-seed corpus references, or whether the seeding mechanism broke/moved
-- [ ] If legitimately empty, record that finding in this task's Updates (no code change needed); if broken, file a follow-on task
+- [x] Determine whether lib/seeds/tasks legitimately has 0 onboarding-seed corpus references, or whether the seeding mechanism broke/moved
+  **ANSWER: neither.** The corpus is fully populated — **10 files carrying 12 `corpus explain` references** under `.agentic-framework/lib/seeds/tasks/`. The seeding mechanism did not break or move. **The CHECK looks in the wrong root:** `audit.sh:1144` scans `"$PROJECT_ROOT/lib/seeds/tasks"`, but `lib/` is FRAMEWORK-owned and lives under `$FRAMEWORK_ROOT` in any vendored consumer. `/opt/termlink/lib/seeds/tasks` does not exist, so the scan walks 0 files and correctly reports an empty candidate set — over a corpus that is right there.
+- [x] If legitimately empty, record that finding in this task's Updates (no code change needed); if broken, file a follow-on task
+  **Broken → filed upstream**, not patched: `audit.sh` is vendored and G-062 forbids a local fix that the next re-vendor would erase. Filed at `framework:pickup` **offset 178**, read-back verified (3355 bytes, 8/8 claims).
+- [x] **T-3098 and T-3099 share this root cause and are the same bug**, measured: `audit.sh:1771` (`for scan_dir in web lib`) and `audit.sh:1818` (`for scan_dir in web/templates web/blueprints lib`) both gate on `[ -d "$PROJECT_ROOT/$scan_dir" ]`. All five PROJECT_ROOT paths are ABSENT here. Blind spot quantified: OBS-097 would walk **135** `.py` files and walks 0; L-417 would walk **264** and walks 0.
+- [x] **The sharpest part is recorded:** line 1771 **is** the OBS-097 split-root asset-resolution lint — the check whose stated purpose is catching "framework-owned dirs resolved via PROJECT_ROOT". It resolves its own scan dirs via PROJECT_ROOT, so the guard against this class is disabled by this class, and cannot see the instance 300 lines above it. Its own comment predicts the failure mode — *"the failing path structurally cannot fire where the code is developed"* — because in AEF's own repo PROJECT_ROOT == FRAMEWORK_ROOT.
+- [x] **Fourth instance of one family** recorded in the filing (T-2815 basename-derived cron unit, T-3152 hardcoded consumer task ID, these three rails). At four it is a class, not a run of accidents.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -172,7 +177,21 @@ T-3105 (verdict-over-a-set emitter) makes an empty-population WARN loud on purpo
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
-true
+# the corpus IS populated — the premise behind the WARN is false
+test "$(grep -rhoE 'corpus explain [a-z0-9][a-z0-9-]*' .agentic-framework/lib/seeds/tasks 2>/dev/null | wc -l)" -ge 12
+# and the path the check actually scans does not exist in a vendored consumer
+test ! -d lib/seeds/tasks
+# all three rails gate on PROJECT_ROOT for FRAMEWORK-owned dirs
+grep -q 'PROJECT_ROOT/lib/seeds/tasks' .agentic-framework/agents/audit/audit.sh
+grep -q 'for scan_dir in web lib; do' .agentic-framework/agents/audit/audit.sh
+grep -q 'for scan_dir in web/templates web/blueprints lib; do' .agentic-framework/agents/audit/audit.sh
+# the blind spot is real: absent at PROJECT_ROOT, populated at FRAMEWORK_ROOT
+test ! -d web
+test "$(find .agentic-framework/web .agentic-framework/lib -name '*.py' -type f 2>/dev/null | wc -l)" -ge 135
+# filed upstream and read back from the topic (T-2876)
+test -f /tmp/.t3097-readback.txt && grep -q "READ-BACK VERIFIED" /tmp/.t3097-readback.txt
+# G-062: the vendored audit.sh was NOT patched locally
+test -z "$(git status --porcelain .agentic-framework/agents/audit/audit.sh)"
 
 ## RCA
 
@@ -191,6 +210,14 @@ true
 -->
 
 ## Evolution
+
+### 2026-09-26 — the question inverted, and the scope trebled
+
+- **What changed:** the task asks whether the seed corpus is *legitimately* empty. It is neither legitimately empty nor broken — **the corpus is fully populated (10 files, 12 references) and the CHECK is looking in the wrong root.** `audit.sh:1144` scans `$PROJECT_ROOT/lib/seeds/tasks`, but `lib/` is framework-owned and lives under `$FRAMEWORK_ROOT` in a vendored consumer. Neither branch of the AC's either/or was the answer.
+- **Plan impact:** this stopped being one warning about one corpus. **T-3098 and T-3099 are the same bug** — all three rails gate on `[ -d "$PROJECT_ROOT/$scan_dir" ]` over framework-owned directories, so three of the nine standing audit warnings have a single cause. Measured blind spot: OBS-097 would walk 135 `.py` files and walks 0; L-417 would walk 264 and walks 0.
+- **The finding that made it worth filing at `severity: high`:** line 1771 *is* the OBS-097 split-root lint — the guard whose entire purpose is catching framework dirs resolved via `PROJECT_ROOT`. It resolves its own scan dirs that way, so the guard against this class is disabled by this class and cannot see the instance 300 lines above it. Its own comment predicts exactly this: *"the failing path structurally cannot fire where the code is developed"* — true, because in AEF's repo `PROJECT_ROOT == FRAMEWORK_ROOT`.
+- **Why it was visible at all:** T-3105. Before it, an empty candidate set reported PASS and these read as three clean rails. Making them say NOT EVALUATED is the only reason anyone looked.
+- **Triggered:** filed upstream at `framework:pickup` offset 178 (read-back verified), covering all three rails as one cause and naming it the **fourth instance** of the "framework code assumes consumer layout" family after T-2815 and T-3152. Not patched locally — vendored, G-062.
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
@@ -270,3 +297,18 @@ true
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3097-empty-population-warn-onboarding-seed-co.md
 - **Context:** Initial task creation
+
+### 2026-09-26T00:41:27Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-77ef6b7e
+- **Timestamp:** 2026-09-26T00:45:14Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-09-26T00:45:13Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

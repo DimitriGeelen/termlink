@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3097: Empty-population WARN: onboarding-seed corpus reference scan walked 0 files
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-26T00:45:21Z
+# ============================================================================
+
+task_id: T-3097
+task_name: "Empty-population WARN: onboarding-seed corpus reference scan walked 0 files"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-24T23:53:55Z
+completed: 2026-09-26T00:45:13Z
+duration_days: 2
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fw audit WARN (T-3105 verdict-over-a-set emitter): 'onboarding-seed corpus references resolve to existing maps' found 0 onboarding-seed corpus reference(s) in lib/seeds/tasks. T-3105 deliberately WARNs rather than silently PASSing on an empty candidate set (a PASS would assert coverage the check never had). The open question is not the check's behavior (correct, by design) but WHY the population is empty: did lib/seeds/tasks stop routing to maps, or is it genuinely absent/retired?
+
+# Key outcomes
+outcomes:
+  - 'Determine whether lib/seeds/tasks legitimately has 0 onboarding-seed corpus references, or whether the seeding mechanism broke/moved'
+  - 'If legitimately empty, record that finding in this task''s Updates (no code change needed); if broken, file a follow-on task'
+  - '**T-3098 and T-3099 share this root cause and are the same bug**, measured: `audit.sh:1771` (`for scan_dir in web lib`) and `audit.sh:1818` (`for scan_dir in web/templates web/blueprints lib`) both gate on `[ -d "$PROJECT_ROOT/$scan_dir" ]`. All five PROJECT_ROOT paths are ABSENT here. Blind spot quantified: OBS-097 would walk **135** `.py` files and walks 0; L-417 would walk **264** and walks 0.'
+  - '**The sharpest part is recorded:** line 1771 **is** the OBS-097 split-root asset-resolution lint — the check whose stated purpose is catching "framework-owned dirs resolved via PROJECT_ROOT". It resolves its own scan dirs via PROJECT_ROOT, so the guard against this class is disabled by this class, and cannot see the instance 300 lines above it. Its own comment predicts the failure mode — *"the failing path structurally cannot fire where the code is developed"* — because in AEF''s own repo PROJECT_ROOT == FRAMEWORK_ROOT.'
+  - '**Fourth instance of one family** recorded in the filing (T-2815 basename-derived cron unit, T-3152 hardcoded consumer task ID, these three rails). At four it is a class, not a run of accidents.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 1491 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-008]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1491
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3097-empty-population-warn-onboarding-seed-co.md
+generated_by: context-agent-hybrid
