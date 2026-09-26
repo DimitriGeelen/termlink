@@ -14,7 +14,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-09-26T17:52:31Z
-last_update: 2026-09-26T17:52:50Z
+last_update: 2026-09-26T21:21:30Z
 date_finished:
 revisit_at: 2026-10-03
 revisit_evidence_needed: "IW-3 settled: acd_gate's actual verb list read in OUR vendored lib/bvp.sh, plus a count of tasks genuinely blocked on human confirmation (IW-5). Backstop only — the primary forcing function is the framework-pickup canary, deliberately left firing on offset 168 until this task reaches a decision."
@@ -93,9 +93,9 @@ measurement-that-cannot-fail IW-4 exists to test for, and it is reproducible on 
 -->
 
 - **IW-1: Is this termlink's call or a framework-wide one?**
-  confidence: 1
-  disposition: answered|deferred|dissolved
-  rationale: <working assumption: framework-wide. `lib/bvp.sh` is vendored, so a local patch is deleted by the next re-vendor — the exact failure 832 designed around by using a config switch. Operator owns both, so the scope is theirs to set; recorded as an assumption, not a settled fact.>
+  confidence: 3
+  disposition: answered
+  rationale: OPERATOR RULED 2026-09-26 — BOTH, not either. Framework-wide is the durable path (lib/bvp.sh is framework code; a local patch has a measured ~2-month half-life across 8 wholesale vendor events in 124 commits, and 832 lost six fixes to exactly one such update). AND a local implementation now, so it works this week rather than after upstream turnaround. The local half MUST be registered in .vendor-divergence.yaml so the next re-vendor cannot delete it silently — that register exists for this.
 
 - **IW-2: Telemetry slice first, or the switch first?**
   confidence: 3

@@ -187,6 +187,49 @@ last_vendor_event:
 # ---------------------------------------------------------------------------
 
 divergences:
+  - task: T-3176
+    commit: pending-same-commit
+    commit_note: >
+      Registered BEFORE the change lands, deliberately. The operator ruled both scopes
+      (upstream for durability, local for speed) and the register is the thing that stops
+      the local half being deleted in silence — so it is written first, not last. The
+      checker's match key is the task id in the commit subject.
+    date: 2026-09-26
+    file: .agentic-framework/lib/bvp.sh
+    status: filed-upstream
+    filed_at: "framework:pickup offset 193 (proposal, read-back verified 7/7), building on 832's offset 168"
+    kind: feature-adoption
+    generality: GENERIC
+    why: >
+      MEASURED across all 2877 tasks with parseable frontmatter: 449 carry a PROPOSED bvp
+      score, 0 carry a CONFIRMED one. Zero, for the life of the project. `fw bvp confirm
+      --i-am-human` has a 100% block rate over ~7 months, so every BVP-derived surface has
+      never held a single data point — the priority ranking is empty and `--quadrant hv-lc`
+      returns "No tasks match" because the axis was never populated, not because nothing
+      matches. A feature whose whole purpose is answering "what should I work on" has never
+      answered it once.
+      The framework's own refusal text concedes the distinction: it says "Weight/driver
+      changes carry policy-edit authority" while also firing for `confirm`, which is neither.
+      Scoring a task AGAINST the value model is a different authority from editing the model.
+    fix: >
+      Adopt 832-Workflow-designer's design (their offset 168): open EXACTLY the `confirm`
+      verb behind a config switch defaulting OFF, leaving weight/driver --add/driver
+      --remove/auto-promote --enable gated, plus a telemetry ledger recording
+      proposed-vs-confirmed per driver so estimator accuracy becomes measurable.
+      THREE LOCAL AMENDMENTS, each from measurement here: (a) record the no-signal count
+      per ledger row — 74 of 449 proposals (16%) are all-2s/fully no-signal and would log
+      as `proposer_exact`, the estimator agreeing with its own default recorded as evidence
+      it is accurate; without this the ledger is a measurement that cannot fail. (b)
+      confirmed_by must not fall back to $USER on the auto path. (c) ship the telemetry
+      path-override env var BEFORE the test suite exists — 832's first test run permanently
+      contaminated their append-only ledger with fixture rows.
+    risk_if_revendored: >
+      HIGH by construction: this is a deliberate divergence in a SOVEREIGNTY gate, not a
+      defect fix. A re-vendor silently restoring the closed gate would read as correct
+      behaviour — the gate refusing is what it is supposed to look like — so nothing would
+      surface the regression. That is precisely why 832 chose a config switch over a code
+      deletion: the divergence stays legible in a config file rather than invisible in a diff.
+      On any re-vendor, re-check this entry FIRST.
   - task: T-3127
     commit: pending-same-commit
     commit_note: >
