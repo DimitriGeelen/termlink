@@ -128,6 +128,29 @@ except Exception as e:
 if not isinstance(doc, dict):
     tooling("audit is not a mapping: %s" % audit_path)
 
+# T-3168: the audit's SECTION SCOPE is load-bearing and was missing here.
+# `fw audit` runs per-section, and the pre-push hook runs `--sections structure`
+# only. Measured 2026-09-26: the structure section emits 8 warnings; a FULL run
+# emitted 39 before timing out at 560s. So a ledger reporting "8 total — 5
+# acknowledged" over a structure-only file reads as "the audit is nearly clean"
+# while ~4/5 of the warning surface was never in the file. That is the exact
+# T-2680 scope-misread this checker was built to end, and the first version of
+# this script had it. Scope is now reported on every path, and an audit whose
+# sections are partial or unstated is caveated rather than silently trusted.
+sections_raw = doc.get("sections")
+sections = str(sections_raw).strip() if sections_raw is not None else ""
+KNOWN_FULL = {"all", "*", "full"}
+if not sections:
+    scope_state = "unknown"
+elif sections.lower() in KNOWN_FULL:
+    scope_state = "full"
+elif "," in sections or " " in sections:
+    # several named sections — still not provably everything, so treat as partial
+    scope_state = "partial"
+else:
+    scope_state = "partial"
+partial_scope = scope_state != "full"
+
 findings = doc.get("findings")
 if not isinstance(findings, list) or not findings:
     # Zero parsed findings is a parse failure, not a clean bill. An audit always
@@ -211,6 +234,9 @@ if as_json:
         "fails": fails,
         "stale_entries": stale,
         "strict": strict,
+        "audit_sections": sections or None,
+        "scope_state": scope_state,
+        "partial_scope": partial_scope,
         "scope": SCOPE,
     }, indent=2))
     sys.exit(rc)
@@ -219,6 +245,12 @@ if quiet and not fires:
     sys.exit(0)
 
 print("audit: %s" % audit_path)
+if scope_state == "full":
+    print("audit sections: %s (full run)" % sections)
+elif scope_state == "partial":
+    print("audit sections: %s  <-- PARTIAL RUN" % sections)
+else:
+    print("audit sections: (not stated in the file)  <-- SCOPE UNKNOWN")
 print("ledger: %s%s" % (ledger_path, "" if ledger_exists else "  (ABSENT — acknowledges nothing)"))
 print("warnings: %d total — %d acknowledged, %d unexamined"
       % (len(warns), len(acknowledged), len(unexamined)))
@@ -248,6 +280,14 @@ if stale:
         print("  stale line %d: %s" % (e["line"], e["pattern"]))
         print("        reason on file: %s" % e["reason"])
 
+if partial_scope:
+    print("\nSCOPE CAVEAT — the counts above cover ONLY the section(s) this audit file "
+          "recorded%s. `fw audit` runs per-section and the pre-push hook runs the "
+          "structure section alone; a full run emits several times as many warnings "
+          "(measured 2026-09-26: 8 for structure, 39+ for a full run). Do NOT read a "
+          "low unexamined count here as \"the audit is nearly clean\" — re-run "
+          "`fw audit` without a section filter to see the whole surface." %
+          ("" if not sections else " (%s)" % sections))
 print("\n%s" % SCOPE)
 if not fires:
     print("\nverdict: every warning acknowledged with a cited reason.")

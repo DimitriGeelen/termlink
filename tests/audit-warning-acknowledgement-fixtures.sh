@@ -166,5 +166,50 @@ bash "$M2" --audit "$AUD_FAIL" --ledger "$LED_FAIL" >/dev/null 2>&1
 check "mutant dropping the FAIL guard -> rc 0, i.e. a silenced FAIL" 0 "$?"
 ok "  (that mutant MUST differ from the real script, which returns 1 — pinned above)"
 
+echo "== Case 13: audit SECTION SCOPE must be disclosed (T-3168) =="
+# The first version of this checker omitted this and so had the exact T-2680
+# scope-misread it exists to end: "8 total, 5 acknowledged" over a structure-only
+# audit reads as "nearly clean" while a full run emits 39+.
+AUD_PART="$TMP/partial.yaml"
+mk_audit "$AUD_PART" 'sections: "structure"
+findings:
+  - level: WARN
+    check: "Alpha rail reports NOT EVALUATED"'
+o="$(bash "$SCRIPT" --audit "$AUD_PART" --ledger "$LED_ONE" 2>&1)"
+printf '%s' "$o" | grep -q 'PARTIAL RUN' && ok "partial audit is labelled PARTIAL RUN" || bad "partial label" "$o"
+printf '%s' "$o" | grep -q 'SCOPE CAVEAT' && ok "partial audit carries the scope caveat on the CLEAN path" || bad "clean-path caveat" "$o"
+o="$(bash "$SCRIPT" --audit "$AUD_PART" --ledger "$TMP/none" 2>&1)"
+printf '%s' "$o" | grep -q 'SCOPE CAVEAT' && ok "and on the FIRING path" || bad "firing-path caveat" "$o"
+o="$(bash "$SCRIPT" --audit "$AUD_PART" --ledger "$LED_ONE" --json 2>&1)"
+printf '%s' "$o" | grep -q '"partial_scope": true' && ok "json carries partial_scope true" || bad "json partial_scope" "$o"
+printf '%s' "$o" | grep -q '"audit_sections": "structure"' && ok "json carries the sections value" || bad "json sections" "$o"
+
+AUD_FULL="$TMP/full.yaml"
+mk_audit "$AUD_FULL" 'sections: "all"
+findings:
+  - level: WARN
+    check: "Alpha rail reports NOT EVALUATED"'
+o="$(bash "$SCRIPT" --audit "$AUD_FULL" --ledger "$LED_ONE" 2>&1)"
+printf '%s' "$o" | grep -q 'full run' && ok "full audit is labelled full run" || bad "full label" "$o"
+printf '%s' "$o" | grep -q 'SCOPE CAVEAT' && bad "full audit must NOT carry the partial caveat" "$o" || ok "full audit omits the partial caveat"
+o="$(bash "$SCRIPT" --audit "$AUD_FULL" --ledger "$LED_ONE" --json 2>&1)"
+printf '%s' "$o" | grep -q '"partial_scope": false' && ok "json partial_scope false on a full run" || bad "json full scope" "$o"
+
+AUD_NOSEC="$TMP/nosec.yaml"
+mk_audit "$AUD_NOSEC" 'findings:
+  - level: WARN
+    check: "Alpha rail reports NOT EVALUATED"'
+o="$(bash "$SCRIPT" --audit "$AUD_NOSEC" --ledger "$LED_ONE" 2>&1)"
+printf '%s' "$o" | grep -q 'SCOPE UNKNOWN' && ok "missing sections field -> SCOPE UNKNOWN, not assumed complete" || bad "unknown scope" "$o"
+printf '%s' "$o" | grep -q 'SCOPE CAVEAT' && ok "unknown scope is caveated (fail-closed on scope)" || bad "unknown caveat" "$o"
+o="$(bash "$SCRIPT" --audit "$AUD_NOSEC" --ledger "$LED_ONE" --json 2>&1)"
+printf '%s' "$o" | grep -q '"scope_state": "unknown"' && ok "json reports scope_state unknown" || bad "json unknown" "$o"
+
+echo "== Case 14: MUTANT — drop the scope caveat =="
+M3="$TMP/mutant-scope.sh"
+sed 's|^partial_scope = scope_state != "full"|partial_scope = False|' "$SCRIPT" > "$M3"
+o="$(bash "$M3" --audit "$AUD_PART" --ledger "$LED_ONE" 2>&1)"
+if printf '%s' "$o" | grep -q 'SCOPE CAVEAT'; then bad "mutant should suppress the caveat" "$o"; else ok "mutant suppressing partial_scope reproduces the misreadable pre-fix output"; fi
+
 printf '\n%s\n' "audit-warning-acknowledgement fixtures: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ] || exit 1
