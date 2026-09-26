@@ -75,13 +75,13 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Divergence registered in `.vendor-divergence.yaml` **before** the code change, with `risk_if_revendored` stating why a silent restore would read as correct behaviour
-- [ ] A config switch (default **OFF**) opens `acd_gate` for the `confirm` verb only; with the switch absent or off, behaviour is byte-identical to today
-- [ ] **THE LOAD-BEARING TEST:** with the switch **ON**, `weight --set`, `driver --add`, `driver --remove` and `auto-promote --enable` all STILL refuse. That is the case that proves the bypass was surgical; a test that only proves `confirm` works cannot distinguish this from a blanket bypass
-- [ ] Telemetry row per auto-confirmation records proposed, confirmed, overrides, delta_vs_proposed, proposer_exact — **and the no-signal driver count** (amendment (a): 74/449 proposals are fully no-signal and would otherwise log as the estimator agreeing with its own default)
-- [ ] `confirmed_by` records `agent:auto (<switch>)` on the auto path and never falls back to `$USER`
-- [ ] The telemetry path-override env var exists and is used by the tests, so no fixture row can ever reach the real append-only ledger
-- [ ] `fw bvp confirm --i-am-human` continues to work unchanged with the switch off or on — the human path is never removed, only an additional path added
+- [x] Divergence registered in `.vendor-divergence.yaml` **before** the code change, with `risk_if_revendored` stating why a silent restore would read as correct behaviour
+- [x] A config switch (default **OFF**) opens `acd_gate` for the `confirm` verb only; with the switch absent or off, behaviour is byte-identical to today
+- [x] **THE LOAD-BEARING TEST:** with the switch **ON**, `weight --set`, `driver --add`, `driver --remove` and `auto-promote --enable` all STILL refuse. That is the case that proves the bypass was surgical; a test that only proves `confirm` works cannot distinguish this from a blanket bypass
+- [x] Telemetry row per auto-confirmation records proposed, confirmed, overrides, delta_vs_proposed, proposer_exact — **and the no-signal driver count** (amendment (a): 74/449 proposals are fully no-signal and would otherwise log as the estimator agreeing with its own default)
+- [x] `confirmed_by` records `agent:auto (<switch>)` on the auto path and never falls back to `$USER`
+- [x] The telemetry path-override env var exists and is used by the tests, so no fixture row can ever reach the real append-only ledger
+- [x] `fw bvp confirm --i-am-human` continues to work unchanged with the switch off or on — the human path is never removed, only an additional path added
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -117,6 +117,12 @@ bvp_scores_proposed:
 -->
 
 ## Verification
+
+bash tests/bvp-auto-confirm-fixtures.sh
+# Case 3 is the load-bearing one: switch ON, the other four verbs still refuse.
+# Case 0 is a harness control that exits 2 rather than scoring a subject that
+# did not execute — added after the first run reported 13/25 against a library
+# that was never dispatched.
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.

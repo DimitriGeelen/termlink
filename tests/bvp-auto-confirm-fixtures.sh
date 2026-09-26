@@ -114,16 +114,59 @@ MD
 }
 
 # Drive bvp.sh exactly as an agent session would: CLAUDECODE=1, no human flag.
-run_bvp() { # env assignments come from the caller's exported vars
+#
+# `lib/bvp.sh` is a LIBRARY, not a script. bin/fw:4867 sources it and then calls
+# bvp_dispatch, and this reproduces those two lines. The first draft of this suite
+# ran `bash "$BVP" "$@"` instead, which merely defines functions and exits 0 in
+# silence — so every verb read as ALLOWED, every refusal read as missing, and the
+# Case 9 mutant reported KILLED while nothing had run. That is a whole suite of
+# false verdicts in both directions, which is why Case 0 below now refuses to let
+# any verdict be reported until the subject is proven to execute.
+run_bvp_at() { # $1 = path to the bvp library to drive; rest = argv
+    local lib="$1"; shift
     env PROJECT_ROOT="$PROJ" \
         FRAMEWORK_ROOT="$FW_ROOT" \
         CLAUDECODE=1 \
         FW_BVP_TELEMETRY_PATH="$LEDGER" \
         ${SWITCH+BVP_AUTO_CONFIRM="$SWITCH"} \
-        bash "$BVP" "$@" 2>&1
+        BVP_LIB="$lib" \
+        bash -c '. "$BVP_LIB"; bvp_dispatch "$@"' _ "$@" 2>&1
 }
 
+run_bvp() { run_bvp_at "$BVP" "$@"; }
+
 echo "=== T-3176: BVP auto-confirm switch + confirmation ledger ==="
+
+# ================================================================= Case 0
+# HARNESS CONTROL — runs first and exits 2 on failure, so a broken harness can
+# never be scored as a result. 832's convention (offsets 190/191): five times in
+# one day their mutation control set caught a misclassification in the SUITE
+# rather than a defect in the subject, and "a mutation that was never applied
+# reads identically to one the suite failed to catch."
+#
+# This suite needed it. Its first run reported 13 pass / 25 fail against a
+# subject that had not executed once.
+echo
+echo "Case 0 — harness control: is the subject actually running?"
+PROJ="$SCRATCH/c0"; LEDGER="$SCRATCH/c0.ndjson"; mk_project "$PROJ"; unset SWITCH
+ctl="$(run_bvp confirm --help)"
+if ! grep -qF -- 'Usage: fw bvp confirm' <<< "$ctl"; then
+    echo "  HARNESS BROKEN: 'confirm --help' produced no usage text." >&2
+    echo "  Got: $(head -c 200 <<< "$ctl")" >&2
+    echo "  The library is sourced + dispatched, not executed — check bvp_dispatch." >&2
+    exit 2
+fi
+ok "the subject executes and produces output"
+
+# And that it MUTATES: an explicit human confirm must write bvp_scores. Without
+# this leg, a subject that runs but silently no-ops would still score green below.
+ctl2="$(run_bvp confirm T-9001 --i-am-human)"
+if ! grep -q '^bvp_scores:' "$PROJ/.tasks/active/T-9001-fixture.md"; then
+    echo "  HARNESS BROKEN: a human confirm did not write bvp_scores: to the task." >&2
+    echo "  Got: $(head -c 300 <<< "$ctl2")" >&2
+    exit 2
+fi
+ok "the subject mutates the task file on a known-good path"
 
 # ================================================================= Case 1
 echo
@@ -150,7 +193,15 @@ assert_contains "$task" "confirmed_by: agent:auto (BVP_AUTO_CONFIRM)" \
     "amendment (b): confirmed_by names the auto path, never \$USER"
 assert_not_contains "$task" "confirmed_by: ${USER:-nobody}" \
     "amendment (b): the OS account never appears on the auto path"
-assert_contains "$task" "D2: 4" "the proposed scores were promoted"
+# Anchored on the bvp_scores: KEY, not on a score value. "D2: 4" also appears in
+# the bvp_scores_proposed: block, so the loose form passed in the first run even
+# though nothing had been promoted — a false green from a substring that was
+# already in the file before the subject was invoked.
+if grep -q '^bvp_scores:' "$PROJ/.tasks/active/T-9001-fixture.md"; then
+    ok "the proposed scores were promoted to bvp_scores:"
+else
+    fail "bvp_scores: was never written — nothing was promoted"
+fi
 
 # ================================================================= Case 3  ★
 echo
@@ -215,10 +266,15 @@ echo "        about a task it never assessed, inflating any accuracy figure."
 echo
 echo "Case 6 — the real ledger is never written by a fixture run"
 real="$PROJECT/.context/telemetry/bvp-confirmations.ndjson"
-before="$(wc -c < "$real" 2>/dev/null || echo 0)"
+# Size via a -f test rather than a redirect: `wc -c < missing` fails in the SHELL
+# before wc runs, so `2>/dev/null` on wc does not suppress it. An absent ledger is
+# the normal state until the switch is first turned on, and a checker that prints
+# an error on the healthy path is a checker people learn to skim past.
+ledger_size() { [ -f "$1" ] && wc -c < "$1" || echo 0; }
+before="$(ledger_size "$real")"
 PROJ="$SCRATCH/c6"; LEDGER="$SCRATCH/c6.ndjson"; mk_project "$PROJ"; SWITCH=1
 run_bvp confirm T-9001 >/dev/null
-after="$(wc -c < "$real" 2>/dev/null || echo 0)"
+after="$(ledger_size "$real")"
 if [ "$before" = "$after" ]; then
     ok "FW_BVP_TELEMETRY_PATH kept the real append-only ledger untouched"
 else
@@ -270,15 +326,26 @@ if ! grep -q '^    if True:' "$mut"; then
 else
     ok "mutant applied (auto_ok branch forced open)"
     PROJ="$SCRATCH/c9"; LEDGER="$SCRATCH/c9.ndjson"; mk_project "$PROJ"; SWITCH=1
-    mrc=0
-    env PROJECT_ROOT="$PROJ" FRAMEWORK_ROOT="$FW_ROOT" CLAUDECODE=1 \
-        FW_BVP_TELEMETRY_PATH="$LEDGER" BVP_AUTO_CONFIRM=1 \
-        bash "$mut" weight --set D1=4 --rationale "a rationale long enough to pass" \
-        >/dev/null 2>&1 || mrc=$?
-    if [ "$mrc" -eq 0 ]; then
-        ok "mutant KILLED — blanket bypass lets weight --set through, Case 3 would go red"
+
+    # CONTROL FIRST. Drive the UNMUTATED subject through the identical path and
+    # require it to REFUSE. Without this leg a "kill" is unfalsifiable: any harness
+    # fault that makes every invocation return 0 scores as a kill, which is exactly
+    # what the first run of this suite did.
+    run_bvp weight --set D1=4 --rationale "a rationale long enough to pass" >/dev/null 2>&1
+    crc=$?
+    if [ "$crc" -eq 0 ]; then
+        fail "MUTATION SETUP BROKEN — the UNMUTATED subject already allows weight --set"
+        echo "        A kill measured against this baseline would mean nothing."
     else
-        fail "mutant SURVIVED — Case 3 cannot distinguish surgical from blanket"
+        ok "control: unmutated subject refuses weight --set (rc $crc)"
+        run_bvp_at "$mut" weight --set D1=4 --rationale "a rationale long enough to pass" \
+            >/dev/null 2>&1
+        mrc=$?
+        if [ "$mrc" -eq 0 ]; then
+            ok "mutant KILLED — blanket bypass lets weight --set through, Case 3 goes red"
+        else
+            fail "mutant SURVIVED — Case 3 cannot distinguish surgical from blanket"
+        fi
     fi
 fi
 
