@@ -97,24 +97,24 @@ measurement-that-cannot-fail IW-4 exists to test for, and it is reproducible on 
   rationale: <working assumption: framework-wide. `lib/bvp.sh` is vendored, so a local patch is deleted by the next re-vendor — the exact failure 832 designed around by using a config switch. Operator owns both, so the scope is theirs to set; recorded as an assumption, not a settled fact.>
 
 - **IW-2: Telemetry slice first, or the switch first?**
-  confidence: 2
-  disposition: answered|deferred|dissolved
-  rationale: <working assumption: telemetry first. It is measurable, reversible, changes no governance, and it is what tells us whether the switch is safe to flip. Flipping first means auto-confirming scores with no way to know if the estimator is any good.>
+  confidence: 3
+  disposition: answered
+  rationale: NEITHER - my telemetry-first assumption is REFUTED by IW-5's measurement. The ledger records confirmations; there have been 0 confirmations ever and there will be 0 more while the gate stands, so a telemetry-first slice produces an empty file indefinitely. The halves are coupled. Correct order is both-at-once behind the off-by-default switch, telemetry landing first WITHIN that slice so no confirmation is written unrecorded. See report F5.
 
 - **IW-3: Are 832's claims about OUR tree actually true?**
-  confidence: 0
-  disposition: answered|deferred|dissolved
-  rationale: <UNVERIFIED. They state acd_gate() guards five verbs, that only `confirm` was opened, and that `fw arc create` (lib/arc.sh:399) has no agent gate. All three are claims about code we have not read. Nothing proceeds until these are checked here.>
+  confidence: 3
+  disposition: answered
+  rationale: VERIFIED by reading our own lib/bvp.sh - acd_gate guards exactly five verbs (weight :650, confirm :858, driver --add :939, driver --remove :1233, auto-promote --enable :1347) and fw arc create has no agent gate. Bonus finding F2: the gate's own refusal text cites 'weight/driver changes carry policy-edit authority' while refusing `confirm`, which is neither - our source already concedes their distinction.
 
 - **IW-4: Does the telemetry design survive OUR estimator's behaviour?**
-  confidence: 1
-  disposition: answered|deferred|dissolved
-  rationale: <832's ledger is meaningful only because `confirm` PROMOTES a proposal rather than writing scores fresh. Our estimator's no-signal default scores every driver 2, normalising a contentless task to exactly 0.40 — so a large fraction of our rows could be "proposer_exact" against a proposal that was never really an estimate. Needs measuring before the ledger is trusted.>
+  confidence: 3
+  disposition: answered
+  rationale: MEASURED - 74 of 449 proposals (16%) are all-2s/fully no-signal, the vacuous rows. 84% carry real signal, so the contaminant is bounded, not fatal. AMENDMENT REQUIRED: the ledger must record the no-signal count per row, else 16% of rows silently inflate any accuracy figure computed from it.
 
 - **IW-5: What would make us NOT do this?**
-  confidence: 1
-  disposition: answered|deferred|dissolved
-  rationale: <Named up front so the inception can genuinely return NO-GO: if the measured confirm-bottleneck is not real here (few tasks actually blocked on human confirmation), the change buys nothing and removes a gate for no gain.>
+  confidence: 3
+  disposition: answered
+  rationale: The NO-GO condition is NOT met - the bottleneck is total. Across 2877 tasks: 449 carry a proposed score, 0 have EVER been confirmed. A 100% block rate over the whole corpus, so every BVP-derived surface has never held a single data point. This is the strongest evidence in the task and it points to GO.
 
 ## Exploration Plan
 

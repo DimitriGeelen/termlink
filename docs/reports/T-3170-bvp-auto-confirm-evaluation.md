@@ -97,10 +97,69 @@ So the daily alarm stays on until this reaches a decision. `revisit_at: 2026-10-
 not the mechanism. The cost is one line of noise per day; the alternative is a well-written task
 nobody opens again.
 
-## Findings
+## Findings (steps 1-3 of the exploration plan, all pure reads)
 
-[FILLING — nothing verified yet]
+### F1 — 832's claims are TRUE in our tree (IW-3 settled)
+
+`acd_gate()` in our vendored `lib/bvp.sh` guards exactly the five verbs they named:
+`weight` (:650), `confirm` (:858), `driver --add` (:939), `driver --remove` (:1233),
+`auto-promote --enable` (:1347). And `fw arc create` has no agent gate — it requires
+`--headline-mechanic`, a content requirement, and never consults `CLAUDECODE`. Both claims
+confirmed by reading our own source, not taken on trust.
+
+### F2 — our own refusal message concedes their argument
+
+`acd_gate` refuses under `CLAUDECODE=1` unless `--i-am-human` or `--from-watchtower`, printing:
+
+> "Weight/driver changes carry policy-edit authority (D8 — sovereignty at policy-edit time)
+> and belong to the human, recorded via Watchtower."
+
+That message fires for `confirm` as well — a verb that is neither a weight change nor a driver
+change. **The gate's own stated justification does not cover the verb it is refusing.** 832's
+distinction (scoring a task against the rules is not rewriting the rules) is already implicit in
+our source; the gate simply applies one rationale to five verbs, and it only fits four of them.
+
+### F3 — the bottleneck is not merely real, it is total (IW-5 settled)
+
+Measured across all 2877 tasks with parseable frontmatter:
+
+| | count |
+|---|---|
+| carry a proposed score | **449** |
+| carry a CONFIRMED score | **0** |
+| proposal awaiting confirmation | **449** |
+
+**Zero scores have ever been confirmed in this project.** The gate has a 100% block rate over
+the entire corpus. Every BVP-derived surface that depends on confirmed scores — the priority
+ranking, `fw bvp --quadrant` — has therefore never had a single data point, which is consistent
+with the known symptom that `--quadrant hv-lc` "silently returns No tasks match".
+
+### F4 — the telemetry WOULD discriminate, mostly (IW-4 largely settled)
+
+Of 449 proposals, **74 (16%)** score every driver 2 with every driver marked `no-signal` — the
+vacuous rows that would log as `proposer_exact` against a non-estimate. The remaining 84% carry
+at least some real signal. Distribution of no-signal drivers per proposal: 3 drivers is the mode
+(239 proposals), 69 proposals are fully no-signal, only 1 proposal has none.
+
+So the contaminant is real and bounded, not fatal. The ledger should record the no-signal count
+per row so a vacuous agreement is distinguishable from a real one — without that field, 16% of
+rows would silently inflate any accuracy figure computed from it.
+
+### F5 — my recommended ORDERING was wrong, and F3 is what refutes it (IW-2)
+
+I recommended telemetry-first on the reasoning that it is measurable and reversible and would
+tell us whether the switch is safe. **F3 refutes it.** The ledger records confirmations. There
+have been zero confirmations, ever, and there will continue to be zero while the gate stands. A
+telemetry-first slice therefore produces an empty file indefinitely — it cannot observe the thing
+it exists to observe until the switch that generates the events is on.
+
+The two halves are coupled, which is presumably why 832 shipped them together. The correct
+ordering is both-at-once behind the off-by-default switch, with the telemetry landing first
+*within* that slice so no confirmation is ever written unrecorded.
 
 ## Recommendation
 
-[FILLING — DEFER at filing; see Go/No-Go criteria in the task]
+Not yet written — IW-1 (scope) is the operator's, and the recommendation should follow it rather
+than presume it. What the evidence supports so far: GO on the design, with three amendments —
+record the no-signal count per ledger row (F4), keep 832's `agent:auto (<switch>)` rather than a
+`$USER` fallback, and ship the telemetry path-override env var before any test suite exists.
