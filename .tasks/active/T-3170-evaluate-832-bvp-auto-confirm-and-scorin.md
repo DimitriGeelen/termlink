@@ -22,8 +22,9 @@ revisit_evidence_needed: "IW-3 settled: acd_gate's actual verb list read in OUR 
 target_blast_radius: 3            # int 0..9. Anticipated component count of the build work this inception would authorise on GO.
                                   # Substitutes for the absent components: list in the F8 cost formula (040). Required.
                                   # Guide: 0=docs only, 1=single file, 3=small subsystem (S), 5=cross-subsystem (M), 7=multi-arc (L), 9=framework-wide (XL).
-voi_score: 0.5                    # float 0..1. Value of Information — expected value of resolving this question,
+voi_score: 0.8                    # float 0..1. Value of Information — expected value of resolving this question,
                                   # independent of build cost. Higher when answer affects many tasks or unblocks a strategic decision. Required.
+                                  # T-3174 considered value (agent-proposed, operator may correct): Resolving this unblocks the entire BVP ranking feature: 449 proposals measured against 0 confirmations, so every priority surface is starved until the confirm question is answered.
 bvp_scores_proposed:
   - ts: '2026-09-26T17:52:50Z'
     estimator: bvp-estimator-v1-heuristic

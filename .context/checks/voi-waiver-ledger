@@ -1,0 +1,9 @@
+# voi_score waiver ledger (T-3174). Append-only.
+# A waiver is legitimate; a waiver nobody can count is not.
+# <iso-ts>\t<task>\t<reason>
+2026-09-26T19:42:15+00:00	T-8	throwaway spike, ranking irrelevant
+2026-09-26T19:42:15+00:00	T-9	absent on purpose, one-off
+2026-09-26T19:42:16+00:00	T-10	
+2026-09-26T19:43:43+00:00	T-8	throwaway spike, ranking irrelevant
+2026-09-26T19:43:43+00:00	T-9	absent on purpose, one-off
+2026-09-26T19:43:45+00:00	T-10	
