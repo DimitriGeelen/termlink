@@ -6,16 +6,16 @@ description: >
   Inception: Evaluate 832 BVP auto-confirm and scoring telemetry design from pickup
   offset 168
 
-status: work-completed
+status: started-work
 workflow_type: inception
 owner: human
-horizon: null
+horizon: now
 tags: []
-components: [scripts/gate-inception-voi.sh, tests/inception-voi-gate-fixtures.sh]
+components: []
 related_tasks: []
 created: 2026-09-26T17:52:31Z
-last_update: 2026-09-26T21:40:03Z
-date_finished: 2026-09-26T21:40:03Z
+last_update: 2026-09-26T21:21:30Z
+date_finished:
 revisit_at: 2026-10-03
 revisit_evidence_needed: "IW-3 settled: acd_gate's actual verb list read in OUR vendored lib/bvp.sh, plus a count of tasks genuinely blocked on human confirmation (IW-5). Backstop only — the primary forcing function is the framework-pickup canary, deliberately left firing on offset 168 until this task reaches a decision."
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -162,15 +162,15 @@ recommendation and a go/no-go.
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [x] Problem statement validated
+- [ ] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [x] Assumptions tested
+- [ ] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [x] Recommendation written with rationale
+- [ ] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [x] [REVIEW] Review exploration findings and approve go/no-go decision
+- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -231,11 +231,7 @@ recommendation and a go/no-go.
 
 ## Decision
 
-**Decision**: GO
-
-**Rationale**: 832 contributed a design, not a request: auto-confirm behind an off-by-default switch for the single confirm verb, plus a telemetry ledger recording proposed-vs-confirmed per driver. Their claims about which verbs acd_gate guards, and about fw arc create having no agent gate, are unverified here. DEFER until those are checked against our own vendored tree and the telemetry slice is scoped.
-
-**Date**: 2026-09-26T21:40:03Z
+<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
 
 ## Updates
 
@@ -244,42 +240,3 @@ recommendation and a go/no-go.
 
 ### 2026-09-26T17:52:50Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
-
-### 2026-09-26T21:40:03Z — inception-decision [inception-workflow]
-- **Action:** Recorded inception decision
-- **Decision:** GO
-- **Rationale:** 832 contributed a design, not a request: auto-confirm behind an off-by-default switch for the single confirm verb, plus a telemetry ledger recording proposed-vs-confirmed per driver. Their claims about which verbs acd_gate guards, and about fw arc create having no agent gate, are unverified here. DEFER until those are checked against our own vendored tree and the telemetry slice is scoped.
-
-## Reviewer Verdict (v1.5)
-
-- **Scan ID:** R-929af50a
-- **Timestamp:** 2026-09-26T21:40:04Z
-- **Catalogue:** v1.3-seed
-- **Overall:** CONCERN
-- **Needs Human:** no
-- **Findings:** 5
-
-**Verification-level findings:**
-
-  1. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-1
-     - evidence: `IW-1 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
-  2. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-2
-     - evidence: `IW-2 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
-  3. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-3
-     - evidence: `IW-3 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
-  4. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-4
-     - evidence: `IW-4 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
-  5. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-5
-     - evidence: `IW-5 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
-
-## Recommendation Verdict (v1.0)
-
-- **Scan ID:** RC-f3c6c27d
-- **Timestamp:** 2026-09-26T21:40:04Z
-- **Overall:** UNVERIFIED
-- **Claims:** 0
-- No verifiable claims found in ## Recommendation
-
-### 2026-09-26T21:40:03Z — status-update [task-update-agent]
-- **Change:** status: started-work → work-completed
-- **Reason:** Inception decision: GO
