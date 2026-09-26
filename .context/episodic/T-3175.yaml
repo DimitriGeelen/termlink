@@ -1,0 +1,89 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3175: Replace the voi block-gate with a prompt that remembers the answer and re-asks after N runs
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-26T20:09:44Z
+# ============================================================================
+
+task_id: T-3175
+task_name: "Replace the voi block-gate with a prompt that remembers the answer and re-asks after N runs"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-26T20:02:53Z
+completed: 2026-09-26T20:09:26Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-09-26T22:09:13+02:00
+last_commit: 2026-09-26T22:09:13+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  a prompt that remembers, not a gate that blocks
+
+# Key outcomes
+outcomes:
+  - '`scripts/voi-prompt.sh --check` reports what needs a decision and exits 0 when there is nothing to ask — so a quiet state is silent, not a repeated nag'
+  - '`--record` persists a decision to a git-tracked store: `set` (a value), `waive` (permanent, with a reason), or `snooze` (temporary, N runs)'
+  - '**Two snooze scopes**, because "stop asking about this task" and "stop asking about voi_score" are different requests: `--task T-XXX` and `--global`'
+  - '**A run counter drives expiry.** Each `--check` increments it; a snooze recorded at run R becomes askable again at R+N. Default N=10, settable with `--snooze N`'
+  - 'An expired snooze re-enters the ask set and says how long it was snoozed, so re-asking is visibly a re-ask rather than a fresh question'
+  - 'A **permanent waiver still requires a reason** — empty or bare-true does not waive (carried from T-3174)'
+  - 'The store records **who decided and when** for every entry, and is append-only for history while holding current state'
+  - '**Fails open and never blocks**: this asks, it does not gate. Unreadable store, bad YAML, no python3 all exit 0 with nothing pending'
+  - 'Fixtures `tests/voi-prompt-fixtures.sh` pass, covering the full cycle (ask → snooze → silent for N runs → re-ask), both scopes, and a mutant that breaks expiry so a snooze becomes permanent'
+  - 'The T-3174 blocking gate is retired or demoted so the two mechanisms cannot both fire, and `.claude/settings.json` is left untouched — no wiring is needed for a prompt'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/checks/voi-decisions.yaml'
+  - 'docs/operations/inception-voi-gate.md'
+  - 'scripts/gate-inception-voi.sh'
+  - 'scripts/voi-prompt.sh'
+  - '.tasks/active/T-3175-replace-the-voi-block-gate-with-a-prompt.md'
+  - 'tests/inception-voi-gate-fixtures.sh'
+  - 'tests/voi-prompt-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-26T22:09:13'
+    action: 'T-3175: a prompt that remembers, not a gate that blocks'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 6
+  commits: 1
+  files_changed: 7
+  lines_added: 824
+  lines_removed: 3
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3175-replace-the-voi-block-gate-with-a-prompt.md
+generated_by: context-agent-hybrid
