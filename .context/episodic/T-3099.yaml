@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3099: Empty-population WARN: stale-slice-references (L-417) scan walked 0 files
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-26T00:48:30Z
+# ============================================================================
+
+task_id: T-3099
+task_name: "Empty-population WARN: stale-slice-references (L-417) scan walked 0 files"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-24T23:54:20Z
+completed: 2026-09-26T00:48:22Z
+duration_days: 2
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fw audit WARN (T-3105 verdict-over-a-set emitter): the stale-slice-references (L-417) check walked 0 file(s) under web/templates web/blueprints lib. Investigate why the candidate population is empty.
+
+# Key outcomes
+outcomes:
+  - 'Determine whether web/templates, web/blueprints, lib legitimately have 0 files matching the stale-slice-reference scan, or whether it broke'
+  - 'Record the finding in this task''s Updates'
+  - '**Filed upstream as one cause, not patched** — `audit.sh` is vendored (G-062). `framework:pickup` **offset 178**, read-back verified (3355 bytes, 8/8 claims), `severity: high`.'
+  - '**Not silenced.** The WARN is truthfully reporting that it evaluated nothing (T-3105). The fix is upstream re-rooting; an allowlist entry here would restore the vacuous PASS that hid it.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 1494 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-008]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1494
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3099-empty-population-warn-stale-slice-refere.md
+generated_by: context-agent-hybrid

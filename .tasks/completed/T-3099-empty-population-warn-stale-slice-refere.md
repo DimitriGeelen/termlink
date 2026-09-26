@@ -1,17 +1,15 @@
 ---
-id: T-3098
-name: "Empty-population WARN: PROJECT_ROOT resolution scan walked 0 Python files under
-  web/+lib/"
+id: T-3099
+name: "Empty-population WARN: stale-slice-references (L-417) scan walked 0 files"
 description: >
-  fw audit WARN (T-3105 verdict-over-a-set emitter, origin T-2648/OBS-097): the PROJECT_ROOT-resolution-of-framework-owned-assets
-  scan walked 0 Python file(s) under web/ + lib/, so the OBS-097 rail asserted nothing
-  this run. Investigate why the candidate population is empty — moved files, wrong
-  glob, or a genuinely retired surface.
+  fw audit WARN (T-3105 verdict-over-a-set emitter): the stale-slice-references (L-417)
+  check walked 0 file(s) under web/templates web/blueprints lib. Investigate why the
+  candidate population is empty.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-008]
 components: []
 related_tasks: []
@@ -25,9 +23,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-24T23:54:07Z
-last_update: '2026-09-25T00:07:07Z'
-date_finished:
+created: 2026-09-24T23:54:20Z
+last_update: 2026-09-26T00:48:22Z
+date_finished: 2026-09-26T00:48:22Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -64,18 +62,22 @@ cost_estimate_proposed:
     rubric_sha: e4a00f38e801
 ---
 
-# T-3098: Empty-population WARN: PROJECT_ROOT resolution scan walked 0 Python files under web/+lib/
+# T-3099: Empty-population WARN: stale-slice-references (L-417) scan walked 0 files
 
 ## Context
 
-T-3105 (verdict-over-a-set emitter, origin T-2648/OBS-097) makes an empty-population WARN loud on purpose.
+T-3105 (verdict-over-a-set emitter, L-417) makes an empty-population WARN loud on purpose.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Determine whether web/+lib/ legitimately has 0 Python files for the OBS-097 rail to scan, or whether the file layout moved
-- [ ] Record the finding in this task's Updates
+- [x] Determine whether web/templates, web/blueprints, lib legitimately have 0 files matching the stale-slice-reference scan, or whether it broke
+  **ANSWER: it broke, the same way as T-3097 and T-3098 — wrong root.** `audit.sh:1818` does `for scan_dir in web/templates web/blueprints lib; do [ -d "$PROJECT_ROOT/$scan_dir" ] || continue`. All three are FRAMEWORK-owned and live under `$FRAMEWORK_ROOT` in a vendored consumer. Measured: every one of those paths is **ABSENT** at `$PROJECT_ROOT`, while the same three under `.agentic-framework/` hold **264** `.html`/`.py`/`.sh` files. The L-417 rail walks 0 of 264 and asserts nothing.
+- [x] Record the finding in this task's Updates
+  **One bug, three symptoms.** T-3097 (`1144`, seed corpus), T-3098 (`1771`, OBS-097), T-3099 (`1818`, L-417) all gate framework-owned directories on `$PROJECT_ROOT`. That is three of the nine standing audit warnings with a single cause. The sharpest part belongs to T-3098: `1771` **is** the OBS-097 split-root lint, so the guard against PROJECT_ROOT-resolution of framework assets is itself disabled by PROJECT_ROOT-resolution — which is why none of these three could ever detect the other two.
+- [x] **Filed upstream as one cause, not patched** — `audit.sh` is vendored (G-062). `framework:pickup` **offset 178**, read-back verified (3355 bytes, 8/8 claims), `severity: high`.
+- [x] **Not silenced.** The WARN is truthfully reporting that it evaluated nothing (T-3105). The fix is upstream re-rooting; an allowlist entry here would restore the vacuous PASS that hid it.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -171,7 +173,18 @@ T-3105 (verdict-over-a-set emitter, origin T-2648/OBS-097) makes an empty-popula
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
-true
+# the L-417 rail gates framework-owned scan dirs on PROJECT_ROOT
+grep -q 'for scan_dir in web/templates web/blueprints lib; do' .agentic-framework/agents/audit/audit.sh
+# every one of those paths is ABSENT at PROJECT_ROOT
+test ! -d web/templates
+test ! -d web/blueprints
+test ! -d lib
+# and populated at FRAMEWORK_ROOT — 264 files the rail never walks
+test "$(find .agentic-framework/web/templates .agentic-framework/web/blueprints .agentic-framework/lib \( -name '*.html' -o -name '*.py' -o -name '*.sh' \) -type f 2>/dev/null | wc -l)" -ge 264
+# filed upstream with T-3097/T-3098 as one cause, read back from the topic (T-2876)
+test -f /tmp/.t3097-readback.txt && grep -q "READ-BACK VERIFIED" /tmp/.t3097-readback.txt
+# G-062: vendored audit.sh untouched; WARN deliberately NOT silenced
+test -z "$(git status --porcelain .agentic-framework/agents/audit/audit.sh)"
 
 ## RCA
 
@@ -190,6 +203,13 @@ true
 -->
 
 ## Evolution
+
+### 2026-09-26 — third symptom of one bug, closed as such
+
+- **What changed:** the either/or the AC posed ("legitimately 0 files, or the scan broke") has a third answer: the scan is fine, the ROOT is wrong. `audit.sh:1818` gates `web/templates`, `web/blueprints` and `lib` on `$PROJECT_ROOT`; all three are framework-owned and absent there, while the same three under `.agentic-framework/` hold **264** files. The L-417 rail walks 0 of 264.
+- **Plan impact:** merged into one finding with T-3097 (1144) and T-3098 (1771) rather than filed three times. Three of the nine standing audit warnings, one cause. Filing that as three separate reports would have buried the thing that matters — that 1771 is the OBS-097 guard against this exact class and is disabled by it.
+- **Explicitly rejected:** silencing the WARN via allowlist. It truthfully reports evaluating nothing (T-3105); suppressing it restores the vacuous PASS.
+- **Triggered:** `framework:pickup` offset 178 (read-back verified), severity high. Vendored — not patched locally per G-062.
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
@@ -265,7 +285,22 @@ true
 
 ## Updates
 
-### 2026-09-24T23:54:07Z — task-created [task-create-agent]
+### 2026-09-24T23:54:20Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3098-empty-population-warn-projectroot-resolu.md
+- **Output:** /opt/termlink/.tasks/active/T-3099-empty-population-warn-stale-slice-refere.md
 - **Context:** Initial task creation
+
+### 2026-09-26T00:47:36Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-bf7694a5
+- **Timestamp:** 2026-09-26T00:48:23Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-09-26T00:48:22Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

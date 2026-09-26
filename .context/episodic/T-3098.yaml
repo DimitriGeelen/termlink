@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3098: Empty-population WARN: PROJECT_ROOT resolution scan walked 0 Python files under web/+lib/
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-26T00:47:31Z
+# ============================================================================
+
+task_id: T-3098
+task_name: "Empty-population WARN: PROJECT_ROOT resolution scan walked 0 Python files under web/+lib/"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-24T23:54:07Z
+completed: 2026-09-26T00:47:23Z
+duration_days: 2
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fw audit WARN (T-3105 verdict-over-a-set emitter, origin T-2648/OBS-097): the PROJECT_ROOT-resolution-of-framework-owned-assets scan walked 0 Python file(s) under web/ + lib/, so the OBS-097 rail asserted nothing this run. Investigate why the candidate population is empty — moved files, wrong glob, or a genuinely retired surface.
+
+# Key outcomes
+outcomes:
+  - 'Determine whether web/+lib/ legitimately has 0 Python files for the OBS-097 rail to scan, or whether the file layout moved'
+  - 'Record the finding in this task''s Updates'
+  - '**Filed upstream, not patched** — `audit.sh` is vendored (G-062). Filed with T-3097 and T-3099 as **one cause** at `framework:pickup` **offset 178**, read-back verified (3355 bytes, 8/8 claims), `severity: high`. Recorded there as the **fourth instance** of the "framework code assumes consumer layout" family (T-2815, T-3152, these three rails).'
+  - '**This WARN should not be silenced.** It is reporting truthfully that it evaluated nothing (T-3105). The fix is upstream re-rooting, not an allowlist entry — suppressing it here would restore the vacuous PASS that hid the defect in the first place.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 1493 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-008]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1493
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3098-empty-population-warn-projectroot-resolu.md
+generated_by: context-agent-hybrid
