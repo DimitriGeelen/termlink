@@ -1,10 +1,23 @@
 ---
 id: T-3009
-name: "Fabric edge enrichment (326/491 cards edgeless)"
+name: "Fabric edge enrichment (305/544 cards edgeless, standalone-excluded)"
 description: >
-  S-29/C-38: 326 of 491 fabric cards have no edges, so blast-radius answers are structurally
-  incomplete; run/repair fw fabric enrich and re-measure. Evidence: docs/reports/VALUE-REVIEW-repo-2026-09-19-consolidated.md
-  C-38.
+  S-29/C-38: fabric cards with no edges make blast-radius answers structurally incomplete.
+  RE-MEASURED 2026-09-26 (T-3131/T-3166): 305 edgeless of 544, where 544 = 556 cards on disk
+  minus the 12 already tagged standalone:true - the audit honours that opt-out at
+  audit.sh:658. The original title said 326/491; the numbers moved and nothing noticed, which
+  is the stale-premise rot T-3166 found in this task and in T-3117.
+
+  THE PRESCRIBED MITIGATION DOES NOT WORK. PL-161 (T-1655, 2026-05-17) established that
+  `fw fabric enrich` is structurally a no-op on cards with no detectable code-deps, and named
+  the correct resolution: tag them standalone:true. Measured 2026-09-26: enrich over 556 cards
+  enriched 4 and added 6 edges. So this task is NOT "run enrich again" - it is a ~305-card
+  triage separating cards that genuinely have no code dependencies (tag standalone:true, the
+  mechanism is live and already covers 12) from cards whose edges enrich cannot infer.
+
+  The warning is acknowledged in .context/checks/audit-warning-allowlist with that reason
+  pending this triage, so it no longer reads as unexamined. Evidence:
+  docs/reports/VALUE-REVIEW-repo-2026-09-19-consolidated.md C-38; PL-161.
 
 status: captured
 workflow_type: build

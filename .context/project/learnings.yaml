@@ -4507,3 +4507,9 @@ learnings:
   task: T-3165
   date: 2026-09-26
   context: Added via context agent
+- id: PL-386
+  learning: "When a framework check reports a number, reproduce it with the framework's OWN predicate before acting on a differing one. Measured three misses in one session, each from reimplementing a predicate the framework already owns: Python fnmatch gave 156 watch-pattern outliers where the canonical expand_patterns.py gives 10 (fnmatch treats **/ as requiring a directory level); a raw edgeless-card count gave 316/556 where the audit gives 305/544 because it honours the standalone:true opt-out at audit.sh:658. Both of my numbers were defensible-looking and would have sent me fixing non-problems. The check's denominator is part of its claim, so reconcile to the exact figure or state that you could not."
+  source: unknown
+  task: T-3131
+  date: 2026-09-26
+  context: Added via context agent
