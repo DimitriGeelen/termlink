@@ -13,16 +13,16 @@ description: >
   and any fix is a launch-path fix. Start by reading what fleet-adoption-snapshot
   already records rather than measuring afresh.
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
 created: 2026-09-02T06:19:43Z
-last_update: 2026-09-25T21:49:36Z
-date_finished:
+last_update: 2026-09-26T22:11:43Z
+date_finished: 2026-09-26T22:11:43Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -128,15 +128,15 @@ cost_estimate_proposed:
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -212,7 +212,19 @@ _Superseded rationale (at capture, before measurement):_ DEFER because the headl
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: The DEFER below was correct as written and asked for exactly one thing: partition the sessions into should-have-enrolled versus correctly-abstained before proposing anything. That partition has now been done (`docs/reports/T-2879-rail-enrolment-gap.md`), and it answers the question rather than refining it.
+
+Measured on 2026-09-25: **84** local Claude session records, of which **9** are reachable by the T-2876 predicate and **76** are `blocked` (at rest). Those 76 are correctly absent — CLAUDE.md says opting in is optional — so the original 1-of-14 framing flattered the denominator. The defensible statement is narrower and worse: **of the agents live enough to be worth reaching, ZERO are wakeable.** The one rail entry (`penelope`) carries no `pty_session`.
+
+The hypothesis worth killing was "the framework is blind to this". **It is not.** The T-2387 waker-liveness canary fires correctly, naming both classes (`LIVE-no-waker` and `rail-dark`), and `/canaries` agrees — `waker-liveness-canary FIRING`, 36,053-byte log. Detection and presentation are consistent.
+
+The actual finding is the inverse of this repo's usual one: **42 `rail-dark` firings in the log — roughly six weeks of a daily cron reporting the condition correctly, with no action taken.** Loud and unheeded, which is alarm fatigue (T-2818/T-2833) seen from the receiving end.
+
+There is nothing to build. PL-237 forecloses a retrofit (reach must be arranged at LAUNCH), and the remediation the canary itself prints — relaunch through the T-2388 launcher — is already ticketed as **T-2389** (`started-work`, arc-007, `owner: human`). Filing build work here would add a fourth artefact describing what three already describe and would not make one agent wakeable.
+
+**Date**: 2026-09-26T22:11:42Z
 
 ## Updates
 
@@ -222,3 +234,55 @@ _Superseded rationale (at capture, before measurement):_ DEFER because the headl
 ### 2026-09-25T21:46:12Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-09-26T22:11:42Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** The DEFER below was correct as written and asked for exactly one thing: partition the sessions into should-have-enrolled versus correctly-abstained before proposing anything. That partition has now been done (`docs/reports/T-2879-rail-enrolment-gap.md`), and it answers the question rather than refining it.
+
+Measured on 2026-09-25: **84** local Claude session records, of which **9** are reachable by the T-2876 predicate and **76** are `blocked` (at rest). Those 76 are correctly absent — CLAUDE.md says opting in is optional — so the original 1-of-14 framing flattered the denominator. The defensible statement is narrower and worse: **of the agents live enough to be worth reaching, ZERO are wakeable.** The one rail entry (`penelope`) carries no `pty_session`.
+
+The hypothesis worth killing was "the framework is blind to this". **It is not.** The T-2387 waker-liveness canary fires correctly, naming both classes (`LIVE-no-waker` and `rail-dark`), and `/canaries` agrees — `waker-liveness-canary FIRING`, 36,053-byte log. Detection and presentation are consistent.
+
+The actual finding is the inverse of this repo's usual one: **42 `rail-dark` firings in the log — roughly six weeks of a daily cron reporting the condition correctly, with no action taken.** Loud and unheeded, which is alarm fatigue (T-2818/T-2833) seen from the receiving end.
+
+There is nothing to build. PL-237 forecloses a retrofit (reach must be arranged at LAUNCH), and the remediation the canary itself prints — relaunch through the T-2388 launcher — is already ticketed as **T-2389** (`started-work`, arc-007, `owner: human`). Filing build work here would add a fourth artefact describing what three already describe and would not make one agent wakeable.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-15b2ae5f
+- **Timestamp:** 2026-09-26T22:11:43Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 2
+
+**Verification-level findings:**
+
+  1. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-2
+     - evidence: `IW-2 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+  2. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-3
+     - evidence: `IW-3 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+
+## Recommendation Verdict (v1.0)
+
+- **Scan ID:** RC-53e0c799
+- **Timestamp:** 2026-09-26T22:11:44Z
+- **Overall:** CONFIRMED
+- **Claims:** 9
+
+| Claim | Type | Status |
+|-------|------|--------|
+| `docs/reports/T-2879-rail-enrolment-gap.md` | file | ✓ pass |
+| `scripts/tl-claude.sh` | file | ✓ pass |
+| `T-2389` | task | ✓ pass |
+| `T-2876` | task | ✓ pass |
+| `T-2387` | task | ✓ pass |
+| `T-2818` | task | ✓ pass |
+| `T-2833` | task | ✓ pass |
+| `T-2388` | task | ✓ pass |
+| `T-2875` | task | ✓ pass |
+
+### 2026-09-26T22:11:43Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
