@@ -1,15 +1,14 @@
 ---
-id: T-3019
-name: "Pickup: Handover generator + PreCompact auto-commit mint a fresh D8/D8b FAIL
-  every (from 010-termlink)"
+id: T-3162
+name: "Enrich handover S-2026-0926-0224 — fill the four TODO sections the generator cannot know"
 description: >
-  Auto-created from pickup envelope. Source: 010-termlink, task T-3015. Type: bug-report.
+  Enrich handover S-2026-0926-0224 — fill the four TODO sections the generator cannot know
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: later
-tags: [pickup, bug-report]
+horizon: null
+tags: []
 components: []
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
@@ -22,9 +21,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-20T13:20:02Z
-last_update: 2026-09-26T00:24:35Z
-date_finished:
+created: 2026-09-26T00:27:25Z
+last_update: 2026-09-26T00:28:15Z
+date_finished: 2026-09-26T00:28:15Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -35,35 +34,9 @@ date_finished:
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
-source_task_id_in_origin: T-3015
-source_project_in_origin: "010-termlink"
-bvp_scores_proposed:
-  - ts: '2026-09-22T14:57:17Z'
-    estimator: bvp-estimator-v1-heuristic
-    scores:
-      D1: 4
-      D2: 0
-      D3: 3
-      D4: 2
-      F-RECALL: 1
-      F-ORCH: 0
-    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
-      (body:component-discoverability); D4=2 (body:env-class-handled); 
-      F-RECALL=1 (body:episodic-only); F-ORCH=0 (no-signal)
-    rubric_sha: e4a00f38e801
-cost_estimate_proposed:
-  - ts: '2026-09-22T14:57:41Z'
-    estimator: bvp-estimator-v1-heuristic
-    cost_estimate:
-      blast_radius:
-      tier: 2
-      effort: 8
-    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
-      (workflow:build); effort=8 (lines=221,acs=4)
-    rubric_sha: e4a00f38e801
 ---
 
-# T-3019: Pickup: Handover generator + PreCompact auto-commit mint a fresh D8/D8b FAIL every (from 010-termlink)
+# T-3162: Enrich handover S-2026-0926-0224 — fill the four TODO sections the generator cannot know
 
 ## Context
 
@@ -73,8 +46,12 @@ cost_estimate_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] All four `[TODO]` sections the generator leaves for a session agent are filled from this session's actual record — Decisions Made, Things Tried That Failed, Open Questions / Blockers, Gotchas. The only remaining `[TODO]` string is inside the frontmatter's own explanatory comment, which is what that comment exists to say.
+- [x] `enrichment_status` is flipped `pending` → `enriched`, **and** the Suggested-First-Action footer that cites the pending status is corrected — leaving it would have the document contradict its own frontmatter.
+- [x] **Things Tried That Failed records the failures, not just the successes** — including the discarded regex classifier (68% error rate), the absence assertion that matched its own explanatory comment, and the junk `probe` post to a shared topic. A handover that lists only what worked teaches the next session nothing about the walls.
+- [x] **Gotchas carries the reproducible traps with their mitigations**, not a pointer at the gaps register: the `decisions.yaml` auto-capture corruption and the confirmed empty-`## Decisions` workaround (4/4), `checkpoint.sh budget` not existing, the three misfiring gates, and the stray `/.git`.
+- [x] Open Questions states plainly that **every remaining eligible path is blocked on an operator ruling**, so the next session does not re-derive that from scratch.
+- [x] `## Decisions` left EMPTY (the vendored auto-capture mitigation, now 5/5).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -147,6 +124,34 @@ cost_estimate_proposed:
 # on, and grep scans the whole captured string anyway, so the `tail -3` was
 # cosmetic. `echo "$out" | grep -q PAT`, nothing between.
 #
+# ── Asserting an ABSENCE: prove the search could have succeeded (T-3144) ──
+#
+# `! grep -q "PATTERN" file` exits 0 when the pattern is absent. It ALSO exits 0
+# when the file was renamed, deleted, or is empty — so the leg cannot distinguish
+# "the bad thing is not there" from "I could not look", and the gate reports green
+# over a check that never ran. Pair every absence assertion with something that
+# fails if the search could not happen:
+#
+#     test -f path/to/file && ! grep -q "PATTERN" path/to/file    # existence first
+#     grep -q "KNOWN_MARKER" f && ! grep -q "PATTERN" f           # positive companion
+#     cmd > /tmp/.out 2>&1 && ! grep -q "PATTERN" /tmp/.out       # &&-joined producer
+#
+# Count-equals-zero is the same defect wearing a different hat, and it is the one
+# that bites hardest over a COMMAND's output rather than a file:
+#
+#     [ "$(cargo clippy --workspace 2>&1 | grep -c "^error")" = "0" ]   # WRONG
+#
+# If cargo is missing, or dies before emitting diagnostics, there are no `^error`
+# lines, the count is 0, and the leg passes — a build gate that goes green
+# precisely when the build could not run. Measured in this corpus, not invented.
+# Keep the producer's exit code in the verdict:
+#
+#     cargo clippy --workspace > /tmp/.out 2>&1 && ! grep -q "^error" /tmp/.out
+#
+# T-3144 censused 2853 task files: 71 absence assertions, 41 already correct, 30
+# not. The convention mostly works — this note is here so the next one is written
+# right, because a vacuous leg is invisible until the day the path moves.
+#
 # TEST RUNNERS need a guard either way (T-2738). `set -e` is suppressed inside the
 # `if` condition the gate runs each line in, so in `cmd1; cmd2` only cmd2 is the
 # verdict — and the pass marker you grep for survives a partial failure: a suite
@@ -169,6 +174,21 @@ cost_estimate_proposed:
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+# the handover exists and LATEST points at it
+test -f .context/handovers/S-2026-0926-0224.md
+test "$(readlink .context/handovers/LATEST.md)" = "S-2026-0926-0224.md"
+# enriched, and the footer no longer contradicts the frontmatter
+grep -q "^enrichment_status: enriched$" .context/handovers/S-2026-0926-0224.md
+test -f .context/handovers/S-2026-0926-0224.md && ! grep -q 'is `enrichment_status: pending`' .context/handovers/S-2026-0926-0224.md
+# exactly one [TODO string remains, and it is the frontmatter's own explanatory comment
+test "$(grep -c '\[TODO' .context/handovers/S-2026-0926-0224.md)" = "1"
+grep -q "Whoever enriches the \[TODO\] sections flips this" .context/handovers/S-2026-0926-0224.md
+# the four sections carry real content, sampled by load-bearing phrases
+grep -q "queue 141 → 135" .context/handovers/S-2026-0926-0224.md
+grep -q "68% error rate" .context/handovers/S-2026-0926-0224.md
+grep -q "firing on purpose" .context/handovers/S-2026-0926-0224.md
+grep -q "held \*\*4/4\*\*" .context/handovers/S-2026-0926-0224.md
 
 ## RCA
 
@@ -262,24 +282,19 @@ cost_estimate_proposed:
 
 ## Updates
 
-### 2026-09-20T13:20:02Z — task-created [task-create-agent]
+### 2026-09-26T00:27:25Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3019-pickup-handover-generator--precompact-au.md
+- **Output:** /opt/termlink/.tasks/active/T-3162-enrich-handover-s-2026-0926-0224--fill-t.md
 - **Context:** Initial task creation
 
-## DISPOSITION (arc-008, recorded under the pickup-race task)
+## Reviewer Verdict (v1.5)
 
-**Round-trip of this project's own upstream filing. No work to do here.**
+- **Scan ID:** R-55cca3d2
+- **Timestamp:** 2026-09-26T00:28:17Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
 
-This is the one task envelope `P-079` was designed to produce — the other two bearing
-this name are race artifacts. But the envelope is our OWN filing: the bug it
-describes was investigated, written up and filed at `framework:pickup` offset 126
-under T-3015, which is closed. The pipeline consumed our own report back into a
-local task.
-
-Its acceptance criteria are unfilled template placeholders. Not set to
-`work-completed` for the same reason as its duplicates: that would assert work the
-file does not contain. Moved to `horizon: later`.
-
-### 2026-09-20T14:01:27Z — status-update [task-update-agent]
-- **Change:** horizon: next → later
+### 2026-09-26T00:28:15Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3162: Enrich handover S-2026-0926-0224 — fill the four TODO sections the generator cannot know
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-26T00:28:23Z
+# ============================================================================
+
+task_id: T-3162
+task_name: "Enrich handover S-2026-0926-0224 — fill the four TODO sections the generator cannot know"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-26T00:27:25Z
+completed: 2026-09-26T00:28:15Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Enrich handover S-2026-0926-0224 — fill the four TODO sections the generator cannot know
+
+# Key outcomes
+outcomes:
+  - 'All four `[TODO]` sections the generator leaves for a session agent are filled from this session''s actual record — Decisions Made, Things Tried That Failed, Open Questions / Blockers, Gotchas. The only remaining `[TODO]` string is inside the frontmatter''s own explanatory comment, which is what that comment exists to say.'
+  - '`enrichment_status` is flipped `pending` → `enriched`, **and** the Suggested-First-Action footer that cites the pending status is corrected — leaving it would have the document contradict its own frontmatter.'
+  - '**Things Tried That Failed records the failures, not just the successes** — including the discarded regex classifier (68% error rate), the absence assertion that matched its own explanatory comment, and the junk `probe` post to a shared topic. A handover that lists only what worked teaches the next session nothing about the walls.'
+  - '**Gotchas carries the reproducible traps with their mitigations**, not a pointer at the gaps register: the `decisions.yaml` auto-capture corruption and the confirmed empty-`## Decisions` workaround (4/4), `checkpoint.sh budget` not existing, the three misfiring gates, and the stray `/.git`.'
+  - 'Open Questions states plainly that **every remaining eligible path is blocked on an operator ruling**, so the next session does not re-derive that from scratch.'
+  - '`## Decisions` left EMPTY (the vendored auto-capture mitigation, now 5/5).'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 0
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3162-enrich-handover-s-2026-0926-0224--fill-t.md
+generated_by: context-agent-hybrid
