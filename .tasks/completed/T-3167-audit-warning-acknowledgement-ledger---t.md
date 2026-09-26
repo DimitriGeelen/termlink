@@ -4,10 +4,10 @@ name: "Audit-warning acknowledgement ledger - the missing half of arc-008 succes
 description: >
   Audit-warning acknowledgement ledger - the missing half of arc-008 success condition
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-008]
 components: []
 related_tasks: []
@@ -22,8 +22,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-26T08:45:10Z
-last_update: 2026-09-26T08:45:10Z
-date_finished: null
+last_update: 2026-09-26T08:52:40Z
+date_finished: 2026-09-26T08:52:40Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -313,3 +313,15 @@ setting; Case 12's second mutant pins that by showing what a silenced FAIL would
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3167-audit-warning-acknowledgement-ledger---t.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-69b34c58
+- **Timestamp:** 2026-09-26T08:52:46Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-09-26T08:52:40Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

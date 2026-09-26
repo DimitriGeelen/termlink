@@ -1,0 +1,92 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3176: Local implementation: BVP auto-confirm switch plus scoring telemetry in vendored lib/bvp.sh
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-26T23:13:13Z
+# ============================================================================
+
+task_id: T-3176
+task_name: "Local implementation: BVP auto-confirm switch plus scoring telemetry in vendored lib/bvp.sh"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-26T21:24:27Z
+completed: 2026-09-26T23:13:00Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-26T23:25:55+02:00
+last_commit: 2026-09-27T00:46:55+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  register the divergence BEFORE touching the gate. BVP auto-confirm switch + confirmation ledger (local half). fabric card for the auto-confirm fixture suite. the suite ran, and its first run was measuring nothing
+
+# Key outcomes
+outcomes:
+  - 'Divergence registered in `.vendor-divergence.yaml` **before** the code change, with `risk_if_revendored` stating why a silent restore would read as correct behaviour'
+  - 'A config switch (default **OFF**) opens `acd_gate` for the `confirm` verb only; with the switch absent or off, behaviour is byte-identical to today'
+  - '**THE LOAD-BEARING TEST:** with the switch **ON**, `weight --set`, `driver --add`, `driver --remove` and `auto-promote --enable` all STILL refuse. That is the case that proves the bypass was surgical; a test that only proves `confirm` works cannot distinguish this from a blanket bypass'
+  - 'Telemetry row per auto-confirmation records proposed, confirmed, overrides, delta_vs_proposed, proposer_exact — **and the no-signal driver count** (amendment (a): 74/449 proposals are fully no-signal and would otherwise log as the estimator agreeing with its own default)'
+  - '`confirmed_by` records `agent:auto (<switch>)` on the auto path and never falls back to `$USER`'
+  - 'The telemetry path-override env var exists and is used by the tests, so no fixture row can ever reach the real append-only ledger'
+  - '`fw bvp confirm --i-am-human` continues to work unchanged with the switch off or on — the human path is never removed, only an additional path added'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fabric card for the auto-confirm fixture suite'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/lib/bvp.sh'
+  - '.fabric/components/tests-bvp-auto-confirm-fixtures.yaml'
+  - '.tasks/active/T-3170-evaluate-832-bvp-auto-confirm-and-scorin.md'
+  - '.tasks/active/T-3176-local-implementation-bvp-auto-confirm-sw.md'
+  - 'tests/bvp-auto-confirm-fixtures.sh'
+  - '.vendor-divergence.yaml'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-26T23:25:55'
+    action: 'T-3176: register the divergence BEFORE touching the gate'
+  - time: '2026-09-27T00:42:52'
+    action: 'T-3176: BVP auto-confirm switch + confirmation ledger (local half)'
+  - time: '2026-09-27T00:43:06'
+    action: 'T-3176: fabric card for the auto-confirm fixture suite'
+  - time: '2026-09-27T00:46:55'
+    action: 'T-3176: the suite ran, and its first run was measuring nothing'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 108 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 108
+  commits: 4
+  files_changed: 6
+  lines_added: 931
+  lines_removed: 28
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3176-local-implementation-bvp-auto-confirm-sw.md
+generated_by: context-agent-hybrid
