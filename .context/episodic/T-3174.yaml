@@ -1,0 +1,88 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3174: Gate unset voi_score on new inceptions with a cited-reason override
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-26T19:44:30Z
+# ============================================================================
+
+task_id: T-3174
+task_name: "Gate unset voi_score on new inceptions with a cited-reason override"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-26T19:40:01Z
+completed: 2026-09-26T19:44:16Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-09-26T21:44:05+02:00
+last_commit: 2026-09-26T21:44:05+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  a voi_score gate with a way through
+
+# Key outcomes
+outcomes:
+  - '`scripts/gate-inception-voi.sh` fires on an inception whose `voi_score` is absent or the untouched `0.5` template default, and exits non-zero so it can serve as a blocking PreToolUse hook'
+  - '**Override exists and is durable**: `voi_score_waived: "<reason>"` in the task frontmatter clears the gate. An EMPTY or missing reason does NOT clear it — a waiver without a reason is not a waiver'
+  - '**Override is logged, never silent** — every waiver and every env-bypass is appended to a git-tracked ledger with task id, reason and timestamp, so bypass volume is countable'
+  - '**Grandfathered**: tasks created before the cutoff do not fire. Measured: 244 of 245 existing inceptions carry default-or-absent, so an ungrandfathered gate would block a quarter of the backlog on day one'
+  - 'Non-inception tasks never fire, and a task with a real considered value never fires'
+  - '**Fail-open on unreadable input**: a malformed or unparseable task file must not block the operator''s work — this gate protects a ranking number, not a safety property, and blocking on its own bug would be worse than the defect'
+  - 'Fixtures `tests/inception-voi-gate-fixtures.sh` pass, weighted to the firing and override cases, with a mutant that disables the waiver check and must let an unreasoned waiver through'
+  - 'Carries `# guard-layer: source` so CI runs it, and `run-guard-layer.sh --list` shows it'
+  - 'The settings.json wiring that makes it BLOCKING is written out for operator approval, NOT applied — `.claude/settings.json` is the root of all enforcement'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/checks/voi-waiver-ledger'
+  - 'docs/operations/inception-voi-gate.md'
+  - 'scripts/gate-inception-voi.sh'
+  - '.tasks/active/T-3169-triage-the-frameworkpickup-queue---offse.md'
+  - '.tasks/active/T-3170-evaluate-832-bvp-auto-confirm-and-scorin.md'
+  - '.tasks/active/T-3174-gate-unset-voiscore-on-new-inceptions-wi.md'
+  - 'tests/inception-voi-gate-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-26T21:44:05'
+    action: 'T-3174: a voi_score gate with a way through'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 7
+  lines_added: 704
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3174-gate-unset-voiscore-on-new-inceptions-wi.md
+generated_by: context-agent-hybrid
