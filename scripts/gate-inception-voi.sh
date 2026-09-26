@@ -1,5 +1,24 @@
 #!/usr/bin/env bash
-# guard-layer: source --scan
+#
+# SUPERSEDED by scripts/voi-prompt.sh (T-3175). NOT a guard-layer member any more —
+# the marker was removed deliberately, and coverage is not reduced: the successor
+# detects the same condition, is enrolled in the guard layer, and carries its own
+# 34-assertion suite. Running both would put two mechanisms with contradictory
+# advice ("you are blocked" vs "here is a choice") on the same finding.
+#
+# WHY IT WAS REPLACED, recorded because the reasoning generalises. This script was
+# built to BLOCK. The operator's answer was: "I don't want the gate to block. It
+# should stop and give me a choice. And then record the choice so I'm not being asked
+# every time about it. Then maybe after 5 or 10 runs you can ask me again."
+#
+# A block cannot do that, and not because of effort — because of a structural fact:
+# a PreToolUse hook runs non-interactively and can only exit and print. It cannot ask
+# a question and wait for an answer. So "stop and give me a choice" can never live in
+# a hook; the thing that can ask is the agent, in conversation. That single fact turned
+# a gate into a prompt-with-memory and removed the need for any settings.json wiring.
+#
+# Kept rather than deleted: its fixtures still pass and it documents a design that was
+# tried and rejected for a stated reason, which is cheaper to read than to rediscover.
 #
 # T-3174 — gate an unset voi_score on NEW inceptions, with a cited-reason override.
 #

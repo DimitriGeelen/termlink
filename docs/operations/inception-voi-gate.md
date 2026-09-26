@@ -1,4 +1,63 @@
-# The voi_score gate (T-3174) — and the wiring you have to approve
+# voi_score: the prompt that remembers (T-3175, superseding T-3174)
+
+> **SUPERSEDED SECTION BELOW.** T-3174 built a BLOCKING gate and proposed wiring it into
+> `.claude/settings.json`. The operator rejected blocking: *"I don't want the gate to block.
+> It should stop and give me a choice. And then record the choice so I'm not being asked every
+> time about it. Then maybe after 5 or 10 runs you can ask me again."*
+>
+> **A hook cannot do that**, and not for want of effort — a PreToolUse hook runs
+> non-interactively and can only exit and print. It cannot ask a question and wait. So the
+> thing that asks is the AGENT, in conversation, and `scripts/voi-prompt.sh` is the memory
+> behind that conversation. **No settings.json wiring is needed or proposed.** The wiring
+> section at the end of this document is retained as a record of a design that was tried and
+> rejected for a stated reason.
+
+## How it works now
+
+```bash
+scripts/voi-prompt.sh --check          # anything to raise? rc 1 = yes
+scripts/voi-prompt.sh --status         # what was decided, and how many runs until re-ask
+```
+
+When `--check` reports something pending, the agent asks the operator and records the reply:
+
+```bash
+scripts/voi-prompt.sh --record --task T-XXX --choice set    --value 0.8
+scripts/voi-prompt.sh --record --task T-XXX --choice waive  --reason "throwaway spike"
+scripts/voi-prompt.sh --record --task T-XXX --choice snooze --snooze 10
+scripts/voi-prompt.sh --record --global     --choice snooze --snooze 10
+```
+
+**Three answers, because they mean different things.** `set` answers the question. `waive` says
+the question does not apply to this task, permanently, and requires a reason — an unreasoned
+waiver is the unset field with extra steps. `snooze` says *not now*, and expires.
+
+**Why a snooze expires.** An unexpiring "not now" is indistinguishable from having switched the
+thing off. Circumstances change; the question should come back.
+
+**Why runs and not days.** The operator asked for "5 or 10 runs". A run is one `--check`, so the
+snooze decays with how often the question would actually have come up. A project left alone for a
+month does not greet you with a pile of expired snoozes on return.
+
+**Two scopes**, because "stop asking about this task" and "stop asking about voi_score" are
+different requests: `--task` and `--global`.
+
+**Counting is exact, and a fixture had to prove it.** A snooze of N recorded at run R becomes
+askable at run **R+N+1**, so `--snooze 3` is silent for runs 1, 2 and 3 and asks again at run 4.
+The first implementation used R+N, which gave N-1 runs of silence — `--snooze 10` would have
+returned after 9. The fixture caught it; reading the code back did not.
+
+**It never blocks and always fails open.** Unreadable store, bad YAML, missing python3: exit 0,
+nothing pending. It asks; it does not gate.
+
+Store: `.context/checks/voi-decisions.yaml`, git-tracked, holding current state per key plus an
+append-only `history:` so "what did we decide and when" survives. Fixtures:
+`bash tests/voi-prompt-fixtures.sh` (34 assertions, including the full ask -> snooze -> silence ->
+re-ask cycle and a mutant that breaks expiry so a snooze becomes permanent).
+
+---
+
+# (historical) The voi_score gate (T-3174) — the blocking design, rejected
 
 ## What it protects
 

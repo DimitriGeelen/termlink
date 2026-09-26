@@ -1,0 +1,6 @@
+# voi_score decision store (T-3175). Managed by scripts/voi-prompt.sh.
+# `runs` counts --check invocations; a snooze recorded at run R is
+# askable again at R + snooze_runs. `history` is append-only.
+runs: 2
+decisions: {}
+history: []

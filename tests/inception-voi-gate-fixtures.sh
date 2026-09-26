@@ -78,7 +78,12 @@ printf '%s' "$out" | grep -q '"grandfathered_count"' && ok "scan reports grandfa
 printf '%s' "$out" | grep -q 'does NOT judge whether a set value' && ok "carries the scope disclaimer (T-2680)" || bad "scope" "$out"
 FW_VOI_GATE_TASKS_DIR="$D" bash "$GATE" --scan >/dev/null 2>&1
 rc_is "scan exits 1 while anything is firing" 1 "$?"
-grep -q '^# guard-layer: source' "$GATE" && ok "carries the guard-layer marker (T-2683)" || bad "marker" ""
+# T-3175 SUPERSEDED this script. The marker was removed on purpose so CI runs ONE
+# mechanism rather than two with contradictory advice. Assert the new truth rather
+# than deleting the assertion — a check that quietly stops asking is how a demotion
+# turns into an accident.
+grep -q '^# guard-layer: source' "$GATE" && bad "should NOT be a guard-layer member after T-3175" "" || ok "demoted: no guard-layer marker (superseded by voi-prompt.sh)"
+grep -q 'SUPERSEDED by scripts/voi-prompt.sh' "$GATE" && ok "header states what superseded it and why" || bad "superseded header" ""
 
 echo "== Case 7: MUTANT — drop the reason requirement =="
 M="$TMP/mutant.sh"
