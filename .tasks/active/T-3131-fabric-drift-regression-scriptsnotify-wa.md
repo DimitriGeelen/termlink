@@ -85,9 +85,22 @@ field, not by card filename/slug — confirmed by reading
 - [x] Local workaround: manually authored a disambiguated card for
       `scripts/notify-wake-consumer.py` with a distinct filename
 - [x] `fw fabric drift` reports 0 unregistered (confirmed)
-- [ ] Structural fix (make `_do_register_file`'s slug generation
-      extension-aware, or detect+warn on slug collision) — **not done here**:
-      vendored file, filed upstream per G-062, not a local edit
+- [x] Structural fix NOT patched locally (vendored, G-062) and **filed upstream
+      at `framework:pickup` offset 182**, read-back verified 6/6 claims, 4295 bytes.
+      The filing names the sharper half: the bug is not the collision but the
+      `return 0` at register.sh:202-205, which makes "already registered" and "a
+      different file collided and yours was never carded" indistinguishable and both
+      exit 0 — so `fw fabric register` reports success while `fw fabric drift` reports
+      the same file missing, permanently. Recommends comparing the existing card's
+      `location:` against the path being registered (loud refusal, no slug change,
+      shippable now) before any extension-aware slug migration. Also reports the rule
+      existing in three copies at :44/:112/:199, where the Python form is not
+      equivalent to the bash form on dotted directories.
+      NOTE: this AC previously read "filed upstream per G-062" and cited NO offset,
+      and stayed unticked. A scan of offsets 120-179 found no such filing — the claim
+      was empty for as long as nobody re-checked it, and the unticked box meant the
+      task could never close, so nothing forced the re-check. Filed for real under
+      T-3131 on 2026-09-26.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
