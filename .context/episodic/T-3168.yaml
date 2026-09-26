@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3168: Ledger must disclose the audit section scope - Warn 8 is structure-only, a full run emits 39+
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-26T09:20:14Z
+# ============================================================================
+
+task_id: T-3168
+task_name: "Ledger must disclose the audit section scope - Warn 8 is structure-only, a full run emits 39+"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-26T09:14:24Z
+completed: 2026-09-26T09:20:03Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-09-26T11:19:51+02:00
+last_commit: 2026-09-26T11:19:51+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  the ledger I shipped an hour ago had the flaw it was built to end
+
+# Key outcomes
+outcomes:
+  - 'The checker reads the audit''s `sections:` field and prints it on BOTH the clean and firing paths'
+  - 'When the section set is PARTIAL, output carries an explicit caveat that the count covers only those sections — a near-clean reading must not be misreadable as "the audit is nearly clean"'
+  - '`sections` and a `partial_scope` boolean appear in `--json`'
+  - 'An audit file with NO `sections` field is treated as unknown-scope and caveated, never silently assumed complete (fail-closed on scope, same principle as fail-closed on parse)'
+  - 'Fixtures cover full-scope, partial-scope and missing-sections audits, including a mutant that drops the caveat and must reproduce the misreadable output'
+  - 'Measured evidence recorded in the task: structure-only = 8 warnings, a full run emitted 39 before timing out at 560s'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'scripts/check-audit-warning-acknowledgement.sh'
+  - '.tasks/active/T-3168-ledger-must-disclose-the-audit-section-s.md'
+  - 'tests/audit-warning-acknowledgement-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-26T11:19:51'
+    action: 'T-3168: the ledger I shipped an hour ago had the flaw it was built to end'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 3
+  lines_added: 387
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3168-ledger-must-disclose-the-audit-section-s.md
+generated_by: context-agent-hybrid

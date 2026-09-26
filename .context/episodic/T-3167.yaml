@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3167: Audit-warning acknowledgement ledger - the missing half of arc-008 success condition
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-26T08:52:52Z
+# ============================================================================
+
+task_id: T-3167
+task_name: "Audit-warning acknowledgement ledger - the missing half of arc-008 success condition"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-26T08:45:10Z
+completed: 2026-09-26T08:52:40Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-09-26T10:52:25+02:00
+last_commit: 2026-09-26T10:52:25+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  "Warn 8" now reads "3 acknowledged, 5 unexamined"
+
+# Key outcomes
+outcomes:
+  - '`scripts/check-audit-warning-acknowledgement.sh` exists, reads the newest `.context/audits/*.yaml`, and classifies every WARN as acknowledged (matches a ledger entry) or unexamined'
+  - 'Ledger lives at `.context/checks/audit-warning-allowlist`, **git-tracked** (T-2681 — a guard whose health depends on unversioned local state is a guard whose green is not evidence)'
+  - 'Acknowledged entries are **counted and reported on the clean path**, so a green can never be misread as "no warnings" (T-2680)'
+  - '**Fail-closed**: absent audit file, absent/unparseable ledger, missing python3, or zero parsed warnings all exit 2 — never a vacuous 0'
+  - 'Carries the `# guard-layer: source` marker so it actually executes in CI, and `run-guard-layer.sh --list` shows it as a member (T-2683/T-2684 — an unexecuted check is the defect it exists to prevent)'
+  - 'Fixture suite `tests/audit-warning-acknowledgement-fixtures.sh` passes, weighted to firing cases, including a mutant that disables the ledger match and must turn acknowledged warnings back into unexamined ones'
+  - 'Run against today''s real audit: the three offset-178 wrong-root warnings acknowledge with cited reasons; the remaining warnings stay unexamined and are named'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/checks/audit-warning-allowlist'
+  - '.context/episodic/T-3166.yaml'
+  - 'scripts/check-audit-warning-acknowledgement.sh'
+  - '.tasks/active/T-3167-audit-warning-acknowledgement-ledger---t.md'
+  - '.tasks/completed/T-3166-examine-the-arc-008-open-backlog-against.md'
+  - 'tests/audit-warning-acknowledgement-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-26T10:52:25'
+    action: 'T-3167: "Warn 8" now reads "3 acknowledged, 5 unexamined"'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 7 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-008]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 7
+  commits: 1
+  files_changed: 6
+  lines_added: 784
+  lines_removed: 216
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3167-audit-warning-acknowledgement-ledger---t.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2879: Rail enrolment gap: 1 of 14 local Claude sessions is on the TermLink presence rail
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-26T22:11:50Z
+# ============================================================================
+
+task_id: T-2879
+task_name: "Rail enrolment gap: 1 of 14 local Claude sessions is on the TermLink presence rail"
+workflow_type: inception
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-02T06:19:43Z
+completed: 2026-09-26T22:11:43Z
+duration_days: 24
+updates_count: 2
+first_commit: 2026-09-02T08:22:25+02:00
+last_commit: 2026-09-25T23:49:36+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  file the rail-enrolment question T-2875 refers onward. inception measured — the rail is dark, loudly, and has been for ~6 weeks
+
+# Key outcomes
+outcomes:
+  - 'Problem statement validated'
+  - 'Assumptions tested'
+  - 'Recommendation written with rationale'
+  - '[REVIEW] Review exploration findings and approve go/no-go decision'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/working/.budget-status'
+  - '.context/working/feedback-stream.yaml'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/session.yaml'
+  - 'docs/reports/T-2879-rail-enrolment-gap.md'
+  - '.tasks/active/T-2879-rail-enrolment-gap-1-of-14-local-claude-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-02T08:22:25'
+    action: 'T-2879: file the rail-enrolment question T-2875 refers onward'
+  - time: '2026-09-25T23:49:36'
+    action: 'T-2879: inception measured — the rail is dark, loudly, and has been for ~6 weeks'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 35512 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 35512
+  commits: 2
+  files_changed: 7
+  lines_added: 347
+  lines_removed: 16
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2879-rail-enrolment-gap-1-of-14-local-claude-.md
+generated_by: context-agent-hybrid

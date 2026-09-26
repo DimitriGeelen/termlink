@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3170: Evaluate 832 BVP auto-confirm and scoring telemetry design from pickup offset 168
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-26T21:40:11Z
+# ============================================================================
+
+task_id: T-3170
+task_name: "Evaluate 832 BVP auto-confirm and scoring telemetry design from pickup offset 168"
+workflow_type: inception
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-26T17:52:31Z
+completed: 2026-09-26T21:40:03Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-26T19:55:05+02:00
+last_commit: 2026-09-26T19:58:06+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  pick up 832's BVP auto-confirm design — and leave the alarm ringing. 449 proposals, 0 confirmations — ever
+
+# Key outcomes
+outcomes:
+  - 'Problem statement validated'
+  - 'Assumptions tested'
+  - 'Recommendation written with rationale'
+  - '[REVIEW] Review exploration findings and approve go/no-go decision'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/reports/T-3170-bvp-auto-confirm-evaluation.md'
+  - '.tasks/active/T-3169-triage-the-frameworkpickup-queue---offse.md'
+  - '.tasks/active/T-3170-evaluate-832-bvp-auto-confirm-and-scorin.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-26T19:55:05'
+    action: 'T-3170: pick up 832''s BVP auto-confirm design — and leave the alarm ringing'
+  - time: '2026-09-26T19:58:06'
+    action: 'T-3170: 449 proposals, 0 confirmations — ever'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 227 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 227
+  commits: 3
+  files_changed: 5
+  lines_added: 1136
+  lines_removed: 15
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3170-evaluate-832-bvp-auto-confirm-and-scorin.md
+generated_by: context-agent-hybrid
