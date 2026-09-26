@@ -12,7 +12,7 @@ Run these in parallel:
 4. Check tool counter: `cat .context/working/.tool-counter`
 5. Check web server: `WURL=$(cat .context/working/watchtower.url 2>/dev/null || echo "http://localhost:$(bin/fw config get PORT 2>/dev/null || echo 3000)"); curl -sf "$WURL/" > /dev/null && echo "running at $WURL" || echo "stopped"`
    (Never hard-code `:3000` — the triple file `.context/working/watchtower.{pid,port,url}` is the single source of truth for Watchtower's current port. See `bin/fw doctor` for diagnostics.)
-6. Read budget cache: `cat .context/working/.budget-status` — canonical source for `level` + `tokens` (T-2155 / T-2156). Do NOT infer budget from system-reminder JSON or historical tool-result output; those can be stale snapshots re-injected by SessionStart:compact and look identical to a current cache read.
+6. Read budget: `.agentic-framework/agents/context/checkpoint.sh status` — per-process, parsed from this session's own transcript. Do NOT `cat .context/working/.budget-status`: that file is a SINGLE path shared by every concurrently dispatched `claude -p` worker, so it holds whichever worker wrote it last and a healthy session can read back another worker's near-exhausted count (T-3127, measured ~504K against a real ~169K). Do NOT infer budget from system-reminder JSON or historical tool-result output either; those can be stale snapshots re-injected by SessionStart:compact and look identical to a current cache read. There is no `checkpoint.sh budget` subcommand in this vendored copy — the script dispatches only `post-tool|reset|status`, and asking for `budget` exits 1 behind a "HOOK CRASHED" banner that misreports the instruction as an infrastructure fault (T-3165).
 
 ## Step 2: Summarize
 
@@ -35,7 +35,7 @@ Present this format (fill from gathered data):
 - Git: {clean/N uncommitted files}
 - Web UI: {running at {URL from .context/working/watchtower.url} / stopped}
 - Tool counter: {N} (P-009)
-- Budget: {level} ({tokens} tokens) — from .context/working/.budget-status
+- Budget: {level} ({tokens} tokens) — from `checkpoint.sh status` (per-process; NOT the shared .budget-status file, T-3127)
 
 ### Suggested Action
 {paste from LATEST.md "Suggested First Action" section}
