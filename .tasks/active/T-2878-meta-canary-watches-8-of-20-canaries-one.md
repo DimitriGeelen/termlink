@@ -103,6 +103,10 @@ that never names canaries individually and therefore cannot be forgotten for one
 - [x] **A canary that git schedules no cron for is not reported as dead.** The sweep reuses `canary-status.sh`'s own predicate — a genuine canary crontab names the log it appends to — so the source-level static checks that carry a heartbeat but no crontab are excluded rather than read STALE forever. Without this the sweep reproduces the exact noise T-2826 removed from `/canaries`.
 - [x] **The sweep fails closed.** A missing working dir, an absent cron source dir, or zero discovered canaries exits 2, never 0 — a sweep reporting "all alive" because it found nothing to look at is the false assurance this task exists to remove.
 - [x] **It is load-bearing, proven by mutation.** Fixtures drive the sweep against fixture dirs via `CANARY_SWEEP_WORKING_DIR` / `CANARY_SWEEP_CRON_DIR` (PL-213) with no live cron: a stale heartbeat fires, a fresh one does not, a log with no heartbeat companion fires as `NO-HEARTBEAT`, a heartbeat with no crontab is excluded, and an empty discovery set exits 2. Removing the `NO-HEARTBEAT` walk turns the hook-counter case green — the mutant that proves that arm carries weight.
+- [ ] [REVIEWER] The sweep crontab is installed and not drifted, so the coverage net actually fires daily
+  **Converted from a `### Human` `[RUBBER-STAMP]` AC on 2026-09-26 (T-3161, operator GO on SQ-1).** Its Expected clause was the output of `check-cron-install-drift.sh`, so per T-1811/T-1878 it belongs here with the check in `## Verification`. The `sudo cp` install was an operator act already performed.
+  **Measured 2026-09-26:** `/etc/cron.d/termlink-canary-aliveness-sweep` exists (4167 bytes, mode 0644, root); `check-cron-install-drift.sh` reports *healthy — 30 installed + matching*, **0 MISSING and 0 UNINSTALLED_JOBS**, rc 0. Until this was installed the sweep was shipped-but-dark — the exact G-069 state it exists to detect in others.
+  **Left unticked deliberately** — conversion is not closure.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -137,13 +141,7 @@ that never names canaries individually and therefore cannot be forgotten for one
        Pipefail/SIGPIPE section below forbids, and this line used to prescribe it.
 -->
 
-- [ ] [RUBBER-STAMP] Install the sweep crontab so the coverage net actually fires daily.
-  **Steps:**
-  1. The crontab is committed at `.context/cron/canary-aliveness-sweep.crontab` but installing to `/etc/cron.d` needs root, so until this step runs the sweep is shipped-but-dark — the exact G-069 state it exists to detect in others.
-  2. `cd /opt/termlink && sudo cp .context/cron/canary-aliveness-sweep.crontab /etc/cron.d/termlink-canary-aliveness-sweep`
-  3. `cd /opt/termlink && bash scripts/check-cron-install-drift.sh`
-  **Expected:** step 3 reports no MISSING or UNINSTALLED_JOBS entry for `canary-aliveness-sweep.crontab`.
-  **If not:** `/etc/cron.d` files must be mode 0644 and owned by root, and the filename must not contain a dot — cron silently ignores files that violate either rule, which reproduces the same silent-schedule failure this task closes.
+_The `[RUBBER-STAMP]` AC that was here has moved to `### Agent` as a `[REVIEWER]` AC — T-3161, operator GO on SQ-1. Its Expected clause was the output of `check-cron-install-drift.sh`, so per T-1811/T-1878 it does not belong in the human queue. The `sudo cp` install was an operator act and has already been performed. Preserved diagnosis if it ever fires again: `/etc/cron.d` files must be mode 0644, owned by root, and the filename must not contain a dot — cron silently ignores files violating either rule, reproducing the same silent-schedule failure this task closes._
 
 ## Verification
 
@@ -221,6 +219,10 @@ bash scripts/canary-status.sh > /tmp/.t2878d.txt 2>&1 || true; grep -qE "HEALTHY
 bash -n scripts/check-canary-aliveness.sh
 bash -n scripts/check-hook-counter-integrity.sh
 
+
+# T-3161: the converted [REVIEWER] AC — sweep crontab installed and not drifted
+test -f /etc/cron.d/termlink-canary-aliveness-sweep
+bash scripts/check-cron-install-drift.sh > /tmp/.t2878-cron.out 2>&1 && grep -q "healthy" /tmp/.t2878-cron.out
 ## RCA
 
 **Symptom:** `/canaries` reported `hook-counter-integrity-canary` FIRING with no

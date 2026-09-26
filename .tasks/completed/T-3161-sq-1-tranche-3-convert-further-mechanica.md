@@ -1,13 +1,13 @@
 ---
-id: T-3160
-name: "Ack the framework-pickup canary after triaging offsets 171/172"
+id: T-3161
+name: "SQ-1 tranche 3: convert further mechanically-checkable Human ACs"
 description: >
-  Ack the framework-pickup canary after triaging offsets 171/172
+  SQ-1 tranche 3: convert further mechanically-checkable Human ACs
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: later
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -21,9 +21,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-25T23:53:07Z
-last_update: 2026-09-25T23:55:11Z
-date_finished:
+created: 2026-09-26T00:07:51Z
+last_update: 2026-09-26T00:10:22Z
+date_finished: 2026-09-26T00:10:22Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,56 +34,40 @@ date_finished:
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
-bvp_scores_proposed:
-  - ts: '2026-09-25T23:55:03Z'
-    estimator: bvp-estimator-v1-heuristic
-    scores:
-      D1: 4
-      D2: 0
-      D3: 3
-      D4: 2
-      F-RECALL: 0
-      F-ORCH: 4
-    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
-      (body:component-discoverability); D4=2 (body:env-class-handled); 
-      F-RECALL=0 (no-signal); F-ORCH=4 (body:rubric-routable)
-    rubric_sha: e4a00f38e801
 ---
 
-# T-3160: Ack the framework-pickup canary after triaging offsets 171/172
+# T-3161: SQ-1 tranche 3: convert further mechanically-checkable Human ACs
 
 ## Context
 
-**PARKED 2026-09-26 — the ack is not earned yet, and acking anyway would be the exact
-failure the canary exists to prevent.**
+Tranche 3 of the SQ-1 conversion work (operator GO: *"On 1, yes, do that."*).
+Queue measured **136 → 135**. Running total across tranches: **141 → 135, six converted.**
 
-The task assumed two surfaced filings (offsets 171, 172). Running the canary before acking
-— which this task's own first AC requires, precisely so the ack answers a measured state —
-revealed **three**:
+**CONVERTED (1):**
 
-```
-off=168  FOR STRUCTURAL INCORPORATION — 832 T-856 (BVP scoring as an approval step)
-off=171  USER-FACING BUG + FIX in your Watchtower app — 832 T-858   [triaged, T-3158]
-off=172  CALIBRATION FINDING in the BVP estimator — 832 T-854       [triaged, T-3159]
-```
+- **T-2878** — *"Install the sweep crontab so the coverage net actually fires daily."*
+  Expected was the output of `check-cron-install-drift.sh`. Measured: the crontab exists at
+  `/etc/cron.d/termlink-canary-aliveness-sweep` (4167B, mode 0644, root) and the check reports
+  *healthy — 30 installed + matching*, **0 MISSING / 0 UNINSTALLED_JOBS**, rc 0.
 
-171 and 172 are triaged, with replies posted and read back (offsets 176, 177). **168 is
-not, and cannot be by an agent.** It proposes changing the §ACD sovereignty gate so that
-`fw bvp confirm` no longer requires human approval — a governance-model change, which this
-run's mandate says must be surfaced rather than decided. 832 say so themselves: *"whether
-it belongs in the framework default is yours."*
+**REFUSED (2), with reasons — this is the point of the tranche, not a shortfall.** T-3153
+measured ~57% of this queue as genuinely human; a pass that converts everything contradicts
+its own evidence.
 
-`--ack` bumps a single watermark to the newest offset; there is no partial ack. So acking
-now would silently mark 168 as processed, and a governance proposal awaiting an operator
-ruling would go quiet with nobody having ruled — G-063 reintroduced by the very command
-documented to clear it.
+- **T-2919** — *"Remove the stray commitless repo at `/`."* **Condition is NOT met.** `/.git`
+  still exists and `git -C /tmp rev-parse --git-dir` still resolves to `/.git`, so any git
+  command run from a non-repo directory on this host silently finds it. The outstanding work
+  is a destructive `sudo rm -rf /.git` **outside the project boundary** (T-559), guarded by an
+  explicit human judgement — *"if step 1 shows objects or commits, STOP — something started
+  using the repo; investigate before removing."* Converting an unmet, destructive,
+  out-of-boundary AC into an agent check would be the worst possible instance of this work.
+  **Surfaced rather than actioned:** the stray repo is a live host-wide hazard today, not a
+  tidy-up — every guard that asks "am I in a git repo?" answers yes anywhere on this host.
 
-**The canary therefore stays firing on purpose.** That is the correct state: there IS
-unprocessed inbound work. Parked rather than completed because its precondition is unmet,
-not because the work was hard.
-
-Unparks when the operator rules on 168 (surfaced as the top Sovereign question in this
-run's handback).
+- **T-2870** — *"Serialise both `fw pickup process` cron lines with `flock`."* Its Steps are a
+  sequence of `sudo cp` / `sudo rm` against `/etc/cron.d`, and I did not read its `Expected`
+  clause in full. My own first AC forbids converting an AC I have not read — the same ground
+  on which T-3154 excluded T-2878 before it was read properly. Left for a later tranche.
 
 <!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
@@ -91,11 +75,14 @@ run's handback).
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] The canary's **firing state is observed before acking**, so the ack is a response to a measured condition rather than a reflex.
-- [ ] The ack is **earned**: both surfaced filings (offsets 171 and 172) were genuinely triaged, with replies posted and read back from the topic (T-3158 offset 176, T-3159 offset 177). Acking un-triaged filings would reintroduce the exact G-063 miss the canary exists to prevent.
-- [ ] The ack is performed **through the script's own `--ack` path**, not by hand-editing `.context/working/.framework-pickup-canary.seen-offset`.
-- [ ] The canary is **re-run after the ack and confirmed quiet (exit 0)** — an ack whose effect is assumed rather than observed is the same vacuous-pass class this session has been closing all day.
-- [ ] `## Decisions` left EMPTY (the auto-capture mitigation, now 4/4).
+- [x] Each candidate's full `### Human` AC block is **read before conversion** — T-3154 excluded T-2878 on exactly this ground, and converting an AC I have not read is the failure this work exists to avoid.
+- [x] Each converted AC moves to `### Agent` as `[REVIEWER]`, **unticked**, with a real command added to that task's `## Verification` (CLAUDE.md T-1811/T-1878).
+- [x] **Every command written is executed and its verdict recorded before commit.** A converted AC whose command has never run replaces a human gate with an unverified one.
+- [x] Any candidate whose Expected clause turns out **not** to be settleable by a command, or whose Steps carry a genuine human judgement, is **left as a Human AC** with the reason recorded. T-3153 measured ~57% as genuinely human; a pass that converts everything contradicts its own evidence.
+- [x] **No AC is ticked and no task is closed**, verified mechanically (no `+- [x]`, no `+owner:` under `.tasks/active` outside this task's own file).
+- [x] The queue delta is **measured** with `fw review-queue`, so the tranche's effect is a number rather than a claim.
+- [x] The uncommitted T-3160 frontmatter delta left by the previous run's park/unpark cycle is picked up in this task's commit rather than left dangling.
+- [x] `## Decisions` left EMPTY — the vendored auto-capture mitigation, now 4/4.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -219,6 +206,20 @@ run's handback).
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+# the converted AC exists as [REVIEWER] in ### Agent
+grep -q "REVIEWER\] The sweep crontab is installed" .tasks/active/T-2878-meta-canary-watches-8-of-20-canaries-one.md
+# every command written into that block runs and passes
+test -f /etc/cron.d/termlink-canary-aliveness-sweep
+bash scripts/check-cron-install-drift.sh > /tmp/.t3161-cron.out 2>&1 && grep -q "healthy" /tmp/.t3161-cron.out
+# T-2919 was REFUSED and stays a Human AC — its condition is still unmet
+grep -q "RUBBER-STAMP\] Remove the stray commitless repo" .tasks/active/T-2919*.md
+test -d /.git
+# T-2870 was left unread and therefore unconverted
+grep -q "RUBBER-STAMP\] Serialise both" .tasks/active/T-2870*.md
+# SAFETY INVARIANT: no AC ticked, no task re-owned
+test -z "$(git diff -U0 -- .tasks/active ':(exclude).tasks/active/T-3161*' | grep -E '^\+- \[x\]' || true)"
+test -z "$(git diff -U0 -- .tasks/active ':(exclude).tasks/active/T-3161*' | grep -E '^\+owner:' || true)"
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -311,19 +312,19 @@ run's handback).
 
 ## Updates
 
-### 2026-09-25T23:53:07Z — task-created [task-create-agent]
+### 2026-09-26T00:07:51Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3160-ack-the-framework-pickup-canary-after-tr.md
+- **Output:** /opt/termlink/.tasks/active/T-3161-sq-1-tranche-3-convert-further-mechanica.md
 - **Context:** Initial task creation
 
-### 2026-09-25T23:54:20Z — status-update [task-update-agent]
-- **Change:** horizon: now → later
-- **Change:** status: started-work → captured (auto-sync)
+## Reviewer Verdict (v1.5)
 
-### 2026-09-25T23:55:03Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
-- **Change:** horizon: later → now (auto-sync)
+- **Scan ID:** R-d184b149
+- **Timestamp:** 2026-09-26T00:10:23Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
 
-### 2026-09-25T23:55:11Z — status-update [task-update-agent]
-- **Change:** horizon: now → later
-- **Change:** status: started-work → captured (auto-sync)
+### 2026-09-26T00:10:22Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
