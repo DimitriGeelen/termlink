@@ -6,16 +6,16 @@ description: >
   Inception: Examine the arc-008 open backlog against the 8 live audit warnings -
   which are actionable from here
 
-status: work-completed
+status: started-work
 workflow_type: inception
 owner: human
-horizon: null
+horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-09-26T08:00:26Z
-last_update: 2026-09-26T08:42:20Z
-date_finished: 2026-09-26T08:42:20Z
+last_update: 2026-09-26T08:01:05Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -130,15 +130,15 @@ any judgement on F-ORCH (value drivers are §ACD sovereignty-gated).
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [x] Problem statement validated
+- [ ] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [x] Assumptions tested
+- [ ] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [x] Recommendation written with rationale
+- [ ] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [x] [REVIEW] Review exploration findings and approve go/no-go decision
+- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -223,49 +223,7 @@ three Fabric ones.
 
 ## Decision
 
-**Decision**: GO
-
-**Rationale**: Recommendation: GO — narrowly, on two items, and explicitly NOT on "work the backlog"
-
-Revised from the filing-time DEFER now that the mapping is measured.
-
-Rationale:
-
-The examination found the arc's success condition is unreachable with the current instrument,
-which is a better finding than any individual warning. arc-008 requires every remaining warning to
-be "fixed OR explicitly acknowledged with a cited reason", and there is no acknowledgement
-mechanism for audit warnings at all — the only silencing available is a per-check global kill
-switch (`FW_RETIRE_WHEN_ADVISORY=0`) that removes the finding and the record, which is the
-opposite of acknowledgement. This repo already solved this exact problem twelve times on the other
-side of the guard layer: every static check carries a git-tracked `.context/checks/-allowlist`
-whose entries are counted and reported but do not fire, each with a cited reason (T-2681, T-2483,
-T-2680). The audit — oldest and most-read surface — never got one. Consequence today: three
-warnings ARE acknowledged in substance (filed upstream at offset 178, reason printed in the
-audit's own Mitigation line) and still land in the operator's "Warn 8" indistinguishably from
-unexamined ones.
-
-Second finding: arc-008 is self-diluting, so its closure percentage is not a meaningful
-progress measure. Its job is to absorb every new audit finding as a task, so every finding grows
-the denominator. Membership went 30 -> 72 while completions went 25 -> 40, taking the ratio from
-0.833 to 0.556. T-3117 was filed on the 0.833 reading and its premise has since expired. The
-threshold check can only fire during a quiet spell, and when it does it pressures closure of an
-arc that is by design never finished.
-
-GO is narrow and deliberately excludes the backlog itself: 27 of 46 active tasks are `owner:
-human`, the two largest are human judgement, and the only mechanically-actionable warnings are the
-three Fabric ones.
-
-Evidence:
-
-- `docs/reports/T-3166-arc-008-backlog-examination.md` — full measurement, warning-to-task table
-- Membership replicated with the audit's own predicate (audit.sh:6440-6460): 72 members, 40 completed, ratio 0.5556
-- Today's audit (`.context/audits/2026-09-26.yaml`) emits NO arc-closure warning for arc-008, confirming T-3117's premise expired
-- Per-arc ratios measured: arc-011 .952, arc-parallel-substrate .933, arc-substrate-fitness .917, mcp-slimming 1.0 all still exceed threshold — so T-3118/T-3119/T-3120/T-3121 are NOT stale and must not be batch-closed with T-3117
-- `check-stranded-finalized-tasks.sh`: 0 stranded, 72 partial-complete by design — the three work-completed-in-active tasks are T-193 by design, not the T-2833 defect
-- Refuted hypothesis recorded: the audit's `^tags:` regex does NOT undercount via block-style YAML lists (0 tasks affected)
-- `arc-011.yaml` declares `id: arc-010` — filename/id off-by-one that misled this examination
-
-**Date**: 2026-09-26T08:42:20Z
+<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
 
 ## Updates
 
@@ -274,90 +232,3 @@ Evidence:
 
 ### 2026-09-26T08:01:05Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
-
-### 2026-09-26T08:42:20Z — inception-decision [inception-workflow]
-- **Action:** Recorded inception decision
-- **Decision:** GO
-- **Rationale:** Recommendation: GO — narrowly, on two items, and explicitly NOT on "work the backlog"
-
-Revised from the filing-time DEFER now that the mapping is measured.
-
-Rationale:
-
-The examination found the arc's success condition is unreachable with the current instrument,
-which is a better finding than any individual warning. arc-008 requires every remaining warning to
-be "fixed OR explicitly acknowledged with a cited reason", and there is no acknowledgement
-mechanism for audit warnings at all — the only silencing available is a per-check global kill
-switch (`FW_RETIRE_WHEN_ADVISORY=0`) that removes the finding and the record, which is the
-opposite of acknowledgement. This repo already solved this exact problem twelve times on the other
-side of the guard layer: every static check carries a git-tracked `.context/checks/-allowlist`
-whose entries are counted and reported but do not fire, each with a cited reason (T-2681, T-2483,
-T-2680). The audit — oldest and most-read surface — never got one. Consequence today: three
-warnings ARE acknowledged in substance (filed upstream at offset 178, reason printed in the
-audit's own Mitigation line) and still land in the operator's "Warn 8" indistinguishably from
-unexamined ones.
-
-Second finding: arc-008 is self-diluting, so its closure percentage is not a meaningful
-progress measure. Its job is to absorb every new audit finding as a task, so every finding grows
-the denominator. Membership went 30 -> 72 while completions went 25 -> 40, taking the ratio from
-0.833 to 0.556. T-3117 was filed on the 0.833 reading and its premise has since expired. The
-threshold check can only fire during a quiet spell, and when it does it pressures closure of an
-arc that is by design never finished.
-
-GO is narrow and deliberately excludes the backlog itself: 27 of 46 active tasks are `owner:
-human`, the two largest are human judgement, and the only mechanically-actionable warnings are the
-three Fabric ones.
-
-Evidence:
-
-- `docs/reports/T-3166-arc-008-backlog-examination.md` — full measurement, warning-to-task table
-- Membership replicated with the audit's own predicate (audit.sh:6440-6460): 72 members, 40 completed, ratio 0.5556
-- Today's audit (`.context/audits/2026-09-26.yaml`) emits NO arc-closure warning for arc-008, confirming T-3117's premise expired
-- Per-arc ratios measured: arc-011 .952, arc-parallel-substrate .933, arc-substrate-fitness .917, mcp-slimming 1.0 all still exceed threshold — so T-3118/T-3119/T-3120/T-3121 are NOT stale and must not be batch-closed with T-3117
-- `check-stranded-finalized-tasks.sh`: 0 stranded, 72 partial-complete by design — the three work-completed-in-active tasks are T-193 by design, not the T-2833 defect
-- Refuted hypothesis recorded: the audit's `^tags:` regex does NOT undercount via block-style YAML lists (0 tasks affected)
-- `arc-011.yaml` declares `id: arc-010` — filename/id off-by-one that misled this examination
-
-## Reviewer Verdict (v1.5)
-
-- **Scan ID:** R-a33ee3ae
-- **Timestamp:** 2026-09-26T08:42:21Z
-- **Catalogue:** v1.3-seed
-- **Overall:** CONCERN
-- **Needs Human:** no
-- **Findings:** 3
-
-**Verification-level findings:**
-
-  1. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-2
-     - evidence: `IW-2 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
-  2. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-3
-     - evidence: `IW-3 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
-  3. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-5
-     - evidence: `IW-5 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
-
-## Recommendation Verdict (v1.0)
-
-- **Scan ID:** RC-8d13a709
-- **Timestamp:** 2026-09-26T08:42:21Z
-- **Overall:** CONFIRMED
-- **Claims:** 12
-
-| Claim | Type | Status |
-|-------|------|--------|
-| `docs/reports/T-3166-arc-008-backlog-examination.md` | file | ✓ pass |
-| `.context/audits/2026-09-26.yaml` | file | ✓ pass |
-| `T-2681` | task | ✓ pass |
-| `T-2483` | task | ✓ pass |
-| `T-2680` | task | ✓ pass |
-| `T-3117` | task | ✓ pass |
-| `T-3118` | task | ✓ pass |
-| `T-3119` | task | ✓ pass |
-| `T-3120` | task | ✓ pass |
-| `T-3121` | task | ✓ pass |
-| `T-193` | task | ✓ pass |
-| `T-2833` | task | ✓ pass |
-
-### 2026-09-26T08:42:20Z — status-update [task-update-agent]
-- **Change:** status: started-work → work-completed
-- **Reason:** Inception decision: GO

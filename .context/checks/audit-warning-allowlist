@@ -1,0 +1,29 @@
+# Audit-warning acknowledgement ledger — T-3167
+#
+# arc-008's bar is that every remaining audit warning is "fixed OR explicitly
+# acknowledged with a cited reason". This file is the second half. Entries here are
+# COUNTED AND REPORTED by scripts/check-audit-warning-acknowledgement.sh and do not
+# fire; they are never hidden, because a ledger that hides findings is the global
+# kill switch it replaces.
+#
+# Format:   <drift-stable pattern>  # <cited reason>
+#
+# The pattern is a case-sensitive SUBSTRING of the audit's `check` text. Use the
+# check's NAME, never its numbers. Audit check strings embed volatile counts
+# ("93 GO-scope-not-propagated ... of 176", "297/535 cards"), and a pattern
+# carrying a count silently stops matching the moment the count moves — that exact
+# drift is what made T-3117's premise expire unnoticed. The checker reports an
+# entry that matches nothing as a `stale-entry`, so rot is visible rather than silent.
+#
+# An entry is only appropriate when the finding is REAL and we are structurally
+# barred from fixing it here. Anything fixable gets fixed, not listed. Each entry
+# must state what would let it be deleted — an acknowledgement with no exit
+# condition is a permanent exemption wearing a reason as a disguise.
+#
+# A FAIL can never be acknowledged. The arc's bar is zero failures.
+
+All onboarding-seed corpus references resolve to existing maps  # T-3097: NOT a real gap — audit.sh:1144 resolves the framework-owned lib/seeds/tasks via $PROJECT_ROOT, so in a vendored consumer it scans a path that does not exist and the candidate set is empty by construction. The seed corpus holds 12 `corpus explain` references; the check walks 0. Vendored (G-062), filed upstream at framework:pickup offset 178 severity:high with the three-line root fix. DELETE THIS ENTRY when upstream resolves those dirs via $FRAMEWORK_ROOT and the check reports a non-empty candidate set.
+
+No PROJECT_ROOT resolution of framework-owned assets  # T-3098: same root cause as the entry above, and the sharpest instance of it — audit.sh:1771 IS the OBS-097 split-root lint whose stated purpose is catching framework dirs resolved via PROJECT_ROOT, and it is disabled by the class it guards. It would walk 135 .py files; it walks 0. Its own comment predicts the failure ("the failing path structurally cannot fire where the code is developed") because in AEF's own repo PROJECT_ROOT == FRAMEWORK_ROOT. Filed at offset 178. DELETE WHEN upstream fixes the root resolution.
+
+No stale-slice-references  # T-3099: third symptom of the same audit.sh wrong-root defect (line 1818). Would walk 264 files under web/templates, web/blueprints and lib; walks 0. Filed at offset 178 as one cause, not three bugs. DELETE WHEN upstream fixes the root resolution.
