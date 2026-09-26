@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3165: checkpoint.sh has no budget subcommand but /resume prescribes it as the G-087-safe read
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-26T07:58:04Z
+# ============================================================================
+
+task_id: T-3165
+task_name: "checkpoint.sh has no budget subcommand but /resume prescribes it as the G-087-safe read"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-26T07:51:10Z
+completed: 2026-09-26T07:57:56Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-09-26T09:57:51+02:00
+last_commit: 2026-09-26T09:57:51+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  an allowlist entry for code nobody wrote
+
+# Key outcomes
+outcomes:
+  - 'Measured: `checkpoint.sh` dispatches exactly `post-tool|reset|status` and has no `budget` case'
+  - 'Measured: every on-disk copy of the `/resume` skill that prescribes `checkpoint.sh budget` is enumerated, with its provenance (project / framework template / user settings) stated'
+  - 'Established whether the prescribing document is framework-owned (upstream, G-062) or project/user-owned (fixable here) — attribution stated before any fix or filing'
+  - 'Filed to `framework:pickup` if and only if the defect is in vendored code, with read-back verification from the topic (T-2876: delivered != received)'
+  - 'The report names the FAILURE DIRECTION explicitly: what a caller gets today when it follows the skill as written'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.claude/commands/resume.md'
+  - 'docs/reports/T-3165-checkpoint-budget-verb-gap.md'
+  - '.tasks/active/T-3165-checkpointsh-has-no-budget-subcommand-bu.md'
+  - '.tasks/completed/T-3164-enrich-handover-s-2026-0926-0928---fill-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-26T09:57:51'
+    action: 'T-3165: an allowlist entry for code nobody wrote'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 6
+  commits: 1
+  files_changed: 4
+  lines_added: 432
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3165-checkpointsh-has-no-budget-subcommand-bu.md
+generated_by: context-agent-hybrid

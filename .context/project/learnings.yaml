@@ -4501,3 +4501,9 @@ learnings:
   task: T-2976
   date: 2026-09-24
   context: Added via context agent
+- id: PL-385
+  learning: "An allowlist that names a verb the target script does not implement is a pre-granted review, not a typo: whoever writes that code later inherits a gate that already calls it safe. When a safety allowlist and an implementation disagree, the allowlist is the more dangerous side because it grants in advance. Check the adjacent audit comment — if it enumerates every OTHER entry and not this one, the entry never passed the review the comment records."
+  source: P-001
+  task: T-3165
+  date: 2026-09-26
+  context: Added via context agent
