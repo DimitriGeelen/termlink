@@ -1,13 +1,13 @@
 ---
 id: T-3173
-name: "BVP scores 44 percent of declared weight and one driver that was retired"
+name: "WITHDRAWN - BVP driver coverage finding was a measurement error, not a defect"
 description: >
   Confirms 832's pickup offset 180 finding against our own tree, and adds an inverse defect they do not have. MEASURED across all 449 proposals in the corpus. The estimator emits exactly six drivers: D1, D2, D3, D4 (100% of proposals), F-RECALL and F-ORCH (98%). policy/value-drivers.yaml declares nine: D1-D4, F-RECALL, F-AUTONOMY, F3, F1, F2. (1) DECLARED BUT NEVER SCORED: F-AUTONOMY (w4), F3 (w7), F1 (w7), F2 (w6) = 24 of 54 weight units, 44%, never participate in any score. 832 measured 43% at their site and found the consequence was that their ranking could not see product value at all, so three consecutive autonomous prioritisation runs each chose framework-remediation work, every selection correct against a model measuring 57% of itself. (2) SCORED BUT NOT DECLARED: F-ORCH is commented out at value-drivers.yaml:133 and is still scored in 442 proposals - a retired driver contributing to every score. The audit's standing F-ORCH retire_when WARN (one of the 8) is therefore about a driver already retired in the policy while the estimator keeps scoring it. Both directions are silent at the ranking surface: fw bvp prints BVP and NORM with no indication that 44% of declared weight took no part. 832's suggested fix is small and worth copying - print 'NORM 0.54 (over 30/54 weight; F1,F2,F3,F-AUTONOMY unscored)', the same shape as our own T-3105 abstention convention applied to the ranking line. Note this compounds with T-3170: there is no point auto-confirming scores produced by a model that measures 56% of itself.
 
 status: captured
 workflow_type: build
 owner: agent
-horizon: now
+horizon: later
 tags: []
 components: []
 related_tasks: []
@@ -37,6 +37,38 @@ date_finished: null
 ---
 
 # T-3173: BVP scores 44 percent of declared weight and one driver that was retired
+
+## WITHDRAWN 2026-09-26 — the finding was false
+
+This task asserted that 44% of declared BVP weight was never scored and that F-ORCH was a
+phantom driver. **Both claims are false.** They came from measuring the wrong file.
+
+A vendored install has TWO value-drivers.yaml:
+
+- `<FRAMEWORK_ROOT>/policy/value-drivers.yaml` — the canonical TEMPLATE the framework ships
+- `<PROJECT_ROOT>/policy/value-drivers.yaml` — the project's own policy, git-tracked
+
+`lib/bvp.sh:159,615` and `estimator.py:77` both read the PROJECT copy; bvp.sh:43 names the
+framework copy as the template. I compared the estimator's output against the TEMPLATE, which
+here is eleven weeks newer and declares a different driver set. The two are SUPPOSED to differ.
+
+Re-measured against the file everything actually reads:
+
+    declared: D1(9) D2(7) D3(5) D4(3) F-RECALL(6) F-ORCH(5)
+    emitted across 449 proposals: D1 D2 D3 D4 F-RECALL F-ORCH
+    declared-but-unscored: NONE     scored-but-undeclared: NONE
+    unscored weight: 0 of 35 (0%)
+
+Driver coverage here is exact. There is no defect.
+
+The claim was also sent to 832-Workflow-designer at `framework:pickup` offset 187 as an
+"independent confirmation" of their finding. Retracted at offset 189, read-back verified.
+
+Kept as a record rather than deleted: this is the fifth instance in one session of producing a
+plausible wrong number by mis-selecting a predicate or source the system already owns (PL-386),
+and the only one that reached another project. The learning was written after the third instance
+and did not prevent the fifth — which is the argument that this class needs a CHECK, not another
+learning.
 
 ## Context
 

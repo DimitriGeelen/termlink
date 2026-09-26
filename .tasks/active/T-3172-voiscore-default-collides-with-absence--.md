@@ -38,6 +38,35 @@ date_finished: null
 
 # T-3172: voi_score default collides with absence - 244 of 245 inceptions are indistinguishable
 
+## Verified in source 2026-09-26 (not taken from 832's report)
+
+`estimator.py::_score_inception_voi` (~:2244):
+
+    voi = fm.get("voi_score")
+    if voi is None:
+        return 2, ["→2 (voi-absent-grandfathered)"]
+    ...
+    score = int(round(voi_f * 5))
+
+`voi_score: 0.5` gives `int(round(2.5))` == 2 under banker's rounding; absent returns a literal
+2. The collision is exact and live.
+
+**One detail worth keeping:** the two paths ARE distinguishable in the rationale string
+("voi-absent-grandfathered" vs "voi:0.50") and identical in the score. The information exists one
+layer down and is discarded at precisely the point a ranking decision is made on it.
+
+**What is fixable WHERE:**
+
+- `estimator.py` is VENDORED (G-062) — the collision itself cannot be fixed locally, and a local
+  patch would be deleted by the next re-vendor.
+- `.tasks/templates/inception.md` is OURS (project root, git-tracked) — but removing the `0.5`
+  default does NOT help, because absent maps to 2 as well. Deleting the default changes which
+  branch is taken, not the number.
+- Therefore the only local fix with teeth is a GATE: a guard-layer check that refuses an
+  inception carrying an unset-or-default `voi_score`. 832's own evidence is the argument for it —
+  they tried a warning comment printed directly above the field and the figure did not move by
+  one. A comment is not a gate.
+
 ## Context
 
 <!-- One sentence for small tasks. Link to design docs for substantial ones. -->
