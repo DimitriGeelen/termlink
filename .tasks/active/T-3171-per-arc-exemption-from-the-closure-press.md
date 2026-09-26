@@ -1,20 +1,14 @@
 ---
-id: T-3117
-name: "Arc arc-008 hit 80% closure threshold (25/30) without explicit fw arc close"
+id: T-3171
+name: "Per-arc exemption from the closure-pressure check - recurring intake arcs should not be pressured to close"
 description: >
-  fw audit WARN (arc-completion, G-062 signature): arc-008 (this remediation arc)
-  is 25/30 (83%) complete but still in-progress. Sovereign-flavored: arc-008 is the
-  standing home for audit/doctor remediation across repeated cycles (this very run
-  adds more tasks to it), so 'closing' it conflicts with its ongoing-remediation purpose.
-  Surfacing as a question rather than deciding it — should arc-008 ever be closed
-  and a fresh arc opened per remediation cycle, or should its ratio-based closure-pressure
-  check be exempted for arcs explicitly designated as recurring?
+  Operator ruled under T-3117: arc-008 is exempt from the ratio-based closure-pressure check, and the mechanism should be fixed rather than the instance. audit.sh:6440-6490 computes completed/total per in-progress arc and WARNs above FW_ARC_COMPLETION_THRESHOLD (0.80). That threshold is GLOBAL - there is no per-arc opt-out. For an intake arc whose stated job is that every new audit finding becomes a task inside it, the denominator grows forever, so the ratio is not a progress measure and the warning pressures closure of something by design never finished. Needs a per-arc designation (e.g. recurring: true in the arc yaml) that the check honours. audit.sh is VENDORED so the mechanism fix is upstream per G-062; the local half is that the T-3167 acknowledgement ledger can acknowledge the warning with a cited reason when it next fires.
 
-status: started-work
+status: captured
 workflow_type: build
-owner: human
+owner: agent
 horizon: now
-tags: [arc:arc-008]
+tags: []
 components: []
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
@@ -27,9 +21,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-24T23:58:49Z
-last_update: 2026-09-26T18:06:44Z
-date_finished:
+created: 2026-09-26T18:07:17Z
+last_update: 2026-09-26T18:07:17Z
+date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -40,69 +34,20 @@ date_finished:
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
-bvp_scores_proposed:
-  - ts: '2026-09-25T00:06:52Z'
-    estimator: bvp-estimator-v1-heuristic
-    scores:
-      D1: 4
-      D2: 0
-      D3: 3
-      D4: 2
-      F-RECALL: 0
-      F-ORCH: 0
-    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
-      (body:component-discoverability); D4=2 (body:env-class-handled); 
-      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
-    rubric_sha: e4a00f38e801
-cost_estimate_proposed:
-  - ts: '2026-09-25T00:07:08Z'
-    estimator: bvp-estimator-v1-heuristic
-    cost_estimate:
-      blast_radius:
-      tier: 2
-      effort: 7
-    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
-      (workflow:build); effort=7 (lines=205,acs=3)
-    rubric_sha: e4a00f38e801
 ---
 
-# T-3117: Arc arc-008 hit 80% closure threshold (25/30) without explicit fw arc close
+# T-3171: Per-arc exemption from the closure-pressure check - recurring intake arcs should not be pressured to close
 
 ## Context
 
-Sovereign question, deliberately not decided here (see description) -- arc-008 is this very remediation arc, and closing it would conflict with using it as the ongoing remediation home.
-
-## Decision (operator, 2026-09-26)
-
-**EXEMPT, do not close.** arc-008 stays open as the standing remediation home; the
-ratio-based closure-pressure check should not apply to arcs designated as recurring. The
-operator also asked for the mechanism to be fixed rather than just this instance, filed as
-the follow-up below.
-
-**Evidence gathered under T-3166 before the ruling:**
-
-- The premise had already expired. T-3117 was filed at 25/30 (83%). Re-running the audit's own
-  membership predicate (audit.sh:6440-6460) gives **40/72 = 0.556** today, below the 0.80
-  threshold, and the current audit emits no arc-closure warning for arc-008 at all.
-- It expired for the structural reason this task's own description already named: arc-008 is an
-  intake queue, so every new audit finding grows its denominator. Completions went 25 -> 40
-  (+60%) while membership went 30 -> 72 (+140%).
-- **Credit where due:** the self-diluting nature and the exemption question were identified in
-  this task's description when it was filed, not discovered later. T-3166 contributed the
-  measurement that the premise had lapsed, not the insight.
-- The four sibling closure tasks are NOT stale and must not be closed alongside this one:
-  T-3118 (arc-010) .952, T-3119 (arc-001) .933, T-3120 (arc-002) .917, T-3121 (arc-005) 1.0 —
-  all still exceed the threshold today. Only arc-008's premise lapsed.
-
-**Follow-up:** T-3171 — per-arc exemption from the closure-pressure check. The check lives in
-vendored `audit.sh` and reads only a global `FW_ARC_COMPLETION_THRESHOLD`, with no per-arc
-opt-out, so the mechanism fix is upstream (G-062).
+<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] Human decides whether arc-008 should be closed and superseded by a fresh arc per remediation cycle, or exempted from the closure-pressure check as a recurring arc, and records the decision
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -175,6 +120,34 @@ opt-out, so the mechanism fix is upstream (G-062).
 # on, and grep scans the whole captured string anyway, so the `tail -3` was
 # cosmetic. `echo "$out" | grep -q PAT`, nothing between.
 #
+# ── Asserting an ABSENCE: prove the search could have succeeded (T-3144) ──
+#
+# `! grep -q "PATTERN" file` exits 0 when the pattern is absent. It ALSO exits 0
+# when the file was renamed, deleted, or is empty — so the leg cannot distinguish
+# "the bad thing is not there" from "I could not look", and the gate reports green
+# over a check that never ran. Pair every absence assertion with something that
+# fails if the search could not happen:
+#
+#     test -f path/to/file && ! grep -q "PATTERN" path/to/file    # existence first
+#     grep -q "KNOWN_MARKER" f && ! grep -q "PATTERN" f           # positive companion
+#     cmd > /tmp/.out 2>&1 && ! grep -q "PATTERN" /tmp/.out       # &&-joined producer
+#
+# Count-equals-zero is the same defect wearing a different hat, and it is the one
+# that bites hardest over a COMMAND's output rather than a file:
+#
+#     [ "$(cargo clippy --workspace 2>&1 | grep -c "^error")" = "0" ]   # WRONG
+#
+# If cargo is missing, or dies before emitting diagnostics, there are no `^error`
+# lines, the count is 0, and the leg passes — a build gate that goes green
+# precisely when the build could not run. Measured in this corpus, not invented.
+# Keep the producer's exit code in the verdict:
+#
+#     cargo clippy --workspace > /tmp/.out 2>&1 && ! grep -q "^error" /tmp/.out
+#
+# T-3144 censused 2853 task files: 71 absence assertions, 41 already correct, 30
+# not. The convention mostly works — this note is here so the next one is written
+# right, because a vacuous leg is invisible until the day the path moves.
+#
 # TEST RUNNERS need a guard either way (T-2738). `set -e` is suppressed inside the
 # `if` condition the gate runs each line in, so in `cmd1; cmd2` only cmd2 is the
 # verdict — and the pass marker you grep for survives a partial failure: a suite
@@ -197,8 +170,6 @@ opt-out, so the mechanism fix is upstream (G-062).
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
-
-true
 
 ## RCA
 
@@ -292,10 +263,7 @@ true
 
 ## Updates
 
-### 2026-09-24T23:58:49Z — task-created [task-create-agent]
+### 2026-09-26T18:07:17Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3117-arc-arc-008-hit-80-closure-threshold-253.md
+- **Output:** /opt/termlink/.tasks/active/T-3171-per-arc-exemption-from-the-closure-press.md
 - **Context:** Initial task creation
-
-### 2026-09-26T18:06:44Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
