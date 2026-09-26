@@ -35,6 +35,7 @@ import os
 import sys
 import re
 import glob
+import json
 import statistics
 from pathlib import Path
 
@@ -86,14 +87,124 @@ def _str_safe_load(text):
     return yaml.load(text, Loader=_L)
 
 
+# ------------------------------------------- T-3176 auto-confirm switch (LOCAL DIVERGENCE)
+# Registered in .vendor-divergence.yaml, status filed-upstream at framework:pickup
+# offset 193 (building on 832-Workflow-designer's offset 168). A re-vendor that
+# silently restores the closed gate reads as CORRECT behaviour, which is exactly why
+# the divergence is a config key rather than a deletion: the switch is legible in
+# .framework.yaml, a deleted gate would not be legible anywhere.
+_AUTO_CONFIRM_KEY = 'BVP_AUTO_CONFIRM'
+_TRUTHY = {'1', 'true', 'yes', 'on'}
+
+
+def _bvp_auto_confirm_enabled():
+    """True only when the switch is explicitly and recognisably on.
+
+    Resolution order: env var (operator override + the seam the fixtures drive),
+    then the .framework.yaml key, then OFF.
+
+    FAIL-CLOSED BY CONSTRUCTION: anything not in _TRUTHY is OFF — absent, '0',
+    'false', a typo, an unreadable or unparseable .framework.yaml. A sovereignty
+    gate that opens on a value it could not understand is worse than one that
+    never opened, so every unknown resolves to the closed state.
+    """
+    env = os.environ.get(_AUTO_CONFIRM_KEY)
+    if env is not None:
+        return env.strip().lower() in _TRUTHY
+    try:
+        cfg_text = (PROJECT_ROOT / '.framework.yaml').read_text()
+    except OSError:
+        return False
+    try:
+        cfg = _str_safe_load(cfg_text)
+    except Exception:
+        return False
+    if not isinstance(cfg, dict):
+        return False
+    val = cfg.get(_AUTO_CONFIRM_KEY)
+    if val is None:
+        return False
+    return str(val).strip().lower() in _TRUTHY
+
+
+def _bvp_telemetry_path():
+    """Append-only confirmation ledger.
+
+    The override env var exists BEFORE any test suite does, deliberately — 832
+    shipped theirs the other way round and their first fixture run wrote rows into
+    the real ledger. It is append-only, so those rows cannot be removed and are
+    documented as a permanent contaminant instead. Cheap to prevent, permanent if not.
+    """
+    override = os.environ.get('FW_BVP_TELEMETRY_PATH')
+    if override:
+        return Path(override)
+    return PROJECT_ROOT / '.context' / 'telemetry' / 'bvp-confirmations.ndjson'
+
+
+def _count_no_signal(proposal_entry, confirmed_keys):
+    """How many drivers in this proposal were scored with NO evidence to score on.
+
+    Amendment (a), and the one we rate load-bearing. The estimator renders a
+    no-signal driver as 2 — its own default — so a proposal where every driver is
+    no-signal promotes unchanged and logs as `proposer_exact`: the estimator
+    agreeing with itself, recorded as evidence that it is accurate. Measured here,
+    74 of 449 proposals (16%) are exactly that. Without this count any accuracy
+    figure derived from the ledger is inflated by those rows, and the telemetry
+    becomes a measurement that cannot fail.
+
+    Read from the estimator's own rationale string, which is the only place the
+    distinction survives — `D1=2 (no-signal); D2=2 (no-signal); ...`. Returns
+    (no_signal_count, driver_count). A proposal whose rationale we cannot read
+    returns a count of None rather than 0: "we did not measure" must not render
+    as "measured, and none".
+    """
+    driver_count = len(confirmed_keys)
+    if not isinstance(proposal_entry, dict):
+        return None, driver_count
+    rationale = proposal_entry.get('rationale')
+    if not isinstance(rationale, str) or not rationale.strip():
+        return None, driver_count
+    return len(re.findall(r'no-signal', rationale)), driver_count
+
+
+def _append_confirmation_row(row):
+    """One NDJSON line per confirmation. Returns (ok, error_text).
+
+    Never raises — the caller decides what a failed append means. It must not be
+    silent: a confirmation that reached the task file but not the ledger is the
+    write-only-sink class (G-063) pointed at our own telemetry.
+    """
+    path = _bvp_telemetry_path()
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, 'a') as fh:
+            fh.write(json.dumps(row, sort_keys=True) + "\n")
+        return True, None
+    except (OSError, TypeError, ValueError) as exc:
+        return False, str(exc)
+
+
 # ----------------------------------------------------------- §ACD agent gate
-def acd_gate(verb, args, refusal_hint=""):
+def acd_gate(verb, args, refusal_hint="", auto_ok=False):
     """T-1671 §ACD shape: refuse under $CLAUDECODE=1 unless --i-am-human or
     --from-watchtower. Returns True if allowed, False if refused (and prints
-    error). Used by all mutating verbs."""
+    error). Used by all mutating verbs.
+
+    `auto_ok` (T-3176) is the surgical opening. EXACTLY ONE call site passes it —
+    `confirm`, which scores a task AGAINST the value model. The other four verbs
+    (weight --set, driver --add, driver --remove, auto-promote --enable) EDIT the
+    value model, which is a different authority (D8, sovereignty at policy-edit
+    time), and they never pass it, so their behaviour is byte-identical to before.
+
+    The parameter is a caller-computed boolean rather than a key this function
+    reads, so there is exactly one place the auto path is decided and `confirmed_by`
+    cannot disagree with the gate about which path was taken.
+    """
     if os.environ.get('CLAUDECODE') != '1':
         return True
     if '--i-am-human' in args or '--from-watchtower' in args:
+        return True
+    if auto_ok:
         return True
     print(f"Error: agents must not invoke 'fw bvp {verb}' directly (§ACD, M6).", file=sys.stderr)
     print("", file=sys.stderr)
@@ -855,8 +966,17 @@ def cmd_confirm(args):
     # the §ACD refusal). Different ordering from cmd_weight (where rationale
     # validation precedes §ACD) — confirm has no comparable "form" check that
     # benefits from running first.
+    # T-3176: decided ONCE, here, and handed to the gate. `confirmed_by` reads the
+    # same variable, so the task file cannot claim a different path from the one the
+    # gate actually took.
+    auto_path = (os.environ.get('CLAUDECODE') == '1'
+                 and '--i-am-human' not in args
+                 and '--from-watchtower' not in args
+                 and _bvp_auto_confirm_enabled())
+
     if not acd_gate('confirm', args,
-                    refusal_hint="Correct flow: human reviews proposed scores in Watchtower or runs `fw bvp confirm T-<id> --i-am-human`"):
+                    refusal_hint="Correct flow: human reviews proposed scores in Watchtower or runs `fw bvp confirm T-<id> --i-am-human`",
+                    auto_ok=auto_path):
         return 1
 
     # Locate task file.
@@ -896,6 +1016,7 @@ def cmd_confirm(args):
     # Build the confirmed map. Proposed is a list of timestamped entries
     # (per T-1918 schema); take the newest entry's scores dict.
     confirmed = {}
+    latest = None
     if proposed:
         latest = proposed[-1] if isinstance(proposed, list) else proposed
         # latest is expected to have a 'scores' key per M3, or be the scores dict directly.
@@ -904,6 +1025,13 @@ def cmd_confirm(args):
                 confirmed.update({k: int(v) for k, v in (latest.get('scores') or {}).items()})
             else:
                 confirmed.update({k: int(v) for k, v in latest.items() if isinstance(v, (int, float)) and not isinstance(v, bool)})
+    # T-3176: snapshot the proposal BEFORE overrides land and before the field is
+    # cleared. This is the whole reason the telemetry is worth anything — `confirm`
+    # PROMOTES an existing proposal rather than writing scores from scratch, so a row
+    # can say what the estimator guessed and what it got wrong. Had auto-confirm
+    # written from scratch, every row would say the same thing.
+    proposed_scores = dict(confirmed)
+
     confirmed.update(overrides)
 
     if not confirmed:
@@ -912,7 +1040,11 @@ def cmd_confirm(args):
 
     fm['bvp_scores'] = confirmed
     fm['bvp_scores_proposed'] = []  # M3 — cleared; estimator may re-populate next sweep.
-    fm['confirmed_by'] = os.environ.get('USER', 'unknown')
+    # T-3176 amendment (b): $USER on the auto path records the OS account the agent
+    # happens to run as, which makes an automatic confirmation indistinguishable from
+    # an operator's in the task file — the one place a reader looks to tell them apart.
+    fm['confirmed_by'] = (f'agent:auto ({_AUTO_CONFIRM_KEY})' if auto_path
+                          else os.environ.get('USER', 'unknown'))
     fm['confirmed_at'] = _utc_now()
 
     # Re-serialise frontmatter + write back.
@@ -932,6 +1064,44 @@ def cmd_confirm(args):
         print(f"  Overrides applied: {overrides}")
     print(f"  Confirmed by: {fm['confirmed_by']}  at: {fm['confirmed_at']}")
     print(f"  bvp_scores_proposed: cleared (M3 — estimator may re-propose if next pass diverges by ≥2)")
+
+    # T-3176: record the confirmation. Human confirmations are recorded too — a
+    # ledger holding only auto rows cannot answer "is the estimator better or worse
+    # than the operator", which is the question the operator actually asked for.
+    delta = {k: [proposed_scores.get(k), v] for k, v in confirmed.items()
+             if proposed_scores.get(k) != v}
+    no_signal, driver_count = _count_no_signal(latest, confirmed.keys())
+    row = {
+        'ts': fm['confirmed_at'],
+        'task': task_id,
+        'path': 'auto' if auto_path else 'human',
+        'confirmed_by': fm['confirmed_by'],
+        'proposal_existed': bool(proposed_scores),
+        'proposed': proposed_scores,
+        'confirmed': confirmed,
+        'overrides': overrides,
+        'delta_vs_proposed': delta,
+        # A proposal existed and was promoted byte-identical, with no overrides.
+        'proposer_exact': bool(proposed_scores) and not delta and not overrides,
+        'no_signal_count': no_signal,
+        'driver_count': driver_count,
+        # The flag amendment (a) exists to expose: every driver scored with nothing
+        # to score on. None (rationale unreadable) is NOT False — we did not measure.
+        'all_no_signal': (None if no_signal is None
+                          else bool(driver_count) and no_signal >= driver_count),
+        'estimator': latest.get('estimator') if isinstance(latest, dict) else None,
+        'rubric_sha': latest.get('rubric_sha') if isinstance(latest, dict) else None,
+    }
+    ok, err = _append_confirmation_row(row)
+    if not ok:
+        # The scores ARE written; only the record failed. Say so loudly and exit
+        # non-zero, so nothing downstream reads this run as cleanly recorded. A
+        # confirmation silently missing from the ledger is G-063 aimed at ourselves.
+        print(f"ERROR: scores were confirmed but the telemetry row could NOT be written: {err}",
+              file=sys.stderr)
+        print(f"  Ledger: {_bvp_telemetry_path()}", file=sys.stderr)
+        print(f"  {task_id} is confirmed on disk; the ledger is now incomplete.", file=sys.stderr)
+        return 1
     return 0
 
 
