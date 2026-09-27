@@ -94,29 +94,29 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Divergence registered in `.vendor-divergence.yaml` BEFORE the code change, with
+- [x] Divergence registered in `.vendor-divergence.yaml` BEFORE the code change, with
       `risk_if_revendored` stating what a silent restore costs.
-- [ ] All FIVE verbs reachable by an agent with no `--i-am-human`: `confirm`,
+- [x] All FIVE verbs reachable by an agent with no `--i-am-human`: `confirm`,
       `weight --set`, `driver --add`, `driver --remove`, `auto-promote --enable`.
-- [ ] Implemented as a config DEFAULT, not a deletion. Setting `BVP_HUMAN_APPROVAL`
+- [x] Implemented as a config DEFAULT, not a deletion. Setting `BVP_HUMAN_APPROVAL`
       true restores §ACD gating on all five. A deleted gate cannot be restored by a
       consumer, and a re-vendor would reinstate it with no symptom to notice.
-- [ ] `--i-am-human` and `--from-watchtower` still work unchanged. The human path is
+- [x] `--i-am-human` and `--from-watchtower` still work unchanged. The human path is
       never removed — only the *requirement* is.
-- [ ] **STICKY OVERRIDE — the load-bearing criterion.** A human-set score records
+- [x] **STICKY OVERRIDE — the load-bearing criterion.** A human-set score records
       `bvp_scores_source: human`, and the AGENT path then REFUSES to overwrite it. The
       test that matters is not "an agent can confirm"; it is "a human override survives
       a subsequent automated assessment run". Pinned by a fixture that scores, overrides
       as human, re-proposes, auto-confirms, and asserts the human values are still there.
-- [ ] Two states only, no third. `human` or freely-recomputed — 832's design at offsets
+- [x] Two states only, no third. `human` or freely-recomputed — 832's design at offsets
       190/191. An "unknown provenance" state reintroduces the ambiguity being removed.
-- [ ] `--rationale` still required on `weight --set` / `driver --add` / `driver --remove`,
+- [x] `--rationale` still required on `weight --set` / `driver --add` / `driver --remove`,
       the 30-character minimum removed, and NOT required when the value is being set for
       the first time. Changing an established value is what the weight-history audit
       exists for; establishing a baseline is not.
-- [ ] Fixtures fail against the pre-change code extracted from git, not a synthetic
+- [x] Fixtures fail against the pre-change code extracted from git, not a synthetic
       mutant, with a control leg proving that copy sources and answers first.
-- [ ] Filed upstream at `framework:pickup` for incorporation into the framework, verified
+- [x] Filed upstream at `framework:pickup` for incorporation into the framework, verified
       by read-back (T-2876), and `filed_at` updated with the real offset.
 
 ### Human
@@ -153,6 +153,16 @@ bvp_scores_proposed:
 -->
 
 ## Verification
+
+bash tests/bvp-auto-confirm-fixtures.sh
+bash scripts/check-vendor-divergence.sh
+# Line 1 is the 40-assertion suite. Case 3 drives the full cycle — score, human override,
+# re-propose, agent confirm — and asserts the human's value is still on disk, which is the
+# operator's actual requirement rather than "an agent can confirm". Case 8 recovers the
+# PRE-RULING code from git and proves it still refuses, so Case 1 is load-bearing.
+# Line 2 asserts the vendored change is still REGISTERED. For this file the loss is
+# silent in the dangerous direction: a re-vendor REINSTATES the gate, scoring quietly
+# stops producing data, and that is the exact condition that went unnoticed for 7 months.
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.

@@ -195,7 +195,7 @@ divergences:
     date: 2026-09-27
     file: .agentic-framework/lib/bvp.sh
     status: filed-upstream
-    filed_at: "pending — framework:pickup offset to be recorded on filing"
+    filed_at: "framework:pickup offset 203 (proposal, read-back verified byte-identical 2026-09-27) — supersedes our own offset 193, and goes further than 832's offset 168"
     kind: governance-change
     generality: GENERIC
     risk_if_revendored: HIGH
