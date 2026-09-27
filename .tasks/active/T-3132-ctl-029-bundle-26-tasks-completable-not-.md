@@ -14,10 +14,10 @@ description: >
   as a
   new task, same rationale as the original 26. See Updates for detail.
 
-status: started-work
+status: captured
 workflow_type: build
 owner: agent
-horizon: now
+horizon: next
 tags: [arc:arc-008, housekeeping]
 components: []
 related_tasks: [T-3016, T-2938, T-2939, T-2940]
@@ -32,7 +32,7 @@ related_tasks: [T-3016, T-2938, T-2939, T-2940]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-25T07:04:36Z
-last_update: 2026-09-27T22:43:43Z
+last_update: 2026-09-27T22:46:00Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -369,3 +369,7 @@ delegate bypassing gates, and in this instance the gate was right.
 
 ### 2026-09-27T22:38:43Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-09-27T22:46:00Z — status-update [task-update-agent]
+- **Change:** horizon: now → next
+- **Change:** status: started-work → captured (auto-sync)

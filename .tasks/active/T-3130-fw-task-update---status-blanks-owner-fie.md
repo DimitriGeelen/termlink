@@ -13,7 +13,7 @@ description: >
   status transition since creation so that link is suspected not proven. INVESTIGATE:
   bisect which step in update-task.sh status-transition path touches the owner line.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -31,7 +31,7 @@ related_tasks: [T-3129, T-3095]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-25T07:00:52Z
-last_update: '2026-09-27T21:34:08Z'
+last_update: 2026-09-27T22:47:24Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -105,16 +105,103 @@ of T-3095/T-3129 as they stood in the dirty tree at the moment of the incident
 (if recoverable from shell history / T-3093 R2S2's own working notes) rather
 than reconstructing a fixture from the description.
 
+## Findings
+
+**Root cause: a lost-update race, not a bad rewrite step.** `update-task.sh:1652-1662` fires
+the BVP estimator on the `started-work` transition as a **disowned background subshell**. The
+estimator then performs a full-file read-modify-write — `parse_task` → mutate frontmatter →
+`_atomic_write_text` (write-temp + `os.replace`) — on the very file the foreground is still
+editing with `sed -i`. Both sides finish with an atomic rename, so whichever renames **last**
+silently wins and the other's changes vanish. Both exit 0, the file stays valid YAML, and the
+lost field is indistinguishable from one that was never set.
+
+The code comment at that site concedes the trade without noticing it: the engine is *"~10ms so
+the update latency impact is negligible"*, and it was backgrounded only *"in case a future
+v2-LLM engine lands and goes over the budget."* So the concurrency buys nothing today while
+costing correctness.
+
+**Why `owner` is the worst field to lose.** It is what the R-033 sovereignty gate reads
+(`update-task.sh:89-97` greps `^owner:` and refuses agent completion when the value is
+`human`). A lost write to `owner` does not merely corrupt metadata — it **silently removes the
+protection that stops an agent completing a human-owned task**, and nothing surfaces it at the
+time. T-3132, executed earlier in this same run, depended on exactly that gate holding across
+25 tasks.
+
+**Reproduction, both halves, including the one that failed.**
+
+*Attempt 1 — the AC's own fixture. NEGATIVE, 12/12 clean.* Fresh task, `owner: agent`, single
+`--status started-work`, 2s settle, diff. Owner preserved every time; the estimator wrote its
+key every time. This is reported as a negative result rather than quietly retried, and it
+carries real information: the defect is **load-dependent**, and it is **not** specific to this
+task's folded YAML description (the sub-question the AC actually poses, answered).
+
+*Attempt 2 — test the mechanism instead of waiting for luck. POSITIVE.* A reader loads the
+file, sleeps 1.5s, then rewrites it from its **stale in-memory copy** via write-temp +
+`os.replace` — the exact shape of `parse_task` + `_atomic_write_text`. A foreground
+`sed -i 's/^owner: agent/owner: human/'` lands inside that window:
+
+```
+immediately after sed  : owner: human
+after the rewrite lands: owner: agent      ← the sed's change is gone
+bvp field present      : 1                 ← the background write did land
+```
+
+Both processes exited 0. **The foreground write was silently discarded.**
+
+**Honest scope of that proof.** It establishes the lost-update mechanism and establishes that
+it is silent. It does **not** reproduce the exact reported symptom — `owner` going *blank*
+rather than reverting — because the direction of loss depends on which value each side holds.
+A blank result requires the estimator's stale copy to have held a blank owner, which happens
+if its read precedes the step that populates the field. Mechanism: confirmed. Exact symptom
+path: consistent and plausible, **not** reproduced. Stated that way deliberately.
+
+**Recommended fix (filed, not applied — vendored per G-062).** Ranked: (1) make the trigger
+synchronous, or join it before the remaining frontmatter writes — smallest change, removes the
+race rather than shrinking it, and costs ~10ms by the comment's own estimate; (2) if it must
+stay async, serialise frontmatter writers on a per-file `flock`; (3) have the estimator splice
+only its own key instead of re-emitting the whole file from a stale parse.
+
+**Detection gap worth its own guard.** Nothing detects this class. A cheap control is a
+post-write read-back: after the transition, re-read the frontmatter and assert `owner`,
+`status` and `id` still hold the values the run intended — the same discipline T-2876
+established for filings (delivered ≠ received).
+
+**Harness location.** The two reproduction scripts live in this session's scratchpad and are
+deliberately *not* committed — the ACs do not ask for a committed harness, and the essential
+shape is inlined above and in the upstream filing so it is recoverable without them.
+
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Bisect which rewrite step in update-task.sh's status-transition path clobbers
+- [x] Bisect which rewrite step in update-task.sh's status-transition path clobbers
       `owner:` (candidates: auto bvp-estimate rewrite, arc-tag regex insertion, other)
-- [ ] Reproduce with a minimal fixture (fresh task, single --status update, diff
+      → **It is the auto bvp-estimate rewrite — but not as a rewrite step. As a RACE.**
+      `update-task.sh:1652-1662` launches the estimator as a **disowned background
+      subshell** (`( … ) &` + `disown`) on the `started-work` transition. The estimator
+      does a full read-modify-write of the same file (`parse_task` → mutate →
+      `_atomic_write_text`, i.e. write-temp + `os.replace`) while the foreground keeps
+      issuing `sed -i` edits to it. Both end in an atomic rename, so **the later rename
+      silently discards the other side's changes.** No single line clobbers `owner:`;
+      the concurrency does. See `## Findings`.
+- [ ] **NOT REPRODUCED on this path — negative result, recorded not massaged.** Reproduce with a minimal fixture (fresh task, single --status update, diff
       frontmatter before/after) to confirm it is not specific to this task's folded
       YAML description
-- [ ] File the confirmed root cause upstream per G-062 (vendored file)
+      → Built exactly that fixture (throwaway `PROJECT_ROOT`, fresh task with
+      `owner: agent`, single `update-task.sh T-9001 --status started-work`, 2s settle,
+      diff). **12 of 12 trials preserved `owner`; 0 lost; the estimator wrote
+      `bvp_scores_proposed` every time.** So the defect does **not** reproduce on an idle
+      host, and it is *not* specific to folded YAML — the fixture answers that sub-question
+      affirmatively. What the fixture cannot create cheaply is the window: on an idle host
+      the estimator finishes long before the foreground's last `sed`. The original sighting
+      was during **T-3093 R2S2, an orchestrated `[Review, Audit, procAsFit] x4` dispatch**,
+      where scheduling stretches that interval arbitrarily — the same load-dependence class
+      as T-3127/G-087-inverted. Left unticked because the AC's stated outcome did not occur;
+      the mechanism is proven separately below, which is a different claim.
+- [x] File the confirmed root cause upstream per G-062 (vendored file)
+      → `framework:pickup` **offset 211**, read-back verified byte-identical
+      (sha256 `2288ff3082bdc0cd1f91`, 5653 bytes). Carries both reproduction attempts
+      including the negative one, the ranked fix, and the detection gap.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -306,3 +393,6 @@ than reconstructing a fixture from the description.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3130-fw-task-update---status-blanks-owner-fie.md
 - **Context:** Initial task creation
+
+### 2026-09-27T22:47:24Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
