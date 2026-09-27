@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3186: Raise the escalation bar: a Human AC requires the agent to be blocked, not merely to prefer a ruling
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-27T13:29:09Z
+# ============================================================================
+
+task_id: T-3186
+task_name: "Raise the escalation bar: a Human AC requires the agent to be blocked, not merely to prefer a ruling"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-27T13:01:08Z
+completed: 2026-09-27T13:28:59Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-27T15:28:50+02:00
+last_commit: 2026-09-27T15:28:50+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  raise the escalation bar — a Human AC requires the agent to be blocked
+
+# Key outcomes
+outcomes:
+  - '`scripts/check-human-ac-escalation.sh` exists, carries `# guard-layer: source`,'
+  - 'Detection is anchored on the `[RUBBER-STAMP]` prefix and on a `[REVIEWER]` prefix'
+  - 'Comment regions are stripped before matching. The task template''s own Human'
+  - 'Acknowledgement ledger at `.context/checks/human-ac-escalation-allowlist`,'
+  - 'It DETECTS AND NEVER REASSIGNS. PD-173 establishes that converting an AC is a'
+  - 'Fail-closed: a missing tasks dir, absent `python3`, an unreadable ledger, or a'
+  - 'Measured on the real corpus, with the figure recorded, and the 25 tasks PD-173'
+  - 'Fixtures pin both firing classes, the `[REVIEW]` non-firing case, the'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/checks/human-ac-escalation-allowlist'
+  - '.fabric/components/scripts-check-human-ac-escalation.yaml'
+  - '.fabric/components/tests-human-ac-escalation-fixtures.yaml'
+  - 'scripts/check-human-ac-escalation.sh'
+  - '.tasks/active/T-3186-raise-the-escalation-bar-a-human-ac-requ.md'
+  - 'tests/human-ac-escalation-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-27T15:28:50'
+    action: 'T-3186: raise the escalation bar — a Human AC requires the agent to be blocked'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 27 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 27
+  commits: 1
+  files_changed: 6
+  lines_added: 788
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3186-raise-the-escalation-bar-a-human-ac-requ.md
+generated_by: context-agent-hybrid
