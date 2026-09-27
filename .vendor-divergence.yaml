@@ -187,6 +187,54 @@ last_vendor_event:
 # ---------------------------------------------------------------------------
 
 divergences:
+  - task: T-3178
+    commit: pending-same-commit
+    commit_note: >
+      Registered BEFORE the change lands. Operator authorised all three scopes on
+      2026-09-27: patch locally, register the divergence, and send the patch upstream
+      for incorporation into the global framework.
+    date: 2026-09-27
+    file: .agentic-framework/agents/context/lib/safe-commands.sh
+    status: filed-upstream
+    filed_at: "framework:pickup (this task) — building on 050-email-archive's P-006 at offset 188"
+    kind: security-fix
+    generality: GENERIC
+    risk_if_revendored: HIGH
+    why: >
+      LIVE TIER-1 GATE BYPASS. has_bash_write_pattern() is the predicate P-002 uses to
+      decide whether a Bash command writes, and therefore whether it needs an active
+      task. Its redirect rule tests the character BEFORE the operator —
+      '[^2>&]>[^>&]|>>' — but `2>&1` (a descriptor duplicate) and `2> file` (a real
+      write) differ only AFTER it. CONFIRMED LIVE in this tree by sourcing our own copy
+      and calling the predicate directly (PL-386 — never act on a differing number
+      without the framework's own predicate):
+        bin/fw audit 2> out.txt  -> not-write   BYPASS
+        bin/fw audit &> out.txt  -> not-write   BYPASS (not in 050's report)
+        bin/fw audit 2>&1        -> not-write   correct
+        bin/fw audit > out.txt   -> WRITE       correct
+      So appending `2>` to any write-gated command evades the active-task gate. `&>` is
+      bash shorthand for `>file 2>&1`, an unambiguous file write; 050-email-archive's
+      report lists `&>` in its must-not-change set, which their own proposed fix
+      contradicts — reported back to them.
+      THE SAME FUNCTION ALSO FAILS CLOSED, found while working this task: the in-place
+      rule is '\bsed\b.*-i' with no boundary after `-i`, so any `-i` substring anywhere
+      after the word `sed` matches. `grep -n -A 14 ... T-2958-...-go-in-the-decis.md`
+      was refused as an in-place edit because the FILENAME contains "-in-". One
+      predicate, both directions wrong — and the fail-closed half is what teaches
+      operators that the gate is noise, which is how the fail-open half survives
+      (T-2818).
+      Every rule in the function also used `echo "$cmd" | grep -qE`. Under pipefail a
+      matching `grep -q` closes the pipe, echo takes SIGPIPE and the line returns 141 —
+      on a SECURITY predicate a non-zero return reads as "no write pattern" and fails
+      OPEN (L-387 / T-2743). Converted to herestrings, which have no pipe.
+      RISK IF RE-VENDORED IS HIGH AND ASYMMETRIC: a re-vendor silently restores the
+      bypass, and the restored gate looks and behaves exactly like a working one. There
+      is no symptom to notice. That is the T-2812 class at its worst — the deleted fix
+      is a security control whose absence is invisible.
+      Upstream has NO tests/unit/safe_commands.bats at all (050's measurement), and
+      `tests` is not in the vendor include list, so consumers cannot inherit coverage.
+      Local fixtures live at tests/safe-commands-write-pattern-fixtures.sh.
+
   - task: T-3176
     commit: pending-same-commit
     commit_note: >

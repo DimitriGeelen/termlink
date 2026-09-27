@@ -767,28 +767,58 @@ _fw_single_command_is_safe() {
 has_bash_write_pattern() {
     local cmd="$1"
 
-    # Redirect operators (but not comparison operators like 2>&1)
-    if echo "$cmd" | grep -qE '[^2>&]>[^>&]|>>'; then
+    # ── T-3178 (LOCAL DIVERGENCE, registered in .vendor-divergence.yaml) ────────────
+    # Every rule below uses a HERESTRING, never `echo "$cmd" | grep -qE`. Under
+    # `set -o pipefail` a matching `grep -q` exits and closes the pipe, echo takes
+    # SIGPIPE, and the pipeline returns 141. On THIS predicate a non-zero return means
+    # "no write pattern found", so the security gate fails OPEN on a match — the
+    # loudest possible case of L-387 / T-2743. A herestring has no pipe and no SIGPIPE.
+
+    # Redirect to a FILE. The test is what FOLLOWS the operator, not what precedes it:
+    # `>` or `>>` not followed by `&` opens a file; `>&` duplicates a descriptor.
+    #
+    # The previous rule was '[^2>&]>[^>&]|>>', which tested the character BEFORE the
+    # operator — but `2>&1` and `2> file` differ only AFTER it, so a numbered-fd
+    # redirect to a file classified as not-a-write and the Tier-1 active-task gate
+    # admitted it with no task. Measured live in this tree before the fix:
+    #   `bin/fw audit 2> out.txt` -> not-write, `bin/fw audit &> out.txt` -> not-write.
+    # `&>` is bash shorthand for `>file 2>&1` and is unambiguously a file write.
+    # Reported by 050-email-archive (P-006 / their T-2257); the `&>` case is ours.
+    #
+    # A trailing operator with nothing after it matches `$` and counts as a write —
+    # fail CLOSED, because a truncated command line is not evidence of safety.
+    if grep -qE '>>?($|[^&])' <<< "$cmd"; then
         return 0
     fi
 
-    # In-place sed
-    if echo "$cmd" | grep -qE '\bsed\b.*-i'; then
+    # In-place sed. Anchored on an actual FLAG, not a bare `-i` substring.
+    #
+    # The previous rule was '\bsed\b.*-i' with no boundary after `-i`, so ANY `-i`
+    # anywhere after the word `sed` matched — including inside a filename. A plain
+    # read, `grep -n -A 14 ... T-2958-...-go-in-the-decis.md`, was refused as an
+    # in-place edit because the filename contains "-in-". That is the mirror of the
+    # bypass above: one predicate failing open on a real write and closed on a real
+    # read, and the false refusals are what teach an operator the gate is noise
+    # (T-2818), which is how the bypass survives unnoticed.
+    #
+    # Matches `-i`, `-i.bak`, `--in-place`, and clustered short flags like `-ni`,
+    # while a following alphanumeric or `-` (as in `-in-the`) does not match.
+    if grep -qE '\bsed\b.*(^|[[:space:]])(-[a-zA-Z]*i([^a-zA-Z0-9-]|$)|--in-place)' <<< "$cmd"; then
         return 0
     fi
 
     # Destructive file operations (already caught by Tier 0 but belt-and-suspenders)
-    if echo "$cmd" | grep -qE '\b(rm|rmdir)\b'; then
+    if grep -qE '\b(rm|rmdir)\b' <<< "$cmd"; then
         return 0
     fi
 
     # Heredoc
-    if echo "$cmd" | grep -qE '<<\s*['"'"'"]?EOF'; then
+    if grep -qE '<<\s*['"'"'"]?EOF' <<< "$cmd"; then
         return 0
     fi
 
     # tee (writes to file)
-    if echo "$cmd" | grep -qE '\btee\b'; then
+    if grep -qE '\btee\b' <<< "$cmd"; then
         return 0
     fi
 
