@@ -187,6 +187,49 @@ last_vendor_event:
 # ---------------------------------------------------------------------------
 
 divergences:
+  - task: T-3185
+    commit: pending-same-commit
+    commit_note: >
+      Registered BEFORE the change. Operator decision 2026-09-27 selecting option (d) of
+      the four 832-Workflow-designer put to the framework at framework:pickup offset 172.
+    date: 2026-09-27
+    file: .agentic-framework/lib/bvp.sh
+    status: filed-upstream
+    filed_at: "pending — framework:pickup offset to be recorded on filing"
+    kind: scoring-correctness
+    generality: GENERIC
+    risk_if_revendored: MEDIUM
+    why: >
+      The estimator awards 2 — the midpoint of 0..5 — to any driver it has no evidence
+      for, and says so honestly in its own rationale ("Dn=2 (no-signal)"). So a task
+      nobody has written anything for scores IDENTICALLY to one a human assessed and
+      judged average, and the number cannot tell them apart.
+      MEASURED: of 35 tasks currently eligible for selection by quadrant, 31 score
+      identically — same value, same cost, same quadrant — because the estimator knew
+      nothing about any of them. They sort to the TOP of the work-this-first ranking,
+      not because they are valuable but because 2-across-the-board sums to a
+      middling-good total while genuinely-scored tasks spread out below it. Observed
+      live during an autonomous run: the ranking recommended untouched `Pickup:` stubs,
+      the scorer said go and the G-020 build-readiness gate said stop, both behaving
+      exactly as designed.
+      WHY IT MATTERS NOW: this was inert while scoring was gated and produced zero
+      confirmed data (449 proposed, 0 confirmed, seven months). T-3184 removed that gate
+      on the operator's ruling, so the defect that was harmless because it never ran is
+      now the one that runs by default. The sticky override does not help — a human
+      would be overriding scores that were never assessments.
+      OPTION (d) OF FOUR: keep the 2, exclude all-no-signal tasks from quadrant
+      assignment. Chosen for being the cheapest with most of the benefit, and because it
+      RESCORES NOTHING — no calibration parameter moves, which matters given the
+      producer-not-judge constraint. Option (c) (emit NOT_EVALUATED and drop from the
+      denominator, mirroring T-3105) remains available if (d) proves insufficient.
+      Option (b), abstaining outright, was rejected: it makes a large part of the
+      backlog silently invisible rather than visibly unassessed.
+      Excluded tasks are COUNTED AND REPORTED, never silently dropped — the same
+      discipline the existing unknown-cost NOTE already applies (T-3068, T-2680).
+      RISK IF RE-VENDORED IS MEDIUM, not HIGH: a restore does not break anything or
+      open a hole, it reverts to recommending unwritten tasks first. Visible on the next
+      ranking read, unlike T-3178's silently-restored bypass.
+
   - task: T-3184
     commit: pending-same-commit
     commit_note: >

@@ -461,6 +461,35 @@ def compute_cost(cost_estimate):
     return None, None, None, None, 'absent'
 
 
+def _proposal_is_all_no_signal(fm):
+    """T-3185: True when EVERY driver in the latest proposal was scored with no evidence.
+
+    Read from the estimator's own rationale string, because that is the only place the
+    distinction survives — the score itself is just `2`, indistinguishable from a
+    considered midpoint. The estimator writes `Dn=2 (no-signal)` per driver, so a
+    proposal is fully unassessed when the no-signal count reaches the driver count.
+
+    RETURNS FALSE WHEN IT CANNOT TELL. An absent, empty or unparseable rationale, or a
+    proposal with no scores, all return False — the task keeps its quadrant. "Could not
+    measure" must not render as "measured, and empty" (T-3105), and the cost of being
+    wrong here is asymmetric: wrongly excluding a real task hides work, wrongly keeping
+    an unassessed one merely leaves today's behaviour in place.
+    """
+    proposed = (fm or {}).get('bvp_scores_proposed')
+    if not proposed:
+        return False
+    latest = proposed[-1] if isinstance(proposed, list) else proposed
+    if not isinstance(latest, dict):
+        return False
+    scores = latest.get('scores')
+    if not isinstance(scores, dict) or not scores:
+        return False
+    rationale = latest.get('rationale')
+    if not isinstance(rationale, str) or not rationale.strip():
+        return False
+    return len(re.findall(r'no-signal', rationale)) >= len(scores)
+
+
 def quadrant(bvp_norm, cost, bvp_median, cost_median):
     """Return one of hv-lc / hv-hc / lv-lc / lv-hc or '-' if either missing."""
     if bvp_norm is None or cost is None:
@@ -529,6 +558,8 @@ def cmd_rank(filter_quadrant=None, include_proposed=False, include_completed=Fal
             'cost': cost,
             'cost_src': src,
             'source': source,
+            # T-3185: was every driver scored with nothing to score on?
+            'all_no_signal': _proposal_is_all_no_signal(fm) if source == 'proposed' else False,
         })
 
     if not rows:
@@ -540,13 +571,23 @@ def cmd_rank(filter_quadrant=None, include_proposed=False, include_completed=Fal
             print("Or pass `--include-proposed` to see estimator-proposed scores (advisory).")
         return 0
 
-    bvp_vals = [r['bvp_norm'] for r in rows]
+    # T-3185: a fully-unassessed proposal is excluded from the thresholds AND from
+    # quadrant assignment. Its score is left untouched — option (d) rescores nothing —
+    # but a task the estimator knew nothing about must not be ranked as work, and must
+    # not drag the median that decides everyone else's placement. Measured before this
+    # change: 31 of 35 eligible tasks scored identically at the all-2 default and sorted
+    # to the top of the work-this-first list.
+    _ranked = [r for r in rows if not r.get('all_no_signal')]
+    bvp_vals = [r['bvp_norm'] for r in _ranked]
     # Medians are taken over KNOWN costs only — an unknown-cost task must not shift
     # the threshold that decides everyone else's quadrant (T-3068).
-    cost_vals = [r['cost'] for r in rows if r['cost'] is not None]
+    cost_vals = [r['cost'] for r in _ranked if r['cost'] is not None]
     bvp_median = statistics.median(bvp_vals) if bvp_vals else 0.5
     cost_median = statistics.median(cost_vals) if cost_vals else 4.0
     for r in rows:
+        if r.get('all_no_signal'):
+            r['quadrant'] = '-'
+            continue
         r['quadrant'] = quadrant(r['bvp_norm'], r['cost'], bvp_median, cost_median)
 
     # T-3068: say what the ranking could not place, and say it before the table
@@ -558,13 +599,36 @@ def cmd_rank(filter_quadrant=None, include_proposed=False, include_completed=Fal
     # expected state, not an anomaly, and the operator needs to see its size to
     # know how much weight the quadrant split can carry.
     _n_total = len(rows)
+    # T-3185: report the exclusion before the table, for the same reason T-3068 reports
+    # unknown costs there — a filter that quietly removes most of the corpus reads as
+    # complete coverage (T-2680). These tasks are not low-value; they are UNASSESSED,
+    # and the difference is the whole point.
+    _n_nosignal = sum(1 for r in rows if r.get('all_no_signal'))
+    if _n_nosignal:
+        _pct_ns = 100.0 * _n_nosignal / _n_total if _n_total else 0.0
+        print(f"NOTE: {_n_nosignal}/{_n_total} task(s) ({_pct_ns:.0f}%) scored every driver "
+              f"no-signal — the estimator had nothing to read.")
+        print("      They are UNASSESSED, not low-value. Excluded from the quadrant and "
+              "from the")
+        print("      thresholds, so they neither top the ranking nor move anyone else's "
+              "placement.")
+        print("      Scores are unchanged; write a Context/AC body and re-run the "
+              "estimator (T-3185).")
+        print()
+
     _n_unknown = sum(1 for r in rows if r['cost'] is None)
     if _n_unknown:
         _pct = 100.0 * _n_unknown / _n_total if _n_total else 0.0
         print(f"NOTE: {_n_unknown}/{_n_total} task(s) ({_pct:.0f}%) have no known cost "
               f"— blast_radius unmeasured, so no quadrant (COST/QUAD show '-').")
-        print(f"      Quadrant thresholds are computed over the {_n_total - _n_unknown} "
-              f"task(s) that do have one.")
+        # T-3185: report the ACTUAL threshold population, not `total - unknown_cost`.
+        # That arithmetic was right until all-no-signal tasks began being excluded as
+        # well; it then over-reported by every excluded task that happened to carry a
+        # cost — here it claimed 37 when the real figure was 3. A disclosure that
+        # misstates its own scope is the T-2680 defect, and shipping one inside the
+        # change that fixes T-2680's cousin would have been its own punchline.
+        print(f"      Quadrant thresholds are computed over the {len(cost_vals)} "
+              f"task(s) with a cost that were not excluded above.")
         print("      Cost becomes measurable once `components:` is resolved; see T-3068.")
         print()
 
