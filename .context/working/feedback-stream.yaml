@@ -13274,3 +13274,21 @@ scan_id: R-92c99f53
 task_id: T-3186
 payload:
   task_file: .tasks/active/T-3186-raise-the-escalation-bar-a-human-ac-requ.md
+---
+kind: scan_emitted
+timestamp: '2026-09-27T16:10:07Z'
+scan_id: R-10a50f79
+task_id: T-3187
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-27T16:10:07Z'
+scan_id: R-10a50f79
+task_id: T-3187
+payload:
+  task_file: .tasks/active/T-3187-2devnull-now-classifies-as-a-write-exemp.md

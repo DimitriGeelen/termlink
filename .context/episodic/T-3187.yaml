@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3187: 2>/dev/null now classifies as a write: exempt null and standard sinks
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-27T16:10:15Z
+# ============================================================================
+
+task_id: T-3187
+task_name: "2>/dev/null now classifies as a write: exempt null and standard sinks"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-27T16:07:08Z
+completed: 2026-09-27T16:10:05Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-27T18:09:26+02:00
+last_commit: 2026-09-27T18:10:03+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  2>/dev/null was classifying as a write — my own T-3178 regression. register the divergence the completion gate caught me omitting
+
+# Key outcomes
+outcomes:
+  - '`2>/dev/null`, `>/dev/null`, `&>/dev/null`, `2>/dev/stderr` and `>/dev/stdout`'
+  - 'A MIX still fires: `cmd > out.txt 2>/dev/null` stays **WRITE**, because the first'
+  - 'Token boundary on the sink: `> /dev/nullish` and `> /dev/null.bak` stay **WRITE**.'
+  - 'Every T-3178 assertion still holds — both original bypasses still WRITE, all five'
+  - 'No new subprocess in the hot path that could fail open: if the strip step errors,'
+  - 'Upstream filing amended at `framework:pickup`, so the framework does not inherit'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/agents/context/lib/safe-commands.sh'
+  - '.tasks/active/T-3187-2devnull-now-classifies-as-a-write-exemp.md'
+  - 'tests/safe-commands-write-pattern-fixtures.sh'
+  - '.vendor-divergence.yaml'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-27T18:09:26'
+    action: 'T-3187: 2>/dev/null was classifying as a write — my own T-3178 regression'
+  - time: '2026-09-27T18:10:03'
+    action: 'T-3187: register the divergence the completion gate caught me omitting'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 2
+  commits: 2
+  files_changed: 4
+  lines_added: 407
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3187-2devnull-now-classifies-as-a-write-exemp.md
+generated_by: context-agent-hybrid
