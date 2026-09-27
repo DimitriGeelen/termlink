@@ -89,25 +89,25 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Divergence registered in `.vendor-divergence.yaml` BEFORE the code change.
-- [ ] A task whose latest proposal is FULLY no-signal gets no quadrant, and is excluded
+- [x] Divergence registered in `.vendor-divergence.yaml` BEFORE the code change.
+- [x] A task whose latest proposal is FULLY no-signal gets no quadrant, and is excluded
       from the median computation that sets everyone else's thresholds. Detection reads
       the estimator's own rationale string, which is the only place the distinction
       survives — the score itself is just `2`.
-- [ ] NO SCORE CHANGES. Option (d) was chosen precisely because it rescores nothing and
+- [x] NO SCORE CHANGES. Option (d) was chosen precisely because it rescores nothing and
       moves no calibration parameter. `bvp_raw` and `bvp_norm` are untouched; only
       placement changes.
-- [ ] Excluded tasks are COUNTED AND REPORTED before the table, never silently dropped —
+- [x] Excluded tasks are COUNTED AND REPORTED before the table, never silently dropped —
       same discipline as the existing unknown-cost NOTE (T-3068/T-2680: a filter that
       quietly removes most of the corpus reads as complete coverage).
-- [ ] A proposal whose rationale cannot be read is NOT treated as no-signal. "Could not
+- [x] A proposal whose rationale cannot be read is NOT treated as no-signal. "Could not
       measure" must not render as "measured, and empty" (T-3105).
-- [ ] Measured before and after on the real corpus, with both figures recorded — the
+- [x] Measured before and after on the real corpus, with both figures recorded — the
       claim is that unassessed tasks stop topping the ranking, so the before/after of
       *what the ranking recommends* is the evidence, not the diff.
-- [ ] Fixtures pin the behaviour and fail against the pre-change code extracted from git,
+- [x] Fixtures pin the behaviour and fail against the pre-change code extracted from git,
       with a control leg proving that copy runs first.
-- [ ] Filed upstream at `framework:pickup`, verified by read-back (T-2876), `filed_at`
+- [x] Filed upstream at `framework:pickup`, verified by read-back (T-2876), `filed_at`
       updated with the real offset.
 
 ### Human
@@ -144,6 +144,15 @@ bvp_scores_proposed:
 -->
 
 ## Verification
+
+bash tests/bvp-no-signal-ranking-fixtures.sh
+bash scripts/check-vendor-divergence.sh
+# Line 1 is the 10-assertion suite. Case 4 is the one that matters most: three fixtures
+# carrying identical scores must STILL report identical totals after one is excluded —
+# that is what catches a version which quietly adjusts values instead of only changing
+# placement, which would look the same in the ranking and would be an unauthorised
+# calibration change. Case 6 recovers the pre-change code from git and proves it DID
+# rank the stub, so Case 1 is load-bearing rather than vacuous.
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
