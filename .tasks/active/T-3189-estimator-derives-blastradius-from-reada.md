@@ -428,6 +428,43 @@ python3 -c "import ast,sys; ast.parse(open('.agentic-framework/agents/termlink/b
      commit, that is a calibration failure — recommend GO or NO-GO.
 -->
 
+**Recommendation:** GO
+
+**Rationale:** The mechanism is proven and the effect is measured: quadrant thresholds go
+from 6 tasks to 111, which is the outcome T-3188 predicted and could not deliver. All ten
+Agent ACs are verified rather than asserted, including the two that most often get
+rewritten to pass — the before/after population (it moved, so it passes on measurement)
+and the precedence property (pinned at both boundaries by fixtures, because the natural
+refactor is the edit that breaks it). What remains is not an evidence gap but a judgement
+gap: whether the resulting ranking is *sane* is a question about this corpus that only the
+operator can answer, which is why the single Human AC is a [REVIEW] and not a [REVIEWER].
+
+**Evidence:**
+- **6 → 111 tasks** carry a quadrant (211/248 uncosted → 102/248). 42 hv-lc, 38 lv-lc,
+  16 lv-hc, 15 hv-hc. 120 task files rewritten by `cost-all`.
+- **34 assertions, 0 fail**, hermetic by index injection. Case 0 refuses to report a
+  result when the scorer is unreachable; Case 8 recovers the pre-change revision
+  *behaviourally* (`f8a4160c1`), so Case 1 cannot be vacuous.
+- **The template trap was caught before shipping, not after.** An intermediate measurement
+  read 205/210 as costed; the true figure is 107/210. `.claude/settings.json` sits in a
+  `#` comment in `## Verification` in **177 of 210** task bodies, and 98 tasks would have
+  acquired a cost derived entirely from boilerplate. Fixed by a section-aware strip and
+  pinned in both directions.
+- **Fails closed**: no git index → every task UNMEASURED, never a cheap default.
+- **Known false-positive floor, measured**: 2 of 256 tasks (T-3095, T-3096) are costed
+  solely by a `bin/fw` reference they invoke rather than modify, and both sit at the top
+  of hv-lc. Inspected individually — each has a ~10KB body about the handover generator
+  that never names a handover source file by path, so the derivation is accurate to its
+  input and the tasks under-describe their reach. Deliberately not special-cased.
+- Filed upstream at `framework:pickup` offset 210, read-back verified byte-identical
+  (sha256 `53b6c83922366eb1`, 7163 bytes). Divergence registered; `check-vendor-divergence`
+  reports 31 commits touching vendored code, all classified.
+
+**What the operator is actually being asked:** not "is the code correct" — that is
+mechanically established above — but "does the new HV-LC list look like work worth doing
+first". This is the axis autonomous selection runs on, so a systematic skew compounds
+silently, and the two tasks named above are the known place to start looking.
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.
