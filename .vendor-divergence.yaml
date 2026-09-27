@@ -187,6 +187,59 @@ last_vendor_event:
 # ---------------------------------------------------------------------------
 
 divergences:
+  - task: T-3184
+    commit: pending-same-commit
+    commit_note: >
+      Registered BEFORE the change. Operator ruling 2026-09-27, both scopes: implement in
+      the vendored copy AND file upstream for incorporation into the framework itself.
+    date: 2026-09-27
+    file: .agentic-framework/lib/bvp.sh
+    status: filed-upstream
+    filed_at: "pending — framework:pickup offset to be recorded on filing"
+    kind: governance-change
+    generality: GENERIC
+    risk_if_revendored: HIGH
+    supersedes: T-3176
+    why: >
+      OPERATOR RULING, not an agent proposal: setting BVP scores requires no human
+      involvement at all, and the same applies to value drivers and arc drivers. The
+      approval requirement is removed from all five §ACD-gated verbs — confirm,
+      weight --set, driver --add, driver --remove, and auto-promote --enable. The human
+      retains an OVERRIDE, flagged, and the override is STICKY: a later automated
+      assessment run must not overwrite it.
+      auto-promote --enable is INCLUDED by explicit instruction ("AutoPromote is auto
+      now, the friction goes away"), and it is worth recording that it is NOT a scoring
+      verb — it promotes captured to started-work for HV/LC tasks, so it lets the system
+      select and begin work on the basis of the scores. That is a larger delegation than
+      scoring, and it was ruled deliberately, not by omission.
+      THIS IS NOT A WEAKENING, and the measurement is why. Across 2877 tasks with
+      parseable frontmatter: 449 carry a PROPOSED bvp score and 0 carry a CONFIRMED one,
+      for the life of the project — a 100% block rate over ~7 months. Every BVP-derived
+      surface has therefore never held a single data point; `--quadrant hv-lc` returns
+      "No tasks match" because the axis was never populated, not because nothing matches.
+      An approval gate producing zero data is replaced by a PROVENANCE mechanism, which
+      is strictly stronger: scoring flows, and human authority is preserved exactly where
+      it has been exercised rather than asserted by a refusal nobody can satisfy.
+      Answers a question 832-Workflow-designer left open upstream at offsets 190/191 —
+      whether two-state sticky provenance (`<field>_source: human`, deliberately with no
+      third "unknown" state) belongs upstream generally. It does, and it is the mechanism
+      that makes removing the gate safe rather than reckless.
+      IMPLEMENTED AS A CONFIG DEFAULT, NOT A DELETION. `BVP_HUMAN_APPROVAL=true` restores
+      §ACD gating on all five verbs. A deleted gate cannot be restored by a consumer who
+      wants it, and — the asymmetry that matters here — a re-vendor would silently
+      REINSTATE the gate with no symptom: scoring would simply stop producing data again,
+      which is exactly the condition that went unnoticed for seven months. The register
+      is what makes that visible.
+      SUPERSEDES T-3176, which built the same capability for `confirm` only behind a
+      switch defaulting OFF. The ruling makes the switch's default wrong and its scope
+      too narrow. T-3176's telemetry ledger and its amendments (no_signal_count,
+      confirmed_by never falling back to $USER, the path-override env var) are kept.
+      COMPANION RISK, recorded and not fixed here: the estimator renders a no-signal
+      driver as 2, its own midpoint, so 31 of 35 currently-eligible Q1/Q2 tasks are
+      high-value BY CONSTRUCTION because nobody has written content for them. Automatic
+      scoring amplifies that and the override flag does not address it — a human would be
+      overriding scores that were never assessments. Tracked at T-3172.
+
   - task: T-3178
     commit: pending-same-commit
     commit_note: >

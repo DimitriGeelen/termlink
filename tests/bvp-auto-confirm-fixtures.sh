@@ -1,27 +1,30 @@
 #!/usr/bin/env bash
-# tests/bvp-auto-confirm-fixtures.sh — T-3176
+# tests/bvp-auto-confirm-fixtures.sh — T-3184 (supersedes T-3176's contract)
 #
 # guard-layer: source
 #
-# Fixtures for the BVP auto-confirm switch and its confirmation ledger, the LOCAL
-# half of the operator's both-scopes ruling on T-3170 (upstream half filed at
-# framework:pickup offset 193, building on 832-Workflow-designer's offset 168).
+# OPERATOR RULING 2026-09-27: setting BVP scores requires no human involvement, and the
+# same applies to value drivers and arc drivers. All five §ACD-gated verbs open. The
+# human keeps an OVERRIDE, flagged, and the override is STICKY.
 #
-# THE LOAD-BEARING CASE IS NOT "confirm works with the switch on".
+# THIS SUITE WAS REWRITTEN, NOT EXTENDED. T-3176's version asserted the opposite contract
+# — that `confirm` was gated unless a switch was on, and that the other four verbs must
+# STILL refuse with that switch on. Those cases are now false by ruling, so they are
+# replaced rather than left passing against behaviour nobody wants. What carried over
+# unchanged is everything the ruling did not touch: the telemetry ledger, the no-signal
+# count, `confirmed_by` never falling back to $USER, and the path-override env var.
 #
-# A blanket CLAUDECODE bypass is the obvious implementation and is indistinguishable
-# from the correct one on the happy path — both let `confirm` through. What separates
-# them is the OTHER FOUR verbs, so Case 3 asserts that weight --set, driver --add,
-# driver --remove and auto-promote --enable STILL refuse with the switch ON. If that
-# case ever goes green-by-accident the bypass stopped being surgical, and nothing
-# else here would notice.
+# THE LOAD-BEARING CASE IS CASE 3, and it is not "an agent can confirm".
 #
-# Every run writes its ledger to a scratch path via FW_BVP_TELEMETRY_PATH. That
-# override exists because 832's did not: their first fixture run wrote rows into the
-# real append-only ledger and those rows cannot be removed. Case 6 pins that the real
-# ledger is never touched, so the protection itself is tested rather than assumed.
+# It is the operator's own requirement: "after a next BVP assessment run, that doesn't get
+# overridden." Removing the gate without sticky provenance would give every human
+# correction a shelf life — the estimator re-proposes, the next automated confirm
+# promotes, and the correction is gone with no error and no trace that it existed. That
+# silent overwrite would be WORSE than the gate it replaces, because the gate at least
+# failed loudly. Case 3 drives the full cycle: score, human-override, re-propose,
+# agent-confirm, and asserts the human's values survived.
 #
-# Exit 0 = all assertions pass, 1 = a failure, 2 = tooling (fail-closed).
+# Exit 0 = all pass, 1 = a failure, 2 = tooling (fail-closed).
 
 set -uo pipefail
 
@@ -29,46 +32,21 @@ PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 FW_ROOT="$PROJECT/.agentic-framework"
 BVP="$FW_ROOT/lib/bvp.sh"
 
-PASS=0
-FAIL=0
+PASS=0; FAIL=0
+ok()   { printf '  \033[0;32mok\033[0m    %s\n' "$1"; PASS=$((PASS+1)); }
+fail() { printf '  \033[0;31mFAIL\033[0m  %s\n' "$1"; FAIL=$((FAIL+1)); }
 
-fail() { printf '  \033[0;31mFAIL\033[0m  %s\n' "$1"; FAIL=$((FAIL + 1)); }
-ok()   { printf '  \033[0;32mok\033[0m    %s\n' "$1"; PASS=$((PASS + 1)); }
-
-assert_contains() { # haystack needle label
-    if grep -qF -- "$2" <<< "$1"; then ok "$3"; else
-        fail "$3 — expected to find: $2"
-        printf '        got: %s\n' "$(head -c 300 <<< "$1")"
-    fi
-}
-assert_not_contains() {
-    if grep -qF -- "$2" <<< "$1"; then
-        fail "$3 — did NOT expect: $2"
-    else ok "$3"; fi
-}
-assert_rc() { # actual expected label
-    if [ "$1" = "$2" ]; then ok "$3"; else fail "$3 — rc $1, expected $2"; fi
-}
-
-# ---------------------------------------------------------------- tooling guards
-# Fail-closed: a suite that cannot run must never report clean (T-2818 / T-3105).
 [ -f "$BVP" ] || { echo "TOOLING: $BVP not found" >&2; exit 2; }
 command -v python3 >/dev/null 2>&1 || { echo "TOOLING: python3 missing" >&2; exit 2; }
 python3 -c 'import yaml' 2>/dev/null || { echo "TOOLING: PyYAML missing" >&2; exit 2; }
+command -v git >/dev/null 2>&1 || { echo "TOOLING: git missing" >&2; exit 2; }
 
-SCRATCH="$(mktemp -d)"
-trap 'rm -rf "$SCRATCH"' EXIT
+SCRATCH="$(mktemp -d)"; trap 'rm -rf "$SCRATCH"' EXIT
 
-# ---------------------------------------------------------------- scratch project
-mk_project() { # $1 = dir
+mk_project() {
     local d="$1"
     mkdir -p "$d/.tasks/active" "$d/.context" "$d/policy"
-    cat > "$d/.framework.yaml" <<'YAML'
-project_name: fixture-project
-version: 1.6.29
-YAML
-    # Mirrors the real shape: a list of timestamped proposal entries, newest last,
-    # with the estimator's rationale carrying the per-driver no-signal markers.
+    printf 'project_name: fixture-project\nversion: 1.6.29\n' > "$d/.framework.yaml"
     cat > "$d/.tasks/active/T-9001-fixture.md" <<'MD'
 ---
 id: T-9001
@@ -89,267 +67,279 @@ bvp_scores_proposed:
 
 # T-9001
 MD
-    # A second task where EVERY driver is no-signal — the 16%-of-449 shape that
-    # amendment (a) exists to keep visible.
-    cat > "$d/.tasks/active/T-9002-allnosignal.md" <<'MD'
----
-id: T-9002
-name: "Fixture task, fully no-signal"
-status: started-work
-workflow_type: build
-owner: agent
-bvp_scores_proposed:
-  - ts: '2026-09-27T00:00:00Z'
-    estimator: bvp-estimator-v1-heuristic
-    scores:
-      D1: 2
-      D2: 2
-    rationale: D1=2 (no-signal); D2=2 (no-signal)
-    rubric_sha: e4a00f38e801
----
-
-# T-9002
-MD
     cp -r "$PROJECT/policy/." "$d/policy/" 2>/dev/null || true
 }
 
-# Drive bvp.sh exactly as an agent session would: CLAUDECODE=1, no human flag.
-#
-# `lib/bvp.sh` is a LIBRARY, not a script. bin/fw:4867 sources it and then calls
-# bvp_dispatch, and this reproduces those two lines. The first draft of this suite
-# ran `bash "$BVP" "$@"` instead, which merely defines functions and exits 0 in
-# silence — so every verb read as ALLOWED, every refusal read as missing, and the
-# Case 9 mutant reported KILLED while nothing had run. That is a whole suite of
-# false verdicts in both directions, which is why Case 0 below now refuses to let
-# any verdict be reported until the subject is proven to execute.
-run_bvp_at() { # $1 = path to the bvp library to drive; rest = argv
+# bin/fw sources the library then calls bvp_dispatch (bin/fw:4867). Reproducing those
+# two lines. A first draft of the T-3176 suite ran `bash lib/bvp.sh`, which merely
+# defines functions and exits 0 in silence, so every verb read as ALLOWED and a mutant
+# reported KILLED while nothing had run. Case 0 exists because of that.
+run_at() { # <lib> <argv...>
     local lib="$1"; shift
-    env PROJECT_ROOT="$PROJ" \
-        FRAMEWORK_ROOT="$FW_ROOT" \
-        CLAUDECODE=1 \
+    env PROJECT_ROOT="$PROJ" FRAMEWORK_ROOT="$FW_ROOT" CLAUDECODE=1 \
         FW_BVP_TELEMETRY_PATH="$LEDGER" \
-        ${SWITCH+BVP_AUTO_CONFIRM="$SWITCH"} \
+        ${APPROVAL+BVP_HUMAN_APPROVAL="$APPROVAL"} \
         BVP_LIB="$lib" \
         bash -c '. "$BVP_LIB"; bvp_dispatch "$@"' _ "$@" 2>&1
 }
+run() { run_at "$BVP" "$@"; }
 
-run_bvp() { run_bvp_at "$BVP" "$@"; }
+scores_of() { # <task-file> -> the confirmed scores dict, or empty
+    python3 -c "
+import re,sys,yaml
+raw=open(sys.argv[1]).read(); m=re.match(r'^---\n(.*?)\n---',raw,re.S)
+fm=yaml.safe_load(m.group(1)) or {}
+print(fm.get('bvp_scores') or '')" "$1" 2>/dev/null
+}
+source_of() {
+    python3 -c "
+import re,sys,yaml
+raw=open(sys.argv[1]).read(); m=re.match(r'^---\n(.*?)\n---',raw,re.S)
+fm=yaml.safe_load(m.group(1)) or {}
+print(fm.get('bvp_scores_source') or '(absent)')" "$1" 2>/dev/null
+}
 
-echo "=== T-3176: BVP auto-confirm switch + confirmation ledger ==="
+echo "=== T-3184: BVP scoring is an agent decision, with a sticky human override ==="
 
 # ================================================================= Case 0
-# HARNESS CONTROL — runs first and exits 2 on failure, so a broken harness can
-# never be scored as a result. 832's convention (offsets 190/191): five times in
-# one day their mutation control set caught a misclassification in the SUITE
-# rather than a defect in the subject, and "a mutation that was never applied
-# reads identically to one the suite failed to catch."
-#
-# This suite needed it. Its first run reported 13 pass / 25 fail against a
-# subject that had not executed once.
 echo
 echo "Case 0 — harness control: is the subject actually running?"
-PROJ="$SCRATCH/c0"; LEDGER="$SCRATCH/c0.ndjson"; mk_project "$PROJ"; unset SWITCH
-ctl="$(run_bvp confirm --help)"
-if ! grep -qF -- 'Usage: fw bvp confirm' <<< "$ctl"; then
+PROJ="$SCRATCH/c0"; LEDGER="$SCRATCH/c0.ndjson"; mk_project "$PROJ"; unset APPROVAL
+ctl="$(run confirm --help)"
+if ! grep -qF 'Usage: fw bvp confirm' <<< "$ctl"; then
     echo "  HARNESS BROKEN: 'confirm --help' produced no usage text." >&2
     echo "  Got: $(head -c 200 <<< "$ctl")" >&2
-    echo "  The library is sourced + dispatched, not executed — check bvp_dispatch." >&2
     exit 2
 fi
 ok "the subject executes and produces output"
-
-# And that it MUTATES: an explicit human confirm must write bvp_scores. Without
-# this leg, a subject that runs but silently no-ops would still score green below.
-ctl2="$(run_bvp confirm T-9001 --i-am-human)"
+run confirm T-9001 --i-am-human >/dev/null
 if ! grep -q '^bvp_scores:' "$PROJ/.tasks/active/T-9001-fixture.md"; then
-    echo "  HARNESS BROKEN: a human confirm did not write bvp_scores: to the task." >&2
-    echo "  Got: $(head -c 300 <<< "$ctl2")" >&2
+    echo "  HARNESS BROKEN: a human confirm did not write bvp_scores:." >&2
     exit 2
 fi
 ok "the subject mutates the task file on a known-good path"
 
 # ================================================================= Case 1
 echo
-echo "Case 1 — switch OFF (absent): confirm still refuses, exactly as today"
-PROJ="$SCRATCH/c1"; LEDGER="$SCRATCH/c1.ndjson"; mk_project "$PROJ"; unset SWITCH
-out="$(run_bvp confirm T-9001)"; rc=$?
-assert_rc "$rc" 1 "refuses with rc 1"
-assert_contains "$out" "agents must not invoke" "prints the §ACD refusal"
-assert_contains "$out" "--i-am-human" "still offers the human override"
-if [ -s "$LEDGER" ]; then fail "a refused confirm wrote a ledger row"; else
-    ok "a refused confirm writes no ledger row"; fi
-if grep -q 'bvp_scores:' "$PROJ/.tasks/active/T-9001-fixture.md"; then
-    fail "a refused confirm wrote bvp_scores to the task"
-else ok "a refused confirm leaves the task untouched"; fi
+echo "Case 1 — the ruling: an agent may drive all FIVE verbs with no --i-am-human"
+PROJ="$SCRATCH/c1"; LEDGER="$SCRATCH/c1.ndjson"; mk_project "$PROJ"; unset APPROVAL
+out="$(run confirm T-9001)"; rc=$?
+if [ "$rc" -eq 0 ]; then ok "confirm proceeds (rc 0)"; else fail "confirm refused: rc $rc"; fi
+if grep -qF 'agents must not invoke' <<< "$out"; then
+    fail "confirm still printed the §ACD refusal"
+else ok "no §ACD refusal printed"; fi
+for spec in "weight|--set|D1=4|--rationale|raising D1: the gate is load-bearing now" \
+            "driver|--add|F-NEW|--weight|3|--rationale|new driver for the trial" \
+            "driver|--remove|F-NEW|--rationale|trial over, retiring the driver" \
+            "auto-promote|--enable|--rationale|operator ruled AutoPromote is auto now"; do
+    IFS='|' read -r -a argv <<< "$spec"
+    vout="$(run "${argv[@]}")"; vrc=$?
+    label="${argv[0]} ${argv[1]}"
+    if grep -qF 'agents must not invoke' <<< "$vout"; then
+        fail "$label still refuses with the §ACD gate"
+    else
+        ok "$label is no longer §ACD-refused (rc $vrc)"
+    fi
+done
 
 # ================================================================= Case 2
 echo
-echo "Case 2 — switch ON: confirm proceeds and is attributed to the agent, not \$USER"
-PROJ="$SCRATCH/c2"; LEDGER="$SCRATCH/c2.ndjson"; mk_project "$PROJ"; SWITCH=1
-out="$(run_bvp confirm T-9001)"; rc=$?
-assert_rc "$rc" 0 "confirms with rc 0"
-task="$(cat "$PROJ/.tasks/active/T-9001-fixture.md")"
-assert_contains "$task" "confirmed_by: agent:auto (BVP_AUTO_CONFIRM)" \
-    "amendment (b): confirmed_by names the auto path, never \$USER"
-assert_not_contains "$task" "confirmed_by: ${USER:-nobody}" \
-    "amendment (b): the OS account never appears on the auto path"
-# Anchored on the bvp_scores: KEY, not on a score value. "D2: 4" also appears in
-# the bvp_scores_proposed: block, so the loose form passed in the first run even
-# though nothing had been promoted — a false green from a substring that was
-# already in the file before the subject was invoked.
-if grep -q '^bvp_scores:' "$PROJ/.tasks/active/T-9001-fixture.md"; then
-    ok "the proposed scores were promoted to bvp_scores:"
+echo "Case 2 — reversibility: BVP_HUMAN_APPROVAL re-arms the gate on all five"
+PROJ="$SCRATCH/c2"; LEDGER="$SCRATCH/c2.ndjson"; mk_project "$PROJ"; APPROVAL=true
+for spec in "confirm|T-9001" \
+            "weight|--set|D1=4|--rationale|raising D1 for the trial" \
+            "driver|--add|F-NEW|--weight|3|--rationale|new driver" \
+            "driver|--remove|F-NEW|--rationale|retiring it" \
+            "auto-promote|--enable|--rationale|turning it on"; do
+    IFS='|' read -r -a argv <<< "$spec"
+    vout="$(run "${argv[@]}")"
+    if grep -qF 'agents must not invoke' <<< "$vout"; then
+        ok "${argv[0]} ${argv[1]:-} refuses again with approval re-armed"
+    else
+        fail "${argv[0]} ${argv[1]:-} did NOT refuse with BVP_HUMAN_APPROVAL=true — not reversible"
+    fi
+done
+# Fail-safe: only a recognised truthy value re-arms. A typo must not silently gate.
+for bad in 0 false no off garbage ""; do
+    PROJ="$SCRATCH/c2b"; LEDGER="$SCRATCH/c2b.ndjson"; rm -rf "$PROJ"; mk_project "$PROJ"
+    APPROVAL="$bad"
+    vout="$(run confirm T-9001)"
+    if grep -qF 'agents must not invoke' <<< "$vout"; then
+        fail "BVP_HUMAN_APPROVAL='$bad' re-armed the gate — only truthy values may"
+    else ok "BVP_HUMAN_APPROVAL='$bad' leaves the gate open"; fi
+done
+
+# ================================================================= Case 3  ★★
+echo
+echo "Case 3 ★★ LOAD-BEARING — a human override SURVIVES a later assessment run"
+echo "          (score -> human override -> re-propose -> agent confirm -> still there)"
+PROJ="$SCRATCH/c3"; LEDGER="$SCRATCH/c3.ndjson"; mk_project "$PROJ"; unset APPROVAL
+TASK="$PROJ/.tasks/active/T-9001-fixture.md"
+
+# 1. the human overrides D2 from the proposed 4 to 1
+run confirm T-9001 --override D2=1 --i-am-human >/dev/null
+human_scores="$(scores_of "$TASK")"
+if grep -qF "'D2': 1" <<< "$human_scores"; then ok "human override recorded (D2=1)"; else
+    fail "human override not recorded — got: $human_scores"; fi
+if [ "$(source_of "$TASK")" = "human" ]; then
+    ok "provenance stamped bvp_scores_source: human"
+else fail "provenance NOT stamped — got: $(source_of "$TASK")"; fi
+
+# 2. the estimator re-proposes (simulating the next assessment run) with D2 back at 4.
+#
+# Done by LOADING and REPLACING the key, not by appending YAML text. A first draft
+# appended a second `bvp_scores_proposed:` block to frontmatter that already carried
+# `bvp_scores_proposed: []` from the confirm that cleared it. That duplicate key made
+# the file a parse hazard — and the agent confirm below then refused for THAT reason
+# while this suite scored it as the sticky override working. A refusal for the wrong
+# reason reads identically to the right one, which is the same false-green shape the
+# rest of this suite exists to prevent.
+if ! python3 - "$TASK" <<'PY'
+import sys,re,yaml
+p=sys.argv[1]; raw=open(p).read()
+m=re.match(r'^---\n(.*?)\n---',raw,re.S)
+fm=yaml.safe_load(m.group(1)) or {}
+fm['bvp_scores_proposed']=[{
+    'ts':'2026-09-27T12:00:00Z',
+    'estimator':'bvp-estimator-v1-heuristic',
+    'scores':{'D1':2,'D2':4,'D3':2},
+    'rationale':'D1=2 (no-signal); D2=4 (body:structural-gate); D3=2 (no-signal)',
+    'rubric_sha':'e4a00f38e801'}]
+new=yaml.safe_dump(fm,sort_keys=False,default_flow_style=False).rstrip()
+open(p,'w').write('---\n'+new+'\n---'+raw[m.end():])
+PY
+then
+    fail "MEASUREMENT INVALID — could not stage the re-proposal"
+fi
+# Prove the staging worked AND left exactly one key, before relying on what follows.
+dupes="$(grep -c '^bvp_scores_proposed:' "$TASK")"
+if [ "$dupes" = "1" ] && grep -q 'D2: 4' "$TASK"; then
+    ok "next assessment run re-proposed D2=4 (single key, file still parses)"
 else
-    fail "bvp_scores: was never written — nothing was promoted"
+    fail "MEASUREMENT INVALID — staging left $dupes bvp_scores_proposed key(s)"
 fi
 
-# ================================================================= Case 3  ★
-echo
-echo "Case 3 ★ LOAD-BEARING — switch ON, the other four verbs STILL refuse"
-echo "          (this is what distinguishes a surgical opening from a blanket bypass)"
-PROJ="$SCRATCH/c3"; LEDGER="$SCRATCH/c3.ndjson"; mk_project "$PROJ"; SWITCH=1
-for spec in \
-    "weight|--set|D1=4|--rationale|a rationale long enough to pass the length check" \
-    "driver|--add|F-NEW|--rationale|a rationale long enough to pass the length check" \
-    "driver|--remove|F-NEW|--rationale|a rationale long enough to pass the length check" \
-    "auto-promote|--enable|--rationale|a rationale long enough to pass the length check"
-do
-    IFS='|' read -r -a argv <<< "$spec"
-    vout="$(run_bvp "${argv[@]}")"; vrc=$?
-    label="${argv[0]} ${argv[1]}"
-    if [ "$vrc" -eq 0 ]; then
-        fail "$label was ALLOWED with the switch on — the bypass is not surgical"
-    else
-        ok "$label still refuses (rc $vrc)"
-    fi
-    assert_contains "$vout" "agents must not invoke" "$label prints the §ACD refusal"
-done
+# 3. the agent tries to confirm — this is the moment the override must hold
+aout="$(run confirm T-9001)"; arc=$?
+if [ "$arc" -ne 0 ]; then ok "agent confirm REFUSED over human-set scores (rc $arc)"; else
+    fail "agent confirm was ALLOWED over human-set scores — the override is not sticky"; fi
+if grep -qF 'Refusing to overwrite human-set scores' <<< "$aout"; then
+    ok "refusal names the reason and the sticky rule"
+else fail "refusal message did not name human-set scores"; fi
+
+# 4. the actual property: the human's value is still on disk
+after="$(scores_of "$TASK")"
+if grep -qF "'D2': 1" <<< "$after"; then
+    ok "★ the human's D2=1 SURVIVED the assessment run"
+else
+    fail "★ the human's override was overwritten — got: $after"
+fi
 
 # ================================================================= Case 4
 echo
-echo "Case 4 — the ledger row: promote semantics are what make it meaningful"
-PROJ="$SCRATCH/c4"; LEDGER="$SCRATCH/c4.ndjson"; mk_project "$PROJ"; SWITCH=1
-run_bvp confirm T-9001 >/dev/null
-if [ ! -s "$LEDGER" ]; then
-    fail "no ledger row was written for a successful confirm"
-else
-    ok "one row written for a successful confirm"
-    row="$(head -1 "$LEDGER")"
-    assert_contains "$row" '"path": "auto"' "row records the auto path"
-    assert_contains "$row" '"proposal_existed": true' "row records that a proposal existed"
-    assert_contains "$row" '"proposer_exact": true' \
-        "unchanged promotion with no overrides logs proposer_exact"
-    assert_contains "$row" '"no_signal_count": 2' \
-        "amendment (a): 2 of 3 drivers were no-signal"
-    assert_contains "$row" '"driver_count": 3' "driver_count recorded alongside it"
-    assert_contains "$row" '"all_no_signal": false' \
-        "a partially-evidenced proposal is not flagged all_no_signal"
-    assert_contains "$row" '"estimator": "bvp-estimator-v1-heuristic"' "estimator carried through"
-    python3 -c "import json,sys; json.loads(open('$LEDGER').readline())" 2>/dev/null \
-        && ok "row is parseable JSON" || fail "row is not parseable JSON"
-fi
+echo "Case 4 — sovereignty includes changing your mind: a human may overwrite their own"
+hout="$(run confirm T-9001 --override D2=5 --i-am-human)"; hrc=$?
+if [ "$hrc" -eq 0 ]; then ok "human confirm over a human override proceeds"; else
+    fail "human was refused over their own override: rc $hrc"; fi
+if grep -qF "'D2': 5" <<< "$(scores_of "$TASK")"; then
+    ok "the new human value landed (D2=5)"
+else fail "human re-override did not land — got: $(scores_of "$TASK")"; fi
 
 # ================================================================= Case 5
 echo
-echo "Case 5 — amendment (a): the all-no-signal shape is visible, not flattering"
-PROJ="$SCRATCH/c5"; LEDGER="$SCRATCH/c5.ndjson"; mk_project "$PROJ"; SWITCH=1
-run_bvp confirm T-9002 >/dev/null
-row="$(head -1 "$LEDGER" 2>/dev/null || echo '')"
-assert_contains "$row" '"all_no_signal": true' \
-    "every driver no-signal is flagged"
-assert_contains "$row" '"proposer_exact": true' \
-    "...and it STILL logs proposer_exact — which is exactly why the flag is needed:"
-echo "        without all_no_signal this row reads as the estimator being right"
-echo "        about a task it never assessed, inflating any accuracy figure."
+echo "Case 5 — two states, never three: the agent path writes NO provenance"
+PROJ="$SCRATCH/c5"; LEDGER="$SCRATCH/c5.ndjson"; mk_project "$PROJ"; unset APPROVAL
+run confirm T-9001 >/dev/null
+src="$(source_of "$PROJ/.tasks/active/T-9001-fixture.md")"
+if [ "$src" = "(absent)" ]; then
+    ok "agent confirm leaves bvp_scores_source ABSENT (not 'agent')"
+else
+    fail "agent confirm wrote a provenance value '$src' — creates a third state whose"
+    echo "        meaning is indistinguishable from absence (832 offsets 190/191, T-3105)"
+fi
+task5="$PROJ/.tasks/active/T-9001-fixture.md"
+if grep -qF 'confirmed_by: agent:auto' "$task5"; then
+    ok "confirmed_by still names the agent path, never \$USER"
+else fail "confirmed_by did not record the agent path"; fi
 
 # ================================================================= Case 6
 echo
-echo "Case 6 — the real ledger is never written by a fixture run"
-real="$PROJECT/.context/telemetry/bvp-confirmations.ndjson"
-# Size via a -f test rather than a redirect: `wc -c < missing` fails in the SHELL
-# before wc runs, so `2>/dev/null` on wc does not suppress it. An absent ledger is
-# the normal state until the switch is first turned on, and a checker that prints
-# an error on the healthy path is a checker people learn to skim past.
-ledger_size() { [ -f "$1" ] && wc -c < "$1" || echo 0; }
-before="$(ledger_size "$real")"
-PROJ="$SCRATCH/c6"; LEDGER="$SCRATCH/c6.ndjson"; mk_project "$PROJ"; SWITCH=1
-run_bvp confirm T-9001 >/dev/null
-after="$(ledger_size "$real")"
-if [ "$before" = "$after" ]; then
-    ok "FW_BVP_TELEMETRY_PATH kept the real append-only ledger untouched"
-else
-    fail "a fixture run wrote into the REAL ledger ($before -> $after bytes) — unremovable"
-fi
+echo "Case 6 — rationale: mandatory on a CHANGE, exempt on a FIRST set, no 30-char floor"
+PROJ="$SCRATCH/c6"; LEDGER="$SCRATCH/c6.ndjson"; mk_project "$PROJ"; unset APPROVAL
+# A short but real rationale must be accepted — the floor is gone.
+o="$(run weight --set D1=4 --rationale 'gate is load-bearing')"
+if grep -qE 'must be ≥[0-9]+ characters' <<< "$o"; then
+    fail "the 30-character minimum is still enforced"
+else ok "a 21-char rationale is accepted (floor removed)"; fi
+# An empty rationale is a missing one wearing a flag.
+o="$(run weight --set D1=4 --rationale '   ')"
+if grep -qF 'is empty' <<< "$o"; then ok "whitespace-only rationale still refused"; else
+    fail "whitespace-only rationale was accepted"; fi
+# driver --add is a first set, so it needs none.
+o="$(run driver --add F-NEW --weight 3)"
+if grep -qF -- '--rationale is required' <<< "$o"; then
+    fail "driver --add demanded a rationale on a first set"
+else ok "driver --add (first set) needs no rationale"; fi
+# driver --remove changes an established thing, so it does.
+o="$(run driver --remove F-NEW)"
+if grep -qF -- '--rationale is required' <<< "$o"; then
+    ok "driver --remove still requires a rationale"
+else fail "driver --remove accepted no rationale"; fi
 
 # ================================================================= Case 7
 echo
-echo "Case 7 — fail-closed: only a recognised truthy value opens the gate"
-for bad in 0 false FALSE no off "" "yes-ish" "TRUE " garbage; do
-    PROJ="$SCRATCH/c7"; LEDGER="$SCRATCH/c7.ndjson"
-    rm -rf "$PROJ"; mk_project "$PROJ"; SWITCH="$bad"
-    out="$(run_bvp confirm T-9001)"; rc=$?
-    case "$bad" in
-        "TRUE ")  # trailing space is stripped, so this one legitimately opens
-            assert_rc "$rc" 0 "switch='TRUE ' (stripped+lowered) opens the gate" ;;
-        *)
-            if [ "$rc" -eq 0 ]; then
-                fail "switch='$bad' OPENED the gate — must fail closed"
-            else
-                ok "switch='$bad' keeps the gate closed"
-            fi ;;
-    esac
-done
+echo "Case 7 — carried over from T-3176: the telemetry ledger still works"
+PROJ="$SCRATCH/c7"; LEDGER="$SCRATCH/c7.ndjson"; mk_project "$PROJ"; unset APPROVAL
+run confirm T-9001 >/dev/null
+if [ -s "$LEDGER" ]; then
+    row="$(head -1 "$LEDGER")"
+    ok "a row was written"
+    grep -qF '"no_signal_count": 2' <<< "$row" \
+        && ok "amendment (a): no_signal_count survives the rewrite" \
+        || fail "no_signal_count missing — got: $(head -c 200 <<< "$row")"
+    grep -qF '"proposer_exact": true' <<< "$row" \
+        && ok "proposer_exact still computed" || fail "proposer_exact missing"
+else fail "no ledger row written"; fi
+real="$PROJECT/.context/telemetry/bvp-confirmations.ndjson"
+ledger_size() { [ -f "$1" ] && wc -c < "$1" || echo 0; }
+before="$(ledger_size "$real")"
+PROJ="$SCRATCH/c7b"; LEDGER="$SCRATCH/c7b.ndjson"; mk_project "$PROJ"
+run confirm T-9001 >/dev/null
+[ "$before" = "$(ledger_size "$real")" ] \
+    && ok "FW_BVP_TELEMETRY_PATH kept the real append-only ledger untouched" \
+    || fail "a fixture run wrote into the REAL ledger"
 
-# ================================================================= Case 8
+# ================================================================= Case 8  ★
 echo
-echo "Case 8 — the human path is never removed, switch on or off"
-for sw in 0 1; do
-    PROJ="$SCRATCH/c8-$sw"; LEDGER="$SCRATCH/c8-$sw.ndjson"; mk_project "$PROJ"; SWITCH="$sw"
-    out="$(run_bvp confirm T-9001 --i-am-human)"; rc=$?
-    assert_rc "$rc" 0 "--i-am-human works with switch=$sw"
-    task="$(cat "$PROJ/.tasks/active/T-9001-fixture.md")"
-    assert_not_contains "$task" "agent:auto" \
-        "an explicit human confirm is NOT attributed to the agent (switch=$sw)"
-    row="$(head -1 "$LEDGER" 2>/dev/null || echo '')"
-    assert_contains "$row" '"path": "human"' \
-        "human confirmations are recorded too, so the ledger can compare the two"
+echo "Case 8 ★ ground truth: the PRE-RULING code, from git, must still refuse the agent"
+PRE="$SCRATCH/pre.sh"; found=""
+for ref in HEAD $(for i in $(seq 1 15); do echo HEAD~$i; done); do
+    git -C "$PROJECT" show "$ref:.agentic-framework/lib/bvp.sh" > "$PRE" 2>/dev/null || continue
+    # Comments stripped before matching: the CURRENT file's own comments name the old
+    # key to explain what replaced it, so a naive match selects the new file as "pre".
+    # That trap fired three times in T-3178 and is a registered learning.
+    if grep -vE '^[[:space:]]*#' "$PRE" | grep -qF '_AUTO_CONFIRM_KEY'; then found="$ref"; break; fi
 done
-
-# ================================================================= Case 9 (mutant)
-echo
-echo "Case 9 — mutant: an auto_ok that ignores the switch must be caught by Case 3"
-mut="$SCRATCH/bvp-mutant.sh"
-sed 's/^    if auto_ok:$/    if True:/' "$BVP" > "$mut"
-if ! grep -q '^    if True:' "$mut"; then
-    fail "MUTATION SETUP BROKEN — the auto_ok branch was not substituted"
-    echo "        (a mutant that was never applied reads identically to one nothing caught)"
+if [ -z "$found" ]; then
+    fail "MUTATION SETUP BROKEN — no ref in HEAD..HEAD~6 carries the pre-ruling gate"
 else
-    ok "mutant applied (auto_ok branch forced open)"
-    PROJ="$SCRATCH/c9"; LEDGER="$SCRATCH/c9.ndjson"; mk_project "$PROJ"; SWITCH=1
-
-    # CONTROL FIRST. Drive the UNMUTATED subject through the identical path and
-    # require it to REFUSE. Without this leg a "kill" is unfalsifiable: any harness
-    # fault that makes every invocation return 0 scores as a kill, which is exactly
-    # what the first run of this suite did.
-    run_bvp weight --set D1=4 --rationale "a rationale long enough to pass" >/dev/null 2>&1
-    crc=$?
-    if [ "$crc" -eq 0 ]; then
-        fail "MUTATION SETUP BROKEN — the UNMUTATED subject already allows weight --set"
-        echo "        A kill measured against this baseline would mean nothing."
-    else
-        ok "control: unmutated subject refuses weight --set (rc $crc)"
-        run_bvp_at "$mut" weight --set D1=4 --rationale "a rationale long enough to pass" \
-            >/dev/null 2>&1
-        mrc=$?
-        if [ "$mrc" -eq 0 ]; then
-            ok "mutant KILLED — blanket bypass lets weight --set through, Case 3 goes red"
+    ok "pre-ruling copy recovered from git ($found)"
+    PROJ="$SCRATCH/c8"; LEDGER="$SCRATCH/c8.ndjson"; mk_project "$PROJ"; unset APPROVAL
+    # Control leg: prove that copy runs at all before trusting its refusal.
+    cout="$(run_at "$PRE" confirm --help)"
+    if grep -qF 'Usage: fw bvp confirm' <<< "$cout"; then
+        ok "control: pre-ruling copy sources and answers"
+        pout="$(run_at "$PRE" weight --set D1=4 --rationale 'a rationale long enough to clear the old thirty character floor')"
+        if grep -qF 'agents must not invoke' <<< "$pout"; then
+            ok "pre-ruling code REFUSES weight --set — the change is load-bearing"
         else
-            fail "mutant SURVIVED — Case 3 cannot distinguish surgical from blanket"
+            fail "pre-ruling code did not refuse; Case 1 proves nothing about the change"
         fi
+    else
+        fail "MUTATION SETUP BROKEN — pre-ruling copy did not run"
     fi
 fi
 
-# ---------------------------------------------------------------- summary
 echo
 echo "=== SUMMARY ==="
 echo "Pass: $PASS"

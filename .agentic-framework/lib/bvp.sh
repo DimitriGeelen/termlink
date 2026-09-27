@@ -87,28 +87,46 @@ def _str_safe_load(text):
     return yaml.load(text, Loader=_L)
 
 
-# ------------------------------------------- T-3176 auto-confirm switch (LOCAL DIVERGENCE)
-# Registered in .vendor-divergence.yaml, status filed-upstream at framework:pickup
-# offset 193 (building on 832-Workflow-designer's offset 168). A re-vendor that
-# silently restores the closed gate reads as CORRECT behaviour, which is exactly why
-# the divergence is a config key rather than a deletion: the switch is legible in
-# .framework.yaml, a deleted gate would not be legible anywhere.
-_AUTO_CONFIRM_KEY = 'BVP_AUTO_CONFIRM'
+# --------------------------- T-3184 BVP scoring is an agent decision (LOCAL DIVERGENCE)
+# Registered in .vendor-divergence.yaml. OPERATOR RULING 2026-09-27, not an agent
+# proposal: setting BVP scores requires no human involvement, and the same applies to
+# value drivers and arc drivers. All five §ACD-gated verbs open — confirm, weight --set,
+# driver --add, driver --remove, auto-promote --enable. The human keeps an OVERRIDE, and
+# the override is STICKY (see _bvp_scores_are_human_set below).
+#
+# SUPERSEDES T-3176, which opened `confirm` only, behind a switch defaulting OFF.
+#
+# Why the gate's removal is not a weakening: measured across 2877 tasks with parseable
+# frontmatter, 449 carry a PROPOSED score and 0 carry a CONFIRMED one — a 100% block rate
+# over ~7 months. Every BVP-derived surface has therefore never held a data point, and
+# `--quadrant hv-lc` returned "No tasks match" because the axis was never populated. An
+# approval gate that produces zero data is replaced by a provenance mechanism that
+# preserves authority where it has actually been exercised.
+#
+# A CONFIG DEFAULT, NOT A DELETION. Setting BVP_HUMAN_APPROVAL true restores §ACD gating
+# on all five verbs. Two reasons it is not simply deleted: a consumer who wants the gate
+# can have it, and — the asymmetry that matters — a re-vendor silently REINSTATES the gate
+# with no symptom. Scoring would just quietly stop producing data again, which is the
+# exact condition that went unnoticed for seven months.
+_HUMAN_APPROVAL_KEY = 'BVP_HUMAN_APPROVAL'
 _TRUTHY = {'1', 'true', 'yes', 'on'}
 
 
-def _bvp_auto_confirm_enabled():
-    """True only when the switch is explicitly and recognisably on.
+def _bvp_human_approval_required():
+    """True only when a human has explicitly and recognisably re-armed the gate.
 
-    Resolution order: env var (operator override + the seam the fixtures drive),
-    then the .framework.yaml key, then OFF.
+    Resolution order: env var (operator override + the seam the fixtures drive), then
+    the .framework.yaml key, then the ruling's default of NOT required.
 
-    FAIL-CLOSED BY CONSTRUCTION: anything not in _TRUTHY is OFF — absent, '0',
-    'false', a typo, an unreadable or unparseable .framework.yaml. A sovereignty
-    gate that opens on a value it could not understand is worse than one that
-    never opened, so every unknown resolves to the closed state.
+    The polarity is inverted from T-3176's switch on purpose. There, an unknown value
+    resolved to the CLOSED state because the thing being guarded was a sovereignty
+    boundary. Here the operator has ruled that scoring is not a sovereignty boundary, so
+    an unreadable or unparseable config must not silently re-impose a gate that produces
+    no data — that failure is invisible, and invisibility is what let the 0-of-449
+    condition persist. Human authority now lives in the sticky override, which is
+    evidence-bearing, rather than in a refusal, which is not.
     """
-    env = os.environ.get(_AUTO_CONFIRM_KEY)
+    env = os.environ.get(_HUMAN_APPROVAL_KEY)
     if env is not None:
         return env.strip().lower() in _TRUTHY
     try:
@@ -121,10 +139,55 @@ def _bvp_auto_confirm_enabled():
         return False
     if not isinstance(cfg, dict):
         return False
-    val = cfg.get(_AUTO_CONFIRM_KEY)
+    val = cfg.get(_HUMAN_APPROVAL_KEY)
     if val is None:
         return False
     return str(val).strip().lower() in _TRUTHY
+
+
+def _bvp_scores_are_human_set(fm):
+    """THE STICKY OVERRIDE. True when a human set or corrected this task's scores.
+
+    Two states, never three: `human` or freely-recomputed. 832-Workflow-designer's
+    design at framework:pickup offsets 190/191, and they are right that an
+    "unknown provenance" third state reintroduces the ambiguity being removed.
+
+    The operator's requirement in their own words — "after a next BVP assessment run,
+    that doesn't get overridden." So this is read on the AGENT path before writing, and
+    a True answer refuses the write. A human can still overwrite their own override by
+    passing --i-am-human, because sovereignty includes changing your mind.
+    """
+    return str((fm or {}).get('bvp_scores_source') or '').strip().lower() == 'human'
+
+
+def _weight_has_history(driver_id):
+    """True when this driver's weight has been set before.
+
+    Decides `first_set` for `weight --set`: with no prior entry the call establishes a
+    baseline and needs no justification; with one, it CHANGES an established value and
+    the weight-history audit needs to know why (T-3184).
+
+    FAIL-SAFE TOWARD REQUIRING A RATIONALE: an unreadable or unparseable history returns
+    True, so the exemption is never granted on the strength of a failed read. Asking for
+    a rationale that was not strictly needed costs a sentence; skipping one that was
+    needed loses the reason permanently, and the whole point of the file is that the
+    reasons survive.
+    """
+    try:
+        text = HISTORY_PATH.read_text()
+    except OSError:
+        return False          # no history file at all: nothing has ever been set
+    try:
+        data = _str_safe_load(text)
+    except Exception:
+        return True           # unreadable: assume history exists, demand the rationale
+    entries = (data or {}).get('history') if isinstance(data, dict) else data
+    if not isinstance(entries, list):
+        return True
+    for e in entries:
+        if isinstance(e, dict) and str(e.get('driver') or e.get('driver_id') or '') == str(driver_id):
+            return True
+    return False
 
 
 def _bvp_telemetry_path():
@@ -190,15 +253,15 @@ def acd_gate(verb, args, refusal_hint="", auto_ok=False):
     --from-watchtower. Returns True if allowed, False if refused (and prints
     error). Used by all mutating verbs.
 
-    `auto_ok` (T-3176) is the surgical opening. EXACTLY ONE call site passes it —
-    `confirm`, which scores a task AGAINST the value model. The other four verbs
-    (weight --set, driver --add, driver --remove, auto-promote --enable) EDIT the
-    value model, which is a different authority (D8, sovereignty at policy-edit
-    time), and they never pass it, so their behaviour is byte-identical to before.
+    `auto_ok` was T-3176's surgical opening for `confirm` alone. T-3184 SUPERSEDES that:
+    the operator ruled that scoring and the value model are both agent decisions, so ALL
+    FIVE call sites now pass `auto_ok=not _bvp_human_approval_required()`. The refusal
+    text below therefore only ever prints when a human has deliberately re-armed the gate
+    with BVP_HUMAN_APPROVAL, which is the one case where it is still true.
 
-    The parameter is a caller-computed boolean rather than a key this function
-    reads, so there is exactly one place the auto path is decided and `confirmed_by`
-    cannot disagree with the gate about which path was taken.
+    Human authority did not move out of this function into nothing — it moved into the
+    STICKY OVERRIDE (`bvp_scores_source: human`), which is evidence-bearing. A refusal
+    records that something was blocked; provenance records what a human actually decided.
     """
     if os.environ.get('CLAUDECODE') != '1':
         return True
@@ -221,20 +284,45 @@ def acd_gate(verb, args, refusal_hint="", auto_ok=False):
     return False
 
 
-def require_rationale(args, min_chars=30):
-    """Pulls --rationale value out of args, validates min length. Returns
-    (rationale_text, ok). Prints error on failure."""
+def require_rationale(args, min_chars=0, first_set=False):
+    """Pulls --rationale out of args. Returns (rationale_text, ok).
+
+    T-3184, operator ruling: --rationale STAYS MANDATORY — emphatically, and with the
+    observation that agents should be better at writing one than humans — but
+
+      (1) the 30-character minimum is REMOVED. A length floor measures typing, not
+          thought. It cannot tell "D1 raised: the gate is now load-bearing" (a real
+          reason, 44 chars) from 30 characters of filler, so it taxed the honest case
+          and never caught the dishonest one.
+
+      (2) it is NOT required when the value is being set for the FIRST time
+          (`first_set=True`). Establishing a baseline is not a decision that needs
+          defending; CHANGING an established value is, and that is precisely what the
+          weight-history audit exists to reconstruct.
+
+    `min_chars` is retained in the signature for callers that pass it explicitly, but
+    it is no longer applied by default — the default is now 0.
+    """
     if '--rationale' not in args:
-        print("Error: --rationale is required.", file=sys.stderr)
-        print(f"  Provide ≥{min_chars} chars explaining why (R6 mitigation — thin", file=sys.stderr)
-        print("  rationales make weight-history audit useless).", file=sys.stderr)
+        if first_set:
+            return '', True
+        print("Error: --rationale is required when changing an established value.", file=sys.stderr)
+        print("  Say why it changed — the weight-history audit reconstructs decisions", file=sys.stderr)
+        print("  from these, and 'updated' reconstructs nothing (R6).", file=sys.stderr)
+        print("  Not required for a first-time set (T-3184).", file=sys.stderr)
         return None, False
     idx = args.index('--rationale')
     if idx + 1 >= len(args):
         print("Error: --rationale needs a value.", file=sys.stderr)
         return None, False
     rationale = args[idx + 1]
-    if len(rationale) < min_chars:
+    # An empty or whitespace-only rationale is a MISSING one wearing a flag, so it is
+    # still refused. That is the one length check worth keeping: it distinguishes
+    # "said nothing" from "said something short", which a 30-char floor could not.
+    if not rationale.strip():
+        print("Error: --rationale was given but is empty.", file=sys.stderr)
+        return None, False
+    if min_chars and len(rationale) < min_chars:
         print(f"Error: --rationale must be ≥{min_chars} characters (got {len(rationale)}).", file=sys.stderr)
         print(f"  Provided: {rationale!r}", file=sys.stderr)
         return None, False
@@ -754,12 +842,15 @@ def cmd_weight(args):
         print(f"Error: weight {new_weight} out of range (0-9)", file=sys.stderr)
         return 2
 
-    rationale, ok = require_rationale(args)
+    # T-3184: a first-ever weight for this driver establishes a baseline and is exempt;
+    # changing an established one is what the weight-history audit reconstructs.
+    rationale, ok = require_rationale(args, first_set=not _weight_has_history(driver_id))
     if not ok:
         return 2
 
     if not acd_gate('weight', args,
-                    refusal_hint="Correct flow: human runs `bin/fw bvp weight --set Dn=N --rationale \"...\" --i-am-human`"):
+                    refusal_hint="Correct flow: human runs `bin/fw bvp weight --set Dn=N --rationale \"...\" --i-am-human`",
+                    auto_ok=not _bvp_human_approval_required()):
         return 1
 
     policy_path, policy = _load_policy_preserving()
@@ -966,17 +1057,18 @@ def cmd_confirm(args):
     # the §ACD refusal). Different ordering from cmd_weight (where rationale
     # validation precedes §ACD) — confirm has no comparable "form" check that
     # benefits from running first.
-    # T-3176: decided ONCE, here, and handed to the gate. `confirmed_by` reads the
-    # same variable, so the task file cannot claim a different path from the one the
-    # gate actually took.
-    auto_path = (os.environ.get('CLAUDECODE') == '1'
-                 and '--i-am-human' not in args
-                 and '--from-watchtower' not in args
-                 and _bvp_auto_confirm_enabled())
+    # T-3176/T-3184: decided ONCE, here, and handed to the gate. `confirmed_by` and the
+    # provenance field both read the same variable, so the task file cannot claim a
+    # different path from the one the gate actually took.
+    #
+    # `human_invocation` is the positive form and is what stamps provenance. An agent
+    # confirming under the ruling is NOT a human invocation even though it is now allowed.
+    human_invocation = ('--i-am-human' in args or '--from-watchtower' in args)
+    auto_path = not human_invocation
 
     if not acd_gate('confirm', args,
                     refusal_hint="Correct flow: human reviews proposed scores in Watchtower or runs `fw bvp confirm T-<id> --i-am-human`",
-                    auto_ok=auto_path):
+                    auto_ok=not _bvp_human_approval_required()):
         return 1
 
     # Locate task file.
@@ -1006,6 +1098,26 @@ def cmd_confirm(args):
         fm = _ruamel_yaml.load(fm_text)
     else:
         fm = _str_safe_load(fm_text)
+
+    # ── T-3184 STICKY OVERRIDE ──────────────────────────────────────────────────────
+    # The operator's requirement, verbatim: "after a next BVP assessment run, that
+    # doesn't get overridden." Removing the approval gate without this turns every
+    # human correction into a value with a shelf life — the estimator re-proposes, the
+    # next automated confirm promotes, and the correction is gone with no error and no
+    # record that it ever existed. That is the silent-overwrite failure, and it is worse
+    # than the gate it replaces, because the gate at least failed loudly.
+    #
+    # Refused on the AGENT path only. A human can overwrite their own override with
+    # --i-am-human, because sovereignty includes changing your mind.
+    if auto_path and _bvp_scores_are_human_set(fm):
+        print(f"Refusing to overwrite human-set scores on {task_id} (bvp_scores_source: human).",
+              file=sys.stderr)
+        print("  Scoring is an agent decision (T-3184), but a human OVERRIDE is sticky —", file=sys.stderr)
+        print("  it survives every later assessment run by design.", file=sys.stderr)
+        print(f"  Current: {fm.get('bvp_scores')}", file=sys.stderr)
+        print("  To change it deliberately, a human runs:", file=sys.stderr)
+        print(f"    fw bvp confirm {task_id} [--override Dn=N]... --i-am-human", file=sys.stderr)
+        return 1
 
     proposed = fm.get('bvp_scores_proposed') if fm else None
     if not proposed and not overrides:
@@ -1043,9 +1155,20 @@ def cmd_confirm(args):
     # T-3176 amendment (b): $USER on the auto path records the OS account the agent
     # happens to run as, which makes an automatic confirmation indistinguishable from
     # an operator's in the task file — the one place a reader looks to tell them apart.
-    fm['confirmed_by'] = (f'agent:auto ({_AUTO_CONFIRM_KEY})' if auto_path
+    fm['confirmed_by'] = ('agent:auto (T-3184)' if auto_path
                           else os.environ.get('USER', 'unknown'))
     fm['confirmed_at'] = _utc_now()
+
+    # T-3184: stamp provenance, two states and never three. A human invocation marks the
+    # scores sticky; an agent run leaves the field ALONE rather than writing 'agent'.
+    #
+    # Leaving it alone is the deliberate part. Writing 'agent' would create a third
+    # readable state whose meaning ("assessed automatically") is indistinguishable from
+    # its absence ("never assessed"), which is the ambiguity 832 removed at offsets
+    # 190/191 and the same confusion T-3105 rules on for audit rows. Absence means
+    # freely-recomputable, and that is all it needs to mean.
+    if human_invocation:
+        fm['bvp_scores_source'] = 'human'
 
     # Re-serialise frontmatter + write back.
     if _HAS_RUAMEL:
@@ -1107,7 +1230,8 @@ def cmd_confirm(args):
 
 def _driver_add(args):
     if not acd_gate('driver --add', args,
-                    refusal_hint="Adding a driver is a policy-edit; the human approves the framing."):
+                    refusal_hint="Adding a driver is a policy-edit; the human approves the framing.",
+                    auto_ok=not _bvp_human_approval_required()):
         return 1
     idx = args.index('--add')
     if idx + 1 >= len(args):
@@ -1126,7 +1250,7 @@ def _driver_add(args):
     if not 0 <= weight <= 9:
         print(f"Error: weight {weight} out of range (0-9)", file=sys.stderr)
         return 2
-    rationale, ok = require_rationale(args)
+    rationale, ok = require_rationale(args, first_set=True)  # T-3184: new driver = baseline
     if not ok:
         return 2
 
@@ -1317,7 +1441,7 @@ def _driver_propose(args):
         print(f"Error: weight {weight} out of range (0-9)", file=sys.stderr)
         return 2
 
-    rationale, ok = require_rationale(args)
+    rationale, ok = require_rationale(args, first_set=True)  # T-3184: new driver = baseline
     if not ok:
         return 2
 
@@ -1401,7 +1525,8 @@ def _driver_remove(args):
         return 2
 
     if not acd_gate('driver --remove', args,
-                    refusal_hint="Removing a driver is a policy-edit; the human approves the framing."):
+                    refusal_hint="Removing a driver is a policy-edit; the human approves the framing.",
+                    auto_ok=not _bvp_human_approval_required()):
         return 1
 
     policy_path, policy = _load_policy_preserving()
@@ -1515,7 +1640,8 @@ def cmd_auto_promote(args):
     # ---- enable/disable verbs (§ACD-gated, T-1932) ---------------------
     if '--enable' in args:
         if not acd_gate('auto-promote --enable', args,
-                        refusal_hint="Enabling auto-promote is a policy-edit (D8). Run from Watchtower or pass --i-am-human."):
+                        refusal_hint="Enabling auto-promote is a policy-edit (D8). Run from Watchtower or pass --i-am-human.",
+                        auto_ok=not _bvp_human_approval_required()):
             return 1
         rationale, ok = require_rationale(args)
         if not ok:
