@@ -26,7 +26,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-11T19:54:29Z
-last_update: 2026-09-27T09:19:36Z
+last_update: 2026-09-27T19:03:41Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -95,9 +95,23 @@ cost_estimate_proposed:
       exactly ONE recommendation line, so no draft artefact is present in that sample.
       Four of the 23 are parser artefacts (`DELIVERED`/`CONDITIONAL`/`MOSTLY-SHIPPED`/
       `PARTIAL` are not GO/NO-GO/DEFER shaped) and are probably not mismatches at all.
-- [ ] Fix filed upstream per G-062 — `lib/review.sh` is vendored, so a local patch is
-      deleted by the next re-vendor. Filed at `framework:pickup`, verified by read-back
-      (T-2876), and registered in `.vendor-divergence.yaml` if a local fix is also taken.
+- [x] Fix filed upstream per G-062 — `lib/review.sh` is vendored, so a local patch is
+      deleted by the next re-vendor. **Filed at `framework:pickup` offset 208, read-back
+      verified byte-identical 2026-09-27.** No local patch taken, so no divergence entry
+      is needed. The filing carries the one-line fix (derive the verb from the
+      recommendation; print a `<go|no-go|defer>` PLACEHOLDER when it cannot be parsed,
+      because a guess is what created the problem) plus the second half: inception.py:421
+      already computes `decision_matches_recommendation` and does not surface it as a
+      warning at the moment of recording, which is where it would have caught all three.
+- [x] MECHANISM CORRECTED before filing, rather than filing the first analysis. The claim
+      that the hardcoded verb WROTE the GO is too strong: T-2879 was decided via
+      Watchtower, and `web/blueprints/inception.py:499` reads the verb from the submitted
+      form, so the record came from a selection. What `review.sh:380` actually does is
+      MISINFORM THE HUMAN AT THE MOMENT OF DECISION — `fw task review` is what an
+      operator reads before deciding and it hands them a copy-pasteable command saying
+      `go`, with the NO-GO rationale attached lending it false authority. Confirmed live:
+      this agent pasted that output to the operator earlier the same day, `go` first,
+      without recognising it.
 - [ ] The emitter is corrected BEFORE any affected record is re-decided. Re-deciding
       while the verb is still hardcoded re-inverts on the next pass, so order is
       load-bearing, not preference.
