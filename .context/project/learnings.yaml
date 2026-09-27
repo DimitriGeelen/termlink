@@ -4525,3 +4525,9 @@ learnings:
   task: T-3095
   date: 2026-09-27
   context: Added via context agent
+- id: PL-389
+  learning: "Before acting on a bulk 'these tasks look completable' finding, check owner AND read each task body. Measured on the CTL-029 bundle: 25 of 27 were owner:human, whose correct terminal state for an agent IS started-work in active/ (PL-376, R-033 sovereignty gate) — so the check flags the designed end state. Worse, T-3010 had every AC ticked and 3/3 verification yet its body forbids closure in bold: it carries a 90-day G-053 revisit_at and revisit-due-scan.sh reads .tasks/active/ ONLY, so closing it moves the file where the scan never looks and silently defeats the reminder. A check whose recommended remediation damages the project is a distinct, more serious class than a merely noisy one (T-2818). What caught it was the T-1718 Evolution gate refusing the close and forcing me to read the body — not review. Treat a gate that blocks a bulk sweep as possibly the only control standing between the sweep and real damage. Rule: never close a task carrying a future revisit_at."
+  source: P-001
+  task: T-3132
+  date: 2026-09-27
+  context: Added via context agent

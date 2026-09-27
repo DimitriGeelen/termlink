@@ -1,0 +1,91 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3044: Orchestrate value-review + procAsFit prompt sequence over TermLink (2 rounds)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-27T22:43:24Z
+# ============================================================================
+
+task_id: T-3044
+task_name: "Orchestrate value-review + procAsFit prompt sequence over TermLink (2 rounds)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-21T14:54:57Z
+completed: 2026-09-27T22:43:15Z
+duration_days: 6
+updates_count: 1
+first_commit: 2026-09-21T17:00:19+02:00
+last_commit: 2026-09-21T22:16:50+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  set up value-review + procAsFit sequence on TermLink, dispatch R1S1. R1S1 complete — Phase 0/1 value review halted at the [ASK] gate. human decision recorded (gate policy B + rescope), R1S1 resumed. R1S1 complete — value review round 1, halted at PHASE 5 gate. repair the run record — the load-bearing state carrier had stopped parsing
+
+# Key outcomes
+outcomes:
+  - 'Both prompts (value-review, procAsFit) are written to `docs/prompts/` verbatim, with the four value-review placeholders filled and the fill recorded, so the sequence is reproducible and survives a context reset'
+  - 'A durable run record exists naming all 4 steps (2 rounds x 2 prompts), their order, and each step''s state, so a later session can resume the sequence without this conversation'
+  - 'Round 1 Step 1 (value review, GATHERER role) is dispatched to a **separate** TermLink worker session — not executed in the orchestrator''s own context — and the worker is confirmed reachable, not merely spawned'
+  - 'The conflict between the user''s "repeat 2 times" chaining and the prompts'' own [ASK] gates (Phase 1, Phase 5) plus Phase 6 "approved items only" is surfaced to the human as a Sovereign question rather than resolved by the orchestrator'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/runs/T-3044-sequence.yaml'
+  - 'docs/prompts/proc-as-fit.md'
+  - 'docs/prompts/value-review.md'
+  - 'docs/reports/VALUE-REVIEW-repo-2026-09-21-phase01.md'
+  - 'docs/reports/VALUE-REVIEW-repo-2026-09-21-round1.md'
+  - '.tasks/active/T-3044-orchestrate-value-review--procasfit-prom.md'
+  - '.tasks/completed/T-3036-run-substrate-smoke-prover-and-report-cl.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-21T17:00:19'
+    action: 'T-3044: set up value-review + procAsFit sequence on TermLink, dispatch R1S1'
+  - time: '2026-09-21T17:17:51'
+    action: 'T-3044: R1S1 complete — Phase 0/1 value review halted at the [ASK] gate'
+  - time: '2026-09-21T21:14:03'
+    action: 'T-3044: human decision recorded (gate policy B + rescope), R1S1 resumed'
+  - time: '2026-09-21T21:30:58'
+    action: 'T-3044: R1S1 complete — value review round 1, halted at PHASE 5 gate'
+  - time: '2026-09-21T22:16:50'
+    action: 'T-3044: repair the run record — the load-bearing state carrier had stopped parsing'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 5 commit(s), 9108 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 9108
+  commits: 5
+  files_changed: 7
+  lines_added: 1812
+  lines_removed: 24
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3044-orchestrate-value-review--procasfit-prom.md
+generated_by: context-agent-hybrid

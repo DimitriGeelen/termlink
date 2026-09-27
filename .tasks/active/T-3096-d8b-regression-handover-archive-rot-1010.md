@@ -8,10 +8,10 @@ description: >
   the D8 regression task (linked, not merged per arc-008 rule). Link: T-2941, T-2942,
   T-3015.
 
-status: started-work
+status: captured
 workflow_type: build
 owner: agent
-horizon: now
+horizon: next
 tags: [arc:arc-008]
 components: []
 related_tasks: []
@@ -26,7 +26,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-24T23:53:42Z
-last_update: 2026-09-27T22:31:59Z
+last_update: 2026-09-27T22:32:39Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -349,3 +349,7 @@ Recorded here and in `G-094`; parked rather than decided.
 ### 2026-09-27T22:31:59Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-09-27T22:32:39Z — status-update [task-update-agent]
+- **Change:** horizon: now → next
+- **Change:** status: started-work → captured (auto-sync)

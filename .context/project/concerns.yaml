@@ -1,4 +1,45 @@
 concerns:
+- id: G-095
+  type: gap
+  title: 'CTL-029 ("completable-not-closed") flags the DESIGNED terminal state of owner:human
+    tasks, and for a G-053 revisit carrier its recommended remediation destroys the reminder —
+    a check whose advice damages the project, not merely a loud one'
+  description: 'Found 2026-09-28 executing T-3132 (the 26-task CTL-029 bundle). CTL-029 fires on
+    "status: started-work with every Agent AC ticked" and recommends `fw task verify` then
+    `fw task update --status work-completed`. Census of all 27 bundled IDs: 25 are owner:human,
+    1 is already work-completed, and only 2 are owner:agent. Two independent defects follow.
+    (1) FALSE POSITIVE BY DESIGN: PL-376 (T-2940, same arc) already established that an
+    audit-finding task filed owner:human can never reach completion from an agent — the R-033
+    sovereignty gate refuses it — so started-work in active/ with agent ACs ticked IS its correct
+    terminal state. CTL-029 therefore re-manufactures the same ~25 findings every cycle, and the
+    lesson was registered without the check being changed. (2) THE DANGEROUS CASE: T-3010 has
+    every AC ticked and passes 3/3 verification, so it reads as "confirmed complete — close it",
+    while its own Context forbids closure in bold because it is the structural carrier of a
+    90-day G-053 deferral (value-review C-29, artifact.* surface, due 2026-12-18) and
+    agents/context/revisit-due-scan.sh reads .tasks/active/ ONLY. Closing it moves the file to
+    completed/, where the daily scan never looks, silently defeating the reminder. So CTL-029''s
+    remediation, applied literally to T-3010, destroys a deferral mechanism and leaves no trace.
+    That is a distinct and more serious class than the alarm-fatigue shape T-2818 documents: the
+    advice is not noisy, it is harmful. WHAT CAUGHT IT was not review but the T-1718 Evolution
+    gate refusing the close for an empty ## Evolution, which forced reading the body where the
+    prohibition is written — had T-3010 carried Evolution content the way T-3044 does, it would
+    have closed cleanly and silently. Fix direction (upstream, vendored): CTL-029 must check
+    owner before flagging, and must exempt any task carrying a future revisit_at. Neither is a
+    local change.'
+  spec_reference: '.agentic-framework/agents/audit/audit.sh (CTL-029 completable-not-closed);
+    .agentic-framework/agents/context/revisit-due-scan.sh (scans .tasks/active/ only, T-1452/G-053);
+    PL-376; .tasks/active/T-3010 (documented stay-open); T-3132'
+  severity: high
+  trigger_fired: true
+  trigger_event: '2026-09-28 T-3132: CTL-029 listed T-3010 as completable-not-closed. Closing it
+    was attempted and refused by the T-1718 Evolution gate; reading the body then revealed an
+    explicit prohibition on closing it. 25 of the 27 bundled tasks are owner:human.'
+  detection_lag_days: 'since PL-376 was registered (T-2940) — the false-positive half was known
+    and recorded, and the check was not changed; the harmful half (T-3010) had never been noticed'
+  status: watching
+  created: 2026-09-28
+  last_reviewed: 2026-09-28
+  related_tasks: ['T-3132', 'T-3010', 'T-2940', 'T-3044', 'T-3060']
 - id: G-094
   type: gap
   title: 'no register state for "defect reported upstream, not yet landed here" — a vendored

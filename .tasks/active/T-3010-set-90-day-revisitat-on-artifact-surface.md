@@ -24,7 +24,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-19T22:32:15Z
-last_update: '2026-09-27T21:34:07Z'
+last_update: 2026-09-27T22:40:50Z
 date_finished:
 revisit_at: 2026-12-18          # 90 days after the C-29 measurement date (2026-09-19)
 revisit_evidence_needed: "Re-measure termlink artifact.get/put call volume (hub logs

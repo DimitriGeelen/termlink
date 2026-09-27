@@ -14,7 +14,7 @@ description: >
   as a
   new task, same rationale as the original 26. See Updates for detail.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -32,7 +32,7 @@ related_tasks: [T-3016, T-2938, T-2939, T-2940]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-25T07:04:36Z
-last_update: '2026-09-27T21:34:08Z'
+last_update: 2026-09-27T22:43:43Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -83,14 +83,87 @@ of the 26 needs its own evidence-cited spot-check, real per-task work, not a bul
 mechanical action. Left captured/parked for a future cycle with capacity to work
 through the list one task at a time.
 
+## Findings (AC1)
+
+**The census inverts the task.** All 27 bundled IDs were examined for owner, status,
+location and unchecked ACs (Agent and Human counted separately, HTML comment regions blanked
+first so template examples are not read as real criteria):
+
+| population | count | disposition |
+|---|---:|---|
+| `owner: human` | **25** | **not delegated.** R-033 sovereignty gate refuses agent closure |
+| `owner: agent`, verified, closable | 1 (T-3044) | **closed** — 4/4 ACs, 8/8 verification |
+| `owner: agent`, verified, **must stay open** | 1 (T-3010) | **not closed, deliberately** |
+| already `work-completed` | 1 (T-3060) | nothing to do |
+
+Of the 25 human-owned: 21 carry ≥1 unchecked `### Human` AC (genuine pending judgement),
+T-2858 additionally has an unchecked **Agent** AC, and three (T-1428, T-1451, T-212) are
+fully ticked yet still `owner: human` — which is exactly the state PL-376 describes as
+correct-and-terminal for an agent, not as an oversight.
+
+**CTL-029 is flagging the designed end state.** PL-376 (from T-2940, in this same arc)
+already recorded it: *"Audit-finding tasks filed with `owner: human` at creation can never
+reach partial-complete… The agent's terminal state on such a task is 'parked to review' …
+and the task correctly stays at `status: started-work` in `active/`. An autonomous run should
+not read 'still started-work' as 'never closed'; check owner first."* The lesson was
+registered and the check was never changed, so CTL-029 re-manufactures the same 25 findings
+every cycle — and this bundle task is the artifact of that.
+
+**The part that is worse than noise, and the reason this is a gap rather than a grumble.**
+`T-3010` has every AC ticked and its verification passes 3/3, so by this task's AC2 it reads
+as "confirmed complete → close it". Its own Context forbids exactly that, in bold:
+
+> **This task intentionally stays open (not `work-completed`)** — closing it would move the
+> file to `.tasks/completed/`, which the daily scan does not read, silently defeating the
+> reminder it exists to carry.
+
+It is the carrier of a 90-day deferral on the `artifact.*` surface decision (value-review
+C-29), due **2026-12-18**, and `agents/context/revisit-due-scan.sh` (T-1452/G-053) scans
+`.tasks/active/` only. So CTL-029's remediation, applied to T-3010, **destroys a G-053
+reminder and leaves no trace that it did.** A check whose recommended action damages the
+project is a different and more serious class than a check that is merely loud (T-2818).
+
+**What actually caught it.** Not the census, and not review — the **T-1718 Evolution gate**.
+Closing T-3010 was refused for an empty `## Evolution`, which forced reading the task body,
+which is where the prohibition is written. Had T-3010 carried Evolution content the way
+T-3044 does, it would have closed cleanly and silently. That is luck, not a control, and it
+is the strongest available argument for keeping these gates: the gate that looked like
+bureaucracy was the only thing between a mechanical sweep and real damage.
+
+**Not attempted:** `--skip-evolution` on T-3010. It is a logged bypass, this mandate does not
+delegate bypassing gates, and in this instance the gate was right.
+
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Each of the 26 named tasks individually spot-checked with `fw task verify T-XXX`
-- [ ] Tasks confirmed complete are closed via `fw task update T-XXX --status work-completed`
+- [x] Each of the 26 named tasks individually spot-checked with `fw task verify T-XXX`
+      → Census of all 27 (26 + T-3060) run. **25 are `owner: human`**; only T-3010 and
+      T-3044 are `owner: agent`. Both agent-owned ones verified: T-3010 **3/3 PASS**,
+      T-3044 **8/8 PASS**. Of the 25 human-owned, 21 carry at least one unchecked
+      `### Human` AC and T-2858 additionally has an unchecked Agent AC. Full table in
+      `## Findings (AC1)`.
+- [x] Tasks confirmed complete are closed via `fw task update T-XXX --status work-completed`
       with the verify evidence cited in that task's own Updates section
-- [ ] fw audit's CTL-029 WARN count for this bundle drops to 0 on re-run
+      → **One closure was eligible and it was made: T-3044** (4/4 ACs, 8/8 verification,
+      Evolution populated, no stay-open clause) — now in `completed/` with an episodic.
+      **T-3010 was NOT closed and must never be**, see below. The remaining 25 are
+      `owner: human`: the R-033 sovereignty gate refuses agent closure (PL-376), and this
+      mandate does not delegate completing human-owned tasks. So this AC is satisfied for
+      its entire *eligible* population, which is 2 of 27, not 26.
+- [ ] **FAILED — not achievable, and for T-3010 not desirable.** fw audit's CTL-029 WARN count for this bundle drops to 0 on re-run
+      → Two independent reasons, both measured:
+      **(1)** 25 of 27 are `owner: human`, and per **PL-376** `started-work` in `active/`
+      with agent ACs ticked *is their correct terminal state* for an agent. CTL-029 flags
+      the designed end state as a finding, so those 25 instances cannot be driven to zero
+      without a human acting, and should not be by me.
+      **(2) T-3010 must stay open permanently until 2026-12-18**, and closing it would do
+      real damage. Its own Context says so in bold: it is the structural carrier of a
+      90-day G-053 revisit deferral, and `revisit-due-scan.sh` reads only
+      `.tasks/active/` — so moving it to `completed/` **silently defeats the reminder it
+      exists to carry.** Following this AC literally would have destroyed it.
+      Driving CTL-029 to 0 therefore requires fixing the check, not the tasks.
+      Registered as **G-095**; parked rather than forced.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -293,3 +366,6 @@ through the list one task at a time.
   that is a different audit rule about a different structural condition and is tracked as its
   own task (see arc-008), per the one-finding-one-task rule. This bundle only absorbs the
   CTL-029 instance.
+
+### 2026-09-27T22:38:43Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
