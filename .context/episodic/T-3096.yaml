@@ -1,0 +1,88 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3096: D8b regression: handover archive rot 10/10 persists despite T-3015 mechanism fix
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-27T23:02:26Z
+# ============================================================================
+
+task_id: T-3096
+task_name: "D8b regression: handover archive rot 10/10 persists despite T-3015 mechanism fix"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-24T23:53:42Z
+completed: 2026-09-27T23:02:17Z
+duration_days: 3
+updates_count: 6
+first_commit: 2026-09-27T00:14:46+02:00
+last_commit: 2026-09-28T00:32:25+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Session handover S-2026-0927-0014. D8b diagnosed; AC2 left FAILED rather than engineered into a pass
+
+# Key outcomes
+outcomes:
+  - 'Diagnose why T-3015''s change did not reduce the 10/10 unfilled-handover-archive count'
+  - 'fw audit''s D8b check no longer FAILs'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/audits/unclosed-satisfied/LATEST.md'
+  - '.context/handovers/LATEST.md'
+  - '.context/handovers/S-2026-0927-0014.md'
+  - '.context/project/learnings.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/session.yaml'
+  - '.tasks/active/T-3096-d8b-regression-handover-archive-rot-1010.md'
+  - '.termlink-task'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-27T00:14:46'
+    action: 'T-3096: Session handover S-2026-0927-0014'
+  - time: '2026-09-28T00:32:25'
+    action: 'T-3096: D8b diagnosed; AC2 left FAILED rather than engineered into a pass'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 4268 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-008]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 4268
+  commits: 2
+  files_changed: 12
+  lines_added: 393
+  lines_removed: 41
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3096-d8b-regression-handover-archive-rot-1010.md
+generated_by: context-agent-hybrid

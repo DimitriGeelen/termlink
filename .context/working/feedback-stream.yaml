@@ -13328,3 +13328,21 @@ scan_id: R-44a9712b
 task_id: T-3044
 payload:
   task_file: .tasks/active/T-3044-orchestrate-value-review--procasfit-prom.md
+---
+kind: scan_emitted
+timestamp: '2026-09-27T23:02:18Z'
+scan_id: R-735b3297
+task_id: T-3096
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-27T23:02:18Z'
+scan_id: R-735b3297
+task_id: T-3096
+payload:
+  task_file: .tasks/active/T-3096-d8b-regression-handover-archive-rot-1010.md

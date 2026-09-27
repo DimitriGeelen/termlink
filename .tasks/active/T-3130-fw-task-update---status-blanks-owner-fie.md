@@ -13,10 +13,10 @@ description: >
   status transition since creation so that link is suspected not proven. INVESTIGATE:
   bisect which step in update-task.sh status-transition path touches the owner line.
 
-status: started-work
+status: captured
 workflow_type: build
 owner: agent
-horizon: now
+horizon: next
 tags: [arc:arc-008, housekeeping]
 components: []
 related_tasks: [T-3129, T-3095]
@@ -31,7 +31,7 @@ related_tasks: [T-3129, T-3095]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-25T07:00:52Z
-last_update: 2026-09-27T22:47:24Z
+last_update: 2026-09-27T22:53:36Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -106,6 +106,16 @@ of T-3095/T-3129 as they stood in the dirty tree at the moment of the incident
 than reconstructing a fixture from the description.
 
 ## Findings
+
+**Process note first, because it matters more than the finding.** The R2S3 note above was
+**not read before this session's attempt**, so the 12-trial fixture run below duplicated three
+attempts already made and already recorded. Counting both sessions, the clean-minimal-fixture
+route has now failed **four times**, which is well past the mandate's "three attempts at the
+same wall is context burned, not progress". **Do not attempt that route a fifth time.** What
+the two sessions jointly establish is that the fixture route is the wrong instrument, and the
+prior note said so: it named "concurrent file access" as a candidate. What was missing was the
+*specific* concurrency and a proof. That is what this session adds — so the advance here is the
+mechanism, not the reproduction.
 
 **Root cause: a lost-update race, not a bad rewrite step.** `update-task.sh:1652-1662` fires
 the BVP estimator on the `started-work` transition as a **disowned background subshell**. The
@@ -396,3 +406,7 @@ shape is inlined above and in the upstream filing so it is recoverable without t
 
 ### 2026-09-27T22:47:24Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-09-27T22:53:36Z — status-update [task-update-agent]
+- **Change:** horizon: now → next
+- **Change:** status: started-work → captured (auto-sync)
