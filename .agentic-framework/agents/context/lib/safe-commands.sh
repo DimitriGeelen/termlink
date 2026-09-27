@@ -787,7 +787,28 @@ has_bash_write_pattern() {
     #
     # A trailing operator with nothing after it matches `$` and counts as a write —
     # fail CLOSED, because a truncated command line is not evidence of safety.
-    if grep -qE '>>?($|[^&])' <<< "$cmd"; then
+    #
+    # T-3187: redirects to a NULL OR STANDARD SINK are stripped first. `2>/dev/null`
+    # opens no file — the kernel discards the descriptor — and it is one of the most
+    # common idioms in this tree. Without this, the rule above makes it a write, and the
+    # first command run after shipping T-3178 was blocked for exactly that. That is the
+    # fail-CLOSED half of the defect T-3178 set out to fix, reintroduced by the other
+    # rule, and false refusals are how an operator learns the gate is noise (T-2818).
+    #
+    # Stripping rather than short-circuiting is what keeps a MIX correct:
+    #   cmd 2>/dev/null            -> strips to `cmd 2`            -> not-write
+    #   cmd > out.txt 2>/dev/null  -> strips to `cmd > out.txt 2`  -> WRITE, correctly
+    #
+    # The trailing boundary is load-bearing: without it `/dev/nullish` matches
+    # `/dev/null` and the tail `ish` is left behind, silently exempting a real write.
+    # That would be a NEW fail-open, which is strictly worse than the false positive
+    # being fixed. `\2` puts the boundary character back.
+    local _probe
+    _probe="$(sed -E 's#>>?[[:space:]]*/dev/(null|stderr|stdout)([^A-Za-z0-9_./-]|$)#\2#g' <<< "$cmd")"
+    # If the strip failed for any reason, test the ORIGINAL. A broken strip must make
+    # the gate stricter, never looser.
+    [ -n "$_probe" ] || _probe="$cmd"
+    if grep -qE '>>?($|[^&])' <<< "$_probe"; then
         return 0
     fi
 

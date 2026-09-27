@@ -292,7 +292,7 @@ divergences:
     date: 2026-09-27
     file: .agentic-framework/agents/context/lib/safe-commands.sh
     status: filed-upstream
-    filed_at: "framework:pickup offset 202 (bug-report, read-back verified byte-identical 2026-09-27) — extends 050-email-archive's P-006 at offset 188"
+    filed_at: "framework:pickup offset 202 (bug-report, read-back verified) AMENDED at offset 206 (T-3187, /dev/null false positive) — extends 050-email-archive's P-006 at offset 188"
     kind: security-fix
     generality: GENERIC
     risk_if_revendored: HIGH

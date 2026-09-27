@@ -123,6 +123,27 @@ expect "$LIB" 'sed -n 1,5p T-2958-go-in-the-decis.md' not-write 'filename contai
 expect "$LIB" 'sed -n 1,5p a-i.md'                    not-write 'filename containing -i is not either'
 expect "$LIB" 'sed -e s/a/b/ f.txt'                   not-write 'sed -e is not in-place'
 
+# ================================================================= Case 4b  ★★
+echo
+echo "Case 4b ★★ T-3187 — a NULL or STANDARD sink opens no file"
+echo "           (the regression T-3178 shipped: the first command run after pushing it"
+echo "            was blocked for containing 2>/dev/null)"
+expect "$LIB" 'bin/fw audit 2>/dev/null'            not-write '2>/dev/null'
+expect "$LIB" 'bin/fw audit >/dev/null'             not-write '>/dev/null'
+expect "$LIB" 'bin/fw audit &>/dev/null'            not-write '&>/dev/null'
+expect "$LIB" 'bin/fw audit 2> /dev/null'           not-write '2> /dev/null (spaced)'
+expect "$LIB" 'bin/fw audit 2>/dev/stderr'          not-write '2>/dev/stderr'
+expect "$LIB" 'bin/fw audit >/dev/stdout'           not-write '>/dev/stdout'
+# A MIX must still fire. This is why the sink is STRIPPED rather than short-circuited:
+# short-circuiting on "contains /dev/null" would exempt the real write beside it.
+expect "$LIB" 'bin/fw audit > out.txt 2>/dev/null'  WRITE     'MIX: a real file plus a null sink is still a WRITE'
+expect "$LIB" 'bin/fw audit 2>/dev/null > out.txt'  WRITE     'MIX, other order'
+# The token boundary. Without it `/dev/nullish` matches `/dev/null`, the tail is left
+# behind, and a real write is silently exempted — a NEW fail-open, strictly worse than
+# the false positive being fixed.
+expect "$LIB" 'bin/fw audit > /dev/nullish'         WRITE     'boundary: /dev/nullish is a real file'
+expect "$LIB" 'bin/fw audit > /dev/null.bak'        WRITE     'boundary: /dev/null.bak is a real file'
+
 # ================================================================= Case 5  ★★
 echo
 echo "Case 5 ★★ LOAD-BEARING — the PRE-FIX predicate, extracted from git, must still"
