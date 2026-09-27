@@ -15,9 +15,9 @@ A completed task qualifies when ALL of:
 
 ## Population examined
 
-- completed inceptions: 207
-- with a GO recorded:   177
-- findings:             94
+- completed inceptions: 209
+- with a GO recorded:   179
+- findings:             96
 
 These are candidates for triage, not confirmed abandoned decisions:
 some may have shipped work that was simply never linked back. Deciding
@@ -25,6 +25,7 @@ which is which is the judgement this check exists to force.
 
 ## Findings (most recent first)
 
+- T-3170 — .tasks/completed/T-3170-evaluate-832-bvp-auto-confirm-and-scorin.md
 - T-3166 — .tasks/completed/T-3166-examine-the-arc-008-open-backlog-against.md
 - T-3144 — .tasks/completed/T-3144-census-verification-legs-that-assert-an-.md
 - T-3076 — .tasks/completed/T-3076-binary-blob-on-the-notify-rail-via-artif.md
@@ -40,6 +41,7 @@ which is which is the judgement this check exists to force.
 - T-2995 — .tasks/completed/T-2995-inception-rpc-surface-wiring-check-sweep.md
 - T-2989 — .tasks/completed/T-2989-inception-claudemd-split-design-clobber-.md
 - T-2971 — .tasks/completed/T-2971-project-value-review-delete--refactor--a.md
+- T-2879 — .tasks/completed/T-2879-rail-enrolment-gap-1-of-14-local-claude-.md
 - T-2828 — .tasks/completed/T-2828-duplicate-work-detector-is-blind-to-dupl.md
 - T-2753 — .tasks/completed/T-2753-hubstoml-has-three-independent-parsers-w.md
 - T-2702 — .tasks/completed/T-2702-termlink-purpose-review-7--are-the-archi.md

@@ -17,7 +17,7 @@ workflow_type: build
 horizon: now
 owner: human
 created: 2026-08-20
-last_update: '2026-08-27T21:13:21Z'
+last_update: '2026-09-27T21:34:06Z'
 tags: [governance, framework-defect, cross-repo, cron, worktree]
 bvp_scores_proposed:
   - ts: '2026-08-20T15:20:37Z'
@@ -64,6 +64,15 @@ cost_estimate_proposed:
       effort: 8
     rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
       (workflow:build); effort=8 (lines=198,acs=6)
+    rubric_sha: e4a00f38e801
+  - ts: '2026-09-27T21:34:06Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 8
+    rationale: blast_radius=3 (2-file-refs-derived-T-3189); tier=2 
+      (workflow:build); effort=8 (lines=205,acs=6)
     rubric_sha: e4a00f38e801
 ---
 

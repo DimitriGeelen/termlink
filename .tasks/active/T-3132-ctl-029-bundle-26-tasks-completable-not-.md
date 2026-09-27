@@ -10,7 +10,8 @@ description: >
   in this arc, since fw audit itself already surfaces the per-task spot-check workflow
   (fw task verify T-XXX then fw task update --status work-completed) rather than a
   per-task code fix. T-3093 R3S2 (2026-09-25, round 3 of 4): T-3060 joined this CTL-029
-  list (30 total instances that cycle) — folded into this bundle rather than filed as a
+  list (30 total instances that cycle) — folded into this bundle rather than filed
+  as a
   new task, same rationale as the original 26. See Updates for detail.
 
 status: captured
@@ -31,7 +32,7 @@ related_tasks: [T-3016, T-2938, T-2939, T-2940]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-25T07:04:36Z
-last_update: '2026-09-25T07:06:06Z'
+last_update: '2026-09-27T21:34:08Z'
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -56,6 +57,16 @@ bvp_scores_proposed:
     rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
       (body:component-discoverability); D4=2 (body:env-class-handled); 
       F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-09-27T21:34:08Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (1-file-ref-derived-T-3189); tier=2 
+      (workflow:build); effort=8 (lines=224,acs=5)
     rubric_sha: e4a00f38e801
 ---
 

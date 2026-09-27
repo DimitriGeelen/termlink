@@ -1,5 +1,5 @@
-# Audit Results - 2026-09-26-2336
-timestamp: 2026-09-26T21:36:33Z
+# Audit Results - 2026-09-27-2223
+timestamp: 2026-09-27T20:23:19Z
 sections: "structure"
 summary:
   pass: 44
@@ -17,7 +17,7 @@ findings:
   - level: PASS
     check: "Task template exists"
   - level: PASS
-    check: "No duplicate task IDs — examined 2884 task file(s) across 1 corpus view(s)"
+    check: "No duplicate task IDs — examined 2895 task file(s) across 1 corpus view(s)"
   - level: PASS
     check: "All project YAML files parse correctly — examined 18 project YAML file(s)"
   - level: PASS
@@ -39,15 +39,15 @@ findings:
     check: "No stale-slice-references (L-417) — NOT EVALUATED: candidate set empty (0 file(s) under web/templates web/blueprints lib)"
     mitigation: "The scan walked no files — the L-417 rail asserted nothing this run"
   - level: WARN
-    check: "Found 94 GO-scope-not-propagated inception(s) of 177 GO-recorded completed inception(s) examined — GO recorded, related_tasks empty, nobody back-references, no unlocks_inception_decision"
+    check: "Found 96 GO-scope-not-propagated inception(s) of 179 GO-recorded completed inception(s) examined — GO recorded, related_tasks empty, nobody back-references, no unlocks_inception_decision"
     mitigation: "Triage: per inception either backfill related_tasks: / unlocks_inception_decision:, or file the slices its GO approved. Full list: cat /opt/termlink/.context/audits/go-scope-unpropagated/LATEST.md (origin: T-2078, T-2091, T-3099; sibling to L-417/T-1975)"
   - level: PASS
-    check: "Fabric: 518 registered card(s)"
+    check: "Fabric: 524 registered card(s)"
   - level: WARN
-    check: "Fabric: 309/548 cards have no edges"
+    check: "Fabric: 315/554 cards have no edges"
     mitigation: "Run: fw fabric enrich"
   - level: PASS
-    check: "Fabric drift: all watched files registered — examined 508 watched file(s)"
+    check: "Fabric drift: all watched files registered — examined 514 watched file(s)"
   - level: WARN
     check: "Fabric: 10 card(s) point at files no watch pattern covers"
     mitigation: "Widen .fabric/watch-patterns.yaml, or remove the cards if they are not components"

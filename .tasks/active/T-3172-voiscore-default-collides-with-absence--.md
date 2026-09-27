@@ -2,7 +2,18 @@
 id: T-3172
 name: "voi_score default collides with absence - 244 of 245 inceptions are indistinguishable"
 description: >
-  832 flagged this at pickup offset 181 and it is LIVE here, worse than at their site. .tasks/templates/inception.md ships voi_score: 0.5 pre-filled. int(round(0.5*5)) == 2, and an ABSENT voi_score also returns 2 via the grandfathered path, so 'nobody assessed this' and 'judged exactly middling' are the same number and both land mid-rank ahead of measured work. MEASURED across our 245 inception tasks: 103 carry the 0.5 default, 141 carry nothing, and exactly 1 carries a considered value. The field has discriminated on 1 task in 245 across the project's history (99.6% indistinguishable; 832 measured 93%). 832 notes a prior attempt fixed this with a warning printed above the field and the figure did not move by one - a comment is not a gate. The template is VENDORED so a local edit dies at the next re-vendor (G-062); the fix is upstream, and the local half is measurement plus a filing. Same collision reportedly applies to target_blast_radius: 3.
+  832 flagged this at pickup offset 181 and it is LIVE here, worse than at their site.
+  .tasks/templates/inception.md ships voi_score: 0.5 pre-filled. int(round(0.5*5))
+  == 2, and an ABSENT voi_score also returns 2 via the grandfathered path, so 'nobody
+  assessed this' and 'judged exactly middling' are the same number and both land mid-rank
+  ahead of measured work. MEASURED across our 245 inception tasks: 103 carry the 0.5
+  default, 141 carry nothing, and exactly 1 carries a considered value. The field
+  has discriminated on 1 task in 245 across the project's history (99.6% indistinguishable;
+  832 measured 93%). 832 notes a prior attempt fixed this with a warning printed above
+  the field and the figure did not move by one - a comment is not a gate. The template
+  is VENDORED so a local edit dies at the next re-vendor (G-062); the fix is upstream,
+  and the local half is measurement plus a filing. Same collision reportedly applies
+  to target_blast_radius: 3.
 
 status: captured
 workflow_type: build
@@ -22,8 +33,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-26T18:15:46Z
-last_update: 2026-09-26T18:15:46Z
-date_finished: null
+last_update: '2026-09-27T21:34:09Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,6 +45,16 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+cost_estimate_proposed:
+  - ts: '2026-09-27T21:34:09Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (1-file-ref-derived-T-3189); tier=2 
+      (workflow:build); effort=8 (lines=261,acs=4)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3172: voi_score default collides with absence - 244 of 245 inceptions are indistinguishable

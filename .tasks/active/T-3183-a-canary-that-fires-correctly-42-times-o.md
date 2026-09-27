@@ -2,7 +2,34 @@
 id: T-3183
 name: "A canary that fires correctly 42 times over six weeks escalates to nothing"
 description: >
-  Carried out of T-2879 so the finding survives that task's dissolution. T-2879 recommended NO-GO on any build, and the recommendation is right, but its evidence contains a defect nobody has ticketed and which is NOT what T-2389 covers. MEASURED in T-2879 (docs/reports/T-2879-rail-enrolment-gap.md): the T-2387 waker-liveness canary fired the rail-dark condition 42 times, a 36053-byte log, correctly, across roughly six weeks, and no action followed. /canaries agreed with it the whole time. So detection and presentation are both working and the loop still did not close. THE INVERSION OF THIS REPO'S USUAL FINDING. The guard layer's documented failure mode is blindness - a check nobody wrote, or one whose green is not evidence (T-2680, T-2683, T-3105). This is the opposite: a check that was loud, accurate and unheeded. G-019 says fix the symptom then ask why the framework was blind. Here the framework was not blind; the operator loop was. Nothing in the framework escalates a canary on REPEAT firing. A canary that has fired 42 times is not in the same state as one firing for the first time, and nothing represents that difference. T-2818 named the mechanism from the other side (a guard that fires wrongly often enough teaches its operator to stop reading it) and T-2833 named the permanently-red variant. This is the third member of that family: a guard that fires CORRECTLY often enough to be tuned out. Distinct from T-2389, which is the remediation (relaunch agents through the T-2388 launcher, PL-237 - reach must be arranged at LAUNCH, no retrofit); that task makes agents wakeable. This task is about why six weeks of accurate daily warning produced no action. Both can be true and neither covers the other. Scope fence: this is NOT a proposal to make canaries noisier. The candidate shape is an escalation ladder keyed on consecutive-firing count, so a first firing and a 42nd are distinguishable, plus a way to acknowledge with a stated reason and a delete-condition (the T-2483 charter-drift allowlist and the T-3167 audit-warning ledger are the two local precedents for acknowledging a known-open condition without going silent). Whether to build it, and in what form, is the operator's call - filed as a finding with a candidate shape, not as an authorised build.
+  Carried out of T-2879 so the finding survives that task's dissolution. T-2879 recommended
+  NO-GO on any build, and the recommendation is right, but its evidence contains a
+  defect nobody has ticketed and which is NOT what T-2389 covers. MEASURED in T-2879
+  (docs/reports/T-2879-rail-enrolment-gap.md): the T-2387 waker-liveness canary fired
+  the rail-dark condition 42 times, a 36053-byte log, correctly, across roughly six
+  weeks, and no action followed. /canaries agreed with it the whole time. So detection
+  and presentation are both working and the loop still did not close. THE INVERSION
+  OF THIS REPO'S USUAL FINDING. The guard layer's documented failure mode is blindness
+  - a check nobody wrote, or one whose green is not evidence (T-2680, T-2683, T-3105).
+  This is the opposite: a check that was loud, accurate and unheeded. G-019 says fix
+  the symptom then ask why the framework was blind. Here the framework was not blind;
+  the operator loop was. Nothing in the framework escalates a canary on REPEAT firing.
+  A canary that has fired 42 times is not in the same state as one firing for the
+  first time, and nothing represents that difference. T-2818 named the mechanism from
+  the other side (a guard that fires wrongly often enough teaches its operator to
+  stop reading it) and T-2833 named the permanently-red variant. This is the third
+  member of that family: a guard that fires CORRECTLY often enough to be tuned out.
+  Distinct from T-2389, which is the remediation (relaunch agents through the T-2388
+  launcher, PL-237 - reach must be arranged at LAUNCH, no retrofit); that task makes
+  agents wakeable. This task is about why six weeks of accurate daily warning produced
+  no action. Both can be true and neither covers the other. Scope fence: this is NOT
+  a proposal to make canaries noisier. The candidate shape is an escalation ladder
+  keyed on consecutive-firing count, so a first firing and a 42nd are distinguishable,
+  plus a way to acknowledge with a stated reason and a delete-condition (the T-2483
+  charter-drift allowlist and the T-3167 audit-warning ledger are the two local precedents
+  for acknowledging a known-open condition without going silent). Whether to build
+  it, and in what form, is the operator's call - filed as a finding with a candidate
+  shape, not as an authorised build.
 
 status: captured
 workflow_type: build
@@ -22,8 +49,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-27T09:20:45Z
-last_update: 2026-09-27T09:20:45Z
-date_finished: null
+last_update: '2026-09-27T21:34:09Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,6 +61,16 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+cost_estimate_proposed:
+  - ts: '2026-09-27T21:34:09Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius:
+      tier: 2
+      effort: 8
+    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
+      (workflow:build); effort=8 (lines=232,acs=4)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3183: A canary that fires correctly 42 times over six weeks escalates to nothing

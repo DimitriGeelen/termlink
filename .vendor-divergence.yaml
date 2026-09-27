@@ -187,6 +187,59 @@ last_vendor_event:
 # ---------------------------------------------------------------------------
 
 divergences:
+  - task: T-3189
+    commit: pending-same-commit
+    commit_note: >
+      Registered BEFORE the change. Operator decision 2026-09-27 (SQ-2) after a
+      strawman/steelman comparison scored against the four Constitutional Directives:
+      107/120 for deriving the value from evidence, 48/120 for defaulting it in the
+      template. The whole 59-point margin sits in D1+D2 (76 vs 16).
+    date: 2026-09-27
+    file: .agentic-framework/agents/termlink/bvp-estimator/estimator.py
+    status: filed-upstream
+    filed_at: "framework:pickup offset 210 (proposal, read-back verified byte-identical 2026-09-27, sha256 53b6c83922366eb1, 7163 bytes)"
+    kind: scoring-correctness
+    generality: GENERIC
+    risk_if_revendored: MEDIUM
+    why: >
+      T-3188 opened the `target_blast_radius` fallback to every workflow type and left the
+      field deliberately unpopulated — correct, and inert: only the inception template
+      ships it (inception 32/36, build 1/279), so the costable population did not move.
+      This is the population half, and it must not become the strawman T-3188 rejected.
+      A DEFAULT IS NOT AN ESTIMATE. The distinction this rests on is that a derivation
+      reads the task and reports what it found INCLUDING finding nothing, and its evidence
+      string is falsifiable — `→3 (3-file-refs-derived-T-3189)` can be checked against the
+      body and disproved, while `→3 (template-default)` cannot. That is T-3105
+      ("could not measure" != "measured and empty") and PL-371 ("BVP no-signal defaults
+      outrank measured work") applied to the cost axis.
+      score_blast_radius now has FOUR tiers in strict precedence: components: (measured
+      from git) > target_blast_radius: (declared by the author) > derived from the body >
+      None (UNMEASURED). A lower tier never overrules a higher one.
+      MEASURED BEFORE: 211/248 uncosted, quadrant thresholds computed over 6 tasks.
+      MEASURED AFTER:  102/248 uncosted, quadrant thresholds computed over 111 tasks
+      (42 hv-lc, 38 lv-lc, 16 lv-hc, 15 hv-hc). 120 task files rewritten by cost-all.
+      THE TRAP THAT NEARLY SHIPPED, and the single most valuable thing the pre-work
+      measurement found: `.claude/settings.json` appears in 177 of the 210 in-corpus build
+      tasks, inside a `#` shell comment in `## Verification` (the template's L-398
+      enforcement-baseline hint). Stripping only HTML comments leaves 98 tasks acquiring a
+      cost derived entirely from boilerplate they never touch — 205/210 "costed" against a
+      true 107/210. The strip is therefore SECTION-AWARE: inside `## Verification` a
+      `#`-leading line is a shell comment (P-011's own rule), everywhere else it is a
+      markdown heading, and the two are textually identical.
+      KNOWN FALSE-POSITIVE FLOOR, measured not estimated: 2 of 256 tasks (T-3095, T-3096)
+      derive their only reference from `.agentic-framework/bin/fw`, which they INVOKE
+      rather than modify, and both land at the top of hv-lc. Inspected: each has a ~10KB
+      body discussing the handover generator at length without naming one handover source
+      file by path. So the derivation is accurate to its input and the tasks under-describe
+      their own reach. Left unpatched deliberately — a `bin/fw` special case is the kind of
+      tuning that rots, and the operator review AC is the right place to judge skew.
+    upstream_note: >
+      Generic: every AEF consumer computes cost from `components:` and therefore cannot
+      cost a task until after it is done. The section-aware comment strip is the part most
+      worth carrying — any consumer using the shipped task template has the identical
+      177-of-210 boilerplate path in its Verification block, so a naive implementation of
+      this same idea fabricates costs at scale and looks like it is working.
+
   - task: T-3188
     commit: pending-same-commit
     commit_note: >

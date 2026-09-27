@@ -2,7 +2,21 @@
 id: T-3180
 name: "CLAUDE.md.bak is a durable acknowledgement token nothing reads"
 description: >
-  fw upgrade rewrites the CLAUDE.md governance tail from template, backs the old file up to CLAUDE.md.bak, diffs, and prints the G-055/PL-124 lost-line warning to stdout inside a 10-step run. If the session then ends, that warning is indistinguishable from no warning: a degraded CLAUDE.md keeps loading as live instructions. The fix is already on disk - upgrade.sh leaves CLAUDE.md.bak and its own remedy text ends 'remove CLAUDE.md.bak to clear', which makes the file's PRESENCE a clearable acknowledgement token. Nothing reads it (grep -rn 'CLAUDE.md.bak' finds only the line that writes it). Reported by 832-Workflow-designer at framework:pickup offset 194 (their T-873) with an audit check and 7 extracted-verbatim teeth. THIS PROJECT IS EXPOSED: CLAUDE.md is ~2500 lines, the positional boundary at '## Core Principle' puts ~844 lines in the destroyed half including the whole Quick Reference table (T-2015), the rewrite has fired three times in this lineage, and we have ZERO project-owned: begin regions. Their predicate is EXISTENCE not content, deliberately - a line-count check goes red on a finished repair and stays red (OBS-293/T-2818 fatigue). Scope note: it asserts that a human acknowledged the rewrite, not that the review was done well.
+  fw upgrade rewrites the CLAUDE.md governance tail from template, backs the old file
+  up to CLAUDE.md.bak, diffs, and prints the G-055/PL-124 lost-line warning to stdout
+  inside a 10-step run. If the session then ends, that warning is indistinguishable
+  from no warning: a degraded CLAUDE.md keeps loading as live instructions. The fix
+  is already on disk - upgrade.sh leaves CLAUDE.md.bak and its own remedy text ends
+  'remove CLAUDE.md.bak to clear', which makes the file's PRESENCE a clearable acknowledgement
+  token. Nothing reads it (grep -rn 'CLAUDE.md.bak' finds only the line that writes
+  it). Reported by 832-Workflow-designer at framework:pickup offset 194 (their T-873)
+  with an audit check and 7 extracted-verbatim teeth. THIS PROJECT IS EXPOSED: CLAUDE.md
+  is ~2500 lines, the positional boundary at '## Core Principle' puts ~844 lines in
+  the destroyed half including the whole Quick Reference table (T-2015), the rewrite
+  has fired three times in this lineage, and we have ZERO project-owned: begin regions.
+  Their predicate is EXISTENCE not content, deliberately - a line-count check goes
+  red on a finished repair and stays red (OBS-293/T-2818 fatigue). Scope note: it
+  asserts that a human acknowledged the rewrite, not that the review was done well.
 
 status: captured
 workflow_type: build
@@ -22,8 +36,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-26T22:28:33Z
-last_update: 2026-09-26T22:28:33Z
-date_finished: null
+last_update: '2026-09-27T21:34:09Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,6 +48,16 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+cost_estimate_proposed:
+  - ts: '2026-09-27T21:34:09Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (1-file-ref-derived-T-3189); tier=2 
+      (workflow:build); effort=8 (lines=232,acs=4)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3180: CLAUDE.md.bak is a durable acknowledgement token nothing reads

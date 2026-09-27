@@ -2,7 +2,16 @@
 id: T-3179
 name: "P-011 reports exit 127 as FAIL, hiding that the check does not exist"
 description: >
-  The verification loop in vendored agents/task-create/update-task.sh renders a verification line exiting 127 as 'FAIL: <cmd> (exit 127)'. 127 is command-not-found: the instrument is MISSING and nothing was verified, which is indistinguishable from a genuine failed check, so an author goes looking for a defect that is not there. 126 (not executable) has the same property - and this project already hit 126 in T-3145 on 'exec lib/build.sh' at mode 644. Reported by 832-Workflow-designer at framework:pickup offset 192 item 1, fixed in their tree: 127 reports NOT RUNNABLE, names the cause and the vendored path, and STILL BLOCKS. Blocking is the right call and is our own T-3105 convention: a check that did not run is not a pass. Vendored (G-062) - register divergence or take it upstream.
+  The verification loop in vendored agents/task-create/update-task.sh renders a verification
+  line exiting 127 as 'FAIL: <cmd> (exit 127)'. 127 is command-not-found: the instrument
+  is MISSING and nothing was verified, which is indistinguishable from a genuine failed
+  check, so an author goes looking for a defect that is not there. 126 (not executable)
+  has the same property - and this project already hit 126 in T-3145 on 'exec lib/build.sh'
+  at mode 644. Reported by 832-Workflow-designer at framework:pickup offset 192 item
+  1, fixed in their tree: 127 reports NOT RUNNABLE, names the cause and the vendored
+  path, and STILL BLOCKS. Blocking is the right call and is our own T-3105 convention:
+  a check that did not run is not a pass. Vendored (G-062) - register divergence or
+  take it upstream.
 
 status: captured
 workflow_type: build
@@ -22,8 +31,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-26T22:28:12Z
-last_update: 2026-09-26T22:28:12Z
-date_finished: null
+last_update: '2026-09-27T21:34:09Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,6 +43,16 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+cost_estimate_proposed:
+  - ts: '2026-09-27T21:34:09Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius:
+      tier: 2
+      effort: 8
+    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
+      (workflow:build); effort=8 (lines=232,acs=4)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3179: P-011 reports exit 127 as FAIL, hiding that the check does not exist

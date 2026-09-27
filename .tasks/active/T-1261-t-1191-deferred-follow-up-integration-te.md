@@ -16,7 +16,7 @@ tags: []
 components: []
 related_tasks: [T-1191, T-1199, T-1200, T-1201, T-235]
 created: 2026-04-25T18:16:00Z
-last_update: '2026-09-08T21:30:37Z'
+last_update: '2026-09-27T21:34:03Z'
 date_finished:
 bvp_scores_proposed:
   - ts: '2026-09-08T21:30:26Z'
@@ -39,6 +39,15 @@ cost_estimate_proposed:
       tier: 1
       effort: 7
     rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=1 
+      (workflow:test); effort=7 (lines=75,acs=6)
+    rubric_sha: e4a00f38e801
+  - ts: '2026-09-27T21:34:03Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 1
+      effort: 7
+    rationale: blast_radius=1 (1-file-ref-derived-T-3189); tier=1 
       (workflow:test); effort=7 (lines=75,acs=6)
     rubric_sha: e4a00f38e801
 ---

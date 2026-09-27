@@ -2,7 +2,25 @@
 id: T-3173
 name: "WITHDRAWN - BVP driver coverage finding was a measurement error, not a defect"
 description: >
-  Confirms 832's pickup offset 180 finding against our own tree, and adds an inverse defect they do not have. MEASURED across all 449 proposals in the corpus. The estimator emits exactly six drivers: D1, D2, D3, D4 (100% of proposals), F-RECALL and F-ORCH (98%). policy/value-drivers.yaml declares nine: D1-D4, F-RECALL, F-AUTONOMY, F3, F1, F2. (1) DECLARED BUT NEVER SCORED: F-AUTONOMY (w4), F3 (w7), F1 (w7), F2 (w6) = 24 of 54 weight units, 44%, never participate in any score. 832 measured 43% at their site and found the consequence was that their ranking could not see product value at all, so three consecutive autonomous prioritisation runs each chose framework-remediation work, every selection correct against a model measuring 57% of itself. (2) SCORED BUT NOT DECLARED: F-ORCH is commented out at value-drivers.yaml:133 and is still scored in 442 proposals - a retired driver contributing to every score. The audit's standing F-ORCH retire_when WARN (one of the 8) is therefore about a driver already retired in the policy while the estimator keeps scoring it. Both directions are silent at the ranking surface: fw bvp prints BVP and NORM with no indication that 44% of declared weight took no part. 832's suggested fix is small and worth copying - print 'NORM 0.54 (over 30/54 weight; F1,F2,F3,F-AUTONOMY unscored)', the same shape as our own T-3105 abstention convention applied to the ranking line. Note this compounds with T-3170: there is no point auto-confirming scores produced by a model that measures 56% of itself.
+  Confirms 832's pickup offset 180 finding against our own tree, and adds an inverse
+  defect they do not have. MEASURED across all 449 proposals in the corpus. The estimator
+  emits exactly six drivers: D1, D2, D3, D4 (100% of proposals), F-RECALL and F-ORCH
+  (98%). policy/value-drivers.yaml declares nine: D1-D4, F-RECALL, F-AUTONOMY, F3,
+  F1, F2. (1) DECLARED BUT NEVER SCORED: F-AUTONOMY (w4), F3 (w7), F1 (w7), F2 (w6)
+  = 24 of 54 weight units, 44%, never participate in any score. 832 measured 43% at
+  their site and found the consequence was that their ranking could not see product
+  value at all, so three consecutive autonomous prioritisation runs each chose framework-remediation
+  work, every selection correct against a model measuring 57% of itself. (2) SCORED
+  BUT NOT DECLARED: F-ORCH is commented out at value-drivers.yaml:133 and is still
+  scored in 442 proposals - a retired driver contributing to every score. The audit's
+  standing F-ORCH retire_when WARN (one of the 8) is therefore about a driver already
+  retired in the policy while the estimator keeps scoring it. Both directions are
+  silent at the ranking surface: fw bvp prints BVP and NORM with no indication that
+  44% of declared weight took no part. 832's suggested fix is small and worth copying
+  - print 'NORM 0.54 (over 30/54 weight; F1,F2,F3,F-AUTONOMY unscored)', the same
+  shape as our own T-3105 abstention convention applied to the ranking line. Note
+  this compounds with T-3170: there is no point auto-confirming scores produced by
+  a model that measures 56% of itself.
 
 status: captured
 workflow_type: build
@@ -22,8 +40,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-26T18:16:09Z
-last_update: 2026-09-26T18:16:09Z
-date_finished: null
+last_update: '2026-09-27T21:34:09Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,6 +52,16 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+cost_estimate_proposed:
+  - ts: '2026-09-27T21:34:09Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 8
+    rationale: blast_radius=3 (2-file-refs-derived-T-3189); tier=2 
+      (workflow:build); effort=8 (lines=264,acs=4)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3173: BVP scores 44 percent of declared weight and one driver that was retired

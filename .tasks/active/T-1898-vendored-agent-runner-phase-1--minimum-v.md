@@ -21,7 +21,7 @@ tags: [conversation-arc, presence, agent-runtime]
 components: []
 related_tasks: [T-1457, T-1841, T-1832, T-1840, T-1695, T-1856]
 created: 2026-05-31T17:45:16Z
-last_update: '2026-09-08T21:30:37Z'
+last_update: '2026-09-27T21:34:04Z'
 date_finished:
 revisit_at: 2026-07-06
 revisit_evidence_needed: "Either (a) operator authorizes the 5h-agent + 24h-observation
@@ -48,6 +48,15 @@ cost_estimate_proposed:
       tier: 4
       effort: 8
     rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=4 
+      (workflow:inception); effort=8 (lines=183,acs=7)
+    rubric_sha: e4a00f38e801
+  - ts: '2026-09-27T21:34:04Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 4
+      effort: 8
+    rationale: blast_radius=3 (3-file-refs-derived-T-3189); tier=4 
       (workflow:inception); effort=8 (lines=183,acs=7)
     rubric_sha: e4a00f38e801
 ---

@@ -2,7 +2,21 @@
 id: T-3181
 name: "termlink_spawn and termlink_dispatch report success and execute nothing"
 description: >
-  Bug report against OUR product from 832-Workflow-designer at framework:pickup offset 167 (their T-854). Hub healthy (doctor --strict: 0 fail, 138 sessions responding), so not an outage. Three probes, absolute paths so cwd cannot hide the result: (1) spawn [claude,-p,...] -> {ok:true, status:timeout, 'spawned but timed out waiting for registration'}, no session, no process, no output file; (2) spawn [bash,-lc,'date > /tmp/x; sleep 30'] -> same, file never created and no sleep process, so the command NEVER RAN and the payload is ruled out as the cause; (3) dispatch count=1 same trivial bash -> {ok:true, workers_spawned:1, workers_registered:0, events_collected:0, timed_out:false, elapsed_secs:0.0}. THE SHAPE IS THE DEFECT: ok:true + timed_out:false + workers_spawned:1 reads as a clean dispatch that collected nothing, indistinguishable from workers that ran and had nothing to report. A caller checking ok, or timed_out, or workers_spawned is told it worked; only an independently verified side effect reveals otherwise. Same 'delivered != received' class as T-2876. Distinct from T-2873 (remote_inject key encoding) and from completed T-914 (dispatch wait-for-registrar). workers_registered:0 with workers_spawned:1 should not be ok:true.
+  Bug report against OUR product from 832-Workflow-designer at framework:pickup offset
+  167 (their T-854). Hub healthy (doctor --strict: 0 fail, 138 sessions responding),
+  so not an outage. Three probes, absolute paths so cwd cannot hide the result: (1)
+  spawn [claude,-p,...] -> {ok:true, status:timeout, 'spawned but timed out waiting
+  for registration'}, no session, no process, no output file; (2) spawn [bash,-lc,'date
+  > /tmp/x; sleep 30'] -> same, file never created and no sleep process, so the command
+  NEVER RAN and the payload is ruled out as the cause; (3) dispatch count=1 same trivial
+  bash -> {ok:true, workers_spawned:1, workers_registered:0, events_collected:0, timed_out:false,
+  elapsed_secs:0.0}. THE SHAPE IS THE DEFECT: ok:true + timed_out:false + workers_spawned:1
+  reads as a clean dispatch that collected nothing, indistinguishable from workers
+  that ran and had nothing to report. A caller checking ok, or timed_out, or workers_spawned
+  is told it worked; only an independently verified side effect reveals otherwise.
+  Same 'delivered != received' class as T-2876. Distinct from T-2873 (remote_inject
+  key encoding) and from completed T-914 (dispatch wait-for-registrar). workers_registered:0
+  with workers_spawned:1 should not be ok:true.
 
 status: captured
 workflow_type: build
@@ -22,8 +36,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-26T22:28:52Z
-last_update: 2026-09-26T22:28:52Z
-date_finished: null
+last_update: '2026-09-27T21:34:09Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,6 +48,16 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+cost_estimate_proposed:
+  - ts: '2026-09-27T21:34:09Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius:
+      tier: 2
+      effort: 8
+    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
+      (workflow:build); effort=8 (lines=232,acs=4)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3181: termlink_spawn and termlink_dispatch report success and execute nothing

@@ -23,7 +23,7 @@ tags: [governance, hook-gates, framework-agent, pickup, G-020]
 components: []
 related_tasks: [T-1898, T-469]
 created: 2026-05-31T17:52:28Z
-last_update: '2026-09-08T21:30:37Z'
+last_update: '2026-09-27T21:34:04Z'
 revisit_at: 2026-09-25
   # T-2839 2026-08-26: DEFER had no usable return path, so this task could never
   # resurface (G-053/T-1451 — revisit_at makes DEFER a pause, not a silent drop).
@@ -51,6 +51,15 @@ cost_estimate_proposed:
       tier: 4
       effort: 8
     rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=4 
+      (workflow:inception); effort=8 (lines=200,acs=7)
+    rubric_sha: e4a00f38e801
+  - ts: '2026-09-27T21:34:04Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 7
+      tier: 4
+      effort: 8
+    rationale: blast_radius=7 (7-file-refs-derived-T-3189); tier=4 
       (workflow:inception); effort=8 (lines=200,acs=7)
     rubric_sha: e4a00f38e801
 ---

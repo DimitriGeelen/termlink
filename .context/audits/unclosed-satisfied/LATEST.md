@@ -26,16 +26,24 @@ alone (CLAUDE.md Human Task Completion Rule).
 Rows with an empty `## Verification` block need that scrutiny most —
 nothing mechanical would gate their close.
 
-## Qualifying tasks (8)
+## Qualifying tasks (16)
 
 | Task | Status | Workflow | Name | Agent ACs | Verification cmds? |
 |------|--------|----------|------|----------:|--------------------|
 | T-1428 | started-work | build | Foundation soak audit — T-1426 + T-1427 ship status ... | 6 | yes |
 | T-1451 | started-work | build | revisit_at frontmatter field + template update (T-14... | 6 | yes |
 | T-212 | started-work | build | Create Homebrew tap for TermLink distribution | 5 | yes |
+| T-2938 | started-work | build | cron drift: agentic-audit.crontab differs from deplo... | 2 | yes |
+| T-2939 | started-work | build | cron(substrate-smoke-canary) declared but never inst... | 2 | yes |
 | T-3010 | started-work | build | Set 90-day revisit_at on artifact.* surface decision | 3 | yes |
 | T-3044 | started-work | build | Orchestrate value-review + procAsFit prompt sequence... | 4 | yes |
 | T-3093 | started-work | build | Orchestrate [Review, Audit, procAsFit] x4 over TermL... | 6 | yes |
+| T-3117 | started-work | build | Arc arc-008 hit 80% closure threshold (25/30) withou... | 1 | yes |
 | T-3127 | started-work | build | .budget-status is shared across dispatched workers —... | 5 | yes |
 | T-3141 | started-work | build | Answer AEF's SIDECAR-E2E joint run ab947312 — and re... | 3 | yes |
+| T-3177 | started-work | build | A date in the Recommendation heading made T-2879 und... | 5 | yes |
+| T-3178 | started-work | build | Tier-1 write-gate bypass: 2> file and &> file classi... | 7 | yes |
+| T-3182 | started-work | build | Review queue is 81 percent genuine judgement, but 25... | 6 | **no** |
+| T-3184 | started-work | build | BVP scoring becomes an agent decision: open all five... | 9 | yes |
+| T-3185 | started-work | build | Unassessed tasks sort to the top: exclude all-no-sig... | 8 | yes |
 

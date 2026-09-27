@@ -30,6 +30,7 @@ import hashlib
 import json
 import os
 import re
+import subprocess
 import sys
 import time
 from datetime import datetime, timezone
@@ -2476,9 +2477,166 @@ COST_WORKFLOW_TIER = {
     "build": 2, "refactor": 3, "test": 1, "decommission": 2,
 }
 
+# ─────────────────────────────────────────────────────────────────────────────
+# T-3189 (LOCAL DIVERGENCE, registered in .vendor-divergence.yaml). Operator decision
+# 2026-09-27 (SQ-2): derive a blast radius from evidence the task already carries, rather
+# than defaulting the field in the template. Strawman/steelman scored against the four
+# Constitutional Directives: 107/120 derive vs 48/120 default, the whole 59-point margin
+# in D1+D2 (76 vs 16).
+#
+# THE DISTINCTION THIS RESTS ON: a derivation reads the task and reports what it found,
+# INCLUDING finding nothing. A default reports a number nobody chose, in a field that
+# claims to be an estimate. The first is falsifiable — `→3 (3-file-refs-derived)` can be
+# checked against the body and disproved; `→3 (template-default)` cannot. That is T-3105's
+# "could not measure ≠ measured and empty" and PL-371 ("BVP no-signal defaults outrank
+# measured work"), applied to the cost axis.
+#
+# A reference only counts when it RESOLVES to a real tracked file. An unresolvable path
+# cannot be distinguished from prose, so it is dropped. This biases the count DOWNWARD for
+# a task that will create new files (their paths do not exist yet) — measured as small in
+# this corpus (93 tasks name any path, 86 name a resolving one) and preferred in that
+# direction: under-counting yields a cheaper-looking task, which is visible when it turns
+# out expensive, whereas over-counting hides work behind a cost nobody can audit.
+
+# A repo-relative path: one or more directory segments, then a filename.
+#
+# The extension is OPTIONAL here, deliberately. Requiring one made every extensionless
+# file unreachable — including `.context/checks/*-allowlist`, the guard ledgers that tasks
+# in this repo genuinely do modify, plus Makefile/Dockerfile/LICENSE. Precision does not
+# depend on the shape: it comes from the `m in tracked` test below, so a relaxed shape
+# admits more candidates and exactly as many answers. (Bare names still require an
+# extension — with no directory segment to anchor them, an extensionless bare token is
+# any English word.)
+_REF_PATH_RE = re.compile(
+    r'(?<![\w/.-])((?:\.?[A-Za-z0-9_][\w.-]*/)+[\w.-]+)(?![\w/])')
+# A bare filename ("fix estimator.py"). Counted ONLY when the basename resolves uniquely
+# across the repo — an ambiguous one (mod.rs, README.md, Cargo.toml, __init__.py) names no
+# single thing, and counting it would make the signal noise instead of evidence.
+_REF_BARE_RE = re.compile(
+    r'(?<![\w/.-])([A-Za-z0-9_][\w-]*\.(?:sh|py|rs|md|ya?ml|toml|js|css|html|json))(?![\w/])')
+# Citing another task, a handover or an audit is a REFERENCE, not a change. These are the
+# session-artifact trees; `.context/checks/` and `.context/cron/` are deliberately NOT here
+# because guard allowlists and crontabs are real artifacts that tasks really do modify.
+_REF_EXCLUDE_PREFIXES = (
+    '.tasks/', '.context/handovers/', '.context/episodic/', '.context/audits/',
+    '.context/working/', '.context/bus/', '.context/arcs/', '.context/project/',
+)
+
+_REPO_INDEX: tuple[frozenset, frozenset] | None = None
+
+
+def _repo_file_index() -> tuple[frozenset, frozenset]:
+    """(tracked paths, uniquely-resolving basenames), computed once per process.
+
+    Sourced from `git ls-files` because tracked-ness is the property that makes a
+    reference checkable. **Fails CLOSED to honesty:** if git is missing, times out, or the
+    root is not a repository, this returns empty sets — so the derivation below resolves
+    nothing and every task reports UNMEASURED. A cost axis that silently invents values
+    when its index is unavailable would be the exact defect this task exists to remove, so
+    "I could not look" must not become "I looked and it is cheap".
+    """
+    global _REPO_INDEX
+    if _REPO_INDEX is not None:
+        return _REPO_INDEX
+    tracked: list[str] = []
+    try:
+        out = subprocess.run(
+            ["git", "-C", str(PROJECT_ROOT), "ls-files"],
+            capture_output=True, text=True, timeout=30, stdin=subprocess.DEVNULL,
+        )
+        if out.returncode == 0:
+            tracked = [ln for ln in out.stdout.split("\n") if ln]
+    except (OSError, subprocess.SubprocessError):
+        tracked = []
+    counts: dict[str, int] = {}
+    for p in tracked:
+        b = p.rsplit("/", 1)[-1]
+        counts[b] = counts.get(b, 0) + 1
+    _REPO_INDEX = (frozenset(tracked),
+                   frozenset(b for b, c in counts.items() if c == 1))
+    return _REPO_INDEX
+
+
+def _scrub_task_body(body: str) -> str:
+    """Remove guidance text, so template boilerplate cannot be read as the task's work.
+
+    TWO comment syntaxes hide paths, and missing either fabricates cost:
+
+      1. `<!-- ... -->` — template guidance throughout the body.
+      2. `#`-leading lines INSIDE `## Verification`. P-011's own rule is "Lines starting
+         with # are comments (skipped)", and the template's L-398 enforcement-baseline
+         hint there names `.claude/settings.json`.
+
+    The second one is not hypothetical and is not small. Measured across the 210 in-corpus
+    build tasks: `.claude/settings.json` appears in **177 of them**, and stripping HTML
+    comments alone leaves **98 tasks acquiring a cost derived entirely from boilerplate
+    they never touch** (205/210 "costed" vs a true 107/210). A derivation that reads the
+    template instead of the task is the strawman wearing a disguise.
+
+    The strip is SECTION-AWARE because it has to be: inside `## Verification` a `#`-leading
+    line is a shell comment, everywhere else it is a markdown heading, and the two are
+    textually identical.
+    """
+    body = re.sub(r"<!--.*?-->", "", body, flags=re.S)
+    out: list[str] = []
+    in_verification = False
+    for line in body.split("\n"):
+        head = re.match(r"^##\s+(.+?)\s*$", line)
+        if head:
+            in_verification = head.group(1).strip().lower() == "verification"
+            out.append(line)
+            continue
+        if in_verification and line.lstrip().startswith("#"):
+            continue
+        out.append(line)
+    return "\n".join(out)
+
+
+def _derive_blast_radius_refs(body: str) -> set[str]:
+    """Distinct real files the task's own prose names. Empty set = nothing readable."""
+    if not body:
+        return set()
+    tracked, unique_bases = _repo_file_index()
+    if not tracked:
+        return set()                      # no index → no evidence → UNMEASURED
+    text = _scrub_task_body(body)
+    full = {m for m in _REF_PATH_RE.findall(text)
+            if m in tracked and not m.startswith(_REF_EXCLUDE_PREFIXES)}
+    bare = {m for m in _REF_BARE_RE.findall(text) if m in unique_bases}
+    bare -= {f.rsplit("/", 1)[-1] for f in full}   # don't double-count path + basename
+    return full | bare
+
+
+def _blast_radius_ladder(n: int) -> int:
+    """The 1/3/5/7/9 ladder, shared by the measured and derived paths.
+
+    Deliberately the SAME ladder: both count distinct files, so a different curve would
+    make a derived 3 and a measured 3 mean different things while printing identically.
+    """
+    if n == 1:
+        return 1
+    if n <= 3:
+        return 3
+    if n <= 6:
+        return 5
+    if n <= 9:
+        return 7
+    return 9
+
 
 def score_blast_radius(fm: dict, body: str, tags: list[str]) -> tuple[int | None, list[str]]:
-    """Heuristic: count `components:` entries → 1/3/5/7/9 scale, or None if unknown.
+    """Blast radius on a 1/3/5/7/9 scale, or None when nothing can be read.
+
+    FOUR TIERS, in strict precedence order (T-3189):
+
+        components:          measured from git at work-completed   → most authoritative
+        target_blast_radius: declared by the author (T-2188/T-3188)
+        derived from body:   distinct real files the prose names   → inferred
+        None:                UNMEASURED — nothing readable         → honest absence
+
+    A lower tier must never overrule a higher one. The scale is shared so that a `3` means
+    the same thing whichever tier produced it; the evidence string names the tier so the
+    two are never confused by a reader.
 
     T-3068: returns **None, not 0**, when there is no component information.
     `0` is the cheapest value on a term carrying weight 0.6 — more than the other
@@ -2559,8 +2717,38 @@ def score_blast_radius(fm: dict, body: str, tags: list[str]) -> tuple[int | None
                 return v, [f"→{v} (target_blast_radius:{_origin})"]
             except (TypeError, ValueError):
                 # Malformed must not become a default and must not raise. With no
-                # components either, the honest answer below is UNMEASURED.
+                # components either, fall through to the derivation, then UNMEASURED.
                 pass
+
+        # T-3189: THIRD tier. Neither measured nor declared — so read the task itself.
+        #
+        # PRECEDENCE IS THE LOAD-BEARING PROPERTY, and this block's POSITION is the whole
+        # of it:
+        #
+        #     components:          (measured from git)   ← wins, checked above
+        #   > target_blast_radius: (declared by author)  ← wins over derivation, above
+        #   > derived from body    (inferred here)       ← only when both are silent
+        #   > None                 (UNMEASURED)          ← when nothing is readable
+        #
+        # An inference must never overrule a measurement OR an author's explicit
+        # declaration. T-3188 shipped a first draft that moved the declaration above the
+        # measurement and made a predicted 9 override a single measured component; the
+        # same mistake is available here one tier down, and the same rule forbids it.
+        # Pinned by fixtures at both boundaries, because the natural refactor — "hoist the
+        # cheap checks" — is exactly the edit that breaks it.
+        try:
+            refs = _derive_blast_radius_refs(body)
+        except Exception:
+            # A derivation is an optimisation over honesty, never a reason to fail a run.
+            refs = set()
+        k = len(refs)
+        if k:
+            v = _blast_radius_ladder(k)
+            # The evidence names the TIER and the count, so a reader can tell a derived
+            # radius from a measured or declared one without opening the task — and can
+            # re-run the derivation to check it. Falsifiability is the point.
+            return v, [f"→{v} ({k}-file-ref{'' if k == 1 else 's'}-derived-T-3189)"]
+
         return None, ["→? (no-components-UNMEASURED-not-zero)"]
     if n == 1: return 1, ["→1 (single-component)"]
     if n <= 3: return 3, [f"→3 ({n}-components)"]

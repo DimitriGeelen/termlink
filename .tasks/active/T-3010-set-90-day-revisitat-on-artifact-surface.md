@@ -24,10 +24,13 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-19T22:32:15Z
-last_update: 2026-09-25T06:04:19Z
+last_update: '2026-09-27T21:34:07Z'
 date_finished:
 revisit_at: 2026-12-18          # 90 days after the C-29 measurement date (2026-09-19)
-revisit_evidence_needed: "Re-measure termlink artifact.get/put call volume (hub logs / termlink_channel_cv_keys or equivalent telemetry). If still ~zero after 90+ days total, treat as a real DELETE/deprecation candidate per the value-review's original C-29 recommendation; if non-zero, close this task as no-op."
+revisit_evidence_needed: "Re-measure termlink artifact.get/put call volume (hub logs
+  / termlink_channel_cv_keys or equivalent telemetry). If still ~zero after 90+ days
+  total, treat as a real DELETE/deprecation candidate per the value-review's original
+  C-29 recommendation; if non-zero, close this task as no-op."
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
 # bvp_scores:                     # confirmed per-driver scores 0-5, set by `fw bvp confirm` (T-1924).
 #                                 # Sovereignty boundary — only set after human or agent confirmation.
@@ -59,6 +62,15 @@ cost_estimate_proposed:
       effort: 8
     rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
       (workflow:build); effort=8 (lines=207,acs=4)
+    rubric_sha: e4a00f38e801
+  - ts: '2026-09-27T21:34:07Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 8
+    rationale: blast_radius=3 (3-file-refs-derived-T-3189); tier=2 
+      (workflow:build); effort=8 (lines=240,acs=5)
     rubric_sha: e4a00f38e801
 ---
 
