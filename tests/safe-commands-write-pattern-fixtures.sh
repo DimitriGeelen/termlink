@@ -132,7 +132,15 @@ found=""
 for ref in HEAD HEAD~1 HEAD~2 HEAD~3 HEAD~4 HEAD~5; do
     if git -C "$PROJECT" show "$ref:.agentic-framework/agents/context/lib/safe-commands.sh" \
          > "$PRE" 2>/dev/null; then
-        if grep -qF "'[^2>&]>[^>&]|>>'" "$PRE"; then found="$ref"; break; fi
+        # Comments stripped before the guard. The FIXED file's own comment QUOTES the
+        # pre-fix rule to explain what was wrong with it, so a naive match selects HEAD
+        # — the fixed copy — as "pre-fix" and then correctly finds it does not reproduce
+        # the bypass. Third time this exact trap fired while building this suite:
+        # documenting a defect inside the file that fixes it makes every naive detector
+        # match the fix. Prose about a pattern is not a use of it (T-2699).
+        if grep -vE '^[[:space:]]*#' "$PRE" | grep -qF "'[^2>&]>[^>&]|>>'"; then
+            found="$ref"; break
+        fi
     fi
 done
 if [ -z "$found" ]; then

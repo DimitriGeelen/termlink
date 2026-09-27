@@ -4513,3 +4513,9 @@ learnings:
   task: T-3131
   date: 2026-09-26
   context: Added via context agent
+- id: PL-387
+  learning: "Documenting a defect inside the file that fixes it makes every naive detector match the fix. A remediation comment that QUOTES the broken pattern ('the previous rule was X') is indistinguishable from the broken pattern to any grep-based guard, so the guard selects the fixed file as the defective one, or a scoped check fires on its own explanation. Fired three times inside T-3178 alone: a function-body scan caught the function's own comment, a git walk selected HEAD as 'pre-fix' because the fix quoted the old regex, and an Expected-clause census read template examples out of HTML comment blocks as real acceptance criteria. Rule: any detector anchored on a code pattern must strip comment lines BEFORE matching. T-2699 already drew this line for error codes ('prose about a code is not a use of it') and T-2831/T-2818 touch adjacent versions; the generalisation is that the fix and the defect live in the same file by design, so comment-stripping is not an optimisation but a correctness requirement."
+  source: P-001
+  task: T-3178
+  date: 2026-09-27
+  context: Added via context agent

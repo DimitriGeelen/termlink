@@ -34,7 +34,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-26T22:27:54Z
-last_update: '2026-09-26T23:44:10Z'
+last_update: 2026-09-27T10:13:11Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -92,15 +92,15 @@ cost_estimate_proposed:
 - [x] Proposed replacement predicate `>>?($|[^&])` verified in isolation over all ten
       cases: both bypasses classify WRITE, all three duplicator forms stay not-write,
       a bare command stays not-write, a trailing `2>` fails closed to WRITE.
-- [ ] Divergence registered in `.vendor-divergence.yaml` BEFORE the vendored file is
+- [x] Divergence registered in `.vendor-divergence.yaml` BEFORE the vendored file is
       touched (T-2812 / G-062), with `status: filed-upstream` citing offset 188 and
       `risk_if_revendored: HIGH` — a re-vendor silently restores the bypass.
-- [ ] Fix applied to `.agentic-framework/agents/context/lib/safe-commands.sh` using a
+- [x] Fix applied to `.agentic-framework/agents/context/lib/safe-commands.sh` using a
       herestring, never `echo "$cmd" | grep -q`: on a SECURITY predicate a SIGPIPE 141
       reads as "no write pattern" and fails OPEN (L-387 / T-2743).
-- [ ] Local fixture suite pins both bypasses and the must-not-change set, and fails
+- [x] Local fixture suite pins both bypasses and the must-not-change set, and fails
       against the pre-fix predicate extracted from git rather than a synthetic mutant.
-- [ ] Reply posted to `framework:pickup` telling 050-email-archive we reproduced their
+- [x] Reply posted to `framework:pickup` telling 050-email-archive we reproduced their
       bug, that `&> file` is a second live bypass, and that their must-not-change entry
       for `&>` contradicts their own fix. Verified by read-back (T-2876).
 
@@ -138,6 +138,15 @@ cost_estimate_proposed:
 -->
 
 ## Verification
+
+bash tests/safe-commands-write-pattern-fixtures.sh
+bash scripts/check-vendor-divergence.sh
+# Line 1 is the 34-assertion suite. Its Case 5 extracts the PRE-FIX function from git
+# and asserts it still reproduces all three defects, so a green here means the fix is
+# load-bearing rather than that the test never exercised the defect.
+# Line 2 asserts the vendored change is still REGISTERED. A divergence that falls out
+# of the register is the T-2812 class, and for this file the loss is silent: a
+# re-vendor restores the bypass and the restored gate looks exactly like a working one.
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
