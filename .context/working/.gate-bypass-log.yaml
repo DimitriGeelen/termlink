@@ -2920,3 +2920,16 @@ FW_SWITCH_FOCUS=1 git commit -m "T-2892: fix decisions.yaml corruption from T-28
   flag: '--skip-sovereignty'
   caller: 'check_human_sovereignty'
   reason: 'Inception decision: GO'
+- timestamp: '2026-09-26T21:40:03Z'
+  task: 'T-3170'
+  flag: '--skip-sovereignty'
+  caller: 'check_human_sovereignty'
+  reason: 'Inception decision: GO'
+- timestamp: '2026-09-26T23:13:54Z'
+  task: 'T-3178'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-3176'
+  command: 'FW_SWITCH_FOCUS=1 git add -A .tasks/ .context/episodic/T-3176.yaml && FW_SWITCH_FOCUS=1 git commit -m "T-3176: closed through the completion verb — arc-011 lock released
+
+Gated via fw task update T'
