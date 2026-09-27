@@ -8,7 +8,7 @@ description: >
   the D8 regression task (linked, not merged per arc-008 rule). Link: T-2941, T-2942,
   T-3015.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -26,7 +26,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-24T23:53:42Z
-last_update: '2026-09-27T21:34:08Z'
+last_update: 2026-09-27T22:31:59Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -79,12 +79,71 @@ cost_estimate_proposed:
 
 Shares root cause with T-3095 (linked, not merged per arc-008 rule). T-3015 was filed as the mechanism fix for both D8 and D8b; this FAIL re-run says it did not hold for D8b either.
 
+## Diagnosis (AC1)
+
+**Same first cause as T-3095, and it need not be re-derived here:** T-3015's four commits
+touched 21 files, none of them `agents/handover/handover.sh` or `agents/audit/audit.sh`. It
+repaired one handover instance and filed the mechanism upstream at `framework:pickup@126`.
+See T-3095's `## Diagnosis` for the enumeration and for the third mechanism layer (PreCompact
+repoints the `LATEST.md` symlink).
+
+**What is specific to D8b, and it is arithmetic.** D8b scores the **10 most recent**
+handovers and FAILs above **5** stale. At T-3015's time the window was **10/10 stale** (this
+task's own title). T-3015 enriched **one** handover — `S-2026-0920-1235`, still enriched today
+at a marker count of 2. One enrichment takes 10/10 to 9/10. **Nine still FAILs.** So the
+action was incapable of clearing D8b *by construction*, not by regression: closing a `>5`
+threshold from 10/10 required enriching at least five files in one pass, and nothing in
+T-3015 attempted that. D8b did not "fail to hold" — it was never within reach of what was
+done.
+
+**The discipline measurement underneath, which is the real finding.** Across the project's
+entire history: **592 handovers, 12 enriched, 580 pending — 2%.** Enrichment has never been a
+sustained practice, so D8b is not reporting a recent lapse; it is reporting the steady state.
+And the steady state is self-renewing: every `/compact`, and every budget-critical
+auto-handover, mints a fresh un-enriched handover that enters the window **at the top**.
+Staleness is therefore regenerated at session cadence while enrichment is manual and
+one-file-at-a-time, so the window refills faster than hand-work drains it. That is why D8b is
+best read as a **lagging indicator of D8 discipline** rather than as an independent defect —
+and why it cannot be closed by any single action.
+
+**Counter-evidence worth recording, because the trend is genuinely better than the history:**
+4 of the current 10 are enriched (`0927-2222`, `0927-2110`, `0926-0928`, `0926-0224`) against
+12 of 592 all-time. Two of those four were enriched in the last two sessions. The practice is
+improving; the window simply has not rolled far enough to show it.
+
+**Sovereign question raised, not resolved.** Keeping D8b green requires one of: enrichment
+becoming automatic (who writes the narrative, and from what source?), the generator not
+emitting a failing count on a fresh handover (vendored, filed upstream, not landed), or D8b
+being redefined to exempt machine-generated un-enriched handovers (a change to what the
+framework considers a failure). All three are architectural decisions about vendored code.
+Recorded here and in `G-094`; parked rather than decided.
+
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Diagnose why T-3015's change did not reduce the 10/10 unfilled-handover-archive count
-- [ ] fw audit's D8b check no longer FAILs
+- [x] Diagnose why T-3015's change did not reduce the 10/10 unfilled-handover-archive count
+      → See `## Diagnosis (AC1)`. T-3015 enriched **exactly one** handover against a
+      **ten-file** window that was **10/10 stale**; clearing a `>5` threshold needed five.
+      The action was *arithmetically incapable* of closing D8b even had it persisted. Under
+      that sits a discipline measurement: **12 of 592 handovers in project history are
+      enriched (2%)**, while every `/compact` mints a fresh un-enriched one at the top of
+      the window — so staleness regenerates at session cadence and hand-enrichment drains
+      it one file at a time.
+- [ ] **FAILED — not achievable by honest local action at this time.** fw audit's D8b check no longer FAILs
+      → Measured now: **6 of 10 stale** (`0927-0014`, `0925-2225`, `0925-1335`, `0923-1907`,
+      `0923-1904`, `0923-1854`), against a FAIL threshold of `>5`. Needs 5.
+      The three available routes and why each is refused:
+      **(a) retro-fill a historical handover** — those sessions' successors have already run,
+      so it serves no consumer and I do not hold their narratives; that is fabricating
+      history to move a number. **(b) raise D8b's threshold** — weakening a gate, forbidden
+      outright. **(c) add one enriched handover so the oldest stale file rolls out of the
+      10-file window** — legitimate *only* as a side effect of a handover generated for its
+      own sake; generating one **because** it moves the metric is gaming, which is exactly
+      the instance-fix error T-3015 made and this task exists to avoid repeating.
+      **Unblock condition:** this run's mandated handback handover is generated for its own
+      reason and will be enriched, taking the window to **5 → WARN**. A later cycle can then
+      tick this truthfully. Left unticked deliberately; P-010 correctly refuses closure.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -279,3 +338,14 @@ Shares root cause with T-3095 (linked, not merged per arc-008 rule). T-3015 was 
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3096-d8b-regression-handover-archive-rot-1010.md
 - **Context:** Initial task creation
+
+### 2026-09-27T22:28:19Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-09-27T22:31:15Z — status-update [task-update-agent]
+- **Change:** horizon: now → next
+- **Change:** status: started-work → captured (auto-sync)
+
+### 2026-09-27T22:31:59Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

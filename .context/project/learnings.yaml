@@ -4519,3 +4519,9 @@ learnings:
   task: T-3178
   date: 2026-09-27
   context: Added via context agent
+- id: PL-388
+  learning: "A defect filed upstream but deliberately NOT patched locally (G-062) has no register state. .vendor-divergence.yaml tracks local-only/filed-upstream/landed-upstream only for divergences we DID patch, so the pending-upstream state lives in a task -- and closed tasks archive and become invisible while the audit stays red. Result: one cause filed four times (T-2941 to T-2943 to T-3015 to T-3095), each cycle re-deriving the diagnosis. Register such defects as a GAP as well as a task; gaps persist and are checked by the audit. Second lesson: before concluding a prior fix regressed, enumerate the files it actually touched with git show --name-only. T-3015 was recorded as the mechanism fix but changed no mechanism file."
+  source: P-001
+  task: T-3095
+  date: 2026-09-27
+  context: Added via context agent
