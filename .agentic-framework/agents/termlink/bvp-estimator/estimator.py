@@ -2512,23 +2512,56 @@ def score_blast_radius(fm: dict, body: str, tags: list[str]) -> tuple[int | None
     shape one population earlier and repaired inceptions only — the same
     sentence was true of the whole non-inception corpus, and nothing re-asked.
     """
+    # T-3188 (LOCAL DIVERGENCE, registered in .vendor-divergence.yaml). Operator decision
+    # 2026-09-27: the fallback applies to EVERY workflow_type, not only inception. The
+    # docstring above already argued for exactly this generalisation ("the same sentence
+    # was true of the whole non-inception corpus, and nothing re-asked") — this is the
+    # re-ask, answered.
+    #
+    # COMPONENTS STILL WINS when present, which is why the order below is unchanged: a
+    # measurement outranks a prediction, always. This block only runs when the count
+    # cannot speak, and for non-inceptions that is the case until the work-completed
+    # transition resolves `components:` from git — i.e. until after the point at which
+    # the cost was needed to decide whether to do the work at all.
+    #
+    # SCOPE FENCE, load-bearing: this EXTENDS the fallback and does not POPULATE the
+    # field. An absent `target_blast_radius` still returns UNMEASURED below. 85% of the
+    # corpus visibly uncosted is a better state than 85% costed by numbers nobody thought
+    # about — T-3185's no-signal lesson, on the cost axis.
     wf = (fm.get("workflow_type") or "").lower()
-    if wf == "inception":
-        tbr = fm.get("target_blast_radius")
-        if tbr is not None:
-            try:
-                v = int(tbr)
-                v = max(0, min(9, v))
-                return v, [f"→{v} (target_blast_radius:inception-T-2189)"]
-            except (TypeError, ValueError):
-                # Malformed → fall through to components count
-                pass
-
     components = fm.get("components") or []
     if not isinstance(components, list):
         return None, ["→? (components-malformed)"]
     n = len([c for c in components if c])
-    if n == 0: return None, ["→? (no-components-UNMEASURED-not-zero)"]
+    if n == 0:
+        # No measurement available — only now consult the declared prediction.
+        #
+        # ORDER IS THE WHOLE POINT, and a first draft of T-3188 got it wrong: moving this
+        # block above the count made a predicted 9 override a measured single component.
+        # Harmless for inceptions, where `components:` is empty by definition, and wrong
+        # for every other workflow type. A measurement must always outrank a prediction;
+        # caught by this task's own acceptance criterion, not by review.
+        #
+        # Reachable for EVERY workflow_type since T-3188 (operator decision 2026-09-27),
+        # where it was inception-only under T-2189. The docstring above already argued the
+        # generalisation was valid and noted that nothing had re-asked; this is the re-ask,
+        # answered. Non-inceptions cannot resolve `components:` until the work-completed
+        # transition derives it from git — i.e. until after the cost was needed to decide
+        # whether to do the work at all.
+        tbr = fm.get("target_blast_radius")
+        if tbr is not None:
+            try:
+                v = max(0, min(9, int(tbr)))
+                # The evidence names WHICH path answered, so a reader can tell a predicted
+                # blast radius from a measured one without opening the task.
+                _origin = ("inception-T-2189" if wf == "inception"
+                           else f"{wf or 'unknown'}-T-3188")
+                return v, [f"→{v} (target_blast_radius:{_origin})"]
+            except (TypeError, ValueError):
+                # Malformed must not become a default and must not raise. With no
+                # components either, the honest answer below is UNMEASURED.
+                pass
+        return None, ["→? (no-components-UNMEASURED-not-zero)"]
     if n == 1: return 1, ["→1 (single-component)"]
     if n <= 3: return 3, [f"→3 ({n}-components)"]
     if n <= 6: return 5, [f"→5 ({n}-components-medium-blast)"]

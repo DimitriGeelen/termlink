@@ -187,6 +187,49 @@ last_vendor_event:
 # ---------------------------------------------------------------------------
 
 divergences:
+  - task: T-3188
+    commit: pending-same-commit
+    commit_note: >
+      Registered BEFORE the change. Operator decision 2026-09-27 after a
+      strawman/steelman comparison scored against the four Constitutional Directives.
+    date: 2026-09-27
+    file: .agentic-framework/agents/termlink/bvp-estimator/estimator.py
+    status: filed-upstream
+    filed_at: "framework:pickup offset 209 (proposal, read-back verified byte-identical 2026-09-27)"
+    kind: scoring-correctness
+    generality: GENERIC
+    risk_if_revendored: MEDIUM
+    why: >
+      BVP cost is 0.6*blast_radius + 0.3*tier + 0.1*effort, and blast_radius derives from
+      the task's `components:` list — which is AUTO-RESOLVED FROM GIT at the
+      work-completed transition (observed live when T-3176 closed: "Components: 1
+      resolved from git history"). So a task becomes costable only AFTER it is done,
+      which is exactly too late to decide whether to do it. Measured: 211 of 248 tasks
+      have no cost, hence no quadrant, hence the entire quadrant system is computed over
+      six tasks.
+      THE FALLBACK ALREADY EXISTED and was gated to inceptions at estimator.py:2515.
+      The docstring immediately above it says, verbatim: "T-3068 note: T-2189 identified
+      this exact shape one population earlier and repaired inceptions only — the same
+      sentence was true of the whole non-inception corpus, and nothing re-asked." The
+      generalisation was found, written down, and never put to the operator.
+      WHY THIS FIELD AND NOT A `--components` VERB: `target_blast_radius` is HONEST
+      ABOUT BEING A PREDICTION — its name declares it ("Anticipated component count") on
+      a documented non-linear ladder 0/1/3/5/7/9. Writing a guess into `components:`
+      instead would put it in a field that claims to be FACT, indistinguishable from a
+      measurement. That is the distinction T-3105, T-3185 and the `_source: human`
+      two-state provenance all turn on. Scored 100/120 against 81/120 for the verb, the
+      whole margin on D2 Reliability.
+      SCOPE FENCE, and it is the load-bearing half: extend the fallback, do NOT populate
+      the field. An absent value still resolves to UNMEASURED. 85% visibly uncosted is a
+      better state than 85% invisibly guessed — which is T-3185's no-signal lesson moved
+      onto the cost axis, and both strawmen in the comparison failed on exactly that.
+      `components:` still WINS when present: a prediction must never override a
+      measurement.
+      RISK MEDIUM, not HIGH: a re-vendor re-narrows the fallback to inceptions, which
+      returns the cost axis to covering six tasks. Visible on the next ranking read, and
+      it breaks nothing — unlike T-3178, where a restore reopens a security hole with no
+      symptom.
+
   - task: T-3187
     commit: pending-same-commit
     commit_note: >
