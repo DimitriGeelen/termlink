@@ -1,18 +1,14 @@
 ---
-id: T-2958
-name: "fw task review hardcodes 'go' in the decision command it hands the human"
+id: T-3183
+name: "A canary that fires correctly 42 times over six weeks escalates to nothing"
 description: >
-  lib/review.sh:380 emits 'inception decide <task> go' with the verb hardcoded while
-  interpolating the rationale from the task's own Recommendation, so a NO-GO recommendation
-  prints a command recording GO. Inverted a live human decision on the reporting peer's
-  repo. Sovereignty boundary. Reported by 050-email-archive (Pen, T-2065 follow-on),
-  verified live here.
+  Carried out of T-2879 so the finding survives that task's dissolution. T-2879 recommended NO-GO on any build, and the recommendation is right, but its evidence contains a defect nobody has ticketed and which is NOT what T-2389 covers. MEASURED in T-2879 (docs/reports/T-2879-rail-enrolment-gap.md): the T-2387 waker-liveness canary fired the rail-dark condition 42 times, a 36053-byte log, correctly, across roughly six weeks, and no action followed. /canaries agreed with it the whole time. So detection and presentation are both working and the loop still did not close. THE INVERSION OF THIS REPO'S USUAL FINDING. The guard layer's documented failure mode is blindness - a check nobody wrote, or one whose green is not evidence (T-2680, T-2683, T-3105). This is the opposite: a check that was loud, accurate and unheeded. G-019 says fix the symptom then ask why the framework was blind. Here the framework was not blind; the operator loop was. Nothing in the framework escalates a canary on REPEAT firing. A canary that has fired 42 times is not in the same state as one firing for the first time, and nothing represents that difference. T-2818 named the mechanism from the other side (a guard that fires wrongly often enough teaches its operator to stop reading it) and T-2833 named the permanently-red variant. This is the third member of that family: a guard that fires CORRECTLY often enough to be tuned out. Distinct from T-2389, which is the remediation (relaunch agents through the T-2388 launcher, PL-237 - reach must be arranged at LAUNCH, no retrofit); that task makes agents wakeable. This task is about why six weeks of accurate daily warning produced no action. Both can be true and neither covers the other. Scope fence: this is NOT a proposal to make canaries noisier. The candidate shape is an escalation ladder keyed on consecutive-firing count, so a first firing and a 42nd are distinguishable, plus a way to acknowledge with a stated reason and a delete-condition (the T-2483 charter-drift allowlist and the T-3167 audit-warning ledger are the two local precedents for acknowledging a known-open condition without going silent). Whether to build it, and in what form, is the operator's call - filed as a finding with a candidate shape, not as an authorised build.
 
-status: started-work
+status: captured
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
-tags: [arc:arc-008]
+tags: []
 components: []
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
@@ -25,9 +21,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-11T19:54:29Z
-last_update: 2026-09-27T09:19:36Z
-date_finished:
+created: 2026-09-27T09:20:45Z
+last_update: 2026-09-27T09:20:45Z
+date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -38,33 +34,9 @@ date_finished:
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
-bvp_scores_proposed:
-  - ts: '2026-09-18T18:42:31Z'
-    estimator: bvp-estimator-v1-heuristic
-    scores:
-      D1: 4
-      D2: 0
-      D3: 3
-      D4: 2
-      F-RECALL: 0
-      F-ORCH: 0
-    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
-      (body:component-discoverability); D4=2 (body:env-class-handled); 
-      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
-    rubric_sha: e4a00f38e801
-cost_estimate_proposed:
-  - ts: '2026-09-18T18:42:31Z'
-    estimator: bvp-estimator-v1-heuristic
-    cost_estimate:
-      blast_radius:
-      tier: 2
-      effort: 8
-    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
-      (workflow:build); effort=8 (lines=207,acs=4)
-    rubric_sha: e4a00f38e801
 ---
 
-# T-2958: fw task review hardcodes 'go' in the decision command it hands the human
+# T-3183: A canary that fires correctly 42 times over six weeks escalates to nothing
 
 ## Context
 
@@ -74,37 +46,8 @@ cost_estimate_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] The blast radius is measured across the corpus, not asserted from one instance.
-      **Measured 2026-09-27:** of 140 completed inception tasks carrying BOTH a
-      `**Recommendation:**` and a recorded `**Decision**:`, **23 disagree**. Direction is
-      the tell: **22 of the 23 resolve to GO**, one to DEFER. A human overriding
-      recommendations would not be 96% one-directional; a hardcoded verb would be
-      exactly that.
-- [x] The three cases that cannot be read as a deliberate override are named:
-      **T-2288, T-2879, T-3144** — all `NO-GO` recommendation, `GO` recorded. T-2879's
-      recorded rationale is its NO-GO argument verbatim, ending "There is nothing to
-      build", which is the signature this task describes.
-- [x] The ~14 `DEFER -> GO` cases are explicitly NOT claimed as inversions. DEFER to GO
-      is a legitimate sovereign override, and treating them as defects would convert a
-      record-integrity fix into an agent overwriting human decisions at scale — a worse
-      failure than the one being fixed. T-3170 is in this set, and its GO is independently
-      corroborated by the operator dialogue, so the work it authorised (T-3176) stands.
-- [x] Instrument limits stated rather than left implicit: the scan takes the FIRST
-      `**Recommendation:**` line per file, so a superseded filing-time draft would
-      inflate the count. Falsification attempted on 6 of the 23 — every one carries
-      exactly ONE recommendation line, so no draft artefact is present in that sample.
-      Four of the 23 are parser artefacts (`DELIVERED`/`CONDITIONAL`/`MOSTLY-SHIPPED`/
-      `PARTIAL` are not GO/NO-GO/DEFER shaped) and are probably not mismatches at all.
-- [ ] Fix filed upstream per G-062 — `lib/review.sh` is vendored, so a local patch is
-      deleted by the next re-vendor. Filed at `framework:pickup`, verified by read-back
-      (T-2876), and registered in `.vendor-divergence.yaml` if a local fix is also taken.
-- [ ] The emitter is corrected BEFORE any affected record is re-decided. Re-deciding
-      while the verb is still hardcoded re-inverts on the next pass, so order is
-      load-bearing, not preference.
-- [ ] [REVIEWER] A verb or documented path exists to re-record a decision on an
-      already-completed inception. The Tier-0 gate refuses an agent the `inception
-      decide` verb entirely — correctly — so the correction is operator-run; what is
-      missing is whether the verb even accepts a task that is already `work-completed`.
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -176,6 +119,34 @@ cost_estimate_proposed:
 # capture and grep (T-2090) — the middle stage is what `grep -q` slams its stdin
 # on, and grep scans the whole captured string anyway, so the `tail -3` was
 # cosmetic. `echo "$out" | grep -q PAT`, nothing between.
+#
+# ── Asserting an ABSENCE: prove the search could have succeeded (T-3144) ──
+#
+# `! grep -q "PATTERN" file` exits 0 when the pattern is absent. It ALSO exits 0
+# when the file was renamed, deleted, or is empty — so the leg cannot distinguish
+# "the bad thing is not there" from "I could not look", and the gate reports green
+# over a check that never ran. Pair every absence assertion with something that
+# fails if the search could not happen:
+#
+#     test -f path/to/file && ! grep -q "PATTERN" path/to/file    # existence first
+#     grep -q "KNOWN_MARKER" f && ! grep -q "PATTERN" f           # positive companion
+#     cmd > /tmp/.out 2>&1 && ! grep -q "PATTERN" /tmp/.out       # &&-joined producer
+#
+# Count-equals-zero is the same defect wearing a different hat, and it is the one
+# that bites hardest over a COMMAND's output rather than a file:
+#
+#     [ "$(cargo clippy --workspace 2>&1 | grep -c "^error")" = "0" ]   # WRONG
+#
+# If cargo is missing, or dies before emitting diagnostics, there are no `^error`
+# lines, the count is 0, and the leg passes — a build gate that goes green
+# precisely when the build could not run. Measured in this corpus, not invented.
+# Keep the producer's exit code in the verdict:
+#
+#     cargo clippy --workspace > /tmp/.out 2>&1 && ! grep -q "^error" /tmp/.out
+#
+# T-3144 censused 2853 task files: 71 absence assertions, 41 already correct, 30
+# not. The convention mostly works — this note is here so the next one is written
+# right, because a vacuous leg is invisible until the day the path moves.
 #
 # TEST RUNNERS need a guard either way (T-2738). `set -e` is suppressed inside the
 # `if` condition the gate runs each line in, so in `cmd1; cmd2` only cmd2 is the
@@ -292,13 +263,7 @@ cost_estimate_proposed:
 
 ## Updates
 
-### 2026-09-11T19:54:29Z — task-created [task-create-agent]
+### 2026-09-27T09:20:45Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2958-fw-task-review-hardcodes-go-in-the-decis.md
+- **Output:** /opt/termlink/.tasks/active/T-3183-a-canary-that-fires-correctly-42-times-o.md
 - **Context:** Initial task creation
-
-### 2026-09-11T19:55:43Z — status-update [task-update-agent]
-- **Change:** tags: +arc:arc-008
-
-### 2026-09-27T09:19:36Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
