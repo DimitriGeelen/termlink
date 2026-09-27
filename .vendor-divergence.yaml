@@ -187,6 +187,43 @@ last_vendor_event:
 # ---------------------------------------------------------------------------
 
 divergences:
+  - task: T-3187
+    commit: pending-same-commit
+    commit_note: >
+      Registered when the completion gate refused T-3187 for not being registered — the
+      checker caught that its commit touches vendored code under a task id the register
+      did not know. The T-3178 entry had been amended, but an amendment is not a
+      registration, and only the entry's own task id is the match key.
+    date: 2026-09-27
+    file: .agentic-framework/agents/context/lib/safe-commands.sh
+    status: filed-upstream
+    filed_at: "framework:pickup offset 206 (bug-report, read-back verified byte-identical 2026-09-27) — amends our own offset 202"
+    kind: security-fix-correction
+    generality: GENERIC
+    risk_if_revendored: HIGH
+    amends: T-3178
+    why: >
+      A REGRESSION IN OUR OWN T-3178, found in live use within minutes of pushing it: the
+      very next command was blocked by the Tier-1 gate for containing `2>/dev/null`.
+      T-3178's rule `>>?($|[^&])` is right in principle — what FOLLOWS the operator
+      decides whether a file is opened — but /dev/null opens no file; the kernel discards
+      the descriptor. So it was a false positive on a null sink: the fail-CLOSED half of
+      the exact defect T-3178 set out to fix, reintroduced by the other rule, and
+      structurally identical to the `-i`-inside-a-filename refusal T-3178 corrected.
+      The fix STRIPS /dev/null, /dev/stderr and /dev/stdout redirects before the redirect
+      test. Stripping rather than short-circuiting is what keeps a MIX correct —
+      `cmd > out.txt 2>/dev/null` must stay a WRITE. The trailing token boundary is
+      load-bearing: without it `/dev/nullish` matches and a real write is silently
+      exempted, which would be a NEW fail-open strictly worse than the false positive.
+      And the strip falls back to the unstripped command on failure, so a broken helper
+      makes the gate stricter, never looser.
+      RISK HIGH for the same reason as T-3178: a re-vendor restores a predicate whose
+      wrongness has no symptom. Here it would restore the friction rather than the
+      bypass, which is the visible direction — but it would also restore T-3178's bypass
+      alongside it, because both live in the same function.
+      Inseparable from T-3178 in practice: anyone taking one must take the other, which
+      is why the upstream filing is an AMENDMENT to offset 202 rather than a new report.
+
   - task: T-3185
     commit: pending-same-commit
     commit_note: >
