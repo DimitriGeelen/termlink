@@ -8,12 +8,12 @@ description: >
   arc-008's own rule ('verification of a task is the re-run of the audit, not self-assertion'),
   this re-run says T-3015's fix did not hold. Link: T-2941, T-2942, T-3015.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-008]
-components: []
+components: [tests/bvp-derived-blast-radius-fixtures.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -26,8 +26,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-24T23:53:29Z
-last_update: '2026-09-27T21:34:08Z'
-date_finished:
+last_update: 2026-09-27T22:26:43Z
+date_finished: 2026-09-27T22:26:43Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -79,12 +79,76 @@ cost_estimate_proposed:
 
 arc-008 cycle-2 census already diagnosed this exact FAIL and filed T-3015 as the mechanism fix (not merely T-2941's instance-only close). This cycle-3 re-run is the verification arc-008's own rule calls for -- and it says T-3015 did not hold.
 
+## Diagnosis (AC1)
+
+**T-3015 was not a mechanism fix.** Its four commits (`17191511d`, `64523bdf5`,
+`a6f79ffb1`, and its share of `10580e6c5`) touched **21 files and not one of them is the
+generator or the check**. Enumerated from git rather than from its Updates section, as this
+AC requires: task files, `.context/pickup/` filings, `learnings.yaml`, one episodic, and
+**exactly one handover** — `S-2026-0920-1235.md`. That is an instance repair plus an
+upstream filing (`framework:pickup@126`). The mechanism was correctly identified and
+correctly routed; it was never locally changed, because both files are vendored (G-062).
+So "T-3015 did not hold" is not a regression — **nothing was ever in place to hold.**
+
+**The mechanism itself has three layers, and only the third is new.**
+
+1. **The generator emits 4 unfilled placeholder sections, by design and correctly.**
+   T-2882's rule is that the generator cannot know the session narrative, so an unfilled
+   section must read as unfilled rather than be fabricated. This is right, and it is not
+   the defect.
+2. **The check counts the generator's own meta-comment.** `handover.sh:712` contains an
+   instructional line that itself carries the literal marker, and `audit.sh:5086` is a raw
+   `grep -c` over the whole file. So every generated handover starts at a floor of 1 —
+   T-2943 measured this and concluded D8's `pass` branch is unreachable dead code.
+   4 sections + 1 comment = **5**, against a FAIL threshold of `>3`. **Every freshly
+   generated handover FAILs D8 by construction.**
+3. **PreCompact mints a fresh handover and repoints `LATEST.md` at it.** This is the layer
+   that makes enrichment futile rather than merely manual. `LATEST.md` is a *symlink*, so
+   the moment a new handover is generated the enriched one stops being the file D8 reads.
+
+**Live evidence from this session, not inference.** A previous session enriched
+`S-2026-0927-2110` — commit `85d2c0f36`, "all four sections filled". `/compact` then fired,
+PreCompact generated and auto-committed `S-2026-0927-2222` un-enriched (`5e0a6045a`),
+`LATEST.md` followed it, and D8 was red again within the minute. **Enrichment is Sisyphean
+by construction**, and that is the finding T-3015 could not have had, because it enriched
+and then stopped watching.
+
+**A fourth, smaller trap, reproduced here while writing this up.** Prose *about* the marker
+counts too. The first draft of the Gotchas section in the enriched handover pushed the
+tally from 1 back to 3 by quoting the marker twice. T-2943 documented exactly this; it is
+the same comment-vs-code shape that has now defeated six detectors in this repo. The
+enriched handover therefore describes the marker without spelling it.
+
+**Disposition of the mechanism.** It is upstream's (filed `@126`, not landed). `T-3021`
+nominally carries the PreCompact half — its title is precisely "Handover generator +
+PreCompact auto-commit mint a fresh D8/D8b FAIL every…" — but it is an **empty stub with no
+Context and no ACs**, one of the three unwanted pickup round-trip artifacts T-3015's own
+evolution log flagged as "needing disposition". So the mechanism is currently owned by
+nothing. Raised as a Sovereign question rather than resolved here, because every available
+fix is an architectural change to vendored code: change PreCompact's behaviour, make
+enrichment automatic, or change what D8 considers a failure.
+
+**Scope note.** This task is D8. D8b still FAILs (6/10 recent handovers) and is **T-3096**,
+deliberately untouched here.
+
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Diagnose why T-3015's change did not prevent this handover's TODO count from being 5 again (read T-3015's actual diff, not just its Updates section)
-- [ ] fw audit's D8 check no longer FAILs (handover LATEST.md TODO-section count is at or below the check's threshold-floor, per T-2943)
+- [x] Diagnose why T-3015's change did not prevent this handover's TODO count from being 5 again (read T-3015's actual diff, not just its Updates section)
+      → See `## Diagnosis (AC1)`. T-3015's 4 commits touched 21 files, **none** of them the
+      generator or the check — enumerated from `git show --name-only`, not its Updates
+      section. It was an instance repair plus an upstream filing. Three-layer mechanism
+      identified, the third layer (PreCompact repoints the `LATEST.md` symlink) being the
+      one that makes enrichment futile rather than merely manual, evidenced live this
+      session: `85d2c0f36` enriched, `5e0a6045a` replaced it, D8 red again within the minute.
+- [x] fw audit's D8 check no longer FAILs (handover LATEST.md TODO-section count is at or below the check's threshold-floor, per T-2943)
+      → `fw audit --section discovery` now reports
+      `[WARN] D8: Handover quality — LATEST.md has 1 [TODO] section(s)`. Was `[FAIL] … 5`.
+      **1 is exactly the floor T-2943 identified** (the generator's own meta-comment at
+      `handover.sh:712`), so this is the lowest value reachable without patching vendored
+      code. FAIL cleared; the residual WARN is structurally unfixable locally.
+      Scope: D8b still FAILs (6/10) and belongs to T-3096, untouched here.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -180,10 +244,87 @@ arc-008 cycle-2 census already diagnosed this exact FAIL and filed T-3015 as the
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
-.agentic-framework/bin/fw audit > /tmp/.t3095-audit.out 2>&1 || true
-! grep -q '\[FAIL\] D8:' /tmp/.t3095-audit.out
+# T-3095: the original pair here ran a FULL `fw audit` into this same temp path and then
+# asserted `! grep -q '[FAIL] D8:'`. It is REMOVED, and that is a strengthening rather than a
+# weakening — the assertion it made is strictly implied by the scoped pair below, which adds
+# two guards it lacked: `test -s` (the audit actually produced output, so an audit that could
+# not run fails instead of passing vacuously — T-3144) and a positive companion proving D8
+# itself was evaluated. Both wrote the SAME file, so they were duplicates, not independent
+# evidence.
+#
+# The full audit is also what made this gate unrunnable: it exceeds 300s on this host and the
+# closure attempt of 2026-09-28 was OOM-killed by the kernel partway through P-011. D8 is
+# emitted only by the `discovery` section, so the scoped run is sufficient as well as cheaper.
+
+# AC2: the count D8 reads must be at or below T-2943's floor of 1. This asserts the
+# NUMBER, not the absence of a FAIL string, so it cannot pass because a grep missed.
+test "$(grep -c '\[TODO' .context/handovers/LATEST.md)" -le 1
+
+# AC2, through the check itself rather than my own count: D8 must not be a FAIL.
+# `|| true` is deliberate and is NOT the T-3144 anti-pattern. The audit exits 2 whenever
+# ANY check fails, and D8b legitimately fails here (6/10, owned by T-3096) — so the
+# producer's exit code cannot be the signal for a D8-specific assertion. The guard T-3144
+# asks for is supplied instead by `test -s` (the run produced output) plus the positive
+# companion on the next line (D8 itself was evaluated), so "no FAIL" can never mean
+# "the check never ran".
+.agentic-framework/bin/fw audit --section discovery > /tmp/.t3095-audit.out 2>&1 || true
+test -s /tmp/.t3095-audit.out && ! grep -q '^\[FAIL\] D8:' /tmp/.t3095-audit.out
+
+# Positive companion for the absence assertion above: prove D8 actually ran and was
+# evaluated, so "no FAIL" cannot mean "the check never executed".
+grep -q '^\[WARN\] D8: Handover quality' /tmp/.t3095-audit.out
+
+# AC1 is a written diagnosis; assert the load-bearing claim is recorded, excising this
+# Verification block first so the command's own text cannot satisfy the pattern
+# (the vacuous self-match T-3015 caught in its own draft check).
+sed '/^## Verification/,/^## RCA/d' .tasks/active/T-3095-d8-regression-handover-5-todo-sections-p.md > /tmp/.t3095-body.md && grep -q 'not one of them is the' /tmp/.t3095-body.md
 
 ## RCA
+
+**Symptom:** `fw audit` D8 reported `[FAIL] D8: Handover quality — LATEST.md has 5 [TODO]
+sections` on the arc-008 cycle-3 re-run, identically to cycle-2, despite T-3015 having been
+filed and closed specifically as the *mechanism* fix distinguishing it from T-2941's
+instance-only close.
+
+**Root cause:** T-3015 never changed the mechanism. Its four commits touched 21 files, none
+of them `agents/handover/handover.sh` or `agents/audit/audit.sh`; it repaired one handover
+instance and filed the defect upstream at `framework:pickup@126`. Both files are vendored,
+so a local fix was correctly out of scope — but the task was recorded as the mechanism fix
+while the mechanism had only been *reported*. Underneath that, the defect is three-layered:
+the generator emits 4 unfilled placeholder sections by design (T-2882, correct); the check
+additionally counts the generator's own instructional comment at `handover.sh:712`, putting
+the floor at 1 (T-2943); and PreCompact generates a fresh handover and repoints the
+`LATEST.md` **symlink** at it, so 4+1=5 against a `>3` threshold means every freshly
+generated handover FAILs, and any enrichment stops being the file D8 reads at the next
+`/compact`.
+
+**Why structurally allowed:** arc-008's own rule — "verification of a task is the re-run of
+the audit in the next cycle, not self-assertion" — worked exactly as designed: the re-run
+caught it. What the framework has no state for is **"defect reported upstream, not yet
+landed here."** `.vendor-divergence.yaml` tracks that lifecycle (`local-only` →
+`filed-upstream` → `landed-upstream`) but only for divergences we *did* patch locally. A
+defect we deliberately did **not** patch has no register entry, so when it closes as a task
+it becomes invisible (CLAUDE.md: "completed tasks archive and become invisible"). The next
+audit cycle then sees a FAIL with no open task and files a fresh one. **This defect has now
+been filed four times for one cause: T-2941 (instance) → T-2943 (mechanism, WARN leg) →
+T-3015 (mechanism, filed upstream) → T-3095 (this).** The re-filing is not sloppiness; it
+is the register behaving as built.
+
+**Prevention:** registered as **G-094** in `.context/project/concerns.yaml` — a gap persists
+in the register, is visible in Watchtower and is checked by the audit, which is precisely the
+property a closed task lacks. That converts the next cycle's rediscovery into a known
+watched item instead of a fifth task. Note the narrower prevention that is *not* available:
+raising D8's threshold or excluding the generator's comment would make the check pass, but
+the first weakens a gate and the second still leaves 4 > 3 — so there is no local code change
+that makes D8 green, which is the substance of the Sovereign question this task raises.
+
+**Finding recorded en route (not fixed here):** the audit's own mitigation string for the
+handover section tells the operator to "Register via `fw gaps add`". **There is no `fw gaps
+add` verb** — `bin/fw` routes only bare `gaps` (show) and `gaps close`. So the register had
+to be edited directly, which is the documented path in CLAUDE.md §"When discovering
+structural flaws" but means the audit prescribes an unactionable command. Same class as
+T-2958 (`fw task review` hardcodes `go`) and the missing `checkpoint.sh budget` subcommand
+the `/resume` skill calls: the framework advising a verb it does not ship.
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
@@ -222,6 +363,38 @@ arc-008 cycle-2 census already diagnosed this exact FAIL and filed T-3015 as the
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-09-27 — the mechanism has a third layer, and it is the one that matters
+
+- **What changed:** at filing this looked like "T-3015's fix regressed". It had not regressed,
+  because it was never a code change: 21 files across four commits, none of them the generator
+  or the check. The layer nobody had named is that **PreCompact repoints the `LATEST.md`
+  symlink** at each freshly generated handover, so enrichment stops being the file D8 reads.
+  T-2943 had the floor-of-1 arithmetic and T-3015 had the upstream filing; neither had the
+  symlink, which is why "enrich it" kept looking like a fix and kept not being one.
+- **Plan impact:** AC2 ("D8 no longer FAILs") is satisfiable, but only transiently, and the
+  task must say so rather than imply a mechanism close. Closing this without that sentence
+  would have reproduced T-3015's error one cycle later.
+- **Triggered:** G-094 (no register state for "reported upstream, not yet landed"), and the
+  observation that T-3021 — which nominally owns the PreCompact half — is an empty stub.
+
+### 2026-09-28 — the closure was OOM-killed mid-gate, and the near-miss is the finding
+
+- **What changed:** the first `--status work-completed` run was killed by the kernel partway
+  through P-011 (host low on memory; this box runs ~450 concurrent agent processes). Cause: a
+  pre-existing verification line invoking a **full** `fw audit`, which exceeds 300s here.
+- **Plan impact:** that line was removed as a strictly weaker, same-temp-path duplicate of the
+  scoped `--section discovery` pair, which additionally guards `test -s` and carries a positive
+  companion. Recorded in the block itself so the removal is auditable rather than silent.
+- **Triggered:** a concrete near-miss for **T-2833**. `update-task.sh` writes
+  `status: work-completed` unconditionally ~221 lines *before* the finalize block, and the
+  guard then reads the value the first write committed — so a process killed *between* them
+  latches the task permanently out of finalization. Verified after the kill: T-3095 was still
+  `started-work` with `date_finished: null` and
+  `check-stranded-finalized-tasks.sh` reported 0 stranded of 328, i.e. **the kill landed inside
+  the gate rather than inside the window, by timing alone.** T-2833's detector is local and its
+  fix is upstream's; this is the first observed instance of the killing condition actually
+  occurring, as opposed to being reasoned about.
 
 ## Recommendation
 
@@ -279,3 +452,23 @@ arc-008 cycle-2 census already diagnosed this exact FAIL and filed T-3015 as the
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3095-d8-regression-handover-5-todo-sections-p.md
 - **Context:** Initial task creation
+
+### 2026-09-27T21:50:40Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-18f2c905
+- **Timestamp:** 2026-09-27T22:27:06Z
+- **Catalogue:** v1.3-seed
+- **Overall:** FAIL
+- **Needs Human:** no
+- **Findings:** 1
+
+**Verification-level findings:**
+
+  1. **swallowed-errors** (severe, deterministic) @ Verification:line 83
+     - evidence: `.agentic-framework/bin/fw audit --section discovery > /tmp/.t3095-audit.out 2>&1 || true`
+
+### 2026-09-27T22:26:43Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

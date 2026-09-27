@@ -1,4 +1,37 @@
 concerns:
+- id: G-094
+  type: gap
+  title: 'no register state for "defect reported upstream, not yet landed here" — a vendored
+    defect we deliberately did not patch becomes invisible the moment its task closes, and the
+    next audit cycle files it again (four tasks, one cause: T-2941 → T-2943 → T-3015 → T-3095)'
+  description: 'Found 2026-09-27 executing T-3095 (arc-008 cycle-3). The D8 handover-quality
+    FAIL has now been filed four times for a single root cause. Each cycle behaved correctly in
+    isolation: the audit re-run found the FAIL, no open task covered it, so a new task was filed.
+    The gap is that `.vendor-divergence.yaml` tracks the local-only → filed-upstream →
+    landed-upstream lifecycle ONLY for divergences we patched locally. When the right answer is
+    "file it upstream and do NOT patch" (G-062, because a local patch is erased by the next
+    re-vendor), there is no register entry at all — so the pending-upstream state lives in a
+    task, and CLAUDE.md is explicit that "completed tasks archive and become invisible" while
+    gaps persist and are checked by the audit. The cost is not just duplicate filing: each new
+    task re-derives the diagnosis from scratch (T-3095 re-read T-3015''s full diff to establish
+    what it had already concluded), and the audit stays red throughout with no indication that
+    anyone is waiting on anything. Concretely for D8/D8b there is NO local code change that
+    makes the check green — raising the threshold weakens a gate, and excluding the generator''s
+    own comment at handover.sh:712 still leaves 4 unfilled sections against a >3 threshold — so
+    the pending-upstream state is the only truthful state, and it is unrepresentable.'
+  spec_reference: '.vendor-divergence.yaml (divergences[].status covers local patches only);
+    .agentic-framework/agents/audit/audit.sh:5082-5120 (D8/D8b); CLAUDE.md §"When discovering
+    structural flaws" (gaps persist, tasks archive)'
+  severity: medium
+  trigger_fired: true
+  trigger_event: '2026-09-27 T-3095: fourth task filed for the D8 cause first filed as T-2941.
+    Diagnosis re-derived from T-3015''s diff rather than read from a register.'
+  detection_lag_days: 'since T-2941 (first instance filing) — three subsequent audit cycles each
+    re-filed rather than recognised'
+  status: watching
+  created: 2026-09-27
+  last_reviewed: 2026-09-27
+  related_tasks: ['T-3095', 'T-3096', 'T-3015', 'T-2943', 'T-2941', 'T-3021']
 - id: G-093
   type: gap
   title: 'partial-complete pins focus on a work-completed task and the write gate then refuses the checkpoint
