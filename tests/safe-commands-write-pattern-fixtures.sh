@@ -127,21 +127,33 @@ expect "$LIB" 'sed -e s/a/b/ f.txt'                   not-write 'sed -e is not i
 echo
 echo "Case 5 ★★ LOAD-BEARING — the PRE-FIX predicate, extracted from git, must still"
 echo "          reproduce the bypass. Ground truth, not a synthetic mutant."
-PRE="$SCRATCH/pre-fix.sh"
-found=""
-for ref in HEAD HEAD~1 HEAD~2 HEAD~3 HEAD~4 HEAD~5; do
-    if git -C "$PROJECT" show "$ref:.agentic-framework/agents/context/lib/safe-commands.sh" \
-         > "$PRE" 2>/dev/null; then
-        # Comments stripped before the guard. The FIXED file's own comment QUOTES the
-        # pre-fix rule to explain what was wrong with it, so a naive match selects HEAD
-        # — the fixed copy — as "pre-fix" and then correctly finds it does not reproduce
-        # the bypass. Third time this exact trap fired while building this suite:
-        # documenting a defect inside the file that fixes it makes every naive detector
-        # match the fix. Prose about a pattern is not a use of it (T-2699).
-        if grep -vE '^[[:space:]]*#' "$PRE" | grep -qF "'[^2>&]>[^>&]|>>'"; then
-            found="$ref"; break
-        fi
-    fi
+PRE="$SCRATCH/pre.sh"; found=""
+# Deterministic, not a walk. `git log -S<anchor>` lists commits that changed the anchor's
+# occurrence count; the MOST RECENT one REMOVED it, so that commit's parent is the
+# pre-fix tree. The earlier HEAD..HEAD~N walk was fragile twice over: it re-selects HEAD
+# as soon as the change is committed, and a comment quoting the anchor defeats the match
+# — the trap that fired three times in T-3178 and is now a registered learning.
+_SC_PATH=".agentic-framework/agents/context/lib/safe-commands.sh"
+# BEHAVIOURAL SEARCH, not a text search — walk this file's own history, newest first, and
+# take the first version where the defect ACTUALLY REPRODUCES.
+#
+# Two text-based attempts failed before this, both to the same trap. A HEAD~N walk
+# re-selected HEAD the moment the fix was committed, because the fix's comment names the
+# symbol it removed. Then `git log -S'[^2>&]>[^>&]'` returned a commit from months
+# earlier — because the fix DELETED that regex from the code and QUOTED it in a comment
+# explaining the deletion, so the occurrence count never changed and the pickaxe never
+# saw the commit at all.
+#
+# Running the candidate is immune to all of that: it does not ask what the code looks
+# like, it asks what the code DOES. Bounded to 40 revisions of this one file.
+for _sha in $(git -C "$PROJECT" log --format=%H -n 40 -- "$_SC_PATH" 2>/dev/null); do
+    git -C "$PROJECT" show "$_sha:$_SC_PATH" > "$PRE" 2>/dev/null || continue
+    # The defect: a numbered-fd redirect to a FILE reads as not-a-write.
+    [ "$(verdict "$PRE" 'bin/fw audit 2> out.txt')" = "not-write" ] || continue
+    # ...and the copy must still be sane, or "not-write" is just a failed source.
+    [ "$(verdict "$PRE" 'bin/fw audit > out.txt')" = "WRITE" ] || continue
+    found="${_sha:0:9}"
+    break
 done
 if [ -z "$found" ]; then
     fail "MUTATION SETUP BROKEN — no ref in HEAD..HEAD~5 carries the pre-fix redirect rule"

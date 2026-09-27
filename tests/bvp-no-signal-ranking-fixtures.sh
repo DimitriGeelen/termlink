@@ -146,14 +146,18 @@ grep -qF 'UNASSESSED, not low-value' <<< "$out" \
 echo
 echo "Case 6 ★★ ground truth: the PRE-CHANGE code, from git, must still rank the stub"
 PRE="$SCRATCH/pre.sh"; found=""
-for ref in HEAD $(for i in $(seq 1 15); do echo "HEAD~$i"; done); do
-    git -C "$PROJECT" show "$ref:.agentic-framework/lib/bvp.sh" > "$PRE" 2>/dev/null || continue
-    # Comments stripped: the CURRENT file names the old helper in its own explanation.
-    # That trap fired three times in T-3178 and is a registered learning.
-    if ! grep -vE '^[[:space:]]*#' "$PRE" | grep -qF '_proposal_is_all_no_signal'; then
-        found="$ref"; break
-    fi
-done
+# Deterministic, not a walk. `git log -S<symbol>` lists the commits that changed the
+# symbol's occurrence count; the LAST of those introduced it, so its parent is the
+# pre-change tree. The earlier form walked HEAD..HEAD~15 looking for a ref that did not
+# contain the symbol, which is fragile twice over: it re-selects as soon as the change is
+# committed, and a comment naming the symbol defeats the match (the trap that fired three
+# times in T-3178 and is now a registered learning).
+_intro="$(git -C "$PROJECT" log -S'def _proposal_is_all_no_signal' --format=%H \
+          -- .agentic-framework/lib/bvp.sh 2>/dev/null | tail -1)"
+if [ -n "$_intro" ] && git -C "$PROJECT" show "${_intro}^:.agentic-framework/lib/bvp.sh" \
+        > "$PRE" 2>/dev/null; then
+    found="${_intro:0:9}^"
+fi
 if [ -z "$found" ]; then
     fail "MUTATION SETUP BROKEN — no ref in HEAD..HEAD~15 predates the change"
 else

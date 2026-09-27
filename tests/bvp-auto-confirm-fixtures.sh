@@ -313,13 +313,15 @@ run confirm T-9001 >/dev/null
 echo
 echo "Case 8 ★ ground truth: the PRE-RULING code, from git, must still refuse the agent"
 PRE="$SCRATCH/pre.sh"; found=""
-for ref in HEAD $(for i in $(seq 1 15); do echo HEAD~$i; done); do
-    git -C "$PROJECT" show "$ref:.agentic-framework/lib/bvp.sh" > "$PRE" 2>/dev/null || continue
-    # Comments stripped before matching: the CURRENT file's own comments name the old
-    # key to explain what replaced it, so a naive match selects the new file as "pre".
-    # That trap fired three times in T-3178 and is a registered learning.
-    if grep -vE '^[[:space:]]*#' "$PRE" | grep -qF '_AUTO_CONFIRM_KEY'; then found="$ref"; break; fi
-done
+# Deterministic, not a walk. `git log -S<anchor>` lists commits that changed the anchor's
+# occurrence count; the MOST RECENT one REMOVED it, so that commit's parent is the
+# pre-ruling tree. The earlier HEAD..HEAD~N walk was fragile twice over: it re-selects HEAD
+# as soon as the change is committed, and a comment quoting the anchor defeats the match
+# — the trap that fired three times in T-3178 and is now a registered learning.
+_rm="$(git -C "$PROJECT" log -S'_AUTO_CONFIRM_KEY' --format=%H -- .agentic-framework/lib/bvp.sh 2>/dev/null | head -1)"
+if [ -n "$_rm" ] && git -C "$PROJECT" show "${_rm}^:.agentic-framework/lib/bvp.sh" > "$PRE" 2>/dev/null; then
+    found="${_rm:0:9}^"
+fi
 if [ -z "$found" ]; then
     fail "MUTATION SETUP BROKEN — no ref in HEAD..HEAD~6 carries the pre-ruling gate"
 else
