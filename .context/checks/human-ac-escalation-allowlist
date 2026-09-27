@@ -1,0 +1,64 @@
+# Acknowledged Human-AC escalations — T-3186
+#
+# Format: <task-id>  # <reason, and what would let this line be deleted>
+#
+# An entry means: this criterion IS self-declared mechanical, it IS still sitting in the
+# human queue, and that is a known open question rather than an oversight. Entries are
+# COUNTED AND REPORTED on the clean path, so a green never conflates "none" with
+# "acknowledged" (T-2483 charter-drift and T-3167 audit-warning precedent).
+#
+# An entry is NOT a permanent exemption. Every line states what would let it be deleted.
+#
+# WHY SO MANY AT BIRTH: this ledger does not re-litigate work already done. PD-173
+# (T-3154) assessed 25 candidates under the operator's SQ-1 GO, converted three
+# (T-2938, T-2939, T-2696) and REJECTED the rest with stated reasons. Those reasons are
+# reproduced here verbatim-in-substance rather than re-derived, because re-deriving them
+# is how a ledger becomes a second opinion nobody asked for.
+#
+# The residual eight were then put to the operator on 2026-09-27 (item 4 of a
+# decision walkthrough) and DECLINED — not because they are wrong to convert, but because
+# the measured gain is ~3 of 159 open Human ACs while 81 tasks sit waiting only for a
+# yes/no. The operator's attention was directed at the larger lever. That is a priority
+# decision, and it is recorded as one.
+
+# ── PD-173: needs a remote host or a live fleet the agent cannot reach ───────────
+T-1296  # migration + re-pin on CT 101/.102; agent has no foothold. Delete when the host is agent-reachable.
+T-1420  # binary deploy + hub restart on .141. Delete when .141 is agent-reachable.
+T-1457  # operator action on .141. Delete when .141 is agent-reachable.
+T-2013  # operator deploys to ring20 hubs .122/.121/.141. Delete when those hosts are agent-reachable.
+T-2297  # live end-to-end after installing a rebuilt hub binary. Delete when the install is agent-driven.
+T-2873  # needs a live peer hub. Delete when a disposable local hub can stand in.
+T-2972  # needs the live fleet. Delete when the fleet probe is local.
+
+# ── PD-173: the Expected clause is a judgement, not a command ────────────────────
+T-1885  # "a useful RCA stub" — usefulness is taste. Delete if Expected is made deterministic.
+T-2194  # batch-click ripe partial-completes — a decision per item. Delete if it becomes a single check.
+T-2711  # Expected is a judgement. Delete if Expected is made deterministic.
+T-2723  # Expected is a judgement. Delete if Expected is made deterministic.
+
+# ── PD-173: no Expected clause at all, so there is nothing to convert ────────────
+T-2566  # no Expected clause. Delete once one is written and it turns out to be mechanical.
+T-2567  # no Expected clause. Delete once one is written and it turns out to be mechanical.
+T-2570  # no Expected clause. Delete once one is written and it turns out to be mechanical.
+T-2576  # no Expected clause. Delete once one is written and it turns out to be mechanical.
+T-2577  # no Expected clause. Delete once one is written and it turns out to be mechanical.
+
+# ── PD-173: converting would substitute a weaker proxy ──────────────────────────
+T-3052  # Expected names another script's exact output; asserting it via a different check is weaker. Delete if that script's output becomes assertable directly.
+
+# ── Operator DECLINED on 2026-09-27 (priority, not correctness) ─────────────────
+# These three are genuinely convertible-shaped. The operator chose the 81-GO backlog
+# instead. Delete any of them the moment that ruling is revisited.
+T-1696  # deterministic, local host state. Convertible; deferred by priority.
+T-2870  # deterministic flock-parity check, exit 0. Convertible; deferred by priority.
+T-2822  # deterministic; may already be satisfied by T-2681's allowlist migration. Check before converting.
+
+# ── Operator DECLINED: the ACTION itself is not the agent's to take ─────────────
+T-1691  # checkable, but needs network + GitHub. Delete if a local artefact assertion suffices.
+T-1722  # targets /opt/999-AEF — outside this project's boundary (T-559). Delete only if that changes.
+T-2408  # the action is CLOSING AN ARC. Converting would let an agent close an arc. Delete only on an explicit ruling.
+T-2919  # the action is deleting a git dir at / — Tier 0. Delete only on an explicit ruling.
+T-2706  # Expected names commands, but the AC asks to confirm a SUPERSEDED disposition — judgement wearing a command.
+
+# ── Known misplacement, pending the operator's call ─────────────────────────────
+T-2198  # a [REVIEWER] AC sitting in ### Human. PD-173's rule says it belongs in ### Agent, but moving it is a reclassification the operator authorises case by case. Delete when that call is made.
