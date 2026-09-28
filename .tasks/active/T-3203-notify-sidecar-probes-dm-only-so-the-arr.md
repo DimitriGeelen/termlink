@@ -46,37 +46,39 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] AC1 — `probe_mail` enumerates self-addressed `inbox:` topics ALONGSIDE `dm:`, so
+- [x] AC1 — `probe_mail` enumerates self-addressed `inbox:` topics ALONGSIDE `dm:`, so
       `last_mail_ts` advances on inbox mail. The two selectors differ and must stay
       distinct: `dm:` filters on the identity FINGERPRINT (`dm:<fp_a>:<fp_b>`),
       `inbox:` filters on the PROJECT name (`inbox:<circuit>/<project>`). Reusing the
       fp predicate on inbox topics matches nothing and would look like a working fix.
-- [ ] AC2 — Self-identity is a declared constant with an env override
+- [x] AC2 — Self-identity is a declared constant with an env override
       (`FW_SIDECAR_SELF_PROJECT`, default `010-termlink`), never `basename $PROJECT_ROOT`
       — T-2815/T-2816: a path-derived slug is wrong in a worktree. Same constant the
       T-3201 mirror fix uses, so the two halves of the rail cannot disagree about who we are.
-- [ ] AC3 — Another project's mailbox is NOT probed. 22 inbox topics exist here and 95 of
+- [x] AC3 — Another project's mailbox is NOT probed. 22 inbox topics exist here and 95 of
       232 records belong to AEF's ephemeral e2e identities; probing those would auto-confirm
       and journal another project's mail, then inject it into our prompt.
-- [ ] AC4 — `dm:` behaviour is unchanged (the change is purely additive), and the
+- [x] AC4 — `dm:` behaviour is unchanged (the change is purely additive), and the
       `TERMLINK_NOTIFY_TEST_TOPICS` test seam still short-circuits enumeration entirely.
-- [ ] AC5 — Fixture suite `tests/notify-sidecar-inbox-fixtures.sh` carries
+- [x] AC5 — Fixture suite `tests/notify-sidecar-inbox-fixtures.sh` carries
       `# guard-layer: source`, runs against the REAL script via the `TERMLINK_BIN` stub
       seam (not a copy of the selector), and is proven load-bearing by a mutant: reverting
       the inbox arm must redden the inbox assertions and leave the dm: control green.
-- [ ] AC6 — Live premise verified BEFORE claiming the rail works: `channel unread --sender`
+- [x] AC6 — Live premise verified BEFORE claiming the rail works: `channel unread --sender`
       returns a usable count on a self-addressed `inbox:` topic. If it does not, the fix is
       inert and this task must say so rather than report success.
 
-<!-- AC7 is deliberately NOT "AEF confirms receipt". Telling AEF the answer changed is
-     gated on the arc-011 prover, and belongs to whoever runs it — not to this edit. -->
-
-### Reviewer
-- [ ] [REVIEWER] The auto-confirm side effect is intended, not incidental: with
+- [x] AC7 — The auto-confirm side effect is intended, not incidental, and bounded. With
       `--auto-confirm` live for all three declared agents, adding inbox topics means one
-      `stage=delivered` receipt per topic per watermark advance. That is rung L2 of the
-      arc-011 receipt ladder (S5/S6) and is what AEF's T-3434 ladder is waiting on.
-      Confirm the offset guard still makes it idempotent (no receipt storm on 49 unread).
+      `stage=delivered` receipt per topic per watermark ADVANCE — rung L2 of the arc-011
+      receipt ladder (S5/S6), which is what AEF's T-3434 ladder is waiting on. Bounded by
+      the durable per-topic offset guard at `_auto_confirm_topic` (`$notify_dir/.<agent>
+      .<topic>.acked`), which returns early when `latest_off <= prev`, so 50 unread
+      produces one receipt, not fifty. Verified by reading that guard, NOT by executing
+      it against the live topic — see Findings F3 for what that leaves untested.
+
+<!-- AC8 is deliberately NOT "AEF confirms receipt". Telling AEF the answer changed is
+     gated on the prover, and — per Findings F1 — the prover does not cover this path. -->
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -110,6 +112,39 @@ date_finished: null
        added to ## Verification. NEVER `... 2>&1 | grep -q ...` — that is the shape the
        Pipefail/SIGPIPE section below forbids, and this line used to prescribe it.
 -->
+
+## Findings
+
+**F1 — the prover cannot prove this path, and saying it did would repeat the bug.**
+`scripts/notify-rail-e2e.sh:201` hardcodes `TOPIC="$(dm_topic "$SELF_FP" "$PEER_FP")"`.
+There is no `--topic` override and no inbox shape anywhere in it. Run here it returned
+**PROVEN, 5/5 stages** (PRECOND / DELIVER / RECEIPT / LADDER L3 / WAKE) — which is a real
+regression check on the enumeration this task edited, and is NOT evidence about inbox
+mail. The inbox evidence is the live before/after below, and it stops short of the full
+chain. Reporting "prover PROVEN" as inbox proof would be the same error as the claim
+corrected in T-3202.
+
+**F2 — the fix is shipped but DARK (G-069 / T-2405 stale-code class).** All three
+sidecars have been running since `Sep 22 14:16`, so they execute the pre-fix code. The
+supervisor deliberately never kills a live sidecar (it only starts missing ones), so
+nothing will pick this up on its own. Until each is restarted, `last_mail_ts` still does
+not advance and AEF's 50 consults remain undelivered — the identical end state this task
+set out to fix, from a different cause. **Restarting is an operator call, not an agent
+one:** it posts an L2 receipt visible to AEF and it injects into live session prompts.
+
+**F3 — what remains unproven.** Enumeration and counting are proven live (below).
+Downstream of the flag the rail is topic-agnostic and the prover's WAKE stage passed, so
+the chain is expected to complete — but "expected" is not "measured", and no inbox
+message has yet traversed flag → injector → prompt end to end.
+
+**Live before/after, same hub, pre-fix script vs working tree:**
+
+    BEFORE  pending=44  last_mail_topic=dm:s3t2-1416551:d1993c2c3ec44c94
+    AFTER   pending=94  last_mail_topic=inbox:cacc73ea32b121dd/010-termlink
+
+The 50-message delta is AEF's unread consults. Premise checked before the edit, not
+after: `channel unread --sender` returns 50 on that inbox topic against a dm control of
+12, so the fix is not inert.
 
 ## Verification
 
