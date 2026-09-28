@@ -20,7 +20,7 @@ description: >
   fixture asserting receipt.sender_id == self_fp; then re-run scripts/notify-rail-e2e.sh
   RECEIPT stage. Origin: T-3062 AEF sidecar alignment.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-22T09:03:18Z
-last_update: '2026-09-22T14:57:41Z'
+last_update: 2026-09-28T21:52:58Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -86,8 +86,36 @@ cost_estimate_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] AC1 — The auto-confirm receipt is signed by the key whose fingerprint EQUALS the
+      `--self-fp` the sidecar is acking for, so `derive_dm_recipient` + `channel.receipts`
+      find it. Relabelling via `--sender-id` alone cannot work and must not be attempted:
+      hub `channel.rs:777` (T-1427) rejects a claimed sender_id that does not match the
+      fingerprint derived from the signing pubkey. The signing KEY has to change, not the
+      label — and that the hub refuses the shortcut is correct, not an obstacle.
+- [ ] AC2 — The mechanism is the documented precedence
+      (`TERMLINK_IDENTITY_FILE > TERMLINK_AGENT_ID > TERMLINK_IDENTITY_DIR > host default`),
+      scoped to the receipt post ONLY. The sidecar must keep exporting
+      `TERMLINK_AGENT_ID` for everything else — that export is T-2292 per-agent identity
+      and is not a bug.
+- [ ] AC3 — FAIL LOUD when no local key matches `--self-fp`. Today the receipt posts
+      successfully and satisfies nobody, which is indistinguishable from working. A
+      receipt that cannot be found by the sender is worse than no receipt, because the
+      offset guard then records the topic as acked. Refuse and say so on stderr instead.
+- [ ] AC4 — The offset guard must not suppress the corrective re-ack. Guards currently
+      record offset 49 on `inbox:cacc73ea32b121dd/010-termlink` from receipts posted under
+      the WRONG identity, so after the fix the sidecar would skip re-acking and every
+      already-"acked" topic stays unconfirmed forever. Invalidate the affected guards as
+      part of this, or key them on identity so a signing-identity change re-arms them.
+- [ ] AC5 — Fixture asserting `receipt.sender_id == self_fp` (the task's own stated
+      deliverable), `# guard-layer: source`, run against the real script via the
+      `TERMLINK_BIN` stub seam, proven load-bearing by a mutant that restores the
+      per-agent signing and must redden it.
+- [ ] AC6 — Re-run `scripts/notify-rail-e2e.sh --stages receipt` and record the result.
+      Note its scope limit (T-3203 F1): it drives a `dm:` topic only, so it is a
+      regression check on the dm path and NOT evidence about the inbox path.
+- [ ] AC7 — Live evidence on the real topic: after the fix, a receipt whose `sender_id`
+      is the dm-party fp appears on `inbox:cacc73ea32b121dd/010-termlink`. Measured by
+      read-back, not inferred from the post's exit code (T-2876).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -123,6 +151,26 @@ cost_estimate_proposed:
 -->
 
 ## Verification
+
+bash tests/notify-sidecar-receipt-identity-fixtures.sh
+# No regression in the T-3203 inbox enumeration that shares this file.
+bash tests/notify-sidecar-inbox-fixtures.sh
+# The script runs detached under nohup from cron, where a parse error is invisible
+# until the rail is silently dark again.
+bash -n scripts/notify-sidecar.sh
+# AC1 — the fix signs by changing the KEY, never by relabelling. The hub refuses a
+# mismatched --sender-id (channel.rs:777, T-1427), so a --sender-id here would be a
+# receipt that fails to post rather than one that fails to be found.
+test -z "$(grep -nE '^[^#]*--sender-id' scripts/notify-sidecar.sh)"
+# AC2 — the per-agent export is PRESERVED; this fix is scoped to the receipt post only.
+# Pattern deliberately stops before the "$agent_id" literal: the executing shell expands
+# it to empty, so the fuller pattern fails for a quoting reason unrelated to the code.
+# A gate that blocks for the wrong reason is how operators learn to --force past it.
+grep -q 'export TERMLINK_AGENT_ID=' scripts/notify-sidecar.sh
+# AC3 — the refusal path exists and is loud.
+grep -q 'REFUSING to auto-confirm' scripts/notify-sidecar.sh
+# AC4 — the offset guard embeds the signing identity so a signing change re-arms it.
+grep -q '_receipt_identity" | tr -c' scripts/notify-sidecar.sh
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -279,3 +327,6 @@ cost_estimate_proposed:
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3065-notify-sidecar-auto-confirm-signs-receip.md
 - **Context:** Initial task creation
+
+### 2026-09-28T21:52:58Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

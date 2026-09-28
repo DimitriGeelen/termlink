@@ -173,6 +173,55 @@ resolve_self_fp() {
     return 1
 }
 
+# T-3065 — resolve WHICH local identity the auto-confirm receipt must be signed with.
+#
+# The receipt has to be signed by the key whose fingerprint EQUALS the dm-party fp we
+# are acking for, because that is the identity a sender looks for: `--await-ack` derives
+# the recipient from the dm topic name (derive_dm_recipient) and polls channel.receipts
+# for THAT sender_id. Relabelling with `channel post --sender-id` cannot work and must
+# not be attempted — hub channel.rs:777 (T-1427) refuses a claimed sender_id that does
+# not match the fingerprint derived from the signing pubkey. The signing KEY is what has
+# to change, and the hub refusing the shortcut is correct behaviour, not an obstacle.
+#
+# Why this is not simply "stop exporting TERMLINK_AGENT_ID": that export is T-2292
+# per-agent identity and is right for every other call. Measured on this host, the three
+# declared agents disagree about which key carries their declared self-fp:
+#
+#   claude-termlink          declares d1993c2c3ec44c94  resolves 6738c073bbcc587a  MISMATCH
+#   framework-agent-systemd  declares 3bba15e681b3a078  resolves 3bba15e681b3a078  ok
+#   claude-termlink-alt      declares 6738c073bbcc587a  resolves 84c04584abd5cf88  MISMATCH
+#
+# So no single blanket rule is correct: one agent needs the per-agent key, one needs the
+# host default, and one matches nothing at all. We probe instead of assuming, and the
+# agent that matches nothing is REFUSED rather than silently mis-signed — see below.
+#
+# Echoes the env assignment to prefix the receipt post with, or "NONE".
+# Resolution order follows the documented signing precedence
+# (TERMLINK_IDENTITY_FILE > TERMLINK_AGENT_ID > TERMLINK_IDENTITY_DIR > host default).
+_resolve_receipt_identity() {
+    local want="$1" got
+
+    # (a) the per-agent identity already exported — the common case when correct.
+    got="$("$TERMLINK" agent identity --resolve --json 2>/dev/null | jq -r '.fingerprint // empty' 2>/dev/null)"
+    [ "$got" = "$want" ] && { echo "KEEP"; return 0; }
+
+    # (b) the shared host default (TERMLINK_AGENT_ID unset).
+    got="$(env -u TERMLINK_AGENT_ID -u TERMLINK_IDENTITY_FILE \
+            "$TERMLINK" agent identity --resolve --json 2>/dev/null | jq -r '.fingerprint // empty' 2>/dev/null)"
+    [ "$got" = "$want" ] && { echo "HOST_DEFAULT"; return 0; }
+
+    # (c) an explicit per-agent key file, if one exists under the identities dir.
+    local keyfile="${TERMLINK_IDENTITY_DIR:-$HOME/.termlink/identities}/$agent_id.key"
+    if [ -r "$keyfile" ]; then
+        got="$(TERMLINK_IDENTITY_FILE="$keyfile" \
+                "$TERMLINK" agent identity --resolve --json 2>/dev/null | jq -r '.fingerprint // empty' 2>/dev/null)"
+        [ "$got" = "$want" ] && { echo "FILE:$keyfile"; return 0; }
+    fi
+
+    echo "NONE"
+    return 1
+}
+
 # arc-003 V6-S3: recipient-side auto-confirm for one dm: topic. Mirrors the topic
 # into the S1 journal and posts a mechanism-A `stage=delivered` receipt acking the
 # topic's latest offset — no LLM turn. Idempotent via a durable per-topic offset
@@ -197,8 +246,33 @@ _auto_confirm_topic() {
                    | .offset ] | (max // empty)' 2>/dev/null)"
     case "$latest_off" in ''|*[!0-9]*) return 0 ;; esac   # no content to ack
 
-    # Per-topic guard file: sanitize the topic into a filename-safe token.
-    guard="$notify_dir/.$agent_id.$(printf '%s' "$topic" | tr -c 'A-Za-z0-9' '_').acked"
+    # Resolve the receipt-signing identity BEFORE the guard is computed (T-3065).
+    # Order matters: the guard name embeds the identity, so resolving afterwards would
+    # let the OLD guard suppress the corrective re-ack and the fix would silently do
+    # nothing on exactly the topics that need it most.
+    #
+    # Cached per process: it costs a subprocess and the answer cannot change while we run.
+    if [ -z "${_receipt_identity:-}" ]; then
+        _receipt_identity="$(_resolve_receipt_identity "$fp")"
+        if [ "$_receipt_identity" = "NONE" ]; then
+            # LOUD REFUSAL (T-3065 AC3). Posting anyway is the pre-fix behaviour and is
+            # worse than not posting: the receipt satisfies nobody, yet the offset guard
+            # records the topic as acked, so the ack is never retried. A sender waiting
+            # on it dead-letters while every local surface looks healthy.
+            echo "notify-sidecar: REFUSING to auto-confirm — no local identity resolves to self-fp '$fp'" >&2
+            echo "notify-sidecar:   a receipt signed by any other key satisfies nobody (T-1427 + derive_dm_recipient)." >&2
+            echo "notify-sidecar:   fix the declared --self-fp for '$agent_id', or install the matching key." >&2
+        fi
+    fi
+    [ "$_receipt_identity" = "NONE" ] && return 0
+
+    # Per-topic guard file, keyed by signing identity (T-3065 AC4). Receipts already
+    # written under the WRONG key left guards at offsets that would suppress the
+    # corrective re-ack forever. Embedding the identity re-arms exactly the topics whose
+    # signing identity changed and leaves correctly-acked ones untouched — no manual
+    # guard deletion, and no re-ack storm on topics that were already right.
+    guard="$notify_dir/.$agent_id.$(printf '%s' "$topic" | tr -c 'A-Za-z0-9' '_')"
+    guard="$guard.$(printf '%s' "$_receipt_identity" | tr -c 'A-Za-z0-9' '_').acked"
     prev=-1
     [ -f "$guard" ] && prev="$(cat "$guard" 2>/dev/null)"
     case "$prev" in ''|*[!0-9-]*) prev=-1 ;; esac
@@ -208,9 +282,22 @@ _auto_confirm_topic() {
     #     TERMLINK_JOURNAL_PATH so a test can isolate the store.
     bash "$HERE/journal-mirror.sh" --topic "$topic" "${hub_args[@]}" >/dev/null 2>&1 || true
 
-    # (b) post the mechanism-A stage=delivered receipt (the L2-delivered producer).
-    if "$TERMLINK" channel post "$topic" "${hub_args[@]}" --msg-type receipt \
-            --metadata stage=delivered --metadata up_to="$latest_off" --json >/dev/null 2>&1; then
+    # (b) post the mechanism-A stage=delivered receipt (the L2-delivered producer),
+    #     signed as the DM PARTY so --await-ack can actually find it (T-3065).
+    _post_receipt() {
+        case "$_receipt_identity" in
+            KEEP)         "$TERMLINK" channel post "$topic" "${hub_args[@]}" --msg-type receipt \
+                              --metadata stage=delivered --metadata up_to="$latest_off" --json >/dev/null 2>&1 ;;
+            HOST_DEFAULT) env -u TERMLINK_AGENT_ID -u TERMLINK_IDENTITY_FILE \
+                              "$TERMLINK" channel post "$topic" "${hub_args[@]}" --msg-type receipt \
+                              --metadata stage=delivered --metadata up_to="$latest_off" --json >/dev/null 2>&1 ;;
+            FILE:*)       TERMLINK_IDENTITY_FILE="${_receipt_identity#FILE:}" \
+                              "$TERMLINK" channel post "$topic" "${hub_args[@]}" --msg-type receipt \
+                              --metadata stage=delivered --metadata up_to="$latest_off" --json >/dev/null 2>&1 ;;
+            *)            return 1 ;;
+        esac
+    }
+    if _post_receipt; then
         printf '%s\n' "$latest_off" > "$guard.tmp" 2>/dev/null \
             && mv -f "$guard.tmp" "$guard" 2>/dev/null || true
     fi
