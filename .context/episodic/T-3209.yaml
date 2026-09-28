@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3209: Decide whether journal-reaper should cover inbox: topics now that they are mirrored
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-28T22:15:41Z
+# ============================================================================
+
+task_id: T-3209
+task_name: "Decide whether journal-reaper should cover inbox: topics now that they are mirrored"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-28T22:13:44Z
+completed: 2026-09-28T22:15:32Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-09-29T00:15:31+02:00
+last_commit: 2026-09-29T00:15:31+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  do NOT extend the reaper to inbox: — decision recorded in the refusal
+
+# Key outcomes
+outcomes:
+  - 'AC1 — The growth is MEASURED, not assumed: inbox row count in the journal, the'
+  - 'AC2 — The TRIM RISK is stated explicitly. The reaper does not merely prune the'
+  - 'AC3 — The existing scope boundary is treated as a DECISION, not an oversight. The'
+  - 'AC4 — A decision is recorded either way, with rationale, where the next reader will'
+  - 'AC5 — If the decision is NOT to extend, the residual growth is either bounded by a'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'scripts/journal-reaper.sh'
+  - '.tasks/active/T-3209-decide-whether-journal-reaper-should-cov.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-29T00:15:31'
+    action: 'T-3209: do NOT extend the reaper to inbox: — decision recorded in the refusal'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 2
+  lines_added: 347
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3209-decide-whether-journal-reaper-should-cov.md
+generated_by: context-agent-hybrid
