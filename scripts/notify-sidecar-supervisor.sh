@@ -24,6 +24,18 @@
 # (T-2239) and is REPORTED, not reaped — silently killing someone's process is a
 # surprise an autostarter has no business springing. Pass --restart-stale to opt in.
 #
+# T-3135 (arc-011 S1, operator ruling SQ-8: "solid over quick" — systemd-only respawn
+# REJECTED, a portable fallback REQUIRED): two additions.
+#   --loop            run the sweep forever in-process, every --loop-interval seconds,
+#                     with its own pidfile + per-cycle heartbeat under $TERMLINK_NOTIFY_DIR
+#                     (.supervisor.pid / .supervisor.heartbeat). Needs only bash. This is
+#                     the portable core: it is what systemd, launchd, OR cron respawns.
+#   --emit-unit KIND  print the host-native declaration that respawns the loop:
+#                     systemd (Restart=always), launchd (KeepAlive), cron (@reboot +
+#                     periodic re-check), or auto (detect what the host has and SAY which
+#                     was chosen). Prints only; installing is the operator's step, and
+#                     check-cron-install-drift.sh already watches the cron variant.
+#
 # Exit: 0 healthy (all declared agents live, including any this run started)
 #       1 attention needed (a start failed, or a stale-heartbeat husk was found)
 #       2 tooling error (conf missing/unreadable, sidecar script absent)
@@ -39,6 +51,10 @@ STALE_AFTER="${NOTIFY_SUPERVISOR_STALE_AFTER:-90}"
 DRY_RUN=0
 RESTART_STALE=0
 QUIET=0
+LOOP=0
+ENSURE_LOOP=0
+LOOP_INTERVAL="${NOTIFY_SUPERVISOR_LOOP_INTERVAL:-60}"
+EMIT_UNIT=""
 
 usage() {
     sed -n '3,30p' "$0" | sed 's/^# \{0,1\}//'
@@ -52,6 +68,9 @@ Usage: notify-sidecar-supervisor.sh [OPTIONS]
   --restart-stale     Also kill+restart a husk (opt-in; default is report only)
   --dry-run           Report what would be started, start nothing
   --quiet             Print only when something needed doing (cron-friendly)
+  --loop              Run forever in-process (T-3135 portable core); see header
+  --loop-interval S   Seconds between sweeps in --loop mode (default 60)
+  --emit-unit KIND    Print respawn declaration: systemd|launchd|cron|auto (T-3135)
   -h, --help          This help
 
 Test seams (PL-213): NOTIFY_SUPERVISOR_CONF, NOTIFY_SUPERVISOR_SIDECAR,
@@ -69,11 +88,94 @@ while [ $# -gt 0 ]; do
         --restart-stale) RESTART_STALE=1 ;;
         --dry-run)       DRY_RUN=1 ;;
         --quiet)         QUIET=1 ;;
+        --loop)          LOOP=1 ;;
+        --ensure-loop)   ENSURE_LOOP=1 ;;
+        --loop-interval) shift; [ $# -ge 1 ] || { echo "notify-supervisor: --loop-interval requires a value" >&2; exit 2; }; LOOP_INTERVAL="$1" ;;
+        --emit-unit)     shift; [ $# -ge 1 ] || { echo "notify-supervisor: --emit-unit requires systemd|launchd|cron|auto" >&2; exit 2; }; EMIT_UNIT="$1" ;;
         -h|--help)       usage; exit 0 ;;
         *) echo "notify-supervisor: unknown arg: $1" >&2; exit 2 ;;
     esac
     shift
 done
+
+# ---- T-3135 --emit-unit: the host-native respawner for the --loop core ---------------
+# Portable by construction: the loop needs only bash; each declaration below merely
+# keeps that loop alive. `auto` DETECTS and NAMES its choice on stderr so a green exit
+# is never ambiguous between "systemd" and "cron happened to be what was found".
+if [ -n "$EMIT_UNIT" ]; then
+    self_abs="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+    kind="$EMIT_UNIT"
+    if [ "$kind" = "auto" ]; then
+        if [ -n "${NOTIFY_SUPERVISOR_TEST_INIT:-}" ]; then kind="$NOTIFY_SUPERVISOR_TEST_INIT"
+        elif command -v systemctl >/dev/null 2>&1 && [ -d /run/systemd/system ]; then kind=systemd
+        elif command -v launchctl >/dev/null 2>&1; then kind=launchd
+        elif command -v crontab >/dev/null 2>&1 || [ -d /etc/cron.d ]; then kind=cron
+        else
+            echo "notify-supervisor: --emit-unit auto: no systemd, launchd, or cron found on this host — run '--loop' under whatever supervises processes here, and file the platform (SQ-8 portability)" >&2
+            exit 1
+        fi
+        echo "notify-supervisor: --emit-unit auto chose: $kind" >&2
+    fi
+    case "$kind" in
+        systemd)
+            cat <<EOF_UNIT
+# T-3135 — notify-sidecar supervisor loop (portable core under systemd).
+# Install: sudo cp to /etc/systemd/system/termlink-notify-supervisor.service && sudo systemctl enable --now termlink-notify-supervisor
+[Unit]
+Description=TermLink notify-sidecar supervisor loop (arc-011 S1, T-3135)
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=$PROJECT_ROOT
+Environment=TERMLINK_NOTIFY_DIR=$NOTIFY_DIR
+ExecStart=/usr/bin/env bash $self_abs --loop --loop-interval $LOOP_INTERVAL --quiet
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF_UNIT
+            ;;
+        launchd)
+            cat <<EOF_PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- T-3135 — notify-sidecar supervisor loop (portable core under launchd).
+     Install: cp to ~/Library/LaunchAgents/com.termlink.notify-supervisor.plist && launchctl load -w ~/Library/LaunchAgents/com.termlink.notify-supervisor.plist -->
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.termlink.notify-supervisor</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/bin/env</string><string>bash</string>
+    <string>$self_abs</string>
+    <string>--loop</string><string>--loop-interval</string><string>$LOOP_INTERVAL</string><string>--quiet</string>
+  </array>
+  <key>WorkingDirectory</key><string>$PROJECT_ROOT</string>
+  <key>EnvironmentVariables</key><dict><key>TERMLINK_NOTIFY_DIR</key><string>$NOTIFY_DIR</string></dict>
+  <key>KeepAlive</key><true/>
+  <key>RunAtLoad</key><true/>
+  <key>ThrottleInterval</key><integer>5</integer>
+</dict>
+</plist>
+EOF_PLIST
+            ;;
+        cron)
+            cat <<EOF_CRON
+# T-3135 — notify-sidecar supervisor loop (portable core under cron: no systemd, no launchd).
+# @reboot starts the loop; the */5 line re-checks its pidfile and restarts it if it died.
+# Install (root crontab or /etc/cron.d with a USER field): see .context/cron/ convention.
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+@reboot cd $PROJECT_ROOT && TERMLINK_NOTIFY_DIR=$NOTIFY_DIR nohup bash $self_abs --loop --loop-interval $LOOP_INTERVAL --quiet >> $LOG_DIR/.notify-sidecar-supervisor-loop.log 2>> $LOG_DIR/.notify-sidecar-supervisor-loop.log.stderr &
+*/5 * * * * cd $PROJECT_ROOT && TERMLINK_NOTIFY_DIR=$NOTIFY_DIR bash $self_abs --ensure-loop --loop-interval $LOOP_INTERVAL --quiet >> $LOG_DIR/.notify-sidecar-supervisor-loop.log 2>> $LOG_DIR/.notify-sidecar-supervisor-loop.log.stderr
+EOF_CRON
+            ;;
+        *) echo "notify-supervisor: --emit-unit: unknown kind '$kind' (systemd|launchd|cron|auto)" >&2; exit 2 ;;
+    esac
+    exit 0
+fi
 
 # Fail closed. A supervisor that cannot read its own declaration must never exit 0:
 # "nothing to supervise" and "I could not look" are the same silence otherwise.
@@ -99,6 +201,7 @@ heartbeat_age_secs() {
     echo $(( ( $(now_ms) - v ) / 1000 ))
 }
 
+sweep_once() {
 started=0; already=0; husks=0; failed=0; drift=0
 while read -r agent fp extra; do
     case "${agent:-}" in ''|'#'*) continue ;; esac
@@ -166,8 +269,59 @@ done < "$CONF"
 
 if [ "$failed" -gt 0 ] || [ "$husks" -gt 0 ] || [ "$drift" -gt 0 ]; then
     echo "notify-supervisor: $already ok, $started started, $husks husk(s), $drift flag-drift, $failed failed"
+    return 1
+fi
+[ "$QUIET" = "1" ] && [ "$started" = "0" ] && return 0
+echo "notify-supervisor: $already ok, $started started"
+return 0
+}
+
+# ---- T-3135 loop mode: the portable respawn core ------------------------------------
+# One sweep per --loop-interval, forever. Its pidfile + per-cycle heartbeat make the
+# supervisor's OWN liveness a readable fact (notify-sidecar-api.sh status reads them),
+# so "the respawner died" is detectable rather than inferred from sidecars decaying.
+SUP_PID="$NOTIFY_DIR/.supervisor.pid"
+SUP_HB="$NOTIFY_DIR/.supervisor.heartbeat"
+loop_alive_pid() {
+    local p; [ -r "$SUP_PID" ] || return 1
+    p="$(tr -dc '0-9' < "$SUP_PID")"; [ -n "$p" ] || return 1
+    kill -0 "$p" 2>/dev/null || return 1
+    # pid-recycle guard (T-2239 pattern): the live pid must be THIS script in --loop mode.
+    if [ -r "/proc/$p/cmdline" ]; then
+        tr '\0' ' ' < "/proc/$p/cmdline" | grep -q -- "$(basename "${BASH_SOURCE[0]}") .*--loop" || return 1
+    fi
+    echo "$p"
+}
+if [ "$ENSURE_LOOP" = "1" ]; then
+    if p="$(loop_alive_pid)"; then
+        [ "$QUIET" = "1" ] || echo "notify-supervisor: loop alive pid=$p"
+        exit 0
+    fi
+    echo "notify-supervisor: loop not running — starting one (interval ${LOOP_INTERVAL}s)"
+    nohup setsid bash "${BASH_SOURCE[0]}" --conf "$CONF" --interval "$INTERVAL" --stale-after "$STALE_AFTER" \
+        --loop --loop-interval "$LOOP_INTERVAL" --quiet \
+        >> "$LOG_DIR/.notify-sidecar-supervisor-loop.log" 2>> "$LOG_DIR/.notify-sidecar-supervisor-loop.log.stderr" &
+    sleep 1
+    p="$(loop_alive_pid)" && { echo "notify-supervisor: loop STARTED pid=$p"; exit 0; }
+    echo "notify-supervisor: FAILED to start loop — see $LOG_DIR/.notify-sidecar-supervisor-loop.log.stderr" >&2
     exit 1
 fi
-[ "$QUIET" = "1" ] && [ "$started" = "0" ] && exit 0
-echo "notify-supervisor: $already ok, $started started"
-exit 0
+if [ "$LOOP" = "1" ]; then
+    case "$LOOP_INTERVAL" in ''|*[!0-9]*) echo "notify-supervisor: --loop-interval must be an integer" >&2; exit 2 ;; esac
+    [ "$LOOP_INTERVAL" -ge 5 ] || { echo "notify-supervisor: --loop-interval minimum is 5s" >&2; exit 2; }
+    if p="$(loop_alive_pid)" && [ "$p" != "$$" ]; then
+        echo "notify-supervisor: a loop is already running (pid=$p) — refusing to start a second" >&2
+        exit 1
+    fi
+    mkdir -p "$NOTIFY_DIR"
+    echo $$ > "$SUP_PID"
+    trap 'rm -f "$SUP_PID"; exit 0' INT TERM
+    while :; do
+        sweep_once || true
+        echo "$(now_ms)" > "$SUP_HB.tmp" && mv -f "$SUP_HB.tmp" "$SUP_HB"
+        sleep "$LOOP_INTERVAL" & wait $!
+    done
+fi
+
+sweep_once
+exit $?

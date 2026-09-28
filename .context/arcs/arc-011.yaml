@@ -24,8 +24,16 @@ slices:
 - id: S1
   spec_step: 1. sender sends via a sidecar API
   task: T-3135
-  status: unbuilt
-  note: 'RE-POINTED 2026-09-25 (T-3093 R2S3): T-3075 (inception) went GO 2026-09-24 and is now
+  status: built
+  note: 'BUILT 2026-09-29 (T-3211 R1 procAsFit worker, T-3135): scripts/notify-sidecar-api.sh — the
+    LOCAL control surface (status / queue / inject <id|next> / agent-state / ack <offset> --evidence)
+    under the SQ-1 local-control reading; §6 bright line ENFORCED (remote-address args refused exit 2
+    + static tripwire in tests/notify-sidecar-api-fixtures.sh, 93 assertions). SQ-8 portable respawn:
+    notify-sidecar-supervisor.sh --loop (bash-only core) + --emit-unit systemd|launchd|cron|auto.
+    NOTE the spec wording "sender SENDS via a sidecar API" is NOT what was built and NOT what SQ-1
+    permits: sending to a peer stays channel.post via the hub. The slice is "built" in the sense the
+    operator ruled (a local primitive), not in the sense of a sidecar transport. Prior note kept below.'
+  note_prior: 'RE-POINTED 2026-09-25 (T-3093 R2S3): T-3075 (inception) went GO 2026-09-24 and is now
     work-completed, which is what made check-arc-slice-drift.sh fire on this slice — the
     inception decided the analysis, not the build (see T-3075''s own Recommendation: "GO on
     the ANALYSIS, not a build"). Re-pointed at T-3135, the build task created from that GO,
@@ -175,7 +183,13 @@ slices:
 - id: S12
   spec_step: 12. roles swap — the agent replies as sender
   task: T-3135
-  status: unbuilt
+  status: partial
+  note: 'PARTIAL 2026-09-29 (T-3135): the RECEIVING half is built — notify-sidecar-api.sh ack posts L3
+    stage=read with mandatory evidence, which is the signal that lets the sender ledger (S6) advance
+    and roles swap on a real event. The REPLY half deliberately travels the EXISTING channel.post path
+    (scripts/agent-respond.sh / /reply), NOT this API (§6 bright line). Remaining blocker is EXTERNAL:
+    framework-agent-systemd unit lacks termlink in --allowed-commands (T-559 boundary, another project).
+    Recorded in docs/operations/notify-sidecar-api.md.'
   note: 'RE-POINTED 2026-09-25 (T-3093 R2S3): re-pointed at T-3135 (the S1 build task) alongside
     S1 — T-3135''s scope note explains why the two share one task: the reply mechanism is
     code-complete the moment S1''s sidecar API exists (the agent replies via the same

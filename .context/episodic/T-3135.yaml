@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3135: Sidecar API: local control surface + portable respawn supervisor
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-28T23:05:41Z
+# ============================================================================
+
+task_id: T-3135
+task_name: "Sidecar API: local control surface + portable respawn supervisor"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-25T07:15:32Z
+completed: 2026-09-28T23:05:04Z
+duration_days: 3
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Build task for arc-011 slices S1 (sender sends via a sidecar API) and S12 (roles swap - agent replies as sender), created after T-3075's inception went GO. Scope per T-3075 Scope Fence: a LOCAL API answering status/queue/inject <id>/agent-state/ack <offset> about this host's own mailbox and prompt; an always-respawning supervisor for it; re-resolving this host's own FQDN/IP on change. BINDING per operator ruling SQ-8 (arc-011.yaml, 2026-09-24, verbatim principle: reliability and fragility, not saving a few tokens for a quick solution -- I want a solid solution): systemd-only respawn is REJECTED as the cheap answer; the respawn supervisor MUST carry a portable fallback (README asserts macOS support in five places and release.yml cross-builds two Darwin targets -- a systemd-only respawn would silently narrow what the product claims to be). S12's role-swap reply is code-complete once S1's sidecar API exists (the agent replies via the same channel.post path already proven end-to-end by T-3069/T-3079); its remaining blocker is external to this repo -- framework-agent-systemd's systemd unit does not have termlink in --allowed-commands, which is a different project's config (T-559 boundary) and cannot be fixed from here.
+
+# Key outcomes
+outcomes:
+  - 'AC1 — `scripts/notify-sidecar-api.sh` exists and dispatches exactly the five Scope-Fence'
+  - 'AC2 — Bright-line tripwire (§6, mirrors `no_federation_tripwire.rs`): the API refuses any'
+  - 'AC3 — Portable respawn (SQ-8): `scripts/notify-sidecar-supervisor.sh` gains `--loop` (an'
+  - 'AC4 — Own-identity re-resolution: `status` reports `host_fqdn` and `host_ip`, compares them to'
+  - 'AC5 — S12 recorded honestly: `docs/operations/notify-sidecar-api.md` documents the five verbs,'
+  - 'AC6 — `bash tests/notify-sidecar-api-fixtures.sh` passes hermetically (PL-213 seams, no hub,'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 5269 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 5269
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3135-sidecar-api-local-control-surface--porta.md
+generated_by: context-agent-hybrid
