@@ -1,0 +1,20 @@
+id: .context/cron/stale-waker-code-canary.crontab
+name: stale-waker-code-canary
+type: cron-declaration
+subsystem: guard-layer-cron
+location: .context/cron/stale-waker-code-canary.crontab
+tags: [cron, canary-trigger, guard-layer]
+
+purpose: "Cron declaration (git-tracked source of truth, installed to /etc/cron.d by the operator; check-cron-install-drift.sh compares). T-2405 — Stale-waker-code detection canary (G-019 detection for T-2404)"
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-09-28
+created_by: T-2405

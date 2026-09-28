@@ -1,0 +1,20 @@
+id: .context/cron/topic-growth-canary.crontab
+name: topic-growth-canary
+type: cron-declaration
+subsystem: guard-layer-cron
+location: .context/cron/topic-growth-canary.crontab
+tags: [cron, canary-trigger, guard-layer]
+
+purpose: "Cron declaration (git-tracked source of truth, installed to /etc/cron.d by the operator; check-cron-install-drift.sh compares). T-2252 — Topic-growth canary (arc-002 R2 sweep-cron guard; PL-168 / G-019 class)"
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-09-28
+created_by: T-2252

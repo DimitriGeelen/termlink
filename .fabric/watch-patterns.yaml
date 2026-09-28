@@ -31,6 +31,15 @@ patterns:
   - glob: "*.sh"                         # exactly install.sh — the only root-level shell source
   - glob: "systemd-templates/*.service"  # all 3; the 2 uncarded siblings were registered
   - glob: "docs/guides/*.md"             # exactly upstream-reporting.md — the only file in the dir
+  # T-3103: the cron declarations under .context/cron/ are the git-tracked source
+  # of truth for every canary's TRIGGER (check-cron-install-drift.sh compares each
+  # against its installed /etc/cron.d copy). One of the 31 carried a card, so the
+  # audit counted it as carded-unwatched. Widened to the natural boundary — all
+  # *.crontab — and every file inside it registered (31 cards, type
+  # cron-declaration, purpose lifted from each file's own header line). The
+  # sibling *.conf files (declared-agent lists) are data read by the supervisors,
+  # not schedules, and are deliberately not in this glob.
+  - glob: ".context/cron/*.crontab"
   #
   # STILL NOT COVERED, and a real open decision rather than an oversight:
   #   .claude/commands/*.md — 34 slash-command definitions exist, exactly ONE

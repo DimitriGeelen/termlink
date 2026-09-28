@@ -1,0 +1,20 @@
+id: .context/cron/session-control-canary.crontab
+name: session-control-canary
+type: cron-declaration
+subsystem: guard-layer-cron
+location: .context/cron/session-control-canary.crontab
+tags: [cron, canary-trigger, guard-layer]
+
+purpose: "Cron declaration (git-tracked source of truth, installed to /etc/cron.d by the operator; check-cron-install-drift.sh compares). T-2557 (T-2468 charter-verb completeness) — Session-control canary (verb-4 detection gap)"
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-09-28
+created_by: T-2557

@@ -1,0 +1,20 @@
+id: .context/cron/preflight-doc-set-drift-canary.crontab
+name: preflight-doc-set-drift-canary
+type: cron-declaration
+subsystem: guard-layer-cron
+location: .context/cron/preflight-doc-set-drift-canary.crontab
+tags: [cron, canary-trigger, guard-layer]
+
+purpose: "Cron declaration (git-tracked source of truth, installed to /etc/cron.d by the operator; check-cron-install-drift.sh compares). T-2189 — /preflight doc-set drift nightly canary (catches Check-N"
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-09-28
+created_by: T-2189

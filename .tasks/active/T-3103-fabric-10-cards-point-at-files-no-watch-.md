@@ -7,7 +7,7 @@ description: >
   so coverage is measured over a subset. Widen watch-patterns.yaml, or remove the
   cards if they are not really components.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -25,7 +25,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-24T23:55:11Z
-last_update: '2026-09-27T21:34:08Z'
+last_update: 2026-09-28T23:22:12Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -50,6 +50,19 @@ bvp_scores_proposed:
     rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
       (body:component-discoverability); D4=2 (body:env-class-handled); 
       F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+  - ts: '2026-09-28T23:22:13Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 4
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=4 (body:cross-machine); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
 cost_estimate_proposed:
   - ts: '2026-09-25T00:07:08Z'
@@ -119,6 +132,11 @@ cost_estimate_proposed:
 -->
 
 ## Verification
+
+python3 .agentic-framework/agents/fabric/lib/expand_patterns.py .fabric/watch-patterns.yaml . > /tmp/.t3103-exp 2>&1 && grep -qx ".context/cron/canary-aliveness-sweep.crontab" /tmp/.t3103-exp
+test "$(ls .fabric/components/context-cron-*.yaml | wc -l)" = "31"
+python3 -c "import yaml,glob; [yaml.safe_load(open(f)) for f in glob.glob('.fabric/components/context-cron-*.yaml')]"
+grep -q 'glob: ".context/cron/\*.crontab"' .fabric/watch-patterns.yaml
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -199,27 +217,27 @@ true
 
 ## Evolution
 
-<!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
-     understanding evolved during build — what was learned that wasn't known at
-     filing, what in the original plan no longer fits, what triggered pivots
-     or new sub-tasks. Mandatory at slice boundaries (when applicable) and
-     before --status work-completed.
+### 2026-09-29 — "10 files" was three problems wearing one number
+- **What changed:** The audit counts carded-unwatched files; it does not say that 8 of the 10
+  share one cause (peer-designer BPMN under an ignored vendored dir, 50 cards) and 1 is an
+  already-recorded open decision. Only the crontab was a plain widening.
+- **Plan impact:** AC2 cannot reach 0 without two scope decisions this task does not own.
+  Resolved the class that was ours; parked the rest as Sovereign questions rather than
+  hand-shaping globs or deleting a deliberate 50-card deliverable to make a number go green.
+- **Triggered:** no new task (the two questions ride the T-3211 R1 handback). Surfaced a
+  cross-project task-ID collision worth knowing: the 50 cards say `created_by: T-2839` and the
+  local commit is titled T-2839, yet the local T-2839 task file is an unrelated broadcast task —
+  the T-2800 collision class, not investigated here.
 
-     Origin: T-1717 grill Q4 — "the understanding of what we need and want
-     evolves with the process of materialisation." Structural counter to §ACD:
-     spec-vs-build divergence is logged as soon as it happens, not lost as
-     folklore.
-
-     Format (one entry per slice boundary or significant insight):
-       ### YYYY-MM-DD — [topic]
-       - **What changed:** [what we learned that we didn't know at filing]
-       - **Plan impact:** [what in the plan no longer fits]
-       - **Triggered:** [new sub-task / pivot / scope cut, with task ID if filed]
-
-     The completion gate (T-1718) blocks --status work-completed when this
-     section exists but is empty/template-only. Use --skip-evolution to bypass
-     (logged Tier-2). Non-arc tasks may leave this empty.
--->
+### 2026-09-29 — R2: committed the widening, parked the remainder on two Sovereign questions
+- **What changed:** Re-derived the audit's own `carded_unwatched` set (audit.sh:2213 logic): 9 distinct
+  files remain — 8 `.agentic-framework/.context/designer/projects/*/v*.bpmn` (50 cards, vendored +
+  gitignored tree) and `.claude/commands/capture.md` (1 of 34 slash commands carded). The crontab
+  class (1 of the original 10) is resolved and committed this round.
+- **Plan impact:** AC1/AC2 stay unticked. Both remaining classes need a scope ruling the task does
+  not own (SQ-A: delete/keep the 50 vendored-BPMN cards or add a `.agentic-framework/.context/designer/**/*.bpmn`
+  glob; SQ-B: register all 34 slash commands or drop the capture.md singleton). Parked at `captured`.
+- **Triggered:** SQs carried in `.context/runs/T-3211-R2-handback.md`. No new task.
 
 ## Recommendation
 
@@ -277,3 +295,12 @@ true
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3103-fabric-10-cards-point-at-files-no-watch-.md
 - **Context:** Initial task creation
+
+### 2026-09-28T23:09:28Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-09-28T23:18:19Z — status-update [task-update-agent]
+- **Change:** status: started-work → captured
+
+### 2026-09-28T23:22:12Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

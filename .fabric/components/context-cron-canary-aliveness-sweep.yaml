@@ -1,11 +1,11 @@
 id: .context/cron/canary-aliveness-sweep.crontab
 name: canary-aliveness-sweep
-type: script
-subsystem: unknown
+type: cron-declaration
+subsystem: guard-layer-cron
 location: .context/cron/canary-aliveness-sweep.crontab
-tags: []
+tags: [cron, canary-trigger, guard-layer]
 
-purpose: "TODO: describe what this component does"
+purpose: "Cron declaration (git-tracked source of truth, installed to /etc/cron.d by the operator; check-cron-install-drift.sh compares). T-2878 — Canary-aliveness SWEEP (meta-canary coverage net)"
 
 depends_on:
   # Format: - target: <relative-path>
@@ -17,4 +17,4 @@ depended_by:
   []
 
 last_verified: 2026-09-01
-created_by: unknown
+created_by: T-2878
