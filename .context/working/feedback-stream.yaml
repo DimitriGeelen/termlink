@@ -13382,3 +13382,201 @@ scan_id: R-4d6697ac
 task_id: T-3192
 payload:
   task_file: .tasks/active/T-3192-claudemd-documents-a-stale-context-budge.md
+---
+kind: scan_emitted
+timestamp: '2026-09-28T12:55:57Z'
+scan_id: R-7b13cd6a
+task_id: T-3193
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-28T12:55:57Z'
+scan_id: R-7b13cd6a
+task_id: T-3193
+payload:
+  task_file: .tasks/active/T-3193-triage-the-nine-overdue-revisitat-deferr.md
+---
+kind: scan_emitted
+timestamp: '2026-09-28T13:01:11Z'
+scan_id: R-c0b277af
+task_id: T-3194
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-28T13:01:11Z'
+scan_id: R-c0b277af
+task_id: T-3194
+payload:
+  task_file: .tasks/active/T-3194-verify-t-3191s-upstream-amendment-landed.md
+---
+kind: scan_emitted
+timestamp: '2026-09-28T13:04:04Z'
+scan_id: R-02830591
+task_id: T-3195
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-28T13:04:04Z'
+scan_id: R-02830591
+task_id: T-3195
+payload:
+  task_file: .tasks/active/T-3195-enrich-handover-s-2026-0928-1352-fill-th.md
+---
+kind: scan_emitted
+timestamp: '2026-09-28T13:24:36Z'
+scan_id: R-ac1e384e
+task_id: T-3196
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-28T13:24:36Z'
+scan_id: R-ac1e384e
+task_id: T-3196
+payload:
+  task_file: .tasks/active/T-3196-drain-the-stale-inbox-transfer-backlog-r.md
+---
+kind: scan_emitted
+timestamp: '2026-09-28T13:59:51Z'
+scan_id: R-385068c9
+task_id: T-3197
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-28T13:59:51Z'
+scan_id: R-385068c9
+task_id: T-3197
+payload:
+  task_file: .tasks/active/T-3197-inbox-status-labels-topic-record-count-a.md
+---
+kind: scan_emitted
+timestamp: '2026-09-28T14:07:28Z'
+scan_id: R-14148989
+task_id: T-3198
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-28T14:07:28Z'
+scan_id: R-14148989
+task_id: T-3198
+payload:
+  task_file: .tasks/active/T-3198-kill-the-rubber-stamp-an-external-termli.md
+---
+kind: scan_emitted
+timestamp: '2026-09-28T15:43:53Z'
+scan_id: R-440ef83e
+task_id: T-3199
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-28T15:43:53Z'
+scan_id: R-440ef83e
+task_id: T-3199
+payload:
+  task_file: .tasks/active/T-3199-document-that-agent-search-covers-agent-.md
+---
+kind: scan_emitted
+timestamp: '2026-09-28T16:57:28Z'
+scan_id: R-dd9e7277
+task_id: T-3201
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-28T16:57:28Z'
+scan_id: R-dd9e7277
+task_id: T-3201
+payload:
+  task_file: .tasks/active/T-3201-journal-mirror-watches-dm-only--aefs-inb.md
+---
+kind: scan_emitted
+timestamp: '2026-09-28T17:25:42Z'
+scan_id: R-bbb6f042
+task_id: T-3202
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-28T17:25:42Z'
+scan_id: R-bbb6f042
+task_id: T-3202
+payload:
+  task_file: .tasks/active/T-3202-verify-t-3201-did-not-arm-a-50-message-i.md
+---
+kind: scan_emitted
+timestamp: '2026-09-28T19:21:27Z'
+scan_id: R-e25a6d56
+task_id: T-3203
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-28T19:21:27Z'
+scan_id: R-e25a6d56
+task_id: T-3203
+payload:
+  task_file: .tasks/active/T-3203-notify-sidecar-probes-dm-only-so-the-arr.md
+---
+kind: scan_emitted
+timestamp: '2026-09-28T20:33:18Z'
+scan_id: R-4b2855fd
+task_id: T-3204
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-28T20:33:18Z'
+scan_id: R-4b2855fd
+task_id: T-3204
+payload:
+  task_file: .tasks/active/T-3204-make-the-t-3203-inbox-fix-live-restart-t.md

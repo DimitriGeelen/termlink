@@ -2933,3 +2933,11 @@ FW_SWITCH_FOCUS=1 git commit -m "T-2892: fix decisions.yaml corruption from T-28
   command: 'FW_SWITCH_FOCUS=1 git add -A .tasks/ .context/episodic/T-3176.yaml && FW_SWITCH_FOCUS=1 git commit -m "T-3176: closed through the completion verb — arc-011 lock released
 
 Gated via fw task update T'
+- timestamp: '2026-09-28T20:44:36Z'
+  task: 'T-3205'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-3204'
+  command: 'FW_SWITCH_FOCUS=1 git add -A .tasks/ .context/project/learnings.yaml .context/working/focus.yaml 2>/dev/null; FW_SWITCH_FOCUS=1 git commit -q -m "T-3204: file the three follow-ups + PL-392
+
+T-3205 sta'

@@ -4543,3 +4543,9 @@ learnings:
   task: T-3196
   date: 2026-09-28
   context: Added via context agent
+- id: PL-392
+  learning: "A long-lived detached process keeps executing the code it loaded - editing the script on disk is a no-op for it. The notify-sidecar supervisor deliberately never restarts a live sidecar, so the T-3203 fix was green in git and dark in production while EVERY surface reported healthy: process alive, heartbeat fresh, canary quiet, guard layer passing, commit pushed. Nothing distinguishes 'running' from 'running the current code'. T-2405 already built exactly this detector (proc start-mtime vs script mtime) but scoped it to push-wakers, which makes the gap more expensive rather than less - the existing canary's green reads as coverage of a class it covers one member of. Rule: when a fix targets a daemon, verify the RUNNING code carries it via an observable only the new code can produce, never a fresh start time alone."
+  source: G-069
+  task: unknown
+  date: 2026-09-28
+  context: Added via context agent

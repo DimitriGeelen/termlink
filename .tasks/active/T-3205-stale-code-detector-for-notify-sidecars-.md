@@ -1,15 +1,19 @@
 ---
-id: T-3019
-name: "Pickup: Handover generator + PreCompact auto-commit mint a fresh D8/D8b FAIL
-  every (from 010-termlink)"
+id: T-3205
+name: "Stale-code detector for notify-sidecars: alive process running pre-fix code"
 description: >
-  Auto-created from pickup envelope. Source: 010-termlink, task T-3015. Type: bug-report.
+  T-3204 RCA prevention. A running sidecar keeps executing the code it loaded and
+  the supervisor never restarts a live one, so a shipped fix stays dark with every
+  surface green. T-2405 built this exact detector (proc start-mtime vs script mtime)
+  scoped to push-wakers only. Mirror its primitives rather than reimplementing so
+  detection and remediation cannot drift. Detection only - auto-restart is a human
+  call because it injects into live prompts.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: later
-tags: [pickup, bug-report]
+horizon: now
+tags: []
 components: []
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
@@ -22,8 +26,8 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-20T13:20:02Z
-last_update: 2026-09-28T11:52:46Z
+created: 2026-09-28T20:43:20Z
+last_update: 2026-09-28T20:44:57Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -35,35 +39,23 @@ date_finished:
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
-source_task_id_in_origin: T-3015
-source_project_in_origin: "010-termlink"
 bvp_scores_proposed:
-  - ts: '2026-09-22T14:57:17Z'
+  - ts: '2026-09-28T20:44:57Z'
     estimator: bvp-estimator-v1-heuristic
     scores:
       D1: 4
       D2: 0
       D3: 3
       D4: 2
-      F-RECALL: 1
+      F-RECALL: 0
       F-ORCH: 0
     rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
       (body:component-discoverability); D4=2 (body:env-class-handled); 
-      F-RECALL=1 (body:episodic-only); F-ORCH=0 (no-signal)
-    rubric_sha: e4a00f38e801
-cost_estimate_proposed:
-  - ts: '2026-09-22T14:57:41Z'
-    estimator: bvp-estimator-v1-heuristic
-    cost_estimate:
-      blast_radius:
-      tier: 2
-      effort: 8
-    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
-      (workflow:build); effort=8 (lines=221,acs=4)
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
 ---
 
-# T-3019: Pickup: Handover generator + PreCompact auto-commit mint a fresh D8/D8b FAIL every (from 010-termlink)
+# T-3205: Stale-code detector for notify-sidecars: alive process running pre-fix code
 
 ## Context
 
@@ -73,8 +65,32 @@ cost_estimate_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] AC1 — A check reports any LIVE notify-sidecar whose `/proc/<pid>` start-mtime
+      predates the mtime of `scripts/notify-sidecar.sh`: alive, but running code that is
+      no longer what is on disk. Measured instance: three sidecars ran from Sep 22 14:16
+      against a fix committed Sep 28, and every existing surface stayed green.
+- [ ] AC2 — It REUSES T-2405's staleness primitives (`code_mtime` / `proc_start_mtime` /
+      `is_stale` in `check-stale-waker-code-freshness.sh`) rather than reimplementing
+      them, so detection and remediation cannot drift apart. Two copies of a subtle
+      mtime comparison drift, and the copy that drifts is the one that quietly stops
+      catching things.
+- [ ] AC3 — DETECTION ONLY. It never restarts a sidecar. Restarting posts receipts
+      visible to peers and injects into live session prompts, which is a human call —
+      T-3204's restart required explicit operator approval for exactly that reason.
+      A checker that auto-restarted would convert a visible staleness into a silent one.
+- [ ] AC4 — Pid-recycle guarded: a pid alive but NOT a notify-sidecar process must not
+      be reported as stale (the T-2239 `/proc/<pid>/cmdline` pattern).
+- [ ] AC5 — Fixture suite with `# guard-layer: source`, driven by seams for the state
+      dir and a controlled-mtime script (T-2405 ships `STALE_WAKER_STATE_DIR` /
+      `STALE_WAKER_PW_SCRIPT` — mirror that shape), proven load-bearing by a mutant that
+      disables the mtime comparison and must redden the stale case.
+- [ ] AC6 — Exit contract matches the sibling checks: 0 clean / 1 stale sidecar(s) /
+      2 tooling, fail-closed — an unreadable `/proc` or a missing script exits 2, never 0.
+      A checker reporting clean because it could not look is the disease, not the cure.
+
+<!-- Deliberately NOT in scope: making the supervisor restart on code change. That is a
+     policy decision with outward effects, and it is T-3206/T-3207 territory to decide
+     who consumes what before adding another actor that writes to peer-visible topics. -->
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -146,6 +162,34 @@ cost_estimate_proposed:
 # capture and grep (T-2090) — the middle stage is what `grep -q` slams its stdin
 # on, and grep scans the whole captured string anyway, so the `tail -3` was
 # cosmetic. `echo "$out" | grep -q PAT`, nothing between.
+#
+# ── Asserting an ABSENCE: prove the search could have succeeded (T-3144) ──
+#
+# `! grep -q "PATTERN" file` exits 0 when the pattern is absent. It ALSO exits 0
+# when the file was renamed, deleted, or is empty — so the leg cannot distinguish
+# "the bad thing is not there" from "I could not look", and the gate reports green
+# over a check that never ran. Pair every absence assertion with something that
+# fails if the search could not happen:
+#
+#     test -f path/to/file && ! grep -q "PATTERN" path/to/file    # existence first
+#     grep -q "KNOWN_MARKER" f && ! grep -q "PATTERN" f           # positive companion
+#     cmd > /tmp/.out 2>&1 && ! grep -q "PATTERN" /tmp/.out       # &&-joined producer
+#
+# Count-equals-zero is the same defect wearing a different hat, and it is the one
+# that bites hardest over a COMMAND's output rather than a file:
+#
+#     [ "$(cargo clippy --workspace 2>&1 | grep -c "^error")" = "0" ]   # WRONG
+#
+# If cargo is missing, or dies before emitting diagnostics, there are no `^error`
+# lines, the count is 0, and the leg passes — a build gate that goes green
+# precisely when the build could not run. Measured in this corpus, not invented.
+# Keep the producer's exit code in the verdict:
+#
+#     cargo clippy --workspace > /tmp/.out 2>&1 && ! grep -q "^error" /tmp/.out
+#
+# T-3144 censused 2853 task files: 71 absence assertions, 41 already correct, 30
+# not. The convention mostly works — this note is here so the next one is written
+# right, because a vacuous leg is invisible until the day the path moves.
 #
 # TEST RUNNERS need a guard either way (T-2738). `set -e` is suppressed inside the
 # `if` condition the gate runs each line in, so in `cmd1; cmd2` only cmd2 is the
@@ -262,24 +306,10 @@ cost_estimate_proposed:
 
 ## Updates
 
-### 2026-09-20T13:20:02Z — task-created [task-create-agent]
+### 2026-09-28T20:43:20Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3019-pickup-handover-generator--precompact-au.md
+- **Output:** /opt/termlink/.tasks/active/T-3205-stale-code-detector-for-notify-sidecars-.md
 - **Context:** Initial task creation
 
-## DISPOSITION (arc-008, recorded under the pickup-race task)
-
-**Round-trip of this project's own upstream filing. No work to do here.**
-
-This is the one task envelope `P-079` was designed to produce — the other two bearing
-this name are race artifacts. But the envelope is our OWN filing: the bug it
-describes was investigated, written up and filed at `framework:pickup` offset 126
-under T-3015, which is closed. The pipeline consumed our own report back into a
-local task.
-
-Its acceptance criteria are unfilled template placeholders. Not set to
-`work-completed` for the same reason as its duplicates: that would assert work the
-file does not contain. Moved to `horizon: later`.
-
-### 2026-09-20T14:01:27Z — status-update [task-update-agent]
-- **Change:** horizon: next → later
+### 2026-09-28T20:44:57Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

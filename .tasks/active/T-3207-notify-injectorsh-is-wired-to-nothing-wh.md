@@ -1,10 +1,10 @@
 ---
-id: T-3204
-name: "Make the T-3203 inbox fix live: restart the three notify-sidecars onto new code"
+id: T-3207
+name: "notify-injector.sh is wired to nothing while notify-wake-consumer.sh is the live path"
 description: >
-  T-3203 shipped the inbox: enumeration fix but all three sidecars have run since Sep 22 and execute pre-fix code (G-069 / T-2405). Operator approved restart. Verify each respawns on new code and that last_mail_ts advances to the inbox topic.
+  T-3204 F4. notify-injector.sh has no entry in .context/cron/, none in /etc/cron.d, no running process, and its .injected-seen marker is stale since Sep 22. The live consumer is notify-wake-consumer.sh under notify-wake-supervisor (5-min cron). Two consumer implementations with one dormant is the PL-168 shape. T-3202 reasoned about backlog risk from the dormant one; the conclusion held but the reasoning cited code nothing runs. Decide: retire notify-injector.sh or wire it.
 
-status: started-work
+status: captured
 workflow_type: build
 owner: agent
 horizon: now
@@ -21,8 +21,8 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-28T20:24:58Z
-last_update: 2026-09-28T20:24:58Z
+created: 2026-09-28T20:43:49Z
+last_update: 2026-09-28T20:43:49Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -36,7 +36,7 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-3204: Make the T-3203 inbox fix live: restart the three notify-sidecars onto new code
+# T-3207: notify-injector.sh is wired to nothing while notify-wake-consumer.sh is the live path
 
 ## Context
 
@@ -46,22 +46,8 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] AC1 — All three declared sidecars (`claude-termlink`, `framework-agent-systemd`,
-      `claude-termlink-alt`) are running with a start time AFTER the T-3203 commit, so
-      they execute the new code. Pre-restart they had run since `Sep 22 14:16`.
-- [x] AC2 — Respawn happened through the SUPERVISOR (`notify-sidecar-supervisor.sh`), not
-      by hand-launching. The supervisor is the declared start path and carries the
-      per-agent flags from `notify-sidecar-agents.conf` (notably `--auto-confirm`);
-      hand-launching would silently drop them and produce a sidecar that looks alive and
-      never confirms.
-- [x] AC3 — The running code is verified to BE the new code, not assumed from a fresh
-      start time: the live production flag file names the inbox topic in
-      `last_mail_topic`. A start time alone proves a restart, not which code it loaded.
-- [x] AC4 — Bounded receipt confirmed: at most ONE `stage=delivered` receipt lands on
-      `inbox:cacc73ea32b121dd/010-termlink` per watermark advance, not one per unread
-      message. 50 unread must not produce 50 receipts.
-- [x] AC5 — No sidecar is left dead. If any fails to respawn, that is a FAILED
-      deployment and must be reported as such, not as a partial success.
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -97,68 +83,6 @@ date_finished: null
 -->
 
 ## Verification
-
-# The bracket in `notify-sidecar[.]sh` is load-bearing, not styling: `pgrep -f` scans
-# every cmdline INCLUDING the shell running this check, whose arguments contain the
-# pattern literally. The plain form counted 4 processes when 3 were running. A regex
-# that matches its own checker reports a number that has nothing to do with the rail.
-test "$(pgrep -fc 'notify-sidecar[.]sh --agent-id')" -eq 3
-# AC2 — respawned through the supervisor, so the conf's --auto-confirm survived.
-test "$(pgrep -fa 'notify-sidecar[.]sh --agent-id' | grep -c -- '--auto-confirm')" -eq 3
-# AC3 — the RUNNING code is the new code: the live flag names an inbox topic, which the
-# pre-fix code could not produce. A fresh start time alone proves a restart, not which
-# code it loaded.
-grep -q 'last_mail_topic=inbox:' "$HOME/.termlink/notify/claude-termlink.flag"
-# AC4 — the auto-confirm offset guard was written, which is what bounds the receipt to
-# one per watermark advance rather than one per unread message.
-test -f "$HOME/.termlink/notify/.claude-termlink.inbox_cacc73ea32b121dd_010_termlink.acked"
-# AC5 — every declared agent has a live sidecar (no silent half-deployment).
-test "$(pgrep -fa 'notify-sidecar[.]sh --agent-id' | grep -c 'claude-termlink\|framework-agent-systemd')" -eq 3
-
-## Findings
-
-**F1 — the rail delivered, and this is the measurement T-3203 could not make.**
-`.framework-agent-systemd.wake-seen` advanced to **22:26:18**, two seconds after the
-supervisor respawned the sidecars. A wake consumer observed the inbox arrival and moved
-its durable marker. Combined with the enumeration proof below, the chain
-`inbox topic -> probe -> flag -> wake consumer` is now measured end to end, not inferred.
-
-**F2 — the deployment itself.** All three sidecars had run since `Sep 22 14:16` on
-pre-fix code. TERM'd (the script has a `keep_running=0` signal handler), all three exited
-cleanly, respawned through the supervisor at `22:26:14-17` with `--auto-confirm` carried
-from the conf. Flags moved:
-
-    claude-termlink           pending 45 -> 95   dm:... -> inbox:cacc73ea32b121dd/010-termlink
-    framework-agent-systemd   pending  0 -> 50   dm:... -> inbox:cacc73ea32b121dd/010-termlink
-
-**F3 — receipts are bounded, verified by waiting for a storm that did not come.** Rather
-than assert the offset guard works, I waited ~6 poll cycles for a 4th receipt to appear
-and timed out: count held at 2, guards written at offset 49. 50 unread produced 2
-receipts, not 50.
-
-**F4 — I cited the wrong consumer in T-3202, and the conclusion survives but the
-reasoning did not.** That task verified "no backlog risk" by reading
-`notify-injector.sh:151-161`. `notify-injector.sh` is wired to NOTHING — no entry in
-`.context/cron/`, none in `/etc/cron.d`, no process, and its `.injected-seen` marker has
-been stale since Sep 22. The live consumer is `notify-wake-consumer.sh`, kept alive by
-`notify-wake-supervisor.sh` on a 5-minute cron. The no-backlog conclusion is now
-confirmed empirically (one wake, not fifty), but it was argued from a dormant script.
-Two consumer implementations with one dormant is the PL-168 shape and wants its own task.
-
-**F5 — the agent holding the mail has no wake consumer of its own.** `claude-termlink`
-carries `pending=95` and the inbox topic, and there is no `notify-wake-consumer` for it.
-Its wake is driven indirectly: `claude-termlink-alt`'s consumer runs
-`--as-identity claude-termlink`. But alt auto-confirms the inbox mail before its own flag
-records the arrival, so alt's flag shows `pending=0` and a stale dm topic and its
-`wake-seen` is still Sep 22. The flag with the signal and the flag that drives the wake
-are different files. Not a regression from this change — it is how the conf is written —
-but it means delivery currently depends on `framework-agent-systemd` being the one to
-notice. Follow-up task, not a fix to smuggle in here.
-
-**F6 — `claude-termlink`'s own unread never reaches 0** (T-3065, already filed): the
-auto-confirm receipt is signed under a different identity than `--self-fp`, so its
-`pending` stays permanently >0 and `last_mail_ts` re-advances every cycle. Pre-existing
-and unchanged in kind by this deployment — it was already permanently >0 at pending=45.
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -263,43 +187,6 @@ and unchanged in kind by this deployment — it was already permanently >0 at pe
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
-**Symptom:** T-3203's fix was committed, tested and pushed, and the rail still did not
-deliver. AEF's 50 consults stayed unread and `last_mail_ts` did not advance — the same
-observable state as before the fix.
-
-**Root cause:** the three notify-sidecars are long-lived detached bash processes started
-`Sep 22 14:16`. A running process keeps executing the code it loaded; editing the script
-on disk changes nothing for it. The fix was live in git and dark in production.
-
-**Why structurally allowed:** the supervisor is deliberately asymmetric — it STARTS a
-sidecar that is missing and never restarts one that is running (surprise process kills
-are not an autostarter's business, and that is a defensible design). So there is no
-mechanism anywhere that notices "the code on disk is newer than the process executing
-it" for sidecars. Every surface stayed green throughout: the sidecar was alive, its
-heartbeat fresh, its canary quiet, the guard layer passing, the commit pushed. Nothing
-in the system distinguishes "running" from "running the current code".
-
-This class is already known here and already has a detector — for a DIFFERENT component.
-T-2405 built `check-stale-waker-code-freshness.sh` for exactly this shape (alive process
-on old code, found by comparing `/proc/<pid>` start-mtime against the script's mtime) and
-scoped it to push-wakers. The sidecars are the same shape with no equivalent check. So
-the framework was not blind to the concept, only to this instance — which is the more
-expensive kind of gap, because the existing canary's green reads as coverage.
-
-**Prevention:** a stale-code check for notify-sidecars, mirroring T-2405's primitives
-(`code_mtime` / `proc_start_mtime` / `is_stale`) rather than reimplementing them, so
-detection and remediation cannot drift apart. Deliberately NOT filed as "make the
-supervisor restart on code change": auto-restarting a process that injects into live
-prompts is a policy decision with outward effects (it posts receipts to peers), and this
-deployment needed explicit operator approval for precisely that reason. Detection is the
-agent-safe half; the restart stays a human call. Follow-up task, not done here.
-
-**Second, smaller instance in the same task:** the verification block's
-`pgrep -f 'notify-sidecar.sh --agent-id'` matched the checking shell's own command line
-and counted 4 of 3 processes. A check that matches itself reports a number unrelated to
-the thing being checked. Fixed with the bracket anchor; the reason is recorded inline
-above the command so it survives the next edit.
-
 ## Evolution
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
@@ -376,7 +263,7 @@ above the command so it survives the next edit.
 
 ## Updates
 
-### 2026-09-28T20:24:58Z — task-created [task-create-agent]
+### 2026-09-28T20:43:49Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3204-make-the-t-3203-inbox-fix-live-restart-t.md
+- **Output:** /opt/termlink/.tasks/active/T-3207-notify-injectorsh-is-wired-to-nothing-wh.md
 - **Context:** Initial task creation

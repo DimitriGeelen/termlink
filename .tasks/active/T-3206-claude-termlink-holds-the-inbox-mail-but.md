@@ -1,15 +1,14 @@
 ---
-id: T-3019
-name: "Pickup: Handover generator + PreCompact auto-commit mint a fresh D8/D8b FAIL
-  every (from 010-termlink)"
+id: T-3206
+name: "claude-termlink holds the inbox mail but has no wake consumer of its own"
 description: >
-  Auto-created from pickup envelope. Source: 010-termlink, task T-3015. Type: bug-report.
+  T-3204 F5. claude-termlink carries pending=95 and last_mail_topic=inbox:... but notify-wake-agents.conf declares no consumer for it; its wake is driven by claude-termlink-alt's consumer running --as-identity claude-termlink. alt auto-confirms the inbox mail before its own flag records the arrival, so alt's flag shows pending=0 and a stale dm topic and its wake-seen is still Sep 22. The flag with the signal and the flag that drives the wake are different files.
 
 status: captured
 workflow_type: build
 owner: agent
-horizon: later
-tags: [pickup, bug-report]
+horizon: now
+tags: []
 components: []
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
@@ -22,9 +21,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-20T13:20:02Z
-last_update: 2026-09-28T11:52:46Z
-date_finished:
+created: 2026-09-28T20:43:32Z
+last_update: 2026-09-28T20:43:32Z
+date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -35,35 +34,9 @@ date_finished:
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
-source_task_id_in_origin: T-3015
-source_project_in_origin: "010-termlink"
-bvp_scores_proposed:
-  - ts: '2026-09-22T14:57:17Z'
-    estimator: bvp-estimator-v1-heuristic
-    scores:
-      D1: 4
-      D2: 0
-      D3: 3
-      D4: 2
-      F-RECALL: 1
-      F-ORCH: 0
-    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
-      (body:component-discoverability); D4=2 (body:env-class-handled); 
-      F-RECALL=1 (body:episodic-only); F-ORCH=0 (no-signal)
-    rubric_sha: e4a00f38e801
-cost_estimate_proposed:
-  - ts: '2026-09-22T14:57:41Z'
-    estimator: bvp-estimator-v1-heuristic
-    cost_estimate:
-      blast_radius:
-      tier: 2
-      effort: 8
-    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
-      (workflow:build); effort=8 (lines=221,acs=4)
-    rubric_sha: e4a00f38e801
 ---
 
-# T-3019: Pickup: Handover generator + PreCompact auto-commit mint a fresh D8/D8b FAIL every (from 010-termlink)
+# T-3206: claude-termlink holds the inbox mail but has no wake consumer of its own
 
 ## Context
 
@@ -146,6 +119,34 @@ cost_estimate_proposed:
 # capture and grep (T-2090) — the middle stage is what `grep -q` slams its stdin
 # on, and grep scans the whole captured string anyway, so the `tail -3` was
 # cosmetic. `echo "$out" | grep -q PAT`, nothing between.
+#
+# ── Asserting an ABSENCE: prove the search could have succeeded (T-3144) ──
+#
+# `! grep -q "PATTERN" file` exits 0 when the pattern is absent. It ALSO exits 0
+# when the file was renamed, deleted, or is empty — so the leg cannot distinguish
+# "the bad thing is not there" from "I could not look", and the gate reports green
+# over a check that never ran. Pair every absence assertion with something that
+# fails if the search could not happen:
+#
+#     test -f path/to/file && ! grep -q "PATTERN" path/to/file    # existence first
+#     grep -q "KNOWN_MARKER" f && ! grep -q "PATTERN" f           # positive companion
+#     cmd > /tmp/.out 2>&1 && ! grep -q "PATTERN" /tmp/.out       # &&-joined producer
+#
+# Count-equals-zero is the same defect wearing a different hat, and it is the one
+# that bites hardest over a COMMAND's output rather than a file:
+#
+#     [ "$(cargo clippy --workspace 2>&1 | grep -c "^error")" = "0" ]   # WRONG
+#
+# If cargo is missing, or dies before emitting diagnostics, there are no `^error`
+# lines, the count is 0, and the leg passes — a build gate that goes green
+# precisely when the build could not run. Measured in this corpus, not invented.
+# Keep the producer's exit code in the verdict:
+#
+#     cargo clippy --workspace > /tmp/.out 2>&1 && ! grep -q "^error" /tmp/.out
+#
+# T-3144 censused 2853 task files: 71 absence assertions, 41 already correct, 30
+# not. The convention mostly works — this note is here so the next one is written
+# right, because a vacuous leg is invisible until the day the path moves.
 #
 # TEST RUNNERS need a guard either way (T-2738). `set -e` is suppressed inside the
 # `if` condition the gate runs each line in, so in `cmd1; cmd2` only cmd2 is the
@@ -262,24 +263,7 @@ cost_estimate_proposed:
 
 ## Updates
 
-### 2026-09-20T13:20:02Z — task-created [task-create-agent]
+### 2026-09-28T20:43:32Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3019-pickup-handover-generator--precompact-au.md
+- **Output:** /opt/termlink/.tasks/active/T-3206-claude-termlink-holds-the-inbox-mail-but.md
 - **Context:** Initial task creation
-
-## DISPOSITION (arc-008, recorded under the pickup-race task)
-
-**Round-trip of this project's own upstream filing. No work to do here.**
-
-This is the one task envelope `P-079` was designed to produce — the other two bearing
-this name are race artifacts. But the envelope is our OWN filing: the bug it
-describes was investigated, written up and filed at `framework:pickup` offset 126
-under T-3015, which is closed. The pipeline consumed our own report back into a
-local task.
-
-Its acceptance criteria are unfilled template placeholders. Not set to
-`work-completed` for the same reason as its duplicates: that would assert work the
-file does not contain. Moved to `horizon: later`.
-
-### 2026-09-20T14:01:27Z — status-update [task-update-agent]
-- **Change:** horizon: next → later
