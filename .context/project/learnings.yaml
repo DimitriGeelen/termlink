@@ -4537,3 +4537,9 @@ learnings:
   task: T-3193
   date: 2026-09-28
   context: Added via context agent
+- id: PL-391
+  learning: "inbox status reports TOPIC RECORD COUNT labelled 'pending transfer(s)' (inbox_channel.rs:239 sums channel.list counts), while inbox list folds by msg_type (:506-534) and returns the real figure. Measured 2026-09-28: status said 232 pending across 22 targets; list returned 0 for every one. The 232 are sidecar.consult/note messages on retention:forever topics — live correspondence, not plumbing. inbox clear resolves to channel.trim (:334), so acting on the status number deletes real messages. A metric that names a benign-sounding unit ('pending transfers') for something else does not merely mislead — it recruits the operator into authorising the destruction of what it miscounted."
+  source: P-001
+  task: T-3196
+  date: 2026-09-28
+  context: Added via context agent
