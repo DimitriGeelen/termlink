@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3208: Add the claude-termlink wake consumer now that T-3065 unblocked its precondition
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-28T22:12:38Z
+# ============================================================================
+
+task_id: T-3208
+task_name: "Add the claude-termlink wake consumer now that T-3065 unblocked its precondition"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-28T22:07:12Z
+completed: 2026-09-28T22:12:29Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-09-29T00:12:28+02:00
+last_commit: 2026-09-29T00:12:28+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  the wake rail ends in a log line — two links missing, not one
+
+# Key outcomes
+outcomes:
+  - 'AC1 — The claim is stated correctly before anything is built: the wake rail today'
+  - 'AC3 — Proven with `--dry-run` FIRST: the injector decides and prints without'
+  - 'AC4 — The consumer''s stale header is corrected: it must not claim to signal L3'
+  - 'AC5 — Going live (injecting into a real prompt) is an OPERATOR decision, recorded'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'scripts/notify-wake-consumer.sh'
+  - '.tasks/active/T-3208-add-the-claude-termlink-wake-consumer-no.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-29T00:12:28'
+    action: 'T-3208: the wake rail ends in a log line — two links missing, not one'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 2
+  lines_added: 358
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3208-add-the-claude-termlink-wake-consumer-no.md
+generated_by: context-agent-hybrid

@@ -13616,3 +13616,21 @@ scan_id: R-9784ac22
 task_id: T-3065
 payload:
   task_file: .tasks/active/T-3065-notify-sidecar-auto-confirm-signs-receip.md
+---
+kind: scan_emitted
+timestamp: '2026-09-28T22:12:31Z'
+scan_id: R-ddba5ac8
+task_id: T-3208
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-28T22:12:31Z'
+scan_id: R-ddba5ac8
+task_id: T-3208
+payload:
+  task_file: .tasks/active/T-3208-add-the-claude-termlink-wake-consumer-no.md
