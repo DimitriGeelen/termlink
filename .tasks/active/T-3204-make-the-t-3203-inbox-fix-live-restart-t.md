@@ -96,6 +96,8 @@ date_finished: null
        Pipefail/SIGPIPE section below forbids, and this line used to prescribe it.
 -->
 
+## Verification
+
 # The bracket in `notify-sidecar[.]sh` is load-bearing, not styling: `pgrep -f` scans
 # every cmdline INCLUDING the shell running this check, whose arguments contain the
 # pattern literally. The plain form counted 4 processes when 3 were running. A regex
@@ -260,6 +262,43 @@ and unchanged in kind by this deployment — it was already permanently >0 at pe
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
+
+**Symptom:** T-3203's fix was committed, tested and pushed, and the rail still did not
+deliver. AEF's 50 consults stayed unread and `last_mail_ts` did not advance — the same
+observable state as before the fix.
+
+**Root cause:** the three notify-sidecars are long-lived detached bash processes started
+`Sep 22 14:16`. A running process keeps executing the code it loaded; editing the script
+on disk changes nothing for it. The fix was live in git and dark in production.
+
+**Why structurally allowed:** the supervisor is deliberately asymmetric — it STARTS a
+sidecar that is missing and never restarts one that is running (surprise process kills
+are not an autostarter's business, and that is a defensible design). So there is no
+mechanism anywhere that notices "the code on disk is newer than the process executing
+it" for sidecars. Every surface stayed green throughout: the sidecar was alive, its
+heartbeat fresh, its canary quiet, the guard layer passing, the commit pushed. Nothing
+in the system distinguishes "running" from "running the current code".
+
+This class is already known here and already has a detector — for a DIFFERENT component.
+T-2405 built `check-stale-waker-code-freshness.sh` for exactly this shape (alive process
+on old code, found by comparing `/proc/<pid>` start-mtime against the script's mtime) and
+scoped it to push-wakers. The sidecars are the same shape with no equivalent check. So
+the framework was not blind to the concept, only to this instance — which is the more
+expensive kind of gap, because the existing canary's green reads as coverage.
+
+**Prevention:** a stale-code check for notify-sidecars, mirroring T-2405's primitives
+(`code_mtime` / `proc_start_mtime` / `is_stale`) rather than reimplementing them, so
+detection and remediation cannot drift apart. Deliberately NOT filed as "make the
+supervisor restart on code change": auto-restarting a process that injects into live
+prompts is a policy decision with outward effects (it posts receipts to peers), and this
+deployment needed explicit operator approval for precisely that reason. Detection is the
+agent-safe half; the restart stays a human call. Follow-up task, not done here.
+
+**Second, smaller instance in the same task:** the verification block's
+`pgrep -f 'notify-sidecar.sh --agent-id'` matched the checking shell's own command line
+and counted 4 of 3 processes. A check that matches itself reports a number unrelated to
+the thing being checked. Fixed with the bracket anchor; the reason is recorded inline
+above the command so it survives the next edit.
 
 ## Evolution
 
