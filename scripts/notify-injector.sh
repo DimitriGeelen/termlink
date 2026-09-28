@@ -1,6 +1,33 @@
 #!/usr/bin/env bash
 # T-3069 — THE INJECTOR. The missing middle of the rail (arc-011 slices S7 + S10).
 #
+# STATUS 2026-09-29 (T-3207): THIS SCRIPT IS SCHEDULED BY NOTHING, AND THAT IS NOT A
+# DECISION TO RETIRE IT. No entry in .context/cron/, none in /etc/cron.d, no process;
+# its .injected-seen marker has been stale since 2026-09-22.
+#
+# Two components look like duplicates and are not. notify-wake-consumer.sh NOTICES a
+# flag — without an --action that is its entire effect, and neither declared consumer
+# has one. THIS script is the step that puts a message in front of an agent. Retiring
+# it would remove the only component that can deliver; retiring the other would remove
+# nothing that delivers. If you are here to resolve the apparent duplication: keep this
+# one.
+#
+# WHY IT IS NOT WIRED YET, AND WHAT MUST BE TRUE FIRST. Wiring it today would schedule a
+# component that defers on every run. It cannot inject into a prompt it cannot see, and
+# nothing on this host is visible to it: check-waker-liveness-freshness.sh reports
+# "ZERO LIVE listeners carry pty_session — the G-069 '0 wakers' state", and has done so
+# across ~90 log entries. A dry-run against a real session returns exactly that:
+# "prompt UNKNOWN - deferring. Ambiguity never resolves to READY: a wrong READY is a
+# blind inject." (exit 4) — correct behaviour under the operator's SQ-4 ruling.
+#
+# The precondition is agents ARMED with a pty_session, which per PL-237 cannot be
+# retrofitted onto a running headless claude: they must be armed at relaunch, via
+#   bash scripts/tl-claude.sh start --reachable --agent-id <id> -- --resume
+# That is an operator action. Once any agent is armed, wire this through the EXISTING
+# seam — notify-wake-consumer.sh --action, declared per-agent in
+# notify-wake-agents.conf — rather than a second cron, which would rebuild the
+# two-things-for-one-job confusion this note exists to settle.
+#
 # WHAT IT IS
 # ----------
 # Everything before this was plumbing that delivered to nobody: a message arrives,

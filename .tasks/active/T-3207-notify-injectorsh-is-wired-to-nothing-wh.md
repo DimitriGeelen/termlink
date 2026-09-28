@@ -1,10 +1,16 @@
 ---
 id: T-3207
-name: "notify-injector.sh is wired to nothing while notify-wake-consumer.sh is the live path"
+name: "notify-injector.sh is wired to nothing while notify-wake-consumer.sh is the
+  live path"
 description: >
-  T-3204 F4. notify-injector.sh has no entry in .context/cron/, none in /etc/cron.d, no running process, and its .injected-seen marker is stale since Sep 22. The live consumer is notify-wake-consumer.sh under notify-wake-supervisor (5-min cron). Two consumer implementations with one dormant is the PL-168 shape. T-3202 reasoned about backlog risk from the dormant one; the conclusion held but the reasoning cited code nothing runs. Decide: retire notify-injector.sh or wire it.
+  T-3204 F4. notify-injector.sh has no entry in .context/cron/, none in /etc/cron.d,
+  no running process, and its .injected-seen marker is stale since Sep 22. The live
+  consumer is notify-wake-consumer.sh under notify-wake-supervisor (5-min cron). Two
+  consumer implementations with one dormant is the PL-168 shape. T-3202 reasoned about
+  backlog risk from the dormant one; the conclusion held but the reasoning cited code
+  nothing runs. Decide: retire notify-injector.sh or wire it.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -22,8 +28,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-28T20:43:49Z
-last_update: 2026-09-28T20:43:49Z
-date_finished: null
+last_update: 2026-09-28T22:22:38Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,6 +40,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-09-28T22:22:39Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3207: notify-injector.sh is wired to nothing while notify-wake-consumer.sh is the live path
@@ -46,8 +66,17 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] AC1 — The question "retire it or wire it" is ANSWERED with evidence, not left open.
+      The two candidates are not equivalent: `notify-wake-consumer.sh` notices a flag,
+      `notify-injector.sh` is the step that puts a message in front of an agent. Retiring
+      the wrong one removes the only component that can deliver.
+- [x] AC2 — The answer is recorded where a reader of either script will find it, not only
+      in this task. A closed task is not a place anyone looks before editing a file.
+- [x] AC3 — If the answer is "wire it", the BLOCKER is named precisely rather than left
+      as a to-do: what must be true before wiring helps, and who can make it true.
+- [x] AC4 — No wiring is performed while the blocker stands. Scheduling a component that
+      would defer on every run produces motion without delivery — the failure this whole
+      thread has been about — and would make a dark rail look addressed.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -82,7 +111,49 @@ date_finished: null
        Pipefail/SIGPIPE section below forbids, and this line used to prescribe it.
 -->
 
+## Findings
+
+**Answer: WIRE it, do not retire it — but not yet, and the blocker is not ours to clear.**
+
+**F1 — the two components are not duplicates (AC1).** `notify-wake-consumer.sh` notices
+a flag; without an `--action` that is its whole effect, and neither declared consumer has
+one. `notify-injector.sh` is the step that puts a message in front of an agent — its own
+header: "Everything before this was plumbing that delivered to nobody." Retiring it would
+remove the only component that can deliver. The apparent duplication resolves in its
+favour.
+
+**F2 — wiring it today would ship deferral, not delivery (AC4).** A dry-run against a
+real session returns `prompt UNKNOWN - deferring. Ambiguity never resolves to READY: a
+wrong READY is a blind inject.` (exit 4). That is correct under SQ-4. It cannot see a
+prompt because nothing on this host is armed: the waker-liveness canary reports "ZERO
+LIVE listeners carry pty_session — the G-069 '0 wakers' state", across ~90 entries.
+Scheduling it now would make a dark rail look addressed.
+
+**F3 — the precondition, named (AC3).** Agents must carry a `pty_session`, and PL-237 is
+explicit that a running headless claude cannot be retrofitted — arming happens at
+relaunch, through `scripts/tl-claude.sh start --reachable`. Restarting live agent
+sessions is an operator action. Once any agent is armed, wire through the EXISTING seam
+(`notify-wake-consumer.sh --action` in notify-wake-agents.conf), not a second cron.
+
+**F4 — recorded in the script, not just here (AC2).** A closed task is not somewhere
+anyone looks before editing a file. The header now says it is unscheduled, that this is
+not a retirement decision, which component to keep, why it is not wired, and what must be
+true first. This task's own origin was T-3202 reasoning from this dormant script without
+noticing nothing runs it — the note exists so that does not repeat.
+
 ## Verification
+
+# AC2 — the answer lives in the script a future reader will open, not only in this task.
+grep -q 'SCHEDULED BY NOTHING, AND THAT IS NOT A' scripts/notify-injector.sh
+# AC1 — it states which of the two look-alike components to keep.
+grep -q 'keep this' scripts/notify-injector.sh
+# AC3 — the blocker is named with its precondition and who can clear it.
+grep -q 'pty_session' scripts/notify-injector.sh
+grep -q 'tl-claude.sh start --reachable' scripts/notify-injector.sh
+# AC4 — and it is still NOT wired, deliberately. If this fails, someone scheduled it;
+# check that agents were armed first, or it defers on every run.
+test -z "$(grep -rl 'notify-injector' .context/cron/ 2>/dev/null)"
+bash -n scripts/notify-injector.sh
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -267,3 +338,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3207-notify-injectorsh-is-wired-to-nothing-wh.md
 - **Context:** Initial task creation
+
+### 2026-09-28T22:22:38Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
