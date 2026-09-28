@@ -5,10 +5,10 @@ name: "Pickup: Handover generator + PreCompact auto-commit mint a fresh D8/D8b F
 description: >
   Auto-created from pickup envelope. Source: 010-termlink, task T-3015. Type: bug-report.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: later
+horizon: now
 tags: [pickup, bug-report]
 components: []
 related_tasks: []
@@ -23,7 +23,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-20T13:20:02Z
-last_update: 2026-09-28T18:23:54Z
+last_update: 2026-09-28T22:26:08Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -286,3 +286,7 @@ removes it from the suggestion set without making a false claim.
 
 ### 2026-09-20T14:01:27Z — status-update [task-update-agent]
 - **Change:** horizon: next → later
+
+### 2026-09-28T22:26:08Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
