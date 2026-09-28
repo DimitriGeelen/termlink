@@ -1,0 +1,106 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3205: Stale-code detector for notify-sidecars: alive process running pre-fix code
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-28T22:21:53Z
+# ============================================================================
+
+task_id: T-3205
+task_name: "Stale-code detector for notify-sidecars: alive process running pre-fix code"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-28T20:43:20Z
+completed: 2026-09-28T22:21:44Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-28T22:45:48+02:00
+last_commit: 2026-09-29T00:21:43+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  file the three T-3204 follow-ups + PL-392, and scope T-3205. stale-sidecar-code canary — detect a live sidecar running superseded code. add RCA + Evolution
+
+# Key outcomes
+outcomes:
+  - 'AC1 — A check reports any LIVE notify-sidecar whose `/proc/<pid>` start-mtime'
+  - 'AC2 — It REUSES T-2405''s staleness primitives (`code_mtime` / `proc_start_mtime` /'
+  - 'AC3 — DETECTION ONLY. It never restarts a sidecar. Restarting posts receipts'
+  - 'AC4 — Pid-recycle guarded: a pid alive but NOT a notify-sidecar process must not'
+  - 'AC5 — Fixture suite with `# guard-layer: source`, driven by seams for the state'
+  - 'AC6 — Exit contract matches the sibling checks: 0 clean / 1 stale sidecar(s) /'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/cron/stale-sidecar-code-canary.crontab'
+  - '.context/project/learnings.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/.compact-log'
+  - '.context/working/feedback-stream.yaml'
+  - '.context/working/focus.yaml'
+  - '.context/working/.gate-bypass-log.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.hook-crashes.log'
+  - '.context/working/.pre-compact.last-run'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/.session-start-ts'
+  - '.context/working/session.yaml'
+  - 'scripts/check-stale-sidecar-code.sh'
+  - '.tasks/active/T-3019-pickup-handover-generator--precompact-au.md'
+  - '.tasks/active/T-3020-pickup-handover-generator--precompact-au.md'
+  - '.tasks/active/T-3141-answer-aefs-sidecar-e2e-joint-run-ab9473.md'
+  - '.tasks/active/T-3205-stale-code-detector-for-notify-sidecars-.md'
+  - '.tasks/active/T-3206-claude-termlink-holds-the-inbox-mail-but.md'
+  - '.tasks/active/T-3207-notify-injectorsh-is-wired-to-nothing-wh.md'
+  - '.tasks/completed/T-3197-inbox-status-labels-topic-record-count-a.md'
+  - '.tasks/completed/T-3203-notify-sidecar-probes-dm-only-so-the-arr.md'
+  - '.tasks/completed/T-3204-make-the-t-3203-inbox-fix-live-restart-t.md'
+  - 'tests/stale-sidecar-code-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-28T22:45:48'
+    action: 'T-3205: file the three T-3204 follow-ups + PL-392, and scope T-3205'
+  - time: '2026-09-29T00:21:18'
+    action: 'T-3205: stale-sidecar-code canary — detect a live sidecar running superseded code'
+  - time: '2026-09-29T00:21:43'
+    action: 'T-3205: add RCA + Evolution'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 98 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 98
+  commits: 3
+  files_changed: 24
+  lines_added: 1639
+  lines_removed: 99
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3205-stale-code-detector-for-notify-sidecars-.md
+generated_by: context-agent-hybrid
