@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3196: Drain the stale inbox-transfer backlog (R7 outstanding AC: 19 -> 232)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-28T13:24:45Z
+# ============================================================================
+
+task_id: T-3196
+task_name: "Drain the stale inbox-transfer backlog (R7 outstanding AC: 19 -> 232)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-28T13:18:41Z
+completed: 2026-09-28T13:24:35Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-09-28T15:24:30+02:00
+last_commit: 2026-09-28T15:24:30+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  the inbox backlog does not exist — NOT drained, and draining would have deleted live mail
+
+# Key outcomes
+outcomes:
+  - 'Every inbox target is enumerated with its pending count and classified'
+  - '**NOT DRAINED — the premise was false, and this AC is answered by refusing it.**'
+  - 'LIVE targets are NOT drained in this task. Those transfers are undelivered'
+  - 'Every `termlink` invocation sets `TERMLINK_RUNTIME_DIR` from'
+  - 'Before any destructive call, the exact verb is read from `--help` and its'
+  - '**Absence of a detector recorded as the finding.** Growth was never the'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/project/learnings.yaml'
+  - '.tasks/active/T-3196-drain-the-stale-inbox-transfer-backlog-r.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-28T15:24:30'
+    action: 'T-3196: the inbox backlog does not exist — NOT drained, and draining would have deleted live mail'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 2
+  lines_added: 443
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3196-drain-the-stale-inbox-transfer-backlog-r.md
+generated_by: context-agent-hybrid
