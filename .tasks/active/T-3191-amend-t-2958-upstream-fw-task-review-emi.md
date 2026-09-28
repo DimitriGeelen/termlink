@@ -1,18 +1,14 @@
 ---
-id: T-2958
-name: "fw task review hardcodes 'go' in the decision command it hands the human"
+id: T-3191
+name: "Amend T-2958 upstream: fw task review emits a go verb paired with a NO-GO rationale"
 description: >
-  lib/review.sh:380 emits 'inception decide <task> go' with the verb hardcoded while
-  interpolating the rationale from the task's own Recommendation, so a NO-GO recommendation
-  prints a command recording GO. Inverted a live human decision on the reporting peer's
-  repo. Sovereignty boundary. Reported by 050-email-archive (Pen, T-2065 follow-on),
-  verified live here.
+  Amend T-2958 upstream: fw task review emits a go verb paired with a NO-GO rationale
 
 status: started-work
 workflow_type: build
 owner: agent
 horizon: now
-tags: [arc:arc-008]
+tags: []
 components: []
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
@@ -25,9 +21,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-11T19:54:29Z
-last_update: 2026-09-28T10:52:03Z
-date_finished:
+created: 2026-09-28T10:48:27Z
+last_update: 2026-09-28T10:48:27Z
+date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -38,42 +34,9 @@ date_finished:
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
-bvp_scores_proposed:
-  - ts: '2026-09-18T18:42:31Z'
-    estimator: bvp-estimator-v1-heuristic
-    scores:
-      D1: 4
-      D2: 0
-      D3: 3
-      D4: 2
-      F-RECALL: 0
-      F-ORCH: 0
-    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
-      (body:component-discoverability); D4=2 (body:env-class-handled); 
-      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
-    rubric_sha: e4a00f38e801
-cost_estimate_proposed:
-  - ts: '2026-09-18T18:42:31Z'
-    estimator: bvp-estimator-v1-heuristic
-    cost_estimate:
-      blast_radius:
-      tier: 2
-      effort: 8
-    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
-      (workflow:build); effort=8 (lines=207,acs=4)
-    rubric_sha: e4a00f38e801
-  - ts: '2026-09-27T21:34:07Z'
-    estimator: bvp-estimator-v1-heuristic
-    cost_estimate:
-      blast_radius: 3
-      tier: 2
-      effort: 8
-    rationale: blast_radius=3 (2-file-refs-derived-T-3189); tier=2 
-      (workflow:build); effort=8 (lines=253,acs=10)
-    rubric_sha: e4a00f38e801
 ---
 
-# T-2958: fw task review hardcodes 'go' in the decision command it hands the human
+# T-3191: Amend T-2958 upstream: fw task review emits a go verb paired with a NO-GO rationale
 
 ## Context
 
@@ -83,71 +46,18 @@ cost_estimate_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] The blast radius is measured across the corpus, not asserted from one instance.
-      **Measured 2026-09-27:** of 140 completed inception tasks carrying BOTH a
-      `**Recommendation:**` and a recorded `**Decision**:`, **23 disagree**. Direction is
-      the tell: **22 of the 23 resolve to GO**, one to DEFER. A human overriding
-      recommendations would not be 96% one-directional; a hardcoded verb would be
-      exactly that.
-- [x] The three cases that cannot be read as a deliberate override are named:
-      **T-2288, T-2879, T-3144** — all `NO-GO` recommendation, `GO` recorded. T-2879's
-      recorded rationale is its NO-GO argument verbatim, ending "There is nothing to
-      build", which is the signature this task describes.
-- [x] The ~14 `DEFER -> GO` cases are explicitly NOT claimed as inversions. DEFER to GO
-      is a legitimate sovereign override, and treating them as defects would convert a
-      record-integrity fix into an agent overwriting human decisions at scale — a worse
-      failure than the one being fixed. T-3170 is in this set, and its GO is independently
-      corroborated by the operator dialogue, so the work it authorised (T-3176) stands.
-- [x] Instrument limits stated rather than left implicit: the scan takes the FIRST
-      `**Recommendation:**` line per file, so a superseded filing-time draft would
-      inflate the count. Falsification attempted on 6 of the 23 — every one carries
-      exactly ONE recommendation line, so no draft artefact is present in that sample.
-      Four of the 23 are parser artefacts (`DELIVERED`/`CONDITIONAL`/`MOSTLY-SHIPPED`/
-      `PARTIAL` are not GO/NO-GO/DEFER shaped) and are probably not mismatches at all.
-- [x] Fix filed upstream per G-062 — `lib/review.sh` is vendored, so a local patch is
-      deleted by the next re-vendor. **Filed at `framework:pickup` offset 208, read-back
-      verified byte-identical 2026-09-27.** No local patch taken, so no divergence entry
-      is needed. The filing carries the one-line fix (derive the verb from the
-      recommendation; print a `<go|no-go|defer>` PLACEHOLDER when it cannot be parsed,
-      because a guess is what created the problem) plus the second half: inception.py:421
-      already computes `decision_matches_recommendation` and does not surface it as a
-      warning at the moment of recording, which is where it would have caught all three.
-- [x] MECHANISM CORRECTED before filing, rather than filing the first analysis. The claim
-      that the hardcoded verb WROTE the GO is too strong: T-2879 was decided via
-      Watchtower, and `web/blueprints/inception.py:499` reads the verb from the submitted
-      form, so the record came from a selection. What `review.sh:380` actually does is
-      MISINFORM THE HUMAN AT THE MOMENT OF DECISION — `fw task review` is what an
-      operator reads before deciding and it hands them a copy-pasteable command saying
-      `go`, with the NO-GO rationale attached lending it false authority. Confirmed live:
-      this agent pasted that output to the operator earlier the same day, `go` first,
-      without recognising it.
-- [ ] The emitter is corrected BEFORE any affected record is re-decided. Re-deciding
-      while the verb is still hardcoded re-inverts on the next pass, so order is
-      load-bearing, not preference.
-- [ ] **ANSWERED: NO. No such verb or documented path exists.** [REVIEWER] A verb or documented path exists to re-record a decision on an
-      already-completed inception. The Tier-0 gate refuses an agent the `inception
-      decide` verb entirely — correctly — so the correction is operator-run; what is
-      missing is whether the verb even accepts a task that is already `work-completed`.
-      → Determined from the shipping code (2026-09-28). `do_inception_decide`
-      (`lib/inception.sh:440`) calls `find_task_file "$task_id" active`, and
-      `find_task_file` (`lib/tasks.sh:25-26`) with an explicit scope searches
-      **`$tasks_dir/$scope` only**. A completed inception is in `.tasks/completed/`, so
-      the lookup misses and the verb exits 1.
-      **The refusal message misattributes its own cause:** `Task <id> not found in active
-      tasks` — but the task is not missing, it is archived. An operator reading that will
-      go looking for a lost file.
-      **Consequence for this task's sibling AC:** "the emitter is corrected BEFORE any
-      affected record is re-decided" is currently moot in the worst way — **no affected
-      record can be re-decided at all.** All 23 divergent records are in `completed/`.
-      So the ordering constraint is not a sequencing preference, it is a second blocker
-      stacked behind the first.
-      **Not ticked**, because the AC asserts that a path *exists* and the finding is that
-      none does. Three routes, none currently available to an agent: move the file back to
-      `active/` and re-complete it (fights `update-task.sh`, and T-2833's latch sits on
-      that path); hand-edit the Decision block (bypasses the verb entirely, which is the
-      one thing a decision record must not allow); or fix it upstream so `decide` accepts a
-      completed inception, or ships a documented re-decide path. The third is the only
-      honest one and it is vendored.
+- [ ] The contradictory command is reproduced VERBATIM using `review.sh`'s own extraction
+      logic (not paraphrased), for a real task whose Recommendation is NO-GO, and the
+      reproduction is recorded in the task body.
+- [ ] Corpus measured: how many inception tasks carry a Recommendation that is NOT `go` —
+      i.e. how many would receive a self-contradictory command. Figure recorded, including
+      the case where no Recommendation line exists at all.
+- [ ] Amendment filed at `framework:pickup`, verified by read-back byte-identical (T-2876),
+      explicitly citing the original T-2958 filing at offset 208 so upstream links them
+      rather than treating this as a duplicate report.
+- [ ] The amendment separates what is CERTAIN (the hardcoded verb at `review.sh:380`,
+      verifiable by reading one line) from what is CIRCUMSTANTIAL (whether it caused the
+      22-of-23 GO skew), so upstream is not handed an overclaim.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -219,6 +129,34 @@ cost_estimate_proposed:
 # capture and grep (T-2090) — the middle stage is what `grep -q` slams its stdin
 # on, and grep scans the whole captured string anyway, so the `tail -3` was
 # cosmetic. `echo "$out" | grep -q PAT`, nothing between.
+#
+# ── Asserting an ABSENCE: prove the search could have succeeded (T-3144) ──
+#
+# `! grep -q "PATTERN" file` exits 0 when the pattern is absent. It ALSO exits 0
+# when the file was renamed, deleted, or is empty — so the leg cannot distinguish
+# "the bad thing is not there" from "I could not look", and the gate reports green
+# over a check that never ran. Pair every absence assertion with something that
+# fails if the search could not happen:
+#
+#     test -f path/to/file && ! grep -q "PATTERN" path/to/file    # existence first
+#     grep -q "KNOWN_MARKER" f && ! grep -q "PATTERN" f           # positive companion
+#     cmd > /tmp/.out 2>&1 && ! grep -q "PATTERN" /tmp/.out       # &&-joined producer
+#
+# Count-equals-zero is the same defect wearing a different hat, and it is the one
+# that bites hardest over a COMMAND's output rather than a file:
+#
+#     [ "$(cargo clippy --workspace 2>&1 | grep -c "^error")" = "0" ]   # WRONG
+#
+# If cargo is missing, or dies before emitting diagnostics, there are no `^error`
+# lines, the count is 0, and the leg passes — a build gate that goes green
+# precisely when the build could not run. Measured in this corpus, not invented.
+# Keep the producer's exit code in the verdict:
+#
+#     cargo clippy --workspace > /tmp/.out 2>&1 && ! grep -q "^error" /tmp/.out
+#
+# T-3144 censused 2853 task files: 71 absence assertions, 41 already correct, 30
+# not. The convention mostly works — this note is here so the next one is written
+# right, because a vacuous leg is invisible until the day the path moves.
 #
 # TEST RUNNERS need a guard either way (T-2738). `set -e` is suppressed inside the
 # `if` condition the gate runs each line in, so in `cmd1; cmd2` only cmd2 is the
@@ -335,13 +273,7 @@ cost_estimate_proposed:
 
 ## Updates
 
-### 2026-09-11T19:54:29Z — task-created [task-create-agent]
+### 2026-09-28T10:48:27Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2958-fw-task-review-hardcodes-go-in-the-decis.md
+- **Output:** /opt/termlink/.tasks/active/T-3191-amend-t-2958-upstream-fw-task-review-emi.md
 - **Context:** Initial task creation
-
-### 2026-09-11T19:55:43Z — status-update [task-update-agent]
-- **Change:** tags: +arc:arc-008
-
-### 2026-09-27T09:19:36Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
