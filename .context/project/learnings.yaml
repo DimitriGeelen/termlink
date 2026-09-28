@@ -4531,3 +4531,9 @@ learnings:
   task: T-3132
   date: 2026-09-27
   context: Added via context agent
+- id: PL-390
+  learning: "A revisit_at deferral is only as good as its revisit_evidence_needed trigger being RESOLVABLE. Measured 2026-09-28 across 9 ripe deferrals: 2 name work that was never created (T-2250 waits on slice 'R7', never minted as any task; T-2022 waits on spike 'T-2022a', never created) and 4 carry a date with no criterion at all. That is 6 of 9 that cannot fire for a reason — the reminder arrives on schedule and is unanswerable. Nothing validates, at DEFER time or after, that the named trigger resolves to a task, a slice, or a measurable condition."
+  source: P-001
+  task: T-3193
+  date: 2026-09-28
+  context: Added via context agent
