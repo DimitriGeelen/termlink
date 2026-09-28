@@ -14,7 +14,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-09-28T15:44:52Z
-last_update: 2026-09-28T15:45:49Z
+last_update: 2026-09-28T16:51:54Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -43,7 +43,45 @@ bvp_scores_proposed:
 
 ## Problem Statement
 
-<!-- What problem are we exploring? For whom? Why now? -->
+**DISSOLVED 2026-09-28 — the premise was false.** See Findings.
+
+This task was opened to explore "how should a durable mailbox reach a session
+prompt". That rail already exists, is built to the operator's own ten-step spec
+(arc-011), and was proven live on 2026-09-22. Nine of ten slices are built.
+
+## Findings — the real cause, and it is a bug not a design question
+
+`scripts/journal-mirror.sh:115` enumerates topics with `--prefix "dm:"`. The file
+contains **zero** references to `inbox:`. The mirror is the sole ingest point for
+the journal the injector reads, so anything not on a `dm:*` topic is invisible to
+the entire rail.
+
+AEF migrated their consults to `inbox:cacc73ea32b121dd/010-termlink` on 2026-09-22
+(their T-3433). Since that moment the built, proven, cron-scheduled rail has been
+structurally blind to every message they sent — 49 of them.
+
+**And the migration notice was itself sent to the new address.** Offset 7 is AEF
+stating "Our consults now post to inbox:.../010-termlink" — delivered correctly to
+the one place nothing was watching. A change-of-address card posted to the new
+address.
+
+One cause explains all three symptoms observed today: 49 unread consults, their
+T-3434 ladder climbing to rung 4, and their H4/H5 never going green.
+
+**Remediation is a build task, not an exploration:** extend the mirror's
+enumeration to cover `inbox:*` alongside `dm:*`. Care is needed in WHICH inbox
+topics — 22 exist and 95 of 232 records belong to AEF's ephemeral test identities,
+so a blanket prefix swap would ingest fixture noise.
+
+## Process note — why this task existed at all
+
+I opened an inception over ground the operator had already designed and ruled on,
+and presented IW-1 as an open sovereign question when SQ-4 had settled it and S9
+had built to it. The arc file states this plainly; I read it only after the
+operator asked "did we not design this in the sidecar?". Same failure as the
+T-3130 miss recorded earlier in this session: starting work without reading the
+record that already contains the answer. The cost here was one turn and no damage,
+because the operator caught it.
 
 ## Assumptions
 
@@ -68,18 +106,25 @@ bvp_scores_proposed:
 -->
 
 - **IW-1: Should an inbound peer message interrupt a working session?**
-  confidence: 0
-  disposition:
-  rationale:
+  confidence: 3
+  disposition: dissolved
+  rationale: Already ruled by the operator as SQ-4 and BUILT. arc-011 S7 (T-3069)
+    checks the prompt is free before injecting; S9 (T-3072) inverted its own slice
+    title — "urgent shortens the WAIT, never the CHECK" — with fixture U2 guarding
+    "URGENT INJECTED INTO A BUSY PROMPT". The question was never open; I failed to
+    read the arc before asking it.
   Option C (wake on `inbox.queued`) requires yes. That is a claim about who
   controls a session's attention, not an engineering detail, and it is the
   operator's to make. Options A and B deliberately do not interrupt — they make
   the backlog visible and leave the timing to a human.
 
 - **IW-2: Do we ack on READ, or on ACTION?**
-  confidence: 1
-  disposition:
-  rationale:
+  confidence: 3
+  disposition: dissolved
+  rationale: Already designed. arc-011 uses a three-rung receipt ladder — sent /
+    delivered / read (S5, S6 T-3070) — so "read" is a distinct durable event from
+    delivery, and notify-ledger.sh refuses to advance a rung without a receipt read
+    back. The false dichotomy was mine.
   AEF's T-3434 ladder stops on ack. If we ack when a message is merely
   SURFACED, their retries stop while the work is still undone — converting a
   loud, correct escalation into silence, which is the failure this whole task
@@ -88,9 +133,13 @@ bvp_scores_proposed:
   trade is clear but the right answer depends on IW-1.
 
 - **IW-3: Does a consumer generalise beyond AEF?**
-  confidence: 1
-  disposition:
-  rationale:
+  confidence: 2
+  disposition: answered
+  rationale: Yes by construction — the rail is topic-prefix driven, not
+    peer-specific. journal-mirror.sh enumerates a PREFIX, so generalisation is a
+    matter of which prefixes it watches. That reframes the whole task: see
+    Findings. Residual care is which inbox: topics to include, since 95 of 232
+    records are AEF's ephemeral test identities.
   Measured: 22 `inbox:*` topics exist across 5 real peer roots
   (832-Workflow-designer 54, 010-termlink 49, 1409-sprind 27, AEF 6,
   framework-agent 1). A consumer built around AEF's sidecar.consult convention
@@ -99,9 +148,12 @@ bvp_scores_proposed:
   been checked.
 
 - **IW-4: What is the real inbound rate?**
-  confidence: 0
-  disposition:
-  rationale:
+  confidence: 3
+  disposition: dissolved
+  rationale: Only mattered as input to IW-1 (interrupt cost). IW-1 is dissolved —
+    the injector never interrupts a busy prompt regardless of rate — so the
+    measurement no longer gates anything. Rate remains mildly interesting for
+    queue sizing; not worth a spike.
   Interrupt cost is a function of volume and NOBODY HAS MEASURED IT. 232 records
   accumulated over an unknown window. Without a rate, option C's cost is a guess
   and IW-1 cannot be answered honestly. This is the cheapest thing exploration
@@ -167,11 +219,34 @@ bvp_scores_proposed:
 
 ## Recommendation
 
-**Recommendation:** GO
+**Recommendation:** NO-GO — dissolve. The question was already answered and built.
 
 **Rationale:**
 
-Advisory opening position, not a decision. Measured this session: nothing consumes inbox:cacc73ea32b121dd/010-termlink, so 49 AEF consults sat unread while their T-3434 retry ladder climbed to rung 4 of 10 attempts; one was a bug report against our own agent search verb, unread 3+ weeks. Delivery is proven (AEF measured a 73h05m round trip and their own harness called FAIL at 1800s); consumption is the gap. The same blindness nearly caused data loss: inbox status labelled those records pending transfers and inbox clear resolves to channel.trim, so a routine drain would have deleted 232 live messages. This is arc-011 declared subject. GO to EXPLORE the design - cron surfacing into handover vs a canary vs waking on inbox.queued vs a skill-layer verb - because the options differ in sovereignty and cost and picking one is a human call.
+REVISED 2026-09-28, before any spike ran. The opening recommendation (GO to explore
+four design options) rested on a false premise: that no consumer existed. One does.
+arc-011 is the operator's own ten-step sidecar spec and NINE of its ten slices are
+built, with S10 proven live on 2026-09-22 against a receiver's own transcript. IW-1
+— "may an inbound message interrupt a working session?" — was ruled by the operator
+as SQ-4 and built into S7/S9: the injector checks the prompt is free, and urgent
+shortens the WAIT, never the CHECK.
+
+What actually broke is a one-line-class defect, not a design gap.
+`scripts/journal-mirror.sh:115` enumerates topics with `--prefix "dm:"` and contains
+zero references to `inbox:`. The mirror is the sole ingest point for the journal the
+injector reads. AEF moved their consults to `inbox:cacc73ea32b121dd/010-termlink` on
+2026-09-22, so the rail has been blind to them ever since — including the message
+that announced the move, which was itself sent to the new address.
+
+Dissolve this inception and carry the remediation as a build task against the mirror.
+Exploring four alternatives to a rail that already works would have been the most
+expensive possible response to a topic-prefix bug.
+
+**Operator command to record the dissolution** (agents cannot run `inception decide`
+— Tier-0, and T-2958 confirmed the verb refuses an agent outright):
+
+    cd /opt/termlink && .agentic-framework/bin/fw inception decide T-3200 no-go \
+      --rationale "Dissolved: the consumer exists (arc-011, 9/10 slices built, S10 proven live). IW-1 was already SQ-4. Real cause is journal-mirror.sh watching dm: only; carried as a build task."
 
 **Evidence:**
 

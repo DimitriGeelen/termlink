@@ -18,6 +18,13 @@ set -uo pipefail
 TERMLINK="${TERMLINK_BIN:-termlink}"
 
 JOURNAL="${TERMLINK_JOURNAL_PATH:-$HOME/.termlink/journals/journal.sqlite}"
+
+# T-3201: which project's inbox: topics are OURS to mirror. A CONSTANT with an
+# env override, never derived from the checkout path — a path-derived slug is
+# wrong inside a git worktree (T-2815), which is why FW_PICKUP_SELF_PROJECT
+# (T-2816) took the same shape.
+SELF_PROJECT="${FW_SIDECAR_SELF_PROJECT:-010-termlink}"
+
 HUB=""
 ONE_TOPIC=""
 SINCE_OFFSET=0
@@ -112,8 +119,36 @@ if [ -n "$ONE_TOPIC" ]; then
 else
     # `channel list --json` is {"topics":[{"name":...}]} (object); tolerate a bare
     # array too — (.topics // .) handles both (the V3a probe-bug lesson).
-    topics="$("$TERMLINK" channel list "${hub_args[@]+"${hub_args[@]}"}" --prefix "dm:" --json 2>/dev/null \
+    _dm_topics="$("$TERMLINK" channel list "${hub_args[@]+"${hub_args[@]}"}" --prefix "dm:" --json 2>/dev/null \
         | jq -r '(.topics // .)[]?.name // empty' 2>/dev/null)"
+
+    # T-3201: also mirror `inbox:` topics ADDRESSED TO THIS PROJECT.
+    #
+    # This mirror is the SOLE ingest point for the journal the injector reads, so
+    # a topic not enumerated here is invisible to the whole arc-011 rail — built,
+    # proven live (S10, 2026-09-22), and running on cron. Until now it enumerated
+    # `dm:` only. AEF moved their consults to `inbox:<circuit>/010-termlink` on
+    # 2026-09-22 (their T-3433), so from that moment the rail was structurally
+    # blind to every message they sent: 49 of them, while their T-3434 retry
+    # ladder climbed to rung 4. The message ANNOUNCING the move was itself sent to
+    # the new address, so the change-of-address card landed where nothing watched.
+    # Measured before this change: 0 rows on `inbox:%`, 2255 on `dm:%`.
+    #
+    # Scoped to OUR OWN mailbox deliberately, not a blanket `inbox:` prefix.
+    # 22 inbox topics exist on this hub and 95 of their 232 records belong to
+    # AEF's ephemeral e2e/t3433/t3434 identities — addressed to AEF's sessions,
+    # not ours. Mirroring those is not noise-filtering, it is reading another
+    # project's post and then injecting it into our prompt.
+    #
+    # Self-identity is a CONSTANT with an env override, never
+    # `basename "$PROJECT_ROOT"` — same rule as FW_PICKUP_SELF_PROJECT (T-2816),
+    # because a path-derived slug is wrong inside a git worktree (T-2815).
+    _inbox_topics="$("$TERMLINK" channel list "${hub_args[@]+"${hub_args[@]}"}" --prefix "inbox:" --json 2>/dev/null \
+        | jq -r --arg self "$SELF_PROJECT" \
+            '(.topics // .)[]?.name // empty
+             | select(endswith("/" + $self) or contains("/" + $self + "/"))' 2>/dev/null)"
+
+    topics="$(printf '%s\n%s\n' "$_dm_topics" "$_inbox_topics" | sed '/^$/d')"
 fi
 
 # Python inserter: reads NDJSON envelopes on stdin, INSERT OR IGNORE per row,
@@ -205,6 +240,9 @@ if [ "$FORMAT" = json ]; then
     printf '{"ok":true,"journal":"%s","topics_scanned":%s,"rows_inserted":%s}\n' \
         "$JOURNAL" "$total_topics" "$total_new"
 else
-    echo "journal-mirror: ${total_topics} dm topic(s) scanned, ${total_new} new row(s) → $JOURNAL"
+    # T-3201: "dm topic(s)" was accurate until inbox: topics joined the scan. A
+    # count that names the wrong unit is the same class as the defect this task
+    # sits next to (T-3197, `inbox status` calling records "pending transfers").
+    echo "journal-mirror: ${total_topics} topic(s) scanned (dm: + inbox:<self>), ${total_new} new row(s) → $JOURNAL"
 fi
 exit 0
