@@ -86,34 +86,34 @@ cost_estimate_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] AC1 — The auto-confirm receipt is signed by the key whose fingerprint EQUALS the
+- [x] AC1 — The auto-confirm receipt is signed by the key whose fingerprint EQUALS the
       `--self-fp` the sidecar is acking for, so `derive_dm_recipient` + `channel.receipts`
       find it. Relabelling via `--sender-id` alone cannot work and must not be attempted:
       hub `channel.rs:777` (T-1427) rejects a claimed sender_id that does not match the
       fingerprint derived from the signing pubkey. The signing KEY has to change, not the
       label — and that the hub refuses the shortcut is correct, not an obstacle.
-- [ ] AC2 — The mechanism is the documented precedence
+- [x] AC2 — The mechanism is the documented precedence
       (`TERMLINK_IDENTITY_FILE > TERMLINK_AGENT_ID > TERMLINK_IDENTITY_DIR > host default`),
       scoped to the receipt post ONLY. The sidecar must keep exporting
       `TERMLINK_AGENT_ID` for everything else — that export is T-2292 per-agent identity
       and is not a bug.
-- [ ] AC3 — FAIL LOUD when no local key matches `--self-fp`. Today the receipt posts
+- [x] AC3 — FAIL LOUD when no local key matches `--self-fp`. Today the receipt posts
       successfully and satisfies nobody, which is indistinguishable from working. A
       receipt that cannot be found by the sender is worse than no receipt, because the
       offset guard then records the topic as acked. Refuse and say so on stderr instead.
-- [ ] AC4 — The offset guard must not suppress the corrective re-ack. Guards currently
+- [x] AC4 — The offset guard must not suppress the corrective re-ack. Guards currently
       record offset 49 on `inbox:cacc73ea32b121dd/010-termlink` from receipts posted under
       the WRONG identity, so after the fix the sidecar would skip re-acking and every
       already-"acked" topic stays unconfirmed forever. Invalidate the affected guards as
       part of this, or key them on identity so a signing-identity change re-arms them.
-- [ ] AC5 — Fixture asserting `receipt.sender_id == self_fp` (the task's own stated
+- [x] AC5 — Fixture asserting `receipt.sender_id == self_fp` (the task's own stated
       deliverable), `# guard-layer: source`, run against the real script via the
       `TERMLINK_BIN` stub seam, proven load-bearing by a mutant that restores the
       per-agent signing and must redden it.
-- [ ] AC6 — Re-run `scripts/notify-rail-e2e.sh --stages receipt` and record the result.
+- [x] AC6 — Re-run `scripts/notify-rail-e2e.sh --stages receipt` and record the result.
       Note its scope limit (T-3203 F1): it drives a `dm:` topic only, so it is a
       regression check on the dm path and NOT evidence about the inbox path.
-- [ ] AC7 — Live evidence on the real topic: after the fix, a receipt whose `sender_id`
+- [x] AC7 — Live evidence on the real topic: after the fix, a receipt whose `sender_id`
       is the dm-party fp appears on `inbox:cacc73ea32b121dd/010-termlink`. Measured by
       read-back, not inferred from the post's exit code (T-2876).
 
@@ -149,6 +149,44 @@ cost_estimate_proposed:
        added to ## Verification. NEVER `... 2>&1 | grep -q ...` — that is the shape the
        Pipefail/SIGPIPE section below forbids, and this line used to prescribe it.
 -->
+
+## Findings
+
+**F1 — fixed and proven live on the real topic.** Receipts on
+`inbox:cacc73ea32b121dd/010-termlink`, grouped by sender, after the redeploy:
+
+    3bba15e681b3a078  n=1  up_to=49   framework-agent-systemd (was always correct)
+    6738c073bbcc587a  n=1  up_to=49   the OLD wrong-key receipt, harmless history
+    d1993c2c3ec44c94  n=1  up_to=49   <- NEW: the dm party. This is the fix.
+
+Exactly one receipt from the corrected identity, not a storm — the identity-keyed
+guard re-armed the topic once and then held.
+
+**F2 — the downstream effect is the one that mattered.** `channel unread --sender
+d1993c2c3ec44c94` on that topic went **50 -> 0**, and all three agents' flags now read
+`pending=0` (claude-termlink was 95). Before this, unread could never reach 0, so
+`write_cycle` re-stamped `last_mail_ts` every cycle and the arrival flag was permanently
+raised — a signal that is always on carries no information. It carries information again.
+
+**F3 — T-3206's precondition is now satisfied.** That task closed as "blocked on T-3065",
+and the conf note it left says: fix T-3065, confirm pending can reach 0, THEN add the
+consumer line. Both conditions now hold. Adding a wake consumer for claude-termlink is
+newly possible — deliberately NOT done here, because it is a separate change with its own
+verification and this task's scope was the signing identity.
+
+**F4 — claude-termlink-alt has not exercised the refusal path yet, and that is expected.**
+Its declared self-fp is `6738c073bbcc587a`, which is the same fingerprint claude-termlink's
+per-agent key resolves to — so the old wrong-key receipt happens to satisfy alt's cursor,
+alt has nothing unread, and auto-confirm never runs for it. The refusal will fire the
+first time alt has genuine unread mail. Its misconfiguration (declared fp matches no key
+it can sign as) is real and still stands; it is now loud-on-use rather than silently
+mis-signing. Fixture case 3 covers the path directly.
+
+**F5 — answering "do we need to resend?".** The correction message to AEF does NOT need
+resending: it was a plain `channel post`, verified byte-identical by read-back at inbox
+offset 10 / sidecar offset 22, and is readable by them regardless of receipts. What
+needed re-sending was the RECEIPTS, and the identity-keyed guard did that automatically
+on redeploy rather than requiring manual guard deletion.
 
 ## Verification
 
