@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3195: Enrich handover S-2026-0928-1352: fill the five [TODO] sections, especially Gotchas
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-28T13:04:11Z
+# ============================================================================
+
+task_id: T-3195
+task_name: "Enrich handover S-2026-0928-1352: fill the five [TODO] sections, especially Gotchas"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-28T13:01:28Z
+completed: 2026-09-28T13:04:03Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-09-28T15:03:59+02:00
+last_commit: 2026-09-28T15:03:59+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  enrich handover S-2026-0928-1352 — four [TODO] sections filled, stale suggestion contradicted in place
+
+# Key outcomes
+outcomes:
+  - 'All four `[TODO]` placeholders in the handover body are replaced with content'
+  - '`enrichment_status:` is flipped `pending` → `enriched`, the T-2882 convention.'
+  - 'The dated `S-*.md` file is edited, NOT `LATEST.md`. LATEST.md is a symlink;'
+  - 'Gotchas are written as traps with their remediation, not as a list of gap IDs.'
+  - 'The stale "Suggested First Action" is contradicted in the body rather than'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/episodic/T-3194.yaml'
+  - '.context/handovers/S-2026-0928-1352.md'
+  - '.tasks/active/T-3195-enrich-handover-s-2026-0928-1352-fill-th.md'
+  - '.tasks/completed/T-3194-verify-t-3191s-upstream-amendment-landed.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-28T15:03:59'
+    action: 'T-3195: enrich handover S-2026-0928-1352 — four [TODO] sections filled, stale suggestion contradicted in place'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 4
+  lines_added: 528
+  lines_removed: 10
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3195-enrich-handover-s-2026-0928-1352-fill-th.md
+generated_by: context-agent-hybrid
