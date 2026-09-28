@@ -1,0 +1,93 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3065: notify-sidecar auto-confirm signs receipts with the per-agent key, not the dm-party fp — --await-ack senders never see them
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-28T22:03:20Z
+# ============================================================================
+
+task_id: T-3065
+task_name: "notify-sidecar auto-confirm signs receipts with the per-agent key, not the dm-party fp — --await-ack senders never see them"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-22T09:03:18Z
+completed: 2026-09-28T22:03:10Z
+duration_days: 6
+updates_count: 2
+first_commit: 2026-09-28T23:58:10+02:00
+last_commit: 2026-09-29T00:03:09+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  sign the auto-confirm receipt as the DM PARTY, not the per-agent key. proven live — receipt now signed by the dm party, unread clears 50 to 0. add RCA — the receipt was valid and filed under a name nobody looks up. add Evolution — the specified fix was one the hub refuses, and the guard would have made the real fix inert
+
+# Key outcomes
+outcomes:
+  - 'AC1 — The auto-confirm receipt is signed by the key whose fingerprint EQUALS the'
+  - 'AC2 — The mechanism is the documented precedence'
+  - 'AC3 — FAIL LOUD when no local key matches `--self-fp`. Today the receipt posts'
+  - 'AC4 — The offset guard must not suppress the corrective re-ack. Guards currently'
+  - 'AC5 — Fixture asserting `receipt.sender_id == self_fp` (the task''s own stated'
+  - 'AC6 — Re-run `scripts/notify-rail-e2e.sh --stages receipt` and record the result.'
+  - 'AC7 — Live evidence on the real topic: after the fix, a receipt whose `sender_id`'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'add Evolution — the specified fix was one the hub refuses, and the guard would have made the real fix inert'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/working/.budget-status'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/session.yaml'
+  - 'scripts/notify-sidecar.sh'
+  - '.tasks/active/T-3065-notify-sidecar-auto-confirm-signs-receip.md'
+  - 'tests/notify-sidecar-receipt-identity-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-28T23:58:10'
+    action: 'T-3065: sign the auto-confirm receipt as the DM PARTY, not the per-agent key'
+  - time: '2026-09-29T00:02:26'
+    action: 'T-3065: proven live — receipt now signed by the dm party, unread clears 50 to 0'
+  - time: '2026-09-29T00:02:49'
+    action: 'T-3065: add RCA — the receipt was valid and filed under a name nobody looks up'
+  - time: '2026-09-29T00:03:09'
+    action: 'T-3065: add Evolution — the specified fix was one the hub refuses, and the guard would have made the real fix inert'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 9419 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [bug, arc:reliable-comms, sidecar]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 9419
+  commits: 4
+  files_changed: 7
+  lines_added: 445
+  lines_removed: 70
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3065-notify-sidecar-auto-confirm-signs-receip.md
+generated_by: context-agent-hybrid

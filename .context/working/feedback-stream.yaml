@@ -13598,3 +13598,21 @@ scan_id: R-d8e4afad
 task_id: T-3206
 payload:
   task_file: .tasks/active/T-3206-claude-termlink-holds-the-inbox-mail-but.md
+---
+kind: scan_emitted
+timestamp: '2026-09-28T22:03:12Z'
+scan_id: R-9784ac22
+task_id: T-3065
+payload:
+  overall: CONCERN
+  finding_count: 2
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-28T22:03:12Z'
+scan_id: R-9784ac22
+task_id: T-3065
+payload:
+  task_file: .tasks/active/T-3065-notify-sidecar-auto-confirm-signs-receip.md
