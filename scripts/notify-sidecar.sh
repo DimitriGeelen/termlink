@@ -22,7 +22,8 @@
 # mirroring the offline-queue path discipline (~/.termlink/...).
 #
 # Homes (all shipped): the local flag dir (this script), agent-presence
-# (liveness), and the dm:<self>:<peer> topics (the mail being detected).
+# (liveness), and the mail being detected: the dm:<self>:<peer> topics plus the
+# inbox:<circuit>/<self-project> mailbox (T-3203).
 #
 # Lifecycle mirrors listener-heartbeat.sh: loop posting every --interval seconds
 # until SIGINT/SIGTERM; --once for a single probe-and-write cycle.
@@ -35,6 +36,14 @@ set -u
 
 TERMLINK="${TERMLINK_BIN:-termlink}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# T-3203: which project's `inbox:` mailbox is OURS. A declared constant with an env
+# override, deliberately NOT `basename "$PROJECT_ROOT"` — a path-derived slug is wrong
+# inside a git worktree (T-2815), which is why FW_PICKUP_SELF_PROJECT is a constant too
+# (T-2816). journal-mirror.sh reads the SAME variable: the ingest half and the detect
+# half of the rail must never disagree about who we are, or one will mirror mail the
+# other refuses to notice.
+SELF_PROJECT="${FW_SIDECAR_SELF_PROJECT:-010-termlink}"
 
 die_usage() {
     echo "notify-sidecar: $*" >&2
@@ -54,10 +63,16 @@ points (notify-check.sh) without preemptive PTY injection.
 Required:
   --agent-id NAME      Logical agent name (e.g. "claude-code-A"). Also pins the
                        per-agent crypto identity (TERMLINK_AGENT_ID, T-2292) so
-                       mail detection scopes to THIS agent's dm: topics.
+                       mail detection scopes to THIS agent's dm: topics. The
+                       inbox: half is scoped by PROJECT, not by agent — see
+                       FW_SIDECAR_SELF_PROJECT below.
 
 Optional:
   --self-fp FP         Identity fingerprint used to find dm:<self>:* topics.
+                       Does NOT select inbox: topics — those are addressed
+                       inbox:<circuit>/<project>, so they are matched by project
+                       name via FW_SIDECAR_SELF_PROJECT (default 010-termlink),
+                       the same constant journal-mirror.sh reads.
                        Default: resolved via `termlink whoami --json`, then the
                        be-reachable.state file. Pass explicitly if neither
                        resolves (e.g. headless sidecar with no live session).
@@ -226,8 +241,34 @@ probe_mail() {
         # a bare array shape too: (.topics // .) handles both. A naive `.[]?.name`
         # errors on the object form and silently yields zero topics (the V3a probe bug
         # found in the AC1 live proof).
-        topics="$("$TERMLINK" channel list "${hub_args[@]}" --prefix "dm:" --json 2>/dev/null \
+        local _dm_topics _inbox_topics
+        _dm_topics="$("$TERMLINK" channel list "${hub_args[@]}" --prefix "dm:" --json 2>/dev/null \
             | jq -r --arg fp "$fp" '(.topics // .)[]?.name // empty | select(contains($fp))' 2>/dev/null)"
+
+        # T-3203: ALSO probe `inbox:` topics addressed to THIS project.
+        #
+        # This function writes last_mail_ts (see write_cycle), and notify-injector keys
+        # on that flag advancing — not on the journal. So a topic missing from THIS
+        # enumeration cannot wake the session no matter how well it is mirrored.
+        # T-3201 fixed the mirror's identical dm:-only blindness and the journal went
+        # 0 -> 50 rows; the rail still did not deliver, because the arrival flag is
+        # written here. That fix was necessary and not sufficient — this is the rest.
+        #
+        # The two selectors are keyed DIFFERENTLY and that is not an inconsistency to
+        # tidy up later: `dm:<fp_a>:<fp_b>` is addressed by identity FINGERPRINT, while
+        # `inbox:<circuit>/<project>` is addressed by PROJECT NAME. Reusing the fp
+        # predicate here would match nothing and would look exactly like a working fix.
+        #
+        # Scoped to our OWN mailbox, never a blanket `inbox:` prefix: 1 of the 23 inbox
+        # topics on this hub is ours, and 95 of 232 records belong to AEF's ephemeral
+        # e2e identities. Probing those would auto-confirm and journal another project's
+        # mail and then inject it into our prompt — not noise, someone else's post.
+        _inbox_topics="$("$TERMLINK" channel list "${hub_args[@]}" --prefix "inbox:" --json 2>/dev/null \
+            | jq -r --arg self "$SELF_PROJECT" \
+                '(.topics // .)[]?.name // empty
+                 | select(endswith("/" + $self) or contains("/" + $self + "/"))' 2>/dev/null)"
+
+        topics="$(printf '%s\n%s\n' "$_dm_topics" "$_inbox_topics" | sed '/^$/d')"
     fi
 
     local t n
