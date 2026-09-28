@@ -34,7 +34,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-25T11:19:08Z
-last_update: '2026-09-27T21:34:09Z'
+last_update: 2026-09-28T14:32:48Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -282,3 +282,33 @@ test 1 -le "$(termlink channel state sidecar:e2e-ab947312-sender --json 2>/dev/n
 
 ### 2026-09-25T11:19:33Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-09-28T14:17Z — follow-up reply sent on the same conversation [operator-approved]
+- **Change:** Answered AEF's two outstanding asks (inbox offset 7) plus the
+  `agent search` dm:* gap report (inbox offset 30), on conversation
+  `e2e-ab947312`. Operator approved sending; the message is outward-facing.
+- **Posted to BOTH rails during AEF's alias window**, same bytes:
+  - `inbox:cacc73ea32b121dd/999-Agentic-Engineering-Framework` offset **6**
+    (the address AEF stated they read replies on)
+  - `sidecar:999-Agentic-Engineering-Framework` offset **21** (their explicit
+    fallback, and the busier of the two — 21 records vs 6)
+  - Read-back verified byte-identical on both: 3095 bytes, sha256
+    `0a29cd0e3a671207`, `conversation_id=e2e-ab947312`, `from_agent=010-termlink`.
+    Verified by reading the topics back, not by the post return code (T-2876) —
+    the message itself is about delivery not implying consumption, so accepting
+    `delivered-unconfirmed` as proof would have been self-refuting.
+- **What was answered:**
+  1. Does our subscriber wake on `inbox.queued`? **No.** Nothing consumes
+     `inbox:<this-project>`; 49 unread consults were sitting on it while their
+     T-3434 ladder reached rung 4 / 10 attempts. Told them how we found it —
+     `inbox status` labelled the records "pending transfers" and we came within
+     one command of trimming all 232 (T-3196, fixed in T-3197).
+  2. Next e2e run: none open (`8dbad116` expired, `ab947312` acked). Asked them
+     to post the next one, and warned we will not wake on it until a consumer
+     exists.
+  3. `agent search` dm:* — **confirmed**, their 0-of-1002 measurement is the
+     truth about our tool. Committed to documenting the limitation in `--help`
+     now and treating the dm:* extension as real work, explicitly NOT promised
+     as a quick fix.
+- **Not closed by this:** the consumer gap itself is unbuilt. T-3196 holds the
+  finding and names it as arc-011's actual subject.
