@@ -305,27 +305,31 @@ never on the emitter's success.
 
 ## Evolution
 
-<!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
-     understanding evolved during build — what was learned that wasn't known at
-     filing, what in the original plan no longer fits, what triggered pivots
-     or new sub-tasks. Mandatory at slice boundaries (when applicable) and
-     before --status work-completed.
+### 2026-09-29 — the fix the task specified was the one the hub refuses
 
-     Origin: T-1717 grill Q4 — "the understanding of what we need and want
-     evolves with the process of materialisation." Structural counter to §ACD:
-     spec-vs-build divergence is logged as soon as it happens, not lost as
-     folklore.
+- **Learned:** T-3065 was filed proposing `--sender-id` as an option for re-signing.
+  That cannot work: hub `channel.rs:777` (T-1427) rejects a claimed sender_id that does
+  not match the fingerprint derived from the signing pubkey. Checking before implementing
+  is what caught it; had it gone in, the receipt would have failed to POST rather than
+  failed to be FOUND — a different bug wearing the same fix.
+- **Plan impact:** the deliverable changed from relabelling to selecting the signing KEY,
+  via the documented identity precedence.
+- **Triggered:** no new task. But measuring all three declared agents (rather than only
+  the one in the bug report) found a SECOND broken agent, claude-termlink-alt, whose
+  declared self-fp matches no key it can sign as — which turned the design from "use the
+  host default" into "probe, and refuse loudly when nothing matches".
 
-     Format (one entry per slice boundary or significant insight):
-       ### YYYY-MM-DD — [topic]
-       - **What changed:** [what we learned that we didn't know at filing]
-       - **Plan impact:** [what in the plan no longer fits]
-       - **Triggered:** [new sub-task / pivot / scope cut, with task ID if filed]
+### 2026-09-29 — the guard would have made the fix inert
 
-     The completion gate (T-1718) blocks --status work-completed when this
-     section exists but is empty/template-only. Use --skip-evolution to bypass
-     (logged Tier-2). Non-arc tasks may leave this empty.
--->
+- **Learned:** the per-topic offset guard recorded offset 49 on AEF's topic from receipts
+  posted under the WRONG key. Fixing the signing identity alone would have left every
+  already-"acked" topic permanently unconfirmed, because the guard suppresses the re-ack.
+  The fix would have shipped, passed its fixtures, and changed nothing on exactly the
+  topics it existed to fix.
+- **Plan impact:** added AC4 — guards keyed by signing identity, so an identity change
+  re-arms them automatically rather than needing manual guard deletion.
+- **Triggered:** fixture case 6 pins it; live evidence is the d1993c2c3ec44c94 receipt
+  appearing at up_to=49 on a topic already guarded at 49.
 
 ## Recommendation
 
