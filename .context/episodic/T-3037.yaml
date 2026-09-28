@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3037: File upstream: rail_project_label() guesses an identity instead of refusing (G-062)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-28T23:39:41Z
+# ============================================================================
+
+task_id: T-3037
+task_name: "File upstream: rail_project_label() guesses an identity instead of refusing (G-062)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-21T10:48:39Z
+completed: 2026-09-28T23:39:32Z
+duration_days: 7
+updates_count: 4
+first_commit: 2026-09-29T01:38:27+02:00
+last_commit: 2026-09-29T01:38:27+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Updates trail — started and returned to captured by R2 attempt 1 (yield), no work under the start
+
+# Key outcomes
+outcomes:
+  - 'Filing posted to `framework:pickup` with `metadata.from_project=010-termlink` (so the T-2816 self-filter suppresses it and the ack-vs-safety conflict does not recur); the returned offset is recorded in this file as `FILED-AT: framework:pickup@<N>` — **DONE:** `FILED-AT: framework:pickup offset 228` (post rc 0, `delivered-unconfirmed`, ts 1790638697104; sender host-fp d1993c2c3ec44c94; metadata `from_project=010-termlink`).'
+  - 'Offset read back from the topic and confirmed to carry this filing — `delivered` from `channel post` means queued, not received (T-2876); assert on the reader, never the sender — **DONE:** `channel subscribe --cursor 228 --limit 1 --json` returns the envelope: metadata `{from_project: 010-termlink}`, payload 4624 bytes decoding to `kind: bug-report / task: T-3037`.'
+  - 'Filing names the DEFECT as the guess (not the path), quantifies it with the 11 misattributed filings, and cites PL-373 / `learnings.yaml:4418` — **DONE:** payload keys `the_defect_is_the_guess_not_the_path` + `measured_cost` (11 filings, PL-373, `learnings.yaml` :4418-at-filing / :4432 now).'
+  - 'Filing states the attribution-vs-addressing split and the git-worktree case that makes a path-derived attribution unsafe, so upstream can see why "just use the absolute path" does not close it — **DONE:** payload key `attribution_vs_addressing` (table reduced to prose; worktree case + T-2815 sibling named).'
+  - 'Suggested fix is REFUSE-on-absent (an unknown label filters as unknown), explicitly not a third derived name — **DONE:** payload key `suggested_fix` ("REFUSE on absent, do not derive … explicitly NOT a third derived name").'
+  - 'No local edit to `.agentic-framework/` — `git status --porcelain .agentic-framework/` is empty (G-062) — **DONE:** `git status --porcelain .agentic-framework/` empty at close (Verification line 3).'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3037-file-upstream-railprojectlabel-guesses-a.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-29T01:38:27'
+    action: 'T-3037: Updates trail — started and returned to captured by R2 attempt 1 (yield), no work under the start'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 10850 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-009, upstream, identity]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 10850
+  commits: 1
+  files_changed: 1
+  lines_added: 10
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3037-file-upstream-railprojectlabel-guesses-a.md
+generated_by: context-agent-hybrid

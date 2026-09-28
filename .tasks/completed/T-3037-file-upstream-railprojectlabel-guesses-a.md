@@ -10,10 +10,10 @@ description: >
   else. Vendored under .agentic-framework/ so it is filed upstream, never patched
   locally.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-009, upstream, identity]
 components: []
 related_tasks: []
@@ -28,8 +28,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-21T10:48:39Z
-last_update: 2026-09-28T23:36:43Z
-date_finished:
+last_update: 2026-09-28T23:39:32Z
+date_finished: 2026-09-28T23:39:32Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -143,16 +143,18 @@ starting the task — that silently decides the question.
 **Bug-class note:** the fix suggestion below must be measured against the shipping verb
 before it is accepted on this filing's say-so (PL-367).
 
+FILED-AT: framework:pickup offset 228 (2026-09-28T23:38:17Z, payload tracked at `docs/reports/T-3037-rail-project-label-filing.yaml`)
+
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Filing posted to `framework:pickup` with `metadata.from_project=010-termlink` (so the T-2816 self-filter suppresses it and the ack-vs-safety conflict does not recur); the returned offset is recorded in this file as `FILED-AT: framework:pickup@<N>`
-- [ ] Offset read back from the topic and confirmed to carry this filing — `delivered` from `channel post` means queued, not received (T-2876); assert on the reader, never the sender
-- [ ] Filing names the DEFECT as the guess (not the path), quantifies it with the 11 misattributed filings, and cites PL-373 / `learnings.yaml:4418`
-- [ ] Filing states the attribution-vs-addressing split and the git-worktree case that makes a path-derived attribution unsafe, so upstream can see why "just use the absolute path" does not close it
-- [ ] Suggested fix is REFUSE-on-absent (an unknown label filters as unknown), explicitly not a third derived name
-- [ ] No local edit to `.agentic-framework/` — `git status --porcelain .agentic-framework/` is empty (G-062)
+- [x] Filing posted to `framework:pickup` with `metadata.from_project=010-termlink` (so the T-2816 self-filter suppresses it and the ack-vs-safety conflict does not recur); the returned offset is recorded in this file as `FILED-AT: framework:pickup@<N>` — **DONE:** `FILED-AT: framework:pickup offset 228` (post rc 0, `delivered-unconfirmed`, ts 1790638697104; sender host-fp d1993c2c3ec44c94; metadata `from_project=010-termlink`).
+- [x] Offset read back from the topic and confirmed to carry this filing — `delivered` from `channel post` means queued, not received (T-2876); assert on the reader, never the sender — **DONE:** `channel subscribe --cursor 228 --limit 1 --json` returns the envelope: metadata `{from_project: 010-termlink}`, payload 4624 bytes decoding to `kind: bug-report / task: T-3037`.
+- [x] Filing names the DEFECT as the guess (not the path), quantifies it with the 11 misattributed filings, and cites PL-373 / `learnings.yaml:4418` — **DONE:** payload keys `the_defect_is_the_guess_not_the_path` + `measured_cost` (11 filings, PL-373, `learnings.yaml` :4418-at-filing / :4432 now).
+- [x] Filing states the attribution-vs-addressing split and the git-worktree case that makes a path-derived attribution unsafe, so upstream can see why "just use the absolute path" does not close it — **DONE:** payload key `attribution_vs_addressing` (table reduced to prose; worktree case + T-2815 sibling named).
+- [x] Suggested fix is REFUSE-on-absent (an unknown label filters as unknown), explicitly not a third derived name — **DONE:** payload key `suggested_fix` ("REFUSE on absent, do not derive … explicitly NOT a third derived name").
+- [x] No local edit to `.agentic-framework/` — `git status --porcelain .agentic-framework/` is empty (G-062) — **DONE:** `git status --porcelain .agentic-framework/` empty at close (Verification line 3).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -188,6 +190,11 @@ before it is accepted on this filing's say-so (PL-367).
 -->
 
 ## Verification
+
+grep -q "^FILED-AT: framework:pickup offset 228" .tasks/active/T-3037-file-upstream-railprojectlabel-guesses-a.md
+timeout 20 termlink channel subscribe framework:pickup --cursor 228 --limit 1 --json > /tmp/.t3037-rb 2>&1 && python3 -c "import json,base64; e=json.loads(open('/tmp/.t3037-rb').readline()); assert e['offset']==228 and e['metadata']['from_project']=='010-termlink'; p=base64.b64decode(e['payload_b64']).decode(); assert 'task: T-3037' in p and 'REFUSE on absent' in p and 'worktree' in p and '11 of 010-termlink' in p"
+test -z "$(git status --porcelain .agentic-framework/)"
+python3 -c "import yaml; d=yaml.safe_load(open('docs/reports/T-3037-rail-project-label-filing.yaml')); assert d['from_project']=='010-termlink' and d['task']=='T-3037' and 'NOT a third derived name' in d['suggested_fix'] and 'PL-373' in d['measured_cost']"
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -266,27 +273,18 @@ before it is accepted on this filing's say-so (PL-367).
 
 ## Evolution
 
-<!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
-     understanding evolved during build — what was learned that wasn't known at
-     filing, what in the original plan no longer fits, what triggered pivots
-     or new sub-tasks. Mandatory at slice boundaries (when applicable) and
-     before --status work-completed.
-
-     Origin: T-1717 grill Q4 — "the understanding of what we need and want
-     evolves with the process of materialisation." Structural counter to §ACD:
-     spec-vs-build divergence is logged as soon as it happens, not lost as
-     folklore.
-
-     Format (one entry per slice boundary or significant insight):
-       ### YYYY-MM-DD — [topic]
-       - **What changed:** [what we learned that we didn't know at filing]
-       - **Plan impact:** [what in the plan no longer fits]
-       - **Triggered:** [new sub-task / pivot / scope cut, with task ID if filed]
-
-     The completion gate (T-1718) blocks --status work-completed when this
-     section exists but is empty/template-only. Use --skip-evolution to bypass
-     (logged Tier-2). Non-arc tasks may leave this empty.
--->
+### 2026-09-29 — R2 (T-3211): filed at offset 228 through the gate's own logged path; the park reason was stale
+- **What changed:** The body parked itself on "cannot be scored before started" — that premise no longer
+  held: the blanket estimator pass (T-3189, 2026-09-27) scored it from outside, so `fw work-on` decided no
+  Sovereign question. Second thing learned: `fw rail post` REFUSES a host-signed post (rc 2, this project has
+  no `RAIL_IDENTITY_FILE`); the gate offers three fixes and option 1 (mint a project key) is by its own text
+  "a coordination event, not a config tweak" — so the filing went via option 3, `FW_ALLOW_HOST_SIGNED_RAIL=1`
+  (logged Tier-2 in `.gate-bypass-log.yaml`), the same host-fp every prior 010-termlink filing carries
+  (e.g. offset 218). The `from_project=010-termlink` label the T-2816 self-filter keys on is present.
+- **Plan impact:** none for the ACs. Whether this project should adopt its own rail signing key is raised
+  as a Sovereign question in the T-3211 R2 handback, not decided here.
+- **Triggered:** no new task. Payload kept tracked at `docs/reports/T-3037-rail-project-label-filing.yaml`
+  so a re-vendor or hub retention sweep cannot lose the only copy of what was filed.
 
 ## Recommendation
 
@@ -352,3 +350,19 @@ before it is accepted on this filing's say-so (PL-367).
 ### 2026-09-28T23:36:43Z — status-update [task-update-agent]
 - **Change:** status: started-work → captured
 - **Reason:** R2 attempt-1 worker yields: started 01:34 by attempt 1, returned untouched because the orchestrator had already re-dispatched round 2 (attempt 2, PID 36066) while attempt 1 was alive — no work done under this start; task is scored (57 hv-lc, T-3189 pass) so the 'cannot be scored before started' park reason no longer applies
+
+### 2026-09-28T23:38:39Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-14ff974a
+- **Timestamp:** 2026-09-28T23:39:34Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** none
+
+### 2026-09-28T23:39:32Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

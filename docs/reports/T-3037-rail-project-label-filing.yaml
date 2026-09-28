@@ -1,0 +1,75 @@
+kind: bug-report
+component: lib/rail-identity.sh (rail_project_label, T-2905)
+from_project: 010-termlink
+task: T-3037
+related: [T-2955, T-2905, T-2816, T-2815, PL-373]
+severity: medium
+title: >
+  rail_project_label() GUESSES a project identity when the label is absent
+  (basename ${PROJECT_ROOT:-$PWD}). A guess attributes filings to somebody else;
+  the fallback should REFUSE (emit nothing) so an absent label filters as unknown.
+
+where: >
+  .agentic-framework/lib/rail-identity.sh:189-201 (vendored copy in 010-termlink,
+  function rail_project_label). The defect is the single line at :196:
+      [ -n "$label" ] || label="$(basename "${PROJECT_ROOT:-$PWD}")"
+  Consumed at :253 (do_rail post attaches --metadata from_project=$(rail_project_label))
+  and agents/context/check-rail-mcp-label.sh:99.
+
+the_defect_is_the_guess_not_the_path: >
+  When RAIL_PROJECT_LABEL is unset, the function does not report "unknown" — it
+  invents a label from the invocation cwd. An absent label is honestly unknown and
+  a consumer filters it as unknown; "root" is confidently wrong and filters as
+  SOMEBODY ELSE. T-2905 centralised the label so it could not be spelled three ways
+  (832's measurement: one fingerprint, six from_project values), but left this derived
+  fallback underneath, which reintroduces exactly the property the centralisation
+  removed: a label that varies with how you were invoked.
+
+measured_cost: >
+  11 of 010-termlink's own framework:pickup filings were attributed from_project=root
+  instead of 010-termlink, purely because the posting process ran with cwd=/root.
+  That defeated the T-2816 self-filter (the mechanism that keeps our own filings from
+  firing the G-063 framework-pickup canary at us): the canary fired on our own posts,
+  and the --ack needed to silence the echo also acked any genuine inbound filing that
+  landed in between — the exact G-063 miss the canary exists to prevent.
+  Recorded as PL-373 in .context/project/learnings.yaml (from T-2955, 2026-09-11;
+  cited as :4418 in T-3037, currently at :4432 after later appends).
+
+attribution_vs_addressing: >
+  This is deliberately NOT "adopt AEF's absolute-path project model instead". That
+  model (lib/aef_address.py serialize() refuses anything but the absolute root;
+  elide_path() is display-only) is correct for ADDRESSING: reaching or starting a
+  project needs uniqueness within a host and a real directory to cd to. A path is
+  the right key for that.
+  ATTRIBUTION ("whose filing is this?") needs a different property: stability when
+  the code relocates. A git worktree checkout of the same project has a DIFFERENT
+  absolute path, so under path-derived attribution our two checkouts attribute as two
+  projects and the self-filter — which matches a constant — stops recognising one of
+  them. That is the eleven-filings bug in a new costume (and the sibling of T-2815,
+  where `fw cron install` derives a cron unit name from the worktree basename).
+  So: two fields, not one string doing both jobs. AEF's path is BOUND (declared per
+  project); basename $PWD is INFERRED at call time. The rule is "declared, not
+  inferred" — it was never "not paths".
+
+suggested_fix: >
+  REFUSE on absent, do not derive. In rail_project_label(): when neither
+  RAIL_PROJECT_LABEL (fw_config) nor FW_RAIL_PROJECT_LABEL (env) is set, print
+  nothing and return non-zero (or print nothing and let do_rail post omit the
+  --metadata from_project pair entirely), with one stderr line naming the config key
+  to set. Explicitly NOT a third derived name (not git remote, not .framework.yaml
+  project name, not basename): every derivation is a guess with a different failure
+  mode, and a consumer cannot tell a derived label from a declared one on the wire.
+  `fw rail identity` already warns on a host-signed key; the same status line should
+  report "label: <unset — posts will carry no from_project>" so the absence is loud
+  at the operator, not silent on the rail.
+  Bug-class caveat (PL-367): measure this suggestion against the shipping verb before
+  accepting it on this filing's say-so — the check-rail-mcp-label.sh consumer at :99
+  must tolerate an empty label without itself guessing.
+
+not_patched_locally: >
+  G-062: the file is vendored; a local patch is erased by the next re-vendor
+  (8 wholesale vendor events in 124 commits on .agentic-framework/). This filing is
+  the fix path. Local mitigation already in place: RAIL_PROJECT_LABEL: 010-termlink is
+  declared in .framework.yaml, so the guess is never reached here — the defect bites
+  every consumer that has not declared a label, which 832 measured as 400 of 474
+  envelopes.
