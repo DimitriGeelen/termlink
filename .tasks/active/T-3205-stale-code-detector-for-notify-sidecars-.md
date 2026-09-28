@@ -269,43 +269,53 @@ bash -n scripts/check-stale-sidecar-code.sh
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom:** T-3203's fix was committed, tested, pushed — and did nothing in production
+for hours. AEF's mail stayed undelivered while every surface reported healthy: process
+alive, heartbeat fresh, canary quiet, guard layer green.
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause:** the three notify-sidecars were long-lived detached bash processes started
+six days earlier. A running process keeps executing the code it loaded; editing the file
+on disk is a no-op for it.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Why structurally allowed:** the supervisor is deliberately asymmetric — it starts a
+missing sidecar and never restarts a live one, which is a defensible design (surprise
+process kills are not an autostarter's business). The consequence is that nothing in the
+system compares the code a process is running against the code on disk. Worse, the
+framework already had a detector for this exact shape — T-2405's, scoped to push-wakers —
+so the concept was not missing, only this instance. That is the more expensive kind of
+gap, because the existing canary's green reads as coverage.
+
+**Prevention:** this canary, installed to cron (not merely committed), borrowing T-2405's
+primitives at runtime so detection cannot drift from remediation, behaviourally
+self-testing what it borrows, and reporting an empty candidate set as NOT EVALUATED
+rather than healthy. Detection only — the restart stays a human call because it posts to
+peers and injects into live prompts. Recorded as PL-392: when a fix targets a daemon,
+verify the RUNNING code carries it via an observable only the new code can produce; a
+fresh start time proves a restart, not which code it loaded.
 
 ## Evolution
 
-<!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
-     understanding evolved during build — what was learned that wasn't known at
-     filing, what in the original plan no longer fits, what triggered pivots
-     or new sub-tasks. Mandatory at slice boundaries (when applicable) and
-     before --status work-completed.
+### 2026-09-29 — the detector reproduced the bug it detects, mid-build
 
-     Origin: T-1717 grill Q4 — "the understanding of what we need and want
-     evolves with the process of materialisation." Structural counter to §ACD:
-     spec-vs-build divergence is logged as soon as it happens, not lost as
-     folklore.
+- **Learned:** extracting three shell functions with one multi-range awk duplicates
+  overlapping lines. The result eval'd cleanly, `declare -F` found every name, and the
+  logic was nested garbage that misclassified freshly-restarted sidecars as stale. An
+  existence check is not a correctness check — the same error as assuming a live process
+  runs current code, one level up.
+- **Plan impact:** extraction is per-function, and the borrowed primitive is asserted
+  behaviourally before use (fixture case 8 pins a present-but-wrong is_stale).
+- **Triggered:** no new task; it hardened this one.
 
-     Format (one entry per slice boundary or significant insight):
-       ### YYYY-MM-DD — [topic]
-       - **What changed:** [what we learned that we didn't know at filing]
-       - **Plan impact:** [what in the plan no longer fits]
-       - **Triggered:** [new sub-task / pivot / scope cut, with task ID if filed]
+### 2026-09-29 — two classification corrections
 
-     The completion gate (T-1718) blocks --status work-completed when this
-     section exists but is empty/template-only. Use --skip-evolution to bypass
-     (logged Tier-2). Non-arc tasks may leave this empty.
--->
+- **Learned:** marked `# guard-layer: source` first, which is wrong — that promises no
+  host state, and this reads live processes. In CI it would find zero sidecars and report
+  a clean bill about a host that has none. Separately, zero sidecars was reading as
+  "healthy" rather than "not evaluated".
+- **Plan impact:** moved to cron as a runtime canary (fixtures keep the marker), and the
+  empty candidate set now reads NOT EVALUATED.
+- **Triggered:** the crontab was then INSTALLED, not just committed — leaving it dark
+  would have been this canary's own failure mode.
 
 ## Recommendation
 
