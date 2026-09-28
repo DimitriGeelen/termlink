@@ -22,12 +22,12 @@ description: >
   framework:pickup offset 144), so the documented safe path is unavailable and the
   unsafe one is what workers reach for.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-008]
-components: []
+components: [scripts/run-procasfit-round.sh, tests/budget-status-session-key-fixtures.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -40,8 +40,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-25T06:32:43Z
-last_update: '2026-09-27T21:34:08Z'
-date_finished:
+last_update: 2026-09-28T23:32:31Z
+date_finished: 2026-09-28T23:32:31Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -232,6 +232,18 @@ grep -q 'session_key' .agentic-framework/agents/context/budget-gate.sh
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-09-29 — R2 (T-3211): closed by verb; nothing new learned, one thing confirmed
+- **What changed:** Every Agent AC was already ticked and P-011 passes 3/3 (`fw task verify T-3127`),
+  yet the task sat in `started-work` for 4 days with the T-1718 Evolution gate as the only thing
+  between it and `completed/`. The class T-3127 fixed re-surfaced in this very round: the
+  recommended per-session read (`checkpoint.sh status`) reported 582,524 tokens for a worker whose own
+  transcript held 162,629 — `find_transcript` picks the globally-newest `*.jsonl`, so under concurrent
+  dispatch the *reader* still cross-reads even after the *writer* was keyed (T-3127 fixed
+  `budget-gate.sh`'s shared file; `checkpoint.sh` has the sibling defect).
+- **Plan impact:** none for this task — its ACs are met. The reader-side sibling is a new finding,
+  carried in the R2 handback for a separate task, not appended here (one bug = one task).
+- **Triggered:** finding recorded in `.context/runs/T-3211-R2-handback.md` (checkpoint.sh cross-read).
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -294,3 +306,16 @@ grep -q 'session_key' .agentic-framework/agents/context/budget-gate.sh
 
 ### 2026-09-25T11:10:40Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-5066b904
+- **Timestamp:** 2026-09-28T23:32:34Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** none
+
+### 2026-09-28T23:32:31Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

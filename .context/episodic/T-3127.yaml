@@ -1,0 +1,100 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3127: .budget-status is shared across dispatched workers — every worker reads another session's token count
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-28T23:32:42Z
+# ============================================================================
+
+task_id: T-3127
+task_name: ".budget-status is shared across dispatched workers — every worker reads another session's token count"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-25T06:32:43Z
+completed: 2026-09-28T23:32:31Z
+duration_days: 3
+updates_count: 3
+first_commit: 2026-09-25T13:14:38+02:00
+last_commit: 2026-09-25T13:15:39+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  stop one session reading another's token count — fix, proof, registered. fix sent to AEF at framework:pickup offset 158, verified read-back
+
+# Key outcomes
+outcomes:
+  - 'The defect is filed at `framework:pickup` with the measured evidence, verified by reading the topic back (T-2876) — **informing AEF before experimenting**, per the operator''s sequencing'
+  - 'The mechanism is located precisely in the vendored writer(s) and stated as file:line, not inferred'
+  - 'A candidate fix is prototyped locally and **proven against the actual failure**: two concurrent readers must not see each other''s figure'
+  - 'The local change is registered in `.vendor-divergence.yaml` as `filed-upstream` — a re-vendor deletes it, and an unregistered local patch is exactly the T-2813 trap'
+  - 'The proven fix is sent to AEF as a follow-up filing, with the diff and the proof, not just a description'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fix sent to AEF at framework:pickup offset 158, verified read-back'
+    source: git-mined
+  - description: 'stop one session reading another''s token count — fix, proof, registered'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/agents/context/budget-gate.sh'
+  - '.context/audits/2026-09-25.yaml'
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/audits/go-scope-unpropagated/LATEST.md'
+  - '.context/audits/unclosed-satisfied/LATEST.md'
+  - '.context/episodic/T-2753.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/feedback-stream.yaml'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/session.yaml'
+  - '.tasks/active/T-3093-orchestrate-review-audit-procasfit-x4-ov.md'
+  - '.tasks/active/T-3127-budget-status-is-shared-across-dispatche.md'
+  - '.tasks/active/T-3139-tier-0-block-never-registers-a-pending-a.md'
+  - '.tasks/completed/T-2753-hubstoml-has-three-independent-parsers-w.md'
+  - 'tests/budget-status-session-key-fixtures.sh'
+  - '.vendor-divergence.yaml'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-25T13:14:38'
+    action: 'T-3127: stop one session reading another''s token count — fix, proof, registered'
+  - time: '2026-09-25T13:15:39'
+    action: 'T-3127: fix sent to AEF at framework:pickup offset 158, verified read-back'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 5339 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-008]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 5339
+  commits: 2
+  files_changed: 18
+  lines_added: 716
+  lines_removed: 309
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3127-budget-status-is-shared-across-dispatche.md
+generated_by: context-agent-hybrid
