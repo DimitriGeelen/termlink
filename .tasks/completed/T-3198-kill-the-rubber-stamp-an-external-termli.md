@@ -4,10 +4,10 @@ name: "Kill the rubber stamp: an external TermLink reviewer PASS closes a low-ri
 description: >
   Kill the rubber stamp: an external TermLink reviewer PASS closes a low-risk task instead of a human tick
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -22,8 +22,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-28T14:01:35Z
-last_update: 2026-09-28T14:01:35Z
-date_finished: null
+last_update: 2026-09-28T14:07:23Z
+date_finished: 2026-09-28T14:07:23Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -329,3 +329,16 @@ grep -q "external_reviewer_clears_sovereignty" .agentic-framework/agents/task-cr
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3198-kill-the-rubber-stamp-an-external-termli.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-14148989
+- **Timestamp:** 2026-09-28T14:07:28Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** none
+
+### 2026-09-28T14:07:23Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
