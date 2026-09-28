@@ -1,8 +1,8 @@
 ---
-id: T-3194
-name: "Verify T-3191's upstream amendment landed; resolve its cross-session ownership"
+id: T-3195
+name: "Enrich handover S-2026-0928-1352: fill the five [TODO] sections, especially Gotchas"
 description: >
-  Verify T-3191's upstream amendment landed; resolve its cross-session ownership
+  Enrich handover S-2026-0928-1352: fill the five [TODO] sections, especially Gotchas
 
 status: started-work
 workflow_type: build
@@ -21,8 +21,8 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-28T12:57:26Z
-last_update: 2026-09-28T12:57:26Z
+created: 2026-09-28T13:01:28Z
+last_update: 2026-09-28T13:01:28Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -36,105 +36,31 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-3194: Verify T-3191's upstream amendment landed; resolve its cross-session ownership
+# T-3195: Enrich handover S-2026-0928-1352: fill the five [TODO] sections, especially Gotchas
 
 ## Context
 
-T-3191 appeared in two commits from this session without having been authored by
-it (swept in by `git add -A`). It was left untouched and flagged. This task
-answers the only questions that matter about it — did its claimed upstream
-filing actually land, and is it duplicated work — without mutating it.
-
-## Findings
-
-### The filing landed, and it is well-formed
-
-**`framework:pickup` offset 214**, 5115 bytes, read back from the live hub.
-Frontmatter: `kind: bug-report-amendment`, `task: T-3191`, `severity: high`, and
-— the property its AC claimed —
-`amends: "framework:pickup offset 208 (T-2958, 010-termlink)"`, closing with
-*"Please link, do not treat as a duplicate."* T-3191's ticked AC is truthful.
-Topic currently holds 218 filings.
-
-### It is an AMENDMENT, not duplicated work
-
-This is the interesting answer, and it is the opposite of what the sweep
-suggested. T-2958 (offset 208) reported that `fw task review` hardcodes `go`.
-T-3191 adds what 208 did not carry: the same block ALSO pre-fills `--rationale`
-from the task's own `**Recommendation:**` line, so the two together emit a
-**self-contradictory** command rather than merely a questionable default — a
-`go` verb whose pasted rationale begins "NO-GO". It measured the blast radius
-T-2958 never did: **51 of 245 inception tasks** (18 NO-GO + 33 DEFER) receive a
-contradictory command; 57 more get the literal `"your rationale"` fallback.
-
-It also carries a scope CORRECTION that this project had wrong: the Watchtower
-path is NOT affected — `web/blueprints/inception.py::record_decision()` reads
-`decision` from the POST form and handles go/no-go/defer symmetrically. The
-fault is CLI-only. An earlier note here misattributed it.
-
-So two sessions did touch one defect, but not redundantly: the second measured
-and corrected the first. The duplication risk was real (T-2800 class, arriving
-same-branch where that check is structurally blind) and did not materialise,
-because the author recognised it and filed as an amendment.
-
-### G-096 is live and it caught me
-
-T-3191 documents `termlink` silently retargeting a stale `runtime_dir` when
-`TERMLINK_RUNTIME_DIR` is unset — every surface then reports the TOPIC missing,
-and the obvious remediation (`channel create`) would recreate a fleet-shared
-canonical topic as empty, destroying ~218 filings.
-
-Confirmed here: hub pid 403200 runs with `TERMLINK_RUNTIME_DIR=/var/lib/termlink`,
-read from `/proc/403200/environ`. **This session's post-compaction shell did not
-carry the variable** — so every read in this task set it explicitly.
-
-A second, self-inflicted instance of the same shape occurred during this task: an
-invalid flag (`--from`, which does not exist; the flag is `--cursor`) exited rc=2
-while stderr was swallowed by my own `2>/dev/null`, producing 0 bytes and no
-message — indistinguishable from an empty topic. Re-run with stderr to a file, it
-was immediately obvious. **Do not redirect stderr to /dev/null when probing a
-rail whose failure mode is silence.**
-
-### Disposition — recommended, NOT taken
-
-T-3191 is `owner: agent`, carries no `revisit_at:` (so PL-389/G-095 do not
-apply), has 4/4 Agent ACs ticked, and its one external claim is now verified. It
-is complete work sitting in `active/` — the CTL-029 "completable, not closed"
-shape, here legitimately.
-
-It was **not** closed. mtime is ~2h old and no process holds the file, but
-absence of a lock is not proof of abandonment, and closing another session's
-in-flight task is the cross-session lost-update race already filed upstream at
-offset 211. The close is a judgement about cross-session ownership and belongs
-to the operator.
-
-### Noted, not chased
-
-`framework:pickup` offset 217 is a triage from 050-email-archive covering
-offsets 200–216, described as carrying "three measurements that may be useful".
-It post-dates our filings and may contain responses to them. Out of scope here.
+<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] T-3191's claimed upstream amendment is located on `framework:pickup` by
-      READ-BACK (T-2876: delivered ≠ received), not by trusting the task's own ticked
-      AC. Its offset is recorded. If it is absent, that is reported as the finding —
-      a task claiming a verified filing that did not land is worse than an unfiled one.
-- [x] The amendment is checked for the property its own AC claims: that it cites the
-      original T-2958 filing at offset 208, so upstream links the two rather than
-      treating the second as a duplicate report.
-- [x] Every read against `framework:pickup` is issued with `TERMLINK_RUNTIME_DIR` set
-      to the live hub's value, read from `/proc/<hub-pid>/environ` rather than assumed.
-      G-096: an unset variable silently redirects the CLI to a stale runtime dir where
-      the topic appears not to exist, which is indistinguishable from data loss.
-- [x] T-3191 itself is NOT edited, closed, or re-owned. It is another session's
-      in-flight task; mutating it is the cross-session lost-update race already filed
-      upstream at offset 211. The disposition is recorded as a recommendation only.
-- [x] Whether T-3191 and T-2958/T-3190 constitute duplicated work is stated with
-      evidence, since two sessions working one defect in one tree is the T-2800
-      duplicate-work class arriving by a route that check cannot see (same branch).
+- [x] All four `[TODO]` placeholders in the handover body are replaced with content
+      the generator structurally cannot produce — decisions, failed approaches, open
+      questions, and gotchas. Zero `[TODO]` markers remain in the body.
+- [x] `enrichment_status:` is flipped `pending` → `enriched`, the T-2882 convention.
+      Flipping it while placeholders remain would be worse than leaving it pending:
+      it asserts a human-checked narrative that does not exist.
+- [x] The dated `S-*.md` file is edited, NOT `LATEST.md`. LATEST.md is a symlink;
+      writing through it either fails or detaches the link.
+- [x] Gotchas are written as traps with their remediation, not as a list of gap IDs.
+      The register is already in the document above; restating it adds nothing. Each
+      entry names what will go wrong and what to do instead.
+- [x] The stale "Suggested First Action" is contradicted in the body rather than
+      edited in place. It is generator output; the next session should be told it is
+      wrong and why (T-2958 is blocked on upstream), not handed a silently altered
+      field that no longer matches what the generator would produce.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -258,30 +184,34 @@ It post-dates our filings and may contain responses to them. Out of scope here.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
-# --- T-3194 verification ---
-# Every leg sets TERMLINK_RUNTIME_DIR explicitly (G-096) and sends stderr to a file
-# rather than /dev/null — swallowing stderr on this rail is how a hard failure
-# becomes indistinguishable from an empty topic, which happened once in this task.
+# --- T-3195 verification ---
 
-# 1. Positive control FIRST (T-3144): the hub is reachable and the topic is real.
-#    Without this, legs 2-3 could "pass" against a silently-retargeted stale hub.
-TERMLINK_RUNTIME_DIR=/var/lib/termlink timeout 30 termlink channel info framework:pickup --json > /tmp/.t3194-info.json 2> /tmp/.t3194-info.err
-python3 -c "import json;d=json.load(open('/tmp/.t3194-info.json'));assert d['count']>=218, d['count']"
+# 1. Positive control FIRST (T-3144): the file exists and is readable, so the
+#    absence assertion in leg 2 cannot pass by reading nothing.
+test -s .context/handovers/S-2026-0928-1352.md
+grep -q '^# Session Handover: S-2026-0928-1352$' .context/handovers/S-2026-0928-1352.md
 
-# 2. Offset 214 exists, is attributable to T-3191, and amends offset 208.
-TERMLINK_RUNTIME_DIR=/var/lib/termlink timeout 60 termlink channel subscribe framework:pickup --cursor 213 --limit 5 --json > /tmp/.t3194-sub.ndjson 2> /tmp/.t3194-sub.err
-python3 -c "import json,base64,sys;rows=[json.loads(l) for l in open('/tmp/.t3194-sub.ndjson') if l.strip()];m=[r for r in rows if r.get('offset')==214];assert m,'offset 214 absent';b=base64.b64decode(m[0]['payload_b64']).decode('utf-8','replace');assert 'task: T-3191' in b,'not attributable to T-3191';assert 'offset 208' in b,'does not cite offset 208';assert 'bug-report-amendment' in b,'not an amendment'"
+# 2. No placeholder remains in the BODY. The frontmatter comment at line ~6 that
+#    explains the convention legitimately contains the token, so the count is
+#    asserted as exactly 1 rather than 0 — asserting 0 would force deleting a
+#    correct comment to make a check pass.
+test "$(grep -c '\[TODO' .context/handovers/S-2026-0928-1352.md)" -eq 1
+test "$(sed -n '1,36p' .context/handovers/S-2026-0928-1352.md | grep -c '\[TODO')" -eq 1
 
-# 3. NEGATIVE control for leg 2: the same assertion must FAIL on a different
-#    offset, otherwise leg 2 would pass against any envelope the parser returns.
-python3 -c "import json,base64,sys;rows=[json.loads(l) for l in open('/tmp/.t3194-sub.ndjson') if l.strip()];m=[r for r in rows if r.get('offset')==213];assert m,'control offset 213 absent';b=base64.b64decode(m[0]['payload_b64']).decode('utf-8','replace');sys.exit(1 if 'task: T-3191' in b else 0)"
+# 3. The four sections carry real content, not just headings.
+grep -q '^enrichment_status: enriched$' .context/handovers/S-2026-0928-1352.md
+grep -q 'TERMLINK_RUNTIME_DIR' .context/handovers/S-2026-0928-1352.md
+grep -q 'Never close a task carrying a future' .context/handovers/S-2026-0928-1352.md
+grep -q 'This suggestion is wrong and was left in place deliberately' .context/handovers/S-2026-0928-1352.md
 
-# 4. T-3191 was not mutated: still active, still started-work, still owner agent,
-#    and still carries its 4 ticked Agent ACs.
-test -f .tasks/active/T-3191-amend-t-2958-upstream-fw-task-review-emi.md
-grep -q '^status: started-work' .tasks/active/T-3191-amend-t-2958-upstream-fw-task-review-emi.md
-grep -q '^owner: agent' .tasks/active/T-3191-amend-t-2958-upstream-fw-task-review-emi.md
-test "$(grep -c '^- \[x\]' .tasks/active/T-3191-amend-t-2958-upstream-fw-task-review-emi.md)" -eq 4
+# 4. LATEST.md still resolves to the dated file — proves it was not detached by
+#    writing through the symlink.
+test "$(readlink .context/handovers/LATEST.md)" = "S-2026-0928-1352.md"
+test -s .context/handovers/LATEST.md
+
+# 5. The stale footer claim is gone. Paired with leg 1's control: the file is
+#    known readable, so this absence is meaningful.
+test "$(grep -c 'This handover is `enrichment_status: pending`' .context/handovers/S-2026-0928-1352.md)" -eq 0
 
 ## RCA
 
@@ -375,7 +305,7 @@ test "$(grep -c '^- \[x\]' .tasks/active/T-3191-amend-t-2958-upstream-fw-task-re
 
 ## Updates
 
-### 2026-09-28T12:57:26Z — task-created [task-create-agent]
+### 2026-09-28T13:01:28Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3194-verify-t-3191s-upstream-amendment-landed.md
+- **Output:** /opt/termlink/.tasks/active/T-3195-enrich-handover-s-2026-0928-1352-fill-th.md
 - **Context:** Initial task creation

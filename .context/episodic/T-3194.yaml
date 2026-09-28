@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3194: Verify T-3191's upstream amendment landed; resolve its cross-session ownership
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-28T13:01:18Z
+# ============================================================================
+
+task_id: T-3194
+task_name: "Verify T-3191's upstream amendment landed; resolve its cross-session ownership"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-28T12:57:26Z
+completed: 2026-09-28T13:01:09Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-09-28T15:01:04+02:00
+last_commit: 2026-09-28T15:01:04+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  T-3191's amendment landed at offset 214 — verified, and it is not duplicate work
+
+# Key outcomes
+outcomes:
+  - 'T-3191''s claimed upstream amendment is located on `framework:pickup` by'
+  - 'The amendment is checked for the property its own AC claims: that it cites the'
+  - 'Every read against `framework:pickup` is issued with `TERMLINK_RUNTIME_DIR` set'
+  - 'T-3191 itself is NOT edited, closed, or re-owned. It is another session''s'
+  - 'Whether T-3191 and T-2958/T-3190 constitute duplicated work is stated with'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3194-verify-t-3191s-upstream-amendment-landed.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-28T15:01:04'
+    action: 'T-3194: T-3191''s amendment landed at offset 214 — verified, and it is not duplicate work'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 1
+  lines_added: 381
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3194-verify-t-3191s-upstream-amendment-landed.md
+generated_by: context-agent-hybrid
