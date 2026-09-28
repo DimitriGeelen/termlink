@@ -13364,3 +13364,21 @@ scan_id: R-5fc904f4
 task_id: T-3190
 payload:
   task_file: .tasks/active/T-3190-file-g-095-upstream-ctl-029-recommends-a.md
+---
+kind: scan_emitted
+timestamp: '2026-09-28T11:41:29Z'
+scan_id: R-4d6697ac
+task_id: T-3192
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-09-28T11:41:29Z'
+scan_id: R-4d6697ac
+task_id: T-3192
+payload:
+  task_file: .tasks/active/T-3192-claudemd-documents-a-stale-context-budge.md

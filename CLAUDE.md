@@ -2098,6 +2098,32 @@ These are restated here because the template's own numbered lists renumber
 and overwrite them. Where the template and this section disagree about a
 **consumer project**, this section wins.
 
+- **The context-budget ladder below `## Core Principle` is STALE — ignore its numbers (T-3192).**
+  The governance section §"Automated Monitoring (Claude Code)" states *"Escalation ladder:
+  120K ok→warn, 150K warn→urgent, 170K urgent→critical (BLOCK)"*. Those are fixed figures
+  from a 200K-window era. **The code has not worked that way for some time**:
+  `agents/context/budget-gate.sh:103-108` reads
+  `CONTEXT_WINDOW=$(fw_config_int "CONTEXT_WINDOW" 300000)` and derives every threshold as a
+  **percentage** — `TOKEN_WARN` 75%, `TOKEN_URGENT` 85%, `TOKEN_CRITICAL` 95%.
+  This project sets `CONTEXT_WINDOW: 800000` (`.framework.yaml:15`), so the **real** lines are
+  **600,000 / 680,000 / 760,000**, not 120K/150K/170K — the documented ladder is wrong by
+  roughly 4.5×, and wrong in the dangerous direction: it reads as "you are critical" at 21%
+  of the real window.
+  **Why this is load-bearing and not a typo.** An autonomous mandate was written against the
+  documented numbers and carried the stop condition "context reaches ~300k". 300000 is not a
+  threshold at all — it is `budget-gate.sh`'s **default window size**, quoted as if it were a
+  budget. At an 800K window that is 37%, *below even the first warning*, so the stop condition
+  fired before the run had done any work. A literal number in a mandate is what went stale.
+  **State stop conditions by threshold NAME, never by number** — e.g. *"stop at `TOKEN_WARN`
+  (75% of `CONTEXT_WINDOW`)"*. That auto-scales when the window changes and cannot rot.
+  Check the live value with `bin/fw config get CONTEXT_WINDOW` and current usage with
+  `.agentic-framework/agents/context/checkpoint.sh status` (note: there is **no** `budget`
+  subcommand in the vendored copy, despite `/resume` step 6 calling one — use `status`).
+  The stale text is in the framework-managed region (`## Core Principle` to end of file is
+  replaced wholesale by `fw upgrade`, T-2015), so it cannot be fixed here — it is filed
+  upstream. This note lives **above** that line deliberately, so it survives the re-vendor
+  that will otherwise restore the wrong numbers.
+
 - **NEVER use a git worktree unless the operator explicitly instructs it.** Do not create one, do not `cd` into one, do not route work through one. This is an operator standing instruction (2026-09-24), and it is load-bearing rather than stylistic: **a single read-only `cd` into a worktree re-roots the whole session into it.** `CLAUDE_PROJECT_DIR` is unset here, so the T-559 boundary gate falls back to the shell's cwd — and once that cwd is a worktree, `cd /opt/termlink` and even `git -C /opt/termlink` are both refused as "another project". There is no way out from inside; the session must be restarted from `/opt/termlink`. Measured cost in one session: three separate gates refused ordinary work, and none of the refusals could be satisfied — the worktree-corpus commit gate cites `fw integrate run`, which was **never built** (`lib/integrate.py` exists; its docstring calls the mutating verb "a later slice"); the pre-push audit FAILS on a cron unit named from the worktree's own basename (T-2815), and its suggested `fw cron install` would write a spurious `agentic-audit-<worktree-name>` into `/etc/cron.d`. If you need to read a file in a worktree, use `git show <branch>:<path>` against the shared object store — never `cd`.
 - **Use the vendored path, not global `fw`** — in this consumer project the executable lives at `.agentic-framework/bin/fw`, never `bin/fw` (that only exists inside the framework repo itself). The global `fw` may resolve to a different install. Correct: cd into the project and call `.agentic-framework/bin/fw <cmd>`.
 - **DEFER outcomes set `revisit_at` (T-1451, G-053)** — When `fw inception decide T-XXX defer` is the outcome, also set `revisit_at: YYYY-MM-DD` in the task frontmatter to the date when the decision should be reconsidered. Pair with `revisit_evidence_needed: <one-line>` to specify what evidence makes the revisit actionable. The daily G-053 cron (T-1452) will surface ripe revisits in the handover banner — without this field, the deferral has no structural reminder.

@@ -26,7 +26,7 @@ alone (CLAUDE.md Human Task Completion Rule).
 Rows with an empty `## Verification` block need that scrutiny most —
 nothing mechanical would gate their close.
 
-## Qualifying tasks (15)
+## Qualifying tasks (16)
 
 | Task | Status | Workflow | Name | Agent ACs | Verification cmds? |
 |------|--------|----------|------|----------:|--------------------|
@@ -45,4 +45,5 @@ nothing mechanical would gate their close.
 | T-3182 | started-work | build | Review queue is 81 percent genuine judgement, but 25... | 6 | **no** |
 | T-3184 | started-work | build | BVP scoring becomes an agent decision: open all five... | 9 | yes |
 | T-3185 | started-work | build | Unassessed tasks sort to the top: exclude all-no-sig... | 8 | yes |
+| T-3191 | started-work | build | Amend T-2958 upstream: fw task review emits a go ver... | 4 | yes |
 

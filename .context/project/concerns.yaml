@@ -1,4 +1,44 @@
 concerns:
+- id: G-096
+  type: gap
+  title: 'termlink CLI silently resolves to a STALE runtime_dir when TERMLINK_RUNTIME_DIR is
+    unset, then reports "unknown topic" instead of "wrong hub" — indistinguishable from total
+    data loss, and the remediation its own error text suggests would destroy a fleet-shared topic'
+  description: 'Hit 2026-09-28 during T-3191. `termlink channel post framework:pickup` produced
+    NO OUTPUT and did not land. `channel subscribe` then said "unknown topic ''framework:pickup''
+    — create it first with channel.create". `channel list` returned 15 topics with no pickup
+    topic among them. Every surface reported the TOPIC as missing; none reported that the CLI
+    was talking to a different hub than the one serving the fleet. CAUSE: runtime_dir is
+    resolved by a four-step order (TERMLINK_RUNTIME_DIR, XDG_RUNTIME_DIR/termlink,
+    TMPDIR/termlink-$UID, /tmp/termlink-$UID). All three vars were unset in this shell, so it
+    fell through to /tmp/termlink-0, a STALE directory whose bus logs stop at 2026-09-25. The
+    live hub is pid 403200, up since 2026-09-26, running with TERMLINK_RUNTIME_DIR=/var/lib/termlink
+    (read from /proc/403200/environ). The session had restarted mid-run and the new shell did
+    not carry the variable. WHY THIS IS SEVERE RATHER THAN ANNOYING: the presented state is
+    identical to catastrophic loss of a canonical fleet topic holding ~213 filings from every
+    project that uses it, and the remediation the error text itself recommends (channel.create)
+    would have RECREATED THAT TOPIC EMPTY — masking the real filings behind a plausible-looking
+    fresh topic and making the loss look real and permanent. The correct recovery was to read
+    the running hub''s environ and re-read with the variable set: all filings intact (offsets
+    210/211/213 verified readable). A write that silently targets the wrong store, plus an error
+    message that names the wrong subject, plus a suggested fix that would cause the damage it
+    appears to describe. AGGRAVATING FINDING: /tmp/termlink-0/hub.pid contains pid 959728, which
+    is a `termlink mcp serve` process, not the hub — a stale pidfile pointing at an unrelated
+    live process, the G-070 ghost class that substrate-preflight Check 6 exists to catch.'
+  spec_reference: 'crates/termlink-session/src/discovery.rs:10-26 (four-step runtime_dir order);
+    hub at /var/lib/termlink vs stale /tmp/termlink-0; /tmp/termlink-0/hub.pid mismatch;
+    substrate-preflight Check 1 (T-2729) and Check 6 (T-2358/G-070)'
+  severity: high
+  trigger_fired: true
+  trigger_event: '2026-09-28 T-3191: channel post produced zero output and did not land;
+    framework:pickup reported as unknown topic while 214 filings were intact on the real hub.'
+  detection_lag_days: 'unknown — the divergence appears whenever a shell starts without the
+    variable, so any session restart on this host can silently reintroduce it'
+  status: watching
+  created: 2026-09-28
+  last_reviewed: 2026-09-28
+  related_tasks: ['T-3191', 'T-3190', 'T-2729', 'T-2358']
+
 - id: G-095
   type: gap
   title: 'CTL-029 ("completable-not-closed") flags the DESIGNED terminal state of owner:human

@@ -1,13 +1,13 @@
 ---
-id: T-3191
-name: "Amend T-2958 upstream: fw task review emits a go verb paired with a NO-GO rationale"
+id: T-3192
+name: "CLAUDE.md documents a stale context budget ladder (120K/150K/170K) while the code uses percentages of CONTEXT_WINDOW"
 description: >
-  Amend T-2958 upstream: fw task review emits a go verb paired with a NO-GO rationale
+  CLAUDE.md documents a stale context budget ladder (120K/150K/170K) while the code uses percentages of CONTEXT_WINDOW
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -21,9 +21,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-28T10:48:27Z
-last_update: 2026-09-28T10:48:27Z
-date_finished: null
+created: 2026-09-28T11:39:08Z
+last_update: 2026-09-28T11:41:27Z
+date_finished: 2026-09-28T11:41:27Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -36,86 +36,42 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-3191: Amend T-2958 upstream: fw task review emits a go verb paired with a NO-GO rationale
+# T-3192: CLAUDE.md documents a stale context budget ladder (120K/150K/170K) while the code uses percentages of CONTEXT_WINDOW
 
 ## Context
 
 <!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
-## Findings
-
-**The defect, reproduced verbatim.** `lib/review.sh:379-381` emits the decision command with
-`go` as a **literal**, while `--rationale` is pre-filled from the task's own
-`**Recommendation:**` line (extracted at :366-372, truncated to 58 chars at :378). Neither is
-conditional on what that line says. Reproduced with review.sh's own extraction logic against
-T-2879, whose Recommendation reads *"NO-GO on any build — dissolve into T-2389."*:
-
-```
-  CLI: cd /opt/termlink &&
-      bin/fw inception decide T-2879 go \
-      --rationale "NO-GO on any build — dissolve into T-2389. (Measured 2026-"
-```
-
-The verb says `go`; the rationale it pastes begins **NO-GO**. Pasting the command the tool
-presents records a GO whose stored justification argues against it — and the register then
-reads as a human error rather than a tooling one.
-
-**Blast radius, measured over 245 inception tasks:** 130 Recommendation GO, **18 NO-GO**,
-**33 DEFER**, 57 with no Recommendation line. So **51 tasks (21% of all, 27% of those
-carrying a Recommendation) receive a self-contradictory command.** The other 57 fall back to
-the literal `"your rationale"` — not contradictory, but still hardcoding `go`.
-
-**Certain vs circumstantial, kept separate in the filing.** Certain: the hardcoded verb and
-the pairing, verifiable by reading one line. Circumstantial: whether this caused the
-22-of-23 GO skew among divergent decisions. Both are consistent with the data; we have not
-separated them and the filing says so rather than handing upstream an overclaim.
-
-**Scope correction carried upstream.** The Watchtower path is NOT affected:
-`web/blueprints/inception.py::record_decision()` reads `decision` from the POST form and
-accepts go/no-go/defer symmetrically, 400-ing anything else. An earlier note in this project
-misattributed the defect there. The fault is CLI-only.
-
-## Incident during this task — the CLI silently filed into the void
-
-The first attempt to post this amendment produced **no output at all** and did not land.
-Cause: `termlink` resolves `runtime_dir` by a four-step order, and with
-`TERMLINK_RUNTIME_DIR` / `XDG_RUNTIME_DIR` / `TMPDIR` all unset it falls through to
-`/tmp/termlink-0`. **The live hub (pid 403200, up since 2026-09-26) runs with
-`TERMLINK_RUNTIME_DIR=/var/lib/termlink`.** This session restarted mid-run and the new shell
-did not carry that variable, so the CLI silently switched to a stale runtime dir whose bus
-logs stop at 2026-09-25.
-
-What it reported: `channel post` → **silence**. `channel subscribe` → *"unknown topic
-'framework:pickup' — create it first"*. `channel list` → 15 topics, none of them
-`framework:pickup`. Every surface said the TOPIC was missing. None said the CLI was pointed
-at a different hub.
-
-**That is a Directive #2 failure at the worst possible moment** — it is indistinguishable
-from catastrophic data loss, and the obvious remediation the error text suggests
-(`channel.create`) would have **recreated a fleet-shared canonical topic as empty**, masking
-~213 filings from every project that uses it. The recovery here was to check
-`/proc/<hub-pid>/environ` and re-read with the variable set: **all filings intact**, offsets
-210 / 211 / 213 present and readable.
-
-Registered as **G-096**. Not acted on beyond diagnosis: recreating a shared topic is
-outward-facing and is the operator's call, and it turned out to be exactly the wrong action.
-
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] The contradictory command is reproduced VERBATIM using `review.sh`'s own extraction
-      logic (not paraphrased), for a real task whose Recommendation is NO-GO, and the
-      reproduction is recorded in the task body.
-- [x] Corpus measured: how many inception tasks carry a Recommendation that is NOT `go` —
-      i.e. how many would receive a self-contradictory command. Figure recorded, including
-      the case where no Recommendation line exists at all.
-- [x] Amendment filed at `framework:pickup`, verified by read-back byte-identical (T-2876),
-      explicitly citing the original T-2958 filing at offset 208 so upstream links them
-      rather than treating this as a duplicate report.
-- [x] The amendment separates what is CERTAIN (the hardcoded verb at `review.sh:380`,
-      verifiable by reading one line) from what is CIRCUMSTANTIAL (whether it caused the
-      22-of-23 GO skew), so upstream is not handed an overclaim.
+- [x] The real thresholds are established from the SHIPPING code, not from CLAUDE.md
+      (PL-367): `budget-gate.sh` window resolution, the three percentage thresholds, and
+      this project's configured `CONTEXT_WINDOW`.
+      → `budget-gate.sh:103` `CONTEXT_WINDOW=$(fw_config_int "CONTEXT_WINDOW" 300000)`;
+      `:106-108` derive `TOKEN_WARN` 75% / `TOKEN_URGENT` 85% / `TOKEN_CRITICAL` 95%.
+      `checkpoint.sh:35-36` carries the same percentage form. `fw config get
+      CONTEXT_WINDOW` → **800000**, set at `.framework.yaml:15`. Real lines therefore
+      **600,000 / 680,000 / 760,000** against a documented **120K/150K/170K** — wrong by
+      ~4.5×, and wrong in the direction that reads "critical" at 21% of the real window.
+- [x] A correction is added to CLAUDE.md **above** the `## Core Principle` line, so it
+      survives the `fw upgrade` that replaces everything below it (T-2015). Verified by
+      line number, not by assumption.
+      → **I asserted the wrong thing first and checked it.** I told the operator the
+      section was above the split; `grep -n` put `## Core Principle` at **2574** and the
+      stale ladder at **3026** — below it, i.e. in the region `fw upgrade` replaces
+      wholesale. Had I edited in place the fix would have been deleted on the next upgrade,
+      which is T-3015's failure mode exactly. The correction went in at **line ~2099**,
+      inside `#### Session rules the governance template does not carry`, which is the
+      project-specific region that survives.
+- [x] The stale template text is filed upstream at `framework:pickup` via TermLink, since
+      the authoritative copy is framework-managed and cannot be fixed locally (G-062).
+      Read-back verified byte-identical (T-2876).
+      → **offset 216**, sha256 `18e69190592b72b6`, 4858 bytes sent and read back identical.
+      Carries the drift, the measured 4.5× error, the mandate that became unsatisfiable, a
+      ranked fix, and the adjacent `/resume`-calls-a-nonexistent-`checkpoint.sh budget`
+      finding in the same section.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -239,20 +195,16 @@ outward-facing and is the operator's call, and it turned out to be exactly the w
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
-# The amendment must exist upstream AND carry this task's body. Read-back, not send-status
-# (T-2876). TERMLINK_RUNTIME_DIR is set EXPLICITLY because this task's own incident was the
-# CLI silently resolving to a stale runtime_dir — an unset variable made a post vanish with
-# no output. Never rely on the fallback chain for a verification leg (G-096).
-TERMLINK_RUNTIME_DIR=/var/lib/termlink timeout 60 termlink channel subscribe framework:pickup --cursor 214 --limit 1 --json > /tmp/.t3191-rb.json 2>&1
-python3 -c "import json,base64; o=next(d for d in (json.loads(l) for l in open('/tmp/.t3191-rb.json') if l.strip().startswith('{')) if 'payload_b64' in d); b=base64.b64decode(o['payload_b64']).decode('utf-8','replace'); assert o['offset']==214, o['offset']; assert 'AMENDMENT to T-2958' in b, 'wrong envelope at 214'; assert 'offset 208' in b, 'amendment does not cite the original filing'; print('read-back ok')"
+# The correction must exist AND be above the fw-upgrade split, asserted by line number
+# rather than by belief — the check I got wrong by assumption the first time.
+python3 -c "import sys; L=open('CLAUDE.md',encoding='utf-8').read().split('\n'); core=next(i for i,l in enumerate(L) if l.startswith('## Core Principle')); note=next(i for i,l in enumerate(L) if 'context-budget ladder below' in l); assert note < core, f'correction at {note} is BELOW the split at {core} — fw upgrade will delete it'; print(f'ok: correction line {note} < Core Principle line {core}')"
 
-# The blast-radius figure in the filing must match the corpus, so the report cannot drift
-# from the tree it describes.
-test "$(grep -l '^workflow_type: inception' .tasks/active/T-*.md .tasks/completed/T-*.md 2>/dev/null | wc -l)" -ge 200
+# The real numbers must be named, so the note cannot pass while being vague.
+grep -q '600,000 / 680,000 / 760,000' CLAUDE.md
 
-# G-096 must be registered and the register must still parse — the incident is the more
-# valuable half of this task and must not live only in prose.
-python3 -c "import yaml; d=yaml.safe_load(open('.context/project/concerns.yaml')); g=[c for c in d['concerns'] if c['id']=='G-096']; assert g, 'G-096 missing'; assert g[0]['severity']=='high'; print('G-096 ok')"
+# The upstream filing must exist and carry this body (read-back, not send-status; T-2876).
+timeout 60 termlink channel subscribe framework:pickup --cursor 216 --limit 1 --json > /tmp/.t3192-rb.json 2>&1
+python3 -c "import json,base64; w=lambda x:(x if isinstance(x,dict) and 'payload_b64' in x else next((r for v in (x.values() if isinstance(x,dict) else x if isinstance(x,list) else []) for r in [w(v)] if r), None)); o=next((w(json.loads(l)) for l in open('/tmp/.t3192-rb.json') if l.strip().startswith('{')), None); assert o, 'no payload at offset 216'; b=base64.b64decode(o['payload_b64']).decode('utf-8','replace'); assert 'TOKEN_WARN' in b and 'DEFAULT CONTEXT_WINDOW' in b, 'envelope is not this filing'; print('read-back ok')"
 
 ## RCA
 
@@ -346,7 +298,19 @@ python3 -c "import yaml; d=yaml.safe_load(open('.context/project/concerns.yaml')
 
 ## Updates
 
-### 2026-09-28T10:48:27Z — task-created [task-create-agent]
+### 2026-09-28T11:39:08Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3191-amend-t-2958-upstream-fw-task-review-emi.md
+- **Output:** /opt/termlink/.tasks/active/T-3192-claudemd-documents-a-stale-context-budge.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-4d6697ac
+- **Timestamp:** 2026-09-28T11:41:29Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-09-28T11:41:27Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

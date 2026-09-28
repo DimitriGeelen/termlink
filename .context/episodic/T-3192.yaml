@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3192: CLAUDE.md documents a stale context budget ladder (120K/150K/170K) while the code uses percentages of CONTEXT_WINDOW
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-28T11:41:36Z
+# ============================================================================
+
+task_id: T-3192
+task_name: "CLAUDE.md documents a stale context budget ladder (120K/150K/170K) while the code uses percentages of CONTEXT_WINDOW"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-28T11:39:08Z
+completed: 2026-09-28T11:41:27Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  CLAUDE.md documents a stale context budget ladder (120K/150K/170K) while the code uses percentages of CONTEXT_WINDOW
+
+# Key outcomes
+outcomes:
+  - 'The real thresholds are established from the SHIPPING code, not from CLAUDE.md'
+  - 'A correction is added to CLAUDE.md **above** the `## Core Principle` line, so it'
+  - 'The stale template text is filed upstream at `framework:pickup` via TermLink, since'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 2
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3192-claudemd-documents-a-stale-context-budge.md
+generated_by: context-agent-hybrid
