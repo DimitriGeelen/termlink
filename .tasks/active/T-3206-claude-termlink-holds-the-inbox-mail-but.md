@@ -2,9 +2,14 @@
 id: T-3206
 name: "claude-termlink holds the inbox mail but has no wake consumer of its own"
 description: >
-  T-3204 F5. claude-termlink carries pending=95 and last_mail_topic=inbox:... but notify-wake-agents.conf declares no consumer for it; its wake is driven by claude-termlink-alt's consumer running --as-identity claude-termlink. alt auto-confirms the inbox mail before its own flag records the arrival, so alt's flag shows pending=0 and a stale dm topic and its wake-seen is still Sep 22. The flag with the signal and the flag that drives the wake are different files.
+  T-3204 F5. claude-termlink carries pending=95 and last_mail_topic=inbox:... but
+  notify-wake-agents.conf declares no consumer for it; its wake is driven by claude-termlink-alt's
+  consumer running --as-identity claude-termlink. alt auto-confirms the inbox mail
+  before its own flag records the arrival, so alt's flag shows pending=0 and a stale
+  dm topic and its wake-seen is still Sep 22. The flag with the signal and the flag
+  that drives the wake are different files.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -22,8 +27,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-28T20:43:32Z
-last_update: 2026-09-28T20:43:32Z
-date_finished: null
+last_update: 2026-09-28T21:31:15Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,6 +39,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-09-28T21:31:16Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3206: claude-termlink holds the inbox mail but has no wake consumer of its own
@@ -46,8 +65,40 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+<!-- RESCOPED before any work. This task was filed as "claude-termlink has no wake
+     consumer — add one". That premise is WRONG and the record says so plainly.
+     `.context/cron/notify-wake-agents.conf` carries an explicit NOT-listed block:
+
+       claude-termlink — its flag carries 91 pending from stale July topics, so a
+                         consumer would fire immediately and continuously on
+                         history rather than on new mail. Sweep that backlog
+                         first; a wake that fires on everything wakes nobody.
+
+     So the exclusion is deliberate, reasoned, and carries a stated precondition.
+     Adding the config line is not the fix — it is the thing the author refused to
+     do, for a reason that still holds. Same class as T-3200: the record already
+     contained the answer. -->
+
+- [x] AC1 — The PRECONDITION is measured, not assumed: a per-topic breakdown of
+      claude-termlink's pending, separating genuinely-unread current mail from the
+      stale July test residue (`s3g`, `s3probe`, `s3smoke`, `s3t*` and similar) the
+      conf names. Without that split there is no way to tell a real wake from history.
+- [x] AC2 — The structural blocker is named and addressed or explicitly deferred:
+      under T-3065 the auto-confirm receipt is signed with the per-agent key rather
+      than the `--self-fp` party, so claude-termlink's unread NEVER reaches 0, so
+      `pending` is permanently >0, so `last_mail_ts` re-advances EVERY cycle. A
+      consumer added on top of that fires forever regardless of how clean the backlog
+      is. Sweeping alone does not satisfy the conf's precondition while T-3065 stands.
+- [x] AC3 — Any backlog sweep is non-destructive to other readers. `inbox:` topics are
+      a SHARED project mailbox with multiple readers; acking on our own cursor is
+      fine, trimming the topic is not. No `channel trim` / `inbox clear` on a shared
+      topic as part of this.
+- [x] AC4 — The conf's NOT-listed block is UPDATED, not silently deleted, if
+      claude-termlink is eventually added: the next reader must be able to see why the
+      exclusion was lifted and what evidence lifted it.
+- [x] AC5 — If the honest outcome is "cannot add the consumer until T-3065 is fixed",
+      this task says that and stops, rather than shipping a config line that produces
+      a continuously-firing wake. A wake that fires on everything wakes nobody.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -82,7 +133,66 @@ date_finished: null
        Pipefail/SIGPIPE section below forbids, and this line used to prescribe it.
 -->
 
+## Findings
+
+**F1 — the exclusion is deliberate and its stated reason has DECAYED.**
+`notify-wake-agents.conf` excludes claude-termlink because "its flag carries 91 pending
+from stale July topics". Measured today, the 95 pending are not that:
+
+      50  inbox:cacc73ea32b121dd/010-termlink        <- AEF's real consults
+      13  dm:3bba15e681b3a078:...                    <- framework-agent-systemd, real
+      12  dm:d1993c2c3ec44c94:fd794e5408011572       <- real peer
+       5  dm:d1993c2c3ec44c94:d1993c2c3ec44c94       <- self-DM
+       4  dm:9219671e28054458:...                    <- real peer
+       4  dm:cashweb-integration-agent:...           <- real peer
+       3  dm:8e6fd77ec6f74b37:...                    <- real peer
+       1  dm:acp-probe:...            \
+       1  dm:...:deadbeefdeadbeef      >  4 total = the actual stale residue
+       1  dm:s3t1-1416551:...         /
+       1  dm:s3t2-1416551:...        /
+
+The July test residue the conf names is **4 messages, not 91**. The backlog today is
+dominated by genuine unread mail. So the premise that a consumer would "fire on history
+rather than new mail" no longer describes reality — it would mostly fire on real mail.
+
+**F2 — but the exclusion should STAND, for a reason the conf does not give.**
+Sweeping the backlog is the conf's prescribed precondition and it would not work.
+claude-termlink's sidecar recorded an auto-confirm guard at offset 49 on the inbox
+topic, yet `channel unread --sender d1993c2c3ec44c94` on that same topic still returns
+**50**, and the only two receipts on it carry senders `3bba15e681b3a078` and
+`6738c073bbcc587a` — never `d1993c2c3ec44c94`. The ack does not register under the
+identity whose cursor is being measured. That is T-3065 observed directly.
+
+Consequence: claude-termlink's `pending` can never reach 0, so `last_mail_ts` re-advances
+every cycle (`write_cycle`: `if pending > 0 then mail_ts=hb`), so a consumer added now
+fires every cycle forever — bounded only by the 30s per-topic cooldown. Exactly the
+"wake that fires on everything wakes nobody" outcome the conf was protecting against,
+reached by a different route.
+
+**F3 — therefore, per AC5, this task stops rather than ships a config line.**
+The honest state: **T-3206 is blocked on T-3065**, not on a backlog sweep. Anyone who
+follows the conf's advice will sweep, watch pending return, and lose time to a
+correct-sounding instruction whose premise expired. The conf's NOT-listed block should
+be corrected to say so (AC4) — that is the deliverable here, not a consumer.
+
+Worth stating plainly: I filed this task myself, hours ago, as "add the missing
+consumer". Reading the config I was about to edit is what stopped a wrong fix.
+
 ## Verification
+
+# AC5 — claude-termlink is still NOT declared. This task deliberately shipped no
+# consumer; if this line ever fails, someone added it without fixing T-3065 first.
+test -z "$(grep -v '^#' .context/cron/notify-wake-agents.conf | grep -v '^$' | grep '^claude-termlink ')"
+# AC5 — behaviour unchanged: exactly the two consumers that were declared before.
+test "$(grep -v '^#' .context/cron/notify-wake-agents.conf | grep -vc '^$')" -eq 2
+# AC4 — the corrected blocker is recorded where the next reader will look.
+grep -q 'T-3065' .context/cron/notify-wake-agents.conf
+# AC4 — the ORIGINAL reason is preserved, not silently overwritten.
+grep -q '91 pending from stale July topics' .context/cron/notify-wake-agents.conf
+# AC3 — no sweep was performed, so the shared mailbox is intact: AEF's consults are
+# still on the topic for every other reader. Asserts the RECORD COUNT on the live
+# topic, not a property of a local file — a trim is exactly what would reduce it.
+test "$(TERMLINK_RUNTIME_DIR=/var/lib/termlink termlink channel info 'inbox:cacc73ea32b121dd/010-termlink' --json 2>/dev/null | jq -r '.count // 0')" -ge 50
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -267,3 +377,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3206-claude-termlink-holds-the-inbox-mail-but.md
 - **Context:** Initial task creation
+
+### 2026-09-28T21:31:15Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
