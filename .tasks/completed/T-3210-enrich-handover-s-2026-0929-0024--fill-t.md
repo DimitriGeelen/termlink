@@ -4,10 +4,10 @@ name: "Enrich handover S-2026-0929-0024 — fill the four TODO sections with thi
 description: >
   The generator cannot know the session narrative and marks the sections unfilled. This session produced findings not recoverable from the diffs: the rail-dark terminal blocker, two guards that refuse on purpose and were right, and four instances of the same markdown splice bug.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -22,8 +22,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-28T22:26:39Z
-last_update: 2026-09-28T22:26:39Z
-date_finished: null
+last_update: 2026-09-28T22:28:20Z
+date_finished: 2026-09-28T22:28:20Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -276,3 +276,16 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3210-enrich-handover-s-2026-0929-0024--fill-t.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-bde13ec3
+- **Timestamp:** 2026-09-28T22:28:22Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** none
+
+### 2026-09-28T22:28:20Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

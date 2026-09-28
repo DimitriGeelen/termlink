@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3210: Enrich handover S-2026-0929-0024 — fill the four TODO sections with this session's findings
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-28T22:28:28Z
+# ============================================================================
+
+task_id: T-3210
+task_name: "Enrich handover S-2026-0929-0024 — fill the four TODO sections with this session's findings"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-28T22:26:39Z
+completed: 2026-09-28T22:28:20Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-09-29T00:27:45+02:00
+last_commit: 2026-09-29T00:27:45+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  enrich handover S-2026-0929-0024 — four TODO sections filled
+
+# Key outcomes
+outcomes:
+  - 'AC1 — All four generator-unfilled `[TODO]` sections carry real content: Decisions'
+  - 'AC2 — The BLOCKER is stated as the headline of Open Questions, with the chain drawn'
+  - 'AC3 — "Things Tried That Failed" records approaches that LOOKED right and were not'
+  - 'AC4 — `enrichment_status` flips from `pending` to `enriched`, so a reader can tell'
+  - 'AC5 — The outstanding message to AEF is flagged: they have been told something'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/handovers/S-2026-0929-0024.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0929-0024.md'
+  - '.tasks/active/T-3020-pickup-handover-generator--precompact-au.md'
+  - '.tasks/active/T-3021-pickup-handover-generator--precompact-au.md'
+  - '.tasks/active/T-3210-enrich-handover-s-2026-0929-0024--fill-t.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-29T00:27:45'
+    action: 'T-3210: enrich handover S-2026-0929-0024 — four TODO sections filled'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 5
+  lines_added: 697
+  lines_removed: 10
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3210-enrich-handover-s-2026-0929-0024--fill-t.md
+generated_by: context-agent-hybrid
