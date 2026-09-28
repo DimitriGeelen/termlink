@@ -271,19 +271,37 @@ grep -q '_receipt_identity" | tr -c' scripts/notify-sidecar.sh
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom:** Peers using `channel post --await-ack` against this host never saw a
+confirmation and their messages exhausted and dead-lettered — while our auto-confirm was
+running, posting receipts, and reporting success on every local surface.
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause:** `notify-sidecar.sh` exports `TERMLINK_AGENT_ID` (T-2292 per-agent
+identity), so the auto-confirm receipt was signed by the per-agent key. But a sender
+derives the recipient from the dm topic NAME (`derive_dm_recipient`) and polls
+`channel.receipts` for that sender_id. On this host claude-termlink's declared self-fp
+`d1993c2c3ec44c94` and its per-agent resolution `6738c073bbcc587a` are different keys, so
+the receipt was correct, valid, verifiable — and filed under a name nobody was looking up.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Why structurally allowed:** the two identity systems were introduced for different
+reasons and nothing asserted they agree. The declared self-fp lives in a cron conf; the
+signing identity comes from an env-var precedence chain; no check compared them. T-3053
+proved a receipt APPEARS and that was accepted as proof the mechanism worked — the
+identical shipped-not-live shape as T-2876, where a send returning success was taken for
+delivery. Measuring the wrong end of the transaction is the recurring error: the sender's
+exit code, the receipt's existence, the process's liveness. None of them is the property
+that matters.
+
+**Prevention:** (a) the sidecar now PROBES which local identity carries the declared
+self-fp instead of assuming, and REFUSES loudly when none does — turning a silent
+mis-signing into a named misconfiguration, which immediately surfaced a second broken
+agent (claude-termlink-alt) nobody had noticed; (b) `tests/notify-sidecar-receipt-identity-fixtures.sh`
+asserts WHICH identity the post runs under, with a mutant restoring the old behaviour
+proving it load-bearing; (c) the offset guard is keyed by signing identity, so a future
+identity change re-arms the ack rather than being suppressed by a stale guard.
+
+The deeper generalisable rule is PL-392's sibling and is recorded in F2: a confirmation is
+only real if the party waiting for it can find it. Assert on the waiting party's view,
+never on the emitter's success.
 
 ## Evolution
 
