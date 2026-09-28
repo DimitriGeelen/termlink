@@ -61,10 +61,23 @@ rm -f "$HANDBACK"
     echo "   information was stale rather than absent."
     echo "3. WRITE THE HANDBACK EARLY as a skeleton and fill it as you go. A handback"
     echo "   written only at the end is a handback you may never write."
-    echo "4. BUDGET READ. You may be one of several dispatched workers over this run's"
-    echo "   lifetime, so \`.context/working/.budget-status\` can hold another session's"
-    echo "   figure (T-3127). Read your own with"
-    echo "   \`.agentic-framework/agents/context/checkpoint.sh status\`."
+    echo "4. BUDGET READ — DO NOT USE checkpoint.sh, IT WILL LIE TO YOU (T-3212)."
+    echo "   Both documented options report ANOTHER session's figure to a dispatched"
+    echo "   worker. \`.context/working/.budget-status\` is a single shared path (T-3127),"
+    echo "   and \`checkpoint.sh status\` — the remedy CLAUDE.md prescribes for exactly"
+    echo "   that problem — picks the GLOBALLY-NEWEST transcript (checkpoint.sh:79), which"
+    echo "   in a dispatched run is the orchestrator, not you."
+    echo
+    echo "   MEASURED: round 2 was told 582,524 (~72%) when its own usage was 162,629"
+    echo "   (~20%). A worker that believes it is at 72% is one point from TOKEN_WARN and"
+    echo "   stops almost immediately. R2 ran 479 seconds against a mandate to work until"
+    echo "   a stop condition fires. Read your budget wrong and you end the round, not the"
+    echo "   task."
+    echo
+    echo "   Read YOUR OWN transcript instead — resolve your session id, then:"
+    echo "     python3 .agentic-framework/lib/context_tokens.py <your-own-transcript.jsonl>"
+    echo "   Your transcript is the one whose recent entries are YOUR turns; confirm that"
+    echo "   before trusting the number. TOKEN_WARN is 75% of CONTEXT_WINDOW (800000)."
     echo
     echo "### Your handback"
     echo
@@ -131,5 +144,24 @@ if [ "$BYTES" -lt 200 ]; then
     echo "  Treating as NO usable handback rather than a thin success." >&2
     exit 1
 fi
-echo "T-3211 R${ROUND}: handback verified by read — ${BYTES} bytes at $HANDBACK"
+
+# A SKELETON IS NOT A HANDBACK. Carried fix 3 tells the worker to write the handback
+# early as a skeleton and fill it as it goes — which means an unfilled skeleton is the
+# EXPECTED artefact of a round that ended prematurely, and it sails past a size check.
+# R2 did exactly this: 1883 bytes, every section "_(pending)_", one ledger row, and the
+# byte floor reported it verified. Size was measuring the wrong property.
+PENDING=$(grep -cE '^_\((pending|none yet|filled per unit below|TBD)\)_[[:space:]]*$' "$HANDBACK" 2>/dev/null || echo 0)
+FILLED=$(grep -cE '^## ' "$HANDBACK" 2>/dev/null || echo 0)
+if [ "$PENDING" -gt 0 ]; then
+    echo "T-3211 R${ROUND}: handback is an UNFILLED SKELETON — ${PENDING} of ${FILLED} sections still placeholders" >&2
+    echo "  ${BYTES} bytes, which is why a size check passes it. The round ended before" >&2
+    echo "  filling it; its work (if any) may be real but is unreported and undisposed." >&2
+    echo "  Do not feed this forward as a completed round." >&2
+    exit 1
+fi
+if grep -qiE '^\*\*Status:[[:space:]]*IN PROGRESS' "$HANDBACK" 2>/dev/null; then
+    echo "T-3211 R${ROUND}: handback still declares itself IN PROGRESS" >&2
+    exit 1
+fi
+echo "T-3211 R${ROUND}: handback verified by read — ${BYTES} bytes, ${FILLED} sections, 0 placeholders"
 exit 0

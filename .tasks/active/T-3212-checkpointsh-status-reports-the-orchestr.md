@@ -1,17 +1,14 @@
 ---
-id: T-3103
-name: "Fabric: 10 cards point at files no watch pattern covers"
+id: T-3212
+name: "checkpoint.sh status reports the orchestrator's budget to a dispatched worker"
 description: >
-  fw audit WARN: the fabric registry already treats 10 files as components, but drift
-  checks cannot see them because .fabric/watch-patterns.yaml does not cover them,
-  so coverage is measured over a subset. Widen watch-patterns.yaml, or remove the
-  cards if they are not really components.
+  T-3211 R2 finding, confirmed by reading checkpoint.sh:79 - find_transcript picks the GLOBALLY-NEWEST transcript. For a dispatched worker that is the actively-working orchestrator, not itself. Measured: R2 was told 582,524 (~72%) when its own usage was 162,629 (~20%), so it stopped after 479s believing it was one point from TOKEN_WARN. This is the T-3127 class, but in the very command CLAUDE.md prescribes as the REMEDY for T-3127 - so the documented safe path is also unsafe for dispatched workers. Correct per-worker read is lib/context_tokens.py against the worker's own transcript.
 
 status: captured
 workflow_type: build
 owner: agent
 horizon: now
-tags: [arc:arc-008]
+tags: []
 components: []
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
@@ -24,9 +21,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-24T23:55:11Z
-last_update: 2026-09-28T23:29:12Z
-date_finished:
+created: 2026-09-28T23:31:03Z
+last_update: 2026-09-28T23:31:03Z
+date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -37,66 +34,20 @@ date_finished:
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
-bvp_scores_proposed:
-  - ts: '2026-09-25T00:06:51Z'
-    estimator: bvp-estimator-v1-heuristic
-    scores:
-      D1: 4
-      D2: 0
-      D3: 3
-      D4: 2
-      F-RECALL: 0
-      F-ORCH: 0
-    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
-      (body:component-discoverability); D4=2 (body:env-class-handled); 
-      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
-    rubric_sha: e4a00f38e801
-  - ts: '2026-09-28T23:22:13Z'
-    estimator: bvp-estimator-v1-heuristic
-    scores:
-      D1: 4
-      D2: 0
-      D3: 3
-      D4: 4
-      F-RECALL: 0
-      F-ORCH: 0
-    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
-      (body:component-discoverability); D4=4 (body:cross-machine); F-RECALL=0 
-      (no-signal); F-ORCH=0 (no-signal)
-    rubric_sha: e4a00f38e801
-cost_estimate_proposed:
-  - ts: '2026-09-25T00:07:08Z'
-    estimator: bvp-estimator-v1-heuristic
-    cost_estimate:
-      blast_radius:
-      tier: 2
-      effort: 8
-    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
-      (workflow:build); effort=8 (lines=206,acs=4)
-    rubric_sha: e4a00f38e801
-  - ts: '2026-09-27T21:34:08Z'
-    estimator: bvp-estimator-v1-heuristic
-    cost_estimate:
-      blast_radius: 1
-      tier: 2
-      effort: 8
-    rationale: blast_radius=1 (1-file-ref-derived-T-3189); tier=2 
-      (workflow:build); effort=8 (lines=206,acs=4)
-    rubric_sha: e4a00f38e801
 ---
 
-# T-3103: Fabric: 10 cards point at files no watch pattern covers
+# T-3212: checkpoint.sh status reports the orchestrator's budget to a dispatched worker
 
 ## Context
 
-10 fabric cards reference files outside .fabric/watch-patterns.yaml's coverage, so drift checks measure only a subset.
+<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Either widen .fabric/watch-patterns.yaml to cover the 10 files, or remove the cards if they are not real components
-- [ ] fw fabric drift no longer reports these 10 as uncovered
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -132,11 +83,6 @@ cost_estimate_proposed:
 -->
 
 ## Verification
-
-python3 .agentic-framework/agents/fabric/lib/expand_patterns.py .fabric/watch-patterns.yaml . > /tmp/.t3103-exp 2>&1 && grep -qx ".context/cron/canary-aliveness-sweep.crontab" /tmp/.t3103-exp
-test "$(ls .fabric/components/context-cron-*.yaml | wc -l)" = "31"
-python3 -c "import yaml,glob; [yaml.safe_load(open(f)) for f in glob.glob('.fabric/components/context-cron-*.yaml')]"
-grep -q 'glob: ".context/cron/\*.crontab"' .fabric/watch-patterns.yaml
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -174,6 +120,34 @@ grep -q 'glob: ".context/cron/\*.crontab"' .fabric/watch-patterns.yaml
 # on, and grep scans the whole captured string anyway, so the `tail -3` was
 # cosmetic. `echo "$out" | grep -q PAT`, nothing between.
 #
+# ── Asserting an ABSENCE: prove the search could have succeeded (T-3144) ──
+#
+# `! grep -q "PATTERN" file` exits 0 when the pattern is absent. It ALSO exits 0
+# when the file was renamed, deleted, or is empty — so the leg cannot distinguish
+# "the bad thing is not there" from "I could not look", and the gate reports green
+# over a check that never ran. Pair every absence assertion with something that
+# fails if the search could not happen:
+#
+#     test -f path/to/file && ! grep -q "PATTERN" path/to/file    # existence first
+#     grep -q "KNOWN_MARKER" f && ! grep -q "PATTERN" f           # positive companion
+#     cmd > /tmp/.out 2>&1 && ! grep -q "PATTERN" /tmp/.out       # &&-joined producer
+#
+# Count-equals-zero is the same defect wearing a different hat, and it is the one
+# that bites hardest over a COMMAND's output rather than a file:
+#
+#     [ "$(cargo clippy --workspace 2>&1 | grep -c "^error")" = "0" ]   # WRONG
+#
+# If cargo is missing, or dies before emitting diagnostics, there are no `^error`
+# lines, the count is 0, and the leg passes — a build gate that goes green
+# precisely when the build could not run. Measured in this corpus, not invented.
+# Keep the producer's exit code in the verdict:
+#
+#     cargo clippy --workspace > /tmp/.out 2>&1 && ! grep -q "^error" /tmp/.out
+#
+# T-3144 censused 2853 task files: 71 absence assertions, 41 already correct, 30
+# not. The convention mostly works — this note is here so the next one is written
+# right, because a vacuous leg is invisible until the day the path moves.
+#
 # TEST RUNNERS need a guard either way (T-2738). `set -e` is suppressed inside the
 # `if` condition the gate runs each line in, so in `cmd1; cmd2` only cmd2 is the
 # verdict — and the pass marker you grep for survives a partial failure: a suite
@@ -197,8 +171,6 @@ grep -q 'glob: ".context/cron/\*.crontab"' .fabric/watch-patterns.yaml
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
-true
-
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -217,27 +189,27 @@ true
 
 ## Evolution
 
-### 2026-09-29 — "10 files" was three problems wearing one number
-- **What changed:** The audit counts carded-unwatched files; it does not say that 8 of the 10
-  share one cause (peer-designer BPMN under an ignored vendored dir, 50 cards) and 1 is an
-  already-recorded open decision. Only the crontab was a plain widening.
-- **Plan impact:** AC2 cannot reach 0 without two scope decisions this task does not own.
-  Resolved the class that was ours; parked the rest as Sovereign questions rather than
-  hand-shaping globs or deleting a deliberate 50-card deliverable to make a number go green.
-- **Triggered:** no new task (the two questions ride the T-3211 R1 handback). Surfaced a
-  cross-project task-ID collision worth knowing: the 50 cards say `created_by: T-2839` and the
-  local commit is titled T-2839, yet the local T-2839 task file is an unrelated broadcast task —
-  the T-2800 collision class, not investigated here.
+<!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
+     understanding evolved during build — what was learned that wasn't known at
+     filing, what in the original plan no longer fits, what triggered pivots
+     or new sub-tasks. Mandatory at slice boundaries (when applicable) and
+     before --status work-completed.
 
-### 2026-09-29 — R2: committed the widening, parked the remainder on two Sovereign questions
-- **What changed:** Re-derived the audit's own `carded_unwatched` set (audit.sh:2213 logic): 9 distinct
-  files remain — 8 `.agentic-framework/.context/designer/projects/*/v*.bpmn` (50 cards, vendored +
-  gitignored tree) and `.claude/commands/capture.md` (1 of 34 slash commands carded). The crontab
-  class (1 of the original 10) is resolved and committed this round.
-- **Plan impact:** AC1/AC2 stay unticked. Both remaining classes need a scope ruling the task does
-  not own (SQ-A: delete/keep the 50 vendored-BPMN cards or add a `.agentic-framework/.context/designer/**/*.bpmn`
-  glob; SQ-B: register all 34 slash commands or drop the capture.md singleton). Parked at `captured`.
-- **Triggered:** SQs carried in `.context/runs/T-3211-R2-handback.md`. No new task.
+     Origin: T-1717 grill Q4 — "the understanding of what we need and want
+     evolves with the process of materialisation." Structural counter to §ACD:
+     spec-vs-build divergence is logged as soon as it happens, not lost as
+     folklore.
+
+     Format (one entry per slice boundary or significant insight):
+       ### YYYY-MM-DD — [topic]
+       - **What changed:** [what we learned that we didn't know at filing]
+       - **Plan impact:** [what in the plan no longer fits]
+       - **Triggered:** [new sub-task / pivot / scope cut, with task ID if filed]
+
+     The completion gate (T-1718) blocks --status work-completed when this
+     section exists but is empty/template-only. Use --skip-evolution to bypass
+     (logged Tier-2). Non-arc tasks may leave this empty.
+-->
 
 ## Recommendation
 
@@ -291,20 +263,7 @@ true
 
 ## Updates
 
-### 2026-09-24T23:55:11Z — task-created [task-create-agent]
+### 2026-09-28T23:31:03Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3103-fabric-10-cards-point-at-files-no-watch-.md
+- **Output:** /opt/termlink/.tasks/active/T-3212-checkpointsh-status-reports-the-orchestr.md
 - **Context:** Initial task creation
-
-### 2026-09-28T23:09:28Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
-
-### 2026-09-28T23:18:19Z — status-update [task-update-agent]
-- **Change:** status: started-work → captured
-
-### 2026-09-28T23:22:12Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
-
-### 2026-09-28T23:29:12Z — status-update [task-update-agent]
-- **Change:** status: started-work → captured
-- **Reason:** Parked R2: 9 carded-unwatched files remain on two Sovereign scope questions (vendored BPMN cards; slash-command singleton) — see .context/runs/T-3211-R2-handback.md

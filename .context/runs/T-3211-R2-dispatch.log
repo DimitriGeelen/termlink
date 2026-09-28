@@ -1,0 +1,14 @@
+{
+  "crashed_workers": [
+    "procasfit-r2-1"
+  ],
+  "dispatch_id": "D-3547765-1790637645814",
+  "elapsed_secs": 479.5,
+  "events_collected": 0,
+  "ok": false,
+  "results": [],
+  "timed_out": false,
+  "topic": "task.completed",
+  "workers_registered": 1,
+  "workers_spawned": 1
+}
