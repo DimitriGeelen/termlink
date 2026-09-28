@@ -13,7 +13,7 @@ description: >
 status: captured
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [arc:arc-009, upstream, identity]
 components: []
 related_tasks: []
@@ -28,7 +28,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-21T10:48:39Z
-last_update: '2026-09-27T21:34:08Z'
+last_update: 2026-09-28T23:36:43Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -344,3 +344,11 @@ before it is accepted on this filing's say-so (PL-367).
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3037-file-upstream-railprojectlabel-guesses-a.md
 - **Context:** Initial task creation
+
+### 2026-09-28T23:34:28Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+### 2026-09-28T23:36:43Z — status-update [task-update-agent]
+- **Change:** status: started-work → captured
+- **Reason:** R2 attempt-1 worker yields: started 01:34 by attempt 1, returned untouched because the orchestrator had already re-dispatched round 2 (attempt 2, PID 36066) while attempt 1 was alive — no work done under this start; task is scored (57 hv-lc, T-3189 pass) so the 'cannot be scored before started' park reason no longer applies
