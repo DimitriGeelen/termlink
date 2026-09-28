@@ -1,0 +1,331 @@
+---
+id: T-3190
+name: "File G-095 upstream: CTL-029 recommends an action that destroys a G-053 revisit reminder"
+description: >
+  File G-095 upstream: CTL-029 recommends an action that destroys a G-053 revisit reminder
+
+status: work-completed
+workflow_type: build
+owner: agent
+horizon: null
+tags: []
+components: []
+related_tasks: []
+# arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
+#                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
+#                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
+#                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
+# demo_target: true               # T-2286: optional — marks task as reserved for an orchestrated demo
+#                                 # worker (e.g. arc-010 HM-A dispatches via mcp__fw__work_on). When set,
+#                                 # `fw work-on T-XXX` refuses unless --i-am-demo-orchestrator (CLI) or
+#                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
+#                                 # session from consuming the captured→started-work transition the demo
+#                                 # worker expects to drive. Origin OBS-057.
+created: 2026-09-28T09:36:35Z
+last_update: 2026-09-28T09:39:48Z
+date_finished: 2026-09-28T09:39:48Z
+# revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
+# revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
+# ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
+# bvp_scores:                     # confirmed per-driver scores 0-5, set by `fw bvp confirm` (T-1924).
+#                                 # Sovereignty boundary — only set after human or agent confirmation.
+#                                 # Shape: {D1: <int 0-5>, D2: <int 0-5>, D3: <int 0-5>, D4: <int 0-5>, [<free-driver-id>: <int>]...}
+# bvp_scores_proposed:            # estimator-proposed scores (T-1922 worker). Persists when ≥2 delta
+#                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
+# cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
+#                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+---
+
+# T-3190: File G-095 upstream: CTL-029 recommends an action that destroys a G-053 revisit reminder
+
+## Context
+
+<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+
+## Context
+
+**This task exists because of an omission in run #5, and the omission is the same pattern the
+run registered.** G-095 was found and registered locally on 2026-09-28 (CTL-029 recommends
+closing a task whose closure destroys a G-053 revisit reminder) and **never filed upstream**.
+`audit.sh` is vendored, so every other AEF consumer carries the identical hazard with no
+warning — and G-094, registered in that very run, is about pending-upstream state being
+invisible. I reproduced the defect I documented.
+
+Per **PL-367** (*"a filed defect must be measured against the shipping verb before the
+arithmetic"*), every claim in the filing is re-verified against the shipping code here before
+the envelope is posted, rather than carried over from the earlier task's prose.
+
+## Acceptance Criteria
+
+### Agent
+<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
+- [x] Each load-bearing claim re-verified against the SHIPPING code, not against T-3132's
+      prose (PL-367): that CTL-029 exists and emits the close-it remediation; that
+      `revisit-due-scan.sh` reads `.tasks/active/` only; that T-3010 is still flagged.
+      Findings recorded even if any claim fails to reproduce.
+      → **PL-367 caught a real error.** Two controls shipped as CTL-029: T-1903's was
+      renumbered to CTL-031 (T-3035), T-2055's kept the id, and audit.sh's own comment says
+      to disambiguate on message text rather than id. A filing built from T-3132's prose
+      would have pointed upstream at the **wrong control**. Confirmed against shipping code:
+      the message at `audit.sh:4862`; the unconditional remediation
+      `Run: bin/fw task update <id> --status work-completed`; the predicate at
+      `audit.sh:4876-4910` filtering only on `status in (started-work, issues)` plus
+      all-Agent-ACs-ticked, with **no owner test and no revisit_at test**;
+      `revisit-due-scan.sh:66` (`TASKS_DIR=…/.tasks/active`) and `:107`; and T-3010's live
+      frontmatter — `started-work`, **`owner: agent`**, `revisit_at: 2026-12-18`, 0 unchecked.
+      That owner value is a sharpening, not a detail: R-033 does **not** protect T-3010.
+- [x] Filed at `framework:pickup`, verified by read-back byte-identical (T-2876: delivered ≠
+      received; body arrives base64 under `payload_b64`).
+      → **offset 213**, sha256 `cd0f1692f5fe9a60`, 6816 bytes sent and read back identical.
+      The post reported only `delivered-unconfirmed`, which is why the read-back is the
+      evidence and the post is not.
+- [x] `.context/project/concerns.yaml` G-095 updated with the offset, so the register records
+      the pending-upstream state instead of leaving it invisible — the behaviour G-094 asks
+      for, applied to its own first case.
+      → G-095 gains `filed_upstream:` (offset + sha + explicit "reported, NOT yet landed"),
+      `correction_from_filing:` (the CTL-029/CTL-031 collision), and `sharpened_2026-09-28:`
+      (T-3010 is agent-owned, so R-033 does not protect it). Register re-parsed clean.
+
+### Human
+<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
+     Remove this section if all criteria are agent-verifiable.
+     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
+
+     ── Prefix routing (T-1811, T-1878): default to [REVIEWER] if Expected is grep-able ──
+     If your Expected clause is grep-able / file-exists / structural (a deterministic
+     shell check), prefer [REVIEWER] — that AC should be an Agent AC with the reviewer
+     command in `## Verification` instead of a Human AC here. Only keep [REVIEW] if
+     verification genuinely needs human taste (tone, feel, layout rhythm).
+     See CLAUDE.md §AC Classification Guidance for the conversion rule.
+
+     [REVIEW] example (genuine human judgment):
+       - [ ] [REVIEW] Dashboard renders correctly
+         **Steps:**
+         1. Open https://example.com/dashboard in browser
+         2. Verify all panels load within 2 seconds
+         3. Check browser console for errors
+         **Expected:** All panels visible, no console errors
+         **If not:** Screenshot the broken panel and note the console error
+
+     [REVIEWER] example (static-scan-verifiable — convert to Agent AC + Verification):
+       - [ ] [REVIEWER] Block message names both bypass mechanisms
+         **Steps:**
+         1. Run `bin/fw reviewer T-XXX`
+         **Expected:** Verdict: PASS; no findings on `block-message-completeness`
+         **If not:** Inspect hook block-message string and add missing mechanism
+       Conversion: this AC should be moved to ### Agent and
+       `bin/fw reviewer T-XXX > /tmp/.rev 2>&1 && grep -q "Overall:.*PASS" /tmp/.rev`
+       added to ## Verification. NEVER `... 2>&1 | grep -q ...` — that is the shape the
+       Pipefail/SIGPIPE section below forbids, and this line used to prescribe it.
+-->
+
+## Verification
+
+# Shell commands that MUST pass before work-completed. One per line.
+# Lines starting with # are comments (skipped). Empty lines ignored.
+# The completion gate runs each command — if any exits non-zero, completion is blocked.
+#
+# Toolchain hint (L-291): if you edited *.vbproj/*.csproj/*.xaml add `dotnet build`;
+# *.go → `go build ./...`; Cargo.toml → `cargo check`; tsconfig.json → `tsc --noEmit`;
+# pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
+# past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
+#
+# ── Pipefail/SIGPIPE: grepping a command's output (L-387, T-2090, T-2743, T-2738) ──
+#
+# THE DEFAULT — redirect to a file, then grep the file:
+#     cmd > /tmp/.out 2>&1 && grep -q "PATTERN" /tmp/.out
+#     curl -sf "$(bin/fw watchtower url)/page" -o /tmp/.out && grep -q "PAT" /tmp/.out
+# Correct at any output size, and `&&` keeps the PRODUCING command's exit code in
+# the verdict. Reach for this first; the alternative below is the special case.
+#
+# NEVER `cmd | grep -q PAT` (L-387) — why: P-011 runs each line under `set -eo
+# pipefail`. When grep matches it exits and closes stdin while cmd is still
+# writing, cmd takes SIGPIPE, the pipeline exits 141 — verification "fails" with
+# the pattern present. Captured 4× (T-1716, T-1838, T-1862, T-1863).
+#
+# THE EXCEPTION — capture first, grep the capture:
+#     out=$(cmd 2>&1); echo "$out" | grep -q "PATTERN"
+# Valid ONLY while "$out" fits the 65536-byte pipe buffer, and it is on you to
+# know that it does. Above that the form inverts and becomes the very failure
+# L-387 describes: echo blocks on the full pipe, grep -q exits, echo takes
+# SIGPIPE, rc=141 (T-2743 — measured on a 146,366-byte Watchtower page, 3/3 runs,
+# deterministic not racy; rendered routes run 50-200KB, so anything that curls a
+# page is over the line). It also discards cmd's exit code, so a 404 yields an
+# empty capture that grep merely fails to match rather than a failed line.
+# If you do use it: single pipe only, no intermediate tail/awk/sed stage between
+# capture and grep (T-2090) — the middle stage is what `grep -q` slams its stdin
+# on, and grep scans the whole captured string anyway, so the `tail -3` was
+# cosmetic. `echo "$out" | grep -q PAT`, nothing between.
+#
+# ── Asserting an ABSENCE: prove the search could have succeeded (T-3144) ──
+#
+# `! grep -q "PATTERN" file` exits 0 when the pattern is absent. It ALSO exits 0
+# when the file was renamed, deleted, or is empty — so the leg cannot distinguish
+# "the bad thing is not there" from "I could not look", and the gate reports green
+# over a check that never ran. Pair every absence assertion with something that
+# fails if the search could not happen:
+#
+#     test -f path/to/file && ! grep -q "PATTERN" path/to/file    # existence first
+#     grep -q "KNOWN_MARKER" f && ! grep -q "PATTERN" f           # positive companion
+#     cmd > /tmp/.out 2>&1 && ! grep -q "PATTERN" /tmp/.out       # &&-joined producer
+#
+# Count-equals-zero is the same defect wearing a different hat, and it is the one
+# that bites hardest over a COMMAND's output rather than a file:
+#
+#     [ "$(cargo clippy --workspace 2>&1 | grep -c "^error")" = "0" ]   # WRONG
+#
+# If cargo is missing, or dies before emitting diagnostics, there are no `^error`
+# lines, the count is 0, and the leg passes — a build gate that goes green
+# precisely when the build could not run. Measured in this corpus, not invented.
+# Keep the producer's exit code in the verdict:
+#
+#     cargo clippy --workspace > /tmp/.out 2>&1 && ! grep -q "^error" /tmp/.out
+#
+# T-3144 censused 2853 task files: 71 absence assertions, 41 already correct, 30
+# not. The convention mostly works — this note is here so the next one is written
+# right, because a vacuous leg is invisible until the day the path moves.
+#
+# TEST RUNNERS need a guard either way (T-2738). `set -e` is suppressed inside the
+# `if` condition the gate runs each line in, so in `cmd1; cmd2` only cmd2 is the
+# verdict — and the pass marker you grep for survives a partial failure: a suite
+# printing "3 failed, 9 passed" satisfies `grep -q "9 passed"`, and generalising
+# to `grep -qE "[0-9]+ passed"` matches the same output. Keep the exit code:
+#     python3 -m pytest <file> -q > /tmp/.out 2>&1 && grep -q passed /tmp/.out
+# or add the guard the exit code used to supply:
+#     out=$(python3 -m pytest <file> -q 2>&1); echo "$out" | grep -q passed && ! echo "$out" | grep -q failed
+#     out=$(bats <file> 2>&1); echo "$out" | grep -q '^ok 1 ' && ! echo "$out" | grep -q '^not ok'
+# The close gate refuses the unguarded form. Bypass: FW_ALLOW_UNJUDGED_TEST_RUN=1.
+#
+# REHEARSING A LINE BY HAND DOES NOT REHEARSE THE GATE (T-2743). Your interactive
+# shell has no `set -eo pipefail`. A line has returned 0 by hand and 141 under
+# P-011, from the same directory, the same second. To rehearse for real:
+#     bash -c 'set -eo pipefail; <your verification line>'
+#
+# Enforcement-baseline hint (L-398, T-1886): if you edited `.claude/settings.json`
+# (added/removed/reorganised hooks), add `bin/fw enforcement baseline` to your
+# Verification block. Otherwise the canonical hash diverges and `fw doctor`
+# reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
+# Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
+# the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+# The register must record the offset — this is the G-094 behaviour the task exists to apply.
+# Asserting the OFFSET, not just the word "filed", so it cannot pass on an intention.
+grep -q 'framework:pickup offset 213' .context/project/concerns.yaml
+
+# The register must still parse. A filing that corrupts the register is worse than no filing.
+python3 -c "import yaml; d=yaml.safe_load(open('.context/project/concerns.yaml')); g=[c for c in d['concerns'] if c['id']=='G-095'][0]; assert 'filed_upstream' in g, sorted(g); print('G-095 ok')"
+
+# The upstream envelope must exist AND carry this task's body. Read-back, not send-status
+# (T-2876: delivered != received). Asserts a distinctive phrase from the payload, so a
+# truncated or foreign envelope at that offset fails.
+timeout 60 termlink channel subscribe framework:pickup --cursor 213 --limit 1 --json > /tmp/.t3190-rb.json 2>&1
+python3 -c "import json,base64,sys; w=lambda x:(x if isinstance(x,dict) and 'payload_b64' in x else next((r for v in (x.values() if isinstance(x,dict) else x if isinstance(x,list) else []) for r in [w(v)] if r), None)); o=next((w(json.loads(l)) for l in open('/tmp/.t3190-rb.json') if l.strip() and l.strip().startswith('{')), None); assert o, 'no payload_b64 at offset 213'; b=base64.b64decode(o['payload_b64']).decode('utf-8','replace'); assert 'disambiguate on the message text' in b, 'envelope body is not this filing'; print('read-back ok', len(b), 'bytes')"
+
+## RCA
+
+<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
+     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
+     Non-bug-class tasks may leave this section empty or remove it.
+
+     For bug-class, fill in:
+       **Symptom:** what was observed (the user-facing manifestation).
+       **Root cause:** the specific structural/logical gap — not "the code was wrong".
+       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
+       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+
+     The completion gate (T-1550, G-019) blocks --status work-completed when
+     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
+-->
+
+## Evolution
+
+<!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
+     understanding evolved during build — what was learned that wasn't known at
+     filing, what in the original plan no longer fits, what triggered pivots
+     or new sub-tasks. Mandatory at slice boundaries (when applicable) and
+     before --status work-completed.
+
+     Origin: T-1717 grill Q4 — "the understanding of what we need and want
+     evolves with the process of materialisation." Structural counter to §ACD:
+     spec-vs-build divergence is logged as soon as it happens, not lost as
+     folklore.
+
+     Format (one entry per slice boundary or significant insight):
+       ### YYYY-MM-DD — [topic]
+       - **What changed:** [what we learned that we didn't know at filing]
+       - **Plan impact:** [what in the plan no longer fits]
+       - **Triggered:** [new sub-task / pivot / scope cut, with task ID if filed]
+
+     The completion gate (T-1718) blocks --status work-completed when this
+     section exists but is empty/template-only. Use --skip-evolution to bypass
+     (logged Tier-2). Non-arc tasks may leave this empty.
+-->
+
+## Recommendation
+
+<!-- T-2945: same shape as inception.md's block — the gate that reads it
+     (audit_inception_recommendation, lib/task-audit.sh:117) is shared, so the
+     shape is copied rather than reinvented.
+
+     REQUIRED once this task reaches partial-complete: Agent ACs done, at least
+     one `### Human` AC still unticked. `lib/review.sh:205-211` (T-2421) BLOCKS
+     `fw task review` emission for build/refactor/test/decommission tasks in that
+     state with no substantive block here — the operator would otherwise open
+     /review/<id> to a blank Recommendation card and be asked to approve a form.
+
+     Not required while every Human AC is ticked or the task has none: the gate
+     only fires on the partial-complete transition. It is here from the start so
+     you write it while you still have the evidence, not when the gate refuses.
+
+     Format (the parser wants the `**Recommendation:**` line at the start of a
+     line; a leading `-` or `*` bullet is also accepted):
+     **Recommendation:** GO / NO-GO / DEFER
+     **Rationale:** Why (cite evidence — what shipped, what was proven, what remains)
+     **Evidence:**
+     - Finding 1
+     - Finding 2
+
+     DEFER is for evidence gaps, not confidence gaps (CLAUDE.md §Presenting Work
+     for Human Review). If the artefact is complete and you still don't want to
+     commit, that is a calibration failure — recommend GO or NO-GO.
+-->
+
+## Decisions
+
+<!-- Record decisions ONLY when choosing between alternatives.
+     Skip for tasks with no meaningful choices.
+     Format:
+     ### [date] — [topic]
+     - **Chose:** [what was decided]
+     - **Why:** [rationale]
+     - **Rejected:** [alternatives and why not]
+-->
+
+## Decision
+
+<!-- Filled at completion of inception tasks via:
+     fw inception decide T-XXX go|no-go|defer --rationale "..."
+
+     For non-inception tasks this section is ignored. Kept in template
+     so `fw inception decide` (lib/inception.sh) finds the anchor heading
+     without auto-creating; T-1832 added auto-create as fallback for
+     legacy tasks lacking this section. -->
+
+## Updates
+
+### 2026-09-28T09:36:35Z — task-created [task-create-agent]
+- **Action:** Created task via task-create agent
+- **Output:** /opt/termlink/.tasks/active/T-3190-file-g-095-upstream-ctl-029-recommends-a.md
+- **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-5fc904f4
+- **Timestamp:** 2026-09-28T09:39:50Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-09-28T09:39:48Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

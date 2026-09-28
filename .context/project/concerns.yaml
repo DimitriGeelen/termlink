@@ -36,10 +36,25 @@ concerns:
     explicit prohibition on closing it. 25 of the 27 bundled tasks are owner:human.'
   detection_lag_days: 'since PL-376 was registered (T-2940) — the false-positive half was known
     and recorded, and the check was not changed; the harmful half (T-3010) had never been noticed'
+  filed_upstream: 'framework:pickup offset 213 (bug-report, read-back verified byte-identical
+    2026-09-28, sha256 cd0f1692f5fe9a60, 6816 bytes). Status: reported, NOT yet landed — this
+    field exists because G-094 says that state must be visible in the register rather than
+    living in a task that archives. G-095 was registered on 2026-09-28 and left unfiled for a
+    full run, which is G-094''s own failure mode reproduced; T-3190 corrected it.'
+  correction_from_filing: 'PL-367 caught a real error during verification. TWO controls
+    shipped as CTL-029: T-1903''s was renumbered to CTL-031 (T-3035), T-2055''s kept the id.
+    audit.sh''s own comment says to disambiguate on message text, not id. This gap is about
+    the one at audit.sh:4862 ("has all Agent ACs ticked … completable, not closed"), NOT the
+    CTL-031 archive-eligible control. A filing made from the originating task''s prose would
+    have pointed upstream at the wrong control.'
+  sharpened_2026-09-28: 'T-3010 is `owner: agent`, so the R-033 sovereignty gate — which is
+    what stops an agent closing the other 25 flagged tasks — DOES NOT protect it. The single
+    flagged task where closure is destructive is the one with no ownership protection, and an
+    autonomous run following the audit''s own advice closes it with every gate green.'
   status: watching
   created: 2026-09-28
   last_reviewed: 2026-09-28
-  related_tasks: ['T-3132', 'T-3010', 'T-2940', 'T-3044', 'T-3060']
+  related_tasks: ['T-3132', 'T-3010', 'T-2940', 'T-3044', 'T-3060', 'T-3190']
 - id: G-094
   type: gap
   title: 'no register state for "defect reported upstream, not yet landed here" — a vendored

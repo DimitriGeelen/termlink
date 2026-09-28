@@ -26,7 +26,7 @@ alone (CLAUDE.md Human Task Completion Rule).
 Rows with an empty `## Verification` block need that scrutiny most —
 nothing mechanical would gate their close.
 
-## Qualifying tasks (16)
+## Qualifying tasks (15)
 
 | Task | Status | Workflow | Name | Agent ACs | Verification cmds? |
 |------|--------|----------|------|----------:|--------------------|
@@ -36,7 +36,6 @@ nothing mechanical would gate their close.
 | T-2938 | started-work | build | cron drift: agentic-audit.crontab differs from deplo... | 2 | yes |
 | T-2939 | started-work | build | cron(substrate-smoke-canary) declared but never inst... | 2 | yes |
 | T-3010 | started-work | build | Set 90-day revisit_at on artifact.* surface decision | 3 | yes |
-| T-3044 | started-work | build | Orchestrate value-review + procAsFit prompt sequence... | 4 | yes |
 | T-3093 | started-work | build | Orchestrate [Review, Audit, procAsFit] x4 over TermL... | 6 | yes |
 | T-3117 | started-work | build | Arc arc-008 hit 80% closure threshold (25/30) withou... | 1 | yes |
 | T-3127 | started-work | build | .budget-status is shared across dispatched workers —... | 5 | yes |
