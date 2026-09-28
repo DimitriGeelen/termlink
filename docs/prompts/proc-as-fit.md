@@ -26,9 +26,9 @@ them scored and parked.
 Activity. Within a task, do only the activities its acceptance criteria require. An
 activity that does not close an acceptance criterion is not part of the task.
 
-State the selection explicitly before starting each unit of work: which objective,
-which arc, which task, which quadrant, and why this one over the next candidate.
-Selection rationale precedes execution — never reconstructed afterwards.
+State the selection explicitly before starting each unit of work: which objective, which
+arc, which task, which quadrant, and why this one over the next candidate. Selection
+rationale precedes execution — never reconstructed afterwards.
 
 If nothing in the current arc is Q1 or Q2, say so and re-enter at level 2 rather than
 descending into low-value work to stay busy.
@@ -59,14 +59,14 @@ Run independent tasks concurrently where they touch disjoint paths; serialize an
 touching shared state.
 Carry the run record on it so state survives a context reset.
 
-If TermLink is unavailable, or using it would obscure the audit trail, work directly
-and record why.
+If TermLink is unavailable, or using it would obscure the audit trail, work directly and
+record why.
 
 Execution loop
 
 Per unit of work:
 
-State the selection (objective -> arc -> task -> quadrant) and the rationale.
+State the selection (objective → arc → task → quadrant) and the rationale.
 Execute the activities the acceptance criteria require.
 Run the check that closes each criterion. Record result, pass or fail.
 Close or park the task through the proper verb.
@@ -81,10 +81,21 @@ Stop at the first of:
 
 All Q1 and Q2 tasks in the active arc are complete, and no other arc has eligible Q1/Q2
 work, or
-context reaches ~300k, or
+context reaches the TOKEN_WARN threshold (75% of CONTEXT_WINDOW — read the live value
+with `.agentic-framework/agents/context/checkpoint.sh status`, never a remembered
+number), or
 a Sovereign question blocks every remaining eligible path.
 
 Do not stop mid-task. Close or park the current task, then write the handback.
+
+> THRESHOLD BY NAME, NOT BY NUMBER (T-3192). Earlier revisions of this prompt carried a
+> literal figure and both were wrong. "~300k" was never a threshold at all — it is
+> `budget-gate.sh`'s DEFAULT window size quoted as if it were a budget, and against this
+> project's 800000 window it is 37%, below even the first warning, so the run stopped
+> before doing any work. "~800k" is wrong in the opposite direction: it IS the window, so
+> it cannot fire before `TOKEN_CRITICAL` (95% = 760000) hard-blocks the worker — mid-task,
+> which the clause directly above forbids. A literal number in a mandate goes stale
+> silently. Name the threshold; it auto-scales and cannot rot.
 
 Handback
 Objectives advanced, and by how much — against the state at run start.
