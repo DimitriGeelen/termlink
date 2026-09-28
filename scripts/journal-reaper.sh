@@ -102,8 +102,28 @@ case "$WINDOW" in ''|*[!0-9]*) die "--window must be a non-negative integer" ;; 
 
 # SCOPE ENFORCEMENT (AC4): an explicit --topic must be a dm: topic. The enumerate-all
 # path only ever lists dm:* topics, so non-dm topics can never be reaped.
+#
+# WHY inbox: IS EXCLUDED, AND WHY THAT SHOULD NOT BE "FIXED" (T-3209, 2026-09-29).
+# T-3201 made journal-mirror ingest `inbox:<circuit>/<project>` topics, so those rows now
+# accumulate in the journal and are never reaped. That looks like an oversight to patch
+# by widening this check. It is not, and the reasoning is asymmetric:
+#
+#   This reaper does not merely prune the local journal. It trims already-journaled
+#   envelopes OFF THE HUB — that is what makes the journal authoritative. For `dm:` that
+#   is sound: the topic has two parties and both journal it. `inbox:<circuit>/<project>`
+#   is a SHARED PROJECT MAILBOX. Three local agents enumerate ours today
+#   (notify-sidecar-agents.conf), and peers read it too. Trimming on one reader's journal
+#   deletes mail out from under readers who have not journaled it. The blast radius is
+#   other people's unread messages.
+#
+#   The growth it avoids is negligible by comparison: measured 52 rows over 6.2 days
+#   (~8.4/day, ~384 bytes/row) = roughly 1.2 MB/year. Accepting unbounded-but-trivial
+#   local growth is the cheaper error than destroying a shared mailbox.
+#
+# If you are here because the journal got large, prune the JOURNAL locally — do not widen
+# this trim.
 if [ -n "$ONE_TOPIC" ] && [ "${ONE_TOPIC#dm:}" = "$ONE_TOPIC" ]; then
-    die "refusing to reap non-dm topic '$ONE_TOPIC' — the reaper only trims dm:* topics (scope boundary, T-2302 AC4)"
+    die "refusing to reap non-dm topic '$ONE_TOPIC' — this reaper TRIMS THE HUB, and non-dm topics (notably inbox:<circuit>/<project>) are shared mailboxes with readers who may not have journaled the message yet. Scope boundary: T-2302 AC4, reaffirmed T-3209."
 fi
 
 hub_args=()
