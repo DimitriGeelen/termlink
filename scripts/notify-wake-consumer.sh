@@ -18,8 +18,18 @@
 # ------------
 # Polls THIS agent's own flag. When the flag has been rewritten since we started
 # AND names a topic we care about, it fires ACTION once and exits (or keeps going
-# under --follow), then signals L3 stage=read so the SENDER learns the message
-# reached a prompt.
+# under --follow).
+#
+# It does NOT signal L3, and this header used to say it did (T-3208). The L3 post was
+# removed deliberately — see the note at the fire site: this script notices a flag, it
+# does not inject anything into a prompt, so it has no standing to claim the message was
+# read. The removal was right; the header kept advertising the removed capability.
+#
+# Read the consequence plainly, because it is easy to miss: WITHOUT --action this
+# consumer logs "WAKE: ..." and returns. That is its entire effect. Neither agent in
+# notify-wake-agents.conf declares an --action today, so the wake rail currently
+# terminates in a log line. The step that puts a message in front of an agent is
+# scripts/notify-injector.sh, which nothing schedules.
 #
 # WITH NO --action IT POSTS NOTHING BUT THE L3 RECEIPT, and that is deliberate.
 # The default used to publish a `wake-ack` NOTE to the topic it was watching. A
