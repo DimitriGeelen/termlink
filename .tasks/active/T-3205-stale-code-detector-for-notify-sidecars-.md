@@ -27,7 +27,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-28T20:43:20Z
-last_update: 2026-09-28T20:44:57Z
+last_update: 2026-09-28T22:16:33Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -65,26 +65,26 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] AC1 — A check reports any LIVE notify-sidecar whose `/proc/<pid>` start-mtime
+- [x] AC1 — A check reports any LIVE notify-sidecar whose `/proc/<pid>` start-mtime
       predates the mtime of `scripts/notify-sidecar.sh`: alive, but running code that is
       no longer what is on disk. Measured instance: three sidecars ran from Sep 22 14:16
       against a fix committed Sep 28, and every existing surface stayed green.
-- [ ] AC2 — It REUSES T-2405's staleness primitives (`code_mtime` / `proc_start_mtime` /
+- [x] AC2 — It REUSES T-2405's staleness primitives (`code_mtime` / `proc_start_mtime` /
       `is_stale` in `check-stale-waker-code-freshness.sh`) rather than reimplementing
       them, so detection and remediation cannot drift apart. Two copies of a subtle
       mtime comparison drift, and the copy that drifts is the one that quietly stops
       catching things.
-- [ ] AC3 — DETECTION ONLY. It never restarts a sidecar. Restarting posts receipts
+- [x] AC3 — DETECTION ONLY. It never restarts a sidecar. Restarting posts receipts
       visible to peers and injects into live session prompts, which is a human call —
       T-3204's restart required explicit operator approval for exactly that reason.
       A checker that auto-restarted would convert a visible staleness into a silent one.
-- [ ] AC4 — Pid-recycle guarded: a pid alive but NOT a notify-sidecar process must not
+- [x] AC4 — Pid-recycle guarded: a pid alive but NOT a notify-sidecar process must not
       be reported as stale (the T-2239 `/proc/<pid>/cmdline` pattern).
-- [ ] AC5 — Fixture suite with `# guard-layer: source`, driven by seams for the state
+- [x] AC5 — Fixture suite with `# guard-layer: source`, driven by seams for the state
       dir and a controlled-mtime script (T-2405 ships `STALE_WAKER_STATE_DIR` /
       `STALE_WAKER_PW_SCRIPT` — mirror that shape), proven load-bearing by a mutant that
       disables the mtime comparison and must redden the stale case.
-- [ ] AC6 — Exit contract matches the sibling checks: 0 clean / 1 stale sidecar(s) /
+- [x] AC6 — Exit contract matches the sibling checks: 0 clean / 1 stale sidecar(s) /
       2 tooling, fail-closed — an unreadable `/proc` or a missing script exits 2, never 0.
       A checker reporting clean because it could not look is the disease, not the cure.
 
@@ -125,7 +125,60 @@ bvp_scores_proposed:
        Pipefail/SIGPIPE section below forbids, and this line used to prescribe it.
 -->
 
+## Findings
+
+**F1 — shipped AND installed.** A canary committed but not installed to `/etc/cron.d` is
+precisely the shipped-but-dark condition it exists to detect (PL-168, T-2561). Installed
+to `/etc/cron.d/termlink-stale-sidecar-code-canary`; `check-cron-install-drift.sh` now
+reports healthy across 31 crontabs, and `check-canary-log-hygiene.sh` passes.
+
+**F2 — the detector caught its own disease during development, which is why the
+self-test exists.** The first draft extracted all three T-2405 primitives with ONE awk
+carrying three ranges. The ranges match independently, so overlapping lines printed more
+than once and the result eval'd to `is_stale() { is_stale() { is_stale() {` — nested
+definitions with the wrong return. It eval'd cleanly and `declare -F is_stale` found the
+name, so an existence check passed while the logic was garbage: the live run reported two
+freshly-restarted sidecars as stale.
+
+Existence is not correctness. The fix extracts one function at a time AND asserts the
+borrowed `is_stale` behaves (older-is-stale / newer-is-not / empty-is-not) before using
+it, exiting 2 rather than misclassifying every sidecar. Fixture case 8 pins it with a
+sibling whose `is_stale` is present and wrong.
+
+**F3 — it is a RUNTIME canary, not a guard-layer member, and that distinction was a
+correction.** It was first marked `# guard-layer: source`. That marker means "no live
+hub, no network, no host state", and this reads live processes — run in CI it would find
+zero sidecars and report a clean bill about a host that has none. The fixtures are
+hermetic and keep the marker; the checker moved to cron.
+
+**F4 — zero sidecars reads as NOT EVALUATED, never healthy.** "Nothing was compared" and
+"everything compared is current" are different claims, and conflating them is how a check
+earns a green it never measured (T-3105). Both are non-firing — a host may legitimately
+run none — but the output distinguishes them and points at the supervisor if sidecars
+were expected.
+
+**F5 — scope, stated so a green is not over-read.** It compares process start time
+against script mtime. It does NOT verify the running code is CORRECT, only that it is not
+older than what is on disk. A sidecar restarted onto a broken edit reads current.
+
 ## Verification
+
+bash tests/stale-sidecar-code-fixtures.sh
+# AC2 — the primitives are BORROWED from T-2405, not reimplemented here. If this file
+# ever grows its own is_stale, detection and remediation can drift apart silently.
+test -z "$(grep -nE '^is_stale\(\)' scripts/check-stale-sidecar-code.sh)"
+grep -q 'check-stale-waker-code-freshness.sh' scripts/check-stale-sidecar-code.sh
+# AC2 — and their BEHAVIOUR is self-tested, because existence is not correctness: the
+# first draft eval'd mangled definitions that passed a declare -F check.
+grep -q 'failed self-test' scripts/check-stale-sidecar-code.sh
+# AC3 — detection only: no executable restart, only remediation text.
+test -z "$(grep -nE '^[^#]*(pkill|notify-sidecar-supervisor\.sh)' scripts/check-stale-sidecar-code.sh | grep -vE 'echo|printf')"
+# AC6 — the canary is INSTALLED, not merely committed. A git-tracked crontab that was
+# never installed is the shipped-but-dark condition this very canary detects.
+bash scripts/check-cron-install-drift.sh --quiet
+# The crontab keeps stdout and stderr separate (T-2685 one-bit-channel rule).
+bash scripts/check-canary-log-hygiene.sh --quiet
+bash -n scripts/check-stale-sidecar-code.sh
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.

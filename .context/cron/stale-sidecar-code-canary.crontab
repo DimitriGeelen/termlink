@@ -1,0 +1,39 @@
+# T-3205 — Stale-sidecar-code canary (PL-392 / G-069 detection for the notify rail)
+# Source of truth: /opt/termlink/.context/cron/stale-sidecar-code-canary.crontab (git-tracked)
+# Installed to:    /etc/cron.d/termlink-stale-sidecar-code-canary (USER field syntax — do NOT load into a user crontab)
+#
+# A long-lived detached process keeps executing the code it loaded. The sidecar
+# supervisor deliberately never restarts a live sidecar — it only starts missing ones —
+# so a shipped fix can sit DARK in production with every surface reporting healthy:
+# process alive, heartbeat fresh, canary quiet, guard layer green, commit pushed.
+# Measured in T-3204: three sidecars ran from Sep 22 against code written Sep 28.
+#
+# Nothing distinguishes "running" from "running the current code". T-2405 built this
+# exact detector for push-wakers and scoped it there, which made the gap MORE expensive
+# rather than less — that canary's green reads as coverage of a class it covers one
+# member of. This is the sibling for sidecars.
+#
+# Empty log = healthy, per the convention of every canary in this tree. A firing entry
+# means a live sidecar is executing superseded code.
+#
+# Operator action on firing — DELIBERATELY NOT AUTOMATED. Restarting a sidecar posts
+# receipts visible to peers and can inject into live session prompts; T-3204's restart
+# required explicit operator approval for exactly that reason. A canary that auto-fixed
+# it would convert a visible staleness into a silent one.
+#
+#   pkill -TERM -f 'notify-sidecar[.]sh --agent-id'
+#   bash scripts/notify-sidecar-supervisor.sh
+#
+# Then confirm the RUNNING code carries the change via an observable only the new code
+# can produce. A fresh start time proves a restart, not which code it loaded (PL-392).
+#
+# Ad-hoc: bash scripts/check-stale-sidecar-code.sh
+# Exit:   0 all current (or none found) · 1 stale · 2 tooling (fail-closed)
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+
+# Daily. The stderr split is load-bearing (T-2685): a tooling error must never dirty the
+# findings log, because "empty log = healthy" is a one-bit channel and once it is dirty a
+# genuine finding appends to an already-non-empty file and changes nothing an operator
+# can see.
+17 6 * * * root cd /opt/termlink && bash scripts/check-stale-sidecar-code.sh --quiet >> .context/working/.stale-sidecar-code-canary.log 2>> .context/working/.stale-sidecar-code-canary.log.stderr
