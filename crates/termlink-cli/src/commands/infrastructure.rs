@@ -527,10 +527,20 @@ pub(crate) async fn cmd_doctor(json_output: bool, fix: bool, strict: bool) -> Re
                     names = dropped.join(", "),
                 )
             ),
-            Ok((0, _, _)) => check!("inbox", pass, "no pending transfers"),
-            Ok((total, targets, _)) => {
-                check!("inbox", warn, format!("{total} pending transfer(s) for {targets} target(s)"))
-            }
+            Ok((0, _, _)) => check!("inbox", pass, "no records on any inbox: topic"),
+            // T-3197: record count, not transfers — inbox: topics also carry
+            // ordinary messages. This is informational, so it PASSES: a topic
+            // holding correspondence is healthy, and the previous permanent
+            // WARN both asserted something false and taught the operator to
+            // ignore the check (T-2818 alarm fatigue).
+            Ok((total, targets, _)) => check!(
+                "inbox",
+                pass,
+                format!(
+                    "{total} record(s) across {targets} inbox topic(s) — not a transfer count; \
+                     see `termlink inbox list <target>`"
+                )
+            ),
             Err(e) => check!("inbox", warn, format!("inbox query failed: {e}")),
         }
     }
@@ -1219,14 +1229,28 @@ pub(crate) async fn cmd_inbox_status(json_output: bool) -> Result<()> {
 
     if json_output {
         println!("{}", serde_json::to_string_pretty(&status)?);
-    } else if status.total_transfers == 0 {
-        println!("Inbox: empty (no pending transfers)");
+    } else if status.total_records == 0 {
+        println!("Inbox: empty (no records on any inbox: topic)");
     } else {
-        println!("Inbox: {} pending transfer(s)", status.total_transfers);
+        // T-3197: this is a RECORD count, not a transfer count. channel.list
+        // carries no msg_type breakdown, so inbox: topics report every
+        // envelope — transfers AND ordinary messages sharing the topic.
+        println!(
+            "Inbox: {} record(s) across {} topic(s)",
+            status.total_records,
+            status.targets.len()
+        );
         println!();
         for t in &status.targets {
-            println!("  {}: {} transfer(s)", t.target, t.pending);
+            println!("  {}: {} record(s)", t.target, t.records);
         }
+        println!();
+        println!(
+            "Note: these are topic records, NOT pending transfers — inbox: topics also carry"
+        );
+        println!(
+            "      ordinary messages. For pending transfers: termlink inbox list <target>"
+        );
     }
     Ok(())
 }

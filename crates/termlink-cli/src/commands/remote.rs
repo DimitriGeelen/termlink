@@ -2132,16 +2132,20 @@ async fn cmd_remote_inbox_inner(
             .context("inbox.status (channel-aware) failed")?;
             if json {
                 println!("{}", serde_json::to_string_pretty(&status)?);
-            } else if status.total_transfers == 0 {
-                println!("Inbox on {}: empty (no pending transfers)", conn.hub);
+            } else if status.total_records == 0 {
+                println!("Inbox on {}: empty (no records on any inbox: topic)", conn.hub);
             } else {
+                // T-3197: record count, not transfers.
                 println!(
-                    "Inbox on {}: {} pending transfer(s)",
-                    conn.hub, status.total_transfers
+                    "Inbox on {}: {} record(s) across {} topic(s)",
+                    conn.hub,
+                    status.total_records,
+                    status.targets.len()
                 );
                 for t in &status.targets {
-                    println!("  {} — {} transfer(s)", t.target, t.pending);
+                    println!("  {} — {} record(s)", t.target, t.records);
                 }
+                println!("  (records, not pending transfers — see `inbox list <target>`)");
             }
         }
         RemoteInboxAction::List { target, json } => {
@@ -8442,12 +8446,14 @@ async fn cmd_remote_doctor_inner(
             &mut rpc_client, conn.hub, cache, &mut ctx,
         ).await {
             Ok(status) => {
-                if status.total_transfers == 0 {
-                    check!("inbox", pass, "no pending transfers");
+                if status.total_records == 0 {
+                    check!("inbox", pass, "no records on any inbox: topic");
                 } else {
-                    check!("inbox", warn, format!(
-                        "{} pending transfer(s) for {} target(s)",
-                        status.total_transfers,
+                    // T-3197: record count, not transfers — informational, not a WARN.
+                    check!("inbox", pass, format!(
+                        "{} record(s) across {} inbox topic(s) — not a transfer count; \
+                         see `termlink inbox list <target>`",
+                        status.total_records,
                         status.targets.len()
                     ));
                 }

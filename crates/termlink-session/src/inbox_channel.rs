@@ -160,20 +160,44 @@ pub async fn list_via_channel_with_client(
     }
 }
 
-/// Aggregate inbox status as returned by the legacy `inbox.status` RPC and
-/// rebuilt by the channel path from a `channel.list(prefix="inbox:")` reply.
-/// Same shape as legacy callers expect so the migration is a drop-in
-/// (T-1229b / T-1235).
+/// Aggregate inbox status, rebuilt by the channel path from a
+/// `channel.list(prefix="inbox:")` reply (T-1229b / T-1235).
+///
+/// **This is a RECORD count, not a transfer count (T-3197).** `channel.list`
+/// returns each topic's total record count and carries no `msg_type`
+/// breakdown, so the number here includes every envelope on an `inbox:*`
+/// topic — `file.init`/`file.chunk` transfer envelopes *and* ordinary messages
+/// such as `sidecar.consult` and `note`, which share the same topic.
+///
+/// The fields were previously named `total_transfers` / `pending` and the CLI
+/// printed them as "N pending transfer(s)". That was false and it was
+/// dangerous: measured 2026-09-28, this reported 232 "pending transfers"
+/// across 22 targets while `inbox list` returned **zero** transfers for every
+/// one of them. The 232 were live messages on `retention: forever` topics,
+/// including 49 unread inbound consults — and `inbox clear` resolves to
+/// `channel.trim`, so the mislabel came within one command of authorising
+/// their deletion. A metric that names a benign-sounding unit for something
+/// else does not merely mislead; it recruits the operator into destroying what
+/// it miscounted (PL-391).
+///
+/// For an actual pending-transfer count, use `list_via_channel` /
+/// `inbox list <target>`, which folds envelopes by `msg_type`.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct InboxStatus {
-    pub total_transfers: u64,
+    /// Total records across all `inbox:*` topics. NOT a transfer count.
+    /// `serde(alias)` keeps older stored/piped payloads parseable; the
+    /// serialized name changes deliberately (PL-244).
+    #[serde(alias = "total_transfers")]
+    pub total_records: u64,
     pub targets: Vec<InboxStatusTarget>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct InboxStatusTarget {
     pub target: String,
-    pub pending: u64,
+    /// Records on this target's topic. NOT a transfer count — see `InboxStatus`.
+    #[serde(alias = "pending")]
+    pub records: u64,
 }
 
 /// Dispatch + aggregate. Single entry point for inbox.status callers using an
@@ -217,11 +241,14 @@ pub async fn status_via_channel_with_client(
     }
 }
 
-/// Pure aggregation: sum per-topic counts from a `channel.list` reply
-/// (filtered to `inbox:` prefix) into the InboxStatus shape that legacy
-/// `inbox.status` callers expect. Strips the `inbox:` prefix to derive
-/// target names. Public so dual-read mergers and tests can drive it
-/// without a transport.
+/// Pure aggregation: sum per-topic RECORD counts from a `channel.list` reply
+/// (filtered to `inbox:` prefix) into the InboxStatus shape. Strips the
+/// `inbox:` prefix to derive target names. Public so dual-read mergers and
+/// tests can drive it without a transport.
+///
+/// T-3197: the summed `count` is every record on the topic regardless of
+/// `msg_type`. Do not reintroduce a "transfers" reading of this number — the
+/// information needed to compute one is not present in a `channel.list` reply.
 pub fn aggregate_status_from_channel_list(channel_list_result: &Value) -> InboxStatus {
     let topics = channel_list_result
         .get("topics")
@@ -236,12 +263,12 @@ pub fn aggregate_status_from_channel_list(channel_list_result: &Value) -> InboxS
             Some(s) if !s.is_empty() => s.to_string(),
             _ => continue,
         };
-        let pending = t.get("count").and_then(|v| v.as_u64()).unwrap_or(0);
-        total += pending;
-        targets.push(InboxStatusTarget { target, pending });
+        let records = t.get("count").and_then(|v| v.as_u64()).unwrap_or(0);
+        total += records;
+        targets.push(InboxStatusTarget { target, records });
     }
     InboxStatus {
-        total_transfers: total,
+        total_records: total,
         targets,
     }
 }
@@ -781,12 +808,75 @@ mod tests {
             ]
         });
         let s = aggregate_status_from_channel_list(&resp);
-        assert_eq!(s.total_transfers, 4);
+        assert_eq!(s.total_records, 4);
         assert_eq!(s.targets.len(), 2);
         let alice = s.targets.iter().find(|t| t.target == "alice").unwrap();
         let bob = s.targets.iter().find(|t| t.target == "bob").unwrap();
-        assert_eq!(alice.pending, 3);
-        assert_eq!(bob.pending, 1);
+        assert_eq!(alice.records, 3);
+        assert_eq!(bob.records, 1);
+    }
+
+    /// T-3197 / PL-391. The load-bearing test: this count includes NON-transfer
+    /// envelopes. `channel.list` reports a topic's total record count with no
+    /// `msg_type` breakdown, and `inbox:*` topics carry ordinary messages
+    /// (`sidecar.consult`, `note`) alongside `file.*` transfer envelopes.
+    ///
+    /// Measured on the live hub 2026-09-28: this path reported 232 while
+    /// `list_via_channel` — which folds by `msg_type` — returned ZERO transfers
+    /// for all 22 targets. The old field name `total_transfers` asserted the
+    /// opposite, and `inbox clear` resolves to `channel.trim`, so the label came
+    /// one command away from authorising deletion of 49 unread inbound consults.
+    ///
+    /// If someone renames these fields back toward "transfers", this test is the
+    /// statement of why they must not.
+    #[test]
+    fn status_counts_records_including_non_transfer_envelopes() {
+        // A topic whose records are entirely ordinary messages — zero transfers.
+        let resp = json!({
+            "topics": [
+                {"name": "inbox:cacc73ea/010-termlink", "retention": {"kind": "forever"}, "count": 49},
+            ]
+        });
+        let s = aggregate_status_from_channel_list(&resp);
+        assert_eq!(
+            s.total_records, 49,
+            "every record counts, regardless of msg_type — this is NOT a transfer count"
+        );
+        assert_eq!(s.targets[0].records, 49);
+
+        // The folding path is the one that answers "how many transfers?", and on
+        // the same envelopes it answers zero: none carry a transfer_id.
+        let consults = vec![
+            json!({"msg_type": "sidecar.consult", "payload_b64": B64.encode(b"{\"payload\":{}}")}),
+            json!({"msg_type": "note", "payload_b64": B64.encode(b"{\"payload\":{}}")}),
+        ];
+        assert!(
+            fold_envelopes(&consults).is_empty(),
+            "non-transfer envelopes must contribute no InboxEntry — the two surfaces \
+             genuinely measure different things, which is the whole finding"
+        );
+    }
+
+    /// T-3197: a payload written by an older binary still parses. The serialized
+    /// name changed deliberately (PL-244); deserialization stays compatible.
+    #[test]
+    fn status_deserializes_legacy_field_names_via_alias() {
+        let legacy = json!({
+            "total_transfers": 7,
+            "targets": [{"target": "alice", "pending": 7}]
+        });
+        let s: InboxStatus = serde_json::from_value(legacy).expect("legacy payload must parse");
+        assert_eq!(s.total_records, 7);
+        assert_eq!(s.targets[0].records, 7);
+
+        // ...and the serialized form uses the honest names.
+        let out = serde_json::to_value(&s).unwrap();
+        assert!(out.get("total_records").is_some(), "honest name must be emitted");
+        assert!(
+            out.get("total_transfers").is_none(),
+            "the misleading name must NOT be emitted — a consumer reading it gets a loud \
+             null rather than a number that never meant transfers"
+        );
     }
 
     #[test]
@@ -802,7 +892,7 @@ mod tests {
             ]
         });
         let s = aggregate_status_from_channel_list(&resp);
-        assert_eq!(s.total_transfers, 2, "only inbox:carol contributes");
+        assert_eq!(s.total_records, 2, "only inbox:carol contributes");
         assert_eq!(s.targets.len(), 1);
         assert_eq!(s.targets[0].target, "carol");
     }
@@ -818,16 +908,16 @@ mod tests {
             ]
         });
         let s = aggregate_status_from_channel_list(&resp);
-        assert_eq!(s.total_transfers, 5);
+        assert_eq!(s.total_records, 5);
         let dave = s.targets.iter().find(|t| t.target == "dave").unwrap();
-        assert_eq!(dave.pending, 0);
+        assert_eq!(dave.records, 0);
     }
 
     #[test]
     fn status_handles_empty_topics_list() {
         let resp = json!({"topics": []});
         let s = aggregate_status_from_channel_list(&resp);
-        assert_eq!(s.total_transfers, 0);
+        assert_eq!(s.total_records, 0);
         assert!(s.targets.is_empty());
     }
 
@@ -837,7 +927,7 @@ mod tests {
         // status rather than erroring.
         let resp = json!({});
         let s = aggregate_status_from_channel_list(&resp);
-        assert_eq!(s.total_transfers, 0);
+        assert_eq!(s.total_records, 0);
         assert!(s.targets.is_empty());
     }
 
@@ -892,14 +982,14 @@ mod tests {
             ]
         });
         let s = aggregate_status_from_channel_list(&resp);
-        assert_eq!(s.total_transfers, 7, "offline target's count must be summed");
+        assert_eq!(s.total_records, 7, "offline target's count must be summed");
         let names: Vec<&str> = s.targets.iter().map(|t| t.target.as_str()).collect();
         assert!(
             names.contains(&"bob-offline"),
             "offline target must appear in InboxStatus — fleet-doctor depends on this"
         );
         let bob = s.targets.iter().find(|t| t.target == "bob-offline").unwrap();
-        assert_eq!(bob.pending, 5);
+        assert_eq!(bob.records, 5);
     }
 
     #[test]
