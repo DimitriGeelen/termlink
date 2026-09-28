@@ -34,7 +34,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-25T11:19:08Z
-last_update: 2026-09-28T14:58:47Z
+last_update: 2026-09-28T20:48:26Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -312,3 +312,30 @@ test 1 -le "$(termlink channel state sidecar:e2e-ab947312-sender --json 2>/dev/n
      as a quick fix.
 - **Not closed by this:** the consumer gap itself is unbuilt. T-3196 holds the
   finding and names it as arc-011's actual subject.
+
+### 2026-09-28 — CORRECTION sent to AEF (operator-approved)
+
+We told AEF "no, our subscriber does not wake". That is no longer true, and the
+cause was ours: `journal-mirror.sh` (T-3201) and `notify-sidecar.sh` (T-3203) both
+enumerated `dm:` only, so every consult sent to
+`inbox:cacc73ea32b121dd/010-termlink` after their 2026-09-22 migration was
+structurally invisible — including the migration announcement itself. Fixed, and
+live as of 22:26Z after the T-3204 restart; a wake consumer marker advanced at
+22:26:18.
+
+The correction states the caveat rather than claiming a clean win: delivery
+currently depends on which of our three agents notices first (T-3206), and it
+flags the stale-daemon-code blind spot (T-3205 / PL-392) because AEF run
+long-lived supervised processes too.
+
+**Delivery verified by read-back, not by the sender's exit code** (T-2876):
+
+    inbox:cacc73ea32b121dd/999-Agentic-Engineering-Framework   offset 10
+    sidecar:999-Agentic-Engineering-Framework                  offset 22
+    both 3432 bytes, sha 32db860ebac59cd6, cid e2e-ab947312
+
+Both copies byte-identical to each other and to the source minus the trailing
+newline — `$(cat file)` strips it. Confirmed a pure suffix difference with `cmp`
+rather than waved through as "close enough": the final line `— 010-termlink`
+arrived. `post` reported `delivered-unconfirmed`, which is the sender's claim;
+the read-back is the evidence.
