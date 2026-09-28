@@ -2725,6 +2725,16 @@ _VERDICT_SECTION_RE = re.compile(
 
 
 def render_verdict_md(verdict: Verdict) -> str:
+    # T-3198: record the verdict's PROVENANCE. The T-1951 dispatch path runs the
+    # scan inside an isolated TermLink worker with FW_REVIEWER_IN_DISPATCH=1
+    # (dispatch_cli.py:185); the inline path does not. Without this line a reader
+    # — and, more importantly, the R-033 sovereignty gate — cannot distinguish an
+    # EXTERNAL review from an agent reviewing its own work in the same session.
+    # The sovereignty relaxation keys on `external-dispatch` and on nothing else,
+    # so this string is load-bearing: do not emit it unconditionally.
+    _reviewer_provenance = (
+        "external-dispatch" if os.environ.get("FW_REVIEWER_IN_DISPATCH") else "inline"
+    )
     lines = [
         VERDICT_HEADER,
         "",
@@ -2733,6 +2743,7 @@ def render_verdict_md(verdict: Verdict) -> str:
         f"- **Catalogue:** {verdict.catalogue_version}",
         f"- **Overall:** {verdict.overall}",
         f"- **Needs Human:** {'yes' if verdict.needs_human else 'no'}",
+        f"- **Reviewer:** {_reviewer_provenance}",
     ]
     if verdict.risk_declared:
         lines.append(f"- **Risk (declared):** {verdict.risk_declared}")

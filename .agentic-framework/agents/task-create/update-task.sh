@@ -83,12 +83,93 @@ log_gate_bypass() {
     echo "  reason: '${_esc_reason:-}'" >> "$log_file"
 }
 
+# T-3198: does an EXTERNAL reviewer verdict stand in for the human tick?
+#
+# Rubber-stamping is dead by operator ruling (2026-09-28): a low-risk task whose
+# remaining Human ACs are mechanical does not need a person to click. What it
+# needs is a reviewer that is not the agent that did the work. `fw reviewer
+# T-XXX --dispatch` (T-1951) is exactly that — it runs the scan inside an
+# isolated TermLink worker, so the verdict has an author other than this session.
+#
+# Prints the satisfying verdict's scan id on stdout and returns 0 ONLY when all
+# of the following hold. Any doubt returns 1 and the gate stays engaged:
+#   1. a `## Reviewer Verdict` block exists
+#   2. `Overall: PASS`
+#   3. `Needs Human: no`
+#   4. `Reviewer: external-dispatch`  (not an inline self-scan)
+#   5. frontmatter has no `human_signoff: required`
+#   6. frontmatter has no `risk: high|medium`
+#   7. zero remaining UNCHECKED `[REVIEW]` Human ACs
+#
+# (7) is where "not high risk" is actually decided. `[RUBBER-STAMP]` is the
+# mechanical class this ruling releases; `[REVIEW]` is declared human judgment
+# and is never released — see CLAUDE.md §Human AC Format Requirements (T-325).
+#
+# FAIL-CLOSED: unreadable file, absent block, unparseable frontmatter or missing
+# python3 all return 1. A sovereignty gate that opens because it could not
+# evaluate itself is worse than no gate at all.
+external_reviewer_clears_sovereignty() {
+    python3 - "$TASK_FILE" <<'PYREV' 2>/dev/null || return 1
+import sys, re
+try:
+    text = open(sys.argv[1], encoding="utf-8").read()
+except OSError:
+    sys.exit(1)
+
+fm_m = re.match(r"^---\s*\n(.*?)\n---", text, re.DOTALL)
+fm = fm_m.group(1) if fm_m else ""
+if re.search(r"^human_signoff:\s*[\"']?required\b", fm, re.M):
+    sys.exit(1)
+if re.search(r"^risk:\s*[\"']?(high|medium)\b", fm, re.M | re.I):
+    sys.exit(1)
+
+v_m = re.search(r"^## Reviewer Verdict[^\n]*\n(.*?)(?=^#{2,} |\Z)", text, re.M | re.S)
+if not v_m:
+    sys.exit(1)
+block = v_m.group(1)
+
+def field(name):
+    m = re.search(r"^- \*\*%s:\*\*\s*(\S+)" % name, block, re.M | re.I)
+    return (m.group(1).strip() if m else "")
+
+if field("Overall").upper() != "PASS":
+    sys.exit(1)
+if field("Needs Human").lower() != "no":
+    sys.exit(1)
+if field("Reviewer").lower() != "external-dispatch":
+    sys.exit(1)
+
+# Remaining UNCHECKED Human ACs must all be mechanical. Scan every `### Human`
+# block, with HTML comments stripped so the template's own examples never count.
+human_blocks = re.findall(r"^### Human\s*$(.*?)(?=^#{2,} |\Z)", text, re.M | re.S)
+human = re.sub(r"<!--.*?-->", "", "\n".join(human_blocks), flags=re.S)
+for line in human.splitlines():
+    if re.match(r"\s*-\s*\[\s*\]", line) and "[REVIEW]" in line:
+        sys.exit(1)
+
+print(field("Scan ID") or "unknown")
+PYREV
+}
+
 # Human Sovereignty Gate (R-033/T-198)
 # Block agent from completing human-owned tasks without human interaction.
+# T-3198: an external TermLink reviewer PASS now satisfies it for low-risk work.
 check_human_sovereignty() {
     local current_owner
     current_owner=$({ grep "^owner:" "$TASK_FILE" 2>/dev/null || true; } | head -1 | sed 's/owner:[[:space:]]*//')
     if [ "$current_owner" = "human" ]; then
+        local _rev_scan_id
+        if _rev_scan_id=$(external_reviewer_clears_sovereignty); then
+            # Loud and logged, never silent — a reader of the register must be
+            # able to tell a reviewer-closed task from a human-closed one.
+            echo -e "${GREEN}Sovereignty gate (R-033): satisfied by EXTERNAL reviewer verdict (T-3198)${NC}"
+            echo "  Verdict: PASS / Needs Human: no / Reviewer: external-dispatch"
+            echo "  Scan ID: ${_rev_scan_id}"
+            echo "  No [REVIEW] Human AC outstanding; risk not declared high/medium."
+            log_gate_bypass "external-reviewer" \
+                "check_human_sovereignty: external-dispatch PASS scan=${_rev_scan_id}"
+            return 0
+        fi
         if [ "$SKIP_SOVEREIGNTY" = true ]; then
             echo -e "${YELLOW}WARNING: Completing human-owned task (--skip-sovereignty bypass)${NC}"
             log_gate_bypass "--skip-sovereignty" "check_human_sovereignty"

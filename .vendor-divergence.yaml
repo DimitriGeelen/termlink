@@ -187,6 +187,59 @@ last_vendor_event:
 # ---------------------------------------------------------------------------
 
 divergences:
+  - task: T-3198
+    commit: pending-same-commit
+    commit_note: >
+      Registered BEFORE the change lands, per the T-2813 lesson. Operator ruling
+      2026-09-28, verbatim: "We killed the rubber stamping. You can change this in
+      your vendor setup. This is also something that will come upstream as a change."
+    date: 2026-09-28
+    file: .agentic-framework/agents/task-create/update-task.sh
+    also: .agentic-framework/lib/reviewer/static_scan.py
+    status: filed-upstream
+    filed_at: "framework:pickup offset 218 (read-back verified 2026-09-28, sha256 8d309e1ce306ba32, 6523 bytes — content byte-identical; the 1-byte delta vs the source file is the trailing newline that bash $(cat ...) strips, confirmed as a pure suffix difference)"
+    kind: sovereignty-policy
+    generality: GENERIC
+    risk_if_revendored: HIGH
+    why: >
+      Two coupled changes implementing the operator's ruling that rubber-stamping is
+      dead: a low-risk task whose remaining Human ACs are MECHANICAL closes on an
+      EXTERNAL reviewer's PASS instead of on a person clicking a box.
+
+      (1) static_scan.py::render_verdict_md now emits `- **Reviewer:**
+      external-dispatch|inline`, derived from FW_REVIEWER_IN_DISPATCH — the env the
+      T-1951 dispatch worker runs under (dispatch_cli.py:185). Before this, a verdict
+      recorded Scan ID / Overall / Needs Human / Risk but NOTHING about its own
+      provenance, so nothing downstream could distinguish an external review from the
+      agent scanning its own work in the same session. That distinction is the whole
+      difference between an independent reviewer and producer-as-judge.
+
+      (2) update-task.sh::check_human_sovereignty accepts that verdict in place of the
+      human tick, via a new fail-closed predicate
+      `external_reviewer_clears_sovereignty`, ONLY when all of: a `## Reviewer Verdict`
+      block exists; Overall PASS; Needs Human no; Reviewer external-dispatch; no
+      `human_signoff: required`; no `risk: high|medium`; and ZERO remaining unchecked
+      `[REVIEW]` Human ACs. Any one absent and R-033 holds exactly as before. The
+      acceptance is printed and logged through log_gate_bypass, so a reviewer-closed
+      task is always distinguishable from a human-closed one in the register.
+
+      `[REVIEW]` is never released — that is the T-325 boundary between declared human
+      judgment and mechanical `[RUBBER-STAMP]` work, and it is where "not high risk" is
+      actually decided. A pre-T-3198 verdict carries no Reviewer line and therefore
+      refuses, rather than being assumed external.
+    risk_note: >
+      HIGH on re-vendor for an unusual reason: losing this does not break anything
+      visibly. It silently restores the rubber stamp, and the tasks it would have
+      closed simply sit in the review queue again — the failure mode is a backlog
+      nobody attributes to a re-vendor. Re-apply deliberately after any vendor event.
+    verify: bash tests/reviewer-sovereignty-fixtures.sh
+    verify_note: >
+      17 assertions, weighted to the REFUSING cases: each of the six conditions is
+      independently withheld and must keep the gate engaged. The suite EXTRACTS the
+      predicate from the shipping script rather than reimplementing it — a second copy
+      of a sovereignty rule is the copy that drifts — and exits 2 if extraction fails,
+      so a rename cannot produce a vacuous pass.
+
   - task: T-3189
     commit: pending-same-commit
     commit_note: >
