@@ -1,8 +1,8 @@
-# Audit Results - 2026-09-29-0015
-timestamp: 2026-09-28T22:15:51Z
+# Audit Results - 2026-09-29-0022
+timestamp: 2026-09-28T22:22:03Z
 sections: "structure"
 summary:
-  pass: 43
+  pass: 44
   warn: 8
   fail: 0
 findings:
@@ -47,7 +47,7 @@ findings:
     check: "Fabric: 316/555 cards have no edges"
     mitigation: "Run: fw fabric enrich"
   - level: WARN
-    check: "Fabric drift: 4 source file(s) have no fabric card"
+    check: "Fabric drift: 6 source file(s) have no fabric card"
     mitigation: "Run: fw fabric scan"
   - level: WARN
     check: "Fabric: 10 card(s) point at files no watch pattern covers"
@@ -94,6 +94,8 @@ findings:
     check: "cron(release-mirror-canary): USER-field syntax installed at /etc/cron.d/termlink-release-mirror-canary"
   - level: PASS
     check: "cron(session-control-canary): USER-field syntax installed at /etc/cron.d/termlink-session-control-canary"
+  - level: PASS
+    check: "cron(stale-sidecar-code-canary): USER-field syntax installed at /etc/cron.d/termlink-stale-sidecar-code-canary"
   - level: PASS
     check: "cron(stale-waker-code-canary): USER-field syntax installed at /etc/cron.d/termlink-stale-waker-code-canary"
   - level: PASS
