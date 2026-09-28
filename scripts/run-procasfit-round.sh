@@ -24,6 +24,8 @@
 set -uo pipefail
 
 ROUND="${1:-}"; TOTAL="${2:-}"; PREV="${3:-}"
+VERIFY_ONLY=0
+[ "${3:-}" = "--verify" ] && { VERIFY_ONLY=1; PREV=""; }
 case "$ROUND" in ''|*[!0-9]*) echo "usage: $0 <round-n> <total> [prev-handback]" >&2; exit 2 ;; esac
 case "$TOTAL" in ''|*[!0-9]*) echo "usage: $0 <round-n> <total> [prev-handback]" >&2; exit 2 ;; esac
 
@@ -37,7 +39,17 @@ TIMEOUT="${PROCASFIT_ROUND_TIMEOUT:-3600}"
 
 [ -r "$MANDATE" ] || { echo "T-3211: mandate not readable: $MANDATE" >&2; exit 2; }
 mkdir -p "$RUNS" || exit 2
-rm -f "$HANDBACK"
+
+# --verify skips straight to the handback check, for polling a detached round. It must
+# NOT delete the handback it is about to inspect — hence the guard on the rm below.
+if [ "$VERIFY_ONLY" -eq 0 ]; then
+    rm -f "$HANDBACK"
+fi
+
+# --verify: skip building and dispatching; go straight to the handback check.
+if [ "$VERIFY_ONLY" -eq 1 ]; then
+    echo "T-3211 R${ROUND}: verify-only"
+else
 
 # ---- build the round prompt -------------------------------------------------------
 {
@@ -113,7 +125,29 @@ rm -f "$HANDBACK"
 } > "$PROMPT"
 
 echo "T-3211 R${ROUND}: prompt $(wc -c < "$PROMPT") bytes -> $PROMPT"
-echo "T-3211 R${ROUND}: dispatching (timeout ${TIMEOUT}s)"
+
+# DETACHED LAUNCH IS THE DEFAULT, and it is not a style choice. A shell that sits
+# waiting for a 3600s dispatch is a long-lived idle process, and this host's low-memory
+# guard reaps exactly those: two of the first three harness runs were killed while
+# waiting, and one died BEFORE dispatch returned, so no worker ran at all. The worker
+# writes its own handback and never needed the waiting shell — so there should not be
+# one. nohup setsid matches how this repo launches every other durable process
+# (notify-sidecar-supervisor). Poll for the handback with `--verify` instead.
+if [ "${PROCASFIT_DETACH:-1}" = "1" ]; then
+    nohup setsid bash -c "
+        timeout $((TIMEOUT + 120)) termlink dispatch \
+            --count 1 --name 'procasfit-r${ROUND}' \
+            --tags 'T-3211,procasfit,round-${ROUND}' \
+            --backend background --timeout '$TIMEOUT' --json \
+            -- bash -c \"IS_SANDBOX=1 claude -p \\\"\\\$(cat '$PROMPT')\\\" --dangerously-skip-permissions\"
+    " > "$LOG" 2>&1 < /dev/null &
+    LAUNCH_PID=$!
+    echo "T-3211 R${ROUND}: launched DETACHED (pid $LAUNCH_PID, timeout ${TIMEOUT}s)"
+    echo "T-3211 R${ROUND}: verify later with: bash $0 $ROUND $TOTAL --verify"
+    exit 0
+fi
+
+echo "T-3211 R${ROUND}: dispatching in foreground (timeout ${TIMEOUT}s)"
 
 # ---- dispatch ---------------------------------------------------------------------
 # --backend background so the worker is not bound to this shell's lifetime.
@@ -129,6 +163,8 @@ timeout $((TIMEOUT + 120)) termlink dispatch \
 DISPATCH_RC=$?
 
 echo "T-3211 R${ROUND}: dispatch returned rc=$DISPATCH_RC (NOT evidence — see below)"
+
+fi
 
 # ---- verify by READING the handback ------------------------------------------------
 if [ ! -f "$HANDBACK" ]; then
