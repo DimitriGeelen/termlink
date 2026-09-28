@@ -1,9 +1,9 @@
-# Audit Results - 2026-09-28-1255
-timestamp: 2026-09-28T10:55:27Z
+# Audit Results - 2026-09-28-2249
+timestamp: 2026-09-28T20:49:59Z
 sections: "structure"
 summary:
-  pass: 44
-  warn: 7
+  pass: 43
+  warn: 8
   fail: 0
 findings:
   - level: PASS
@@ -17,7 +17,7 @@ findings:
   - level: PASS
     check: "Task template exists"
   - level: PASS
-    check: "No duplicate task IDs — examined 2898 task file(s) across 1 corpus view(s)"
+    check: "No duplicate task IDs — examined 2914 task file(s) across 1 corpus view(s)"
   - level: PASS
     check: "All project YAML files parse correctly — examined 18 project YAML file(s)"
   - level: PASS
@@ -46,8 +46,9 @@ findings:
   - level: WARN
     check: "Fabric: 316/555 cards have no edges"
     mitigation: "Run: fw fabric enrich"
-  - level: PASS
-    check: "Fabric drift: all watched files registered — examined 515 watched file(s)"
+  - level: WARN
+    check: "Fabric drift: 3 source file(s) have no fabric card"
+    mitigation: "Run: fw fabric scan"
   - level: WARN
     check: "Fabric: 10 card(s) point at files no watch pattern covers"
     mitigation: "Widen .fabric/watch-patterns.yaml, or remove the cards if they are not components"

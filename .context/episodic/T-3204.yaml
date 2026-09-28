@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3204: Make the T-3203 inbox fix live: restart the three notify-sidecars onto new code
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-28T20:33:26Z
+# ============================================================================
+
+task_id: T-3204
+task_name: "Make the T-3203 inbox fix live: restart the three notify-sidecars onto new code"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-28T20:24:58Z
+completed: 2026-09-28T20:33:16Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-09-28T22:32:22+02:00
+last_commit: 2026-09-28T22:33:16+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  restart the three sidecars onto the T-3203 code — the rail delivered. restore the deleted ## Verification heading + add RCA
+
+# Key outcomes
+outcomes:
+  - 'AC1 — All three declared sidecars (`claude-termlink`, `framework-agent-systemd`,'
+  - 'AC2 — Respawn happened through the SUPERVISOR (`notify-sidecar-supervisor.sh`), not'
+  - 'AC3 — The running code is verified to BE the new code, not assumed from a fresh'
+  - 'AC4 — Bounded receipt confirmed: at most ONE `stage=delivered` receipt lands on'
+  - 'AC5 — No sidecar is left dead. If any fails to respawn, that is a FAILED'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3204-make-the-t-3203-inbox-fix-live-restart-t.md'
+  - '.tasks/completed/T-3203-notify-sidecar-probes-dm-only-so-the-arr.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-28T22:32:22'
+    action: 'T-3204: restart the three sidecars onto the T-3203 code — the rail delivered'
+  - time: '2026-09-28T22:33:16'
+    action: 'T-3204: restore the deleted ## Verification heading + add RCA'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 8 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 8
+  commits: 2
+  files_changed: 2
+  lines_added: 382
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3204-make-the-t-3203-inbox-fix-live-restart-t.md
+generated_by: context-agent-hybrid
