@@ -5272,7 +5272,17 @@ pub(crate) enum AgentAction {
     /// `agent recent --grep` and `agent timeline --grep` are window-capped at
     /// 7 days; `agent search` walks the entire arc and runs the same
     /// case-insensitive substring filter. Returns the LAST N matches in
-    /// chronological order. Use it to answer "did anyone ever mention X?"
+    /// chronological order.
+    ///
+    /// SCOPE (T-3199): this searches the `agent-chat-arc` topic ONLY. It does
+    /// NOT search `dm:*` or `inbox:*` rails, so a zero result means "absent
+    /// from chat-arc", never "absent from everywhere a peer might have
+    /// answered". Measured by peer project 999-Agentic-Engineering-Framework:
+    /// a query returned 0 of 1002 envelopes scanned while the exact phrase sat
+    /// verbatim on a `dm:` topic, and a substantive reply went unread 3+ weeks
+    /// because five search-driven passes all structurally excluded DM rails.
+    /// To search a DM or inbox rail, read it directly with
+    /// `channel subscribe <topic>`.
     Search {
         /// Substring to search for (positional, required, case-insensitive).
         query: String,

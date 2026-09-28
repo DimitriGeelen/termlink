@@ -1137,7 +1137,7 @@ fn help_categories() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
             ("termlink_agent_history", "Full posting history for an agent"),
             ("termlink_agent_timeline", "Fleet-wide chronological log (tail -f for the fleet)"),
             ("termlink_agent_digest", "Period summary of chat-arc (by_msg_type, top_senders, latest offsets)"),
-            ("termlink_agent_search", "Search chat-arc by content substring"),
+            ("termlink_agent_search", "Search chat-arc by content substring (chat-arc ONLY — not dm:* or inbox:*)"),
             ("termlink_agent_search_thread", "Search within a single thread"),
             ("termlink_agent_recent_decisions", "Surface posts tagged as decisions"),
             ("termlink_agent_envelope", "Read raw envelope at a specific offset"),
@@ -23545,7 +23545,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_search",
-        description = "Search agent-chat-arc for envelopes whose payload contains a substring. Walks the topic via channel.subscribe, base64-decodes payloads (utf8 lossy), and returns matches newest-first. Optional filters: `peer_fp`, `msg_type_filter`, `case_sensitive` (default false). `limit` defaults to 100, max 1000."
+        description = "Search agent-chat-arc for envelopes whose payload contains a substring. Walks the topic via channel.subscribe, base64-decodes payloads (utf8 lossy), and returns matches newest-first. Optional filters: `peer_fp`, `msg_type_filter`, `case_sensitive` (default false). `limit` defaults to 100, max 1000. SCOPE (T-3199): searches the `agent-chat-arc` topic ONLY — NOT `dm:*` or `inbox:*`. A zero result means 'absent from chat-arc', never 'absent from everywhere a peer might have answered'; to search a DM or inbox rail, read it directly with termlink_channel_subscribe."
     )]
     async fn termlink_agent_search(
         &self,
