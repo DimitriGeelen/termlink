@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2616: Drain-loop permanent-failure policy — poison-drop-delete and head-of-line wedge
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-29T16:23:56Z
+# ============================================================================
+
+task_id: T-2616
+task_name: "Drain-loop permanent-failure policy — poison-drop-delete and head-of-line wedge"
+workflow_type: design
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-11T17:07:11Z
+completed: 2026-09-29T16:23:41Z
+duration_days: 49
+updates_count: 3
+first_commit: 2026-09-29T18:23:40+02:00
+last_commit: 2026-09-29T18:23:40+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  drain loop keeps a poison post whose dead-letter move failed (no fallback delete); cross-pass transport streak escalates debug→warn at 12
+
+# Key outcomes
+outcomes:
+  - 'A deliberate policy is chosen (recorded in Decisions) for: (a) what happens when dead_letter fails at the poison threshold — e.g. leave in pending + surface via a distinct dead-letter-write-failed counter/canary rather than delete; (b) how a permanent transport fault is distinguished from a transient outage and surfaced above `debug!` (e.g. an error-after-K-consecutive-identical-failures signal)'
+  - 'Neither branch can silently lose a guaranteed post nor silently wedge the FIFO indefinitely (loss/wedge is always surfaced at `warn!`/`error!` or a canary)'
+  - 'Tests cover the dead_letter-fails ∧ pop-succeeds path and the permanent-transport path (using the queue''s existing fault-injection test seams)'
+  - '`cargo test -p termlink-session` passes'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'drain loop keeps a poison post whose dead-letter move failed (no fallback delete); cross-pass transport streak escalates debug→warn at 12'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-09-29 — drain-loop permanent-failure policy (T-3211 R6)'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-session/src/bus_client.rs'
+  - '.tasks/active/T-2616-drain-loop-permanent-failure-policy--poi.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-29T18:23:40'
+    action: 'T-2616: drain loop keeps a poison post whose dead-letter move failed (no fallback delete); cross-pass transport streak escalates debug→warn at 12'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 70516 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 70516
+  commits: 2
+  files_changed: 4
+  lines_added: 777
+  lines_removed: 33
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2616-drain-loop-permanent-failure-policy--poi.md
+generated_by: context-agent-hybrid
