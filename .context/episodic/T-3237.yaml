@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3237: runme-fixtures red in CI: stale '2 already-done' count (runme now installs 3 crontabs) + root-requiring cases fail on a non-root CI runner
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-29T18:37:34Z
+# ============================================================================
+
+task_id: T-3237
+task_name: "runme-fixtures red in CI: stale '2 already-done' count (runme now installs 3 crontabs) + root-requiring cases fail on a non-root CI runner"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-29T18:28:38Z
+completed: 2026-09-29T18:37:23Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-29T20:37:22+02:00
+last_commit: 2026-09-29T20:37:22+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  runme-fixtures — derive the already-done count from runme.sh (stale literal 2 since T-3068); CI+non-root skips only the real-run cases; case 11 tests the refusal directly when already non-root
+
+# Key outcomes
+outcomes:
+  - 'The expected already-done count is DERIVED from runme.sh''s own install_crontab calls, not a literal'
+  - 'Cases requiring a real (root) run are SKIPPED with a printed reason ONLY when CI is set AND the user is non-root; non-root outside CI still fails loudly'
+  - 'Suite passes as root on this host; under `CI=true` as a non-root user it exits 0 with SKIP lines; without CI as non-root it still exits non-zero'
+  - 'Mutant: restoring the literal 2 makes the suite fail as root'
+  - 'Case 11 (non-root refusal) runs runme directly when already non-root instead of calling runuser, which only root can use (found R7: it failed as a CI-shaped non-root user)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'runme-fixtures — derive the already-done count from runme.sh (stale literal 2 since T-3068); CI+non-root skips only the real-run cases; case 11 tests the refusal directly when already non-root'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3237-runme-fixtures-red-in-ci-stale-2-already.md'
+  - 'tests/runme-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-29T20:37:22'
+    action: 'T-3237: runme-fixtures — derive the already-done count from runme.sh (stale literal 2 since T-3068); CI+non-root skips only the real-run cases; case 11 tests the refusal directly when already non-root'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 8 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [guard-layer, ci, sq-9]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 8
+  commits: 1
+  files_changed: 2
+  lines_added: 316
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3237-runme-fixtures-red-in-ci-stale-2-already.md
+generated_by: context-agent-hybrid
