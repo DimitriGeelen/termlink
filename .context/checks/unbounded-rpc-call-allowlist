@@ -117,6 +117,7 @@ crates/termlink-cli/src/commands/agent_find_idle.rs::cmd_agent_find_idle::unboun
 crates/termlink-cli/src/commands/channel.rs::fetch_topic_names::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
 crates/termlink-cli/src/commands/mirror_grid_composer.rs::cmd_mirror_tag::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
 crates/termlink-cli/src/commands/pty.rs::attach_loop::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-cli/src/commands/pty.rs::poll_output_step::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision. Same query.output call that attach_loop carried, moved here by the T-2656 refactor (2026-09-29, T-3211 R6), no new risk
 crates/termlink-cli/src/commands/pty.rs::cmd_attach::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
 crates/termlink-cli/src/commands/pty.rs::cmd_interact::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
 crates/termlink-cli/src/commands/pty.rs::cmd_mirror::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
