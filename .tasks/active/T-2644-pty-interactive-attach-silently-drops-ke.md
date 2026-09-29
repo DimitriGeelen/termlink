@@ -9,20 +9,20 @@ description: >
   any feedback must not corrupt the terminal render. Round-8 Usability sweep, silent-degradation
   class, verified in code.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/pty.rs, scripts/run-procasfit-round.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-12T15:02:25Z
-last_update: 2026-09-29T16:00:57Z
-date_finished:
+last_update: 2026-09-29T16:07:04Z
+date_finished: 2026-09-29T16:07:04Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -190,6 +190,11 @@ grep -q 'fn attach_inject_notice' crates/termlink-cli/src/commands/pty.rs
 
 ## RCA
 
+**Symptom:** during `termlink attach`, if `command.inject` failed (session exited, socket closed), the operator's keystrokes vanished with no sign. They kept typing into what looked like a live session.
+**Root cause:** the stdin branch discarded the inject result (`let _ = rpc_call(...)`), and its comment called that "fire-and-forget" even though the call was awaited. So the loop had the outcome in hand and threw it away. The sibling output-poll branch handled the same dead-socket condition loudly, so the two branches of one loop disagreed.
+**Why structurally allowed:** the check-silent-exit static check covers a bare non-zero `exit` only. Nothing flags a discarded `Result` from an RPC whose failure is user-visible, and `let _ =` is also the idiom for legitimately ignorable results, so a grep cannot tell them apart. T-2697 fixed the same no-op-as-success class for `termlink inject`. That fix did not reach the attach loop, because it lives in a different function.
+**Prevention:** the outcome is now classified by a pure function with load-bearing tests (two mutants red). Learning candidate: a `let _ =` on an RPC in an interactive loop hides failures the same way a bare exit does. No new static check is added here; whether one is warranted is a separate question.
+
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
      Non-bug-class tasks may leave this section empty or remove it.
@@ -340,3 +345,16 @@ detach-key path and the output-poll branch are untouched either way.
 
 ### 2026-09-29T16:00:57Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-2578a20d
+- **Timestamp:** 2026-09-29T16:07:35Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** none
+
+### 2026-09-29T16:07:04Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
