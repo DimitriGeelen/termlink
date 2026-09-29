@@ -6,7 +6,7 @@ description: >
   defers loading or is inlined into the preloaded context; the answer decides whether
   the split can reduce preload at all.
 
-status: captured
+status: started-work
 workflow_type: design
 owner: agent
 horizon: now
@@ -24,7 +24,7 @@ related_tasks: [T-2989]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-29T19:54:49Z
-last_update: '2026-09-29T19:57:58Z'
+last_update: 2026-09-29T20:17:50Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -71,44 +71,16 @@ cost_estimate_proposed:
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Empirical measurement in a scratch dir outside the repo: the same trivial `claude -p` prompt run with a CLAUDE.md that `@`-imports a large file, vs one that does not, compares the session's input-token usage, and the numbers are recorded in `docs/reports/T-3244-claudemd-import-loading.md`
+- [x] The report states the answer (imports inlined at launch vs deferred) with the measured delta vs the imported file's size, and what it means for T-2989 steps 2-3 (T-3245/T-3246): whether an @import split can reduce preload at all
+- [x] Nothing in the repo's own CLAUDE.md is changed by this spike
 
-### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-
-     ── Prefix routing (T-1811, T-1878): default to [REVIEWER] if Expected is grep-able ──
-     If your Expected clause is grep-able / file-exists / structural (a deterministic
-     shell check), prefer [REVIEWER] — that AC should be an Agent AC with the reviewer
-     command in `## Verification` instead of a Human AC here. Only keep [REVIEW] if
-     verification genuinely needs human taste (tone, feel, layout rhythm).
-     See CLAUDE.md §AC Classification Guidance for the conversion rule.
-
-     [REVIEW] example (genuine human judgment):
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
-
-     [REVIEWER] example (static-scan-verifiable — convert to Agent AC + Verification):
-       - [ ] [REVIEWER] Block message names both bypass mechanisms
-         **Steps:**
-         1. Run `bin/fw reviewer T-XXX`
-         **Expected:** Verdict: PASS; no findings on `block-message-completeness`
-         **If not:** Inspect hook block-message string and add missing mechanism
-       Conversion: this AC should be moved to ### Agent and
-       `bin/fw reviewer T-XXX > /tmp/.rev 2>&1 && grep -q "Overall:.*PASS" /tmp/.rev`
-       added to ## Verification. NEVER `... 2>&1 | grep -q ...` — that is the shape the
-       Pipefail/SIGPIPE section below forbids, and this line used to prescribe it.
--->
 
 ## Verification
+
+test -f docs/reports/T-3244-claudemd-import-loading.md
+grep -q "Answer:" docs/reports/T-3244-claudemd-import-loading.md
+test -z "$(git diff --name-only HEAD -- CLAUDE.md)"
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -237,6 +209,11 @@ cost_estimate_proposed:
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-09-29 — the gate answers "no": @import is not a lazy include
+- **What changed:** measured, not assumed. With `@big.md` the session's input was 93,346 tokens; with a plain path it was 32,683. The 60,663-token delta is the whole file, paid at launch even though the file was never used.
+- **Plan impact:** T-3245/T-3246 cannot use `@import`. Only a plain path reference that the agent Reads on demand reduces preload, and the pointer text must say when to open it.
+- **Triggered:** none filed. T-3245/T-3246 already exist; this report is their scoping input.
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -293,3 +270,6 @@ cost_estimate_proposed:
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3244-spike-do-claudemd-path-imports-load-on-d.md
 - **Context:** Initial task creation
+
+### 2026-09-29T20:17:50Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
