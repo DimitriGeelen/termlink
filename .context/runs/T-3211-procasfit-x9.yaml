@@ -240,3 +240,20 @@ rounds_after_rulings:
     (both operator-reserved). Was 25 red on 276daf351.
   judgement_flagged: audit-warning-allowlist acknowledges the audit-side echo of GO-propagation citing the
     operator reservation; check-go-propagation itself stays red.
+- round: 8
+  handback: .context/runs/T-3211-R8-handback.md
+  handback_bytes: 16735
+  placeholders: 0
+  status: COMPLETE (route A + route B done; pool gated)
+  verified_by_orchestrator:
+  - 7 closes finalized; stranded check clean
+  - route A linked 10 GO inceptions in both directions with ZERO allowlist additions (go-propagation 11 -> 1)
+  - route B T-3258 advisory marker + --gate release, wired into release.yml; nothing classified advisory;
+    draft for operator at docs/reports/T-3258-guard-classification-draft.md
+  - worker correctly refused to claim the T-3200 voi entry it did not write
+  orchestrator_after_r8:
+  - recorded operator-delegated voi reply for T-3200 (waive, operator's NO-GO); committed after R8 exited
+    because focus.yaml is shared and switching it mid-round would have blocked the worker
+  - Tier-0 detector matched the literal decide-command text in a COMMIT MESSAGE (T-2943 class); reworded
+  - T-3012's GO propagated by filing the approved session as T-3259 (owner human) and linking; go-propagation 0
+  - pushed 4b9b20fcb for a full-green CI measurement before tagging v0.12.1 (operator Q2)
