@@ -1,0 +1,88 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3258: Guard-layer severity classes: advisory marker + release gate mode
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-29T20:14:18Z
+# ============================================================================
+
+task_id: T-3258
+task_name: "Guard-layer severity classes: advisory marker + release gate mode"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-29T20:00:06Z
+completed: 2026-09-29T20:13:58Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-29T22:07:00+02:00
+last_commit: 2026-09-29T22:07:00+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  guard-layer severity classes — advisory marker + --gate release; release.yml uses it; nothing classified (draft for operator)
+
+# Key outcomes
+outcomes:
+  - '`run-guard-layer.sh` parses an optional `advisory` word after `source` plus a `# <reason>` comment; default class is BLOCKING; `cargo test --workspace` is always BLOCKING; `--list`, `--json` and `--jsonl` carry each member''s class'
+  - '`--gate release`: exit code reflects only BLOCKING members (FAIL→1, else ERROR→2, else 0); advisory FAIL/ERROR members are printed in a separate "advisory (non-gating)" section and counted in the footer/JSON summary — never hidden'
+  - 'Default gate (no `--gate`, or `--gate all`) is byte-for-byte today''s roll-up: every FAIL/ERROR counts regardless of class; an unknown `--gate` value exits 2'
+  - 'An `advisory` marker with no reason is refused: the runner treats that member as BLOCKING (fail-safe, noted in output), and a new guard-layer member `scripts/check-guard-severity-markers.sh` exits 1 naming the file'
+  - '`.github/workflows/release.yml` test job runs the layer with `--gate release`; `doc-lint.yml` unchanged'
+  - 'Fixtures with mutants: reasonless advisory marker fires; a BLOCKING member failing fails the release gate; an advisory failure is printed and does not fail the release gate but does fail the default gate; mutants that (a) drop the advisory section, (b) let advisory failures gate, (c) accept a reasonless marker each turn a fixture red'
+  - 'No member in the tree carries an `advisory` marker (`grep` count 0) and the draft report lists every static member with a proposed class + one-line reason, flags risk cases and `voi-prompt`''s header/behaviour contradiction'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - 'docs/reports/T-3258-guard-classification-draft.md'
+  - '.fabric/components/scripts-check-guard-severity-markers.yaml'
+  - '.fabric/components/tests-guard-layer-severity-fixtures.yaml'
+  - '.github/workflows/release.yml'
+  - 'scripts/check-guard-severity-markers.sh'
+  - 'scripts/run-guard-layer.sh'
+  - '.tasks/active/T-3258-guard-layer-severity-classes-advisory-ma.md'
+  - 'tests/guard-layer-severity-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-29T22:07:00'
+    action: 'T-3258: guard-layer severity classes — advisory marker + --gate release; release.yml uses it; nothing classified (draft for operator)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 13 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [guard-layer, ci, release]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 13
+  commits: 1
+  files_changed: 9
+  lines_added: 748
+  lines_removed: 36
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3258-guard-layer-severity-classes-advisory-ma.md
+generated_by: context-agent-hybrid

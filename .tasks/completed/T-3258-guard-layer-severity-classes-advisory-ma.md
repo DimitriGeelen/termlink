@@ -9,12 +9,12 @@ description: >
   release; cargo test never advisory; a reasonless advisory marker is refused. Classifies
   NOTHING as advisory - ships a draft classification report for the operator.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [guard-layer, ci, release]
-components: []
+components: [scripts/check-guard-severity-markers.sh, scripts/run-guard-layer.sh, tests/guard-layer-severity-fixtures.sh]
 related_tasks: [T-3211]
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -27,8 +27,8 @@ related_tasks: [T-3211]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-29T20:00:06Z
-last_update: 2026-09-29T20:00:58Z
-date_finished:
+last_update: 2026-09-29T20:13:58Z
+date_finished: 2026-09-29T20:13:58Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -74,13 +74,13 @@ Operator ruling 2026-09-29 (T-3211 R8 prompt, route B). The guard layer has one 
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `run-guard-layer.sh` parses an optional `advisory` word after `source` plus a `# <reason>` comment; default class is BLOCKING; `cargo test --workspace` is always BLOCKING; `--list`, `--json` and `--jsonl` carry each member's class
-- [ ] `--gate release`: exit code reflects only BLOCKING members (FAIL→1, else ERROR→2, else 0); advisory FAIL/ERROR members are printed in a separate "advisory (non-gating)" section and counted in the footer/JSON summary — never hidden
-- [ ] Default gate (no `--gate`, or `--gate all`) is byte-for-byte today's roll-up: every FAIL/ERROR counts regardless of class; an unknown `--gate` value exits 2
-- [ ] An `advisory` marker with no reason is refused: the runner treats that member as BLOCKING (fail-safe, noted in output), and a new guard-layer member `scripts/check-guard-severity-markers.sh` exits 1 naming the file
-- [ ] `.github/workflows/release.yml` test job runs the layer with `--gate release`; `doc-lint.yml` unchanged
-- [ ] Fixtures with mutants: reasonless advisory marker fires; a BLOCKING member failing fails the release gate; an advisory failure is printed and does not fail the release gate but does fail the default gate; mutants that (a) drop the advisory section, (b) let advisory failures gate, (c) accept a reasonless marker each turn a fixture red
-- [ ] No member in the tree carries an `advisory` marker (`grep` count 0) and the draft report lists every static member with a proposed class + one-line reason, flags risk cases and `voi-prompt`'s header/behaviour contradiction
+- [x] `run-guard-layer.sh` parses an optional `advisory` word after `source` plus a `# <reason>` comment; default class is BLOCKING; `cargo test --workspace` is always BLOCKING; `--list`, `--json` and `--jsonl` carry each member's class
+- [x] `--gate release`: exit code reflects only BLOCKING members (FAIL→1, else ERROR→2, else 0); advisory FAIL/ERROR members are printed in a separate "advisory (non-gating)" section and counted in the footer/JSON summary — never hidden
+- [x] Default gate (no `--gate`, or `--gate all`) is byte-for-byte today's roll-up: every FAIL/ERROR counts regardless of class; an unknown `--gate` value exits 2
+- [x] An `advisory` marker with no reason is refused: the runner treats that member as BLOCKING (fail-safe, noted in output), and a new guard-layer member `scripts/check-guard-severity-markers.sh` exits 1 naming the file
+- [x] `.github/workflows/release.yml` test job runs the layer with `--gate release`; `doc-lint.yml` unchanged
+- [x] Fixtures with mutants: reasonless advisory marker fires; a BLOCKING member failing fails the release gate; an advisory failure is printed and does not fail the release gate but does fail the default gate; mutants that (a) drop the advisory section, (b) let advisory failures gate, (c) accept a reasonless marker each turn a fixture red
+- [x] No member in the tree carries an `advisory` marker (`grep` count 0) and the draft report lists every static member with a proposed class + one-line reason, flags risk cases and `voi-prompt`'s header/behaviour contradiction
 
 
 ## Verification
@@ -88,7 +88,7 @@ Operator ruling 2026-09-29 (T-3211 R8 prompt, route B). The guard layer has one 
 bash tests/guard-layer-severity-fixtures.sh
 bash tests/guard-layer-runner-fixtures.sh
 bash scripts/check-guard-severity-markers.sh
-test "$(grep -rlE '^#[[:space:]]*guard-layer:[[:space:]]*source[[:space:]]+advisory' scripts tests | wc -l)" -eq 0
+grep -qE '^#[[:space:]]*guard-layer:[[:space:]]*source' scripts/check-guard-severity-markers.sh && test "$(grep -rlE '^#[[:space:]]*guard-layer:[[:space:]]*source[[:space:]]+advisory' scripts tests | wc -l)" -eq 0
 grep -q 'run-guard-layer.sh --gate release' .github/workflows/release.yml
 test -f docs/reports/T-3258-guard-classification-draft.md
 
@@ -278,3 +278,16 @@ test -f docs/reports/T-3258-guard-classification-draft.md
 
 ### 2026-09-29T20:00:58Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-b076c42e
+- **Timestamp:** 2026-09-29T20:14:11Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** none
+
+### 2026-09-29T20:13:58Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
