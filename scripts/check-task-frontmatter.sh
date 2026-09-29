@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# guard-layer: source
+# guard-layer: source warn  # corrupt task frontmatter breaks tooling, not the binary; a release cannot fix it (operator Part 3, F)
 #
 # check-task-frontmatter.sh (T-2794)
 #

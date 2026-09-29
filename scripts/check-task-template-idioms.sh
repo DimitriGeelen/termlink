@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# guard-layer: source --no-heartbeat
+# guard-layer: source warn --no-heartbeat  # task-template wording, one step removed from any shipped work (operator Part 3, D exception)
 #
 # check-task-template-idioms.sh (T-2777)
 #

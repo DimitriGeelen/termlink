@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# guard-layer: source --no-heartbeat
+# guard-layer: source warn --no-heartbeat  # canary log isolation is monitoring hygiene; says nothing about the release artifact (operator Part 3, E)
 # check-canary-log-isolation.sh (T-2761, G-019 prevention for the T-2402-sibling class)
 #
 # THE DEFECT THIS GUARDS

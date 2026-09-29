@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# guard-layer: source --no-heartbeat
+# guard-layer: source warn --no-heartbeat  # crontab stream-split hygiene of the monitoring layer; says nothing about the release artifact (operator Part 3, E)
 # check-canary-log-hygiene.sh (T-2685, G-019 prevention for the T-2683 F2 class)
 #
 # THE DEFECT THIS GUARDS

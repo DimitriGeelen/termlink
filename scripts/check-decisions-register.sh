@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# guard-layer: source
+# guard-layer: source warn  # corrupt framework register breaks tooling, not the binary; a release cannot fix it (operator Part 3, F)
 # T-2969 — local detector for .context/project/decisions.yaml corruption.
 #
 # WHY THIS EXISTS, AND WHY THE RECURRENCE COUNT IS THE ARGUMENT

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# guard-layer: source --no-heartbeat
+# guard-layer: source warn --no-heartbeat  # corrupt run record breaks tooling, not the binary; a release cannot fix it (operator Part 3, F)
 # T-3092 — a run record can be left UNPARSEABLE and nothing detects it.
 #
 # WHY THIS EXISTS

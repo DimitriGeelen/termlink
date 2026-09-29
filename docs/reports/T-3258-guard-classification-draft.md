@@ -104,4 +104,19 @@ Approve or amend per row. A follow-up build task then edits each approved member
   - Part 1 mapping: `invocation-usage` -> INFO; the other 11 approved rows -> WARN.
 - **Part 2 APPROVED (all six as recommended):** `check-arc-claim-drift` -> FAIL; `check-audit-warning-acknowledgement`,
   `check-budget-ladder-drift`, `check-episodic-parse`, `check-vendor-divergence`, `fabric-workflow-link` -> WARN.
-- Part 3 (41 BLOCKING -> FAIL rows): pending.
+- **Part 3 APPROVED as recommended by the orchestrator:**
+  - FAIL: group A shipped-code safety (9), B published claims (8), C install path + behaviour agreement (4),
+    G script unit tests (5), E's `check-guard-severity-markers` + `check-tier0-approval-latch`, and group D
+    verification-evidence (`check-absence-assertion`, `check-unpaired-capture`, `check-vacuous-verification`,
+    `check-verification-heading-shadow`, `check-verification-misfile`, `check-planted-default-gate`).
+  - WARN: `check-canary-log-hygiene`, `check-canary-log-isolation` (E); `check-decisions-register`,
+    `check-fabric-card-parse`, `check-run-record-parse`, `check-task-frontmatter` (F); `check-task-template-idioms` (D).
+  - Totals across all parts: **35 FAIL, 23 WARN, 1 INFO** of 59 static members (plus cargo test + fixture suites,
+    always FAIL). CORRECTION: the orchestrator told the operator "34 FAIL / 17 WARN" during the walk-through; that
+    was an arithmetic slip (Part 1 11 WARN + Part 2 5 + Part 3 7 = 23). The per-row rulings are unchanged.
+- **Operator's CONDITION on WARN (binding), 2026-09-29:** "when warnings build up ... after the 14-day limit it
+  becomes an action. We don't want things to go stale or debt to build up." Implementation must therefore:
+  1. auto-FILE a task (owner agent, the member's output attached, de-duplicated: one open task per member) when a
+     WARN member has been red > 14 days — a canary line alone does not satisfy the condition;
+  2. escalate on ACCUMULATION as well: more than 5 WARN members red at once escalates immediately;
+  3. keep the release canary firing on both, so the operator sees it daily.

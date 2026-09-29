@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# guard-layer: source
+# guard-layer: source warn  # corrupt fabric card breaks tooling, not the binary; a release cannot fix it (operator Part 3, F)
 # check-fabric-card-parse.sh — every .fabric/components/*.yaml must parse.
 #
 # WHY THIS EXISTS, and it is not tidiness. `fw audit`'s fabric section reports a CRASH
