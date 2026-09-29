@@ -186,8 +186,10 @@ fi
 # EXPECTED artefact of a round that ended prematurely, and it sails past a size check.
 # R2 did exactly this: 1883 bytes, every section "_(pending)_", one ledger row, and the
 # byte floor reported it verified. Size was measuring the wrong property.
-PENDING=$(grep -cE '^_\((pending|none yet|filled per unit below|TBD)\)_[[:space:]]*$' "$HANDBACK" 2>/dev/null || echo 0)
-FILLED=$(grep -cE '^## ' "$HANDBACK" 2>/dev/null || echo 0)
+# `grep -c` already prints 0 on no match (and exits 1); `|| echo 0` would append a SECOND
+# 0, making "0\n0" and turning the -gt test into an error that silently reads as false.
+PENDING=$(grep -cE '^_\((pending|none yet|filled per unit below|TBD)\)_[[:space:]]*$' "$HANDBACK" 2>/dev/null); PENDING=${PENDING:-0}
+FILLED=$(grep -cE '^## ' "$HANDBACK" 2>/dev/null); FILLED=${FILLED:-0}
 if [ "$PENDING" -gt 0 ]; then
     echo "T-3211 R${ROUND}: handback is an UNFILLED SKELETON — ${PENDING} of ${FILLED} sections still placeholders" >&2
     echo "  ${BYTES} bytes, which is why a size check passes it. The round ended before" >&2
