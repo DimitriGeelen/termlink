@@ -7786,7 +7786,9 @@ async fn connect_remote_hub_mcp(
              This is a CREDENTIAL problem, not a scope problem.",
             hub, e.error.code, e.error.message
         ))),
-        Err(e) => Err(json_err(format!("Authentication error: {}", e))),
+        // T-3223 (parity with the CLI's T-2625): the transport-level failure
+        // also names the remediation, not just the error.
+        Err(e) => Err(json_err(format!("Authentication error: {}{}", e, auth_failure_hint_mcp(hub)))),
     }
 }
 
@@ -7904,6 +7906,16 @@ impl ContactHub {
 /// `termlink_session::fleet_presence` parser the CLI uses — no second parse.
 /// Per-hub failures are skipped (a down hub never aborts the walk). Returns
 /// `None` when no hub has a LIVE heartbeat (or no profiles configured).
+/// T-3223: twin of the CLI's `auth_failure_hint` (remote.rs, T-2625). Same text,
+/// so the two surfaces give the operator the same next step.
+fn auth_failure_hint_mcp(hub: &str) -> String {
+    format!(
+        " — the hub may have rotated its secret (see PL-021). \
+         Run `termlink fleet doctor` to find the profile for {hub}, then \
+         `termlink fleet reauth <profile>` to heal"
+    )
+}
+
 /// T-3221: per-hub bound on the presence fetch in the fleet walk. Mirrors the
 /// CLI's `FLEET_PRESENCE_HUB_TIMEOUT` (agent.rs, T-2659).
 const FLEET_PRESENCE_HUB_TIMEOUT_MCP: std::time::Duration = std::time::Duration::from_secs(8);
@@ -46578,5 +46590,18 @@ mod t3229_ack_frontier_tests {
     fn all_meta_slice_has_frontier_zero() {
         let envs = vec![json!({"offset": 5, "msg_type": "receipt"}), json!({"offset": 6, "msg_type": "reaction"})];
         assert_eq!(ack_status_frontier_mcp(&envs), 0);
+    }
+}
+
+#[cfg(test)]
+mod t3223_auth_hint_tests {
+    use super::*;
+
+    #[test]
+    fn auth_failure_hint_mcp_names_the_recovery() {
+        let h = auth_failure_hint_mcp("192.168.10.122:9100");
+        assert!(h.contains("termlink fleet doctor"));
+        assert!(h.contains("termlink fleet reauth"));
+        assert!(h.contains("192.168.10.122:9100"));
     }
 }
