@@ -7888,6 +7888,10 @@ impl ContactHub {
 /// `termlink_session::fleet_presence` parser the CLI uses — no second parse.
 /// Per-hub failures are skipped (a down hub never aborts the walk). Returns
 /// `None` when no hub has a LIVE heartbeat (or no profiles configured).
+/// T-3221: per-hub bound on the presence fetch in the fleet walk. Mirrors the
+/// CLI's `FLEET_PRESENCE_HUB_TIMEOUT` (agent.rs, T-2659).
+const FLEET_PRESENCE_HUB_TIMEOUT_MCP: std::time::Duration = std::time::Duration::from_secs(8);
+
 async fn resolve_contact_via_fleet_mcp(agent_id: &str) -> Option<(String, String)> {
     use termlink_session::fleet_presence::{resolve_agent_presence, PresenceStatus};
     let profiles = list_all_hub_profiles();
@@ -7909,9 +7913,14 @@ async fn resolve_contact_via_fleet_mcp(agent_id: &str) -> Option<(String, String
             Err(_) => continue, // down / auth-fail hub never aborts the walk
         };
         let mut conn = ContactHub::Remote(Box::new(client));
-        let msgs = match conn.fetch_presence_recent(500).await {
-            Ok(m) => m,
-            Err(_) => continue,
+        // T-3221 (parity with the CLI twin's T-2659): the connect above is
+        // bounded, the fetch was not — a hub that accepts and then never answers
+        // hung the whole walk. Same 8s bound as the CLI's
+        // FLEET_PRESENCE_HUB_TIMEOUT; a timed-out hub is skipped, never fatal.
+        let fetch = conn.fetch_presence_recent(500);
+        let msgs = match tokio::time::timeout(FLEET_PRESENCE_HUB_TIMEOUT_MCP, fetch).await {
+            Ok(Ok(m)) => m,
+            Ok(Err(_)) | Err(_) => continue,
         };
         let Some(m) = resolve_agent_presence(&msgs, agent_id, now_ms) else {
             continue;

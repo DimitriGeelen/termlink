@@ -1,0 +1,72 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3221: MCP resolve_contact_via_fleet_mcp has no per-hub timeout — one silent hub can hang agent contact
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-29T10:37:29Z
+# ============================================================================
+
+task_id: T-3221
+task_name: "MCP resolve_contact_via_fleet_mcp has no per-hub timeout — one silent hub can hang agent contact"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-29T10:34:09Z
+completed: 2026-09-29T10:37:20Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  The CLI twin bounds each per-hub presence fetch with tokio::time::timeout(FLEET_PRESENCE_HUB_TIMEOUT) (T-2659, agent.rs:857+). The MCP twin (tools.rs:7891+) awaits fetch_presence_recent(500) unbounded after a 10s connect, so a hub that accepts but never answers wedges the MCP fleet walk. Evidence: docs/reports/T-3219-twin-drift-triage.md (T-3219).
+
+# Key outcomes
+outcomes:
+  - 'In `resolve_contact_via_fleet_mcp`, the per-hub `fetch_presence_recent` is bounded by an 8s timeout (same value as the CLI''s `FLEET_PRESENCE_HUB_TIMEOUT`, T-2659); a timed-out hub is skipped and never aborts the walk'
+  - '`cargo test -p termlink-mcp --lib` passes and the crate builds without warnings'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 3
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3221-mcp-resolvecontactviafleetmcp-has-no-per.md
+generated_by: context-agent-hybrid
