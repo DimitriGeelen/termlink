@@ -19,7 +19,8 @@
 # imagined, read as a claim about correctness. These are the ones I imagined; that is
 # the honest scope of this file.
 set -uo pipefail
-cd "$(git rev-parse --show-toplevel 2>/dev/null || echo /opt/termlink)" || exit 2
+# T-3236: fall back to the script's own repo root, never a host-specific path.
+cd "$(git rev-parse --show-toplevel 2>/dev/null || (cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd))" || exit 2
 
 CHECK="scripts/check-planted-default-gate.sh"
 pass=0; fail=0
@@ -120,11 +121,20 @@ python3 -c "import json,sys; d=json.load(open('$W/j')); sys.exit(0 if d.get('sco
 rm -rf "$W"
 
 echo "== J: the REAL tree (load-bearing) =="
-PLANTED_ALLOWLIST=/dev/null bash "$CHECK" > /root/.claude/jobs/5f599680/tmp/_real.out 2>&1
-chk $? 1 "J1 real tree fires with an EMPTY ledger"
-grep -q "voi_score" /root/.claude/jobs/5f599680/tmp/_real.out && ok "J2 names voi_score" || bad "J2 names voi_score"
+# T-3236: this redirect used to name a host-specific scratch path. Where that path
+# could not be opened (CI: absent; non-root: EACCES) the redirect failed, the check
+# NEVER RAN, and its rc=1 made J1 pass vacuously while J2 grepped a missing/stale
+# file. Scratch lives under our own mktemp dir, and J0 fails loudly if it cannot.
+J=$(mktemp -d) || exit 2
+PLANTED_ALLOWLIST=/dev/null bash "$CHECK" > "$J/_real.out" 2>&1
+jrc=$?
+[ -s "$J/_real.out" ] && ok "J0 the real-tree run produced output (it actually ran)" \
+  || bad "J0 the real-tree run produced NO output — J1's rc would be vacuous"
+chk "$jrc" 1 "J1 real tree fires with an EMPTY ledger"
+grep -q "voi_score" "$J/_real.out" && ok "J2 names voi_score" || bad "J2 names voi_score"
 bash "$CHECK" > /dev/null 2>&1
 chk $? 0 "J3 real tree is clean with the tracked ledger"
+rm -rf "$J"
 
 echo ""
 echo "planted-default-gate-fixtures: $pass passed, $fail failed"
