@@ -5,10 +5,10 @@ name: "cmd_file_receive swallows mid-transfer RPC error into tracing.warn — us
 description: >
   file receive swallows RPC error into tracing warn
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -17,7 +17,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-12T20:34:48Z
-last_update: '2026-09-27T21:34:05Z'
+last_update: 2026-09-29T16:14:08Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -81,10 +81,10 @@ waiting"` bail (+ JSON `reason:"disconnected"`). Directive #2 (no silent failure
 ## Acceptance Criteria
 
 ### Agent
-- [ ] A resolution is chosen + recorded in `## Decisions`: surface persistent/disconnect RPC errors to the user (stderr / JSON `reason`) vs. bail-on-disconnect like `cmd_wait`. (Design call: how many consecutive errors before surfacing? Is a single transient error tolerable?)
-- [ ] `cmd_file_receive` no longer swallows a disconnect into `tracing::warn` only — the user sees an actionable message before/instead-of waiting out the full timeout
-- [ ] Behavior proven (fixture: a source session that drops mid-transfer) OR structural check as fallback
-- [ ] `cargo build -p termlink` clean
+- [x] A resolution is chosen + recorded in `## Decisions`: surface persistent/disconnect RPC errors to the user (stderr / JSON `reason`) vs. bail-on-disconnect like `cmd_wait`. (Design call: how many consecutive errors before surfacing? Is a single transient error tolerable?)
+- [x] `cmd_file_receive` no longer swallows a disconnect into `tracing::warn` only — the user sees an actionable message before/instead-of waiting out the full timeout
+- [x] Behavior proven (fixture: a source session that drops mid-transfer) OR structural check as fallback
+- [x] `cargo build -p termlink` clean
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -119,6 +119,10 @@ waiting"` bail (+ JSON `reason:"disconnected"`). Directive #2 (no silent failure
 
 ## Verification
 
+cargo test -q -p termlink --bin termlink receive_
+cargo build -q -p termlink
+bash scripts/check-busy-spin.sh --no-heartbeat
+
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
 # The completion gate runs each command — if any exits non-zero, completion is blocked.
@@ -151,6 +155,11 @@ waiting"` bail (+ JSON `reason:"disconnected"`). Directive #2 (no silent failure
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
 ## RCA
+
+**Symptom:** `termlink file receive` against a source session that died mid-transfer printed nothing and waited out the whole `--timeout`, then reported a generic "Timeout waiting for file transfer".
+**Root cause:** the instant-error arm (`Ok(Err(e))`) only called `tracing::warn!`, which the default `termlink=info` filter hides, and then retried until the overall timeout.
+**Why structurally allowed:** the busy-spin check (T-2672) forced a sleep into this arm but only asks "does it spin"; it does not ask "does it tell anyone". The silent-exit check only covers bare `exit`. A warn-only error arm in a retry loop matches neither shape.
+**Prevention:** a bail helper with a unit test, plus a structural test pinning the arm's wiring (the count, the `if … {` bail, the `reason:"disconnected"` payload, the reset on success). Mutant `if false && …`: red.
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
@@ -210,6 +219,11 @@ async transfer fixture — design-decision + fixture class.
 
 ## Decisions
 
+### 2026-09-29 — surface, then bail after a short streak (T-3211 R6)
+- **Chosen:** the first transport error is printed to stderr (`RPC error talking to '<t>': <e> (retrying)`, text mode). After **3 consecutive** errors (`RECEIVE_RPC_ERROR_BAIL_AFTER`) the command bails like `cmd_wait`: text `Session '<t>' disconnected during file receive (… last: <e>); received N/M chunks`, JSON `{ok:false, reason:"disconnected", chunks_received, chunks_expected}`. A success resets the streak.
+- **Why 3, not 1:** a single refused connect can be a blip, and the arm already backs off 500ms (T-2673), so 3 consecutive errors means ~1.5s of refused connections: the source is gone. **Why not "surface only"**: printing and then waiting out the full timeout still leaves the user waiting for nothing.
+- **Out of scope, filed as a finding, not fixed:** the `Err(_)` RPC-*timeout* arm `continue`s past the loop-bottom overall-timeout check, so a session that accepts but never replies can keep the receive looping beyond `--timeout`. That is a separate bug (one bug = one task).
+
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
      Format:
@@ -231,7 +245,15 @@ async transfer fixture — design-decision + fixture class.
 
 ## Updates
 
+### 2026-09-29 — T-3211 R6 evidence
+- AC3 met by the **structural fallback**, not a dropped-source fixture: `cmd_file_receive` needs a registered session via `manager::find_session`, so a live-drop fixture was not built. Tests `receive_bails_after_a_short_rpc_error_streak_not_on_one_blip` + `receive_error_arm_is_wired_to_the_bail` pass. The first draft of the structural test was too weak (mutant survived) and was tightened; the mutant is now red.
+- CLI suite 1163/1163; build 0 warnings; check-busy-spin rc 0; check-silent-exit rc 0.
+
 ### 2026-08-12T20:34:48Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2662-cmdfilereceive-swallows-mid-transfer-rpc.md
 - **Context:** Initial task creation
+
+### 2026-09-29T16:14:08Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

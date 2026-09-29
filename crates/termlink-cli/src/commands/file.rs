@@ -640,6 +640,15 @@ fn reconcile_expected_sha256(actual: &str, expected: Option<&str>, via: &str) ->
     }
 }
 
+/// T-2662: consecutive transport errors tolerated before `file receive` gives up.
+/// One is a blip; three at the 500ms backoff (~1.5s of refused connections) means
+/// the source session is gone, and waiting out the full timeout tells the user nothing.
+pub(crate) const RECEIVE_RPC_ERROR_BAIL_AFTER: u32 = 3;
+
+pub(crate) fn receive_should_bail_on_rpc_errors(consecutive: u32) -> bool {
+    consecutive >= RECEIVE_RPC_ERROR_BAIL_AFTER
+}
+
 pub(crate) async fn cmd_file_receive(
     target: &str,
     output_dir: &str,
@@ -784,6 +793,7 @@ pub(crate) async fn cmd_file_receive(
     let mut chunks: std::collections::BTreeMap<u32, Vec<u8>> = std::collections::BTreeMap::new();
 
     let decoder = base64::engine::general_purpose::STANDARD;
+    let mut rpc_error_streak: u32 = 0;
 
     loop {
         // First poll uses event.poll (returns all historical events including seq 0).
@@ -808,7 +818,32 @@ pub(crate) async fn cmd_file_receive(
                 continue;
             }
             Ok(Err(e)) => {
+                // T-2662: this arm was `tracing::warn!` only (invisible at the default
+                // filter), so a source session that died mid-transfer left the user
+                // waiting out the full timeout. Say so on the first error, and after
+                // a short streak bail like `cmd_wait` does (reason "disconnected").
+                rpc_error_streak += 1;
                 tracing::warn!("RPC error: {}", e);
+                if rpc_error_streak == 1 && !json {
+                    eprintln!("  RPC error talking to '{}': {} (retrying)", target, e);
+                }
+                if receive_should_bail_on_rpc_errors(rpc_error_streak) {
+                    let msg = format!(
+                        "Session '{}' disconnected during file receive ({} consecutive RPC errors; last: {}); received {}/{} chunks",
+                        target, rpc_error_streak, e, chunks.len(), expected_chunks
+                    );
+                    if json {
+                        super::json_error_exit(serde_json::json!({
+                            "ok": false,
+                            "target": target,
+                            "reason": "disconnected",
+                            "error": msg,
+                            "chunks_received": chunks.len(),
+                            "chunks_expected": expected_chunks,
+                        }));
+                    }
+                    anyhow::bail!("{}", msg);
+                }
                 // T-2673: back off on the INSTANT-error path (busy-spin class,
                 // T-2670/T-2671). The Err(_) arm above waited the full rpc_timeout before
                 // continue (naturally paced), but Ok(Err(e)) is the instant-error path —
@@ -819,6 +854,7 @@ pub(crate) async fn cmd_file_receive(
                 tokio::time::sleep(std::time::Duration::from_millis(500)).await;
             }
             Ok(Ok(resp)) => {
+                rpc_error_streak = 0;
                 if let Ok(result) = client::unwrap_result(resp) {
                     if let Some(events) = result["events"].as_array() {
                         if is_first_poll {
@@ -1112,6 +1148,30 @@ mod tests {
     // T-2626: the file-transfer timeout message must be actionable — name the
     // operation, the configured timeout, the target, and a next step. A bare
     // "timeout" (the pre-fix behavior) fails these assertions (load-bearing).
+
+    // T-2662: a dropped source must end the receive, not ride out the timeout.
+    #[test]
+    fn receive_bails_after_a_short_rpc_error_streak_not_on_one_blip() {
+        assert!(!receive_should_bail_on_rpc_errors(1), "one blip is tolerated");
+        assert!(!receive_should_bail_on_rpc_errors(RECEIVE_RPC_ERROR_BAIL_AFTER - 1));
+        assert!(receive_should_bail_on_rpc_errors(RECEIVE_RPC_ERROR_BAIL_AFTER));
+        assert!(RECEIVE_RPC_ERROR_BAIL_AFTER <= 5, "a long streak is the silent wait again");
+    }
+
+    // Structural: the instant-error arm must count and consult the bail helper, and
+    // a success must reset the streak. Guards against a refactor restoring the
+    // warn-only arm (the defect) while the helper test above stays green.
+    #[test]
+    fn receive_error_arm_is_wired_to_the_bail() {
+        let src = include_str!("file.rs");
+        let arm = src.find("Ok(Err(e)) => {\n                // T-2662").expect("arm");
+        let body = &src[arm..arm + 1600];
+        assert!(body.contains("rpc_error_streak += 1"));
+        assert!(body.contains("\n                if receive_should_bail_on_rpc_errors(rpc_error_streak) {\n"));
+        assert!(body.contains("\"reason\": \"disconnected\""));
+        assert!(src.contains("Ok(Ok(resp)) => {\n                rpc_error_streak = 0;"));
+    }
+
     #[test]
     fn timeout_message_names_operation_duration_target_and_next_step() {
         let msg = timeout_message(
