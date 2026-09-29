@@ -1,0 +1,25 @@
+OPERATOR RULINGS IN FORCE (2026-09-29): SQ-4 YES (arc-less agent-owned Q1/Q2 eligible). SQ-3 SURFACE-THEN-ASK
+(never close a task whose last AC is unachievable; list it under "## Closure requests" with rationale).
+
+NEW, 2026-09-29 — SQ-9 walk-through with the operator:
+Q1 APPROVED: work the 7 agent-clearable guard-layer findings still red in CI (run 36599556947 on 93c8a6137):
+  check-audit-warning-acknowledgement (3 unexamined warnings), check-pickup-deferred-freshness (P-078
+  stranded), check-unpaired-capture, check-arc-claim-drift (arc-003 prover non-zero — establish whether
+  that is CI-environment or real), check-receiver-ack-lag (needs a live hub; CI has none), runme-fixtures
+  ("summary counts skips"), planted-default-gate-fixtures (unexplained — investigate before touching).
+  Each is either FIXED, or — only where fixing is wrong — ACKNOWLEDGED in that check's git-tracked
+  allowlist with a cited reason. Never weaken a check to make it pass. A CI skip is allowed only when the
+  prerequisite is absent AND CI is set (the T-3234 pattern), never unconditionally.
+  NOT yours: voi-prompt (needs the operator's T-3200 no-go) and check-go-propagation (9 human-decided
+  GO inceptions) — leave both red and report them.
+Q3 APPROVED: build a canary that fires when (a) the newest v* tag has no published GitHub Release, or
+  (b) install-check.yml / doc-lint.yml have had no green run on main within N days. Follow the repo's
+  canary conventions in CLAUDE.md exactly: exit 0/1/2, fail-closed, --json/--quiet/--no-heartbeat,
+  EXIT-trap heartbeat, split stderr in the crontab, a PL-213 test seam, a fixture suite with a mutant.
+  Commit the crontab under .context/cron/ but DO NOT install it to /etc/cron.d (the orchestrator does).
+Q2 APPROVED but HELD BY THE ORCHESTRATOR: a v0.12.1 tag once CI is green. NEVER tag. NEVER push.
+
+DO NOT implement a fail/warn severity split in the guard layer — the operator raised it and it is being
+confirmed separately. Then continue down the SQ-4 list if budget remains.
+Before any commit that follows a refused finalize, run git status --porcelain (T-3231 lesson). Do not
+self-grant FW_SWITCH_FOCUS: refocus T-3211 first (R6's avoidable bypass).
