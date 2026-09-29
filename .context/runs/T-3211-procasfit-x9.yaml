@@ -167,3 +167,26 @@ stopped:
     detached; poll with --verify once the worker is gone, not before). Do NOT launch until at least
     SQ-3 and SQ-4 are ruled on - those two between them unfreeze the four arc-008 tasks (BVP 85+85+57+57)
     and the entire arc-less high-BVP list.
+operator_directive_2026_09_29:
+  said: "Please proceed as suggested. Run it till we're out as far as you can."
+  effect: Sequence resumed past R3's stop. Rules on NO Sovereign question. Carried verbatim into
+    every R4+ prompt via PROCASFIT_OPERATOR_NOTE (.context/runs/T-3211-operator-note-R4plus.txt).
+rounds_continued:
+- round: 4
+  handback: .context/runs/T-3211-R4-handback.md
+  handback_bytes: 18857
+  placeholders: 0
+  status: COMPLETE (stopped by choice at ~60%, work remained)
+  verified_by_orchestrator:
+  - 16 task files moved to .tasks/completed/ since 8a1df6982, all status work-completed with date_finished
+  - check-stranded-finalized-tasks.sh clean
+  - worker process gone before verify (not a snapshot)
+  sovereign_questions_new:
+  - SQ-9 CI guard layer red on every run; v0.12.0 never built; latest published release v0.11.2 (2026-06-24);
+    Homebrew tap repo 404 while README recommends it
+  - SQ-10 health:ring20-fedprobe write-only sink (2563 records, forever retention, zero consumers)
+  findings: [F10 quadrant census hides cost-less tasks, F11 value-review findings partly stale,
+    F13 voi-prompt.sh guard member mutates tracked state, F14 MCP/CLI twin drift systemic, F12 register outlived timeout]
+- round: 5
+  dispatched_utc: '2026-09-29T10:4xZ'
+  handback: .context/runs/T-3211-R5-handback.md
