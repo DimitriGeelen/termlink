@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3264: Flaky cli_request_reply_flow: reply emitted on a fixed 1s timer races the request's subscribe
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-29T23:45:51Z
+# ============================================================================
+
+task_id: T-3264
+task_name: "Flaky cli_request_reply_flow: reply emitted on a fixed 1s timer races the request's subscribe"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-29T23:11:29Z
+completed: 2026-09-29T23:45:01Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-30T01:45:01+02:00
+last_commit: 2026-09-30T01:45:01+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  cli_request_reply_flow re-emits the reply until the request returns — single emit on a 1s timer raced the subscribe
+
+# Key outcomes
+outcomes:
+  - '`cli_request_reply_flow`''s reply helper no longer fires once on a fixed timer: it re-emits `task.completed` periodically until the `request` command has returned, so a slow subscribe cannot miss the reply'
+  - 'The helper is bounded (stops when the request returns, and in any case within the request''s 10s timeout) and never outlives the test'
+  - 'The test still asserts `Request sent`, `Reply received` and a success exit; it passes 10 consecutive runs on this (loaded) host'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/tests/cli_integration.rs'
+  - '.tasks/active/T-3264-flaky-clirequestreplyflow-reply-emitted-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-30T01:45:01'
+    action: 'T-3264: cli_request_reply_flow re-emits the reply until the request returns — single emit on a 1s timer raced the subscribe'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 33 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 33
+  commits: 1
+  files_changed: 2
+  lines_added: 335
+  lines_removed: 7
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3264-flaky-clirequestreplyflow-reply-emitted-.md
+generated_by: context-agent-hybrid
