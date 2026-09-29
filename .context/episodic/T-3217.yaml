@@ -1,0 +1,72 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3217: invocation-usage.sh SCOPE still says session-daemon kv.*/session.* is uninstrumented after T-3033
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-29T10:10:20Z
+# ============================================================================
+
+task_id: T-3217
+task_name: "invocation-usage.sh SCOPE still says session-daemon kv.*/session.* is uninstrumented after T-3033"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-29T10:09:07Z
+completed: 2026-09-29T10:10:12Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  T-3033 instrumented session-daemon kv.*/session.* as surface session-rpc, but scripts/invocation-usage.sh header and runtime SCOPE line still state that surface is NOT instrumented. A reader that under-claims its own coverage is the T-2680 class inverted. Fix the text; no logic change.
+
+# Key outcomes
+outcomes:
+  - 'Header comment and runtime SCOPE line of `scripts/invocation-usage.sh` name `session-rpc` (kv.*/session.*) as instrumented and state that other session-daemon methods are not'
+  - 'Report run against a sink containing a `session-rpc` record prints the new SCOPE and lists the record'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3217-invocation-usagesh-scope-still-says-sess.md
+generated_by: context-agent-hybrid

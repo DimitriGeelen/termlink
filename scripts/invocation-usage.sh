@@ -17,11 +17,12 @@
 # usage verdicts at UNMEASURED.
 #
 # SCOPE — read a zero narrowly (T-2680). This reader covers the MCP TOOL
-# surface and (since T-3032) CLI VERBS, recorded as the subcommand-name chain.
-# The session-daemon kv.* / session.* blind spot (value-review C-30/C-31, T-3033)
-# is NOT instrumented and is NOT represented here. A tool or verb absent from this
-# report was not observed ON AN INSTRUMENTED SURFACE SINCE INSTRUMENTATION BEGAN
-# (CLI: since T-3032 shipped, and only on hosts running that binary); that is not
+# surface, (since T-3032) CLI VERBS recorded as the subcommand-name chain, and
+# (since T-3033) session-daemon kv.* / session.* RPCs as surface "session-rpc".
+# Other session-daemon methods (event.*, command.*, query.*) are NOT recorded.
+# A tool or verb absent from this report was not observed ON AN INSTRUMENTED
+# SURFACE SINCE INSTRUMENTATION BEGAN (CLI/session-rpc: since those shipped, and
+# only on hosts running that binary); that is not
 # the same as "unused", and must not be used on its own as a deletion warrant.
 set -uo pipefail
 
@@ -74,16 +75,17 @@ sink = os.environ["SINK"]
 since = os.environ.get("SINCE_DAYS") or ""
 as_json = os.environ.get("JSON") == "1"
 
-SCOPE = ("MCP tools and CLI verbs (CLI since T-3032). Session-daemon kv.*/session.* "
-         "(C-30/C-31) are NOT instrumented. Absence here means 'not observed on "
-         "an instrumented surface since instrumentation began', NOT 'unused'.")
+SCOPE = ("MCP tools, CLI verbs (since T-3032) and session-daemon kv.*/session.* "
+         "RPCs (surface session-rpc, since T-3033). Other session-daemon methods are "
+         "not recorded. Absence here means 'not observed on an instrumented surface "
+         "since instrumentation began', NOT 'unused'.")
 
 if not os.path.exists(sink):
     # A sink that has never been created is not an error and is not a zero
     # census either — say which it is, rather than printing an empty table that
     # reads as "nothing is used".
     msg = ("no invocation sink yet at %s — the instrument has not recorded a "
-           "call (no MCP tool or CLI verb invoked since it shipped, or telemetry disabled "
+           "call (nothing invoked on an instrumented surface since it shipped, or telemetry disabled "
            "via TERMLINK_INVOCATION_AUDIT=0)" % sink)
     if as_json:
         print(json.dumps({"ok": True, "sink": sink, "exists": False,
