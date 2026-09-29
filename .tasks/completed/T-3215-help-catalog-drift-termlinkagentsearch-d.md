@@ -1,16 +1,24 @@
 ---
-id: T-3213
-name: "CLI 'agent search --json' emits no JSON on hub-down (T-1914 class) — MCP twin returns {ok:false,error}"
+id: T-3215
+name: "help catalog drift: termlink_agent_search description differs between MCP registry
+  and CLI 'help --json'"
 description: >
-  Found by T-2991 parity case parity_agent_search_no_hub (kept #[ignore]). With no hub socket, 'termlink agent search needle --json' exits 1 with EMPTY stdout and an anyhow chain on stderr, while termlink_agent_search (MCP) returns {ok:false, error:'Hub is not running …'}. Same class PAIR 6 caught for 'channel list' in 2026-06 (T-1914): an early error path that does not honour --json. Fix: route the hub-down branch of cmd_agent_search through json_error_exit when --json is set; then un-ignore the parity case.
+  Found by T-2991 parity case parity_help (kept #[ignore]). The two help catalogs
+  are identical in every category, tool name, deprecated flag and parameter counts
+  EXCEPT one description string: MCP termlink_help says 'Search chat-arc by content
+  substring (chat-arc ONLY — not dm:* or inbox:*)' while CLI 'termlink help --json'
+  says 'Search chat-arc by content substring'. One catalog was edited and the other
+  not (the T-2069 duplicated-helper class). The CLI form is what the T-2483 charter-drift
+  canary reads. Fix: make both read one registry, or sync the string; then un-ignore
+  the parity case.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-009, parity, bug]
-components: []
-related_tasks: []
+components: [crates/termlink-mcp/tests/parity.rs]
+related_tasks: [T-2991, T-3199, T-1912, T-1928]
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
@@ -21,9 +29,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-28T23:48:21Z
-last_update: 2026-09-28T23:48:21Z
-date_finished: null
+created: 2026-09-28T23:48:43Z
+last_update: 2026-09-29T07:24:03Z
+date_finished: 2026-09-29T07:24:03Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,20 +42,81 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-09-29T00:12:47Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=3 (body:portability-abstraction); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-09-29T00:12:58Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius:
+      tier: 2
+      effort: 8
+    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
+      (workflow:build); effort=8 (lines=232,acs=4)
+    rubric_sha: e4a00f38e801
+  - ts: '2026-09-29T06:49:37Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (single-component); tier=2 (workflow:build); 
+      effort=8 (lines=303,acs=7)
+    rubric_sha: e4a00f38e801
 ---
 
-# T-3213: CLI 'agent search --json' emits no JSON on hub-down (T-1914 class) — MCP twin returns {ok:false,error}
+# T-3215: help catalog drift: termlink_agent_search description differs between MCP registry and CLI 'help --json'
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Filed by T-2991 (arc-009) when `parity_help` reported the two help catalogs differing in one
+`description` string. The premise "one catalog was edited and the other not" cannot hold: the
+CLI's `termlink help --json` is a wrapper over `termlink_mcp::build_cli_help_json`
+(`crates/termlink-cli/src/commands/help.rs:128`) — ONE registry, two renderers. What differed
+was the BINARY, not the registry: `find_termlink_bin()` resolves `target/release/termlink`
+without rebuilding, and that binary predated commit `7a114d1e6` (T-3199, 2026-09-28 17:42) which
+added "(chat-arc ONLY — not dm:* or inbox:*)" to the string, while the MCP side was compiled
+fresh INTO the test binary. R2 of T-3211 re-ran the pair against a rebuilt release binary at
+02:07 and it agreed, but hit its session limit before recording that anywhere verb-gated; its
+edit to `crates/termlink-mcp/tests/parity.rs` (switch the no-hub pairs to
+`find_termlink_bin_fresh()`, drop the `#[ignore]`) sat uncommitted. This task disposes the finding
+as NOT-A-DEFECT with the evidence recorded, and lands the harness fix so a stale prebuilt binary
+can never again present as registry drift.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] AC1 — Root cause established as a harness artefact, not a registry drift: `help.rs` builds
+      its JSON via `termlink_mcp::build_cli_help_json` (single registry), and the description
+      string in question was changed by commit `7a114d1e6` (T-3199) AFTER the `target/release`
+      binary the first run compared against was built. No edit to `tools.rs` or `help.rs` is
+      made by this task (`git diff --stat HEAD -- crates/termlink-mcp/src/tools.rs
+      crates/termlink-cli/src/commands/help.rs` is empty at close).
+- [x] AC2 — Harness fix landed: every no-hub parity pair that runs a prebuilt CLI
+      (`no_hub_pair`, `parity_help`, `parity_doctor`) resolves the binary through
+      `find_termlink_bin_fresh()` (which runs `cargo build -p termlink --release` once per test
+      process), so the CLI side is always the current tree; `parity_help` carries no `#[ignore]`.
+- [x] AC3 — `cargo test -p termlink-mcp --test parity parity_help` passes as a live (not ignored)
+      test: the catalogs are byte-identical after both sides are built from the same tree.
+- [x] AC4 — `bash scripts/check-mcp-parity-census.sh` still scans clean (asserted 33, unexamined 0).
+- [x] AC5 — RCA + Evolution sections filled: symptom, root cause (stale prebuilt binary vs
+      fresh test crate), why the harness allowed it (`find_termlink_bin` documents it does NOT
+      rebuild — T-1912 — and the pair used it anyway), prevention (AC2), and the lesson that a
+      parity "drift" whose CLI side is a prebuilt binary must be re-checked against a fresh
+      build BEFORE a task is filed.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -83,6 +152,19 @@ date_finished: null
 -->
 
 ## Verification
+
+grep -q 'termlink_mcp::build_cli_help_json' crates/termlink-cli/src/commands/help.rs
+test "$(grep -c 'ignore = "T-3215' crates/termlink-mcp/tests/parity.rs)" = 0
+test "$(grep -c 'find_termlink_bin_fresh()' crates/termlink-mcp/tests/parity.rs)" -ge 3
+test -z "$(git diff --stat HEAD -- crates/termlink-mcp/src/tools.rs crates/termlink-cli/src/commands/help.rs)"
+# Freshness precondition for the next line: the prebuilt CLI must postdate BOTH registry sources
+# (this is the exact property whose absence produced the false drift). Rebuild with
+# `cargo build -p termlink --release` if it fails — >10 min on this host (T-3211 R3 measured),
+# which is why the test is run with the helper's documented TERMLINK_BIN override instead of
+# letting find_termlink_bin_fresh() nest that build inside the test process.
+test target/release/termlink -nt crates/termlink-mcp/src/tools.rs && test target/release/termlink -nt crates/termlink-cli/src/commands/help.rs
+TERMLINK_BIN=$PWD/target/release/termlink cargo test -p termlink-mcp --test parity parity_help > /tmp/.t3215-help 2>&1 && grep -q 'test result: ok. 1 passed' /tmp/.t3215-help
+bash scripts/check-mcp-parity-census.sh > /tmp/.t3215-census 2>&1
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -173,6 +255,29 @@ date_finished: null
 
 ## RCA
 
+**Symptom:** `parity_help` (PAIR 32, T-2991) failed on its first run: MCP `termlink_help` and CLI
+`termlink help --json` agreed on every category, name, flag and parameter count but differed in
+the `description` of `termlink_agent_search` — MCP carried "(chat-arc ONLY — not dm:* or inbox:*)",
+the CLI did not. It was filed as registry drift (T-2069 duplicated-helper class).
+
+**Root cause:** the two surfaces share ONE registry — `help.rs` calls
+`termlink_mcp::build_cli_help_json` — so registry drift is impossible by construction. The CLI
+side of the comparison was `target/release/termlink` resolved by `find_termlink_bin()`, which
+(per its own T-1912 doc comment) does NOT rebuild; that binary predated commit `7a114d1e6`
+(T-3199, 2026-09-28 17:42) which added the parenthetical. The MCP side was compiled fresh into
+the test crate. Same tree, two build times, one string.
+
+**Why structurally allowed:** the harness offered both `find_termlink_bin()` and
+`find_termlink_bin_fresh()`, documented the difference, and left the choice to each pair; the
+no-hub pairs picked the non-rebuilding one because they do not compare git-derived metadata,
+which is the only case the fresh helper's doc names. A content comparison against a prebuilt
+binary is exactly as time-sensitive, and nothing said so.
+
+**Prevention:** every pair that runs a prebuilt CLI now resolves it through
+`find_termlink_bin_fresh()` (`no_hub_pair`, `parity_help`, `parity_doctor`); a stale release
+build can no longer masquerade as drift. Process rule, recorded in Evolution: a parity "drift"
+whose CLI side is a prebuilt binary is re-checked against a fresh build BEFORE a task is filed.
+
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
      Non-bug-class tasks may leave this section empty or remove it.
@@ -188,6 +293,34 @@ date_finished: null
 -->
 
 ## Evolution
+
+### 2026-09-29 — the defect was in the measurement, not the registry
+- **What changed:** at filing (T-2991, R2 of T-3211) the finding read as one catalog edited
+  without the other. Reading `help.rs` shows a single registry with two renderers; the only
+  way the strings can differ is two build times. `git log -S` dated the string change (T-3199,
+  17:42) between the release build the first run used and the test crate's compile.
+- **Plan impact:** the description's proposed fix ("make both read one registry, or sync the
+  string") is moot — they already do. The work is a harness fix plus an honest NOT-A-DEFECT
+  disposition, not a source change to `tools.rs` / `help.rs`.
+- **Triggered:** the sibling `parity_doctor` (T-3214) was re-confirmed by R2 against the SAME
+  rebuilt binary and still diverges (10 CLI checks vs 8 MCP) — that one is real and stays
+  filed. T-3213 (`agent search --json` silent on hub-down) is a CLI code path, not a build
+  artefact, and stays filed. No new task.
+
+### 2026-09-29 — the fresh helper's nested build is the suite's long pole on this host
+- **What changed:** `find_termlink_bin_fresh()` nests `cargo build -p termlink --release`
+  inside the test process. Measured in T-3211 R3: a top-level release build took 12m29s, and
+  `parity_help` with the nested build did not finish within 590s. `build.rs` re-runs on every
+  `.git/logs/HEAD` change (T-1057 — correct for version freshness), and this repo receives
+  commits from several concurrent sessions, so "up to date" rarely survives long enough for the
+  nested build to be a no-op. R2's 498s full-suite time was this cost, not `ENV_LOCK`.
+- **Plan impact:** the Verification block runs the pair with the helper's documented
+  `TERMLINK_BIN` override and asserts freshness explicitly (`test <bin> -nt <registry sources>`),
+  which is the exact property the false drift lacked. AC2 stands: the harness default remains the
+  fresh build, so an unattended run is still safe — just slow.
+- **Triggered:** finding carried to the T-3211 R3 handback (F7). Not a new task from here —
+  whether the nested build should be replaced by a freshness assertion is a harness-wide
+  question for T-2748's parity backlog, not this disposition.
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
@@ -263,7 +396,23 @@ date_finished: null
 
 ## Updates
 
-### 2026-09-28T23:48:21Z — task-created [task-create-agent]
+### 2026-09-28T23:48:43Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3213-cli-agent-search---json-emits-no-json-on.md
+- **Output:** /opt/termlink/.tasks/active/T-3215-help-catalog-drift-termlinkagentsearch-d.md
 - **Context:** Initial task creation
+
+### 2026-09-29T06:49:55Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-01a1cd28
+- **Timestamp:** 2026-09-29T07:24:07Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** none
+
+### 2026-09-29T07:24:03Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

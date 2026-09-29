@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3215: help catalog drift: termlink_agent_search description differs between MCP registry and CLI 'help --json
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-29T07:24:15Z
+# ============================================================================
+
+task_id: T-3215
+task_name: "help catalog drift: termlink_agent_search description differs between MCP registry and CLI 'help --json"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-28T23:48:43Z
+completed: 2026-09-29T07:24:03Z
+duration_days: 1
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Found by T-2991 parity case parity_help (kept #[ignore]). The two help catalogs are identical in every category, tool name, deprecated flag and parameter counts EXCEPT one description string: MCP termlink_help says 'Search chat-arc by content substring (chat-arc ONLY — not dm:* or inbox:*)' while CLI 'termlink help --json' says 'Search chat-arc by content substring'. One catalog was edited and the other not (the T-2069 duplicated-helper class). The CLI form is what the T-2483 charter-drift canary reads. Fix: make both read one registry, or sync the string; then un-ignore the parity case.
+
+# Key outcomes
+outcomes:
+  - 'AC1 — Root cause established as a harness artefact, not a registry drift: `help.rs` builds'
+  - 'AC2 — Harness fix landed: every no-hub parity pair that runs a prebuilt CLI'
+  - 'AC3 — `cargo test -p termlink-mcp --test parity parity_help` passes as a live (not ignored)'
+  - 'AC4 — `bash scripts/check-mcp-parity-census.sh` still scans clean (asserted 33, unexamined 0).'
+  - 'AC5 — RCA + Evolution sections filled: symptom, root cause (stale prebuilt binary vs'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 455 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-009, parity, bug]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 455
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3215-help-catalog-drift-termlinkagentsearch-d.md
+generated_by: context-agent-hybrid

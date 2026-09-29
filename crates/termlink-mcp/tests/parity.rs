@@ -1497,7 +1497,11 @@ async fn no_hub_pair(name: &str, tool: &'static str, args: Value, cli_argv: &[&s
     let mcp_json: Value = serde_json::from_str(&mcp_raw)
         .unwrap_or_else(|e| panic!("MCP {tool} response not JSON: {e}\nraw: {mcp_raw}"));
 
-    let bin = find_termlink_bin().expect("find termlink binary");
+    // T-3215 lesson: `find_termlink_bin()` prefers target/release, which can be
+    // DAYS stale relative to the MCP side compiled INTO this test binary — the
+    // first run of PAIR 32 reported a "drift" that was only a stale release
+    // build. Always resolve the fresh build here.
+    let bin = find_termlink_bin_fresh().expect("find termlink binary (fresh)");
     let mut cmd = termlink_cmd(&bin, &dir.path);
     cmd.env("HOME", &dir.path);
     cmd.args(cli_argv);
@@ -1590,14 +1594,15 @@ async fn parity_agent_search_no_hub() {
 // Compared as a whole: `{category: [{name, deprecated, description,
 // parameter_count, parameter_required_count}, …]}`.
 //
-// DIVERGENCE FOUND on first run (recorded, not patched): the two catalogs
-// agree on every category, name, flag and parameter count EXCEPT the
-// `description` of `termlink_agent_search` — MCP says "… (chat-arc ONLY — not
-// dm:* or inbox:*)", the CLI says "Search chat-arc by content substring". One
-// registry was edited and the other was not (T-2069 duplicated-helper class).
-// Owned by T-3215; un-ignore when it lands.
+// FALSE DRIFT on first run (T-3215, closed as not-a-defect): the catalogs
+// differed in ONE `description` string — because `find_termlink_bin()` had
+// resolved a `target/release/termlink` built before T-3199 edited that string.
+// `help.rs` wraps `termlink_mcp::build_cli_help_json`, so the two sides share
+// one registry and CANNOT drift in content; what this pair guards is the CLI
+// wrapper's envelope. The cure is `find_termlink_bin_fresh()`; the lesson is
+// that a parity "drift" whose CLI side is a prebuilt binary must be re-checked
+// against a fresh build before it is filed.
 #[tokio::test]
-#[ignore = "T-3215 drift: termlink_agent_search description differs between MCP registry and CLI help --json — un-ignore when T-3215 lands"]
 async fn parity_help() {
     let _lock = ENV_LOCK.lock().await;
     let dir = TestDir::new("parity-help");
@@ -1608,7 +1613,7 @@ async fn parity_help() {
     let mcp_json: Value = serde_json::from_str(&mcp_raw)
         .unwrap_or_else(|e| panic!("MCP help response not JSON: {e}\nraw: {mcp_raw}"));
 
-    let bin = find_termlink_bin().expect("find termlink binary");
+    let bin = find_termlink_bin_fresh().expect("find termlink binary (fresh)");
     let cli_json = call_cli(&bin, &dir.path, &["help", "--json"]).expect("CLI help --json");
 
     assert!(mcp_json.is_object() && !mcp_json.as_object().unwrap().is_empty(), "MCP help empty: {mcp_json}");
@@ -1623,14 +1628,17 @@ async fn parity_help() {
 // `message` is stripped and the check LIST is compared by (check, status)
 // with the summary counts by value.
 //
-// DIVERGENCE FOUND on first run (recorded, not patched): against an empty
-// runtime dir + empty HOME the CLI emits 11 checks and MCP emits 8 — MCP is
-// missing `ufw_listener`, `secret_cache`, `secret_cache_profiles` — and MCP
-// carries a top-level `strict` key the CLI does not echo. An agent reading
-// MCP doctor cannot see secret-cache drift the operator's CLI would show.
-// Owned by T-3214; un-ignore when it lands.
+// DIVERGENCE FOUND on first run and RE-CONFIRMED against a fresh release build
+// (recorded, not patched): against an empty runtime dir + empty HOME the CLI
+// emits 10 checks (`runtime_dir sessions_dir sessions hub ufw_listener dispatch
+// secret_cache secret_cache_profiles identity version`) and MCP emits 8
+// (`runtime_dir sessions_dir sessions hub sockets dispatch identity version`):
+// MCP lacks `ufw_listener` / `secret_cache` / `secret_cache_profiles`, the CLI
+// lacks `sockets`, and MCP carries a top-level `strict` key the CLI does not
+// echo. An agent reading MCP doctor cannot see secret-cache drift the
+// operator's CLI would show. Owned by T-3214; un-ignore when it lands.
 #[tokio::test]
-#[ignore = "T-3214 drift: MCP termlink_doctor lacks ufw_listener/secret_cache/secret_cache_profiles checks and adds `strict` — un-ignore when T-3214 lands"]
+#[ignore = "T-3214 drift: MCP termlink_doctor lacks ufw_listener/secret_cache/secret_cache_profiles, CLI lacks sockets, MCP adds `strict` — un-ignore when T-3214 lands"]
 async fn parity_doctor() {
     let _lock = ENV_LOCK.lock().await;
     let dir = TestDir::new("parity-doctor");
@@ -1642,7 +1650,7 @@ async fn parity_doctor() {
     let mcp_json: Value = serde_json::from_str(&mcp_raw)
         .unwrap_or_else(|e| panic!("MCP doctor response not JSON: {e}\nraw: {mcp_raw}"));
 
-    let bin = find_termlink_bin().expect("find termlink binary");
+    let bin = find_termlink_bin_fresh().expect("find termlink binary (fresh)");
     let mut cmd = termlink_cmd(&bin, &dir.path);
     cmd.env("HOME", &dir.path);
     cmd.args(["doctor", "--json"]);
