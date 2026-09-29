@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3249: Give dialog.presence a CLI/MCP client surface
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-29T20:32:35Z
+# ============================================================================
+
+task_id: T-3249
+task_name: "Give dialog.presence a CLI/MCP client surface"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-29T19:55:49Z
+completed: 2026-09-29T20:29:43Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-29T22:29:38+02:00
+last_commit: 2026-09-29T22:29:38+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  dialog.presence gets its first client surface — CLI 'channel dialog-presence' + MCP termlink_dialog_presence (T-2995 GO step 2)
+
+# Key outcomes
+outcomes:
+  - 'CLI `termlink channel dialog-presence <CONVERSATION_ID> [--hub ADDR] [--json]` calls `dialog.presence` (read-only) — JSON passthrough of `{presences:[{agent_id,last_seen_ms}]}`; human mode lists agent_id + age; an empty list prints an explicit "no presence recorded" line, not silence'
+  - 'MCP tool `termlink_dialog_presence` with the same params/shape, 30s-bounded RPC (T-2669 convention), registered in the help/category registry'
+  - 'Guard layer stays honest about the new tool: `check-mcp-parity-census.sh` passes (the tool is acknowledged in the census ledger with a cited reason, or asserted by a parity case), `test-mcp-desc-budget.sh` passes, `check-unbounded-rpc-call.sh` passes'
+  - '`cargo build --workspace` passes and `cargo test -p termlink` (the CLI package) and the new `termlink-mcp` parity case pass; a unit test pins the human-mode rendering helper (empty list and a populated list)'
+  - 'Live proof on an ISOLATED hub (temp runtime dir, private port): post two messages carrying `metadata.conversation_id=c1` from the CLI, then `channel dialog-presence c1 --json` returns a non-empty `presences` list'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - 'crates/termlink-mcp/src/tools.rs'
+  - 'crates/termlink-mcp/tests/parity.rs'
+  - '.tasks/active/T-3249-give-dialogpresence-a-climcp-client-surf.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-29T22:29:38'
+    action: 'T-3249: dialog.presence gets its first client surface — CLI ''channel dialog-presence'' + MCP termlink_dialog_presence (T-2995 GO step 2)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 33 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [value-review, arc:arc-009, go-slice]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 33
+  commits: 1
+  files_changed: 6
+  lines_added: 190
+  lines_removed: 39
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3249-give-dialogpresence-a-climcp-client-surf.md
+generated_by: context-agent-hybrid
