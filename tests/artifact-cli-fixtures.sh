@@ -21,6 +21,13 @@ if [ -z "$BIN" ]; then
         BIN="$REPO_ROOT/target/release/termlink"
     fi
 fi
+if { [ -z "$BIN" ] || [ ! -x "$BIN" ]; } && [ -n "${CI:-}" ]; then
+    # T-3234 (T-3008 pattern): the guard-layer CI job does no Rust build, so there
+    # is no binary to drive. Skip ONLY under CI with the binary absent; on a dev
+    # host a missing binary stays a loud exit 2.
+    echo "SKIP: CI is set and no termlink binary was built (this job has no cargo build) — artifact CLI not exercised"
+    exit 0
+fi
 if [ -z "$BIN" ] || [ ! -x "$BIN" ]; then
     echo "FAIL: no termlink binary found — run \`cargo build -p termlink\` first (or set TERMLINK_BIN)" >&2
     exit 2

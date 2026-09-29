@@ -89,6 +89,14 @@ say "  PREDICATE: ${found} of ${#PROBE_PATHS[@]} probed paths carry an executabl
 say "             Paths not listed above were NOT examined. This check asserts"
 say "             nothing about install locations it does not know about."
 
+if [ "$found" -eq 0 ] && [ -n "${CI:-}" ]; then
+  # T-3234 (T-3008 pattern): a CI runner has no install paths at all. That is
+  # "not an install host", not drift. Skip ONLY under CI; on a host, nothing
+  # installed stays FAIL(3).
+  say ""
+  say "  SKIP: CI is set and no probed path carries a binary — not an install host."
+  exit 0
+fi
 if [ "$found" -eq 0 ]; then
   say ""
   say "  FAIL(3): no termlink binary on any probed path. This is 'nothing was"

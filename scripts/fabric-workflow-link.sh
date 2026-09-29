@@ -91,6 +91,13 @@ fi
 
 command -v python3 >/dev/null 2>&1 || { echo "fabric-workflow-link: no python3 — no verdict"; exit 2; }
 [ -d "$CARDS" ] || { echo "fabric-workflow-link: $CARDS missing — NO VERDICT (not 'clean')"; exit 2; }
+if [ ! -d "$PROJECTS" ] && [ -n "${CI:-}" ]; then
+  # T-3234 (T-3008 pattern): the designer projects dir is local state that is not
+  # committed, so a CI checkout never has it. Skip ONLY under CI; on a host the
+  # missing dir stays NO VERDICT (exit 2). The self-test above still ran.
+  echo "fabric-workflow-link: SKIP — CI is set and $PROJECTS is absent (uncommitted local state); link not checked"
+  exit 0
+fi
 [ -d "$PROJECTS" ] || { echo "fabric-workflow-link: $PROJECTS missing — NO VERDICT"; exit 2; }
 
 python3 - "$CARDS" "$PROJECTS" <<'PY'

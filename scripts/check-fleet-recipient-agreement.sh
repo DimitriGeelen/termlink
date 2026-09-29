@@ -119,6 +119,13 @@ if [ "${1:-}" = "--self-test" ]; then
 fi
 
 MAP="$(fleet_map)"
+if [ -z "$MAP" ] && [ -n "${CI:-}" ] && ! command -v termlink >/dev/null 2>&1; then
+  # T-3234 (T-3008 pattern): a CI runner has no termlink binary and no hubs.toml,
+  # so there is no fleet to compare. Skip ONLY then; anywhere else an empty map
+  # stays "no verdict" (exit 2). The self-test above still ran.
+  echo "check-fleet-recipient-agreement: SKIP — CI is set and no termlink binary is on PATH; no fleet to compare"
+  exit 0
+fi
 [ -n "$MAP" ] || { echo "check-fleet-recipient-agreement: could not read fleet status — no verdict"; exit 2; }
 
 B_RAW="$(preview_hubs scripts/chat-arc-broadcast.sh --payload probe --from agreement-check --dry-run)"

@@ -43,10 +43,22 @@ for n in 4096 16384 32768; do
     assert_rc "below pipe capacity (${n}B) the echo form succeeds" 0 "$rc"
 done
 
+# T-3234: 141 needs SIGPIPE at its default disposition. A process that inherits
+# it IGNORED (GitHub's runner does; bash cannot un-ignore a signal ignored at
+# entry) sees EPIPE instead: echo reports "write error" and returns 1. The pipeline
+# still FAILS on a match, which is the L-387 point, so under an ignored SIGPIPE we
+# assert that rather than the exact code. Probe the disposition, don't assume it.
+( set -o pipefail; yes | head -n1 >/dev/null ) 2>/dev/null; sigpipe_probe=$?
 for n in 131072 1048576; do
     out=$(capture "$n")
-    ( set -o pipefail; echo "$out" | grep -q "MATCHME" ); rc=$?
-    assert_rc "above pipe capacity (${n}B) the echo form returns SIGPIPE 141" 141 "$rc"
+    ( set -o pipefail; echo "$out" | grep -q "MATCHME" ) 2>/dev/null; rc=$?
+    if [ "$sigpipe_probe" = 141 ]; then
+        assert_rc "above pipe capacity (${n}B) the echo form returns SIGPIPE 141" 141 "$rc"
+    elif [ "$rc" -ne 0 ]; then
+        ok "above pipe capacity (${n}B) the echo form FAILS on a match (rc=$rc; SIGPIPE ignored in this process, so EPIPE not 141)"
+    else
+        bad "above pipe capacity (${n}B) the echo form FAILS on a match — got rc=0 (SIGPIPE ignored, probe rc=$sigpipe_probe)"
+    fi
 done
 
 echo

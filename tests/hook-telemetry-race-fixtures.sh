@@ -14,7 +14,10 @@
 
 set -uo pipefail
 
-FW_LIB="${FW_LIB:-/opt/termlink/.agentic-framework/lib/hook-telemetry.sh}"
+# T-3234: resolve from this checkout, not the literal origin-host path. With the
+# literal, a CI checkout (or any other clone) sourced a file that did not exist
+# there, and on the origin host a clone silently tested the MAIN checkout's copy.
+FW_LIB="${FW_LIB:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/.agentic-framework/lib/hook-telemetry.sh}"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
