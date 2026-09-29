@@ -10812,6 +10812,63 @@ pub(crate) async fn cmd_channel_cv_keys(
     Ok(())
 }
 
+/// T-3249 — `channel dialog-presence <CONVERSATION_ID>`: first client surface
+/// for the hub's `dialog.presence` (T-1286), which had a handler, a producer
+/// and tests but no caller (T-2995 F5). Read-only.
+pub(crate) async fn cmd_channel_dialog_presence(
+    conversation_id: &str,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
+    let params = json!({"conversation_id": conversation_id});
+    let resp = rpc_call_authed(&sock, method::DIALOG_PRESENCE, params)
+        .await
+        .context("Hub rpc_call failed")?;
+    let result = client::unwrap_result(resp)
+        .map_err(|e| anyhow!("Hub returned error for dialog.presence: {e}"))?;
+    if json_output {
+        println!("{}", serde_json::to_string_pretty(&result)?);
+        return Ok(());
+    }
+    let presences = result["presences"].as_array().cloned().unwrap_or_default();
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0);
+    for line in render_dialog_presence(conversation_id, &presences, now_ms) {
+        println!("{line}");
+    }
+    Ok(())
+}
+
+/// Pure renderer for `channel dialog-presence` human mode. An empty list is
+/// stated, never rendered as silence (an unknown id and a quiet conversation
+/// both land here — the hub does not distinguish them).
+pub(crate) fn render_dialog_presence(
+    conversation_id: &str,
+    presences: &[Value],
+    now_ms: u64,
+) -> Vec<String> {
+    if presences.is_empty() {
+        return vec![format!(
+            "no presence recorded for conversation {conversation_id:?} \
+             (unknown id, or no post carried this metadata.conversation_id)"
+        )];
+    }
+    let mut out = vec![format!(
+        "conversation={conversation_id} agents={}",
+        presences.len()
+    )];
+    for p in presences {
+        let agent = p["agent_id"].as_str().unwrap_or("?");
+        let seen = p["last_seen_ms"].as_u64().unwrap_or(0);
+        let age_s = now_ms.saturating_sub(seen) / 1000;
+        out.push(format!("  {agent}  last seen {age_s}s ago"));
+    }
+    out
+}
+
 /// T-2047: pure decision helper for `--from-latest` mode. Given the topic's
 /// current latest offset (or None for empty topic) and the then_live flag,
 /// returns the (cursor, limit, follow) override the caller should use.
@@ -12761,6 +12818,23 @@ mod tests {
         );
         assert!(format!("{transport}").contains("fleet doctor"),
             "Transport error carries the unreachable-hub hint: {transport}");
+    }
+
+    #[test]
+    fn render_dialog_presence_states_empty_and_lists_agents() {
+        // T-3249: an empty list is stated, never silent.
+        let empty = render_dialog_presence("c1", &[], 10_000);
+        assert_eq!(empty.len(), 1);
+        assert!(empty[0].contains("no presence recorded"), "{empty:?}");
+        assert!(empty[0].contains("c1"), "{empty:?}");
+        let ps = vec![
+            json!({"agent_id": "alpha", "last_seen_ms": 7_000}),
+            json!({"agent_id": "beta", "last_seen_ms": 10_000}),
+        ];
+        let out = render_dialog_presence("c1", &ps, 10_000);
+        assert_eq!(out[0], "conversation=c1 agents=2");
+        assert!(out[1].contains("alpha") && out[1].contains("3s ago"), "{out:?}");
+        assert!(out[2].contains("beta") && out[2].contains("0s ago"), "{out:?}");
     }
 
     // T-2654: the --ensure-topic heal-failure warning must name the topic and

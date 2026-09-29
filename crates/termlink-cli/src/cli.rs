@@ -2723,6 +2723,24 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// Who has posted into a conversation, and how recently (T-3249, T-2995
+    /// GO step 2). Read-only view of the hub's passive dialog-presence
+    /// tracker (T-1286), which records the last-seen time of every agent whose
+    /// post carried `metadata.conversation_id`. The hub has served
+    /// `dialog.presence` since T-1286; this is its first client surface.
+    /// An unknown conversation id returns an empty list, not an error.
+    DialogPresence {
+        /// Conversation id (the `metadata.conversation_id` on posts)
+        conversation_id: String,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
     /// List existing topics (optional prefix filter)
     List {
         /// Filter by topic prefix

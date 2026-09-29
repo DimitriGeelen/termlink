@@ -1106,6 +1106,7 @@ fn help_categories() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
             ("termlink_channel_receipts", "Per-sender receipt watermarks on a topic"),
             ("termlink_channel_topic_stats", "Aggregate stats for a single topic (any topic)"),
             ("termlink_channel_cv_keys", "T-2106 / T-2027 substrate primitive #9 — list cv_keys advertising on a topic with their offsets (broadcast-with-replay observability)"),
+            ("termlink_dialog_presence", "T-3249: agents that posted into a conversation (metadata.conversation_id) and their last-seen time"),
         ]),
         ("channel_threading", vec![
             ("termlink_channel_thread", "Full thread tree from a post"),
@@ -9645,6 +9646,12 @@ pub struct ChannelListParams {
 pub struct ChannelCvKeysParams {
     /// Topic name to inspect.
     pub topic: String,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct DialogPresenceParams {
+    /// Conversation id — the `metadata.conversation_id` carried on posts.
+    pub conversation_id: String,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -29323,6 +29330,36 @@ impl TermLinkTools {
             Ok(resp) => match termlink_session::client::unwrap_result(resp) {
                 Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
                 Err(e) => json_err(format!("channel.cv_keys error: {e}")),
+            },
+            Err(e) => json_err(format!("RPC call failed: {e}")),
+        }
+    }
+
+    #[tool(
+        name = "termlink_dialog_presence",
+        description = "Who has posted into a conversation, and when last (T-3249). Read-only view of the hub's passive dialog-presence tracker: every agent whose post carried `metadata.conversation_id` is recorded with its last-seen time. Returns `{presences:[{agent_id, last_seen_ms}, ...]}` sorted by agent_id. An unknown conversation_id returns an empty list, not an error."
+    )]
+    async fn termlink_dialog_presence(
+        &self,
+        Parameters(p): Parameters<DialogPresenceParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return hub_down_err();
+        }
+        let params = serde_json::json!({"conversation_id": p.conversation_id});
+        // T-2669: 30s bound — a short in-memory hub read, same shape as channel.cv_keys.
+        match termlink_session::client::rpc_call_with_timeout(
+            &hub_socket,
+            termlink_protocol::control::method::DIALOG_PRESENCE,
+            params,
+            std::time::Duration::from_secs(30),
+        )
+        .await
+        {
+            Ok(resp) => match termlink_session::client::unwrap_result(resp) {
+                Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
+                Err(e) => json_err(format!("dialog.presence error: {e}")),
             },
             Err(e) => json_err(format!("RPC call failed: {e}")),
         }

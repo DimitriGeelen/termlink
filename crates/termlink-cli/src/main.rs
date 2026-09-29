@@ -1611,6 +1611,10 @@ async fn main() -> Result<()> {
             ChannelAction::CvKeys { topic, hub, json } => {
                 commands::channel::cmd_channel_cv_keys(&topic, hub.as_deref(), json).await
             }
+            ChannelAction::DialogPresence { conversation_id, hub, json } => {
+                commands::channel::cmd_channel_dialog_presence(&conversation_id, hub.as_deref(), json)
+                    .await
+            }
             ChannelAction::Mentions {
                 target,
                 prefix,

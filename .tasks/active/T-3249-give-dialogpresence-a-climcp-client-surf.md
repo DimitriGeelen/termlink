@@ -5,10 +5,10 @@ description: >
   T-2995 GO step 2: DIALOG_PRESENCE (control.rs) is hub-served with no client surface;
   wire a CLI verb + MCP parity.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [value-review, arc:arc-009, go-slice]
 components: []
 related_tasks: [T-2995]
@@ -23,7 +23,7 @@ related_tasks: [T-2995]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-29T19:55:49Z
-last_update: '2026-09-29T19:58:48Z'
+last_update: 2026-09-29T20:21:47Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -81,44 +81,21 @@ Files: `crates/termlink-protocol/src/control.rs` (DIALOG_PRESENCE :306), `crates
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] CLI `termlink channel dialog-presence <CONVERSATION_ID> [--hub ADDR] [--json]` calls `dialog.presence` (read-only) — JSON passthrough of `{presences:[{agent_id,last_seen_ms}]}`; human mode lists agent_id + age; an empty list prints an explicit "no presence recorded" line, not silence
+- [x] MCP tool `termlink_dialog_presence` with the same params/shape, 30s-bounded RPC (T-2669 convention), registered in the help/category registry
+- [x] Guard layer stays honest about the new tool: `check-mcp-parity-census.sh` passes (the tool is acknowledged in the census ledger with a cited reason, or asserted by a parity case), `test-mcp-desc-budget.sh` passes, `check-unbounded-rpc-call.sh` passes
+- [x] `cargo build --workspace` passes and `cargo test -p termlink` (the CLI package) and the new `termlink-mcp` parity case pass; a unit test pins the human-mode rendering helper (empty list and a populated list)
+- [x] Live proof on an ISOLATED hub (temp runtime dir, private port): post two messages carrying `metadata.conversation_id=c1` from the CLI, then `channel dialog-presence c1 --json` returns a non-empty `presences` list
 
-### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-
-     ── Prefix routing (T-1811, T-1878): default to [REVIEWER] if Expected is grep-able ──
-     If your Expected clause is grep-able / file-exists / structural (a deterministic
-     shell check), prefer [REVIEWER] — that AC should be an Agent AC with the reviewer
-     command in `## Verification` instead of a Human AC here. Only keep [REVIEW] if
-     verification genuinely needs human taste (tone, feel, layout rhythm).
-     See CLAUDE.md §AC Classification Guidance for the conversion rule.
-
-     [REVIEW] example (genuine human judgment):
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
-
-     [REVIEWER] example (static-scan-verifiable — convert to Agent AC + Verification):
-       - [ ] [REVIEWER] Block message names both bypass mechanisms
-         **Steps:**
-         1. Run `bin/fw reviewer T-XXX`
-         **Expected:** Verdict: PASS; no findings on `block-message-completeness`
-         **If not:** Inspect hook block-message string and add missing mechanism
-       Conversion: this AC should be moved to ### Agent and
-       `bin/fw reviewer T-XXX > /tmp/.rev 2>&1 && grep -q "Overall:.*PASS" /tmp/.rev`
-       added to ## Verification. NEVER `... 2>&1 | grep -q ...` — that is the shape the
-       Pipefail/SIGPIPE section below forbids, and this line used to prescribe it.
--->
 
 ## Verification
+
+cargo build --workspace --quiet
+cargo test -p termlink --quiet render_dialog_presence
+TERMLINK_BIN="$PWD/target/debug/termlink" cargo test -p termlink-mcp --test parity --quiet parity_dialog_presence_no_hub
+bash scripts/check-mcp-parity-census.sh
+bash scripts/test-mcp-desc-budget.sh
+bash scripts/check-unbounded-rpc-call.sh
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -247,6 +224,11 @@ Files: `crates/termlink-protocol/src/control.rs` (DIALOG_PRESENCE :306), `crates
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-09-29: presence is keyed on the VERIFIED sender, and the parity harness prefers a stale binary
+- **What changed:** (1) The live proof on an isolated hub returned the host fingerprint `d1993c2c3ec44c94` as `agent_id`, and a second post with `--sender-id beta-sender` added no second entry: the tracker records the verified identity (T-1427), not a claimed one. That is correct, but "agent" in the output means an identity key, and on a shared-keypair host it collapses agents (the T-2838 caveat again). (2) `find_termlink_bin()` prefers `target/release` over `target/debug`, so locally the new parity case ran a stale release binary that lacks the verb. CI builds debug only, so it is unaffected. The local verification line pins `TERMLINK_BIN` to the fresh debug build.
+- **Plan impact:** none. The parity case asserts the hub-down contract only (the suite has no hub harness), which the case says in a comment.
+- **Triggered:** none filed.
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -303,3 +285,7 @@ Files: `crates/termlink-protocol/src/control.rs` (DIALOG_PRESENCE :306), `crates
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3249-give-dialogpresence-a-climcp-client-surf.md
 - **Context:** Initial task creation
+
+### 2026-09-29T20:21:47Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

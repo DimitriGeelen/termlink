@@ -590,6 +590,38 @@ async fn parity_channel_create_no_hub() {
         .expect("channel create no-hub parity");
 }
 
+#[tokio::test]
+async fn parity_dialog_presence_no_hub() {
+    // T-3249: the tool and its CLI verb shipped together, so pin their shared
+    // hub-down contract from day one (ok=false + error, JSON on stdout).
+    // Scope: the hub-down shape only — no hub harness exists in this suite.
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("parity-dialog-presence-no-hub");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let client = mcp_client().await;
+    let mcp_raw = call_mcp(
+        &client,
+        "termlink_dialog_presence",
+        json!({"conversation_id": "parity-c1"}),
+    )
+    .await;
+    let mcp_json: Value = serde_json::from_str(&mcp_raw)
+        .unwrap_or_else(|e| panic!("MCP dialog_presence response not JSON: {e}\nraw: {mcp_raw}"));
+
+    let bin = find_termlink_bin().expect("find termlink binary");
+    let cli_json = call_cli(
+        &bin,
+        &dir.path,
+        &["channel", "dialog-presence", "parity-c1", "--json"],
+    )
+    .expect("CLI channel dialog-presence (JSON on stdout even with exit 1)");
+
+    let ignore: HashSet<&'static str> = ["ts_ms", "pid", "error"].into_iter().collect();
+    diff_json("dialog_presence_no_hub", &mcp_json, &cli_json, &ignore)
+        .expect("dialog presence no-hub parity");
+}
+
 // ---------------------------------------------------------------------------
 // PAIR 8 (v0.3, T-1918): termlink_list_sessions / termlink list --json
 //
