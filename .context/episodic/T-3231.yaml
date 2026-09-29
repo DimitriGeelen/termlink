@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3231: Flaky CLI test: dispatch isolate_rejects_non_git_dir mutates CWD without test_env_lock
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-29T11:25:38Z
+# ============================================================================
+
+task_id: T-3231
+task_name: "Flaky CLI test: dispatch isolate_rejects_non_git_dir mutates CWD without test_env_lock"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-29T11:19:19Z
+completed: 2026-09-29T11:25:00Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-29T13:25:00+02:00
+last_commit: 2026-09-29T13:25:00+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  dispatch isolate_rejects_non_git_dir holds ENV_LOCK across its CWD window (flake)
+
+# Key outcomes
+outcomes:
+  - '`dispatch::tests::isolate_rejects_non_git_dir` holds `crate::test_env_lock::ENV_LOCK` for its whole CWD-mutation window (set → call → restore), per the crate convention in `test_env_lock.rs`'
+  - 'No other test in `dispatch.rs` mutates CWD/HOME without the lock (checked by grep)'
+  - '`cargo test -p termlink --bin termlink` passes in 3 consecutive full runs with no new warnings'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/commands/dispatch.rs'
+  - '.tasks/active/T-3231-flaky-cli-test-dispatch-isolaterejectsno.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-29T13:25:00'
+    action: 'T-3231: dispatch isolate_rejects_non_git_dir holds ENV_LOCK across its CWD window (flake)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 2
+  lines_added: 53
+  lines_removed: 41
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3231-flaky-cli-test-dispatch-isolaterejectsno.md
+generated_by: context-agent-hybrid
