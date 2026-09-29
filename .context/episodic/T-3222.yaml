@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3222: MCP agent contact posts to the heartbeat-observed hub, ignoring the peer's declared home hub
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-29T10:58:39Z
+# ============================================================================
+
+task_id: T-3222
+task_name: "MCP agent contact posts to the heartbeat-observed hub, ignoring the peer's declared home hub"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-29T10:34:20Z
+completed: 2026-09-29T10:58:09Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-29T12:58:04+02:00
+last_commit: 2026-09-29T12:58:04+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  MCP agent_contact routes to the peer's declared home hub — parity with the CLI's T-2386 (target_fp half filed as T-3230)
+
+# Key outcomes
+outcomes:
+  - '`resolve_contact_via_fleet_mcp` routes to the peer''s declared home hub (`metadata.addr`, non-blank) and falls back to the hub the heartbeat was read from only when none is declared; `observed_addr` is never used for routing (twin of CLI `resolve_home_hub`, T-2386)'
+  - 'For a locally-registered peer with no explicit `hub`, `termlink_agent_contact` routes to the peer''s declared home hub when its LIVE presence declares one (CLI T-2386 local-branch behaviour); an explicit `hub` param still wins'
+  - 'Pure helpers `resolve_home_hub_mcp` + `fleet_route_hub_mcp` unit-tested (declared wins; observed-only → none; blank → none; fallback to read hub)'
+  - '`cargo test -p termlink-mcp --lib` passes with no new warnings'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-mcp/src/tools.rs'
+  - '.tasks/active/T-3222-mcp-agent-contact-posts-to-the-heartbeat.md'
+  - '.tasks/active/T-3230-mcp-agentcontact-with-targetfp-posts-to-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-29T12:58:04'
+    action: 'T-3222: MCP agent_contact routes to the peer''s declared home hub — parity with the CLI''s T-2386 (target_fp half filed as T-3230)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 23 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 23
+  commits: 1
+  files_changed: 3
+  lines_added: 401
+  lines_removed: 48
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3222-mcp-agent-contact-posts-to-the-heartbeat.md
+generated_by: context-agent-hybrid
