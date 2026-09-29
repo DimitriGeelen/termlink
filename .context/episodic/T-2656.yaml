@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2656: cmd_attach output-poll silently swallows hub RPC-error (frozen-but-connected terminal, no signal) — sibling of T-2644
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-29T16:13:21Z
+# ============================================================================
+
+task_id: T-2656
+task_name: "cmd_attach output-poll silently swallows hub RPC-error (frozen-but-connected terminal, no signal) — sibling of T-2644"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-12T19:56:51Z
+completed: 2026-09-29T16:12:12Z
+duration_days: 48
+updates_count: 3
+first_commit: 2026-08-12T21:57:36+02:00
+last_commit: 2026-09-29T18:12:11+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  file — cmd_attach output-poll silently swallows hub RPC-error (frozen-but-connected terminal); sibling of T-2644. attach output poll surfaces query.output RPC errors — typed PollStep, fatal errors detach with a named reason, RATE_LIMITED one notice per streak
+
+# Key outcomes
+outcomes:
+  - '`cmd_attach` no longer silently discards an application-level RPC error on `query.output` — the error is surfaced to the operator (stderr), mirroring the sibling transport-`Err` arm'
+  - 'The error is classified: a fatal error (session-not-found / closed) surfaces + breaks; a transient (e.g. OUTPUT_UNAVAILABLE) surfaces at most once and either backs off or breaks per an explicit decision recorded in `## Decisions`'
+  - 'The keystroke fire-and-forget at pty.rs:490 is reviewed in the same pass — decide whether a persistent inject failure should also surface (cross-ref T-2644)'
+  - 'A fixture test (hub returns RPC-error on `query.output` with socket open) proves the loop surfaces the error instead of spinning silently'
+  - '`cargo build -p termlink` + `cargo test -p termlink --bins` pass'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'attach output poll surfaces query.output RPC errors — typed PollStep, fatal errors detach with a named reason, RATE_LIMITED one notice per streak'
+    source: git-mined
+  - description: 'file — cmd_attach output-poll silently swallows hub RPC-error (frozen-but-connected terminal); sibling of T-2644'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-09-29 — classify query.output RPC errors during attach (T-3211 R6)'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/working/.budget-status'
+  - '.context/working/.hook-counter'
+  - '.context/working/.tool-counter'
+  - 'crates/termlink-cli/src/commands/pty.rs'
+  - '.tasks/active/T-2656-cmdattach-output-poll-silently-swallows-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-08-12T21:57:36'
+    action: 'T-2656: file — cmd_attach output-poll silently swallows hub RPC-error (frozen-but-connected terminal); sibling of T-2644'
+  - time: '2026-09-29T18:12:11'
+    action: 'T-2656: attach output poll surfaces query.output RPC errors — typed PollStep, fatal errors detach with a named reason, RATE_LIMITED one notice per streak'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 68895 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 68895
+  commits: 2
+  files_changed: 5
+  lines_added: 408
+  lines_removed: 45
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2656-cmdattach-output-poll-silently-swallows-.md
+generated_by: context-agent-hybrid
