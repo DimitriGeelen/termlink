@@ -1,0 +1,93 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3240: Audit warnings unexamined: fabric drift (12 uncarded files, 1 orphan card), F-ORCH retire_when, GO-scope-not-propagated
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-29T18:34:09Z
+# ============================================================================
+
+task_id: T-3240
+task_name: "Audit warnings unexamined: fabric drift (12 uncarded files, 1 orphan card), F-ORCH retire_when, GO-scope-not-propagated"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-29T18:29:13Z
+completed: 2026-09-29T18:34:00Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-29T20:33:56+02:00
+last_commit: 2026-09-29T20:33:56+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  clear the 4 unexamined audit WARNs — register 12 uncarded files, retire the moved invocation_audit card (repoint hub-lib edge to termlink-session), acknowledge F-ORCH (T-1643 namespace collision + sovereignty-gated) and GO-scope (operator-reserved go-propagation class)
+
+# Key outcomes
+outcomes:
+  - 'Uncarded source files are registered (`fw fabric register`) and the orphaned card removed, so both fabric WARNs clear on a fresh structure audit'
+  - 'F-ORCH retire_when is acknowledged with a cited reason (driver retirement changes BVP weights — sovereignty-gated, mandate forbids agent calibration changes) and an exit condition'
+  - 'GO-scope-not-propagated is acknowledged citing the operator-reserved check-go-propagation (human-decided GO inceptions) with an exit condition'
+  - 'A fresh `fw audit --section structure` followed by the check exits 0'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/2026-09-29.yaml'
+  - '.context/checks/audit-warning-allowlist'
+  - '.fabric/components/crates-termlink-hub-src-invocation_audit.yaml'
+  - '.fabric/components/crates-termlink-hub-src-lib.yaml'
+  - '.fabric/components/crates-termlink-session-src-audit_append.yaml'
+  - '.fabric/components/crates-termlink-session-src-invocation_audit.yaml'
+  - '.fabric/components/scripts-check-mcp-cli-twin-drift.yaml'
+  - '.fabric/components/scripts-check-stale-sidecar-code.yaml'
+  - '.fabric/components/tests-canary-entry-date-fixtures.yaml'
+  - '.fabric/components/tests-forever-archival-fixtures.yaml'
+  - '.fabric/components/tests-journal-mirror-inbox-fixtures.yaml'
+  - '.fabric/components/tests-mcp-cli-twin-drift-fixtures.yaml'
+  - '.fabric/components/tests-notify-sidecar-inbox-fixtures.yaml'
+  - '.fabric/components/tests-notify-sidecar-receipt-identity-fixtures.yaml'
+  - '.fabric/components/tests-reviewer-sovereignty-fixtures.yaml'
+  - '.fabric/components/tests-stale-sidecar-code-fixtures.yaml'
+  - '.tasks/active/T-3240-audit-warnings-unexamined-fabric-drift-1.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-29T20:33:56'
+    action: 'T-3240: clear the 4 unexamined audit WARNs — register 12 uncarded files, retire the moved invocation_audit card (repoint hub-lib edge to termlink-session), acknowledge F-ORCH (T-1643 namespace collision + sovereignty-gated) and GO-scope (operator-reserved go-propagation class)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [guard-layer, ci, sq-9]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 17
+  lines_added: 534
+  lines_removed: 26
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3240-audit-warnings-unexamined-fabric-drift-1.md
+generated_by: context-agent-hybrid
