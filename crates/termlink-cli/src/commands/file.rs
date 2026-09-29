@@ -814,8 +814,11 @@ pub(crate) async fn cmd_file_receive(
         };
         match rpc_result {
             Err(_) => {
+                // T-3235: no `continue` — it jumped past the overall-timeout check at
+                // the loop bottom, so a session that accepts but never answers kept
+                // this loop alive past `--timeout` indefinitely (5s rpc_timeout each
+                // lap once `remaining` hit 0). Fall through like the other arms.
                 tracing::warn!("RPC timed out, retrying...");
-                continue;
             }
             Ok(Err(e)) => {
                 // T-2662: this arm was `tracing::warn!` only (invisible at the default
@@ -1150,6 +1153,23 @@ mod tests {
     // "timeout" (the pre-fix behavior) fails these assertions (load-bearing).
 
     // T-2662: a dropped source must end the receive, not ride out the timeout.
+
+    // T-3235: every arm of the receive loop must reach the overall-timeout check.
+    #[test]
+    fn receive_rpc_timeout_arm_does_not_skip_the_overall_timeout() {
+        let src = include_str!("file.rs");
+        let arm = src
+            .find("Err(_) => {\n                // T-3235")
+            .expect("the RPC-timeout arm");
+        let end = src[arm..].find("Ok(Err(e)) => {").expect("next arm") + arm;
+        let body: String = src[arm..end]
+            .lines()
+            .filter(|l| !l.trim_start().starts_with("//"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(!body.contains("continue"), "`continue` here skips the --timeout check");
+    }
+
     #[test]
     fn receive_bails_after_a_short_rpc_error_streak_not_on_one_blip() {
         assert!(!receive_should_bail_on_rpc_errors(1), "one blip is tolerated");
