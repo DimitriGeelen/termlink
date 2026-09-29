@@ -87,3 +87,12 @@ Counts: **41 BLOCKING · 12 ADVISORY · 6 DECIDE** across 59 static members.
 
 ## Approval → implementation
 Approve or amend per row. A follow-up build task then edits each approved member's marker to `# guard-layer: source advisory [existing args]  # <reason from this table>`. `check-guard-severity-markers.sh` refuses a marker with no reason, so each reason must be written out, not implied.
+
+## Operator rulings (2026-09-29, T-3211 SQ walk-through)
+- **Part 1 APPROVED in full:** all 12 ADVISORY rows (voi-prompt, check-go-propagation, check-human-ac-escalation,
+  check-human-ac-steps-heading, check-handover-staleness, check-pickup-deferred-freshness,
+  check-stranded-finalized-tasks, check-task-id-collisions, check-arc-slice-drift, check-installed-binary-drift,
+  check-receiver-ack-lag, invocation-usage).
+- **New requirement:** more than two classes — the operator named "warn, advisory, fail, etc." Tier vocabulary to
+  be settled before implementation (proposal in the walk-through; see below once ruled).
+- Part 2 (6 DECIDE rows) and Part 3 (41 BLOCKING rows): pending.
