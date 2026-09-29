@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3236: planted-default-gate-fixtures: section J redirects to a hard-coded host scratch path (/root/.claude/jobs/…), so J1 passes vacuously and J2 fails in CI
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-29T18:36:18Z
+# ============================================================================
+
+task_id: T-3236
+task_name: "planted-default-gate-fixtures: section J redirects to a hard-coded host scratch path (/root/.claude/jobs/…), so J1 passes vacuously and J2 fails in CI"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-29T18:28:14Z
+completed: 2026-09-29T18:36:04Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-29T20:35:50+02:00
+last_commit: 2026-09-29T20:35:50+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  planted-default fixture J writes to its own mktemp, not a host-only /root/.claude/jobs path; J0 asserts the real-tree run actually ran (J1 was passing vacuously on a failed redirect)
+
+# Key outcomes
+outcomes:
+  - 'Section J writes the real-tree output under the suite''s own scratch dir (mktemp), no absolute host path remains in the file'
+  - 'The suite passes as root AND as a non-root user (`runuser -u nobody`) with no ''Permission denied'' line'
+  - 'Mutant: pointing J''s redirect at an unwritable path makes J fail (J1 no longer passes vacuously)'
+  - 'The repo-root fallback no longer hard-codes /opt/termlink (resolved from the script''s own location)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'planted-default fixture J writes to its own mktemp, not a host-only /root/.claude/jobs path; J0 asserts the real-tree run actually ran (J1 was passing vacuously on a failed redirect)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3236-planted-default-gate-fixtures-section-j-.md'
+  - 'tests/planted-default-gate-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-29T20:35:50'
+    action: 'T-3236: planted-default fixture J writes to its own mktemp, not a host-only /root/.claude/jobs path; J0 asserts the real-tree run actually ran (J1 was passing vacuously on a failed redirect)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 7 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [guard-layer, ci, sq-9]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 7
+  commits: 1
+  files_changed: 2
+  lines_added: 305
+  lines_removed: 4
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3236-planted-default-gate-fixtures-section-j-.md
+generated_by: context-agent-hybrid
