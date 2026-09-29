@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3032: CLI verb invocation telemetry — SURFACE_CLI exists but nothing calls it
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-29T10:03:57Z
+# ============================================================================
+
+task_id: T-3032
+task_name: "CLI verb invocation telemetry — SURFACE_CLI exists but nothing calls it"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-21T07:31:14Z
+completed: 2026-09-29T10:03:48Z
+duration_days: 8
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  T-2996 shipped invocation_audit with SURFACE_CLI defined and zero call sites: the MCP tool surface is instrumented, the CLI verb surface is not. Deliberately excluded from T-2996 scope and owed as a follow-up by its AC 8. Until this lands, invocation-usage.sh can only answer 'not observed on the MCP surface', never 'unused' — and C-45's usage question spans both surfaces. The choke point is the CLI dispatch site; the sink, rotation and concurrency guarantees already exist and need no redesign.
+
+# Key outcomes
+outcomes:
+  - 'Every CLI invocation that parses successfully appends one `surface:"cli"` record whose name is the subcommand chain (unit-tested for top-level, nested, and "positional values never recorded")'
+  - 'A real `termlink` run writes the record to the sink in `TERMLINK_RUNTIME_DIR`; `TERMLINK_INVOCATION_AUDIT=0` writes nothing'
+  - '`scripts/invocation-usage.sh` scope text no longer claims CLI verbs are uninstrumented, and it reports a CLI record'
+  - '`cargo build -p termlink` and the CLI crate''s unit tests pass'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 11672 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [value-review, arc:arc-009]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 11672
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3032-cli-verb-invocation-telemetry--surfacecl.md
+generated_by: context-agent-hybrid

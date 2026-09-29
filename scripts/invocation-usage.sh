@@ -4,7 +4,8 @@
 # T-2996 (value-review C-45): report per-tool invocation counts.
 #
 # Reads <runtime_dir>/invocation-audit.jsonl, written at the MCP tool-dispatch
-# choke point by crates/termlink-hub/src/invocation_audit.rs.
+# choke point and (T-3032) once per parsed CLI invocation in termlink-cli main(),
+# by crates/termlink-hub/src/invocation_audit.rs.
 #
 # WHY THIS IS NOT `fw metrics api-usage`. That reader tallies rpc-audit.jsonl by
 # RPC METHOD. Every usage question is about TOOLS, and the two do not
@@ -16,11 +17,12 @@
 # usage verdicts at UNMEASURED.
 #
 # SCOPE — read a zero narrowly (T-2680). This reader covers the MCP TOOL
-# surface only. CLI verbs and the session-daemon kv.* / session.* blind spot
-# (value-review C-30/C-31) are NOT instrumented and are NOT represented here.
-# A tool absent from this report was not observed ON THE MCP SURFACE SINCE
-# INSTRUMENTATION BEGAN; that is not the same as "unused", and must not be used
-# on its own as a deletion warrant.
+# surface and (since T-3032) CLI VERBS, recorded as the subcommand-name chain.
+# The session-daemon kv.* / session.* blind spot (value-review C-30/C-31, T-3033)
+# is NOT instrumented and is NOT represented here. A tool or verb absent from this
+# report was not observed ON AN INSTRUMENTED SURFACE SINCE INSTRUMENTATION BEGAN
+# (CLI: since T-3032 shipped, and only on hosts running that binary); that is not
+# the same as "unused", and must not be used on its own as a deletion warrant.
 set -uo pipefail
 
 RUNTIME_DIR="${TERMLINK_RUNTIME_DIR:-}"
@@ -30,7 +32,7 @@ SINK=""
 
 usage() {
     cat <<EOF
-invocation-usage.sh — per-tool MCP invocation counts (T-2996 / C-45)
+invocation-usage.sh — per-tool MCP + per-verb CLI invocation counts (T-2996 / T-3032 / C-45)
 
   --since-days N   only count records newer than N days
   --sink PATH      read an explicit sink file (default: <runtime_dir>/invocation-audit.jsonl)
@@ -72,16 +74,16 @@ sink = os.environ["SINK"]
 since = os.environ.get("SINCE_DAYS") or ""
 as_json = os.environ.get("JSON") == "1"
 
-SCOPE = ("MCP tool surface only. CLI verbs and session-daemon kv.*/session.* "
+SCOPE = ("MCP tools and CLI verbs (CLI since T-3032). Session-daemon kv.*/session.* "
          "(C-30/C-31) are NOT instrumented. Absence here means 'not observed on "
-         "the MCP surface since instrumentation began', NOT 'unused'.")
+         "an instrumented surface since instrumentation began', NOT 'unused'.")
 
 if not os.path.exists(sink):
     # A sink that has never been created is not an error and is not a zero
     # census either — say which it is, rather than printing an empty table that
     # reads as "nothing is used".
     msg = ("no invocation sink yet at %s — the instrument has not recorded a "
-           "call (no MCP tool invoked since it shipped, or telemetry disabled "
+           "call (no MCP tool or CLI verb invoked since it shipped, or telemetry disabled "
            "via TERMLINK_INVOCATION_AUDIT=0)" % sink)
     if as_json:
         print(json.dumps({"ok": True, "sink": sink, "exists": False,
@@ -138,7 +140,7 @@ if as_json:
     }))
 else:
     win = (" (last %s day(s))" % since) if since else ""
-    print("Per-tool MCP invocations%s — %d call(s), %d distinct tool(s)"
+    print("Per-tool/verb invocations%s — %d call(s), %d distinct tool(s)"
           % (win, total, len(rows)))
     print("sink: %s" % sink)
     if malformed:

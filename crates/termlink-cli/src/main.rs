@@ -8,13 +8,54 @@ mod util;
 mod test_env_lock;
 
 use anyhow::Result;
-use clap::{CommandFactory, Parser};
+use clap::{ArgMatches, CommandFactory, FromArgMatches};
 
 use cli::*;
 use commands::ListDisplayOpts;
 use commands::remote::RemoteConn;
 use config::resolve_hub_profile;
 use util::resolve_target;
+
+/// T-3032: the invoked verb as its subcommand-name chain (`channel post`,
+/// `agent find-idle`). Only subcommand NAMES are read, never argument values, so
+/// a session name, message body or secret on the command line cannot reach the
+/// invocation sink.
+fn cli_verb_path(matches: &ArgMatches) -> String {
+    let mut parts: Vec<&str> = Vec::new();
+    let mut cur = matches;
+    while let Some((name, sub)) = cur.subcommand() {
+        parts.push(name);
+        cur = sub;
+    }
+    parts.join(" ")
+}
+
+#[cfg(test)]
+mod cli_verb_path_tests {
+    use super::*;
+
+    fn verb(args: &[&str]) -> String {
+        let m = Cli::command().try_get_matches_from(args).expect("args parse");
+        cli_verb_path(&m)
+    }
+
+    #[test]
+    fn top_level_verb() {
+        assert_eq!(verb(&["termlink", "list"]), "list");
+    }
+
+    #[test]
+    fn nested_verb_is_the_full_chain() {
+        assert_eq!(verb(&["termlink", "channel", "list"]), "channel list");
+    }
+
+    #[test]
+    fn positional_values_are_never_recorded() {
+        let v = verb(&["termlink", "ping", "secret-session-name-xyz"]);
+        assert_eq!(v, "ping");
+        assert!(!v.contains("secret-session-name-xyz"));
+    }
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -26,7 +67,16 @@ async fn main() -> Result<()> {
         )
         .init();
 
-    let cli = Cli::parse();
+    // T-3032 (C-45): `Cli::parse()` split into clap's own two steps so the verb
+    // can be recorded between them. `get_matches()` still exits on --help,
+    // --version and usage errors, so only a successfully parsed invocation is
+    // counted as use of a verb.
+    let matches = Cli::command().get_matches();
+    termlink_hub::invocation_audit::record(
+        termlink_hub::invocation_audit::SURFACE_CLI,
+        &cli_verb_path(&matches),
+    );
+    let cli = Cli::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
 
     match cli.command {
         // Session management
