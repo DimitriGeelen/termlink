@@ -723,6 +723,27 @@ mod tests {
         assert_eq!(ws.ws_col, DEFAULT_PTY_COLS);
     }
 
+    /// T-2581: end-to-end over `Drop` itself, not just the reap helper — after a
+    /// spawned session is dropped its shell child must be GONE, not a zombie. A
+    /// zombie still answers `kill(pid, 0)`; only a reaped pid returns ESRCH. (No
+    /// `/proc` read, so this holds on macOS too.) The pid is the one `Drop`
+    /// signals, i.e. the shell CHILD, not this process (T-2517).
+    #[tokio::test]
+    async fn drop_leaves_no_zombie_for_a_spawned_session() {
+        let _guard = PTY_LOCK.lock().await;
+        let session = PtySession::spawn(Some("/bin/sh"), 1024).unwrap();
+        let pid = session.child_pid() as libc::pid_t;
+        assert_ne!(pid as u32, std::process::id(), "T-2517: the child, not the host");
+        assert_eq!(unsafe { libc::kill(pid, 0) }, 0, "child alive before drop");
+        drop(session);
+        let rc = unsafe { libc::kill(pid, 0) };
+        let errno = std::io::Error::last_os_error().raw_os_error();
+        assert!(
+            rc == -1 && errno == Some(libc::ESRCH),
+            "after drop the child must be reaped (ESRCH); got rc={rc} errno={errno:?} — a zombie survived"
+        );
+    }
+
     /// T-2727: the seeded size is a FLOOR, not a pin — `resize()` still wins.
     #[tokio::test]
     async fn resize_overrides_default_winsize() {

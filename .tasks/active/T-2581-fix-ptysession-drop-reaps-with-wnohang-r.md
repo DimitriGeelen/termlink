@@ -6,10 +6,10 @@ description: >
   Minor resource-hygiene: PtySession::Drop calls waitpid WNOHANG immediately after
   SIGKILL, typically leaving a transient zombie.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: later
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -18,7 +18,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-09T21:45:32Z
-last_update: '2026-09-27T21:34:05Z'
+last_update: 2026-09-29T16:24:50Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -96,15 +96,15 @@ interaction with the T-2517 child-vs-host pid targeting).
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `PtySession::Drop` collects the SIGKILLed child before returning (no transient
+- [x] `PtySession::Drop` collects the SIGKILLed child before returning (no transient
       zombie under normal exit) via a bounded reap, with a hard deadline so a
       pathological child cannot hang `Drop`.
-- [ ] Confirm no regression against the T-2517 invariant (SIGKILL targets the shell
+- [x] Confirm no regression against the T-2517 invariant (SIGKILL targets the shell
       CHILD pid, not the host RPC-server pid) — the reap must waitpid the same pid
       that was signalled.
-- [ ] A test (or documented manual check) shows no lingering zombie for a spawned
+- [x] A test (or documented manual check) shows no lingering zombie for a spawned
       PTY session after drop.
-- [ ] `cargo test -p termlink-session` passes.
+- [x] `cargo test -p termlink-session` passes.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -138,6 +138,10 @@ interaction with the T-2517 child-vs-host pid targeting).
 -->
 
 ## Verification
+
+cargo test -q -p termlink-session --lib drop_leaves_no_zombie
+cargo test -q -p termlink-session --lib bounded_reap
+grep -q 'reap_child_bounded(pid, REAP_BUDGET)' crates/termlink-session/src/pty.rs
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -233,6 +237,12 @@ interaction with the T-2517 child-vs-host pid targeting).
 
 ## Updates
 
+### 2026-09-29 — T-3211 R6: the fix already landed as T-2737; this task adds the missing end-to-end proof
+- **AC1** (bounded reap with a hard deadline): already satisfied by **T-2737** (`11ce67e6c`). `Drop` calls `reap_child_bounded(pid, REAP_BUDGET)`, which retries WNOHANG until the child is reapable or the budget runs out, and warns if a zombie survives. T-2737 was filed independently of this task (a T-229-class duplicate) and found and fixed the same defect.
+- **AC2** (T-2517 invariant): by code read, `Drop` signals and reaps the same `self.child_pid`; the new test asserts that pid is not the host's own.
+- **AC3**: T-2737 tested the helper (`bounded_reap_*`) and never `Drop` itself. Added `drop_leaves_no_zombie_for_a_spawned_session`, which spawns a real PTY session, drops it, and requires `kill(pid,0)` = ESRCH (a zombie answers 0; no `/proc`, portable). **Mutant** (pre-T-2737 single WNOHANG in `Drop`): red 5/5. Real code: green 5/5.
+- **AC4**: `cargo test -p termlink-session` all green (see Verification).
+
 ### 2026-08-09T21:45:32Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2581-fix-ptysession-drop-reaps-with-wnohang-r.md
@@ -241,3 +251,7 @@ interaction with the T-2517 child-vs-host pid targeting).
 ### 2026-08-09T21:46:11Z — status-update [task-update-agent]
 - **Change:** status: started-work → captured
 - **Change:** horizon: now → later
+
+### 2026-09-29T16:24:50Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
