@@ -147,7 +147,9 @@ impl PtySession {
         // is the historical VT100 default and what every terminal emulator
         // falls back to, so a child that never gets a real size behaves the
         // way it would under any other terminal rather than uniquely badly.
-        let initial_ws = libc::winsize {
+        // `mut` + `&mut` below: apple libc declares openpty's winsize `*mut`, Linux
+        // `*const`. `&mut T` coerces to both; `&T` compiles only on Linux (T-3265).
+        let mut initial_ws = libc::winsize {
             ws_row: DEFAULT_PTY_ROWS,
             ws_col: DEFAULT_PTY_COLS,
             ws_xpixel: 0,
@@ -160,7 +162,7 @@ impl PtySession {
                 &mut slave_fd,
                 std::ptr::null_mut(),
                 std::ptr::null_mut(),
-                &initial_ws,
+                &mut initial_ws,
             )
         };
         if ret != 0 {
