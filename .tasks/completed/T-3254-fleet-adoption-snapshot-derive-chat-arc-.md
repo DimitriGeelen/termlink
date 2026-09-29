@@ -8,12 +8,12 @@ description: >
   tail and never trust receipt up_to beyond the derived tail. Fixture pinning the
   trimmed-topic + no-latest_offset reproduce. Evidence: docs/reports/T-3004-chat-arc-collapse-investigation.md
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [value-review, arc:arc-009, go-slice]
-components: []
+components: [scripts/fleet-adoption-snapshot.sh, tests/fleet-adoption-tail-fixtures.sh]
 related_tasks: [T-3004]
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -26,8 +26,8 @@ related_tasks: [T-3004]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-29T19:56:49Z
-last_update: 2026-09-29T20:12:48Z
-date_finished:
+last_update: 2026-09-29T20:13:18Z
+date_finished: 2026-09-29T20:13:18Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -236,6 +236,11 @@ bash -n scripts/fleet-adoption-snapshot.sh
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-09-29 — the "canonical" tail derivation has the same defect
+- **What changed:** T-3004 said to derive the tail "the way agent-chat-arc-recent.sh does post-T-2758 (page forward…)". But `derive_tail_offset()` in that script neither pages forward nor refuses a receipt beyond the tail; it has the exact shape T-3004 F3 warns about. So there was nothing to port. The page-forward walk is new logic.
+- **Plan impact:** the snapshot now diverges from the "canonical" helper that its own comment points to. The helper stays unfixed (out of this slice's scope).
+- **Triggered:** candidate follow-up: apply the same page-forward derivation to `scripts/agent-chat-arc-recent.sh::derive_tail_offset` (not filed; surfaced in the T-3211 R8 handback).
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -295,3 +300,16 @@ bash -n scripts/fleet-adoption-snapshot.sh
 
 ### 2026-09-29T20:11:24Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-58331b63
+- **Timestamp:** 2026-09-29T20:13:20Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** none
+
+### 2026-09-29T20:13:18Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
