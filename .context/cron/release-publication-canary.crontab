@@ -1,0 +1,22 @@
+# T-3243 (SQ-9 Q3, G-069 at the release layer) — Release-publication canary
+# Source of truth: /opt/termlink/.context/cron/release-publication-canary.crontab (git-tracked)
+# Installed to:    /etc/cron.d/termlink-release-publication-canary (USER field syntax — do NOT load into a user crontab)
+#
+# v0.12.0 was tagged and mirrored with NO GitHub Release published, and
+# install-check.yml sat red on main for ~3 months (947 runs) — nothing fired on
+# either (F19, T-3211 R6). The mirror canary proves a tag reaches GitHub; this one
+# proves it became a PUBLISHED release, and that install-check.yml + doc-lint.yml
+# had a successful run on main within 7 days. Empty log = healthy.
+# /canaries auto-discovers this log; a tooling error (no gh, auth, network) lands in
+# the .stderr sink, which /canaries reports as ERRORING (T-2842).
+#
+# Needs: `gh` authenticated for root (the cron USER) with read access to the repo.
+#
+# Operator action on firing: publish the release (re-run release.yml for the tag,
+# or cut the next tag once CI is green); for a stale workflow, open its latest run
+# on main and fix it. Ad-hoc: bash scripts/check-release-publication-freshness.sh
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+
+# Daily at 07:41 UTC — offset from the :39 dead-letter and :13 mirror canaries.
+41 7 * * * root cd /opt/termlink && bash scripts/check-release-publication-freshness.sh --quiet >> .context/working/.release-publication-canary.log 2>> .context/working/.release-publication-canary.log.stderr

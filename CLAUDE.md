@@ -694,6 +694,39 @@ pinned first). Operator action on firing: reproduce with `bash scripts/substrate
 --only-stuck`. `/canaries` auto-discovers the log. Pair with the seventeen canaries above —
 all eighteen follow the same "empty-log = healthy" convention.
 
+### Release-publication canary (T-3243, G-069 at the release layer)
+
+`v0.12.0` was tagged and mirrored and **no GitHub Release was ever published** —
+v0.11.2 stayed the newest release every installer served — while `install-check.yml`
+sat red on main for ~3 months (947 runs, last green 2026-06-12) and `doc-lint.yml`
+had no green run on main since 2026-08-16. Nothing fired on any of it (F19, T-3211).
+The mirror canary proves a tag *reaches* GitHub; nothing proved it became a
+*release*, or that the workflows gating a release still pass. A daily cron runs
+`scripts/check-release-publication-freshness.sh --quiet` (see
+`.context/cron/release-publication-canary.crontab`) and appends to
+`.context/working/.release-publication-canary.log`. Empty log = healthy.
+
+It FIRES (exit 1) when (a) the newest local `v*` tag has no **published** release
+(`releases/tags/<tag>` HTTP 404, or a draft), or (b) a watched workflow (default
+`install-check.yml doc-lint.yml`) has no successful run on `main` within
+`--max-age-days` (default 7). It reads the REST API directly via `gh api`, **not**
+`gh run list --status success` — measured 2026-09-29, the list form reported
+install-check's last green as 2026-06-12 while the API returned a green run from
+that same afternoon. **Fail-closed:** no `gh`, a non-404 API error (auth, network,
+500), an unparseable response, or no `v*` tag exits 2 and lands in the `.stderr`
+sink (ERRORING on `/canaries`). Needs `gh` authenticated for the cron user.
+**Scope:** it does not check release assets (`check-release-artifact-drift.sh`), tag
+mirroring (`check-mirror-freshness.sh`), or what a green run tested. Ad-hoc:
+`bash scripts/check-release-publication-freshness.sh` (`--json`, `--quiet`,
+`--no-heartbeat`, `--max-age-days N`, `--workflows "a.yml b.yml"`, `--repo O/N`).
+Test seam (PL-213): `RELEASE_PUB_TEST_DIR=<dir>` (canned raw `gh api` responses +
+`.rc`/`.err`) and `RELEASE_PUB_TEST_NOW=<epoch>`. Fixtures:
+`bash tests/release-publication-canary-fixtures.sh` (25 assertions; a mutant muting
+the release finding turns R1/R2/W4/F2 red). Operator action on firing: publish the
+release (re-run `release.yml` for the tag, or cut the next tag once CI is green); for
+a stale workflow, open its latest run on main and fix it. Pair with the canaries
+above — same "empty-log = healthy" convention.
+
 ### Cron-install-drift check (T-2561, shipped≠live / G-069 for the canary layer)
 
 A canary is only load-bearing if its crontab is actually installed to `/etc/cron.d`.
