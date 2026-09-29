@@ -8,6 +8,12 @@ description = "MCP server for TermLink — expose terminal orchestration as stru
 
 [dependencies]
 rmcp = { version = "~1.3", features = ["server", "transport-io", "macros"] }
+# Not used directly. rmcp 1.3.0 depends on rmcp-macros with a caret, so a
+# lockfile-free resolve (`cargo install --git` without --locked) picks the newest
+# 1.x macros, whose expansion calls rmcp APIs 1.3.0 does not have (E0425
+# `schema_for_input`, measured with rmcp-macros 1.8.0). A direct dep on the same
+# line pins the pair together. G-005 / T-1056 / T-1060 / T-3232.
+rmcp-macros = { version = "~1.3" }
 schemars = "1"
 tokio = { workspace = true }
 serde = { workspace = true }

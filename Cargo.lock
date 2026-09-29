@@ -1991,6 +1991,7 @@ dependencies = [
  "libc",
  "regex",
  "rmcp",
+ "rmcp-macros",
  "schemars",
  "serde",
  "serde_json",
