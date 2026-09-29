@@ -2,14 +2,21 @@
 id: T-3231
 name: "Flaky CLI test: dispatch isolate_rejects_non_git_dir mutates CWD without test_env_lock"
 description: >
-  Observed 2026-09-29 (T-3211 R5): cargo test -p termlink --bin termlink failed 1 of 2 full runs on commands::dispatch::tests::isolate_rejects_non_git_dir (1155 passed / 1 failed), passed in isolation and on rerun (1156/1156). The test calls std::env::set_current_dir without taking crate::test_env_lock::ENV_LOCK, which remote.rs states every CWD/HOME-mutating test in this binary must hold; dispatch.rs has zero references to the lock, so it races sibling CWD readers. A flaky suite is how a CI gate teaches people to rerun until green (T-2686 gate). Fix: hold the lock for the CWD window in the dispatch tests that set_current_dir.
+  Observed 2026-09-29 (T-3211 R5): cargo test -p termlink --bin termlink failed 1
+  of 2 full runs on commands::dispatch::tests::isolate_rejects_non_git_dir (1155 passed
+  / 1 failed), passed in isolation and on rerun (1156/1156). The test calls std::env::set_current_dir
+  without taking crate::test_env_lock::ENV_LOCK, which remote.rs states every CWD/HOME-mutating
+  test in this binary must hold; dispatch.rs has zero references to the lock, so it
+  races sibling CWD readers. A flaky suite is how a CI gate teaches people to rerun
+  until green (T-2686 gate). Fix: hold the lock for the CWD window in the dispatch
+  tests that set_current_dir.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/dispatch.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -22,8 +29,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-29T11:19:19Z
-last_update: 2026-09-29T11:19:19Z
-date_finished: null
+last_update: 2026-09-29T11:22:40Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,11 +41,36 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-09-29T11:22:17Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-09-29T11:22:17Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (single-component); tier=2 (workflow:build); 
+      effort=8 (lines=232,acs=4)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3231: Flaky CLI test: dispatch isolate_rejects_non_git_dir mutates CWD without test_env_lock
 
 ## Context
+- **Fixed 2026-09-29 (T-3211 R5).** The test now holds `crate::test_env_lock::ENV_LOCK` for the set→call→restore window. `dispatch.rs` has one `set_current_dir` window (lines ~1187/1192) and no `set_var`/`remove_var` (grep). 3 consecutive full runs 1156/1156, no warnings. **Evidence limit:** the flake fired once in two runs before the fix, so three green runs alone are weak proof (a 50% flake passes 3 in a row 1 time in 8). The fix rests on the mechanism: every other CWD/HOME-mutating test in this binary takes the same lock, so the window is now serialized against them.
 
 <!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
@@ -46,43 +78,14 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `dispatch::tests::isolate_rejects_non_git_dir` holds `crate::test_env_lock::ENV_LOCK` for its whole CWD-mutation window (set → call → restore), per the crate convention in `test_env_lock.rs`
+- [x] No other test in `dispatch.rs` mutates CWD/HOME without the lock (checked by grep)
+- [x] `cargo test -p termlink --bin termlink` passes in 3 consecutive full runs with no new warnings
 
-### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-
-     ── Prefix routing (T-1811, T-1878): default to [REVIEWER] if Expected is grep-able ──
-     If your Expected clause is grep-able / file-exists / structural (a deterministic
-     shell check), prefer [REVIEWER] — that AC should be an Agent AC with the reviewer
-     command in `## Verification` instead of a Human AC here. Only keep [REVIEW] if
-     verification genuinely needs human taste (tone, feel, layout rhythm).
-     See CLAUDE.md §AC Classification Guidance for the conversion rule.
-
-     [REVIEW] example (genuine human judgment):
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
-
-     [REVIEWER] example (static-scan-verifiable — convert to Agent AC + Verification):
-       - [ ] [REVIEWER] Block message names both bypass mechanisms
-         **Steps:**
-         1. Run `bin/fw reviewer T-XXX`
-         **Expected:** Verdict: PASS; no findings on `block-message-completeness`
-         **If not:** Inspect hook block-message string and add missing mechanism
-       Conversion: this AC should be moved to ### Agent and
-       `bin/fw reviewer T-XXX > /tmp/.rev 2>&1 && grep -q "Overall:.*PASS" /tmp/.rev`
-       added to ## Verification. NEVER `... 2>&1 | grep -q ...` — that is the shape the
-       Pipefail/SIGPIPE section below forbids, and this line used to prescribe it.
--->
 
 ## Verification
+grep -q "let _guard = crate::test_env_lock::ENV_LOCK" crates/termlink-cli/src/commands/dispatch.rs
+cargo test -p termlink --bin termlink isolate_rejects_non_git_dir > /tmp/.t3231.out 2>&1 && grep -q "1 passed; 0 failed" /tmp/.t3231.out
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -267,3 +270,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3231-flaky-cli-test-dispatch-isolaterejectsno.md
 - **Context:** Initial task creation
+
+### 2026-09-29T11:22:40Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

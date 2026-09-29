@@ -1180,6 +1180,12 @@ mod tests {
 
     #[tokio::test]
     async fn isolate_rejects_non_git_dir() {
+        // T-3231: CWD is process-global. Without the crate-wide lock a sibling
+        // test that cd's into a (git) tempdir can run inside this window and
+        // flip the result — observed 1 failure in 2 full-suite runs.
+        let _guard = crate::test_env_lock::ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let tmp = tempfile::tempdir().unwrap();
         // Run from a non-git temp dir. Must restore CWD before `tmp` is
         // dropped, otherwise CWD points into a deleted directory and any
