@@ -8,7 +8,7 @@ description: >
   tail and never trust receipt up_to beyond the derived tail. Fixture pinning the
   trimmed-topic + no-latest_offset reproduce. Evidence: docs/reports/T-3004-chat-arc-collapse-investigation.md
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -26,7 +26,7 @@ related_tasks: [T-3004]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-29T19:56:49Z
-last_update: '2026-09-29T19:58:49Z'
+last_update: 2026-09-29T20:11:24Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -51,6 +51,19 @@ bvp_scores_proposed:
     rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
       (body:component-discoverability); D4=2 (body:env-class-handled); 
       F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+  - ts: '2026-09-29T20:11:25Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
 cost_estimate_proposed:
   - ts: '2026-09-29T19:58:03Z'
@@ -84,44 +97,17 @@ Files: `scripts/fleet-adoption-snapshot.sh` (:228-250 fallback tail derivation, 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] When `channel info` carries no `latest_offset`, `fleet-adoption-snapshot.sh` derives the chat-arc tail by paging `channel subscribe` FORWARD from `count-1` until a short page, taking the max envelope offset seen; receipt `up_to` is never used as the tail
+- [x] New hermetic fixture (mock termlink): trimmed topic with live offsets 553..1553, `count=1001`, no `latest_offset`, a stale receipt `up_to=2329` beyond the tail, and in-window posts only near the true tail → windowed `chat_arc_posts` > 0 (the T-3004 reproduce reads 0)
+- [x] The fixture FAILS against the pre-fix derivation (mutant/temp-revert proven) and passes after
+- [x] `latest_offset` present → used directly, no paging (existing behaviour); existing `tests/fleet-adoption-fixtures.sh` still passes
 
-### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-
-     ── Prefix routing (T-1811, T-1878): default to [REVIEWER] if Expected is grep-able ──
-     If your Expected clause is grep-able / file-exists / structural (a deterministic
-     shell check), prefer [REVIEWER] — that AC should be an Agent AC with the reviewer
-     command in `## Verification` instead of a Human AC here. Only keep [REVIEW] if
-     verification genuinely needs human taste (tone, feel, layout rhythm).
-     See CLAUDE.md §AC Classification Guidance for the conversion rule.
-
-     [REVIEW] example (genuine human judgment):
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
-
-     [REVIEWER] example (static-scan-verifiable — convert to Agent AC + Verification):
-       - [ ] [REVIEWER] Block message names both bypass mechanisms
-         **Steps:**
-         1. Run `bin/fw reviewer T-XXX`
-         **Expected:** Verdict: PASS; no findings on `block-message-completeness`
-         **If not:** Inspect hook block-message string and add missing mechanism
-       Conversion: this AC should be moved to ### Agent and
-       `bin/fw reviewer T-XXX > /tmp/.rev 2>&1 && grep -q "Overall:.*PASS" /tmp/.rev`
-       added to ## Verification. NEVER `... 2>&1 | grep -q ...` — that is the shape the
-       Pipefail/SIGPIPE section below forbids, and this line used to prescribe it.
--->
 
 ## Verification
+
+bash tests/fleet-adoption-tail-fixtures.sh
+bash tests/fleet-adoption-fixtures.sh
+bash -n scripts/fleet-adoption-snapshot.sh
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -306,3 +292,6 @@ Files: `scripts/fleet-adoption-snapshot.sh` (:228-250 fallback tail derivation, 
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3254-fleet-adoption-snapshot-derive-chat-arc-.md
 - **Context:** Initial task creation
+
+### 2026-09-29T20:11:24Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

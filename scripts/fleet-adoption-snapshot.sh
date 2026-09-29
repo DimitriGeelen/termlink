@@ -208,6 +208,8 @@ for i in "${!profile_names[@]}"; do
         # for a "recent activity" window AND slow when count > limit because
         # the binary has to page-walk from offset 0.
         SCAN_LIMIT=500
+        # T-3254: page cap for the no-latest_offset tail walk (20 × 500 = 10k offsets).
+        TAIL_PAGE_MAX=20
         chat_err="$(mktemp)"
         info_raw="$($TIMEOUT_CMD "$TERMLINK" channel info --hub "$addr" agent-chat-arc --json 2>"$chat_err" || echo '')"
         info_rc=$?
@@ -235,17 +237,30 @@ for i in "${!profile_names[@]}"; do
             chat_tail="$(printf '%s' "$info_raw" | jq -r '(.latest_offset // empty)' 2>/dev/null || true)"
             case "$chat_tail" in ''|*[!0-9]*) chat_tail='' ;; esac
             if [ -z "$chat_tail" ]; then
-                chat_count_tail=0
-                [ "$chat_count" -gt 0 ] && chat_count_tail=$((chat_count - 1))
-                chat_receipt="$(printf '%s' "$info_raw" \
-                    | jq -r '[.receipts[]?.up_to // empty] | map(select(type == "number")) | max // empty' \
-                      2>/dev/null || true)"
-                case "$chat_receipt" in ''|*[!0-9]*) chat_receipt='' ;; esac
-                if [ -n "$chat_receipt" ] && [ "$chat_receipt" -gt "$chat_count_tail" ]; then
-                    chat_tail="$chat_receipt"
-                else
-                    chat_tail="$chat_count_tail"
-                fi
+                # T-3254 (T-3004 F2/F3): no latest_offset (pre-T-2533 hub). On a
+                # retention-trimmed topic live offsets run ABOVE count-1 (measured
+                # on .107: count=1001, live 553..~1553), so count-1 is a floor, not
+                # the tail — seeking back SCAN_LIMIT from it scanned only posts older
+                # than the window and the counter read 0 for 36 days. Page FORWARD
+                # from count-1 until a short page; the largest offset seen is the
+                # tail. Receipt up_to is deliberately NOT used: a receipt can sit
+                # beyond the tail (stale epoch — .122 up_to=2329 vs tail 2011), and
+                # a cursor past the tail scans nothing.
+                chat_tail=0
+                [ "$chat_count" -gt 0 ] && chat_tail=$((chat_count - 1))
+                tail_probe="$chat_tail"; tail_pages=0
+                while [ "$tail_pages" -lt "$TAIL_PAGE_MAX" ]; do
+                    tail_page="$($TIMEOUT_CMD "$TERMLINK" channel subscribe --hub "$addr" agent-chat-arc \
+                                    --cursor "$tail_probe" --limit "$SCAN_LIMIT" --json 2>/dev/null || echo '')"
+                    [ -n "$tail_page" ] || break
+                    tail_max="$(printf '%s' "$tail_page" | jq -r -s \
+                        '[.[] | .offset? | select(type == "number")] | max // empty' 2>/dev/null || true)"
+                    case "$tail_max" in ''|*[!0-9]*) break ;; esac
+                    [ "$tail_max" -gt "$chat_tail" ] && chat_tail="$tail_max"
+                    tail_n="$(printf '%s' "$tail_page" | grep -cE '^\{' || true)"
+                    [ "$tail_n" -lt "$SCAN_LIMIT" ] && break
+                    tail_probe=$((tail_max + 1)); tail_pages=$((tail_pages + 1))
+                done
             fi
             cursor=0
             if [ "$chat_tail" -gt "$SCAN_LIMIT" ]; then
