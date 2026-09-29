@@ -8,10 +8,10 @@ description: >
   T-1056/T-1060 class (G-005). Last green 2026-06-23, 947 failures since. Fix: constrain
   rmcp-macros directly.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components:
   - crates/termlink-mcp/Cargo.toml
@@ -28,8 +28,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-29T15:48:01Z
-last_update: 2026-09-29T15:49:04Z
-date_finished:
+last_update: 2026-09-29T15:53:43Z
+date_finished: 2026-09-29T15:53:43Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -77,7 +77,7 @@ cost_estimate_proposed:
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
 - [x] Pre-fix reproduced: a lockfile-free resolve of HEAD's manifests (`cargo generate-lockfile` in a scratch copy) picks `rmcp-macros` 1.8.x against `rmcp` 1.3.0 — the CI failure's cause, measured not assumed
-- [ ] `crates/termlink-mcp/Cargo.toml` constrains `rmcp-macros` to the same `~1.3` line as `rmcp`, with a comment citing G-005/T-1056
+- [x] `crates/termlink-mcp/Cargo.toml` constrains `rmcp-macros` to the same `~1.3` line as `rmcp`, with a comment citing G-005/T-1056
 - [x] Post-fix, the same lockfile-free resolve picks `rmcp-macros` 1.3.x, and `cargo check -p termlink-mcp` succeeds against that fresh lock
 - [x] The checked-in `Cargo.lock` still builds: `cargo check -p termlink-mcp --locked` succeeds
 
@@ -305,3 +305,16 @@ cargo check -q -p termlink-mcp --locked
 
 ### 2026-09-29T15:49:04Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-b390535b
+- **Timestamp:** 2026-09-29T15:53:54Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** none
+
+### 2026-09-29T15:53:43Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
