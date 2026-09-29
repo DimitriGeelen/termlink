@@ -61,10 +61,6 @@ pub mod method {
     pub const EVENT_POLL: &str = "event.poll";
     /// Tier-B — typed topic list response.
     pub const EVENT_TOPICS: &str = "event.topics";
-    /// Tier-A — opaque transition payload; receivers ignore unknown fields.
-    pub const EVENT_STATE_CHANGE: &str = "event.state_change";
-    /// Tier-A — opaque error descriptor; best-effort delivery.
-    pub const EVENT_ERROR: &str = "event.error";
     /// Tier-A — opaque fan-out payload. Prototype Tier-A case: drift-tolerant across version skew (T-1071).
     pub const EVENT_BROADCAST: &str = "event.broadcast";
     /// Tier-B — typed collector semantics (tag filter, timeout) and typed result bundle.

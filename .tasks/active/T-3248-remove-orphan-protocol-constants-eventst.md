@@ -6,7 +6,7 @@ description: >
   control.rs; string literals in cfg(test) fixtures and T-005/T-256 design docs are
   unaffected (re-measured in T-2995).
 
-status: captured
+status: started-work
 workflow_type: refactor
 owner: agent
 horizon: now
@@ -24,7 +24,7 @@ related_tasks: [T-2995]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-29T19:55:37Z
-last_update: '2026-09-29T19:58:47Z'
+last_update: 2026-09-29T20:07:40Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -82,44 +82,18 @@ Files: `crates/termlink-protocol/src/control.rs` (EVENT_STATE_CHANGE :65, EVENT_
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `EVENT_STATE_CHANGE` and `EVENT_ERROR` removed from `crates/termlink-protocol/src/control.rs`; zero references to either constant remain in `crates/` (string literals in cfg(test) fixtures are not the constant and stay)
+- [x] `cargo build --workspace` and `cargo test -p termlink-protocol` pass
+- [x] `check-error-code-emission.sh` and `check-error-code-docs.sh` still pass (method-constant neighbours of the error taxonomy)
 
-### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-
-     ── Prefix routing (T-1811, T-1878): default to [REVIEWER] if Expected is grep-able ──
-     If your Expected clause is grep-able / file-exists / structural (a deterministic
-     shell check), prefer [REVIEWER] — that AC should be an Agent AC with the reviewer
-     command in `## Verification` instead of a Human AC here. Only keep [REVIEW] if
-     verification genuinely needs human taste (tone, feel, layout rhythm).
-     See CLAUDE.md §AC Classification Guidance for the conversion rule.
-
-     [REVIEW] example (genuine human judgment):
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
-
-     [REVIEWER] example (static-scan-verifiable — convert to Agent AC + Verification):
-       - [ ] [REVIEWER] Block message names both bypass mechanisms
-         **Steps:**
-         1. Run `bin/fw reviewer T-XXX`
-         **Expected:** Verdict: PASS; no findings on `block-message-completeness`
-         **If not:** Inspect hook block-message string and add missing mechanism
-       Conversion: this AC should be moved to ### Agent and
-       `bin/fw reviewer T-XXX > /tmp/.rev 2>&1 && grep -q "Overall:.*PASS" /tmp/.rev`
-       added to ## Verification. NEVER `... 2>&1 | grep -q ...` — that is the shape the
-       Pipefail/SIGPIPE section below forbids, and this line used to prescribe it.
--->
 
 ## Verification
+
+test -z "$(grep -rn 'EVENT_STATE_CHANGE\|EVENT_ERROR\b' crates/ --include=*.rs)"
+cargo build --workspace --quiet
+cargo test -p termlink-protocol --quiet
+bash scripts/check-error-code-emission.sh
+bash scripts/check-error-code-docs.sh
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -304,3 +278,6 @@ Files: `crates/termlink-protocol/src/control.rs` (EVENT_STATE_CHANGE :65, EVENT_
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3248-remove-orphan-protocol-constants-eventst.md
 - **Context:** Initial task creation
+
+### 2026-09-29T20:07:40Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
