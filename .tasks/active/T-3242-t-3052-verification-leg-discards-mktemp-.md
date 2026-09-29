@@ -1,23 +1,17 @@
 ---
-id: T-3052
-name: "Operator actions arrive as copy-paste commands instead of a runnable script"
+id: T-3242
+name: "T-3052 Verification leg discards mktemp status with ';' — a failed mktemp makes
+  the 'dry-run wrote nothing' assertion vacuous (check-unpaired-capture)"
 description: >
-  Pending operator actions have been handed over as copy-pasteable shell lines (cron
-  installs, sudo steps). That puts the burden of correct transcription on the human,
-  leaves no record of what was asked, and cannot verify itself afterwards - the operator
-  runs it and both sides assume it worked. Operator request 2026-09-22: provide a
-  script at the project root to run instead. Deliverable: runme.sh, git-tracked and
-  executable, carrying the currently-pending operator actions, idempotent so re-running
-  is safe, verifying each action after performing it rather than assuming, refusing
-  loudly if not run as root rather than half-applying, and supporting --dry-run so
-  the human can read what it intends before granting it root. Currently carries the
-  two notify-rail crontab installs from T-3050 and T-3051.
+  SQ-9 Q1. .tasks/active/T-3052:204 'd=$(mktemp -d); RUNME_CRON_DIR="$d" ...' — if
+  mktemp fails d is empty and test -z "$(ls -A "")" passes vacuously. ';' -> '&&'
+  only strengthens the gate.
 
-status: work-completed
+status: started-work
 workflow_type: build
-owner: human
+owner: agent
 horizon: now
-tags: []
+tags: [guard-layer, ci, sq-9]
 components: []
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
@@ -30,9 +24,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-21T22:28:18Z
-last_update: 2026-09-21T22:32:46Z
-date_finished: 2026-09-21T22:32:46Z
+created: 2026-09-29T18:29:36Z
+last_update: 2026-09-29T18:41:19Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -44,7 +38,7 @@ date_finished: 2026-09-21T22:32:46Z
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 bvp_scores_proposed:
-  - ts: '2026-09-21T22:29:19Z'
+  - ts: '2026-09-29T18:30:07Z'
     estimator: bvp-estimator-v1-heuristic
     scores:
       D1: 4
@@ -57,72 +51,41 @@ bvp_scores_proposed:
       (body:component-discoverability); D4=2 (body:env-class-handled); 
       F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-09-29T18:30:08Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius:
+      tier: 2
+      effort: 8
+    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
+      (workflow:build); effort=8 (lines=232,acs=4)
+    rubric_sha: e4a00f38e801
+  - ts: '2026-09-29T18:32:03Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 7
+    rationale: blast_radius=3 (2-file-refs-derived-T-3189); tier=2 
+      (workflow:build); effort=7 (lines=204,acs=3)
+    rubric_sha: e4a00f38e801
 ---
 
-# T-3052: Operator actions arrive as copy-paste commands instead of a runnable script
+# T-3242: T-3052 Verification leg discards mktemp status with ';' — a failed mktemp makes the 'dry-run wrote nothing' assertion vacuous (check-unpaired-capture)
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+SQ-9 Q1. `check-unpaired-capture` flags `.tasks/active/T-3052-*.md:204`: `d=$(mktemp -d); RUNME_CRON_DIR="$d" bash runme.sh --dry-run ... && test -z "$(ls -A "$d")"`. The ';' discards mktemp's status: with d empty the leg runs against the default cron dir and `ls -A ""` prints nothing to stdout, so 'dry-run wrote nothing' passes vacuously. Fix strengthens only: ';' -> '&&'. T-3052 is owner:human (partial-complete); the edit touches no AC.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] `runme.sh` exists at the project root, is executable, and is git-tracked — an
-      untracked operator script is unreviewable and lost on a fresh clone
-- [x] IDEMPOTENT: a second run performs nothing and says so per action, so the operator
-      can re-run it safely without wondering whether they already did
-- [x] It VERIFIES each action after performing it and exits non-zero if the verification
-      fails — an operator script that assumes success is the same silent-failure class
-      the rest of this repo's guard layer exists to prevent
-- [x] `--dry-run` prints exactly what it would do and changes nothing, so the human can
-      read it before granting root
-- [x] Refuses loudly (non-zero, nothing applied) when not run as root, rather than
-      half-applying and leaving the host in a partial state
+- [x] T-3052:204 chains mktemp with '&&' instead of ';'
+- [x] The edited leg still passes under `bash -c 'set -eo pipefail; <leg>'`
+- [x] check-unpaired-capture exits 0
 
-### Human
-- [ ] [RUBBER-STAMP] The pending notify-rail cron is installed
-  **Steps:**
-    `cd /opt/termlink && sudo ./runme.sh`
-  **Expected:** exits 0, prints `OK      installed and verified:` for both crontabs, and
-  ends `OK      none of this script's crontabs are drifted`. Re-running it prints
-  `already installed and identical` for both — it is safe to run twice.
-  **If not:** it prints the FAILED line and exits 1 rather than assuming success. Read
-  `sudo ./runme.sh --dry-run` first to see what it intends. Report the FAILED lines;
-  nothing it does is destructive and it is always safe to re-run.
-
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-
-     ── Prefix routing (T-1811, T-1878): default to [REVIEWER] if Expected is grep-able ──
-     If your Expected clause is grep-able / file-exists / structural (a deterministic
-     shell check), prefer [REVIEWER] — that AC should be an Agent AC with the reviewer
-     command in `## Verification` instead of a Human AC here. Only keep [REVIEW] if
-     verification genuinely needs human taste (tone, feel, layout rhythm).
-     See CLAUDE.md §AC Classification Guidance for the conversion rule.
-
-     [REVIEW] example (genuine human judgment):
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
-
-     [REVIEWER] example (static-scan-verifiable — convert to Agent AC + Verification):
-       - [ ] [REVIEWER] Block message names both bypass mechanisms
-         **Steps:**
-         1. Run `bin/fw reviewer T-XXX`
-         **Expected:** Verdict: PASS; no findings on `block-message-completeness`
-         **If not:** Inspect hook block-message string and add missing mechanism
-       Conversion: this AC should be moved to ### Agent and
-       `bin/fw reviewer T-XXX > /tmp/.rev 2>&1 && grep -q "Overall:.*PASS" /tmp/.rev`
-       added to ## Verification. NEVER `... 2>&1 | grep -q ...` — that is the shape the
-       Pipefail/SIGPIPE section below forbids, and this line used to prescribe it.
--->
 
 ## Verification
 
@@ -162,6 +125,34 @@ bvp_scores_proposed:
 # on, and grep scans the whole captured string anyway, so the `tail -3` was
 # cosmetic. `echo "$out" | grep -q PAT`, nothing between.
 #
+# ── Asserting an ABSENCE: prove the search could have succeeded (T-3144) ──
+#
+# `! grep -q "PATTERN" file` exits 0 when the pattern is absent. It ALSO exits 0
+# when the file was renamed, deleted, or is empty — so the leg cannot distinguish
+# "the bad thing is not there" from "I could not look", and the gate reports green
+# over a check that never ran. Pair every absence assertion with something that
+# fails if the search could not happen:
+#
+#     test -f path/to/file && ! grep -q "PATTERN" path/to/file    # existence first
+#     grep -q "KNOWN_MARKER" f && ! grep -q "PATTERN" f           # positive companion
+#     cmd > /tmp/.out 2>&1 && ! grep -q "PATTERN" /tmp/.out       # &&-joined producer
+#
+# Count-equals-zero is the same defect wearing a different hat, and it is the one
+# that bites hardest over a COMMAND's output rather than a file:
+#
+#     [ "$(cargo clippy --workspace 2>&1 | grep -c "^error")" = "0" ]   # WRONG
+#
+# If cargo is missing, or dies before emitting diagnostics, there are no `^error`
+# lines, the count is 0, and the leg passes — a build gate that goes green
+# precisely when the build could not run. Measured in this corpus, not invented.
+# Keep the producer's exit code in the verdict:
+#
+#     cargo clippy --workspace > /tmp/.out 2>&1 && ! grep -q "^error" /tmp/.out
+#
+# T-3144 censused 2853 task files: 71 absence assertions, 41 already correct, 30
+# not. The convention mostly works — this note is here so the next one is written
+# right, because a vacuous leg is invisible until the day the path moves.
+#
 # TEST RUNNERS need a guard either way (T-2738). `set -e` is suppressed inside the
 # `if` condition the gate runs each line in, so in `cmd1; cmd2` only cmd2 is the
 # verdict — and the pass marker you grep for survives a partial failure: a suite
@@ -185,23 +176,8 @@ bvp_scores_proposed:
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
-# The suite is hermetic: RUNME_CRON_DIR points every install at a scratch dir, so
-# proving this script's behaviour writes no real host state.
-bash tests/runme-fixtures.sh > /tmp/.t3052-f 2>&1 && grep -q "11 passed, 0 failed" /tmp/.t3052-f
-
-# The properties that make an operator script trustworthy, pinned by name:
-# idempotence (safe to re-run), tamper-detection (presence is not trusted), a
-# missing source failing loudly rather than skipping, and the non-root refusal.
-grep -q "second run skips as already-done" /tmp/.t3052-f && grep -q "a drifted installed copy is re-installed, not trusted" /tmp/.t3052-f && grep -q "missing source => exit 1" /tmp/.t3052-f && grep -q "non-root run refuses with exit 2" /tmp/.t3052-f
-
-# Executable and git-TRACKED. An untracked operator script is unreviewable and
-# absent from a fresh clone — the T-2681 class, where the thing you rely on lives
-# only on one disk.
-test -x runme.sh && git ls-files --error-unmatch runme.sh > /dev/null 2>&1
-
-# --dry-run is the mode a human reads before granting root, so it must exit 0 and
-# write nothing even when pointed at a directory it could write to.
-d=$(mktemp -d) && RUNME_CRON_DIR="$d" bash runme.sh --dry-run > /tmp/.t3052-d 2>&1 && grep -q "would install" /tmp/.t3052-d && test -z "$(ls -A "$d")"
+! grep -q 'd=$(mktemp -d); RUNME' .tasks/active/T-3052-operator-actions-arrive-as-copy-paste-co.md
+bash scripts/check-unpaired-capture.sh > /tmp/.t3242 2>&1
 
 ## RCA
 
@@ -218,6 +194,14 @@ d=$(mktemp -d) && RUNME_CRON_DIR="$d" bash runme.sh --dry-run > /tmp/.t3052-d 2>
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
+
+**Symptom:** `check-unpaired-capture` FAIL (CI and host) on `.tasks/active/T-3052-*.md:204`.
+
+**Root cause:** the leg opened with `d=$(mktemp -d);` — the `;` discards mktemp's status. If mktemp fails, `d` is empty: runme's `RUNME_CRON_DIR=""` falls back to the real `/etc/cron.d`, and `test -z "$(ls -A "")"` sees nothing on stdout (the error goes to stderr), so "dry-run wrote nothing" passes vacuously.
+
+**Why structurally allowed:** P-011 judges a `;`-joined line on its last command only; the idiom looks like the common `d=$(mktemp -d) && …` form and differs by one character.
+
+**Prevention:** the check that caught it (check-unpaired-capture, now in CI via the guard layer) is the prevention; the fix only strengthens the leg (`;` → `&&`), rehearsed under `set -euo pipefail`. T-3052's ACs are untouched.
 
 ## Evolution
 
@@ -272,30 +256,6 @@ d=$(mktemp -d) && RUNME_CRON_DIR="$d" bash runme.sh --dry-run > /tmp/.t3052-d 2>
      commit, that is a calibration failure — recommend GO or NO-GO.
 -->
 
-**Recommendation:** RUBBER-STAMP — run `sudo ./runme.sh`, then tick the Human AC.
-
-**Rationale:**
-The agent half is done and verified: fixtures 11/11 hermetic, covering idempotence,
-tamper-detection, loud failure on a missing source, and the non-root refusal
-(genuinely exercised via `runuser`, not skipped). What remains needs root, which is
-yours, so it cannot honestly be an Agent AC.
-
-What you are approving is narrow: copying two git-tracked crontabs into
-`/etc/cron.d` so the arc-003 notify rail has a launcher and a detector. Until this
-runs, the rail is alive only for as long as the session that started it by hand and
-dies on reboot — which is exactly the 82-day dark period T-3049 measured.
-
-**Why this is low-risk:** nothing it does is destructive, it changes only the two
-files it names, it is idempotent so re-running is safe, and it verifies byte
-equality afterwards rather than assuming `cp` worked. Read it first with
-`sudo ./runme.sh --dry-run`, which writes nothing.
-
-**What I could not verify, stated plainly:** that installed cron actually fires on
-schedule. The script confirms the files are in place and match source; it cannot
-confirm cron executes them. First real evidence will be
-`.context/working/.notify-sidecar-supervisor.log` gaining entries, or
-`/canaries` showing the notify canary as healthy rather than absent.
-
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.
@@ -319,22 +279,10 @@ confirm cron executes them. First real evidence will be
 
 ## Updates
 
-### 2026-09-21T22:28:18Z — task-created [task-create-agent]
+### 2026-09-29T18:29:36Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3052-operator-actions-arrive-as-copy-paste-co.md
+- **Output:** /opt/termlink/.tasks/active/T-3242-t-3052-verification-leg-discards-mktemp-.md
 - **Context:** Initial task creation
 
-### 2026-09-21T22:29:18Z — status-update [task-update-agent]
+### 2026-09-29T18:41:19Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
-
-## Reviewer Verdict (v1.5)
-
-- **Scan ID:** R-897b9e8b
-- **Timestamp:** 2026-09-21T22:32:48Z
-- **Catalogue:** v1.3-seed
-- **Overall:** PASS
-- **Needs Human:** no
-- **Findings:** none
-
-### 2026-09-21T22:32:46Z — status-update [task-update-agent]
-- **Change:** status: started-work → work-completed
