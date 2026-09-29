@@ -7,8 +7,9 @@
 # tradition as the charter-drift allowlist's 28 entries pending T-2548. It is not a
 # permanent exemption and it is not a claim that these tools work.
 #
-# WHAT THE ENTRIES BELOW MEAN. The parity suite asserts 24 of 260 MCP tools (9.2%). The
-# remaining 236 have never been compared against their CLI verbs by anything. Before this
+# WHAT THE ENTRIES BELOW MEAN. The parity suite asserts 33 of 260 MCP tools (12.6%; T-2991
+# took it from 24 — three of its nine cases are #[ignore]d on RECORDED drift, T-3213/14/15). The
+# remaining 227 have never been compared against their CLI verbs by anything. Before this
 # check existed, that fact was invisible: the suite passed, and nothing distinguished
 # "this pair was checked and agrees" from "nobody has ever looked at this pair".
 #
@@ -97,7 +98,6 @@ termlink_agent_replies_of  # unexamined — no parity assertion exists; expansio
 termlink_agent_reply  # unexamined — no parity assertion exists; expansion tracked in T-2748
 termlink_agent_response_latency  # unexamined — no parity assertion exists; expansion tracked in T-2748
 termlink_agent_response_received  # unexamined — no parity assertion exists; expansion tracked in T-2748
-termlink_agent_search  # unexamined — no parity assertion exists; expansion tracked in T-2748
 termlink_agent_search_by  # unexamined — no parity assertion exists; expansion tracked in T-2748
 termlink_agent_search_thread  # unexamined — no parity assertion exists; expansion tracked in T-2748
 termlink_agent_self_replies  # unexamined — no parity assertion exists; expansion tracked in T-2748
@@ -140,7 +140,6 @@ termlink_batch_tag  # unexamined — no parity assertion exists; expansion track
 termlink_broadcast  # unexamined — no parity assertion exists; expansion tracked in T-2748
 termlink_channel_ack  # unexamined — no parity assertion exists; expansion tracked in T-2748
 termlink_channel_ack_history  # unexamined — no parity assertion exists; expansion tracked in T-2748
-termlink_channel_ack_status  # unexamined — no parity assertion exists; expansion tracked in T-2748
 termlink_channel_ancestors  # unexamined — no parity assertion exists; expansion tracked in T-2748
 termlink_channel_claim  # unexamined — no parity assertion exists; expansion tracked in T-2748
 termlink_channel_claim_force_release  # unexamined — no parity assertion exists; expansion tracked in T-2748
@@ -191,23 +190,18 @@ termlink_channel_snapshot_diff  # unexamined — no parity assertion exists; exp
 termlink_channel_snippet  # unexamined — no parity assertion exists; expansion tracked in T-2748
 termlink_channel_star  # unexamined — no parity assertion exists; expansion tracked in T-2748
 termlink_channel_starred  # unexamined — no parity assertion exists; expansion tracked in T-2748
-termlink_channel_state  # unexamined — no parity assertion exists; expansion tracked in T-2748
 termlink_channel_state_since  # unexamined — no parity assertion exists; expansion tracked in T-2748
-termlink_channel_subscribe  # unexamined — no parity assertion exists; expansion tracked in T-2748
 termlink_channel_sweep  # unexamined — no parity assertion exists; expansion tracked in T-2748
-termlink_channel_thread  # unexamined — no parity assertion exists; expansion tracked in T-2748
 termlink_channel_threads  # unexamined — no parity assertion exists; expansion tracked in T-2748
 termlink_channel_topic_stats  # unexamined — no parity assertion exists; expansion tracked in T-2748
 termlink_channel_typing_emit  # unexamined — no parity assertion exists; expansion tracked in T-2748
 termlink_channel_typing_list  # unexamined — no parity assertion exists; expansion tracked in T-2748
-termlink_channel_unread  # unexamined — no parity assertion exists; expansion tracked in T-2748
 termlink_chat_arc_broadcast  # unexamined — no parity assertion exists; expansion tracked in T-2748
 termlink_check_fleet_doorbell_mail_health  # unexamined — no parity assertion exists; expansion tracked in T-2748
 termlink_collect  # unexamined — no parity assertion exists; expansion tracked in T-2748
 termlink_deregister  # unexamined — no parity assertion exists; expansion tracked in T-2748
 termlink_dispatch  # unexamined — no parity assertion exists; expansion tracked in T-2748
 termlink_dispatch_status  # unexamined — no parity assertion exists; expansion tracked in T-2748
-termlink_doctor  # unexamined — no parity assertion exists; expansion tracked in T-2748
 termlink_emit  # unexamined — no parity assertion exists; expansion tracked in T-2748
 termlink_emit_to  # unexamined — no parity assertion exists; expansion tracked in T-2748
 termlink_event_poll  # unexamined — no parity assertion exists; expansion tracked in T-2748
@@ -224,7 +218,6 @@ termlink_fleet_governor_status  # unexamined — no parity assertion exists; exp
 termlink_fleet_reauth  # unexamined — no parity assertion exists; expansion tracked in T-2748
 termlink_fleet_secrets_audit  # unexamined — no parity assertion exists; expansion tracked in T-2748
 termlink_fleet_status  # unexamined — no parity assertion exists; expansion tracked in T-2748
-termlink_help  # unexamined — no parity assertion exists; expansion tracked in T-2748
 termlink_hub_export_secret  # unexamined — no parity assertion exists; expansion tracked in T-2748
 termlink_hub_fingerprint  # unexamined — no parity assertion exists; expansion tracked in T-2748
 termlink_hub_governor_status  # unexamined — no parity assertion exists; expansion tracked in T-2748
@@ -232,7 +225,6 @@ termlink_hub_restart  # unexamined — no parity assertion exists; expansion tra
 termlink_hub_start  # unexamined — no parity assertion exists; expansion tracked in T-2748
 termlink_hub_stop  # unexamined — no parity assertion exists; expansion tracked in T-2748
 termlink_inbox_clear  # unexamined — no parity assertion exists; expansion tracked in T-2748
-termlink_inbox_list  # unexamined — no parity assertion exists; expansion tracked in T-2748
 termlink_inbox_status  # unexamined — no parity assertion exists; expansion tracked in T-2748
 termlink_inject  # unexamined — no parity assertion exists; expansion tracked in T-2748
 termlink_interact  # unexamined — no parity assertion exists; expansion tracked in T-2748

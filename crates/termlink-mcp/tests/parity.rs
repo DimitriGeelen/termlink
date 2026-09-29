@@ -1471,6 +1471,194 @@ async fn parity_tofu_clear_single_miss() {
 }
 
 // ---------------------------------------------------------------------------
+// T-2991 (arc-009 S-17, first T-2748 ratchet slice): parity cases for the
+// HIGHEST-CHURN tool regions of tools.rs. Ranking measured over 180 days of
+// commits — see docs/reports/T-2991-tools-rs-churn.md for the method and its
+// attribution caveat. Every case here is hub-independent or asserts the
+// hub-DOWN envelope, so it runs on the same fixture as the no-hub cases above.
+//
+// The hub-down cases assert the T-1914 contract: BOTH sides emit a structured
+// `{ok:false, error:"Hub is not running …"}` on stdout. `error` text is
+// stripped before diffing (it embeds the tempdir socket path on the CLI side
+// and the MCP hint text differs by design — T-2553 makes the MCP message name
+// the fix); only the envelope SHAPE is asserted, exactly as PAIR 6/7 do.
+// ---------------------------------------------------------------------------
+
+/// Shared no-hub parity body (T-2991): call the MCP tool and the CLI verb
+/// against an empty runtime dir and diff the hub-down envelopes.
+async fn no_hub_pair(name: &str, tool: &'static str, args: Value, cli_argv: &[&str]) {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new(&format!("parity-{name}"));
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+    unsafe { std::env::set_var("HOME", &dir.path) };
+
+    let client = mcp_client().await;
+    let mcp_raw = call_mcp(&client, tool, args).await;
+    let mcp_json: Value = serde_json::from_str(&mcp_raw)
+        .unwrap_or_else(|e| panic!("MCP {tool} response not JSON: {e}\nraw: {mcp_raw}"));
+
+    let bin = find_termlink_bin().expect("find termlink binary");
+    let mut cmd = termlink_cmd(&bin, &dir.path);
+    cmd.env("HOME", &dir.path);
+    cmd.args(cli_argv);
+    let output = cmd.output().expect("spawn termlink");
+    let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
+    let cli_json: Value = serde_json::from_str(&stdout).unwrap_or_else(|e| {
+        panic!(
+            "CLI {cli_argv:?} stdout is not JSON (T-1914 class: --json not honoured on the hub-down path): {e}\n  exit={:?}\n  stdout={stdout:?}\n  stderr={:?}",
+            output.status.code(),
+            String::from_utf8_lossy(&output.stderr)
+        )
+    });
+
+    assert_eq!(mcp_json["ok"], json!(false), "MCP {tool} must refuse loudly on hub-down: {mcp_json}");
+    assert_eq!(cli_json["ok"], json!(false), "CLI {cli_argv:?} must refuse loudly on hub-down: {cli_json}");
+    assert!(mcp_json["error"].as_str().map(|s| s.contains("Hub is not running")).unwrap_or(false),
+        "MCP {tool} error must name the failure: {mcp_json}");
+    assert!(cli_json["error"].as_str().map(|s| s.contains("Hub is not running")).unwrap_or(false),
+        "CLI {cli_argv:?} error must name the failure: {cli_json}");
+
+    let ignore: HashSet<&'static str> = ["ts_ms", "pid", "error"].into_iter().collect();
+    diff_json(name, &mcp_json, &cli_json, &ignore).unwrap_or_else(|e| panic!("{e}"));
+}
+
+// PAIR 25 (T-2991): termlink_channel_ack_status — #4 by churn (37 commits).
+#[tokio::test]
+async fn parity_channel_ack_status_no_hub() {
+    no_hub_pair("channel-ack-status-no-hub", "termlink_channel_ack_status",
+        json!({"topic": "t2991"}), &["channel", "ack-status", "t2991", "--json"]).await;
+}
+
+// PAIR 26 (T-2991): termlink_channel_subscribe — #10 by churn (8 commits).
+#[tokio::test]
+async fn parity_channel_subscribe_no_hub() {
+    no_hub_pair("channel-subscribe-no-hub", "termlink_channel_subscribe",
+        json!({"topic": "t2991"}), &["channel", "subscribe", "t2991", "--json"]).await;
+}
+
+// PAIR 27 (T-2991): termlink_channel_thread — #11 by churn (8 commits).
+#[tokio::test]
+async fn parity_channel_thread_no_hub() {
+    no_hub_pair("channel-thread-no-hub", "termlink_channel_thread",
+        json!({"topic": "t2991", "root": 0}), &["channel", "thread", "t2991", "0", "--json"]).await;
+}
+
+// PAIR 28 (T-2991): termlink_channel_state — #16 by churn (6 commits).
+#[tokio::test]
+async fn parity_channel_state_no_hub() {
+    no_hub_pair("channel-state-no-hub", "termlink_channel_state",
+        json!({"topic": "t2991"}), &["channel", "state", "t2991", "--json"]).await;
+}
+
+// PAIR 29 (T-2991): termlink_inbox_list — #19 by churn (6 commits). Deprecated
+// (T-1166) but still compiled and advertised, so still a parity surface.
+#[tokio::test]
+async fn parity_inbox_list_no_hub() {
+    no_hub_pair("inbox-list-no-hub", "termlink_inbox_list",
+        json!({"target": "sess-t2991"}), &["inbox", "list", "sess-t2991", "--json"]).await;
+}
+
+// PAIR 30 (T-2991): termlink_channel_unread — #41 by churn (5 commits). The CLI
+// resolves the default sender from this identity's fingerprint; MCP falls
+// back to HOME-derived identity — both are pointed at the empty tempdir HOME.
+#[tokio::test]
+async fn parity_channel_unread_no_hub() {
+    no_hub_pair("channel-unread-no-hub", "termlink_channel_unread",
+        json!({"topic": "t2991", "sender_id": "deadbeefdeadbeef"}),
+        &["channel", "unread", "t2991", "--sender", "deadbeefdeadbeef", "--json"]).await;
+}
+
+// PAIR 31 (T-2991): termlink_agent_search — #7 by churn (10 commits).
+//
+// DIVERGENCE FOUND on first run (recorded, not patched — this is a test task):
+// MCP emits `{ok:false, error:"Hub is not running …"}`; the CLI's
+// `agent search … --json` hub-down path prints NOTHING on stdout and an
+// anyhow chain ("Error: Fetching chat-arc full slice for search / Caused by:
+// Hub is not running …") on stderr, exit 1. That is the T-1914 class (an early
+// error path that does not honour --json), the same shape PAIR 6 caught for
+// `channel list` in 2026-06. Kept `#[ignore]` so the suite stays green while
+// the drift is visible; un-ignore when the CLI is fixed under its own task.
+#[tokio::test]
+#[ignore = "T-3213 drift: CLI `agent search --json` emits no JSON on hub-down (T-1914 class) — un-ignore when T-3213 lands"]
+async fn parity_agent_search_no_hub() {
+    no_hub_pair("agent-search-no-hub", "termlink_agent_search",
+        json!({"query": "needle"}), &["agent", "search", "needle", "--json"]).await;
+}
+
+// PAIR 32 (T-2991): termlink_help — #2 by churn (44 commits). Pure registry
+// read on both sides (T-2483's charter-drift canary consumes the CLI form).
+// Compared as a whole: `{category: [{name, deprecated, description,
+// parameter_count, parameter_required_count}, …]}`.
+//
+// DIVERGENCE FOUND on first run (recorded, not patched): the two catalogs
+// agree on every category, name, flag and parameter count EXCEPT the
+// `description` of `termlink_agent_search` — MCP says "… (chat-arc ONLY — not
+// dm:* or inbox:*)", the CLI says "Search chat-arc by content substring". One
+// registry was edited and the other was not (T-2069 duplicated-helper class).
+// Owned by T-3215; un-ignore when it lands.
+#[tokio::test]
+#[ignore = "T-3215 drift: termlink_agent_search description differs between MCP registry and CLI help --json — un-ignore when T-3215 lands"]
+async fn parity_help() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("parity-help");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let client = mcp_client().await;
+    let mcp_raw = call_mcp(&client, "termlink_help", json!({})).await;
+    let mcp_json: Value = serde_json::from_str(&mcp_raw)
+        .unwrap_or_else(|e| panic!("MCP help response not JSON: {e}\nraw: {mcp_raw}"));
+
+    let bin = find_termlink_bin().expect("find termlink binary");
+    let cli_json = call_cli(&bin, &dir.path, &["help", "--json"]).expect("CLI help --json");
+
+    assert!(mcp_json.is_object() && !mcp_json.as_object().unwrap().is_empty(), "MCP help empty: {mcp_json}");
+    assert!(cli_json.is_object() && !cli_json.as_object().unwrap().is_empty(), "CLI help empty: {cli_json}");
+
+    let ignore: HashSet<&'static str> = HashSet::new();
+    diff_json("help", &mcp_json, &cli_json, &ignore).expect("help parity");
+}
+
+// PAIR 33 (T-2991): termlink_doctor — #20 by churn (6 commits). Local
+// environment probe; no hub needed. Messages embed the tempdir path, so
+// `message` is stripped and the check LIST is compared by (check, status)
+// with the summary counts by value.
+//
+// DIVERGENCE FOUND on first run (recorded, not patched): against an empty
+// runtime dir + empty HOME the CLI emits 11 checks and MCP emits 8 — MCP is
+// missing `ufw_listener`, `secret_cache`, `secret_cache_profiles` — and MCP
+// carries a top-level `strict` key the CLI does not echo. An agent reading
+// MCP doctor cannot see secret-cache drift the operator's CLI would show.
+// Owned by T-3214; un-ignore when it lands.
+#[tokio::test]
+#[ignore = "T-3214 drift: MCP termlink_doctor lacks ufw_listener/secret_cache/secret_cache_profiles checks and adds `strict` — un-ignore when T-3214 lands"]
+async fn parity_doctor() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("parity-doctor");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+    unsafe { std::env::set_var("HOME", &dir.path) };
+
+    let client = mcp_client().await;
+    let mcp_raw = call_mcp(&client, "termlink_doctor", json!({})).await;
+    let mcp_json: Value = serde_json::from_str(&mcp_raw)
+        .unwrap_or_else(|e| panic!("MCP doctor response not JSON: {e}\nraw: {mcp_raw}"));
+
+    let bin = find_termlink_bin().expect("find termlink binary");
+    let mut cmd = termlink_cmd(&bin, &dir.path);
+    cmd.env("HOME", &dir.path);
+    cmd.args(["doctor", "--json"]);
+    let output = cmd.output().expect("CLI doctor --json");
+    let cli_json: Value = serde_json::from_slice(&output.stdout)
+        .unwrap_or_else(|e| panic!("CLI doctor response not JSON: {e}\nstdout: {}\nstderr: {}",
+            String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr)));
+
+    assert!(mcp_json["checks"].is_array(), "MCP checks not array: {mcp_json}");
+    assert!(cli_json["checks"].is_array(), "CLI checks not array: {cli_json}");
+
+    let ignore: HashSet<&'static str> = ["message", "ts_ms", "pid"].into_iter().collect();
+    diff_json("doctor", &mcp_json, &cli_json, &ignore).expect("doctor parity");
+}
+
+// ---------------------------------------------------------------------------
 // NEGATIVE TEST: a hand-crafted diff MUST be detected as a parity failure.
 // Proves the harness's diff logic is not a no-op.
 // ---------------------------------------------------------------------------

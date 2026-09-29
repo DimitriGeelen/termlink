@@ -6,10 +6,10 @@ description: >
   tools.rs regions. Precondition for any tools.rs/channel.rs split (S-18). Evidence:
   docs/reports/VALUE-REVIEW-repo-2026-09-19-consolidated.md C-06.
 
-status: captured
+status: work-completed
 workflow_type: test
 owner: agent
-horizon: next
+horizon: null
 tags: [value-review, arc:arc-009]
 components: []
 related_tasks: []
@@ -24,8 +24,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-19T22:14:46Z
-last_update: '2026-09-27T21:34:07Z'
-date_finished:
+last_update: 2026-09-29T00:09:57Z
+date_finished: 2026-09-29T00:09:57Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -49,6 +49,19 @@ bvp_scores_proposed:
     rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
       (body:component-discoverability); D4=3 (body:portability-abstraction); 
       F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+  - ts: '2026-09-28T23:44:04Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 3
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=3 (body:portability-abstraction); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
 cost_estimate_proposed:
   - ts: '2026-09-20T08:45:20Z'
@@ -75,14 +88,33 @@ cost_estimate_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+S-17 / C-06 (value-review consolidated): `tools.rs` is the #1-churn file (374 commits in 180d)
+and only 24 of 260 MCP tools (9.2%) are asserted against their CLI verb by
+`crates/termlink-mcp/tests/parity.rs`; the other 236 sit in
+`.context/checks/mcp-parity-census-allowlist` as a ledger (T-2747). T-2748 is the ratchet
+that works that ledger down; this task is its first slice, aimed at the regions that change
+most, because that is where silent MCP/CLI drift is produced (C-26: one 45-day undetected
+drift already).
+
+**Churn is MEASURED, not asserted.** Per-tool ranking = number of distinct commits in the
+last 180 days whose diff hunks fall inside that tool's handler region of `tools.rs` (region =
+from its `#[tool(name = "…")]` marker to the next marker). Caveat stated up front: free
+helper fns that sit between two markers are attributed to the preceding tool, so a tool
+followed by a large helper block over-counts (e.g. `termlink_chat_arc_broadcast`). The ranking
+is recorded in `docs/reports/T-2991-tools-rs-churn.md` with the script that produced it.
+
+Scope fence: this is a TEST task. A divergence the new cases find is RECORDED (test comment +
+Evolution + its own task), not fixed here — one bug = one task.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Churn ranking for `tools.rs` (180d, distinct commits per tool region) is recorded in `docs/reports/T-2991-tools-rs-churn.md` together with the measurement script and its stated attribution caveat — **DONE:** 374 commits analysed, 262 tool regions touched, top-45 listed, caveat in §Method.
+- [x] At least 6 tools from the top-25 of that ranking gain a parity case in `crates/termlink-mcp/tests/parity.rs` (MCP call vs `termlink … --json`, hub-independent or on the shared session fixture), and each is removed from `.context/checks/mcp-parity-census-allowlist` — **DONE:** 9 cases (PAIR 25–33); 8 of the 9 tools are in the top-25 (`channel_unread` is #41); allowlist 236 → 227 entries.
+- [x] `cargo test -p termlink-mcp --test parity` passes with the new cases (run without committing mid-run, T-2687); a new case that FAILS on genuine MCP/CLI drift is kept as `#[ignore]`-with-reason and the drift filed as its own task, never silently patched under this task — **DONE:** full suite `34 passed; 0 failed; 3 ignored` (497.9s on this contended host); the 3 ignored are PAIR 31/32/33 on drift owned by T-3213 / T-3215 / T-3214.
+- [x] `bash scripts/check-mcp-parity-census.sh` is clean and reports `covered ≥ 30` (was 24), and the allowlist header's stated counts are updated to match — **DONE:** `clean — 260 MCP tool(s): 33 asserted, 227 acknowledged, 0 unexamined`, 12.6%; header updated to 33 / 227 / 12.6%.
+- [x] Every divergence the new cases surface is listed in this task's Evolution with the task ID that owns it (or "none found" stated explicitly) — **DONE:** three found, three tasks (T-3213, T-3214, T-3215), see Evolution.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -118,6 +150,14 @@ cost_estimate_proposed:
 -->
 
 ## Verification
+
+test -f docs/reports/T-2991-tools-rs-churn.md && grep -q "Attribution caveat" docs/reports/T-2991-tools-rs-churn.md
+test "$(grep -cE '^termlink_(help|doctor|channel_ack_status|channel_state|channel_subscribe|channel_thread|channel_unread|inbox_list|agent_search)[[:space:]]' .context/checks/mcp-parity-census-allowlist)" = "0"
+bash scripts/check-mcp-parity-census.sh --json > /tmp/.t2991-census 2>&1 && python3 -c "import json; d=json.load(open('/tmp/.t2991-census')); assert d['ok'] and d['covered']>=30 and d['unexamined']==0, d"
+grep -q "33 of 260 MCP tools (12.6%" .context/checks/mcp-parity-census-allowlist
+timeout 580 cargo test -p termlink-mcp --test parity -- parity_channel_ack_status_no_hub parity_channel_subscribe_no_hub parity_channel_thread_no_hub parity_channel_state_no_hub parity_inbox_list_no_hub parity_channel_unread_no_hub > /tmp/.t2991-cargo 2>&1 && grep -q "test result: ok. 6 passed; 0 failed" /tmp/.t2991-cargo
+test "$(grep -c '#\[ignore = "T-32' crates/termlink-mcp/tests/parity.rs)" = "3"
+test -f .tasks/active/T-3213-cli-agent-search---json-emits-no-json-on.md && test -f .tasks/active/T-3214-mcp-termlinkdoctor-lacks-3-checks-the-cl.md && test -f .tasks/active/T-3215-help-catalog-drift-termlinkagentsearch-d.md
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -218,6 +258,32 @@ cost_estimate_proposed:
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-09-29 — R2 (T-3211): nine cases on the top-churn regions; three of them found drift on their first run
+- **What changed:** The task shipped with placeholder ACs and a cost estimate read off template
+  boilerplate; the first activity was measuring churn (374 commits / 180d, per-tool-region
+  attribution with a stated caveat) and writing ACs from it. Of the nine tools that gained a case,
+  SIX pass (`channel_ack_status`, `channel_subscribe`, `channel_thread`, `channel_state`,
+  `inbox_list`, `channel_unread` — all hub-down envelope parity, the T-1914 contract) and THREE
+  found genuine MCP/CLI drift on first execution, each kept `#[ignore]`-with-reason and filed as
+  its own task per the scope fence:
+  - **T-3213** — `termlink agent search --json` prints NOTHING on stdout on hub-down (anyhow chain
+    on stderr, exit 1) while the MCP twin returns `{ok:false,error}`. The T-1914 class, four months
+    after PAIR 6 caught it for `channel list`.
+  - **T-3214** — `termlink_doctor` (MCP) emits 8 checks where the CLI emits 11: `ufw_listener`,
+    `secret_cache`, `secret_cache_profiles` are CLI-only, and MCP adds a `strict` key the CLI
+    does not echo. An agent reading MCP doctor cannot see secret-cache drift.
+  - **T-3215** — the two help catalogs agree on every category / name / flag / parameter count
+    except ONE description string (`termlink_agent_search`).
+  Census: 24 → **33 asserted** (12.6%), 236 → 227 acknowledged, 0 unexamined.
+- **Plan impact:** The "≥6 tools from the top-25" AC is met by 8 (plus `channel_unread`, #41). The
+  full suite takes ~500s on this host because `ENV_LOCK` serialises every case and the host runs
+  ~450 agent processes — the P-011 line therefore runs only the six new passing cases (~60s); the
+  full-suite result (`34 passed; 0 failed; 3 ignored`) is recorded in the T-3211 R2 handback ledger.
+  Four top-churn CLI verbs have NO `--json` flag at all (`batch tag`, `batch exec`, `deregister`,
+  `agent chat-arc-recent`) and cannot be asserted by this harness — a CLI gap for T-2748's next slice.
+- **Triggered:** T-3213, T-3214, T-3215 (arc-009, `parity,bug`). T-2748 (the ratchet parent) still
+  has placeholder ACs; this slice's method + the no-json gap are its natural next scope.
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -277,3 +343,20 @@ cost_estimate_proposed:
 
 ### 2026-09-19T22:35:30Z — status-update [task-update-agent]
 - **Change:** tags: +arc:arc-009
+
+### 2026-09-28T23:43:00Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-cea1f750
+- **Timestamp:** 2026-09-29T00:10:00Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** none
+
+### 2026-09-29T00:09:57Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
