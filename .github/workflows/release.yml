@@ -55,10 +55,15 @@ jobs:
       - name: Run workspace test suite
         run: cargo test --workspace
 
-      # T-2684 — the source-level static checks and fixture suites. Seconds to run,
-      # and the moment code becomes a release is exactly when they should run.
+      # T-2684 — the source-level static checks and fixture suites. The moment code
+      # becomes a release is exactly when they should run.
+      # T-3258 — `--gate release`: only BLOCKING members gate the build; a member the
+      # operator has classified ADVISORY (`# guard-layer: source advisory  # <reason>`)
+      # still runs and is printed in its own section, but cannot hold a release
+      # hostage. Push CI (doc-lint.yml) runs the default gate, where every red counts.
+      # `cargo test` above is never advisory.
       - name: Run source-level guard layer
-        run: bash scripts/run-guard-layer.sh
+        run: bash scripts/run-guard-layer.sh --gate release
 
   # T-2692 (T-2690 F1/G1) — macOS is a FIRST-CLASS, DOCUMENTED platform that has
   # never executed a test.

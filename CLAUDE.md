@@ -1993,6 +1993,20 @@ the MCP tool — fixed in T-2687) with nothing to surface it.
 Test seams: `GUARD_LAYER_SCRIPTS_DIR`, `GUARD_LAYER_TESTS_DIR`, `GUARD_LAYER_TIMEOUT`.
 Fixtures: `bash tests/guard-layer-runner-fixtures.sh` (27 assertions).
 
+**Severity classes (T-3258).** A member may declare `# guard-layer: source advisory
+[args]  # <reason>`; no word means BLOCKING. The class matters only under
+`--gate release`, which is what `release.yml`'s `test` job runs: there, advisory
+FAIL/ERROR members are printed in their own section, with their reason, and counted
+in `--json` (`advisory_fired`/`advisory_errored`), but they do not set the exit
+code. Push CI (`doc-lint.yml`) runs the default `--gate all`, where every red counts.
+Demoting a member therefore stops it holding a release; it never hides it.
+`cargo test` is always BLOCKING. A reasonless `advisory` is not honoured (the member
+runs as BLOCKING and the runner prints `MALFORMED`), and
+`scripts/check-guard-severity-markers.sh` fires on it and on a misplaced one. **No
+member is advisory yet.** The per-member proposal awaiting operator approval is
+`docs/reports/T-3258-guard-classification-draft.md`. Fixtures:
+`bash tests/guard-layer-severity-fixtures.sh` (20 assertions, 5 mutants).
+
 ### Canary log hygiene — split the streams (T-2685)
 
 Every canary implements `exit 0 healthy / exit 1 FIRING / exit 2 tooling error`, and

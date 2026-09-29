@@ -68,6 +68,19 @@
 # ROLL-UP: any FAIL → exit 1. Else any ERROR → exit 2. Else 0. Findings dominate
 # tooling errors, mirroring `fleet verify`'s "drift dominates".
 #
+# SEVERITY CLASSES (T-3258). A member may declare itself ADVISORY:
+#
+#     # guard-layer: source advisory [extra args...]  # <reason — required>
+#
+# No word = BLOCKING (the default, and the only class cargo test can have). The class
+# changes ONE thing: under `--gate release` only BLOCKING failures set the exit code;
+# advisory FAIL/ERROR members are still run, still printed — in their own section —
+# and still counted. Under the default gate (`all`, what push CI runs) the class is
+# ignored and every red counts, exactly as before. An `advisory` marker with no
+# reason is NOT honoured: the member runs as BLOCKING (fail-safe — a malformed
+# demotion must never quietly weaken the release gate) and
+# scripts/check-guard-severity-markers.sh fires on it.
+#
 # Exit codes: 0 all members passed · 1 a member fired · 2 a member errored, or the
 #             runner could not enumerate members (fail-closed)
 set -uo pipefail
@@ -83,6 +96,7 @@ QUIET=0
 LIST_ONLY=0
 WITH_TESTS=0
 JSONL_PATH=""
+GATE=all
 
 usage() {
     cat <<'EOF'
@@ -106,6 +120,9 @@ Usage: run-guard-layer.sh [OPTIONS]
                  at start. A run killed part-way keeps every finished member's
                  verdict — --json is only written after the last member (T-2983)
   --quiet        Print only non-PASS members and the footer
+  --gate G       all (default): every FAIL/ERROR sets the exit code.
+                 release: only BLOCKING members set it; ADVISORY failures are
+                 printed in their own section and counted, never hidden (T-3258)
   -h, --help     This help
 
 Verdicts: PASS (rc 0) · FAIL (rc 1, guard fired) · ERROR (rc 2, guard could not
@@ -132,6 +149,11 @@ while [ $# -gt 0 ]; do
         --jsonl) [ $# -ge 2 ] || { echo "run-guard-layer: --jsonl needs a PATH" >&2; exit 2; }
                  JSONL_PATH="$2"; shift 2 ;;
         --quiet) QUIET=1; shift ;;
+        --gate)  [ $# -ge 2 ] || { echo "run-guard-layer: --gate needs all|release" >&2; exit 2; }
+                 case "$2" in all|release) GATE="$2" ;;
+                     *) echo "run-guard-layer: unknown --gate '$2' (want all|release)" >&2; exit 2 ;;
+                 esac
+                 shift 2 ;;
         -h|--help) usage; exit 0 ;;
         *) echo "run-guard-layer: unknown arg: $1" >&2; exit 2 ;;
     esac
@@ -144,8 +166,31 @@ fi
 
 # ---------------------------------------------------------------- discovery ---
 # Parallel arrays; bash 3.2-compatible (no associative arrays — macOS ships 3.2).
-m_name=(); m_kind=(); m_cmd=()
+m_name=(); m_kind=(); m_cmd=(); m_class=(); m_reason=()
 unclassified=()
+malformed=()   # members whose `advisory` marker carried no reason (run as BLOCKING)
+
+# parse_marker <file> <marker-line> — sets P_EXTRA (declared invocation args),
+# P_CLASS (blocking|advisory) and P_REASON. Text after the first `#` following the
+# `source` keyword is a comment and never reaches the command line.
+parse_marker() {
+    local rest pre
+    rest="$(printf '%s' "$2" | sed -E 's/^#[[:space:]]*guard-layer:[[:space:]]*source[[:space:]]*//')"
+    pre="${rest%%#*}"
+    P_REASON=""
+    [ "$pre" != "$rest" ] && P_REASON="$(printf '%s' "${rest#*#}" | sed -E 's/^[[:space:]]+//;s/[[:space:]]+$//')"
+    P_CLASS=blocking
+    P_EXTRA="$(printf '%s' "$pre" | sed -E 's/[[:space:]]+$//')"
+    case "$P_EXTRA" in
+        advisory|advisory[[:space:]]*)
+            P_EXTRA="$(printf '%s' "${P_EXTRA#advisory}" | sed -E 's/^[[:space:]]+//')"
+            if [ -n "$P_REASON" ]; then P_CLASS=advisory
+            else malformed+=("$(basename "$1")"); fi ;;
+    esac
+}
+add_member() { # <name> <kind> <cmd> <class> <reason>
+    m_name+=("$1"); m_kind+=("$2"); m_cmd+=("$3"); m_class+=("$4"); m_reason+=("$5")
+}
 
 # Static checks: opt in via the header marker, which also carries the invocation.
 for f in "$SCRIPTS_DIR"/check-*.sh; do
@@ -155,20 +200,21 @@ for f in "$SCRIPTS_DIR"/check-*.sh; do
         unclassified+=("$(basename "$f")")
         continue
     fi
-    # Everything after `source` is the declared invocation (usually --no-heartbeat).
-    extra="$(printf '%s' "$marker" | sed -E 's/^#[[:space:]]*guard-layer:[[:space:]]*source[[:space:]]*//')"
-    m_name+=("$(basename "$f")")
-    m_kind+=("static-check")
-    m_cmd+=("bash $f $extra")
+    # Everything after `source` (bar a severity word and a `# comment`) is the
+    # declared invocation (usually --no-heartbeat).
+    parse_marker "$f" "$marker"
+    add_member "$(basename "$f")" static-check "bash $f $P_EXTRA" "$P_CLASS" "$P_REASON"
 done
 
 # Fixture suites: members by naming convention, hermetic by construction.
 if [ -d "$TESTS_DIR" ]; then
     for f in "$TESTS_DIR"/*fixtures*.sh; do
         [ -e "$f" ] || continue
-        m_name+=("$(basename "$f")")
-        m_kind+=("fixture-suite")
-        m_cmd+=("bash $f")
+        # Members by convention; a marker is optional and only ever adds a class.
+        P_CLASS=blocking; P_REASON=""
+        marker="$(grep -m1 -E '^#[[:space:]]*guard-layer:[[:space:]]*source' "$f" 2>/dev/null || true)"
+        [ -n "$marker" ] && parse_marker "$f" "$marker"
+        add_member "$(basename "$f")" fixture-suite "bash $f" "$P_CLASS" "$P_REASON"
     done
 fi
 
@@ -189,10 +235,8 @@ for f in "$SCRIPTS_DIR"/test-*.sh "$TESTS_DIR"/*.sh; do
         unclassified+=("$(basename "$f")")
         continue
     fi
-    extra="$(printf '%s' "$marker" | sed -E 's/^#[[:space:]]*guard-layer:[[:space:]]*source[[:space:]]*//')"
-    m_name+=("$(basename "$f")")
-    m_kind+=("suite")
-    m_cmd+=("bash $f $extra")
+    parse_marker "$f" "$marker"
+    add_member "$(basename "$f")" suite "bash $f $P_EXTRA" "$P_CLASS" "$P_REASON"
 done
 
 # T-2935: membership is the MARKER, not the filename. The three passes above key on
@@ -217,16 +261,13 @@ for f in "$SCRIPTS_DIR"/*.sh; do
     case "$b" in check-*.sh|test-*.sh) continue ;; esac
     marker="$(grep -m1 -E '^#[[:space:]]*guard-layer:[[:space:]]*source' "$f" 2>/dev/null || true)"
     [ -n "$marker" ] || continue
-    extra="$(printf '%s' "$marker" | sed -E 's/^#[[:space:]]*guard-layer:[[:space:]]*source[[:space:]]*//')"
-    m_name+=("$b")
-    m_kind+=("static-check")
-    m_cmd+=("bash $f $extra")
+    parse_marker "$f" "$marker"
+    add_member "$b" static-check "bash $f $P_EXTRA" "$P_CLASS" "$P_REASON"
 done
 
 if [ "$WITH_TESTS" -eq 1 ]; then
-    m_name+=("cargo test --workspace")
-    m_kind+=("unit-tests")
-    m_cmd+=("cargo test --workspace")
+    # Never advisory: the unit suite is the floor the release gate stands on.
+    add_member "cargo test --workspace" unit-tests "cargo test --workspace" blocking ""
 fi
 
 total=${#m_name[@]}
@@ -250,18 +291,22 @@ if [ "$LIST_ONLY" -eq 1 ]; then
         i=0
         while [ "$i" -lt "$total" ]; do
             [ "$i" -eq 0 ] || printf ','
-            printf '{"name":%s,"kind":%s}' \
+            printf '{"name":%s,"kind":%s,"class":%s}' \
                 "$(printf '%s' "${m_name[$i]}" | jq -R .)" \
-                "$(printf '%s' "${m_kind[$i]}" | jq -R .)"
+                "$(printf '%s' "${m_kind[$i]}" | jq -R .)" \
+                "$(printf '%s' "${m_class[$i]}" | jq -R .)"
             i=$((i+1))
         done
-        printf '],"summary":{"total":%s,"unclassified":%s}}\n' "$total" "${#unclassified[@]}"
+        printf '],"summary":{"total":%s,"unclassified":%s,"malformed_markers":%s}}\n' "$total" "${#unclassified[@]}" "${#malformed[@]}"
     else
         echo "guard-layer members ($total):"
         i=0
         while [ "$i" -lt "$total" ]; do
-            printf '  %-14s %s\n' "${m_kind[$i]}" "${m_name[$i]}"
+            printf '  %-14s %-9s %s\n' "${m_kind[$i]}" "${m_class[$i]}" "${m_name[$i]}"
             i=$((i+1))
+        done
+        for u in "${malformed[@]+"${malformed[@]}"}"; do
+            echo "  MALFORMED: $u declares 'advisory' with no '# <reason>' — run as BLOCKING"
         done
         if [ "${#unclassified[@]}" -gt 0 ]; then
             echo
@@ -282,6 +327,8 @@ if [ -n "$JSONL_PATH" ]; then
     : > "$JSONL_PATH" || { echo "run-guard-layer: cannot write --jsonl $JSONL_PATH" >&2; exit 2; }
 fi
 pass_n=0; fail_n=0; err_n=0
+# Per-class tallies (T-3258). fail_n/err_n above stay the class-blind totals.
+bfail_n=0; berr_n=0; afail_n=0; aerr_n=0
 
 i=0
 while [ "$i" -lt "$total" ]; do
@@ -298,20 +345,25 @@ while [ "$i" -lt "$total" ]; do
         *) verdict=ERROR; err_n=$((err_n+1)) ;;
     esac
     r_verdict+=("$verdict"); r_rc+=("$rc"); r_elapsed+=("$elapsed")
+    case "${m_class[$i]}:$verdict" in
+        advisory:FAIL) afail_n=$((afail_n+1)) ;; advisory:ERROR) aerr_n=$((aerr_n+1)) ;;
+        blocking:FAIL) bfail_n=$((bfail_n+1)) ;; blocking:ERROR) berr_n=$((berr_n+1)) ;;
+    esac
     # T-2983: persist this member's verdict now, not after the last member, so an
     # interrupted run still leaves evidence. The full output is kept — CI's human
     # view caps each member at OUTPUT_LINES and the finding can be below the cap.
     if [ -n "$JSONL_PATH" ]; then
         jq -cn --arg name "${m_name[$i]}" --arg kind "${m_kind[$i]}" \
             --argjson rc "$rc" --arg verdict "$verdict" --argjson elapsed_s "$elapsed" \
-            --arg output "$out" \
-            '{name:$name, kind:$kind, rc:$rc, verdict:$verdict, elapsed_s:$elapsed_s, output:$output}' \
+            --arg output "$out" --arg class "${m_class[$i]}" \
+            '{name:$name, kind:$kind, class:$class, rc:$rc, verdict:$verdict, elapsed_s:$elapsed_s, output:$output}' \
             >> "$JSONL_PATH"
     fi
 
     if [ "$FORMAT" = human ]; then
         if [ "$verdict" != PASS ] || [ "$QUIET" -eq 0 ]; then
-            printf '  %-5s %-14s %-6s %s\n' "$verdict" "${m_kind[$i]}" "${elapsed}s" "${m_name[$i]}"
+            tag=""; [ "${m_class[$i]}" = advisory ] && tag=" [advisory]"
+            printf '  %-5s %-14s %-6s %s%s\n' "$verdict" "${m_kind[$i]}" "${elapsed}s" "${m_name[$i]}" "$tag"
         fi
         if [ "$verdict" != PASS ]; then
             # Surface the member's own words — the runner never paraphrases a
@@ -330,8 +382,13 @@ while [ "$i" -lt "$total" ]; do
     i=$((i+1))
 done
 
-if [ "$fail_n" -gt 0 ]; then exit_rc=1
-elif [ "$err_n" -gt 0 ]; then exit_rc=2
+# Gate `all` (default, push CI): every member counts, whatever its class.
+# Gate `release`: only BLOCKING members count; advisory reds are reported below.
+if [ "$GATE" = release ]; then g_fail=$bfail_n; g_err=$berr_n
+else g_fail=$fail_n; g_err=$err_n
+fi
+if [ "$g_fail" -gt 0 ]; then exit_rc=1
+elif [ "$g_err" -gt 0 ]; then exit_rc=2
 else exit_rc=0
 fi
 
@@ -343,22 +400,42 @@ if [ "$FORMAT" = json ]; then
     i=0
     while [ "$i" -lt "$total" ]; do
         [ "$i" -eq 0 ] || printf ','
-        printf '{"name":%s,"kind":%s,"rc":%s,"verdict":%s,"elapsed_s":%s}' \
+        printf '{"name":%s,"kind":%s,"class":%s,"rc":%s,"verdict":%s,"elapsed_s":%s}' \
             "$(printf '%s' "${m_name[$i]}" | jq -R .)" \
             "$(printf '%s' "${m_kind[$i]}" | jq -R .)" \
+            "$(printf '%s' "${m_class[$i]}" | jq -R .)" \
             "${r_rc[$i]}" \
             "$(printf '%s' "${r_verdict[$i]}" | jq -R .)" \
             "${r_elapsed[$i]}"
         i=$((i+1))
     done
-    printf '],"summary":{"total":%s,"passed":%s,"fired":%s,"errored":%s,"unclassified":%s,"with_tests":%s,"exit_code":%s,"total_elapsed_s":%s}}\n' \
-        "$total" "$pass_n" "$fail_n" "$err_n" "${#unclassified[@]}" \
+    printf '],"summary":{"total":%s,"passed":%s,"fired":%s,"errored":%s,"gate":"%s","advisory_fired":%s,"advisory_errored":%s,"malformed_markers":%s,"unclassified":%s,"with_tests":%s,"exit_code":%s,"total_elapsed_s":%s}}\n' \
+        "$total" "$pass_n" "$fail_n" "$err_n" "$GATE" "$afail_n" "$aerr_n" "${#malformed[@]}" "${#unclassified[@]}" \
         "$([ "$WITH_TESTS" -eq 1 ] && echo true || echo false)" "$exit_rc" "$total_elapsed"
     exit "$exit_rc"
 fi
 
 echo
-if [ "$exit_rc" -eq 0 ]; then
+# Advisory section (T-3258): printed under EVERY gate whenever an advisory member is
+# red, so a non-gating finding is never mistaken for a pass.
+if [ $((afail_n + aerr_n)) -gt 0 ]; then
+    if [ "$GATE" = release ]; then echo "advisory (non-gating under --gate release) — still red, still real:"
+    else echo "advisory members red (they gate under --gate all):"; fi
+    i=0
+    while [ "$i" -lt "$total" ]; do
+        if [ "${m_class[$i]}" = advisory ] && [ "${r_verdict[$i]}" != PASS ]; then
+            printf '  %-5s %s  — %s\n' "${r_verdict[$i]}" "${m_name[$i]}" "${m_reason[$i]}"
+        fi
+        i=$((i+1))
+    done
+    echo
+fi
+for u in "${malformed[@]+"${malformed[@]}"}"; do
+    echo "  MALFORMED marker: $u declares 'advisory' with no '# <reason>' — ran as BLOCKING"
+done
+if [ "$exit_rc" -eq 0 ] && [ $((fail_n + err_n)) -gt 0 ]; then
+    echo "guard layer: PASS (gate=$GATE) — every BLOCKING member clean; $((afail_n + aerr_n)) advisory member(s) red above (${total_elapsed}s wall)"
+elif [ "$exit_rc" -eq 0 ]; then
     echo "guard layer: PASS — $pass_n/$total members clean (${total_elapsed}s wall)"
 elif [ "$exit_rc" -eq 1 ]; then
     echo "guard layer: FIRING — $fail_n guard(s) found something ($pass_n passed, $err_n errored, ${total_elapsed}s wall)"
