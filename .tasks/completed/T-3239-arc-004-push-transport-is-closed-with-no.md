@@ -7,10 +7,10 @@ description: >
   the headline mechanic (sub-second WS push + degrade/reconnect) against an ISOLATED
   hub in ~4s, exit 0 PASS / 2 binary missing. Bind it as prover.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [guard-layer, ci, sq-9]
 components: []
 related_tasks: []
@@ -25,8 +25,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-29T18:29:01Z
-last_update: 2026-09-29T18:39:59Z
-date_finished:
+last_update: 2026-09-29T18:40:31Z
+date_finished: 2026-09-29T18:40:31Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -278,3 +278,16 @@ bash scripts/check-arc-claim-drift.sh --no-heartbeat > /tmp/.t3239 2>&1 && grep 
 
 ### 2026-09-29T18:39:59Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-51f0195d
+- **Timestamp:** 2026-09-29T18:40:38Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** none
+
+### 2026-09-29T18:40:31Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
