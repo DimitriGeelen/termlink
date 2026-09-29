@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3220: Forever-archival canary: rate trigger so a growing Forever topic under the 50k ceiling is not invisible (C-15)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-29T10:27:35Z
+# ============================================================================
+
+task_id: T-3220
+task_name: "Forever-archival canary: rate trigger so a growing Forever topic under the 50k ceiling is not invisible (C-15)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-29T10:25:45Z
+completed: 2026-09-29T10:27:27Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Value-review C-15: a Forever topic under the 50k archival ceiling with sustained daily growth is invisible to both T-2252 (watched high-rate names only) and T-2562 (ceiling only). Live instance: health:ring20-fedprobe, 2563 records, ~90/day, zero consumers (T-2988). Add a records/day secondary trigger to check-forever-archival-freshness.sh, using the offset-0 envelope ts as the time base (Forever topics are never swept), with a fixture suite (the canary has none).
+
+# Key outcomes
+outcomes:
+  - 'A non-excluded Forever topic under the ceiling FIRES when its growth over at least `--rate-min-days` (default 7) exceeds `--rate-per-day` (default 50), time base = its offset-0 envelope ts; ceiling firing is unchanged'
+  - 'A young topic (< min days), a slow topic, an excluded topic, and a non-Forever topic do not rate-fire; a topic whose first ts cannot be read is reported as rate-unchecked, never silently healthy'
+  - 'New hermetic fixture suite `tests/forever-archival-fixtures.sh` covers the cases above via test seams (no hub); the rate case fails against the pre-change script (measured: 7 of 13 fail on it)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-009]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3220-forever-archival-canary-rate-trigger-so-.md
+generated_by: context-agent-hybrid

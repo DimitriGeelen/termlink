@@ -1,18 +1,22 @@
 ---
-id: T-2988
-name: "Investigate-then-bound health:ring20-fedprobe + rate-based forever-topic trigger"
+id: T-3220
+name: "Forever-archival canary: rate trigger so a growing Forever topic under the
+  50k ceiling is not invisible (C-15)"
 description: >
-  S-14/C-14,C-15: measure subscriber cursors on health:ring20-fedprobe first, then
-  bound retention; add a rate-based trigger to the forever-topic canary so growth
-  rate (not only absolute count) fires. Evidence: docs/reports/VALUE-REVIEW-repo-2026-09-19-consolidated.md
-  C-14, C-15.
+  Value-review C-15: a Forever topic under the 50k archival ceiling with sustained
+  daily growth is invisible to both T-2252 (watched high-rate names only) and T-2562
+  (ceiling only). Live instance: health:ring20-fedprobe, 2563 records, ~90/day, zero
+  consumers (T-2988). Add a records/day secondary trigger to check-forever-archival-freshness.sh,
+  using the offset-0 envelope ts as the time base (Forever topics are never swept),
+  with a fixture suite (the canary has none).
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: next
-tags: [value-review, arc:arc-009]
-components: []
+horizon: null
+tags: [arc:arc-009]
+components: [scripts/check-forever-archival-freshness.sh, 
+      tests/forever-archival-fixtures.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -24,9 +28,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-19T22:12:00Z
-last_update: '2026-09-20T08:45:20Z'
-date_finished:
+created: 2026-09-29T10:25:45Z
+last_update: 2026-09-29T10:27:27Z
+date_finished: 2026-09-29T10:27:27Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -38,7 +42,7 @@ date_finished:
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 bvp_scores_proposed:
-  - ts: '2026-09-20T08:45:10Z'
+  - ts: '2026-09-29T10:26:06Z'
     estimator: bvp-estimator-v1-heuristic
     scores:
       D1: 4
@@ -52,36 +56,30 @@ bvp_scores_proposed:
       F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
 cost_estimate_proposed:
-  - ts: '2026-09-20T08:45:20Z'
+  - ts: '2026-09-29T10:26:06Z'
     estimator: bvp-estimator-v1-heuristic
     cost_estimate:
-      blast_radius:
+      blast_radius: 3
       tier: 2
       effort: 8
-    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
-      (workflow:build); effort=8 (lines=207,acs=4)
+    rationale: blast_radius=3 (2-components); tier=2 (workflow:build); effort=8 
+      (lines=233,acs=5)
     rubric_sha: e4a00f38e801
 ---
 
-# T-2988: Investigate-then-bound health:ring20-fedprobe + rate-based forever-topic trigger
+# T-3220: Forever-archival canary: rate trigger so a growing Forever topic under the 50k ceiling is not invisible (C-15)
 
 ## Context
 
-C-14 investigation, measured 2026-09-29 by T-3211 R4 (read-only; no hub state changed):
-- `health:ring20-fedprobe` on the local hub: **2,563 records**, `retention: forever` (`termlink channel list --json`). It was 1,666–1,672 at the 2026-09-19 review, so it is still growing at about 90/day.
-- **Producer:** a single sender `9219671e28054458`, metadata `from_project: proxmox-ring20-management`, `observed_addr 192.168.10.122`, `msg_type: fed-probe`, one post about every 15 min (offsets 2560–2562 are ~930s apart). The producer is a PEER project's process, not code in this repo (`grep -r ring20-fedprobe scripts/ .context/cron/ docs/operations` → nothing).
-- **Consumers: none.** `channel ack-status` returns one row, the producer's own: `lag 2563, up_to null`. Nobody has ever acked a record.
-
-**Why this is parked, not remediated.** Both remediations act on shared state an autonomous worker should not change unasked: (a) `channel set-retention` + `sweep` on the live hub deletes ~2.5k records on shared infrastructure; (b) stopping or re-targeting the probe is the peer project's decision. Raised as SQ-10 in `.context/runs/T-3211-R4-handback.md`.
-
-C-15 (the rate-based trigger that would have surfaced this) is agent work, but it is a separate deliverable. It is not attempted under this task.
+<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] A non-excluded Forever topic under the ceiling FIRES when its growth over at least `--rate-min-days` (default 7) exceeds `--rate-per-day` (default 50), time base = its offset-0 envelope ts; ceiling firing is unchanged
+- [x] A young topic (< min days), a slow topic, an excluded topic, and a non-Forever topic do not rate-fire; a topic whose first ts cannot be read is reported as rate-unchecked, never silently healthy
+- [x] New hermetic fixture suite `tests/forever-archival-fixtures.sh` covers the cases above via test seams (no hub); the rate case fails against the pre-change script (measured: 7 of 13 fail on it)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -118,64 +116,9 @@ C-15 (the rate-based trigger that would have surfaced this) is agent work, but i
 
 ## Verification
 
-# Shell commands that MUST pass before work-completed. One per line.
-# Lines starting with # are comments (skipped). Empty lines ignored.
-# The completion gate runs each command — if any exits non-zero, completion is blocked.
-#
-# Toolchain hint (L-291): if you edited *.vbproj/*.csproj/*.xaml add `dotnet build`;
-# *.go → `go build ./...`; Cargo.toml → `cargo check`; tsconfig.json → `tsc --noEmit`;
-# pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
-# past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
-#
-# ── Pipefail/SIGPIPE: grepping a command's output (L-387, T-2090, T-2743, T-2738) ──
-#
-# THE DEFAULT — redirect to a file, then grep the file:
-#     cmd > /tmp/.out 2>&1 && grep -q "PATTERN" /tmp/.out
-#     curl -sf "$(bin/fw watchtower url)/page" -o /tmp/.out && grep -q "PAT" /tmp/.out
-# Correct at any output size, and `&&` keeps the PRODUCING command's exit code in
-# the verdict. Reach for this first; the alternative below is the special case.
-#
-# NEVER `cmd | grep -q PAT` (L-387) — why: P-011 runs each line under `set -eo
-# pipefail`. When grep matches it exits and closes stdin while cmd is still
-# writing, cmd takes SIGPIPE, the pipeline exits 141 — verification "fails" with
-# the pattern present. Captured 4× (T-1716, T-1838, T-1862, T-1863).
-#
-# THE EXCEPTION — capture first, grep the capture:
-#     out=$(cmd 2>&1); echo "$out" | grep -q "PATTERN"
-# Valid ONLY while "$out" fits the 65536-byte pipe buffer, and it is on you to
-# know that it does. Above that the form inverts and becomes the very failure
-# L-387 describes: echo blocks on the full pipe, grep -q exits, echo takes
-# SIGPIPE, rc=141 (T-2743 — measured on a 146,366-byte Watchtower page, 3/3 runs,
-# deterministic not racy; rendered routes run 50-200KB, so anything that curls a
-# page is over the line). It also discards cmd's exit code, so a 404 yields an
-# empty capture that grep merely fails to match rather than a failed line.
-# If you do use it: single pipe only, no intermediate tail/awk/sed stage between
-# capture and grep (T-2090) — the middle stage is what `grep -q` slams its stdin
-# on, and grep scans the whole captured string anyway, so the `tail -3` was
-# cosmetic. `echo "$out" | grep -q PAT`, nothing between.
-#
-# TEST RUNNERS need a guard either way (T-2738). `set -e` is suppressed inside the
-# `if` condition the gate runs each line in, so in `cmd1; cmd2` only cmd2 is the
-# verdict — and the pass marker you grep for survives a partial failure: a suite
-# printing "3 failed, 9 passed" satisfies `grep -q "9 passed"`, and generalising
-# to `grep -qE "[0-9]+ passed"` matches the same output. Keep the exit code:
-#     python3 -m pytest <file> -q > /tmp/.out 2>&1 && grep -q passed /tmp/.out
-# or add the guard the exit code used to supply:
-#     out=$(python3 -m pytest <file> -q 2>&1); echo "$out" | grep -q passed && ! echo "$out" | grep -q failed
-#     out=$(bats <file> 2>&1); echo "$out" | grep -q '^ok 1 ' && ! echo "$out" | grep -q '^not ok'
-# The close gate refuses the unguarded form. Bypass: FW_ALLOW_UNJUDGED_TEST_RUN=1.
-#
-# REHEARSING A LINE BY HAND DOES NOT REHEARSE THE GATE (T-2743). Your interactive
-# shell has no `set -eo pipefail`. A line has returned 0 by hand and 141 under
-# P-011, from the same directory, the same second. To rehearse for real:
-#     bash -c 'set -eo pipefail; <your verification line>'
-#
-# Enforcement-baseline hint (L-398, T-1886): if you edited `.claude/settings.json`
-# (added/removed/reorganised hooks), add `bin/fw enforcement baseline` to your
-# Verification block. Otherwise the canonical hash diverges and `fw doctor`
-# reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
-# Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
-# the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+bash tests/forever-archival-fixtures.sh > /tmp/.t3220-v1.out 2>&1 && grep -q "13 passed, 0 failed" /tmp/.t3220-v1.out
+bash -n scripts/check-forever-archival-freshness.sh
+bash scripts/check-forever-archival-freshness.sh --help > /tmp/.t3220-v3.out 2>&1; grep -q "rate-per-day" scripts/check-forever-archival-freshness.sh
 
 ## RCA
 
@@ -195,27 +138,10 @@ C-15 (the rate-based trigger that would have surfaced this) is agent work, but i
 
 ## Evolution
 
-<!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
-     understanding evolved during build — what was learned that wasn't known at
-     filing, what in the original plan no longer fits, what triggered pivots
-     or new sub-tasks. Mandatory at slice boundaries (when applicable) and
-     before --status work-completed.
-
-     Origin: T-1717 grill Q4 — "the understanding of what we need and want
-     evolves with the process of materialisation." Structural counter to §ACD:
-     spec-vs-build divergence is logged as soon as it happens, not lost as
-     folklore.
-
-     Format (one entry per slice boundary or significant insight):
-       ### YYYY-MM-DD — [topic]
-       - **What changed:** [what we learned that we didn't know at filing]
-       - **Plan impact:** [what in the plan no longer fits]
-       - **Triggered:** [new sub-task / pivot / scope cut, with task ID if filed]
-
-     The completion gate (T-1718) blocks --status work-completed when this
-     section exists but is empty/template-only. Use --skip-evolution to bypass
-     (logged Tier-2). Non-arc tasks may leave this empty.
--->
+### 2026-09-29 — no state file needed
+- **What changed:** a rate needs a time base, and `channel list` carries no timestamps. Forever topics are never swept, so the offset-0 envelope's `ts` is a true first-seen time: one read per candidate topic, with no persisted snapshots.
+- **Plan impact:** a topic whose first envelope cannot be read is listed as rate-unchecked instead of passing silently.
+- **Triggered:** live run flags exactly one topic, `health:ring20-fedprobe` (91.6/day over 28 days). **The daily cron canary will now FIRE on it until SQ-10 is ruled**, which is the intended detection, not noise.
 
 ## Recommendation
 
@@ -269,10 +195,23 @@ C-15 (the rate-based trigger that would have surfaced this) is agent work, but i
 
 ## Updates
 
-### 2026-09-19T22:12:00Z — task-created [task-create-agent]
+### 2026-09-29T10:25:45Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2988-investigate-then-bound-healthring20-fedp.md
+- **Output:** /opt/termlink/.tasks/active/T-3220-forever-archival-canary-rate-trigger-so-.md
 - **Context:** Initial task creation
 
-### 2026-09-19T22:35:29Z — status-update [task-update-agent]
-- **Change:** tags: +arc:arc-009
+### 2026-09-29T10:26:19Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-068ad3f9
+- **Timestamp:** 2026-09-29T10:27:28Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** none
+
+### 2026-09-29T10:27:27Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

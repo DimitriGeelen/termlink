@@ -54,6 +54,9 @@ set -eu
 
 HEARTBEAT_FILE="${HEARTBEAT_FILE:-.context/working/.forever-archival-canary.heartbeat}"
 THRESHOLD=50000
+# T-3220 (C-15): secondary rate trigger for Forever topics under the ceiling.
+RATE_PER_DAY=50
+RATE_MIN_DAYS=7
 HUB=""
 FORMAT=human
 QUIET=0
@@ -72,6 +75,8 @@ while [ $# -gt 0 ]; do
         --no-heartbeat) HEARTBEAT=0 ;;
         --threshold) shift; THRESHOLD="${1:-50000}" ;;
         --threshold=*) THRESHOLD="${1#*=}" ;;
+        --rate-per-day) shift; RATE_PER_DAY="${1:-50}" ;;
+        --rate-min-days) shift; RATE_MIN_DAYS="${1:-7}" ;;
         --hub) shift; HUB="${1:-}" ;;
         --hub=*) HUB="${1#*=}" ;;
         -h|--help) sed -n '2,60p' "$0"; exit 0 ;;
@@ -127,8 +132,9 @@ LIST_TMP="$(mktemp "${TMPDIR:-/tmp}/termlink-forever-archival.XXXXXX")" || {
 trap 'rm -f -- "$LIST_TMP"; _canary_hb' EXIT
 printf '%s' "$LIST_JSON" > "$LIST_TMP"
 
-REPORT="$(python3 - "$LIST_TMP" "$THRESHOLD" "$FORMAT" "$EXCLUDE_TOPICS" <<'PY' 2>/dev/null || true
-import sys, json
+REPORT="$(RATE_PER_DAY="$RATE_PER_DAY" RATE_MIN_DAYS="$RATE_MIN_DAYS" HUB="$HUB" TERMLINK_BIN="$TERMLINK_BIN" \
+    python3 - "$LIST_TMP" "$THRESHOLD" "$FORMAT" "$EXCLUDE_TOPICS" <<'PY' 2>/dev/null || true
+import sys, json, os, subprocess, time
 
 list_path = sys.argv[1]
 threshold = int(sys.argv[2]); fmt = sys.argv[3]
@@ -143,6 +149,8 @@ except Exception:
 topics = data.get("topics", []) if isinstance(data, dict) else []
 
 firing = []
+candidates = []
+rate_unchecked = []
 for t in topics:
     name = t.get("name", "")
     if not name or name in exclude:
@@ -156,7 +164,61 @@ for t in topics:
     except Exception:
         continue
     if count > threshold:
-        firing.append({"name": name, "count": count, "retention": ret})
+        firing.append({"name": name, "count": count, "retention": ret, "trigger": "ceiling"})
+    else:
+        candidates.append((name, count))
+
+# T-3220 (C-15): a Forever topic UNDER the ceiling but growing every day is the
+# class both T-2252 (watched names only) and the ceiling above miss. Forever
+# topics are never swept, so the offset-0 envelope's ts is a true time base and
+# records/day needs no state file. A topic whose first ts cannot be read is
+# reported as rate-unchecked, never counted as healthy.
+rate_per_day = float(os.environ.get("RATE_PER_DAY", "50"))
+rate_min_days = float(os.environ.get("RATE_MIN_DAYS", "7"))
+now_ms = int(os.environ.get("TERMLINK_FOREVER_TEST_NOW_MS") or time.time() * 1000)
+seam = os.environ.get("TERMLINK_FOREVER_TEST_FIRST_TS_JSON")
+seam_map = None
+if seam:
+    try:
+        seam_map = json.load(open(seam))
+    except Exception:
+        seam_map = {}
+
+def first_ts_ms(topic):
+    if seam_map is not None:
+        v = seam_map.get(topic)
+        return int(v) if v is not None else None
+    cmd = [os.environ.get("TERMLINK_BIN", "termlink"), "channel", "subscribe", topic,
+           "--cursor", "0", "--limit", "1", "--json"]
+    if os.environ.get("HUB"):
+        cmd += ["--hub", os.environ["HUB"]]
+    try:
+        out = subprocess.run(cmd, capture_output=True, text=True, timeout=15).stdout
+    except Exception:
+        return None
+    for line in out.splitlines():
+        try:
+            ts = json.loads(line).get("ts")
+        except Exception:
+            continue
+        if isinstance(ts, (int, float)) and ts > 0:
+            return int(ts)
+    return None
+
+for name, count in candidates:
+    if count == 0:
+        continue
+    ts0 = first_ts_ms(name)
+    if ts0 is None:
+        rate_unchecked.append(name)
+        continue
+    age_days = (now_ms - ts0) / 86400000.0
+    if age_days < rate_min_days:
+        continue
+    per_day = count / age_days
+    if per_day > rate_per_day:
+        firing.append({"name": name, "count": count, "retention": "forever", "trigger": "rate",
+                       "per_day": round(per_day, 1), "age_days": round(age_days, 1)})
 
 firing.sort(key=lambda f: -f["count"])
 
@@ -165,17 +227,26 @@ if fmt == "json":
         "ok": len(firing) == 0,
         "threshold": threshold,
         "excluded": sorted(exclude),
+        "rate_per_day": rate_per_day,
+        "rate_min_days": rate_min_days,
+        "rate_unchecked": sorted(rate_unchecked),
         "firing": firing,
     }))
 else:
     if firing:
-        print("forever-archival canary: %d Forever topic(s) over archival ceiling (%d records) — non-goal #2 drift (system-of-record)" % (len(firing), threshold))
+        print("forever-archival canary: %d Forever topic(s) over the archival ceiling (%d records) or growing > %g/day — non-goal #2 drift (system-of-record)" % (len(firing), threshold, rate_per_day))
         for f in firing:
-            print("  %s  count=%d  [forever]" % (f["name"], f["count"]))
-            print("    → a Forever topic this large is archival storage, which TermLink is NOT (charter non-goal #2).")
+            if f.get("trigger") == "rate":
+                print("  %s  count=%d  [forever]  RATE %.1f/day over %.1f days" % (f["name"], f["count"], f["per_day"], f["age_days"]))
+                print("    → under the ceiling but growing without bound; at this rate it becomes archival storage (charter non-goal #2).")
+            else:
+                print("  %s  count=%d  [forever]" % (f["name"], f["count"]))
+                print("    → a Forever topic this large is archival storage, which TermLink is NOT (charter non-goal #2).")
             print("      Bound it: termlink channel set-retention %s --retention messages --retention-value N && termlink channel sweep %s" % (f["name"], f["name"]))
             print("      Or, if genuinely operator-durable, add %s to TERMLINK_FOREVER_EXCLUDE_TOPICS." % f["name"])
         print("  (allowlisted operator-durable Forever topics never fire: %s)" % ", ".join(sorted(exclude)))
+    if rate_unchecked:
+        print("  (rate not checked — first envelope unreadable: %s)" % ", ".join(sorted(rate_unchecked)))
 
 print("FIRE=%d" % len(firing))
 PY
@@ -199,7 +270,8 @@ if [ "${FIRE:-0}" = 0 ]; then
         if [ "$FORMAT" = json ]; then
             printf '%s\n' "$BODY"
         else
-            echo "forever-archival canary: healthy — no Forever topic over $THRESHOLD records"
+            echo "forever-archival canary: healthy — no Forever topic over $THRESHOLD records or growing > ${RATE_PER_DAY}/day"
+            printf '%s\n' "$BODY" | grep 'rate not checked' || true
         fi
     fi
     exit 0
