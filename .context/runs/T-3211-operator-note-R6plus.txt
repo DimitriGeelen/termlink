@@ -1,0 +1,25 @@
+OPERATOR RULINGS, 2026-09-29 (verbatim intent, recorded by the orchestrator):
+
+SQ-4 RULED: YES. "Q1, Q2 tasks that don't belong to an arc — work on that." Arc-less agent-owned
+Q1/Q2 tasks ARE eligible. Work them by the normal ladder: Q1 before Q2, highest BVP first
+(R5's census: T-2644 78, T-2573 76, T-2606/T-2656/T-2662 73, then T-2616, T-2581, T-2886, T-2911,
+T-3091, T-3139, T-3141, T-3177; Q2 T-2016, T-2669, T-2532, T-2398, T-2015). A task that is itself
+gated on a different open SQ or a human AC stays gated — SQ-4 opens the arc gate only.
+
+SQ-3 RULED: SURFACE, THEN ASK. A task whose last AC is honestly unachievable is NOT closed by an
+agent. Instead, write it into a "## Closure requests" section of your handback: task id, the AC
+that cannot be met, why (with the measurement or code citation), and what closing loses or keeps.
+The operator grants or refuses each one. Do not tick, reword or strike the AC yourself.
+
+SQ-9 (CI red, no release since v0.11.2): operator confirms it is high impact. Options 1+2 from the
+T-3216 report (fetch-depth: 0 on guard checkouts; CI-aware fixes for environment-dependent members)
+are ordinary agent work, not a sovereign choice — do them FIRST this round, before the SQ-4 list.
+Latest CI on origin HEAD 276daf351 (after the push): Doc Lint FAIL and Install Check FAIL (exit 101 —
+a cargo test failed; the log shows #[tool] description drift). Read the CI log, do not guess.
+Options 3 (the 8 real tree findings: resolve or acknowledge), 4 (re-cut/re-run release, or make the
+guard non-blocking for release) and 5 (release-publication canary) remain the OPERATOR's; prepare
+them, do not execute them. Never tag, never push to GitHub. Pushing main to origin (OneDev) is
+routine here, but leave it to the orchestrator.
+
+Everything else stays unruled: SQ-1/2, SQ-6, SQ-7, SQ-8, SQ-10, and T-2385's [REVIEW] AC.
+Before any commit that follows a refused finalize, run git status --porcelain (R5's T-3231 lesson).
