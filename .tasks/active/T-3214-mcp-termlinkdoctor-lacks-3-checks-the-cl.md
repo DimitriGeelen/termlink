@@ -18,8 +18,10 @@ workflow_type: build
 owner: agent
 horizon: now
 tags: [arc:arc-009, parity, bug]
-components: []
-related_tasks: []
+components: [crates/termlink-mcp/src/tools.rs, 
+      crates/termlink-cli/src/commands/infrastructure.rs, 
+      crates/termlink-mcp/tests/parity.rs]
+related_tasks: [T-2991, T-1712, T-1689, T-2069, T-3215]
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
@@ -31,7 +33,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-28T23:48:32Z
-last_update: '2026-09-29T00:12:57Z'
+last_update: '2026-09-29T07:33:24Z'
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -67,20 +69,89 @@ cost_estimate_proposed:
     rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
       (workflow:build); effort=8 (lines=232,acs=4)
     rubric_sha: e4a00f38e801
+  - ts: '2026-09-29T07:33:24Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 8
+    rationale: blast_radius=3 (3-components); tier=2 (workflow:build); effort=8 
+      (lines=292,acs=7)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3214: MCP termlink_doctor lacks 3 checks the CLI doctor runs (ufw_listener, secret_cache, secret_cache_profiles) and carries an extra 'strict' key
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Measured divergence (T-3211 R3, 2026-09-29, `target/debug/termlink` vs `tools.rs:13146`,
+empty runtime dir + HOME with a `sessions/` subdir, on a host that has `ufw`):**
+
+| check | CLI `doctor --json` | MCP `termlink_doctor` |
+|---|---|---|
+| runtime_dir, sessions_dir, sessions, hub, sockets, dispatch, identity, version | yes | yes |
+| `ufw_listener` (T-934; only when `ufw status` succeeds AND names a termlink rule) | yes | **no** |
+| `inbox` (T-1001/T-1415; only when the hub socket exists) | yes | **no** |
+| `secret_cache` (T-1171/G-011) | yes | **no** |
+| `secret_cache_profiles` (T-1284/G-011) | yes | **no** |
+| top-level `strict` echo (T-1712) | **no** | yes |
+| `ok` under `--strict`/`strict:true` with warnings | `true` (exit 1) | `false` |
+
+So an agent reading MCP doctor cannot see secret-cache drift, a firewall rule with no listener, or
+inbox state; and the two `ok` verdicts disagree under strict. `parity_doctor` (T-2991 PAIR 33)
+compares the whole envelope minus `message`/`ts_ms`/`pid` and is `#[ignore]`d pending this task.
+
+**Why this is not a straight port (the decision this task needs — SQ-8 in the T-3211 R3
+handback).** `termlink-mcp` is a dependency OF `termlink-cli`, not the reverse. The four missing
+checks lean on CLI-crate code that is not small: `audit_secret_cache`,
+`audit_hubs_for_self_hub_cache`, `crate::config::load_hubs_config` (the hubs.toml parser),
+`crate::manifest::DispatchManifest`, `resolve_hub_paths`, `secret_cache_dir`, `sum_inbox_counts`.
+Three ways to reach parity, none settled by an existing convention:
+
+1. **Move the doctor down** — extract the check collection into `termlink-mcp` (or
+   `termlink-session`) as one function; CLI keeps text rendering, `--fix` side effects and the
+   exit code; MCP calls the same function. The `help.rs` / `build_cli_help_json` pattern
+   (T-3215 proved it is what makes drift impossible). Cost: the helpers above move crates
+   (hubs.toml loader and dispatch manifest included) — a crate-boundary refactor, blast radius
+   well beyond the 3 components scored here.
+2. **Subprocess the CLI verb** — MCP runs `current_exe() doctor --json [--strict]` under
+   `tokio::time::timeout` + `kill_on_drop` (the T-1689 / T-2116 pattern; 5 sites allowlisted in
+   `.context/checks/drain-sink-allowlist`). Parity by construction, ~60 lines. BUT the MCP test
+   harness is IN-PROCESS (`TermLinkTools::new()` inside the test binary — `parity.rs::mcp_client`,
+   `mcp_integration.rs`), so `current_exe()` there is the TEST binary: `test_doctor_empty_env` and
+   `test_doctor_with_sessions` would fail, and NONE of the five existing subprocess tools has an
+   integration or parity test for exactly this reason. Making it testable means a `TERMLINK_BIN`
+   override in the resolver plus tests that depend on a prebuilt CLI — the T-3215 freshness hazard
+   moved into the integration suite.
+3. **Duplicate the helpers into `tools.rs`** — the T-2069 convention, but that convention is for
+   "tiny pure helpers", and a second hubs.toml parser is the duplicated-registry class T-2069 warns
+   about (it is how `parity_doctor` came to diverge in the first place).
+
+Also to rule: mirror `strict` into the CLI envelope (and make the CLI's `ok` honour it, so `ok`
+agrees with its own exit code) or drop it from MCP. Recommendation, not a decision: option 1
+with `strict` mirrored — it is the only one that cannot re-drift, and the CLI already depends on
+`termlink_mcp` for exactly this shape in `help.rs`.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] AC0 — The operator's ruling on SQ-8 (option 1 / 2 / 3 above, and `strict` mirrored vs
+      dropped) is recorded in `## Decisions` BEFORE any source edit. Producer-not-judge: the agent
+      that wrote the options does not pick one.
+- [ ] AC1 — After the ruling: `termlink_doctor` (MCP) and `termlink doctor --json` (CLI) emit the
+      SAME check list — same `check` names in the same order, same `status` per check — against an
+      empty runtime dir, and the same `ok` verdict under `strict` with warnings present.
+- [ ] AC2 — `parity_doctor` (T-2991 PAIR 33) carries no `#[ignore]` and passes; the two MCP
+      integration tests (`test_doctor_empty_env`, `test_doctor_with_sessions`) still pass
+      in-process.
+- [ ] AC3 — Whichever option lands, no NEW copy of a hubs.toml parser or dispatch-manifest parser
+      exists in `tools.rs` (grep for a second `fn load_hubs_config` / `DispatchManifest` impl is
+      empty), and `bash scripts/check-drain-sink-caps.sh` + `bash scripts/check-platform-lock.sh`
+      scan clean (option 2 adds an `.output()` site → allowlist entry with reason; the `ufw`/`ss`
+      spawns must not be re-introduced in the MCP crate un-acknowledged).
+- [ ] AC4 — RCA + Evolution filled (root cause: two hand-maintained check lists; prevention: one
+      list, or a live parity pair that fails CI on the next divergence).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
