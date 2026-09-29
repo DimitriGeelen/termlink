@@ -189,8 +189,17 @@ fi
 # ---------------------------------------------------------------------------
 # 9. The real tree passes — T-2696 reconciled all 21, so this is a live check
 #    that the repo is currently clean rather than only the fixtures.
+#
+#    Only on a DEPLOY host (T-3008). A CI runner has /etc/cron.d but none of
+#    our crontabs, so every one reads MISSING and this suite went red on every
+#    GitHub run for reasons unrelated to the check's logic — a fixture suite
+#    must be hermetic (run-guard-layer.sh). `CI` is set by GitHub Actions and
+#    most CI systems; a runner is a host with no install target, which the
+#    check itself already treats as informational.
 # ---------------------------------------------------------------------------
-if [ -d /etc/cron.d ]; then
+if [ -n "${CI:-}" ]; then
+    ok "real-tree check skipped (CI=${CI}: not a deploy host — run scripts/check-cron-install-drift.sh on one)"
+elif [ -d /etc/cron.d ]; then
     ( cd "$REPO_ROOT" && bash "$CHECK" >/dev/null 2>&1 )
     rc=$?
     if [ "$rc" = "0" ]; then
