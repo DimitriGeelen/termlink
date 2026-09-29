@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3257: Measure hub cost of channel.create on existing topics (C-34)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-29T20:20:52Z
+# ============================================================================
+
+task_id: T-3257
+task_name: "Measure hub cost of channel.create on existing topics (C-34)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-29T19:57:25Z
+completed: 2026-09-29T20:20:43Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-29T22:20:43+02:00
+last_commit: 2026-09-29T22:20:43+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  create-on-existing costs a read (isolated hub: 13.5-15.5ms vs 13.0-13.5ms info; post 30.7ms) — C-34 ratio is the ensure-topic idiom; no cache built (T-3011 GO conditional not met)
+
+# Key outcomes
+outcomes:
+  - 'On an ISOLATED hub (temp TERMLINK_RUNTIME_DIR, private port — no shared hub touched), per-call wall time is measured for `channel create` on an EXISTING topic vs a read baseline (`channel info`) vs `channel post`, N ≥ 50 each, and the numbers are recorded in `docs/reports/T-3257-create-on-existing-cost.md`'
+  - 'The report states whether hub-side create-on-existing cost is non-trivial relative to the baseline, and the decision per the GO: build a client known-topic cache ONLY if non-trivial (file it as a separate task), otherwise record no-build with the evidence'
+  - 'The isolated hub is stopped and its temp dir removed'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/reports/T-3257-create-on-existing-cost.md'
+  - '.tasks/active/T-3257-measure-hub-cost-of-channelcreate-on-exi.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-29T22:20:43'
+    action: 'T-3257: create-on-existing costs a read (isolated hub: 13.5-15.5ms vs 13.0-13.5ms info; post 30.7ms) — C-34 ratio is the ensure-topic idiom; no cache built (T-3011 GO conditional not met)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 23 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [value-review, arc:arc-009, go-slice]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 23
+  commits: 1
+  files_changed: 2
+  lines_added: 75
+  lines_removed: 39
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3257-measure-hub-cost-of-channelcreate-on-exi.md
+generated_by: context-agent-hybrid
