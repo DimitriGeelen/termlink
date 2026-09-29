@@ -1,0 +1,34 @@
+OPERATOR RULINGS IN FORCE: SQ-4 YES (arc-less agent-owned Q1/Q2 eligible). SQ-3 SURFACE-THEN-ASK. SQ-9 Q1/Q2/Q3
+approved (Q2 = the v0.12.1 tag, HELD BY THE ORCHESTRATOR — never tag, never push).
+
+NEW, 2026-09-29 — operator: "Proceed as you see fit and suggested. Continue until you can't anymore."
+He approved ROUTE A now and ROUTE B as its own task. CI on origin 90bd7b56b: Install Check GREEN, Doc Lint red on
+exactly 2 members: check-go-propagation and voi-prompt. voi-prompt is the OPERATOR's question (T-3200 voi_score) —
+do NOT record an answer for him, do NOT touch T-3200 (owner human). Leave voi-prompt red.
+
+ROUTE A (do FIRST) — check-go-propagation fires on 11 GO-decided inceptions: T-2971 T-2989 T-2995 T-3001 T-3004
+T-3005 T-3007 T-3011 T-3012 T-3048 T-3055 (T-2995/T-3005/T-3011 are ORPHANS — no task mentions them).
+For each, read its Recommendation/decision and what the GO approved, then:
+  - If follow-up tasks already exist (search task bodies, commits, episodics), write the link BOTH directions
+    (inception.related_tasks and each slice's related_tasks). Cite the evidence in the commit.
+  - If the GO approved work that was never filed, FILE the slices the GO approved (that is what GO authorised),
+    scored, and link both directions. Do not build them this round unless they are Q1 and budget allows.
+  - If the approval genuinely looks LAPSED or superseded, do NOT acknowledge it in the allowlist yourself — list it
+    under "## Closure requests" with evidence; the operator decides (SQ-3 rule).
+  Goal: check-go-propagation green, or red only on items awaiting the operator.
+
+ROUTE B (then) — a guard-layer severity classification, as its own build task (create it; real ACs before edits):
+  Mechanism: a member may declare `# guard-layer: source advisory  # <reason>`. Default (no word) = BLOCKING.
+  run-guard-layer.sh gains a mode (e.g. --gate release) where only BLOCKING failures set a non-zero exit, and
+  advisory failures are printed in their own section, never hidden. Push CI (doc-lint) stays exactly as today —
+  every member runs and every red shows. release.yml's test job uses the release gate mode. cargo test is never
+  advisory. check-guard-runner-coverage (or equivalent) refuses an `advisory` marker without a reason.
+  Fixtures with mutants (e.g. an advisory marker without reason must fire; a blocking member failing must still
+  fail the release gate; an advisory failure must still be printed).
+  CLASSIFY NOTHING AS ADVISORY. Instead write docs/reports/T-XXXX-guard-classification-draft.md: every static
+  member with proposed class + one-line reason, for the OPERATOR to approve. Note the risk cases (e.g.
+  check-framework-tracking-drift looks like bookkeeping but catches clean-clone breakage). Flag voi-prompt
+  specifically: its header says "never blocks — it only reports" yet it exits 1 in the gate.
+
+Then continue down the SQ-4 pool if budget remains. Before any commit after a refused finalize: git status
+--porcelain. Never self-grant FW_SWITCH_FOCUS; refocus T-3211 first.
