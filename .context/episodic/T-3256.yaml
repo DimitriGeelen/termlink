@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3256: Scope check-receiver-ack-lag to ack-contract topics
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-29T20:17:11Z
+# ============================================================================
+
+task_id: T-3256
+task_name: "Scope check-receiver-ack-lag to ack-contract topics"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-29T19:57:13Z
+completed: 2026-09-29T20:17:01Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-29T22:16:58+02:00
+last_commit: 2026-09-29T22:16:58+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  scope check-receiver-ack-lag to ack-contract topics (dm:* + ACK_LAG_INCLUDE_TOPICS); broadcast rails excluded and counted (T-3007 GO)
+
+# Key outcomes
+outcomes:
+  - 'Default topic set is the ACK-CONTRACT set: every `dm:*` topic from `channel list --json`, plus `ACK_LAG_INCLUDE_TOPICS` (space-separated explicit include list); the old broadcast defaults (`agent-chat-arc`, `framework:pickup`) are no longer scanned by default. `--topics` still overrides everything'
+  - 'Exclusions are counted, never silent: output names how many topics were excluded as non-ack-contract and names the broadcast rails explicitly, with the reason (broadcast consumption belongs to fleet-adoption-snapshot, post-T-3254)'
+  - 'The sender-keyed caveat stays in the output; an unreadable `channel list` is NO VERDICT (rc 2), and zero ack-contract topics prints an explicit "nothing to measure" line rather than "all senders within threshold"'
+  - 'Hermetic fixture (mock termlink): a broadcast topic whose never-acked posting bots would fire is NOT scanned by default and the run is rc 0; a `dm:*` topic with a sender behind threshold fires rc 1; an include-listed non-dm topic IS scanned; the `--self-test` classifier legs still pass'
+  - 'Mutant: restoring the old broadcast defaults turns the broadcast leg red'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.fabric/components/tests-receiver-ack-lag-scope-fixtures.yaml'
+  - 'scripts/check-receiver-ack-lag.sh'
+  - '.tasks/active/T-3256-scope-check-receiver-ack-lag-to-ack-cont.md'
+  - 'tests/receiver-ack-lag-scope-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-29T22:16:58'
+    action: 'T-3256: scope check-receiver-ack-lag to ack-contract topics (dm:* + ACK_LAG_INCLUDE_TOPICS); broadcast rails excluded and counted (T-3007 GO)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 19 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [value-review, arc:arc-009, go-slice]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 19
+  commits: 1
+  files_changed: 4
+  lines_added: 185
+  lines_removed: 43
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3256-scope-check-receiver-ack-lag-to-ack-cont.md
+generated_by: context-agent-hybrid

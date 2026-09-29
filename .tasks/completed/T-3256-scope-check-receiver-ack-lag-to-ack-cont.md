@@ -8,12 +8,12 @@ description: >
   caveat. Fixture: broadcast topic with never-acked bots must not fire; behind-threshold
   dm topic must.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [value-review, arc:arc-009, go-slice]
-components: []
+components: [scripts/check-receiver-ack-lag.sh, tests/receiver-ack-lag-scope-fixtures.sh]
 related_tasks: [T-3007]
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -26,8 +26,8 @@ related_tasks: [T-3007]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-29T19:57:13Z
-last_update: 2026-09-29T20:14:34Z
-date_finished:
+last_update: 2026-09-29T20:17:01Z
+date_finished: 2026-09-29T20:17:01Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -288,3 +288,20 @@ bash -n scripts/check-receiver-ack-lag.sh
 
 ### 2026-09-29T20:14:34Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-122094fa
+- **Timestamp:** 2026-09-29T20:17:03Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** yes
+- **Reviewer:** inline
+- **Findings:** none
+
+- **Layer-1 escalations:** 1
+  1. **external-publish** (high) — External publish or release
+     - matched: `broadcast`
+
+### 2026-09-29T20:17:01Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
