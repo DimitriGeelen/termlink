@@ -13,6 +13,13 @@ headline_mechanic: "A live agent receives a DM the instant it is posted via a hu
   \ and cleanly degrades back to polling if the socket drops \u2014 the durable dm:\
   \ topics, receipts, journal and offline queue stay authoritative underneath."
 demo_evidence: "docs/reports/T-2310-arc-004-ws-push-demo.md"
+# T-3239: demo_evidence is prose written once at close time — it cannot fail later.
+# `prover` binds the headline_mechanic (sub-second hub->client WS push, clean degrade,
+# push RESUMES after a blip) to a re-runnable proof: demo-ws-push.sh drives exactly
+# that against an ISOLATED hub under a temp runtime_dir (never the shared :9100 hub),
+# ~4s. Exit 0 PASS; 2 = binary missing (tooling — skipped only under CI, T-3238);
+# 3-5 = a genuine failure. check-arc-claim-drift.sh executes it.
+prover: "bash scripts/demo-ws-push.sh"
 # Follow-on wire evidence (past the GO(scoped) surface, both T-2311/T-2312 GO'd + built):
 #   T-2313 WS-over-Unix push:        docs/reports/T-2312-arc-004-ws-over-unix-inception.md (built; 31ms Unix push; demo scripts/demo-ws-push-unix.sh)
 #   T-2314 active reconnect-to-WS:   docs/reports/T-2314-arc-004-active-reconnect-demo.md  (built; resumes push after blip)
