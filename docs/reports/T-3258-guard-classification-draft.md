@@ -95,4 +95,13 @@ Approve or amend per row. A follow-up build task then edits each approved member
   check-receiver-ack-lag, invocation-usage).
 - **New requirement:** more than two classes — the operator named "warn, advisory, fail, etc." Tier vocabulary to
   be settled before implementation (proposal in the walk-through; see below once ruled).
-- Part 2 (6 DECIDE rows) and Part 3 (41 BLOCKING rows): pending.
+- **Tier vocabulary APPROVED (three tiers):**
+  - **FAIL** — blocks release; push CI red. (default for every member with no word)
+  - **WARN** — never blocks release; push CI stays GREEN with the warnings surfaced as GitHub annotations and in the
+    summary; a WARN member red for more than 14 days ESCALATES (the release-publication canary fires on it), so a
+    warning cannot silently become ignored.
+  - **INFO** — never blocks, never red; printed only (reports/statistics).
+  - Part 1 mapping: `invocation-usage` -> INFO; the other 11 approved rows -> WARN.
+- **Part 2 APPROVED (all six as recommended):** `check-arc-claim-drift` -> FAIL; `check-audit-warning-acknowledgement`,
+  `check-budget-ladder-drift`, `check-episodic-parse`, `check-vendor-divergence`, `fabric-workflow-link` -> WARN.
+- Part 3 (41 BLOCKING -> FAIL rows): pending.
