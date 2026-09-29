@@ -257,3 +257,21 @@ rounds_after_rulings:
   - Tier-0 detector matched the literal decide-command text in a COMMIT MESSAGE (T-2943 class); reworded
   - T-3012's GO propagated by filing the approved session as T-3259 (owner human) and linking; go-propagation 0
   - pushed 4b9b20fcb for a full-green CI measurement before tagging v0.12.1 (operator Q2)
+- round: 9
+  handback: .context/runs/T-3211-R9-handback.md
+  handback_bytes: 16828
+  placeholders: 0
+  status: COMPLETE (operator-directed tier implementation + v0.12.1 root causes)
+  trigger: v0.12.1 Release run 36633929858 failed - guard layer ERROR on check-task-id-collisions (no local main
+    on a tag checkout) and check-receiver-ack-lag (CI skip keyed on missing binary; cargo test had built one)
+  verified_by_orchestrator:
+  - 4 closes (T-3260 tiers, T-3261, T-3262, T-3263) committed; worker gone before verify
+  - release-job simulation reported EXIT 0, 177/177; heading-shadow 226s locally but 72s on GitHub (SQ-21 not a
+    release risk on the runner)
+  orchestrator_after_r9:
+  - applied operator's Part 3 ruling - 7 members WARN; markers clean 35 FAIL / 23 WARN / 1 INFO; corrected own
+    34/17 arithmetic slip in the record
+  - operator's binding condition (stale >14d or >5 accumulating WARNs become FILED TASKS) NOT yet implemented
+  - v0.12.1 left as an unpublished tag (never move a mirrored tag); release goes out as v0.12.2
+  new_sovereign_questions: [SQ-20 E4 prover on binary-without-identity runner, SQ-21 heading-shadow vs 300s timeout,
+    SQ-22 who commits the WARN first-red ledger]
