@@ -9,15 +9,12 @@ description: >
   (hardcoded /opt/termlink), planted-default-gate (unexplained). Skip-with-reason
   under CI when prerequisite absent, per T-3008 pattern.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components:
-  - scripts/run-guard-layer.sh
-  - tests/hook-telemetry-race-fixtures.sh
-  - tests/l387-boundary-fixtures.sh
+components: [scripts/check-fleet-recipient-agreement.sh, scripts/check-installed-binary-drift.sh, scripts/fabric-workflow-link.sh, tests/artifact-cli-fixtures.sh, tests/hook-telemetry-race-fixtures.sh, tests/l387-boundary-fixtures.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -30,8 +27,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-29T15:48:31Z
-last_update: 2026-09-29T15:56:35Z
-date_finished:
+last_update: 2026-09-29T15:59:42Z
+date_finished: 2026-09-29T15:59:42Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -325,3 +322,16 @@ AFTER: all six rc 0 in the CI env, each skip prints a SKIP line naming the prere
 Loudness preserved outside CI: installed-binary-drift none-found rc 3, artifact-cli no-binary rc 2, fabric no-dir rc 2, recipient no-fleet rc 2.
 Origin host (`CI` unset), all six edited members: rc before == rc after (all 0; diff of recorded rc lists empty).
 Not touched (TREE findings, T-3216 option 3): check-receiver-ack-lag and the other 7.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-e2c3582c
+- **Timestamp:** 2026-09-29T15:59:46Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** none
+
+### 2026-09-29T15:59:42Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

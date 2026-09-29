@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3234: Guard-layer members depend on host environment: make them CI-hermetic (no binary/hub, designer dir, SIGPIPE, hardcoded path)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-29T15:59:54Z
+# ============================================================================
+
+task_id: T-3234
+task_name: "Guard-layer members depend on host environment: make them CI-hermetic (no binary/hub, designer dir, SIGPIPE, hardcoded path)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-29T15:48:31Z
+completed: 2026-09-29T15:59:42Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-09-29T17:59:32+02:00
+last_commit: 2026-09-29T17:59:32+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  six guard members CI-hermetic — CI-gated SKIPs for absent binary/fleet/designer dir/install paths, repo-relative FW_LIB, SIGPIPE-disposition probe (T-3216 option 2)
+
+# Key outcomes
+outcomes:
+  - 'Measured, not assumed: each candidate member (artifact-cli-fixtures, check-fleet-recipient-agreement, check-installed-binary-drift, fabric-workflow-link, l387-boundary-fixtures, hook-telemetry-race-fixtures, planted-default-gate-fixtures) is run in a full-history clone with `CI=true PATH=/usr/bin:/bin` and its rc + reason recorded under Updates'
+  - 'Every member that fails in that environment ONLY for a missing environmental prerequisite exits 0 there with a printed SKIP line naming the prerequisite (T-3008 pattern), gated on `CI` being set AND the prerequisite being absent — never on `CI` alone'
+  - '`hook-telemetry-race-fixtures.sh` resolves its default `FW_LIB` from the script''s own repo root, not the literal `/opt/termlink`'
+  - 'No behaviour change on the origin host: each edited member''s rc with `CI` unset is the same before and after the change'
+  - 'Members whose failure is a real tree finding are NOT touched here (that is T-3216 option 3, the operator''s); any member reclassified by the measurement is named under Updates'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'scripts/check-fleet-recipient-agreement.sh'
+  - 'scripts/check-installed-binary-drift.sh'
+  - 'scripts/fabric-workflow-link.sh'
+  - '.tasks/active/T-3234-guard-layer-members-depend-on-host-envir.md'
+  - 'tests/artifact-cli-fixtures.sh'
+  - 'tests/hook-telemetry-race-fixtures.sh'
+  - 'tests/l387-boundary-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-29T17:59:32'
+    action: 'T-3234: six guard members CI-hermetic — CI-gated SKIPs for absent binary/fleet/designer dir/install paths, repo-relative FW_LIB, SIGPIPE-disposition probe (T-3216 option 2)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 11 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 11
+  commits: 1
+  files_changed: 7
+  lines_added: 374
+  lines_removed: 3
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3234-guard-layer-members-depend-on-host-envir.md
+generated_by: context-agent-hybrid
