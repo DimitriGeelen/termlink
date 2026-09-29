@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2999: Paired-commit drift check for _mcp/CLI helper twins
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-29T10:19:07Z
+# ============================================================================
+
+task_id: T-2999
+task_name: "Paired-commit drift check for _mcp/CLI helper twins"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-19T22:22:09Z
+completed: 2026-09-29T10:18:56Z
+duration_days: 10
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  S-25/C-26 alt half: T-2069 duplicates tiny pure helpers across CLI and MCP crates by convention; add a paired-commit drift check that flags a commit touching one twin without the other (no change to the T-2069 convention itself). Evidence: docs/reports/VALUE-REVIEW-repo-2026-09-19-consolidated.md C-26.
+
+# Key outcomes
+outcomes:
+  - 'Script flags a commit that changes only `foo_mcp` (or only `foo`) and stays quiet when both change in the same commit, or when neither is a twin (hermetic fixture repo)'
+  - 'Bad range / non-repo exits 2, never 0'
+  - 'Run over this repo''s recent history, with the count reported in Context as evidence of the signal''s size'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 13676 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [value-review, arc:arc-009]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 13676
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2999-paired-commit-drift-check-for-mcpcli-hel.md
+generated_by: context-agent-hybrid
