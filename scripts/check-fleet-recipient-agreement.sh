@@ -119,11 +119,15 @@ if [ "${1:-}" = "--self-test" ]; then
 fi
 
 MAP="$(fleet_map)"
-if [ -z "$MAP" ] && [ -n "${CI:-}" ] && ! command -v termlink >/dev/null 2>&1; then
-  # T-3234 (T-3008 pattern): a CI runner has no termlink binary and no hubs.toml,
-  # so there is no fleet to compare. Skip ONLY then; anywhere else an empty map
-  # stays "no verdict" (exit 2). The self-test above still ran.
-  echo "check-fleet-recipient-agreement: SKIP — CI is set and no termlink binary is on PATH; no fleet to compare"
+if [ -z "$MAP" ] && [ -n "${CI:-}" ]; then
+  # T-3234 (T-3008 pattern): a CI runner has no hubs.toml and no hub, so there is
+  # no fleet to compare. Skip ONLY then; anywhere else an empty map stays
+  # "no verdict" (exit 2). The self-test above still ran.
+  # T-3263: key on the absent PREREQUISITE (an unreadable fleet map), not on a
+  # proxy for it. This used to also require "no termlink on PATH"; a runner that
+  # has the binary but no fleet (the release job builds one) then errored rc 2 —
+  # the T-3262 defect in a sibling.
+  echo "check-fleet-recipient-agreement: SKIP — CI is set and no fleet status is readable ($TL fleet status listed no hubs); no fleet to compare"
   exit 0
 fi
 [ -n "$MAP" ] || { echo "check-fleet-recipient-agreement: could not read fleet status — no verdict"; exit 2; }
