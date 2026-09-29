@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3229: MCP channel_ack_status counts receipt envelopes as content — phantom lag >= 1 (T-2838 not ported)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-29T10:39:24Z
+# ============================================================================
+
+task_id: T-3229
+task_name: "MCP channel_ack_status counts receipt envelopes as content — phantom lag >= 1 (T-2838 not ported)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-29T10:35:38Z
+completed: 2026-09-29T10:39:14Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  T-2838 made the CLI ack-status frontier count content only; MCP channel_ack_status (tools.rs:29898) still counts receipt messages when finding the latest, so a fully caught-up consumer always shows at least 1 behind. Evidence: docs/reports/T-3219-twin-drift-triage.md (T-3219).
+
+# Key outcomes
+outcomes:
+  - '`termlink_channel_ack_status` derives `latest_offset` from content envelopes only (META_MSG_TYPES excluded), through a pure helper, matching the CLI''s T-2838 `latest_content_offset`'
+  - 'Unit test: two content envelopes plus a receipt `up_to=1` → frontier 1 (the old inline `max(offset)` gives 2), and an all-meta slice → 0'
+  - '`cargo test -p termlink-mcp --lib` passes with no warnings'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 3
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3229-mcp-channelackstatus-counts-receipt-enve.md
+generated_by: context-agent-hybrid

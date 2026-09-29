@@ -7012,6 +7012,22 @@ struct PresenceMcp {
 /// Mirrors CLI's `META` constant in commands/channel.rs.
 const META_MSG_TYPES: &[&str] = &["reaction", "edit", "redaction", "topic_metadata", "receipt"];
 
+/// T-3229 (parity with the CLI's T-2838): the ack-status frontier is the highest
+/// CONTENT offset. Every ack appends a `receipt` envelope, so a naive
+/// `max(offset)` over all envelopes moved the frontier with each ack and a
+/// fully caught-up consumer always showed a phantom lag of at least 1.
+fn ack_status_frontier_mcp(envelopes: &[serde_json::Value]) -> u64 {
+    envelopes
+        .iter()
+        .filter(|e| {
+            let mt = e.get("msg_type").and_then(|v| v.as_str()).unwrap_or("");
+            !META_MSG_TYPES.contains(&mt)
+        })
+        .filter_map(|e| e.get("offset").and_then(|v| v.as_u64()))
+        .max()
+        .unwrap_or(0)
+}
+
 /// T-1716 pure helper: walk a slice of agent-chat-arc envelopes and
 /// compute presence for `peer_fp` over a window. Pure — no I/O, no globals.
 /// Mirrors CLI's `evaluate_presence` (commands/channel.rs:651) one-to-one.
@@ -29904,11 +29920,8 @@ impl TermLinkTools {
                 "count": 0,
             })).unwrap_or_else(json_err);
         }
-        let latest_offset = envelopes
-            .iter()
-            .filter_map(|e| e.get("offset").and_then(|v| v.as_u64()))
-            .max()
-            .unwrap_or(0);
+        // T-3229: content-only frontier (parity with the CLI's T-2838).
+        let latest_offset = ack_status_frontier_mcp(&envelopes);
         // Derive receipts from envelope walk (sender -> (max up_to, ts at max).
         let mut receipts: std::collections::HashMap<String, (u64, i64)> = std::collections::HashMap::new();
         for env in &envelopes {
@@ -46543,5 +46556,27 @@ mod t3218_bad_ts_parity_tests {
     fn claims_counts_bad_ts_as_malformed() {
         let (e, m) = parse_claims_log(&two_rows(r#""topic":"t","kind":"transition""#), cutoff(), None);
         assert_eq!((e.len(), m), (1, 1));
+    }
+}
+
+#[cfg(test)]
+mod t3229_ack_frontier_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn receipts_do_not_move_the_frontier() {
+        let envs = vec![
+            json!({"offset": 0, "msg_type": "chat"}),
+            json!({"offset": 1, "msg_type": "chat"}),
+            json!({"offset": 2, "msg_type": "receipt"}),
+        ];
+        assert_eq!(ack_status_frontier_mcp(&envs), 1);
+    }
+
+    #[test]
+    fn all_meta_slice_has_frontier_zero() {
+        let envs = vec![json!({"offset": 5, "msg_type": "receipt"}), json!({"offset": 6, "msg_type": "reaction"})];
+        assert_eq!(ack_status_frontier_mcp(&envs), 0);
     }
 }
