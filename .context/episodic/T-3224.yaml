@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3224: MCP find-idle history has no kind filter — CLI gained --kind in T-2208
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-29T11:14:58Z
+# ============================================================================
+
+task_id: T-3224
+task_name: "MCP find-idle history has no kind filter — CLI gained --kind in T-2208"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-29T10:34:42Z
+completed: 2026-09-29T11:14:15Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-29T13:14:14+02:00
+last_commit: 2026-09-29T13:14:14+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  MCP find-idle history gains the kind filter — parity with the CLI's T-2208
+
+# Key outcomes
+outcomes:
+  - '`termlink_agent_find_idle_history` accepts an optional `kind` param (exact match on the entry''s `kind`; permissive — an unknown value yields zero matches, no error), mirroring CLI `agent find-idle-history --kind` (T-2208)'
+  - 'The response `summary` carries `kind_filter` (null when unset), as the CLI `--json` summary does; the tool description names the param'
+  - '`parse_find_idle_log_mcp` gains the `kind_filter` arg with a unit test mirroring the CLI''s `find_idle_history_parse_applies_kind_filter` (new=2, removed=1, unknown kind=0); existing callers pass `None`'
+  - '`cargo test -p termlink-mcp --lib` passes with no new warnings'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-mcp/src/tools.rs'
+  - '.tasks/active/T-3224-mcp-find-idle-history-has-no-kind-filter.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-29T13:14:14'
+    action: 'T-3224: MCP find-idle history gains the kind filter — parity with the CLI''s T-2208'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 39 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 39
+  commits: 1
+  files_changed: 2
+  lines_added: 97
+  lines_removed: 52
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3224-mcp-find-idle-history-has-no-kind-filter.md
+generated_by: context-agent-hybrid
