@@ -76,6 +76,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # T-3216 / T-3233: ten members read git history (pre-fix corpora,
+          # baseline refs, HEAD~N). The default depth-1 checkout failed all ten.
+          fetch-depth: 0
 
       - name: Run guard layer
         run: bash scripts/run-guard-layer.sh
