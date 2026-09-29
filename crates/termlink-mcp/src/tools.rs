@@ -8066,6 +8066,71 @@ async fn resolve_contact_via_fleet_mcp(agent_id: &str) -> Option<(String, String
     best.map(|(fp, hub, declared, _)| (fp, hub, declared))
 }
 
+/// T-3230: the `agent_id` a fingerprint heartbeats as, from `agent-presence`
+/// envelopes (newest first). Pure → unit-testable. Twin of the inline scan in
+/// CLI `resolve_contact_fp_via_fleet` (agent.rs, T-2386).
+fn agent_id_for_fp_mcp(msgs: &[serde_json::Value], peer_fp: &str) -> Option<String> {
+    msgs.iter().rev().find_map(|m| {
+        let sid = m.get("sender_id").and_then(|v| v.as_str())?;
+        if sid != peer_fp {
+            return None;
+        }
+        m.get("metadata")
+            .and_then(|md| md.get("agent_id"))
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
+    })
+}
+
+/// T-3230: fp-keyed fleet walk for a `target_fp` contact with no explicit hub.
+/// Returns the route hub (declared home hub, else the hub the heartbeat was read
+/// on) of the freshest LIVE heartbeat from `peer_fp`, or `None` when no hub has
+/// one. Twin of CLI `resolve_contact_fp_via_fleet` (T-2386). Each hub's fetch is
+/// bounded like the name walk (T-3221).
+async fn resolve_contact_fp_via_fleet_mcp(peer_fp: &str) -> Option<String> {
+    use termlink_session::fleet_presence::{resolve_agent_presence, PresenceStatus};
+    let profiles = list_all_hub_profiles();
+    if profiles.is_empty() {
+        return None;
+    }
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut best: Option<(String, i64)> = None; // (route_hub, ts)
+    for (_name, address, _sf, _sec) in &profiles {
+        if !seen.insert(address.clone()) {
+            continue;
+        }
+        let client = match connect_remote_hub_mcp(address, None, None, "observe").await {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+        let mut conn = ContactHub::Remote(Box::new(client));
+        let fetch = conn.fetch_presence_recent(500);
+        let msgs = match tokio::time::timeout(FLEET_PRESENCE_HUB_TIMEOUT_MCP, fetch).await {
+            Ok(Ok(m)) => m,
+            Ok(Err(_)) | Err(_) => continue,
+        };
+        let Some(agent_id) = agent_id_for_fp_mcp(&msgs, peer_fp) else {
+            continue;
+        };
+        let Some(m) = resolve_agent_presence(&msgs, &agent_id, now_ms) else {
+            continue;
+        };
+        if m.status != PresenceStatus::Live {
+            continue;
+        }
+        let declared = resolve_home_hub_mcp(&m);
+        let fresher = best.as_ref().map(|(_, ts)| m.last_ts_ms > *ts).unwrap_or(true);
+        if fresher {
+            best = Some((fleet_route_hub_mcp(declared.as_deref(), address), m.last_ts_ms));
+        }
+    }
+    best.map(|(hub, _)| hub)
+}
+
 /// T-2268: classify a cross-hub TLS connect failure. A TOFU/cert-drift
 /// rejection (the hub is up but its cert rotated) is surfaced verbatim — it
 /// already carries the `termlink tofu clear` remediation — rather than being
@@ -19083,6 +19148,12 @@ impl TermLinkTools {
         let peer_fp: String = if let Some(fp) = &p.target_fp {
             if fp.len() < 8 || !fp.chars().all(|c| c.is_ascii_hexdigit()) {
                 return json_err(format!("target_fp must be hex (got {fp:?})"));
+            }
+            // T-3230 (CLI T-2386): with no explicit hub, route to the hub where
+            // this fp heartbeats LIVE (its declared home hub when it declares
+            // one). No LIVE match → local hub, as before.
+            if p.hub.is_none() {
+                fleet_hub = resolve_contact_fp_via_fleet_mcp(fp).await;
             }
             fp.clone()
         } else {
@@ -30610,6 +30681,26 @@ mod tests {
         );
     }
     use super::*;
+
+    // === T-3230: fp-keyed fleet walk for target_fp contacts (T-2386 port) ===
+
+    #[test]
+    fn t3230_agent_id_for_fp_mcp() {
+        let msgs = vec![
+            serde_json::json!({"sender_id": "fp-a", "metadata": {"agent_id": "alpha-old"}}),
+            serde_json::json!({"sender_id": "fp-b", "metadata": {"agent_id": "beta"}}),
+            serde_json::json!({"sender_id": "fp-a", "metadata": {"agent_id": "alpha"}}),
+            serde_json::json!({"sender_id": "fp-c", "metadata": {}}),
+        ];
+        // Newest heartbeat for the fp wins.
+        assert_eq!(agent_id_for_fp_mcp(&msgs, "fp-a"), Some("alpha".to_string()));
+        assert_eq!(agent_id_for_fp_mcp(&msgs, "fp-b"), Some("beta".to_string()));
+        // Heartbeat without metadata.agent_id → none.
+        assert_eq!(agent_id_for_fp_mcp(&msgs, "fp-c"), None);
+        // Unknown fp → none.
+        assert_eq!(agent_id_for_fp_mcp(&msgs, "fp-z"), None);
+        assert_eq!(agent_id_for_fp_mcp(&[], "fp-a"), None);
+    }
 
     // === T-3222: route to the peer's declared home hub (T-2386 port) ===
 
