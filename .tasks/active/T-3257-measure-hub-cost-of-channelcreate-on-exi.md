@@ -6,10 +6,10 @@ description: >
   hub-side cost of create-on-existing; add a client-side known-topic cache ONLY if
   the cost is non-trivial; record the measurement either way.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [value-review, arc:arc-009, go-slice]
 components: []
 related_tasks: [T-3011]
@@ -24,7 +24,7 @@ related_tasks: [T-3011]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-29T19:57:25Z
-last_update: '2026-09-29T19:58:49Z'
+last_update: 2026-09-29T20:19:53Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -49,6 +49,19 @@ bvp_scores_proposed:
     rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
       (body:component-discoverability); D4=2 (body:env-class-handled); 
       F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+  - ts: '2026-09-29T20:19:54Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
 cost_estimate_proposed:
   - ts: '2026-09-29T19:58:05Z'
@@ -82,44 +95,16 @@ Files: `crates/termlink-cli/src/commands/channel.rs` (ensure_topic client path),
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] On an ISOLATED hub (temp TERMLINK_RUNTIME_DIR, private port — no shared hub touched), per-call wall time is measured for `channel create` on an EXISTING topic vs a read baseline (`channel info`) vs `channel post`, N ≥ 50 each, and the numbers are recorded in `docs/reports/T-3257-create-on-existing-cost.md`
+- [x] The report states whether hub-side create-on-existing cost is non-trivial relative to the baseline, and the decision per the GO: build a client known-topic cache ONLY if non-trivial (file it as a separate task), otherwise record no-build with the evidence
+- [x] The isolated hub is stopped and its temp dir removed
 
-### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-
-     ── Prefix routing (T-1811, T-1878): default to [REVIEWER] if Expected is grep-able ──
-     If your Expected clause is grep-able / file-exists / structural (a deterministic
-     shell check), prefer [REVIEWER] — that AC should be an Agent AC with the reviewer
-     command in `## Verification` instead of a Human AC here. Only keep [REVIEW] if
-     verification genuinely needs human taste (tone, feel, layout rhythm).
-     See CLAUDE.md §AC Classification Guidance for the conversion rule.
-
-     [REVIEW] example (genuine human judgment):
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
-
-     [REVIEWER] example (static-scan-verifiable — convert to Agent AC + Verification):
-       - [ ] [REVIEWER] Block message names both bypass mechanisms
-         **Steps:**
-         1. Run `bin/fw reviewer T-XXX`
-         **Expected:** Verdict: PASS; no findings on `block-message-completeness`
-         **If not:** Inspect hook block-message string and add missing mechanism
-       Conversion: this AC should be moved to ### Agent and
-       `bin/fw reviewer T-XXX > /tmp/.rev 2>&1 && grep -q "Overall:.*PASS" /tmp/.rev`
-       added to ## Verification. NEVER `... 2>&1 | grep -q ...` — that is the shape the
-       Pipefail/SIGPIPE section below forbids, and this line used to prescribe it.
--->
 
 ## Verification
+
+test -f docs/reports/T-3257-create-on-existing-cost.md
+grep -q "Decision: NO BUILD" docs/reports/T-3257-create-on-existing-cost.md
+test -z "$(ls -d /tmp/r8-bench.* 2>/dev/null)"
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -248,6 +233,11 @@ Files: `crates/termlink-cli/src/commands/channel.rs` (ensure_topic client path),
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-09-29: the anomaly is the ensure-topic idiom, and it is free
+- **What changed:** the 0.98 create/post ratio comes from `ensure_topic()` issuing create before each post. On an isolated hub, create-on-existing costs about the same as a read (13.5–15.5 ms vs 13.0–13.5 ms per CLI call); a post costs 30.7 ms.
+- **Plan impact:** the GO's conditional cache is not warranted. No build.
+- **Triggered:** none.
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -304,3 +294,7 @@ Files: `crates/termlink-cli/src/commands/channel.rs` (ensure_topic client path),
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3257-measure-hub-cost-of-channelcreate-on-exi.md
 - **Context:** Initial task creation
+
+### 2026-09-29T20:19:53Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
