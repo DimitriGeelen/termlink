@@ -10,10 +10,10 @@ description: >
   on a hub the peer may never read. Found while scoping T-3222 (T-3211 R5); T-3222
   fixed only the name path.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
@@ -28,8 +28,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-29T10:57:42Z
-last_update: 2026-09-29T10:59:09Z
-date_finished:
+last_update: 2026-09-29T11:01:00Z
+date_finished: 2026-09-29T11:01:00Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -274,3 +274,16 @@ grep -q "fleet_hub = resolve_contact_fp_via_fleet_mcp(fp).await;" crates/termlin
 
 ### 2026-09-29T10:59:09Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-c0ca56c9
+- **Timestamp:** 2026-09-29T11:01:37Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** none
+
+### 2026-09-29T11:01:00Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3230: MCP agent_contact with target_fp posts to the local hub — no fp-keyed fleet walk (T-2386 half not ported)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-29T11:01:44Z
+# ============================================================================
+
+task_id: T-3230
+task_name: "MCP agent_contact with target_fp posts to the local hub — no fp-keyed fleet walk (T-2386 half not ported)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-29T10:57:42Z
+completed: 2026-09-29T11:01:00Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-29T13:00:59+02:00
+last_commit: 2026-09-29T13:00:59+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  MCP agent_contact target_fp routes via fp-keyed fleet walk — parity with the CLI's T-2386
+
+# Key outcomes
+outcomes:
+  - 'When `target_fp` is given and no `hub` param, `termlink_agent_contact` walks hubs.toml `agent-presence` for that fp''s freshest LIVE heartbeat and routes to its declared home hub (else the hub it was read on); no LIVE match → local hub as before; explicit `hub` still wins (twin of CLI `resolve_contact_fp_via_fleet`, T-2386)'
+  - 'Each hub''s presence fetch in the walk is bounded (same 8s `FLEET_PRESENCE_HUB_TIMEOUT_MCP` as the name walk); a down/slow hub is skipped, never fatal'
+  - 'Pure helper `agent_id_for_fp_mcp` (fp → agent_id from presence envelopes, newest first) unit-tested, including the non-matching and missing-agent_id cases'
+  - '`cargo test -p termlink-mcp --lib` passes with no new warnings'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-mcp/src/tools.rs'
+  - '.tasks/active/T-3230-mcp-agentcontact-with-targetfp-posts-to-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-29T13:00:59'
+    action: 'T-3230: MCP agent_contact target_fp routes via fp-keyed fleet walk — parity with the CLI''s T-2386'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 2
+  lines_added: 140
+  lines_removed: 42
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3230-mcp-agentcontact-with-targetfp-posts-to-.md
+generated_by: context-agent-hybrid
