@@ -120,6 +120,14 @@ fi
 
 command -v jq >/dev/null 2>&1 || { echo "check-receiver-ack-lag: jq not in PATH — no verdict"; exit 2; }
 
+# T-3238 (T-3234 pattern): a CI runner has no termlink binary and no hub, so there is
+# no receipt aggregate to read. Skip ONLY when CI is set AND no binary resolves;
+# anywhere else an unreadable hub stays "NO VERDICT" (exit 2), never healthy.
+if [ -n "${CI:-}" ] && ! command -v "$TL" >/dev/null 2>&1; then
+  echo "check-receiver-ack-lag: SKIP — CI is set and no termlink binary ($TL) is available; no hub to read"
+  exit 0
+fi
+
 echo "check-receiver-ack-lag: receiver-side ack frontiers (threshold ${THRESHOLD})"
 echo "  PREDICATE: reads the hub's own receipt aggregate via 'channel ack-status'."
 echo "             Rows are keyed by identity FINGERPRINT — where agents share a"

@@ -173,7 +173,7 @@ python3 -c "import json,sys; json.loads(sys.argv[1])" "$PLAN" 2>/dev/null || {
     echo "check-arc-claim-drift: could not build plan" >&2; exit 2; }
 
 PARSED="$(printf '%s' "$PLAN" | python3 -c 'import json,sys; print(json.load(sys.stdin)["parsed"])')"
-FIRING=0; CLOSED=0; ALLOWED=0; BOUND_OK=0
+FIRING=0; CLOSED=0; ALLOWED=0; BOUND_OK=0; SKIPPED_CI=0
 FIRE_LINES=""
 
 while IFS=$'\t' read -r kind arc prover detail; do
@@ -192,13 +192,21 @@ while IFS=$'\t' read -r kind arc prover detail; do
                      BOUND_OK=$((BOUND_OK+1))
                      { [ "$QUIET" -eq 1 ] || [ "$JSON" -eq 1 ]; } || printf '  %-28s BOUND         %s (not run)\n' "$arc" "$prover"
                  else
-                     if timeout "$TIMEOUT" bash -c "$prover" >/dev/null 2>&1; then
+                     prc=0; timeout "$TIMEOUT" bash -c "$prover" >/dev/null 2>&1 || prc=$?
+                     if [ "$prc" -eq 0 ]; then
                          BOUND_OK=$((BOUND_OK+1))
                          { [ "$QUIET" -eq 1 ] || [ "$JSON" -eq 1 ]; } || printf '  %-28s VERIFIED      %s\n' "$arc" "$prover"
+                     elif [ "$prc" -eq 2 ] && [ -n "${CI:-}" ]; then
+                         # T-3238 (T-3234 pattern): exit 2 is the provers' declared
+                         # "could not run" (notify-rail-e2e TOOLING, demo-ws-push binary
+                         # missing). Only under CI — a runner has no binary/hub — is that
+                         # a skip; anywhere else it still fires as CLAIM-FAILED.
+                         SKIPPED_CI=$((SKIPPED_CI+1))
+                         { [ "$QUIET" -eq 1 ] || [ "$JSON" -eq 1 ]; } || printf '  %-28s SKIP(CI)      prover could not run here (exit 2 = tooling): %s\n' "$arc" "$prover"
                      else
                          FIRING=$((FIRING+1))
                          FIRE_LINES="${FIRE_LINES}${arc}: bound prover FAILED: ${prover}"$'\n'
-                         [ "$JSON" -eq 1 ] || printf '  %-28s CLAIM-FAILED  prover exited non-zero: %s\n' "$arc" "$prover"
+                         [ "$JSON" -eq 1 ] || printf '  %-28s CLAIM-FAILED  prover exited %s: %s\n' "$arc" "$prc" "$prover"
                      fi
                  fi ;;
     esac
@@ -210,11 +218,11 @@ for r in d["rows"]:
 ')
 
 if [ "$JSON" -eq 1 ]; then
-    printf '{"ok":%s,"arcs_parsed":%s,"closed_arcs":%s,"firing":%s,"acknowledged":%s,"verified":%s,"scope":"detects whether a CLOSED arc claim is bound to a runnable prover and whether it still passes; does NOT judge prover adequacy, and says nothing about in-progress arcs"}\n' \
-        "$([ "$FIRING" -eq 0 ] && echo true || echo false)" "$PARSED" "$CLOSED" "$FIRING" "$ALLOWED" "$BOUND_OK"
+    printf '{"ok":%s,"arcs_parsed":%s,"closed_arcs":%s,"firing":%s,"acknowledged":%s,"verified":%s,"skipped_ci":%s,"scope":"detects whether a CLOSED arc claim is bound to a runnable prover and whether it still passes; does NOT judge prover adequacy, and says nothing about in-progress arcs"}\n' \
+        "$([ "$FIRING" -eq 0 ] && echo true || echo false)" "$PARSED" "$CLOSED" "$FIRING" "$ALLOWED" "$BOUND_OK" "$SKIPPED_CI"
 elif [ "$QUIET" -eq 0 ] || [ "$FIRING" -gt 0 ]; then
     echo
-    echo "arcs parsed: $PARSED   closed: $CLOSED   verified: $BOUND_OK   acknowledged: $ALLOWED   FIRING: $FIRING"
+    echo "arcs parsed: $PARSED   closed: $CLOSED   verified: $BOUND_OK   acknowledged: $ALLOWED   skipped(CI): $SKIPPED_CI   FIRING: $FIRING"
     echo "SCOPE: detects whether a closed arc's claim is bound to a runnable prover"
     echo "       and whether it still passes. It does NOT judge whether the prover is"
     echo "       ADEQUATE to the claim, and it says nothing about in-progress arcs."

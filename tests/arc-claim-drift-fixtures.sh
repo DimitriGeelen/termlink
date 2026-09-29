@@ -173,6 +173,34 @@ else
     fail "T15 FIELD SHIFT REGRESSION — reason missing: $OUT"
 fi
 
+echo "T16 (T-3238): a prover's exit 2 (\"could not run\") skips ONLY under CI"
+d="$WORK/t16"; mkarc "$d" a.yaml 'id: arc-tool
+status: closed
+decision: "GO — no silent loss"
+prover: "exit 2"'
+OUT="$(env -u CI bash "$CHK" --arcs-dir "$d" --allowlist "$EMPTY_ALLOW" 2>&1)"; rc=$?
+if [ "$rc" -eq 1 ] && printf '%s' "$OUT" | grep -q 'CLAIM-FAILED  prover exited 2'; then
+    pass "T16a without CI a prover exit 2 still FIRES (rc=$rc)"
+else
+    fail "T16a exit 2 MASKED outside CI — rc=$rc: $OUT"
+fi
+OUT="$(CI=true bash "$CHK" --arcs-dir "$d" --allowlist "$EMPTY_ALLOW" 2>&1)"; rc=$?
+if [ "$rc" -eq 0 ] && printf '%s' "$OUT" | grep -q 'SKIP(CI)'; then
+    pass "T16b under CI a prover exit 2 is a named SKIP (rc=$rc)"
+else
+    fail "T16b CI skip missing — rc=$rc: $OUT"
+fi
+d="$WORK/t16c"; mkarc "$d" a.yaml 'id: arc-realfail
+status: closed
+decision: "GO — no silent loss"
+prover: "exit 1"'
+OUT="$(CI=true bash "$CHK" --arcs-dir "$d" --allowlist "$EMPTY_ALLOW" 2>&1)"; rc=$?
+if [ "$rc" -eq 1 ] && printf '%s' "$OUT" | grep -q 'CLAIM-FAILED'; then
+    pass "T16c under CI a genuine prover failure (exit 1) still FIRES (rc=$rc)"
+else
+    fail "T16c CI MASKED A REAL FAILURE — rc=$rc: $OUT"
+fi
+
 echo
 echo "arc-claim-drift fixtures: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ] || exit 1

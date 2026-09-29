@@ -695,6 +695,11 @@ experiment_e3() {
 # mailbox — instead of forcing a migration that would strand 11 live topics.
 experiment_e4() {
     local resolved conf="${NOTIFY_E2E_CONF:-.context/cron/notify-sidecar-agents.conf}"
+    # T-3238: no binary means we could not LOOK — TOOLING (exit 2) per the exit
+    # contract above, never a BROKEN verdict. A present binary whose resolve comes
+    # back empty is still a FAIL below: that is a real, observable answer.
+    command -v "$TERMLINK" >/dev/null 2>&1 \
+        || die_tooling "termlink binary not found ($TERMLINK) — cannot resolve identity" E4
     resolved="$(TERMLINK_AGENT_ID="$SELF_AGENT" timeout "$EXEC_TIMEOUT" \
         "$TERMLINK" agent identity --resolve --json 2>/dev/null \
         | jq -r '.fingerprint // empty' 2>/dev/null)"
