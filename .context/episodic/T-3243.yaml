@@ -1,0 +1,88 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3243: Release-publication canary: fire when newest v* tag has no GitHub Release, or install-check/doc-lint have no green run on main within N days
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-29T18:48:13Z
+# ============================================================================
+
+task_id: T-3243
+task_name: "Release-publication canary: fire when newest v* tag has no GitHub Release, or install-check/doc-lint have no green run on main within N days"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-29T18:29:47Z
+completed: 2026-09-29T18:47:57Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-29T20:47:48+02:00
+last_commit: 2026-09-29T20:47:48+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  release-publication canary — fires when the newest v* tag has no published GitHub Release or install-check/doc-lint have no green run on main within 7d; fail-closed, EXIT-trap heartbeat, split-stderr crontab (committed, NOT installed), 25-assertion seam-driven fixture suite with mutant
+
+# Key outcomes
+outcomes:
+  - '`scripts/check-release-publication-freshness.sh` FIRES (exit 1) when (a) the newest local `v*` tag has no published (non-draft) GitHub Release, or (b) `install-check.yml` or `doc-lint.yml` has no successful run on `main` within `--max-age-days N` (default 7)'
+  - 'Fail-closed: missing `gh`, a failed/unauthenticated `gh` call, an unparseable response, or no `v*` tag at all exits 2 — never a healthy verdict'
+  - '`--json` (ok, firing[], checks, scope), `--quiet` (silent when healthy), `--no-heartbeat`; heartbeat written from an EXIT trap to `.context/working/.release-publication-canary.heartbeat`'
+  - 'PL-213 seam `RELEASE_PUB_TEST_DIR` (canned tag / release / run responses + rc) and `RELEASE_PUB_TEST_NOW` make it network-independent'
+  - '`tests/release-publication-canary-fixtures.sh` covers healthy, each firing class, each tooling class, flags, and a mutant (release check disabled) that must turn a case red'
+  - '`.context/cron/release-publication-canary.crontab` declares its `# Installed to:` path and uses the split-stderr idiom; `check-canary-log-hygiene.sh` passes; it is NOT installed to /etc/cron.d'
+  - 'A live run against GitHub on this host returns a verdict (0 or 1, not 2) and names what it saw'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'release-publication canary — fires when the newest v* tag has no published GitHub Release or install-check/doc-lint have no green run on main within 7d; fail-closed, EXIT-trap heartbeat, split-stderr crontab (committed, NOT installed), 25-assertion seam-driven fixture suite with mutant'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - '.context/cron/release-publication-canary.crontab'
+  - '.fabric/components/context-cron-release-publication-canary.yaml'
+  - '.fabric/components/scripts-check-release-publication-freshness.yaml'
+  - '.fabric/components/tests-release-publication-canary-fixtures.yaml'
+  - 'scripts/check-release-publication-freshness.sh'
+  - '.tasks/active/T-3243-release-publication-canary-fire-when-new.md'
+  - 'tests/release-publication-canary-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-29T20:47:48'
+    action: 'T-3243: release-publication canary — fires when the newest v* tag has no published GitHub Release or install-check/doc-lint have no green run on main within 7d; fail-closed, EXIT-trap heartbeat, split-stderr crontab (committed, NOT installed), 25-assertion seam-driven fixture suite with mutant'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 18 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [guard-layer, ci, sq-9]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 18
+  commits: 1
+  files_changed: 8
+  lines_added: 749
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3243-release-publication-canary-fire-when-new.md
+generated_by: context-agent-hybrid
