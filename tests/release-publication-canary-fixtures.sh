@@ -32,6 +32,9 @@ world() {
         echo "{\"total_count\":1,\"workflow_runs\":[{\"created_at\":\"$RECENT\",\"head_sha\":\"abcdef0123456\",\"conclusion\":\"success\"}]}" > "$W/runs-$wf.json"
     done
 }
+# T-3260: never read the real WARN ledger from a fixture — point at an absent file;
+# the escalation cases below set their own.
+export GUARD_WARN_LEDGER="$TMP/no-warn-ledger"
 run() { # run <world-dir> [args...] → OUT, RC
     local w="$1"; shift
     OUT="$(RELEASE_PUB_TEST_DIR="$w" RELEASE_PUB_TEST_NOW="$NOW" bash "$CHK" --no-heartbeat "$@" 2>&1)"; RC=$?
@@ -88,7 +91,7 @@ else bad "T6 json tooling" "rc=$RC: $OUT"; fi
 
 echo "== flags =="
 world f1; run "$W" --json
-if [ "$RC" = "0" ] && python3 -c 'import json,sys; d=json.loads(sys.stdin.read()); sys.exit(0 if d["ok"] and d["scope"] and len(d["checks"])==3 else 1)' <<< "$OUT"
+if [ "$RC" = "0" ] && python3 -c 'import json,sys; d=json.loads(sys.stdin.read()); sys.exit(0 if d["ok"] and d["scope"] and len(d["checks"])==4 else 1)' <<< "$OUT"
 then ok "F1 --json healthy carries ok, scope and one entry per check"
 else bad "F1 json healthy" "rc=$RC: $OUT"; fi
 world f2; echo 1 > "$W/release.rc"; echo "gh: Not Found (HTTP 404)" > "$W/release.err"
@@ -114,6 +117,31 @@ rm -rf "$HR/.context"
 echo 1 > "$W/release.rc"; echo "gh: HTTP 500" > "$W/release.err"
 ( cd "$HR" && RELEASE_PUB_TEST_DIR="$W" RELEASE_PUB_TEST_NOW="$NOW" bash scripts/check-release-publication-freshness.sh >/dev/null 2>&1 )
 [ -s "$HR/.context/working/.release-publication-canary.heartbeat" ] && ok "B3 a tooling exit still writes the heartbeat (the run completed)" || bad "B3 heartbeat on tooling" "not written"
+
+echo "== WARN-guard escalation (T-3260) =="
+iso() { date -u -d "@$1" +%Y-%m-%dT%H:%M:%SZ; }
+LED="$TMP/warn-ledger"
+world e1; printf '# hdr\ncheck-old-warn.sh  %s\n' "$(iso $((NOW - 15*86400)))" > "$LED"
+OUT="$(GUARD_WARN_LEDGER="$LED" RELEASE_PUB_TEST_DIR="$W" RELEASE_PUB_TEST_NOW="$NOW" bash "$CHK" --no-heartbeat 2>&1)"; RC=$?
+expect "E1 a WARN member red 15d (> 14d) ESCALATES and names the member" 1 "check-old-warn.sh has been red since"
+world e2; printf 'check-new-warn.sh  %s\n' "$(iso $((NOW - 13*86400)))" > "$LED"
+OUT="$(GUARD_WARN_LEDGER="$LED" RELEASE_PUB_TEST_DIR="$W" RELEASE_PUB_TEST_NOW="$NOW" bash "$CHK" --no-heartbeat 2>&1)"; RC=$?
+expect "E2 a WARN member red 13d does NOT escalate yet (clock shown)" 0 "escalates after 14d"
+world e3; printf 'check-x.sh  %s\n' "$(iso $((NOW - 14*86400 + 60)))" > "$LED"
+OUT="$(GUARD_WARN_LEDGER="$LED" RELEASE_PUB_TEST_DIR="$W" RELEASE_PUB_TEST_NOW="$NOW" bash "$CHK" --no-heartbeat 2>&1)"; RC=$?
+expect "E3 just under 14d does not escalate" 0
+world e4; printf 'check-x.sh  not-a-date\n' > "$LED"
+OUT="$(GUARD_WARN_LEDGER="$LED" RELEASE_PUB_TEST_DIR="$W" RELEASE_PUB_TEST_NOW="$NOW" bash "$CHK" --no-heartbeat 2>&1)"; RC=$?
+expect "E4 an unparseable ledger time is tooling, never healthy" 2 "unparseable first-red"
+MUTE="$TMP/mutant-esc.sh"
+sed 's/? "ESC" : "OK"/? "OK" : "OK"/' "$CHK" > "$MUTE"
+if cmp -s "$CHK" "$MUTE"; then bad "M2 escalation mutant applied" "sed matched nothing"
+else
+    world m2; printf 'check-old-warn.sh  %s\n' "$(iso $((NOW - 15*86400)))" > "$LED"
+    OUT="$(GUARD_WARN_LEDGER="$LED" RELEASE_PUB_TEST_DIR="$W" RELEASE_PUB_TEST_NOW="$NOW" bash "$MUTE" --no-heartbeat 2>&1)"; RC=$?
+    [ "$RC" = "0" ] && ok "M2 with escalation muted, E1's input reads healthy — so E1 is load-bearing" \
+                    || bad "M2 escalation mutant" "expected rc=0, got rc=$RC"
+fi
 
 echo "== mutant: the release check disabled must turn a case red =="
 MUT="$TMP/mutant.sh"

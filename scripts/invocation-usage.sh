@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# guard-layer: source
+# guard-layer: source info  # a usage REPORT (T-2996 C-45 telemetry), not a correctness assertion
 #
 # T-2996 (value-review C-45): report per-tool invocation counts.
 #

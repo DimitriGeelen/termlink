@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# guard-layer: source
+# guard-layer: source warn  # red means a re-vendor would delete a local fix; no release impact; escalates after 14d red
 # T-2812 — unregistered local modifications to vendored framework code.
 #
 # The framework is vendored, and a WHOLESALE vendor event (`fw upgrade`,

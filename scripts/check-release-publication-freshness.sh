@@ -36,19 +36,31 @@
 #
 # FLAGS: --json · --quiet (silent when healthy; firing entries open with a dated
 #        `=== <UTC> ===` frame, T-3002) · --no-heartbeat · --max-age-days N ·
-#        --workflows "a.yml b.yml" · --repo OWNER/NAME
+#        --workflows "a.yml b.yml" · --repo OWNER/NAME · --no-warn-refresh (T-3260)
 #
 # TEST SEAM (PL-213 — no network): RELEASE_PUB_TEST_DIR=<dir> containing
 #   tag.txt                      newest v* tag (empty file = no tag)
 #   release.json / release.rc / release.err   raw releases/tags/<tag> response
 #   runs-<workflow>.json / .rc / .err         raw workflows/<wf>/runs response
 # RELEASE_PUB_TEST_NOW=<epoch seconds> pins "now".
+#
+# (c) WARN-GUARD ESCALATION (T-3260). A guard-layer member the operator classified
+# WARN never blocks CI or a release — so a WARN red for weeks would be ignored for
+# ever. This canary FIRES when a WARN member has been red for more than
+# GUARD_WARN_ESCALATE_DAYS (default 14). The clock is the git-tracked ledger
+# .context/checks/guard-warn-first-red (GUARD_WARN_LEDGER), which this canary first
+# REFRESHES by running `run-guard-layer.sh --only-class warn --record-warn` — so the
+# host that runs the canary daily is the one place the clock is written, and a fresh
+# CI checkout (which only reads) can never reset it. --no-warn-refresh skips the
+# refresh (read the ledger as-is); the test seam (RELEASE_PUB_TEST_DIR) never refreshes.
 set -uo pipefail
 
 cd "$(git rev-parse --show-toplevel 2>/dev/null || (cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd))" || exit 2
 
 HEARTBEAT_FILE=".context/working/.release-publication-canary.heartbeat"
-FORMAT=text; QUIET=0; HEARTBEAT=1
+FORMAT=text; QUIET=0; HEARTBEAT=1; WARN_REFRESH=1
+WARN_LEDGER="${GUARD_WARN_LEDGER:-.context/checks/guard-warn-first-red}"
+WARN_ESC_DAYS="${GUARD_WARN_ESCALATE_DAYS:-14}"
 MAX_AGE_DAYS="${RELEASE_PUB_MAX_AGE_DAYS:-7}"
 WORKFLOWS="${RELEASE_PUB_WORKFLOWS:-install-check.yml doc-lint.yml}"
 REPO="${RELEASE_PUB_REPO:-}"
@@ -67,6 +79,7 @@ while [ $# -gt 0 ]; do
         --max-age-days)  MAX_AGE_DAYS="${2:-}"; shift 2 ;;
         --workflows)     WORKFLOWS="${2:-}"; shift 2 ;;
         --repo)          REPO="${2:-}"; shift 2 ;;
+        --no-warn-refresh) WARN_REFRESH=0; shift ;;
         -h|--help)       usage; exit 0 ;;
         *) echo "check-release-publication: unknown arg: $1" >&2; exit 2 ;;
     esac
@@ -112,6 +125,43 @@ api_get() {
 NOW="${RELEASE_PUB_TEST_NOW:-$(date -u +%s)}"
 FIRING=()   # "check<TAB>detail"
 CHECKS=()   # "check<TAB>state<TAB>detail"
+# ---- (c) WARN-GUARD ESCALATION (T-3260) — evaluated first so a gh failure below
+#      cannot stop the clock from being refreshed on the host.
+case "$WARN_ESC_DAYS" in ''|*[!0-9]*) echo "check-release-publication: GUARD_WARN_ESCALATE_DAYS must be an integer" >&2; exit 2 ;; esac
+if [ "$WARN_REFRESH" -eq 1 ] && [ -z "$TD" ]; then
+    [ -f scripts/run-guard-layer.sh ] || tooling "scripts/run-guard-layer.sh not found — cannot refresh the WARN ledger"
+    GUARD_WARN_LEDGER="$WARN_LEDGER" bash scripts/run-guard-layer.sh --only-class warn --record-warn --quiet >/dev/null 2>&1
+    wrc=$?
+    # WARN members never set the runner's exit code, so only rc 2 (enumeration or a
+    # ledger write failure) means the refresh did not happen.
+    [ "$wrc" -eq 2 ] && tooling "WARN-ledger refresh failed (run-guard-layer.sh rc=2)"
+    [ -f "$WARN_LEDGER" ] || tooling "WARN ledger $WARN_LEDGER missing after refresh"
+fi
+if [ -f "$WARN_LEDGER" ]; then
+    esc="$(awk -v now="$NOW" -v days="$WARN_ESC_DAYS" '
+        /^[[:space:]]*#/ || NF < 2 { next }
+        {
+            cmd = "date -u -d \"" $2 "\" +%s 2>/dev/null"; t = ""; cmd | getline t; close(cmd)
+            if (t == "") { print "BAD\t" $1 "\t" $2; next }
+            age = int((now - t) / 86400)
+            print ((now - t > days * 86400) ? "ESC" : "OK") "\t" $1 "\t" $2 "\t" age
+        }' "$WARN_LEDGER")"
+    n_red=0; n_esc=0
+    while IFS=$'\t' read -r st m ts age; do
+        [ -n "$st" ] || continue
+        case "$st" in
+            BAD) tooling "unparseable first-red time '$ts' for $m in $WARN_LEDGER" ;;
+            ESC) n_red=$((n_red+1)); n_esc=$((n_esc+1))
+                 FIRING+=("warn-guard	WARN guard $m has been red since $ts (${age}d > ${WARN_ESC_DAYS}d) — escalated")
+                 CHECKS+=("warn-guard:$m	firing	red since $ts (${age}d)") ;;
+            OK)  n_red=$((n_red+1))
+                 CHECKS+=("warn-guard:$m	ok	red since $ts (${age}d, escalates after ${WARN_ESC_DAYS}d)") ;;
+        esac
+    done <<< "$esc"
+    [ "$n_red" -gt 0 ] || CHECKS+=("warn-guard	ok	no WARN member recorded red")
+else
+    CHECKS+=("warn-guard	ok	no WARN ledger at $WARN_LEDGER (nothing recorded red)")
+fi
 
 # ---- (a) RELEASE -----------------------------------------------------------
 if [ -n "$TD" ]; then
@@ -184,7 +234,7 @@ print(("STALE" if now-t > maxd*86400 else "OK")+"\t%s\t%d\t%s" % (ts, age, sha))
     esac
 done
 
-SCOPE="detects whether the newest v* tag has a published GitHub Release and whether the watched workflows had a successful run on main within the window; does NOT verify release assets, tag mirroring, or what a green run tested"
+SCOPE="detects whether the newest v* tag has a published GitHub Release, whether the watched workflows had a successful run on main within the window, and whether any WARN-tier guard has been red longer than ${WARN_ESC_DAYS}d; does NOT verify release assets, tag mirroring, or what a green run tested"
 
 # ---- verdict ---------------------------------------------------------------
 if [ "$FORMAT" = "json" ]; then
@@ -205,7 +255,8 @@ elif [ "${#FIRING[@]}" -gt 0 ]; then
     echo "check-release-publication: FIRING — ${#FIRING[@]} finding(s)"
     for f in "${FIRING[@]}"; do echo "  FIRING  ${f#*	}"; done
     echo "  operator: publish the release (re-run release.yml for $TAG, or cut the next tag"
-    echo "            once CI is green); for a stale workflow, open its latest run and fix main."
+    echo "            once CI is green); for a stale workflow, open its latest run and fix main;"
+    echo "            for an escalated WARN guard, fix it or ask the operator to reclassify it."
     echo "  SCOPE: $SCOPE"
 elif [ "$QUIET" -eq 0 ]; then
     echo "check-release-publication: healthy"

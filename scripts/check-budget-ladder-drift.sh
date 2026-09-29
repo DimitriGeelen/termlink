@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # check-budget-ladder-drift.sh — does the DOCUMENTED context-budget ladder match the LIVE gate?
-# guard-layer: source --no-heartbeat
+# guard-layer: source warn --no-heartbeat  # can go red from a re-vendor with nothing fixable locally (vendored text, G-062)
 #
 # T-3029. CLAUDE.md states the budget ladder twice: as absolute token counts
 # ("**120K** ok->warn ... **170K** urgent->critical (**BLOCK**)") and as percentage bands

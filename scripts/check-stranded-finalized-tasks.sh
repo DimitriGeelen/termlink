@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# guard-layer: source --no-heartbeat
+# guard-layer: source warn --no-heartbeat  # task-ledger latch (vendored defect T-2833); deadlocks commits, not releases
 #
 # scripts/check-stranded-finalized-tasks.sh (T-2833)
 #

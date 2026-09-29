@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# guard-layer: source
+# guard-layer: source warn  # cross-branch state; can fire from someone else's branch
 # T-2800 — cross-branch task-ID collision + duplicate-work check.
 #
 # Every worktree allocates task IDs by scanning its OWN .tasks/ for the highest ID

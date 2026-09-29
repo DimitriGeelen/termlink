@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# guard-layer: source
+# guard-layer: source warn  # host state (is the fix running HERE); says nothing about the artifact being released
 # (no --no-heartbeat: these checks have no heartbeat companion to skip. The
 #  marker IS the invocation the runner uses, so declaring a flag we do not
 #  accept made check-receiver-ack-lag ERROR under the layer — a contract

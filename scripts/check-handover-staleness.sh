@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# guard-layer: source --no-heartbeat
+# guard-layer: source warn --no-heartbeat  # session hygiene; time-driven, goes red with no code change
 # check-handover-staleness.sh (T-2883, G-019 prevention for the T-2882 class)
 #
 # THE DEFECT THIS GUARDS

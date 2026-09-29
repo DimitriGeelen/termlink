@@ -68,18 +68,36 @@
 # ROLL-UP: any FAIL → exit 1. Else any ERROR → exit 2. Else 0. Findings dominate
 # tooling errors, mirroring `fleet verify`'s "drift dominates".
 #
-# SEVERITY CLASSES (T-3258). A member may declare itself ADVISORY:
+# SEVERITY TIERS (T-3260, operator-approved; supersedes T-3258's two classes).
 #
-#     # guard-layer: source advisory [extra args...]  # <reason — required>
+#     # guard-layer: source [extra args...]                 FAIL (the default)
+#     # guard-layer: source warn [extra args...]  # <reason — required>
+#     # guard-layer: source info [extra args...]  # <reason — required>
 #
-# No word = BLOCKING (the default, and the only class cargo test can have). The class
-# changes ONE thing: under `--gate release` only BLOCKING failures set the exit code;
-# advisory FAIL/ERROR members are still run, still printed — in their own section —
-# and still counted. Under the default gate (`all`, what push CI runs) the class is
-# ignored and every red counts, exactly as before. An `advisory` marker with no
-# reason is NOT honoured: the member runs as BLOCKING (fail-safe — a malformed
-# demotion must never quietly weaken the release gate) and
-# scripts/check-guard-severity-markers.sh fires on it.
+#   FAIL  a red member sets the exit code under EVERY gate (push CI and release).
+#   WARN  never sets the exit code. Each red WARN member (FAIL *or* ERROR — a WARN
+#         guard that could not run is reported as WARN, never as a pass) is printed
+#         in its own section, emitted as a GitHub `::warning::` annotation under
+#         GitHub Actions (or --annotate), and counted. A WARN member red for more
+#         than 14 days ESCALATES: check-release-publication-freshness.sh fires on it,
+#         reading the first-seen-red ledger below.
+#   INFO  never sets the exit code and is never shown red; its output is printed.
+#
+# `advisory` (T-3258) is accepted as an alias for `warn` so an older marker keeps
+# its meaning. A warn/info/advisory marker with no reason is NOT honoured: the
+# member runs as FAIL (fail-safe — a malformed demotion must never quietly weaken a
+# gate), is reported MALFORMED, and scripts/check-guard-severity-markers.sh fires.
+# `cargo test` and tests/*fixtures*.sh are ALWAYS FAIL: a demotion word on a
+# fixture suite is ignored and reported MALFORMED.
+#
+# FIRST-SEEN-RED LEDGER (the 14-day clock). `.context/checks/guard-warn-first-red`
+# (git-tracked; override GUARD_WARN_LEDGER) holds `<member>  <UTC ISO time>` for every
+# WARN member currently red. It is written ONLY by a run given --record-warn (the
+# host's daily release canary does that); a red member is added the first time it
+# is seen red and removed the first time it is seen green. Every other run, CI
+# included, only READS it — a fresh checkout cannot reset the clock because it never
+# writes. A red WARN member with no ledger entry is reported "clock not started"
+# rather than silently treated as new.
 #
 # Exit codes: 0 all members passed · 1 a member fired · 2 a member errored, or the
 #             runner could not enumerate members (fail-closed)
@@ -97,6 +115,12 @@ LIST_ONLY=0
 WITH_TESTS=0
 JSONL_PATH=""
 GATE=all
+ONLY_CLASS=""
+RECORD_WARN=0
+ANNOTATE=0; [ "${GITHUB_ACTIONS:-}" = true ] && ANNOTATE=1
+LEDGER="${GUARD_WARN_LEDGER:-.context/checks/guard-warn-first-red}"
+ESCALATE_DAYS="${GUARD_WARN_ESCALATE_DAYS:-14}"
+NOW_EPOCH="${GUARD_LAYER_TEST_NOW:-$(date -u +%s)}"
 
 usage() {
     cat <<'EOF'
@@ -120,9 +144,15 @@ Usage: run-guard-layer.sh [OPTIONS]
                  at start. A run killed part-way keeps every finished member's
                  verdict — --json is only written after the last member (T-2983)
   --quiet        Print only non-PASS members and the footer
-  --gate G       all (default): every FAIL/ERROR sets the exit code.
-                 release: only BLOCKING members set it; ADVISORY failures are
-                 printed in their own section and counted, never hidden (T-3258)
+  --gate G       all (default, push CI) | release (release.yml). Since T-3260 both
+                 gate the same way: only FAIL-tier members set the exit code; WARN
+                 reds are printed, annotated and counted; INFO is printed only
+  --only-class C run only members of tier C (fail|warn|info)
+  --record-warn  update the first-seen-red ledger (GUARD_WARN_LEDGER) from this
+                 run: add newly-red WARN members, drop ones now green. Only the
+                 host's release canary should pass this; CI never does
+  --annotate     emit GitHub `::warning::` lines for red WARN members (automatic
+                 when GITHUB_ACTIONS=true)
   -h, --help     This help
 
 Verdicts: PASS (rc 0) · FAIL (rc 1, guard fired) · ERROR (rc 2, guard could not
@@ -154,6 +184,13 @@ while [ $# -gt 0 ]; do
                      *) echo "run-guard-layer: unknown --gate '$2' (want all|release)" >&2; exit 2 ;;
                  esac
                  shift 2 ;;
+        --only-class) [ $# -ge 2 ] || { echo "run-guard-layer: --only-class needs fail|warn|info" >&2; exit 2; }
+                 case "$2" in fail|warn|info) ONLY_CLASS="$2" ;;
+                     *) echo "run-guard-layer: unknown --only-class '$2' (want fail|warn|info)" >&2; exit 2 ;;
+                 esac
+                 shift 2 ;;
+        --record-warn) RECORD_WARN=1; shift ;;
+        --annotate) ANNOTATE=1; shift ;;
         -h|--help) usage; exit 0 ;;
         *) echo "run-guard-layer: unknown arg: $1" >&2; exit 2 ;;
     esac
@@ -168,10 +205,10 @@ fi
 # Parallel arrays; bash 3.2-compatible (no associative arrays — macOS ships 3.2).
 m_name=(); m_kind=(); m_cmd=(); m_class=(); m_reason=()
 unclassified=()
-malformed=()   # members whose `advisory` marker carried no reason (run as BLOCKING)
+malformed=()   # "<member>: <why>" — a demotion that was refused (member runs as FAIL)
 
 # parse_marker <file> <marker-line> — sets P_EXTRA (declared invocation args),
-# P_CLASS (blocking|advisory) and P_REASON. Text after the first `#` following the
+# P_CLASS (fail|warn|info) and P_REASON. Text after the first `#` following the
 # `source` keyword is a comment and never reaches the command line.
 parse_marker() {
     local rest pre
@@ -179,13 +216,16 @@ parse_marker() {
     pre="${rest%%#*}"
     P_REASON=""
     [ "$pre" != "$rest" ] && P_REASON="$(printf '%s' "${rest#*#}" | sed -E 's/^[[:space:]]+//;s/[[:space:]]+$//')"
-    P_CLASS=blocking
+    P_CLASS=fail
     P_EXTRA="$(printf '%s' "$pre" | sed -E 's/[[:space:]]+$//')"
-    case "$P_EXTRA" in
-        advisory|advisory[[:space:]]*)
-            P_EXTRA="$(printf '%s' "${P_EXTRA#advisory}" | sed -E 's/^[[:space:]]+//')"
-            if [ -n "$P_REASON" ]; then P_CLASS=advisory
-            else malformed+=("$(basename "$1")"); fi ;;
+    local word="${P_EXTRA%%[[:space:]]*}"
+    case "$word" in
+        fail|warn|info|advisory)
+            P_EXTRA="$(printf '%s' "${P_EXTRA#"$word"}" | sed -E 's/^[[:space:]]+//')"
+            [ "$word" = advisory ] && word=warn   # T-3258 alias
+            if [ "$word" = fail ]; then :
+            elif [ -n "$P_REASON" ]; then P_CLASS="$word"
+            else malformed+=("$(basename "$1"): '$word' with no '# <reason>' — runs as FAIL"); fi ;;
     esac
 }
 add_member() { # <name> <kind> <cmd> <class> <reason>
@@ -210,10 +250,15 @@ done
 if [ -d "$TESTS_DIR" ]; then
     for f in "$TESTS_DIR"/*fixtures*.sh; do
         [ -e "$f" ] || continue
-        # Members by convention; a marker is optional and only ever adds a class.
-        P_CLASS=blocking; P_REASON=""
+        # Members by convention. Fixture suites prove the guards can fire, so they
+        # are ALWAYS FAIL (T-3260): a demotion word here is refused and reported.
+        P_CLASS=fail; P_REASON=""
         marker="$(grep -m1 -E '^#[[:space:]]*guard-layer:[[:space:]]*source' "$f" 2>/dev/null || true)"
         [ -n "$marker" ] && parse_marker "$f" "$marker"
+        if [ "$P_CLASS" != fail ]; then
+            malformed+=("$(basename "$f"): fixture suites are always FAIL — '$P_CLASS' ignored")
+            P_CLASS=fail; P_REASON=""
+        fi
         add_member "$(basename "$f")" fixture-suite "bash $f" "$P_CLASS" "$P_REASON"
     done
 fi
@@ -266,8 +311,23 @@ for f in "$SCRIPTS_DIR"/*.sh; do
 done
 
 if [ "$WITH_TESTS" -eq 1 ]; then
-    # Never advisory: the unit suite is the floor the release gate stands on.
-    add_member "cargo test --workspace" unit-tests "cargo test --workspace" blocking ""
+    # Always FAIL: the unit suite is the floor the release gate stands on.
+    add_member "cargo test --workspace" unit-tests "cargo test --workspace" fail ""
+fi
+
+if [ -n "$ONLY_CLASS" ]; then
+    f_name=(); f_kind=(); f_cmd=(); f_class=(); f_reason=()
+    j=0
+    while [ "$j" -lt "${#m_name[@]}" ]; do
+        if [ "${m_class[$j]}" = "$ONLY_CLASS" ]; then
+            f_name+=("${m_name[$j]}"); f_kind+=("${m_kind[$j]}"); f_cmd+=("${m_cmd[$j]}")
+            f_class+=("${m_class[$j]}"); f_reason+=("${m_reason[$j]}")
+        fi
+        j=$((j+1))
+    done
+    m_name=("${f_name[@]+"${f_name[@]}"}"); m_kind=("${f_kind[@]+"${f_kind[@]}"}")
+    m_cmd=("${f_cmd[@]+"${f_cmd[@]}"}"); m_class=("${f_class[@]+"${f_class[@]}"}")
+    m_reason=("${f_reason[@]+"${f_reason[@]}"}")
 fi
 
 total=${#m_name[@]}
@@ -306,7 +366,7 @@ if [ "$LIST_ONLY" -eq 1 ]; then
             i=$((i+1))
         done
         for u in "${malformed[@]+"${malformed[@]}"}"; do
-            echo "  MALFORMED: $u declares 'advisory' with no '# <reason>' — run as BLOCKING"
+            echo "  MALFORMED: $u"
         done
         if [ "${#unclassified[@]}" -gt 0 ]; then
             echo
@@ -327,8 +387,19 @@ if [ -n "$JSONL_PATH" ]; then
     : > "$JSONL_PATH" || { echo "run-guard-layer: cannot write --jsonl $JSONL_PATH" >&2; exit 2; }
 fi
 pass_n=0; fail_n=0; err_n=0
-# Per-class tallies (T-3258). fail_n/err_n above stay the class-blind totals.
-bfail_n=0; berr_n=0; afail_n=0; aerr_n=0
+# Per-tier tallies (T-3260). fail_n/err_n above stay the tier-blind totals.
+ffail_n=0; ferr_n=0; wfail_n=0; werr_n=0; ifail_n=0; ierr_n=0
+
+# ledger_get <member> — prints the recorded first-seen-red time, or nothing.
+ledger_get() {
+    [ -f "$LEDGER" ] || return 0
+    awk -v m="$1" '!/^[[:space:]]*#/ && $1==m {print $2; exit}' "$LEDGER"
+}
+# red_age_days <iso> — whole days since <iso> relative to NOW_EPOCH (or empty).
+red_age_days() {
+    local t; t="$(date -u -d "$1" +%s 2>/dev/null)" || return 0
+    [ -n "$t" ] && echo $(( (NOW_EPOCH - t) / 86400 ))
+}
 
 i=0
 while [ "$i" -lt "$total" ]; do
@@ -346,8 +417,9 @@ while [ "$i" -lt "$total" ]; do
     esac
     r_verdict+=("$verdict"); r_rc+=("$rc"); r_elapsed+=("$elapsed")
     case "${m_class[$i]}:$verdict" in
-        advisory:FAIL) afail_n=$((afail_n+1)) ;; advisory:ERROR) aerr_n=$((aerr_n+1)) ;;
-        blocking:FAIL) bfail_n=$((bfail_n+1)) ;; blocking:ERROR) berr_n=$((berr_n+1)) ;;
+        warn:FAIL) wfail_n=$((wfail_n+1)) ;; warn:ERROR) werr_n=$((werr_n+1)) ;;
+        info:FAIL) ifail_n=$((ifail_n+1)) ;; info:ERROR) ierr_n=$((ierr_n+1)) ;;
+        fail:FAIL) ffail_n=$((ffail_n+1)) ;; fail:ERROR) ferr_n=$((ferr_n+1)) ;;
     esac
     # T-2983: persist this member's verdict now, not after the last member, so an
     # interrupted run still leaves evidence. The full output is kept — CI's human
@@ -360,12 +432,19 @@ while [ "$i" -lt "$total" ]; do
             >> "$JSONL_PATH"
     fi
 
+    # What the operator is SHOWN. A FAIL-tier member shows its raw verdict. A red WARN
+    # member shows WARN (its raw FAIL/ERROR in the tag). An INFO member never shows red.
+    shown="$verdict"; tag=""
+    case "${m_class[$i]}:$verdict" in
+        warn:PASS) tag=" [warn]" ;;
+        warn:*)    shown=WARN; tag=" [warn: $verdict]" ;;
+        info:*)    shown=INFO; tag=" [info]" ;;
+    esac
     if [ "$FORMAT" = human ]; then
         if [ "$verdict" != PASS ] || [ "$QUIET" -eq 0 ]; then
-            tag=""; [ "${m_class[$i]}" = advisory ] && tag=" [advisory]"
-            printf '  %-5s %-14s %-6s %s%s\n' "$verdict" "${m_kind[$i]}" "${elapsed}s" "${m_name[$i]}" "$tag"
+            printf '  %-5s %-14s %-6s %s%s\n' "$shown" "${m_kind[$i]}" "${elapsed}s" "${m_name[$i]}" "$tag"
         fi
-        if [ "$verdict" != PASS ]; then
+        if [ "$verdict" != PASS ] || { [ "${m_class[$i]}" = info ] && [ "$QUIET" -eq 0 ]; }; then
             # Surface the member's own words — the runner never paraphrases a
             # finding, so the operator acts on the guard's message, not ours.
             printf '%s\n' "$out" | sed -n "1,${OUTPUT_LINES}p" | sed 's/^/        │ /'
@@ -382,66 +461,143 @@ while [ "$i" -lt "$total" ]; do
     i=$((i+1))
 done
 
-# Gate `all` (default, push CI): every member counts, whatever its class.
-# Gate `release`: only BLOCKING members count; advisory reds are reported below.
-if [ "$GATE" = release ]; then g_fail=$bfail_n; g_err=$berr_n
-else g_fail=$fail_n; g_err=$err_n
-fi
+# T-3260: under EVERY gate only FAIL-tier members set the exit code. WARN reds are
+# reported (section + annotation + ledger clock); INFO is printed only. `--gate` is
+# kept so release.yml / doc-lint.yml invocations stay valid and the JSON names it.
+g_fail=$ffail_n; g_err=$ferr_n
 if [ "$g_fail" -gt 0 ]; then exit_rc=1
 elif [ "$g_err" -gt 0 ]; then exit_rc=2
 else exit_rc=0
 fi
 
+# ---------------------------------------------------- WARN clock (ledger) -----
+# r_first[i] = first-seen-red time for red WARN members ("" = clock not started).
+r_first=()
+i=0
+while [ "$i" -lt "$total" ]; do
+    fr=""
+    if [ "${m_class[$i]}" = warn ] && [ "${r_verdict[$i]}" != PASS ]; then
+        fr="$(ledger_get "${m_name[$i]}")"
+    fi
+    r_first+=("$fr"); i=$((i+1))
+done
+if [ "$RECORD_WARN" -eq 1 ]; then
+    now_iso="$(date -u -d "@$NOW_EPOCH" +%Y-%m-%dT%H:%M:%SZ)"
+    tmpl="$(mktemp)" || { echo "run-guard-layer: mktemp failed — ledger not updated" >&2; exit 2; }
+    {
+        echo "# guard-warn-first-red (T-3260) — WARN-tier guard members currently red, with"
+        echo "# the UTC time each was FIRST seen red. Written only by run-guard-layer.sh"
+        echo "# --record-warn (the host's release canary); read by every run and by"
+        echo "# check-release-publication-freshness.sh, which escalates after ${ESCALATE_DAYS} days."
+        echo "# Do not hand-edit a date to silence escalation — fix the member, or reclassify it."
+        i=0
+        while [ "$i" -lt "$total" ]; do
+            if [ "${m_class[$i]}" = warn ] && [ "${r_verdict[$i]}" != PASS ]; then
+                fr="${r_first[$i]}"; [ -n "$fr" ] || { fr="$now_iso"; r_first[$i]="$now_iso"; }
+                printf '%s  %s\n' "${m_name[$i]}" "$fr"
+            fi
+            i=$((i+1))
+        done
+    } > "$tmpl"
+    mkdir -p "$(dirname "$LEDGER")" && mv "$tmpl" "$LEDGER" || {
+        rm -f "$tmpl"; echo "run-guard-layer: cannot write ledger $LEDGER" >&2; exit 2; }
+fi
+
 # ------------------------------------------------------------------ report ----
 total_elapsed="$(printf '%s\n' "${r_elapsed[@]}" | awk '{s+=$1} END{printf "%.3f", s+0}')"
+
+# warn_line <i> — one-line description of a red WARN member, with its clock.
+warn_line() {
+    local fr="${r_first[$1]}" age since
+    if [ -n "$fr" ]; then
+        age="$(red_age_days "$fr")"
+        since="red since $fr (${age:-?}d)"
+        if [ -n "$age" ] && [ "$age" -gt "$ESCALATE_DAYS" ]; then since="ESCALATED — $since, over ${ESCALATE_DAYS}d"; fi
+    else
+        since="clock not started (no entry in $LEDGER; the host's --record-warn run starts it)"
+    fi
+    printf '%s %s — %s; %s' "${m_name[$1]}" "${r_verdict[$1]}" "${m_reason[$1]}" "$since"
+}
+# GitHub annotations + step summary (T-3260). JSON mode writes annotations to stderr
+# so stdout stays one JSON document; the runner reads workflow commands from both.
+if [ "$ANNOTATE" -eq 1 ] && [ $((wfail_n + werr_n)) -gt 0 ]; then
+    i=0
+    while [ "$i" -lt "$total" ]; do
+        if [ "${m_class[$i]}" = warn ] && [ "${r_verdict[$i]}" != PASS ]; then
+            if [ "$FORMAT" = json ]; then
+                printf '::warning title=guard-layer WARN: %s::%s\n' "${m_name[$i]}" "$(warn_line "$i")" >&2
+            else
+                printf '::warning title=guard-layer WARN: %s::%s\n' "${m_name[$i]}" "$(warn_line "$i")"
+            fi
+        fi
+        i=$((i+1))
+    done
+fi
+if [ -n "${GITHUB_STEP_SUMMARY:-}" ] && [ $((wfail_n + werr_n)) -gt 0 ]; then
+    {
+        echo "### guard layer — $((wfail_n + werr_n)) WARN member(s) red (non-gating)"
+        i=0
+        while [ "$i" -lt "$total" ]; do
+            if [ "${m_class[$i]}" = warn ] && [ "${r_verdict[$i]}" != PASS ]; then
+                echo "- $(warn_line "$i")"
+            fi
+            i=$((i+1))
+        done
+    } >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+fi
 
 if [ "$FORMAT" = json ]; then
     printf '{"ok":%s,"members":[' "$([ "$exit_rc" -eq 0 ] && echo true || echo false)"
     i=0
     while [ "$i" -lt "$total" ]; do
         [ "$i" -eq 0 ] || printf ','
-        printf '{"name":%s,"kind":%s,"class":%s,"rc":%s,"verdict":%s,"elapsed_s":%s}' \
+        printf '{"name":%s,"kind":%s,"class":%s,"rc":%s,"verdict":%s,"first_red":%s,"elapsed_s":%s}' \
             "$(printf '%s' "${m_name[$i]}" | jq -R .)" \
             "$(printf '%s' "${m_kind[$i]}" | jq -R .)" \
             "$(printf '%s' "${m_class[$i]}" | jq -R .)" \
             "${r_rc[$i]}" \
             "$(printf '%s' "${r_verdict[$i]}" | jq -R .)" \
+            "$([ -n "${r_first[$i]}" ] && printf '%s' "${r_first[$i]}" | jq -R . || echo null)" \
             "${r_elapsed[$i]}"
         i=$((i+1))
     done
-    printf '],"summary":{"total":%s,"passed":%s,"fired":%s,"errored":%s,"gate":"%s","advisory_fired":%s,"advisory_errored":%s,"malformed_markers":%s,"unclassified":%s,"with_tests":%s,"exit_code":%s,"total_elapsed_s":%s}}\n' \
-        "$total" "$pass_n" "$fail_n" "$err_n" "$GATE" "$afail_n" "$aerr_n" "${#malformed[@]}" "${#unclassified[@]}" \
+    # advisory_fired/advisory_errored are kept as aliases of warn_* for T-3258 consumers.
+    printf '],"summary":{"total":%s,"passed":%s,"fired":%s,"errored":%s,"gate":"%s","warn_fired":%s,"warn_errored":%s,"info_nonzero":%s,"advisory_fired":%s,"advisory_errored":%s,"malformed_markers":%s,"unclassified":%s,"with_tests":%s,"exit_code":%s,"total_elapsed_s":%s}}\n' \
+        "$total" "$pass_n" "$fail_n" "$err_n" "$GATE" "$wfail_n" "$werr_n" "$((ifail_n + ierr_n))" "$wfail_n" "$werr_n" "${#malformed[@]}" "${#unclassified[@]}" \
         "$([ "$WITH_TESTS" -eq 1 ] && echo true || echo false)" "$exit_rc" "$total_elapsed"
     exit "$exit_rc"
 fi
 
 echo
-# Advisory section (T-3258): printed under EVERY gate whenever an advisory member is
-# red, so a non-gating finding is never mistaken for a pass.
-if [ $((afail_n + aerr_n)) -gt 0 ]; then
-    if [ "$GATE" = release ]; then echo "advisory (non-gating under --gate release) — still red, still real:"
-    else echo "advisory members red (they gate under --gate all):"; fi
+# WARN section (T-3260): printed under EVERY gate whenever a WARN member is red, so a
+# non-gating finding is never mistaken for a pass. An ERROR here is a guard that
+# could not look — reported as WARN, never as clean.
+if [ $((wfail_n + werr_n)) -gt 0 ]; then
+    echo "WARN (non-gating) — $((wfail_n + werr_n)) member(s) red; still real, escalates after ${ESCALATE_DAYS}d red:"
     i=0
     while [ "$i" -lt "$total" ]; do
-        if [ "${m_class[$i]}" = advisory ] && [ "${r_verdict[$i]}" != PASS ]; then
-            printf '  %-5s %s  — %s\n' "${r_verdict[$i]}" "${m_name[$i]}" "${m_reason[$i]}"
+        if [ "${m_class[$i]}" = warn ] && [ "${r_verdict[$i]}" != PASS ]; then
+            echo "  WARN  $(warn_line "$i")"
         fi
         i=$((i+1))
     done
     echo
 fi
 for u in "${malformed[@]+"${malformed[@]}"}"; do
-    echo "  MALFORMED marker: $u declares 'advisory' with no '# <reason>' — ran as BLOCKING"
+    echo "  MALFORMED marker: $u"
 done
-if [ "$exit_rc" -eq 0 ] && [ $((fail_n + err_n)) -gt 0 ]; then
-    echo "guard layer: PASS (gate=$GATE) — every BLOCKING member clean; $((afail_n + aerr_n)) advisory member(s) red above (${total_elapsed}s wall)"
+w_red=$((wfail_n + werr_n))
+if [ "$exit_rc" -eq 0 ] && [ "$w_red" -gt 0 ]; then
+    echo "guard layer: PASS (gate=$GATE) — every FAIL-tier member clean; $w_red WARN member(s) red above (${total_elapsed}s wall)"
+elif [ "$exit_rc" -eq 0 ] && [ $((fail_n + err_n)) -gt 0 ]; then
+    echo "guard layer: PASS (gate=$GATE) — every FAIL-tier member clean; INFO members printed above (${total_elapsed}s wall)"
 elif [ "$exit_rc" -eq 0 ]; then
     echo "guard layer: PASS — $pass_n/$total members clean (${total_elapsed}s wall)"
 elif [ "$exit_rc" -eq 1 ]; then
-    echo "guard layer: FIRING — $fail_n guard(s) found something ($pass_n passed, $err_n errored, ${total_elapsed}s wall)"
+    echo "guard layer: FIRING — $ffail_n FAIL-tier guard(s) found something ($pass_n passed, $ferr_n errored, $w_red WARN red, ${total_elapsed}s wall)"
     echo "  A firing guard is a real finding. Act on the member's own message above."
 else
-    echo "guard layer: TOOLING ERROR — $err_n member(s) could not run ($pass_n passed, ${total_elapsed}s wall)"
+    echo "guard layer: TOOLING ERROR — $ferr_n FAIL-tier member(s) could not run ($pass_n passed, $w_red WARN red, ${total_elapsed}s wall)"
     echo "  This is NOT a clean bill: those guards found nothing because they never looked."
 fi
 if [ "${#unclassified[@]}" -gt 0 ] && [ "$QUIET" -eq 0 ]; then

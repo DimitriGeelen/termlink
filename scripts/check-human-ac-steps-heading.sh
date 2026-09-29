@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# guard-layer: source --no-heartbeat
+# guard-layer: source warn --no-heartbeat  # approval-page rendering of task files, not the released artifact
 #
 # Human AC "Steps" heading canonical-form check (T-2859).
 #

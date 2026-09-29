@@ -1,0 +1,6 @@
+# guard-warn-first-red (T-3260) — WARN-tier guard members currently red, with
+# the UTC time each was FIRST seen red. Written only by run-guard-layer.sh
+# --record-warn (the host's release canary); read by every run and by
+# check-release-publication-freshness.sh, which escalates after 14 days.
+# Do not hand-edit a date to silence escalation — fix the member, or reclassify it.
+check-receiver-ack-lag.sh  2026-09-29T22:04:59Z

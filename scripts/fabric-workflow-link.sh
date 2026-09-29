@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# guard-layer: source
+# guard-layer: source warn  # fabric bookkeeping
 # fabric-workflow-link.sh — validate workflow steps registered as fabric components.
 #
 # REWRITTEN 2026-08-27. The first version read a sidecar (.fabric/workflow-links.yaml)

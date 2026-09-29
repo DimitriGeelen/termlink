@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# guard-layer: source --check --quiet
+# guard-layer: source warn --check --quiet  # the operator's open voi_score question (T-3200), not a code defect; header says it only reports
 #
 # T-3175 — ask about an unset voi_score, remember the answer, re-ask after N runs.
 #

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# guard-layer: source --no-heartbeat
+# guard-layer: source warn --no-heartbeat  # arc-008 success condition; process state, operator-approved WARN (T-3211 Part 2)
 #
 # T-3167 — the missing half of arc-008's success condition.
 #

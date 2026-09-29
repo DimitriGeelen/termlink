@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # scripts/check-human-ac-escalation.sh — T-3186
 #
-# guard-layer: source
+# guard-layer: source warn  # human-AC backlog escalation, human-owned by definition
 #
 # THE ESCALATION BAR, made load-bearing.
 #

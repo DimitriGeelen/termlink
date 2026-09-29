@@ -64,11 +64,11 @@ jobs:
 
       # T-2684 — the source-level static checks and fixture suites. The moment code
       # becomes a release is exactly when they should run.
-      # T-3258 — `--gate release`: only BLOCKING members gate the build; a member the
-      # operator has classified ADVISORY (`# guard-layer: source advisory  # <reason>`)
-      # still runs and is printed in its own section, but cannot hold a release
-      # hostage. Push CI (doc-lint.yml) runs the default gate, where every red counts.
-      # `cargo test` above is never advisory.
+      # T-3260 (supersedes T-3258's two classes) — three tiers: FAIL members gate the
+      # build; WARN members (`# guard-layer: source warn  # <reason>`) run, are printed
+      # and annotated (::warning::), and escalate via the release-publication canary
+      # after 14 days red, but cannot hold a release hostage; INFO is printed only.
+      # Push CI (doc-lint.yml) gates the same way. `cargo test` above is always FAIL.
       - name: Run source-level guard layer
         run: bash scripts/run-guard-layer.sh --gate release
 

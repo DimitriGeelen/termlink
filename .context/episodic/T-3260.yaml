@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3260: Guard layer three-tier severity FAIL/WARN/INFO with 14-day WARN escalation and approved markings
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-29T22:09:12Z
+# ============================================================================
+
+task_id: T-3260
+task_name: "Guard layer three-tier severity FAIL/WARN/INFO with 14-day WARN escalation and approved markings"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-29T21:53:12Z
+completed: 2026-09-29T22:08:12Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Operator-approved successor to T-3258: replace BLOCKING/ADVISORY with FAIL/WARN/INFO on the guard-layer marker; WARN never blocks either gate but is annotated (::warning::) and escalates via the release canary after 14 days red; INFO printed only; apply the approved markings.
+
+# Key outcomes
+outcomes:
+  - '`run-guard-layer.sh` parses `# guard-layer: source [fail|warn|info] [args]  # <reason>`; no word = FAIL; the T-3258 word `advisory` is accepted and mapped to WARN (documented as a compatibility alias)'
+  - 'A WARN or INFO member with FAIL or ERROR does NOT set the exit code under EITHER gate (`all` and `release`); a FAIL member red sets it under both'
+  - 'Each red WARN member (FAIL or ERROR) prints a GitHub `::warning::` annotation line and is listed in the runner summary; ERROR on a WARN member is reported as WARN, never as PASS; INFO members never print a red verdict and never emit an annotation'
+  - 'A WARN/INFO marker with no `# <reason>` is refused: the runner treats it as FAIL and reports MALFORMED, and `check-guard-severity-markers.sh` exits 1 naming it'
+  - '`cargo test` and `tests/*fixtures*.sh` are always FAIL regardless of any marker word (enforced in the runner and by the marker checker)'
+  - 'Durable first-seen-red record: the runner records, per WARN member, the date it was first seen red and clears it when the member passes; the record''s location and its CI-reset limit are documented in CLAUDE.md'
+  - 'Escalation: `check-release-publication-freshness.sh` (or a sibling wired into the same canary) fires (exit 1) on a WARN member red for more than 14 days and not before'
+  - 'The approved markings are applied exactly: INFO invocation-usage; WARN voi-prompt, check-go-propagation, check-human-ac-escalation, check-human-ac-steps-heading, check-handover-staleness, check-pickup-deferred-freshness, check-stranded-finalized-tasks, check-task-id-collisions, check-arc-slice-drift, check-installed-binary-drift, check-receiver-ack-lag, check-audit-warning-acknowledgement, check-budget-ladder-drift, check-episodic-parse, check-vendor-divergence, fabric-workflow-link; every other member stays FAIL (no word)'
+  - 'Fixtures with mutants cover: WARN red passes both gates but IS annotated; FAIL red fails both; missing reason refused; INFO never red; escalation fires past 14 days and not before'
+  - 'CLAUDE.md (above `## Core Principle`) documents the three tiers; the draft''s rulings section is not edited'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 15 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [guard-layer, ci, release]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 15
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3260-guard-layer-three-tier-severity-failwarn.md
+generated_by: context-agent-hybrid

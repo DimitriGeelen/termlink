@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# guard-layer: source
+# guard-layer: source warn  # inbound-queue hygiene; age-driven, goes red with no code change
 # T-2801 — stranded / stale auto-deferred pickup envelope check.
 #
 # The pickup pipeline routes an inbound envelope to .context/pickup/auto-deferred/

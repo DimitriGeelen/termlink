@@ -709,7 +709,10 @@ The mirror canary proves a tag *reaches* GitHub; nothing proved it became a
 It FIRES (exit 1) when (a) the newest local `v*` tag has no **published** release
 (`releases/tags/<tag>` HTTP 404, or a draft), or (b) a watched workflow (default
 `install-check.yml doc-lint.yml`) has no successful run on `main` within
-`--max-age-days` (default 7). It reads the REST API directly via `gh api`, **not**
+`--max-age-days` (default 7), or (c) **a WARN-tier guard-layer member has been red for
+more than 14 days** (T-3260, `GUARD_WARN_ESCALATE_DAYS`; see *Severity tiers* below). For
+(c) it first runs `run-guard-layer.sh --only-class warn --record-warn` to refresh the
+first-red ledger, then reads it (`--no-warn-refresh` reads it as-is). It reads the REST API directly via `gh api`, **not**
 `gh run list --status success` — measured 2026-09-29, the list form reported
 install-check's last green as 2026-06-12 while the API returned a green run from
 that same afternoon. **Fail-closed:** no `gh`, a non-404 API error (auth, network,
@@ -721,8 +724,9 @@ mirroring (`check-mirror-freshness.sh`), or what a green run tested. Ad-hoc:
 `--no-heartbeat`, `--max-age-days N`, `--workflows "a.yml b.yml"`, `--repo O/N`).
 Test seam (PL-213): `RELEASE_PUB_TEST_DIR=<dir>` (canned raw `gh api` responses +
 `.rc`/`.err`) and `RELEASE_PUB_TEST_NOW=<epoch>`. Fixtures:
-`bash tests/release-publication-canary-fixtures.sh` (25 assertions; a mutant muting
-the release finding turns R1/R2/W4/F2 red). Operator action on firing: publish the
+`bash tests/release-publication-canary-fixtures.sh` (30 assertions; a mutant muting
+the release finding turns R1/R2/W4/F2 red; E1–E4 pin the 14-day escalation, not before
+and past it, and mutant M2 muting it turns E1 red). Operator action on firing: publish the
 release (re-run `release.yml` for the tag, or cut the next tag once CI is green); for
 a stale workflow, open its latest run on main and fix it. Pair with the canaries
 above — same "empty-log = healthy" convention.
@@ -1993,19 +1997,52 @@ the MCP tool — fixed in T-2687) with nothing to surface it.
 Test seams: `GUARD_LAYER_SCRIPTS_DIR`, `GUARD_LAYER_TESTS_DIR`, `GUARD_LAYER_TIMEOUT`.
 Fixtures: `bash tests/guard-layer-runner-fixtures.sh` (27 assertions).
 
-**Severity classes (T-3258).** A member may declare `# guard-layer: source advisory
-[args]  # <reason>`; no word means BLOCKING. The class matters only under
-`--gate release`, which is what `release.yml`'s `test` job runs: there, advisory
-FAIL/ERROR members are printed in their own section, with their reason, and counted
-in `--json` (`advisory_fired`/`advisory_errored`), but they do not set the exit
-code. Push CI (`doc-lint.yml`) runs the default `--gate all`, where every red counts.
-Demoting a member therefore stops it holding a release; it never hides it.
-`cargo test` is always BLOCKING. A reasonless `advisory` is not honoured (the member
-runs as BLOCKING and the runner prints `MALFORMED`), and
-`scripts/check-guard-severity-markers.sh` fires on it and on a misplaced one. **No
-member is advisory yet.** The per-member proposal awaiting operator approval is
-`docs/reports/T-3258-guard-classification-draft.md`. Fixtures:
-`bash tests/guard-layer-severity-fixtures.sh` (20 assertions, 5 mutants).
+**Severity tiers (T-3260, operator-approved; supersedes T-3258's two classes).** The
+tier is the first word after `source` on the marker line; no word means **FAIL**.
+
+```
+# guard-layer: source [args]                  FAIL — red fails push CI AND the release gate
+# guard-layer: source warn [args]  # <reason> WARN — never fails either gate
+# guard-layer: source info [args]  # <reason> INFO — never red; output printed only
+```
+
+A red **WARN** member (FAIL *or* ERROR — a WARN guard that could not run is reported as
+WARN, never as a pass) is printed in its own section with its reason, emitted as a GitHub
+`::warning::` annotation (automatic under `GITHUB_ACTIONS`, or `--annotate`), appended to
+`$GITHUB_STEP_SUMMARY`, and counted in `--json` (`warn_fired`/`warn_errored`;
+`advisory_fired`/`advisory_errored` kept as aliases). `--gate all|release` is still
+accepted, and both now gate the same way — only FAIL-tier reds set the exit code, so
+Doc Lint stays green on a WARN red. `advisory` (the T-3258 word) is an alias for `warn`.
+A `warn`/`info` marker with no reason is refused — the member runs as FAIL and prints
+`MALFORMED` — and `scripts/check-guard-severity-markers.sh` fires on it (`NO-REASON`), on
+a severity word among the args (`MISPLACED`), and on any demotion of a fixture suite
+(`ALWAYS-FAIL`). `cargo test` and `tests/*fixtures*.sh` are always FAIL.
+
+**The 14-day clock.** A WARN that is red for more than 14 days **escalates**: the
+release-publication canary (above) fires on it. The clock is
+`.context/checks/guard-warn-first-red` — git-tracked, one `<member>  <UTC ISO>` line per
+WARN member currently red. It is written **only** by a run given `--record-warn`, which
+adds a member the first time it is seen red, **keeps** an existing date, and drops a
+member the first time it is seen green; the release canary does that refresh daily on this
+host. Every other run — CI included — only **reads** it, so a fresh CI checkout cannot
+reset the clock: it has no write path. A red WARN member with no ledger entry is printed
+as "clock not started", never silently as new. **Limits, stated plainly:** (1) the clock
+starts when the host first *records* a red, not when the member first went red — members
+already red before T-3260 (check-receiver-ack-lag, seeded 2026-09-29) started at seeding;
+(2) the durable copy is the host's working tree until someone commits the ledger — a
+`git checkout`/re-clone of the host before that commit resets it, and a CI checkout sees
+only the committed dates; (3) escalation needs the release canary's cron installed (SQ-9).
+Do not hand-edit a date to silence escalation — fix the member or reclassify it.
+
+Current markings (operator rulings in `docs/reports/T-3258-guard-classification-draft.md`
+§ Operator rulings): **INFO** invocation-usage; **WARN** voi-prompt, check-go-propagation,
+check-human-ac-escalation, check-human-ac-steps-heading, check-handover-staleness,
+check-pickup-deferred-freshness, check-stranded-finalized-tasks, check-task-id-collisions,
+check-arc-slice-drift, check-installed-binary-drift, check-receiver-ack-lag,
+check-audit-warning-acknowledgement, check-budget-ladder-drift, check-episodic-parse,
+check-vendor-divergence, fabric-workflow-link; everything else FAIL (Part 3 of the draft
+is still being decided). Fixtures: `bash tests/guard-layer-severity-fixtures.sh`
+(32 assertions, 6 mutants) plus the escalation cases in the release-publication fixtures.
 
 ### Canary log hygiene — split the streams (T-2685)
 

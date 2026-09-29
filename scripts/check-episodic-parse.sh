@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# guard-layer: source
+# guard-layer: source warn  # legacy/corrupt episodic files await migration (T-2805); memory-layer hygiene, not the release
 # T-2805 — episodic-store readability check.
 #
 # Episodic memory is one of the framework's three memory types, and it is the

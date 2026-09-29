@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# guard-layer: source --no-heartbeat
+# guard-layer: source warn --no-heartbeat  # fires on the human GO-decision backlog; red means the operator has items, not that the code is wrong
 #
 # check-go-propagation.sh — GO-recorded inceptions that never propagated their scope.
 #

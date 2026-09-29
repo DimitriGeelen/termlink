@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# guard-layer: source --no-heartbeat
+# guard-layer: source warn --no-heartbeat  # arc register bookkeeping
 # T-3083 — an arc's SLICE REGISTER goes stale and nothing detects it.
 #
 # WHY THIS EXISTS

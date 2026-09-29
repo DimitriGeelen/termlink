@@ -81,5 +81,9 @@ jobs:
           # baseline refs, HEAD~N). The default depth-1 checkout failed all ten.
           fetch-depth: 0
 
+      # T-3260 — three severity tiers. FAIL members turn this job red; WARN members
+      # never do (they are emitted as ::warning:: annotations + the step summary and
+      # escalate via the release-publication canary after 14 days red); INFO is
+      # printed only. CI only READS the first-red ledger — it never writes the clock.
       - name: Run guard layer
         run: bash scripts/run-guard-layer.sh
