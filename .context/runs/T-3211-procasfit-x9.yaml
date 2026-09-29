@@ -88,6 +88,34 @@ rounds:
   - SQ-2 .claude/commands/*.md - register all 34 or drop the singleton
   - SQ-4 (from R1) highest-BVP agent-owned Q1 tasks belong to no arc, ladder cannot reach them
   - SQ-5 scored-before-started vs P-002 refusing fw bvp estimate on a captured task
+- round: 3
+  dispatched_utc: '2026-09-29T06:44:16Z'
+  handback: .context/runs/T-3211-R3-handback.md
+  handback_bytes: 19755
+  placeholders: 0
+  status: COMPLETE
+  selection:
+    objective: arc-009 headline - every non-KEEP value-review finding reaches a terminal
+      state the operator can see
+    arc: arc-009, in flight, not blocked (arc-011 exhausted at R1; arc-008 Q1/Q2 frozen on SQ-1/2/3)
+    task: T-3215, chosen over T-3213/T-3214 to resolve the UNGATED uncommitted claim R2 left in parity.rs
+    quadrant: Q1 hv-lc (BVP 60 / cost 2.0), scored at pickup - blast_radius was UNMEASURED before
+  work_verified:
+  - d09fdc3b2 T-3135 register repair (R1 moved the file but HEAD still read status:captured)
+  - 7a38fceaf T-3215 NOT-A-DEFECT - catalogs share one registry; the drift was a stale prebuilt CLI binary
+  - 20790e959 restore of four active task files 7a38fceaf wrongly recorded as deleted
+  - 2ed0583a6 T-3213 closed with a real fix in crates/termlink-cli/src/commands/agent.rs + episodic
+  - T-3213 and T-3215 both present in .tasks/completed/
+  worker_self_corrections:
+  - 7a38fceaf recorded four ACTIVE task files as deleted; the worker detected this itself and restored
+    them in 20790e959. Verified by the next orchestrator - no content lost (T-3213's apparent 269-line
+    loss is its legitimate move to completed/).
+  sovereign_questions:
+  - SQ-8 (NEW) how should termlink_doctor (MCP) reach parity with termlink doctor (CLI) - three options,
+    each with a real cost; agent recommendation is option 1 (shared collection) + mirror strict
+  - SQ-3, SQ-4, SQ-1, SQ-2, SQ-7, SQ-6 carried unresolved
+  - SQ-5 lowered - now 0 reproductions against 4 counter-measurements; closeable as not-reproduced
+    unless someone can name the path that refuses
 host_conditions:
   note: '~50 claude processes and load ~12 are this host''s STEADY STATE (T-3090 measured ~450 agent processes
     under normal load, and the operator ruled the contended figure is the answer). Memory at round 2 dispatch:
@@ -110,10 +138,32 @@ orchestrator_errors:
 - error: Reported R1 as clean because its Sovereign-questions section read "_(none yet)_".
   reality: 'That is the skeleton placeholder. R1 still shows 2 placeholders and Status: IN PROGRESS. It
     had surfaced a real finding (SQ-4) in its body and never landed it in the section.'
+- error: Orchestrator (PID 2438768) died when its dispatch collect-window expired at 1829s (~30min),
+    while its R3 worker (PID 2438794) ran on for another 52 minutes and completed normally.
+  reality: 'The R3 dispatch log reads ok:false / events_collected:0 / timed_out:false - which reads as
+    a failed round. It was not. The worker was orphaned, not dead, and went on to close T-3213 and T-3215.
+    The 3600s PROCASFIT_ROUND_TIMEOUT lived in the dead parent, so nothing bounded the orphan either.
+
+    '
+  consequence: Rounds 4-9 had no launcher. Six of nine rounds would have silently never run, with the
+    run record still reading R3 in-progress - the next session would have rediscovered this from scratch.
+  lesson: 'Same class as the two errors above, a third time: a dispatch return code is not evidence about
+    the worker. The script header already says this about handbacks; it is equally true of the parent''s
+    own exit. Verify a round by reading its handback AND by checking whether anything is still scheduled
+    to launch the next one.'
 stopped:
-  at_round: 2
+  at_round: 3
   of: 9
-  reason: Orchestrator context reached 629,589 (~78%), past TOKEN_WARN (75% of 800000). The mandate's
-    own stop condition and CLAUDE.md both say wrap up here rather than start a unit that cannot finish.
-  to_resume: bash scripts/run-procasfit-round.sh 3 9 .context/runs/T-3211-R2-handback-final.md  (launches
-    detached; poll with --verify once the worker is gone, not before)
+  reason: 'Rounds 4-9 were NOT launched, deliberately. R3 stopped at ~42% budget - well under TOKEN_WARN
+    - on the mandate''s FIRST stop condition: every remaining Q1/Q2 path in every in-flight arc is behind
+    a Sovereign question or owner:human. Launching six more rounds into that wall would produce six
+    handbacks all saying "blocked on SQ", which is the fabricated-success failure this record warns
+    about at line 10. The block is sovereignty-gated, not capacity-gated: it clears when the human rules,
+    not when another worker runs.
+
+    '
+  blocked_on: [SQ-3, SQ-8, SQ-4, SQ-1, SQ-2, SQ-7, SQ-6]
+  to_resume: bash scripts/run-procasfit-round.sh 4 9 .context/runs/T-3211-R3-handback.md  (launches
+    detached; poll with --verify once the worker is gone, not before). Do NOT launch until at least
+    SQ-3 and SQ-4 are ruled on - those two between them unfreeze the four arc-008 tasks (BVP 85+85+57+57)
+    and the entire arc-less high-BVP list.
