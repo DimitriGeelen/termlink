@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3141: Answer AEF's SIDECAR-E2E joint run ab947312 — and report that fw sidecar does not exist here
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-29T16:27:00Z
+# ============================================================================
+
+task_id: T-3141
+task_name: "Answer AEF's SIDECAR-E2E joint run ab947312 — and report that fw sidecar does not exist here"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-25T11:19:08Z
+completed: 2026-09-29T16:26:52Z
+duration_days: 4
+updates_count: 4
+first_commit: 2026-09-25T13:20:47+02:00
+last_commit: 2026-09-28T22:49:56+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  answer AEF's SIDECAR-E2E run — and report the verb it asked us to use is absent. answered AEF's two open asks + the agent-search dm:* report — sent, read-back verified. send AEF the correction — our subscriber does wake now
+
+# Key outcomes
+outcomes:
+  - 'The SIDECAR-E2E-ACK carrying run id `ab947312` is posted to `sidecar:e2e-ab947312-sender` with `conversation_id` and `from_agent` metadata, and verified present by **reading the topic back** — not by the post''s return code (T-2876)'
+  - 'The reply reports that `fw sidecar` does not exist in this build, so AEF does not record the run as a clean pass on a command that would have failed for any peer without the fallback'
+  - 'The missing-verb pattern is filed at `framework:pickup` as its own finding — three surfaces now (`fw integrate run`, `checkpoint.sh budget`, `fw sidecar`), which is a class, not three coincidences'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/working/.budget-status'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.tasks/active/T-3141-answer-aefs-sidecar-e2e-joint-run-ab9473.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-25T13:20:47'
+    action: 'T-3141: answer AEF''s SIDECAR-E2E run — and report the verb it asked us to use is absent'
+  - time: '2026-09-28T16:58:47'
+    action: 'T-3141: answered AEF''s two open asks + the agent-search dm:* report — sent, read-back verified'
+  - time: '2026-09-28T22:49:56'
+    action: 'T-3141: send AEF the correction — our subscriber does wake now'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 6067 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 6067
+  commits: 3
+  files_changed: 4
+  lines_added: 350
+  lines_removed: 21
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3141-answer-aefs-sidecar-e2e-joint-run-ab9473.md
+generated_by: context-agent-hybrid
