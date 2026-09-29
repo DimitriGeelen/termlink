@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3213: CLI 'agent search --json' emits no JSON on hub-down (T-1914 class) — MCP twin returns {ok:false,error}
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-29T07:29:34Z
+# ============================================================================
+
+task_id: T-3213
+task_name: "CLI 'agent search --json' emits no JSON on hub-down (T-1914 class) — MCP twin returns {ok:false,error}"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-28T23:48:21Z
+completed: 2026-09-29T07:29:15Z
+duration_days: 1
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Found by T-2991 parity case parity_agent_search_no_hub (kept #[ignore]). With no hub socket, 'termlink agent search needle --json' exits 1 with EMPTY stdout and an anyhow chain on stderr, while termlink_agent_search (MCP) returns {ok:false, error:'Hub is not running …'}. Same class PAIR 6 caught for 'channel list' in 2026-06 (T-1914): an early error path that does not honour --json. Fix: route the hub-down branch of cmd_agent_search through json_error_exit when --json is set; then un-ignore the parity case.
+
+# Key outcomes
+outcomes:
+  - 'AC1 — With `--json` set and no hub socket, `termlink agent search <q> --json` writes'
+  - 'AC2 — The guard covers every failure of the chat-arc fetch on the JSON path (hub-down AND'
+  - 'AC3 — `parity_agent_search_no_hub` (PAIR 31, T-2991) carries no `#[ignore]` and passes'
+  - 'AC4 — `bash scripts/check-silent-exit.sh` stays clean (the new exit is LOUD by'
+  - 'AC5 — RCA + Evolution filled: symptom, root cause (bare `?` on the JSON path at the one'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 460 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-009, parity, bug]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 460
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3213-cli-agent-search---json-emits-no-json-on.md
+generated_by: context-agent-hybrid

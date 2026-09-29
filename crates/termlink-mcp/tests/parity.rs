@@ -1580,10 +1580,10 @@ async fn parity_channel_unread_no_hub() {
 // anyhow chain ("Error: Fetching chat-arc full slice for search / Caused by:
 // Hub is not running …") on stderr, exit 1. That is the T-1914 class (an early
 // error path that does not honour --json), the same shape PAIR 6 caught for
-// `channel list` in 2026-06. Kept `#[ignore]` so the suite stays green while
-// the drift is visible; un-ignore when the CLI is fixed under its own task.
+// `channel list` in 2026-06. Was `#[ignore]`d while the drift was visible;
+// FIXED by T-3213 (cmd_agent_search routes every fetch failure on the JSON
+// path through `json_error_exit`) and live since.
 #[tokio::test]
-#[ignore = "T-3213 drift: CLI `agent search --json` emits no JSON on hub-down (T-1914 class) — un-ignore when T-3213 lands"]
 async fn parity_agent_search_no_hub() {
     no_hub_pair("agent-search-no-hub", "termlink_agent_search",
         json!({"query": "needle"}), &["agent", "search", "needle", "--json"]).await;

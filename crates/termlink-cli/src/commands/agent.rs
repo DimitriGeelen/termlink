@@ -2933,9 +2933,24 @@ pub(crate) async fn cmd_agent_search(
     // extract_recent_posts uses cutoff = now_ms - window_ms; with
     // window_ms = now_ms, cutoff is 0 — all post-epoch posts pass.
     let window_ms = now_ms.max(0);
-    let msgs = super::channel::fetch_chat_arc_full(hub)
-        .await
-        .context("Fetching chat-arc full slice for search")?;
+    // T-3213: the JSON path must never leave stdout empty on a fetch failure
+    // (T-1914 class — hub-down or a hub-side RPC error). MCP's
+    // `termlink_agent_search` answers `{ok:false, error}` for both; mirror it
+    // here via `json_error_exit`, the same shape T-1915's
+    // `hub_socket_or_json_exit` gives every `cmd_channel_*` site. The
+    // human-format path keeps the anyhow chain on stderr.
+    let msgs = match super::channel::fetch_chat_arc_full(hub).await {
+        Ok(m) => m,
+        Err(e) => {
+            if json {
+                super::json_error_exit(serde_json::json!({
+                    "ok": false,
+                    "error": format!("{e:#}"),
+                }));
+            }
+            return Err(e).context("Fetching chat-arc full slice for search");
+        }
+    };
     let posts = super::channel::extract_recent_posts(
         &msgs,
         clamped_n,

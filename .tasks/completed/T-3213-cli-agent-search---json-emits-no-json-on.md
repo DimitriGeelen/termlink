@@ -11,13 +11,13 @@ description: >
   branch of cmd_agent_search through json_error_exit when --json is set; then un-ignore
   the parity case.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-009, parity, bug]
-components: []
-related_tasks: []
+components: [crates/termlink-mcp/tests/parity.rs]
+related_tasks: [T-2991, T-1914, T-1915]
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
@@ -29,8 +29,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-28T23:48:21Z
-last_update: '2026-09-29T00:12:57Z'
-date_finished:
+last_update: 2026-09-29T07:29:15Z
+date_finished: 2026-09-29T07:29:15Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -65,20 +65,54 @@ cost_estimate_proposed:
     rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
       (workflow:build); effort=8 (lines=232,acs=4)
     rubric_sha: e4a00f38e801
+  - ts: '2026-09-29T07:26:13Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 8
+    rationale: blast_radius=3 (2-components); tier=2 (workflow:build); effort=8 
+      (lines=264,acs=7)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3213: CLI 'agent search --json' emits no JSON on hub-down (T-1914 class) — MCP twin returns {ok:false,error}
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+`cmd_agent_search` (`crates/termlink-cli/src/commands/agent.rs:2914`) validates the empty-query
+case through `json_error_exit` when `--json` is set, then calls
+`super::channel::fetch_chat_arc_full(hub).await.context(…)?` — a bare `?`. With no hub socket
+that returns the `hub_socket()` error ("Hub is not running (no socket at …)"), and the anyhow
+chain goes to stderr with EMPTY stdout, exit 1. A `jq` consumer sees a silent empty pipe — the
+T-1914 class that T-1915 DRYed across `channel.rs` via `hub_socket_or_json_exit` but which never
+reached this `agent.rs` site. MCP `termlink_agent_search` returns `hub_down_err()` →
+`{ok:false, error:"Hub is not running …"}`. Measured 2026-09-29 with `target/debug/termlink`
+against an empty runtime dir: stdout empty, stderr "Error: Fetching chat-arc full slice for
+search / Caused by: Hub is not running (no socket at …)", rc 1. This is the ONLY
+`fetch_chat_arc_full(hub)` call in `agent.rs` (`grep -c` = 1), so the fix closes the class at
+its single site. Found by T-2991's `parity_agent_search_no_hub` (kept `#[ignore]` pending this).
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] AC1 — With `--json` set and no hub socket, `termlink agent search <q> --json` writes
+      `{"ok": false, "error": "<msg containing 'Hub is not running'>"}` to STDOUT and exits 1
+      (via `super::json_error_exit`, the T-1914/T-1915 convention). Without `--json` the
+      human-format path is unchanged (anyhow chain on stderr, exit 1).
+- [x] AC2 — The guard covers every failure of the chat-arc fetch on the JSON path (hub-down AND
+      a hub-side RPC error), mirroring MCP `termlink_agent_search`, which returns `json_err` for
+      both; `agent.rs` still has exactly one `fetch_chat_arc_full(hub)` call site and it is the
+      guarded one.
+- [x] AC3 — `parity_agent_search_no_hub` (PAIR 31, T-2991) carries no `#[ignore]` and passes
+      against a CLI binary built from the fixed tree.
+- [x] AC4 — `bash scripts/check-silent-exit.sh` stays clean (the new exit is LOUD by
+      construction) and `cargo build -p termlink` compiles warning-free for the touched file.
+- [x] AC5 — RCA + Evolution filled: symptom, root cause (bare `?` on the JSON path at the one
+      `agent.rs` site the T-1915 DRY pass never reached), why allowed (the T-1915 helper lives
+      in `channel.rs` and was applied to `cmd_channel_*` only; nothing scanned `agent.rs` for the
+      same shape), prevention (the parity pair is now live, so a regression fails CI via T-2686).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -114,6 +148,13 @@ cost_estimate_proposed:
 -->
 
 ## Verification
+
+cargo build -p termlink --quiet
+test "$(grep -c 'fetch_chat_arc_full(hub)' crates/termlink-cli/src/commands/agent.rs)" = 1
+d=$(mktemp -d) && mkdir -p "$d/sessions" && ! (TERMLINK_RUNTIME_DIR=$d HOME=$d target/debug/termlink agent search needle --json > /tmp/.t3213-out 2>/dev/null) && python3 -c "import json; d=json.load(open('/tmp/.t3213-out')); assert d['ok'] is False and 'Hub is not running' in d['error'], d"
+test "$(grep -c 'ignore = "T-3213' crates/termlink-mcp/tests/parity.rs)" = 0
+TERMLINK_BIN=$PWD/target/debug/termlink cargo test -p termlink-mcp --test parity parity_agent_search_no_hub > /tmp/.t3213-par 2>&1 && grep -q 'test result: ok. 1 passed' /tmp/.t3213-par
+bash scripts/check-silent-exit.sh > /tmp/.t3213-se 2>&1
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -204,6 +245,25 @@ cost_estimate_proposed:
 
 ## RCA
 
+**Symptom:** `termlink agent search <q> --json` with no hub socket exits 1 with EMPTY stdout and
+an anyhow chain on stderr; a `jq` consumer sees a silent empty pipe. MCP `termlink_agent_search`
+returns `{ok:false, error:"Hub is not running …"}` for the same state. Caught by T-2991's
+`parity_agent_search_no_hub`.
+
+**Root cause:** `cmd_agent_search` guarded the empty-query case with `json_error_exit` but
+fetched the chat-arc slice with a bare `?` (`fetch_chat_arc_full(hub).await.context(…)?`), so
+any fetch failure — hub-down or hub-side RPC error — bypassed the JSON path entirely.
+
+**Why structurally allowed:** T-1915 DRYed the T-1914 fix into `channel.rs::hub_socket_or_json_exit`
+and applied it to the 45 `cmd_channel_*` sites; `agent.rs` verbs reach the hub through
+`fetch_chat_arc_full`, a different seam, and nothing scanned that crate for the same shape. The
+silent-exit static check (T-2666) keys on `std::process::exit(<literal>)` after a closed block and
+cannot see an anyhow `?` that leaves stdout empty; only a behavioural pair can.
+
+**Prevention:** the fetch failure now routes through `json_error_exit` on the JSON path (this fix),
+and `parity_agent_search_no_hub` is live — un-ignored — so a regression fails the parity suite that
+T-2686 wires into every push/PR. This was the only `fetch_chat_arc_full(hub)` call in `agent.rs`.
+
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
      Non-bug-class tasks may leave this section empty or remove it.
@@ -219,6 +279,18 @@ cost_estimate_proposed:
 -->
 
 ## Evolution
+
+### 2026-09-29 — one site, both failure modes
+- **What changed:** the filing said "route the hub-down branch through json_error_exit". Reading
+  the site showed hub-down is not a distinct branch — it is one of two failure modes of the same
+  fetch (socket absent vs RPC error), and MCP answers `{ok:false, error}` for both. Guarding the
+  `Err` arm of the fetch, not a hub-down probe, is what actually mirrors the MCP twin.
+- **Plan impact:** none beyond that; the fix stayed a single `match`. The parity pair asserts
+  with `TERMLINK_BIN=target/debug/termlink` in Verification, because the harness default
+  (`find_termlink_bin_fresh()` → nested release build) costs >10 min per commit on this host
+  (measured in T-3215's Evolution) and a debug build of the CLI is 46s.
+- **Triggered:** nothing new. R2's pre-measurement (T-2991 check 18) found 5 of 9 sampled CLI
+  verbs already loud on hub-down; the four without any `--json` flag are T-2748 scope (F5 there).
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
@@ -298,3 +370,19 @@ cost_estimate_proposed:
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3213-cli-agent-search---json-emits-no-json-on.md
 - **Context:** Initial task creation
+
+### 2026-09-29T07:26:36Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-c03a19c4
+- **Timestamp:** 2026-09-29T07:29:26Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** none
+
+### 2026-09-29T07:29:15Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
