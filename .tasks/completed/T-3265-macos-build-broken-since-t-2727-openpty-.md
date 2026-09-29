@@ -9,12 +9,12 @@ description: >
   test job is continue-on-error. Fix: let mut initial_ws + &mut initial_ws (&mut T
   coerces to *const T on Linux).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-session/src/pty.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -27,8 +27,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-29T23:38:32Z
-last_update: 2026-09-29T23:38:46Z
-date_finished:
+last_update: 2026-09-29T23:41:29Z
+date_finished: 2026-09-29T23:41:29Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -220,6 +220,25 @@ grep -q '&mut initial_ws' crates/termlink-session/src/pty.rs
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
+**Symptom:** v0.12.2's Release run built all three Linux targets and failed both `build-macos` jobs
+with E0308 at `crates/termlink-session/src/pty.rs:163`, so no release was published.
+
+**Root cause:** `libc::openpty`'s winsize parameter has a platform-dependent pointer type: apple
+declares `*mut winsize`, Linux `*const winsize`. T-2727 passed `&initial_ws`, which coerces to
+`*const` only. Correct on Linux, a type error on macOS.
+
+**Why structurally allowed:** every blocking CI job runs on Linux. The one job that compiles for
+macOS, `test-macos` in `release.yml`, is `continue-on-error: true` (T-2692, deliberately, until a
+green run had been measured), and it only runs on tag pushes, which had not happened successfully
+since. So a macOS compile error could land and sit indefinitely with every visible signal green. The
+platform-lock static check (T-2693) asks "does this reach a Linux-only facility?"; it cannot see a
+type that differs per target, and no static grep reasonably could.
+
+**Prevention:** once `test-macos` has one measured green run (expected on the next release tag),
+T-2692's own documented step applies: delete its `continue-on-error` line and add it to the build
+jobs' `needs:`. Surfaced to the operator as a decision rather than made here, because T-2692
+reserved that promotion for a measured green run. Also filed learning-grade note: FFI calls whose
+signature differs per target should pass `&mut` where either platform takes `*mut`.
 
 ## Evolution
 
@@ -304,3 +323,16 @@ grep -q '&mut initial_ws' crates/termlink-session/src/pty.rs
 
 ### 2026-09-29T23:38:46Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-9500e181
+- **Timestamp:** 2026-09-29T23:41:31Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** none
+
+### 2026-09-29T23:41:29Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

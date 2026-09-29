@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3265: macOS build broken since T-2727: openpty winsize passed as &T, macOS libc wants *mut
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-29T23:41:38Z
+# ============================================================================
+
+task_id: T-3265
+task_name: "macOS build broken since T-2727: openpty winsize passed as &T, macOS libc wants *mut"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-29T23:38:32Z
+completed: 2026-09-29T23:41:29Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-30T01:41:05+02:00
+last_commit: 2026-09-30T01:41:05+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  openpty winsize passed as &mut — macOS libc declares *mut, Linux *const; macOS has not compiled since T-2727
+
+# Key outcomes
+outcomes:
+  - '`crates/termlink-session/src/pty.rs` passes the winsize to `libc::openpty` as a mutable reference, compiling against both libc signatures (apple `*mut winsize`, linux `*const winsize`)'
+  - 'The macOS signature is proven: an isolated crate pinned to the CI''s libc (0.2.183) that calls `openpty` the old way fails `cargo check --target x86_64-apple-darwin` and the new way passes, both passing on linux (a full-crate macOS cross-check is impossible here: C build scripts need a macOS toolchain)'
+  - '`cargo check -p termlink-session` (host linux) succeeds and the termlink-session PTY tests still pass'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-session/src/pty.rs'
+  - '.tasks/active/T-3265-macos-build-broken-since-t-2727-openpty-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-30T01:41:05'
+    action: 'T-3265: openpty winsize passed as &mut — macOS libc declares *mut, Linux *const; macOS has not compiled since T-2727'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 2
+  lines_added: 310
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3265-macos-build-broken-since-t-2727-openpty-.md
+generated_by: context-agent-hybrid
