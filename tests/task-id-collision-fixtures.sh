@@ -325,6 +325,27 @@ if [ "$rc" = "2" ]; then ok "unknown base ref => exit 2"
 else bad "unknown base ref => exit 2" "rc=$rc: $out"; fi
 
 # ---------------------------------------------------------------------------
+# 9b. T-3261 — a TAG checkout (release job) has no local `main`. The defaulted
+#     base falls back to origin/main and says so; it must not exit 2. An
+#     EXPLICIT base never falls back; with neither ref it is still exit 2.
+# ---------------------------------------------------------------------------
+TAGD="$TMP/tagclone"
+git clone -q "$TMP/clean" "$TAGD" 2>/dev/null
+( cd "$TAGD" && git tag v9.9.9 && git checkout -q --detach v9.9.9 && git branch -q -D main )
+out=$(run_check "$TAGD"); rc=$?
+if [ "$rc" != "2" ]; then ok "tag checkout without local main does not error (rc=$rc)"
+else bad "tag checkout without local main does not error" "rc=$rc: $out"; fi
+if echo "$out" | grep -q "using origin/main as base"; then ok "fallback to origin/main is announced"
+else bad "fallback to origin/main is announced" "$out"; fi
+out=$(run_check "$TAGD" --base main); rc=$?
+if [ "$rc" = "2" ]; then ok "explicit --base main never silently falls back (exit 2)"
+else bad "explicit --base main never falls back" "rc=$rc: $out"; fi
+( cd "$TAGD" && git update-ref -d refs/remotes/origin/main )
+out=$(run_check "$TAGD"); rc=$?
+if [ "$rc" = "2" ]; then ok "no main and no origin/main => exit 2 (fail-closed)"
+else bad "no main and no origin/main => exit 2" "rc=$rc: $out"; fi
+
+# ---------------------------------------------------------------------------
 # 10. --quiet stays silent when nothing fires, prints when something does.
 # ---------------------------------------------------------------------------
 out=$(run_check "$TMP/clean" --quiet)

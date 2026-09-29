@@ -41,6 +41,13 @@ jobs:
           # git history; a depth-1 checkout fails all ten.
           fetch-depth: 0
 
+      # T-3261 — a tag push checks out a detached HEAD with NO local `main`, so
+      # check-task-id-collisions (base `main`) exited 2 and failed v0.12.1's release
+      # (run 36633929858). The check now falls back to origin/main; this step makes
+      # sure that ref exists even if the checkout action's refspec ever narrows.
+      - name: Ensure origin/main is available (tag builds)
+        run: git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 

@@ -66,6 +66,10 @@
 set -u
 
 BASE_REF="${TASK_COLLISION_BASE:-main}"
+# T-3261: remember whether the base was DEFAULTED. Only a defaulted `main` may fall
+# back to `origin/main` (a tag checkout in CI has no local main branch — release
+# run 36633929858). An explicit --base / TASK_COLLISION_BASE never falls back.
+BASE_EXPLICIT=0; [ -n "${TASK_COLLISION_BASE:-}" ] && BASE_EXPLICIT=1
 BRANCH_GLOB="${TASK_COLLISION_BRANCHES:-}"
 THRESHOLD="${TASK_COLLISION_SIMILARITY:-0.72}"
 QUIET=0
@@ -99,7 +103,7 @@ EOF
 
 while [ $# -gt 0 ]; do
     case "$1" in
-        --base)      shift; [ $# -ge 1 ] || { echo "check-task-id-collisions: --base requires a value" >&2; exit 2; }; BASE_REF="$1" ;;
+        --base)      shift; [ $# -ge 1 ] || { echo "check-task-id-collisions: --base requires a value" >&2; exit 2; }; BASE_REF="$1"; BASE_EXPLICIT=1 ;;
         --threshold) shift; [ $# -ge 1 ] || { echo "check-task-id-collisions: --threshold requires a value" >&2; exit 2; }; THRESHOLD="$1" ;;
         --no-titles) NO_TITLES=1 ;;
         --no-fixes)  NO_FIXES=1 ;;
@@ -114,8 +118,16 @@ done
 git rev-parse --git-dir >/dev/null 2>&1 || {
     echo "check-task-id-collisions: not a git repository" >&2; exit 2; }
 
-git rev-parse --verify --quiet "$BASE_REF" >/dev/null || {
-    echo "check-task-id-collisions: base ref not found: $BASE_REF" >&2; exit 2; }
+if ! git rev-parse --verify --quiet "$BASE_REF^{commit}" >/dev/null; then
+    if [ "$BASE_EXPLICIT" -eq 0 ] && [ "$BASE_REF" = main ] \
+       && git rev-parse --verify --quiet "origin/main^{commit}" >/dev/null; then
+        # Say so on stderr: a silent substitution would hide which base was compared.
+        echo "check-task-id-collisions: no local 'main' (tag/detached checkout?) — using origin/main as base" >&2
+        BASE_REF=origin/main
+    else
+        echo "check-task-id-collisions: base ref not found: $BASE_REF" >&2; exit 2
+    fi
+fi
 
 export TASK_COLLISION_BASE="$BASE_REF"
 export TASK_COLLISION_BRANCHES="$BRANCH_GLOB"
@@ -156,8 +168,12 @@ def id_of(path):
 
 
 if not BRANCHES:
-    BRANCHES = [b for b in git("branch", "--format=%(refname:short)").split()
-                if b != BASE and not b.endswith("-backup")]
+    # T-3261: splitlines, not split — a detached HEAD lists as "(HEAD detached at vX)",
+    # which split() would shred into bogus ref names. Skip it; it is not a branch.
+    BRANCHES = [b.strip() for b in git("branch", "--format=%(refname:short)").splitlines()
+                if b.strip() and not b.strip().startswith("(")
+                and b.strip() != BASE and "origin/" + b.strip() != BASE
+                and not b.strip().endswith("-backup")]
 
 base_ids = {}
 for p in task_files(BASE):
