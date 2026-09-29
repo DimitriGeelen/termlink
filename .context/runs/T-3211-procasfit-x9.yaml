@@ -209,3 +209,20 @@ sequence_ended:
   totals_rounds_1_5: R1 1 close, R2 2, R3 2, R4 16, R5 7 (+T-3231 repaired)
   resumes_when: SQ-4 ruled "arc-less defects eligible" -> R6 has >=13 Q1 units ready (T-2644 first).
     Command - bash scripts/run-procasfit-round.sh 6 9 .context/runs/T-3211-R5-handback.md
+rounds_after_rulings:
+- round: 6
+  handback: .context/runs/T-3211-R6-handback.md
+  handback_bytes: 20349
+  placeholders: 0
+  status: COMPLETE (operator's SQ-4 list closed or blocked with recorded reasons)
+  operator_rulings_in_force: [SQ-4 yes, SQ-3 surface-then-ask]
+  verified_by_orchestrator:
+  - 9 task files moved to completed/ since the R6-launch commit, all finalized; stranded check clean
+  - worker gone before verify; pushed 93c8a6137 to origin so CI measures the SQ-9 opts 1+2 fixes
+  sq9_work: T-3232 Install Check root cause = rmcp-macros 1.8.0 resolved against rmcp 1.3.0 without --locked
+    (red since 2026-06-23, 947 runs, nothing fired); T-3233 fetch-depth 0 on guard checkouts; T-3234 six
+    members CI-hermetic. Orchestrator's earlier "description drift" reading was wrong; worker corrected it.
+  worker_disclosed: one self-granted logged FW_SWITCH_FOCUS bypass (67e724d19, T-3141 finalize), avoidable;
+    content correct. Surfaced to operator.
+  closure_requests: [T-3132, T-3128, T-2958, T-3130, T-3177]
+  sovereign_questions_new: [SQ-11 T-2573 cursor contract livelock, SQ-12 T-2606 exactly-once design, SQ-13 T-3091 new structural gate]
