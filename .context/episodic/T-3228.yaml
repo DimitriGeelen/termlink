@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3228: MCP ack_required wait reads a count-anchored slice and can miss the ack (T-2507 not ported)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-29T10:51:05Z
+# ============================================================================
+
+task_id: T-3228
+task_name: "MCP ack_required wait reads a count-anchored slice and can miss the ack (T-2507 not ported)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-29T10:35:27Z
+completed: 2026-09-29T10:50:35Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-29T12:40:12+02:00
+last_commit: 2026-09-29T12:50:31+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  record the analysis — confirmed at HEAD, and why the fix must not go in fetch_recent (presence regression). MCP ack_required wait walks by offset cursor — parity with the CLI's T-2507
+
+# Key outcomes
+outcomes:
+  - 'MCP `termlink_agent_contact` `ack_required` wait reads via an incremental offset-cursor walk (`channel.subscribe` from cursor 0, carrying `next_cursor` across polls), mirroring CLI `wait_for_peer_ack` (T-2507), and no longer calls `fetch_recent` for the ack poll'
+  - '`ContactHub::fetch_recent` is unchanged, so the presence and chat-arc reads keep their current behaviour (no presence regression, per the Context analysis)'
+  - 'A unit test against a fake front-trimmed topic proves the walk finds a tail ack that the count-anchored cursor misses (the test must fail if the walk is replaced by the count-anchored read)'
+  - '`cargo test -p termlink-mcp --lib` passes with no new warnings'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'record the analysis — confirmed at HEAD, and why the fix must not go in fetch_recent (presence regression)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-mcp/src/tools.rs'
+  - '.tasks/active/T-3228-mcp-ackrequired-wait-reads-a-count-ancho.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-29T12:40:12'
+    action: 'T-3228: record the analysis — confirmed at HEAD, and why the fix must not go in fetch_recent (presence regression)'
+  - time: '2026-09-29T12:50:31'
+    action: 'T-3228: MCP ack_required wait walks by offset cursor — parity with the CLI''s T-2507'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 15 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 15
+  commits: 2
+  files_changed: 2
+  lines_added: 222
+  lines_removed: 44
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3228-mcp-ackrequired-wait-reads-a-count-ancho.md
+generated_by: context-agent-hybrid
