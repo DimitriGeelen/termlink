@@ -8,12 +8,12 @@ description: >
   TOOLING (rc 2), so check-arc-claim-drift reports arc-003 CLAIM-FAILED. T-3234 pattern:
   SKIP only when CI is set AND the prerequisite is absent.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [guard-layer, ci, sq-9]
-components: []
+components: [scripts/check-arc-claim-drift.sh, scripts/check-receiver-ack-lag.sh, scripts/notify-rail-e2e.sh, tests/arc-claim-drift-fixtures.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -26,8 +26,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-29T18:28:50Z
-last_update: 2026-09-29T18:37:40Z
-date_finished:
+last_update: 2026-09-29T18:39:39Z
+date_finished: 2026-09-29T18:39:39Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -292,3 +292,21 @@ bash tests/arc-claim-drift-fixtures.sh > /tmp/.t3238-e 2>&1 && grep -q ', 0 fail
 
 ### 2026-09-29T18:37:40Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-7e14abe2
+- **Timestamp:** 2026-09-29T18:39:45Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** 1
+
+**Verification-level findings:**
+
+  1. **mock-only-integration** (partial, heuristic) @ AC vs Verification cross-check
+     - evidence: `bash tests/arc-claim-drift-fixtures.sh > /tmp/.t3238-e 2>&1 && grep -q ', 0 failed' /tmp/.t3238-e`
+
+### 2026-09-29T18:39:39Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

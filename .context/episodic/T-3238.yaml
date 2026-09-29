@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3238: Guard members check-receiver-ack-lag and arc-003 prover e4 report a missing termlink binary as a verdict in CI instead of TOOLING/SKIP
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-29T18:39:52Z
+# ============================================================================
+
+task_id: T-3238
+task_name: "Guard members check-receiver-ack-lag and arc-003 prover e4 report a missing termlink binary as a verdict in CI instead of TOOLING/SKIP"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-29T18:28:50Z
+completed: 2026-09-29T18:39:39Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-29T20:39:36+02:00
+last_commit: 2026-09-29T20:39:36+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  e4 reports a missing termlink binary as TOOLING (its own exit contract); arc-claim-drift + receiver-ack-lag SKIP only under CI with the prerequisite absent; fixture T16 pins it (mutant red)
+
+# Key outcomes
+outcomes:
+  - 'notify-rail-e2e e4 reports TOOLING (rc 2) when the termlink binary is not on PATH; a present binary whose resolve returns nothing still records FAIL'
+  - 'check-arc-claim-drift reports a prover rc 2 as SKIP (non-firing) ONLY when CI is set; without CI a prover rc 2 is still CLAIM-FAILED'
+  - 'check-receiver-ack-lag prints SKIP and exits 0 ONLY when CI is set AND termlink is not on PATH'
+  - 'arc-claim-drift fixture T16 pins both directions (CI skip; non-CI and exit-1 still fire); the mutant that drops the CI condition turns T16a red'
+  - 'With CI unset on this host both checks'' rc is unchanged (receiver-ack-lag 1, arc-claim-drift unchanged for arc-003 VERIFIED)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'e4 reports a missing termlink binary as TOOLING (its own exit contract); arc-claim-drift + receiver-ack-lag SKIP only under CI with the prerequisite absent; fixture T16 pins it (mutant red)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'scripts/check-arc-claim-drift.sh'
+  - 'scripts/check-receiver-ack-lag.sh'
+  - 'scripts/notify-rail-e2e.sh'
+  - '.tasks/active/T-3238-guard-members-check-receiver-ack-lag-and.md'
+  - 'tests/arc-claim-drift-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-29T20:39:36'
+    action: 'T-3238: e4 reports a missing termlink binary as TOOLING (its own exit contract); arc-claim-drift + receiver-ack-lag SKIP only under CI with the prerequisite absent; fixture T16 pins it (mutant red)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 10 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [guard-layer, ci, sq-9]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 10
+  commits: 1
+  files_changed: 5
+  lines_added: 349
+  lines_removed: 6
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3238-guard-members-check-receiver-ack-lag-and.md
+generated_by: context-agent-hybrid
