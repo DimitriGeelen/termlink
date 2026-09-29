@@ -46,3 +46,16 @@ payload:
   - hub
   - crosscheck
   - T-1976
+# T-3241 (2026-09-29): stranded in auto-deferred/ for 19 days with no breadcrumb
+# (check-pickup-deferred-freshness STRANDED). Read and disposed deliberately —
+# not promoted, because `fw pickup process` would auto-create an inception task
+# (lib/pickup.sh:417-433) for an envelope that reports NO defect.
+disposition:
+  date: '2026-09-29'
+  task: T-3241
+  action: dropped-informational
+  reason: >-
+    Informational corroboration from opencode (T-064 wave-156): their estate has
+    zero exposure to the T-1976 --hub bare-IP class and the termlink-layer guard
+    is confirmed as the right fix point. No defect, no request, nothing for
+    termlink to act on. Their adoption notes (T-1975 / PL-136) are opencode-side.
