@@ -40,7 +40,10 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Analysed 2026-09-29 (T-3211 R4); not started.
+- **Confirmed at HEAD:** the MCP `ack_required` poll (`tools.rs` ~19190) calls `conn.fetch_recent(&topic, 200)`, and `ContactHub::fetch_recent` (~7833) sets `cursor = count.saturating_sub(slice_size)`. After a retention front-trim, `count` no longer tracks the tail offset, so the poll reads the OLDEST live page and can miss the ack. This is the exact T-2507 failure the CLI fixed by switching `wait_for_peer_ack` to an incremental offset-cursor walk (`walk_topic_from`, carrying `next_cursor` across polls).
+- **Do NOT fix this inside `fetch_recent`.** It has two other callers: the `agent-presence` read (~7896) and the `agent-chat-arc` read (~19070). Under `latest-per-cv-key` retention, presence keeps few, sparse records. Today's `count - 500` cursor lands below the window, the hub advances it to the first live record, and every agent is returned. Anchoring on `latest_offset` instead would read only the last 500 offsets and silently drop agents whose latest heartbeat is older, a presence regression of the T-2390/T-2391 class.
+- **Fix shape:** change only the ack-wait loop, making it an incremental `channel.subscribe` walk from cursor 0 (the hub advances a below-window cursor) that carries `next_cursor` across polls, mirroring the CLI.
 
 ## Acceptance Criteria
 
