@@ -25,7 +25,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-29T10:34:54Z
-last_update: 2026-09-29T11:16:10Z
+last_update: 2026-09-29T11:19:44Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -173,21 +173,10 @@ grep -q "map_err(|e| render_connect_failure(hub, e))" crates/termlink-cli/src/co
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
 ## RCA
-
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
-
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
-
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
-
+**Symptom:** A CLI cross-hub connect that failed because the hub's TLS certificate changed (TOFU violation) reported "Cannot connect to <hub> — is the hub running?", with the real cause only in anyhow's "Caused by" chain. The operator was pointed at connectivity for a hub that was up.
+**Root cause:** `connect_remote_hub` (remote.rs) wrapped EVERY `connect_addr_with_timeout` error in one fixed `.context("… is the hub running?")`, so no failure class could have its own headline. T-2268 fixed exactly this on the MCP twin (`render_connect_error`) and never ported it to the CLI.
+**Why structurally allowed:** MCP/CLI twins are maintained by duplication (T-2069 convention) with nothing checking that a fix to one reaches the other. Fleet doctor masked it partially: T-1181 made `classify_fleet_error` read the `{:#}` chain, so `fleet doctor` showed the right hint while every other CLI remote verb kept the misleading headline.
+**Prevention:** Unit tests pin both branches of `render_connect_failure` and assert the real `classify_fleet_error` still classifies the composed messages (pre-fix mutant is red). The class-level detector is T-2999's `scripts/check-mcp-cli-twin-drift.sh`, which is how this instance was found (T-3219 triage row 93dc836e5).
 ## Evolution
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
