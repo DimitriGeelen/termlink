@@ -39,6 +39,20 @@ else bad "--dry-run reports intent" "rc=$rc: $out"; fi
 if [ -z "$(ls -A "$TMP/cron")" ]; then ok "--dry-run wrote nothing"
 else bad "--dry-run wrote nothing" "$(ls -A "$TMP/cron")"; fi
 
+# T-3237: cases 3-9 perform a REAL run, and runme.sh refuses non-root by design
+# (case 11 pins that). A GitHub runner is non-root, so there these cases can only
+# fail on the refusal they are not testing. Skip them ONLY when CI is set AND we
+# are not root (T-3234 pattern) — non-root anywhere else still fails loudly.
+REAL_RUN=1
+if [ "$(id -u)" != "0" ] && [ -n "${CI:-}" ]; then
+    REAL_RUN=0
+    echo "  SKIP  cases 3-9 (real install run): CI is set and uid=$(id -u) is not root; runme.sh refuses non-root (case 11) — NOT asserted"
+fi
+# The summary's already-done count is derived from runme.sh itself, never a literal:
+# a literal went stale when T-3068 added a third crontab and failed on every host.
+EXPECT_N=$(grep -c '^install_crontab ' "$RUNME")
+
+if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
 # 3-4. A real run installs and VERIFIES. The installed copy must match source
 #      byte-for-byte — cp can succeed onto a full disk or a read-only remount
@@ -59,7 +73,7 @@ else bad "installed copy matches source"; fi
 out=$(run); rc=$?
 if [ "$rc" = "0" ] && echo "$out" | grep -q "already installed and identical"; then ok "second run skips as already-done"
 else bad "idempotent second run" "rc=$rc: $out"; fi
-if echo "$out" | grep -qE "0 done, 2 already-done"; then ok "summary counts the skips rather than re-claiming the work"
+if echo "$out" | grep -qE "0 done, ${EXPECT_N} already-done"; then ok "summary counts the skips rather than re-claiming the work"
 else bad "summary counts skips" "$out"; fi
 
 # ---------------------------------------------------------------------------
@@ -86,6 +100,8 @@ else bad "missing source => exit 1" "rc=$rc: $out"; fi
 if echo "$out" | grep -q "FAILED  source missing"; then ok "missing source names the file"
 else bad "missing source named" "$out"; fi
 
+fi
+
 # ---------------------------------------------------------------------------
 # 10. Unknown argument is refused rather than ignored — a typo'd flag must not
 #     silently run the full thing.
@@ -99,7 +115,13 @@ else bad "unknown arg => 2" "rc=$rc: $out"; fi
 #     privileges — a fixture that silently tests nothing is worse than an
 #     honest skip (T-3105).
 # ---------------------------------------------------------------------------
-if command -v runuser >/dev/null 2>&1 && id nobody >/dev/null 2>&1; then
+# T-3237: when we are ALREADY non-root (a CI runner), no privilege drop is needed —
+# run it as ourselves; that is the real non-root refusal. runuser only works as root.
+if [ "$(id -u)" != "0" ]; then
+    out=$(RUNME_CRON_DIR="$TMP/cron" bash "$RUNME" 2>&1); rc=$?
+    if [ "$rc" = "2" ] && echo "$out" | grep -q "needs root"; then ok "non-root run refuses with exit 2 and applies nothing"
+    else bad "non-root refusal" "rc=$rc: $out"; fi
+elif command -v runuser >/dev/null 2>&1 && id nobody >/dev/null 2>&1; then
     chmod -R a+rx "$TMP" 2>/dev/null || true
     out=$(runuser -u nobody -- env RUNME_CRON_DIR="$TMP/cron" bash "$RUNME" 2>&1); rc=$?
     if [ "$rc" = "2" ] && echo "$out" | grep -q "needs root"; then ok "non-root run refuses with exit 2 and applies nothing"
