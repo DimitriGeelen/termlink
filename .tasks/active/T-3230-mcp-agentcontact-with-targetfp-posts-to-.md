@@ -1,19 +1,15 @@
 ---
-id: T-3222
-name: "MCP agent contact posts to the heartbeat-observed hub, ignoring the peer's
-  declared home hub"
+id: T-3230
+name: "MCP agent_contact with target_fp posts to the local hub — no fp-keyed fleet walk (T-2386 half not ported)"
 description: >
-  CLI resolve_contact_via_fleet routes to the peer's declared home hub (T-2386, e73505c0f);
-  the MCP twin posts to the hub the heartbeat was read from (tools.rs:7930), so a
-  message can land on a hub the peer never reads. Evidence: docs/reports/T-3219-twin-drift-triage.md
-  (T-3219).
+  CLI T-2386 (e73505c0f) added resolve_contact_fp_via_fleet: when --target-fp is given with no --hub, walk hubs.toml agent-presence for the fp's LIVE heartbeat and route to its declared home hub (else the read hub). MCP termlink_agent_contact's target_fp path trusts the fp and posts to the local hub, so a cross-host fp contact lands on a hub the peer may never read. Found while scoping T-3222 (T-3211 R5); T-3222 fixed only the name path.
 
-status: started-work
+status: captured
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: [crates/termlink-mcp/src/tools.rs]
+components: []
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -25,9 +21,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-29T10:34:20Z
-last_update: 2026-09-29T10:55:23Z
-date_finished:
+created: 2026-09-29T10:57:42Z
+last_update: 2026-09-29T10:57:42Z
+date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -38,36 +34,11 @@ date_finished:
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
-bvp_scores_proposed:
-  - ts: '2026-09-29T10:51:34Z'
-    estimator: bvp-estimator-v1-heuristic
-    scores:
-      D1: 4
-      D2: 0
-      D3: 3
-      D4: 3
-      F-RECALL: 0
-      F-ORCH: 0
-    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
-      (body:component-discoverability); D4=3 (body:portability-abstraction); 
-      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
-    rubric_sha: e4a00f38e801
-cost_estimate_proposed:
-  - ts: '2026-09-29T10:51:34Z'
-    estimator: bvp-estimator-v1-heuristic
-    cost_estimate:
-      blast_radius: 1
-      tier: 2
-      effort: 8
-    rationale: blast_radius=1 (single-component); tier=2 (workflow:build); 
-      effort=8 (lines=232,acs=4)
-    rubric_sha: e4a00f38e801
 ---
 
-# T-3222: MCP agent contact posts to the heartbeat-observed hub, ignoring the peer's declared home hub
+# T-3230: MCP agent_contact with target_fp posts to the local hub — no fp-keyed fleet walk (T-2386 half not ported)
 
 ## Context
-- **Built 2026-09-29 (T-3211 R5).** `resolve_contact_via_fleet_mcp` now returns `(fp, route_hub, declared)`; `route_hub = fleet_route_hub_mcp(resolve_home_hub_mcp(m), read_hub)`. The name-miss arm routes to `route_hub`. The local-registered arm (after T-3226) sets `fleet_hub` to the DECLARED hub only (CLI T-2386 local-branch behaviour); `target_hub = p.hub.or(fleet_hub)`, so explicit `hub` still wins. Tests `t3222_resolve_home_hub_mcp_precedence` + `t3222_fleet_route_hub_mcp_prefers_declared_over_read_hub`; mutant "always route to read hub" is red. mcp lib 939/939. Not live-proven (needs a peer whose declared home hub differs from where its heartbeat was read). **Out of scope, filed:** the `target_fp` path's fp-keyed fleet walk (CLI `resolve_contact_fp_via_fleet`) → T-3230. Dry-run already reports `hub`/`routing`; the CLI's `routed_hub` stderr note was not ported (MCP has no stderr surface).
 
 <!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
@@ -75,16 +46,43 @@ cost_estimate_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] `resolve_contact_via_fleet_mcp` routes to the peer's declared home hub (`metadata.addr`, non-blank) and falls back to the hub the heartbeat was read from only when none is declared; `observed_addr` is never used for routing (twin of CLI `resolve_home_hub`, T-2386)
-- [x] For a locally-registered peer with no explicit `hub`, `termlink_agent_contact` routes to the peer's declared home hub when its LIVE presence declares one (CLI T-2386 local-branch behaviour); an explicit `hub` param still wins
-- [x] Pure helpers `resolve_home_hub_mcp` + `fleet_route_hub_mcp` unit-tested (declared wins; observed-only → none; blank → none; fallback to read hub)
-- [x] `cargo test -p termlink-mcp --lib` passes with no new warnings
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
+### Human
+<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
+     Remove this section if all criteria are agent-verifiable.
+     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
+
+     ── Prefix routing (T-1811, T-1878): default to [REVIEWER] if Expected is grep-able ──
+     If your Expected clause is grep-able / file-exists / structural (a deterministic
+     shell check), prefer [REVIEWER] — that AC should be an Agent AC with the reviewer
+     command in `## Verification` instead of a Human AC here. Only keep [REVIEW] if
+     verification genuinely needs human taste (tone, feel, layout rhythm).
+     See CLAUDE.md §AC Classification Guidance for the conversion rule.
+
+     [REVIEW] example (genuine human judgment):
+       - [ ] [REVIEW] Dashboard renders correctly
+         **Steps:**
+         1. Open https://example.com/dashboard in browser
+         2. Verify all panels load within 2 seconds
+         3. Check browser console for errors
+         **Expected:** All panels visible, no console errors
+         **If not:** Screenshot the broken panel and note the console error
+
+     [REVIEWER] example (static-scan-verifiable — convert to Agent AC + Verification):
+       - [ ] [REVIEWER] Block message names both bypass mechanisms
+         **Steps:**
+         1. Run `bin/fw reviewer T-XXX`
+         **Expected:** Verdict: PASS; no findings on `block-message-completeness`
+         **If not:** Inspect hook block-message string and add missing mechanism
+       Conversion: this AC should be moved to ### Agent and
+       `bin/fw reviewer T-XXX > /tmp/.rev 2>&1 && grep -q "Overall:.*PASS" /tmp/.rev`
+       added to ## Verification. NEVER `... 2>&1 | grep -q ...` — that is the shape the
+       Pipefail/SIGPIPE section below forbids, and this line used to prescribe it.
+-->
 
 ## Verification
-cargo test -p termlink-mcp --lib t3222 > /tmp/.t3222.out 2>&1 && grep -q "2 passed; 0 failed" /tmp/.t3222.out
-cargo test -p termlink-mcp --lib > /tmp/.t3222-all.out 2>&1 && grep -q "test result: ok" /tmp/.t3222-all.out
-grep -q "let route = fleet_route_hub_mcp(declared.as_deref(), address);" crates/termlink-mcp/src/tools.rs
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -265,10 +263,7 @@ grep -q "let route = fleet_route_hub_mcp(declared.as_deref(), address);" crates/
 
 ## Updates
 
-### 2026-09-29T10:34:20Z — task-created [task-create-agent]
+### 2026-09-29T10:57:42Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3222-mcp-agent-contact-posts-to-the-heartbeat.md
+- **Output:** /opt/termlink/.tasks/active/T-3230-mcp-agentcontact-with-targetfp-posts-to-.md
 - **Context:** Initial task creation
-
-### 2026-09-29T10:55:23Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work

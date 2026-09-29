@@ -7996,7 +7996,25 @@ fn prefer_presence_fp_mcp(presence_fp: Option<String>, reg_fp: Option<String>) -
     presence_fp.or(reg_fp)
 }
 
-async fn resolve_contact_via_fleet_mcp(agent_id: &str) -> Option<(String, String)> {
+/// T-3222: twin of the CLI's `resolve_home_hub` (agent.rs, T-2386). The peer's
+/// DECLARED home hub is `metadata.addr` (non-blank). `observed_addr` is never a
+/// route: it is the peer's TCP source address with an ephemeral port.
+fn resolve_home_hub_mcp(m: &termlink_session::fleet_presence::PresenceMatch) -> Option<String> {
+    m.addr.clone().filter(|a| !a.trim().is_empty())
+}
+
+/// T-3222: where a fleet-resolved contact routes — the declared home hub when
+/// present, else the hub the heartbeat was read from (pre-T-2386 behaviour).
+fn fleet_route_hub_mcp(declared: Option<&str>, read_hub: &str) -> String {
+    declared.unwrap_or(read_hub).to_string()
+}
+
+/// T-2274 / T-3222: fleet presence lookup for `agent_id`. Returns
+/// `(fp, route_hub, declared_home_hub)` for the freshest LIVE match. `route_hub`
+/// is the declared home hub when present, else the hub the heartbeat was read
+/// from — posting to the read hub alone could land on a hub the peer never reads
+/// (the hub-split silent no-delivery T-2386 fixed on the CLI).
+async fn resolve_contact_via_fleet_mcp(agent_id: &str) -> Option<(String, String, Option<String>)> {
     use termlink_session::fleet_presence::{resolve_agent_presence, PresenceStatus};
     let profiles = list_all_hub_profiles();
     if profiles.is_empty() {
@@ -8007,7 +8025,7 @@ async fn resolve_contact_via_fleet_mcp(agent_id: &str) -> Option<(String, String
         .map(|d| d.as_millis() as i64)
         .unwrap_or(0);
     let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
-    let mut best: Option<(String, String, i64)> = None; // (fp, hub_address, ts)
+    let mut best: Option<(String, String, Option<String>, i64)> = None; // (fp, route_hub, declared, ts)
     for (_name, address, _sf, _sec) in &profiles {
         if !seen.insert(address.clone()) {
             continue;
@@ -8032,18 +8050,20 @@ async fn resolve_contact_via_fleet_mcp(agent_id: &str) -> Option<(String, String
         if m.status != PresenceStatus::Live {
             continue;
         }
+        let declared = resolve_home_hub_mcp(&m);
         let Some(fp) = m.identity_fingerprint else {
             continue;
         };
         let fresher = best
             .as_ref()
-            .map(|(_, _, ts)| m.last_ts_ms > *ts)
+            .map(|(_, _, _, ts)| m.last_ts_ms > *ts)
             .unwrap_or(true);
         if fresher {
-            best = Some((fp, address.clone(), m.last_ts_ms));
+            let route = fleet_route_hub_mcp(declared.as_deref(), address);
+            best = Some((fp, route, declared, m.last_ts_ms));
         }
     }
-    best.map(|(fp, hub, _)| (fp, hub))
+    best.map(|(fp, hub, declared, _)| (fp, hub, declared))
 }
 
 /// T-2268: classify a cross-hub TLS connect failure. A TOFU/cert-drift
@@ -19075,7 +19095,13 @@ impl TermLinkTools {
                 // fall back to the registration fp when it advertises none.
                 Ok(reg) => {
                     let reg_fp = reg.metadata.identity_fingerprint.clone();
-                    let presence_fp = resolve_contact_via_fleet_mcp(name).await.map(|(fp, _hub)| fp);
+                    let presence = resolve_contact_via_fleet_mcp(name).await;
+                    // T-3222 (CLI T-2386 local branch): route to the peer's
+                    // DECLARED home hub when its presence declares one. Only the
+                    // declared hub, never the read hub: a local peer observed on
+                    // a remote hub is still reachable locally.
+                    fleet_hub = presence.as_ref().and_then(|(_, _, declared)| declared.clone());
+                    let presence_fp = presence.map(|(fp, _, _)| fp);
                     match prefer_presence_fp_mcp(presence_fp, reg_fp) {
                         Some(fp) => fp,
                         None => return json_err(format!(
@@ -19084,7 +19110,7 @@ impl TermLinkTools {
                     }
                 }
                 Err(e) => match resolve_contact_via_fleet_mcp(name).await {
-                    Some((fp, hub)) => {
+                    Some((fp, hub, _declared)) => {
                         fleet_hub = Some(hub);
                         fp
                     }
@@ -30584,6 +30610,59 @@ mod tests {
         );
     }
     use super::*;
+
+    // === T-3222: route to the peer's declared home hub (T-2386 port) ===
+
+    fn t3222_pm(
+        addr: Option<&str>,
+        observed: Option<&str>,
+    ) -> termlink_session::fleet_presence::PresenceMatch {
+        termlink_session::fleet_presence::PresenceMatch {
+            agent_id: "peer".to_string(),
+            identity_fingerprint: Some("abc1230000000000".to_string()),
+            pty_session: Some("tmux:0".to_string()),
+            status: termlink_session::fleet_presence::PresenceStatus::Live,
+            age_secs: 5,
+            last_ts_ms: 0,
+            addr: addr.map(|s| s.to_string()),
+            observed_addr: observed.map(|s| s.to_string()),
+            host: None,
+            listen_topics: vec![],
+            role: Some("claude-code".to_string()),
+        }
+    }
+
+    #[test]
+    fn t3222_resolve_home_hub_mcp_precedence() {
+        // Declared addr → home hub.
+        assert_eq!(
+            resolve_home_hub_mcp(&t3222_pm(Some("192.168.10.122:9100"), None)),
+            Some("192.168.10.122:9100".to_string())
+        );
+        // observed_addr alone is never a route (ephemeral source port).
+        assert_eq!(resolve_home_hub_mcp(&t3222_pm(None, Some("192.168.10.141:51234"))), None);
+        // Both → declared wins.
+        assert_eq!(
+            resolve_home_hub_mcp(&t3222_pm(
+                Some("192.168.10.122:9100"),
+                Some("192.168.10.141:51234")
+            )),
+            Some("192.168.10.122:9100".to_string())
+        );
+        // Blank declared addr → none.
+        assert_eq!(resolve_home_hub_mcp(&t3222_pm(Some("  "), None)), None);
+    }
+
+    #[test]
+    fn t3222_fleet_route_hub_mcp_prefers_declared_over_read_hub() {
+        // Heartbeat read on .107 but the peer declares .122 as home → route .122.
+        assert_eq!(
+            fleet_route_hub_mcp(Some("192.168.10.122:9100"), "192.168.10.107:9100"),
+            "192.168.10.122:9100"
+        );
+        // No declared home → the read hub (pre-T-2386 behaviour preserved).
+        assert_eq!(fleet_route_hub_mcp(None, "192.168.10.107:9100"), "192.168.10.107:9100");
+    }
 
     // === T-3226: send-side presence-fp precedence (T-2384 port) ===
 
