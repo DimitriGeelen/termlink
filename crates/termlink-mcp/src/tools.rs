@@ -666,6 +666,7 @@ pub(crate) fn parse_find_idle_log_mcp(
     text: &str,
     cutoff_secs: i64,
     agent_id_filter: Option<&str>,
+    kind_filter: Option<&str>,
 ) -> (Vec<serde_json::Value>, usize) {
     let mut entries: Vec<serde_json::Value> = Vec::new();
     let mut malformed: usize = 0;
@@ -704,12 +705,23 @@ pub(crate) fn parse_find_idle_log_mcp(
                 continue;
             }
         };
-        if entry.get("kind").and_then(|k| k.as_str()).is_none() {
-            malformed += 1;
-            continue;
-        }
+        let kind = match entry.get("kind").and_then(|k| k.as_str()) {
+            Some(k) => k,
+            None => {
+                malformed += 1;
+                continue;
+            }
+        };
         if let Some(want) = agent_id_filter {
             if agent_id != want {
+                continue;
+            }
+        }
+        // T-3224 (port of CLI T-2208): exact-match `kind` filter. Permissive —
+        // a value other than the emitted kinds (`new`/`removed`) yields zero
+        // matches, never an error.
+        if let Some(want_kind) = kind_filter {
+            if kind != want_kind {
                 continue;
             }
         }
@@ -11463,6 +11475,10 @@ pub struct AgentFindIdleHistoryParams {
     pub since_days: Option<u32>,
     /// Filter to a single agent_id (exact match; None = all agents).
     pub agent_id: Option<String>,
+    /// T-3224: filter to one event kind (`new` or `removed`; exact match,
+    /// None = all kinds). Permissive — any other value yields zero matches.
+    /// Parity with CLI `agent find-idle-history --kind` (T-2208).
+    pub kind: Option<String>,
     /// Override log path (default: `$HOME/.termlink/find-idle.log`).
     /// Use when the watch loop was run with a custom `--log` destination.
     pub log_path: Option<String>,
@@ -29314,7 +29330,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_find_idle_history",
-        description = "Retrospective read of the find-idle.log audit trail written by `agent find-idle --watch --log <path>`. Walks `~/.termlink/find-idle.log` (or `log_path`), filters by `since_days` and optional exact-match `agent_id`. Returns `{ok, entries[], summary{total, per_agent:{<id>:{new_events, removed_events}}, since_days, agent_id_filter, malformed_lines_skipped, log_path}}` — answers 'has this worker been flapping?'. Idle is binary (no `transition` kind — re-heartbeat is not a state change). Empty/missing log returns `{ok:true, entries:[], hint}`. Pure read; no auth/network/mutation."
+        description = "Retrospective read of the find-idle.log audit trail written by `agent find-idle --watch --log <path>`. Walks `~/.termlink/find-idle.log` (or `log_path`), filters by `since_days`, optional exact-match `agent_id`, and optional exact-match `kind` (`new`/`removed`). Returns `{ok, entries[], summary{total, per_agent:{<id>:{new_events, removed_events}}, since_days, agent_id_filter, kind_filter, malformed_lines_skipped, log_path}}` — answers 'has this worker been flapping?'. Idle is binary (no `transition` kind — re-heartbeat is not a state change). Empty/missing log returns `{ok:true, entries:[], hint}`. Pure read; no auth/network/mutation."
     )]
     async fn termlink_agent_find_idle_history(
         &self,
@@ -29348,6 +29364,7 @@ impl TermLinkTools {
                     "per_agent": {},
                     "since_days": since_days,
                     "agent_id_filter": p.agent_id,
+                    "kind_filter": p.kind,
                     "log_path": log_path.display().to_string(),
                 },
                 "hint": "no find-idle history yet — run `agent find-idle --watch --log <path>` to start capturing",
@@ -29367,7 +29384,7 @@ impl TermLinkTools {
         let cutoff = now_secs - (since_days as i64) * 86_400;
 
         let (entries, malformed) =
-            parse_find_idle_log_mcp(&text, cutoff, p.agent_id.as_deref());
+            parse_find_idle_log_mcp(&text, cutoff, p.agent_id.as_deref(), p.kind.as_deref());
 
         let per_agent = aggregate_find_idle_entries_mcp(&entries);
 
@@ -29392,6 +29409,7 @@ impl TermLinkTools {
                 "per_agent": per_agent_json,
                 "since_days": since_days,
                 "agent_id_filter": p.agent_id,
+                    "kind_filter": p.kind,
                 "malformed_lines_skipped": malformed,
                 "log_path": log_path.display().to_string(),
             }
@@ -44601,7 +44619,7 @@ YW\tJ
              {{\"ts\":\"{ts}\",\"agent_id\":\"beta\",\"kind\":\"new\",\"role\":null,\"capabilities\":[],\"last_heartbeat_ms\":4000}}\n",
             ts = in_window_ts
         );
-        let (entries, malformed) = parse_find_idle_log_mcp(&text, 0, None);
+        let (entries, malformed) = parse_find_idle_log_mcp(&text, 0, None, None);
         assert_eq!(entries.len(), 4, "4 parseable rows");
         assert_eq!(malformed, 2, "2 garbage rows counted");
         let agg = aggregate_find_idle_entries_mcp(&entries);
@@ -44623,7 +44641,7 @@ YW\tJ
              {{\"ts\":\"{ts}\",\"agent_id\":\"wanted\",\"kind\":\"removed\"}}\n",
             ts = ts
         );
-        let (entries, _) = parse_find_idle_log_mcp(&text, 0, Some("wanted"));
+        let (entries, _) = parse_find_idle_log_mcp(&text, 0, Some("wanted"), None);
         assert_eq!(entries.len(), 2);
         for e in &entries {
             assert_eq!(e["agent_id"], "wanted");
@@ -44635,7 +44653,7 @@ YW\tJ
         let text = "{\"ts\":\"1990-01-01T00:00:00Z\",\"agent_id\":\"old\",\"kind\":\"new\"}\n\
              {\"ts\":\"2099-01-01T00:00:00Z\",\"agent_id\":\"new\",\"kind\":\"new\"}\n";
         // cutoff = 1_000_000_000 (≈2001-09-09) drops the 1990 row.
-        let (entries, malformed) = parse_find_idle_log_mcp(text, 1_000_000_000, None);
+        let (entries, malformed) = parse_find_idle_log_mcp(text, 1_000_000_000, None, None);
         assert_eq!(malformed, 0);
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0]["agent_id"], "new");
@@ -44646,7 +44664,7 @@ YW\tJ
         let text = "{\"agent_id\":\"x\",\"kind\":\"new\"}\n\
              {\"ts\":\"2099-01-01T00:00:00Z\",\"kind\":\"new\"}\n\
              {\"ts\":\"2099-01-01T00:00:00Z\",\"agent_id\":\"x\"}\n";
-        let (entries, malformed) = parse_find_idle_log_mcp(text, 0, None);
+        let (entries, malformed) = parse_find_idle_log_mcp(text, 0, None, None);
         assert_eq!(entries.len(), 0);
         assert_eq!(malformed, 3);
     }
@@ -44657,11 +44675,35 @@ YW\tJ
         // silently dropped from per-agent counters.
         let text = "{\"ts\":\"2099-01-01T00:00:00Z\",\"agent_id\":\"a\",\"kind\":\"new\"}\n\
              {\"ts\":\"2099-01-01T00:00:00Z\",\"agent_id\":\"a\",\"kind\":\"surprise_future_kind\"}\n";
-        let (entries, _) = parse_find_idle_log_mcp(text, 0, None);
+        let (entries, _) = parse_find_idle_log_mcp(text, 0, None, None);
         let agg = aggregate_find_idle_entries_mcp(&entries);
         let a = agg.get("a").unwrap();
         assert_eq!(a.new_events, 1);
         assert_eq!(a.removed_events, 0);
+    }
+
+    #[test]
+    fn t3224_mcp_find_idle_history_parse_applies_kind_filter() {
+        // Mirror of CLI `find_idle_history_parse_applies_kind_filter` (T-2208).
+        let text = "\
+{\"ts\":\"2030-01-01T00:00:00Z\",\"agent_id\":\"a\",\"kind\":\"new\"}\n\
+{\"ts\":\"2030-01-01T00:01:00Z\",\"agent_id\":\"a\",\"kind\":\"removed\"}\n\
+{\"ts\":\"2030-01-01T00:02:00Z\",\"agent_id\":\"b\",\"kind\":\"new\"}\n";
+        let (only_new, _) = parse_find_idle_log_mcp(text, 0, None, Some("new"));
+        assert_eq!(only_new.len(), 2);
+        for e in &only_new {
+            assert_eq!(e["kind"], "new");
+        }
+        let (only_removed, _) = parse_find_idle_log_mcp(text, 0, None, Some("removed"));
+        assert_eq!(only_removed.len(), 1);
+        assert_eq!(only_removed[0]["agent_id"], "a");
+        // Permissive — unknown kind yields zero matches, no panic.
+        let (zero, malformed) = parse_find_idle_log_mcp(text, 0, None, Some("transition"));
+        assert_eq!(zero.len(), 0);
+        assert_eq!(malformed, 0, "a filtered-out row is not malformed");
+        // Composes with agent_id.
+        let (a_new, _) = parse_find_idle_log_mcp(text, 0, Some("a"), Some("new"));
+        assert_eq!(a_new.len(), 1);
     }
 
     // ---- T-2087 queue-history MCP tests (mirror of T-2082 above) ----
@@ -46927,7 +46969,7 @@ mod t3218_bad_ts_parity_tests {
 
     #[test]
     fn find_idle_counts_bad_ts_as_malformed() {
-        let (e, m) = parse_find_idle_log_mcp(&two_rows(r#""agent_id":"a","kind":"new""#), cutoff(), None);
+        let (e, m) = parse_find_idle_log_mcp(&two_rows(r#""agent_id":"a","kind":"new""#), cutoff(), None, None);
         assert_eq!((e.len(), m), (1, 1));
     }
 
