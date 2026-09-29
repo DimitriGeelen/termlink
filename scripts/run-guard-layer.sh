@@ -82,6 +82,7 @@ FORMAT=human
 QUIET=0
 LIST_ONLY=0
 WITH_TESTS=0
+JSONL_PATH=""
 
 usage() {
     cat <<'EOF'
@@ -100,6 +101,10 @@ Usage: run-guard-layer.sh [OPTIONS]
                  is seconds; the suite is minutes)
   --list         Print the discovered members and exit without running them
   --json         Emit {ok, members[], summary} instead of human output
+  --jsonl PATH   Also append one JSON object per member to PATH AS EACH COMPLETES
+                 (name, kind, rc, verdict, elapsed_s, output). PATH is truncated
+                 at start. A run killed part-way keeps every finished member's
+                 verdict — --json is only written after the last member (T-2983)
   --quiet        Print only non-PASS members and the footer
   -h, --help     This help
 
@@ -124,6 +129,8 @@ while [ $# -gt 0 ]; do
         --tests) WITH_TESTS=1; shift ;;
         --list)  LIST_ONLY=1; shift ;;
         --json)  FORMAT=json; shift ;;
+        --jsonl) [ $# -ge 2 ] || { echo "run-guard-layer: --jsonl needs a PATH" >&2; exit 2; }
+                 JSONL_PATH="$2"; shift 2 ;;
         --quiet) QUIET=1; shift ;;
         -h|--help) usage; exit 0 ;;
         *) echo "run-guard-layer: unknown arg: $1" >&2; exit 2 ;;
@@ -271,6 +278,9 @@ fi
 # the layer never again needs an ad-hoc, one-off timing wrapper. `date +%s.%N` is
 # GNU-coreutils (the layer already assumes bash arrays, not POSIX sh).
 r_verdict=(); r_rc=(); r_elapsed=()
+if [ -n "$JSONL_PATH" ]; then
+    : > "$JSONL_PATH" || { echo "run-guard-layer: cannot write --jsonl $JSONL_PATH" >&2; exit 2; }
+fi
 pass_n=0; fail_n=0; err_n=0
 
 i=0
@@ -288,6 +298,16 @@ while [ "$i" -lt "$total" ]; do
         *) verdict=ERROR; err_n=$((err_n+1)) ;;
     esac
     r_verdict+=("$verdict"); r_rc+=("$rc"); r_elapsed+=("$elapsed")
+    # T-2983: persist this member's verdict now, not after the last member, so an
+    # interrupted run still leaves evidence. The full output is kept — CI's human
+    # view caps each member at OUTPUT_LINES and the finding can be below the cap.
+    if [ -n "$JSONL_PATH" ]; then
+        jq -cn --arg name "${m_name[$i]}" --arg kind "${m_kind[$i]}" \
+            --argjson rc "$rc" --arg verdict "$verdict" --argjson elapsed_s "$elapsed" \
+            --arg output "$out" \
+            '{name:$name, kind:$kind, rc:$rc, verdict:$verdict, elapsed_s:$elapsed_s, output:$output}' \
+            >> "$JSONL_PATH"
+    fi
 
     if [ "$FORMAT" = human ]; then
         if [ "$verdict" != PASS ] || [ "$QUIET" -eq 0 ]; then

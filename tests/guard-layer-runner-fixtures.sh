@@ -249,6 +249,35 @@ printf '#!/usr/bin/env bash\necho helper\nexit 0\n' > "$S/helper-tooling.sh"
 assert_eq "an UNMARKED scripts/*.sh is not a member" "1" "$(run_json | jq -r '.summary.total')"
 assert_eq "...and is not reported as unclassified either" "0" "$(run_json | jq -r '.summary.unclassified')"
 
+# --- T-2983: --jsonl streams each member's verdict as it completes -------------
+# --json is written after the last member, so a run killed part-way used to leave
+# nothing. --jsonl must hold every finished member even when the runner dies.
+reset
+mk_check aaa 0
+mk_check bbb 1
+J="$SCRATCH/stream.jsonl"
+rc="$(run --jsonl "$J")"
+assert_rc "--jsonl does not change the exit code" 1 "$rc"
+assert_eq "--jsonl writes one line per member" "2" "$(wc -l < "$J" | tr -d ' ')"
+assert_eq "every --jsonl line is a JSON object with the verdict fields" "2" \
+    "$(jq -c 'select(has("name") and has("kind") and has("rc") and has("verdict") and has("elapsed_s") and has("output"))' "$J" | wc -l | tr -d ' ')"
+assert_eq "--jsonl carries the member's own output" "bbb ran with args: " \
+    "$(jq -r 'select(.name|test("bbb")) | .output' "$J")"
+assert_eq "--jsonl verdict matches rc" "FAIL" "$(jq -r 'select(.name|test("bbb")) | .verdict' "$J")"
+# A second run truncates rather than appending to a stale file.
+run --jsonl "$J" >/dev/null
+assert_eq "--jsonl truncates PATH at start" "2" "$(wc -l < "$J" | tr -d ' ')"
+# The load-bearing case: kill the runner while the second member is still running.
+reset
+mk_check aaa 0
+printf '#!/usr/bin/env bash\n# guard-layer: source\nsleep 6\nexit 0\n' > "$S/check-zzz.sh"
+( GUARD_LAYER_SCRIPTS_DIR="$S" GUARD_LAYER_TESTS_DIR="$T" timeout -s KILL 3 \
+    bash "$RUNNER" --json --jsonl "$J" > "$SCRATCH/killed.json" 2>/dev/null ) 2>/dev/null
+assert_eq "killed run: --json output is empty (why --jsonl exists)" "0" "$(wc -c < "$SCRATCH/killed.json" | tr -d ' ')"
+assert_eq "killed run: --jsonl still holds the finished member" "PASS" \
+    "$(jq -r 'select(.name|test("aaa")) | .verdict' "$J" 2>/dev/null)"
+assert_rc "--jsonl without a PATH is a usage error" 2 "$(run --jsonl)"
+
 echo
 echo "guard-layer-runner fixtures: $pass passed, $fail failed"
 [ "$fail" -eq 0 ] || exit 1
