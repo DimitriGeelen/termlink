@@ -7987,6 +7987,15 @@ fn auth_failure_hint_mcp(hub: &str) -> String {
 /// CLI's `FLEET_PRESENCE_HUB_TIMEOUT` (agent.rs, T-2659).
 const FLEET_PRESENCE_HUB_TIMEOUT_MCP: std::time::Duration = std::time::Duration::from_secs(8);
 
+/// T-3226: twin of the CLI's `prefer_presence_fp` (agent.rs, T-2384). For a
+/// locally-registered peer, the presence-advertised per-agent fp (what its
+/// push-waker subscribes on) wins over the registration metadata fp (the HOST
+/// key on a shared host); the registration fp is the fallback when the peer
+/// advertises no LIVE presence. `None` only when both are absent.
+fn prefer_presence_fp_mcp(presence_fp: Option<String>, reg_fp: Option<String>) -> Option<String> {
+    presence_fp.or(reg_fp)
+}
+
 async fn resolve_contact_via_fleet_mcp(agent_id: &str) -> Option<(String, String)> {
     use termlink_session::fleet_presence::{resolve_agent_presence, PresenceStatus};
     let profiles = list_all_hub_profiles();
@@ -19059,12 +19068,21 @@ impl TermLinkTools {
         } else {
             let name = target_name.as_deref().expect("checked above");
             match manager::find_session(name) {
-                Ok(reg) => match reg.metadata.identity_fingerprint.clone() {
-                    Some(fp) => fp,
-                    None => return json_err(format!(
-                        "peer '{name}' has no identity_fingerprint in metadata — likely registered before T-1436. Three recovery paths: (1) upgrade the peer's termlink binary and restart the session; (2) pass 'target_fp' (hex) directly; (3) use `termlink_channel_post` against agent-chat-arc with --mention to reach the peer broadcast-style."
-                    )),
-                },
+                // T-3226 (port of CLI T-2384): on a shared host the local
+                // registration fp is the HOST key; the peer's push-waker
+                // subscribes on its per-agent presence fp. Prefer the LIVE
+                // presence fp so the dm topic matches the recipient's rail;
+                // fall back to the registration fp when it advertises none.
+                Ok(reg) => {
+                    let reg_fp = reg.metadata.identity_fingerprint.clone();
+                    let presence_fp = resolve_contact_via_fleet_mcp(name).await.map(|(fp, _hub)| fp);
+                    match prefer_presence_fp_mcp(presence_fp, reg_fp) {
+                        Some(fp) => fp,
+                        None => return json_err(format!(
+                            "peer '{name}' has no identity_fingerprint in metadata — likely registered before T-1436. Three recovery paths: (1) upgrade the peer's termlink binary and restart the session; (2) pass 'target_fp' (hex) directly; (3) use `termlink_channel_post` against agent-chat-arc with --mention to reach the peer broadcast-style."
+                        )),
+                    }
+                }
                 Err(e) => match resolve_contact_via_fleet_mcp(name).await {
                     Some((fp, hub)) => {
                         fleet_hub = Some(hub);
@@ -30566,6 +30584,28 @@ mod tests {
         );
     }
     use super::*;
+
+    // === T-3226: send-side presence-fp precedence (T-2384 port) ===
+
+    #[test]
+    fn t3226_prefer_presence_fp_mcp_precedence() {
+        let presence = "aaaa000000000001".to_string();
+        let reg = "d1993c2c3ec44c94".to_string();
+        // Both present & differ → presence wins (the shared-host fix).
+        assert_eq!(
+            prefer_presence_fp_mcp(Some(presence.clone()), Some(reg.clone())),
+            Some(presence.clone())
+        );
+        // Presence absent → registration fp (not-/be-reachable peer).
+        assert_eq!(prefer_presence_fp_mcp(None, Some(reg.clone())), Some(reg.clone()));
+        // Single-identity host → same fp either way.
+        assert_eq!(
+            prefer_presence_fp_mcp(Some(reg.clone()), Some(reg.clone())),
+            Some(reg.clone())
+        );
+        // Both absent → None (existing error path).
+        assert_eq!(prefer_presence_fp_mcp(None, None), None);
+    }
 
     // === T-3228: ack_required wait walks by offset cursor (T-2507 port) ===
 
