@@ -141,6 +141,7 @@ fi
 export HCI_COUNTER="$COUNTER"
 export HCI_FAILCOUNTER="$FAILCOUNTER"
 export HCI_FORMAT="$FORMAT"
+export HCI_TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"   # T-3002 (C-39): firing-entry date for --quiet cron logs
 export HCI_QUIET="$QUIET"
 
 awk '
@@ -204,6 +205,7 @@ BEGIN {
     }
 
     if (corrupt) {
+        if (quiet) printf "=== %s ===\n", ENVIRON["HCI_TS"]
         printf "check-hook-counter-integrity: FIRING — counter file is corrupt (%d line(s) scanned)\n", total
         if (malformed > 0) {
             printf "\n  MALFORMED (no `=`), caught mid-write; first-match readers return empty:\n"

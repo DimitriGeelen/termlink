@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3002: Canary log hygiene: per-entry ISO dates + heartbeat-freshness cross-check
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-29T09:54:13Z
+# ============================================================================
+
+task_id: T-3002
+task_name: "Canary log hygiene: per-entry ISO dates + heartbeat-freshness cross-check"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-19T22:24:52Z
+completed: 2026-09-29T09:54:02Z
+duration_days: 10
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  S-28/C-39: canary logs carry entries with no per-entry ISO dates and some logs are 34-36 days silent with fresh heartbeats; add per-entry dating and a heartbeat-vs-log freshness cross-check. Evidence: docs/reports/VALUE-REVIEW-repo-2026-09-19-consolidated.md C-39.
+
+# Key outcomes
+outcomes:
+  - 'Heartbeat-vs-log freshness half verified as already delivered (T-2842/T-2843; `canary-status.sh --json` statuses cited in Context)'
+  - 'Each of the 5 scripts, when it FIRES under `--quiet`, emits a `=== <YYYY-MM-DDTHH:MM:SSZ> ===` line before its output'
+  - 'Healthy `--quiet` runs still emit nothing (empty-log = healthy preserved)'
+  - 'Existing fixture suites for these canaries still pass'
+  - 'New hermetic suite `tests/canary-entry-date-fixtures.sh` pins the frame (10 assertions; 4 fail against the pre-change scripts)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 13649 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [value-review, arc:arc-009]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 13649
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3002-canary-log-hygiene-per-entry-iso-dates--.md
+generated_by: context-agent-hybrid

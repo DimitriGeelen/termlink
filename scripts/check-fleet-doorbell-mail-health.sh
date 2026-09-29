@@ -261,6 +261,8 @@ if [ "$FORMAT" = json ]; then
 elif [ "$QUIET" = 1 ] && [ "$overall_ok" = true ]; then
     :
 else
+    # T-3002 (C-39): date each firing cron entry — same frame as substrate-preflight.sh.
+    [ "$QUIET" = 1 ] && printf '=== %s ===\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
     echo "Fleet doorbell+mail health: $([ "$overall_ok" = true ] && echo pass || echo DRIFT)"
     echo "  total=$total  pass=$pass_count  fail=$fail_count  unreachable=$unreachable_count  transient_skipped=$transient_skipped_count"
     printf '%s\n' "$profiles_arr" | jq -r '.[] | "  - \(.name)@\(.address): verdict=\(.verdict)\(if .elapsed_ms then " elapsed=\(.elapsed_ms)ms" else "" end)\(if .transient == true then " (transient — skipped)" else "" end)\(if .error then " error=\(.error)" else "" end)"'

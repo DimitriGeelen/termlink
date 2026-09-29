@@ -149,6 +149,8 @@ if [ "$stuck_count" -eq 0 ]; then
     exit 0
 fi
 
+# T-3002 (C-39): date each firing cron entry — same frame as substrate-preflight.sh.
+[ "$QUIET" = 1 ] && [ "$FORMAT" != json ] && printf '=== %s ===\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 echo "check-stuck-claims: $stuck_count topic(s) with stuck/expired claims (verb-3 claim-work detection, T-2556):"
 printf '%s\n' "$stuck_rows" | while IFS=$'\t' read -r topic active expired age; do
     [ -z "$topic" ] && continue

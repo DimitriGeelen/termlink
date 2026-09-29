@@ -203,6 +203,8 @@ if [ "$n_stale" -eq 0 ]; then
 fi
 
 # Firing — always print (including --quiet, so the cron log captures it).
+# T-3002 (C-39): date each firing cron entry — same frame as substrate-preflight.sh.
+[ "$QUIET" = 1 ] && [ "$FORMAT" != json ] && printf '=== %s ===\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 echo "stale-waker-code canary: FIRING — ${n_stale} waker(s) running PRE-CURRENT code"
 echo "  waker script: $PW_SCRIPT (code_mtime=$CM)"
 for item in "${stale_lines[@]}"; do
