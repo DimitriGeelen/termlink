@@ -86,8 +86,13 @@ else
     echo "   a stop condition fires. Read your budget wrong and you end the round, not the"
     echo "   task."
     echo
-    echo "   Read YOUR OWN transcript instead — resolve your session id, then:"
-    echo "     python3 .agentic-framework/lib/context_tokens.py <your-own-transcript.jsonl>"
+    echo "   Read YOUR OWN transcript instead — resolve your session id, then feed the"
+    echo "   transcript on STDIN (note the '<' redirect):"
+    echo "     python3 .agentic-framework/lib/context_tokens.py < ~/.claude/projects/-opt-termlink/<session-id>.jsonl"
+    echo "   Do NOT pass the path as an argument: argv[1] is a session-start TIMESTAMP,"
+    echo "   so the argument form reads an empty stdin and prints 0 (T-3211 R5, measured:"
+    echo "   argument form 0 vs stdin form 306,256 on the same transcript). A worker that"
+    echo "   reads 0 never reaches TOKEN_WARN and runs on into TOKEN_CRITICAL mid-task."
     echo "   Your transcript is the one whose recent entries are YOUR turns; confirm that"
     echo "   before trusting the number. TOKEN_WARN is 75% of CONTEXT_WINDOW (800000)."
     echo
