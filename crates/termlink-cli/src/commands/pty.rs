@@ -467,6 +467,67 @@ pub(crate) fn inject_status_is_injected(result: &serde_json::Value) -> bool {
     result["status"].as_str() == Some("injected")
 }
 
+/// T-2656: one output poll of the attach loop, as data (so a fixture can drive it).
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum PollStep {
+    /// The session answered; `new_data` may be empty (idle).
+    Output { new_data: Vec<u8>, new_buffered: u64 },
+    /// The socket call itself failed.
+    ConnectionLost,
+    /// The session answered with a JSON-RPC error.
+    RpcError { code: i64, message: String },
+}
+
+pub(crate) async fn poll_output_step(socket: &std::path::Path, last_buffered: u64) -> PollStep {
+    use termlink_protocol::jsonrpc::RpcResponse;
+    match client::rpc_call(socket, "query.output", serde_json::json!({ "bytes": 8192 })).await {
+        Err(_) => PollStep::ConnectionLost,
+        Ok(RpcResponse::Error(e)) => PollStep::RpcError {
+            code: e.error.code,
+            message: e.error.message,
+        },
+        Ok(RpcResponse::Success(r)) => {
+            let result = r.result;
+            let new_buffered = result["total_buffered"].as_u64().unwrap_or(0);
+            let new_data = if new_buffered > last_buffered {
+                let output = result["output"].as_str().unwrap_or("");
+                compute_output_delta(output.as_bytes(), last_buffered, new_buffered).to_vec()
+            } else {
+                Vec::new()
+            };
+            PollStep::Output { new_data, new_buffered }
+        }
+    }
+}
+
+/// T-2656: what to do about a JSON-RPC error from `query.output` during attach.
+/// Returns `(failing, notice, stop)`.
+///
+/// Only `RATE_LIMITED` is transient: the session is fine, just throttling, so we
+/// keep polling and say so ONCE per streak. Everything else is fatal. That includes
+/// `OUTPUT_UNAVAILABLE`, because `cmd_attach`'s pre-check proved output WAS available
+/// when we attached, so losing it means the PTY went away, not a blip. Fatal errors
+/// are named and stop the loop, mirroring the transport arm's "Connection lost".
+pub(crate) fn attach_output_error_action(
+    was_failing: bool,
+    code: i64,
+    message: &str,
+) -> (bool, Option<String>, bool) {
+    use termlink_protocol::control::error_code;
+    if code == error_code::RATE_LIMITED {
+        let notice = (!was_failing).then(|| {
+            format!("\r\n[termlink] output poll rate-limited ({code}: {message}) — still polling\r\n")
+        });
+        (true, notice, false)
+    } else {
+        (
+            true,
+            Some(format!("\r\nSession stopped serving output ({code}: {message}).")),
+            true,
+        )
+    }
+}
+
 /// T-2644: what the interactive attach loop learned from one `command.inject`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum AttachInjectOutcome {
@@ -852,6 +913,7 @@ async fn attach_loop(
     let mut stdin_buf = [0u8; 256];
     let poll_interval = tokio::time::Duration::from_millis(poll_ms);
     let mut inject_failing = false;
+    let mut output_failing = false;
 
     loop {
         tokio::select! {
@@ -894,36 +956,34 @@ async fn attach_loop(
 
             // Poll for new output
             _ = tokio::time::sleep(poll_interval) => {
-                let resp = client::rpc_call(
-                    socket,
-                    "query.output",
-                    serde_json::json!({ "bytes": 8192 }),
-                ).await;
-
-                match resp {
-                    Ok(resp) => {
-                        if let Ok(result) = client::unwrap_result(resp) {
-                            let new_buffered = result["total_buffered"].as_u64().unwrap_or(0);
-
-                            if new_buffered > last_buffered {
-                                let output = result["output"].as_str().unwrap_or("");
-                                let output_bytes = output.as_bytes();
-                                let new_data = compute_output_delta(output_bytes, last_buffered, new_buffered);
-
-                                if !new_data.is_empty() {
-                                    let stdout = std::io::stdout();
-                                    let mut out = stdout.lock();
-                                    std::io::Write::write_all(&mut out, new_data)?;
-                                    std::io::Write::flush(&mut out)?;
-                                }
-                            }
-
-                            last_buffered = new_buffered;
+                match poll_output_step(socket, last_buffered).await {
+                    PollStep::Output { new_data, new_buffered } => {
+                        output_failing = false;
+                        if !new_data.is_empty() {
+                            let stdout = std::io::stdout();
+                            let mut out = stdout.lock();
+                            std::io::Write::write_all(&mut out, &new_data)?;
+                            std::io::Write::flush(&mut out)?;
                         }
+                        last_buffered = new_buffered;
                     }
-                    Err(_) => {
+                    PollStep::ConnectionLost => {
                         eprintln!("\r\nConnection lost.");
                         break;
+                    }
+                    // T-2656: this arm used to be an `if let Ok(..)` whose Err fell
+                    // through silently — a session answering every poll with an
+                    // error looked like a live but idle one, forever.
+                    PollStep::RpcError { code, message } => {
+                        let (failing, notice, stop) =
+                            attach_output_error_action(output_failing, code, &message);
+                        output_failing = failing;
+                        if let Some(msg) = notice {
+                            eprint!("{msg}");
+                        }
+                        if stop {
+                            break;
+                        }
                     }
                 }
             }
@@ -1380,6 +1440,58 @@ mod tests {
 
 
     // T-2644: the attach loop must not swallow a failed inject.
+
+    // T-2656: an RPC error from query.output with the socket still open must reach
+    // the operator. Real Unix-socket fixture: it answers with a JSON-RPC error.
+    fn answer_once_with(sock: &std::path::Path, body: &'static str) -> std::thread::JoinHandle<()> {
+        let listener = std::os::unix::net::UnixListener::bind(sock).unwrap();
+        std::thread::spawn(move || {
+            use std::io::{BufRead, Write};
+            let (conn, _) = listener.accept().unwrap();
+            let mut line = String::new();
+            std::io::BufReader::new(conn.try_clone().unwrap()).read_line(&mut line).unwrap();
+            (&conn).write_all(body.as_bytes()).unwrap();
+        })
+    }
+
+    #[tokio::test]
+    async fn poll_output_step_surfaces_rpc_error_with_socket_open() {
+        let dir = tempfile::tempdir().unwrap();
+        let sock = dir.path().join("s.sock");
+        let h = answer_once_with(
+            &sock,
+            "{\"jsonrpc\":\"2.0\",\"id\":\"cli-1\",\"error\":{\"code\":-32007,\"message\":\"No PTY session\"}}\n",
+        );
+        let step = poll_output_step(&sock, 0).await;
+        h.join().unwrap();
+        assert_eq!(step, PollStep::RpcError { code: -32007, message: "No PTY session".into() });
+        let (_, notice, stop) = attach_output_error_action(false, -32007, "No PTY session");
+        assert!(stop, "a lost PTY must end the attach, not spin");
+        assert!(notice.unwrap().contains("-32007"));
+    }
+
+    #[tokio::test]
+    async fn poll_output_step_success_and_dead_socket() {
+        let dir = tempfile::tempdir().unwrap();
+        let sock = dir.path().join("s.sock");
+        let h = answer_once_with(
+            &sock,
+            "{\"jsonrpc\":\"2.0\",\"id\":\"cli-1\",\"result\":{\"output\":\"abc\",\"total_buffered\":3}}\n",
+        );
+        let step = poll_output_step(&sock, 0).await;
+        h.join().unwrap();
+        assert_eq!(step, PollStep::Output { new_data: b"abc".to_vec(), new_buffered: 3 });
+        assert_eq!(poll_output_step(&dir.path().join("none.sock"), 0).await, PollStep::ConnectionLost);
+    }
+
+    #[test]
+    fn attach_output_rate_limit_is_one_notice_and_keeps_polling() {
+        let rl = termlink_protocol::control::error_code::RATE_LIMITED;
+        let (f, n, stop) = attach_output_error_action(false, rl, "slow down");
+        assert!(f && !stop && n.is_some());
+        assert_eq!(attach_output_error_action(true, rl, "slow down"), (true, None, false));
+    }
+
     #[test]
     fn attach_inject_classifies_every_non_delivery() {
         let ok = serde_json::json!({"status": "injected"});

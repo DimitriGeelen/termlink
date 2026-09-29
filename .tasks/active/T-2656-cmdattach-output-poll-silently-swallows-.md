@@ -8,7 +8,7 @@ description: >
   breaks. Keystrokes also vanish (fire-and-forget). Fix must distinguish transient
   vs fatal RPC errors.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -20,7 +20,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-12T19:56:51Z
-last_update: '2026-09-27T21:34:05Z'
+last_update: 2026-09-29T16:09:07Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -106,11 +106,11 @@ same bucket as T-2644.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `cmd_attach` no longer silently discards an application-level RPC error on `query.output` — the error is surfaced to the operator (stderr), mirroring the sibling transport-`Err` arm
-- [ ] The error is classified: a fatal error (session-not-found / closed) surfaces + breaks; a transient (e.g. OUTPUT_UNAVAILABLE) surfaces at most once and either backs off or breaks per an explicit decision recorded in `## Decisions`
-- [ ] The keystroke fire-and-forget at pty.rs:490 is reviewed in the same pass — decide whether a persistent inject failure should also surface (cross-ref T-2644)
-- [ ] A fixture test (hub returns RPC-error on `query.output` with socket open) proves the loop surfaces the error instead of spinning silently
-- [ ] `cargo build -p termlink` + `cargo test -p termlink --bins` pass
+- [x] `cmd_attach` no longer silently discards an application-level RPC error on `query.output` — the error is surfaced to the operator (stderr), mirroring the sibling transport-`Err` arm
+- [x] The error is classified: a fatal error (session-not-found / closed) surfaces + breaks; a transient (e.g. OUTPUT_UNAVAILABLE) surfaces at most once and either backs off or breaks per an explicit decision recorded in `## Decisions`
+- [x] The keystroke fire-and-forget at pty.rs:490 is reviewed in the same pass — decide whether a persistent inject failure should also surface (cross-ref T-2644)
+- [x] A fixture test (hub returns RPC-error on `query.output` with socket open) proves the loop surfaces the error instead of spinning silently
+- [x] `cargo build -p termlink` + `cargo test -p termlink --bins` pass
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -145,6 +145,10 @@ same bucket as T-2644.
 
 ## Verification
 
+cargo test -q -p termlink --bins -- poll_output_step attach_output attach_inject
+grep -q 'PollStep::RpcError { code, message }' crates/termlink-cli/src/commands/pty.rs
+cargo build -q -p termlink
+
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
 # The completion gate runs each command — if any exits non-zero, completion is blocked.
@@ -177,6 +181,11 @@ same bucket as T-2644.
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
 ## RCA
+
+**Symptom:** `termlink attach` froze silently when the session answered `query.output` with a JSON-RPC error while its socket stayed open. No output, no message, and the loop polled forever.
+**Root cause:** the output arm matched `Ok(resp)` and then `if let Ok(result) = unwrap_result(resp)`. The `Err` of that inner `if let` had no else-branch, so an application error was dropped. Only the transport `Err` arm was loud.
+**Why structurally allowed:** an `if let Ok(..)` with no else is invisible to the silent-exit and busy-spin static checks (no exit, no long-poll RPC string). Tests could not drive the loop, because it was welded to raw-mode stdin.
+**Prevention:** the poll is now a function returning a `PollStep` enum, so every outcome is a named variant the loop must match (exhaustive-match). A real Unix-socket fixture proves an RPC error with the socket open surfaces as `RpcError`. The pre-fix mutant (error mapped to an idle poll) turns the fixture test red.
 
 **Symptom:** while attached to a session (`termlink attach <sess>`), if the hub
 starts returning an application-level RPC error on `query.output` (session
@@ -240,6 +249,11 @@ candidate (sibling to the T-2527/T-2531 source-level checks).
 
 ## Decisions
 
+### 2026-09-29 — classify query.output RPC errors during attach (T-3211 R6)
+- **Transient = `RATE_LIMITED` (-32008) only**: notice once per streak (`output poll rate-limited … — still polling`) and keep polling; the poll interval is the backoff. Re-armed by the next successful poll.
+- **Everything else is fatal, including `OUTPUT_UNAVAILABLE` (-32007)**: print `Session stopped serving output (<code>: <msg>).` and break, mirroring the transport arm's `Connection lost.`. Why -32007 is not transient: `cmd_attach` refuses to start unless `query.output` succeeded, so a later -32007 means the PTY went away mid-attach. That is a state change, not a blip, and polling it forever is the frozen-but-connected symptom this task names.
+- **Keystroke inject (AC3)**: reviewed and already fixed by **T-2644** (this round, `pty.rs` `classify_attach_inject` / `attach_inject_notice`). A dead socket detaches; a refused inject gets one hint per streak. No further change here.
+
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
      Format:
@@ -261,7 +275,14 @@ candidate (sibling to the T-2527/T-2531 source-level checks).
 
 ## Updates
 
+### 2026-09-29 — T-3211 R6 evidence
+- 3 new tests (`poll_output_step_surfaces_rpc_error_with_socket_open` on a real UnixListener fixture answering -32007, `poll_output_step_success_and_dead_socket`, `attach_output_rate_limit_is_one_notice_and_keeps_polling`): pass. Mutant (RpcResponse::Error → idle Output, the pre-fix behaviour): fixture test red.
+- `cargo test -p termlink --bin termlink`: 1161/1161. `cargo build -p termlink`: 0 warnings.
+
 ### 2026-08-12T19:56:51Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2656-cmdattach-output-poll-silently-swallows-.md
 - **Context:** Initial task creation
+
+### 2026-09-29T16:09:07Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
