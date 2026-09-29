@@ -6,12 +6,12 @@ description: >
   control.rs; string literals in cfg(test) fixtures and T-005/T-256 design docs are
   unaffected (re-measured in T-2995).
 
-status: started-work
+status: work-completed
 workflow_type: refactor
 owner: agent
-horizon: now
+horizon: null
 tags: [value-review, arc:arc-009, go-slice]
-components: []
+components: [crates/termlink-protocol/src/control.rs]
 related_tasks: [T-2995]
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -24,8 +24,8 @@ related_tasks: [T-2995]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-29T19:55:37Z
-last_update: 2026-09-29T20:07:40Z
-date_finished:
+last_update: 2026-09-29T20:09:27Z
+date_finished: 2026-09-29T20:09:27Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -281,3 +281,21 @@ bash scripts/check-error-code-docs.sh
 
 ### 2026-09-29T20:07:40Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-145c9dc4
+- **Timestamp:** 2026-09-29T20:10:02Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — `EVENT_STATE_CHANGE` and `EVENT_ERROR` removed from `crates/termlink-protocol/src/control.rs`; zero references to either constant remain in `crates/` (string literals in cfg(test) fixtures are not the
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=crates/termlink-protocol/src/control.rs in: `EVENT_STATE_CHANGE` and `EVENT_ERROR` removed from `crates/termlink-protocol/src/control.rs`; zero references to either constant remain in `crates/` `
+
+### 2026-09-29T20:09:27Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
