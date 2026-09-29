@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3244: Spike: do CLAUDE.md @path imports load on demand or inline
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-29T20:19:12Z
+# ============================================================================
+
+task_id: T-3244
+task_name: "Spike: do CLAUDE.md @path imports load on demand or inline"
+workflow_type: design
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-29T19:54:49Z
+completed: 2026-09-29T20:19:04Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-29T22:19:04+02:00
+last_commit: 2026-09-29T22:19:04+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  CLAUDE.md @imports are INLINED at launch — measured: 93,346 vs 32,683 input tokens (delta 60,663 = the imported 137 KB file, never used); an @import split cannot cut preload, T-3245/T-3246 must use plain Read-on-demand references
+
+# Key outcomes
+outcomes:
+  - 'Empirical measurement in a scratch dir outside the repo: the same trivial `claude -p` prompt run with a CLAUDE.md that `@`-imports a large file, vs one that does not, compares the session''s input-token usage, and the numbers are recorded in `docs/reports/T-3244-claudemd-import-loading.md`'
+  - 'The report states the answer (imports inlined at launch vs deferred) with the measured delta vs the imported file''s size, and what it means for T-2989 steps 2-3 (T-3245/T-3246): whether an @import split can reduce preload at all'
+  - 'Nothing in the repo''s own CLAUDE.md is changed by this spike'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/reports/T-3244-claudemd-import-loading.md'
+  - '.tasks/active/T-3244-spike-do-claudemd-path-imports-load-on-d.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-29T22:19:04'
+    action: 'T-3244: CLAUDE.md @imports are INLINED at launch — measured: 93,346 vs 32,683 input tokens (delta 60,663 = the imported 137 KB file, never used); an @import split cannot cut preload, T-3245/T-3246 must use plain Read-on-demand references'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 24 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [value-review, arc:arc-009, go-slice]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 24
+  commits: 1
+  files_changed: 2
+  lines_added: 69
+  lines_removed: 38
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3244-spike-do-claudemd-path-imports-load-on-d.md
+generated_by: context-agent-hybrid
