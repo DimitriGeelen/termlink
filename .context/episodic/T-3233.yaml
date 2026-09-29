@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3233: Guard-layer CI checkouts are shallow: 10 history-reading members fail on GitHub (fetch-depth 0)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-29T15:56:21Z
+# ============================================================================
+
+task_id: T-3233
+task_name: "Guard-layer CI checkouts are shallow: 10 history-reading members fail on GitHub (fetch-depth 0)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-29T15:48:19Z
+completed: 2026-09-29T15:56:13Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-09-29T17:55:50+02:00
+last_commit: 2026-09-29T17:55:50+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fetch-depth 0 on guard-layer checkouts — 10 history-reading members fail on depth-1 (T-3216 option 1)
+
+# Key outcomes
+outcomes:
+  - 'Pre-fix reproduced: in a `--depth 1` clone of HEAD with `CI=true`, the ENV-git-depth members from the T-3216 census (arc-slice-drift, run-record-parse, check-vendor-divergence, bvp-auto-confirm, bvp-no-signal-ranking, bvp-target-blast-radius, handover-staleness-check, handover-suggested-action, safe-commands-checkpoint, safe-commands-write-pattern) exit non-zero'
+  - 'The guard-layer checkout in `doc-lint.yml` (job `guard-layer`) and in `release.yml` (job `test`) sets `fetch-depth: 0`, with a comment citing T-3216/T-3233; no other checkout changes'
+  - 'Post-fix proxy: in a full-history clone of HEAD with `CI=true`, the same 10 members exit 0 (a full clone is what `fetch-depth: 0` produces). Real proof is the next GitHub run, recorded as NOT yet observed if it has not happened'
+  - 'Both workflow files still parse as YAML'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.github/workflows/doc-lint.yml'
+  - '.github/workflows/release.yml'
+  - '.tasks/active/T-3233-guard-layer-ci-checkouts-are-shallow-10-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-29T17:55:50'
+    action: 'T-3233: fetch-depth 0 on guard-layer checkouts — 10 history-reading members fail on depth-1 (T-3216 option 1)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 7 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 7
+  commits: 1
+  files_changed: 3
+  lines_added: 320
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3233-guard-layer-ci-checkouts-are-shallow-10-.md
+generated_by: context-agent-hybrid

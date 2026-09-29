@@ -7,10 +7,10 @@ description: >
   1; 10 guard members read git history (ENV-git-depth class). Add fetch-depth: 0 to
   guard-layer checkouts in doc-lint.yml and release.yml test job.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components:
   - .github/workflows/doc-lint.yml
@@ -27,8 +27,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-29T15:48:19Z
-last_update: 2026-09-29T15:54:10Z
-date_finished:
+last_update: 2026-09-29T15:56:13Z
+date_finished: 2026-09-29T15:56:13Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -208,6 +208,11 @@ test "$(grep -c 'fetch-depth: 0' .github/workflows/release.yml)" = 1
 
 ## RCA
 
+**Symptom:** 10 guard-layer members failed or errored on every GitHub Doc Lint run and release `test` job, and passed on the origin host.
+**Root cause:** `actions/checkout@v4` defaults to `fetch-depth: 1`. These members pin their load-bearing assertions to real pre-fix corpora read from history (`git show <sha>:<path>`, `HEAD~N`, the vendor baseline ref), and none of that exists in a single-commit checkout.
+**Why structurally allowed:** the guard layer's `# guard-layer: source` contract says "no hub, no network, no host state". It never mentioned git history, so members could depend on it without breaking the contract. Nothing ran a member in a shallow clone before CI did, and CI's per-member output cap hid the reason lines.
+**Prevention:** full-history checkout on both guard-layer jobs (this change). Recorded as a learning candidate: a member that reads history should say so. Whether to also enforce that is the operator's call; nothing is added here.
+
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
      Non-bug-class tasks may leave this section empty or remove it.
@@ -310,3 +315,16 @@ test "$(grep -c 'fetch-depth: 0' .github/workflows/release.yml)" = 1
 - `--depth 1` clone of HEAD, `CI=true PATH=/usr/bin:/bin`: 10/10 members non-zero (8× rc 1, check-vendor-divergence + handover-suggested-action rc 2).
 - Full clone, same env: 10/10 rc 0.
 - GitHub run with `fetch-depth: 0`: **NOT yet observed** (not pushed; push is the orchestrator's).
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-a5b7369e
+- **Timestamp:** 2026-09-29T15:56:14Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** none
+
+### 2026-09-29T15:56:13Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
