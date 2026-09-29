@@ -226,3 +226,17 @@ rounds_after_rulings:
     content correct. Surfaced to operator.
   closure_requests: [T-3132, T-3128, T-2958, T-3130, T-3177]
   sovereign_questions_new: [SQ-11 T-2573 cursor contract livelock, SQ-12 T-2606 exactly-once design, SQ-13 T-3091 new structural gate]
+- round: 7
+  handback: .context/runs/T-3211-R7-handback.md
+  handback_bytes: 17001
+  placeholders: 0
+  status: COMPLETE (SQ-9 Q1 + Q3 done; SQ-4 pool re-walked, all remaining gated)
+  verified_by_orchestrator:
+  - 8 closes (T-3236..T-3243) finalized; stranded check clean
+  - guard edits inspected - skips fire only under CI with prerequisite absent; allowlist entries cite reasons
+  - canary fixtures 25/25; crontab installed to /etc/cron.d/termlink-release-publication-canary; cron drift rc 0
+  - canary live first run FIRES as intended - v0.12.0 has no Release; doc-lint last green 44d ago
+  - pushed 90bd7b56b; CI Install Check SUCCESS, Doc Lint FAIL on exactly 2 - check-go-propagation, voi-prompt
+    (both operator-reserved). Was 25 red on 276daf351.
+  judgement_flagged: audit-warning-allowlist acknowledges the audit-side echo of GO-propagation citing the
+    operator reservation; check-go-propagation itself stays red.
