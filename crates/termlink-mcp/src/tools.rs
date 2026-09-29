@@ -583,6 +583,15 @@ pub(crate) fn parse_claims_log(
                 continue;
             }
         };
+        // T-3218 (parity with T-2619/T-2621 in the CLI twin): a present but
+        // unparseable ts is MALFORMED, counted here at the extraction gate. The
+        // helper's 0 sentinel used to reach the cutoff filter below, which then
+        // dropped the row without counting it.
+        let ts_secs = fleet_history_rfc3339_to_unix(ts_str);
+        if ts_secs == 0 {
+            malformed += 1;
+            continue;
+        }
         let topic = match entry.get("topic").and_then(|v| v.as_str()) {
             Some(s) => s,
             None => {
@@ -599,7 +608,7 @@ pub(crate) fn parse_claims_log(
                 continue;
             }
         }
-        if fleet_history_rfc3339_to_unix(ts_str) < cutoff_secs {
+        if ts_secs < cutoff_secs {
             continue;
         }
         entries.push(entry);
@@ -679,6 +688,15 @@ pub(crate) fn parse_find_idle_log_mcp(
                 continue;
             }
         };
+        // T-3218 (parity with T-2619/T-2621 in the CLI twin): a present but
+        // unparseable ts is MALFORMED, counted here at the extraction gate. The
+        // helper's 0 sentinel used to reach the cutoff filter below, which then
+        // dropped the row without counting it.
+        let ts_secs = fleet_history_rfc3339_to_unix(ts_str);
+        if ts_secs == 0 {
+            malformed += 1;
+            continue;
+        }
         let agent_id = match entry.get("agent_id").and_then(|v| v.as_str()) {
             Some(s) => s,
             None => {
@@ -695,7 +713,7 @@ pub(crate) fn parse_find_idle_log_mcp(
                 continue;
             }
         }
-        if fleet_history_rfc3339_to_unix(ts_str) < cutoff_secs {
+        if ts_secs < cutoff_secs {
             continue;
         }
         entries.push(entry);
@@ -824,6 +842,15 @@ pub(crate) fn parse_queue_log_mcp(
                 continue;
             }
         };
+        // T-3218 (parity with T-2619/T-2621 in the CLI twin): a present but
+        // unparseable ts is MALFORMED, counted here at the extraction gate. The
+        // helper's 0 sentinel used to reach the cutoff filter below, which then
+        // dropped the row without counting it.
+        let ts_secs = fleet_history_rfc3339_to_unix(ts_str);
+        if ts_secs == 0 {
+            malformed += 1;
+            continue;
+        }
         let kind = match entry.get("kind").and_then(|k| k.as_str()) {
             Some(s) => s,
             None => {
@@ -836,7 +863,7 @@ pub(crate) fn parse_queue_log_mcp(
                 continue;
             }
         }
-        if fleet_history_rfc3339_to_unix(ts_str) < cutoff_secs {
+        if ts_secs < cutoff_secs {
             continue;
         }
         entries.push(entry);
@@ -898,6 +925,15 @@ pub(crate) fn parse_substrate_log_mcp(
                 continue;
             }
         };
+        // T-3218 (parity with T-2619/T-2621 in the CLI twin): a present but
+        // unparseable ts is MALFORMED, counted here at the extraction gate. The
+        // helper's 0 sentinel used to reach the cutoff filter below, which then
+        // dropped the row without counting it.
+        let ts_secs = fleet_history_rfc3339_to_unix(ts_str);
+        if ts_secs == 0 {
+            malformed += 1;
+            continue;
+        }
         let field = match entry.get("field").and_then(|v| v.as_str()) {
             Some(s) => s,
             None => {
@@ -910,7 +946,7 @@ pub(crate) fn parse_substrate_log_mcp(
                 continue;
             }
         }
-        if fleet_history_rfc3339_to_unix(ts_str) < cutoff_secs {
+        if ts_secs < cutoff_secs {
             continue;
         }
         entries.push(entry);
@@ -46454,5 +46490,49 @@ not-json
         let keys: Vec<&String> = agg.keys().collect();
         assert_eq!(keys[0], "claim_topic_count");
         assert_eq!(keys[1], "dispatch_idle_count");
+    }
+}
+
+/// T-3218: parity with T-2619/T-2621 in the CLI twins. A row whose `ts` is
+/// present but unparseable must be COUNTED as malformed, not dropped by the
+/// cutoff filter via the `0` sentinel of `fleet_history_rfc3339_to_unix`.
+#[cfg(test)]
+mod t3218_bad_ts_parity_tests {
+    use super::*;
+
+    const GOOD: &str = "2026-09-29T00:00:00Z";
+
+    fn cutoff() -> i64 {
+        fleet_history_rfc3339_to_unix(GOOD) - 1
+    }
+
+    fn two_rows(extra: &str) -> String {
+        format!(
+            "{{\"ts\":\"{GOOD}\",{extra}}}\n{{\"ts\":\"not-a-date\",{extra}}}\n"
+        )
+    }
+
+    #[test]
+    fn find_idle_counts_bad_ts_as_malformed() {
+        let (e, m) = parse_find_idle_log_mcp(&two_rows(r#""agent_id":"a","kind":"new""#), cutoff(), None);
+        assert_eq!((e.len(), m), (1, 1));
+    }
+
+    #[test]
+    fn queue_counts_bad_ts_as_malformed() {
+        let (e, m) = parse_queue_log_mcp(&two_rows(r#""kind":"pending""#), cutoff(), None);
+        assert_eq!((e.len(), m), (1, 1));
+    }
+
+    #[test]
+    fn substrate_counts_bad_ts_as_malformed() {
+        let (e, m) = parse_substrate_log_mcp(&two_rows(r#""field":"x""#), cutoff(), None);
+        assert_eq!((e.len(), m), (1, 1));
+    }
+
+    #[test]
+    fn claims_counts_bad_ts_as_malformed() {
+        let (e, m) = parse_claims_log(&two_rows(r#""topic":"t","kind":"transition""#), cutoff(), None);
+        assert_eq!((e.len(), m), (1, 1));
     }
 }
