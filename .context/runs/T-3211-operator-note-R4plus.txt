@@ -1,0 +1,14 @@
+The operator (2026-09-29) reviewed R3's stop and directed: "Run it till we're out as far as you can."
+So the sequence continues past R3's stop condition. This does NOT rule on any Sovereign question:
+SQ-1..SQ-8 remain UNRULED. Do not decide them, reword human ACs, or route around them.
+
+Your job this round: find agent-workable units that are NOT gated by an open SQ or owner:human.
+Places R3 may not have exhausted: in-flight arcs' Q3/Q4 work once Q1/Q2 are gated; unassessed or
+cost-less tasks that need scoring before they can be placed (scoring is allowed; confirming is not);
+tasks that can be closed with cited evidence (e.g. SQ-5's "not reproduced" route, only if the evidence
+is yours and recorded); prerequisite work that makes an SQ cheaper for the human to rule on (e.g. a
+written options analysis with measurements) — surfacing, not resolving.
+
+If after an honest, recorded census nothing agent-workable remains, say so in the handback with the
+census as evidence and stop. That is a valid round outcome, not a failure — and it tells the
+orchestrator to end the sequence rather than launch another round into the same wall.

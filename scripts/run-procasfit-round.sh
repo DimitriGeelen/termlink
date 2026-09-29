@@ -91,6 +91,14 @@ else
     echo "   Your transcript is the one whose recent entries are YOUR turns; confirm that"
     echo "   before trusting the number. TOKEN_WARN is 75% of CONTEXT_WINDOW (800000)."
     echo
+    # Operator directive for this round, if any. Passed verbatim so the worker reads the
+    # human's instruction rather than the orchestrator's paraphrase of it.
+    if [ -n "${PROCASFIT_OPERATOR_NOTE:-}" ]; then
+        echo "### Operator directive for this round"
+        echo
+        printf '%s\n' "$PROCASFIT_OPERATOR_NOTE"
+        echo
+    fi
     echo "### Your handback"
     echo
     echo "Write it to EXACTLY this path, in markdown, following the Handback section of"
