@@ -1,18 +1,15 @@
 ---
-id: T-3225
-name: "CLI connect error on cert-change still leads with 'is the hub running?'"
+id: T-3231
+name: "Flaky CLI test: dispatch isolate_rejects_non_git_dir mutates CWD without test_env_lock"
 description: >
-  T-2268 (93dc836e5) fixed the MCP side's TLS/TOFU error rendering; the CLI connect
-  path (remote.rs:780) still leads with a connectivity guess and buries the cert-change
-  cause under 'Caused by'. Low severity; the CLI lags here. Evidence: docs/reports/T-3219-twin-drift-triage.md
-  (T-3219).
+  Observed 2026-09-29 (T-3211 R5): cargo test -p termlink --bin termlink failed 1 of 2 full runs on commands::dispatch::tests::isolate_rejects_non_git_dir (1155 passed / 1 failed), passed in isolation and on rerun (1156/1156). The test calls std::env::set_current_dir without taking crate::test_env_lock::ENV_LOCK, which remote.rs states every CWD/HOME-mutating test in this binary must hold; dispatch.rs has zero references to the lock, so it races sibling CWD readers. A flaky suite is how a CI gate teaches people to rerun until green (T-2686 gate). Fix: hold the lock for the CWD window in the dispatch tests that set_current_dir.
 
-status: started-work
+status: captured
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: [crates/termlink-cli/src/commands/remote.rs]
+components: []
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -24,9 +21,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-29T10:34:54Z
-last_update: 2026-09-29T11:16:10Z
-date_finished:
+created: 2026-09-29T11:19:19Z
+last_update: 2026-09-29T11:19:19Z
+date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -37,36 +34,11 @@ date_finished:
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
-bvp_scores_proposed:
-  - ts: '2026-09-29T10:51:35Z'
-    estimator: bvp-estimator-v1-heuristic
-    scores:
-      D1: 4
-      D2: 0
-      D3: 3
-      D4: 2
-      F-RECALL: 0
-      F-ORCH: 0
-    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
-      (body:component-discoverability); D4=2 (body:env-class-handled); 
-      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
-    rubric_sha: e4a00f38e801
-cost_estimate_proposed:
-  - ts: '2026-09-29T10:51:35Z'
-    estimator: bvp-estimator-v1-heuristic
-    cost_estimate:
-      blast_radius: 1
-      tier: 2
-      effort: 8
-    rationale: blast_radius=1 (single-component); tier=2 (workflow:build); 
-      effort=8 (lines=232,acs=4)
-    rubric_sha: e4a00f38e801
 ---
 
-# T-3225: CLI connect error on cert-change still leads with 'is the hub running?'
+# T-3231: Flaky CLI test: dispatch isolate_rejects_non_git_dir mutates CWD without test_env_lock
 
 ## Context
-- **Built 2026-09-29 (T-3211 R5).** `render_connect_failure(hub, io::Error)` in remote.rs replaces the unconditional `.context("… is the hub running?")` on the connect in `connect_remote_hub`: TOFU → the TOFU error is the headline; else the exact prior context. Tests `t3225_render_connect_failure_tofu_is_the_headline` (asserts the real `classify_fleet_error` still yields the `tofu clear` hint) and `t3225_render_connect_failure_other_errors_keep_context` (exact headline, cause in `{:#}`, auth cause still classifies as "Secret mismatch"). Pre-fix mutant (`if false`) → TOFU test red. Full CLI suite: run 1 = 1155/1 with an unrelated failure in `dispatch::tests::isolate_rejects_non_git_dir` (passes alone; CWD race without `test_env_lock` → filed **T-3231**); run 2 = 1156/1156, no warnings. P-011 below runs the `remote::` module tests, not the whole binary, so the known flake cannot decide this gate.
 
 <!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
@@ -74,16 +46,43 @@ cost_estimate_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] CLI `connect_remote_hub` surfaces a TOFU/cert-change connect failure as its own headline (the `TOFU VIOLATION …` text, which carries the `tofu clear` remediation) instead of "is the hub running?", mirroring MCP `render_connect_error` (T-2268); every other connect failure keeps today's exact context
-- [x] Fleet doctor's `classify_fleet_error` still returns the TOFU hint and the auth hint on the new composed messages (no regression of T-1181)
-- [x] Pure helper `render_connect_failure` unit-tested for both branches (headline + `{:#}` chain)
-- [x] `cargo test -p termlink --bin termlink` passes with no new warnings
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
+### Human
+<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
+     Remove this section if all criteria are agent-verifiable.
+     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
+
+     ── Prefix routing (T-1811, T-1878): default to [REVIEWER] if Expected is grep-able ──
+     If your Expected clause is grep-able / file-exists / structural (a deterministic
+     shell check), prefer [REVIEWER] — that AC should be an Agent AC with the reviewer
+     command in `## Verification` instead of a Human AC here. Only keep [REVIEW] if
+     verification genuinely needs human taste (tone, feel, layout rhythm).
+     See CLAUDE.md §AC Classification Guidance for the conversion rule.
+
+     [REVIEW] example (genuine human judgment):
+       - [ ] [REVIEW] Dashboard renders correctly
+         **Steps:**
+         1. Open https://example.com/dashboard in browser
+         2. Verify all panels load within 2 seconds
+         3. Check browser console for errors
+         **Expected:** All panels visible, no console errors
+         **If not:** Screenshot the broken panel and note the console error
+
+     [REVIEWER] example (static-scan-verifiable — convert to Agent AC + Verification):
+       - [ ] [REVIEWER] Block message names both bypass mechanisms
+         **Steps:**
+         1. Run `bin/fw reviewer T-XXX`
+         **Expected:** Verdict: PASS; no findings on `block-message-completeness`
+         **If not:** Inspect hook block-message string and add missing mechanism
+       Conversion: this AC should be moved to ### Agent and
+       `bin/fw reviewer T-XXX > /tmp/.rev 2>&1 && grep -q "Overall:.*PASS" /tmp/.rev`
+       added to ## Verification. NEVER `... 2>&1 | grep -q ...` — that is the shape the
+       Pipefail/SIGPIPE section below forbids, and this line used to prescribe it.
+-->
 
 ## Verification
-cargo test -p termlink --bin termlink t3225 > /tmp/.t3225.out 2>&1 && grep -q "2 passed; 0 failed" /tmp/.t3225.out
-cargo test -p termlink --bin termlink commands::remote:: > /tmp/.t3225-remote.out 2>&1 && grep -q "test result: ok" /tmp/.t3225-remote.out
-grep -q "map_err(|e| render_connect_failure(hub, e))" crates/termlink-cli/src/commands/remote.rs
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -264,10 +263,7 @@ grep -q "map_err(|e| render_connect_failure(hub, e))" crates/termlink-cli/src/co
 
 ## Updates
 
-### 2026-09-29T10:34:54Z — task-created [task-create-agent]
+### 2026-09-29T11:19:19Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3225-cli-connect-error-on-cert-change-still-l.md
+- **Output:** /opt/termlink/.tasks/active/T-3231-flaky-cli-test-dispatch-isolaterejectsno.md
 - **Context:** Initial task creation
-
-### 2026-09-29T11:16:10Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work

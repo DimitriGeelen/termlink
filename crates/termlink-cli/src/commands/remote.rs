@@ -777,7 +777,7 @@ pub(crate) async fn connect_remote_hub(
         std::time::Duration::from_secs(10),
     )
     .await
-    .context(format!("Cannot connect to {} — is the hub running?", hub))?;
+    .map_err(|e| render_connect_failure(hub, e))?;
 
     // --- Authenticate ---
     match rpc_client.call("hub.auth", serde_json::json!("auth"), serde_json::json!({"token": token.raw})).await {
@@ -793,6 +793,21 @@ pub(crate) async fn connect_remote_hub(
     }
 
     Ok(rpc_client)
+}
+
+/// T-3225: twin of the MCP `render_connect_error` (tools.rs, T-2268). A
+/// TOFU/cert-drift rejection means the hub is UP and its certificate changed,
+/// so it becomes the headline (its text already names `termlink tofu clear`)
+/// instead of "is the hub running?", which sent operators down a dead
+/// connectivity path. Every other failure keeps the original context. Either
+/// way the cause stays in the `{:#}` chain that fleet doctor's
+/// `classify_fleet_error` reads (T-1181). Pure → unit-testable.
+pub(crate) fn render_connect_failure(hub: &str, err: std::io::Error) -> anyhow::Error {
+    if err.to_string().contains("TOFU VIOLATION") {
+        anyhow::Error::new(err)
+    } else {
+        anyhow::Error::new(err).context(format!("Cannot connect to {} — is the hub running?", hub))
+    }
 }
 
 /// T-2625: build an actionable auth-failure hint for the remote-connect path
@@ -9658,6 +9673,32 @@ mod tests {
             hint.contains("Secret mismatch"),
             "expected auth-mismatch hint, got: {hint}"
         );
+    }
+
+    // T-3225: cert-change connect failures lead with the TOFU cause.
+    #[test]
+    fn t3225_render_connect_failure_tofu_is_the_headline() {
+        let io = std::io::Error::other(
+            "unexpected error: TOFU VIOLATION: Hub 192.168.10.102:9100 fingerprint changed! Run: termlink tofu clear 192.168.10.102:9100",
+        );
+        let e = render_connect_failure("192.168.10.102:9100", io);
+        let head = format!("{e}");
+        assert!(head.contains("TOFU VIOLATION"), "headline: {head}");
+        assert!(!head.contains("is the hub running?"), "headline: {head}");
+        let hint = classify_fleet_error(&format!("{e:#}"), "192.168.10.102:9100");
+        assert!(hint.contains("termlink tofu clear 192.168.10.102:9100"), "hint: {hint}");
+    }
+
+    #[test]
+    fn t3225_render_connect_failure_other_errors_keep_context() {
+        let io = std::io::Error::new(std::io::ErrorKind::ConnectionRefused, "Connection refused (os error 111)");
+        let e = render_connect_failure("10.0.0.1:9100", io);
+        assert_eq!(format!("{e}"), "Cannot connect to 10.0.0.1:9100 — is the hub running?");
+        assert!(format!("{e:#}").contains("Connection refused"));
+        // Auth-shaped cause under the connect context still classifies as auth.
+        let io = std::io::Error::other("Token validation failed: invalid signature");
+        let e = render_connect_failure("10.0.0.1:9100", io);
+        assert!(classify_fleet_error(&format!("{e:#}"), "10.0.0.1:9100").contains("Secret mismatch"));
     }
 
     /// Reuse the crate-wide test env lock. Any test in this binary that
