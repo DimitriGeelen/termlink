@@ -18,10 +18,10 @@ description: >
   unit does not have termlink in --allowed-commands, which is a different project's
   config (T-559 boundary) and cannot be fixed from here.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-011]
 components:
   - scripts/notify-sidecar-api.sh
@@ -41,8 +41,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-25T07:15:32Z
-last_update: '2026-09-25T07:16:38Z'
-date_finished:
+last_update: 2026-09-28T23:05:04Z
+date_finished: 2026-09-28T23:05:04Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -92,14 +92,62 @@ cost_estimate_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Build task for arc-011 slices S1 + S12, scoped by T-3075's Scope Fence (IN: a LOCAL API
+answering `status` / `queue` / `inject <id>` / `agent-state` / `ack <offset>` about THIS
+host's own mailbox and prompt; an always-respawning supervisor; re-resolving this host's
+own FQDN/IP on change. OUT: anything that moves a message BETWEEN hosts) and bound by two
+operator rulings: SQ-1 (the injector is a TermLink PRIMITIVE, local-control only — the §6
+bright line in `docs/design/arc-011-sidecar-api-architecture.md`) and SQ-8 (systemd-only
+respawn REJECTED; a portable fallback is REQUIRED). Nothing here is a new transport: every
+verb wraps a seam that already exists and is proven — `notify-sidecar.sh` flag/heartbeat
+files, the `journal.sqlite` mirror (T-2298/T-3071), `notify-injector.sh` (T-3069, SQ-4
+READY-gated), `notify-ack-read.sh` (T-3067), `scripts/lib/pty-state.sh` (T-2402/T-3069),
+and `notify-sidecar-supervisor.sh` (T-3050). ACs written 2026-09-29 by the T-3211 R1
+procAsFit worker (the task was created with placeholder ACs and G-020 refused source edits
+until real ones existed).
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] AC1 — `scripts/notify-sidecar-api.sh` exists and dispatches exactly the five Scope-Fence
+      verbs for `--agent-id NAME`: `status`, `queue`, `inject <id>`, `agent-state`,
+      `ack <offset> --evidence <kind>`. Every verb reads or acts on THIS host's own state only:
+      `status` from `$TERMLINK_NOTIFY_DIR/<agent>.{heartbeat,flag,pid}` + the supervisor pidfile
+      + local hub reachability; `queue` from the local journal using the SAME content-row
+      predicate and ordering as `notify-injector.sh` (msg_type not in the meta set, priority DESC,
+      ts ASC, offset ASC — so the API and the injector can never disagree about what is next);
+      `agent-state` echoes READY/BUSY/UNKNOWN/NOT-RUNNING via `scripts/lib/pty-state.sh` (ambiguity
+      is UNKNOWN, never READY); `inject` delegates to `notify-injector.sh` (SQ-4: READY-gated, never
+      blind) and refuses an `<id>` that is not in the queue; `ack` delegates to `notify-ack-read.sh`
+      and refuses without `--evidence`. `--json` on every verb. Exit 0 = answered/acted, 1 = a
+      not-OK verdict (DEAF, BUSY, NOT-RUNNING, deferred), 2 = usage/tooling (fail-closed).
+- [x] AC2 — Bright-line tripwire (§6, mirrors `no_federation_tripwire.rs`): the API refuses any
+      `--hub`, `--peer`, `--to`, or remote-address argument with exit 2 and a message naming the
+      bright line; and `tests/notify-sidecar-api-fixtures.sh` statically asserts the script never
+      invokes a cross-host verb (`channel post`, `agent contact`, `agent send`, `remote `, `artifact
+      put`, `broadcast`). A future edit adding one fails the fixture.
+- [x] AC3 — Portable respawn (SQ-8): `scripts/notify-sidecar-supervisor.sh` gains `--loop` (an
+      in-process forever loop with its own pidfile + per-cycle heartbeat under `$TERMLINK_NOTIFY_DIR`,
+      needing only bash — no systemd, launchd, or cron) and `--emit-unit systemd|launchd|cron|auto`
+      which prints the host-native declaration that respawns the loop (systemd unit with
+      `Restart=always`, launchd plist with `KeepAlive`, or `@reboot` + periodic cron lines); `auto`
+      detects what the host has and states which it chose. The fixture proves: loop mode restarts a
+      killed fake sidecar within one interval; each emitted unit is well-formed (plist parses with
+      python `plistlib`; unit carries `Restart=`; cron carries `@reboot`); `auto` never exits 0 while
+      printing nothing.
+- [x] AC4 — Own-identity re-resolution: `status` reports `host_fqdn` and `host_ip`, compares them to
+      the last values recorded in `$TERMLINK_NOTIFY_DIR/.host-identity`, records the new values, and
+      reports `host_identity_changed=true` with old→new when they differ — loud, never silent. Test
+      seams `SIDECAR_API_TEST_FQDN` / `SIDECAR_API_TEST_IP` (PL-213).
+- [x] AC5 — S12 recorded honestly: `docs/operations/notify-sidecar-api.md` documents the five verbs,
+      exit codes, the bright line, and states that the role-swap reply (S12) travels the EXISTING
+      `channel.post` path (`scripts/agent-respond.sh` / `/reply`), deliberately NOT through this API;
+      and names the external blocker (framework-agent-systemd's unit lacks termlink in
+      `--allowed-commands`, T-559 boundary) as an external dependency, not as done.
+- [x] AC6 — `bash tests/notify-sidecar-api-fixtures.sh` passes hermetically (PL-213 seams, no hub,
+      no live sidecar) and the pre-existing `tests/notify-sidecar-supervisor-fixtures.sh` still passes
+      after the supervisor change.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -135,6 +183,15 @@ cost_estimate_proposed:
 -->
 
 ## Verification
+
+bash -n scripts/notify-sidecar-api.sh && bash -n scripts/notify-sidecar-supervisor.sh
+bash tests/notify-sidecar-api-fixtures.sh > /tmp/.t3135-api 2>&1 && grep -q " 0 failed" /tmp/.t3135-api
+bash tests/notify-sidecar-supervisor-fixtures.sh > /tmp/.t3135-sup 2>&1 && grep -q " 0 failed" /tmp/.t3135-sup
+bash scripts/notify-sidecar-api.sh --help > /tmp/.t3135-help 2>&1 && grep -q "agent-state" /tmp/.t3135-help
+bash -c 'bash scripts/notify-sidecar-api.sh status --agent-id x --hub 10.0.0.1:9100 > /tmp/.t3135-bl 2>&1; [ $? -eq 2 ]' && grep -qi "bright line" /tmp/.t3135-bl
+bash scripts/notify-sidecar-supervisor.sh --emit-unit launchd > /tmp/.t3135-plist 2>/dev/null && python3 -c "import plistlib; d=plistlib.load(open('/tmp/.t3135-plist','rb')); assert d['KeepAlive'] is True"
+bash scripts/notify-sidecar-supervisor.sh --emit-unit systemd > /tmp/.t3135-unit 2>&1 && grep -q "Restart=always" /tmp/.t3135-unit
+test -f docs/operations/notify-sidecar-api.md && grep -q "allowed-commands" docs/operations/notify-sidecar-api.md
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -213,27 +270,23 @@ cost_estimate_proposed:
 
 ## Evolution
 
-<!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
-     understanding evolved during build — what was learned that wasn't known at
-     filing, what in the original plan no longer fits, what triggered pivots
-     or new sub-tasks. Mandatory at slice boundaries (when applicable) and
-     before --status work-completed.
-
-     Origin: T-1717 grill Q4 — "the understanding of what we need and want
-     evolves with the process of materialisation." Structural counter to §ACD:
-     spec-vs-build divergence is logged as soon as it happens, not lost as
-     folklore.
-
-     Format (one entry per slice boundary or significant insight):
-       ### YYYY-MM-DD — [topic]
-       - **What changed:** [what we learned that we didn't know at filing]
-       - **Plan impact:** [what in the plan no longer fits]
-       - **Triggered:** [new sub-task / pivot / scope cut, with task ID if filed]
-
-     The completion gate (T-1718) blocks --status work-completed when this
-     section exists but is empty/template-only. Use --skip-evolution to bypass
-     (logged Tier-2). Non-arc tasks may leave this empty.
--->
+### 2026-09-29 — S1's spec wording is not what SQ-1 permits, and the build follows the ruling
+- **What changed:** The arc slice reads "sender SENDS via a sidecar API". SQ-1 (operator,
+  2026-09-23) reframed the sidecar as a LOCAL PRIMITIVE and design §6 draws the bright line at
+  moving a message between hosts. So what was built answers `status/queue/inject/agent-state/ack`
+  about THIS host and refuses every remote-address argument; sending to a peer stays
+  `channel.post` via the hub. The slice is recorded "built" in the ruled sense, with the drift
+  named in the arc note rather than smoothed over.
+- **Plan impact:** S12 (roles swap) cannot be "code-complete once S1 exists" as the description
+  claimed — the reply half travels the existing channel.post path, not this API. Recorded PARTIAL:
+  the receiving half (truthful L3 `ack`) is built; the reply half is blocked externally
+  (framework-agent-systemd `--allowed-commands`, T-559 boundary).
+- **Triggered:** no new task. `inject <id>` was narrowed during build to accept only the
+  policy-next id (T-3071 ordering must not have a second home); `queue` was made
+  hub-independent and labels `watermark_source=local` — the first live run showed 91 pending
+  above watermark -1 on a topic whose hub L3 is far higher, so the doc carries that caveat
+  explicitly. Portable respawn (SQ-8) landed as `--loop` + `--emit-unit systemd|launchd|cron|auto`;
+  `auto` on this host chose systemd and said so.
 
 ## Recommendation
 
@@ -291,3 +344,23 @@ cost_estimate_proposed:
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3135-sidecar-api-local-control-surface--porta.md
 - **Context:** Initial task creation
+
+### 2026-09-28T22:52:39Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-29ccf1bc
+- **Timestamp:** 2026-09-28T23:05:33Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** yes
+- **Reviewer:** inline
+- **Findings:** none
+
+- **Layer-1 escalations:** 1
+  1. **external-publish** (high) — External publish or release
+     - matched: `broadcast`
+
+### 2026-09-28T23:05:04Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
