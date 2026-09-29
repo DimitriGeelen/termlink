@@ -190,3 +190,22 @@ rounds_continued:
 - round: 5
   dispatched_utc: '2026-09-29T10:4xZ'
   handback: .context/runs/T-3211-R5-handback.md
+  handback_bytes: 16763
+  placeholders: 0
+  status: COMPLETE (stop condition 1 - census found no ungated Q1/Q2 unit)
+  verified_by_orchestrator:
+  - 7 task files moved to completed/ since the R4 record commit, all finalized; stranded check clean
+  - worker process gone before verify
+  - census covers 146 agent-owned open tasks, 143 costed; every Q1/Q2 names its gate
+  worker_error: 47201ad2a swept T-3231's staged pre-completion rename into HEAD (G-066 shape). Worker
+    detected, measured and reported it rather than self-granting Tier 2. Orchestrator repaired under
+    T-3211 (the introducing task) - HEAD finalization canary rc 1 -> 0.
+sequence_ended:
+  at_round: 5
+  of: 9
+  reason: R5's recorded census shows every remaining agent-workable Q1/Q2 unit gated on an unruled
+    Sovereign question or a human AC. The operator's R4+ directive defines that as the end of the
+    sequence. Rounds 6-9 would each hand back the same wall.
+  totals_rounds_1_5: R1 1 close, R2 2, R3 2, R4 16, R5 7 (+T-3231 repaired)
+  resumes_when: SQ-4 ruled "arc-less defects eligible" -> R6 has >=13 Q1 units ready (T-2644 first).
+    Command - bash scripts/run-procasfit-round.sh 6 9 .context/runs/T-3211-R5-handback.md
