@@ -1,0 +1,49 @@
+OPERATOR RULINGS IN FORCE: SQ-4 YES; SQ-3 SURFACE-THEN-ASK; SQ-9 Q1/Q2/Q3 approved. NEVER tag, NEVER push —
+the orchestrator does both.
+
+CONTEXT (2026-09-29, measured): v0.12.1 was tagged on 4b9b20fcb (Doc Lint + Install Check green there). The
+Release run 36633929858 FAILED in job "Workspace test suite + guard layer": cargo test PASSED, the guard layer
+ERRORED on exactly two members, both environment-specific to a TAG build:
+  1. check-task-id-collisions: "base ref not found: main" — a tag checkout has no local `main` branch.
+  2. check-receiver-ack-lag: its CI skip requires "no termlink binary", but the release job's cargo test just
+     built one, so it tries to reach a hub CI does not have.
+Both are among the 12 the operator approved as WARN (below). v0.12.1 stays an unpublished tag; the orchestrator
+will cut v0.12.2 once the release gate is proven.
+
+OPERATOR-APPROVED DESIGN — implement it (continue under T-3258's successor; create a build task, real ACs first):
+THREE TIERS, declared on the existing marker line. No word = FAIL (default).
+  - FAIL : blocks the release gate AND the push gate (today's behaviour).
+  - WARN : never blocks either gate. Push CI (doc-lint) stays GREEN; each red WARN member is surfaced as a
+           GitHub Actions `::warning::` annotation and in the runner summary. A WARN member red for more than
+           14 days ESCALATES — extend scripts/check-release-publication-freshness.sh (T-3243) or add a sibling so
+           the release canary fires on it. You need a durable "first seen red" record to measure 14 days; design
+           it so a fresh CI checkout cannot reset the clock silently (say how you solved it, or say that you could
+           not and what the limit is).
+  - INFO : never blocks, never red; printed only.
+  Marker form e.g. `# guard-layer: source warn  # <reason>` / `# guard-layer: source info  # <reason>`. Keep
+  accepting the T-3258 `advisory` word only if needed for compatibility — map it to WARN and say so.
+  check-guard-severity-markers.sh must refuse a WARN/INFO marker with no reason. ERROR (could not run) on a WARN
+  member is reported as a WARN, never silently as a pass. cargo test and tests/*fixtures*.sh are always FAIL.
+  Fixtures with mutants for: WARN red does not fail either gate but IS annotated; FAIL red fails both; missing
+  reason refused; INFO never red; escalation fires past 14 days and not before.
+
+APPROVED MARKINGS (apply exactly these, with the reasons from docs/reports/T-3258-guard-classification-draft.md):
+  INFO: invocation-usage
+  WARN: voi-prompt, check-go-propagation, check-human-ac-escalation, check-human-ac-steps-heading,
+        check-handover-staleness, check-pickup-deferred-freshness, check-stranded-finalized-tasks,
+        check-task-id-collisions, check-arc-slice-drift, check-installed-binary-drift, check-receiver-ack-lag,
+        check-audit-warning-acknowledgement, check-budget-ladder-drift, check-episodic-parse,
+        check-vendor-divergence, fabric-workflow-link
+  FAIL (explicitly ruled): check-arc-claim-drift
+  EVERYTHING ELSE stays FAIL by default. Part 3 of the draft (the 41 BLOCKING rows) is STILL BEING DECIDED by the
+  operator — do NOT mark any of them WARN/INFO and do not edit the draft's rulings section.
+
+ROOT-CAUSE FIXES (in addition, not instead): make check-task-id-collisions work on a tag checkout (e.g. fall back
+to origin/main or fetch it; the release job's checkout may need the branch) and make check-receiver-ack-lag's CI
+skip key on "no reachable hub" rather than "no binary". Follow the T-3234 rule: skip only when the prerequisite is
+absent AND CI is set.
+
+PROOF BEFORE YOU STOP: simulate the release job's conditions as closely as you can (tag checkout without a local
+main, a built termlink binary present, CI=true) and report what the release gate returns. State plainly what you
+could and could not simulate.
+Before any commit after a refused finalize: git status --porcelain. Never self-grant FW_SWITCH_FOCUS.
