@@ -1,0 +1,72 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3105: Task-quality WARN: 5 active tasks fully agent+human ticked but not closed
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-29T10:13:04Z
+# ============================================================================
+
+task_id: T-3105
+task_name: "Task-quality WARN: 5 active tasks fully agent+human ticked but not closed"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-24T23:55:55Z
+completed: 2026-09-29T10:12:55Z
+duration_days: 5
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fw audit WARN (Task Quality section): T-1428, T-1451, T-212, T-2828, T-3044 have every Agent AC ticked and no Human AC outstanding, but remain started-work/issues. 1 of these has an empty Verification block (no mechanical close gate). Full list: .context/audits/unclosed-satisfied/LATEST.md. Distinct check from CTL-029 (broader criterion, already governed by T-3016) — this is the narrower 'fully closeable' subset.
+
+# Key outcomes
+outcomes:
+  - 'Spot-check each of T-1428, T-1451, T-212, T-2828, T-3044 with fw task verify'
+  - 'For each genuinely closeable, close it with fw task update --status work-completed; for each not closeable, record why in this task''s Updates'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 6377 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-008]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 6377
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3105-task-quality-warn-5-active-tasks-fully-a.md
+generated_by: context-agent-hybrid

@@ -9,12 +9,12 @@ description: >
   criterion, already governed by T-3016) — this is the narrower 'fully closeable'
   subset.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-008]
-components: []
+components: [scripts/check-fabric-card-parse.sh, scripts/fabric-workflow-link.sh, tests/bvp-auto-confirm-fixtures.sh, tests/bvp-derived-blast-radius-fixtures.sh, tests/bvp-no-signal-ranking-fixtures.sh, tests/bvp-target-blast-radius-fixtures.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -27,8 +27,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-24T23:55:55Z
-last_update: '2026-09-25T00:07:08Z'
-date_finished:
+last_update: 2026-09-29T10:12:55Z
+date_finished: 2026-09-29T10:12:55Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -63,6 +63,15 @@ cost_estimate_proposed:
     rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
       (workflow:build); effort=8 (lines=206,acs=4)
     rubric_sha: e4a00f38e801
+  - ts: '2026-09-29T10:12:16Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 8
+    rationale: blast_radius=3 (3-components); tier=2 (workflow:build); effort=8 
+      (lines=206,acs=4)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3105: Task-quality WARN: 5 active tasks fully agent+human ticked but not closed
@@ -75,8 +84,8 @@ Narrower sibling of CTL-029 (already governed by T-3016): this check requires no
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Spot-check each of T-1428, T-1451, T-212, T-2828, T-3044 with fw task verify
-- [ ] For each genuinely closeable, close it with fw task update --status work-completed; for each not closeable, record why in this task's Updates
+- [x] Spot-check each of T-1428, T-1451, T-212, T-2828, T-3044 with fw task verify
+- [x] For each genuinely closeable, close it with fw task update --status work-completed; for each not closeable, record why in this task's Updates
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -113,66 +122,12 @@ Narrower sibling of CTL-029 (already governed by T-3016): this check requires no
 
 ## Verification
 
-# Shell commands that MUST pass before work-completed. One per line.
-# Lines starting with # are comments (skipped). Empty lines ignored.
-# The completion gate runs each command — if any exits non-zero, completion is blocked.
-#
-# Toolchain hint (L-291): if you edited *.vbproj/*.csproj/*.xaml add `dotnet build`;
-# *.go → `go build ./...`; Cargo.toml → `cargo check`; tsconfig.json → `tsc --noEmit`;
-# pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
-# past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
-#
-# ── Pipefail/SIGPIPE: grepping a command's output (L-387, T-2090, T-2743, T-2738) ──
-#
-# THE DEFAULT — redirect to a file, then grep the file:
-#     cmd > /tmp/.out 2>&1 && grep -q "PATTERN" /tmp/.out
-#     curl -sf "$(bin/fw watchtower url)/page" -o /tmp/.out && grep -q "PAT" /tmp/.out
-# Correct at any output size, and `&&` keeps the PRODUCING command's exit code in
-# the verdict. Reach for this first; the alternative below is the special case.
-#
-# NEVER `cmd | grep -q PAT` (L-387) — why: P-011 runs each line under `set -eo
-# pipefail`. When grep matches it exits and closes stdin while cmd is still
-# writing, cmd takes SIGPIPE, the pipeline exits 141 — verification "fails" with
-# the pattern present. Captured 4× (T-1716, T-1838, T-1862, T-1863).
-#
-# THE EXCEPTION — capture first, grep the capture:
-#     out=$(cmd 2>&1); echo "$out" | grep -q "PATTERN"
-# Valid ONLY while "$out" fits the 65536-byte pipe buffer, and it is on you to
-# know that it does. Above that the form inverts and becomes the very failure
-# L-387 describes: echo blocks on the full pipe, grep -q exits, echo takes
-# SIGPIPE, rc=141 (T-2743 — measured on a 146,366-byte Watchtower page, 3/3 runs,
-# deterministic not racy; rendered routes run 50-200KB, so anything that curls a
-# page is over the line). It also discards cmd's exit code, so a 404 yields an
-# empty capture that grep merely fails to match rather than a failed line.
-# If you do use it: single pipe only, no intermediate tail/awk/sed stage between
-# capture and grep (T-2090) — the middle stage is what `grep -q` slams its stdin
-# on, and grep scans the whole captured string anyway, so the `tail -3` was
-# cosmetic. `echo "$out" | grep -q PAT`, nothing between.
-#
-# TEST RUNNERS need a guard either way (T-2738). `set -e` is suppressed inside the
-# `if` condition the gate runs each line in, so in `cmd1; cmd2` only cmd2 is the
-# verdict — and the pass marker you grep for survives a partial failure: a suite
-# printing "3 failed, 9 passed" satisfies `grep -q "9 passed"`, and generalising
-# to `grep -qE "[0-9]+ passed"` matches the same output. Keep the exit code:
-#     python3 -m pytest <file> -q > /tmp/.out 2>&1 && grep -q passed /tmp/.out
-# or add the guard the exit code used to supply:
-#     out=$(python3 -m pytest <file> -q 2>&1); echo "$out" | grep -q passed && ! echo "$out" | grep -q failed
-#     out=$(bats <file> 2>&1); echo "$out" | grep -q '^ok 1 ' && ! echo "$out" | grep -q '^not ok'
-# The close gate refuses the unguarded form. Bypass: FW_ALLOW_UNJUDGED_TEST_RUN=1.
-#
-# REHEARSING A LINE BY HAND DOES NOT REHEARSE THE GATE (T-2743). Your interactive
-# shell has no `set -eo pipefail`. A line has returned 0 by hand and 141 under
-# P-011, from the same directory, the same second. To rehearse for real:
-#     bash -c 'set -eo pipefail; <your verification line>'
-#
-# Enforcement-baseline hint (L-398, T-1886): if you edited `.claude/settings.json`
-# (added/removed/reorganised hooks), add `bin/fw enforcement baseline` to your
-# Verification block. Otherwise the canonical hash diverges and `fw doctor`
-# reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
-# Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
-# the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
-
-true
+grep -q "^owner: human" .tasks/active/T-1428-*.md
+grep -q "^owner: human" .tasks/active/T-1451-*.md
+grep -q "^owner: human" .tasks/active/T-212-*.md
+grep -q "^status: work-completed" .tasks/completed/T-2828-*.md
+grep -q "^status: work-completed" .tasks/completed/T-3044-*.md
+grep -q "### 2026-09-29 — per-task triage (T-3211 R4)" .tasks/active/T-3105-*.md
 
 ## RCA
 
@@ -192,27 +147,10 @@ true
 
 ## Evolution
 
-<!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
-     understanding evolved during build — what was learned that wasn't known at
-     filing, what in the original plan no longer fits, what triggered pivots
-     or new sub-tasks. Mandatory at slice boundaries (when applicable) and
-     before --status work-completed.
-
-     Origin: T-1717 grill Q4 — "the understanding of what we need and want
-     evolves with the process of materialisation." Structural counter to §ACD:
-     spec-vs-build divergence is logged as soon as it happens, not lost as
-     folklore.
-
-     Format (one entry per slice boundary or significant insight):
-       ### YYYY-MM-DD — [topic]
-       - **What changed:** [what we learned that we didn't know at filing]
-       - **Plan impact:** [what in the plan no longer fits]
-       - **Triggered:** [new sub-task / pivot / scope cut, with task ID if filed]
-
-     The completion gate (T-1718) blocks --status work-completed when this
-     section exists but is empty/template-only. Use --skip-evolution to bypass
-     (logged Tier-2). Non-arc tasks may leave this empty.
--->
+### 2026-09-29 — the list was a symptom list, not a close list
+- **What changed:** of the 5 named tasks, 2 had already closed, 3 are human-owned (one also has a failing verification: the Homebrew tap repo 404s).
+- **Plan impact:** nothing could be closed by an agent. The deliverable became the recorded reason per task.
+- **Triggered:** the Homebrew-tap 404 joins SQ-9 (install path). The T-2828 empty `date_finished` is noted for the T-2833 class.
 
 ## Recommendation
 
@@ -266,7 +204,33 @@ true
 
 ## Updates
 
+### 2026-09-29 — per-task triage (T-3211 R4)
+Each named task checked with `fw task verify` / its file, 2026-09-29:
+- **T-1428** — Verification 2/2 PASS, all ACs ticked. **Not closed: `owner: human`.** Completing a human-owned task is not delegated (CLAUDE.md Autonomous Mode Boundaries). Evidence for the human: verification green.
+- **T-1451** — Verification 8/8 PASS, all ACs ticked. **Not closed: `owner: human`**, same rule.
+- **T-212** ("Create Homebrew tap") — Verification **7/8**: `github.com/DimitriGeelen/homebrew-termlink` returns **404** (`gh repo view` → "Could not resolve to a Repository"). **Not closeable: its verification fails, and it is `owner: human`.** Impact: README:95 tells users `brew tap DimitriGeelen/termlink`, which cannot resolve. Surfaced to the operator with SQ-9 (T-3211 R4 handback).
+- **T-2828** — already in `completed/` (`a60974684`, 2026-09-25) but `date_finished:` is **empty**: the T-2290 soft class / T-2833 finalize-latch shape. Recorded, not repaired here (a separate defect class with its own check).
+- **T-3044** — already closed (`date_finished 2026-09-27T22:43:15Z`).
+
+The live report (`.context/audits/unclosed-satisfied/LATEST.md`) now lists 15, not 5. Its agent-owned rows are T-2958 (still has 2 open ACs; the scan misses indented items, SQ-3), T-3010 (intentionally open by its own AC), and T-3093/T-3141/T-3177/T-3191 (no arc, SQ-4). None was closed by this task.
+
 ### 2026-09-24T23:55:55Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3105-task-quality-warn-5-active-tasks-fully-a.md
 - **Context:** Initial task creation
+
+### 2026-09-29T10:12:28Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-753ba9ce
+- **Timestamp:** 2026-09-29T10:12:57Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** none
+
+### 2026-09-29T10:12:55Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
