@@ -28,12 +28,12 @@ description: >
   surface; whether this is a regression against it or was never covered needs checking
   before a fix is proposed.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
-components: []
+components: [scripts/check-tier0-approval-latch.sh, tests/tier0-approval-latch-fixtures.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -46,8 +46,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-25T09:52:54Z
-last_update: '2026-09-27T21:34:09Z'
-date_finished:
+last_update: 2026-09-29T16:28:04Z
+date_finished: 2026-09-29T16:28:04Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -252,6 +252,12 @@ grep -q "not detectable here" scripts/check-tier0-approval-latch.sh
 
 ## Recommendation
 
+**Recommendation:** GO
+**Rationale:** Upstream filing is the right route: both defects sit in vendored Tier-0 code (G-062), so a local patch would be deleted by the next re-vendor. The local half, which survives a re-vendor, is the detector, and it is shipped and load-bearing. Nothing here asks the operator to change policy. The human AC only confirms the route.
+**Evidence:**
+- Filing present on `framework:pickup` at **offset 154** ("FRAMEWORK DEFECT — Tier-0 block never queues the approval it instructs the human to grant"), plus a **correction addendum at offset 155** ("BOTH DEFECTS ARE REGRESSIONS, NOT MISSING FEATURES", the T-608 check). Read back 2026-09-29 by T-3211 R6 via `termlink channel subscribe framework:pickup --json`. Use `--from 154 --limit 2` for the AC's step 1 (the AC's `<offset>` placeholder was never filled in).
+- Guard `scripts/check-tier0-approval-latch.sh`: fixtures pass, listed by `run-guard-layer.sh --list`. P-011 3/3 PASS (T-3211 R6 completion attempt).
+
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
      (audit_inception_recommendation, lib/task-audit.sh:117) is shared, so the
      shape is copied rather than reinvented.
@@ -309,3 +315,16 @@ grep -q "not detectable here" scripts/check-tier0-approval-latch.sh
 
 ### 2026-09-25T09:58:13Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-36969b46
+- **Timestamp:** 2026-09-29T16:28:07Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** none
+
+### 2026-09-29T16:28:04Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
