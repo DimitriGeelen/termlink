@@ -1,15 +1,19 @@
 ---
 id: T-3228
-name: "MCP ack_required wait reads a count-anchored slice and can miss the ack (T-2507 not ported)"
+name: "MCP ack_required wait reads a count-anchored slice and can miss the ack (T-2507
+  not ported)"
 description: >
-  T-2507 fixed the CLI wait_for_peer_ack to read from the real latest offset; the MCP ack_required wait (tools.rs:19165) still reads by message count, so on a retention-trimmed DM topic it reads the oldest page and reports a false 'unconfirmed'. Evidence: docs/reports/T-3219-twin-drift-triage.md (T-3219).
+  T-2507 fixed the CLI wait_for_peer_ack to read from the real latest offset; the
+  MCP ack_required wait (tools.rs:19165) still reads by message count, so on a retention-trimmed
+  DM topic it reads the oldest page and reports a false 'unconfirmed'. Evidence: docs/reports/T-3219-twin-drift-triage.md
+  (T-3219).
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -22,8 +26,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-29T10:35:27Z
-last_update: 2026-09-29T10:40:12Z
-date_finished: null
+last_update: 2026-09-29T10:46:04Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,6 +38,30 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-09-29T10:45:33Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=3 (body:portability-abstraction); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-09-29T10:45:33Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (single-component); tier=2 (workflow:build); 
+      effort=8 (lines=235,acs=4)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3228: MCP ack_required wait reads a count-anchored slice and can miss the ack (T-2507 not ported)
@@ -44,48 +72,23 @@ Analysed 2026-09-29 (T-3211 R4); not started.
 - **Confirmed at HEAD:** the MCP `ack_required` poll (`tools.rs` ~19190) calls `conn.fetch_recent(&topic, 200)`, and `ContactHub::fetch_recent` (~7833) sets `cursor = count.saturating_sub(slice_size)`. After a retention front-trim, `count` no longer tracks the tail offset, so the poll reads the OLDEST live page and can miss the ack. This is the exact T-2507 failure the CLI fixed by switching `wait_for_peer_ack` to an incremental offset-cursor walk (`walk_topic_from`, carrying `next_cursor` across polls).
 - **Do NOT fix this inside `fetch_recent`.** It has two other callers: the `agent-presence` read (~7896) and the `agent-chat-arc` read (~19070). Under `latest-per-cv-key` retention, presence keeps few, sparse records. Today's `count - 500` cursor lands below the window, the hub advances it to the first live record, and every agent is returned. Anchoring on `latest_offset` instead would read only the last 500 offsets and silently drop agents whose latest heartbeat is older, a presence regression of the T-2390/T-2391 class.
 - **Fix shape:** change only the ack-wait loop, making it an incremental `channel.subscribe` walk from cursor 0 (the hub advances a below-window cursor) that carries `next_cursor` across polls, mirroring the CLI.
+- **Built 2026-09-29 (T-3211 R5).** `walk_pages_mcp` (generic over a private `SubscribePage` trait) + `ContactHub::walk_from`; the ack loop carries `ack_cursor`. `fetch_recent` untouched (the diff removes only the two ack-poll lines). Tests: `t3228_count_anchored_seek_misses_tail_ack_on_trimmed_topic` pins the defect shape (old seek reads offset 900.., ack at 1149 missed); `t3228_walk_finds_tail_ack_on_trimmed_topic`; `t3228_walk_paginates_and_resumes_incrementally`. Mutants: (A) no pagination loop → 1 test red; (B) `next_cursor` not carried → 2 tests red. mcp lib 936/936, no warnings. Not live-proven against a real swept dm topic with a peer ack (needs a live peer).
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] MCP `termlink_agent_contact` `ack_required` wait reads via an incremental offset-cursor walk (`channel.subscribe` from cursor 0, carrying `next_cursor` across polls), mirroring CLI `wait_for_peer_ack` (T-2507), and no longer calls `fetch_recent` for the ack poll
+- [x] `ContactHub::fetch_recent` is unchanged, so the presence and chat-arc reads keep their current behaviour (no presence regression, per the Context analysis)
+- [x] A unit test against a fake front-trimmed topic proves the walk finds a tail ack that the count-anchored cursor misses (the test must fail if the walk is replaced by the count-anchored read)
+- [x] `cargo test -p termlink-mcp --lib` passes with no new warnings
 
-### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-
-     ── Prefix routing (T-1811, T-1878): default to [REVIEWER] if Expected is grep-able ──
-     If your Expected clause is grep-able / file-exists / structural (a deterministic
-     shell check), prefer [REVIEWER] — that AC should be an Agent AC with the reviewer
-     command in `## Verification` instead of a Human AC here. Only keep [REVIEW] if
-     verification genuinely needs human taste (tone, feel, layout rhythm).
-     See CLAUDE.md §AC Classification Guidance for the conversion rule.
-
-     [REVIEW] example (genuine human judgment):
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
-
-     [REVIEWER] example (static-scan-verifiable — convert to Agent AC + Verification):
-       - [ ] [REVIEWER] Block message names both bypass mechanisms
-         **Steps:**
-         1. Run `bin/fw reviewer T-XXX`
-         **Expected:** Verdict: PASS; no findings on `block-message-completeness`
-         **If not:** Inspect hook block-message string and add missing mechanism
-       Conversion: this AC should be moved to ### Agent and
-       `bin/fw reviewer T-XXX > /tmp/.rev 2>&1 && grep -q "Overall:.*PASS" /tmp/.rev`
-       added to ## Verification. NEVER `... 2>&1 | grep -q ...` — that is the shape the
-       Pipefail/SIGPIPE section below forbids, and this line used to prescribe it.
--->
 
 ## Verification
+cargo test -p termlink-mcp --lib t3228 > /tmp/.t3228.out 2>&1 && grep -q "3 passed; 0 failed" /tmp/.t3228.out
+cargo test -p termlink-mcp --lib > /tmp/.t3228-all.out 2>&1 && grep -q "test result: ok" /tmp/.t3228-all.out
+grep -q "conn.walk_from(&topic, ack_cursor)" crates/termlink-mcp/src/tools.rs
+test "$(grep -c 'conn.fetch_recent(&topic, 200)' crates/termlink-mcp/src/tools.rs)" = "0"
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -270,3 +273,6 @@ Analysed 2026-09-29 (T-3211 R4); not started.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3228-mcp-ackrequired-wait-reads-a-count-ancho.md
 - **Context:** Initial task creation
+
+### 2026-09-29T10:46:04Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

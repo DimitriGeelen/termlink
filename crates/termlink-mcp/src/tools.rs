@@ -7792,6 +7792,58 @@ async fn connect_remote_hub_mcp(
     }
 }
 
+/// T-3228: one `channel.subscribe` page. Abstracted so `walk_pages_mcp` can be
+/// exercised against a fake front-trimmed topic in unit tests.
+trait SubscribePage {
+    async fn subscribe_page(
+        &mut self,
+        topic: &str,
+        cursor: u64,
+        limit: u64,
+    ) -> Result<serde_json::Value, String>;
+}
+
+impl SubscribePage for ContactHub {
+    async fn subscribe_page(
+        &mut self,
+        topic: &str,
+        cursor: u64,
+        limit: u64,
+    ) -> Result<serde_json::Value, String> {
+        self.rpc(
+            termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+            serde_json::json!({"topic": topic, "cursor": cursor, "limit": limit}),
+        )
+        .await
+    }
+}
+
+/// T-3228: offset-cursor pagination from `start_cursor` to the tail. The cursor
+/// is a real OFFSET (the hub advances a below-window cursor to the oldest live
+/// record), so this is correct on a front-trimmed topic — unlike the
+/// `count.saturating_sub(slice)` seek, which reads the OLDEST live page once a
+/// sweep decouples `count` from the tail offset. Mirror of CLI `walk_topic_from`.
+async fn walk_pages_mcp<S: SubscribePage>(
+    src: &mut S,
+    topic: &str,
+    start_cursor: u64,
+    limit: u64,
+) -> Result<(Vec<serde_json::Value>, u64), String> {
+    let mut all: Vec<serde_json::Value> = Vec::new();
+    let mut cursor = start_cursor;
+    loop {
+        let result = src.subscribe_page(topic, cursor, limit).await?;
+        let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+        let n = msgs.len() as u64;
+        all.extend(msgs);
+        cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+        if n < limit {
+            break;
+        }
+    }
+    Ok((all, cursor))
+}
+
 /// T-2274: a resolved transport for `termlink_agent_contact` — either the local
 /// hub UDS (unauthenticated, the legacy path) or an authenticated remote-hub
 /// client (cross-hub contact-by-name). Unifies create / post / fetch so the
@@ -7863,6 +7915,21 @@ impl ContactHub {
             .as_array()
             .cloned()
             .unwrap_or_default())
+    }
+
+    /// T-3228: paginate `topic` from `start_cursor` to the current tail, returning
+    /// the envelopes AND the final `next_cursor` so a poll loop can resume
+    /// incrementally. Twin of CLI `commands::channel::walk_topic_from` (T-2507).
+    /// Used ONLY by the `ack_required` wait — `fetch_recent` keeps its
+    /// count-anchored shape because the presence / chat-arc reads depend on it
+    /// (see T-3228 Context: anchoring it on the tail would drop agents whose
+    /// latest heartbeat is older than the slice).
+    async fn walk_from(
+        &mut self,
+        topic: &str,
+        start_cursor: u64,
+    ) -> Result<(Vec<serde_json::Value>, u64), String> {
+        walk_pages_mcp(self, topic, start_cursor, 1000).await
     }
 
     /// T-2392: fetch `agent-presence` correctly under `latest_per_cv_key`
@@ -19198,9 +19265,16 @@ impl TermLinkTools {
             let timeout_secs = p.ack_timeout_secs.unwrap_or(60).clamp(5, 600);
             let start = std::time::Instant::now();
             let mut ack_ts: Option<i64> = None;
+            // T-3228: incremental offset-cursor walk (T-2507 port), NOT the
+            // count-anchored `fetch_recent` slice, which reads the OLDEST live
+            // page on a swept dm topic and misses the tail ack → false
+            // `ack.received=false`. First poll reads the whole live topic;
+            // later polls read only records past `ack_cursor`.
+            let mut ack_cursor: u64 = 0;
             loop {
-                match conn.fetch_recent(&topic, 200).await {
-                    Ok(msgs) => {
+                match conn.walk_from(&topic, ack_cursor).await {
+                    Ok((msgs, next_cursor)) => {
+                        ack_cursor = next_cursor;
                         if let Some(ts) = detect_ack_in_msgs_mcp(&msgs, &peer_fp, send_ts_ms_for_ack)
                         {
                             ack_ts = Some(ts);
@@ -30492,6 +30566,101 @@ mod tests {
         );
     }
     use super::*;
+
+    // === T-3228: ack_required wait walks by offset cursor (T-2507 port) ===
+
+    /// Fake hub topic front-trimmed by a retention sweep: live offsets
+    /// `first..first+len`, so `channel.list` `count` (= len) is decoupled from
+    /// the tail offset. `subscribe_page` mirrors the hub: a below-window cursor
+    /// is advanced to the oldest live offset.
+    struct FakeTrimmedTopic {
+        first: u64,
+        msgs: Vec<serde_json::Value>,
+        calls: u32,
+    }
+
+    impl FakeTrimmedTopic {
+        fn new(first: u64, len: u64) -> Self {
+            let msgs = (0..len)
+                .map(|i| serde_json::json!({"offset": first + i, "msg_type": "chat",
+                    "sender_id": "self-fp", "ts_unix_ms": 1_000 + i as i64}))
+                .collect();
+            Self { first, msgs, calls: 0 }
+        }
+        fn push(&mut self, m: serde_json::Value) {
+            self.msgs.push(m);
+        }
+        fn count(&self) -> u64 {
+            self.msgs.len() as u64
+        }
+    }
+
+    impl SubscribePage for FakeTrimmedTopic {
+        async fn subscribe_page(
+            &mut self,
+            _topic: &str,
+            cursor: u64,
+            limit: u64,
+        ) -> Result<serde_json::Value, String> {
+            self.calls += 1;
+            let start = cursor.max(self.first);
+            let idx = (start - self.first) as usize;
+            let page: Vec<_> = self.msgs.iter().skip(idx).take(limit as usize).cloned().collect();
+            let next = page
+                .last()
+                .and_then(|m| m["offset"].as_u64())
+                .map(|o| o + 1)
+                .unwrap_or(start);
+            Ok(serde_json::json!({"messages": page, "next_cursor": next}))
+        }
+    }
+
+    fn peer_ack(offset: u64) -> serde_json::Value {
+        serde_json::json!({"offset": offset, "msg_type": "chat",
+            "sender_id": "peer-fp", "ts_unix_ms": 9_000})
+    }
+
+    #[tokio::test]
+    async fn t3228_count_anchored_seek_misses_tail_ack_on_trimmed_topic() {
+        // Pins the defect shape: the old `fetch_recent(&topic, 200)` seek.
+        let mut t = FakeTrimmedTopic::new(900, 249);
+        t.push(peer_ack(1149));
+        let cursor = t.count().saturating_sub(200); // 50 — far below the window
+        let page = t.subscribe_page("dm:x", cursor, 200).await.unwrap();
+        let msgs = page["messages"].as_array().cloned().unwrap();
+        assert_eq!(msgs.first().unwrap()["offset"], 900, "reads the OLDEST live page");
+        assert_eq!(detect_ack_in_msgs_mcp(&msgs, "peer-fp", 5_000), None);
+    }
+
+    #[tokio::test]
+    async fn t3228_walk_finds_tail_ack_on_trimmed_topic() {
+        let mut t = FakeTrimmedTopic::new(900, 249);
+        t.push(peer_ack(1149));
+        let (msgs, next) = walk_pages_mcp(&mut t, "dm:x", 0, 1000).await.unwrap();
+        assert_eq!(msgs.len(), 250);
+        assert_eq!(next, 1150);
+        assert_eq!(detect_ack_in_msgs_mcp(&msgs, "peer-fp", 5_000), Some(9_000));
+    }
+
+    #[tokio::test]
+    async fn t3228_walk_paginates_and_resumes_incrementally() {
+        let mut t = FakeTrimmedTopic::new(900, 25);
+        // Small limit forces several pages.
+        let (msgs, next) = walk_pages_mcp(&mut t, "dm:x", 0, 10).await.unwrap();
+        assert_eq!(msgs.len(), 25);
+        assert_eq!(next, 925);
+        assert_eq!(detect_ack_in_msgs_mcp(&msgs, "peer-fp", 5_000), None);
+        // Next poll resumes from `next`: nothing new → empty, cursor holds.
+        let (msgs2, next2) = walk_pages_mcp(&mut t, "dm:x", next, 10).await.unwrap();
+        assert!(msgs2.is_empty());
+        assert_eq!(next2, 925);
+        // Ack lands; the incremental poll sees ONLY the new record.
+        t.push(peer_ack(925));
+        let (msgs3, next3) = walk_pages_mcp(&mut t, "dm:x", next2, 10).await.unwrap();
+        assert_eq!(msgs3.len(), 1);
+        assert_eq!(next3, 926);
+        assert_eq!(detect_ack_in_msgs_mcp(&msgs3, "peer-fp", 5_000), Some(9_000));
+    }
 
     // === T-2691: procfs probe parity with the CLI (Directive #4 portability) ===
 
