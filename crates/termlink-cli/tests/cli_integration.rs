@@ -535,14 +535,24 @@ fn cli_request_reply_flow() {
     let _guard = start_register(&dir.path, "worker");
     wait_for_socket(&dir.sessions_dir(), Duration::from_secs(5)).unwrap();
 
-    // Emit the reply event AFTER a delay (simulating specialist responding)
+    // Emit the reply (simulating a specialist responding). T-3264: re-emit every 300ms until the
+    // request has returned. A single emit on a fixed 1s timer raced the request's subscribe: on a
+    // slow runner the reply landed before `request` was listening and it timed out after 10s
+    // (v0.12.2 Release run 36643495795). Bounded by `reply_done` and by the 10s request timeout.
     let dir_clone = dir.path.clone();
-    let _reply_thread = std::thread::spawn(move || {
-        std::thread::sleep(Duration::from_secs(1));
-        termlink_cmd(&dir_clone)
-            .args(["emit", "worker", "task.completed", "--payload", r#"{"status":"done","result":"ok"}"#])
-            .output()
-            .expect("Failed to emit reply event");
+    let reply_done = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let reply_done_t = reply_done.clone();
+    let reply_thread = std::thread::spawn(move || {
+        let deadline = std::time::Instant::now() + Duration::from_secs(10);
+        std::thread::sleep(Duration::from_millis(300));
+        while !reply_done_t.load(std::sync::atomic::Ordering::SeqCst)
+            && std::time::Instant::now() < deadline
+        {
+            let _ = termlink_cmd(&dir_clone)
+                .args(["emit", "worker", "task.completed", "--payload", r#"{"status":"done","result":"ok"}"#])
+                .output();
+            std::thread::sleep(Duration::from_millis(300));
+        }
     });
 
     // Run request — it will wait for the reply
@@ -556,6 +566,8 @@ fn cli_request_reply_flow() {
         ])
         .output()
         .expect("Failed to run termlink request");
+    reply_done.store(true, std::sync::atomic::Ordering::SeqCst);
+    reply_thread.join().expect("reply thread panicked");
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("Request sent"), "Expected 'Request sent' in output: {}", stdout);
