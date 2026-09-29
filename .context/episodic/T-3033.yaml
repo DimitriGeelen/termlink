@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3033: Session-daemon kv.*/session.* invocation blind spot (C-30/C-31) remains unmeasured
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-29T10:08:40Z
+# ============================================================================
+
+task_id: T-3033
+task_name: "Session-daemon kv.*/session.* invocation blind spot (C-30/C-31) remains unmeasured"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-21T07:32:16Z
+completed: 2026-09-29T10:08:31Z
+duration_days: 8
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  T-2996 instruments the MCP tool surface only. The session-daemon kv.* and session.* surfaces (value-review findings C-30/C-31) reach neither rpc_audit's authenticated-dispatch path nor the new invocation_audit choke point, so their usage is structurally unobservable. Owed as a follow-up by T-2996 AC 8. Scope this before assuming the MCP instrument generalises: the daemon surface may need its own choke point rather than a reuse of the MCP one.
+
+# Key outcomes
+outcomes:
+  - '`invocation_audit` lives in `termlink-session`; `termlink_hub::invocation_audit` still resolves (re-export) so MCP/CLI call sites are unchanged'
+  - '`dispatch_scoped` records `kv.*` and `session.*` methods under a distinct `session-rpc` surface, and nothing else (unit-tested: kv.get recorded, event.poll not; live: a scratch session under a temp runtime dir recorded `session-rpc kv.set` / `kv.get` and nothing for its `list` queries)'
+  - 'The module''s existing unit tests pass in their new crate; `cargo build -p termlink` and `cargo test -p termlink-session invocation` pass'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 11676 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [value-review, arc:arc-009]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 11676
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3033-session-daemon-kvsession-invocation-blin.md
+generated_by: context-agent-hybrid

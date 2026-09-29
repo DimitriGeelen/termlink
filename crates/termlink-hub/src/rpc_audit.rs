@@ -161,13 +161,10 @@ fn current_path() -> Option<&'static Path> {
     AUDIT_PATH.get().and_then(|p| p.as_deref())
 }
 
-/// T-2251: the rotated-backup path for `path` — append `.1` to the file name
-/// (e.g. `rpc-audit.jsonl` → `rpc-audit.jsonl.1`). A single backup generation.
-fn rotated_path(path: &Path) -> PathBuf {
-    let mut os = path.as_os_str().to_os_string();
-    os.push(".1");
-    PathBuf::from(os)
-}
+// T-3033: `rotated_path` and `append_line_capped` moved to
+// `termlink_session::audit_append` so the session daemon's invocation_audit can
+// share this exact write path rather than a copy of it.
+use termlink_session::audit_append::append_line_capped;
 
 fn now_ms() -> u128 {
     SystemTime::now()
@@ -430,27 +427,6 @@ fn append_line(path: &Path, line: &str) -> std::io::Result<()> {
     append_line_capped(path, line, max_bytes())
 }
 
-/// T-2251: pure, lock-free capped append. If `max_bytes > 0` and the current
-/// file is already at/over the cap, rotate it (rename → `.1`, overwriting any
-/// prior backup) before appending to a fresh file. `max_bytes == 0` disables
-/// rotation (append-forever). Checking size BEFORE the write bounds the live
-/// file to `cap + one line` and the backup to the same — total ~2× cap.
-pub(crate) fn append_line_capped(path: &Path, line: &str, max_bytes: u64) -> std::io::Result<()> {
-    use std::fs::OpenOptions;
-    use std::io::Write;
-    if max_bytes > 0
-        && let Ok(meta) = std::fs::metadata(path)
-        && meta.len() >= max_bytes
-    {
-        // Best-effort rotate: a rename failure (e.g. the file vanished under us)
-        // must not lose the line — fall through and append to whatever exists.
-        let _ = std::fs::rename(path, rotated_path(path));
-    }
-    let mut f = OpenOptions::new().create(true).append(true).open(path)?;
-    f.write_all(line.as_bytes())?;
-    f.write_all(b"\n")?;
-    Ok(())
-}
 
 fn json_escape(s: &str) -> String {
     serde_json::Value::String(s.to_string()).to_string()
@@ -460,6 +436,7 @@ fn json_escape(s: &str) -> String {
 mod tests {
     use super::*;
     use std::fs;
+    use termlink_session::audit_append::rotated_path;
     use tempfile::TempDir;
 
     /// Reset OnceLock by writing the path directly via the test helper.

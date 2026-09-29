@@ -1,5 +1,9 @@
 //! T-2996 (value-review C-45): per-tool / per-verb invocation telemetry.
 //!
+//! Lives in `termlink-session` since T-3033 so the session daemon can record
+//! through it; `termlink_hub::invocation_audit` re-exports it, so hub, MCP and
+//! CLI call sites are unchanged.
+//!
 //! # Why this exists when `rpc_audit` already counts calls
 //!
 //! `rpc_audit` records every authenticated JSON-RPC dispatch by METHOD. Every
@@ -66,6 +70,17 @@ pub const DEFAULT_MAX_BYTES: u64 = 32 * 1024 * 1024;
 /// sink without the reader having to guess from the name.
 pub const SURFACE_MCP: &str = "mcp";
 pub const SURFACE_CLI: &str = "cli";
+/// T-3033 (C-30/C-31): session-daemon RPCs (`kv.*`, `session.*`) that never pass
+/// the hub's `rpc_audit`. Recorded at `handler::dispatch_scoped`.
+pub const SURFACE_SESSION_RPC: &str = "session-rpc";
+
+/// T-3033: which session-daemon methods are recorded. Only the two surfaces the
+/// value review found unobservable. `event.poll`/`event.subscribe` long-poll
+/// loops are deliberately excluded: they are high-rate and answer no open usage
+/// question, so they would only crowd the rotation cap.
+pub fn is_recorded_session_method(method: &str) -> bool {
+    method.starts_with("kv.") || method.starts_with("session.")
+}
 
 static PATH: OnceLock<Option<PathBuf>> = OnceLock::new();
 static MAX_BYTES: OnceLock<u64> = OnceLock::new();
@@ -119,7 +134,7 @@ fn current_path() -> Option<PathBuf> {
     if let Some(p) = PATH.get() {
         return p.clone();
     }
-    let p = termlink_session::discovery::runtime_dir().join(FILE_NAME);
+    let p = crate::discovery::runtime_dir().join(FILE_NAME);
     let _ = PATH.set(Some(p.clone()));
     Some(p)
 }
@@ -162,7 +177,7 @@ pub fn record_to(path: &Path, surface: &str, name: &str) {
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
     // Errors are intentionally dropped — see the module contract.
-    let _ = crate::rpc_audit::append_line_capped(path, &line, max_bytes());
+    let _ = crate::audit_append::append_line_capped(path, &line, max_bytes());
 }
 
 #[cfg(test)]
@@ -293,5 +308,29 @@ mod tests {
             enabled_from(Some("false")),
             "only \"0\" opts out - a near-miss must not silently disable telemetry"
         );
+    }
+
+    /// T-3033: the session-daemon filter covers exactly the two blind surfaces.
+    #[test]
+    fn session_filter_records_kv_and_session_only() {
+        for m in ["kv.get", "kv.set", "kv.delete", "kv.list", "session.update"] {
+            assert!(is_recorded_session_method(m), "{m} must be recorded");
+        }
+        for m in ["event.poll", "event.subscribe", "command.execute", "query.status", "kvx.get", ""] {
+            assert!(!is_recorded_session_method(m), "{m} must not be recorded");
+        }
+    }
+
+    /// T-3033: a session-rpc record lands in the same sink shape as MCP/CLI.
+    #[test]
+    fn session_rpc_record_shape() {
+        let dir = TempDir::new().unwrap();
+        let p = dir.path().join(FILE_NAME);
+        record_to(&p, SURFACE_SESSION_RPC, "kv.get");
+        let lines = read_lines(&p);
+        assert_eq!(lines.len(), 1);
+        let v: serde_json::Value = serde_json::from_str(&lines[0]).unwrap();
+        assert_eq!(v["surface"], "session-rpc");
+        assert_eq!(v["name"], "kv.get");
     }
 }

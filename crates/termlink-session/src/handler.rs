@@ -159,6 +159,15 @@ pub async fn dispatch_scoped(
     session: &Arc<RwLock<SessionContext>>,
     req: &Request,
 ) -> Option<RpcResponse> {
+    // T-3033 (C-30/C-31): kv.* and session.* reach the session daemon directly
+    // and never pass the hub's rpc_audit. Recorded before dispatch, as in MCP:
+    // a call that errors is still a call. Infallible by contract.
+    if crate::invocation_audit::is_recorded_session_method(&req.method) {
+        crate::invocation_audit::record(
+            crate::invocation_audit::SURFACE_SESSION_RPC,
+            &req.method,
+        );
+    }
     if needs_write(req) {
         let mut ctx = session.write().await;
         dispatch_mut(req, &mut ctx).await

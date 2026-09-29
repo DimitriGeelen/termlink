@@ -12,7 +12,8 @@ pub mod remote_store;
 pub mod retention_sweeper;
 pub mod route_cache;
 pub mod router;
-pub mod invocation_audit;
+// T-3033: moved to termlink-session so the session daemon can record through it.
+pub use termlink_session::invocation_audit;
 pub mod rpc_audit;
 pub mod template_cache;
 pub mod topic_lint;
