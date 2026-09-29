@@ -61,6 +61,26 @@ pub struct FlushReport {
     pub failed: u64,
     /// Entries dropped as poison after `POISON_THRESHOLD` hub-reject attempts (T-1439).
     pub dropped_poison: u64,
+    /// T-2616: poison posts whose dead-letter MOVE failed. They are kept at the head
+    /// of `pending_posts` (never deleted), so the queue wedges LOUDLY until the
+    /// dead-letter store accepts them. Non-zero means "look at the disk".
+    pub dead_letter_failed: u64,
+    /// T-2616: consecutive flush passes (across calls) that ended on a TRANSPORT
+    /// error. Reset by any hub answer. A number that only grows means the fault is
+    /// not an outage that clears (bad address, cert, firewall) — see
+    /// `TRANSPORT_STREAK_WARN`.
+    pub transport_fail_streak: u64,
+}
+
+/// T-2616: after this many consecutive transport-failed flush passes (~1 min at the
+/// default 5s tick) the drain loop stops logging at `debug!` and warns, repeating
+/// every further `TRANSPORT_STREAK_WARN` passes. A transient outage clears well
+/// below this; a permanent fault must not wedge the FIFO invisibly.
+pub const TRANSPORT_STREAK_WARN: u64 = 12;
+
+/// T-2616: should this transport-failure streak be surfaced above `debug!`?
+pub(crate) fn transport_streak_is_loud(streak: u64) -> bool {
+    streak >= TRANSPORT_STREAK_WARN && streak % TRANSPORT_STREAK_WARN == 0
 }
 
 /// T-1439: After this many hub-reject responses on the same head-of-queue
@@ -128,6 +148,8 @@ pub struct BusClient {
     addr: TransportAddr,
     queue: Arc<OfflineQueue>,
     shutdown_tx: Mutex<Option<oneshot::Sender<()>>>,
+    /// T-2616: see `FlushReport::transport_fail_streak`.
+    transport_fail_streak: std::sync::atomic::AtomicU64,
 }
 
 impl BusClient {
@@ -156,6 +178,7 @@ impl BusClient {
             addr,
             queue,
             shutdown_tx: Mutex::new(Some(shutdown_tx)),
+            transport_fail_streak: std::sync::atomic::AtomicU64::new(0),
         });
         let handle = {
             let weak = Arc::downgrade(&client);
@@ -226,11 +249,19 @@ impl BusClient {
         }
     }
 
+    /// T-2616: clear the transport-failure streak, pass `v` through.
+    fn reset_transport_streak_then<T>(&self, v: T) -> T {
+        self.transport_fail_streak
+            .store(0, std::sync::atomic::Ordering::Relaxed);
+        v
+    }
+
     /// Drain the queue. Stops at the first transport failure so FIFO order
     /// is preserved (the failing entry remains at head). Hub-reject (post
     /// hit the hub but was rejected) bumps attempts; once `POISON_THRESHOLD`
-    /// is crossed the entry is dropped so it cannot head-block subsequent
-    /// posts (T-1439).
+    /// is crossed the entry is dead-lettered so it cannot head-block
+    /// subsequent posts (T-1439/T-2243) — unless the dead-letter move fails,
+    /// in which case it is KEPT at head and surfaced (T-2616).
     pub async fn flush(&self) -> FlushReport {
         let mut report = FlushReport::default();
         loop {
@@ -300,7 +331,8 @@ impl BusClient {
             )
             .await
             {
-                Ok(resp) => match parse_post_response(resp) {
+                // T-2616: any hub answer (accept or reject) ends a transport streak.
+                Ok(resp) => match self.reset_transport_streak_then(parse_post_response(resp)) {
                     Ok(_offset) => {
                         report.sent += 1;
                         // T-2497: the hub accepted the post; the local row must now
@@ -365,32 +397,24 @@ impl BusClient {
                                 "flush: dead-lettering poison post after {POISON_THRESHOLD} hub-reject attempts"
                             );
                             if let Err(de) = self.queue.dead_letter(id, &reason) {
-                                // Dead-letter write itself failed (disk/SQLite
-                                // broken). Fall back to a drop so a single poison
-                                // entry can't head-block the whole queue forever,
-                                // but make the loss LOUD (error, not the silent
-                                // debug the old path used).
+                                // T-2616: the dead-letter MOVE failed. This used to
+                                // fall back to `pop()` (a DELETE), which permanently
+                                // lost the post from BOTH tables whenever the delete
+                                // succeeded, destroying exactly what T-2243 exists
+                                // to preserve. Now the post stays at head, untouched,
+                                // and the pass breaks (no re-POST busy-loop, T-2452).
+                                // The FIFO wedges, but LOUDLY: `error!` on every
+                                // tick plus `dead_letter_failed`, until the store
+                                // accepts the move. A wedge you can see beats a loss
+                                // you cannot.
                                 tracing::error!(
                                     queue_id = id.0,
                                     error = %de,
-                                    "flush: dead-letter write failed; dropping poison post to avoid head-of-line block"
+                                    "flush: dead-letter write failed — poison post KEPT at queue head (not deleted); queue wedged until the dead-letter store accepts it (disk?)"
                                 );
-                                // T-2452 (round-11 F2): if the fallback pop ALSO
-                                // fails (writes broken, e.g. disk-full), the head
-                                // row is still present. `continue`ing here would
-                                // re-POST the same entry to the hub every
-                                // iteration — an unbounded busy-loop. Break so the
-                                // pass yields; the next flush tick retries once the
-                                // disk recovers.
-                                if let Err(pe) = self.queue.pop(id) {
-                                    tracing::error!(
-                                        queue_id = id.0,
-                                        error = %pe,
-                                        "flush: dead-letter AND fallback pop both failed (disk?) — aborting flush pass to avoid unbounded re-POST loop"
-                                    );
-                                    report.failed += 1;
-                                    break;
-                                }
+                                report.dead_letter_failed += 1;
+                                report.failed += 1;
+                                break;
                             }
                             report.dropped_poison += 1;
                             // Continue draining — don't let the poison
@@ -418,7 +442,22 @@ impl BusClient {
                     }
                 },
                 Err(e) => {
-                    tracing::debug!(queue_id = id.0, error = %e, "flush: transport error, will retry");
+                    let streak = self
+                        .transport_fail_streak
+                        .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+                        + 1;
+                    report.transport_fail_streak = streak;
+                    if transport_streak_is_loud(streak) {
+                        tracing::warn!(
+                            queue_id = id.0,
+                            consecutive_passes = streak,
+                            pending = self.queue.size().unwrap_or(0),
+                            error = %e,
+                            "flush: hub unreachable for {streak} consecutive passes — queue is not draining; if this persists the address/cert/firewall is wrong, not a blip"
+                        );
+                    } else {
+                        tracing::debug!(queue_id = id.0, error = %e, "flush: transport error, will retry");
+                    }
                     report.failed += 1;
                     break;
                 }
@@ -531,6 +570,93 @@ mod tests {
     /// flush pass, not fall through and re-POST the undeleted head row. Before
     /// the fix the success arm ran `let _ = self.queue.pop(id)` and looped,
     /// hot-spinning + duplicating the durable message on any pop failure.
+
+    // T-2616 (a): the dead-letter MOVE fails while a DELETE would succeed. Before,
+    // the fallback pop() deleted the post from both tables. Fault injection: drop
+    // the dead_letters table under the live queue, so INSERT fails and DELETE works.
+    #[tokio::test]
+    async fn flush_keeps_poison_at_head_when_dead_letter_write_fails() {
+        use crate::handler::SessionContext;
+        use crate::registration::{Registration, SessionConfig};
+        use crate::server;
+        use crate::{SessionId, SessionState};
+        use std::sync::atomic::{AtomicU32, Ordering};
+        use std::sync::Arc;
+        use tokio::sync::RwLock;
+
+        static C: AtomicU32 = AtomicU32::new(0);
+        let n = C.fetch_add(1, Ordering::Relaxed);
+        let socket_path =
+            std::path::PathBuf::from(format!("/tmp/tl-busdlf-{}-{}.sock", std::process::id(), n));
+        let _ = std::fs::remove_file(&socket_path);
+        let listener = tokio::net::UnixListener::bind(&socket_path).unwrap();
+        let id = SessionId::generate();
+        let mut reg = Registration::new(id, SessionConfig::default(), socket_path.clone());
+        reg.state = SessionState::Ready;
+        let shared = Arc::new(RwLock::new(SessionContext::new(reg)));
+        let shared_clone = shared.clone();
+        let server_handle =
+            tokio::spawn(async move { server::run_accept_loop(listener, shared_clone).await });
+        tokio::time::sleep(Duration::from_millis(10)).await;
+
+        let dir = tempfile::tempdir().unwrap();
+        let queue_path = dir.path().join("outbound.sqlite");
+        {
+            let seed = crate::offline_queue::OfflineQueue::open(&queue_path).unwrap();
+            seed.enqueue(&sample_post("nonexistent-topic")).unwrap();
+        }
+        let (client, flush_handle) = BusClient::connect_with_interval(
+            TransportAddr::unix(socket_path.clone()),
+            &queue_path,
+            Duration::from_secs(3600),
+        )
+        .unwrap();
+        rusqlite::Connection::open(&queue_path)
+            .unwrap()
+            .execute_batch("DROP TABLE dead_letters;")
+            .unwrap();
+
+        let (mut dropped, mut dl_failed) = (0, 0);
+        for _ in 0..POISON_THRESHOLD + 2 {
+            let r = client.flush().await;
+            dropped += r.dropped_poison;
+            dl_failed += r.dead_letter_failed;
+        }
+        assert_eq!(dropped, 0, "a post that could not be preserved must not count as handled");
+        assert!(dl_failed >= 1, "the failed move is surfaced in the report");
+        assert_eq!(client.queue_size(), 1, "the guaranteed post is still in the queue, not deleted");
+
+        drop(client);
+        let _ = tokio::time::timeout(Duration::from_secs(2), flush_handle).await;
+        server_handle.abort();
+        let _ = std::fs::remove_file(&socket_path);
+    }
+
+    // T-2616 (b): a transport fault that never clears is visible, not debug-only.
+    #[tokio::test]
+    async fn flush_transport_streak_grows_across_passes_and_is_loud_on_schedule() {
+        let dir = tempfile::tempdir().unwrap();
+        let (client, handle) = BusClient::connect_with_interval(
+            TransportAddr::unix(dir.path().join("nope.sock")),
+            dir.path().join("outbound.sqlite"),
+            Duration::from_secs(3600),
+        )
+        .unwrap();
+        let _ = client.post(sample_post("t")).await.unwrap();
+        for i in 1..=TRANSPORT_STREAK_WARN {
+            assert_eq!(client.flush().await.transport_fail_streak, i);
+        }
+        assert_eq!(client.queue_size(), 1, "FIFO preserved: nothing dropped by a transport fault");
+        drop(client);
+        let _ = tokio::time::timeout(Duration::from_secs(2), handle).await;
+
+        assert!(!transport_streak_is_loud(1));
+        assert!(!transport_streak_is_loud(TRANSPORT_STREAK_WARN - 1));
+        assert!(transport_streak_is_loud(TRANSPORT_STREAK_WARN));
+        assert!(!transport_streak_is_loud(TRANSPORT_STREAK_WARN + 1), "no per-pass spam");
+        assert!(transport_streak_is_loud(2 * TRANSPORT_STREAK_WARN), "and it repeats");
+    }
+
     #[test]
     fn pop_action_aborts_pass_on_pop_failure() {
         let err: crate::offline_queue::Result<()> =

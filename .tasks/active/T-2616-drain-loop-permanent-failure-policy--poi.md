@@ -8,10 +8,10 @@ description: >
   a transient outage and wedges the whole FIFO at debug! forever. Both are design
   tensions needing a deliberate policy.
 
-status: captured
+status: started-work
 workflow_type: design
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -20,7 +20,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-11T17:07:11Z
-last_update: '2026-09-27T21:34:05Z'
+last_update: 2026-09-29T16:20:32Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -98,10 +98,10 @@ T-2452 removed; naive "give up after N" (b) drops legitimately-retryable outage 
 ## Acceptance Criteria
 
 ### Agent
-- [ ] A deliberate policy is chosen (recorded in Decisions) for: (a) what happens when dead_letter fails at the poison threshold — e.g. leave in pending + surface via a distinct dead-letter-write-failed counter/canary rather than delete; (b) how a permanent transport fault is distinguished from a transient outage and surfaced above `debug!` (e.g. an error-after-K-consecutive-identical-failures signal)
-- [ ] Neither branch can silently lose a guaranteed post nor silently wedge the FIFO indefinitely (loss/wedge is always surfaced at `warn!`/`error!` or a canary)
-- [ ] Tests cover the dead_letter-fails ∧ pop-succeeds path and the permanent-transport path (using the queue's existing fault-injection test seams)
-- [ ] `cargo test -p termlink-session` passes
+- [x] A deliberate policy is chosen (recorded in Decisions) for: (a) what happens when dead_letter fails at the poison threshold — e.g. leave in pending + surface via a distinct dead-letter-write-failed counter/canary rather than delete; (b) how a permanent transport fault is distinguished from a transient outage and surfaced above `debug!` (e.g. an error-after-K-consecutive-identical-failures signal)
+- [x] Neither branch can silently lose a guaranteed post nor silently wedge the FIFO indefinitely (loss/wedge is always surfaced at `warn!`/`error!` or a canary)
+- [x] Tests cover the dead_letter-fails ∧ pop-succeeds path and the permanent-transport path (using the queue's existing fault-injection test seams)
+- [x] `cargo test -p termlink-session` passes
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -136,6 +136,10 @@ T-2452 removed; naive "give up after N" (b) drops legitimately-retryable outage 
 
 ## Verification
 
+cargo test -q -p termlink-session --lib bus_client
+grep -q 'pub dead_letter_failed: u64' crates/termlink-session/src/bus_client.rs
+grep -q 'pub const TRANSPORT_STREAK_WARN' crates/termlink-session/src/bus_client.rs
+
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
 # The completion gate runs each command — if any exits non-zero, completion is blocked.
@@ -168,6 +172,11 @@ T-2452 removed; naive "give up after N" (b) drops legitimately-retryable outage 
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
 ## RCA
+
+**Symptom:** (a) when a poison post's dead-letter move failed but its DELETE succeeded, the guaranteed post vanished from both `pending_posts` and `dead_letters` (logged once at `error!`). (b) A transport fault that never clears (wrong addr, cert) kept the queue from draining forever, logging only at `debug!`.
+**Root cause:** (a) T-2452's fallback chose "unwedge the FIFO" over "preserve the post" when the store that preserves posts is broken. (b) The flush pass is stateless across calls, so it could not tell the 1st refused connect from the 10,000th, and it logged every one at the transient level.
+**Why structurally allowed:** both paths were loud-ish (T-2452 made (a) an `error!`), so the no-silent-failure reviews read them as handled. Nothing asked whether "logged once" still means "lost". The dead-letter canary (T-2558) counts rows IN `dead_letters` and structurally cannot see a post that never arrived there. No fault-injection test existed for the move-fails path.
+**Prevention:** fault-injected test for the move-fails ∧ delete-succeeds window (the mutant restoring the delete is red); `dead_letter_failed` and `transport_fail_streak` in `FlushReport` for any observer; the loud schedule is unit-pinned.
 
 **Symptom:** (a) A guaranteed post can be silently lost (loud-logged but gone) when the
 dead-letter write fails at the poison threshold; (b) a permanently-misconfigured hub
@@ -214,6 +223,10 @@ the existing queue-depth observability).
 
 ## Decisions
 
+### 2026-09-29 — drain-loop permanent-failure policy (T-3211 R6)
+- **(a) dead-letter MOVE fails at the poison threshold → keep the post, never delete.** It stays at the head of `pending_posts`, the pass breaks (still no re-POST busy loop, T-2452), `error!` fires on every tick, and a new `FlushReport::dead_letter_failed` counts it. **Trade-off accepted:** the FIFO wedges behind it until the dead-letter store accepts the move. That wedge is loud; the old fallback `pop()` was a silent-to-the-queue permanent loss of exactly the post T-2243 exists to preserve. A move failing while a delete succeeds usually means the dead-letter table or its disk is broken. Posts behind it would hit the same broken store at their own poison threshold anyway.
+- **(b) permanent vs transient transport fault → distinguished by duration, surfaced by a streak.** Each pass can only see one error, and "connection refused" looks the same whether it is a blip or a wrong address. So `BusClient` keeps a cross-pass `transport_fail_streak` (reset by ANY hub answer, accept or reject), exposed as `FlushReport::transport_fail_streak`. At `TRANSPORT_STREAK_WARN` = 12 consecutive passes (~1 min at the 5s tick) the log line escalates from `debug!` to `warn!` (with pending depth), repeating every further 12 passes rather than every pass. Nothing is dropped: FIFO is preserved, as the retry-forever design intends.
+
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
      Format:
@@ -235,7 +248,17 @@ the existing queue-depth observability).
 
 ## Updates
 
+### 2026-09-29 — T-3211 R6 evidence
+- `flush_keeps_poison_at_head_when_dead_letter_write_fails`: real fault injection. `DROP TABLE dead_letters` under the live queue makes the INSERT fail while a DELETE would succeed, which is the exact (dead_letter-fails ∧ pop-succeeds) window. After POISON_THRESHOLD+2 passes: dropped_poison 0, dead_letter_failed ≥ 1, queue_size 1. **Mutant** restoring the fallback delete: red.
+- `flush_transport_streak_grows_across_passes_and_is_loud_on_schedule`: the streak equals the pass number 1..12 against an unreachable hub, the queue is intact, and the loud schedule fires at 12 and 24, not 11 or 13.
+- `cargo test -p termlink-session`: 529 passed, 0 failed. `cargo check --workspace`: rc 0. 0 warnings.
+- Tests use real fault injection rather than a pre-existing seam: none existed for dead_letter failure, and the file's own `pop_action` comment says so.
+
 ### 2026-08-11T17:07:11Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2616-drain-loop-permanent-failure-policy--poi.md
 - **Context:** Initial task creation
+
+### 2026-09-29T16:20:32Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
