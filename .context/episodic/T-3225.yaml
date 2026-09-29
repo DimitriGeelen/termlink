@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3225: CLI connect error on cert-change still leads with 'is the hub running?
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-29T11:22:05Z
+# ============================================================================
+
+task_id: T-3225
+task_name: "CLI connect error on cert-change still leads with 'is the hub running?"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-29T10:34:54Z
+completed: 2026-09-29T11:21:27Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-29T13:19:44+02:00
+last_commit: 2026-09-29T13:21:27+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  CLI connect failure on cert change leads with the TOFU cause — parity with the MCP's T-2268 (flake found on the way filed as T-3231). RCA block (G-019 bug-class completion gate)
+
+# Key outcomes
+outcomes:
+  - 'CLI `connect_remote_hub` surfaces a TOFU/cert-change connect failure as its own headline (the `TOFU VIOLATION …` text, which carries the `tofu clear` remediation) instead of "is the hub running?", mirroring MCP `render_connect_error` (T-2268); every other connect failure keeps today''s exact context'
+  - 'Fleet doctor''s `classify_fleet_error` still returns the TOFU hint and the auth hint on the new composed messages (no regression of T-1181)'
+  - 'Pure helper `render_connect_failure` unit-tested for both branches (headline + `{:#}` chain)'
+  - '`cargo test -p termlink --bin termlink` passes with no new warnings'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'RCA block (G-019 bug-class completion gate)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/commands/remote.rs'
+  - '.tasks/active/T-3225-cli-connect-error-on-cert-change-still-l.md'
+  - '.tasks/active/T-3231-flaky-cli-test-dispatch-isolaterejectsno.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-29T13:19:44'
+    action: 'T-3225: CLI connect failure on cert change leads with the TOFU cause — parity with the MCP''s T-2268 (flake found on the way filed as T-3231)'
+  - time: '2026-09-29T13:21:27'
+    action: 'T-3225: RCA block (G-019 bug-class completion gate)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 46 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 46
+  commits: 2
+  files_changed: 3
+  lines_added: 360
+  lines_removed: 57
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3225-cli-connect-error-on-cert-change-still-l.md
+generated_by: context-agent-hybrid

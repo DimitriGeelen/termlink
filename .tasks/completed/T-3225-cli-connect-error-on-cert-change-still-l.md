@@ -7,10 +7,10 @@ description: >
   cause under 'Caused by'. Low severity; the CLI lags here. Evidence: docs/reports/T-3219-twin-drift-triage.md
   (T-3219).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: [crates/termlink-cli/src/commands/remote.rs]
 related_tasks: []
@@ -25,8 +25,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-29T10:34:54Z
-last_update: 2026-09-29T11:19:44Z
-date_finished:
+last_update: 2026-09-29T11:21:27Z
+date_finished: 2026-09-29T11:21:27Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -260,3 +260,16 @@ grep -q "map_err(|e| render_connect_failure(hub, e))" crates/termlink-cli/src/co
 
 ### 2026-09-29T11:16:10Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-5c0b6f05
+- **Timestamp:** 2026-09-29T11:21:58Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** none
+
+### 2026-09-29T11:21:27Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
