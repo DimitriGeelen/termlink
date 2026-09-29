@@ -1,0 +1,90 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2662: cmd_file_receive swallows mid-transfer RPC error into tracing.warn — user waits out full timeout
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-29T16:18:58Z
+# ============================================================================
+
+task_id: T-2662
+task_name: "cmd_file_receive swallows mid-transfer RPC error into tracing.warn — user waits out full timeout"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-12T20:34:48Z
+completed: 2026-09-29T16:17:36Z
+duration_days: 48
+updates_count: 3
+first_commit: 2026-08-12T22:37:00+02:00
+last_commit: 2026-09-29T18:17:35+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  round-12: file 4 verified delicate findings (fixture/design-decision class). file receive surfaces a mid-transfer RPC error and bails 'disconnected' after 3 consecutive — no more silent wait to timeout
+
+# Key outcomes
+outcomes:
+  - 'A resolution is chosen + recorded in `## Decisions`: surface persistent/disconnect RPC errors to the user (stderr / JSON `reason`) vs. bail-on-disconnect like `cmd_wait`. (Design call: how many consecutive errors before surfacing? Is a single transient error tolerable?)'
+  - '`cmd_file_receive` no longer swallows a disconnect into `tracing::warn` only — the user sees an actionable message before/instead-of waiting out the full timeout'
+  - 'Behavior proven (fixture: a source session that drops mid-transfer) OR structural check as fallback'
+  - '`cargo build -p termlink` clean'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'file receive surfaces a mid-transfer RPC error and bails ''disconnected'' after 3 consecutive — no more silent wait to timeout'
+    source: git-mined
+  - description: 'round-12: file 4 verified delicate findings (fixture/design-decision class)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-09-29 — surface, then bail after a short streak (T-3211 R6)'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/episodic/T-2657.yaml'
+  - '.context/episodic/T-2658.yaml'
+  - 'crates/termlink-cli/src/commands/file.rs'
+  - '.tasks/active/T-2659-agent-contact-fleet-walk-missing-per-hub.md'
+  - '.tasks/active/T-2660-agent-asknegotiate-treat---timeout-0-as-.md'
+  - '.tasks/active/T-2661-mirror-grid-scrollback-prefetch-queryout.md'
+  - '.tasks/active/T-2662-cmdfilereceive-swallows-mid-transfer-rpc.md'
+  - '.tasks/completed/T-2657-cmdbroadcast-empty-targets-bail-discards.md'
+  - '.tasks/completed/T-2658-cmdcollect-hub-error-retry-has-no-backof.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-08-12T22:37:00'
+    action: 'round-12: file 4 verified delicate findings (fixture/design-decision class)'
+  - time: '2026-09-29T18:17:35'
+    action: 'T-2662: file receive surfaces a mid-transfer RPC error and bails ''disconnected'' after 3 consecutive — no more silent wait to timeout'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 68862 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 68862
+  commits: 2
+  files_changed: 9
+  lines_added: 1129
+  lines_removed: 17
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2662-cmdfilereceive-swallows-mid-transfer-rpc.md
+generated_by: context-agent-hybrid
