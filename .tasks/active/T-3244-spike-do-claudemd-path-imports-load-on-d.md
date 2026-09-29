@@ -1,16 +1,18 @@
 ---
-id: T-2974
-name: "Consolidate five-run value-review findings into an execution arc"
+id: T-3244
+name: "Spike: do CLAUDE.md @path imports load on demand or inline"
 description: >
-  Consolidate five-run value-review findings into an execution arc
+  T-2989 GO step 1 (gate for steps 2-3): measure whether an @path import in CLAUDE.md
+  defers loading or is inlined into the preloaded context; the answer decides whether
+  the split can reduce preload at all.
 
-status: work-completed
-workflow_type: build
+status: captured
+workflow_type: design
 owner: agent
-horizon: null
-tags: []
+horizon: now
+tags: [value-review, arc:arc-009, go-slice]
 components: []
-related_tasks: [T-2971]
+related_tasks: [T-2989]
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
@@ -21,9 +23,9 @@ related_tasks: [T-2971]
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-19T21:49:21Z
-last_update: 2026-09-19T22:37:29Z
-date_finished: 2026-09-19T22:37:29Z
+created: 2026-09-29T19:54:49Z
+last_update: '2026-09-29T19:57:58Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,9 +36,33 @@ date_finished: 2026-09-19T22:37:29Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-09-29T19:57:58Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-09-29T19:57:58Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 3
+      effort: 8
+    rationale: blast_radius=1 (1-file-ref-derived-T-3189); tier=3 
+      (workflow:design); effort=8 (lines=232,acs=4)
+    rubric_sha: e4a00f38e801
 ---
 
-# T-2974: Consolidate five-run value-review findings into an execution arc
+# T-3244: Spike: do CLAUDE.md @path imports load on demand or inline
 
 ## Context
 
@@ -46,10 +72,8 @@ date_finished: 2026-09-19T22:37:29Z
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] A consolidated, deduplicated findings file exists at docs/reports/VALUE-REVIEW-repo-2026-09-19-consolidated.md, with one row per unique finding across runs 1-5, each row citing its source run rows (traceability preserved)
-- [x] A new arc exists under .context/arcs/ for executing the value-review findings, with a scope statement referencing the consolidated file
-- [x] Every agent-executable consolidated finding is covered by a created task assigned to the new arc; every sovereign/human-decision finding is covered by an owner:human task (routing it to the Watchtower review queue) — no finding is dropped
-- [x] The mapping finding-ID → task-ID is recorded in the consolidated file (or the arc file), so execution coverage is checkable
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -86,13 +110,6 @@ date_finished: 2026-09-19T22:37:29Z
 
 ## Verification
 
-test -f docs/reports/VALUE-REVIEW-repo-2026-09-19-consolidated.md
-test -f .context/arcs/arc-009.yaml
-grep -q "Execution mapping (arc-009, T-2974)" docs/reports/VALUE-REVIEW-repo-2026-09-19-consolidated.md
-test "$(grep -rl "^tags:.*arc:arc-009" .tasks/active | grep -c .)" = "38"
-test "$(grep -c "^| S-" docs/reports/VALUE-REVIEW-repo-2026-09-19-consolidated.md)" = "68"
-test "$(grep -rl "owner: human" .tasks/active/T-2984* .tasks/active/T-2989* .tasks/active/T-2992* .tasks/active/T-2993* .tasks/active/T-2994* .tasks/active/T-3012* | grep -c .)" = "6"
-
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
 # The completion gate runs each command — if any exits non-zero, completion is blocked.
@@ -128,6 +145,34 @@ test "$(grep -rl "owner: human" .tasks/active/T-2984* .tasks/active/T-2989* .tas
 # capture and grep (T-2090) — the middle stage is what `grep -q` slams its stdin
 # on, and grep scans the whole captured string anyway, so the `tail -3` was
 # cosmetic. `echo "$out" | grep -q PAT`, nothing between.
+#
+# ── Asserting an ABSENCE: prove the search could have succeeded (T-3144) ──
+#
+# `! grep -q "PATTERN" file` exits 0 when the pattern is absent. It ALSO exits 0
+# when the file was renamed, deleted, or is empty — so the leg cannot distinguish
+# "the bad thing is not there" from "I could not look", and the gate reports green
+# over a check that never ran. Pair every absence assertion with something that
+# fails if the search could not happen:
+#
+#     test -f path/to/file && ! grep -q "PATTERN" path/to/file    # existence first
+#     grep -q "KNOWN_MARKER" f && ! grep -q "PATTERN" f           # positive companion
+#     cmd > /tmp/.out 2>&1 && ! grep -q "PATTERN" /tmp/.out       # &&-joined producer
+#
+# Count-equals-zero is the same defect wearing a different hat, and it is the one
+# that bites hardest over a COMMAND's output rather than a file:
+#
+#     [ "$(cargo clippy --workspace 2>&1 | grep -c "^error")" = "0" ]   # WRONG
+#
+# If cargo is missing, or dies before emitting diagnostics, there are no `^error`
+# lines, the count is 0, and the leg passes — a build gate that goes green
+# precisely when the build could not run. Measured in this corpus, not invented.
+# Keep the producer's exit code in the verdict:
+#
+#     cargo clippy --workspace > /tmp/.out 2>&1 && ! grep -q "^error" /tmp/.out
+#
+# T-3144 censused 2853 task files: 71 absence assertions, 41 already correct, 30
+# not. The convention mostly works — this note is here so the next one is written
+# right, because a vacuous leg is invisible until the day the path moves.
 #
 # TEST RUNNERS need a guard either way (T-2738). `set -e` is suppressed inside the
 # `if` condition the gate runs each line in, so in `cmd1; cmd2` only cmd2 is the
@@ -244,19 +289,7 @@ test "$(grep -rl "owner: human" .tasks/active/T-2984* .tasks/active/T-2989* .tas
 
 ## Updates
 
-### 2026-09-19T21:49:21Z — task-created [task-create-agent]
+### 2026-09-29T19:54:49Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2974-consolidate-five-run-value-review-findin.md
+- **Output:** /opt/termlink/.tasks/active/T-3244-spike-do-claudemd-path-imports-load-on-d.md
 - **Context:** Initial task creation
-
-## Reviewer Verdict (v1.5)
-
-- **Scan ID:** R-46600e23
-- **Timestamp:** 2026-09-19T22:37:30Z
-- **Catalogue:** v1.3-seed
-- **Overall:** PASS
-- **Needs Human:** no
-- **Findings:** none
-
-### 2026-09-19T22:37:29Z — status-update [task-update-agent]
-- **Change:** status: started-work → work-completed

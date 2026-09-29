@@ -10,7 +10,7 @@ owner: human
 horizon: null
 tags: []
 components: []
-related_tasks: []
+related_tasks: [T-3056, T-3057, T-3060]
 created: 2026-09-22T06:51:42Z
 last_update: 2026-09-22T08:02:03Z
 date_finished: 2026-09-22T08:02:03Z

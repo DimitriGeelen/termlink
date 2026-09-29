@@ -12,7 +12,7 @@ owner: human
 horizon: null
 tags: []
 components: []
-related_tasks: []
+related_tasks: [T-3100]
 created: 2026-09-21T21:54:22Z
 last_update: 2026-09-22T08:01:47Z
 date_finished: 2026-09-22T08:01:47Z

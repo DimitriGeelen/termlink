@@ -12,7 +12,7 @@ owner: agent
 horizon: null
 tags: [value-review, arc:arc-009]
 components: []
-related_tasks: []
+related_tasks: [T-3255]
 created: 2026-09-19T22:27:35Z
 last_update: 2026-09-21T11:07:29Z
 date_finished: 2026-09-21T11:07:29Z

@@ -13,7 +13,7 @@ owner: human
 horizon: null
 tags: [value-review, arc:arc-009]
 components: []
-related_tasks: []
+related_tasks: [T-3244, T-3245, T-3246, T-3247]
 created: 2026-09-19T22:12:55Z
 last_update: 2026-09-21T11:06:34Z
 date_finished: 2026-09-21T11:06:34Z
