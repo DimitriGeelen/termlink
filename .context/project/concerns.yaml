@@ -1681,6 +1681,14 @@ concerns:
   what_works_now: Evidence capture in the task file works — agent leaves 'Agent evidence:' notes when it can verify
     the spirit of the AC. When human does sit down to review, they have pre-computed facts. Partial-complete move
     on idempotent `fw task update` works (re-runs the move once box is ticked).
+  measured_2026_09_29: 'T-2997 (C-21) refresh. Figures: 72 partial-complete awaiting human (handover
+    footer), 65 waiting >30d per audit D2, oldest 150d (the 64 recorded above is from 2026-04-15). Shipped
+    since filing: item 1 as `fw review-queue` (prints an AGE column); item 2 as the handover "Partial-Complete
+    — awaiting human (N tasks)" footer (count only, no oldest age); item 4 as audit D2
+    (agents/audit/audit.sh:5069, FAIL >30d / WARN >14d, since 313e9eaea 2026-04-12). Still open: the oldest-age
+    figure in the handover footer (vendored handover.sh, G-062 upstream) and item 3 (rubber-stamp verb, a
+    sovereign decision). The surfaces exist; the queue still grows, so the open question is response capacity,
+    not visibility.'
   what_remains: '1. Add `fw task review-queue` command — lists agent-owned and human-owned tasks with unchecked
     human ACs, sorted by date_finished ascending. 2. Surface count in fw handover (e.g. ''Awaiting your signature:
     64 tasks, oldest 90 days''). 3. Consider: for RUBBER-STAMP Human ACs where agent has left objective evidence,

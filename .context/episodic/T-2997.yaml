@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2997: Human-AC staleness surface (partial-complete > threshold) + refresh G-008
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-29T09:59:25Z
+# ============================================================================
+
+task_id: T-2997
+task_name: "Human-AC staleness surface (partial-complete > threshold) + refresh G-008"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-19T22:20:18Z
+completed: 2026-09-29T09:59:17Z
+duration_days: 10
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  S-23/C-21 surface half: 75 partial-complete tasks await human ACs with no ageing surface; add a session-start surface for partial-complete tasks older than a threshold, refresh G-008. Evidence: docs/reports/VALUE-REVIEW-repo-2026-09-19-consolidated.md C-21.
+
+# Key outcomes
+outcomes:
+  - 'Existing session-start and ageing surfaces identified with file:line evidence (Context)'
+  - 'G-008 in `.context/project/concerns.yaml` carries a dated 2026-09-29 measurement (72 awaiting, 65 >30d, oldest 150d) and names which `what_remains` items shipped'
+  - '`concerns.yaml` still parses as YAML'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 13658 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [value-review, arc:arc-009]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 13658
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2997-human-ac-staleness-surface-partial-compl.md
+generated_by: context-agent-hybrid
