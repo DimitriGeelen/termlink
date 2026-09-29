@@ -1,0 +1,90 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2581: fix: PtySession Drop reaps with WNOHANG right after SIGKILL leaving transient zombie
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-29T16:26:21Z
+# ============================================================================
+
+task_id: T-2581
+task_name: "fix: PtySession Drop reaps with WNOHANG right after SIGKILL leaving transient zombie"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-08-09T21:45:32Z
+completed: 2026-09-29T16:26:12Z
+duration_days: 51
+updates_count: 4
+first_commit: 2026-08-09T23:46:11+02:00
+last_commit: 2026-09-29T18:25:58+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  FILE verb-4 hunt finding — PtySession::Drop WNOHANG-after-SIGKILL transient zombie (captured/later, Drop-path delicacy). end-to-end Drop test — a dropped PTY session leaves no zombie (fix itself landed as T-2737)
+
+# Key outcomes
+outcomes:
+  - '`PtySession::Drop` collects the SIGKILLed child before returning (no transient'
+  - 'Confirm no regression against the T-2517 invariant (SIGKILL targets the shell'
+  - 'A test (or documented manual check) shows no lingering zombie for a spawned'
+  - '`cargo test -p termlink-session` passes.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'end-to-end Drop test — a dropped PTY session leaves no zombie (fix itself landed as T-2737)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/episodic/T-2580.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/feedback-stream.yaml'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'crates/termlink-session/src/pty.rs'
+  - '.tasks/active/T-2581-fix-ptysession-drop-reaps-with-wnohang-r.md'
+  - '.tasks/completed/T-2580-fix-termlinkinject-reports-injected-succ.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-08-09T23:46:11'
+    action: 'T-2581: FILE verb-4 hunt finding — PtySession::Drop WNOHANG-after-SIGKILL transient zombie (captured/later, Drop-path delicacy)'
+  - time: '2026-09-29T18:25:58'
+    action: 'T-2581: end-to-end Drop test — a dropped PTY session leaves no zombie (fix itself landed as T-2737)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 73120 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 73120
+  commits: 2
+  files_changed: 11
+  lines_added: 387
+  lines_removed: 31
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2581-fix-ptysession-drop-reaps-with-wnohang-r.md
+generated_by: context-agent-hybrid

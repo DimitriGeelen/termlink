@@ -6,20 +6,20 @@ description: >
   Minor resource-hygiene: PtySession::Drop calls waitpid WNOHANG immediately after
   SIGKILL, typically leaving a transient zombie.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-session/src/pty.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-09T21:45:32Z
-last_update: 2026-09-29T16:24:50Z
-date_finished:
+last_update: 2026-09-29T16:26:12Z
+date_finished: 2026-09-29T16:26:12Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -176,6 +176,11 @@ grep -q 'reap_child_bounded(pid, REAP_BUDGET)' crates/termlink-session/src/pty.r
 
 ## RCA
 
+**Symptom:** `PtySession::drop` left the SIGKILLed shell child as a zombie until the host process exited.
+**Root cause:** SIGKILL delivery is asynchronous. A single `waitpid(WNOHANG)` issued immediately afterwards almost always returns 0 (not yet reapable), and nothing ever called `waitpid` again. Fixed by T-2737 with a bounded retry.
+**Why structurally allowed:** the reap was never tested through `Drop`. T-2737 then tested only the helper, which left the wiring unpinned: a regression inside `Drop` would have passed every test. The defect was also filed twice (this task and T-2737), because the allocator and the hunt that filed it do not see each other's findings (the T-229/T-2800 class).
+**Prevention:** `drop_leaves_no_zombie_for_a_spawned_session` exercises the real `Drop`; the pre-T-2737 mutant is red 5/5.
+
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
      Non-bug-class tasks may leave this section empty or remove it.
@@ -255,3 +260,16 @@ grep -q 'reap_child_bounded(pid, REAP_BUDGET)' crates/termlink-session/src/pty.r
 ### 2026-09-29T16:24:50Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: later → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-574438a0
+- **Timestamp:** 2026-09-29T16:26:14Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** none
+
+### 2026-09-29T16:26:12Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
