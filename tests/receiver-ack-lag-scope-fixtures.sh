@@ -12,6 +12,9 @@
 #   I1  include-listed non-dm topic IS scanned
 #   E1  unreadable channel list → NO VERDICT rc 2
 #   M1  mutant: restore the old broadcast defaults → B1 goes red
+#   C1  CI + binary present + hub unreachable → SKIP rc 0 (T-3262, release-job shape)
+#   C2  CI + reachable hub → measured normally
+#   M2  mutant: binary-only CI skip → C1 goes red
 #
 # Mock termlink via TERMLINK_BIN. No hub, no network. Exit 0 pass / 1 fail.
 set -u
@@ -88,6 +91,26 @@ touch "$W/list-broken"
 rc="$(run "$SCRIPT")"
 [ "$rc" = 2 ] && grep -q 'NO VERDICT' "$W/out" && pass "E1 unreadable channel list → NO VERDICT rc 2" || bad "E1 rc=$rc"
 rm -f "$W/list-broken"
+
+# T-3262 — the release job: CI set, a termlink binary PRESENT (cargo test built it),
+# no reachable hub. Must SKIP rc 0 and say why; off CI the same state is E1 (rc 2).
+run_ci() { local s="$1"; shift; (CI=true TERMLINK_BIN="$W/termlink" bash "$s" "$@") >"$W/out" 2>&1; echo $?; }
+case_c1() { touch "$W/list-broken"; local r; r="$(run_ci "$1")"; rm -f "$W/list-broken"
+            [ "$r" = 0 ] && grep -q 'no reachable hub' "$W/out"; }
+case_c1 "$SCRIPT" && pass "C1 CI + binary present + hub unreachable → SKIP rc 0 naming the hub" || bad "C1 (CI, binary, no hub)"
+rm -rf "$W/ack"; mock "dm:a:b"; ack "dm:a:b" "$BEHIND"
+rc="$(run_ci "$SCRIPT")"
+[ "$rc" = 1 ] && pass "C2 CI + reachable hub → still measures (fires rc 1), no skip" || bad "C2 rc=$rc"
+# M2: the pre-T-3262 skip (keyed on the binary only) — C1 must go red.
+M2="$W/mutant2.sh"
+python3 - "$SCRIPT" "$M2" <<'PY'
+import sys; s=open(sys.argv[1]).read()
+a=s.index("  if ! timeout 15 \"$TL\" channel list --json"); b=s.index("  fi\n", a)+5
+open(sys.argv[2],"w").write(s[:a]+s[b:])
+PY
+if cmp -s "$SCRIPT" "$M2"; then bad "M2 mutant did not apply"
+elif case_c1 "$M2"; then bad "M2 mutant (binary-only CI skip) survived C1"
+else pass "M2 mutant (binary-only CI skip) killed by C1"; fi
 
 rm -rf "$W/ack"; mock "agent-chat-arc"; ack agent-chat-arc "$NEVER"
 rc="$(run "$SCRIPT" --topics "agent-chat-arc")"

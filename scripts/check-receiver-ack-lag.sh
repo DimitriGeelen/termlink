@@ -135,9 +135,21 @@ command -v jq >/dev/null 2>&1 || { echo "check-receiver-ack-lag: jq not in PATH 
 # T-3238 (T-3234 pattern): a CI runner has no termlink binary and no hub, so there is
 # no receipt aggregate to read. Skip ONLY when CI is set AND no binary resolves;
 # anywhere else an unreadable hub stays "NO VERDICT" (exit 2), never healthy.
-if [ -n "${CI:-}" ] && ! command -v "$TL" >/dev/null 2>&1; then
-  echo "check-receiver-ack-lag: SKIP — CI is set and no termlink binary ($TL) is available; no hub to read"
-  exit 0
+#
+# T-3262: the prerequisite is a REACHABLE HUB, not a binary. v0.12.1's release job
+# (run 36633929858) ran `cargo test` first, which built a termlink binary, so the old
+# "no binary" skip did not fire and the check went on to read a hub CI does not have
+# (ERROR). Probe the hub itself; skip only when CI is set AND the probe fails. Off CI
+# an unreachable hub still falls through to the NO VERDICT (exit 2) path below.
+if [ -n "${CI:-}" ]; then
+  if ! command -v "$TL" >/dev/null 2>&1; then
+    echo "check-receiver-ack-lag: SKIP — CI is set and no termlink binary ($TL) is available; no hub to read"
+    exit 0
+  fi
+  if ! timeout 15 "$TL" channel list --json >/dev/null 2>&1; then
+    echo "check-receiver-ack-lag: SKIP — CI is set and no reachable hub ('$TL channel list' failed); no receipt aggregate to read"
+    exit 0
+  fi
 fi
 
 echo "check-receiver-ack-lag: receiver-side ack frontiers (threshold ${THRESHOLD})"
