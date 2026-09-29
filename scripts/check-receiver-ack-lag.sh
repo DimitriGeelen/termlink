@@ -51,21 +51,33 @@ cd "$(git rev-parse --show-toplevel 2>/dev/null || echo /opt/termlink)" || exit 
 TL="${TERMLINK_BIN:-./target/release/termlink}"
 command -v "$TL" >/dev/null 2>&1 || TL=termlink
 THRESHOLD="${LAG_THRESHOLD:-25}"
-TOPICS_DEFAULT="agent-chat-arc framework:pickup"
+# T-3256 (T-3007 GO): scope to ACK-CONTRACT topics. The rows are SENDERS, not
+# readers: on a broadcast rail the never-ackers are its own posting bots, and an
+# unacked subscribe-read is invisible to receipts by design — T-3004 proved live
+# readers on agent-chat-arc the same day this guard called it unconsumed. Scanning
+# the broadcast rails made the check permanently red (the T-2556/T-2818 fatigue
+# class). Default set is now every dm:* topic (where acking IS the contract) plus
+# ACK_LAG_INCLUDE_TOPICS. Broadcast consumption belongs to fleet-adoption-snapshot.
+BROADCAST_RAILS="agent-chat-arc framework:pickup"
+INCLUDE_TOPICS="${ACK_LAG_INCLUDE_TOPICS:-}"
 
 usage() {
   cat <<'EOF'
 check-receiver-ack-lag.sh [--topics "a b"] [--threshold N] [--self-test]
 
-Fires when a sender on a topic has an ack frontier further than N content
-envelopes behind the topic head, or has never acked at all.
+Fires when a sender on an ACK-CONTRACT topic has an ack frontier further than N
+content envelopes behind the topic head, or has never acked at all.
+Default topics: every dm:* topic on the hub, plus ACK_LAG_INCLUDE_TOPICS.
+Broadcast rails (agent-chat-arc, framework:pickup) are excluded and counted.
+--topics overrides the whole set.
 EOF
 }
 
-TOPICS="$TOPICS_DEFAULT"
+TOPICS=""
+TOPICS_EXPLICIT=0
 while [ $# -gt 0 ]; do
   case "$1" in
-    --topics)    TOPICS="${2:-}"; shift 2 ;;
+    --topics)    TOPICS="${2:-}"; TOPICS_EXPLICIT=1; shift 2 ;;
     --threshold) THRESHOLD="${2:-}"; shift 2 ;;
     --self-test) SELFTEST=1; shift ;;
     -h|--help)   usage; exit 0 ;;
@@ -135,6 +147,29 @@ echo "             keypair their rows collapse and this measures a HOST, not an"
 echo "             agent (T-2838 item 1). Distinct-identity counts are printed"
 echo "             per topic so the resolution of the answer is visible."
 echo ""
+
+if [ "$TOPICS_EXPLICIT" = "0" ]; then
+  list_json="$("$TL" channel list --json 2>/dev/null || true)"
+  if [ -z "$list_json" ] || ! printf '%s' "$list_json" | jq -e '.topics | type=="array"' >/dev/null 2>&1; then
+    echo "  could not read 'channel list' — NO VERDICT (cannot enumerate ack-contract topics)"
+    exit 2
+  fi
+  all_topics="$(printf '%s' "$list_json" | jq -r '.topics[] | (.name // .topic // empty)')"
+  TOPICS="$(printf '%s\n' "$all_topics" | grep -E '^dm:' || true)"
+  for t in $INCLUDE_TOPICS; do TOPICS="$TOPICS $t"; done
+  n_all=$(printf '%s\n' "$all_topics" | sed '/^$/d' | wc -l | tr -d ' ')
+  n_scan=$(printf '%s\n' $TOPICS | sed '/^$/d' | wc -l | tr -d ' ')
+  n_excl=$((n_all - n_scan)); [ "$n_excl" -lt 0 ] && n_excl=0
+  echo "  SCOPE: ack-contract topics only — $n_scan scanned (dm:* + ACK_LAG_INCLUDE_TOPICS);"
+  echo "         $n_excl other topic(s) excluded as non-ack-contract, including the broadcast"
+  echo "         rails [$BROADCAST_RAILS]: their consumption is measured by"
+  echo "         fleet-adoption-snapshot (T-3254), not by receipts (T-3007)."
+  echo ""
+  if [ "$n_scan" = "0" ]; then
+    echo "  0 ack-contract topics on this hub — nothing to measure (this is NOT 'all senders acked')."
+    exit 0
+  fi
+fi
 
 rc=0
 saw_any=0

@@ -8,7 +8,7 @@ description: >
   caveat. Fixture: broadcast topic with never-acked bots must not fire; behind-threshold
   dm topic must.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -26,7 +26,7 @@ related_tasks: [T-3007]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-29T19:57:13Z
-last_update: '2026-09-29T19:58:49Z'
+last_update: 2026-09-29T20:14:34Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -84,44 +84,18 @@ Files: `scripts/check-receiver-ack-lag.sh`, plus a fixture suite under tests/. L
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Default topic set is the ACK-CONTRACT set: every `dm:*` topic from `channel list --json`, plus `ACK_LAG_INCLUDE_TOPICS` (space-separated explicit include list); the old broadcast defaults (`agent-chat-arc`, `framework:pickup`) are no longer scanned by default. `--topics` still overrides everything
+- [x] Exclusions are counted, never silent: output names how many topics were excluded as non-ack-contract and names the broadcast rails explicitly, with the reason (broadcast consumption belongs to fleet-adoption-snapshot, post-T-3254)
+- [x] The sender-keyed caveat stays in the output; an unreadable `channel list` is NO VERDICT (rc 2), and zero ack-contract topics prints an explicit "nothing to measure" line rather than "all senders within threshold"
+- [x] Hermetic fixture (mock termlink): a broadcast topic whose never-acked posting bots would fire is NOT scanned by default and the run is rc 0; a `dm:*` topic with a sender behind threshold fires rc 1; an include-listed non-dm topic IS scanned; the `--self-test` classifier legs still pass
+- [x] Mutant: restoring the old broadcast defaults turns the broadcast leg red
 
-### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-
-     ── Prefix routing (T-1811, T-1878): default to [REVIEWER] if Expected is grep-able ──
-     If your Expected clause is grep-able / file-exists / structural (a deterministic
-     shell check), prefer [REVIEWER] — that AC should be an Agent AC with the reviewer
-     command in `## Verification` instead of a Human AC here. Only keep [REVIEW] if
-     verification genuinely needs human taste (tone, feel, layout rhythm).
-     See CLAUDE.md §AC Classification Guidance for the conversion rule.
-
-     [REVIEW] example (genuine human judgment):
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
-
-     [REVIEWER] example (static-scan-verifiable — convert to Agent AC + Verification):
-       - [ ] [REVIEWER] Block message names both bypass mechanisms
-         **Steps:**
-         1. Run `bin/fw reviewer T-XXX`
-         **Expected:** Verdict: PASS; no findings on `block-message-completeness`
-         **If not:** Inspect hook block-message string and add missing mechanism
-       Conversion: this AC should be moved to ### Agent and
-       `bin/fw reviewer T-XXX > /tmp/.rev 2>&1 && grep -q "Overall:.*PASS" /tmp/.rev`
-       added to ## Verification. NEVER `... 2>&1 | grep -q ...` — that is the shape the
-       Pipefail/SIGPIPE section below forbids, and this line used to prescribe it.
--->
 
 ## Verification
+
+bash tests/receiver-ack-lag-scope-fixtures.sh
+SELFTEST=1 bash scripts/check-receiver-ack-lag.sh
+bash -n scripts/check-receiver-ack-lag.sh
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -250,6 +224,11 @@ Files: `scripts/check-receiver-ack-lag.sh`, plus a fixture suite under tests/. L
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-09-29: scoping does not turn the guard green on this host, and should not
+- **What changed:** after scoping to dm:* (19 scanned, 83 excluded and counted), the live run is still rc 1: NEVER-ACKED rows on DM topics, several under `d1993c2c3ec44c94`, which T-3004 F4 identified as the shared dev-host identity. Unlike the broadcast-bot rows, these are ack-contract topics, so this is the real G-063 signal (DM mailboxes never acked), not fatigue noise.
+- **Plan impact:** none to this slice. The GO's goal was a guard that is red only for a real reason, not a green guard. CI is unaffected (SKIP under CI with no binary, T-3238).
+- **Triggered:** surfaced in the T-3211 R8 handback as a finding for the operator; no task filed (whether those peers should ack is a comms-policy question).
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -306,3 +285,6 @@ Files: `scripts/check-receiver-ack-lag.sh`, plus a fixture suite under tests/. L
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3256-scope-check-receiver-ack-lag-to-ack-cont.md
 - **Context:** Initial task creation
+
+### 2026-09-29T20:14:34Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
