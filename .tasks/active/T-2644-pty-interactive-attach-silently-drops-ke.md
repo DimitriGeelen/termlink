@@ -9,7 +9,7 @@ description: >
   any feedback must not corrupt the terminal render. Round-8 Usability sweep, silent-degradation
   class, verified in code.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -21,7 +21,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-12T15:02:25Z
-last_update: '2026-09-27T21:34:05Z'
+last_update: 2026-09-29T16:00:57Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -104,12 +104,12 @@ verification, so it is filed rather than autonomously built.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] The interactive attach loop no longer silently swallows a failed `command.inject` — a failed inject surfaces a signal to the operator.
-- [ ] The signal is throttled/one-shot (does NOT print per-keystroke) and does not corrupt the raw-terminal render (verified by design + manual attach test).
-- [ ] Decide + document behavior on repeated inject failure: throttled hint only, OR auto-detach with a message. Recorded in `## Decisions`.
-- [ ] The detach-key (0x1d / Ctrl-]) path and the output-poll branch are unchanged in behavior.
-- [ ] If any pure helper is extractable (e.g. an error-throttle/decision fn), it carries a load-bearing unit test.
-- [ ] `cargo build -p termlink` clean.
+- [x] The interactive attach loop no longer silently swallows a failed `command.inject` — a failed inject surfaces a signal to the operator.
+- [x] The signal is throttled/one-shot (does NOT print per-keystroke) and does not corrupt the raw-terminal render (verified by design + manual attach test).
+- [x] Decide + document behavior on repeated inject failure: throttled hint only, OR auto-detach with a message. Recorded in `## Decisions`.
+- [x] The detach-key (0x1d / Ctrl-]) path and the output-poll branch are unchanged in behavior.
+- [x] If any pure helper is extractable (e.g. an error-throttle/decision fn), it carries a load-bearing unit test.
+- [x] `cargo build -p termlink` clean.
 
 ### Human
 - [ ] [REVIEW] Interactive attach surfaces dropped input without terminal corruption
@@ -152,6 +152,10 @@ verification, so it is filed rather than autonomously built.
 -->
 
 ## Verification
+
+cargo test -q -p termlink --bin termlink attach_inject
+cargo build -q -p termlink
+grep -q 'fn attach_inject_notice' crates/termlink-cli/src/commands/pty.rs
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -295,6 +299,11 @@ detach-key path and the output-poll branch are untouched either way.
 
 ## Decisions
 
+### 2026-09-29 — behaviour on a failed inject in the attach loop (T-3211 R6)
+- **Chosen:** split by failure kind. (1) The socket call itself fails (session gone): print `Connection lost — input not delivered: <reason>` and **detach**. This is what the output-poll branch already did on the same condition, so the loop now has one rule for a dead socket. (2) The session answers but the keys did not land (JSON-RPC error, or `status` other than `injected`, per T-2697): **one throttled hint per failure streak**, `[termlink] input not delivered: <reason> — press Ctrl+] to detach`. Re-armed by the next successful inject.
+- **Rejected:** hint-only on a dead socket. Every later keystroke would fail the same way, and the operator gains nothing by staying attached to nothing. **Rejected:** auto-detach on a refused inject. The session is alive and may recover, and detaching would also drop its output view.
+- Notices go to stderr and start and end with `\r\n`, because `cfmakeraw` clears OPOST, so a bare `\n` would staircase the render.
+
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
      Format:
@@ -316,7 +325,18 @@ detach-key path and the output-poll branch are untouched either way.
 
 ## Updates
 
+### 2026-09-29 — T-3211 R6 evidence
+- Pure helpers `classify_attach_inject` + `attach_inject_notice`, 2 tests (`attach_inject_*`) pass. Mutant A (first failure silent): 1 red. Mutant B (throttle removed, notice every keystroke): 1 red.
+- `cargo build -p termlink`: rc 0, no warnings.
+- Scripted attach under a real PTY (`script -qfec "termlink attach r6-att --poll-ms 60000"`, keystrokes piped in): keystrokes delivered (`echo R6MARK` ran, `abcdef` landed). The session process was killed mid-attach and 2 more keystrokes typed. Result: exactly one `Connection lost — input not delivered: I/O error: Connection refused (os error 111)`, then `Detached.`, with no garbled render in the typescript.
+- The NotDelivered path is NOT reachable live via attach: on a non-PTY session attach refuses at its `query.output` pre-check (`-32007 No PTY session`) before the loop starts. That path is covered by the unit tests only.
+- Detach-key (0x1d) and output-poll branches: the diff touches neither (no changed line mentions `0x1d`, `query.output` or `Connection lost.`).
+- The Human [REVIEW] AC is NOT ticked. The scripted run above is evidence for it, not a substitute.
+
 ### 2026-08-12T15:02:25Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2644-pty-interactive-attach-silently-drops-ke.md
 - **Context:** Initial task creation
+
+### 2026-09-29T16:00:57Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

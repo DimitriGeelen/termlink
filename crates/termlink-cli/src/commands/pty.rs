@@ -467,6 +467,64 @@ pub(crate) fn inject_status_is_injected(result: &serde_json::Value) -> bool {
     result["status"].as_str() == Some("injected")
 }
 
+/// T-2644: what the interactive attach loop learned from one `command.inject`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum AttachInjectOutcome {
+    /// A PTY took the keystrokes.
+    Delivered,
+    /// The session answered but the keys did not reach a terminal (RPC error, or a
+    /// status other than `injected`, per T-2697). The session may recover.
+    NotDelivered(String),
+    /// The socket itself failed: the session is gone or unreachable.
+    ConnectionLost(String),
+}
+
+/// T-2644: classify an attach-loop inject reply. Pure, so the no-silent-drop rule is
+/// unit-testable instead of only observable in a raw-mode terminal.
+/// Outer `Err` = the socket call failed; inner = `client::unwrap_result`.
+pub(crate) fn classify_attach_inject(
+    resp: std::result::Result<std::result::Result<serde_json::Value, String>, String>,
+) -> AttachInjectOutcome {
+    match resp {
+        Err(e) => AttachInjectOutcome::ConnectionLost(e),
+        Ok(inner) => match inner {
+            Ok(result) if inject_status_is_injected(&result) => AttachInjectOutcome::Delivered,
+            Ok(result) => AttachInjectOutcome::NotDelivered(
+                result["note"]
+                    .as_str()
+                    .unwrap_or("keys were resolved but not written to a terminal")
+                    .to_string(),
+            ),
+            Err(e) => AttachInjectOutcome::NotDelivered(e.to_string()),
+        },
+    }
+}
+
+/// T-2644: one notice per failure STREAK. Returns the new "failing" state and, on
+/// the first failure after a success (or at start), the text to show. A held key on
+/// a dead session therefore prints once, not once per keystroke, and the next
+/// successful inject re-arms the notice. Lines start and end with `\r\n` because
+/// the terminal is in raw mode (no output post-processing).
+pub(crate) fn attach_inject_notice(
+    was_failing: bool,
+    outcome: &AttachInjectOutcome,
+) -> (bool, Option<String>) {
+    match outcome {
+        AttachInjectOutcome::Delivered => (false, None),
+        AttachInjectOutcome::NotDelivered(reason) if !was_failing => (
+            true,
+            Some(format!(
+                "\r\n[termlink] input not delivered: {reason} — press Ctrl+] to detach\r\n"
+            )),
+        ),
+        AttachInjectOutcome::NotDelivered(_) => (true, None),
+        AttachInjectOutcome::ConnectionLost(reason) => (
+            true,
+            Some(format!("\r\nConnection lost — input not delivered: {reason}")),
+        ),
+    }
+}
+
 pub(crate) async fn cmd_inject(target: &str, text: &str, enter: bool, key: Option<&str>, json: bool, timeout_secs: u64) -> Result<()> {
     let reg = match manager::find_session(target) {
         Ok(r) => r,
@@ -793,6 +851,7 @@ async fn attach_loop(
     let mut stdin = tokio::io::stdin();
     let mut stdin_buf = [0u8; 256];
     let poll_interval = tokio::time::Duration::from_millis(poll_ms);
+    let mut inject_failing = false;
 
     loop {
         tokio::select! {
@@ -813,8 +872,24 @@ async fn attach_loop(
                 let keys = vec![serde_json::json!({ "type": "text", "value": text })];
                 let params = serde_json::json!({ "keys": keys });
 
-                // Fire-and-forget — don't block on response
-                let _ = client::rpc_call(socket, "command.inject", params).await;
+                // T-2644: this was `let _ = …` — a failed inject vanished while the
+                // operator kept typing into what looked like a live session. A dead
+                // socket now detaches (as the output-poll branch below already does);
+                // a refused inject prints one notice per failure streak.
+                let outcome = classify_attach_inject(
+                    client::rpc_call(socket, "command.inject", params)
+                        .await
+                        .map(client::unwrap_result)
+                        .map_err(|e| e.to_string()),
+                );
+                let (failing, notice) = attach_inject_notice(inject_failing, &outcome);
+                inject_failing = failing;
+                if let Some(msg) = notice {
+                    eprint!("{msg}");
+                }
+                if matches!(outcome, AttachInjectOutcome::ConnectionLost(_)) {
+                    break;
+                }
             }
 
             // Poll for new output
@@ -1302,6 +1377,46 @@ mod tests {
     // Ns waiting for command to complete" — it discarded the diff it had already
     // collected, and its message read as "your command is slow" even when the
     // real cause was a child blocked on a query nothing was ever going to answer.
+
+
+    // T-2644: the attach loop must not swallow a failed inject.
+    #[test]
+    fn attach_inject_classifies_every_non_delivery() {
+        let ok = serde_json::json!({"status": "injected"});
+        assert_eq!(classify_attach_inject(Ok(Ok(ok))), AttachInjectOutcome::Delivered);
+        let resolved = serde_json::json!({"status": "resolved", "note": "no PTY"});
+        assert_eq!(
+            classify_attach_inject(Ok(Ok(resolved))),
+            AttachInjectOutcome::NotDelivered("no PTY".into())
+        );
+        assert!(matches!(
+            classify_attach_inject(Ok(Err("JSON-RPC error -32001: x".into()))),
+            AttachInjectOutcome::NotDelivered(_)
+        ));
+        assert!(matches!(
+            classify_attach_inject(Err("broken pipe".into())),
+            AttachInjectOutcome::ConnectionLost(_)
+        ));
+    }
+
+    #[test]
+    fn attach_inject_notice_is_one_per_failure_streak() {
+        let nd = AttachInjectOutcome::NotDelivered("no PTY".into());
+        // First failure speaks …
+        let (f, n) = attach_inject_notice(false, &nd);
+        assert!(f);
+        let msg = n.expect("first failure must produce a notice");
+        assert!(msg.contains("input not delivered") && msg.contains("Ctrl+]"));
+        assert!(msg.starts_with("\r\n") && msg.ends_with("\r\n"), "raw mode needs CR");
+        // … a held key does not spam …
+        assert_eq!(attach_inject_notice(true, &nd), (true, None));
+        // … success re-arms …
+        assert_eq!(attach_inject_notice(true, &AttachInjectOutcome::Delivered), (false, None));
+        assert!(attach_inject_notice(false, &nd).1.is_some());
+        // … and a lost connection always speaks (the loop then detaches).
+        let lost = AttachInjectOutcome::ConnectionLost("gone".into());
+        assert!(attach_inject_notice(true, &lost).1.is_some());
+    }
 
     #[test]
     fn unanswered_cursor_position_query_is_named() {
