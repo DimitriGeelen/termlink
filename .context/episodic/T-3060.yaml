@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3060: Six unassessed plugins appeared after the T-3055 survey - assess them and why the set changed
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-30T09:38:00Z
+# ============================================================================
+
+task_id: T-3060
+task_name: "Six unassessed plugins appeared after the T-3055 survey - assess them and why the set changed"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-09-22T08:09:10Z
+completed: 2026-09-25T08:31:34Z
+duration_days: 3
+updates_count: 3
+first_commit: 2026-09-22T10:23:38+02:00
+last_commit: 2026-09-22T10:23:38+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  uninstall semgrep (operator decision) + file the inception's Open Questions
+
+# Key outcomes
+outcomes:
+  - 'Problem statement validated'
+  - 'Assumptions tested'
+  - 'Recommendation written with rationale'
+  - '[REVIEW] Review exploration findings and approve go/no-go decision'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-09-22 — semgrep: uninstall (operator decision)'
+    chose: 'Uninstall the `semgrep` plugin.'
+    rationale: 'Operator instruction, given before this inception assessed it. Sovereign call — recorded as a decision, not derived as a finding.'
+    alternatives_rejected: ['Holding the uninstall until IW-1/IW-3 were answered for semgrep. The operator did not ask for that assessment first, and the standing direction is theirs to set.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3060-six-unassessed-plugins-appeared-after-th.md'
+  - '.tasks/completed/T-3059-runmesh-handles-actions-but-not-the-deci.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-22T10:23:38'
+    action: 'T-3060: uninstall semgrep (operator decision) + file the inception''s Open Questions'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4342 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 4342
+  commits: 1
+  files_changed: 2
+  lines_added: 188
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3060-six-unassessed-plugins-appeared-after-th.md
+generated_by: context-agent-hybrid
