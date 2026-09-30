@@ -2034,6 +2034,26 @@ already red before T-3260 (check-receiver-ack-lag, seeded 2026-09-29) started at
 only the committed dates; (3) escalation needs the release canary's cron installed (SQ-9).
 Do not hand-edit a date to silence escalation — fix the member or reclassify it.
 
+**Escalation is an ACTION, not a line (T-3267 — the operator's binding condition).** On the
+host path the release canary also runs `scripts/warn-escalation-file.sh`, which **files a
+task**: one per WARN member red > 14 days (owner agent, horizon now; the member's current
+output, first-red date and tier reason in Context; AC "member is green or reclassified by the
+operator"), and one **umbrella** task the moment more than 5 WARN members are red at once
+(`GUARD_WARN_MAX_RED`; the canary fires on that too). De-dup is a body marker
+(`<!-- warn-escalation: member=<m> -->` / `umbrella`) against every open `.tasks/active/`
+file, whatever its status. **Re-file rule:** closing the task while the member is still red
+restarts the window at the close date — it files again only when red > 14 days past
+max(first-red, `date_finished`). It files and never fixes; it refuses under `$CI`; a
+FAIL-tier or unknown-tier member is never filed on (the runner's `--list --json`, which now
+carries `reason` + `cmd`, is the tier source, and unreadable means rc 2). **Filed tasks and the
+ledger are left UNCOMMITTED** — each filing fires as "filed T-XXXX … UNCOMMITTED" — and are
+committed by the next interactive session; an unattended cron commit would race live sessions'
+index (T-3231). That choice is SQ-22, recorded as a PROPOSAL in the T-3258 draft. A filing
+failure fires rather than exiting 2. `--no-file-tasks` skips filing; `--dry-run` on the filer
+prints `WOULD` lines. Fixtures: `bash tests/warn-escalation-file-fixtures.sh` (34 assertions,
+7 mutants — de-dup, threshold, `>` vs `>=`, re-file window, CI guard, canary wiring,
+accumulation line).
+
 Current markings (operator rulings in `docs/reports/T-3258-guard-classification-draft.md`
 § Operator rulings): **INFO** invocation-usage; **WARN** voi-prompt, check-go-propagation,
 check-human-ac-escalation, check-human-ac-steps-heading, check-handover-staleness,

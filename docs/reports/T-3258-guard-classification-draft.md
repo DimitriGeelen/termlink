@@ -120,3 +120,22 @@ Approve or amend per row. A follow-up build task then edits each approved member
      WARN member has been red > 14 days — a canary line alone does not satisfy the condition;
   2. escalate on ACCUMULATION as well: more than 5 WARN members red at once escalates immediately;
   3. keep the release canary firing on both, so the operator sees it daily.
+- **Implemented (T-3267, 2026-09-30) — the binding condition above.** `scripts/warn-escalation-file.sh`, run by the
+  release canary on the host path only (refuses under `$CI`), files one agent-owned, horizon-now task per WARN member
+  red > 14 days (member output, first-red date and tier reason in Context; AC "member is green or reclassified by the
+  operator") and one umbrella task when more than 5 WARN members are red at once. De-dup is a body marker
+  (`<!-- warn-escalation: member=<m> -->` / `umbrella`) checked against every open `.tasks/active/` file. **Re-file rule
+  (agent-defined, yours to overrule):** after the task is closed, a still-red member files again only once it has been
+  red > 14 days past max(first-red, close date); the umbrella waits the same window after its close. The canary fires
+  on stale, on accumulation, on each filing, and on a filing failure. No tier was changed; FAIL members are never filed on.
+- **PROPOSAL, not a ruling — SQ-22 (who commits the ledger and the filed tasks).** Proposed: **nobody unattended.**
+  The canary leaves `.context/checks/guard-warn-first-red` and every filed `.tasks/active/T-*.md` UNCOMMITTED, and is
+  LOUD about it: each filing fires as "filed T-XXXX … UNCOMMITTED: review, then commit it", an open task is reported
+  daily, and filed tasks appear in every handover's active list. They are committed by the next interactive session
+  (typically its handover commit), which is also the review step. Why not a cron commit: a cron job committing to git
+  while live sessions stage and commit races their shared index — the T-3231 / whole-index-sweep class — and an
+  unattended commit to a governed tree is exactly the "reliable-but-ungated" state the mandate warns about. Cost of the
+  proposal: until someone commits, CI sees the older ledger dates (it can only make CI's clock read *younger*, never
+  reset the host's) and a re-clone of the host loses uncommitted filings — both surfaced, neither silent. Alternative
+  if you prefer it: a cron commit restricted by pathspec to exactly those files (`git commit -- <paths>`), accepting the
+  index race above. Operator to decide.

@@ -351,10 +351,14 @@ if [ "$LIST_ONLY" -eq 1 ]; then
         i=0
         while [ "$i" -lt "$total" ]; do
             [ "$i" -eq 0 ] || printf ','
-            printf '{"name":%s,"kind":%s,"class":%s}' \
+            # reason + cmd (T-3267): the WARN escalation filer quotes both into the
+            # task it files, so it reads them from here rather than re-parsing markers.
+            printf '{"name":%s,"kind":%s,"class":%s,"reason":%s,"cmd":%s}' \
                 "$(printf '%s' "${m_name[$i]}" | jq -R .)" \
                 "$(printf '%s' "${m_kind[$i]}" | jq -R .)" \
-                "$(printf '%s' "${m_class[$i]}" | jq -R .)"
+                "$(printf '%s' "${m_class[$i]}" | jq -R .)" \
+                "$(jq -n --arg v "${m_reason[$i]}" '$v')" \
+                "$(jq -n --arg v "${m_cmd[$i]}" '$v')"
             i=$((i+1))
         done
         printf '],"summary":{"total":%s,"unclassified":%s,"malformed_markers":%s}}\n' "$total" "${#unclassified[@]}" "${#malformed[@]}"

@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3267: WARN escalation files tasks: stale (>14d) per-member + accumulation (>5 red) umbrella, from the host canary
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-30T03:06:29Z
+# ============================================================================
+
+task_id: T-3267
+task_name: "WARN escalation files tasks: stale (>14d) per-member + accumulation (>5 red) umbrella, from the host canary"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-30T02:55:48Z
+completed: 2026-09-30T03:05:24Z
+duration_days: 0
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Operator binding condition on WARN tier (T-3258 rulings): a WARN red past 14 days, or more than 5 WARN reds at once, must become a filed task, not just a canary line. Build filing into the host release canary path with de-dup markers, re-file rule after close, fixtures+mutants, and a SQ-22 commit-ownership proposal.
+
+# Key outcomes
+outcomes:
+  - 'scripts/warn-escalation-file.sh files one agent-owned horizon-now task per WARN member red > 14d, carrying the member''s current output, first-red date and tier reason in Context and the AC "member is green or reclassified by the operator"'
+  - 'More than 5 simultaneous WARN reds file exactly one umbrella task naming every red member; 5 does not'
+  - 'De-dup: a second run never files a duplicate while a task with the marker is open in active/'
+  - 'Re-file rule: after the task is closed, a still-red member files again only after a new 14-day window from date_finished'
+  - 'The release canary runs the filer on the host path (never CI, never under $CI) and still FIRES on both stale and accumulation'
+  - 'Fixtures with mutants cover 13d / 15d / no-dup / 6-umbrella / 5-no-umbrella / re-file window / canary fires; release-publication fixtures stay green'
+  - 'SQ-22 commit-ownership choice recorded in the draft''s rulings section as a PROPOSAL, and documented in CLAUDE.md'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 9 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 9
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3267-warn-escalation-files-tasks-stale-14d-pe.md
+generated_by: context-agent-hybrid

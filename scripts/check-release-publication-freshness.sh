@@ -36,7 +36,8 @@
 #
 # FLAGS: --json · --quiet (silent when healthy; firing entries open with a dated
 #        `=== <UTC> ===` frame, T-3002) · --no-heartbeat · --max-age-days N ·
-#        --workflows "a.yml b.yml" · --repo OWNER/NAME · --no-warn-refresh (T-3260)
+#        --workflows "a.yml b.yml" · --repo OWNER/NAME · --no-warn-refresh (T-3260) ·
+#        --no-file-tasks (T-3267)
 #
 # TEST SEAM (PL-213 — no network): RELEASE_PUB_TEST_DIR=<dir> containing
 #   tag.txt                      newest v* tag (empty file = no tag)
@@ -53,6 +54,15 @@
 # host that runs the canary daily is the one place the clock is written, and a fresh
 # CI checkout (which only reads) can never reset it. --no-warn-refresh skips the
 # refresh (read the ledger as-is); the test seam (RELEASE_PUB_TEST_DIR) never refreshes.
+#
+# (c2) ESCALATION IS AN ACTION (T-3267, operator binding condition). It also FIRES
+# when more than GUARD_WARN_MAX_RED (default 5) WARN members are red at once, and on
+# the host path it runs scripts/warn-escalation-file.sh, which FILES a task per stale
+# member and one umbrella task for accumulation (de-duplicated by a body marker,
+# re-filed only after a new window past the close date). Filed task files are left
+# UNCOMMITTED and FIRE here as "filed T-XXXX … UNCOMMITTED" (SQ-22 proposal). A
+# filing failure FIRES, never exits 2. --no-file-tasks skips filing; the test seam
+# files only with RELEASE_PUB_TEST_FILE_TASKS=1 (seam WARN_ESC_FILER for the filer).
 set -uo pipefail
 
 cd "$(git rev-parse --show-toplevel 2>/dev/null || (cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd))" || exit 2
@@ -61,6 +71,9 @@ HEARTBEAT_FILE=".context/working/.release-publication-canary.heartbeat"
 FORMAT=text; QUIET=0; HEARTBEAT=1; WARN_REFRESH=1
 WARN_LEDGER="${GUARD_WARN_LEDGER:-.context/checks/guard-warn-first-red}"
 WARN_ESC_DAYS="${GUARD_WARN_ESCALATE_DAYS:-14}"
+WARN_MAX_RED="${GUARD_WARN_MAX_RED:-5}"
+WARN_FILER="${WARN_ESC_FILER:-scripts/warn-escalation-file.sh}"
+FILE_TASKS=1
 MAX_AGE_DAYS="${RELEASE_PUB_MAX_AGE_DAYS:-7}"
 WORKFLOWS="${RELEASE_PUB_WORKFLOWS:-install-check.yml doc-lint.yml}"
 REPO="${RELEASE_PUB_REPO:-}"
@@ -80,6 +93,7 @@ while [ $# -gt 0 ]; do
         --workflows)     WORKFLOWS="${2:-}"; shift 2 ;;
         --repo)          REPO="${2:-}"; shift 2 ;;
         --no-warn-refresh) WARN_REFRESH=0; shift ;;
+        --no-file-tasks) FILE_TASKS=0; shift ;;
         -h|--help)       usage; exit 0 ;;
         *) echo "check-release-publication: unknown arg: $1" >&2; exit 2 ;;
     esac
@@ -160,7 +174,38 @@ if [ -f "$WARN_LEDGER" ]; then
     done <<< "$esc"
     [ "$n_red" -gt 0 ] || CHECKS+=("warn-guard	ok	no WARN member recorded red")
 else
+    n_red=0
     CHECKS+=("warn-guard	ok	no WARN ledger at $WARN_LEDGER (nothing recorded red)")
+fi
+# ---- (c2) WARN ACCUMULATION + FILING (T-3267) — the operator's binding condition:
+#      a stale or accumulating WARN becomes a FILED TASK, not just this line.
+case "$WARN_MAX_RED" in ''|*[!0-9]*) echo "check-release-publication: GUARD_WARN_MAX_RED must be an integer" >&2; exit 2 ;; esac
+if [ "$n_red" -gt "$WARN_MAX_RED" ]; then
+    FIRING+=("warn-accumulation	$n_red WARN guard members red at once (> $WARN_MAX_RED) — accumulation")
+    CHECKS+=("warn-accumulation	firing	$n_red red at once (limit $WARN_MAX_RED)")
+fi
+# Filing runs only on the host path (never the test seam unless asked, never CI —
+# the filer itself also refuses under $CI). Filed task files are left UNCOMMITTED
+# and named here daily (SQ-22 proposal); a filing failure FIRES rather than exiting
+# 2, so it cannot hide the release/workflow verdicts below.
+if [ "$FILE_TASKS" -eq 1 ] && { [ -z "$TD" ] || [ "${RELEASE_PUB_TEST_FILE_TASKS:-0}" = 1 ]; }; then
+    ferr="$(mktemp)"
+    fout="$(GUARD_WARN_LEDGER="$WARN_LEDGER" GUARD_WARN_ESCALATE_DAYS="$WARN_ESC_DAYS" GUARD_WARN_MAX_RED="$WARN_MAX_RED" \
+            WARN_ESC_NOW="$NOW" bash "$WARN_FILER" 2>"$ferr")"; frc=$?
+    while IFS=$'\t' read -r act kind who extra; do
+        case "$act" in
+            FILED) FIRING+=("warn-task	filed $extra for $who ($kind) — UNCOMMITTED: review, then commit it")
+                   CHECKS+=("warn-task:$who	firing	filed $extra") ;;
+            OPEN)  CHECKS+=("warn-task:$who	ok	escalation task $extra open") ;;
+            WAIT)  CHECKS+=("warn-task:$who	ok	escalation task closed; re-files in ${extra}d if still red") ;;
+            SKIP)  CHECKS+=("warn-task:$who	ok	filing skipped ($kind)") ;;
+        esac
+    done <<< "$fout"
+    if [ "$frc" -ne 0 ]; then
+        FIRING+=("warn-task	escalation filing FAILED (rc=$frc): $(tail -1 "$ferr")")
+        cat "$ferr" >&2
+    fi
+    rm -f "$ferr"
 fi
 
 # ---- (a) RELEASE -----------------------------------------------------------
