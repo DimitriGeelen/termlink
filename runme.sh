@@ -41,6 +41,7 @@ CRON_DIR="${RUNME_CRON_DIR:-/etc/cron.d}"
 TASKS_DIR="${RUNME_TASKS_DIR:-$PROJECT_ROOT/.tasks}"
 FW="${RUNME_FW:-$PROJECT_ROOT/.agentic-framework/bin/fw}"
 
+RUNME_ARGS="$*"   # captured before parsing shifts them away (logged, T-3273)
 DRY_RUN=0
 DECIDE=""
 DISABLE_MISMATCH=0
@@ -54,6 +55,32 @@ while [ $# -gt 0 ]; do
     esac
     shift
 done
+
+# T-3273 — LOG EVERY RUN. The operator runs this; the agent reads the log afterwards
+# to confirm what happened, remediate any FAILED line, and ask for a re-run. So the
+# log holds the COMPLETE stdout+stderr, a header saying what ran, and a final rc line.
+# It is written for refusals and dry runs too — a refusal is an outcome worth reading.
+# Logging never blocks the actions: an unwritable log dir falls back, and says so.
+LOG_DIR="${RUNME_LOG_DIR:-$PROJECT_ROOT/.context/working/runme-logs}"
+LOG_NOTE=""
+if ! mkdir -p "$LOG_DIR" 2>/dev/null || [ ! -w "$LOG_DIR" ]; then
+    LOG_NOTE="log dir $LOG_DIR not writable — using fallback"
+    LOG_DIR="${TMPDIR:-/tmp}/runme-logs-$(id -u)"; mkdir -p "$LOG_DIR" 2>/dev/null
+fi
+RUNME_LOG="$LOG_DIR/runme-$(date -u +%Y%m%dT%H%M%SZ)-$$.log"
+if : > "$RUNME_LOG" 2>/dev/null; then
+    ln -sfn "$(basename "$RUNME_LOG")" "$LOG_DIR/latest.log" 2>/dev/null || true
+    exec > >(tee -a "$RUNME_LOG") 2>&1
+    # The rc line is the reader's success/failure signal; print it on every exit path.
+    trap 'rc=$?; printf "\n=== runme.sh finished rc=%s at %s — log: %s ===\n" "$rc" "$(date -u +%FT%TZ)" "$RUNME_LOG"' EXIT
+else
+    LOG_NOTE="${LOG_NOTE:+$LOG_NOTE; }could not create any log file — output is terminal-only"
+    RUNME_LOG=""
+fi
+printf '=== runme.sh start %s  args=[%s]  uid=%s  head=%s ===\n' \
+    "$(date -u +%FT%TZ)" "$RUNME_ARGS" "$(id -u)" "$(git -C "$PROJECT_ROOT" rev-parse --short HEAD 2>/dev/null || echo '?')"
+[ -n "$RUNME_LOG" ] && printf 'log: %s\n' "$RUNME_LOG"
+[ -n "$LOG_NOTE" ] && printf 'note: %s\n' "$LOG_NOTE"
 
 # Refuse rather than half-apply. A partial application is worse than none: it
 # leaves the host in a state nobody described, and the operator believes it ran.

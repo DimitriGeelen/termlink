@@ -44,6 +44,9 @@ EOF
 printf '#!/usr/bin/env bash\nexit 0\n' > "$TMP/noop-fw"   # claims success, moves nothing
 chmod +x "$TMP/fake-fw" "$TMP/noop-fw"
 export RUNME_TASKS_DIR="$TMP/tasks" RUNME_FW="$TMP/fake-fw"
+# T-3273: logs go to scratch (world-writable so the non-root case logs here too).
+mkdir -p "$TMP/logs" && chmod 1777 "$TMP/logs"
+export RUNME_LOG_DIR="$TMP/logs"
 
 echo "T-3052 runme.sh fixtures"
 echo ""
@@ -61,6 +64,15 @@ else bad "--dry-run wrote nothing" "$(ls -A "$TMP/cron")"; fi
 if echo "$out" | grep -q "would close T-3132" && [ "$(ls "$TMP/tasks/active" | wc -l)" = "3" ] && [ -z "$(ls -A "$TMP/tasks/completed")" ]; then
     ok "--dry-run reports the approved closes and closes nothing"
 else bad "--dry-run closes nothing" "$(ls "$TMP/tasks/active" "$TMP/tasks/completed"): $out"; fi
+# T-3273: the run left a readable log — full output, header, rc line — and
+# latest.log resolves to it. The agent reads this after the operator runs it.
+LOGF="$TMP/logs/latest.log"
+if [ -f "$LOGF" ] && grep -q '^=== runme.sh start .*args=\[--dry-run\]' "$LOGF" \
+   && grep -q 'would close T-3132' "$LOGF" && grep -q '=== runme.sh finished rc=0' "$LOGF"; then
+    ok "every run is logged: header + full output + rc line, via latest.log"
+else bad "run is logged" "$(ls -la "$TMP/logs"; cat "$LOGF" 2>/dev/null | head -5)"; fi
+if echo "$out" | grep -q "^log: $TMP/logs/runme-"; then ok "the log's full path is printed to the operator"
+else bad "log path printed" "$out"; fi
 
 # T-3237: cases 3-9 perform a REAL run, and runme.sh refuses non-root by design
 # (case 11 pins that). A GitHub runner is non-root, so there these cases can only
@@ -140,6 +152,11 @@ out=$(RUNME_FW="$TMP/noop-fw" run); rc=$?
 if [ "$rc" = "1" ] && echo "$out" | grep -q "FAILED  T-3130 did not land"; then
     ok "a close that fw reports but disk does not show => FAILED, exit 1"
 else bad "unverified close is a failure" "rc=$rc: $out"; fi
+# T-3273: a failed run's log says so — the agent reading it must see rc=1 and the FAILED line.
+sleep 1   # tee flushes the trap line asynchronously after the script exits
+if grep -q 'FAILED  T-3130 did not land' "$TMP/logs/latest.log" && grep -q '=== runme.sh finished rc=1' "$TMP/logs/latest.log"; then
+    ok "a failed run's log carries the FAILED line and rc=1"
+else bad "failed run logged" "$(tail -5 "$TMP/logs/latest.log" 2>/dev/null)"; fi
 
 fi
 
