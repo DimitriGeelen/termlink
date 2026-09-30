@@ -26,6 +26,25 @@ run() { RUNME_CRON_DIR="$TMP/cron" bash "$RUNME" "$@" 2>&1; }
 
 mkdir -p "$TMP/cron"
 
+# T-3272: the closure action goes through RUNME_TASKS_DIR + RUNME_FW. Exported for
+# EVERY invocation below (including the --decide cases, which do a real run) so no
+# fixture can ever close a real task.
+CLOSE_IDS="T-3132 T-3128 T-3130"
+mkdir -p "$TMP/tasks/active" "$TMP/tasks/completed"
+for id in $CLOSE_IDS; do printf -- '---\nid: %s\nstatus: started-work\n---\n' "$id" > "$TMP/tasks/active/$id-fixture.md"; done
+cat > "$TMP/fake-fw" <<'EOF'
+#!/usr/bin/env bash
+# fake `fw task update <id> --status work-completed --force --reason ...`
+[ "$1 $2" = "task update" ] || exit 9
+id="$3"; f=$(ls "$RUNME_TASKS_DIR"/active/"$id"-*.md 2>/dev/null | head -1) || exit 1
+[ -n "$f" ] || exit 1
+sed -i 's/^status: .*/status: work-completed/' "$f"
+mv "$f" "$RUNME_TASKS_DIR/completed/"
+EOF
+printf '#!/usr/bin/env bash\nexit 0\n' > "$TMP/noop-fw"   # claims success, moves nothing
+chmod +x "$TMP/fake-fw" "$TMP/noop-fw"
+export RUNME_TASKS_DIR="$TMP/tasks" RUNME_FW="$TMP/fake-fw"
+
 echo "T-3052 runme.sh fixtures"
 echo ""
 
@@ -38,6 +57,10 @@ if [ "$rc" = "0" ] && echo "$out" | grep -q "would install"; then ok "--dry-run 
 else bad "--dry-run reports intent" "rc=$rc: $out"; fi
 if [ -z "$(ls -A "$TMP/cron")" ]; then ok "--dry-run wrote nothing"
 else bad "--dry-run wrote nothing" "$(ls -A "$TMP/cron")"; fi
+# T-3272: dry-run names each approved close and performs none.
+if echo "$out" | grep -q "would close T-3132" && [ "$(ls "$TMP/tasks/active" | wc -l)" = "3" ] && [ -z "$(ls -A "$TMP/tasks/completed")" ]; then
+    ok "--dry-run reports the approved closes and closes nothing"
+else bad "--dry-run closes nothing" "$(ls "$TMP/tasks/active" "$TMP/tasks/completed"): $out"; fi
 
 # T-3237: cases 3-9 perform a REAL run, and runme.sh refuses non-root by design
 # (case 11 pins that). A GitHub runner is non-root, so there these cases can only
@@ -50,7 +73,7 @@ if [ "$(id -u)" != "0" ] && [ -n "${CI:-}" ]; then
 fi
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(grep -c '^install_crontab ' "$RUNME")
+EXPECT_N=$(grep -cE '^(install_crontab|close_task) ' "$RUNME")
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -65,6 +88,15 @@ else bad "real run exits 0" "rc=$rc: $out"; fi
 if cmp -s "$REPO_ROOT/.context/cron/notify-sidecar-supervisor.crontab" "$TMP/cron/termlink-notify-sidecar-supervisor"; then
     ok "installed copy is byte-identical to the git-tracked source"
 else bad "installed copy matches source"; fi
+# T-3272: a default run (no flags) closes all three and verifies each on disk.
+n_closed=0
+for id in $CLOSE_IDS; do
+    f=$(ls "$TMP/tasks/completed/$id"-*.md 2>/dev/null | head -1)
+    [ -n "$f" ] && grep -q '^status: work-completed' "$f" && n_closed=$((n_closed+1))
+done
+if [ "$n_closed" = "3" ] && [ "$(echo "$out" | grep -c 'closed and verified')" = "3" ]; then
+    ok "default run closes the 3 approved tasks and verifies each in completed/"
+else bad "default run closes approved tasks" "closed=$n_closed: $out"; fi
 
 # ---------------------------------------------------------------------------
 # 5-6. IDEMPOTENCE. Re-running must do nothing and say so — the operator has to
@@ -99,6 +131,15 @@ if [ "$rc" = "1" ]; then ok "missing source => exit 1 (not a silent skip)"
 else bad "missing source => exit 1" "rc=$rc: $out"; fi
 if echo "$out" | grep -q "FAILED  source missing"; then ok "missing source names the file"
 else bad "missing source named" "$out"; fi
+
+# T-3272: fw exiting 0 is NOT evidence. A fw that claims success but moves nothing
+# must be a FAILED close and exit 1 — the verification reads disk, not exit codes.
+mv "$TMP/tasks/completed/T-3130-fixture.md" "$TMP/tasks/active/"
+sed -i 's/^status: .*/status: started-work/' "$TMP/tasks/active/T-3130-fixture.md"
+out=$(RUNME_FW="$TMP/noop-fw" run); rc=$?
+if [ "$rc" = "1" ] && echo "$out" | grep -q "FAILED  T-3130 did not land"; then
+    ok "a close that fw reports but disk does not show => FAILED, exit 1"
+else bad "unverified close is a failure" "rc=$rc: $out"; fi
 
 fi
 

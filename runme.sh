@@ -36,6 +36,10 @@ CRON_DIR="${RUNME_CRON_DIR:-/etc/cron.d}"
 # Keep the drift checker pointed at the same place, or the verification step would
 # arbitrate against a directory this run never touched.
 [ -n "${RUNME_CRON_DIR:-}" ] && export CRON_DRIFT_INSTALLED_DIR="$RUNME_CRON_DIR"
+# T-3272 seams: the closure action reads/writes task files through these, so the
+# fixtures can prove it against a scratch tree and a fake fw — never real tasks.
+TASKS_DIR="${RUNME_TASKS_DIR:-$PROJECT_ROOT/.tasks}"
+FW="${RUNME_FW:-$PROJECT_ROOT/.agentic-framework/bin/fw}"
 
 DRY_RUN=0
 DECIDE=""
@@ -118,6 +122,47 @@ install_crontab notify-sidecar-canary.crontab     "$CRON_DIR/termlink-notify-sid
 # (evidence=wake-consumer) from the supervised consumer, correctly signed as the
 # receiving agent, with no runaway.
 install_crontab notify-wake-supervisor.crontab    "$CRON_DIR/termlink-notify-wake-supervisor"
+
+# close_task <T-ID> <reason>
+# Closes a task the operator has ALREADY approved closing, then VERIFIES it
+# landed in completed/ with status work-completed.
+close_task() {
+    local id="$1" reason="$2" done_f act_f
+    done_f=$(ls "$TASKS_DIR"/completed/"$id"-*.md 2>/dev/null | head -1)
+    if [ -n "$done_f" ] && grep -q '^status: work-completed' "$done_f"; then
+        say "  skip    already closed: $id"; SKIPPED=$((SKIPPED+1)); return
+    fi
+    act_f=$(ls "$TASKS_DIR"/active/"$id"-*.md 2>/dev/null | head -1)
+    if [ -z "$act_f" ]; then
+        say "  FAILED  $id is in neither active/ nor completed/"; FAILED=$((FAILED+1)); return
+    fi
+    if [ "$DRY_RUN" = "1" ]; then
+        say "  [DRY]   would close $id (--force: $reason)"; DONE=$((DONE+1)); return
+    fi
+    "$FW" task update "$id" --status work-completed --force --reason "$reason" >/tmp/.runme-close-"$id" 2>&1
+    done_f=$(ls "$TASKS_DIR"/completed/"$id"-*.md 2>/dev/null | head -1)
+    # Verify the result, not fw's exit code: the close must be visible on disk.
+    if [ -n "$done_f" ] && grep -q '^status: work-completed' "$done_f"; then
+        say "  OK      closed and verified: $id"; DONE=$((DONE+1))
+    else
+        say "  FAILED  $id did not land in completed/ as work-completed (fw output: /tmp/.runme-close-$id)"
+        FAILED=$((FAILED+1))
+    fi
+}
+
+# ---------------------------------------------------------------------------
+# ACTION 2 — SQ-3 closures the operator approved on 2026-09-30 (T-3272)
+#
+# Each has one agent AC measured unachievable and left unticked (reasons are in
+# each task's Updates). The operator approved closing all three; completion needs
+# --force for that one AC, and --force is Tier 0, so the agent cannot run it —
+# the operator does, by running this script. This runs in a DEFAULT run because
+# the decision is already made and recorded; this only carries it out.
+# ---------------------------------------------------------------------------
+head2 "2. Approved closures (T-3211 SQ-3, operator 2026-09-30)"
+close_task T-3132 "operator-authorised SQ-3 closure 2026-09-30: CTL-029 cannot reach 0 (designed human end states, T-3010 G-053 reminder)"
+close_task T-3128 "operator-authorised SQ-3 closure 2026-09-30: CTL-003 PASS is vendored, tracked upstream via T-3127"
+close_task T-3130 "operator-authorised SQ-3 closure 2026-09-30: minimal-fixture reproduction measured negative (12/12)"
 
 # ---------------------------------------------------------------------------
 # Verification — the project's own drift checker is the arbiter, not this script.

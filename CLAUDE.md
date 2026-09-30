@@ -2228,6 +2228,8 @@ These are restated here because the template's own numbered lists renumber
 and overwrite them. Where the template and this section disagree about a
 **consumer project**, this section wins.
 
+- **Every command the operator must run ships in ONE runnable script, named by its full path (operator standing instruction, 2026-09-30, T-3272).** Never hand the operator copy-paste command lines, `for` loops or `&&` chains, not even a single line. Add the action to `/opt/termlink/runme.sh` (T-3052) and tell the operator to run exactly `/opt/termlink/runme.sh`, always printed as that absolute path. The operator should not need flags; `--dry-run` is only an optional preview. Each action must be **idempotent** (it checks and skips when already done), must **verify itself on disk** after running rather than trusting an exit code, and must count as FAILED (exit 1) when that verification fails. An action is removed once it is permanently done. Human-authority items run in a default run only when the decision is **already made and recorded** (e.g. the T-3211 SQ-3 closures); an undecided item stays listed-not-executed. Any new action gets a hermetic case in `tests/runme-fixtures.sh` through the `RUNME_*` seams, and never touches real host state or real task files. This also overrides the template's "Copy-Pasteable Commands (T-609)" rule below for this project.
+
 - **The context-budget ladder below `## Core Principle` is STALE — ignore its numbers (T-3192).**
   The governance section §"Automated Monitoring (Claude Code)" states *"Escalation ladder:
   120K ok→warn, 150K warn→urgent, 170K urgent→critical (BLOCK)"*. Those are fixed figures

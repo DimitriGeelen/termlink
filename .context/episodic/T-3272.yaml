@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3272: runme.sh carries operator-approved closures; CLAUDE.md: every operator command ships as one runnable script printed by full path
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-30T10:04:49Z
+# ============================================================================
+
+task_id: T-3272
+task_name: "runme.sh carries operator-approved closures; CLAUDE.md: every operator command ships as one runnable script printed by full path"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-30T10:02:07Z
+completed: 2026-09-30T10:04:39Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  runme.sh carries operator-approved closures; CLAUDE.md: every operator command ships as one runnable script printed by full path
+
+# Key outcomes
+outcomes:
+  - 'A default `runme.sh` run closes T-3132, T-3128 and T-3130 (the SQ-3 closures approved 2026-09-30) with no flags, and verifies each lands in `.tasks/completed/` with `status: work-completed`'
+  - 'The closure action is idempotent: an already-closed task is reported as already-done and re-running changes nothing'
+  - '`--dry-run` reports the closes and performs none'
+  - 'A failed close (the task still in `active/` afterwards) is a FAILED action and exits 1, never a silent skip'
+  - '`tests/runme-fixtures.sh` exercises the closure action hermetically (seams `RUNME_TASKS_DIR` + `RUNME_FW`, never the real task tree) and passes'
+  - 'CLAUDE.md (above `## Core Principle`, clobber-safe) states the rule: every command the operator must run ships as one runnable script, printed by its full path'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 2
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3272-runmesh-carries-operator-approved-closur.md
+generated_by: context-agent-hybrid
