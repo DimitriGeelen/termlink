@@ -188,7 +188,7 @@ last_vendor_event:
 
 divergences:
   - task: T-3270
-    commit: pending-same-commit
+    commit: 67ddecbcf
     commit_note: >
       Registered BEFORE the change lands (T-2813 lesson). Operator ruling SQ-23 =
       option 2 (2026-09-30): the focus-drift gate names the pending-commit helper
@@ -196,7 +196,8 @@ divergences:
       cannot see it.
     date: 2026-09-30
     file: .agentic-framework/agents/context/check-active-task.sh
-    status: local-only
+    status: filed-upstream
+    filed_at: "framework:pickup offset 246 (read-back verified 2026-09-30, 7897 bytes, byte-identical to source; follow-up to offset 245)"
     kind: governance-mechanism
     generality: GENERIC
     risk_if_revendored: LOW

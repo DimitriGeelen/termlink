@@ -22,7 +22,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-30T09:06:32Z
-last_update: 2026-09-30T09:06:32Z
+last_update: 2026-09-30T09:08:57Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -46,11 +46,11 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `check-active-task.sh`'s focus-drift gate recognises exactly `[bash ][./]scripts/commit-pending.sh commit[ args]` as a NAMED exception (SQ-23 option 2, operator 2026-09-30) and prints a visible NOTE naming the exception, T-3269 and the attribution rule every time it applies
-- [ ] The exception is narrow: a command that chains anything onto the helper (`;` `&` `|`) gets no NOTE and a chained `git commit -m "T-OTHER: ..."` is still BLOCKED as focus drift
-- [ ] A fixture proves both legs against the real hook (helper alone: allowed + NOTE; helper chained with a drifting commit: blocked), plus a mutant with the exception removed that loses the NOTE
-- [ ] The vendored edit is registered in `.vendor-divergence.yaml` and `check-vendor-divergence.sh` exits 0
-- [ ] The exact diff is sent to the AF agent on `framework:pickup` as a follow-up to offset 245, read back, and the offset recorded in the divergence entry
+- [x] `check-active-task.sh`'s focus-drift gate recognises exactly `[bash ][./]scripts/commit-pending.sh commit[ args]` as a NAMED exception (SQ-23 option 2, operator 2026-09-30) and prints a visible NOTE naming the exception, T-3269 and the attribution rule every time it applies
+- [x] The exception is narrow: a command that chains anything onto the helper (`;` `&` `|`) gets no NOTE and a chained `git commit -m "T-OTHER: ..."` is still BLOCKED as focus drift
+- [x] A fixture proves both legs against the real hook (helper alone: allowed + NOTE; helper chained with a drifting commit: blocked), plus a mutant with the exception removed that loses the NOTE
+- [x] The vendored edit is registered in `.vendor-divergence.yaml` and `check-vendor-divergence.sh` exits 0
+- [x] The exact diff is sent to the AF agent on `framework:pickup` as a follow-up to offset 245, read back, and the offset recorded in the divergence entry
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
