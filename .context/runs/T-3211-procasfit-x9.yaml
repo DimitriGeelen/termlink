@@ -275,3 +275,14 @@ rounds_after_rulings:
   - v0.12.1 left as an unpublished tag (never move a mirrored tag); release goes out as v0.12.2
   new_sovereign_questions: [SQ-20 E4 prover on binary-without-identity runner, SQ-21 heading-shadow vs 300s timeout,
     SQ-22 who commits the WARN first-red ledger]
+release_outcome:
+  published: v0.12.3 at 2026-09-30T00:32:35Z (run 36647795849) - first published release since v0.11.2 (2026-06-24)
+  assets: [termlink-linux-x86_64, termlink-linux-x86_64-static, termlink-linux-aarch64, termlink-darwin-x86_64, termlink-darwin-aarch64, checksums.txt]
+  verified: downloaded linux-x86_64-static, sha256 OK, --version = 0.12.3; release-publication canary healthy
+  unpublished_tags_left_in_place: [v0.12.0, v0.12.1, v0.12.2]
+  attempts:
+  - v0.12.1 guard layer ERROR on tag-build env (T-3261, T-3262); tag mirror first blocked by OneDev secret not
+    authorized for tag jobs - operator set it to any job
+  - v0.12.2 flaky cli_request_reply_flow (T-3264) then macOS compile error since T-2727 (T-3265)
+  - v0.12.3 published
+  follow_up: T-3266 macOS /proc test, last red in test-macos; then T-2692 promotion is an operator decision
