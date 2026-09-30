@@ -4,12 +4,12 @@ name: "notify-rail-e2e E4 uses identity --resolve --no-create: never mints the k
 description: >
   notify-rail-e2e E4 uses identity --resolve --no-create: never mints the key it verifies; no key / too-old binary are named TOOLING (T-3284 GO, option C, task 2 of 2)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [runme.sh, scripts/notify-rail-e2e.sh, tests/notify-rail-e2e-fixtures.sh, tests/runme-fixtures.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -22,8 +22,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-30T19:07:53Z
-last_update: 2026-09-30T19:07:53Z
-date_finished: null
+last_update: 2026-09-30T19:35:31Z
+date_finished: 2026-09-30T19:35:31Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -46,11 +46,11 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] E4 resolves with `agent identity --resolve --no-create --json`, so it can never create the key it verifies
-- [ ] No key (exit 3 / `error: no_identity`) → TOOLING rc 2: "no identity for <agent> on this host — nothing to verify (missing: <path>)"; a binary that predates the flag (clap "unexpected argument '--no-create'") → TOOLING rc 2: "installed termlink predates --no-create (T-3286) — upgrade; nothing checked". Neither is a FAIL, and neither writes a key
-- [ ] Fixtures: a no-key fake (asserts the verdict AND that no key file was created by the fake's path), a too-old-binary fake, a mutant that drops `--no-create` from the call (caught), and all prior E4 cases still pass
-- [ ] `/opt/termlink/runme.sh` gains an idempotent, disk-verified action installing the built termlink into `~/.cargo/bin` (verified: installed `--version` equals the build's, and `--resolve --no-create` is accepted); a fixture case covers it through a seam
-- [ ] After the operator's run: live E4 PASSes on this host through `--no-create`
+- [x] E4 resolves with `agent identity --resolve --no-create --json`, so it can never create the key it verifies
+- [x] No key (exit 3 / `error: no_identity`) → TOOLING rc 2: "no identity for <agent> on this host — nothing to verify (missing: <path>)"; a binary that predates the flag (clap "unexpected argument '--no-create'") → TOOLING rc 2: "installed termlink predates --no-create (T-3286) — upgrade; nothing checked". Neither is a FAIL, and neither writes a key
+- [x] Fixtures: a no-key fake (asserts the verdict AND that no key file was created by the fake's path), a too-old-binary fake, a mutant that drops `--no-create` from the call (caught), and all prior E4 cases still pass
+- [x] `/opt/termlink/runme.sh` gains an idempotent, disk-verified action installing the built termlink into `~/.cargo/bin` (verified: installed `--version` equals the build's, and `--resolve --no-create` is accepted); a fixture case covers it through a seam
+- [x] After the operator's run: live E4 PASSes on this host through `--no-create`
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -174,6 +174,11 @@ date_finished: null
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+bash tests/notify-rail-e2e-fixtures.sh > /tmp/.t3287-e 2>&1 && grep -q '26 passed, 0 failed' /tmp/.t3287-e
+bash tests/runme-fixtures.sh > /tmp/.t3287-r 2>&1 && grep -q '31 passed, 0 failed' /tmp/.t3287-r
+grep -q 'agent identity --resolve --no-create --json' scripts/notify-rail-e2e.sh
+timeout 60 bash scripts/notify-rail-e2e.sh --stages '' --experiment e4 > /tmp/.t3287-live 2>&1 && grep -q 'E4 .*PASS' /tmp/.t3287-live
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -266,7 +271,28 @@ date_finished: null
 
 ## Updates
 
+### 2026-09-30 — operator run + live proof
+The operator ran `/opt/termlink/runme.sh` (log runme-20260930T192428Z, rc=0): release build ~11 min, then `~/.cargo/bin/termlink` 0.12.13 → **0.12.16**, verified (version match; `--resolve --no-create` probe exits 3 and writes nothing). Live: E4 PASS through `--no-create` (`claude-termlink` → 6738c073bbcc587a, watched); `check-arc-claim-drift` rc 0, arc-003 and arc-004 VERIFIED. T-3284 option C is fully delivered: the check can no longer mint the signing key it verifies.
+
 ### 2026-09-30T19:07:53Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3287-notify-rail-e2e-e4-uses-identity---resol.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-97d28bc8
+- **Timestamp:** 2026-09-30T19:35:48Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#4 (Agent)** — `/opt/termlink/runme.sh` gains an idempotent, disk-verified action installing the built termlink into `~/.cargo/bin` (verified: installed `--version` equals the build's, and `--resolve --no-create` is
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=opt/termlink/runme.sh in: `/opt/termlink/runme.sh` gains an idempotent, disk-verified action installing the built termlink into `~/.cargo/bin` (verified: installed `--version` `
+
+### 2026-09-30T19:35:31Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

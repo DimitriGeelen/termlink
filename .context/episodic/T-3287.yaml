@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3287: notify-rail-e2e E4 uses identity --resolve --no-create: never mints the key it verifies; no key / too-old binary are named TOOLING (T-3284 GO, option C, task 2 of 2)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-30T19:35:56Z
+# ============================================================================
+
+task_id: T-3287
+task_name: "notify-rail-e2e E4 uses identity --resolve --no-create: never mints the key it verifies; no key / too-old binary are named TOOLING (T-3284 GO, option C, task 2 of 2)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-30T19:07:53Z
+completed: 2026-09-30T19:35:31Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-30T21:10:16+02:00
+last_commit: 2026-09-30T21:10:16+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  E4 resolves with --no-create (never mints the key it verifies; no key / too-old binary -> named TOOLING); runme action 4 installs + verifies the termlink build (version + --no-create probe, no key written); T-3284 decision entry removed (done). Fixtures: e2e 26/26 (M5 mint mutant caught), runme 31/31
+
+# Key outcomes
+outcomes:
+  - 'E4 resolves with `agent identity --resolve --no-create --json`, so it can never create the key it verifies'
+  - 'No key (exit 3 / `error: no_identity`) → TOOLING rc 2: "no identity for <agent> on this host — nothing to verify (missing: <path>)"; a binary that predates the flag (clap "unexpected argument ''--no-create''") → TOOLING rc 2: "installed termlink predates --no-create (T-3286) — upgrade; nothing checked". Neither is a FAIL, and neither writes a key'
+  - 'Fixtures: a no-key fake (asserts the verdict AND that no key file was created by the fake''s path), a too-old-binary fake, a mutant that drops `--no-create` from the call (caught), and all prior E4 cases still pass'
+  - '`/opt/termlink/runme.sh` gains an idempotent, disk-verified action installing the built termlink into `~/.cargo/bin` (verified: installed `--version` equals the build''s, and `--resolve --no-create` is accepted); a fixture case covers it through a seam'
+  - 'After the operator''s run: live E4 PASSes on this host through `--no-create`'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'E4 resolves with --no-create (never mints the key it verifies; no key / too-old binary -> named TOOLING); runme action 4 installs + verifies the termlink build (version + --no-create probe, no key written); T-3284 decision entry removed (done). Fixtures: e2e 26/26 (M5 mint mutant caught), runme 31/31'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'runme.sh'
+  - 'scripts/notify-rail-e2e.sh'
+  - '.tasks/active/T-3287-notify-rail-e2e-e4-uses-identity---resol.md'
+  - 'tests/notify-rail-e2e-fixtures.sh'
+  - 'tests/runme-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-30T21:10:16'
+    action: 'T-3287: E4 resolves with --no-create (never mints the key it verifies; no key / too-old binary -> named TOOLING); runme action 4 installs + verifies the termlink build (version + --no-create probe, no key written); T-3284 decision entry removed (done). Fixtures: e2e 26/26 (M5 mint mutant caught), runme 31/31'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 27 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 27
+  commits: 1
+  files_changed: 5
+  lines_added: 417
+  lines_removed: 6
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3287-notify-rail-e2e-e4-uses-identity---resol.md
+generated_by: context-agent-hybrid
