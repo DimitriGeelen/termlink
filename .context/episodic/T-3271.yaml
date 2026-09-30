@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3271: Promote test-macos to blocking after its first measured green release run
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-30T13:42:02Z
+# ============================================================================
+
+task_id: T-3271
+task_name: "Promote test-macos to blocking after its first measured green release run"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-30T09:36:36Z
+completed: 2026-09-30T13:41:52Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  T-2692 step: test-macos in release.yml is continue-on-error. It was the only red job on v0.12.3 (run 36647795849); the fix (T-3266) landed after that tag, so no measured green run exists yet. The job runs only on v* tags. Operator approved promotion conditional on the next release confirming green (2026-09-30).
+
+# Key outcomes
+outcomes:
+  - 'A release run on a v* tag cut after T-3266 (4276d98a6) shows the macOS test job `success`, read from the GitHub API jobs list, not inferred'
+  - '`continue-on-error: true` is removed from `test-macos` in `.github/workflows/release.yml`, and `test-macos` is added to both build jobs'' `needs:`'
+  - 'The job name no longer says NON-BLOCKING, and the CLAUDE.md "Companion — macOS CI (T-2692)" paragraph states that the job now blocks'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 245 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 245
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3271-promote-test-macos-to-blocking-after-its.md
+generated_by: context-agent-hybrid

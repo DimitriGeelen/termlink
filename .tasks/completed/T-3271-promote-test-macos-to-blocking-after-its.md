@@ -2,12 +2,15 @@
 id: T-3271
 name: "Promote test-macos to blocking after its first measured green release run"
 description: >
-  T-2692 step: test-macos in release.yml is continue-on-error. It was the only red job on v0.12.3 (run 36647795849); the fix (T-3266) landed after that tag, so no measured green run exists yet. The job runs only on v* tags. Operator approved promotion conditional on the next release confirming green (2026-09-30).
+  T-2692 step: test-macos in release.yml is continue-on-error. It was the only red
+  job on v0.12.3 (run 36647795849); the fix (T-3266) landed after that tag, so no
+  measured green run exists yet. The job runs only on v* tags. Operator approved promotion
+  conditional on the next release confirming green (2026-09-30).
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: next
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -22,8 +25,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-30T09:36:36Z
-last_update: 2026-09-30T09:36:36Z
-date_finished: null
+last_update: 2026-09-30T13:41:52Z
+date_finished: 2026-09-30T13:41:52Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,6 +37,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-09-30T13:41:09Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3271: Promote test-macos to blocking after its first measured green release run
@@ -46,8 +63,9 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] A release run on a v* tag cut after T-3266 (4276d98a6) shows the macOS test job `success`, read from the GitHub API jobs list, not inferred
+- [x] `continue-on-error: true` is removed from `test-macos` in `.github/workflows/release.yml`, and `test-macos` is added to both build jobs' `needs:`
+- [x] The job name no longer says NON-BLOCKING, and the CLAUDE.md "Companion — macOS CI (T-2692)" paragraph states that the job now blocks
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -171,6 +189,10 @@ date_finished: null
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+gh api repos/DimitriGeelen/termlink/actions/runs/36719281724/jobs > /tmp/.t3271-j 2>&1 && jq -e '.jobs[]|select(.name|startswith("Workspace test suite (macOS"))|select(.conclusion=="success")' /tmp/.t3271-j
+python3 -c "import yaml;j=yaml.safe_load(open('.github/workflows/release.yml'))['jobs'];assert 'continue-on-error' not in j['test-macos'];assert 'test-macos' in j['build-macos']['needs'] and 'test-macos' in j['build-linux']['needs'];assert 'NON-BLOCKING' not in j['test-macos']['name']"
+grep -q 'It now blocks (T-3271' CLAUDE.md
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -267,3 +289,20 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3271-promote-test-macos-to-blocking-after-its.md
 - **Context:** Initial task creation
+
+### 2026-09-30T13:41:09Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-1a3acbe3
+- **Timestamp:** 2026-09-30T13:41:54Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** none
+
+### 2026-09-30T13:41:52Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -1551,10 +1551,12 @@ literals now fire as the distinct primitives `proc-root` / `sys-root` (distinct 
 existing `proc-path` signatures stay valid); fixture 10 and a mutant pin it.
 
 **Companion — macOS CI (T-2692).** `release.yml` gains a `test-macos` job running the
-same `cargo test --workspace` as the Linux job. It is **deliberately non-blocking**
-(`continue-on-error: true`): the macOS result has never been measured, and gating
-releases on an unmeasured suite would violate T-2686's own AC. To promote once a green
-run exists: delete that one line and add `test-macos` to the build jobs' `needs:`.
+same `cargo test --workspace` as the Linux job. It shipped **non-blocking**, because gating
+releases on an unmeasured suite would have violated T-2686's own AC. **It now blocks (T-3271,
+2026-09-30).** Its first measured run was red on v0.12.3 (the unconditional `/proc` assertion,
+fixed in T-3266), and its first green run was v0.12.4 (run 36719281724). `continue-on-error` is
+gone, and both build jobs `needs: [test, test-macos]`, so a red macOS suite now produces no
+binaries rather than shipping a macOS break behind a green release.
 
 ### Error-code emission check (T-2699, Directive #2 — a refusal is a claim)
 

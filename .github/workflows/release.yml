@@ -92,14 +92,16 @@ jobs:
   # and could break releases on an assumption. Making the answer visible comes first;
   # a red result here is the most valuable output this job can produce.
   #
-  # TO PROMOTE TO BLOCKING once a real green run exists: delete the
-  # `continue-on-error: true` line below, and add `test-macos` to the `needs:` of
-  # build-macos / build-linux. That is the whole change.
+  # PROMOTED TO BLOCKING (T-3271, 2026-09-30). The first measured run was RED on
+  # v0.12.3 (run 36647795849): an MCP test asserted /proc unconditionally (fixed in
+  # T-3266). The first GREEN run was v0.12.4 (run 36719281724). It has now been
+  # measured, so it gates the builds like the Linux suite: a red macOS suite means no
+  # binary is produced, instead of a macOS break shipping silently behind a green
+  # release, which is how T-3265/T-3266 went unseen.
   test-macos:
-    name: Workspace test suite (macOS · NON-BLOCKING, result not yet known)
+    name: Workspace test suite (macOS)
     runs-on: macos-14
     timeout-minutes: 60
-    continue-on-error: true
 
     steps:
       - name: Checkout
@@ -119,7 +121,7 @@ jobs:
         run: cargo test --workspace
 
   build-macos:
-    needs: [test]
+    needs: [test, test-macos]
     strategy:
       matrix:
         include:
@@ -164,7 +166,7 @@ jobs:
           path: dist/${{ matrix.artifact }}
 
   build-linux:
-    needs: [test]
+    needs: [test, test-macos]
     strategy:
       matrix:
         include:
