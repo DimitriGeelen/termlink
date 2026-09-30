@@ -24,7 +24,8 @@
 # checks all ask about resource safety, none asks "does this run off Linux?".
 #
 # WHAT IT FLAGS, in the product crates:
-#   * `/proc/` and `/sys/` path literals  — procfs/sysfs are Linux-only
+#   * `/proc/` and `/sys/` path literals, and quoted bare `"/proc"` / `"/sys"` roots
+#     (T-3268)  — procfs/sysfs are Linux-only
 #   * `Command::new("<tool>")` for tools that do not exist on macOS:
 #         ss · systemctl · journalctl · ufw · setsid · nproc · lsb_release
 #
@@ -69,7 +70,7 @@ usage() {
 check-platform-lock.sh — flag Linux-only primitives in the product crates
 (Directive #4 Portability). macOS is a documented, recommended platform.
 
-Flags: /proc/ and /sys/ path literals; Command::new for
+Flags: /proc/ and /sys/ path literals, quoted bare "/proc" / "/sys" roots (T-3268); Command::new for
   ss · systemctl · journalctl · ufw · setsid · nproc · lsb_release
 Ignores: git/sh/bash/ssh/tmux/pgrep (cross-platform), osascript (macOS on purpose),
   and comment lines.
@@ -121,7 +122,11 @@ fi
 # Linux-only external tools. Kept short and defensible on purpose: every entry is a
 # tool genuinely absent from a stock macOS, so a hit is real lock-in rather than noise.
 LINUX_ONLY_CMDS='ss|systemctl|journalctl|ufw|setsid|nproc|lsb_release'
-HIT_RE="(/proc/|/sys/|Command::new\(\"($LINUX_ONLY_CMDS)\"\))"
+# T-3268: a quoted BARE root ("/proc", "/sys") is the same dependency — T-3266's macOS
+# red asserted procfs_available_at("/proc") and scanned clean because only the
+# trailing-slash form was matched. Distinct primitive (proc-root/sys-root) so every
+# existing /proc/ signature in the allowlist stays valid.
+HIT_RE="(/proc/|/sys/|\"/proc\"|\"/sys\"|Command::new\\(\"($LINUX_ONLY_CMDS)\"\\))"
 FN_RE='(^|[^A-Za-z0-9_])fn[[:space:]]+[A-Za-z0-9_]+'
 
 fn_name_of() { printf '%s' "$1" | sed -E 's/.*[^A-Za-z0-9_]?fn[[:space:]]+([A-Za-z0-9_]+).*/\1/'; }
@@ -131,6 +136,8 @@ primitive_of() {
     case "$1" in
         *"/proc/"*) printf 'proc-path' ;;
         *"/sys/"*)  printf 'sys-path' ;;
+        *'"/proc"'*) printf 'proc-root' ;;
+        *'"/sys"'*)  printf 'sys-root' ;;
         *) printf '%s' "$1" | sed -nE "s/.*Command::new\\(\"($LINUX_ONLY_CMDS)\"\\).*/cmd:\\1/p" ;;
     esac
 }

@@ -60,3 +60,13 @@ crates/termlink-mcp/src/tools.rs::read_ppid_from_proc::proc-path             # T
 
 # ── test asserting a platform fact, correctly cfg-gated ──────────────────────────
 crates/termlink-cli/src/commands/metadata.rs::procfs_probe_detects_a_real_procfs::proc-path  # #[cfg(target_os = "linux")] test; asserts /proc exists on Linux only, with a non-Linux complement test
+
+# ── quoted bare "/proc" roots (T-3268 — invisible to the scan before it) ────────────
+# The probe itself: off Linux `<root>/self/stat` does not exist, it returns false, and
+# every caller names the limitation (whoami auto_resolution=unavailable-no-procfs).
+crates/termlink-cli/src/commands/metadata.rs::procfs_available::proc-root  # T-2691 probe; returns false off Linux, callers name the limitation
+crates/termlink-mcp/src/tools.rs::procfs_available::proc-root              # T-2691 probe (MCP twin); false off Linux → auto_resolution=unavailable-no-procfs
+# Tests pinning the probe against the platform fact on BOTH families.
+crates/termlink-cli/src/commands/metadata.rs::procfs_probe_detects_a_real_procfs::proc-root              # #[cfg(target_os = "linux")] positive; non-Linux complement below
+crates/termlink-cli/src/commands/metadata.rs::procfs_probe_reports_unavailable_on_non_linux::proc-root   # #[cfg(not(target_os = "linux"))] complement: asserts the probe is FALSE off Linux
+crates/termlink-mcp/src/tools.rs::mcp_procfs_probe_matches_cli_semantics::proc-root                      # T-3266: runtime cfg! branch — true on Linux, false + unavailable-no-procfs elsewhere

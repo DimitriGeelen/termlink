@@ -126,6 +126,33 @@ RS
 assert_rc "a clean tree exits 0" 0 "$(run)"
 assert_eq "envelope reports ok" "true" "$(run_json | jq -r '.ok')"
 
+# --- fixture 10 (T-3268): a quoted BARE root fires — the T-3266 macOS red shape ---
+# `procfs_available_at("/proc")` asserted unconditionally in a test went red on the
+# macOS job while this check scanned it clean (only `/proc/` was matched).
+reset
+cat > "$SRC/bareroot.rs" <<'RS'
+fn probe_test() {
+    assert!(procfs_available_at("/proc"));
+    let _ = std::path::Path::new("/sys").exists();
+    // a comment naming "/proc" is documentation, not a dependency
+}
+RS
+assert_rc "quoted bare \"/proc\" / \"/sys\" roots fire" 1 "$(run)"
+assert_eq "both bare roots are reported" "2" "$(run_json | jq -r '.firing | length')"
+assert_eq "primitive distinguishes the bare root" "proc-root" "$(run_json | jq -r '.firing[0].primitive')"
+assert_eq "sys root primitive" "sys-root" "$(run_json | jq -r '.firing[1].primitive')"
+printf '%s\n%s\n' "$SRC/bareroot.rs::probe_test::proc-root  # r" "$SRC/bareroot.rs::probe_test::sys-root  # r" > "$ALLOW"
+assert_rc "bare roots acknowledged by signature scan clean" 0 "$(run)"
+# Mutant: drop the bare-root alternation from HIT_RE → fixture 10 must go silent.
+MUT="$SCRATCH/mutant-check.sh"
+sed 's/|\\"\/proc\\"|\\"\/sys\\"//' "$CHECK" > "$MUT"
+if cmp -s "$CHECK" "$MUT"; then bad "bare-root mutant applied — sed matched nothing"
+else
+    : > "$ALLOW"
+    rc="$(bash "$MUT" --root "$SRC" --allowlist "$ALLOW" >/dev/null 2>&1; echo $?)"
+    assert_rc "mutant without bare-root matching reads clean (so fixture 10 is load-bearing)" 0 "$rc"
+fi
+
 echo
 echo "platform-lock-check-fixtures: $pass passed, $fail failed"
 [ "$fail" -eq 0 ] || exit 1

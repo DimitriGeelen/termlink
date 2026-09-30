@@ -1534,14 +1534,21 @@ What is NOT allowlisted is the interesting part: the whoami defect was **fixed**
 (T-2691), not acknowledged. An entry is for a site that behaves correctly off Linux,
 never for one that fails quietly.
 
-Current tree: 8 sites scanned, all 8 acknowledged with cited degradation reasons
-(3 × `setsid` with an `.or_else(sh -c)` fallback, `ufw`+`ss` unreachable behind an
-`Ok+success` gate, 2 × `/proc` now guarded by `procfs_available()`, 1 cfg-gated test).
-Exit 0 clean / 1 unacknowledged / 2 tooling; `--json`; `--root` + `--allowlist` for
-fixtures. Ad-hoc: `bash scripts/check-platform-lock.sh`. Fixtures:
-`bash tests/platform-lock-check-fixtures.sh` (20 assertions). **It earned its keep on
-first run:** it flagged T-2691's own new test, which asserted `/proc` exists and would
-have failed on the macOS CI runner T-2692 was adding in the same session.
+Current tree (measured 2026-09-30): 10 sites scanned, all 10 acknowledged with cited
+degradation reasons — the `/proc/` reads guarded by `procfs_available()`, the probes
+themselves, and the tests pinning the probe on both platform families. (An earlier "8
+sites" figure here had gone stale.) Exit 0 clean / 1 unacknowledged / 2 tooling;
+`--json`; `--root` + `--allowlist` for fixtures. Ad-hoc: `bash scripts/check-platform-lock.sh`.
+Fixtures: `bash tests/platform-lock-check-fixtures.sh` (26 assertions). **It earned its
+keep on first run:** it flagged T-2691's own new test, which asserted `/proc` exists and
+would have failed on the macOS CI runner T-2692 was adding in the same session.
+
+**Quoted bare roots are matched too (T-3268).** The scan originally matched only the
+trailing-slash forms `/proc/` and `/sys/`, so `procfs_available_at("/proc")` was
+invisible — and exactly that line, asserted unconditionally in an MCP test, was the
+v0.12.3 macOS red (T-3266) while this check scanned clean. `"/proc"` / `"/sys"` quoted
+literals now fire as the distinct primitives `proc-root` / `sys-root` (distinct so the
+existing `proc-path` signatures stay valid); fixture 10 and a mutant pin it.
 
 **Companion — macOS CI (T-2692).** `release.yml` gains a `test-macos` job running the
 same `cargo test --workspace` as the Linux job. It is **deliberately non-blocking**
