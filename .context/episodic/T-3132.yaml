@@ -1,0 +1,88 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3132: CTL-029 bundle: 26 tasks completable-not-closed beyond the 3 already tracked
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-30T10:37:45Z
+# ============================================================================
+
+task_id: T-3132
+task_name: "CTL-029 bundle: 26 tasks completable-not-closed beyond the 3 already tracked"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-25T07:04:36Z
+completed: 2026-09-30T10:37:35Z
+duration_days: 5
+updates_count: 6
+first_commit: 2026-09-28T00:45:52+02:00
+last_commit: 2026-09-28T00:45:52+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  CTL-029 bundle censused — the check flags a designed state, and for T-3010 its advice destroys a G-053 reminder
+
+# Key outcomes
+outcomes:
+  - 'Each of the 26 named tasks individually spot-checked with `fw task verify T-XXX`'
+  - 'Tasks confirmed complete are closed via `fw task update T-XXX --status work-completed`'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/episodic/T-3044.yaml'
+  - '.context/project/concerns.yaml'
+  - '.context/project/learnings.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/feedback-stream.yaml'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/session.yaml'
+  - '.tasks/active/T-3010-set-90-day-revisitat-on-artifact-surface.md'
+  - '.tasks/active/T-3096-d8b-regression-handover-archive-rot-1010.md'
+  - '.tasks/active/T-3132-ctl-029-bundle-26-tasks-completable-not-.md'
+  - '.tasks/completed/T-3044-orchestrate-value-review--procasfit-prom.md'
+  - '.termlink-task'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-28T00:45:52'
+    action: 'T-3132: CTL-029 bundle censused — the check flags a designed state, and for T-3010 its advice destroys a G-053 reminder'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 7412 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-008, housekeeping]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 7412
+  commits: 2
+  files_changed: 32
+  lines_added: 3472
+  lines_removed: 176
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3132-ctl-029-bundle-26-tasks-completable-not-.md
+generated_by: context-agent-hybrid

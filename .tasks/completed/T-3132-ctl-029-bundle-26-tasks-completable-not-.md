@@ -1,25 +1,26 @@
 ---
-id: T-3130
-name: "fw task update --status blanks owner field on frontmatter rewrite (reproduced
-  live)"
+id: T-3132
+name: "CTL-029 bundle: 26 tasks completable-not-closed beyond the 3 already tracked"
 description: >
-  Reproduced live during T-3093 R2S2: running fw task update T-3129 --status started-work
-  (no --owner flag passed) on a task created moments earlier with --owner agent left
-  owner blank in the frontmatter afterward. The explicit --owner code path in update-task.sh
-  is guarded by NEW_OWNER being set and never ran, so something else in the status-transition
-  or frontmatter-rewrite path (candidates: the auto-triggered bvp-estimate rewrite,
-  or a regex/YAML rewrite step keyed on the owner line) is clobbering the value. Possibly
-  related to T-3095 (filed by R1S2 with owner blank) but T-3095 never underwent a
-  status transition since creation so that link is suspected not proven. INVESTIGATE:
-  bisect which step in update-task.sh status-transition path touches the owner line.
+  fw audit WARN CTL-029 (29 total instances this cycle): T-1415,T-1420,T-1426,T-1428,T-1430,T-1432,T-1451,T-1453,T-1632,T-1633,T-1799,T-1885,T-212,T-2194,T-2197,T-2203,T-2258,T-2389,T-2470,T-2815,T-2819,T-2837,T-2858,T-2870,T-3010,T-3044
+  (26 tasks) plus T-2938/T-2939/T-2940 which are already individually tracked in arc-008
+  for their ORIGINAL findings (cron drift, D2 review-queue, and are themselves flagged
+  here only incidentally). All have every Agent AC ticked but status remains started-work.
+  Bundled as one task per the C-001/C-006/D14 bundle-check convention already established
+  in this arc, since fw audit itself already surfaces the per-task spot-check workflow
+  (fw task verify T-XXX then fw task update --status work-completed) rather than a
+  per-task code fix. T-3093 R3S2 (2026-09-25, round 3 of 4): T-3060 joined this CTL-029
+  list (30 total instances that cycle) — folded into this bundle rather than filed
+  as a
+  new task, same rationale as the original 26. See Updates for detail.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: next
+horizon: null
 tags: [arc:arc-008, housekeeping]
-components: []
-related_tasks: [T-3129, T-3095]
+components: [runme.sh, tests/runme-fixtures.sh]
+related_tasks: [T-3016, T-2938, T-2939, T-2940]
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
@@ -30,9 +31,9 @@ related_tasks: [T-3129, T-3095]
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-25T07:00:52Z
-last_update: 2026-09-27T22:53:36Z
-date_finished:
+created: 2026-09-25T07:04:36Z
+last_update: 2026-09-30T10:37:35Z
+date_finished: 2026-09-30T10:37:35Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -44,16 +45,16 @@ date_finished:
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 bvp_scores_proposed:
-  - ts: '2026-09-25T07:06:05Z'
+  - ts: '2026-09-25T07:06:06Z'
     estimator: bvp-estimator-v1-heuristic
     scores:
       D1: 4
-      D2: 0
+      D2: 4
       D3: 3
       D4: 2
       F-RECALL: 0
       F-ORCH: 0
-    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
       (body:component-discoverability); D4=2 (body:env-class-handled); 
       F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
@@ -65,153 +66,104 @@ cost_estimate_proposed:
       tier: 2
       effort: 8
     rationale: blast_radius=1 (1-file-ref-derived-T-3189); tier=2 
-      (workflow:build); effort=8 (lines=238,acs=5)
+      (workflow:build); effort=8 (lines=224,acs=5)
     rubric_sha: e4a00f38e801
 ---
 
-# T-3130: fw task update --status blanks owner field on frontmatter rewrite (reproduced live)
+# T-3132: CTL-029 bundle: 26 tasks completable-not-closed beyond the 3 already tracked
 
 ## Context
 
-Live reproduction during this session (see description). Root cause not yet
-bisected — vendored code (`.agentic-framework/agents/task-create/update-task.sh`,
-G-062), and a proper bisect (isolating whether the culprit is the auto bvp-estimate
-rewrite step, an arc-tag insertion regex, or something else) is real engineering
-work out of scope for a housekeeping-remediation pass. Filed as INVESTIGATE, not
-executed further this cycle, to respect the "no scope drift" binding constraint —
-a fix here would need to touch vendored update logic without first confirming which
-of several candidate rewrite steps is responsible.
+See description for the full 26-task list (T-2938/T-2939/T-2940 excluded —
+tracked individually already). `fw task verify T-XXX` per task before closing;
+audit's own recommended workflow. NOT auto-closed by this task: closing a task
+whose Human ACs (if any) or actual completeness this worker cannot independently
+verify would violate the Human Task Completion Rule (T-372/373, CLAUDE.md) — each
+of the 26 needs its own evidence-cited spot-check, real per-task work, not a bulk
+mechanical action. Left captured/parked for a future cycle with capacity to work
+through the list one task at a time.
 
-**R2S3 bisect attempt (3 tries, then stopped per the mandate's "three attempts is
-context burned, not progress"):** built a minimal fixture (`fw task create --owner
-agent --tags "arc:arc-008,housekeeping"`, matching T-3129's shape exactly —
-folded `description: >` block, same tags, same owner) and drove it through
-(1) `captured → started-work`, (2) a second fresh fixture through the identical
-transition, (3) the same fixture pushed all the way to `work-completed`
-(AC-ticking, Evolution entry, git-mv-to-completed/, episodic generation — the
-whole finalize path). **`owner:` survived intact in all three runs.** This rules
-out the two leading candidates from the original description (the auto
-bvp-estimate rewrite step, and the tag-insertion regex at line ~1941) as the
-SOLE cause under these conditions, and also rules out the finalize/git-mv path
-in isolation. The defect is real (R2S2 measured it live, directly, on T-3129)
-but is not reproducible from a clean minimal fixture — so the trigger is either
-something about the ORIGINAL T-3129/T-3095 file content this fixture didn't
-capture (a specific frontmatter byte sequence, a stray CR, an unusual field
-ordering), or a condition specific to the orchestrated multi-step run
-(concurrent file access, a stale hook cache) rather than the command in
-isolation. Scratch fixtures (T-3134, T-9999) were used and deleted, not
-committed. Next bisect attempt should diff the actual byte-for-byte frontmatter
-of T-3095/T-3129 as they stood in the dirty tree at the moment of the incident
-(if recoverable from shell history / T-3093 R2S2's own working notes) rather
-than reconstructing a fixture from the description.
+## Findings (AC1)
 
-## Findings
+**The census inverts the task.** All 27 bundled IDs were examined for owner, status,
+location and unchecked ACs (Agent and Human counted separately, HTML comment regions blanked
+first so template examples are not read as real criteria):
 
-**Process note first, because it matters more than the finding.** The R2S3 note above was
-**not read before this session's attempt**, so the 12-trial fixture run below duplicated three
-attempts already made and already recorded. Counting both sessions, the clean-minimal-fixture
-route has now failed **four times**, which is well past the mandate's "three attempts at the
-same wall is context burned, not progress". **Do not attempt that route a fifth time.** What
-the two sessions jointly establish is that the fixture route is the wrong instrument, and the
-prior note said so: it named "concurrent file access" as a candidate. What was missing was the
-*specific* concurrency and a proof. That is what this session adds — so the advance here is the
-mechanism, not the reproduction.
+| population | count | disposition |
+|---|---:|---|
+| `owner: human` | **25** | **not delegated.** R-033 sovereignty gate refuses agent closure |
+| `owner: agent`, verified, closable | 1 (T-3044) | **closed** — 4/4 ACs, 8/8 verification |
+| `owner: agent`, verified, **must stay open** | 1 (T-3010) | **not closed, deliberately** |
+| already `work-completed` | 1 (T-3060) | nothing to do |
 
-**Root cause: a lost-update race, not a bad rewrite step.** `update-task.sh:1652-1662` fires
-the BVP estimator on the `started-work` transition as a **disowned background subshell**. The
-estimator then performs a full-file read-modify-write — `parse_task` → mutate frontmatter →
-`_atomic_write_text` (write-temp + `os.replace`) — on the very file the foreground is still
-editing with `sed -i`. Both sides finish with an atomic rename, so whichever renames **last**
-silently wins and the other's changes vanish. Both exit 0, the file stays valid YAML, and the
-lost field is indistinguishable from one that was never set.
+Of the 25 human-owned: 21 carry ≥1 unchecked `### Human` AC (genuine pending judgement),
+T-2858 additionally has an unchecked **Agent** AC, and three (T-1428, T-1451, T-212) are
+fully ticked yet still `owner: human` — which is exactly the state PL-376 describes as
+correct-and-terminal for an agent, not as an oversight.
 
-The code comment at that site concedes the trade without noticing it: the engine is *"~10ms so
-the update latency impact is negligible"*, and it was backgrounded only *"in case a future
-v2-LLM engine lands and goes over the budget."* So the concurrency buys nothing today while
-costing correctness.
+**CTL-029 is flagging the designed end state.** PL-376 (from T-2940, in this same arc)
+already recorded it: *"Audit-finding tasks filed with `owner: human` at creation can never
+reach partial-complete… The agent's terminal state on such a task is 'parked to review' …
+and the task correctly stays at `status: started-work` in `active/`. An autonomous run should
+not read 'still started-work' as 'never closed'; check owner first."* The lesson was
+registered and the check was never changed, so CTL-029 re-manufactures the same 25 findings
+every cycle — and this bundle task is the artifact of that.
 
-**Why `owner` is the worst field to lose.** It is what the R-033 sovereignty gate reads
-(`update-task.sh:89-97` greps `^owner:` and refuses agent completion when the value is
-`human`). A lost write to `owner` does not merely corrupt metadata — it **silently removes the
-protection that stops an agent completing a human-owned task**, and nothing surfaces it at the
-time. T-3132, executed earlier in this same run, depended on exactly that gate holding across
-25 tasks.
+**The part that is worse than noise, and the reason this is a gap rather than a grumble.**
+`T-3010` has every AC ticked and its verification passes 3/3, so by this task's AC2 it reads
+as "confirmed complete → close it". Its own Context forbids exactly that, in bold:
 
-**Reproduction, both halves, including the one that failed.**
+> **This task intentionally stays open (not `work-completed`)** — closing it would move the
+> file to `.tasks/completed/`, which the daily scan does not read, silently defeating the
+> reminder it exists to carry.
 
-*Attempt 1 — the AC's own fixture. NEGATIVE, 12/12 clean.* Fresh task, `owner: agent`, single
-`--status started-work`, 2s settle, diff. Owner preserved every time; the estimator wrote its
-key every time. This is reported as a negative result rather than quietly retried, and it
-carries real information: the defect is **load-dependent**, and it is **not** specific to this
-task's folded YAML description (the sub-question the AC actually poses, answered).
+It is the carrier of a 90-day deferral on the `artifact.*` surface decision (value-review
+C-29), due **2026-12-18**, and `agents/context/revisit-due-scan.sh` (T-1452/G-053) scans
+`.tasks/active/` only. So CTL-029's remediation, applied to T-3010, **destroys a G-053
+reminder and leaves no trace that it did.** A check whose recommended action damages the
+project is a different and more serious class than a check that is merely loud (T-2818).
 
-*Attempt 2 — test the mechanism instead of waiting for luck. POSITIVE.* A reader loads the
-file, sleeps 1.5s, then rewrites it from its **stale in-memory copy** via write-temp +
-`os.replace` — the exact shape of `parse_task` + `_atomic_write_text`. A foreground
-`sed -i 's/^owner: agent/owner: human/'` lands inside that window:
+**What actually caught it.** Not the census, and not review — the **T-1718 Evolution gate**.
+Closing T-3010 was refused for an empty `## Evolution`, which forced reading the task body,
+which is where the prohibition is written. Had T-3010 carried Evolution content the way
+T-3044 does, it would have closed cleanly and silently. That is luck, not a control, and it
+is the strongest available argument for keeping these gates: the gate that looked like
+bureaucracy was the only thing between a mechanical sweep and real damage.
 
-```
-immediately after sed  : owner: human
-after the rewrite lands: owner: agent      ← the sed's change is gone
-bvp field present      : 1                 ← the background write did land
-```
-
-Both processes exited 0. **The foreground write was silently discarded.**
-
-**Honest scope of that proof.** It establishes the lost-update mechanism and establishes that
-it is silent. It does **not** reproduce the exact reported symptom — `owner` going *blank*
-rather than reverting — because the direction of loss depends on which value each side holds.
-A blank result requires the estimator's stale copy to have held a blank owner, which happens
-if its read precedes the step that populates the field. Mechanism: confirmed. Exact symptom
-path: consistent and plausible, **not** reproduced. Stated that way deliberately.
-
-**Recommended fix (filed, not applied — vendored per G-062).** Ranked: (1) make the trigger
-synchronous, or join it before the remaining frontmatter writes — smallest change, removes the
-race rather than shrinking it, and costs ~10ms by the comment's own estimate; (2) if it must
-stay async, serialise frontmatter writers on a per-file `flock`; (3) have the estimator splice
-only its own key instead of re-emitting the whole file from a stale parse.
-
-**Detection gap worth its own guard.** Nothing detects this class. A cheap control is a
-post-write read-back: after the transition, re-read the frontmatter and assert `owner`,
-`status` and `id` still hold the values the run intended — the same discipline T-2876
-established for filings (delivered ≠ received).
-
-**Harness location.** The two reproduction scripts live in this session's scratchpad and are
-deliberately *not* committed — the ACs do not ask for a committed harness, and the essential
-shape is inlined above and in the upstream filing so it is recoverable without them.
+**Not attempted:** `--skip-evolution` on T-3010. It is a logged bypass, this mandate does not
+delegate bypassing gates, and in this instance the gate was right.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] Bisect which rewrite step in update-task.sh's status-transition path clobbers
-      `owner:` (candidates: auto bvp-estimate rewrite, arc-tag regex insertion, other)
-      → **It is the auto bvp-estimate rewrite — but not as a rewrite step. As a RACE.**
-      `update-task.sh:1652-1662` launches the estimator as a **disowned background
-      subshell** (`( … ) &` + `disown`) on the `started-work` transition. The estimator
-      does a full read-modify-write of the same file (`parse_task` → mutate →
-      `_atomic_write_text`, i.e. write-temp + `os.replace`) while the foreground keeps
-      issuing `sed -i` edits to it. Both end in an atomic rename, so **the later rename
-      silently discards the other side's changes.** No single line clobbers `owner:`;
-      the concurrency does. See `## Findings`.
-- [ ] **NOT REPRODUCED on this path — negative result, recorded not massaged.** Reproduce with a minimal fixture (fresh task, single --status update, diff
-      frontmatter before/after) to confirm it is not specific to this task's folded
-      YAML description
-      → Built exactly that fixture (throwaway `PROJECT_ROOT`, fresh task with
-      `owner: agent`, single `update-task.sh T-9001 --status started-work`, 2s settle,
-      diff). **12 of 12 trials preserved `owner`; 0 lost; the estimator wrote
-      `bvp_scores_proposed` every time.** So the defect does **not** reproduce on an idle
-      host, and it is *not* specific to folded YAML — the fixture answers that sub-question
-      affirmatively. What the fixture cannot create cheaply is the window: on an idle host
-      the estimator finishes long before the foreground's last `sed`. The original sighting
-      was during **T-3093 R2S2, an orchestrated `[Review, Audit, procAsFit] x4` dispatch**,
-      where scheduling stretches that interval arbitrarily — the same load-dependence class
-      as T-3127/G-087-inverted. Left unticked because the AC's stated outcome did not occur;
-      the mechanism is proven separately below, which is a different claim.
-- [x] File the confirmed root cause upstream per G-062 (vendored file)
-      → `framework:pickup` **offset 211**, read-back verified byte-identical
-      (sha256 `2288ff3082bdc0cd1f91`, 5653 bytes). Carries both reproduction attempts
-      including the negative one, the ranked fix, and the detection gap.
+- [x] Each of the 26 named tasks individually spot-checked with `fw task verify T-XXX`
+      → Census of all 27 (26 + T-3060) run. **25 are `owner: human`**; only T-3010 and
+      T-3044 are `owner: agent`. Both agent-owned ones verified: T-3010 **3/3 PASS**,
+      T-3044 **8/8 PASS**. Of the 25 human-owned, 21 carry at least one unchecked
+      `### Human` AC and T-2858 additionally has an unchecked Agent AC. Full table in
+      `## Findings (AC1)`.
+- [x] Tasks confirmed complete are closed via `fw task update T-XXX --status work-completed`
+      with the verify evidence cited in that task's own Updates section
+      → **One closure was eligible and it was made: T-3044** (4/4 ACs, 8/8 verification,
+      Evolution populated, no stay-open clause) — now in `completed/` with an episodic.
+      **T-3010 was NOT closed and must never be**, see below. The remaining 25 are
+      `owner: human`: the R-033 sovereignty gate refuses agent closure (PL-376), and this
+      mandate does not delegate completing human-owned tasks. So this AC is satisfied for
+      its entire *eligible* population, which is 2 of 27, not 26.
+- [ ] **FAILED — not achievable, and for T-3010 not desirable.** fw audit's CTL-029 WARN count for this bundle drops to 0 on re-run
+      → Two independent reasons, both measured:
+      **(1)** 25 of 27 are `owner: human`, and per **PL-376** `started-work` in `active/`
+      with agent ACs ticked *is their correct terminal state* for an agent. CTL-029 flags
+      the designed end state as a finding, so those 25 instances cannot be driven to zero
+      without a human acting, and should not be by me.
+      **(2) T-3010 must stay open permanently until 2026-12-18**, and closing it would do
+      real damage. Its own Context says so in bold: it is the structural carrier of a
+      90-day G-053 revisit deferral, and `revisit-due-scan.sh` reads only
+      `.tasks/active/` — so moving it to `completed/` **silently defeats the reminder it
+      exists to carry.** Following this AC literally would have destroyed it.
+      Driving CTL-029 to 0 therefore requires fixing the check, not the tasks.
+      Registered as **G-095**; parked rather than forced.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -347,9 +299,9 @@ shape is inlined above and in the upstream filing so it is recoverable without t
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
-### 2026-09-30 — the defect is load-dependent, not reproducible in isolation
-- **What changed:** A minimal fixture (fresh task, single `--status` update) preserved `owner` in 12 of 12 trials. The blanking was only ever seen under orchestrated concurrent dispatch, so the trigger is load and contention, not a single rewrite step.
-- **Plan impact:** The "reproduce with a minimal fixture" AC is answered negative. The mechanism is proven separately and filed upstream (G-062, vendored file).
+### 2026-09-30 — CTL-029 "drops to 0" was the wrong target
+- **What changed:** 25 of the 27 bundle tasks are `owner: human` in their designed terminal state (PL-376), and T-3010 must stay in `active/` until 2026-12-18 because `revisit-due-scan.sh` reads only `active/`. So the CTL-029 count cannot reach 0 without destroying a G-053 reminder; the check flags a designed end state (G-095).
+- **Plan impact:** AC3 (count to 0) is unachievable locally; it needs a vendored CTL-029 fix. The spot-check and close ACs were delivered.
 - **Triggered:** operator SQ-3 closure approval (2026-09-30, T-3211); closed via `/opt/termlink/runme.sh` (T-3272/T-3275).
 
 ## Recommendation
@@ -405,16 +357,45 @@ shape is inlined above and in the upstream filing so it is recoverable without t
 ## Updates
 
 ### 2026-09-30 — closure approved by operator (T-3211 SQ-3, R6 closure request)
-One agent AC is recorded unmet and is left unticked and unreworded. Minimal-fixture reproduction measured negative (12/12 trials preserved owner); the defect is load-dependent and its mechanism is proven separately and filed upstream. The operator approved closing this task on 2026-09-30 ("close T-3132, T-3128 and T-3130"). Completion needs --force for that one AC, which is Tier 0 and therefore run by the operator.
+One agent AC is recorded unmet and is left unticked and unreworded. CTL-029 cannot reach 0: 25 of 27 bundle tasks are owner:human in their designed terminal state (PL-376), and T-3010 must stay in active/ until 2026-12-18 for its G-053 reminder. Reaching 0 needs a vendored CTL-029 fix. The operator approved closing this task on 2026-09-30 ("close T-3132, T-3128 and T-3130"). Completion needs --force for that one AC, which is Tier 0 and therefore run by the operator.
 
-### 2026-09-25T07:00:52Z — task-created [task-create-agent]
+### 2026-09-25T07:04:36Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3130-fw-task-update---status-blanks-owner-fie.md
+- **Output:** /opt/termlink/.tasks/active/T-3132-ctl-029-bundle-26-tasks-completable-not-.md
 - **Context:** Initial task creation
 
-### 2026-09-27T22:47:24Z — status-update [task-update-agent]
+### 2026-09-25T11:30:00Z — T-3093 R3S2 audit-remediation, round 3
+- **Action:** Fresh `fw audit` run (400 pass/84 warn/3 fail) reconciled against this bundle's
+  tracked list. All 29 original CTL-029 IDs still present. One new instance found: T-3060
+  (an owner:human inception task, all Agent ACs ticked, status started-work) now also fires
+  CTL-029. Folded into this bundle rather than filed as its own task — identical remediation
+  shape (spot-check via `fw task verify T-3060`, human closes) to the other 29.
+- **Not folded:** T-3060 also newly fires a SEPARATE check, D13 "inception limbo" class B —
+  that is a different audit rule about a different structural condition and is tracked as its
+  own task (see arc-008), per the one-finding-one-task rule. This bundle only absorbs the
+  CTL-029 instance.
+
+### 2026-09-27T22:38:43Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 
-### 2026-09-27T22:53:36Z — status-update [task-update-agent]
+### 2026-09-27T22:46:00Z — status-update [task-update-agent]
 - **Change:** horizon: now → next
 - **Change:** status: started-work → captured (auto-sync)
+
+### 2026-09-30T10:37:34Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-ddfa9ea4
+- **Timestamp:** 2026-09-30T10:37:36Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** none
+
+### 2026-09-30T10:37:35Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** operator-authorised SQ-3 closure 2026-09-30: CTL-029 cannot reach 0 (designed human end states, T-3010 G-053 reminder)
