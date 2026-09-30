@@ -86,6 +86,39 @@ fn cli_register_shell_sighup_removes_all_files() {
     assert_signal_cleans_up(libc::SIGHUP, "sighup-clean");
 }
 
+/// T-3294: when the shell of a `register --shell` session exits, the session must
+/// end with it and remove its files. It used to keep running — registered and
+/// heartbeating as LIVE — with no shell behind it (the zombie-session leak, T-3291).
+#[test]
+fn cli_register_shell_exits_when_its_shell_exits() {
+    let dir = TestDir::new("shell-exit");
+    let mut guard = start_register_shell(&dir.path, "shellexit");
+    let sessions = dir.sessions_dir();
+    wait_for_socket(&sessions, Duration::from_secs(10)).unwrap();
+    termlink_test_utils::wait_for_data_socket(&sessions, Duration::from_secs(10)).unwrap();
+
+    let out = termlink_cmd(&dir.path)
+        .args(["pty", "inject", "shellexit", "exit", "--enter", "--json"])
+        .output()
+        .expect("failed to run pty inject");
+    assert!(out.status.success(), "inject failed: {}", String::from_utf8_lossy(&out.stderr));
+
+    let start = Instant::now();
+    loop {
+        if guard.child().try_wait().unwrap().is_some() {
+            break;
+        }
+        assert!(start.elapsed() < Duration::from_secs(15), "register kept running after its shell exited");
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    let left: Vec<String> = std::fs::read_dir(&sessions)
+        .unwrap()
+        .flatten()
+        .map(|e| e.file_name().to_string_lossy().into_owned())
+        .collect();
+    assert!(left.is_empty(), "shell exit left files behind: {left:?}");
+}
+
 #[test]
 fn cli_register_and_list() {
     let dir = TestDir::new("reg-list");

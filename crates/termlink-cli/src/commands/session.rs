@@ -470,11 +470,26 @@ pub(crate) async fn cmd_register(opts: RegisterOpts) -> Result<()> {
     // the data socket behind.
     let mut sigterm = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
     let mut sighup = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::hangup())?;
+    // T-3294: a `--shell` session ends when its shell ends. The PTY read loop
+    // returns when the shell exits (EOF/EIO); it used to be a detached task nobody
+    // watched, so `register` — and its registration, heartbeating as LIVE —
+    // outlived its own shell indefinitely. That was one half of the zombie-session
+    // leak (T-3291). Without a PTY this arm never completes.
+    let mut pty_handle = pty_handle;
+    let shell_exited = async {
+        match pty_handle.as_mut() {
+            Some(h) => {
+                let _ = h.await;
+            }
+            None => std::future::pending::<()>().await,
+        }
+    };
     let shutdown: Option<&str> = tokio::select! {
         _ = server::run_accept_loop(listener, shared_clone) => None,
         _ = tokio::signal::ctrl_c() => Some("SIGINT"),
         _ = sigterm.recv() => Some("SIGTERM"),
         _ = sighup.recv() => Some("SIGHUP"),
+        _ = shell_exited => Some("shell exited"),
     };
     if let Some(sig) = shutdown {
         println!();
