@@ -54,6 +54,12 @@ EOF
 printf '#!/usr/bin/env bash\nexit 0\n' > "$TMP/noop-fw"   # claims success, moves nothing
 chmod +x "$TMP/fake-fw" "$TMP/noop-fw"
 export RUNME_TASKS_DIR="$TMP/tasks" RUNME_FW="$TMP/fake-fw"
+# T-3276: the real runme.sh carries no pending closures or decisions once they are
+# done, so the fixtures feed the machinery through its test seams instead.
+export RUNME_TEST_CLOSES="T-3132|fixture approved closure
+T-3128|fixture approved closure
+T-3130|fixture approved closure"
+export RUNME_TEST_DECISIONS="T-9055"
 # T-3273: logs go to scratch (world-writable so the non-root case logs here too).
 mkdir -p "$TMP/logs" && chmod 1777 "$TMP/logs"
 export RUNME_LOG_DIR="$TMP/logs"
@@ -95,7 +101,7 @@ if [ "$(id -u)" != "0" ] && [ -n "${CI:-}" ]; then
 fi
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(grep -cE '^(install_crontab|close_task) ' "$RUNME")
+EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') ))
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -220,10 +226,12 @@ else ok "default run records NO decision"; fi
 rc=0; RUNME_CRON_DIR="$TMP/cron" bash "$RUNME" --decide T-9999=go >/dev/null 2>&1 || rc=$?
 if [ "$rc" = "2" ]; then ok "unknown decision id => exit 2, nothing recorded"
 else bad "unknown id refused" "rc=$rc"; fi
-rc=0; RUNME_CRON_DIR="$TMP/cron" bash "$RUNME" --decide T-3055=maybe >/dev/null 2>&1 || rc=$?
-if [ "$rc" = "2" ]; then ok "verdict outside go/no-go/defer => exit 2"
-else bad "bad verdict refused" "rc=$rc"; fi
-rc=0; RUNME_CRON_DIR="$TMP/cron" bash "$RUNME" --decide T-3055 >/dev/null 2>&1 || rc=$?
+rc=0; vout=$(RUNME_CRON_DIR="$TMP/cron" bash "$RUNME" --decide T-9055=maybe 2>&1) || rc=$?
+# T-3276: must be refused FOR THE VERDICT — not because the id is unknown, which
+# would pass this case vacuously once the real pending list is empty.
+if [ "$rc" = "2" ] && echo "$vout" | grep -q "verdict must be go, no-go or defer"; then ok "verdict outside go/no-go/defer => exit 2 (refused for the verdict)"
+else bad "bad verdict refused" "rc=$rc: $vout"; fi
+rc=0; RUNME_CRON_DIR="$TMP/cron" bash "$RUNME" --decide T-9055 >/dev/null 2>&1 || rc=$?
 if [ "$rc" = "2" ]; then ok "malformed --decide (no '=') => exit 2"
 else bad "malformed refused" "rc=$rc"; fi
 
@@ -233,6 +241,15 @@ else bad "malformed refused" "rc=$rc"; fi
 # ---------------------------------------------------------------------------
 if echo "$out" | grep -qi "disabling purpose-mismatch"; then bad "plugin disable must be opt-in" "$out"
 else ok "plugin cleanup absent from a default run"; fi
+
+# ---------------------------------------------------------------------------
+# 15. T-3276 — the REAL shape: with no approved closures and no pending decisions
+#     (seams unset), a run shows no closures section and says decisions are none.
+# ---------------------------------------------------------------------------
+eout=$(env -u RUNME_TEST_CLOSES -u RUNME_TEST_DECISIONS RUNME_CRON_DIR="$TMP/cron" bash "$RUNME" --dry-run 2>&1); rc=$?
+if [ "$rc" = "0" ] && ! echo "$eout" | grep -q "Approved closures" && echo "$eout" | grep -q "none pending"; then
+    ok "empty lists: no closures section, decisions read 'none pending'"
+else bad "empty lists render cleanly" "rc=$rc: $eout"; fi
 
 echo ""
 echo "----------------------------------------"

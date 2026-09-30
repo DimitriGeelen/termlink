@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3276: runme.sh tidy: remove the completed SQ-3 closure action and the stale T-3055 pending decision (both done); keep the close_task/--decide machinery tested
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-30T12:08:31Z
+# ============================================================================
+
+task_id: T-3276
+task_name: "runme.sh tidy: remove the completed SQ-3 closure action and the stale T-3055 pending decision (both done); keep the close_task/--decide machinery tested"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-30T12:06:43Z
+completed: 2026-09-30T12:08:18Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  runme.sh tidy: remove the completed SQ-3 closure action and the stale T-3055 pending decision (both done); keep the close_task/--decide machinery tested
+
+# Key outcomes
+outcomes:
+  - '`runme.sh` no longer carries the T-3132/T-3128/T-3130 closure calls (all closed on the operator''s run, log runme-20260930T103733Z, rc=0), and a default run shows no closures section when the list is empty'
+  - '`runme.sh` no longer lists T-3055 as a pending decision (decided and completed); the pending-decisions header still prints and states there are none'
+  - '`close_task` and `--decide` stay in place and stay tested: fixtures feed them through test seams (`RUNME_TEST_CLOSES`, `RUNME_TEST_DECISIONS`), and every prior fixture property still passes, including the verdict-validation case, which must fail for the verdict and not for an unknown id'
+  - 'A real-tree `--dry-run` exits 0 and shows no stale item'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3276-runmesh-tidy-remove-the-completed-sq-3-c.md
+generated_by: context-agent-hybrid

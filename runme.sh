@@ -4,7 +4,7 @@
 # Run this from the project root instead of pasting commands:
 #
 #     sudo ./runme.sh --dry-run     # read what it intends to do
-#     sudo ./runme.sh --decide T-3055=go        # record ONE human decision
+#     sudo ./runme.sh --decide T-XXXX=go        # record ONE human decision
 #     sudo ./runme.sh --disable-mismatch-plugins  # opt-in plugin cleanup
 #     sudo ./runme.sh               # do it
 #
@@ -187,18 +187,24 @@ close_task() {
 }
 
 # ---------------------------------------------------------------------------
-# ACTION 2 — SQ-3 closures the operator approved on 2026-09-30 (T-3272)
+# ACTION 2 — closures the operator has ALREADY approved (T-3272, T-3276)
 #
-# Each has one agent AC measured unachievable and left unticked (reasons are in
-# each task's Updates). The operator approved closing all three; completion needs
-# a bypass of that one AC (--skip-acceptance-criteria), which the agent cannot run —
-# the operator does, by running this script. This runs in a DEFAULT run because
-# the decision is already made and recorded; this only carries it out.
+# One "T-ID|reason" per entry. A closure belongs here only when the operator has
+# approved it and the approval is recorded in the task's Updates; completion then
+# needs a bypass of the approved AC (--skip-acceptance-criteria), which the agent
+# cannot run, so the operator does, by running this script. Remove entries once the
+# log shows them closed (a finished action is removed, CLAUDE.md runme rule).
+# History: T-3132/T-3128/T-3130 (SQ-3) closed 2026-09-30, log runme-20260930T103733Z.
+# RUNME_TEST_CLOSES is a FIXTURE seam (newline-separated entries), never set by hand.
 # ---------------------------------------------------------------------------
-head2 "2. Approved closures (T-3211 SQ-3, operator 2026-09-30)"
-close_task T-3132 "operator-authorised SQ-3 closure 2026-09-30: CTL-029 cannot reach 0 (designed human end states, T-3010 G-053 reminder)"
-close_task T-3128 "operator-authorised SQ-3 closure 2026-09-30: CTL-003 PASS is vendored, tracked upstream via T-3127"
-close_task T-3130 "operator-authorised SQ-3 closure 2026-09-30: minimal-fixture reproduction measured negative (12/12)"
+APPROVED_CLOSES=()
+[ -n "${RUNME_TEST_CLOSES:-}" ] && mapfile -t APPROVED_CLOSES <<< "$RUNME_TEST_CLOSES"
+if [ "${#APPROVED_CLOSES[@]}" -gt 0 ]; then
+    head2 "2. Approved closures"
+    for entry in "${APPROVED_CLOSES[@]}"; do
+        [ -n "$entry" ] && close_task "${entry%%|*}" "${entry#*|}"
+    done
+fi
 
 # ---------------------------------------------------------------------------
 # Verification — the project's own drift checker is the arbiter, not this script.
@@ -215,20 +221,17 @@ close_task T-3130 "operator-authorised SQ-3 closure 2026-09-30: minimal-fixture 
 # here bypasses the operator's decision rather than honouring it.
 #
 # Recording one is deliberate and per-item:
-#     sudo ./runme.sh --decide T-3055=go
+#     /opt/termlink/runme.sh --decide T-XXXX=go
 # The operator names BOTH the item and the verdict. No default verdict, no batch.
 # ---------------------------------------------------------------------------
-decision_ids() { echo "T-3055"; }
+# Pending (undecided) human decisions, space-separated IDs. Empty = none pending.
+# History: T-3055 was listed here and has since been decided and completed.
+# RUNME_TEST_DECISIONS is a FIXTURE seam, never set by hand.
+PENDING_DECISIONS="${RUNME_TEST_DECISIONS:-}"
+decision_ids() { echo "$PENDING_DECISIONS"; }
 
 decision_blurb() {
     case "$1" in
-        T-3055)
-            echo "Plugin survey (inception). Recommendation: GO."
-            echo "  Approving records: keep context7 for now, playwright pinned,"
-            echo "  rust-analyzer repaired. It also unblocks a staged commit — the"
-            echo "  inception commit limit refuses further commits until a decision"
-            echo "  exists. Verdicts: go | no-go | defer"
-            ;;
         *) echo "(no description)" ;;
     esac
 }
@@ -237,7 +240,7 @@ if [ -n "$DECIDE" ]; then
     head2 "Recording decision"
     d_id="${DECIDE%%=*}"; d_verdict="${DECIDE#*=}"
     if [ "$d_id" = "$DECIDE" ] || [ -z "$d_verdict" ]; then
-        say "  FAILED  --decide needs <ID>=<verdict>, e.g. T-3055=go"; exit 2
+        say "  FAILED  --decide needs <ID>=<verdict>, e.g. T-1234=go"; exit 2
     fi
     if ! decision_ids | tr " " "\n" | grep -qx -- "$d_id"; then
         say "  FAILED  unknown decision id '$d_id'. Pending: $(decision_ids)"; exit 2
@@ -248,17 +251,18 @@ if [ -n "$DECIDE" ]; then
     esac
     if [ "$DRY_RUN" = "1" ]; then
         say "  [DRY]   would record $d_id = $d_verdict"
-    elif .agentic-framework/bin/fw inception decide "$d_id" "$d_verdict" --rationale "Operator decision via runme.sh --decide $DECIDE"; then
+    elif "$FW" inception decide "$d_id" "$d_verdict" --rationale "Operator decision via runme.sh --decide $DECIDE"; then
         say "  OK      recorded $d_id = $d_verdict"; DONE=$((DONE + 1))
     else
         say "  FAILED  fw refused the decision (output above)"; FAILED=$((FAILED + 1))
     fi
 else
     head2 "Pending decisions (human authority — nothing here runs by default)"
+    [ -z "$(decision_ids)" ] && say "  none pending"
     for d in $(decision_ids); do
         say "  $d  $(decision_blurb "$d" | head -1)"
         decision_blurb "$d" | tail -n +2 | sed "s/^/    /"
-        say "    -> sudo ./runme.sh --decide $d=go"
+        say "    -> $PROJECT_ROOT/runme.sh --decide $d=go"
     done
 fi
 
