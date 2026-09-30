@@ -1996,8 +1996,13 @@ this host under its normal load of ~450 concurrent agent processes, T-3090. The
 operator ruled that the contended figure IS the answer, because this host is never
 quiet — busy is its steady state, so a quiet-host number would be a promise the
 machine never keeps. Budget CI accordingly; a single member,
-`check-verification-heading-shadow.sh`, is ~29% of the total, so the cost is
-concentrated and reducible. The old "seconds" claim mattered because it taught
+`check-verification-heading-shadow.sh`, was ~29% of the total. **T-3282 reduced it from 252 s to
+~2.8 s (~90×) on this host.** It now extracts every task's Verification block in one Python
+process that imports the framework's own `comment_strip.py`, instead of starting `python3`
+~3000 times. Equivalence to `extract_verification_block` is proven over the whole corpus
+(`tests/verification-block-batch-proof.sh`: 2989 files, 0 mismatches). Every run also
+cross-checks the firing files plus a random sample of 25 against the real extractor, and exits
+2 on any divergence. `HEADING_SHADOW_MODE=per-file` keeps the reference path. The old "seconds" claim mattered because it taught
 operators to kill a slow-but-healthy run, and a check people stop running protects
 nothing), and `release.yml` gains a `test` job running
 `cargo test --workspace` **plus** the guard layer, which both build jobs now `needs:`

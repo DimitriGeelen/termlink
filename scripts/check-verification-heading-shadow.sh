@@ -108,8 +108,6 @@ fi
 # false positives across 2596 task files.
 PROSE_RE='^[[:space:]]*[0-9]+\.[[:space:]]|^[[:space:]]*-[[:space:]]\[[ x]\]|^[[:space:]]*\*\*[A-Za-z]'
 
-scanned=0
-with_block=0
 firing=0
 acked=0
 FIRING_LINES=""
@@ -121,14 +119,69 @@ shopt -u nullglob
 
 [ "${#FILES[@]}" -gt 0 ] || die_tooling "no task files found under $TASKS_DIR (a zero-file corpus is never a clean census)"
 
-for f in "${FILES[@]}"; do
-  scanned=$((scanned + 1))
-  blk="$(extract_verification_block "$f" 2>/dev/null)" || continue
-  [ -z "$blk" ] && continue
-  with_block=$((with_block + 1))
-  bad="$(printf '%s\n' "$blk" | grep -nE "$PROSE_RE" || true)"
-  [ -z "$bad" ] && continue
+# ---------------------------------------------------------------------------
+# T-3282 (SQ-21 option 3) — BATCH extraction. The per-file loop below called the
+# framework's extract_verification_block ~3000 times, which is ~3000 python3 starts:
+# 252 s on this host, the guard layer's long pole. Batch mode extracts every
+# block in ONE python process (scripts/lib/verification-block-batch.py, which
+# imports the framework's own comment_strip.py) and runs PROSE_RE through ONE
+# grep. The sed/tail selection it re-expresses is guarded at run time: every
+# firing file plus a random sample is cross-checked against the REAL
+# extract_verification_block, and any mismatch is a TOOLING error (exit 2),
+# never a verdict. Full-corpus proof: tests/verification-block-batch-proof.sh.
+#   HEADING_SHADOW_MODE=per-file   the original loop (the reference behaviour)
+#   HEADING_SHADOW_XCHECK=N        random sample size for the cross-check (default 25)
+#   HEADING_SHADOW_BATCH=PATH      batch extractor (test seam for the mutant fixture)
+# ---------------------------------------------------------------------------
+MODE="${HEADING_SHADOW_MODE:-batch}"
+BATCH="${HEADING_SHADOW_BATCH:-$REPO_ROOT/scripts/lib/verification-block-batch.py}"
+XCHECK_N="${HEADING_SHADOW_XCHECK:-25}"
+FW_ROOT_FOR_BATCH="$(cd "$(dirname "$EXTRACTOR")/.." && pwd)"
+if [ "$MODE" = "batch" ] && { [ ! -f "$BATCH" ] || ! command -v python3 >/dev/null 2>&1; }; then
+  MODE="per-file"   # correct, only slower; said on stderr so it is never silent
+  echo "check-verification-heading-shadow: batch extractor unavailable — using the per-file path" >&2
+fi
 
+scanned=${#FILES[@]}
+declare -A BAD_OF=()        # index -> grep -n output of PROSE_RE over its block
+
+if [ "$MODE" = "batch" ]; then
+  BLKDIR="$(mktemp -d)" || die_tooling "mktemp failed"
+  trap 'rm -rf "$BLKDIR"' EXIT
+  printf '%s\0' "${FILES[@]}" | python3 "$BATCH" extract "$FW_ROOT_FOR_BATCH" "$BLKDIR" \
+    || die_tooling "batch extractor failed: $BATCH"
+  shopt -s nullglob; blkfiles=("$BLKDIR"/*); shopt -u nullglob
+  with_block=${#blkfiles[@]}
+  while IFS= read -r hit; do
+    [ -n "$hit" ] || continue
+    idx="$(basename "$hit")"
+    BAD_OF[$idx]="$(grep -nE "$PROSE_RE" "$hit" || true)"
+  done < <( [ "$with_block" -gt 0 ] && grep -lE "$PROSE_RE" -- "${blkfiles[@]}" 2>/dev/null )
+
+  # Run-time drift guard: firing files + a random sample vs the REAL extractor.
+  xcheck=("${!BAD_OF[@]}")
+  if [ "$XCHECK_N" -gt 0 ] 2>/dev/null; then
+    while IFS= read -r i; do xcheck+=("$i"); done < <(seq 0 $((scanned - 1)) | shuf -n "$XCHECK_N" 2>/dev/null)
+  fi
+  for i in "${xcheck[@]}"; do
+    real="$(extract_verification_block "${FILES[$i]}" 2>/dev/null)"
+    if [ -f "$BLKDIR/$i" ]; then fast="$(cat "$BLKDIR/$i")"; else fast=""; fi
+    [ "$real" = "$fast" ] || die_tooling "batch extraction diverged from extract_verification_block on $(basename "${FILES[$i]}") — no verdict (run tests/verification-block-batch-proof.sh)"
+  done
+else
+  with_block=0
+  for i in "${!FILES[@]}"; do
+    blk="$(extract_verification_block "${FILES[$i]}" 2>/dev/null)" || continue
+    [ -z "$blk" ] && continue
+    with_block=$((with_block + 1))
+    bad="$(printf '%s\n' "$blk" | grep -nE "$PROSE_RE" || true)"
+    [ -n "$bad" ] && BAD_OF[$i]="$bad"
+  done
+fi
+
+for i in $(printf '%s\n' "${!BAD_OF[@]}" | sort -n); do
+  f="${FILES[$i]}"
+  bad="${BAD_OF[$i]}"
   base="$(basename "$f")"
   if [ -n "${ACK[$base]:-}" ]; then
     acked=$((acked + 1))

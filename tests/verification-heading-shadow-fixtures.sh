@@ -184,13 +184,41 @@ mut() { # <sed-expr> <label> <expected-rc-on-shadow-corpus>
   sed -i "$1" "$TMP/mutant.sh"
   if cmp -s "$CHECK" "$TMP/mutant.sh"; then bad "$2 — mutation did not apply"; return; fi
   mkcorpus; shadow_task "$TMP/t/active/T-9002.md"
-  REPO_ROOT="$ROOT" bash "$TMP/mutant.sh" --tasks-dir "$TMP/t" >/dev/null 2>&1; mrc=$?
+  env REPO_ROOT="$ROOT" ${MUT_ENV:-} bash "$TMP/mutant.sh" --tasks-dir "$TMP/t" >/dev/null 2>&1; mrc=$?
   if [ "$mrc" = "$3" ]; then ok "mutant caught: $2"; else bad "mutant SURVIVED: $2 (rc=$mrc)"; fi
 }
 # Disabling the prose detector must stop it firing on the real shape.
 mut "s@^PROSE_RE=.*@PROSE_RE='ZZZ_NEVER_MATCHES_ZZZ'@" "prose detector disabled" 0
 # Silently skipping non-empty blocks must stop it firing.
-mut 's@^  \[ -z "\$blk" \] && continue@  continue@' "block scan short-circuited" 0
+# T-3282: the default path is BATCH; skipping its recorded hits must stop it firing.
+mut 's@^    \[ -n "\$hit" \] || continue@    continue@' "block scan short-circuited (batch)" 0
+# ...and the per-file reference path keeps its own pin.
+MUT_ENV="HEADING_SHADOW_MODE=per-file" mut 's@^    \[ -z "\$blk" \] && continue@    continue@' "block scan short-circuited (per-file)" 0
+
+# --- 11. T-3282 batch extraction: equivalence + run-time drift guard ----------
+# A corpus with the awkward shapes: counterfeit heading + orphan comment (shadow),
+# a clean task, no heading at all, a Verification section running to EOF, and two
+# real ## Verification sections (GNU sed ranges repeat).
+mkcorpus; clean_task "$TMP/t/active/T-9001.md"; shadow_task "$TMP/t/active/T-9002.md"
+printf -- '---\nid: T-9003\n---\n# T-9003\n\n## Context\nno verification here\n' > "$TMP/t/completed/T-9003.md"
+printf -- '---\nid: T-9004\n---\n## Verification\n\ntest -f x\n1. prose at eof\nlast line\n' > "$TMP/t/completed/T-9004.md"
+printf -- '---\nid: T-9005\n---\n## Verification\ntrue\n## Notes\nx\n## Verification\n**Bold** prose\nfalse\n## End\n' > "$TMP/t/completed/T-9005.md"
+out_b="$(HEADING_SHADOW_XCHECK=100 bash "$CHECK" --tasks-dir "$TMP/t" --json 2>&1)"; rc_b=$?
+out_p="$(HEADING_SHADOW_MODE=per-file bash "$CHECK" --tasks-dir "$TMP/t" --json 2>&1)"; rc_p=$?
+if [ "$rc_b" = "$rc_p" ] && [ "$out_b" = "$out_p" ]; then ok "batch and per-file give the identical verdict + JSON on the awkward corpus (rc=$rc_b)"
+else bad "batch/per-file diverge (batch rc=$rc_b, per-file rc=$rc_p)"; fi
+pout="$(bash "$ROOT/tests/verification-block-batch-proof.sh" --tasks-dir "$TMP/t" 2>&1)"; prc=$?
+if [ "$prc" = "0" ] && echo "$pout" | grep -q "5 file(s) compared.*0 mismatch"; then ok "full proof: all 5 fixture files byte-identical to extract_verification_block"
+else bad "fixture-corpus proof failed (rc=$prc): $pout"; fi
+
+# A DRIFTED batch extractor (drops the sed '$d' step) must be caught by the run-time
+# cross-check as TOOLING (rc 2) — never reported as a verdict.
+sed 's@^    sel = sel\[:-1\]          # sed .\$d.@    pass@' "$ROOT/scripts/lib/verification-block-batch.py" > "$TMP/drift-batch.py"
+if cmp -s "$ROOT/scripts/lib/verification-block-batch.py" "$TMP/drift-batch.py"; then bad "drift mutant did not apply"; else
+  dout="$(HEADING_SHADOW_BATCH="$TMP/drift-batch.py" HEADING_SHADOW_XCHECK=100 bash "$CHECK" --tasks-dir "$TMP/t" 2>&1)"; drc=$?
+  if [ "$drc" = "2" ] && echo "$dout" | grep -q "diverged from extract_verification_block"; then ok "drifted batch extractor caught by the cross-check (rc 2, no verdict)"
+  else bad "drift mutant SURVIVED (rc=$drc)"; fi
+fi
 
 # Fail-open on a missing extractor must be caught.
 cp "$CHECK" "$TMP/mutant.sh"

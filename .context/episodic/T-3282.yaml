@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3282: Radically speed up check-verification-heading-shadow (SQ-21 option 3): batch extraction in one process, proven equivalent to the framework's extract_verification_block
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-30T17:14:06Z
+# ============================================================================
+
+task_id: T-3282
+task_name: "Radically speed up check-verification-heading-shadow (SQ-21 option 3): batch extraction in one process, proven equivalent to the framework's extract_verification_block"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-30T17:02:11Z
+completed: 2026-09-30T17:13:49Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Radically speed up check-verification-heading-shadow (SQ-21 option 3): batch extraction in one process, proven equivalent to the framework's extract_verification_block
+
+# Key outcomes
+outcomes:
+  - 'Baseline and new wall time are both measured on this host over the real corpus, with the same verdict, scanned, with_block and firing counts; the new time is at least 10× faster'
+  - 'Extraction runs in ONE Python process that imports the framework''s own `lib/comment_strip.py` (the comment rule is not reimplemented). Prose detection still uses the same `PROSE_RE` through `grep -E` in a single pass'
+  - 'Equivalence to `extract_verification_block` is PROVEN over the whole real corpus: every file''s batch-extracted block is byte-identical to the framework function''s output, recorded with its count'
+  - 'Drift is detected at run time: each run cross-checks every firing file plus a random sample against the real `extract_verification_block`, and any mismatch exits 2 (tooling), never a verdict'
+  - 'All existing heading-shadow fixture cases still pass, and new cases pin (a) batch/real equivalence on the fixture corpus including multi-heading, orphan-comment and no-heading files, and (b) a mutant extractor that the drift cross-check catches with rc 2'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 11 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 11
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3282-radically-speed-up-check-verification-he.md
+generated_by: context-agent-hybrid
