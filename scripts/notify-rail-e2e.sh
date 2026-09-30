@@ -712,9 +712,21 @@ experiment_e4() {
     # watches). That is recorded as a separate question, not decided here.
     command -v jq >/dev/null 2>&1 \
         || die_tooling "jq not found — cannot parse the identity answer" E4
-    local out rc=0
+    # T-3287 (T-3284 GO, option C): READ-ONLY lookup. Plain `--resolve` MINTS a key
+    # when none exists, so on this host a missing claude-termlink.key used to be
+    # silently re-created BY THIS CHECK — changing the agent's signing identity and
+    # causing the very split E4 reports. `--no-create` (T-3286) reports instead.
+    local out rc=0 errf
+    errf="$(mktemp)"
     out="$(TERMLINK_AGENT_ID="$SELF_AGENT" timeout "$EXEC_TIMEOUT" \
-        "$TERMLINK" agent identity --resolve --json 2>/dev/null)" || rc=$?
+        "$TERMLINK" agent identity --resolve --no-create --json 2>"$errf")" || rc=$?
+    local err; err="$(cat "$errf" 2>/dev/null)"; rm -f "$errf"
+    if grep -q -- "unexpected argument '--no-create'" <<< "$err"; then
+        die_tooling "installed termlink ($TERMLINK) predates --no-create (T-3286) — upgrade it; nothing checked" E4
+    fi
+    if [ "$rc" -eq 3 ] && [ "$(printf '%s' "$out" | jq -r '.error // empty' 2>/dev/null)" = "no_identity" ]; then
+        die_tooling "no identity for $SELF_AGENT on this host — nothing to verify (missing: $(printf '%s' "$out" | jq -r '.path // "?"'))" E4
+    fi
     [ "$rc" -eq 124 ] \
         && die_tooling "identity lookup timed out after ${EXEC_TIMEOUT}s — could not look" E4
     [ "$rc" -eq 0 ] \

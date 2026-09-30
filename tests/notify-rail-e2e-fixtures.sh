@@ -245,6 +245,44 @@ e4 "$WORK/tl-split";   { [ "$E4RC" = 1 ] && echo "$E4OUT" | grep -q "IDENTITY SP
 e4 "$WORK/tl-pass";    { [ "$E4RC" = 0 ] && echo "$E4OUT" | grep -q "PASS"; } \
     && pass "E4 watched identity -> PASS rc 0" || fail "E4 pass (rc=$E4RC): $E4OUT"
 
+# ---- T-3287 (T-3284 GO, option C): E4 is read-only ------------------------------
+# This fake behaves like the REAL binary: WITHOUT --no-create it mints a key file
+# (as `resolve` does when none exists); WITH it, it reports no_identity, exit 3.
+cat > "$WORK/tl-nokey" <<EOS
+#!/usr/bin/env bash
+case " \$* " in
+  *" --no-create "*) printf '{"ok":false,"error":"no_identity","path":"$WORK/minted.key","source":"per_agent"}\n'; exit 3 ;;
+  *) : > "$WORK/minted.key"; printf '{"ok":true,"fingerprint":"cccc3333cccc3333"}\n' ;;
+esac
+EOS
+chmod +x "$WORK/tl-nokey"
+cat > "$WORK/tl-old" <<'EOS'
+#!/usr/bin/env bash
+case " $* " in *" --no-create "*) echo "error: unexpected argument '--no-create' found" >&2; exit 2 ;; esac
+echo '{"ok":true,"fingerprint":"aaaa1111aaaa1111"}'
+EOS
+chmod +x "$WORK/tl-old"
+
+rm -f "$WORK/minted.key"
+e4 "$WORK/tl-nokey"
+{ [ "$E4RC" = 2 ] && echo "$E4OUT" | grep -q "nothing to verify (missing: $WORK/minted.key)"; } \
+    && pass "E4 no key -> TOOLING rc 2 'nothing to verify' (names the path)" || fail "E4 no-key (rc=$E4RC): $E4OUT"
+[ ! -e "$WORK/minted.key" ] && pass "E4 no key -> NO key file created (read-only, asserted on disk)" \
+    || fail "E4 minted a key file — the T-3284 defect"
+e4 "$WORK/tl-old"
+{ [ "$E4RC" = 2 ] && echo "$E4OUT" | grep -q "predates --no-create"; } \
+    && pass "E4 too-old binary -> TOOLING rc 2 'upgrade; nothing checked'" || fail "E4 old-binary (rc=$E4RC): $E4OUT"
+
+# Mutant M5: drop --no-create from the call (the pre-T-3287 shape) — the fake then
+# mints a key and E4 reports a split; the disk assertion must catch the mint.
+sed 's@agent identity --resolve --no-create --json@agent identity --resolve --json@' "$E2E" > "$WORK/e2e-m5.sh"
+if cmp -s "$E2E" "$WORK/e2e-m5.sh"; then fail "M5 mutant did not apply"; else
+    rm -f "$WORK/minted.key"
+    E2E_UNDER_TEST="$WORK/e2e-m5.sh" e4 "$WORK/tl-nokey"
+    [ -e "$WORK/minted.key" ] && pass "M5 mutant (no --no-create) is caught: it mints a key on disk" \
+                             || fail "M5 mutant survived (no mint observed, rc=$E4RC)"
+fi
+
 # Mutant M4: collapse "lookup exited non-zero" back into a FAIL (the pre-T-3283 shape).
 sed 's@|| die_tooling "identity lookup exited \$rc (erroring or unsupported binary) — could not look" E4@|| { record E4 FAIL "cannot resolve identity"; return 1; }@' "$E2E" > "$WORK/e2e-m4.sh"
 if cmp -s "$E2E" "$WORK/e2e-m4.sh"; then fail "M4 mutant did not apply"; else

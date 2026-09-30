@@ -68,6 +68,24 @@ export RUNME_TEST_DECISIONS="T-9055"
 # T-3285: approved inception decisions go through their own seam (SET replaces the real list).
 printf -- '---\nid: T-9284\nworkflow_type: inception\n---\n' > "$TMP/tasks/active/T-9284-fixture.md"
 export RUNME_TEST_APPROVED_DECISIONS="T-9284|go|fixture approved decision"
+# T-3287: the termlink install action must NEVER build or touch ~/.cargo/bin in a
+# fixture. A fake "built" binary that accepts --no-create (exit 3, writes nothing),
+# and an "old" one that rejects it, as installed binaries would.
+mkdir -p "$TMP/bin"
+cat > "$TMP/tl-new" <<'EOS'
+#!/usr/bin/env bash
+[ "$1" = "--version" ] && { echo "termlink 9.9.9"; exit 0; }
+case " $* " in *" --no-create "*) echo '{"ok":false,"error":"no_identity"}'; exit 3 ;; esac
+exit 0
+EOS
+cat > "$TMP/tl-old" <<'EOS'
+#!/usr/bin/env bash
+[ "$1" = "--version" ] && { echo "termlink 0.0.1"; exit 0; }
+echo "error: unexpected argument '--no-create' found" >&2; exit 2
+EOS
+chmod +x "$TMP/tl-new" "$TMP/tl-old"
+cp "$TMP/tl-old" "$TMP/bin/termlink"
+export RUNME_SKIP_BUILD=1 RUNME_TERMLINK_SRC="$TMP/tl-new" RUNME_TERMLINK_DEST="$TMP/bin/termlink"
 # T-3273: logs go to scratch (world-writable so the non-root case logs here too).
 mkdir -p "$TMP/logs" && chmod 1777 "$TMP/logs"
 export RUNME_LOG_DIR="$TMP/logs"
@@ -91,6 +109,9 @@ else bad "--dry-run closes nothing" "$(ls "$TMP/tasks/active" "$TMP/tasks/comple
 if echo "$out" | grep -q "would record T-9284 = go" && ! grep -q '^\*\*Decision\*\*' "$TMP/tasks/active/T-9284-fixture.md"; then
     ok "--dry-run reports the approved decision and records nothing"
 else bad "--dry-run decision" "$out"; fi
+if echo "$out" | grep -q "would install $TMP/tl-new" && cmp -s "$TMP/tl-old" "$TMP/bin/termlink"; then
+    ok "--dry-run reports the termlink install and replaces nothing"
+else bad "--dry-run termlink install" "$out"; fi
 # T-3273: the run left a readable log — full output, header, rc line — and
 # latest.log resolves to it. The agent reads this after the operator runs it.
 LOGF="$TMP/logs/latest.log"
@@ -112,7 +133,7 @@ if [ "$(id -u)" != "0" ] && [ -n "${CI:-}" ]; then
 fi
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|') ))
+EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|') + 1 ))   # +1: the termlink install action (T-3287)
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -139,6 +160,9 @@ else bad "default run closes approved tasks" "closed=$n_closed: $out"; fi
 if echo "$out" | grep -q "recorded and verified: T-9284 = go" && grep -q '^\*\*Decision\*\*: GO$' "$TMP/tasks/active/T-9284-fixture.md"; then
     ok "default run records the approved decision and verifies it on disk"
 else bad "default run records decision" "$out"; fi
+if echo "$out" | grep -q "installed and verified: $TMP/bin/termlink (termlink 9.9.9" && cmp -s "$TMP/tl-new" "$TMP/bin/termlink"; then
+    ok "default run installs the new termlink and verifies version + --no-create on disk"
+else bad "termlink install" "$out"; fi
 
 # ---------------------------------------------------------------------------
 # 5-6. IDEMPOTENCE. Re-running must do nothing and say so — the operator has to
@@ -192,6 +216,10 @@ out=$(RUNME_FW="$TMP/noop-fw" RUNME_TEST_APPROVED_DECISIONS="T-9285|no-go|fixtur
 if [ "$rc" = "1" ] && echo "$out" | grep -q "FAILED  T-9285: decision not found"; then
     ok "a decision fw reports but disk does not show => FAILED, exit 1"
 else bad "unverified decision is a failure" "rc=$rc: $out"; fi
+out=$(RUNME_TERMLINK_SRC="$TMP/tl-old" RUNME_TERMLINK_DEST="$TMP/bin/termlink-2" run); rc=$?
+if [ "$rc" = "1" ] && echo "$out" | grep -q "rejects --no-create"; then
+    ok "installing a binary that rejects --no-create => FAILED, exit 1"
+else bad "bad termlink install is a failure" "rc=$rc: $out"; fi
 
 fi
 

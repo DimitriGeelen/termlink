@@ -217,9 +217,7 @@ fi
 # RUNME_TEST_APPROVED_DECISIONS is a FIXTURE seam; when SET (even empty) it
 # replaces the real list, so fixtures never touch a real task.
 # ---------------------------------------------------------------------------
-APPROVED_DECISIONS=(
-    "T-3284|go|Operator 2026-09-30: GO on option C — read-only identity probe (termlink agent identity --resolve --no-create) so E4 never mints the key it verifies; docs/reports/T-3284-e4-host-scope-analysis.md"
-)
+APPROVED_DECISIONS=()   # T-3284 = go recorded 2026-09-30 (log runme-20260930T185754Z, rc=0)
 if [ -n "${RUNME_TEST_APPROVED_DECISIONS+x}" ]; then
     APPROVED_DECISIONS=()
     [ -n "$RUNME_TEST_APPROVED_DECISIONS" ] && mapfile -t APPROVED_DECISIONS <<< "$RUNME_TEST_APPROVED_DECISIONS"
@@ -261,6 +259,69 @@ if [ "${#APPROVED_DECISIONS[@]}" -gt 0 ]; then
         record_decision "$e_id" "${rest%%|*}" "${rest#*|}"
     done
 fi
+
+# ---------------------------------------------------------------------------
+# ACTION 4 — install the current termlink build into ~/.cargo/bin (T-3287)
+#
+# ~/.cargo/bin/termlink is the FIRST termlink on PATH here, and it is what the
+# guard layer's provers call. arc-003's E4 now needs `--resolve --no-create`
+# (T-3286), which 0.12.13 rejects, so until this runs E4 reports
+# "installed termlink predates --no-create — nothing checked".
+# Idempotent: skipped when the installed binary already reports the build's
+# version AND accepts --no-create. Verified on disk after installing: the version
+# matches, and a real `--resolve --no-create` probe against a throwaway HOME exits
+# 3 (no key) WITHOUT writing one.
+# Seams (fixtures only): RUNME_TERMLINK_SRC (built binary), RUNME_TERMLINK_DEST
+# (install path), RUNME_SKIP_BUILD=1 (do not run cargo).
+# ---------------------------------------------------------------------------
+TL_SRC="${RUNME_TERMLINK_SRC:-$PROJECT_ROOT/target/release/termlink}"
+TL_DEST="${RUNME_TERMLINK_DEST:-${HOME:-/root}/.cargo/bin/termlink}"
+
+tl_accepts_no_create() {  # <binary> -> 0 if the flag is accepted and nothing is minted
+    local bin="$1" h rc=0
+    h="$(mktemp -d)" || return 1
+    env -u TERMLINK_IDENTITY_FILE -u TERMLINK_IDENTITY_DIR HOME="$h" TERMLINK_AGENT_ID=runme-probe \
+        "$bin" agent identity --resolve --no-create --json >/dev/null 2>&1 || rc=$?
+    local minted=0; [ -e "$h/.termlink" ] && minted=1
+    rm -rf "$h"
+    [ "$rc" = "3" ] && [ "$minted" = "0" ]
+}
+
+install_termlink() {
+    if [ "${RUNME_SKIP_BUILD:-0}" != "1" ] && [ "$DRY_RUN" = "0" ]; then
+        local cargo; cargo="$(command -v cargo || echo "${HOME:-/root}/.cargo/bin/cargo")"
+        say "  build   $cargo build --release -p termlink (a no-op when up to date)"
+        if ! (cd "$PROJECT_ROOT" && "$cargo" build --release -p termlink) >/tmp/.runme-build.log 2>&1; then
+            say "  FAILED  cargo build --release failed (see /tmp/.runme-build.log)"; FAILED=$((FAILED+1)); return
+        fi
+    fi
+    if [ ! -x "$TL_SRC" ]; then
+        if [ "$DRY_RUN" = "1" ]; then say "  [DRY]   would build and install $TL_SRC -> $TL_DEST"; DONE=$((DONE+1)); return; fi
+        say "  FAILED  built binary missing: $TL_SRC"; FAILED=$((FAILED+1)); return
+    fi
+    local want have
+    want="$("$TL_SRC" --version 2>/dev/null)"
+    have="$("$TL_DEST" --version 2>/dev/null || true)"
+    if [ "$have" = "$want" ] && tl_accepts_no_create "$TL_DEST"; then
+        say "  skip    already installed: $TL_DEST ($have, accepts --no-create)"; SKIPPED=$((SKIPPED+1)); return
+    fi
+    if [ "$DRY_RUN" = "1" ]; then
+        say "  [DRY]   would install $TL_SRC ($want) -> $TL_DEST (now: ${have:-absent})"; DONE=$((DONE+1)); return
+    fi
+    mkdir -p "$(dirname "$TL_DEST")"
+    if ! install -m 755 "$TL_SRC" "$TL_DEST"; then
+        say "  FAILED  could not install $TL_SRC -> $TL_DEST"; FAILED=$((FAILED+1)); return
+    fi
+    have="$("$TL_DEST" --version 2>/dev/null || true)"
+    if [ "$have" = "$want" ] && tl_accepts_no_create "$TL_DEST"; then
+        say "  OK      installed and verified: $TL_DEST ($have; --resolve --no-create exits 3, writes nothing)"; DONE=$((DONE+1))
+    else
+        say "  FAILED  installed $TL_DEST reports '${have:-nothing}' (want '$want') or rejects --no-create"; FAILED=$((FAILED+1))
+    fi
+}
+
+head2 "4. termlink binary (T-3287 — needed by arc-003's E4)"
+install_termlink
 
 # ---------------------------------------------------------------------------
 # Verification — the project's own drift checker is the arbiter, not this script.
