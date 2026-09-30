@@ -19,10 +19,10 @@ description: >
   record that decision. The fix is therefore applied on disk and committed under this
   task instead. Both files are vendored (G-062) so the message fix is upstream's.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -37,8 +37,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-26T21:35:16Z
-last_update: '2026-09-27T21:34:09Z'
-date_finished:
+last_update: 2026-09-30T09:35:14Z
+date_finished: 2026-09-30T09:35:14Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -213,12 +213,12 @@ cost_estimate_proposed:
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
-FRAMEWORK_ROOT="$PWD/.agentic-framework" PROJECT_ROOT="$PWD" bash -c 'source .agentic-framework/lib/task-audit.sh; audit_inception_recommendation "$(ls .tasks/active/T-2879-*.md)"'
-FRAMEWORK_ROOT="$PWD/.agentic-framework" PROJECT_ROOT="$PWD" bash -c 'source .agentic-framework/lib/task-audit.sh; audit_task_placeholders "$(ls .tasks/active/T-2879-*.md)"'
+FRAMEWORK_ROOT="$PWD/.agentic-framework" PROJECT_ROOT="$PWD" bash -c 'source .agentic-framework/lib/task-audit.sh; audit_inception_recommendation "$(ls .tasks/*/T-2879-*.md)"'
+FRAMEWORK_ROOT="$PWD/.agentic-framework" PROJECT_ROOT="$PWD" bash -c 'source .agentic-framework/lib/task-audit.sh; audit_task_placeholders "$(ls .tasks/*/T-2879-*.md)"'
 test -f .context/working/.reviewed-T-2879
-grep -q '^\*\*Recommendation:\*\* NO-GO' .tasks/active/T-2879-*.md
-grep -q '^\*\*Evidence:\*\*' .tasks/active/T-2879-*.md
-test -z "$(grep -c 'Recommendation (2026-09-25' .tasks/active/T-2879-*.md | grep -v '^0$')"
+grep -q '^\*\*Recommendation:\*\* NO-GO' .tasks/*/T-2879-*.md
+grep -q '^\*\*Evidence:\*\*' .tasks/*/T-2879-*.md
+test -z "$(grep -c 'Recommendation (2026-09-25' .tasks/*/T-2879-*.md | grep -v '^0$')"
 
 ## RCA
 
@@ -345,6 +345,9 @@ instance today of a gate blocking its own prescribed remedy.
 
 ## Updates
 
+### 2026-09-30 — operator authorised the verification retarget (T-3211 SQ-3, R6 closure request 5)
+T-2879 was decided and moved to `completed/` (itself evidence this task worked), so 4/6 P-011 lines globbed a path that no longer existed. Operator approved "fix T-3177's glob and close" (2026-09-30). The glob is now `.tasks/*/T-2879-*.md`; each check keeps its meaning and all 6 pass under `set -eo pipefail`.
+
 ### 2026-09-26T21:35:16Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3177-a-date-in-the-recommendation-heading-mad.md
@@ -352,3 +355,16 @@ instance today of a gate blocking its own prescribed remedy.
 
 ### 2026-09-26T21:35:32Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-6d0d0fed
+- **Timestamp:** 2026-09-30T09:35:17Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** none
+
+### 2026-09-30T09:35:14Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

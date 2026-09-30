@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3177: A date in the Recommendation heading made T-2879 undecidable, and the error message names the wrong field
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-30T09:35:25Z
+# ============================================================================
+
+task_id: T-3177
+task_name: "A date in the Recommendation heading made T-2879 undecidable, and the error message names the wrong field"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-26T21:35:16Z
+completed: 2026-09-30T09:35:14Z
+duration_days: 4
+updates_count: 3
+first_commit: 2026-09-26T23:36:29+02:00
+last_commit: 2026-09-26T23:36:29+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  a date in a heading made a NO-GO undecidable
+
+# Key outcomes
+outcomes:
+  - 'T-2879''s `## Recommendation` section satisfies the framework''s OWN validator — verified by sourcing `lib/task-audit.sh` and calling `audit_inception_recommendation`, not by a reimplementation of its regex (PL-386)'
+  - 'The NO-GO content is unchanged — only the header it hangs from. No rewriting of the recommendation itself'
+  - '`**Evidence:**` bullet list added, even though the validator never checks for it, because it improves the surface the decision is made from'
+  - 'The two gates that fire BEFORE this one are pre-checked so the operator''s retry cannot hit a second wall: the T-973 review marker exists and `audit_task_placeholders` passes'
+  - 'The error-message/implementation mismatch is recorded: the message demands three fields, the code checks one, so a reader can satisfy what it asks and still fail for the real reason'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-2879-rail-enrolment-gap-1-of-14-local-claude-.md'
+  - '.tasks/active/T-3177-a-date-in-the-recommendation-heading-mad.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-26T23:36:29'
+    action: 'T-3177: a date in a heading made a NO-GO undecidable'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5039 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 5039
+  commits: 1
+  files_changed: 2
+  lines_added: 356
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3177-a-date-in-the-recommendation-heading-mad.md
+generated_by: context-agent-hybrid
