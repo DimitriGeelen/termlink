@@ -1,0 +1,72 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3128: CTL-003: budget-status stale under concurrent orchestrated dispatch
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-30T10:19:35Z
+# ============================================================================
+
+task_id: T-3128
+task_name: "CTL-003: budget-status stale under concurrent orchestrated dispatch"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-25T06:55:34Z
+completed: 2026-09-30T10:19:26Z
+duration_days: 5
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fw audit WARN CTL-003: .context/working/.budget-status reports 16min-stale during this run. Root cause: CTL-003 assumes a single long-lived interactive session whose PreToolUse budget-gate hook keeps refreshing the shared file; under this run's orchestrated claude -p worker dispatch (T-3093), no single worker's hook owns continuous refresh, so the file goes stale between dispatches even though the substrate is healthy. Same root cause R2S1's value-review flagged as R2-F2 (a CLAUDE.md documentation gap) and the G-087 family (T-2950/T-3018/T-3034) already closed once for the single-session case.
+
+# Key outcomes
+outcomes:
+  - 'Root cause identified and linked to T-3127 (same file, same vendored-assumption class)'
+  - 'CLAUDE.md''s clobber-safe "Session rules the governance template does not carry"'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 7403 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-008, housekeeping]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 7403
+  commits: 1
+  files_changed: 25
+  lines_added: 3181
+  lines_removed: 121
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3128-ctl-003-budget-status-stale-under-concur.md
+generated_by: context-agent-hybrid

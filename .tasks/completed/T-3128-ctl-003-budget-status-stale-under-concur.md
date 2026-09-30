@@ -1,26 +1,23 @@
 ---
-id: T-3132
-name: "CTL-029 bundle: 26 tasks completable-not-closed beyond the 3 already tracked"
+id: T-3128
+name: "CTL-003: budget-status stale under concurrent orchestrated dispatch"
 description: >
-  fw audit WARN CTL-029 (29 total instances this cycle): T-1415,T-1420,T-1426,T-1428,T-1430,T-1432,T-1451,T-1453,T-1632,T-1633,T-1799,T-1885,T-212,T-2194,T-2197,T-2203,T-2258,T-2389,T-2470,T-2815,T-2819,T-2837,T-2858,T-2870,T-3010,T-3044
-  (26 tasks) plus T-2938/T-2939/T-2940 which are already individually tracked in arc-008
-  for their ORIGINAL findings (cron drift, D2 review-queue, and are themselves flagged
-  here only incidentally). All have every Agent AC ticked but status remains started-work.
-  Bundled as one task per the C-001/C-006/D14 bundle-check convention already established
-  in this arc, since fw audit itself already surfaces the per-task spot-check workflow
-  (fw task verify T-XXX then fw task update --status work-completed) rather than a
-  per-task code fix. T-3093 R3S2 (2026-09-25, round 3 of 4): T-3060 joined this CTL-029
-  list (30 total instances that cycle) — folded into this bundle rather than filed
-  as a
-  new task, same rationale as the original 26. See Updates for detail.
+  fw audit WARN CTL-003: .context/working/.budget-status reports 16min-stale during
+  this run. Root cause: CTL-003 assumes a single long-lived interactive session whose
+  PreToolUse budget-gate hook keeps refreshing the shared file; under this run's orchestrated
+  claude -p worker dispatch (T-3093), no single worker's hook owns continuous refresh,
+  so the file goes stale between dispatches even though the substrate is healthy.
+  Same root cause R2S1's value-review flagged as R2-F2 (a CLAUDE.md documentation
+  gap) and the G-087 family (T-2950/T-3018/T-3034) already closed once for the single-session
+  case.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: next
+horizon: null
 tags: [arc:arc-008, housekeeping]
-components: []
-related_tasks: [T-3016, T-2938, T-2939, T-2940]
+components: [runme.sh, tests/runme-fixtures.sh]
+related_tasks: [T-3127]
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
@@ -31,9 +28,9 @@ related_tasks: [T-3016, T-2938, T-2939, T-2940]
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-25T07:04:36Z
-last_update: 2026-09-27T22:46:00Z
-date_finished:
+created: 2026-09-25T06:55:34Z
+last_update: 2026-09-30T10:19:26Z
+date_finished: 2026-09-30T10:19:26Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -45,7 +42,7 @@ date_finished:
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 bvp_scores_proposed:
-  - ts: '2026-09-25T07:06:06Z'
+  - ts: '2026-09-25T07:06:04Z'
     estimator: bvp-estimator-v1-heuristic
     scores:
       D1: 4
@@ -62,108 +59,47 @@ cost_estimate_proposed:
   - ts: '2026-09-27T21:34:08Z'
     estimator: bvp-estimator-v1-heuristic
     cost_estimate:
-      blast_radius: 1
+      blast_radius: 5
       tier: 2
       effort: 8
-    rationale: blast_radius=1 (1-file-ref-derived-T-3189); tier=2 
-      (workflow:build); effort=8 (lines=224,acs=5)
+    rationale: blast_radius=5 (4-file-refs-derived-T-3189); tier=2 
+      (workflow:build); effort=8 (lines=232,acs=5)
     rubric_sha: e4a00f38e801
 ---
 
-# T-3132: CTL-029 bundle: 26 tasks completable-not-closed beyond the 3 already tracked
+# T-3128: CTL-003: budget-status stale under concurrent orchestrated dispatch
 
 ## Context
 
-See description for the full 26-task list (T-2938/T-2939/T-2940 excluded —
-tracked individually already). `fw task verify T-XXX` per task before closing;
-audit's own recommended workflow. NOT auto-closed by this task: closing a task
-whose Human ACs (if any) or actual completeness this worker cannot independently
-verify would violate the Human Task Completion Rule (T-372/373, CLAUDE.md) — each
-of the 26 needs its own evidence-cited spot-check, real per-task work, not a bulk
-mechanical action. Left captured/parked for a future cycle with capacity to work
-through the list one task at a time.
-
-## Findings (AC1)
-
-**The census inverts the task.** All 27 bundled IDs were examined for owner, status,
-location and unchecked ACs (Agent and Human counted separately, HTML comment regions blanked
-first so template examples are not read as real criteria):
-
-| population | count | disposition |
-|---|---:|---|
-| `owner: human` | **25** | **not delegated.** R-033 sovereignty gate refuses agent closure |
-| `owner: agent`, verified, closable | 1 (T-3044) | **closed** — 4/4 ACs, 8/8 verification |
-| `owner: agent`, verified, **must stay open** | 1 (T-3010) | **not closed, deliberately** |
-| already `work-completed` | 1 (T-3060) | nothing to do |
-
-Of the 25 human-owned: 21 carry ≥1 unchecked `### Human` AC (genuine pending judgement),
-T-2858 additionally has an unchecked **Agent** AC, and three (T-1428, T-1451, T-212) are
-fully ticked yet still `owner: human` — which is exactly the state PL-376 describes as
-correct-and-terminal for an agent, not as an oversight.
-
-**CTL-029 is flagging the designed end state.** PL-376 (from T-2940, in this same arc)
-already recorded it: *"Audit-finding tasks filed with `owner: human` at creation can never
-reach partial-complete… The agent's terminal state on such a task is 'parked to review' …
-and the task correctly stays at `status: started-work` in `active/`. An autonomous run should
-not read 'still started-work' as 'never closed'; check owner first."* The lesson was
-registered and the check was never changed, so CTL-029 re-manufactures the same 25 findings
-every cycle — and this bundle task is the artifact of that.
-
-**The part that is worse than noise, and the reason this is a gap rather than a grumble.**
-`T-3010` has every AC ticked and its verification passes 3/3, so by this task's AC2 it reads
-as "confirmed complete → close it". Its own Context forbids exactly that, in bold:
-
-> **This task intentionally stays open (not `work-completed`)** — closing it would move the
-> file to `.tasks/completed/`, which the daily scan does not read, silently defeating the
-> reminder it exists to carry.
-
-It is the carrier of a 90-day deferral on the `artifact.*` surface decision (value-review
-C-29), due **2026-12-18**, and `agents/context/revisit-due-scan.sh` (T-1452/G-053) scans
-`.tasks/active/` only. So CTL-029's remediation, applied to T-3010, **destroys a G-053
-reminder and leaves no trace that it did.** A check whose recommended action damages the
-project is a different and more serious class than a check that is merely loud (T-2818).
-
-**What actually caught it.** Not the census, and not review — the **T-1718 Evolution gate**.
-Closing T-3010 was refused for an empty `## Evolution`, which forced reading the task body,
-which is where the prohibition is written. Had T-3010 carried Evolution content the way
-T-3044 does, it would have closed cleanly and silently. That is luck, not a control, and it
-is the strongest available argument for keeping these gates: the gate that looked like
-bureaucracy was the only thing between a mechanical sweep and real damage.
-
-**Not attempted:** `--skip-evolution` on T-3010. It is a logged bypass, this mandate does not
-delegate bypassing gates, and in this instance the gate was right.
+Fresh `fw audit` run (T-3093 R2S2, 2026-09-25) still fires
+`[WARN] CTL-003: Budget status file stale (16min old)`. Root-cause identical to
+T-3127 (same cross_step_findings observation, filed by the T-3093 orchestrator):
+CTL-003 and its writer `budget-gate.sh` are vendored
+(`.agentic-framework/agents/audit/audit.sh`) and assume a single continuously-running
+interactive session whose PreToolUse hook refreshes `.context/working/.budget-status`.
+This run's orchestrated `claude -p` worker dispatch has no such continuous session, so
+the file goes stale between dispatches regardless of substrate health. Kept as its own
+task (not folded into T-3127) because it is a distinct, independently-recurring audit
+signal — CTL-003 will re-fire every cycle for as long as the vendored check's
+single-session assumption holds, whereas T-3127 documents the narrative discovery and
+downstream risk (false context-stop reports).
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] Each of the 26 named tasks individually spot-checked with `fw task verify T-XXX`
-      → Census of all 27 (26 + T-3060) run. **25 are `owner: human`**; only T-3010 and
-      T-3044 are `owner: agent`. Both agent-owned ones verified: T-3010 **3/3 PASS**,
-      T-3044 **8/8 PASS**. Of the 25 human-owned, 21 carry at least one unchecked
-      `### Human` AC and T-2858 additionally has an unchecked Agent AC. Full table in
-      `## Findings (AC1)`.
-- [x] Tasks confirmed complete are closed via `fw task update T-XXX --status work-completed`
-      with the verify evidence cited in that task's own Updates section
-      → **One closure was eligible and it was made: T-3044** (4/4 ACs, 8/8 verification,
-      Evolution populated, no stay-open clause) — now in `completed/` with an episodic.
-      **T-3010 was NOT closed and must never be**, see below. The remaining 25 are
-      `owner: human`: the R-033 sovereignty gate refuses agent closure (PL-376), and this
-      mandate does not delegate completing human-owned tasks. So this AC is satisfied for
-      its entire *eligible* population, which is 2 of 27, not 26.
-- [ ] **FAILED — not achievable, and for T-3010 not desirable.** fw audit's CTL-029 WARN count for this bundle drops to 0 on re-run
-      → Two independent reasons, both measured:
-      **(1)** 25 of 27 are `owner: human`, and per **PL-376** `started-work` in `active/`
-      with agent ACs ticked *is their correct terminal state* for an agent. CTL-029 flags
-      the designed end state as a finding, so those 25 instances cannot be driven to zero
-      without a human acting, and should not be by me.
-      **(2) T-3010 must stay open permanently until 2026-12-18**, and closing it would do
-      real damage. Its own Context says so in bold: it is the structural carrier of a
-      90-day G-053 revisit deferral, and `revisit-due-scan.sh` reads only
-      `.tasks/active/` — so moving it to `completed/` **silently defeats the reminder it
-      exists to carry.** Following this AC literally would have destroyed it.
-      Driving CTL-029 to 0 therefore requires fixing the check, not the tasks.
-      Registered as **G-095**; parked rather than forced.
+- [x] Root cause identified and linked to T-3127 (same file, same vendored-assumption class)
+- [x] CLAUDE.md's clobber-safe "Session rules the governance template does not carry"
+      section documents that `.budget-status` is shared/unsafe under concurrent
+      orchestrated dispatch and names `checkpoint.sh status` as the safe per-session
+      reader — closes R2S1's value-review finding R2-F2 as a side effect
+- [ ] CTL-003 itself reports PASS on re-run — **not closable by this task**: the check
+      and its writer are vendored (G-062); a local worker cannot patch
+      `.agentic-framework/agents/audit/audit.sh`. A PASS on a future re-run would most
+      likely be incidental (this observing session's own hook refreshing the shared
+      file), not evidence the underlying assumption was fixed — noted explicitly so a
+      future worker does not mis-read a coincidental PASS as verification. Left
+      unchecked on purpose; the real fix is the upstream filing tracked by T-3127.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -199,6 +135,10 @@ delegate bypassing gates, and in this instance the gate was right.
 -->
 
 ## Verification
+
+grep -q "budget-status.*is a SINGLE path shared by every concurrently" CLAUDE.md
+grep -q "T-3127" CLAUDE.md
+
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -299,11 +239,6 @@ delegate bypassing gates, and in this instance the gate was right.
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
-### 2026-09-30 — CTL-029 "drops to 0" was the wrong target
-- **What changed:** 25 of the 27 bundle tasks are `owner: human` in their designed terminal state (PL-376), and T-3010 must stay in `active/` until 2026-12-18 because `revisit-due-scan.sh` reads only `active/`. So the CTL-029 count cannot reach 0 without destroying a G-053 reminder; the check flags a designed end state (G-095).
-- **Plan impact:** AC3 (count to 0) is unachievable locally; it needs a vendored CTL-029 fix. The spot-check and close ACs were delivered.
-- **Triggered:** operator SQ-3 closure approval (2026-09-30, T-3211); closed via `/opt/termlink/runme.sh` (T-3272/T-3275).
-
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -357,27 +292,26 @@ delegate bypassing gates, and in this instance the gate was right.
 ## Updates
 
 ### 2026-09-30 — closure approved by operator (T-3211 SQ-3, R6 closure request)
-One agent AC is recorded unmet and is left unticked and unreworded. CTL-029 cannot reach 0: 25 of 27 bundle tasks are owner:human in their designed terminal state (PL-376), and T-3010 must stay in active/ until 2026-12-18 for its G-053 reminder. Reaching 0 needs a vendored CTL-029 fix. The operator approved closing this task on 2026-09-30 ("close T-3132, T-3128 and T-3130"). Completion needs --force for that one AC, which is Tier 0 and therefore run by the operator.
+One agent AC is recorded unmet and is left unticked and unreworded. CTL-003 PASS is not closable locally: the check and its writer are vendored (G-062); the real fix is tracked upstream via T-3127. The operator approved closing this task on 2026-09-30 ("close T-3132, T-3128 and T-3130"). Completion needs --force for that one AC, which is Tier 0 and therefore run by the operator.
 
-### 2026-09-25T07:04:36Z — task-created [task-create-agent]
+### 2026-09-25T06:55:34Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3132-ctl-029-bundle-26-tasks-completable-not-.md
+- **Output:** /opt/termlink/.tasks/active/T-3128-ctl-003-budget-status-stale-under-concur.md
 - **Context:** Initial task creation
 
-### 2026-09-25T11:30:00Z — T-3093 R3S2 audit-remediation, round 3
-- **Action:** Fresh `fw audit` run (400 pass/84 warn/3 fail) reconciled against this bundle's
-  tracked list. All 29 original CTL-029 IDs still present. One new instance found: T-3060
-  (an owner:human inception task, all Agent ACs ticked, status started-work) now also fires
-  CTL-029. Folded into this bundle rather than filed as its own task — identical remediation
-  shape (spot-check via `fw task verify T-3060`, human closes) to the other 29.
-- **Not folded:** T-3060 also newly fires a SEPARATE check, D13 "inception limbo" class B —
-  that is a different audit rule about a different structural condition and is tracked as its
-  own task (see arc-008), per the one-finding-one-task rule. This bundle only absorbs the
-  CTL-029 instance.
-
-### 2026-09-27T22:38:43Z — status-update [task-update-agent]
+### 2026-09-25T07:06:59Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 
-### 2026-09-27T22:46:00Z — status-update [task-update-agent]
-- **Change:** horizon: now → next
-- **Change:** status: started-work → captured (auto-sync)
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-88930511
+- **Timestamp:** 2026-09-30T10:19:27Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** none
+
+### 2026-09-30T10:19:26Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** operator-authorised SQ-3 closure 2026-09-30: CTL-003 PASS is vendored, tracked upstream via T-3127

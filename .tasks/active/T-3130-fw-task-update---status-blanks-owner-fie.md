@@ -347,6 +347,11 @@ shape is inlined above and in the upstream filing so it is recoverable without t
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-09-30 — the defect is load-dependent, not reproducible in isolation
+- **What changed:** A minimal fixture (fresh task, single `--status` update) preserved `owner` in 12 of 12 trials. The blanking was only ever seen under orchestrated concurrent dispatch, so the trigger is load and contention, not a single rewrite step.
+- **Plan impact:** The "reproduce with a minimal fixture" AC is answered negative. The mechanism is proven separately and filed upstream (G-062, vendored file).
+- **Triggered:** operator SQ-3 closure approval (2026-09-30, T-3211); closed via `/opt/termlink/runme.sh` (T-3272/T-3275).
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it

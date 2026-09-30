@@ -1,23 +1,16 @@
 ---
-id: T-3128
-name: "CTL-003: budget-status stale under concurrent orchestrated dispatch"
+id: T-3275
+name: "runme close_task fails on captured tasks (invalid captured->work-completed transition); use narrow --skip-acceptance-criteria; 'running' = agent monitors the log"
 description: >
-  fw audit WARN CTL-003: .context/working/.budget-status reports 16min-stale during
-  this run. Root cause: CTL-003 assumes a single long-lived interactive session whose
-  PreToolUse budget-gate hook keeps refreshing the shared file; under this run's orchestrated
-  claude -p worker dispatch (T-3093), no single worker's hook owns continuous refresh,
-  so the file goes stale between dispatches even though the substrate is healthy.
-  Same root cause R2S1's value-review flagged as R2-F2 (a CLAUDE.md documentation
-  gap) and the G-087 family (T-2950/T-3018/T-3034) already closed once for the single-session
-  case.
+  runme close_task fails on captured tasks (invalid captured->work-completed transition); use narrow --skip-acceptance-criteria; 'running' = agent monitors the log
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
-tags: [arc:arc-008, housekeeping]
+horizon: null
+tags: []
 components: []
-related_tasks: [T-3127]
+related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
@@ -28,9 +21,9 @@ related_tasks: [T-3127]
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-09-25T06:55:34Z
-last_update: '2026-09-27T21:34:08Z'
-date_finished:
+created: 2026-09-30T10:20:11Z
+last_update: 2026-09-30T10:22:26Z
+date_finished: 2026-09-30T10:22:26Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -41,65 +34,22 @@ date_finished:
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
-bvp_scores_proposed:
-  - ts: '2026-09-25T07:06:04Z'
-    estimator: bvp-estimator-v1-heuristic
-    scores:
-      D1: 4
-      D2: 4
-      D3: 3
-      D4: 2
-      F-RECALL: 0
-      F-ORCH: 0
-    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
-      (body:component-discoverability); D4=2 (body:env-class-handled); 
-      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
-    rubric_sha: e4a00f38e801
-cost_estimate_proposed:
-  - ts: '2026-09-27T21:34:08Z'
-    estimator: bvp-estimator-v1-heuristic
-    cost_estimate:
-      blast_radius: 5
-      tier: 2
-      effort: 8
-    rationale: blast_radius=5 (4-file-refs-derived-T-3189); tier=2 
-      (workflow:build); effort=8 (lines=232,acs=5)
-    rubric_sha: e4a00f38e801
 ---
 
-# T-3128: CTL-003: budget-status stale under concurrent orchestrated dispatch
+# T-3275: runme close_task fails on captured tasks (invalid captured->work-completed transition); use narrow --skip-acceptance-criteria; 'running' = agent monitors the log
 
 ## Context
 
-Fresh `fw audit` run (T-3093 R2S2, 2026-09-25) still fires
-`[WARN] CTL-003: Budget status file stale (16min old)`. Root-cause identical to
-T-3127 (same cross_step_findings observation, filed by the T-3093 orchestrator):
-CTL-003 and its writer `budget-gate.sh` are vendored
-(`.agentic-framework/agents/audit/audit.sh`) and assume a single continuously-running
-interactive session whose PreToolUse hook refreshes `.context/working/.budget-status`.
-This run's orchestrated `claude -p` worker dispatch has no such continuous session, so
-the file goes stale between dispatches regardless of substrate health. Kept as its own
-task (not folded into T-3127) because it is a distinct, independently-recurring audit
-signal — CTL-003 will re-fire every cycle for as long as the vendored check's
-single-session assumption holds, whereas T-3127 documents the narrative discovery and
-downstream risk (false context-stop reports).
+<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] Root cause identified and linked to T-3127 (same file, same vendored-assumption class)
-- [x] CLAUDE.md's clobber-safe "Session rules the governance template does not carry"
-      section documents that `.budget-status` is shared/unsafe under concurrent
-      orchestrated dispatch and names `checkpoint.sh status` as the safe per-session
-      reader — closes R2S1's value-review finding R2-F2 as a side effect
-- [ ] CTL-003 itself reports PASS on re-run — **not closable by this task**: the check
-      and its writer are vendored (G-062); a local worker cannot patch
-      `.agentic-framework/agents/audit/audit.sh`. A PASS on a future re-run would most
-      likely be incidental (this observing session's own hook refreshing the shared
-      file), not evidence the underlying assumption was fixed — noted explicitly so a
-      future worker does not mis-read a coincidental PASS as verification. Left
-      unchecked on purpose; the real fix is the upstream filing tracked by T-3127.
+- [x] `close_task` moves a `captured` task to `started-work` before closing it, so the operator's run (log runme-20260930T101925Z: T-3132 and T-3130 "Invalid transition 'captured' → 'work-completed'") succeeds on re-run
+- [x] The close uses the narrow `--skip-acceptance-criteria` (the one approved AC) instead of the deprecated blanket `--force`
+- [x] The fixture fake fw enforces the real transition rule (captured → work-completed refused), and a captured-task case proves the close still lands
+- [x] CLAUDE.md's runme rule states: when the operator says "running", the agent immediately reads and monitors the log until the rc line appears, then remediates or confirms
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -135,10 +85,6 @@ downstream risk (false context-stop reports).
 -->
 
 ## Verification
-
-grep -q "budget-status.*is a SINGLE path shared by every concurrently" CLAUDE.md
-grep -q "T-3127" CLAUDE.md
-
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -176,6 +122,34 @@ grep -q "T-3127" CLAUDE.md
 # on, and grep scans the whole captured string anyway, so the `tail -3` was
 # cosmetic. `echo "$out" | grep -q PAT`, nothing between.
 #
+# ── Asserting an ABSENCE: prove the search could have succeeded (T-3144) ──
+#
+# `! grep -q "PATTERN" file` exits 0 when the pattern is absent. It ALSO exits 0
+# when the file was renamed, deleted, or is empty — so the leg cannot distinguish
+# "the bad thing is not there" from "I could not look", and the gate reports green
+# over a check that never ran. Pair every absence assertion with something that
+# fails if the search could not happen:
+#
+#     test -f path/to/file && ! grep -q "PATTERN" path/to/file    # existence first
+#     grep -q "KNOWN_MARKER" f && ! grep -q "PATTERN" f           # positive companion
+#     cmd > /tmp/.out 2>&1 && ! grep -q "PATTERN" /tmp/.out       # &&-joined producer
+#
+# Count-equals-zero is the same defect wearing a different hat, and it is the one
+# that bites hardest over a COMMAND's output rather than a file:
+#
+#     [ "$(cargo clippy --workspace 2>&1 | grep -c "^error")" = "0" ]   # WRONG
+#
+# If cargo is missing, or dies before emitting diagnostics, there are no `^error`
+# lines, the count is 0, and the leg passes — a build gate that goes green
+# precisely when the build could not run. Measured in this corpus, not invented.
+# Keep the producer's exit code in the verdict:
+#
+#     cargo clippy --workspace > /tmp/.out 2>&1 && ! grep -q "^error" /tmp/.out
+#
+# T-3144 censused 2853 task files: 71 absence assertions, 41 already correct, 30
+# not. The convention mostly works — this note is here so the next one is written
+# right, because a vacuous leg is invisible until the day the path moves.
+#
 # TEST RUNNERS need a guard either way (T-2738). `set -e` is suppressed inside the
 # `if` condition the gate runs each line in, so in `cmd1; cmd2` only cmd2 is the
 # verdict — and the pass marker you grep for survives a partial failure: a suite
@@ -198,6 +172,13 @@ grep -q "T-3127" CLAUDE.md
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+bash -n runme.sh
+bash tests/runme-fixtures.sh > /tmp/.t3275-fx 2>&1 && grep -q '24 passed, 0 failed' /tmp/.t3275-fx
+grep -q 'status: captured' runme.sh && grep -q 'skip-acceptance-criteria' runme.sh
+test -z "$(grep -n -- '--force --reason' runme.sh)"
+grep -q 'Invalid transition' tests/runme-fixtures.sh
+grep -q '"running" is the signal' CLAUDE.md
 
 ## RCA
 
@@ -291,13 +272,20 @@ grep -q "T-3127" CLAUDE.md
 
 ## Updates
 
-### 2026-09-30 — closure approved by operator (T-3211 SQ-3, R6 closure request)
-One agent AC is recorded unmet and is left unticked and unreworded. CTL-003 PASS is not closable locally: the check and its writer are vendored (G-062); the real fix is tracked upstream via T-3127. The operator approved closing this task on 2026-09-30 ("close T-3132, T-3128 and T-3130"). Completion needs --force for that one AC, which is Tier 0 and therefore run by the operator.
-
-### 2026-09-25T06:55:34Z — task-created [task-create-agent]
+### 2026-09-30T10:20:11Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3128-ctl-003-budget-status-stale-under-concur.md
+- **Output:** /opt/termlink/.tasks/active/T-3275-runme-closetask-fails-on-captured-tasks-.md
 - **Context:** Initial task creation
 
-### 2026-09-25T07:06:59Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-4e36f4ad
+- **Timestamp:** 2026-09-30T10:22:31Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** none
+
+### 2026-09-30T10:22:26Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

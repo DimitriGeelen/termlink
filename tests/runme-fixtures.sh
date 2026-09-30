@@ -32,14 +32,24 @@ mkdir -p "$TMP/cron"
 CLOSE_IDS="T-3132 T-3128 T-3130"
 mkdir -p "$TMP/tasks/active" "$TMP/tasks/completed"
 for id in $CLOSE_IDS; do printf -- '---\nid: %s\nstatus: started-work\n---\n' "$id" > "$TMP/tasks/active/$id-fixture.md"; done
+# T-3275: T-3132 and T-3130 were `captured` on the real tree and the operator's
+# first run failed on them. Model that state for one of them.
+sed -i 's/^status: .*/status: captured/' "$TMP/tasks/active/T-3132-fixture.md"
 cat > "$TMP/fake-fw" <<'EOF'
 #!/usr/bin/env bash
-# fake `fw task update <id> --status work-completed --force --reason ...`
+# fake `fw task update <id> --status <s> [...]` enforcing the REAL transition rule:
+# captured -> work-completed is refused ("Invalid transition"), as fw does.
 [ "$1 $2" = "task update" ] || exit 9
-id="$3"; f=$(ls "$RUNME_TASKS_DIR"/active/"$id"-*.md 2>/dev/null | head -1) || exit 1
+id="$3"; new="$5"
+f=$(ls "$RUNME_TASKS_DIR"/active/"$id"-*.md 2>/dev/null | head -1)
 [ -n "$f" ] || exit 1
-sed -i 's/^status: .*/status: work-completed/' "$f"
-mv "$f" "$RUNME_TASKS_DIR/completed/"
+cur=$(sed -n 's/^status: //p' "$f")
+if [ "$cur" = "captured" ] && [ "$new" = "work-completed" ]; then
+    echo "ERROR: Invalid transition 'captured' → 'work-completed'"; exit 1
+fi
+sed -i "s/^status: .*/status: $new/" "$f"
+[ "$new" = "work-completed" ] && mv "$f" "$RUNME_TASKS_DIR/completed/"
+exit 0
 EOF
 printf '#!/usr/bin/env bash\nexit 0\n' > "$TMP/noop-fw"   # claims success, moves nothing
 chmod +x "$TMP/fake-fw" "$TMP/noop-fw"

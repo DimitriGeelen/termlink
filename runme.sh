@@ -164,9 +164,18 @@ close_task() {
         say "  FAILED  $id is in neither active/ nor completed/"; FAILED=$((FAILED+1)); return
     fi
     if [ "$DRY_RUN" = "1" ]; then
-        say "  [DRY]   would close $id (--force: $reason)"; DONE=$((DONE+1)); return
+        say "  [DRY]   would close $id (--skip-acceptance-criteria: $reason)"; DONE=$((DONE+1)); return
     fi
-    "$FW" task update "$id" --status work-completed --force --reason "$reason" >/tmp/.runme-close-"$id" 2>&1
+    : > /tmp/.runme-close-"$id"
+    # T-3275: fw refuses captured -> work-completed ("Invalid transition"); a
+    # captured task must pass through started-work first. Measured on the
+    # operator's first run: T-3132 and T-3130 failed exactly this way.
+    if grep -q '^status: captured' "$act_f"; then
+        "$FW" task update "$id" --status started-work >>/tmp/.runme-close-"$id" 2>&1
+    fi
+    # Narrow bypass: only the one agent AC the operator approved skipping —
+    # not the deprecated blanket --force, which would also skip verification.
+    "$FW" task update "$id" --status work-completed --skip-acceptance-criteria --reason "$reason" >>/tmp/.runme-close-"$id" 2>&1
     done_f=$(ls "$TASKS_DIR"/completed/"$id"-*.md 2>/dev/null | head -1)
     # Verify the result, not fw's exit code: the close must be visible on disk.
     if [ -n "$done_f" ] && grep -q '^status: work-completed' "$done_f"; then
@@ -182,7 +191,7 @@ close_task() {
 #
 # Each has one agent AC measured unachievable and left unticked (reasons are in
 # each task's Updates). The operator approved closing all three; completion needs
-# --force for that one AC, and --force is Tier 0, so the agent cannot run it —
+# a bypass of that one AC (--skip-acceptance-criteria), which the agent cannot run —
 # the operator does, by running this script. This runs in a DEFAULT run because
 # the decision is already made and recorded; this only carries it out.
 # ---------------------------------------------------------------------------
