@@ -188,7 +188,7 @@ last_vendor_event:
 
 divergences:
   - task: T-3269
-    commit: pending-same-commit
+    commit: a14cd49de
     commit_note: >
       Registered BEFORE the change lands, per the T-2813 lesson. Operator ruling
       SQ-22 = option C (2026-09-30, T-3211 commit 62aed55df): "A plus the next agent
@@ -197,7 +197,8 @@ divergences:
     date: 2026-09-30
     file: .agentic-framework/agents/handover/handover.sh
     also: .claude/commands/resume.md (project copy of the vendored template lib/templates/resume-md.md — the template is NOT patched, so a re-install of the command from the template also drops Step 1 item 7 and the Step 3 standing first step)
-    status: local-only
+    status: filed-upstream
+    filed_at: "framework:pickup offset 245 (read-back verified 2026-09-30, sha256 08193fa194bc8049, 24202 bytes — byte-identical to the source bar the trailing newline bash $(cat ...) strips; carries scripts/commit-pending.sh in full plus the handover.sh, resume.md and writer diffs)"
     kind: governance-mechanism
     generality: GENERIC
     risk_if_revendored: MEDIUM

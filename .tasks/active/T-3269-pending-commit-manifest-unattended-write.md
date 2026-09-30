@@ -80,14 +80,14 @@ whole-index sweeps are banned — handover --commit is pathspec-scoped for that 
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `scripts/pending-commit.sh add <task-id> <reason> <path>...` appends entries to `.context/working/pending-commit.list` (TSV: path, task id, reason, UTC ts); refuses paths outside `.tasks/` / `.context/` and malformed task ids (rc 2, nothing written)
-- [ ] `scripts/commit-pending.sh` commits EXACTLY the listed paths (`git commit -- <paths>`), one commit per task id with that id as message prefix; unrelated files staged in the index stay staged and uncommitted (the T-3090/T-3231 sweep case); verifies HEAD holds each file's content; removes committed entries only
-- [ ] commit-pending: an entry whose file is gone is reported and dropped; an entry outside `.tasks/`/`.context/` is refused loudly and kept; a second run is a no-op (idempotent); `--list` prints entries by path; `--dry-run` commits nothing
-- [ ] commit-pending works while focus is on another task without FW_SWITCH_FOCUS or any bypass (focus-drift gate satisfied or its refusal reported, never self-granted)
-- [ ] `warn-escalation-file.sh` (FILED task files) and the release canary's ledger refresh (`guard-warn-first-red` when changed) append to the manifest
-- [ ] Wired: `scripts/run-procasfit-round.sh` prompt carries a first step running the helper; `.claude/commands/resume.md` Step 1 lists pending entries by name and Step 3 offers/runs the helper; the handover pre-compact path runs it before its own pathspec commit (vendored patch registered in `.vendor-divergence.yaml`; `check-vendor-divergence.sh` ends classified)
-- [ ] Fixtures `tests/commit-pending-fixtures.sh` pass with mutants killed (sweep case, scope refusal, idempotency, missing file, resume lists by name)
-- [ ] framework:pickup filing posted with the proposed file contents, read back, offset recorded here and in `.vendor-divergence.yaml` (filed-upstream)
+- [x] `scripts/commit-pending.sh add <task-id> <reason> <path>...` appends entries to `.context/working/pending-commit.list` (TSV: path, task id, reason, UTC ts); refuses paths outside `.tasks/` / `.context/` and malformed task ids (rc 2, nothing written)
+- [x] `scripts/commit-pending.sh` commits EXACTLY the listed paths (`git commit -- <paths>`), one commit per task id with that id as message prefix; unrelated files staged in the index stay staged and uncommitted (the T-3090/T-3231 sweep case); verifies HEAD holds each file's content; removes committed entries only
+- [x] commit-pending: an entry whose file is gone is reported and dropped; an entry outside `.tasks/`/`.context/` is refused loudly and kept; a second run is a no-op (idempotent); `--list` prints entries by path; `--dry-run` commits nothing
+- [x] commit-pending works while focus is on another task without FW_SWITCH_FOCUS or any bypass (focus-drift gate satisfied or its refusal reported, never self-granted)
+- [x] `warn-escalation-file.sh` (FILED task files) and the release canary's ledger refresh (`guard-warn-first-red` when changed) append to the manifest
+- [x] Wired: `scripts/run-procasfit-round.sh` prompt carries a first step running the helper; `.claude/commands/resume.md` Step 1 lists pending entries by name and Step 3 offers/runs the helper; the handover pre-compact path runs it before its own pathspec commit (vendored patch registered in `.vendor-divergence.yaml`; `check-vendor-divergence.sh` ends classified)
+- [x] Fixtures `tests/commit-pending-fixtures.sh` pass with mutants killed (sweep case, scope refusal, idempotency, missing file, resume lists by name)
+- [x] framework:pickup filing posted with the proposed file contents, read back, offset recorded here and in `.vendor-divergence.yaml` (filed-upstream)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -288,6 +288,19 @@ git show 6ad984122 --stat --format= > /tmp/.t3269-live 2>&1 && grep -q "1 file c
 -->
 
 ## Decisions
+
+- **One script with subcommands (`commit-pending.sh add|list|commit`) instead of a separate
+  writer script.** The AC originally named `scripts/pending-commit.sh add`; one entry point keeps
+  the manifest format and the scope rule (`in_scope`) in a single place, so writer and committer
+  cannot drift apart. AC text corrected to the shipped name.
+- **Focus-drift (AC 4):** the T-1730 gate is a PreToolUse hook on the literal Bash command, so it
+  does not see the helper's inner `git commit`. No FW_SWITCH_FOCUS or other bypass was used or
+  needed; git's own commit-msg/pre-commit hooks run on every helper commit (fixture C6 proves a
+  refusing hook keeps the entry). Commits go under the WRITER's recorded id. Stated in the
+  helper header, CLAUDE.md and the upstream filing (which suggests allow-listing the verb
+  explicitly rather than relying on the hook not seeing it). Live: 6ad984122 went under T-3260
+  while focus was T-3269, with no gate refusal.
+- **Filed upstream:** framework:pickup offset 245, read back and verified.
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
