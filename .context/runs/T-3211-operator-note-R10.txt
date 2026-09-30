@@ -1,0 +1,35 @@
+OPERATOR RULINGS IN FORCE: SQ-4 YES; SQ-3 SURFACE-THEN-ASK; SQ-9 approved; guard classification approved in full
+(docs/reports/T-3258-guard-classification-draft.md: 35 FAIL / 23 WARN / 1 INFO — do NOT change any member's tier).
+v0.12.3 is PUBLISHED (2026-09-30). NEVER tag, NEVER push — the orchestrator does both.
+Operator, 2026-09-30: "please proceed". Two units, in order.
+
+UNIT 1 — the operator's BINDING CONDITION on WARN (recorded in the draft's "Operator rulings"):
+  "when warnings build up ... after the 14-day limit it becomes an action. We don't want things to go stale or
+   debt to build up."
+  Today scripts/check-release-publication-freshness.sh (T-3243/T-3260) refreshes the git-tracked ledger
+  .context/checks/guard-warn-first-red and only REPORTS age / fires the canary. A canary line does NOT satisfy the
+  condition. Build:
+   (a) STALE: a WARN member red > GUARD_WARN_ESCALATE_DAYS (14) => a task is FILED (owner agent, horizon now,
+       the member's current output + first-red date + the member's tier reason in Context, a real AC "member is
+       green or reclassified by the operator"). One open task per member — de-duplicate against open tasks
+       (active/, any status) by a stable marker, never file a second while one is open.
+   (b) ACCUMULATION: more than 5 WARN members red at the same time => file ONE umbrella task naming all of them
+       (same de-dup rule), immediately, regardless of age.
+   (c) The canary still fires on both, so the operator sees it daily.
+   (d) Filing must come from the daily host cron path (the canary), not CI. Decide and state who COMMITS the
+       filed task files and the ledger (this is SQ-22). A cron job committing to git concurrently with live
+       sessions is a known hazard (see the T-3231 / whole-index sweep lessons): prefer leaving them uncommitted
+       but LOUD (surfaced by the canary and `fw audit`/handover) over an unattended commit — or justify otherwise.
+       Record the choice in the draft's rulings section as a PROPOSAL for the operator, not a ruling.
+   (e) Fixtures via the existing test seam, with mutants: 13d does not file / 15d files once / second run does not
+       duplicate / 6 red members files one umbrella / 5 does not / closing the task and still red after a new
+       14-day window files again (define and test that rule) / canary still fires.
+   Scope fence: do not auto-FIX anything, do not change tiers, do not touch FAIL members.
+
+UNIT 2 — T-3266: tools::tests::mcp_procfs_probe_matches_cli_semantics fails on macOS (assumes /proc). Fix it the
+  platform-lock way (T-2690/T-2693/procfs_available()): the test must assert the right thing where /proc exists
+  and the documented degradation where it does not — never just #[cfg]-skip it silently. Prove the non-Linux branch
+  with a seam if you cannot run macOS here (say so plainly). check-platform-lock must stay clean.
+
+Then continue down the SQ-4 pool if budget remains. Before any commit after a refused finalize: git status
+--porcelain, and `git add` the completed/ file AND the episodic together. Never self-grant FW_SWITCH_FOCUS.
