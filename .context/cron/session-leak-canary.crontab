@@ -1,0 +1,21 @@
+# T-3296 (T-3291 S4, G-019) — Session-leak canary
+# Source of truth: /opt/termlink/.context/cron/session-leak-canary.crontab (git-tracked)
+# Installed to:    /etc/cron.d/termlink-session-leak-canary (USER field syntax — do NOT load into a user crontab)
+#
+# T-3291 found ~480 zombie `termlink register --shell` sessions (idle, detached
+# tmux shells, ~4 GB) and 10,144 orphaned `<id>.sock.data` files, both invisible
+# for weeks: every register heartbeats as LIVE whether used or not, and nothing
+# counted orphan files. FIRES when idle-detached zombie sessions (older than 24 h,
+# shell childless, not attached, a tmux pane, launcher not alive) exceed 25, or
+# any orphan data socket older than 1 h exists (the hub reaps those within 10 min
+# since T-3293, so one here means the reap is not running). Empty log = healthy.
+# /canaries auto-discovers this log; tooling errors go to the .stderr sink (T-2842).
+#
+# Operator action on firing: preview the zombie reap with
+#   /opt/termlink/runme.sh --dry-run
+# then run /opt/termlink/runme.sh. Detail: bash scripts/check-session-leak-freshness.sh
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+
+# Daily at 07:57 UTC — offset from the :53 arc-claim-drift and :41 release-publication canaries.
+57 7 * * * root cd /opt/termlink && bash scripts/check-session-leak-freshness.sh --quiet >> .context/working/.session-leak-canary.log 2>> .context/working/.session-leak-canary.log.stderr

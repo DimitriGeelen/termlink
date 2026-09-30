@@ -137,7 +137,7 @@ install_crontab() {
 # `systemctl reload cron` is NOT valid on this host: "Job type reload is not
 # applicable for unit cron.service".)
 # ---------------------------------------------------------------------------
-head2 "1. Cron installs (notify-rail T-3050/T-3051/T-3068, arc-claim-drift T-3288)"
+head2 "1. Cron installs (notify-rail T-3050/T-3051/T-3068, arc-claim-drift T-3288, session-leak T-3296)"
 install_crontab notify-sidecar-supervisor.crontab "$CRON_DIR/termlink-notify-sidecar-supervisor"
 install_crontab notify-sidecar-canary.crontab     "$CRON_DIR/termlink-notify-sidecar-canary"
 
@@ -155,6 +155,10 @@ install_crontab notify-wake-supervisor.crontab    "$CRON_DIR/termlink-notify-wak
 # host's other guard-layer run is WARN-tier only, so without this daily job
 # nothing re-checks a closed arc's claim unless someone runs it by hand.
 install_crontab arc-claim-drift-canary.crontab    "$CRON_DIR/termlink-arc-claim-drift-canary"
+
+# T-3296 (T-3291 S4) — daily detection for the session leak: zombie register
+# sessions and orphaned data sockets, both invisible for weeks before T-3291.
+install_crontab session-leak-canary.crontab       "$CRON_DIR/termlink-session-leak-canary"
 
 # close_task <T-ID> <reason>
 # Closes a task the operator has ALREADY approved closing, then VERIFIES it

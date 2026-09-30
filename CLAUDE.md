@@ -756,6 +756,51 @@ firing: `bash scripts/check-arc-claim-drift.sh` names the arc and its prover. A
 failing prover means the shipped claim is no longer true, so file a task against the
 arc rather than allowlisting it.
 
+### Session-leak canary (T-3296, T-3291 S4 — G-019 for the session lifecycle)
+
+T-3291 found two leaks that had run for weeks with nothing firing: **~480 zombie
+`termlink register --shell` sessions** (idle, detached tmux shells nobody touched since
+creation, 208 older than a week, ~4 GB with their shells) and **10,144 orphaned
+`<id>.sock.data` files**. Every register heartbeats every 30 s whether used or not, so
+every liveness check saw the zombies as LIVE; and the hub sweep deleted only `.sock` +
+`.json`, so nothing could find the data sockets again. The fixes: T-3293 (cleanup
+removes all three files, the hub reaps orphans every sweep, register cleans up on
+SIGTERM/SIGHUP), T-3294 (a `--shell` session ends when its shell ends), T-3295 (the hub
+also sweeps the legacy `/tmp/termlink-<uid>` pool). A shell left idle at its prompt is
+still a zombie, because the vendored dispatch never exits it. That part is upstream
+(T-3291 S3a) and handled by the runme reap (S3b).
+
+A daily cron runs `scripts/check-session-leak-freshness.sh --quiet` (see
+`.context/cron/session-leak-canary.crontab`, installed by `runme.sh` action 1) and
+appends to `.context/working/.session-leak-canary.log`. Empty log = healthy. It FIRES
+when more than 25 zombies exist (`--threshold N`), or when any orphan data socket is
+older than 1 h. The hub reaps orphans within 10 min, so one older than that means the
+reap is not running.
+
+**Detection is `scripts/lib/session-zombies.py`, the SAME detector the runme reap uses.**
+What fires here is exactly what the reap would terminate (the T-2404/T-2405 pattern), so
+its "never a zombie" classes are load-bearing:
+- **busy:** the shell has a child;
+- **attached:** a client is on the tmux session;
+- **young:** under 24 h;
+- **launcher_alive:** `claude-master-<pid>` whose `claude`/`claude-fw` launcher is alive;
+- **non-shell:** `--self` endpoints;
+- **unmanaged:** any register that is not a tmux pane.
+
+The last one matters most. Systemd-supervised always-on agents (`framework-agent-systemd`,
+`termlink-agent`, `email-archive`) wait at an idle shell by design; the first draft flagged
+them, and a live run caught it before anything shipped.
+
+Exit 0 healthy · 1 firing · 2 tooling (an unreadable process table is never clean);
+`--json`, `--quiet`, `--no-heartbeat`, `--threshold N`. Seams: `SESSION_LEAK_PS_FILE`,
+`SESSION_LEAK_TMUX_FILE`, `SESSION_LEAK_DIRS`, `SESSION_LEAK_HEARTBEAT_FILE`. Fixtures:
+`bash tests/session-leak-canary-fixtures.sh` (16 assertions). Mutants remove the busy,
+attached, launcher and tmux-pane guards, and each is caught. **Test-safety note from
+T-3293:** a hub test that drove the real `supervisor::run` swept whatever
+`TERMLINK_RUNTIME_DIR` pointed at on the machine running `cargo test`, and reaped about
+10k real files. Tests now go through `supervisor::run_with` with a temp dir. Never write
+a test that runs the real loop.
+
 ### Cron-install-drift check (T-2561, shipped≠live / G-069 for the canary layer)
 
 A canary is only load-bearing if its crontab is actually installed to `/etc/cron.d`.
