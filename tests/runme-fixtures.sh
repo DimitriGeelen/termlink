@@ -135,14 +135,31 @@ cat > "$F/doctor" <<'EOS'
 v=$(cat "$FAKE_FLEET_DIR/ver"); st=$(cat "$FAKE_FLEET_DIR/status" 2>/dev/null || echo ok)
 echo "{\"hubs\":[{\"hub\":\"fake-hub\",\"address\":\"10.0.0.1:9100\",\"hub_version\":\"$v\",\"status\":\"$st\"}]}"
 EOS
-cat > "$F/deploy" <<'EOS'
+# The swap (not the staging) changes the served version: via the fake remote's
+# install+restart when the hub has a unit (FAKE_UNIT=1), else via --swap-restart.
+cat > "$F/swap" <<'EOS'
 #!/usr/bin/env bash
-echo "$*" >> "$FAKE_FLEET_DIR/deploys"
 case "${FAKE_DEPLOY_MODE:-ok}" in
-  fail) exit 4 ;;
   auth) echo "9.9.9" > "$FAKE_FLEET_DIR/ver"; echo "auth-mismatch" > "$FAKE_FLEET_DIR/status" ;;
   nochange) : ;;
   *) echo "9.9.9" > "$FAKE_FLEET_DIR/ver" ;;
+esac
+EOS
+cat > "$F/deploy" <<'EOS'
+#!/usr/bin/env bash
+echo "$*" >> "$FAKE_FLEET_DIR/deploys"
+[ "${FAKE_DEPLOY_MODE:-ok}" = "fail" ] && exit 4
+case " $* " in *" --swap-restart "*) bash "$FAKE_FLEET_DIR/swap" ;; esac
+exit 0
+EOS
+cat > "$F/remote" <<'EOS'
+#!/usr/bin/env bash
+echo "$2" >> "$FAKE_FLEET_DIR/remote-cmds"
+case "$2" in
+  *"systemctl cat termlink-hub"*) [ "${FAKE_UNIT:-1}" = "1" ] && echo "/usr/local/bin/termlink" ;;
+  *"systemctl restart termlink-hub"*)
+    [ "${FAKE_SWAP_CONFIRM:-1}" = "1" ] || { echo "install: cannot create regular file: Text file busy"; exit 1; }
+    bash "$FAKE_FLEET_DIR/swap"; echo RUNME-SWAP-OK ;;
 esac
 EOS
 cat > "$F/tofu" <<'EOS'
@@ -150,10 +167,11 @@ cat > "$F/tofu" <<'EOS'
 exit "${FAKE_TOFU_RC:-0}"
 EOS
 cp "$TMP/tl-new" "$F/musl"
-chmod +x "$F/doctor" "$F/deploy" "$F/tofu" "$F/musl"
-fleet_state() { echo "$1" > "$F/ver"; echo ok > "$F/status"; rm -f "$F/deploys"; }
+chmod +x "$F/doctor" "$F/deploy" "$F/tofu" "$F/musl" "$F/swap" "$F/remote"
+fleet_state() { echo "$1" > "$F/ver"; echo ok > "$F/status"; rm -f "$F/deploys" "$F/remote-cmds"; }
 export FAKE_FLEET_DIR="$F" RUNME_FLEET_HUBS=fake-hub RUNME_MUSL_SRC="$F/musl" \
-       RUNME_FLEET_DEPLOY="$F/deploy" RUNME_FLEET_DOCTOR="$F/doctor" RUNME_TOFU="$F/tofu" RUNME_FLEET_WAIT_SECS=2
+       RUNME_FLEET_DEPLOY="$F/deploy" RUNME_FLEET_DOCTOR="$F/doctor" RUNME_TOFU="$F/tofu" RUNME_FLEET_WAIT_SECS=2 \
+       RUNME_FLEET_REMOTE="$F/remote"
 fleet_state 9.9.9
 # T-3273: logs go to scratch (world-writable so the non-root case logs here too).
 mkdir -p "$TMP/logs" && chmod 1777 "$TMP/logs"
@@ -444,34 +462,47 @@ hub_state 100 "$H/hubbin"
 fleet_state 9.9.9
 out=$(run); rc=$?
 if [ "$rc" = "0" ] && echo "$out" | grep -q "skip    fake-hub already serves 9.9.9" && [ ! -e "$F/deploys" ]; then
-    ok "fleet: hub already at the build version => skip, no deploy"
+    ok "fleet: hub already at a current-code version => skip, no deploy"
 else bad "fleet idempotent skip" "rc=$rc: $out"; fi
 fleet_state 0.11.1
 out=$(run --dry-run); rc=$?
-if echo "$out" | grep -q "would deploy musl 9.9.9 to fake-hub (10.0.0.1:9100, now 0.11.1)" && [ ! -e "$F/deploys" ]; then
-    ok "fleet: --dry-run reports the deploy and does NOT perform it"
+if echo "$out" | grep -q "would stage musl 9.9.9 on fake-hub (10.0.0.1:9100, now 0.11.1)" && [ ! -e "$F/deploys" ] && [ ! -e "$F/remote-cmds" ]; then
+    ok "fleet: --dry-run reports the upgrade and does NOT perform it"
 else bad "fleet dry-run" "rc=$rc: $out"; fi
 fleet_state 0.11.1
-out=$(run); rc=$?
-if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      upgraded and verified: fake-hub serves 9.9.9" && grep -q -- "--probe --swap-restart" "$F/deploys" && grep -q -- "--binary $F/musl" "$F/deploys"; then
-    ok "fleet: stale hub deployed once with the musl binary, --probe --swap-restart, verified => OK"
-else bad "fleet deploy" "rc=$rc: $out $(cat "$F/deploys" 2>/dev/null)"; fi
+out=$(FAKE_UNIT=1 run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      upgraded and verified: fake-hub serves 9.9.9" \
+   && grep -q -- "--binary $F/musl --dst /tmp/termlink.new --probe" "$F/deploys" && ! grep -q -- "--swap-restart" "$F/deploys" \
+   && grep -q "install -m 755 /tmp/termlink.new /usr/local/bin/termlink" "$F/remote-cmds" && grep -q "systemctl restart termlink-hub" "$F/remote-cmds"; then
+    ok "fleet: systemd-supervised hub => stage+probe, install over the unit's binary, restart THROUGH systemd (G-070), no --swap-restart"
+else bad "fleet systemd path" "rc=$rc: $out $(cat "$F/deploys" "$F/remote-cmds" 2>/dev/null)"; fi
 fleet_state 0.11.1
-cp "$TMP/tl-old" "$F/musl"
+out=$(FAKE_UNIT=0 run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      upgraded and verified" && grep -q -- "--swap-restart" "$F/deploys" \
+   && ! grep -q "systemctl restart" "$F/remote-cmds"; then
+    ok "fleet: hub with no unit (watchdog-launched) => --swap-restart, never systemctl"
+else bad "fleet watchdog path" "rc=$rc: $out $(cat "$F/deploys" 2>/dev/null)"; fi
+fleet_state 0.11.1
+out=$(FAKE_SWAP_CONFIRM=0 run); rc=$?
+if [ "$rc" = "1" ] && echo "$out" | grep -q "install/restart on fake-hub did not confirm: install: cannot create"; then
+    ok "fleet: unconfirmed systemd install/restart => FAILED naming the remote error"
+else bad "fleet unconfirmed swap" "rc=$rc: $out"; fi
+fleet_state 0.11.1
+cp "$TMP/tl-old" "$F/musl"; printf '#!/usr/bin/env bash\nexit 1\n' > "$F/musl"
 out=$(run); rc=$?
 cp "$TMP/tl-new" "$F/musl"
-if [ "$rc" = "1" ] && echo "$out" | grep -q "musl binary reports '0.0.1', build is '9.9.9' — refusing to ship" && [ ! -e "$F/deploys" ]; then
-    ok "fleet: stale musl build (the 0.11.679 downgrade trap) => FAILED, nothing shipped"
-else bad "fleet must refuse a stale musl" "rc=$rc: $out"; fi
+if [ "$rc" = "1" ] && echo "$out" | grep -q "musl binary $F/musl does not run — nothing shipped" && [ ! -e "$F/deploys" ]; then
+    ok "fleet: musl binary that does not run => FAILED, nothing shipped"
+else bad "fleet broken musl" "rc=$rc: $out"; fi
 fleet_state 0.11.1
 out=$(FAKE_DEPLOY_MODE=fail run); rc=$?
-if [ "$rc" = "1" ] && echo "$out" | grep -q "FAILED  fleet-deploy-binary for fake-hub failed"; then
-    ok "fleet: deploy script failure => FAILED"
-else bad "fleet deploy failure" "rc=$rc: $out"; fi
+if [ "$rc" = "1" ] && echo "$out" | grep -q "FAILED  staging on fake-hub failed" && [ ! -e "$F/remote-cmds" ]; then
+    ok "fleet: staging/probe failure => FAILED, no swap attempted"
+else bad "fleet staging failure" "rc=$rc: $out"; fi
 fleet_state 0.11.1
 out=$(FAKE_DEPLOY_MODE=auth run); rc=$?
 if [ "$rc" = "1" ] && echo "$out" | grep -q "status='auth-mismatch'"; then
-    ok "fleet: hub up but auth broken after deploy (secret rotated) => FAILED"
+    ok "fleet: hub up but auth broken after the swap (secret rotated) => FAILED"
 else bad "fleet auth regression must fail" "rc=$rc: $out"; fi
 fleet_state 0.11.1
 out=$(FAKE_TOFU_RC=1 run); rc=$?
@@ -479,6 +510,43 @@ if [ "$rc" = "1" ] && echo "$out" | grep -q "tofu verify failed"; then
     ok "fleet: cert changed (tofu verify fails) => FAILED"
 else bad "fleet cert rotation must fail" "rc=$rc: $out"; fi
 fleet_state 9.9.9
+
+# ---------------------------------------------------------------------------
+# 16. T-3292 — cached builds. A fake cargo counts invocations; a scratch git repo
+#     stands in for the project (RUNME_BUILD_REPO) so commits are controlled.
+#     The fleet hub is current, so only the HOST build is ever considered.
+# ---------------------------------------------------------------------------
+B="$TMP/build"; mkdir -p "$B/repo/crates/x" "$B/stamps"
+printf '#!/usr/bin/env bash\necho "$*" >> "%s/cargo-calls"\n' "$B" > "$B/cargo"; chmod +x "$B/cargo"
+git -C "$B/repo" init -q && git -C "$B/repo" config user.email f@x && git -C "$B/repo" config user.name f
+echo a > "$B/repo/crates/x/lib.rs"; echo d > "$B/repo/README"; git -C "$B/repo" add -A && git -C "$B/repo" commit -qm init
+brun() { env -u RUNME_SKIP_BUILD RUNME_CARGO="$B/cargo" RUNME_BUILD_REPO="$B/repo" RUNME_BUILD_STAMP_DIR="$B/stamps" \
+             RUNME_CRON_DIR="$TMP/cron" bash "$RUNME" "$@" 2>&1; }
+calls() { [ -f "$B/cargo-calls" ] && wc -l < "$B/cargo-calls" || echo 0; }
+out=$(brun); rc=$?
+if [ "$rc" = "0" ] && [ "$(calls)" = "1" ] && grep -q -- "--profile local-fast -p termlink" "$B/cargo-calls" \
+   && [ "$(cat "$B/stamps/host")" = "$(git -C "$B/repo" rev-parse HEAD)" ]; then
+    ok "build cache: no record yet => cargo builds with the local-fast profile and records HEAD"
+else bad "first build" "rc=$rc calls=$(calls): $out"; fi
+out=$(brun); rc=$?
+if [ "$rc" = "0" ] && [ "$(calls)" = "1" ] && echo "$out" | grep -q "cached  host build is current"; then
+    ok "build cache: nothing changed => no cargo, says cached"
+else bad "cached rerun" "rc=$rc calls=$(calls): $out"; fi
+echo d2 > "$B/repo/README"; git -C "$B/repo" commit -qam docs
+out=$(brun); rc=$?
+if [ "$rc" = "0" ] && [ "$(calls)" = "1" ]; then
+    ok "build cache: docs-only commit => still no rebuild (the every-commit rebuild is gone)"
+else bad "docs-only commit must not rebuild" "rc=$rc calls=$(calls): $out"; fi
+echo b > "$B/repo/crates/x/lib.rs"
+out=$(brun); rc=$?
+if [ "$rc" = "0" ] && [ "$(calls)" = "2" ]; then
+    ok "build cache: uncommitted change under crates/ => rebuild"
+else bad "dirty crates must rebuild" "rc=$rc calls=$(calls): $out"; fi
+git -C "$B/repo" commit -qam code
+out=$(brun); rc=$?
+if [ "$rc" = "0" ] && [ "$(calls)" = "3" ]; then
+    ok "build cache: committed change under crates/ since the recorded build => rebuild"
+else bad "code commit must rebuild" "rc=$rc calls=$(calls): $out"; fi
 
 echo ""
 echo "----------------------------------------"

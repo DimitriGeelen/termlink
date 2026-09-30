@@ -293,7 +293,50 @@ fi
 # (ONE install path, as before) or RUNME_TERMLINK_DESTS (space-separated list,
 # first = always-install, rest = refresh-if-present); RUNME_SKIP_BUILD=1.
 # ---------------------------------------------------------------------------
-TL_SRC="${RUNME_TERMLINK_SRC:-$PROJECT_ROOT/target/release/termlink}"
+TL_SRC="${RUNME_TERMLINK_SRC:-$PROJECT_ROOT/target/local-fast/termlink}"
+
+# --- Cached builds (T-3292) -------------------------------------------------
+# Builds dominated runme (11-32 min per run). Two causes, both fixed here:
+#  * build.rs re-derives the version from git on EVERY commit (it watches
+#    .git/logs/HEAD), so even a docs-only commit recompiled four crates and redid
+#    `release`'s fat single-unit LTO link. runme now records the commit each build
+#    came from and SKIPS cargo when nothing under crates/, Cargo.toml or Cargo.lock
+#    changed since (committed or in the working tree). The installed version string
+#    may then trail HEAD across docs-only commits — same code, by construction.
+#  * `release` is lto=true + codegen-units=1. Host installs use `local-fast`
+#    (thin LTO, 16 units, incremental). Published binaries (release.yml) keep
+#    `release`.
+# Seams (fixtures only): RUNME_CARGO, RUNME_BUILD_REPO, RUNME_BUILD_STAMP_DIR;
+# RUNME_SKIP_BUILD=1 skips building entirely and treats outputs as current.
+BUILD_STAMP_DIR="${RUNME_BUILD_STAMP_DIR:-$PROJECT_ROOT/.context/working/runme-build-stamps}"
+BUILD_REPO="${RUNME_BUILD_REPO:-$PROJECT_ROOT}"
+CARGO="${RUNME_CARGO:-$(command -v cargo || echo "${HOME:-/root}/.cargo/bin/cargo")}"
+CODE_PATHS="crates Cargo.toml Cargo.lock"
+
+build_is_current() {  # <label> <output-binary> -> 0 when <output> was built from the current code
+    [ "${RUNME_SKIP_BUILD:-0}" = "1" ] && return 0
+    local stamp="$BUILD_STAMP_DIR/$1" built head
+    [ -x "$2" ] && [ -f "$stamp" ] || return 1
+    built="$(cat "$stamp")"; head="$(git -C "$BUILD_REPO" rev-parse HEAD 2>/dev/null)" || return 1
+    git -C "$BUILD_REPO" diff --quiet "$built" "$head" -- $CODE_PATHS 2>/dev/null || return 1
+    [ -z "$(git -C "$BUILD_REPO" status --porcelain -- $CODE_PATHS 2>/dev/null)" ]
+}
+
+cached_build() {  # <label> <output-binary> <cargo args...> -> 0 built or current; 1 failed (counted)
+    local label="$1" out="$2"; shift 2
+    if build_is_current "$label" "$out"; then
+        [ "${RUNME_SKIP_BUILD:-0}" = "1" ] || say "  cached  $label build is current (no change under crates/, Cargo.toml, Cargo.lock since $(cut -c1-9 "$BUILD_STAMP_DIR/$label")) — not rebuilding"
+        return 0
+    fi
+    if [ "$DRY_RUN" = "1" ]; then say "  [DRY]   would build ($label): cargo $*"; return 0; fi
+    local head t0; head="$(git -C "$BUILD_REPO" rev-parse HEAD 2>/dev/null)"; t0=$(date +%s)
+    say "  build   ($label) cargo $*"
+    if ! (cd "$PROJECT_ROOT" && "$CARGO" "$@") >"/tmp/.runme-build-$label.log" 2>&1; then
+        say "  FAILED  $label build failed (see /tmp/.runme-build-$label.log)"; FAILED=$((FAILED+1)); return 1
+    fi
+    mkdir -p "$BUILD_STAMP_DIR" && printf '%s\n' "$head" > "$BUILD_STAMP_DIR/$label"
+    say "  built   $label in $(( $(date +%s) - t0 ))s"
+}
 if [ -n "${RUNME_TERMLINK_DESTS:-}" ]; then
     TL_DESTS="$RUNME_TERMLINK_DESTS"
 elif [ -n "${RUNME_TERMLINK_DEST:-}" ]; then
@@ -334,13 +377,7 @@ install_termlink_to() {  # <dest> <want-version>
 }
 
 install_termlink() {
-    if [ "${RUNME_SKIP_BUILD:-0}" != "1" ] && [ "$DRY_RUN" = "0" ]; then
-        local cargo; cargo="$(command -v cargo || echo "${HOME:-/root}/.cargo/bin/cargo")"
-        say "  build   $cargo build --release -p termlink (a no-op when up to date)"
-        if ! (cd "$PROJECT_ROOT" && "$cargo" build --release -p termlink) >/tmp/.runme-build.log 2>&1; then
-            say "  FAILED  cargo build --release failed (see /tmp/.runme-build.log)"; FAILED=$((FAILED+1)); return
-        fi
-    fi
+    cached_build host "$TL_SRC" build --profile local-fast -p termlink || return
     if [ ! -x "$TL_SRC" ]; then
         if [ "$DRY_RUN" = "1" ]; then say "  [DRY]   would build and install $TL_SRC -> $TL_DESTS"; DONE=$((DONE+1)); return; fi
         say "  FAILED  built binary missing: $TL_SRC"; FAILED=$((FAILED+1)); return
@@ -447,27 +484,31 @@ restart_hub
 #
 # runme's install actions only touch THIS host. .122 (ring20-management) served
 # 0.11.1411. It is upgraded through scripts/fleet-deploy-binary.sh (T-1420):
-# stream the musl-static build over one of .122's remote-exec sessions, --probe
-# that it executes there (PL-100), then --swap-restart (.122 is watchdog-launched,
-# not systemd). .121 is NOT here: no foothold from this host (no remote sessions,
-# SSH publickey-denied) — it is asked to upgrade via its own operator agent.
+# stream the musl-static build over one of .122's remote-exec sessions and
+# --probe that it executes there (PL-100). The swap then follows how the hub is
+# supervised: if the host has a termlink-hub.service, install over the unit's
+# ExecStart binary and `systemctl restart` (G-070; the first run found .122 had
+# moved from a watchdog to systemd, and fleet-deploy-binary's guard rightly
+# refused --swap-restart); otherwise --swap-restart for a watchdog-launched hub.
+# .121 is NOT here: no foothold from this host — asked via its operator agent.
 #
-# TRAP guarded: fleet-deploy-binary ships target/x86_64-unknown-linux-musl, which
-# sat at 0.11.679 (July) — deploying it would DOWNGRADE .122. The musl build is
-# rebuilt from HEAD first, and nothing ships unless it reports the SAME version as
-# the glibc build installed above.
-# Idempotent: skipped when fleet doctor already reports the hub at that version.
-# Verified after: fleet doctor status ok (the HMAC secret still authenticates — no
-# rotation) AND hub_version == the build; `tofu verify` exits 0 (cert unchanged).
+# Build cost (T-3292): the musl build runs only when some hub is behind. A hub is
+# current if it serves the version of any current-code build (host or musl).
+# The 0.11.679 musl that sat in target/ (shipping it would have DOWNGRADED .122)
+# has no build record, so it is always rebuilt before anything ships.
+# Verified after: fleet doctor status ok (the HMAC secret still authenticates) AND
+# hub_version == the deployed musl version; `tofu verify` exits 0 (cert unchanged).
 # Seams (fixtures only): RUNME_FLEET_HUBS, RUNME_MUSL_SRC, RUNME_FLEET_DEPLOY,
-# RUNME_FLEET_DOCTOR, RUNME_TOFU, RUNME_FLEET_WAIT_SECS (+ RUNME_SKIP_BUILD).
+# RUNME_FLEET_DOCTOR, RUNME_FLEET_REMOTE, RUNME_TOFU, RUNME_FLEET_WAIT_SECS.
 # ---------------------------------------------------------------------------
 FLEET_HUBS="${RUNME_FLEET_HUBS:-ring20-management}"
-MUSL_SRC="${RUNME_MUSL_SRC:-$PROJECT_ROOT/target/x86_64-unknown-linux-musl/release/termlink}"
+MUSL_SRC="${RUNME_MUSL_SRC:-$PROJECT_ROOT/target/x86_64-unknown-linux-musl/local-fast/termlink}"
 FLEET_DEPLOY="${RUNME_FLEET_DEPLOY:-bash $PROJECT_ROOT/scripts/fleet-deploy-binary.sh}"
 FLEET_DOCTOR="${RUNME_FLEET_DOCTOR:-termlink fleet doctor --json}"
+FLEET_REMOTE="${RUNME_FLEET_REMOTE:-}"
 TOFU="${RUNME_TOFU:-termlink tofu verify}"
 FLEET_WAIT="${RUNME_FLEET_WAIT_SECS:-90}"
+STAGED=/tmp/termlink.new
 
 fleet_hub_field() {  # <hub-name> <field> -> value from fleet doctor, empty if absent
     timeout 60 $FLEET_DOCTOR 2>/dev/null | python3 -c '
@@ -479,39 +520,67 @@ for h in d.get("hubs",[]):
 ' "$1" "$2"
 }
 
+fleet_remote() {  # <hub> <shell command> -> stdout of the command run on that hub's host
+    if [ -n "$FLEET_REMOTE" ]; then $FLEET_REMOTE "$1" "$2"; return; fi
+    local sid; sid="$(timeout 30 termlink remote list "$1" 2>/dev/null | awk 'NR==3 {print $1}')"
+    [ -n "$sid" ] || return 3
+    timeout 70 termlink remote exec --timeout 60 "$1" "$sid" "$2"
+}
+
 upgrade_fleet_hubs() {
-    if [ "${RUNME_SKIP_BUILD:-0}" != "1" ] && [ "$DRY_RUN" = "0" ]; then
-        local cargo; cargo="$(command -v cargo || echo "${HOME:-/root}/.cargo/bin/cargo")"
-        say "  build   $cargo build --release --target x86_64-unknown-linux-musl -p termlink"
-        if ! (cd "$PROJECT_ROOT" && "$cargo" build --release --target x86_64-unknown-linux-musl -p termlink) >/tmp/.runme-musl-build.log 2>&1; then
-            say "  FAILED  musl build failed (see /tmp/.runme-musl-build.log)"; FAILED=$((FAILED+1)); return
-        fi
-    fi
-    local want mver
-    want="$("$TL_SRC" --version 2>/dev/null | awk '{print $2}')"
-    mver="$("$MUSL_SRC" --version 2>/dev/null | awk '{print $2}')"
-    if [ -z "$want" ] || [ "$mver" != "$want" ]; then
-        if [ "$DRY_RUN" = "1" ]; then
-            say "  [DRY]   would rebuild musl (now '${mver:-absent}', build is '${want:-unknown}') before any deploy"
-        else
-            say "  FAILED  musl binary reports '${mver:-nothing}', build is '${want:-unknown}' — refusing to ship (not the current code)"; FAILED=$((FAILED+1)); return
-        fi
-    fi
-    local hub have addr i st
+    local host_ver musl_ver="" hub have addr pending=""
+    host_ver="$("$TL_SRC" --version 2>/dev/null | awk '{print $2}')"
+    build_is_current musl "$MUSL_SRC" && musl_ver="$("$MUSL_SRC" --version 2>/dev/null | awk '{print $2}')"
+    # Which hubs are behind? A hub is current if it serves the version of ANY
+    # current-code build (host or musl): across docs-only commits the two version
+    # strings can differ while the code is identical, and treating that as "behind"
+    # would redeploy on every run.
     for hub in $FLEET_HUBS; do
-        have="$(fleet_hub_field "$hub" hub_version)"; addr="$(fleet_hub_field "$hub" address)"
-        if [ -n "$want" ] && [ "$have" = "$want" ]; then
-            say "  skip    $hub already serves $have"; SKIPPED=$((SKIPPED+1)); continue
+        have="$(fleet_hub_field "$hub" hub_version)"
+        if [ -n "$have" ] && { [ "$have" = "$host_ver" ] || [ "$have" = "$musl_ver" ]; }; then
+            say "  skip    $hub already serves $have (current code)"; SKIPPED=$((SKIPPED+1))
+        else
+            pending="$pending $hub"
         fi
+    done
+    [ -n "$pending" ] || return 0
+    # Only now is the musl build worth its cost (T-3292). A musl binary with no
+    # build record — like the 0.11.679 one in target/ — is never "current", so the
+    # downgrade trap stays closed: it is rebuilt before anything ships.
+    cached_build musl "$MUSL_SRC" build --profile local-fast --target x86_64-unknown-linux-musl -p termlink || return
+    local want; want="$("$MUSL_SRC" --version 2>/dev/null | awk '{print $2}')"
+    if [ -z "$want" ]; then
+        if [ "$DRY_RUN" = "1" ]; then want="(to be built)"; else
+            say "  FAILED  musl binary $MUSL_SRC does not run — nothing shipped"; FAILED=$((FAILED+1)); return; fi
+    fi
+    local i st unitbin out
+    for hub in $pending; do
+        have="$(fleet_hub_field "$hub" hub_version)"; addr="$(fleet_hub_field "$hub" address)"
         if [ -z "$addr" ]; then
             say "  FAILED  $hub not found or unreachable in fleet doctor — cannot upgrade"; FAILED=$((FAILED+1)); continue
         fi
         if [ "$DRY_RUN" = "1" ]; then
-            say "  [DRY]   would deploy musl ${want:-?} to $hub ($addr, now ${have:-unknown}) with --probe --swap-restart"; DONE=$((DONE+1)); continue
+            say "  [DRY]   would stage musl $want on $hub ($addr, now ${have:-unknown}), probe it, then restart its hub (systemd unit if present)"; DONE=$((DONE+1)); continue
         fi
         say "  deploy  $hub ($addr): ${have:-unknown} -> $want"
-        if ! $FLEET_DEPLOY "$hub" --binary "$MUSL_SRC" --probe --swap-restart >/tmp/.runme-deploy-"$hub".log 2>&1; then
-            say "  FAILED  fleet-deploy-binary for $hub failed (see /tmp/.runme-deploy-$hub.log)"; FAILED=$((FAILED+1)); continue
+        # Stage + probe only; the swap is chosen below by how the hub is supervised.
+        if ! $FLEET_DEPLOY "$hub" --binary "$MUSL_SRC" --dst "$STAGED" --probe >/tmp/.runme-deploy-"$hub".log 2>&1; then
+            say "  FAILED  staging on $hub failed (see /tmp/.runme-deploy-$hub.log)"; FAILED=$((FAILED+1)); continue
+        fi
+        unitbin="$(fleet_remote "$hub" 'systemctl cat termlink-hub 2>/dev/null | sed -n "s/^ExecStart=\([^ ]*\).*/\1/p" | head -1' 2>/dev/null | tr -d '\r' | tail -1)"
+        if [ -n "$unitbin" ]; then
+            # G-070: a systemd-supervised hub is restarted THROUGH its unit. The
+            # restart is delayed and detached so this exec (which rides on that
+            # hub) returns before the hub goes down.
+            say "  swap    $hub runs under termlink-hub.service ($unitbin): install + systemctl restart"
+            out="$(fleet_remote "$hub" "install -m 755 $STAGED $unitbin && (setsid sh -c 'sleep 2; systemctl restart termlink-hub' </dev/null >/dev/null 2>&1 &) && echo RUNME-SWAP-OK" 2>&1)"
+            case "$out" in *RUNME-SWAP-OK*) : ;; *)
+                say "  FAILED  install/restart on $hub did not confirm: $(printf '%s' "$out" | tail -1)"; FAILED=$((FAILED+1)); continue ;; esac
+        else
+            say "  swap    $hub has no termlink-hub unit: fleet-deploy-binary --swap-restart (watchdog-launched hub)"
+            if ! $FLEET_DEPLOY "$hub" --binary "$MUSL_SRC" --dst "$STAGED" --probe --swap-restart >>/tmp/.runme-deploy-"$hub".log 2>&1; then
+                say "  FAILED  swap-restart on $hub failed (see /tmp/.runme-deploy-$hub.log)"; FAILED=$((FAILED+1)); continue
+            fi
         fi
         for i in $(seq 1 "$FLEET_WAIT"); do
             [ "$(fleet_hub_field "$hub" hub_version)" = "$want" ] && break; sleep 1

@@ -94,3 +94,14 @@ termlink-bus = { path = "crates/termlink-bus" }
 lto = true
 codegen-units = 1
 strip = true
+
+# T-3292: host-local installs (runme.sh). `release` does a fat single-unit LTO
+# link, the slowest possible build, and the git-derived version makes every commit
+# rebuild four crates plus that full link. Published binaries (release.yml) keep
+# `release`; this profile trades a little binary size/speed for rebuilds that
+# fit an operator's wait.
+[profile.local-fast]
+inherits = "release"
+lto = "thin"
+codegen-units = 16
+incremental = true
