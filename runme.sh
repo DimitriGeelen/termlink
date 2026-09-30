@@ -223,7 +223,10 @@ fi
 # RUNME_TEST_APPROVED_DECISIONS is a FIXTURE seam; when SET (even empty) it
 # replaces the real list, so fixtures never touch a real task.
 # ---------------------------------------------------------------------------
-APPROVED_DECISIONS=()   # T-3284 = go recorded 2026-09-30 (log runme-20260930T185754Z, rc=0)
+# T-3284 = go recorded 2026-09-30 (log runme-20260930T185754Z, rc=0)
+APPROVED_DECISIONS=(
+    "T-3291|go|Operator 2026-09-30: GO on all four slices — S1 reap orphan .sock.data (cleanup deletes all three files + sweep reaps orphans), S2 register --shell exits with its shell, S3 upstream dispatch/claude-fw exit + one-time runme reap of idle zombies, S4 session-leak canary; docs/reports/T-3291-session-lifecycle-leak-rca.md"
+)
 if [ -n "${RUNME_TEST_APPROVED_DECISIONS+x}" ]; then
     APPROVED_DECISIONS=()
     [ -n "$RUNME_TEST_APPROVED_DECISIONS" ] && mapfile -t APPROVED_DECISIONS <<< "$RUNME_TEST_APPROVED_DECISIONS"

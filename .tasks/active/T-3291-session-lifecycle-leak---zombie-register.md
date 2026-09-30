@@ -102,9 +102,17 @@ Read-only measurement only; nothing is killed or deleted during the RCA.
      For infrastructure: network topology, firewall rules, latency bounds.
      Fill this BEFORE building. Discovering constraints after implementation wastes sessions. -->
 
+- The vendored framework (`fw termlink dispatch`, `claude-fw`) is upstream code (G-062): it cannot be patched here, so S3a is filed at `framework:pickup`, and local detection (S4) is what survives a re-vendor.
+- The orphan reap must never delete a `.sock.data` that a LIVE registration references, and must use an age grace period (a session writes its files in sequence).
+- Zombie termination (S3b) is destructive on shared tmux state, so it runs only through runme, previews first, and targets only detached, childless panes idle for more than 24 h.
+- Sessions exist on two registries: `/var/lib/termlink` (hub-swept) and legacy `/tmp/termlink-0` (not swept).
+
 ## Scope Fence
 
 <!-- What's IN scope for this exploration? What's explicitly OUT? -->
+
+- **IN:** the local session lifecycle on this host: register exit, file cleanup, the zombie reap and a canary.
+- **OUT:** patching vendored framework code (filed upstream instead); an idle-timeout TTL inside `register` (rejected: parked workers are legitimate); other hosts' session hygiene.
 
 ## Acceptance Criteria
 
