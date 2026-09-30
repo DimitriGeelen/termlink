@@ -40,11 +40,21 @@ pub fn process_exists(pid: u32) -> bool {
     errno == libc::EPERM
 }
 
-/// Remove stale registration artifacts (socket + JSON files).
+/// Remove stale registration artifacts: control socket, JSON, and data-plane socket.
+///
+/// T-3293: this used to remove only the socket and the JSON. A `--shell` session
+/// also owns `<socket>.data` (the data plane, see `data_server::data_socket_path`),
+/// and once the JSON is gone nothing can find that file again — 10,144 of them had
+/// accumulated on one host. The data socket is removed from its derived path and,
+/// if different, from the path recorded in `metadata.data_socket`.
 pub fn cleanup_stale(reg: &Registration, sessions_dir: &Path) {
     let json_path = Registration::json_path(sessions_dir, &reg.id);
     if let Some(path) = reg.addr.as_unix_path() {
         let _ = std::fs::remove_file(path);
+        let _ = std::fs::remove_file(crate::data_server::data_socket_path(path));
+    }
+    if let Some(ref recorded) = reg.metadata.data_socket {
+        let _ = std::fs::remove_file(recorded);
     }
     let _ = std::fs::remove_file(&json_path);
     tracing::info!(
@@ -52,6 +62,45 @@ pub fn cleanup_stale(reg: &Registration, sessions_dir: &Path) {
         pid = reg.pid,
         "Cleaned stale session registration"
     );
+}
+
+/// Suffix of a data-plane socket next to its control socket (`<id>.sock.data`).
+const DATA_SOCKET_SUFFIX: &str = ".sock.data";
+
+/// Reap orphaned data-plane sockets: `<id>.sock.data` files in `sessions_dir` whose
+/// `<id>.json` registration no longer exists and whose mtime is older than `grace`.
+///
+/// T-3293: these are left by sessions that died by any route other than their own
+/// clean shutdown, and by every cleaner that predates the fix above. A file with a
+/// registration beside it is never touched (the live-or-dead decision belongs to
+/// `is_alive` + `cleanup_stale`), and neither is a young one: a session creates its
+/// files in sequence, so a just-created data socket can briefly precede its JSON.
+/// Returns the number of files removed.
+pub fn reap_orphan_data_sockets(sessions_dir: &Path, grace: std::time::Duration) -> usize {
+    let entries = match std::fs::read_dir(sessions_dir) {
+        Ok(e) => e,
+        Err(_) => return 0,
+    };
+    let now = std::time::SystemTime::now();
+    let mut removed = 0;
+    for entry in entries.flatten() {
+        let name = entry.file_name();
+        let Some(name) = name.to_str() else { continue };
+        let Some(id) = name.strip_suffix(DATA_SOCKET_SUFFIX) else { continue };
+        if id.is_empty() || sessions_dir.join(format!("{id}.json")).exists() {
+            continue;
+        }
+        let old_enough = entry
+            .metadata()
+            .and_then(|m| m.modified())
+            .ok()
+            .and_then(|t| now.duration_since(t).ok())
+            .is_some_and(|age| age >= grace);
+        if old_enough && std::fs::remove_file(entry.path()).is_ok() {
+            removed += 1;
+        }
+    }
+    removed
 }
 
 #[cfg(test)]
@@ -128,5 +177,75 @@ mod tests {
         assert!(!json_path.exists());
 
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// T-3293: the data-plane socket is the file every cleaner used to leave behind.
+    #[test]
+    fn cleanup_removes_data_socket_too() {
+        use crate::identity::SessionId;
+        use crate::registration::SessionConfig;
+
+        let dir = tempfile::tempdir().unwrap();
+        let id = SessionId::generate();
+        let socket_path = dir.path().join(format!("{id}.sock"));
+        let json_path = dir.path().join(format!("{id}.json"));
+        let data_path = crate::data_server::data_socket_path(&socket_path);
+        let recorded = dir.path().join("elsewhere.data");
+        for p in [&socket_path, &json_path, &data_path, &recorded] {
+            std::fs::write(p, b"fake").unwrap();
+        }
+        let mut reg = Registration::new(id, SessionConfig::default(), socket_path.clone());
+        reg.metadata.data_socket = Some(recorded.to_string_lossy().into_owned());
+
+        cleanup_stale(&reg, dir.path());
+
+        assert!(!socket_path.exists(), "control socket left behind");
+        assert!(!json_path.exists(), "registration JSON left behind");
+        assert!(!data_path.exists(), "derived <sock>.data left behind (the T-3293 leak)");
+        assert!(!recorded.exists(), "metadata.data_socket path left behind");
+    }
+
+    #[test]
+    fn reap_removes_old_orphan_data_socket() {
+        let dir = tempfile::tempdir().unwrap();
+        let orphan = dir.path().join("tl-orphan.sock.data");
+        std::fs::write(&orphan, b"").unwrap();
+
+        let n = reap_orphan_data_sockets(dir.path(), std::time::Duration::ZERO);
+
+        assert_eq!(n, 1);
+        assert!(!orphan.exists());
+    }
+
+    #[test]
+    fn reap_never_touches_a_registered_session() {
+        let dir = tempfile::tempdir().unwrap();
+        let data = dir.path().join("tl-live.sock.data");
+        let json = dir.path().join("tl-live.json");
+        let sock = dir.path().join("tl-live.sock");
+        for p in [&data, &json, &sock] {
+            std::fs::write(p, b"").unwrap();
+        }
+
+        let n = reap_orphan_data_sockets(dir.path(), std::time::Duration::ZERO);
+
+        assert_eq!(n, 0);
+        assert!(data.exists() && json.exists() && sock.exists());
+    }
+
+    #[test]
+    fn reap_spares_a_young_orphan_and_other_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let young = dir.path().join("tl-new.sock.data");
+        let unrelated = dir.path().join("tl-x.sock");
+        let odd = dir.path().join(".sock.data");
+        for p in [&young, &unrelated, &odd] {
+            std::fs::write(p, b"").unwrap();
+        }
+
+        let n = reap_orphan_data_sockets(dir.path(), std::time::Duration::from_secs(3600));
+
+        assert_eq!(n, 0, "a data socket younger than the grace may precede its JSON");
+        assert!(young.exists() && unrelated.exists() && odd.exists());
     }
 }

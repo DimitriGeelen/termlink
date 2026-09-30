@@ -40,6 +40,52 @@ fn start_register_shell(runtime_dir: &std::path::Path, name: &str) -> ProcessGua
 
 // ─── Registration & Lifecycle Tests ────────────────────────────────
 
+/// T-3293: a `register --shell` session killed by `sig` must remove all three of
+/// its files — JSON, control socket, data socket. Only SIGINT used to clean up, so
+/// SIGTERM (kill, supervisors) and SIGHUP (a closed tmux pane) leaked them.
+fn assert_signal_cleans_up(sig: i32, label: &str) {
+    let dir = TestDir::new(label);
+    let mut guard = start_register_shell(&dir.path, label);
+    let sessions = dir.sessions_dir();
+    wait_for_socket(&sessions, Duration::from_secs(10)).unwrap();
+    termlink_test_utils::wait_for_data_socket(&sessions, Duration::from_secs(10)).unwrap();
+    let start = Instant::now();
+    while !std::fs::read_dir(&sessions).unwrap().flatten()
+        .any(|e| e.path().extension().is_some_and(|x| x == "json"))
+    {
+        assert!(start.elapsed() < Duration::from_secs(10), "registration JSON never appeared");
+        std::thread::sleep(Duration::from_millis(50));
+    }
+
+    let pid = guard.child().id() as i32;
+    assert_eq!(unsafe { libc::kill(pid, sig) }, 0, "could not signal register");
+    let start = Instant::now();
+    loop {
+        if guard.child().try_wait().unwrap().is_some() {
+            break;
+        }
+        assert!(start.elapsed() < Duration::from_secs(10), "register did not exit on {label}");
+        std::thread::sleep(Duration::from_millis(50));
+    }
+
+    let left: Vec<String> = std::fs::read_dir(&sessions)
+        .unwrap()
+        .flatten()
+        .map(|e| e.file_name().to_string_lossy().into_owned())
+        .collect();
+    assert!(left.is_empty(), "{label} left files behind: {left:?}");
+}
+
+#[test]
+fn cli_register_shell_sigterm_removes_all_files() {
+    assert_signal_cleans_up(libc::SIGTERM, "sigterm-clean");
+}
+
+#[test]
+fn cli_register_shell_sighup_removes_all_files() {
+    assert_signal_cleans_up(libc::SIGHUP, "sighup-clean");
+}
+
 #[test]
 fn cli_register_and_list() {
     let dir = TestDir::new("reg-list");

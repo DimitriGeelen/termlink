@@ -17,6 +17,11 @@ use termlink_session::{client, discovery, liveness, manager};
 /// Default supervision interval.
 pub const DEFAULT_INTERVAL: Duration = Duration::from_secs(30);
 
+/// T-3293: an orphaned `<id>.sock.data` must be at least this old before the
+/// sweep reaps it. A session writes its files in sequence, so a data socket can
+/// briefly exist before its registration JSON; 10 minutes is far beyond that.
+pub const ORPHAN_DATA_SOCKET_GRACE: Duration = Duration::from_secs(600);
+
 /// Topic for session lifecycle exit events.
 pub const SESSION_EXITED_TOPIC: &str = "session.exited";
 
@@ -25,7 +30,34 @@ pub const SESSION_EXITED_TOPIC: &str = "session.exited";
 /// Polls all registered sessions every `interval` and removes stale ones.
 /// Emits `session.exited` events before cleanup.
 /// Stops when the shutdown signal is received.
-pub async fn run(interval: Duration, mut shutdown_rx: watch::Receiver<bool>) {
+pub async fn run(interval: Duration, shutdown_rx: watch::Receiver<bool>) {
+    run_with(interval, shutdown_rx, sweep_targets, true).await
+}
+
+/// The real sweep targets: every candidate session dir, or the default one.
+fn sweep_targets() -> Vec<std::path::PathBuf> {
+    // T-987: sweep all candidate session dirs
+    let dirs = discovery::all_sessions_dirs();
+    if dirs.is_empty() {
+        // Fall back to default dir even if it doesn't exist yet
+        vec![discovery::sessions_dir()]
+    } else {
+        dirs
+    }
+}
+
+/// The supervision loop with its host-state inputs injected.
+///
+/// T-3293: `run` resolves the REAL session dirs and inbox. A test that drove
+/// `run` swept whatever `TERMLINK_RUNTIME_DIR` pointed at on the test host — and
+/// once the sweep reaped orphan data sockets, a `cargo test` deleted ~10,000 real
+/// files on the machine running it. Tests pass their own dirs and skip the inbox.
+pub async fn run_with(
+    interval: Duration,
+    mut shutdown_rx: watch::Receiver<bool>,
+    dirs: impl Fn() -> Vec<std::path::PathBuf>,
+    inbox_housekeeping: bool,
+) {
     tracing::info!(
         interval_secs = interval.as_secs(),
         "Session supervisor started"
@@ -34,21 +66,16 @@ pub async fn run(interval: Duration, mut shutdown_rx: watch::Receiver<bool>) {
     loop {
         tokio::select! {
             _ = tokio::time::sleep(interval) => {
-                // T-987: sweep all candidate session dirs
-                let dirs = discovery::all_sessions_dirs();
-                if dirs.is_empty() {
-                    // Fall back to default dir even if it doesn't exist yet
-                    sweep(&discovery::sessions_dir()).await;
-                } else {
-                    for dir in &dirs {
-                        sweep(dir).await;
-                    }
+                for dir in dirs() {
+                    sweep(&dir).await;
                 }
-                // T-988: deliver pending inbox files + clean expired
-                deliver_inbox().await;
-                let expired = crate::inbox::cleanup_expired(crate::inbox::DEFAULT_EXPIRY);
-                if expired > 0 {
-                    tracing::info!(expired, "Supervisor: cleaned expired inbox entries");
+                if inbox_housekeeping {
+                    // T-988: deliver pending inbox files + clean expired
+                    deliver_inbox().await;
+                    let expired = crate::inbox::cleanup_expired(crate::inbox::DEFAULT_EXPIRY);
+                    if expired > 0 {
+                        tracing::info!(expired, "Supervisor: cleaned expired inbox entries");
+                    }
                 }
             }
             _ = shutdown_rx.changed() => {
@@ -89,6 +116,18 @@ async fn deliver_inbox() {
 /// Perform a single supervision sweep: list sessions, check liveness,
 /// emit `session.exited` events for dead sessions, then clean up.
 pub async fn sweep(sessions_dir: &Path) {
+    // T-3293: reap orphaned data-plane sockets on EVERY sweep — before the
+    // early return below, which fires whenever no session died this cycle and
+    // would otherwise leave orphans from earlier deaths untouched forever.
+    let reaped = liveness::reap_orphan_data_sockets(sessions_dir, ORPHAN_DATA_SOCKET_GRACE);
+    if reaped > 0 {
+        tracing::info!(
+            reaped,
+            dir = %sessions_dir.display(),
+            "Supervisor: reaped orphaned data-plane sockets (<id>.sock.data without a registration)"
+        );
+    }
+
     let sessions = match manager::list_sessions_in(sessions_dir, true) {
         Ok(s) => s,
         Err(e) => {
@@ -242,6 +281,24 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
+    /// T-3293: an orphaned data socket is reaped by the sweep even when no
+    /// session died this cycle — the early-return path that used to skip it.
+    #[tokio::test]
+    async fn sweep_reaps_old_orphan_data_socket_even_with_no_deaths() {
+        let dir = tempfile::tempdir().unwrap();
+        let old = dir.path().join("tl-gone.sock.data");
+        let young = dir.path().join("tl-fresh.sock.data");
+        std::fs::write(&old, b"").unwrap();
+        std::fs::write(&young, b"").unwrap();
+        let aged = std::time::SystemTime::now() - (ORPHAN_DATA_SOCKET_GRACE + Duration::from_secs(60));
+        std::fs::File::options().write(true).open(&old).unwrap().set_modified(aged).unwrap();
+
+        sweep(dir.path()).await;
+
+        assert!(!old.exists(), "orphan older than the grace must be reaped");
+        assert!(young.exists(), "orphan younger than the grace must survive");
+    }
+
     #[tokio::test]
     async fn sweep_empty_dir_is_ok() {
         let dir = test_sessions_dir();
@@ -261,8 +318,11 @@ mod tests {
         let (_tx, rx) = watch::channel(false);
         let tx_clone = _tx.clone();
 
+        // T-3293: never the real session dirs or inbox — see `run_with`.
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().to_path_buf();
         let handle = tokio::spawn(async move {
-            run(Duration::from_millis(50), rx).await;
+            run_with(Duration::from_millis(50), rx, move || vec![path.clone()], false).await;
         });
 
         // Let it run a few cycles

@@ -464,32 +464,41 @@ pub(crate) async fn cmd_register(opts: RegisterOpts) -> Result<()> {
         }
     });
 
-    tokio::select! {
-        _ = server::run_accept_loop(listener, shared_clone) => {}
-        _ = tokio::signal::ctrl_c() => {
-            println!();
-            println!("Shutting down...");
+    // T-3293: SIGTERM and SIGHUP run the same cleanup as SIGINT. Before, only
+    // ctrl_c was handled, so `kill`, a supervisor stop, or a closed tmux pane
+    // (SIGHUP) took the default action and left the JSON, the control socket and
+    // the data socket behind.
+    let mut sigterm = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
+    let mut sighup = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::hangup())?;
+    let shutdown: Option<&str> = tokio::select! {
+        _ = server::run_accept_loop(listener, shared_clone) => None,
+        _ = tokio::signal::ctrl_c() => Some("SIGINT"),
+        _ = sigterm.recv() => Some("SIGTERM"),
+        _ = sighup.recv() => Some("SIGHUP"),
+    };
+    if let Some(sig) = shutdown {
+        println!();
+        println!("Shutting down ({sig})...");
 
-            // Kill PTY child if running
-            if let Some(ref pty) = pty_session {
-                let _ = pty.signal(libc::SIGTERM);
-            }
-            if let Some(h) = pty_handle {
-                h.abort();
-            }
-
-            // Clean up registration files
-            let json_path = termlink_session::Registration::json_path(&sessions_dir, &session_id);
-            let _ = std::fs::remove_file(reg_for_cleanup.socket_path());
-            let _ = std::fs::remove_file(&json_path);
-
-            // Clean up data socket if present
-            if let Some(ref data_path) = data_socket_path {
-                let _ = std::fs::remove_file(data_path);
-            }
-
-            println!("Session {} deregistered.", session_id);
+        // Kill PTY child if running
+        if let Some(ref pty) = pty_session {
+            let _ = pty.signal(libc::SIGTERM);
         }
+        if let Some(h) = pty_handle {
+            h.abort();
+        }
+
+        // Clean up registration files
+        let json_path = termlink_session::Registration::json_path(&sessions_dir, &session_id);
+        let _ = std::fs::remove_file(reg_for_cleanup.socket_path());
+        let _ = std::fs::remove_file(&json_path);
+
+        // Clean up data socket if present
+        if let Some(ref data_path) = data_socket_path {
+            let _ = std::fs::remove_file(data_path);
+        }
+
+        println!("Session {} deregistered.", session_id);
     }
 
     heartbeat_task.abort();
