@@ -359,6 +359,173 @@ head2 "4. termlink binary — every copy on this host (T-3287, T-3289)"
 install_termlink
 
 # ---------------------------------------------------------------------------
+# ACTION 5 — restart the local hub onto the installed binary (T-3290)
+#
+# Installing a binary does not change a running process. The hub kept serving
+# 0.12.13 from a replaced file (/proc/<pid>/exe -> "... (deleted)") while every
+# install path moved on; preflight check 5 flags exactly this. Restart ONLY
+# through the systemd unit (G-070: a detached hub escapes supervision).
+#
+# Safe by measurement: runtime_dir is /var/lib/termlink (disk-backed), so the
+# secret and TLS cert persist (persist-if-present); sessions are rediscovered
+# from their registration files (supervisor.rs reads sessions_dir), not held in
+# hub memory. Lost on restart: in-memory cv_index (repopulates within one
+# heartbeat), dedupe LRU, rate/governor counters; TCP peers reconnect; posts
+# during the gap go to each sender's offline queue.
+# Idempotent: skipped when the running MainPID's exe IS the installed binary.
+# Verified after: unit active, NEW MainPID, its exe is the installed path and not
+# "(deleted)", `termlink hub status` reports that pid running, and hub.secret +
+# hub.cert.pem hashes are byte-identical to before (a change = PL-021 rotation,
+# every peer would need re-auth) — any miss is FAILED.
+# Seams (fixtures only): RUNME_HUB_SYSTEMCTL, RUNME_HUB_PROC, RUNME_HUB_RUNTIME_DIR,
+# RUNME_HUB_BIN, RUNME_HUB_WAIT_SECS.
+# ---------------------------------------------------------------------------
+HUB_UNIT=termlink-hub
+HUB_SYSTEMCTL="${RUNME_HUB_SYSTEMCTL:-systemctl}"
+HUB_PROC="${RUNME_HUB_PROC:-/proc}"
+HUB_RT="${RUNME_HUB_RUNTIME_DIR:-/var/lib/termlink}"
+HUB_BIN="${RUNME_HUB_BIN:-$(set -- $TL_DESTS; echo "$1")}"
+HUB_WAIT="${RUNME_HUB_WAIT_SECS:-30}"
+
+hub_mainpid() { "$HUB_SYSTEMCTL" show -p MainPID --value "$HUB_UNIT" 2>/dev/null; }
+hub_exe()     { readlink "$HUB_PROC/$1/exe" 2>/dev/null; }
+hub_hash()    { sha256sum "$HUB_RT/$1" 2>/dev/null | cut -d' ' -f1; }
+
+restart_hub() {
+    local pid exe
+    pid="$(hub_mainpid)"
+    if [ -z "$pid" ] || [ "$pid" = "0" ]; then
+        say "  skip    $HUB_UNIT is not running under systemd here — nothing to restart"; SKIPPED=$((SKIPPED+1)); return
+    fi
+    exe="$(hub_exe "$pid")"
+    if [ "$exe" = "$HUB_BIN" ]; then
+        say "  skip    hub (pid $pid) already runs the installed binary: $exe"; SKIPPED=$((SKIPPED+1)); return
+    fi
+    if [ "$DRY_RUN" = "1" ]; then
+        say "  [DRY]   would restart $HUB_UNIT (pid $pid runs '${exe:-unknown}', installed is $HUB_BIN)"; DONE=$((DONE+1)); return
+    fi
+    local sec0 crt0; sec0="$(hub_hash hub.secret)"; crt0="$(hub_hash hub.cert.pem)"
+    if [ -z "$sec0" ] || [ -z "$crt0" ]; then
+        say "  FAILED  cannot read $HUB_RT/hub.secret or hub.cert.pem — refusing to restart blind"; FAILED=$((FAILED+1)); return
+    fi
+    say "  restart $HUB_UNIT (pid $pid runs '$exe')"
+    if ! "$HUB_SYSTEMCTL" restart "$HUB_UNIT"; then
+        say "  FAILED  systemctl restart $HUB_UNIT failed"; FAILED=$((FAILED+1)); return
+    fi
+    local i npid="" nexe="" active=""
+    for i in $(seq 1 "$HUB_WAIT"); do
+        active="$("$HUB_SYSTEMCTL" is-active "$HUB_UNIT" 2>/dev/null)"; npid="$(hub_mainpid)"
+        if [ "$active" = "active" ] && [ -n "$npid" ] && [ "$npid" != "0" ] && [ "$npid" != "$pid" ]; then break; fi
+        sleep 1
+    done
+    nexe="$(hub_exe "$npid")"
+    local problems=""
+    [ "$active" = "active" ] || problems="$problems unit=${active:-unknown};"
+    { [ -n "$npid" ] && [ "$npid" != "$pid" ]; } || problems="$problems mainpid-unchanged($pid);"
+    [ "$nexe" = "$HUB_BIN" ] || problems="$problems exe='${nexe:-none}';"
+    [ "$(hub_hash hub.secret)" = "$sec0" ] || problems="$problems hub.secret-CHANGED(peers-need-reauth);"
+    [ "$(hub_hash hub.cert.pem)" = "$crt0" ] || problems="$problems hub.cert-CHANGED(tofu-drift);"
+    local st; st="$("$HUB_BIN" hub status --json 2>/dev/null)"
+    case "$st" in *"\"pid\":$npid"*'"status":"running"'*|*'"status":"running"'*"\"pid\":$npid"*) : ;;
+        *) problems="$problems hub-status-not-running-as-$npid;";; esac
+    if [ -z "$problems" ]; then
+        say "  OK      restarted and verified: pid $pid -> $npid, exe $nexe ($("$HUB_BIN" --version 2>/dev/null)); secret + cert unchanged"; DONE=$((DONE+1))
+    else
+        say "  FAILED  hub restart verification:$problems"; FAILED=$((FAILED+1))
+    fi
+}
+
+head2 "5. Local hub onto the installed binary (T-3290)"
+restart_hub
+
+# ---------------------------------------------------------------------------
+# ACTION 6 — upgrade remote fleet hubs we have a foothold on (T-3290; operator
+# authorized forced upgrades of .122 and .121, 2026-09-30)
+#
+# runme's install actions only touch THIS host. .122 (ring20-management) served
+# 0.11.1411. It is upgraded through scripts/fleet-deploy-binary.sh (T-1420):
+# stream the musl-static build over one of .122's remote-exec sessions, --probe
+# that it executes there (PL-100), then --swap-restart (.122 is watchdog-launched,
+# not systemd). .121 is NOT here: no foothold from this host (no remote sessions,
+# SSH publickey-denied) — it is asked to upgrade via its own operator agent.
+#
+# TRAP guarded: fleet-deploy-binary ships target/x86_64-unknown-linux-musl, which
+# sat at 0.11.679 (July) — deploying it would DOWNGRADE .122. The musl build is
+# rebuilt from HEAD first, and nothing ships unless it reports the SAME version as
+# the glibc build installed above.
+# Idempotent: skipped when fleet doctor already reports the hub at that version.
+# Verified after: fleet doctor status ok (the HMAC secret still authenticates — no
+# rotation) AND hub_version == the build; `tofu verify` exits 0 (cert unchanged).
+# Seams (fixtures only): RUNME_FLEET_HUBS, RUNME_MUSL_SRC, RUNME_FLEET_DEPLOY,
+# RUNME_FLEET_DOCTOR, RUNME_TOFU, RUNME_FLEET_WAIT_SECS (+ RUNME_SKIP_BUILD).
+# ---------------------------------------------------------------------------
+FLEET_HUBS="${RUNME_FLEET_HUBS:-ring20-management}"
+MUSL_SRC="${RUNME_MUSL_SRC:-$PROJECT_ROOT/target/x86_64-unknown-linux-musl/release/termlink}"
+FLEET_DEPLOY="${RUNME_FLEET_DEPLOY:-bash $PROJECT_ROOT/scripts/fleet-deploy-binary.sh}"
+FLEET_DOCTOR="${RUNME_FLEET_DOCTOR:-termlink fleet doctor --json}"
+TOFU="${RUNME_TOFU:-termlink tofu verify}"
+FLEET_WAIT="${RUNME_FLEET_WAIT_SECS:-90}"
+
+fleet_hub_field() {  # <hub-name> <field> -> value from fleet doctor, empty if absent
+    timeout 60 $FLEET_DOCTOR 2>/dev/null | python3 -c '
+import json,sys
+try: d=json.load(sys.stdin)
+except Exception: sys.exit(0)
+for h in d.get("hubs",[]):
+    if h.get("hub")==sys.argv[1]: print(h.get(sys.argv[2]) or ""); break
+' "$1" "$2"
+}
+
+upgrade_fleet_hubs() {
+    if [ "${RUNME_SKIP_BUILD:-0}" != "1" ] && [ "$DRY_RUN" = "0" ]; then
+        local cargo; cargo="$(command -v cargo || echo "${HOME:-/root}/.cargo/bin/cargo")"
+        say "  build   $cargo build --release --target x86_64-unknown-linux-musl -p termlink"
+        if ! (cd "$PROJECT_ROOT" && "$cargo" build --release --target x86_64-unknown-linux-musl -p termlink) >/tmp/.runme-musl-build.log 2>&1; then
+            say "  FAILED  musl build failed (see /tmp/.runme-musl-build.log)"; FAILED=$((FAILED+1)); return
+        fi
+    fi
+    local want mver
+    want="$("$TL_SRC" --version 2>/dev/null | awk '{print $2}')"
+    mver="$("$MUSL_SRC" --version 2>/dev/null | awk '{print $2}')"
+    if [ -z "$want" ] || [ "$mver" != "$want" ]; then
+        if [ "$DRY_RUN" = "1" ]; then
+            say "  [DRY]   would rebuild musl (now '${mver:-absent}', build is '${want:-unknown}') before any deploy"
+        else
+            say "  FAILED  musl binary reports '${mver:-nothing}', build is '${want:-unknown}' — refusing to ship (not the current code)"; FAILED=$((FAILED+1)); return
+        fi
+    fi
+    local hub have addr i st
+    for hub in $FLEET_HUBS; do
+        have="$(fleet_hub_field "$hub" hub_version)"; addr="$(fleet_hub_field "$hub" address)"
+        if [ -n "$want" ] && [ "$have" = "$want" ]; then
+            say "  skip    $hub already serves $have"; SKIPPED=$((SKIPPED+1)); continue
+        fi
+        if [ -z "$addr" ]; then
+            say "  FAILED  $hub not found or unreachable in fleet doctor — cannot upgrade"; FAILED=$((FAILED+1)); continue
+        fi
+        if [ "$DRY_RUN" = "1" ]; then
+            say "  [DRY]   would deploy musl ${want:-?} to $hub ($addr, now ${have:-unknown}) with --probe --swap-restart"; DONE=$((DONE+1)); continue
+        fi
+        say "  deploy  $hub ($addr): ${have:-unknown} -> $want"
+        if ! $FLEET_DEPLOY "$hub" --binary "$MUSL_SRC" --probe --swap-restart >/tmp/.runme-deploy-"$hub".log 2>&1; then
+            say "  FAILED  fleet-deploy-binary for $hub failed (see /tmp/.runme-deploy-$hub.log)"; FAILED=$((FAILED+1)); continue
+        fi
+        for i in $(seq 1 "$FLEET_WAIT"); do
+            [ "$(fleet_hub_field "$hub" hub_version)" = "$want" ] && break; sleep 1
+        done
+        have="$(fleet_hub_field "$hub" hub_version)"; st="$(fleet_hub_field "$hub" status)"
+        if [ "$have" = "$want" ] && [ "$st" = "ok" ] && $TOFU "$addr" >/dev/null 2>&1; then
+            say "  OK      upgraded and verified: $hub serves $have; fleet doctor ok (secret still authenticates); tofu verify ok (cert unchanged)"; DONE=$((DONE+1))
+        else
+            say "  FAILED  $hub after deploy: version='${have:-none}' status='${st:-none}' (want $want/ok), or tofu verify failed — see /tmp/.runme-deploy-$hub.log"; FAILED=$((FAILED+1))
+        fi
+    done
+}
+
+head2 "6. Fleet hubs reachable from here (T-3290) — .121 has no foothold"
+upgrade_fleet_hubs
+
+# ---------------------------------------------------------------------------
 # Verification — the project's own drift checker is the arbiter, not this script.
 # Using the repo's existing check rather than a bespoke one means this cannot
 # quietly disagree with what `fw audit` will say five minutes from now.

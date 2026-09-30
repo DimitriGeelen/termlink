@@ -86,6 +86,75 @@ EOS
 chmod +x "$TMP/tl-new" "$TMP/tl-old"
 cp "$TMP/tl-old" "$TMP/bin/termlink"
 export RUNME_SKIP_BUILD=1 RUNME_TERMLINK_SRC="$TMP/tl-new" RUNME_TERMLINK_DEST="$TMP/bin/termlink"
+# T-3290: the hub-restart action must NEVER reach the real systemctl, /proc or
+# /var/lib/termlink. A fake systemctl keeps MainPID in a state file; `restart`
+# bumps the pid and points its fake /proc exe at the installed binary (or, with
+# FAKE_HUB_RESTART_MODE, misbehaves). Default state: hub already on the installed
+# binary, so ordinary cases see a skip.
+H="$TMP/hub"; mkdir -p "$H/proc" "$H/rt"
+printf 'secret-bytes' > "$H/rt/hub.secret"; printf 'cert-bytes' > "$H/rt/hub.cert.pem"
+cat > "$H/systemctl" <<'EOS'
+#!/usr/bin/env bash
+H="${FAKE_HUB_DIR:?}"; pid=$(cat "$H/pid")
+case "$1" in
+  show) echo "$pid" ;;
+  is-active) echo "${FAKE_HUB_ACTIVE:-active}" ;;
+  restart)
+    echo restart >> "$H/restarts"
+    case "${FAKE_HUB_RESTART_MODE:-ok}" in
+      fail) exit 1 ;;
+      rotate) printf 'new-secret' > "$H/rt/hub.secret" ;;
+    esac
+    n=$((pid+1)); echo "$n" > "$H/pid"; mkdir -p "$H/proc/$n"
+    ln -sfn "${FAKE_HUB_NEW_EXE:-$FAKE_HUB_BIN}" "$H/proc/$n/exe" ;;
+esac
+EOS
+chmod +x "$H/systemctl"
+cat > "$H/hubbin" <<'EOS'
+#!/usr/bin/env bash
+[ "$1" = "--version" ] && { echo "termlink 9.9.9"; exit 0; }
+[ "$1 $2" = "hub status" ] && { echo "{\"ok\":true,\"pid\":$(cat "$FAKE_HUB_DIR/pid"),\"status\":\"running\"}"; exit 0; }
+exit 0
+EOS
+chmod +x "$H/hubbin"
+hub_state() { # hub_state <pid> <exe-target>
+    echo "$1" > "$H/pid"; mkdir -p "$H/proc/$1"; ln -sfn "$2" "$H/proc/$1/exe"; rm -f "$H/restarts"
+    printf 'secret-bytes' > "$H/rt/hub.secret"
+}
+export FAKE_HUB_DIR="$H" FAKE_HUB_BIN="$H/hubbin"
+export RUNME_HUB_SYSTEMCTL="$H/systemctl" RUNME_HUB_PROC="$H/proc" RUNME_HUB_RUNTIME_DIR="$H/rt" \
+       RUNME_HUB_BIN="$H/hubbin" RUNME_HUB_WAIT_SECS=2
+hub_state 100 "$H/hubbin"
+# T-3290 action 6: the fleet upgrade must NEVER reach the real fleet. Fake fleet
+# doctor reads a hub version from a state file; fake deploy records the call and
+# (FAKE_DEPLOY_MODE) sets the new version, fails, or rotates the secret; fake tofu
+# honours FAKE_TOFU_RC. The fake musl binary reports the same version as tl-new.
+F="$TMP/fleet"; mkdir -p "$F"
+cat > "$F/doctor" <<'EOS'
+#!/usr/bin/env bash
+v=$(cat "$FAKE_FLEET_DIR/ver"); st=$(cat "$FAKE_FLEET_DIR/status" 2>/dev/null || echo ok)
+echo "{\"hubs\":[{\"hub\":\"fake-hub\",\"address\":\"10.0.0.1:9100\",\"hub_version\":\"$v\",\"status\":\"$st\"}]}"
+EOS
+cat > "$F/deploy" <<'EOS'
+#!/usr/bin/env bash
+echo "$*" >> "$FAKE_FLEET_DIR/deploys"
+case "${FAKE_DEPLOY_MODE:-ok}" in
+  fail) exit 4 ;;
+  auth) echo "9.9.9" > "$FAKE_FLEET_DIR/ver"; echo "auth-mismatch" > "$FAKE_FLEET_DIR/status" ;;
+  nochange) : ;;
+  *) echo "9.9.9" > "$FAKE_FLEET_DIR/ver" ;;
+esac
+EOS
+cat > "$F/tofu" <<'EOS'
+#!/usr/bin/env bash
+exit "${FAKE_TOFU_RC:-0}"
+EOS
+cp "$TMP/tl-new" "$F/musl"
+chmod +x "$F/doctor" "$F/deploy" "$F/tofu" "$F/musl"
+fleet_state() { echo "$1" > "$F/ver"; echo ok > "$F/status"; rm -f "$F/deploys"; }
+export FAKE_FLEET_DIR="$F" RUNME_FLEET_HUBS=fake-hub RUNME_MUSL_SRC="$F/musl" \
+       RUNME_FLEET_DEPLOY="$F/deploy" RUNME_FLEET_DOCTOR="$F/doctor" RUNME_TOFU="$F/tofu" RUNME_FLEET_WAIT_SECS=2
+fleet_state 9.9.9
 # T-3273: logs go to scratch (world-writable so the non-root case logs here too).
 mkdir -p "$TMP/logs" && chmod 1777 "$TMP/logs"
 export RUNME_LOG_DIR="$TMP/logs"
@@ -133,7 +202,7 @@ if [ "$(id -u)" != "0" ] && [ -n "${CI:-}" ]; then
 fi
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|') + 1 ))   # +1: the termlink install action (T-3287)
+EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|') + 3 ))   # +1 termlink install (T-3287); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6)
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -328,6 +397,88 @@ if [ "$rc" = "0" ] && [ "$rc2" = "1" ] && echo "$out2" | grep -q "FAILED  could 
    && cmp -s "$TMP/tl-new" "$M/usrlocal/termlink"; then
     ok "multi-dest: one failing path => FAILED naming it, exit 1, the other path still installed"
 else bad "per-path failure" "rc=$rc rc2=$rc2: $out2"; fi
+
+# ---------------------------------------------------------------------------
+# 14. T-3290 — hub restart. All through the fake systemctl / proc / runtime dir.
+# ---------------------------------------------------------------------------
+hub_state 200 "$H/hubbin"
+out=$(run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "skip    hub (pid 200) already runs the installed binary" && [ ! -e "$H/restarts" ]; then
+    ok "hub: already on the installed binary => skip, no restart"
+else bad "hub idempotent skip" "rc=$rc: $out"; fi
+hub_state 300 "/old/termlink (deleted)"
+out=$(run --dry-run); rc=$?
+if echo "$out" | grep -q "would restart termlink-hub (pid 300 runs '/old/termlink (deleted)'" && [ ! -e "$H/restarts" ]; then
+    ok "hub: --dry-run reports the restart and does NOT perform it"
+else bad "hub dry-run" "rc=$rc: $out"; fi
+hub_state 400 "/old/termlink (deleted)"
+out=$(run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      restarted and verified: pid 400 -> 401" && [ "$(wc -l < "$H/restarts")" = "1" ]; then
+    ok "hub: stale hub restarted once, new pid on the installed exe, secret+cert unchanged => OK"
+else bad "hub restart" "rc=$rc: $out"; fi
+hub_state 500 "/old/termlink (deleted)"
+out=$(FAKE_HUB_RESTART_MODE=rotate run); rc=$?
+if [ "$rc" = "1" ] && echo "$out" | grep -q "hub.secret-CHANGED"; then
+    ok "hub: secret rotated by the restart => FAILED naming it (PL-021 class)"
+else bad "hub secret rotation must fail" "rc=$rc: $out"; fi
+hub_state 600 "/old/termlink (deleted)"
+out=$(FAKE_HUB_NEW_EXE="/old/termlink (deleted)" run); rc=$?
+if [ "$rc" = "1" ] && echo "$out" | grep -q "exe='/old/termlink (deleted)'"; then
+    ok "hub: restarted onto the wrong binary => FAILED"
+else bad "hub wrong exe must fail" "rc=$rc: $out"; fi
+hub_state 700 "/old/termlink (deleted)"
+out=$(FAKE_HUB_RESTART_MODE=fail run); rc=$?
+if [ "$rc" = "1" ] && echo "$out" | grep -q "FAILED  systemctl restart termlink-hub failed"; then
+    ok "hub: systemctl restart failure => FAILED, exit 1"
+else bad "hub restart failure" "rc=$rc: $out"; fi
+hub_state 800 "/old/termlink (deleted)"
+out=$(FAKE_HUB_ACTIVE=failed run); rc=$?
+if [ "$rc" = "1" ] && echo "$out" | grep -q "unit=failed"; then
+    ok "hub: unit not active after restart => FAILED"
+else bad "hub inactive must fail" "rc=$rc: $out"; fi
+hub_state 100 "$H/hubbin"
+
+# ---------------------------------------------------------------------------
+# 15. T-3290 action 6 — remote fleet upgrade, all through fakes.
+# ---------------------------------------------------------------------------
+fleet_state 9.9.9
+out=$(run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "skip    fake-hub already serves 9.9.9" && [ ! -e "$F/deploys" ]; then
+    ok "fleet: hub already at the build version => skip, no deploy"
+else bad "fleet idempotent skip" "rc=$rc: $out"; fi
+fleet_state 0.11.1
+out=$(run --dry-run); rc=$?
+if echo "$out" | grep -q "would deploy musl 9.9.9 to fake-hub (10.0.0.1:9100, now 0.11.1)" && [ ! -e "$F/deploys" ]; then
+    ok "fleet: --dry-run reports the deploy and does NOT perform it"
+else bad "fleet dry-run" "rc=$rc: $out"; fi
+fleet_state 0.11.1
+out=$(run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      upgraded and verified: fake-hub serves 9.9.9" && grep -q -- "--probe --swap-restart" "$F/deploys" && grep -q -- "--binary $F/musl" "$F/deploys"; then
+    ok "fleet: stale hub deployed once with the musl binary, --probe --swap-restart, verified => OK"
+else bad "fleet deploy" "rc=$rc: $out $(cat "$F/deploys" 2>/dev/null)"; fi
+fleet_state 0.11.1
+cp "$TMP/tl-old" "$F/musl"
+out=$(run); rc=$?
+cp "$TMP/tl-new" "$F/musl"
+if [ "$rc" = "1" ] && echo "$out" | grep -q "musl binary reports '0.0.1', build is '9.9.9' — refusing to ship" && [ ! -e "$F/deploys" ]; then
+    ok "fleet: stale musl build (the 0.11.679 downgrade trap) => FAILED, nothing shipped"
+else bad "fleet must refuse a stale musl" "rc=$rc: $out"; fi
+fleet_state 0.11.1
+out=$(FAKE_DEPLOY_MODE=fail run); rc=$?
+if [ "$rc" = "1" ] && echo "$out" | grep -q "FAILED  fleet-deploy-binary for fake-hub failed"; then
+    ok "fleet: deploy script failure => FAILED"
+else bad "fleet deploy failure" "rc=$rc: $out"; fi
+fleet_state 0.11.1
+out=$(FAKE_DEPLOY_MODE=auth run); rc=$?
+if [ "$rc" = "1" ] && echo "$out" | grep -q "status='auth-mismatch'"; then
+    ok "fleet: hub up but auth broken after deploy (secret rotated) => FAILED"
+else bad "fleet auth regression must fail" "rc=$rc: $out"; fi
+fleet_state 0.11.1
+out=$(FAKE_TOFU_RC=1 run); rc=$?
+if [ "$rc" = "1" ] && echo "$out" | grep -q "tofu verify failed"; then
+    ok "fleet: cert changed (tofu verify fails) => FAILED"
+else bad "fleet cert rotation must fail" "rc=$rc: $out"; fi
+fleet_state 9.9.9
 
 echo ""
 echo "----------------------------------------"
