@@ -174,6 +174,9 @@ GO on option C. Make the identity check read-only: `termlink agent identity --re
 
 ## Updates
 
+### 2026-09-30 — operator ruling: GO on option C
+Operator, in session: "Okay, let's go with C." The formal decision command is Tier 0 (human authority), so it is carried out by the operator running `/opt/termlink/runme.sh` (approved-decision action, T-3285). The build tasks start only after the decision is on record.
+
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
 
