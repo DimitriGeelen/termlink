@@ -95,3 +95,19 @@ acking or you decide those DMs need no reply. That is the honest state.
 4. **Escalation date:** accept the auto-filed task on 2026-10-13 as the tracking vehicle, or file
    now under SQ-19? A manual task pre-empts the auto-filing only if its body carries the
    `<!-- warn-escalation: member=check-receiver-ack-lag -->` de-dup marker.
+
+## Outcome (2026-09-30)
+
+**Operator ruling:** "as recommended", i.e. E (fix the predicate) + A (an agent acks our backlog) + hand-off of the .122 rows + a tracking task filed now (T-3277, which carries the de-dup marker).
+
+**E, built in T-3277.** Live re-run after the fix, compared with the 11-row baseline above:
+
+| Baseline row | New class | Fires? |
+|---|---|---|
+| 1, 2 (us, lag 146 / 94) | NEVER-ACKED | yes (class a, our backlog) |
+| 3, 4, 5 (.122) | NEVER-ACKED | yes (class b, peer) |
+| 6, 7 (us, sole sender) | SOLE-SENDER | no |
+| 8 (.121, sole sender) | SOLE-SENDER | no |
+| 9, 10, 11 (.122, sole sender) | SOLE-SENDER | no |
+
+7 SOLE-SENDER rows are counted, not fired: the baseline's 6 plus one more .121 sole-sender topic seen in this run. The new RECIPIENT-SILENT class lists 8 named parties with no row. It is **reported, not fired**, because topic names often carry a per-agent fp while the posts are signed with the host's shared key (T-3004 F4). Firing would recreate the fatigue this fix removes. Firing rows: 11 → 5, exactly classes a + b.

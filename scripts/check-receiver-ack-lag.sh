@@ -183,8 +183,26 @@ if [ "$TOPICS_EXPLICIT" = "0" ]; then
   fi
 fi
 
+# T-3277 (SQ-19) — ack-status has a row for every identity that POSTED anything, so
+# (1) the only poster on a topic reads NEVER-ACKED with nothing inbound to ack, and
+# (2) a DM recipient that never posts has no row at all — the party actually not
+# reading is invisible. content_senders lists who posted CONTENT, using the same
+# non-content set as channel.rs::latest_content_offset (receipt/reaction/redaction/
+# edit/topic_metadata). Prints one sender per line; returns 1 if unreadable, and the
+# caller then keeps the unrefined verdict (fail toward signal).
+content_senders() {
+  local raw
+  raw="$(timeout 30 "$TL" channel subscribe "$1" --cursor 0 --limit 100000 --json 2>/dev/null)" || return 1
+  [ -n "$raw" ] || return 1
+  printf '%s\n' "$raw" | jq -r 'select(type=="object" and .sender_id != null)
+      | select((.msg_type // "") as $t | ["receipt","reaction","redaction","edit","topic_metadata"] | index($t) | not)
+      | .sender_id' 2>/dev/null | sort -u
+}
+
 rc=0
 saw_any=0
+n_sole=0
+n_silent=0
 for topic in $TOPICS; do
   out="$("$TL" channel ack-status "$topic" --json 2>/dev/null || true)"
   if [ -z "$out" ] || ! printf '%s' "$out" | jq -e 'type=="array"' >/dev/null 2>&1; then
@@ -195,13 +213,25 @@ for topic in $TOPICS; do
   saw_any=1
   n_ident=$(printf '%s' "$out" | jq -r 'length')
   echo "  $topic  ($n_ident distinct identity row(s))"
+  senders=""; senders_ok=0
+  if senders="$(content_senders "$topic")"; then senders_ok=1; fi
+  row_ids="$(printf '%s' "$out" | jq -r '.[].sender_id // empty')"
   while IFS=$'\t' read -r sid lag upto; do
     [ -n "$sid" ] || continue
     short="${sid:0:16}"
     case "$(classify_ack_row "$lag" "$upto" "$THRESHOLD")" in
       NEVER-ACKED)
-        printf '    NEVER-ACKED  %s  lag=%s\n' "$short" "$lag"
-        rc=1 ;;
+        others=""
+        [ "$senders_ok" = "1" ] && others="$(printf '%s\n' "$senders" | grep -vx -- "$sid" | grep -v '^$' || true)"
+        if [ "$senders_ok" = "1" ] && [ -z "$others" ]; then
+          # Only poster on the topic: nothing inbound to acknowledge. Counted, not fired.
+          printf '    SOLE-SENDER  %s  lag=%s (only content poster — nothing inbound to ack; not a finding)\n' "$short" "$lag"
+          n_sole=$((n_sole + 1))
+        else
+          [ "$senders_ok" = "1" ] || printf '    note         content senders unreadable — NEVER-ACKED below is unrefined\n'
+          printf '    NEVER-ACKED  %s  lag=%s\n' "$short" "$lag"
+          rc=1
+        fi ;;
       BEHIND)
         printf '    BEHIND       %s  lag=%s (up_to=%s)\n' "$short" "$lag" "$upto"
         rc=1 ;;
@@ -209,8 +239,37 @@ for topic in $TOPICS; do
         printf '    ok           %s  lag=%s\n' "$short" "$lag" ;;
     esac
   done < <(printf '%s' "$out" | jq -r '.[] | [.sender_id, (.lag|tostring), (.up_to|tostring)] | @tsv')
+
+  # RECIPIENT-SILENT: a dm:<a>:<b> party with no row at all, while the OTHER party
+  # posted content. Only hex fingerprints (a full fp or a hex prefix) can be matched
+  # against rows; a named party is reported as unresolvable, never guessed.
+  case "$topic" in
+    dm:*:*)
+      pa="${topic#dm:}"; pb="${pa#*:}"; pa="${pa%%:*}"
+      for party in "$pa" "$pb"; do
+        other="$pb"; [ "$party" = "$pb" ] && other="$pa"
+        if ! printf '%s' "$party" | grep -qE '^[0-9a-f]{8,64}$'; then
+          printf '    unresolved   %s (named party — cannot match to a fingerprint; not evaluated)\n' "$party"
+          continue
+        fi
+        grep -q "^$party" <<< "$row_ids" && continue
+        [ "$senders_ok" = "1" ] || { printf '    note         %s has no row, but content senders are unreadable — not evaluated\n' "$party"; continue; }
+        from_other="$(grep -v '^$' <<< "$senders" | grep -v "^$party" || true)"
+        if [ -n "$from_other" ]; then
+          # REPORTED, NOT FIRED (measured, T-3277): topic names often carry a per-agent
+          # fp while posts are signed with the host's shared key (the identity caveat
+          # above, T-3004 F4), so "named party has no row" is not proof it never read.
+          # On the live hub this class held 9 rows, most of them that mismatch.
+          printf '    RECIPIENT-SILENT  %s (named in the topic; no row. content posted by: %s) — reported, not fired\n' \
+            "$party" "$(tr '\n' ' ' <<< "$from_other" | cut -c1-80)"
+          n_silent=$((n_silent + 1))
+        fi
+      done ;;
+  esac
   echo ""
 done
+[ "$n_sole" -gt 0 ] && echo "  $n_sole SOLE-SENDER row(s) not counted: the flagged identity was the only content poster (T-3277)."
+[ "$n_silent" -gt 0 ] && echo "  $n_silent RECIPIENT-SILENT party(ies) reported, not fired: topic-name parties are not reliably the posting identity (T-3277)."
 
 if [ "$saw_any" = "0" ]; then
   echo "  no topic produced a reading — NO VERDICT. This is not 'all healthy'."

@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3277: check-receiver-ack-lag: NEVER-ACKED only for identities with inbound content (sole senders are informational); report a silent DM recipient as its own firing class (SQ-19 option E)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-30T13:10:52Z
+# ============================================================================
+
+task_id: T-3277
+task_name: "check-receiver-ack-lag: NEVER-ACKED only for identities with inbound content (sole senders are informational); report a silent DM recipient as its own firing class (SQ-19 option E)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-30T13:07:25Z
+completed: 2026-09-30T13:10:42Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  check-receiver-ack-lag: NEVER-ACKED only for identities with inbound content (sole senders are informational); report a silent DM recipient as its own firing class (SQ-19 option E)
+
+# Key outcomes
+outcomes:
+  - 'A NEVER-ACKED row whose identity is the ONLY content poster on the topic is reported as `SOLE-SENDER` (informational, non-firing, counted in the output); NEVER-ACKED fires only when another identity posted content'
+  - 'On a `dm:<a>:<b>` topic whose party is a hex fingerprint (a full 16-hex fp or a hex prefix), a party with no ack-status row, while another identity posted content, is reported as `RECIPIENT-SILENT`, counted and listed with the actual content senders, and a named (non-hex) party is reported as unresolvable, never guessed. **Amended during build: reported, NOT fired.** Measured on the live hub: 8 of these parties, most of them a topic named for a per-agent fp while the posts are signed with the host''s shared key (T-3004 F4). For example, `dm:0e7ee6…:6a646c…` holds only posts signed `d1993c2c3ec44c94`. Firing would add about 8 misleading alarms, the fatigue class this task removes.'
+  - 'Fail toward signal: if the content-sender read (`channel subscribe`) fails for a topic, the row keeps the old NEVER-ACKED verdict and the output says the classification could not be refined'
+  - 'Fixtures pin each class (SOLE-SENDER quiet, real NEVER-ACKED fires, RECIPIENT-SILENT fires, subscribe failure keeps firing), plus a mutant that re-flags sole senders; all existing receiver-ack-lag fixture cases still pass'
+  - 'The live run''s new verdict is recorded against the 11-row baseline in the brief, with each row''s new class'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 3
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3277-check-receiver-ack-lag-never-acked-only-.md
+generated_by: context-agent-hybrid
