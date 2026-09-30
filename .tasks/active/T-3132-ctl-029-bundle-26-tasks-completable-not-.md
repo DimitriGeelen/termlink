@@ -351,6 +351,9 @@ delegate bypassing gates, and in this instance the gate was right.
 
 ## Updates
 
+### 2026-09-30 — closure approved by operator (T-3211 SQ-3, R6 closure request)
+One agent AC is recorded unmet and is left unticked and unreworded. CTL-029 cannot reach 0: 25 of 27 bundle tasks are owner:human in their designed terminal state (PL-376), and T-3010 must stay in active/ until 2026-12-18 for its G-053 reminder. Reaching 0 needs a vendored CTL-029 fix. The operator approved closing this task on 2026-09-30 ("close T-3132, T-3128 and T-3130"). Completion needs --force for that one AC, which is Tier 0 and therefore run by the operator.
+
 ### 2026-09-25T07:04:36Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3132-ctl-029-bundle-26-tasks-completable-not-.md

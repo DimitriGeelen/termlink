@@ -399,6 +399,9 @@ shape is inlined above and in the upstream filing so it is recoverable without t
 
 ## Updates
 
+### 2026-09-30 — closure approved by operator (T-3211 SQ-3, R6 closure request)
+One agent AC is recorded unmet and is left unticked and unreworded. Minimal-fixture reproduction measured negative (12/12 trials preserved owner); the defect is load-dependent and its mechanism is proven separately and filed upstream. The operator approved closing this task on 2026-09-30 ("close T-3132, T-3128 and T-3130"). Completion needs --force for that one AC, which is Tier 0 and therefore run by the operator.
+
 ### 2026-09-25T07:00:52Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3130-fw-task-update---status-blanks-owner-fie.md

@@ -291,6 +291,9 @@ grep -q "T-3127" CLAUDE.md
 
 ## Updates
 
+### 2026-09-30 — closure approved by operator (T-3211 SQ-3, R6 closure request)
+One agent AC is recorded unmet and is left unticked and unreworded. CTL-003 PASS is not closable locally: the check and its writer are vendored (G-062); the real fix is tracked upstream via T-3127. The operator approved closing this task on 2026-09-30 ("close T-3132, T-3128 and T-3130"). Completion needs --force for that one AC, which is Tier 0 and therefore run by the operator.
+
 ### 2026-09-25T06:55:34Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3128-ctl-003-budget-status-stale-under-concur.md
