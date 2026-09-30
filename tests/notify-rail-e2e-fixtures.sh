@@ -213,6 +213,46 @@ else
     fail "T15 --json did not emit parseable JSON"
 fi
 
+# ---- T-3283 (SQ-20): E4 separates "could not look" from "looked and found" ----
+# Before T-3283 every one of these read as a real FAIL (exit 1). A lookup that
+# could not run is TOOLING (exit 2); only an ANSWER is a verdict.
+# NOT covered here: "jq missing". jq lives in /usr/bin beside everything else the
+# prover needs, so it cannot be hidden without faking the whole PATH. The branch is
+# one `command -v jq || die_tooling` line, read by inspection.
+e4conf="$WORK/e4.conf"; printf '# agent fp\nclaude-termlink aaaa1111aaaa1111\n' > "$e4conf"
+mk_tl() { printf '#!/usr/bin/env bash\n%s\n' "$2" > "$1"; chmod +x "$1"; }
+e4() { # <fake-termlink> -> sets E4RC, E4OUT
+    E4OUT="$(TERMLINK="$1" NOTIFY_E2E_CONF="$e4conf" NOTIFY_E2E_EXEC_TIMEOUT=1 \
+             bash "${E2E_UNDER_TEST:-$E2E}" --stages '' --experiment e4 2>&1)"; E4RC=$?
+}
+mk_tl "$WORK/tl-timeout" 'sleep 5'
+mk_tl "$WORK/tl-err"     'exit 3'
+mk_tl "$WORK/tl-nojson"  'echo "error: unrecognized subcommand identity"'
+mk_tl "$WORK/tl-nofp"    'echo "{\"ok\":true,\"action\":\"resolved\"}"'
+mk_tl "$WORK/tl-split"   'echo "{\"ok\":true,\"fingerprint\":\"bbbb2222bbbb2222\"}"'
+mk_tl "$WORK/tl-pass"    'echo "{\"ok\":true,\"fingerprint\":\"aaaa1111aaaa1111\"}"'
+
+e4 "$WORK/tl-timeout"; { [ "$E4RC" = 2 ] && echo "$E4OUT" | grep -q "timed out"; } \
+    && pass "E4 lookup timeout -> TOOLING rc 2" || fail "E4 timeout (rc=$E4RC): $E4OUT"
+e4 "$WORK/tl-err";     { [ "$E4RC" = 2 ] && echo "$E4OUT" | grep -q "exited 3"; } \
+    && pass "E4 lookup exits non-zero -> TOOLING rc 2" || fail "E4 non-zero (rc=$E4RC): $E4OUT"
+e4 "$WORK/tl-nojson";  { [ "$E4RC" = 2 ] && echo "$E4OUT" | grep -q "no JSON object"; } \
+    && pass "E4 non-JSON answer (old binary) -> TOOLING rc 2" || fail "E4 non-JSON (rc=$E4RC): $E4OUT"
+e4 "$WORK/tl-nofp";    { [ "$E4RC" = 1 ] && echo "$E4OUT" | grep -q "carries no fingerprint"; } \
+    && pass "E4 answered without a fingerprint -> FAIL rc 1 (a real answer)" || fail "E4 no-fp (rc=$E4RC): $E4OUT"
+e4 "$WORK/tl-split";   { [ "$E4RC" = 1 ] && echo "$E4OUT" | grep -q "IDENTITY SPLIT"; } \
+    && pass "E4 unwatched identity -> FAIL rc 1 (the real split)" || fail "E4 split (rc=$E4RC): $E4OUT"
+e4 "$WORK/tl-pass";    { [ "$E4RC" = 0 ] && echo "$E4OUT" | grep -q "PASS"; } \
+    && pass "E4 watched identity -> PASS rc 0" || fail "E4 pass (rc=$E4RC): $E4OUT"
+
+# Mutant M4: collapse "lookup exited non-zero" back into a FAIL (the pre-T-3283 shape).
+sed 's@|| die_tooling "identity lookup exited \$rc (erroring or unsupported binary) — could not look" E4@|| { record E4 FAIL "cannot resolve identity"; return 1; }@' "$E2E" > "$WORK/e2e-m4.sh"
+if cmp -s "$E2E" "$WORK/e2e-m4.sh"; then fail "M4 mutant did not apply"; else
+    E2E_UNDER_TEST="$WORK/e2e-m4.sh" e4 "$WORK/tl-err"
+    [ "$E4RC" = 1 ] && pass "M4 mutant (tooling collapsed into FAIL) is caught by the non-zero case" \
+                    || fail "M4 mutant survived (rc=$E4RC)"
+fi
+
 echo
 echo "notify-rail-e2e fixtures: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ] || exit 1

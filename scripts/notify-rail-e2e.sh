@@ -700,11 +700,30 @@ experiment_e4() {
     # back empty is still a FAIL below: that is a real, observable answer.
     command -v "$TERMLINK" >/dev/null 2>&1 \
         || die_tooling "termlink binary not found ($TERMLINK) — cannot resolve identity" E4
-    resolved="$(TERMLINK_AGENT_ID="$SELF_AGENT" timeout "$EXEC_TIMEOUT" \
-        "$TERMLINK" agent identity --resolve --json 2>/dev/null \
-        | jq -r '.fingerprint // empty' 2>/dev/null)"
+    # T-3283 (SQ-20): "could not look" and "looked and found a problem" used to share
+    # one exit-1 line — an empty result from `resolve | jq` read as a real FAIL
+    # whether jq was missing, the lookup timed out on a loaded host, the binary was
+    # too old for `agent identity --resolve`, or its output was not JSON. Each of
+    # those is TOOLING (exit 2): the claim was not checked, so it must not be
+    # reported as failed. Only an ANSWER is a verdict.
+    # Measured (T-3283): with NO identity store, `resolve` does not fail — it MINTS a
+    # fresh key and returns ok:true. So that case never reaches the no-fingerprint
+    # FAIL below; it surfaces as IDENTITY SPLIT (a new fp no declared sidecar
+    # watches). That is recorded as a separate question, not decided here.
+    command -v jq >/dev/null 2>&1 \
+        || die_tooling "jq not found — cannot parse the identity answer" E4
+    local out rc=0
+    out="$(TERMLINK_AGENT_ID="$SELF_AGENT" timeout "$EXEC_TIMEOUT" \
+        "$TERMLINK" agent identity --resolve --json 2>/dev/null)" || rc=$?
+    [ "$rc" -eq 124 ] \
+        && die_tooling "identity lookup timed out after ${EXEC_TIMEOUT}s — could not look" E4
+    [ "$rc" -eq 0 ] \
+        || die_tooling "identity lookup exited $rc (erroring or unsupported binary) — could not look" E4
+    printf '%s' "$out" | jq -e 'type == "object"' >/dev/null 2>&1 \
+        || die_tooling "identity lookup returned no JSON object — could not look" E4
+    resolved="$(printf '%s' "$out" | jq -r '.fingerprint // empty' 2>/dev/null)"
     if [ -z "$resolved" ]; then
-        record E4 FAIL "cannot resolve identity for $SELF_AGENT — cannot rule out a split mailbox"
+        record E4 FAIL "identity lookup answered but carries no fingerprint for $SELF_AGENT — cannot rule out a split mailbox"
         return 1
     fi
     if [ ! -r "$conf" ]; then

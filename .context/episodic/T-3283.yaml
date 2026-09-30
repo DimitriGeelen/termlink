@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3283: notify-rail-e2e E4: separate 'could not look' (resolve failed/timed out/unsupported/jq missing -> exit 2 tooling) from 'looked and found a problem' (no identity / split -> exit 1) (SQ-20)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-30T17:34:37Z
+# ============================================================================
+
+task_id: T-3283
+task_name: "notify-rail-e2e E4: separate 'could not look' (resolve failed/timed out/unsupported/jq missing -> exit 2 tooling) from 'looked and found a problem' (no identity / split -> exit 1) (SQ-20)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-30T17:32:04Z
+completed: 2026-09-30T17:34:18Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  notify-rail-e2e E4: separate 'could not look' (resolve failed/timed out/unsupported/jq missing -> exit 2 tooling) from 'looked and found a problem' (no identity / split -> exit 1) (SQ-20)
+
+# Key outcomes
+outcomes:
+  - 'E4 reports TOOLING (exit 2, naming the cause) when it could not look: `jq` missing, the identity lookup timed out, the lookup exited non-zero (an unsupported or erroring binary, or no identity store, if that is what the binary does), or it returned no parseable JSON object. Before this, all of these read as a real failure (exit 1)'
+  - 'E4 still reports FAIL (exit 1) when it looked and found a problem: a JSON answer with no fingerprint, or an identity no declared sidecar watches (the real split). PASS is unchanged'
+  - 'The behaviour of the real `termlink agent identity --resolve` with no identity store is measured, not assumed, and the classification of that case is stated from the measurement'
+  - '`tests/notify-rail-e2e-fixtures.sh` gains hermetic E4 cases (a fake termlink per cause: timeout, non-zero, non-JSON, no fingerprint, split, pass), plus a mutant that collapses TOOLING back into FAIL; all existing cases still pass'
+  - 'Live E4 on this host still PASSes'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 2
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3283-notify-rail-e2e-e4-separate-could-not-lo.md
+generated_by: context-agent-hybrid
