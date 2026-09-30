@@ -9,12 +9,12 @@ description: >
   per task id). Wired into resume, handover pre-commit path, procAsFit round prompt;
   filed upstream.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [sq-22, guard-layer, governance]
-components: []
+components: [scripts/check-release-publication-freshness.sh, scripts/run-procasfit-round.sh, scripts/warn-escalation-file.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -27,8 +27,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-30T07:55:54Z
-last_update: '2026-09-30T07:56:32Z'
-date_finished:
+last_update: 2026-09-30T08:02:59Z
+date_finished: 2026-09-30T08:02:59Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -330,3 +330,21 @@ git show 6ad984122 --stat --format= > /tmp/.t3269-live 2>&1 && grep -q "1 file c
 
 ### 2026-09-30T07:56:26Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-705b091c
+- **Timestamp:** 2026-09-30T08:03:37Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — `scripts/commit-pending.sh add <task-id> <reason> <path>...` appends entries to `.context/working/pending-commit.list` (TSV: path, task id, reason, UTC ts); refuses paths outside `.tasks/` / `.context
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=context/working/pending-commit.list in: `scripts/commit-pending.sh add <task-id> <reason> <path>...` appends entries to `.context/working/pending-commit.list` (TSV: path, task id, reason, UT`
+
+### 2026-09-30T08:02:59Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

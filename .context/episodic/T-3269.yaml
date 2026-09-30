@@ -1,0 +1,92 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3269: Pending-commit manifest: unattended writers append, next session commits exactly those paths (SQ-22 option C)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-30T08:03:45Z
+# ============================================================================
+
+task_id: T-3269
+task_name: "Pending-commit manifest: unattended writers append, next session commits exactly those paths (SQ-22 option C)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-30T07:55:54Z
+completed: 2026-09-30T08:02:59Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-30T10:01:31+02:00
+last_commit: 2026-09-30T10:02:54+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  pending-commit manifest (SQ-22 option C) — unattended writers record, next session commits exactly those paths; wired into /resume, handover --commit, procAsFit prompt; divergence registered local-only. divergence filed-upstream (framework:pickup offset 245, read back byte-identical); ACs ticked
+
+# Key outcomes
+outcomes:
+  - '`scripts/commit-pending.sh add <task-id> <reason> <path>...` appends entries to `.context/working/pending-commit.list` (TSV: path, task id, reason, UTC ts); refuses paths outside `.tasks/` / `.context/` and malformed task ids (rc 2, nothing written)'
+  - '`scripts/commit-pending.sh` commits EXACTLY the listed paths (`git commit -- <paths>`), one commit per task id with that id as message prefix; unrelated files staged in the index stay staged and uncommitted (the T-3090/T-3231 sweep case); verifies HEAD holds each file''s content; removes committed entries only'
+  - 'commit-pending: an entry whose file is gone is reported and dropped; an entry outside `.tasks/`/`.context/` is refused loudly and kept; a second run is a no-op (idempotent); `--list` prints entries by path; `--dry-run` commits nothing'
+  - 'commit-pending works while focus is on another task without FW_SWITCH_FOCUS or any bypass (focus-drift gate satisfied or its refusal reported, never self-granted)'
+  - '`warn-escalation-file.sh` (FILED task files) and the release canary''s ledger refresh (`guard-warn-first-red` when changed) append to the manifest'
+  - 'Wired: `scripts/run-procasfit-round.sh` prompt carries a first step running the helper; `.claude/commands/resume.md` Step 1 lists pending entries by name and Step 3 offers/runs the helper; the handover pre-compact path runs it before its own pathspec commit (vendored patch registered in `.vendor-divergence.yaml`; `check-vendor-divergence.sh` ends classified)'
+  - 'Fixtures `tests/commit-pending-fixtures.sh` pass with mutants killed (sweep case, scope refusal, idempotency, missing file, resume lists by name)'
+  - 'framework:pickup filing posted with the proposed file contents, read back, offset recorded here and in `.vendor-divergence.yaml` (filed-upstream)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/agents/handover/handover.sh'
+  - '.claude/commands/resume.md'
+  - 'CLAUDE.md'
+  - 'scripts/check-release-publication-freshness.sh'
+  - 'scripts/commit-pending.sh'
+  - 'scripts/run-procasfit-round.sh'
+  - 'scripts/warn-escalation-file.sh'
+  - '.tasks/active/T-3269-pending-commit-manifest-unattended-write.md'
+  - 'tests/commit-pending-fixtures.sh'
+  - '.vendor-divergence.yaml'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-30T10:01:31'
+    action: 'T-3269: pending-commit manifest (SQ-22 option C) — unattended writers record, next session commits exactly those paths; wired into /resume, handover --commit, procAsFit prompt; divergence registered local-only'
+  - time: '2026-09-30T10:02:54'
+    action: 'T-3269: divergence filed-upstream (framework:pickup offset 245, read back byte-identical); ACs ticked'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 7 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [sq-22, guard-layer, governance]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 7
+  commits: 2
+  files_changed: 10
+  lines_added: 752
+  lines_removed: 15
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3269-pending-commit-manifest-unattended-write.md
+generated_by: context-agent-hybrid
