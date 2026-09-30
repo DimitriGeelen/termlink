@@ -39,6 +39,11 @@ cat > "$TMP/fake-fw" <<'EOF'
 #!/usr/bin/env bash
 # fake `fw task update <id> --status <s> [...]` enforcing the REAL transition rule:
 # captured -> work-completed is refused ("Invalid transition"), as fw does.
+[ "$1 $2" = "task review" ] && exit 0      # T-3285: review marker step (a no-op here)
+if [ "$1 $2" = "inception decide" ]; then   # T-3285: record like fw does, on disk
+    f=$(ls "$RUNME_TASKS_DIR"/active/"$3"-*.md 2>/dev/null | head -1); [ -n "$f" ] || exit 1
+    printf '\n## Decision\n\n**Decision**: %s\n' "$(printf '%s' "$4" | tr '[:lower:]' '[:upper:]')" >> "$f"; exit 0
+fi
 [ "$1 $2" = "task update" ] || exit 9
 id="$3"; new="$5"
 f=$(ls "$RUNME_TASKS_DIR"/active/"$id"-*.md 2>/dev/null | head -1)
@@ -60,6 +65,9 @@ export RUNME_TEST_CLOSES="T-3132|fixture approved closure
 T-3128|fixture approved closure
 T-3130|fixture approved closure"
 export RUNME_TEST_DECISIONS="T-9055"
+# T-3285: approved inception decisions go through their own seam (SET replaces the real list).
+printf -- '---\nid: T-9284\nworkflow_type: inception\n---\n' > "$TMP/tasks/active/T-9284-fixture.md"
+export RUNME_TEST_APPROVED_DECISIONS="T-9284|go|fixture approved decision"
 # T-3273: logs go to scratch (world-writable so the non-root case logs here too).
 mkdir -p "$TMP/logs" && chmod 1777 "$TMP/logs"
 export RUNME_LOG_DIR="$TMP/logs"
@@ -77,9 +85,12 @@ else bad "--dry-run reports intent" "rc=$rc: $out"; fi
 if [ -z "$(ls -A "$TMP/cron")" ]; then ok "--dry-run wrote nothing"
 else bad "--dry-run wrote nothing" "$(ls -A "$TMP/cron")"; fi
 # T-3272: dry-run names each approved close and performs none.
-if echo "$out" | grep -q "would close T-3132" && [ "$(ls "$TMP/tasks/active" | wc -l)" = "3" ] && [ -z "$(ls -A "$TMP/tasks/completed")" ]; then
+if echo "$out" | grep -q "would close T-3132" && [ "$(ls "$TMP/tasks/active" | grep -cE '^T-31(32|28|30)-')" = "3" ] && [ -z "$(ls -A "$TMP/tasks/completed")" ]; then
     ok "--dry-run reports the approved closes and closes nothing"
 else bad "--dry-run closes nothing" "$(ls "$TMP/tasks/active" "$TMP/tasks/completed"): $out"; fi
+if echo "$out" | grep -q "would record T-9284 = go" && ! grep -q '^\*\*Decision\*\*' "$TMP/tasks/active/T-9284-fixture.md"; then
+    ok "--dry-run reports the approved decision and records nothing"
+else bad "--dry-run decision" "$out"; fi
 # T-3273: the run left a readable log — full output, header, rc line — and
 # latest.log resolves to it. The agent reads this after the operator runs it.
 LOGF="$TMP/logs/latest.log"
@@ -101,7 +112,7 @@ if [ "$(id -u)" != "0" ] && [ -n "${CI:-}" ]; then
 fi
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') ))
+EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|') ))
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -125,6 +136,9 @@ done
 if [ "$n_closed" = "3" ] && [ "$(echo "$out" | grep -c 'closed and verified')" = "3" ]; then
     ok "default run closes the 3 approved tasks and verifies each in completed/"
 else bad "default run closes approved tasks" "closed=$n_closed: $out"; fi
+if echo "$out" | grep -q "recorded and verified: T-9284 = go" && grep -q '^\*\*Decision\*\*: GO$' "$TMP/tasks/active/T-9284-fixture.md"; then
+    ok "default run records the approved decision and verifies it on disk"
+else bad "default run records decision" "$out"; fi
 
 # ---------------------------------------------------------------------------
 # 5-6. IDEMPOTENCE. Re-running must do nothing and say so — the operator has to
@@ -173,6 +187,11 @@ sleep 1   # tee flushes the trap line asynchronously after the script exits
 if grep -q 'FAILED  T-3130 did not land' "$TMP/logs/latest.log" && grep -q '=== runme.sh finished rc=1' "$TMP/logs/latest.log"; then
     ok "a failed run's log carries the FAILED line and rc=1"
 else bad "failed run logged" "$(tail -5 "$TMP/logs/latest.log" 2>/dev/null)"; fi
+printf -- '---\nid: T-9285\n---\n' > "$TMP/tasks/active/T-9285-fixture.md"
+out=$(RUNME_FW="$TMP/noop-fw" RUNME_TEST_APPROVED_DECISIONS="T-9285|no-go|fixture" run); rc=$?
+if [ "$rc" = "1" ] && echo "$out" | grep -q "FAILED  T-9285: decision not found"; then
+    ok "a decision fw reports but disk does not show => FAILED, exit 1"
+else bad "unverified decision is a failure" "rc=$rc: $out"; fi
 
 fi
 
@@ -215,8 +234,9 @@ if echo "$out" | grep -q "Pending decisions"; then ok "default run LISTS pending
 else bad "lists pending decisions" "$out"; fi
 if echo "$out" | grep -q "nothing here runs by default"; then ok "the listing states that nothing runs by default"
 else bad "listing states non-execution" "$out"; fi
-if echo "$out" | grep -q "would record"; then bad "default run must not record a decision" "$out"
-else ok "default run records NO decision"; fi
+# T-3285: APPROVED decisions (action 3) do run; a PENDING, undecided one (T-9055) never does.
+if echo "$out" | grep -q "would record T-9055"; then bad "default run must not record a pending decision" "$out"
+else ok "default run records NO pending (undecided) decision"; fi
 
 # ---------------------------------------------------------------------------
 # 13. A typo must never resolve to a default verdict. Both halves are checked,
@@ -246,8 +266,8 @@ else ok "plugin cleanup absent from a default run"; fi
 # 15. T-3276 — the REAL shape: with no approved closures and no pending decisions
 #     (seams unset), a run shows no closures section and says decisions are none.
 # ---------------------------------------------------------------------------
-eout=$(env -u RUNME_TEST_CLOSES -u RUNME_TEST_DECISIONS RUNME_CRON_DIR="$TMP/cron" bash "$RUNME" --dry-run 2>&1); rc=$?
-if [ "$rc" = "0" ] && ! echo "$eout" | grep -q "Approved closures" && echo "$eout" | grep -q "none pending"; then
+eout=$(env -u RUNME_TEST_CLOSES -u RUNME_TEST_DECISIONS RUNME_TEST_APPROVED_DECISIONS= RUNME_CRON_DIR="$TMP/cron" bash "$RUNME" --dry-run 2>&1); rc=$?
+if [ "$rc" = "0" ] && ! echo "$eout" | grep -q "Approved closures" && ! echo "$eout" | grep -q "Approved inception decisions" && echo "$eout" | grep -q "none pending"; then
     ok "empty lists: no closures section, decisions read 'none pending'"
 else bad "empty lists render cleanly" "rc=$rc: $eout"; fi
 

@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3285: runme.sh: carry operator-approved inception decisions in a default run (first: T-3284 GO on option C), verified on disk
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-30T18:46:04Z
+# ============================================================================
+
+task_id: T-3285
+task_name: "runme.sh: carry operator-approved inception decisions in a default run (first: T-3284 GO on option C), verified on disk"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-30T18:43:15Z
+completed: 2026-09-30T18:45:50Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  runme.sh: carry operator-approved inception decisions in a default run (first: T-3284 GO on option C), verified on disk
+
+# Key outcomes
+outcomes:
+  - '`runme.sh` has a data-driven "approved decisions" action (`<T-ID>|<go|no-go|defer>|<rationale>`) that runs in a DEFAULT run, carrying T-3284 = go (operator ruling 2026-09-30, recorded in T-3284''s Updates)'
+  - 'Each decision is verified on disk after running: the task file (active or completed) carries `**Decision**: <VERDICT>`; otherwise it is FAILED (exit 1). An already-recorded decision is skipped as already-done, and `--dry-run` records nothing'
+  - 'Fixtures pin it hermetically through a seam (`RUNME_TEST_APPROVED_DECISIONS`, overriding the real list, including empty): records and verifies; idempotent on re-run; fw claiming success without writing the decision → FAILED rc 1; dry-run writes nothing. All existing cases still pass'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 2
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3285-runmesh-carry-operator-approved-inceptio.md
+generated_by: context-agent-hybrid

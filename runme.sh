@@ -207,6 +207,62 @@ if [ "${#APPROVED_CLOSES[@]}" -gt 0 ]; then
 fi
 
 # ---------------------------------------------------------------------------
+# ACTION 3 — inception decisions the operator has ALREADY made (T-3285)
+#
+# One "T-ID|verdict|rationale" per entry (verdict: go | no-go | defer). An entry
+# belongs here only when the operator stated the ruling and it is recorded in the
+# task's Updates. Recording it is Tier 0 (human authority), so the operator carries
+# it out by running this script. Verified on disk: the task file must then carry
+# "**Decision**: <VERDICT>". Remove the entry once the log shows it recorded.
+# RUNME_TEST_APPROVED_DECISIONS is a FIXTURE seam; when SET (even empty) it
+# replaces the real list, so fixtures never touch a real task.
+# ---------------------------------------------------------------------------
+APPROVED_DECISIONS=(
+    "T-3284|go|Operator 2026-09-30: GO on option C — read-only identity probe (termlink agent identity --resolve --no-create) so E4 never mints the key it verifies; docs/reports/T-3284-e4-host-scope-analysis.md"
+)
+if [ -n "${RUNME_TEST_APPROVED_DECISIONS+x}" ]; then
+    APPROVED_DECISIONS=()
+    [ -n "$RUNME_TEST_APPROVED_DECISIONS" ] && mapfile -t APPROVED_DECISIONS <<< "$RUNME_TEST_APPROVED_DECISIONS"
+fi
+
+# record_decision <T-ID> <verdict> <rationale>
+record_decision() {
+    local id="$1" verdict="$2" why="$3" f want
+    want="$(printf '%s' "$verdict" | tr '[:lower:]' '[:upper:]')"
+    case "$verdict" in go|no-go|defer) : ;; *) say "  FAILED  $id: verdict must be go/no-go/defer (got '$verdict')"; FAILED=$((FAILED+1)); return ;; esac
+    f=$(ls "$TASKS_DIR"/active/"$id"-*.md "$TASKS_DIR"/completed/"$id"-*.md 2>/dev/null | head -1)
+    [ -n "$f" ] || { say "  FAILED  $id: no task file in active/ or completed/"; FAILED=$((FAILED+1)); return; }
+    if grep -q "^\*\*Decision\*\*: $want\$" "$f"; then
+        say "  skip    already recorded: $id = $verdict"; SKIPPED=$((SKIPPED+1)); return
+    fi
+    if [ "$DRY_RUN" = "1" ]; then
+        say "  [DRY]   would record $id = $verdict"; DONE=$((DONE+1)); return
+    fi
+    # T-973: decide refuses without a review marker, which `fw task review` creates. The
+    # operator running this script IS the human review (the ruling is recorded in the
+    # task), so review runs here, then decide. Review's exit code is not trusted either
+    # way — decide enforces the marker, and the on-disk check below is the verdict.
+    "$FW" task review "$id" >/tmp/.runme-decide-"$id" 2>&1
+    "$FW" inception decide "$id" "$verdict" --rationale "$why" >>/tmp/.runme-decide-"$id" 2>&1
+    f=$(ls "$TASKS_DIR"/active/"$id"-*.md "$TASKS_DIR"/completed/"$id"-*.md 2>/dev/null | head -1)
+    if [ -n "$f" ] && grep -q "^\*\*Decision\*\*: $want\$" "$f"; then
+        say "  OK      recorded and verified: $id = $verdict"; DONE=$((DONE+1))
+    else
+        say "  FAILED  $id: decision not found in the task file after recording (fw output: /tmp/.runme-decide-$id)"
+        FAILED=$((FAILED+1))
+    fi
+}
+
+if [ "${#APPROVED_DECISIONS[@]}" -gt 0 ]; then
+    head2 "3. Approved inception decisions"
+    for entry in "${APPROVED_DECISIONS[@]}"; do
+        [ -n "$entry" ] || continue
+        e_id="${entry%%|*}"; rest="${entry#*|}"
+        record_decision "$e_id" "${rest%%|*}" "${rest#*|}"
+    done
+fi
+
+# ---------------------------------------------------------------------------
 # Verification — the project's own drift checker is the arbiter, not this script.
 # Using the repo's existing check rather than a bespoke one means this cannot
 # quietly disagree with what `fw audit` will say five minutes from now.
