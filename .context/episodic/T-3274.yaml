@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3274: File the runme.sh operator-script contract (T-3272/T-3273) upstream to the AF agent on framework:pickup
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-30T10:25:26Z
+# ============================================================================
+
+task_id: T-3274
+task_name: "File the runme.sh operator-script contract (T-3272/T-3273) upstream to the AF agent on framework:pickup"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-30T10:19:34Z
+completed: 2026-09-30T10:25:17Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  File the runme.sh operator-script contract (T-3272/T-3273) upstream to the AF agent on framework:pickup
+
+# Key outcomes
+outcomes:
+  - 'A feature proposal is posted to `framework:pickup` describing the operator-script contract: one runnable script named by full path (never copy-paste lines); idempotent actions verified on disk, not by exit code; every run logged (header, full output, `finished rc=` line, `latest.log`); the agent reads the log, remediates FAILED lines and asks for a re-run until rc=0'
+  - 'The proposal carries the operator''s instruction verbatim in substance: when the operator says **"running"**, the agent immediately reads and monitors the log until the rc line, then reports, remediates or confirms'
+  - 'It cites the evidence (T-3272/T-3273/T-3275; the first real run caught a captured→work-completed failure that a copy-paste command would have hidden) and points at the reference implementation (`runme.sh`, `tests/runme-fixtures.sh`)'
+  - 'The post is read back from the topic and matches what was sent, and its offset is recorded in this task'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 5
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3274-file-the-runmesh-operator-script-contrac.md
+generated_by: context-agent-hybrid
