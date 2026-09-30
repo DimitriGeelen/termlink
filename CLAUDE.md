@@ -1985,7 +1985,10 @@ unmarked checks are legitimately runtime canaries and belong to cron.
 a check that never looked must never read as a clean bill. Roll-up: any FAIL → exit 1;
 else any ERROR → exit 2; else 0 — findings dominate tooling errors, mirroring
 `fleet verify`'s "drift dominates". A member that hangs is bounded by
-`GUARD_LAYER_TIMEOUT` (default 300s) and counts as ERROR, never PASS.
+`GUARD_LAYER_TIMEOUT` (default 300s) and counts as ERROR, never PASS. The **release gate runs
+with 600s per member** (T-3281, SQ-21). The slowest member took 226s and timed out once on the
+contended .107 host, while GitHub runners took 6m24s for the whole layer. So 600s is insurance
+against a flake holding a release, and push CI keeps 300s.
 
 **Wired into CI by T-2686.** `doc-lint.yml` gains a `guard-layer` job (runs on every
 push and PR — no Rust build, but **~16 minutes, not seconds**: measured 945s wall on

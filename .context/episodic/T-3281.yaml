@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3281: SQ-21: record the timeout-risk evidence and raise the per-member guard-layer timeout for the release gate only (300s -> 600s)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-30T17:01:13Z
+# ============================================================================
+
+task_id: T-3281
+task_name: "SQ-21: record the timeout-risk evidence and raise the per-member guard-layer timeout for the release gate only (300s -> 600s)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-30T17:00:05Z
+completed: 2026-09-30T17:01:03Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  SQ-21: record the timeout-risk evidence and raise the per-member guard-layer timeout for the release gate only (300s -> 600s)
+
+# Key outcomes
+outcomes:
+  - 'The release workflow''s guard-layer step runs with `GUARD_LAYER_TIMEOUT: 600` (release gate only; `doc-lint.yml` keeps the 300 s default), with a comment citing SQ-21'
+  - 'The SQ-21 ruling and its evidence are recorded: the guard layer took 6m24s on the v0.12.3 GitHub runner, v0.12.4 also passed, and the 226 s / timed-out figures came only from the contended .107 host. The operator chose options 1+2 plus an investigation of option 3 (a separate task)'
+  - 'The CLAUDE.md guard-layer section states the release gate''s per-member timeout and why'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 0 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 0
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3281-sq-21-record-the-timeout-risk-evidence-a.md
+generated_by: context-agent-hybrid

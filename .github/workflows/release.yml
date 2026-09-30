@@ -69,7 +69,15 @@ jobs:
       # and annotated (::warning::), and escalate via the release-publication canary
       # after 14 days red, but cannot hold a release hostage; INFO is printed only.
       # Push CI (doc-lint.yml) gates the same way. `cargo test` above is always FAIL.
+      # T-3281 (SQ-21, operator 2026-09-30): the release gate gets 600 s per member
+      # instead of the 300 s default. A member that times out counts as ERROR, which
+      # fails a FAIL-tier gate. The slowest member (check-verification-heading-shadow)
+      # took 226 s once and timed out once on the contended .107 host. On GitHub runners
+      # the whole layer took 6m24s, so this is insurance against a flake blocking a
+      # release, not a fix for an observed one. Push CI (doc-lint.yml) keeps 300 s.
       - name: Run source-level guard layer
+        env:
+          GUARD_LAYER_TIMEOUT: "600"
         run: bash scripts/run-guard-layer.sh --gate release
 
   # T-2692 (T-2690 F1/G1) — macOS is a FIRST-CLASS, DOCUMENTED platform that has
