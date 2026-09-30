@@ -299,6 +299,36 @@ if [ "$rc" = "0" ] && ! echo "$eout" | grep -q "Approved closures" && ! echo "$e
     ok "empty lists: no closures section, decisions read 'none pending'"
 else bad "empty lists render cleanly" "rc=$rc: $eout"; fi
 
+# ---------------------------------------------------------------------------
+# 13. T-3289 — every termlink copy on the host. First destination is always
+#     installed; the rest are refreshed only where a copy already exists (a stale
+#     /usr/local/bin/termlink was what 32 of 33 crons ran). All paths are scratch.
+# ---------------------------------------------------------------------------
+M="$TMP/multi"; mkdir -p "$M/cargo" "$M/usrlocal" "$M/dotlocal"
+cp "$TMP/tl-old" "$M/usrlocal/termlink"          # stale copy that must be refreshed
+DESTS="$M/cargo/termlink $M/usrlocal/termlink $M/dotlocal/termlink"
+out=$(RUNME_TERMLINK_DESTS="$DESTS" run); rc=$?
+if [ "$rc" = "0" ] && cmp -s "$TMP/tl-new" "$M/cargo/termlink" && cmp -s "$TMP/tl-new" "$M/usrlocal/termlink" \
+   && echo "$out" | grep -q "installed and verified: $M/usrlocal/termlink (termlink 9.9.9"; then
+    ok "multi-dest: always-install path + stale existing copy both installed and verified"
+else bad "multi-dest install" "rc=$rc: $out"; fi
+if [ ! -e "$M/dotlocal/termlink" ] && echo "$out" | grep -q "no termlink at $M/dotlocal/termlink — not creating one"; then
+    ok "multi-dest: absent optional path is NOT created, and the log says so"
+else bad "refresh-if-present must not create" "$(ls -la "$M/dotlocal"): $out"; fi
+out=$(RUNME_TERMLINK_DESTS="$DESTS" run); rc=$?
+if [ "$rc" = "0" ] && [ "$(echo "$out" | grep -c "skip    already installed: $M/")" = "2" ]; then
+    ok "multi-dest: second run skips both installed paths (idempotent)"
+else bad "multi-dest idempotence" "rc=$rc: $out"; fi
+: > "$M/blocker"                                   # a FILE where a directory must be
+cp "$TMP/tl-old" "$M/usrlocal/termlink"
+out=$(RUNME_TERMLINK_DESTS="$M/cargo/termlink $M/usrlocal/termlink $M/blocker/sub/termlink" run); rc=$?
+# the blocker path does not exist, so refresh-if-present skips it; force it as the FIRST (always) dest:
+out2=$(RUNME_TERMLINK_DESTS="$M/blocker/sub/termlink $M/usrlocal/termlink" run 2>&1); rc2=$?
+if [ "$rc" = "0" ] && [ "$rc2" = "1" ] && echo "$out2" | grep -q "FAILED  could not install $TMP/tl-new -> $M/blocker/sub/termlink" \
+   && cmp -s "$TMP/tl-new" "$M/usrlocal/termlink"; then
+    ok "multi-dest: one failing path => FAILED naming it, exit 1, the other path still installed"
+else bad "per-path failure" "rc=$rc rc2=$rc2: $out2"; fi
+
 echo ""
 echo "----------------------------------------"
 printf 'T-3052 fixtures: %d passed, %d failed\n' "$PASS" "$FAIL"

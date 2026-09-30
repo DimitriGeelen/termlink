@@ -267,21 +267,37 @@ if [ "${#APPROVED_DECISIONS[@]}" -gt 0 ]; then
 fi
 
 # ---------------------------------------------------------------------------
-# ACTION 4 — install the current termlink build into ~/.cargo/bin (T-3287)
+# ACTION 4 — install the current termlink build into every termlink on this host
+# (T-3287, widened by T-3289)
 #
-# ~/.cargo/bin/termlink is the FIRST termlink on PATH here, and it is what the
-# guard layer's provers call. arc-003's E4 now needs `--resolve --no-create`
-# (T-3286), which 0.12.13 rejects, so until this runs E4 reports
-# "installed termlink predates --no-create — nothing checked".
-# Idempotent: skipped when the installed binary already reports the build's
-# version AND accepts --no-create. Verified on disk after installing: the version
+# ~/.cargo/bin/termlink is what the guard layer's provers, systemd, and the arc
+# canary call. But it is NOT the only copy: /usr/local/bin/termlink and
+# ~/.local/bin/termlink sat at 0.12.13 while cargo moved on, and 32 of the 33
+# termlink cron jobs declare PATH=/usr/local/bin:... — so nearly every canary and
+# the notify-rail sidecars executed six-day-stale code. check-installed-binary-drift
+# reported "DRIFT: 0.12.13 0.12.21" and, being WARN-tier, nothing acted on it.
+#
+# Policy: ~/.cargo/bin is always installed. The other paths are REFRESHED only
+# where a termlink already exists — this fixes stale copies without spreading new
+# ones onto a host that never had them.
+# Idempotent per path: skipped when it already reports the build's version AND
+# accepts --no-create. Verified per path on disk after installing: the version
 # matches, and a real `--resolve --no-create` probe against a throwaway HOME exits
-# 3 (no key) WITHOUT writing one.
-# Seams (fixtures only): RUNME_TERMLINK_SRC (built binary), RUNME_TERMLINK_DEST
-# (install path), RUNME_SKIP_BUILD=1 (do not run cargo).
+# 3 (no key) WITHOUT writing one. Replacing a binary does not touch a process
+# already running it (install unlinks + creates); crons pick the new one up on
+# their next run. Restarting the hub / MCP server is a separate decision.
+# Seams (fixtures only): RUNME_TERMLINK_SRC (built binary); RUNME_TERMLINK_DEST
+# (ONE install path, as before) or RUNME_TERMLINK_DESTS (space-separated list,
+# first = always-install, rest = refresh-if-present); RUNME_SKIP_BUILD=1.
 # ---------------------------------------------------------------------------
 TL_SRC="${RUNME_TERMLINK_SRC:-$PROJECT_ROOT/target/release/termlink}"
-TL_DEST="${RUNME_TERMLINK_DEST:-${HOME:-/root}/.cargo/bin/termlink}"
+if [ -n "${RUNME_TERMLINK_DESTS:-}" ]; then
+    TL_DESTS="$RUNME_TERMLINK_DESTS"
+elif [ -n "${RUNME_TERMLINK_DEST:-}" ]; then
+    TL_DESTS="$RUNME_TERMLINK_DEST"
+else
+    TL_DESTS="${HOME:-/root}/.cargo/bin/termlink /usr/local/bin/termlink ${HOME:-/root}/.local/bin/termlink"
+fi
 
 tl_accepts_no_create() {  # <binary> -> 0 if the flag is accepted and nothing is minted
     local bin="$1" h rc=0
@@ -293,6 +309,27 @@ tl_accepts_no_create() {  # <binary> -> 0 if the flag is accepted and nothing is
     [ "$rc" = "3" ] && [ "$minted" = "0" ]
 }
 
+install_termlink_to() {  # <dest> <want-version>
+    local dest="$1" want="$2" have
+    have="$("$dest" --version 2>/dev/null || true)"
+    if [ "$have" = "$want" ] && tl_accepts_no_create "$dest"; then
+        say "  skip    already installed: $dest ($have, accepts --no-create)"; SKIPPED=$((SKIPPED+1)); return
+    fi
+    if [ "$DRY_RUN" = "1" ]; then
+        say "  [DRY]   would install $TL_SRC ($want) -> $dest (now: ${have:-absent})"; DONE=$((DONE+1)); return
+    fi
+    mkdir -p "$(dirname "$dest")"
+    if ! install -m 755 "$TL_SRC" "$dest"; then
+        say "  FAILED  could not install $TL_SRC -> $dest"; FAILED=$((FAILED+1)); return
+    fi
+    have="$("$dest" --version 2>/dev/null || true)"
+    if [ "$have" = "$want" ] && tl_accepts_no_create "$dest"; then
+        say "  OK      installed and verified: $dest ($have; --resolve --no-create exits 3, writes nothing)"; DONE=$((DONE+1))
+    else
+        say "  FAILED  installed $dest reports '${have:-nothing}' (want '$want') or rejects --no-create"; FAILED=$((FAILED+1))
+    fi
+}
+
 install_termlink() {
     if [ "${RUNME_SKIP_BUILD:-0}" != "1" ] && [ "$DRY_RUN" = "0" ]; then
         local cargo; cargo="$(command -v cargo || echo "${HOME:-/root}/.cargo/bin/cargo")"
@@ -302,31 +339,23 @@ install_termlink() {
         fi
     fi
     if [ ! -x "$TL_SRC" ]; then
-        if [ "$DRY_RUN" = "1" ]; then say "  [DRY]   would build and install $TL_SRC -> $TL_DEST"; DONE=$((DONE+1)); return; fi
+        if [ "$DRY_RUN" = "1" ]; then say "  [DRY]   would build and install $TL_SRC -> $TL_DESTS"; DONE=$((DONE+1)); return; fi
         say "  FAILED  built binary missing: $TL_SRC"; FAILED=$((FAILED+1)); return
     fi
-    local want have
+    local want dest first=1
     want="$("$TL_SRC" --version 2>/dev/null)"
-    have="$("$TL_DEST" --version 2>/dev/null || true)"
-    if [ "$have" = "$want" ] && tl_accepts_no_create "$TL_DEST"; then
-        say "  skip    already installed: $TL_DEST ($have, accepts --no-create)"; SKIPPED=$((SKIPPED+1)); return
-    fi
-    if [ "$DRY_RUN" = "1" ]; then
-        say "  [DRY]   would install $TL_SRC ($want) -> $TL_DEST (now: ${have:-absent})"; DONE=$((DONE+1)); return
-    fi
-    mkdir -p "$(dirname "$TL_DEST")"
-    if ! install -m 755 "$TL_SRC" "$TL_DEST"; then
-        say "  FAILED  could not install $TL_SRC -> $TL_DEST"; FAILED=$((FAILED+1)); return
-    fi
-    have="$("$TL_DEST" --version 2>/dev/null || true)"
-    if [ "$have" = "$want" ] && tl_accepts_no_create "$TL_DEST"; then
-        say "  OK      installed and verified: $TL_DEST ($have; --resolve --no-create exits 3, writes nothing)"; DONE=$((DONE+1))
-    else
-        say "  FAILED  installed $TL_DEST reports '${have:-nothing}' (want '$want') or rejects --no-create"; FAILED=$((FAILED+1))
-    fi
+    for dest in $TL_DESTS; do
+        if [ "$first" = "1" ]; then
+            first=0
+        elif [ ! -e "$dest" ]; then
+            say "  note    no termlink at $dest — not creating one (refresh-if-present)"
+            continue
+        fi
+        install_termlink_to "$dest" "$want"
+    done
 }
 
-head2 "4. termlink binary (T-3287 — needed by arc-003's E4)"
+head2 "4. termlink binary — every copy on this host (T-3287, T-3289)"
 install_termlink
 
 # ---------------------------------------------------------------------------
