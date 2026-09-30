@@ -173,6 +173,33 @@ export FAKE_FLEET_DIR="$F" RUNME_FLEET_HUBS=fake-hub RUNME_MUSL_SRC="$F/musl" \
        RUNME_FLEET_DEPLOY="$F/deploy" RUNME_FLEET_DOCTOR="$F/doctor" RUNME_TOFU="$F/tofu" RUNME_FLEET_WAIT_SECS=2 \
        RUNME_FLEET_REMOTE="$F/remote"
 fleet_state 9.9.9
+# T-3297 action 7: the zombie reap must NEVER see or signal a real process. A
+# fake detector prints canned JSON (FAKE_ZOMBIES: "pid:name ..."), a fake /proc
+# holds cmdline files, and a fake kill deletes the pid's /proc entry (the process
+# "exits") unless it is listed in FAKE_STUCK.
+Z="$TMP/zombie"; mkdir -p "$Z/proc"
+cat > "$Z/detect" <<'EOS'
+#!/usr/bin/env bash
+python3 - "${FAKE_ZOMBIES:-}" <<'EOP'
+import json,sys
+zs=[]
+for tok in sys.argv[1].split():
+    pid,name=tok.split(":",1); zs.append({"pid":int(pid),"name":name,"age_s":200000,"tmux_session":"tl-"+name})
+print(json.dumps({"zombie":zs}))
+EOP
+EOS
+cat > "$Z/kill" <<'EOS'
+#!/usr/bin/env bash
+pid="${!#}"; echo "$pid" >> "$FAKE_ZOMBIE_DIR/killed"
+case " ${FAKE_STUCK:-} " in *" $pid "*) exit 0 ;; esac
+rm -rf "$FAKE_ZOMBIE_DIR/proc/$pid"
+EOS
+chmod +x "$Z/detect" "$Z/kill"
+zombie_proc() { # zombie_proc <pid> <name>  -> fake /proc/<pid>/cmdline for a register session
+    mkdir -p "$Z/proc/$1"; printf '/root/.cargo/bin/termlink\0register\0--name\0%s\0--shell\0' "$2" > "$Z/proc/$1/cmdline"; }
+zombie_reset() { rm -rf "$Z/proc" "$Z/killed"; mkdir -p "$Z/proc"; }
+export FAKE_ZOMBIE_DIR="$Z" RUNME_ZOMBIE_DETECT="$Z/detect" RUNME_ZOMBIE_PROC="$Z/proc" \
+       RUNME_ZOMBIE_KILL="$Z/kill" RUNME_ZOMBIE_WAIT_SECS=1 FAKE_ZOMBIES=""
 # T-3273: logs go to scratch (world-writable so the non-root case logs here too).
 mkdir -p "$TMP/logs" && chmod 1777 "$TMP/logs"
 export RUNME_LOG_DIR="$TMP/logs"
@@ -220,7 +247,7 @@ if [ "$(id -u)" != "0" ] && [ -n "${CI:-}" ]; then
 fi
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|') + 3 ))   # +1 termlink install (T-3287); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6)
+EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|') + 4 ))   # +1 termlink install (T-3287); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297)
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -547,6 +574,43 @@ out=$(brun); rc=$?
 if [ "$rc" = "0" ] && [ "$(calls)" = "3" ]; then
     ok "build cache: committed change under crates/ since the recorded build => rebuild"
 else bad "code commit must rebuild" "rc=$rc calls=$(calls): $out"; fi
+
+# ---------------------------------------------------------------------------
+# 17. T-3297 — zombie reap, all through a fake detector / proc / kill.
+# ---------------------------------------------------------------------------
+zombie_reset; zombie_proc 501 z-one; zombie_proc 502 z-two
+out=$(FAKE_ZOMBIES="501:z-one 502:z-two" run --dry-run); rc=$?
+if echo "$out" | grep -q "targets 2 zombie session(s) — listed before any is touched" && echo "$out" | grep -q "pid 501  z-one" \
+   && echo "$out" | grep -q "would SIGTERM these 2" && [ ! -e "$Z/killed" ]; then
+    ok "zombie: --dry-run lists every target and signals nothing"
+else bad "zombie dry-run" "rc=$rc: $out"; fi
+out=$(FAKE_ZOMBIES="501:z-one 502:z-two" run); rc=$?
+lst=$(echo "$out" | grep -n "pid 502  z-two" | cut -d: -f1); okl=$(echo "$out" | grep -n "OK      reaped and verified: 2 session" | cut -d: -f1)
+if [ "$rc" = "0" ] && [ -n "$lst" ] && [ -n "$okl" ] && [ "$lst" -lt "$okl" ] && [ "$(wc -l < "$Z/killed")" = "2" ]; then
+    ok "zombie: targets listed before acting, both SIGTERMed and verified gone"
+else bad "zombie reap" "rc=$rc: $out"; fi
+zombie_reset; zombie_proc 601 z-real
+mkdir -p "$Z/proc/602"; printf 'vim\0notes.txt\0' > "$Z/proc/602/cmdline"   # pid 602 was reused
+out=$(FAKE_ZOMBIES="601:z-real 602:z-gone" run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "pid 602 is no longer register 'z-gone' — not signalled" \
+   && ! grep -qx 602 "$Z/killed" && grep -qx 601 "$Z/killed" && [ -d "$Z/proc/602" ]; then
+    ok "zombie: a reused pid (cmdline no longer that session) is skipped, never signalled"
+else bad "zombie pid-reuse guard" "rc=$rc: $out $(cat "$Z/killed" 2>/dev/null)"; fi
+zombie_reset; zombie_proc 701 z-stuck
+out=$(FAKE_ZOMBIES="701:z-stuck" FAKE_STUCK=701 run); rc=$?
+if [ "$rc" = "1" ] && echo "$out" | grep -q "still running after SIGTERM (not escalated to SIGKILL): 701(z-stuck)" \
+   && [ "$(wc -l < "$Z/killed")" = "1" ]; then
+    ok "zombie: a session that ignores SIGTERM => FAILED naming it, signalled once, no SIGKILL"
+else bad "zombie stuck" "rc=$rc: $out"; fi
+zombie_reset
+out=$(FAKE_ZOMBIES="" run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "skip    no zombie sessions" && [ ! -e "$Z/killed" ]; then
+    ok "zombie: no zombies => skip (idempotent)"
+else bad "zombie idempotent" "rc=$rc: $out"; fi
+out=$(RUNME_ZOMBIE_DETECT=false run); rc=$?
+if [ "$rc" = "1" ] && echo "$out" | grep -q "zombie detector could not run — nothing reaped"; then
+    ok "zombie: detector failure => FAILED, nothing reaped (fail-closed)"
+else bad "zombie detector failure" "rc=$rc: $out"; fi
 
 echo ""
 echo "----------------------------------------"
