@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3270: Focus-drift gate names the pending-commit helper as an explicit, narrow, visible exception (SQ-23 opt 2)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-30T09:10:24Z
+# ============================================================================
+
+task_id: T-3270
+task_name: "Focus-drift gate names the pending-commit helper as an explicit, narrow, visible exception (SQ-23 opt 2)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-30T09:06:32Z
+completed: 2026-09-30T09:10:12Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-09-30T11:08:52+02:00
+last_commit: 2026-09-30T11:10:11+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  focus-drift gate names the pending-commit helper as an explicit, narrow, visible exception (SQ-23 option 2). filed upstream at framework:pickup offset 246 (read back byte-identical); ACs ticked
+
+# Key outcomes
+outcomes:
+  - '`check-active-task.sh`''s focus-drift gate recognises exactly `[bash ][./]scripts/commit-pending.sh commit[ args]` as a NAMED exception (SQ-23 option 2, operator 2026-09-30) and prints a visible NOTE naming the exception, T-3269 and the attribution rule every time it applies'
+  - 'The exception is narrow: a command that chains anything onto the helper (`;` `&` `|`) gets no NOTE and a chained `git commit -m "T-OTHER: ..."` is still BLOCKED as focus drift'
+  - 'A fixture proves both legs against the real hook (helper alone: allowed + NOTE; helper chained with a drifting commit: blocked), plus a mutant with the exception removed that loses the NOTE'
+  - 'The vendored edit is registered in `.vendor-divergence.yaml` and `check-vendor-divergence.sh` exits 0'
+  - 'The exact diff is sent to the AF agent on `framework:pickup` as a follow-up to offset 245, read back, and the offset recorded in the divergence entry'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/agents/context/check-active-task.sh'
+  - '.tasks/active/T-3270-focus-drift-gate-names-the-pending-commi.md'
+  - 'tests/focus-drift-helper-exception-fixtures.sh'
+  - '.vendor-divergence.yaml'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-30T11:08:52'
+    action: 'T-3270: focus-drift gate names the pending-commit helper as an explicit, narrow, visible exception (SQ-23 option 2)'
+  - time: '2026-09-30T11:10:11'
+    action: 'T-3270: filed upstream at framework:pickup offset 246 (read back byte-identical); ACs ticked'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 3
+  commits: 2
+  files_changed: 4
+  lines_added: 400
+  lines_removed: 8
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3270-focus-drift-gate-names-the-pending-commi.md
+generated_by: context-agent-hybrid
