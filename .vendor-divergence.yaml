@@ -187,6 +187,28 @@ last_vendor_event:
 # ---------------------------------------------------------------------------
 
 divergences:
+  - task: T-3270
+    commit: pending-same-commit
+    commit_note: >
+      Registered BEFORE the change lands (T-2813 lesson). Operator ruling SQ-23 =
+      option 2 (2026-09-30): the focus-drift gate names the pending-commit helper
+      as an explicit exception, instead of the helper passing only because the gate
+      cannot see it.
+    date: 2026-09-30
+    file: .agentic-framework/agents/context/check-active-task.sh
+    status: local-only
+    kind: governance-mechanism
+    generality: GENERIC
+    risk_if_revendored: LOW
+    why: >
+      The T-1730 focus-drift gate reads only the literal Bash command, so
+      `bash scripts/commit-pending.sh commit` (T-3269) passed it by being invisible,
+      while committing under the WRITER's recorded task id. This adds a NAMED
+      exception: exactly the helper's `commit` verb, alone on the line, prints a
+      visible NOTE naming the exception and its attribution rule. Anything chained
+      onto it is not covered, so a chained drifting `git commit -m "T-X:"` is still
+      blocked. A re-vendor deletes only the NOTE (the helper stays invisible to the
+      gate, i.e. the pre-SQ-23 state), not any protection.
   - task: T-3269
     commit: a14cd49de
     commit_note: >
