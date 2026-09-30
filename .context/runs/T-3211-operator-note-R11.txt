@@ -1,0 +1,41 @@
+OPERATOR RULINGS IN FORCE: SQ-4 YES; SQ-3 SURFACE-THEN-ASK; SQ-9 approved; guard classification approved in full.
+NEW RULING, 2026-09-30 — SQ-22 = OPTION C: "A plus the next agent round commits automatically." Nothing commits
+unattended; files written by unattended jobs are committed by the next SESSION, as a standing first step. The
+operator added: this must be STRUCTURAL — in /resume and in the pre-compact/handover commit — and it belongs in the
+FRAMEWORK too, so inform the AF agent (framework:pickup), "possibly include the files with it". NEVER tag, NEVER push.
+
+ORCHESTRATOR FINDINGS (measured, 2026-09-30) — your starting facts:
+ - handover --commit (the pre-compact path) commits ONLY the handover file + LATEST.md, pathspec-scoped since T-3090
+   (.agentic-framework/agents/handover/handover.sh ~1455-1475). It does NOT commit canary filings. Keep that scope
+   discipline — the T-3090/T-3231 whole-index sweeps are why it exists.
+ - /resume (.claude/commands/resume.md, installed from the vendored template .agentic-framework/lib/templates/
+   resume-md.md; a user-level copy also exists at ~/.claude/commands/resume.md and DIFFERS) only runs git status and
+   reports "N uncommitted files" — on this host ~20 routine working files, so a canary filing drowns.
+ - post-compact-resume.sh has no uncommitted-state handling.
+ - scripts/warn-escalation-file.sh (T-3267) and the release canary write the ledger
+   .context/checks/guard-warn-first-red and new .tasks/active/T-*.md, and leave them uncommitted by design.
+
+BUILD (create a build task; real ACs before edits):
+ 1. A general "pending commit" mechanism, not WARN-specific: unattended writers APPEND the paths they wrote (+ the
+    task id to attribute the commit to, + a one-line reason) to a manifest, e.g. .context/working/pending-commit.list.
+    A helper (project-owned, e.g. scripts/commit-pending.sh) commits EXACTLY those paths (git commit -- <paths>),
+    one commit per task id with that id as the message prefix, verifies HEAD carries each file's content, then
+    removes the committed entries. It must: never widen to other paths; tolerate an entry whose file is gone
+    (report, drop); never commit a path outside .tasks/ .context/ (refuse, loud); be idempotent; work when focus is
+    another task WITHOUT a bypass (if the focus-drift gate refuses, find the supported path or report — do NOT
+    self-grant FW_SWITCH_FOCUS). Wire warn-escalation-file.sh + the canary ledger refresh to append to it.
+ 2. Wire the helper in (local): the procAsFit round prompt (scripts/run-procasfit-round.sh) as a first step;
+    .claude/commands/resume.md — Step 1 lists pending-commit entries by name (not in a count) and Step 3 offers/
+    runs the helper; the handover/pre-compact path runs it before its own pathspec commit. handover.sh is VENDORED:
+    either a project-owned wrapper point exists (use it), or patch it and REGISTER the divergence in
+    .vendor-divergence.yaml (status local-only -> filed-upstream after step 3), per G-062/T-2812.
+    check-vendor-divergence must end classified.
+ 3. Inform the AF agent: post a framework:pickup filing (see how earlier filings did it, e.g. offsets 162/228 and
+    scripts/post-framework-pickup* or the documented recipe) proposing the mechanism for the framework itself:
+    the manifest convention, the helper, the resume template change and the handover hook, with the measured
+    reasons (T-3090, T-3231, this host's ~20-file baseline drowning a single filing). Include the actual proposed
+    file contents / diffs in the filing (the operator asked for the files). Read the posting back (T-2876) and
+    record the offset. Mark the divergence filed-upstream with that offset.
+ Fixtures with mutants: helper commits only listed paths while unrelated files are staged (the sweep case);
+ refuses outside-scope paths; idempotent; missing file dropped with a report; resume lists entries by name.
+Before any commit after a refused finalize: git status --porcelain; add completed/ file + episodic together.
