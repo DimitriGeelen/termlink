@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3266: macOS: tools::tests::mcp_procfs_probe_matches_cli_semantics fails (assumes /proc) — last red in test-macos
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-30T03:10:50Z
+# ============================================================================
+
+task_id: T-3266
+task_name: "macOS: tools::tests::mcp_procfs_probe_matches_cli_semantics fails (assumes /proc) — last red in test-macos"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-30T00:34:08Z
+completed: 2026-09-30T03:10:16Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  v0.12.3 Release run 36647795849, test-macos job: 940 passed, 1 failed — crates/termlink-mcp/src/tools.rs:30935 mcp_procfs_probe_matches_cli_semantics panics on macOS (no /proc). Platform-lock class (T-2690/T-2693). It is the only red in test-macos now that T-3265 fixed the compile; once green, T-2692's documented promotion (drop continue-on-error, add test-macos to build jobs' needs:) becomes possible — an operator decision.
+
+# Key outcomes
+outcomes:
+  - 'The test no longer asserts `/proc` exists unconditionally: on Linux it asserts the probe is true, on non-Linux it asserts the probe is false AND the whoami degradation is `unavailable-no-procfs` (one test, runtime `cfg!` branch — no silent `#[cfg]` skip)'
+  - 'The whoami degradation is a pure function `auto_resolution_for(bool)` used by the live tool path, and both branches are unit-tested on any host (the seam proving the non-Linux branch)'
+  - '`cargo test -p termlink-mcp` procfs/whoami tests pass here, and `check-platform-lock.sh` stays clean'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 156 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 156
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3266-macos-toolstestsmcpprocfsprobematchescli.md
+generated_by: context-agent-hybrid

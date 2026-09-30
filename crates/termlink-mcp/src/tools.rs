@@ -8329,6 +8329,25 @@ mod whoami_helpers {
         procfs_available_at("/proc")
     }
 
+    /// T-3266: the documented whoami degradation as a pure function of the probe,
+    /// so the non-Linux branch (`unavailable-no-procfs`) is testable on a Linux host
+    /// instead of only on a macOS runner. Returns `(auto_resolution, hint)`.
+    pub(super) fn auto_resolution_for(procfs: bool) -> (&'static str, String) {
+        if procfs {
+            (
+                "attempted",
+                "Set TERMLINK_SESSION_ID=<id> for your session and re-call, or pass session_hint / name_hint.".to_string(),
+            )
+        } else {
+            (
+                "unavailable-no-procfs",
+                "This host has no /proc, so PID-ancestor auto-resolution cannot run (it is Linux-only). \
+                 Re-calling will not change this — set TERMLINK_SESSION_ID=<id>, or pass session_hint / name_hint."
+                    .to_string(),
+            )
+        }
+    }
+
     /// T-2735 — verdict of cross-checking an *inherited* identity claim against
     /// the process ancestor chain. Mirrors `termlink-cli metadata::EnvClaimCheck`
     /// (T-2069 convention: small pure helpers are duplicated, not shared across
@@ -12388,19 +12407,8 @@ impl TermLinkTools {
         // succeed and "re-call after disambiguating" is advice that never works.
         // An agent consuming this tool needs to branch on that, hence a
         // machine-readable field rather than only prose.
-        let (auto_resolution, hint) = if whoami_helpers::procfs_available() {
-            (
-                "attempted",
-                "Set TERMLINK_SESSION_ID=<id> for your session and re-call, or pass session_hint / name_hint.".to_string(),
-            )
-        } else {
-            (
-                "unavailable-no-procfs",
-                "This host has no /proc, so PID-ancestor auto-resolution cannot run (it is Linux-only). \
-                 Re-calling will not change this — set TERMLINK_SESSION_ID=<id>, or pass session_hint / name_hint."
-                    .to_string(),
-            )
-        };
+        let (auto_resolution, hint) =
+            whoami_helpers::auto_resolution_for(whoami_helpers::procfs_available());
         serde_json::json!({
             "ok": true,
             "ambiguous": true,
@@ -30931,14 +30939,40 @@ mod tests {
 
     #[test]
     fn mcp_procfs_probe_matches_cli_semantics() {
-        // Available on this Linux host...
-        assert!(whoami_helpers::procfs_available_at("/proc"));
-        // ...and unavailable for a root with no self/stat, which is the macOS shape.
+        // T-3266: this used to assert `/proc` exists unconditionally, which is false
+        // by design on the macOS test job (v0.12.3 run 36647795849). It now asserts
+        // the platform FACT on both families — a runtime `cfg!` branch, not a
+        // `#[cfg]` skip, so the test runs (and means something) everywhere:
+        //   Linux     → the probe sees procfs and whoami attempts auto-resolution;
+        //   non-Linux → the probe says unavailable AND whoami reports the documented
+        //               degradation instead of a plausible "ambiguous" (T-2691).
+        let live = whoami_helpers::procfs_available_at("/proc");
+        let (mode, _) = whoami_helpers::auto_resolution_for(live);
+        if cfg!(target_os = "linux") {
+            assert!(live, "a Linux host must probe procfs as available");
+            assert_eq!(mode, "attempted");
+        } else {
+            assert!(!live, "a non-Linux host must probe procfs as unavailable");
+            assert_eq!(mode, "unavailable-no-procfs");
+        }
+        // A root with no self/stat — the macOS shape — probes unavailable on any host.
         let dir = std::env::temp_dir().join("termlink-t2691-mcp-no-procfs");
         let _ = std::fs::create_dir_all(&dir);
         assert!(!whoami_helpers::procfs_available_at(dir.to_str().unwrap()));
         let _ = std::fs::remove_dir_all(&dir);
         assert!(!whoami_helpers::procfs_available_at("/definitely/not/a/procfs"));
+    }
+
+    #[test]
+    fn mcp_whoami_degradation_both_branches_via_seam() {
+        // T-3266: proves the non-Linux branch on a Linux host. macOS itself is not
+        // reachable from here; the release job's test-macos run is that proof.
+        let (mode, hint) = whoami_helpers::auto_resolution_for(false);
+        assert_eq!(mode, "unavailable-no-procfs");
+        assert!(hint.contains("Linux-only") && hint.contains("Re-calling will not change this"));
+        let (mode, hint) = whoami_helpers::auto_resolution_for(true);
+        assert_eq!(mode, "attempted");
+        assert!(hint.contains("TERMLINK_SESSION_ID") && !hint.contains("Linux-only"));
     }
 
     // === T-2735: inherited TERMLINK_SESSION_ID cross-check (CLI parity) ===

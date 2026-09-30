@@ -1,13 +1,18 @@
 ---
 id: T-3266
-name: "macOS: tools::tests::mcp_procfs_probe_matches_cli_semantics fails (assumes /proc) — last red in test-macos"
+name: "macOS: tools::tests::mcp_procfs_probe_matches_cli_semantics fails (assumes
+  /proc) — last red in test-macos"
 description: >
-  v0.12.3 Release run 36647795849, test-macos job: 940 passed, 1 failed — crates/termlink-mcp/src/tools.rs:30935 mcp_procfs_probe_matches_cli_semantics panics on macOS (no /proc). Platform-lock class (T-2690/T-2693). It is the only red in test-macos now that T-3265 fixed the compile; once green, T-2692's documented promotion (drop continue-on-error, add test-macos to build jobs' needs:) becomes possible — an operator decision.
+  v0.12.3 Release run 36647795849, test-macos job: 940 passed, 1 failed — crates/termlink-mcp/src/tools.rs:30935
+  mcp_procfs_probe_matches_cli_semantics panics on macOS (no /proc). Platform-lock
+  class (T-2690/T-2693). It is the only red in test-macos now that T-3265 fixed the
+  compile; once green, T-2692's documented promotion (drop continue-on-error, add
+  test-macos to build jobs' needs:) becomes possible — an operator decision.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -22,8 +27,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-30T00:34:08Z
-last_update: 2026-09-30T00:34:08Z
-date_finished: null
+last_update: 2026-09-30T03:10:16Z
+date_finished: 2026-09-30T03:10:16Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,20 +39,49 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+cost_estimate_proposed:
+  - ts: '2026-09-30T02:56:09Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius:
+      tier: 2
+      effort: 8
+    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
+      (workflow:build); effort=8 (lines=232,acs=4)
+    rubric_sha: e4a00f38e801
+bvp_scores_proposed:
+  - ts: '2026-09-30T03:07:40Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=3 (body:portability-abstraction); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3266: macOS: tools::tests::mcp_procfs_probe_matches_cli_semantics fails (assumes /proc) — last red in test-macos
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+`mcp_procfs_probe_matches_cli_semantics` asserted `/proc` exists unconditionally, so the v0.12.3 macOS
+test job failed (run 36647795849). Fix the platform-lock way (T-2690/T-2693): assert the probe against
+the platform fact on BOTH families (runtime `cfg!` branch, not a `#[cfg]` skip), and assert the
+documented degradation — whoami's `auto_resolution = unavailable-no-procfs` — through a pure seam
+(`whoami_helpers::auto_resolution_for(procfs: bool)`) so the non-Linux branch is proven on this Linux host.
+macOS itself cannot be run here; the release job's test-macos run is the real-platform proof.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] The test no longer asserts `/proc` exists unconditionally: on Linux it asserts the probe is true, on non-Linux it asserts the probe is false AND the whoami degradation is `unavailable-no-procfs` (one test, runtime `cfg!` branch — no silent `#[cfg]` skip)
+- [x] The whoami degradation is a pure function `auto_resolution_for(bool)` used by the live tool path, and both branches are unit-tested on any host (the seam proving the non-Linux branch)
+- [x] `cargo test -p termlink-mcp` procfs/whoami tests pass here, and `check-platform-lock.sh` stays clean
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -83,6 +117,10 @@ date_finished: null
 -->
 
 ## Verification
+
+timeout 1200 cargo test -p termlink-mcp --lib -- procfs whoami > /tmp/.t3266a 2>&1 && grep -q "test tools::tests::mcp_whoami_degradation_both_branches_via_seam ... ok" /tmp/.t3266a && grep -q "test tools::tests::mcp_procfs_probe_matches_cli_semantics ... ok" /tmp/.t3266a
+bash scripts/check-platform-lock.sh > /tmp/.t3266b 2>&1 && grep -q "clean" /tmp/.t3266b
+grep -q 'whoami_helpers::auto_resolution_for(whoami_helpers::procfs_available())' crates/termlink-mcp/src/tools.rs
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -173,19 +211,10 @@ date_finished: null
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
-
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
-
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Symptom:** v0.12.3 test-macos job, 940 passed / 1 failed: `mcp_procfs_probe_matches_cli_semantics` panicked (no /proc).
+**Root cause:** the MCP copy of the T-2691 procfs test asserted the platform fact "/proc exists" unconditionally; the CLI copy had already been split into a Linux-gated positive and a non-Linux complement (T-2693), and the MCP duplicate (T-2069 convention) was not migrated with it.
+**Why structurally allowed:** check-platform-lock matches `/proc/` path literals; the test used the bare root `"/proc"`, so the scan could not see it, and the macOS job was non-blocking (`continue-on-error`), so the red did not stop a release.
+**Prevention:** the test now branches on `cfg!(target_os)` at runtime and asserts the degradation on non-Linux; the degradation is a pure seam (`auto_resolution_for`) unit-tested for both branches on every host, so the non-Linux behaviour is pinned on Linux CI too. Residual: the bare-root blind spot in check-platform-lock is noted in the R10 handback, not fixed here.
 
 ## Evolution
 
@@ -267,3 +296,19 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3266-macos-toolstestsmcpprocfsprobematchescli.md
 - **Context:** Initial task creation
+
+### 2026-09-30T03:07:39Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-8da3da8d
+- **Timestamp:** 2026-09-30T03:10:43Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** none
+
+### 2026-09-30T03:10:16Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
