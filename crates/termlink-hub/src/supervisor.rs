@@ -34,16 +34,35 @@ pub async fn run(interval: Duration, shutdown_rx: watch::Receiver<bool>) {
     run_with(interval, shutdown_rx, sweep_targets, true).await
 }
 
-/// The real sweep targets: every candidate session dir, or the default one.
+/// The real sweep targets: every candidate session dir (or the default one),
+/// plus the legacy `/tmp/termlink-<uid>` pool.
 fn sweep_targets() -> Vec<std::path::PathBuf> {
     // T-987: sweep all candidate session dirs
-    let dirs = discovery::all_sessions_dirs();
+    let mut dirs = discovery::all_sessions_dirs();
     if dirs.is_empty() {
         // Fall back to default dir even if it doesn't exist yet
-        vec![discovery::sessions_dir()]
-    } else {
-        dirs
+        dirs.push(discovery::sessions_dir());
     }
+    let uid = unsafe { libc::getuid() };
+    with_legacy_pool(dirs, std::path::PathBuf::from(format!("/tmp/termlink-{uid}/sessions")))
+}
+
+/// T-3295: add the legacy pool to the sweep targets when it exists.
+///
+/// A hub started with `TERMLINK_RUNTIME_DIR` (every systemd unit) scans ONLY that
+/// dir — `all_runtime_dirs` treats the override as exclusive. Sessions launched
+/// without the variable (e.g. from a tmux server started under `env -i`) register
+/// in `/tmp/termlink-<uid>` instead, where no janitor ever looked: 275 live ones on
+/// one host, so any that crashed or were SIGKILLed would leak there forever. The
+/// sweep only removes dead registrations and aged orphans, so adding it is safe.
+fn with_legacy_pool(
+    mut dirs: Vec<std::path::PathBuf>,
+    legacy: std::path::PathBuf,
+) -> Vec<std::path::PathBuf> {
+    if legacy.is_dir() && !dirs.contains(&legacy) {
+        dirs.push(legacy);
+    }
+    dirs
 }
 
 /// The supervision loop with its host-state inputs injected.
@@ -297,6 +316,20 @@ mod tests {
 
         assert!(!old.exists(), "orphan older than the grace must be reaped");
         assert!(young.exists(), "orphan younger than the grace must survive");
+    }
+
+    #[test]
+    fn legacy_pool_is_added_once_and_only_when_present() {
+        let primary = tempfile::tempdir().unwrap();
+        let legacy = tempfile::tempdir().unwrap();
+        let p = primary.path().to_path_buf();
+        let l = legacy.path().to_path_buf();
+
+        assert_eq!(with_legacy_pool(vec![p.clone()], l.clone()), vec![p.clone(), l.clone()]);
+        assert_eq!(with_legacy_pool(vec![p.clone(), l.clone()], l.clone()), vec![p.clone(), l.clone()],
+            "never duplicated");
+        let absent = l.join("does-not-exist");
+        assert_eq!(with_legacy_pool(vec![p.clone()], absent), vec![p], "absent pool not added");
     }
 
     #[tokio::test]
