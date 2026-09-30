@@ -21,6 +21,8 @@ fail() { echo "  FAIL: $*"; FAIL=$((FAIL + 1)); }
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 EMPTY_ALLOW="$WORK/empty-allowlist"; : > "$EMPTY_ALLOW"
+# T-3288: every run in this suite writes its heartbeat HERE, never to the real one.
+export ARC_CLAIM_HEARTBEAT_FILE="$WORK/hb/default.heartbeat"
 
 mkarc() { # mkarc <dir> <file> <yaml-body>
     mkdir -p "$1"; printf '%s\n' "$3" > "$1/$2"
@@ -199,6 +201,23 @@ if [ "$rc" -eq 1 ] && printf '%s' "$OUT" | grep -q 'CLAIM-FAILED'; then
     pass "T16c under CI a genuine prover failure (exit 1) still FIRES (rc=$rc)"
 else
     fail "T16c CI MASKED A REAL FAILURE — rc=$rc: $OUT"
+fi
+
+# --- T-3288: heartbeat (daily host canary) ---
+d="$WORK/hb-arcs"; mkdir -p "$d"
+hb="$WORK/hb/t17.heartbeat"
+ARC_CLAIM_HEARTBEAT_FILE="$hb" bash "$CHK" --arcs-dir "$d" --allowlist "$EMPTY_ALLOW" >/dev/null 2>&1; rc=$?
+if [ -s "$hb" ] && grep -Eq '^[0-9]{4}-[0-9]{2}-[0-9]{2}T' "$hb"; then
+    pass "T17 a run writes the heartbeat on exit (rc=$rc)"
+else
+    fail "T17 no heartbeat written at $hb (rc=$rc)"
+fi
+hb2="$WORK/hb/t18.heartbeat"
+ARC_CLAIM_HEARTBEAT_FILE="$hb2" bash "$CHK" --arcs-dir "$d" --allowlist "$EMPTY_ALLOW" --no-heartbeat >/dev/null 2>&1
+if [ ! -e "$hb2" ]; then
+    pass "T18 --no-heartbeat (the guard-layer invocation) writes no heartbeat"
+else
+    fail "T18 --no-heartbeat still wrote $hb2 — a CI/guard-layer run would mask a dead cron"
 fi
 
 echo

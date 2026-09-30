@@ -731,6 +731,31 @@ release (re-run `release.yml` for the tag, or cut the next tag once CI is green)
 a stale workflow, open its latest run on main and fix it. Pair with the canaries
 above — same "empty-log = healthy" convention.
 
+### Arc-claim-drift canary (T-3288, G-019 for T-3066 — the check that could never run)
+
+`check-arc-claim-drift.sh` (T-3066) re-runs the prover bound to each CLOSED arc's
+claim: arc-003 "no silent loss" (`notify-rail-e2e.sh --experiment e4`) and arc-004
+push-wake (`demo-ws-push.sh`). **Until T-3288 it ran only in the guard layer, i.e.
+only in CI.** A CI runner has no hub and no identity key, so both provers exit 2
+there and are `SKIP(CI)` by design (T-3238). The one host-side guard-layer run, the
+release canary's, runs the WARN tier only, and this check is FAIL tier. So nothing
+ever re-verified either claim automatically: green CI meant "skipped", not
+"verified". A daily cron now runs it on this host, where both provers can run (4.7s
+measured under cron's `env -i`). It is scheduled by
+`.context/cron/arc-claim-drift-canary.crontab`, installed by `runme.sh` action 1, and
+logs to `.context/working/.arc-claim-drift-canary.log`. Empty log = healthy.
+
+**The crontab's PATH puts `/root/.cargo/bin` first, and that is load-bearing.**
+`/usr/local/bin/termlink` and `~/.local/bin/termlink` were 0.12.13, which predates
+`--no-create` (T-3286). E4 treats that as TOOLING, and on the host that fires as
+CLAIM-FAILED, a false alarm. The heartbeat is written on EXIT; `--no-heartbeat` (the
+guard-layer invocation) skips it, and the fixtures redirect it via
+`ARC_CLAIM_HEARTBEAT_FILE`, so neither CI nor a test run can mask a dead cron (T17/T18
+in `tests/arc-claim-drift-fixtures.sh`, both mutant-checked). Operator action on
+firing: `bash scripts/check-arc-claim-drift.sh` names the arc and its prover. A
+failing prover means the shipped claim is no longer true, so file a task against the
+arc rather than allowlisting it.
+
 ### Cron-install-drift check (T-2561, shipped≠live / G-069 for the canary layer)
 
 A canary is only load-bearing if its crontab is actually installed to `/etc/cron.d`.

@@ -150,6 +150,12 @@ install_crontab notify-sidecar-canary.crontab     "$CRON_DIR/termlink-notify-sid
 # receiving agent, with no runaway.
 install_crontab notify-wake-supervisor.crontab    "$CRON_DIR/termlink-notify-wake-supervisor"
 
+# T-3288 — the only place arc-003's "no silent loss" and arc-004's push-wake
+# claims can be re-verified. CI skips both provers (no hub, no key), and the
+# host's other guard-layer run is WARN-tier only, so without this daily job
+# nothing re-checks a closed arc's claim unless someone runs it by hand.
+install_crontab arc-claim-drift-canary.crontab    "$CRON_DIR/termlink-arc-claim-drift-canary"
+
 # close_task <T-ID> <reason>
 # Closes a task the operator has ALREADY approved closing, then VERIFIES it
 # landed in completed/ with status work-completed.

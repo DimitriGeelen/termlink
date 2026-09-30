@@ -1,0 +1,31 @@
+# T-3288 (G-019 for T-3066) — Arc-claim-drift canary
+# Source of truth: /opt/termlink/.context/cron/arc-claim-drift-canary.crontab (git-tracked)
+# Installed to:    /etc/cron.d/termlink-arc-claim-drift-canary (USER field syntax — do NOT load into a user crontab)
+#
+# A CLOSED arc's claim (arc-003 "no silent loss", arc-004 push-wake) is bound to a
+# re-runnable prover, and check-arc-claim-drift.sh executes it. Before this crontab
+# the check ran ONLY in the guard layer, i.e. only in CI (Doc Lint + release gate).
+# A CI runner has no hub and no identity key, so both provers exit 2 there and are
+# SKIP(CI) by design (T-3238). The one host-side guard-layer run (the release
+# canary) runs the WARN tier only, and this check is FAIL tier. Net: nothing ever
+# re-verified either arc's claim automatically. This is the only place it can run.
+#
+# PATH puts /root/.cargo/bin FIRST on purpose. /usr/local/bin/termlink and
+# ~/.local/bin/termlink were 0.12.13 when this was written, and they predate
+# `--no-create` (T-3286). E4 treats that as TOOLING (exit 2), which on the host is
+# CLAIM-FAILED, a false alarm. runme.sh action 4 keeps the cargo binary current.
+#
+# Empty log = healthy. /canaries auto-discovers the log. A tooling error lands in
+# the .stderr sink, which /canaries reports as ERRORING (T-2842).
+#
+# Operator action on firing: reproduce with
+#   bash scripts/check-arc-claim-drift.sh
+# which names the arc and the failing prover. Then run that prover by hand, e.g.
+#   bash scripts/notify-rail-e2e.sh --stages '' --experiment e4
+# A failing prover means the arc's shipped claim is no longer true: file a task
+# against the arc. Do not allowlist it to silence it.
+SHELL=/bin/bash
+PATH=/root/.cargo/bin:/usr/local/bin:/usr/bin:/bin
+
+# Daily at 07:53 UTC — offset from the :41 release-publication and :39 dead-letter canaries.
+53 7 * * * root cd /opt/termlink && bash scripts/check-arc-claim-drift.sh --quiet >> .context/working/.arc-claim-drift-canary.log 2>> .context/working/.arc-claim-drift-canary.log.stderr

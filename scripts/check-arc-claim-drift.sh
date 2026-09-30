@@ -58,6 +58,10 @@ ALLOWLIST="${ARC_CLAIM_ALLOWLIST:-.context/checks/arc-claim-allowlist}"
 RUN_PROVERS=1
 JSON=0
 QUIET=0
+# T-3288: heartbeat for the daily host canary. Overridable so fixtures never touch
+# the real one (a test run refreshing it would mask a dead cron, T-2684).
+HEARTBEAT=1
+HEARTBEAT_FILE="${ARC_CLAIM_HEARTBEAT_FILE:-.context/working/.arc-claim-drift-canary.heartbeat}"
 TIMEOUT="${ARC_CLAIM_PROVER_TIMEOUT:-300}"
 
 usage() {
@@ -89,11 +93,18 @@ while [ $# -gt 0 ]; do
         --timeout)   TIMEOUT="${2:-}"; shift 2 ;;
         --json)      JSON=1; shift ;;
         --quiet)     QUIET=1; shift ;;
-        --no-heartbeat) shift ;;
+        --no-heartbeat) HEARTBEAT=0; shift ;;
         --help|-h)   usage; exit 0 ;;
         *) echo "check-arc-claim-drift: unknown argument: $1" >&2; usage >&2; exit 2 ;;
     esac
 done
+
+# T-2691 convention: written on EXIT, so freshness proves the run FINISHED. A hung or
+# killed run (prover timeout aside) leaves it stale rather than silently alive.
+_canary_hb() {
+    mkdir -p "$(dirname "$HEARTBEAT_FILE")" 2>/dev/null && date -u +%Y-%m-%dT%H:%M:%SZ > "$HEARTBEAT_FILE" 2>/dev/null || true
+}
+if [ "$HEARTBEAT" -eq 1 ]; then trap _canary_hb EXIT; fi
 
 command -v python3 >/dev/null 2>&1 || { echo "check-arc-claim-drift: python3 not found" >&2; exit 2; }
 [ -d "$ARCS_DIR" ] || { echo "check-arc-claim-drift: arcs dir not found: $ARCS_DIR" >&2; exit 2; }
