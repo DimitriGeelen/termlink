@@ -286,3 +286,18 @@ release_outcome:
   - v0.12.2 flaky cli_request_reply_flow (T-3264) then macOS compile error since T-2727 (T-3265)
   - v0.12.3 published
   follow_up: T-3266 macOS /proc test, last red in test-macos; then T-2692 promotion is an operator decision
+round_10:
+- round: 10
+  handback: .context/runs/T-3211-R10-handback.md
+  handback_bytes: 13429
+  placeholders: 0
+  status: COMPLETE
+  units:
+  - T-3267 operator's binding WARN condition - scripts/warn-escalation-file.sh files one task per WARN member red
+    >14d and one umbrella when >5 red at once, de-duplicated; canary still fires. First real filing due 2026-10-13
+    (check-receiver-ack-lag) unless SQ-19 resolves it.
+  - T-3266 macOS /proc test asserts the platform fact on both families via a pure seam
+  - T-3268 check-platform-lock missed quoted bare "/proc" roots - the T-3266 red had scanned CLEAN; fixed
+  verified_by_orchestrator: [warn-escalation fixtures 34/34, platform-lock fixtures 26/26 and check clean,
+    mcp_procfs test passes on linux, pushed 95ac76d41]
+  open_for_operator: SQ-22 proposal - nobody commits unattended; filed tasks + ledger stay uncommitted but loud
