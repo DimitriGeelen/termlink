@@ -3,4 +3,5 @@
 # --record-warn (the host's release canary); read by every run and by
 # check-release-publication-freshness.sh, which escalates after 14 days.
 # Do not hand-edit a date to silence escalation — fix the member, or reclassify it.
+check-audit-warning-acknowledgement.sh  2026-09-30T00:33:22Z
 check-receiver-ack-lag.sh  2026-09-29T22:04:59Z
