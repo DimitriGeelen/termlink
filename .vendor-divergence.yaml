@@ -187,6 +187,29 @@ last_vendor_event:
 # ---------------------------------------------------------------------------
 
 divergences:
+  - task: T-3269
+    commit: pending-same-commit
+    commit_note: >
+      Registered BEFORE the change lands, per the T-2813 lesson. Operator ruling
+      SQ-22 = option C (2026-09-30, T-3211 commit 62aed55df): "A plus the next agent
+      round commits automatically" — structural, in /resume and in the
+      pre-compact/handover commit, and it belongs in the FRAMEWORK too.
+    date: 2026-09-30
+    file: .agentic-framework/agents/handover/handover.sh
+    also: .claude/commands/resume.md (project copy of the vendored template lib/templates/resume-md.md — the template is NOT patched, so a re-install of the command from the template also drops Step 1 item 7 and the Step 3 standing first step)
+    status: local-only
+    kind: governance-mechanism
+    generality: GENERIC
+    risk_if_revendored: MEDIUM
+    why: >
+      handover.sh's --commit block (the pre-compact path) now runs the project-owned
+      scripts/commit-pending.sh BEFORE its own pathspec-scoped commit, guarded by
+      `[ -x ]` and never fatal. The helper commits exactly the paths unattended jobs
+      recorded in .context/working/pending-commit.list (git commit -- <paths>, one
+      commit per recorded task id), so it keeps the T-3090 scope discipline. A
+      re-vendor deletes only the call site: the helper, the manifest writers, the
+      /resume step and the procAsFit prompt step are project-owned and survive, so
+      a lost hook degrades to "committed at the next /resume" rather than to silence.
   - task: T-3198
     commit: pending-same-commit
     commit_note: >

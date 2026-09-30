@@ -150,6 +150,14 @@ if [ "$WARN_REFRESH" -eq 1 ] && [ -z "$TD" ]; then
     # ledger write failure) means the refresh did not happen.
     [ "$wrc" -eq 2 ] && tooling "WARN-ledger refresh failed (run-guard-layer.sh rc=2)"
     [ -f "$WARN_LEDGER" ] || tooling "WARN ledger $WARN_LEDGER missing after refresh"
+    # T-3269 (SQ-22 option C): a refresh that changed the ledger is an unattended write;
+    # record it so the next session commits it by name (never committed from here).
+    if ! git diff --quiet HEAD -- "$WARN_LEDGER" 2>/dev/null \
+       || ! git ls-files --error-unmatch -- "$WARN_LEDGER" >/dev/null 2>&1; then
+        "${RELEASE_PUB_PENDING_CMD:-scripts/commit-pending.sh}" add T-3260 \
+            "WARN first-red ledger refreshed by the release canary (--record-warn)" "$WARN_LEDGER" \
+            || FIRING+=("warn-ledger	ledger changed but could not be recorded in the pending-commit manifest — commit $WARN_LEDGER by hand")
+    fi
 fi
 if [ -f "$WARN_LEDGER" ]; then
     esc="$(awk -v now="$NOW" -v days="$WARN_ESC_DAYS" '
@@ -194,7 +202,7 @@ if [ "$FILE_TASKS" -eq 1 ] && { [ -z "$TD" ] || [ "${RELEASE_PUB_TEST_FILE_TASKS
             WARN_ESC_NOW="$NOW" bash "$WARN_FILER" 2>"$ferr")"; frc=$?
     while IFS=$'\t' read -r act kind who extra; do
         case "$act" in
-            FILED) FIRING+=("warn-task	filed $extra for $who ($kind) — UNCOMMITTED: review, then commit it")
+            FILED) FIRING+=("warn-task	filed $extra for $who ($kind) — UNCOMMITTED, recorded for commit: scripts/commit-pending.sh")
                    CHECKS+=("warn-task:$who	firing	filed $extra") ;;
             OPEN)  CHECKS+=("warn-task:$who	ok	escalation task $extra open") ;;
             WAIT)  CHECKS+=("warn-task:$who	ok	escalation task closed; re-files in ${extra}d if still red") ;;

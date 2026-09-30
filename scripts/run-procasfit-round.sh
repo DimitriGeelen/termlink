@@ -95,6 +95,14 @@ else
     echo "   reads 0 never reaches TOKEN_WARN and runs on into TOKEN_CRITICAL mid-task."
     echo "   Your transcript is the one whose recent entries are YOUR turns; confirm that"
     echo "   before trusting the number. TOKEN_WARN is 75% of CONTEXT_WINDOW (800000)."
+    echo "5. FIRST STEP — COMMIT PENDING UNATTENDED WRITES (SQ-22 option C, T-3269)."
+    echo "   Before selecting any work run \`bash scripts/commit-pending.sh list\` and, if it"
+    echo "   names anything, \`bash scripts/commit-pending.sh commit\`. Unattended jobs (the"
+    echo "   release canary's WARN-ledger refresh, the WARN escalation filer) never commit;"
+    echo "   they record their files and the next session commits EXACTLY those paths, one"
+    echo "   commit per recorded task id. No focus switch, no bypass. Record each"
+    echo "   committed / DROPPED / REFUSED line in your handback; leave REFUSED/FAILED"
+    echo "   entries for the operator."
     echo
     # Operator directive for this round, if any. Passed verbatim so the worker reads the
     # human's instruction rather than the orchestrator's paraphrase of it.

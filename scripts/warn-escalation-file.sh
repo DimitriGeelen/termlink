@@ -28,9 +28,10 @@
 #
 # Never from CI: under $CI it refuses (prints SKIP, exit 0). Filing belongs to the
 # daily host cron path (check-release-publication-freshness.sh step c). The filed
-# files are left UNCOMMITTED on purpose (SQ-22 proposal — an unattended cron commit
-# races live sessions' index, the T-3231 lesson); they are loud instead: the canary
-# names them daily and they appear in every handover's active-task list.
+# files are left UNCOMMITTED on purpose (SQ-22 ruled option C — an unattended cron
+# commit races live sessions' index, the T-3231 lesson); each filed task is recorded in
+# the pending-commit manifest (scripts/commit-pending.sh, T-3269), which the next session
+# commits by name, and the canary names it daily until then.
 #
 # Output (stdout), one line per decision, tab-separated:
 #   FILED  <stale|umbrella> <member|umbrella> <T-ID>
@@ -158,6 +159,17 @@ print(d.get(sys.argv[2],{}).get(sys.argv[3],""))' "$META" "$1" "$2" 2>/dev/null
 }
 first_red() { awk -v m="$1" '!/^[[:space:]]*#/ && $1==m {print $2; exit}' "$LEDGER"; }
 
+# record_pending <T-ID> <task-file> <kind> <who> — T-3269 (SQ-22 option C): name the
+# filed task in the pending-commit manifest so the next SESSION commits exactly it.
+# Only a file inside this repo's .tasks/ is recordable (a fixture corpus elsewhere is
+# not); a record failure is loud on stderr but does not un-file the task.
+record_pending() {
+    local rel="${2#"$PWD"/}"
+    case "$rel" in .tasks/*) ;; *) return 0 ;; esac
+    "${WARN_ESC_PENDING_CMD:-scripts/commit-pending.sh}" add "$1" "WARN escalation filed ($3: $4) by warn-escalation-file.sh" "$rel" \
+        || echo "warn-escalation-file: $1 filed but NOT recorded in the pending-commit manifest — commit $rel by hand" >&2
+}
+
 # write_body <task-file> <context-text> <ac-text> — replace the template placeholders
 write_body() {
     python3 - "$1" "$2" "$3" <<'PYEOF'
@@ -238,6 +250,7 @@ $members_list"
         echo "warn-escalation-file: $tid created at $tfile but its body could not be written — edit it by hand (the de-dup marker is missing, so it will be re-filed)" >&2
         rc_all=2; continue
     fi
+    record_pending "$tid" "$tfile" "$kind" "$who"
     printf 'FILED\t%s\t%s\t%s\n' "$kind" "$who" "$tid"
 done <<< "$PLAN"
 exit "$rc_all"

@@ -2055,11 +2055,30 @@ FAIL-tier or unknown-tier member is never filed on (the runner's `--list --json`
 carries `reason` + `cmd`, is the tier source, and unreadable means rc 2). **Filed tasks and the
 ledger are left UNCOMMITTED** — each filing fires as "filed T-XXXX … UNCOMMITTED" — and are
 committed by the next interactive session; an unattended cron commit would race live sessions'
-index (T-3231). That choice is SQ-22, recorded as a PROPOSAL in the T-3258 draft. A filing
+index (T-3231). That choice is SQ-22, **ruled option C** by the operator (2026-09-30). A filing
 failure fires rather than exiting 2. `--no-file-tasks` skips filing; `--dry-run` on the filer
 prints `WOULD` lines. Fixtures: `bash tests/warn-escalation-file-fixtures.sh` (34 assertions,
 7 mutants — de-dup, threshold, `>` vs `>=`, re-file window, CI guard, canary wiring,
 accumulation line).
+
+**The pending-commit manifest (T-3269, SQ-22 option C).** "The next session commits them" is
+structural, not a hope. Every unattended writer records what it wrote —
+`scripts/commit-pending.sh add <T-ID> <reason> <path>…` → `.context/working/pending-commit.list`
+(gitignored, host-local) — and the filer and the canary's ledger refresh both do. The next
+session commits **by name**: `scripts/commit-pending.sh commit` runs `git commit -- <exactly
+those paths>`, one commit per recorded task id, so anything else staged stays staged (the
+T-3090/T-3231 sweep, pinned by fixture). Only `.tasks/` and `.context/` paths are ever accepted
+(anything else is refused loudly and kept for a human); a vanished file is reported and dropped;
+HEAD is verified to carry each path before its entry is removed; a second run is a no-op. It is
+wired as a standing first step in `/resume` (Step 1 lists entries **by name** — a filed task
+drowns in this host's ~20-file dirty baseline if it is only counted — and Step 3 commits them),
+in the procAsFit round prompt, and in `handover --commit` before its own pathspec commit (a
+vendored patch, registered in `.vendor-divergence.yaml`). Commits go under the **writer's**
+task id, not the session's focus; the T-1730 focus-drift hook reads only the literal Bash
+command, so it does not see the helper's inner commit — no bypass is used, git's own hooks still
+run, and the attribution rule stands in for the drift check. Fixtures:
+`bash tests/commit-pending-fixtures.sh` (17 assertions, 4 mutants — sweep, scope, prune,
+missing file).
 
 Current markings (operator rulings in `docs/reports/T-3258-guard-classification-draft.md`
 § Operator rulings): **INFO** invocation-usage; **WARN** voi-prompt, check-go-propagation,
