@@ -137,7 +137,7 @@ install_crontab() {
 # `systemctl reload cron` is NOT valid on this host: "Job type reload is not
 # applicable for unit cron.service".)
 # ---------------------------------------------------------------------------
-head2 "1. Notify-rail cron (T-3050 supervisor, T-3051 canary)"
+head2 "1. Cron installs (notify-rail T-3050/T-3051/T-3068, arc-claim-drift T-3288)"
 install_crontab notify-sidecar-supervisor.crontab "$CRON_DIR/termlink-notify-sidecar-supervisor"
 install_crontab notify-sidecar-canary.crontab     "$CRON_DIR/termlink-notify-sidecar-canary"
 
