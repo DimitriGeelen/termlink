@@ -1267,3 +1267,10 @@ decisions:
   date: 2026-09-26
   task: T-3154
   rationale: "Repaired by T-3155 — auto-capture emitted this indented, mis-numbered PD-002, truncated at the first line."
+
+- id: PD-175
+  decision: "Speed up runme.sh builds (measured on this host, load 25-30 on 24 cores): version-only rebuild after a commit took 782 s with the `release` profile (lto=true, codegen-units=1) vs 175 s with a new `local-fast` profile (thin LTO, 16 codegen units, incremental) — 4.5x. Chose: local-fast for host installs, skip cargo entirely when nothing under crates/, Cargo.toml or Cargo.lock changed since the recorded build (docs-only commits went from 782 s to 0), and build musl only when a fleet hub is behind. Rejected: GPU (rustc/LLVM have no GPU path); changing the `release` profile (published binaries keep fat LTO)."
+  scope: project
+  date: 2026-10-01
+  task: T-3292
+  rationale: "Repaired by T-3293 — auto-capture emitted this indented, mis-numbered PD-001, truncated at the first line (the T-3150 defect)."
