@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3278: SQ-19 option A: read and ack this host's DM backlog (the 2 NEVER-ACKED rows signed d1993c2c3ec44c94), surfacing anything that needs action
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-30T13:14:31Z
+# ============================================================================
+
+task_id: T-3278
+task_name: "SQ-19 option A: read and ack this host's DM backlog (the 2 NEVER-ACKED rows signed d1993c2c3ec44c94), surfacing anything that needs action"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-30T13:11:13Z
+completed: 2026-09-30T13:14:22Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  SQ-19 option A: read and ack this host's DM backlog (the 2 NEVER-ACKED rows signed d1993c2c3ec44c94), surfacing anything that needs action
+
+# Key outcomes
+outcomes:
+  - 'Both backlog threads (`dm:3bba15e681b3a078:6738c073bbcc587a`, `dm:61e262f085a07585:9219671e28054458`) are actually read, and a summary per thread (senders, dates, what was asked, anything still needing action) is recorded in this task BEFORE any ack is posted'
+  - 'Any message that still needs action is surfaced as a task or listed for the operator; nothing actionable is acked away silently'
+  - 'A receipt is posted on the thread that was safe to ack (thread 1, up to 145; thread 2 deliberately not, see Updates) as this host''s identity (`d1993c2c3ec44c94`) up to its latest content offset, verified by reading `channel ack-status` back (not by the post''s exit code)'
+  - '`check-receiver-ack-lag.sh` no longer lists `d1993c2c3ec44c94` as NEVER-ACKED on the thread that was safe to ack. **Amended after reading:** the second thread is pen-agent''s inbox, signed with this host''s shared key. Acking it would mark about 70 unconfirmed operator desk requests as read on pen-agent''s behalf, so it stays unacked and goes to the operator; that row stays red, and that is correct'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 3
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3278-sq-19-option-a-read-and-ack-this-hosts-d.md
+generated_by: context-agent-hybrid

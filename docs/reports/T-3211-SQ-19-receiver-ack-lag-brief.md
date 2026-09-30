@@ -111,3 +111,5 @@ acking or you decide those DMs need no reply. That is the honest state.
 | 9, 10, 11 (.122, sole sender) | SOLE-SENDER | no |
 
 7 SOLE-SENDER rows are counted, not fired: the baseline's 6 plus one more .121 sole-sender topic seen in this run. The new RECIPIENT-SILENT class lists 8 named parties with no row. It is **reported, not fired**, because topic names often carry a per-agent fp while the posts are signed with the host's shared key (T-3004 F4). Firing would recreate the fatigue this fix removes. Firing rows: 11 → 5, exactly classes a + b.
+
+**Hand-off to .122 (T-3279).** Posted on `dm:9219671e28054458:d1993c2c3ec44c94` at offset 60 (read back). The .122 hub was unreachable at the time (fleet probe rc=124), so this is **posted, not confirmed**. It asks ring20-management either to ack its 3 topics (lags 94 / 59 / 7) or to reply with its ack policy for an unattended bot identity.
