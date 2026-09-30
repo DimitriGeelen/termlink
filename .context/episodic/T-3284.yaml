@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3284: E4 host scope: should arc-003's E4 identity-split claim assert only on hosts whose sidecars are declared
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-30T18:58:06Z
+# ============================================================================
+
+task_id: T-3284
+task_name: "E4 host scope: should arc-003's E4 identity-split claim assert only on hosts whose sidecars are declared"
+workflow_type: inception
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-30T17:52:09Z
+completed: 2026-09-30T18:57:58Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-09-30T19:55:30+02:00
+last_commit: 2026-09-30T20:43:11+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  E4 host-scope analysis — exposure E1-E5 (main risk: the check re-mints claude-termlink's signing key on THIS host if missing), steelman/strawman, directive scoring (C read-only probe 12/12); recommendation GO on C. record operator ruling GO on option C (formal decide via runme.sh)
+
+# Key outcomes
+outcomes:
+  - 'Problem statement validated'
+  - 'Assumptions tested'
+  - 'Recommendation written with rationale'
+  - '[REVIEW] Review exploration findings and approve go/no-go decision'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/reports/T-3284-e4-host-scope-analysis.md'
+  - '.tasks/active/T-3284-e4-host-scope-should-arc-003s-e4-identit.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-30T19:55:30'
+    action: 'T-3284: E4 host-scope analysis — exposure E1-E5 (main risk: the check re-mints claude-termlink''s signing key on THIS host if missing), steelman/strawman, directive scoring (C read-only probe 12/12); recommendation GO on C'
+  - time: '2026-09-30T20:43:11'
+    action: 'T-3284: record operator ruling GO on option C (formal decide via runme.sh)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 65 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 65
+  commits: 2
+  files_changed: 2
+  lines_added: 342
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3284-e4-host-scope-should-arc-003s-e4-identit.md
+generated_by: context-agent-hybrid

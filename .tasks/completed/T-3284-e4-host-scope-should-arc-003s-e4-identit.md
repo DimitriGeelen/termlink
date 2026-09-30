@@ -6,16 +6,16 @@ description: >
   Inception: E4 host scope: should arc-003's E4 identity-split claim assert only on
   hosts whose sidecars are declared
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [runme.sh, tests/runme-fixtures.sh]
 related_tasks: []
 created: 2026-09-30T17:52:09Z
-last_update: 2026-09-30T17:52:30Z
-date_finished:
+last_update: 2026-09-30T18:57:58Z
+date_finished: 2026-09-30T18:57:58Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -104,15 +104,15 @@ arc-003 ("reliable comms, no silent loss") is closed, and its claim is re-checke
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -170,7 +170,11 @@ GO on option C. Make the identity check read-only: `termlink agent identity --re
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Operator 2026-09-30: GO on option C — read-only identity probe (termlink agent identity --resolve --no-create) so E4 never mints the key it verifies; docs/reports/T-3284-e4-host-scope-analysis.md
+
+**Date**: 2026-09-30T18:57:58Z
 
 ## Updates
 
@@ -182,3 +186,44 @@ Operator, in session: "Okay, let's go with C." The formal decision command is Ti
 
 ### 2026-09-30T17:52:30Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-09-30T18:57:58Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Operator 2026-09-30: GO on option C — read-only identity probe (termlink agent identity --resolve --no-create) so E4 never mints the key it verifies; docs/reports/T-3284-e4-host-scope-analysis.md
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-3b3d44ee
+- **Timestamp:** 2026-09-30T18:57:59Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** 3
+
+**Verification-level findings:**
+
+  1. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-2
+     - evidence: `IW-2 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+  2. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-3
+     - evidence: `IW-3 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+  3. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-4
+     - evidence: `IW-4 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+
+## Recommendation Verdict (v1.0)
+
+- **Scan ID:** RC-dca40ea4
+- **Timestamp:** 2026-09-30T18:57:59Z
+- **Overall:** CONFIRMED
+- **Claims:** 3
+
+| Claim | Type | Status |
+|-------|------|--------|
+| `docs/reports/T-3284-e4-host-scope-analysis.md` | file | ✓ pass |
+| `crates/termlink-cli/src/commands/identity.rs:57` | file_line | ✓ pass |
+| `.context/cron/notify-sidecar-agents.conf` | file | ✓ pass |
+
+### 2026-09-30T18:57:58Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
