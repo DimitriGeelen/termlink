@@ -4,10 +4,10 @@ name: "Ask pen-agent to confirm its relayed operator desk requests (dm:61e262…
 description: >
   Ask pen-agent to confirm its relayed operator desk requests (dm:61e262…:9219… offsets 3–82, 51, 58) were handled, and to ack its own thread (SQ-19 follow-up)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -22,8 +22,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-30T13:38:54Z
-last_update: 2026-09-30T13:38:54Z
-date_finished: null
+last_update: 2026-09-30T15:56:49Z
+date_finished: 2026-09-30T15:56:49Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -46,9 +46,9 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] A message reaches pen-agent (`penelope`, LIVE on agent-presence) asking it to confirm, per item, whether the relayed operator desk requests (dm:61e262f085a07585:9219671e28054458 offsets 3–82) and the directives at offsets 51 ("GO A — injector parser", its T-2056) and 58 ("one task per finding, reply with ids") were handled, and to ack that thread itself once it has read it
-- [ ] Delivery is confirmed by the receiver side (agent-send receipt or a reply), not by the sender's exit code; if it is unconfirmed, it is recorded as such
-- [ ] pen-agent's answer (or the absence of one) is recorded in this task and relayed to the operator, and any item it reports as unhandled is listed for the operator
+- [x] A message reaches pen-agent (`penelope`, LIVE on agent-presence) asking it to confirm, per item, whether the relayed operator desk requests (dm:61e262f085a07585:9219671e28054458 offsets 3–82) and the directives at offsets 51 ("GO A — injector parser", its T-2056) and 58 ("one task per finding, reply with ids") were handled, and to ack that thread itself once it has read it
+- [x] Delivery is confirmed by the receiver side (agent-send receipt or a reply), not by the sender's exit code; if it is unconfirmed, it is recorded as such
+- [x] pen-agent's answer (or the absence of one) is recorded in this task and relayed to the operator, and any item it reports as unhandled is listed for the operator
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -172,6 +172,8 @@ date_finished: null
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+termlink channel ack-status dm:61e262f085a07585:9219671e28054458 --json > /tmp/.t3280 2>&1 && jq -e '.[]|select(.sender_id=="d1993c2c3ec44c94")|select(.up_to==93)' /tmp/.t3280
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -264,6 +266,10 @@ date_finished: null
 
 ## Updates
 
+### 2026-09-30 — resolved: operator confirmed, pen acked her thread
+The agent-to-agent route could not reach pen: her live session `pen-live-agent` (tl-yehbxp43, tmux `tl-pen-live-agent`) is registered under the legacy runtime dir `/tmp/termlink-0`, so the hub's `list`/`agent contact` cannot see it, and she signs with the host's shared key. So the operator pasted a self-contained prompt into pen directly. **Operator, 2026-09-30:** "Pen did a lot of stuff… She picked it up. It's all fine." Receiver-side evidence: `ack-status` on dm:61e262f085a07585:9219671e28054458 now shows `up_to=93, lag=0` (posted by pen with the shared key). Nothing further is needed from pen.
+Side finding, not filed (pen's project, and outside this project's boundary): pen-live-agent's registration lives in the volatile legacy `/tmp/termlink-0` runtime dir.
+
 ### 2026-09-30 13:40Z — sent; delivery NOT confirmed, and the shared key undermines it
 - `agent-send.sh --to penelope` (both the confirming and `--no-await-ack` paths) refused: "heartbeat does not declare pty_session — sender cannot ring the doorbell". penelope is LIVE, with no waker.
 - The fallback `termlink agent contact penelope` delivered to **`dm:d1993c2c3ec44c94:d1993c2c3ec44c94` offset 7**, the host's self-DM, because pen-agent signs with this host's shared key. Status: delivered-unconfirmed; the message waits for pen-agent's `/check-arc`.
@@ -274,3 +280,16 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3280-ask-pen-agent-to-confirm-its-relayed-ope.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-66576d9d
+- **Timestamp:** 2026-09-30T15:56:51Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** none
+
+### 2026-09-30T15:56:49Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
