@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3286: termlink agent identity --resolve --no-create: read-only identity lookup that never mints a key (T-3284 GO, option C, task 1 of 2)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-30T19:07:21Z
+# ============================================================================
+
+task_id: T-3286
+task_name: "termlink agent identity --resolve --no-create: read-only identity lookup that never mints a key (T-3284 GO, option C, task 1 of 2)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-30T18:58:51Z
+completed: 2026-09-30T19:07:02Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink agent identity --resolve --no-create: read-only identity lookup that never mints a key (T-3284 GO, option C, task 1 of 2)
+
+# Key outcomes
+outcomes:
+  - 'The identity precedence (TERMLINK_IDENTITY_FILE > TERMLINK_AGENT_ID when no TERMLINK_IDENTITY_DIR > TERMLINK_IDENTITY_DIR / $HOME host default) lives in ONE pure function, `identity_source_with(env)`. `load_identity_or_create()` is refactored onto it with unchanged behaviour (same init-vs-load per branch, same error text), and unit tests cover all four branches'
+  - '`--no-create` (requires `--resolve`) on both `termlink agent identity` and `termlink identity show`: an existing key is loaded and reported exactly as `--resolve` does; a missing key → `{"ok":false,"error":"no_identity","path":…,"source":…}` (JSON) or a stderr message, **exit 3**, and NO file is written'
+  - 'Integration tests run the real binary with a temp HOME: a missing per-agent key → exit 3 + `no_identity` + the key file still absent afterwards; an existing key → ok + the same fingerprint as plain `--resolve`; plain `--resolve` without the flag still mints (unchanged behaviour, pinned)'
+  - '`cargo build` and the affected tests pass'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 8 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 8
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3286-termlink-agent-identity---resolve---no-c.md
+generated_by: context-agent-hybrid

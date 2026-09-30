@@ -4218,3 +4218,64 @@ fn cli_channel_post_rejects_unknown_retention() {
         "expected retention error, got: {stderr}"
     );
 }
+
+// ---------------------------------------------------------------------------
+// T-3286 (T-3284 GO, option C) — `agent identity --resolve --no-create` never
+// mints a key. Real binary, temp HOME; the key path is asserted ON DISK.
+// ---------------------------------------------------------------------------
+fn identity_cmd(home: &std::path::Path, agent: &str, extra: &[&str]) -> std::process::Output {
+    Command::new(cargo::cargo_bin!("termlink"))
+        .args(["agent", "identity", "--resolve", "--json"])
+        .args(extra)
+        .env("HOME", home)
+        .env("TERMLINK_AGENT_ID", agent)
+        .env_remove("TERMLINK_IDENTITY_FILE")
+        .env_remove("TERMLINK_IDENTITY_DIR")
+        .output()
+        .expect("run termlink agent identity")
+}
+
+#[test]
+fn cli_identity_no_create_missing_key_exits_3_and_writes_nothing() {
+    let home = tempfile::Builder::new().prefix("t3286-nokey").tempdir().unwrap();
+    let key = home.path().join(".termlink/identities/probe-agent.key");
+    let out = identity_cmd(home.path(), "probe-agent", &["--no-create"]);
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert_eq!(out.status.code(), Some(3), "expected exit 3, got {:?}: {}", out.status.code(), stdout);
+    let v: serde_json::Value = serde_json::from_str(stdout.trim()).expect("JSON on stdout");
+    assert_eq!(v["ok"], false);
+    assert_eq!(v["error"], "no_identity");
+    assert_eq!(v["source"], "per_agent");
+    assert!(v["path"].as_str().unwrap().ends_with("identities/probe-agent.key"), "{v}");
+    assert!(!key.exists(), "--no-create must not write the key: {}", key.display());
+    assert!(!home.path().join(".termlink").exists(), "--no-create must not even create ~/.termlink");
+}
+
+#[test]
+fn cli_identity_no_create_existing_key_matches_plain_resolve() {
+    let home = tempfile::Builder::new().prefix("t3286-haskey").tempdir().unwrap();
+    // Plain --resolve mints on first use (the signing path's behaviour, unchanged).
+    let minted = identity_cmd(home.path(), "probe-agent", &[]);
+    assert!(minted.status.success(), "plain --resolve failed: {}", String::from_utf8_lossy(&minted.stdout));
+    let key = home.path().join(".termlink/identities/probe-agent.key");
+    assert!(key.exists(), "plain --resolve is expected to create the key (unchanged behaviour)");
+    let a: serde_json::Value = serde_json::from_slice(&minted.stdout).unwrap();
+    let before = std::fs::read(&key).unwrap();
+    // --no-create now finds and reports the same identity, and leaves the file untouched.
+    let ro = identity_cmd(home.path(), "probe-agent", &["--no-create"]);
+    assert!(ro.status.success(), "--no-create on an existing key failed: {}", String::from_utf8_lossy(&ro.stdout));
+    let b: serde_json::Value = serde_json::from_slice(&ro.stdout).unwrap();
+    assert_eq!(a["fingerprint"], b["fingerprint"]);
+    assert_eq!(b["ok"], true);
+    assert_eq!(b["source"], "per_agent");
+    assert_eq!(std::fs::read(&key).unwrap(), before, "--no-create must not rewrite the key");
+}
+
+#[test]
+fn cli_identity_no_create_requires_resolve() {
+    let out = Command::new(cargo::cargo_bin!("termlink"))
+        .args(["agent", "identity", "--no-create"])
+        .output()
+        .expect("run termlink");
+    assert!(!out.status.success(), "--no-create without --resolve must be refused by clap");
+}

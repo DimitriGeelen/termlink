@@ -627,8 +627,8 @@ async fn main() -> Result<()> {
                     commands::channel::cmd_channel_inbox(hub.as_deref(), json).await
                 }
             }
-            AgentAction::Identity { json, resolve } => {
-                commands::identity::cmd_identity_show(json, resolve)
+            AgentAction::Identity { json, resolve, no_create } => {
+                commands::identity::cmd_identity_show(json, resolve, no_create)
             }
             AgentAction::Verbs => {
                 print_agent_help();
@@ -823,8 +823,8 @@ async fn main() -> Result<()> {
         },
         Command::Identity { action } => match action {
             IdentityAction::Init { force, json } => commands::identity::cmd_identity_init(force, json),
-            IdentityAction::Show { json, resolve } => {
-                commands::identity::cmd_identity_show(json, resolve)
+            IdentityAction::Show { json, resolve, no_create } => {
+                commands::identity::cmd_identity_show(json, resolve, no_create)
             }
             IdentityAction::Rotate { force, json } => commands::identity::cmd_identity_rotate(force, json),
         },

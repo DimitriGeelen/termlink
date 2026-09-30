@@ -16,23 +16,48 @@ use termlink_session::offline_queue::{PendingPost, default_queue_path};
 
 use super::infrastructure::resolve_hub_paths;
 
-fn identity_base_dir() -> Result<PathBuf> {
-    if let Ok(dir) = std::env::var("TERMLINK_IDENTITY_DIR") {
-        return Ok(PathBuf::from(dir));
-    }
-    let home = std::env::var("HOME").context("HOME is not set; cannot resolve identity dir")?;
-    Ok(PathBuf::from(home).join(".termlink"))
+/// T-3286: WHERE the signing identity lives, by the one precedence the signing
+/// path uses. Pure over an env accessor so every branch is unit-testable and so
+/// the read-only lookup (`--resolve --no-create`) and the signing path cannot
+/// drift apart: both call this.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum IdentitySource {
+    /// T-1700: `TERMLINK_IDENTITY_FILE` — an explicit key file.
+    File(PathBuf),
+    /// T-2292: `TERMLINK_AGENT_ID` (only when no `TERMLINK_IDENTITY_DIR`) —
+    /// `$HOME/.termlink/identities/<id>.key`.
+    PerAgent { path: PathBuf, agent_id: String },
+    /// The base dir (`TERMLINK_IDENTITY_DIR`, else `$HOME/.termlink`) + `identity.key`.
+    HostDefault { base: PathBuf },
 }
 
-pub(crate) fn load_identity_or_create() -> Result<Identity> {
+impl IdentitySource {
+    pub(crate) fn key_path(&self) -> PathBuf {
+        match self {
+            IdentitySource::File(p) => p.clone(),
+            IdentitySource::PerAgent { path, .. } => path.clone(),
+            IdentitySource::HostDefault { base } => identity_path(base),
+        }
+    }
+    pub(crate) fn kind(&self) -> &'static str {
+        match self {
+            IdentitySource::File(_) => "identity_file",
+            IdentitySource::PerAgent { .. } => "per_agent",
+            IdentitySource::HostDefault { .. } => "host_default",
+        }
+    }
+}
+
+pub(crate) fn identity_source_with<F>(get: F) -> Result<IdentitySource>
+where
+    F: Fn(&str) -> Option<String>,
+{
     // T-1700: explicit per-agent identity file takes precedence over the
     // host-shared base-dir convention. Keeps signing identity in lockstep
     // with the registration fingerprint (registration.rs honors the same
     // env var) so the wire envelope and the SessionMetadata agree.
-    if let Ok(file) = std::env::var("TERMLINK_IDENTITY_FILE") {
-        let path = PathBuf::from(file);
-        return Identity::load_or_create_from_file(&path)
-            .map_err(|e| anyhow!("Failed to load identity from TERMLINK_IDENTITY_FILE: {e}"));
+    if let Some(file) = get("TERMLINK_IDENTITY_FILE") {
+        return Ok(IdentitySource::File(PathBuf::from(file)));
     }
     // T-2292: per-agent default keyed on TERMLINK_AGENT_ID, fired only when no
     // explicit base-dir override (TERMLINK_IDENTITY_DIR) is in play. This keeps
@@ -41,29 +66,66 @@ pub(crate) fn load_identity_or_create() -> Result<Identity> {
     // shared host default) so the wire-envelope sender_id and the
     // SessionMetadata fingerprint agree. Co-resident agents on a shared host
     // thus sign with DISTINCT per-agent keys (RC1, T-2291).
-    if std::env::var("TERMLINK_IDENTITY_DIR").is_err() {
-        if let Some(agent_id) = std::env::var("TERMLINK_AGENT_ID")
-            .ok()
-            .filter(|s| !s.trim().is_empty())
-        {
-            if let Ok(home) = std::env::var("HOME") {
+    if get("TERMLINK_IDENTITY_DIR").is_none() {
+        if let Some(agent_id) = get("TERMLINK_AGENT_ID").filter(|s| !s.trim().is_empty()) {
+            if let Some(home) = get("HOME") {
                 let base = PathBuf::from(home).join(".termlink");
                 let path = per_agent_identity_path(&base, &agent_id);
-                return Identity::load_or_create_from_file(&path).map_err(|e| {
-                    anyhow!("Failed to load per-agent identity ({agent_id}): {e}")
-                });
+                return Ok(IdentitySource::PerAgent { path, agent_id });
             }
         }
     }
-    let base = identity_base_dir()?;
-    let path = identity_path(&base);
-    if !path.exists() {
-        // Auto-create on first use — matches 'termlink identity show' UX of surfacing
-        // the missing file, but channel.post *needs* a key to proceed.
-        Identity::init(&base, false).map_err(|e| anyhow!("Failed to init identity: {e}"))
-    } else {
-        Identity::load_or_create(&base).map_err(|e| anyhow!("Failed to load identity: {e}"))
+    let base = match get("TERMLINK_IDENTITY_DIR") {
+        Some(dir) => PathBuf::from(dir),
+        None => {
+            let home = get("HOME")
+                .ok_or_else(|| anyhow!("HOME is not set; cannot resolve identity dir"))?;
+            PathBuf::from(home).join(".termlink")
+        }
+    };
+    Ok(IdentitySource::HostDefault { base })
+}
+
+pub(crate) fn identity_source() -> Result<IdentitySource> {
+    identity_source_with(|k| std::env::var(k).ok())
+}
+
+pub(crate) fn load_identity_or_create() -> Result<Identity> {
+    match identity_source()? {
+        IdentitySource::File(path) => Identity::load_or_create_from_file(&path)
+            .map_err(|e| anyhow!("Failed to load identity from TERMLINK_IDENTITY_FILE: {e}")),
+        IdentitySource::PerAgent { path, agent_id } => Identity::load_or_create_from_file(&path)
+            .map_err(|e| anyhow!("Failed to load per-agent identity ({agent_id}): {e}")),
+        IdentitySource::HostDefault { base } => {
+            let path = identity_path(&base);
+            if !path.exists() {
+                // Auto-create on first use — matches 'termlink identity show' UX of surfacing
+                // the missing file, but channel.post *needs* a key to proceed.
+                Identity::init(&base, false).map_err(|e| anyhow!("Failed to init identity: {e}"))
+            } else {
+                Identity::load_or_create(&base).map_err(|e| anyhow!("Failed to load identity: {e}"))
+            }
+        }
     }
+}
+
+/// T-3286 (T-3284 GO, option C): the READ-ONLY twin of `load_identity_or_create`.
+/// Same precedence (same `identity_source`), but a missing key is reported, never
+/// minted: `Err(path)` in the inner result means "no key at that path". A
+/// verification check must not write the identity it verifies (arc-003 E4 used to
+/// re-mint `claude-termlink`'s signing key whenever it was missing).
+/// Residual gap, stated rather than hidden: the file could vanish between the
+/// `exists()` check and the load. That is a microsecond race, not a code path.
+pub(crate) fn load_identity_no_create()
+-> Result<(IdentitySource, std::result::Result<Identity, PathBuf>)> {
+    let src = identity_source()?;
+    let path = src.key_path();
+    if !path.exists() {
+        return Ok((src, Err(path)));
+    }
+    let ident = Identity::load_or_create_from_file(&path)
+        .map_err(|e| anyhow!("Failed to load identity at {}: {e}", path.display()))?;
+    Ok((src, Ok(ident)))
 }
 
 /// T-1448 Design A: scan a `.framework.yaml`-style file for the top-level
@@ -20505,5 +20567,52 @@ not json at all
                 "predicate overlap on {name}"
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod t3286_identity_source_tests {
+    //! T-3286: the ONE precedence shared by the signing path and the read-only
+    //! lookup. Pure over an env map, so no global env is mutated.
+    use super::*;
+    use std::collections::HashMap;
+
+    fn src(pairs: &[(&str, &str)]) -> Result<IdentitySource> {
+        let m: HashMap<String, String> =
+            pairs.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect();
+        identity_source_with(|k| m.get(k).cloned())
+    }
+
+    #[test]
+    fn identity_file_wins_over_everything() {
+        let s = src(&[("TERMLINK_IDENTITY_FILE", "/x/k.key"), ("TERMLINK_AGENT_ID", "a"),
+                      ("TERMLINK_IDENTITY_DIR", "/d"), ("HOME", "/h")]).unwrap();
+        assert_eq!(s, IdentitySource::File(PathBuf::from("/x/k.key")));
+        assert_eq!(s.key_path(), PathBuf::from("/x/k.key"));
+    }
+
+    #[test]
+    fn agent_id_resolves_per_agent_key_under_home() {
+        let s = src(&[("TERMLINK_AGENT_ID", "claude-termlink"), ("HOME", "/h")]).unwrap();
+        assert_eq!(s.kind(), "per_agent");
+        assert_eq!(s.key_path(), per_agent_identity_path(Path::new("/h/.termlink"), "claude-termlink"));
+    }
+
+    #[test]
+    fn identity_dir_suppresses_agent_id_and_is_the_base() {
+        let s = src(&[("TERMLINK_AGENT_ID", "a"), ("TERMLINK_IDENTITY_DIR", "/d"), ("HOME", "/h")]).unwrap();
+        assert_eq!(s, IdentitySource::HostDefault { base: PathBuf::from("/d") });
+        assert_eq!(s.key_path(), identity_path(Path::new("/d")));
+    }
+
+    #[test]
+    fn blank_agent_id_falls_back_to_host_default() {
+        let s = src(&[("TERMLINK_AGENT_ID", "  "), ("HOME", "/h")]).unwrap();
+        assert_eq!(s, IdentitySource::HostDefault { base: PathBuf::from("/h/.termlink") });
+    }
+
+    #[test]
+    fn no_home_and_no_dir_is_an_error_not_a_guess() {
+        assert!(src(&[]).is_err());
     }
 }

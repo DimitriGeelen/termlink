@@ -42,7 +42,58 @@ pub(crate) fn cmd_identity_init(force: bool, json_output: bool) -> Result<()> {
     }
 }
 
-pub(crate) fn cmd_identity_show(json_output: bool, resolve: bool) -> Result<()> {
+pub(crate) fn cmd_identity_show(json_output: bool, resolve: bool, no_create: bool) -> Result<()> {
+    if resolve && no_create {
+        // T-3286 (T-3284 GO, option C): READ-ONLY resolve. Same precedence as the
+        // signing path, but a missing key is REPORTED (exit 3), never minted.
+        // Plain `--resolve` still creates on first use (unchanged, pinned by test),
+        // because the signing path genuinely needs a key; a check does not.
+        let (src, found) = super::channel::load_identity_no_create()?;
+        match found {
+            Ok(ident) => {
+                if json_output {
+                    println!(
+                        "{}",
+                        json!({
+                            "ok": true,
+                            "action": "resolved",
+                            "fingerprint": ident.fingerprint(),
+                            "public_key_hex": ident.public_key_hex(),
+                            "source": src.kind(),
+                        })
+                    );
+                } else {
+                    println!("Identity resolved (per-agent resolver, read-only)");
+                    println!("  Fingerprint: {}", ident.fingerprint());
+                    println!("  Public key:  {}", ident.public_key_hex());
+                }
+                return Ok(());
+            }
+            Err(path) => {
+                use std::io::Write;
+                if json_output {
+                    println!(
+                        "{}",
+                        json!({
+                            "ok": false,
+                            "error": "no_identity",
+                            "path": path.display().to_string(),
+                            "source": src.kind(),
+                            "hint": "read-only lookup (--no-create): no key exists for this identity, and none was created",
+                        })
+                    );
+                    let _ = std::io::stdout().flush();
+                } else {
+                    eprintln!(
+                        "No identity at {} ({}); nothing was created (--no-create).",
+                        path.display(),
+                        src.kind()
+                    );
+                }
+                std::process::exit(3);
+            }
+        }
+    }
     if resolve {
         // T-2324 / PL-236: honor the per-agent identity resolver
         // (TERMLINK_IDENTITY_FILE > TERMLINK_AGENT_ID > TERMLINK_IDENTITY_DIR >

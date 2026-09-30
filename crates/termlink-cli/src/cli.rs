@@ -1818,6 +1818,11 @@ pub(crate) enum IdentityAction {
         /// with `identity init`/`rotate`.
         #[arg(long)]
         resolve: bool,
+        /// T-3286: with `--resolve`, never create a key. A missing key is reported
+        /// (`error: no_identity`, exit 3) instead of minted. For checks that must
+        /// not write the identity they verify (arc-003 E4, T-3284).
+        #[arg(long = "no-create", requires = "resolve")]
+        no_create: bool,
     },
     /// Rotate the current keypair (alias for `init --force` — explicit for operator intent)
     Rotate {
@@ -6302,6 +6307,11 @@ pub(crate) enum AgentAction {
         /// T-2324). Without it, falls back to the base-dir key for back-compat.
         #[arg(long)]
         resolve: bool,
+        /// T-3286: with `--resolve`, never create a key. A missing key is reported
+        /// (`error: no_identity`, exit 3) instead of minted. For checks that must
+        /// not write the identity they verify (arc-003 E4, T-3284).
+        #[arg(long = "no-create", requires = "resolve")]
+        no_create: bool,
     },
 
     /// Categorized verb index for the agent.* namespace (T-1556).
