@@ -25,7 +25,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-19T22:12:00Z
-last_update: 2026-10-01T16:56:02Z
+last_update: 2026-10-01T22:04:53Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -81,7 +81,7 @@ C-15 (the rate-based trigger that would have surfaced this) is agent work, but i
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
 - [x] Ring20 manager asked the purpose question (is the fed-probe a checked round-trip canary? will they tag cv_key?) on a durable DM, offset recorded (operator: SQ-10 b)
-- [ ] runme action bounds `health:ring20-fedprobe` retention (latest-per-cv-key if ring20 tags, else keep the last 100) and sweeps once, verified by `channel info` count (operator: SQ-10 a)
+- [x] runme action bounds `health:ring20-fedprobe` retention (latest-per-cv-key if ring20 tags, else keep the last 100) and sweeps once, verified by `channel info` count (operator: SQ-10 a) — done 2026-10-01: runme action 9, log runme-20261001T221519Z (rc=0): retention messages:100, swept 2,792 -> 100, verified by channel info (count 100); live subscribe from 0 now reports gap {oldest_offset 2693, skipped 2693} (T-3307)
 - [ ] Ring20's answer recorded; if nothing checks the round trip, the probe's stop/re-target is requested
 
 ### Human
