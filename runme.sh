@@ -706,7 +706,10 @@ ZOMBIE_WAIT="${RUNME_ZOMBIE_WAIT_SECS:-10}"
 
 zombie_still_is() {  # <pid> <name> -> 0 if the pid is still that register session
     local cl
-    cl="$(tr '\0' ' ' < "$ZOMBIE_PROC/$1/cmdline" 2>/dev/null)" || return 1
+    # T-3301: the redirect sits inside a group whose stderr is discarded — a bare
+    # `< file 2>/dev/null` reports the failed open BEFORE the 2> applies, which
+    # printed one bash error per exited session into the operator's log.
+    cl="$( { tr '\0' ' ' < "$ZOMBIE_PROC/$1/cmdline"; } 2>/dev/null )" || return 1
     case "$cl" in *termlink*" register "*"--name $2 "*) return 0 ;; esac
     return 1
 }

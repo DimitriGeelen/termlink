@@ -601,6 +601,9 @@ lst=$(echo "$out" | grep -n "pid 502  z-two" | cut -d: -f1); okl=$(echo "$out" |
 if [ "$rc" = "0" ] && [ -n "$lst" ] && [ -n "$okl" ] && [ "$lst" -lt "$okl" ] && [ "$(wc -l < "$Z/killed")" = "2" ]; then
     ok "zombie: targets listed before acting, both SIGTERMed and verified gone"
 else bad "zombie reap" "rc=$rc: $out"; fi
+if ! echo "$out" | grep -q "No such file or directory"; then
+    ok "zombie: an exited session's re-check prints no shell error into the log (T-3301)"
+else bad "zombie re-check stderr noise" "$(echo "$out" | grep -m2 'No such file')"; fi
 zombie_reset; zombie_proc 601 z-real
 mkdir -p "$Z/proc/602"; printf 'vim\0notes.txt\0' > "$Z/proc/602/cmdline"   # pid 602 was reused
 out=$(FAKE_ZOMBIES="601:z-real 602:z-gone" run); rc=$?
