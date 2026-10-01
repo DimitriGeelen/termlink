@@ -6,16 +6,16 @@ description: >
   Inception: Hub storage model: should the hub be a queryable source of truth? (retention,
   pruning, query, topic discovery)
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
 created: 2026-10-01T18:13:59Z
-last_update: 2026-10-01T18:22:01Z
-date_finished:
+last_update: 2026-10-01T19:32:17Z
+date_finished: 2026-10-01T19:32:17Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -120,15 +120,15 @@ Research artifact: `docs/reports/T-3304-hub-storage-model.md`.
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -212,7 +212,11 @@ No evidence yet; operator asked to consult three non-Anthropic agents (Codex, GL
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Operator 2026-10-01: GO after ruling all five questions — IW-1 B (hub authoritative for coordination within a declared retention window), IW-2 C (14-day default, forever needs owner+reason, sweeper on every hub, ceiling on post), IW-3 B (retention-gap signal, SQ-11 c2, page end reasons, hub-side time range), IW-4 C-prime (hub-side topic record outside the log, owner from identity, idle/unread flags, never refuse creation). Evidence: docs/reports/T-3304-hub-storage-model.md (three-agent consult, research on 8 systems, five-model IW-4 consult).
+
+**Date**: 2026-10-01T19:32:17Z
 
 ## Updates
 
@@ -221,3 +225,37 @@ No evidence yet; operator asked to consult three non-Anthropic agents (Codex, GL
 
 ### 2026-10-01T18:14:36Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-10-01T19:32:17Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Operator 2026-10-01: GO after ruling all five questions — IW-1 B (hub authoritative for coordination within a declared retention window), IW-2 C (14-day default, forever needs owner+reason, sweeper on every hub, ceiling on post), IW-3 B (retention-gap signal, SQ-11 c2, page end reasons, hub-side time range), IW-4 C-prime (hub-side topic record outside the log, owner from identity, idle/unread flags, never refuse creation). Evidence: docs/reports/T-3304-hub-storage-model.md (three-agent consult, research on 8 systems, five-model IW-4 consult).
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-778c96fb
+- **Timestamp:** 2026-10-01T19:32:18Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** 2
+
+**Verification-level findings:**
+
+  1. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-3
+     - evidence: `IW-3 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+  2. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-4
+     - evidence: `IW-4 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+
+## Recommendation Verdict (v1.0)
+
+- **Scan ID:** RC-d3bd6858
+- **Timestamp:** 2026-10-01T19:32:18Z
+- **Overall:** UNVERIFIED
+- **Claims:** 0
+- No verifiable claims found in ## Recommendation
+
+### 2026-10-01T19:32:17Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO

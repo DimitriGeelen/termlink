@@ -10,8 +10,8 @@ description: >
 status: captured
 workflow_type: build
 owner: agent
-horizon: later
-tags: []
+horizon: now
+tags: [arc:arc-012]
 components: []
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
@@ -19,7 +19,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-09T14:52:50Z
-last_update: '2026-09-27T21:34:05Z'
+last_update: 2026-10-01T19:24:35Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -106,8 +106,10 @@ autonomously built, per the T-2468 build/file rule (medium / human-semantics).
       but carry `data.messages` — with the trade-off for looping vs single-shot
       consumers.
 - [ ] Implement the chosen shape so a deadline mid-walk delivers the collected
-      messages AND advances `next_cursor` to exactly `last_collected+1` (lossless,
-      no livelock, no double-delivery).
+      messages AND advances `next_cursor` to exactly `last_scanned+1` (lossless,
+      no livelock, no double-delivery). Amended 2026-10-01 from `last_collected+1`:
+      records scanned but filtered out after the last collected one were correctly
+      skipped, and rewinding to them would re-scan a non-matching run forever.
 - [ ] Consumer audit: enumerate every `channel.subscribe` consumer (CLI
       `channel subscribe`, `channel state`/paging, MCP `termlink_channel_subscribe`,
       any `subscribe_blocking` long-poll caller) and confirm each honors the new
@@ -125,7 +127,21 @@ autonomously built, per the T-2468 build/file rule (medium / human-semantics).
      ── Prefix routing (T-1811, T-1878): default to [REVIEWER] if Expected is grep-able ──
      If your Expected clause is grep-able / file-exists / structural (a deterministic
      shell check), prefer [REVIEWER] — that AC should be an Agent AC with the reviewer
-     command in `## Verification` instead of a Human AC here. Only keep [REVIEW] if
+     command in `## Decisions
+
+### 2026-10-01 — SQ-11: deadline contract shape (operator ruling)
+- **Chose:** c2 — keep error `WALK_DEADLINE_EXCEEDED` (-32020) and add `data.messages`
+  (the records collected so far) with `data.next_cursor = last_scanned + 1`.
+- **Why:** fails safe both ways — unupgraded clients see exactly today's loud error;
+  upgraded clients get every message and always progress. Codex and GLM-5.3 (T-3304
+  consult) independently asked for this shape. Ruled as part of T-3304 IW-3 option B
+  ("take your recommendation"), where it is step 2 after the retention-gap signal.
+- **Rejected:** a (defer: silent loss stays), b (rewind: livelock on a too-big span),
+  c1 (flagged partial success: silently short pages for single-shot clients).
+- **Context:** not reachable at today's sizes (worst filtered read measured 79 ms vs the
+  20 s deadline); low urgency, ordered behind the gap signal.
+
+## Verification` instead of a Human AC here. Only keep [REVIEW] if
      verification genuinely needs human taste (tone, feel, layout rhythm).
      See CLAUDE.md §AC Classification Guidance for the conversion rule.
 
@@ -252,3 +268,9 @@ autonomously built, per the T-2468 build/file rule (medium / human-semantics).
 ### 2026-08-09T14:56:32Z — status-update [task-update-agent]
 - **Change:** status: started-work → captured
 - **Change:** horizon: now → later
+
+### 2026-10-01T19:24:11Z — status-update [task-update-agent]
+- **Change:** tags: +arc:arc-012
+
+### 2026-10-01T19:24:35Z — status-update [task-update-agent]
+- **Change:** horizon: later → now

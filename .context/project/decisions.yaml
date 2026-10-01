@@ -1274,3 +1274,31 @@ decisions:
   date: 2026-10-01
   task: T-3292
   rationale: "Repaired by T-3293 — auto-capture emitted this indented, mis-numbered PD-001, truncated at the first line (the T-3150 defect)."
+
+- id: PD-176
+  decision: "B — authoritative for coordination within a declared retention window. The hub is the trusted, queryable record of coordination (who is doing what, recent messages, current state) for a bounded period; long-term records (decisions, learnings, archives) live in purpose-built stores (git, files, a database); retention \"forever\" becomes a deliberate exception with a named owner."
+  scope: project
+  date: 2026-10-01
+  task: T-3304
+  rationale: "Auto-captured from task file on completion"
+
+- id: PD-177
+  decision: "C — (1) new topics default to bounded, **14 days** (assumed; operator did not name a window — Codex said 7, GLM 14); \"forever\" only when set explicitly with an owner and a reason; the four operator-durable topics keep forever. (2) Turn on the existing hub retention sweeper (T-2427, `TERMLINK_SWEEP_INTERVAL_SECS`) everywhere we run hubs — on at .107 (hourly, verified), off at .122 and .121. (3) A safety ceiling checked on post: a bounded topic past 2x its limit trims its oldest records on the spot and logs it loudly; forever topics get a size warning, never deletion."
+  scope: project
+  date: 2026-10-01
+  task: T-3304
+  rationale: "Auto-captured from task file on completion"
+
+- id: PD-178
+  decision: "B, in this order: (1) **retention-gap signal** — a reader whose cursor fell behind the oldest surviving record is told so explicitly (\"records before X were swept\"); (2) **SQ-11 fix, option c2** (T-2573) — a deadline hands back the collected messages plus a resume point that always advances (last scanned + 1); (3) **every page says why it ended** (limit / end of topic / deadline); (4) **hub-side time-range reads** using the existing (topic, ts) index and the hub's own receive time."
+  scope: project
+  date: 2026-10-01
+  task: T-3304
+  rationale: "Auto-captured from task file on completion"
+
+- id: PD-179
+  decision: "C-prime — (1) a hub-side record per topic, outside the log (retention cannot erase it): owner taken from the creator's signed identity, optional purpose/description shown as \"incomplete\" when missing, last writer + write rate, per-reader last fetch and last fetch that returned messages (coalesced, not written per poll); (2) never refuse creating a topic; `--ensure-topic` takes the same path; existing topics get an owner only where derivable, else \"owner unknown\"; (3) two review flags, never deletion — **idle** (no posts and no fetches for 30 d) and **unread** (posts continue, no fetch for 30 d); ensure/metadata touches are not activity; per-topic override of N; (4) build order: tracking + flags first, catalog second; (5) deferred: wildcard subscriptions, relevance queries, tags."
+  scope: project
+  date: 2026-10-01
+  task: T-3304
+  rationale: "Auto-captured from task file on completion"

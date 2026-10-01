@@ -1,0 +1,99 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3304: Hub storage model: should the hub be a queryable source of truth? (retention, pruning, query, topic discovery)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-01T19:32:25Z
+# ============================================================================
+
+task_id: T-3304
+task_name: "Hub storage model: should the hub be a queryable source of truth? (retention, pruning, query, topic discovery)"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-01T18:13:59Z
+completed: 2026-10-01T19:32:17Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-01T20:15:41+02:00
+last_commit: 2026-10-01T20:22:00+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  inception — should the hub be a queryable source of truth (retention, pruning, query, topic discovery)? Raised by the operator during SQ-11; brief with measured facts written; consulting Codex, GLM-5.3 (opencode) and local qwen3:14b read-only. three non-Anthropic answers (Codex, GLM-5.3, qwen3:14b) + synthesis — 2/3 converge on 'authoritative for coordination, bounded window', 3/3 on bounded retention defaults and keeping the cursor model; verified: post() never enforces retention, long-poll/gap-detection/atomic claims already exist
+
+# Key outcomes
+outcomes:
+  - 'Problem statement validated'
+  - 'Assumptions tested'
+  - 'Recommendation written with rationale'
+  - '[REVIEW] Review exploration findings and approve go/no-go decision'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-10-01 — IW-1: what is the hub? (operator ruling)'
+    chose: 'B — authoritative for coordination within a declared retention window. The hub is the trusted, queryable record of coordination (who is doing what, recent messages, current state) for a bounded period; long-term records (decisions, learnings, archives) live in purpose-built stores (git, files, a database); retention "forever" becomes a deliberate exception with a named owner.'
+    rationale: 'states honestly what the fleet already does (75 of 111 topics are "forever"); gives one trusted answer to "what happened while I was down"; keeps the hub small; gives SQ-11 and an append-time retention cap a rule to follow. Codex and GLM-5.3 converged on it independently.'
+    alternatives_rejected: ['A transport only (agents are unreliable record-keepers; it degrades into an unguaranteed archive — how the 75 forever topics happened); C queryable archive (fills the disk of the machine everyone coordinates through; every query becomes a contract; rebuilds what git/files do better). - **Follow-on (not yet decided):** charter non-goal #2 is reworded to match — exact wording comes back to the operator for approval before docs/CHARTER.md changes (three-copy canary, T-2484). IW-2..IW-4 still open, taken one at a time.']
+  - decision: '2026-10-01 — IW-2: retention defaults and enforcement (operator ruling)'
+    chose: 'C — (1) new topics default to bounded, **14 days** (assumed; operator did not name a window — Codex said 7, GLM 14); "forever" only when set explicitly with an owner and a reason; the four operator-durable topics keep forever. (2) Turn on the existing hub retention sweeper (T-2427, `TERMLINK_SWEEP_INTERVAL_SECS`) everywhere we run hubs — on at .107 (hourly, verified), off at .122 and .121. (3) A safety ceiling checked on post: a bounded topic past 2x its limit trims its oldest records on the spot and logs it loudly; forever topics get a size warning, never deletion.'
+    rationale: 'all three reviewers want the default flipped from forever; Codex and GLM both want growth bounded even when the periodic mechanism is off or broken (it is off on .122/.121 today).'
+    alternatives_rejected: ['A keep as is (contradicts IW-1: "authoritative for a declared window" cannot hold with forever-by-omission); B defaults + sweeper only (trusts one mechanism completely). - **Not decided here:** what happens to the 75 existing forever topics (separate review, nothing cut automatically); the inbox "don''t drop unacknowledged" guard needs a design check. - **Process note:** the operator challenged the first IW-2 framing as biased toward the conversation; re-checking the reviewers and the code found the sweeper already existed and was on — the first framing''s "35 bounded topics are never swept" was false.']
+  - decision: '2026-10-01 — IW-3: what to add to reads (operator ruling)'
+    chose: 'B, in this order: (1) **retention-gap signal** — a reader whose cursor fell behind the oldest surviving record is told so explicitly ("records before X were swept"); (2) **SQ-11 fix, option c2** (T-2573) — a deadline hands back the collected messages plus a resume point that always advances (last scanned + 1); (3) **every page says why it ended** (limit / end of topic / deadline); (4) **hub-side time-range reads** using the existing (topic, ts) index and the hub''s own receive time.'
+    rationale: '(1) is silent loss today and IW-2 makes sweeping routine on every hub; (2) both Codex and GLM asked for exactly this; (4) serves IW-1 — a hub authoritative for a window should answer questions about the window; the index already exists.'
+    alternatives_rejected: ['A without time-range (leaves "what happened while I was down" to client-side download-and-filter); C extra indexes now (worst filtered read measured 79 ms; add only when measured); D nothing (silent gaps become routine after IW-2). - **Never (3 of 3 reviewers):** a query language, cross-topic queries or joins.']
+  - decision: '2026-10-01 — IW-4: topic metadata, discovery, "is anyone reading?" (operator ruling)'
+    chose: 'C-prime — (1) a hub-side record per topic, outside the log (retention cannot erase it): owner taken from the creator''s signed identity, optional purpose/description shown as "incomplete" when missing, last writer + write rate, per-reader last fetch and last fetch that returned messages (coalesced, not written per poll); (2) never refuse creating a topic; `--ensure-topic` takes the same path; existing topics get an owner only where derivable, else "owner unknown"; (3) two review flags, never deletion — **idle** (no posts and no fetches for 30 d) and **unread** (posts continue, no fetch for 30 d); ensure/metadata touches are not activity; per-topic override of N; (4) build order: tracking + flags first, catalog second; (5) deferred: wildcard subscriptions, relevance queries, tags.'
+    rationale: 'matches every researched system (metadata outside the log; reader activity tracked server-side); catches the real incident (the ring20 probe is "unread", which a no-read-and-no-write rule never fires on — Codex); owner from identity cannot be junk, and never blocking creation avoids routing-around (GLM; 4 of 5 against a hard purpose requirement).'
+    alternatives_rejected: ['A nothing; B optional catalog (optional is how 12/113 happened); C original (required free-text purpose becomes junk and blocks writes; its single dead-topic rule misses the ring20 case); D relevance queries + wildcards now (5/5 said later; no measured need). - **Dissent recorded:** gemma4 wanted auto-deletion at 90 d (rejected: Pulsar''s auto-delete wipes topic settings; four consultants against). qwen3 and gpt-oss raised access control — out of scope here; belongs to T-2422 (per-agent authorization, revisit ripe).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/reports/T-3304-consult/brief.md'
+  - 'docs/reports/T-3304-consult/codex.md'
+  - 'docs/reports/T-3304-consult/glm.md'
+  - 'docs/reports/T-3304-consult/qwen.md'
+  - 'docs/reports/T-3304-hub-storage-model.md'
+  - '.tasks/active/T-3304-hub-storage-model-should-the-hub-be-a-qu.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-01T20:15:41'
+    action: 'T-3304: inception — should the hub be a queryable source of truth (retention, pruning, query, topic discovery)? Raised by the operator during SQ-11; brief with measured facts written; consulting Codex, GLM-5.3 (opencode) and local qwen3:14b read-only'
+  - time: '2026-10-01T20:22:00'
+    action: 'T-3304: three non-Anthropic answers (Codex, GLM-5.3, qwen3:14b) + synthesis — 2/3 converge on ''authoritative for coordination, bounded window'', 3/3 on bounded retention defaults and keeping the cursor model; verified: post() never enforces retention, long-poll/gap-detection/atomic claims already exist'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 78 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 78
+  commits: 2
+  files_changed: 6
+  lines_added: 428
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3304-hub-storage-model-should-the-hub-be-a-qu.md
+generated_by: context-agent-hybrid

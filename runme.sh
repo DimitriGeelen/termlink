@@ -246,7 +246,9 @@ fi
 # T-3284 = go recorded 2026-09-30 (log runme-20260930T185754Z, rc=0)
 # T-3291 = go recorded 2026-09-30 (log runme-20260930T215045Z, rc=0)
 # T-3302 = go, T-3006 = no-go, T-3200 = no-go recorded 2026-10-01 (log runme-20261001T132546Z, rc=0)
-APPROVED_DECISIONS=()
+APPROVED_DECISIONS=(
+    "T-3304|go|Operator 2026-10-01: GO after ruling all five questions — IW-1 B (hub authoritative for coordination within a declared retention window), IW-2 C (14-day default, forever needs owner+reason, sweeper on every hub, ceiling on post), IW-3 B (retention-gap signal, SQ-11 c2, page end reasons, hub-side time range), IW-4 C-prime (hub-side topic record outside the log, owner from identity, idle/unread flags, never refuse creation). Evidence: docs/reports/T-3304-hub-storage-model.md (three-agent consult, research on 8 systems, five-model IW-4 consult)."
+)
 if [ -n "${RUNME_TEST_APPROVED_DECISIONS+x}" ]; then
     APPROVED_DECISIONS=()
     [ -n "$RUNME_TEST_APPROVED_DECISIONS" ] && mapfile -t APPROVED_DECISIONS <<< "$RUNME_TEST_APPROVED_DECISIONS"

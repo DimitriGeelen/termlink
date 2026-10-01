@@ -1,0 +1,22 @@
+id: arc-011
+slug: arc-012
+name: "Hub as the authoritative coordination record (T-3304)"
+description: "Build arc for the T-3304 GO: IW-1 B, IW-2 C, IW-3 B, IW-4 C-prime. Ordered: retention-gap\
+  \ signal, SQ-11 c2 (T-2573), page end reasons, activity tracking + idle/unread flags,\
+  \ retention defaults + ceiling on post, sweeper on .122/.121, hub topic record +\
+  \ backfill, hub-side time range, forever-topic review, charter non-goal #2 rewording."
+status: draft
+anchor_task: T-3304
+headline_mechanic: "An agent whose read position was swept receives an explicit gap notice instead of\
+  \ silently skipping messages, and the operator sees every topic's owner, last writer\
+  \ and last fetch, with topics written-but-unread or idle for 30 days flagged for\
+  \ review"
+demo_evidence: null
+created: 2026-10-01T19:21:55Z
+closed_at: null
+decision: null
+# T-1918 (arc-006, value-prioritisation): BVP scoring fields. Semantics in
+# docs/reports/T-1915-bvp-inception.md §4 (D7-reframe) and §7 (M2).
+bvp_scores: {}
+scoped_drivers: []           # max 3, weight ≤6 each (M2). Approved by fw arc approve-driver (T-1926).
+proposed_scoped_drivers: []  # uncapped persistence (D7-reframe). Estimator may write here freely.
