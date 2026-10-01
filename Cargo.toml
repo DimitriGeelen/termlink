@@ -105,3 +105,10 @@ inherits = "release"
 lto = "thin"
 codegen-units = 16
 incremental = true
+
+# T-3300 EXPERIMENT (measuring only; not used by runme): no cross-crate LTO and
+# opt-level 2, to size the thin-LTO/link tail that leaves cores idle.
+[profile.local-nolto]
+inherits = "local-fast"
+lto = false
+opt-level = 2
