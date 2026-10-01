@@ -245,11 +245,8 @@ fi
 # ---------------------------------------------------------------------------
 # T-3284 = go recorded 2026-09-30 (log runme-20260930T185754Z, rc=0)
 # T-3291 = go recorded 2026-09-30 (log runme-20260930T215045Z, rc=0)
-APPROVED_DECISIONS=(
-    "T-3302|go|Operator 2026-10-01: GO on option B — claude-termlink's per-agent key (6738c073) is canonical; keep both sidecar mailboxes through the transition, retire d1993 for this agent once its topics are quiet. Honest case: attribution/reliability, not security (any root agent can read every key). docs/reports/T-3302-identity-canonical-brief.md (A -33, B +38, C -12)"
-    "T-3006|no-go|Operator 2026-10-01: NO-GO — C-42's premise falsified by measurement: completions and commits fell together near-proportionally (~6.8x), so activity dropped, not efficiency"
-    "T-3200|no-go|Operator 2026-10-01: NO-GO (dissolve) — the consumer exists: arc-011's sidecar spec, 9 of 10 slices built, S10 proven live 2026-09-22; the remaining defect was one-line-class, not a design gap"
-)
+# T-3302 = go, T-3006 = no-go, T-3200 = no-go recorded 2026-10-01 (log runme-20261001T132546Z, rc=0)
+APPROVED_DECISIONS=()
 if [ -n "${RUNME_TEST_APPROVED_DECISIONS+x}" ]; then
     APPROVED_DECISIONS=()
     [ -n "$RUNME_TEST_APPROVED_DECISIONS" ] && mapfile -t APPROVED_DECISIONS <<< "$RUNME_TEST_APPROVED_DECISIONS"
