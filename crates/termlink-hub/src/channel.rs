@@ -1322,10 +1322,16 @@ pub(crate) async fn handle_channel_subscribe_with(
                 deadline.as_millis(),
                 walk.records_scanned
             ),
+            // T-2573 (SQ-11, option c2): hand back what the walk already
+            // collected. `next_cursor` is last SCANNED + 1 — records scanned but
+            // filtered out were correctly skipped — so a client that delivers
+            // `messages` and resumes from `next_cursor` is lossless and always
+            // progresses. Unupgraded clients still see the same loud error.
             json!({
                 "deadline_ms": deadline.as_millis() as u64,
                 "records_scanned": walk.records_scanned,
                 "next_cursor": next_cursor,
+                "messages": walk.messages,
             }),
         )
         .into();
@@ -2587,6 +2593,57 @@ mod tests {
         assert_eq!(walk.records_scanned, 1);
         assert_eq!(walk.last_offset, Some(0));
         assert_eq!(walk.messages.len(), 1);
+    }
+
+    #[test]
+    fn subscribe_walk_deadline_pages_union_is_lossless() {
+        // T-2573 (SQ-11 c2): with the walk deadline tripping on every call and a
+        // filter that matches one record in three, a client that delivers each
+        // partial page and resumes from last SCANNED + 1 (what the handler puts
+        // in data.next_cursor) receives every matching record exactly once, and
+        // every call makes progress — no loss, no livelock.
+        let total = 20u64;
+        let iter_from = |start: u64| -> termlink_bus::SubscribeIter {
+            let mut n = start;
+            Box::new(std::iter::from_fn(move || {
+                if n >= total {
+                    return None;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(4));
+                let mut env = walk_test_env(n, "note", None);
+                if n % 3 == 0 {
+                    env.metadata.insert("conversation_id".to_string(), "c".to_string());
+                }
+                let item = Ok((n, env));
+                n += 1;
+                Some(item)
+            }))
+        };
+        let (mut cursor, mut got, mut calls, mut partial_calls) = (0u64, Vec::new(), 0, 0);
+        loop {
+            calls += 1;
+            assert!(calls < 200, "no progress after {calls} calls");
+            let walk = walk_subscribe_records(
+                iter_from(cursor),
+                Some("c".to_string()),
+                None,
+                100,
+                std::time::Duration::from_millis(10),
+            );
+            for m in &walk.messages {
+                got.push(m["offset"].as_u64().unwrap());
+            }
+            let next = walk.last_offset.map(|o| o + 1).unwrap_or(cursor);
+            if !walk.deadline_hit {
+                break;
+            }
+            partial_calls += 1;
+            assert!(next > cursor, "a deadline page must advance the cursor ({cursor} -> {next})");
+            cursor = next;
+        }
+        let want: Vec<u64> = (0..total).filter(|n| n % 3 == 0).collect();
+        assert_eq!(got, want, "union of pages must equal every matching record, once, in order");
+        assert!(partial_calls >= 2, "the test must actually exercise the deadline path");
     }
 
     #[test]

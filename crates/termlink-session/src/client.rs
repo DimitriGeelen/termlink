@@ -372,6 +372,29 @@ fn build_tls_connector(cert_pem_path: &Path) -> std::io::Result<tokio_rustls::Tl
 }
 
 /// Extract the successful result from an RpcResponse, or format the error.
+/// T-2573 (SQ-11 option c2): a `channel.subscribe` that hit the hub's walk
+/// deadline returns `WALK_DEADLINE_EXCEEDED` with the records it had already
+/// collected (`data.messages`) and a resume point (`data.next_cursor` = last
+/// scanned + 1). Return that as an ordinary page
+/// `{messages, next_cursor, deadline_partial: true}` so a caller delivers the
+/// records and resumes — instead of erroring (dropping them) or retrying the
+/// same cursor forever. `None` for every other response, including a
+/// pre-T-2573 hub whose deadline error carries no `messages`.
+pub fn deadline_partial_page(resp: &RpcResponse) -> Option<serde_json::Value> {
+    let RpcResponse::Error(e) = resp else { return None };
+    if e.error.code != termlink_protocol::control::error_code::WALK_DEADLINE_EXCEEDED {
+        return None;
+    }
+    let data = e.error.data.as_ref()?;
+    let messages = data.get("messages")?.as_array()?.clone();
+    let next_cursor = data.get("next_cursor")?.as_u64()?;
+    Some(serde_json::json!({
+        "messages": messages,
+        "next_cursor": next_cursor,
+        "deadline_partial": true,
+    }))
+}
+
 pub fn unwrap_result(resp: RpcResponse) -> Result<serde_json::Value, String> {
     match resp {
         RpcResponse::Success(r) => Ok(r.result),
@@ -394,6 +417,40 @@ mod tests {
     use std::sync::atomic::{AtomicU32, Ordering};
     use std::sync::Arc;
     use tokio::sync::RwLock;
+
+    #[test]
+    fn deadline_partial_page_turns_deadline_error_into_page() {
+        // T-2573: the hub's deadline error carries the collected messages.
+        use termlink_protocol::jsonrpc::{ErrorResponse, Response};
+        let resp: RpcResponse = ErrorResponse::with_data(
+            serde_json::json!(1),
+            control::error_code::WALK_DEADLINE_EXCEEDED,
+            "deadline",
+            serde_json::json!({"next_cursor": 9, "records_scanned": 9,
+                               "messages": [{"offset": 4}, {"offset": 7}]}),
+        )
+        .into();
+        let page = deadline_partial_page(&resp).expect("partial page");
+        assert_eq!(page["next_cursor"], 9);
+        assert_eq!(page["messages"].as_array().unwrap().len(), 2);
+        assert_eq!(page["deadline_partial"], true);
+
+        // Pre-T-2573 hub: deadline error without messages → not a page.
+        let old: RpcResponse = ErrorResponse::with_data(
+            serde_json::json!(2),
+            control::error_code::WALK_DEADLINE_EXCEEDED,
+            "deadline",
+            serde_json::json!({"next_cursor": 9}),
+        )
+        .into();
+        assert!(deadline_partial_page(&old).is_none());
+        // Any other error, or a success, → None.
+        let other: RpcResponse =
+            ErrorResponse::new(serde_json::json!(3), -32013, "unknown topic").into();
+        assert!(deadline_partial_page(&other).is_none());
+        let ok: RpcResponse = Response::success(serde_json::json!(4), serde_json::json!({})).into();
+        assert!(deadline_partial_page(&ok).is_none());
+    }
 
     static TEST_COUNTER: AtomicU32 = AtomicU32::new(0);
 

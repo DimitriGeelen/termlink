@@ -502,6 +502,14 @@ async fn call_channel_subscribe_via_client(
         .await
         .map_err(|e| SubscribeError::Other(map_client_err("channel.subscribe", e)))?;
 
+    // T-2573 (SQ-11 c2): a hub walk that hit its deadline returns the records
+    // it collected plus a resume point — deliver them instead of failing.
+    if let Some(page) = crate::client::deadline_partial_page(&resp) {
+        let messages = page["messages"].as_array().cloned().unwrap_or_default();
+        let next_cursor = page["next_cursor"].as_u64().unwrap_or(cursor);
+        return Ok((messages, next_cursor));
+    }
+
     match resp {
         RpcResponse::Success(ok) => {
             let messages = ok

@@ -9601,7 +9601,18 @@ pub(crate) async fn cmd_channel_subscribe(
             }
             Err(e) => return Err(e).context("Hub rpc_call failed"),
         };
-        let result = match client::unwrap_result(resp) {
+        // T-2573 (SQ-11 c2): a hub walk that hit its deadline now returns the
+        // records it collected plus a resume point. Deliver them and move on —
+        // erroring would drop them, and a --follow retry of the same cursor
+        // would hit the same deadline forever.
+        let partial = client::deadline_partial_page(&resp);
+        if let Some(p) = &partial {
+            eprintln!(
+                "[poll] hub walk deadline hit on '{topic}' — this page is partial; more may follow from offset {} (T-2573)",
+                p["next_cursor"]
+            );
+        }
+        let result = match partial.map(Ok).unwrap_or_else(|| client::unwrap_result(resp)) {
             Ok(r) => r,
             Err(e) if follow || push => {
                 // T-2341 (demo-caught defect, part 2): tolerate a transient

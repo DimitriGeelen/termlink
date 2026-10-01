@@ -29305,9 +29305,15 @@ impl TermLinkTools {
         )
         .await
         {
-            Ok(resp) => match termlink_session::client::unwrap_result(resp) {
-                Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
-                Err(e) => json_err(format!("channel.subscribe error: {e}")),
+            // T-2573 (SQ-11 c2): a deadline-cut walk returns the collected
+            // messages + resume point; hand them to the agent as a page with
+            // `deadline_partial: true` instead of an error that drops them.
+            Ok(resp) => match termlink_session::client::deadline_partial_page(&resp) {
+                Some(page) => serde_json::to_string_pretty(&page).unwrap_or_else(json_err),
+                None => match termlink_session::client::unwrap_result(resp) {
+                    Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
+                    Err(e) => json_err(format!("channel.subscribe error: {e}")),
+                },
             },
             Err(e) => json_err(format!("RPC call failed: {e}")),
         }

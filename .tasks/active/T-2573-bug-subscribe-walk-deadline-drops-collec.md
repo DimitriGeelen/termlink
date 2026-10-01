@@ -7,7 +7,7 @@ description: >
   silently skips that span. Fix: make deadline resume lossless (return partial messages,
   or set next_cursor to the first uncollected offset). Found in T-2468 verb-2 hunt.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -19,7 +19,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-09T14:52:50Z
-last_update: 2026-10-01T19:24:35Z
+last_update: 2026-10-01T21:41:20Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -100,21 +100,21 @@ autonomously built, per the T-2468 build/file rule (medium / human-semantics).
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Decide the deadline-partial contract shape and record rationale: option (c)
+- [x] Decide the deadline-partial contract shape and record rationale: option (c)
       is the only progress-AND-lossless path — pick between (c1) a flagged partial
       SUCCESS (`{messages, next_cursor, truncated: true}`) vs (c2) keep the error
       but carry `data.messages` — with the trade-off for looping vs single-shot
       consumers.
-- [ ] Implement the chosen shape so a deadline mid-walk delivers the collected
+- [x] Implement the chosen shape so a deadline mid-walk delivers the collected
       messages AND advances `next_cursor` to exactly `last_scanned+1` (lossless,
       no livelock, no double-delivery). Amended 2026-10-01 from `last_collected+1`:
       records scanned but filtered out after the last collected one were correctly
       skipped, and rewinding to them would re-scan a non-matching run forever.
-- [ ] Consumer audit: enumerate every `channel.subscribe` consumer (CLI
+- [x] Consumer audit: enumerate every `channel.subscribe` consumer (CLI
       `channel subscribe`, `channel state`/paging, MCP `termlink_channel_subscribe`,
       any `subscribe_blocking` long-poll caller) and confirm each honors the new
       partial/truncated signal (resumes rather than treating a short page as done).
-- [ ] Load-bearing regression test: a topic large enough to trip a low
+- [x] Load-bearing regression test: a topic large enough to trip a low
       `TERMLINK_WALK_DEADLINE_MS`, subscribed from cursor 0, delivers every record
       across the resumed calls with none skipped (prove by asserting the union of
       pages == full topic).
@@ -127,21 +127,7 @@ autonomously built, per the T-2468 build/file rule (medium / human-semantics).
      ── Prefix routing (T-1811, T-1878): default to [REVIEWER] if Expected is grep-able ──
      If your Expected clause is grep-able / file-exists / structural (a deterministic
      shell check), prefer [REVIEWER] — that AC should be an Agent AC with the reviewer
-     command in `## Decisions
-
-### 2026-10-01 — SQ-11: deadline contract shape (operator ruling)
-- **Chose:** c2 — keep error `WALK_DEADLINE_EXCEEDED` (-32020) and add `data.messages`
-  (the records collected so far) with `data.next_cursor = last_scanned + 1`.
-- **Why:** fails safe both ways — unupgraded clients see exactly today's loud error;
-  upgraded clients get every message and always progress. Codex and GLM-5.3 (T-3304
-  consult) independently asked for this shape. Ruled as part of T-3304 IW-3 option B
-  ("take your recommendation"), where it is step 2 after the retention-gap signal.
-- **Rejected:** a (defer: silent loss stays), b (rewind: livelock on a too-big span),
-  c1 (flagged partial success: silently short pages for single-shot clients).
-- **Context:** not reachable at today's sizes (worst filtered read measured 79 ms vs the
-  20 s deadline); low urgency, ordered behind the gap signal.
-
-## Verification` instead of a Human AC here. Only keep [REVIEW] if
+     command in `## Verification` instead of a Human AC here. Only keep [REVIEW] if
      verification genuinely needs human taste (tone, feel, layout rhythm).
      See CLAUDE.md §AC Classification Guidance for the conversion rule.
 
@@ -197,6 +183,13 @@ autonomously built, per the T-2468 build/file rule (medium / human-semantics).
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+cargo test -p termlink-hub --lib -- subscribe_walk_deadline_pages_union_is_lossless > /tmp/.t2573-hub 2>&1 && grep -q "test result: ok. 1 passed" /tmp/.t2573-hub
+cargo test -p termlink-session --lib -- deadline_partial_page > /tmp/.t2573-sess 2>&1 && grep -q "test result: ok. 1 passed" /tmp/.t2573-sess
+grep -q '"messages": walk.messages' crates/termlink-hub/src/channel.rs
+grep -q "deadline_partial_page" crates/termlink-cli/src/commands/channel.rs
+grep -q "deadline_partial_page" crates/termlink-mcp/src/tools.rs
+grep -q "deadline_partial_page" crates/termlink-session/src/inbox_channel.rs
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -212,6 +205,26 @@ autonomously built, per the T-2468 build/file rule (medium / human-semantics).
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
+
+**Symptom:** a filtered `channel.subscribe` that hit the hub's walk deadline returned
+`WALK_DEADLINE_EXCEEDED` with `data.next_cursor` past the records it had already collected,
+and dropped them; a client following the error's own advice resumed after them.
+
+**Root cause:** the deadline branch (`crates/termlink-hub/src/channel.rs`, T-2355) built the
+error from `walk.records_scanned` / `next_cursor` only; `walk.messages` was reachable only on
+the success path. And every client unwrapped errors with `unwrap_result`, which drops
+`error.data`, so even a hub that sent the messages could not have been heard.
+
+**Why structurally allowed:** the deadline tests (T-2355) checked the resume cursor and the
+walk's collected messages, but never what the RESPONSE carried — the handler composed them
+differently from the walk. Not reachable at today's sizes (worst filtered read 79 ms vs 20 s),
+so nothing in the field fired.
+
+**Prevention:** `subscribe_walk_deadline_pages_union_is_lossless` pins the client contract
+(union of deadline pages == every matching record, once; every call advances);
+`deadline_partial_page_turns_deadline_error_into_page` pins the one shared client parser, so
+callers no longer parse the error themselves.
+
 
 ## Evolution
 
@@ -237,6 +250,20 @@ autonomously built, per the T-2468 build/file rule (medium / human-semantics).
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-10-01 — the resume rule was already right; the loss was in two places
+- **What changed:** `next_cursor` on the deadline path was already last-scanned + 1 — the
+  ruling's resume rule needed no change. The loss was (1) the hub not sending the collected
+  messages and (2) `client::unwrap_result` discarding `error.data`, so no caller could use it.
+- **Plan impact:** added one shared parser `client::deadline_partial_page` instead of teaching
+  each caller the error shape. Consumer audit (AC3): CLI `channel subscribe` (poll loop) —
+  uses it, notes a partial page on stderr with the resume offset; MCP
+  `termlink_channel_subscribe` — returns the page with `deadline_partial: true`; session
+  `inbox_channel` subscribe — uses it. The ~40 MCP analytics loops that page a topic from 0
+  treat any error as a failure (loud, no silent loss) and are left as is. A `--follow` reader
+  that hit the deadline previously retried the same cursor forever; it now progresses.
+- **Triggered:** none.
+
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.
@@ -247,6 +274,19 @@ autonomously built, per the T-2468 build/file rule (medium / human-semantics).
      - **Why:** [rationale]
      - **Rejected:** [alternatives and why not]
 -->
+
+### 2026-10-01 — SQ-11: deadline contract shape (operator ruling)
+- **Chose:** c2 — keep error `WALK_DEADLINE_EXCEEDED` (-32020) and add `data.messages`
+  (the records collected so far) with `data.next_cursor = last_scanned + 1`.
+- **Why:** fails safe both ways — unupgraded clients see exactly today's loud error;
+  upgraded clients get every message and always progress. Codex and GLM-5.3 (T-3304
+  consult) independently asked for this shape. Ruled as part of T-3304 IW-3 option B
+  ("take your recommendation"), where it is step 2 after the retention-gap signal.
+- **Rejected:** a (defer: silent loss stays), b (rewind: livelock on a too-big span),
+  c1 (flagged partial success: silently short pages for single-shot clients).
+- **Context:** not reachable at today's sizes (worst filtered read measured 79 ms vs the
+  20 s deadline); low urgency, ordered behind the gap signal.
+
 
 ## Decision
 
@@ -274,3 +314,6 @@ autonomously built, per the T-2468 build/file rule (medium / human-semantics).
 
 ### 2026-10-01T19:24:35Z — status-update [task-update-agent]
 - **Change:** horizon: later → now
+
+### 2026-10-01T21:41:20Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
