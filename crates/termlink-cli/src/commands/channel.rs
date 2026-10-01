@@ -9395,6 +9395,24 @@ pub(crate) fn tail_slice<T: Clone>(items: &[T], tail: Option<usize>) -> Vec<T> {
     }
 }
 
+/// T-3318: in single-shot `--tail` mode, keep fetching pages while the hub
+/// advances the cursor. An empty page that still advances (a filtered walk or a
+/// deadline-partial page that matched nothing) is not the end; a page whose
+/// `next_cursor` does not move past the requested cursor is.
+pub(crate) fn tail_should_keep_paging(cursor: u64, next_cursor: u64) -> bool {
+    next_cursor > cursor
+}
+
+/// T-3318: drop all but the last `n` buffered entries in place, so a `--tail`
+/// walk over a large topic holds at most `n` rendered envelopes.
+pub(crate) fn trim_to_tail<T>(items: &mut Vec<T>, tail: Option<usize>) {
+    if let Some(n) = tail
+        && items.len() > n
+    {
+        items.drain(..items.len() - n);
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn cmd_channel_subscribe(
     topic: &str,
@@ -9947,6 +9965,17 @@ pub(crate) async fn cmd_channel_subscribe(
             // never single-shots out of the poll floor — otherwise a hard hub-down
             // that degraded us here would exit the process instead of re-probing.
             if tail_mode {
+                // T-3318: "the last N" means the last N of the topic (or of the
+                // filtered stream), not of the first page. Keep only N rendered
+                // entries (bounded memory) and walk on while the hub advances
+                // the cursor; previously one page (--limit, default 100) was
+                // fetched and sliced, so `--tail 3` on a 298-record topic
+                // printed offsets 97..99.
+                trim_to_tail(&mut env_outputs, tail);
+                if tail_should_keep_paging(cursor, next) {
+                    cursor = next;
+                    continue;
+                }
                 let kept = tail_slice(&env_outputs, tail);
                 for chunk in kept {
                     print!("{}", chunk);
@@ -17619,6 +17648,62 @@ mod tests {
         let v = vec![10, 20, 30, 40, 50, 60];
         // Last 4 should be [30, 40, 50, 60] — oldest first.
         assert_eq!(tail_slice(&v, Some(4)), vec![30, 40, 50, 60]);
+    }
+
+    #[test]
+    fn t3318_keep_paging_only_while_cursor_advances() {
+        assert!(tail_should_keep_paging(0, 100));
+        assert!(!tail_should_keep_paging(298, 298)); // end of topic: hub echoes the cursor
+        assert!(!tail_should_keep_paging(5, 3)); // never walk backwards
+    }
+
+    #[test]
+    fn t3318_trim_to_tail_bounds_the_buffer() {
+        let mut v: Vec<u64> = (0..10).collect();
+        trim_to_tail(&mut v, Some(3));
+        assert_eq!(v, vec![7, 8, 9]);
+        trim_to_tail(&mut v, Some(5)); // already shorter: unchanged
+        assert_eq!(v, vec![7, 8, 9]);
+        trim_to_tail(&mut v, None);
+        assert_eq!(v, vec![7, 8, 9]);
+        trim_to_tail(&mut v, Some(0));
+        assert!(v.is_empty());
+    }
+
+    /// T-3318 regression: the subscribe single-shot loop, driven by the same two
+    /// helpers against a fake hub that pages like the real one (limit 100,
+    /// next_cursor = last + 1, echo the cursor at the end). Before the fix only
+    /// the first page was sliced, so `--tail 3` over 250 records gave 97..99.
+    #[test]
+    fn t3318_tail_walks_every_page_and_returns_the_newest() {
+        let total: u64 = 250;
+        let fake_page = |cursor: u64, limit: u64, keep: &dyn Fn(u64) -> bool| -> (Vec<u64>, u64) {
+            let end = (cursor + limit).min(total);
+            let page: Vec<u64> = (cursor..end).filter(|o| keep(*o)).collect();
+            let next = if end > cursor { end } else { cursor };
+            (page, next)
+        };
+        let run = |tail: usize, keep: &dyn Fn(u64) -> bool| -> (Vec<u64>, usize) {
+            let (mut cursor, mut buf, mut max_buf) = (0u64, Vec::new(), 0usize);
+            loop {
+                let (page, next) = fake_page(cursor, 100, keep);
+                buf.extend(page);
+                max_buf = max_buf.max(buf.len());
+                trim_to_tail(&mut buf, Some(tail));
+                if tail_should_keep_paging(cursor, next) {
+                    cursor = next;
+                    continue;
+                }
+                return (tail_slice(&buf, Some(tail)), max_buf);
+            }
+        };
+        let (got, max_buf) = run(3, &|_| true);
+        assert_eq!(got, vec![247, 248, 249]);
+        assert!(max_buf <= 100 + 3, "buffer bounded by one page plus N, got {max_buf}");
+        // A filter (e.g. --conversation-id) yields the last N MATCHING records,
+        // including through pages where nothing matched.
+        let (got, _) = run(2, &|o| o % 70 == 0);
+        assert_eq!(got, vec![140, 210]);
     }
 
     #[test]
