@@ -436,7 +436,12 @@ except Exception: print('')
         rm -f "$CONTEXT_DIR/working/.approval-notified"  # T-694: reset approval notification tracker
         echo "Counter reset."
         ;;
-    status)
+    status|budget)
+        # T-3316 (local, vendor-divergence): `budget` is accepted as an alias for
+        # `status`. A newer upstream /resume skill calls `checkpoint.sh budget`; in
+        # this build that verb did not exist, so every /resume printed a false
+        # "HOOK CRASHED" banner (51 logged). `status` reads this session's own
+        # transcript, so it is the per-process (G-087/T-3127-safe) read anyway.
         ensure_counter
         echo "Tool calls since last commit: $(tr -d '[:space:]' < "$COUNTER_FILE")"
         # T-2377: honor an explicit transcript path (FW_TRANSCRIPT_PATH) for manual
@@ -455,7 +460,10 @@ except Exception: print('')
         fi
         ;;
     *)
-        echo "Usage: checkpoint.sh {post-tool|reset|status}"
+        # T-3316: a wrong verb is a usage error, not a hook malfunction. Drop the
+        # T-821 crash trap so it does not print "HOOK CRASHED" or log a crash.
+        trap - EXIT
+        echo "Usage: checkpoint.sh {post-tool|reset|status|budget}" >&2
         exit 1
         ;;
 esac

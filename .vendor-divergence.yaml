@@ -1006,6 +1006,38 @@ divergences:
 # Deliberately NOT divergence. Recorded so the register does not grow to include
 # everything that touches the vendored tree, which would make it as unreadable as
 # the commit log it replaces.
+  - task: T-3316
+    commit: pending-same-commit
+    commit_note: >
+      Registered in the SAME commit that carries the fix (T-2882 precedent); the
+      checker's match key is the task id parsed from the commit subject.
+    date: 2026-10-02
+    file: .agentic-framework/agents/context/checkpoint.sh
+    status: local-only
+    kind: fix
+    generality: GENERIC
+    symptom: >
+      Every /resume printed "HOOK CRASHED: checkpoint (exit 1)" (51 logged, all
+      checkpoint exit=1). The user-level /resume skill (which shadows the project
+      copy T-3165 fixed) calls `checkpoint.sh budget`. This build dispatches only
+      post-tool|reset|status, so it fell to `*) exit 1`, and the T-821 EXIT crash
+      trap, installed before argument dispatch, reported a caller's wrong argument
+      as a hook malfunction.
+    fix: >
+      `budget` is an alias for `status` (a per-process transcript read). The
+      unknown-verb arm runs `trap - EXIT` and prints usage to stderr, so misuse is
+      rc 1 with no banner and no crash-log line.
+    evidence: >
+      tests/checkpoint-verb-fixtures.sh: 10 assertions green, and the two
+      load-bearing cases reproduce the defect against the pre-fix script
+      extracted from git (T-2814 rule). The *fixtures*.sh name makes the suite a
+      guard-layer member, so a re-vendor that drops either change turns it red.
+    upstream_note: >
+      Upstream already has a real `budget` verb, so the alias is redundant after a
+      re-vendor; keep upstream's. The trap-on-usage-error defect (any exit 1 from a
+      hook-trapped script is labelled a crash, including argument errors) is
+      plausibly still upstream and is worth filing at framework:pickup.
+
 not_divergence:
   - kind: vendor-event
     tasks: [T-2705]
