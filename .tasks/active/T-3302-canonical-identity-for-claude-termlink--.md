@@ -48,6 +48,8 @@ bvp_scores_proposed:
 ## Assumptions
 
 <!-- Key assumptions to test. Register with: fw assumption add "Statement" --task T-XXX -->
+- A1: nothing signs with the per-agent key today (verified: 0 of 126 live registrations).
+- A2: peers resolving by agent id reach 6738 already (T-3061, verified).
 
 ## Open Questions
 
@@ -75,6 +77,7 @@ bvp_scores_proposed:
 ## Exploration Plan
 
 <!-- How will we validate assumptions? Spikes, prototypes, research? Time-box each. -->
+Read-only measurement (done): registration fingerprints, dm topics per key, systemd units, this session's identity env. See docs/reports/T-3302-identity-canonical-brief.md.
 
 ## Technical Constraints
 
@@ -83,6 +86,7 @@ bvp_scores_proposed:
      For hardware APIs (mic, camera, GPS, Bluetooth): access requirements, permissions model.
      For infrastructure: network topology, firewall rules, latency bounds.
      Fill this BEFORE building. Discovering constraints after implementation wastes sessions. -->
+- Peers that copied d1993 topic names keep delivering there, so the d1993 mailbox must stay watched through any migration.
 
 ## Scope Fence
 

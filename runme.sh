@@ -244,8 +244,11 @@ fi
 # replaces the real list, so fixtures never touch a real task.
 # ---------------------------------------------------------------------------
 # T-3284 = go recorded 2026-09-30 (log runme-20260930T185754Z, rc=0)
+# T-3291 = go recorded 2026-09-30 (log runme-20260930T215045Z, rc=0)
 APPROVED_DECISIONS=(
-    "T-3291|go|Operator 2026-09-30: GO on all four slices — S1 reap orphan .sock.data (cleanup deletes all three files + sweep reaps orphans), S2 register --shell exits with its shell, S3 upstream dispatch/claude-fw exit + one-time runme reap of idle zombies, S4 session-leak canary; docs/reports/T-3291-session-lifecycle-leak-rca.md"
+    "T-3302|go|Operator 2026-10-01: GO on option B — claude-termlink's per-agent key (6738c073) is canonical; keep both sidecar mailboxes through the transition, retire d1993 for this agent once its topics are quiet. Honest case: attribution/reliability, not security (any root agent can read every key). docs/reports/T-3302-identity-canonical-brief.md (A -33, B +38, C -12)"
+    "T-3006|no-go|Operator 2026-10-01: NO-GO — C-42's premise falsified by measurement: completions and commits fell together near-proportionally (~6.8x), so activity dropped, not efficiency"
+    "T-3200|no-go|Operator 2026-10-01: NO-GO (dissolve) — the consumer exists: arc-011's sidecar spec, 9 of 10 slices built, S10 proven live 2026-09-22; the remaining defect was one-line-class, not a design gap"
 )
 if [ -n "${RUNME_TEST_APPROVED_DECISIONS+x}" ]; then
     APPROVED_DECISIONS=()
