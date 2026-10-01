@@ -22,7 +22,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-01T23:05:52Z
-last_update: 2026-10-01T23:05:52Z
+last_update: 2026-10-01T23:08:03Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -50,10 +50,10 @@ assumes the same 2-space form.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `decisions.yaml` is re-indented to the writer's form (`  - id:` under `decisions:`), and its parsed content is identical before and after (same list, same values, same order)
-- [ ] A capture on a scratch copy through the real vendored `context.sh add-decision` lands as PD-181, and the file still parses afterwards (this proves the writer and file now agree)
-- [ ] `scripts/check-decisions-yaml-format.sh` fires (rc 1) when a column-0 `- id:` entry or a mixed indent is present, and passes on the current file; it carries a `# guard-layer: source` marker, and `tests/decisions-yaml-format-fixtures.sh` pins it, including the real pre-fix file from git
-- [ ] The vendored writer is NOT patched (G-062); the corrected root cause is filed upstream as new evidence on framework:pickup offset 164 and read back
+- [x] `decisions.yaml` is re-indented to the writer's form (`  - id:` under `decisions:`), and its parsed content is identical before and after (same list, same values, same order)
+- [x] A capture on a scratch copy through the real vendored `context.sh add-decision` lands as PD-181, and the file still parses afterwards (this proves the writer and file now agree)
+- [x] `scripts/check-decisions-yaml-format.sh` fires (rc 1) when a column-0 `- id:` entry or a mixed indent is present, and passes on the current file; it carries a `# guard-layer: source` marker, and `tests/decisions-yaml-format-fixtures.sh` pins it, including the real pre-fix file from git
+- [x] The vendored writer is NOT patched (G-062); the corrected root cause is filed upstream as new evidence on framework:pickup offset 164 and read back
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
