@@ -64,8 +64,8 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Measured during a real version-change rebuild: busy cores over time and which crate(s) rustc was compiling, recorded in the task
-- [ ] Root cause of idle CPUs stated from that data (not assumed), with the options and a recommendation
+- [x] Measured during a real version-change rebuild: busy cores over time and which crate(s) rustc was compiling, recorded in the task
+- [x] Root cause of idle CPUs stated from that data (not assumed), with the options and a recommendation
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -99,6 +99,9 @@ bvp_scores_proposed:
        added to ## Verification. NEVER `... 2>&1 | grep -q ...` — that is the shape the
        Pipefail/SIGPIPE section below forbids, and this line used to prescribe it.
 -->
+
+! grep -q 'profile.local-nolto' Cargo.toml
+grep -q 'measurement 2' .tasks/active/T-3300-builds-leave-cpus-idle---measure-per-cra.md
 
 ## Verification
 
@@ -289,6 +292,16 @@ Root cause of "CPUs idle": stable rustc compiles one crate's front end on one th
      so `fw inception decide` (lib/inception.sh) finds the anchor heading
      without auto-creating; T-1832 added auto-create as fallback for
      legacy tasks lacking this section. -->
+
+### 2026-10-01 — measurement 2: is the LTO tail the bottleneck? No.
+Both profiles were rebuilt back to back on the same version-changing commit (097f3d8d2): **local-fast 170 s, local-nolto (lto=false, opt-level 2) 200 s**. Cold builds: local-nolto 276 s vs local-fast 366 s. Dropping LTO does not shorten the rebuild that matters, so the hypothesis "the ~70 s tail is LTO" is **disproved**. The experimental profile was removed (not left as dead config).
+
+**Conclusion.** A code-change rebuild costs ~3 min, dominated by compiling two large crates (`termlink-mcp`, whose single `tools.rs` is ~13k lines, and `termlink`, the CLI). Stable rustc runs a crate's front end on one thread and these two depend on each other, so they cannot overlap. Code generation already uses all 24 cores. **Options, not taken now:**
+1. Split termlink-mcp/tools.rs and the CLI into several crates, so they compile in parallel and incrementally. This is a large refactor, best weighed against T-2548's planned surface reduction, which would shrink tools.rs anyway.
+2. Nightly rustc's parallel front end (`-Z threads=N`): a toolchain change for the whole project.
+3. Install mold: it shaves link time only (seconds, not minutes).
+4. Already done (T-3292): non-code commits skip the build entirely, which covers most runme runs.
+GPU: not applicable; rustc/LLVM have no GPU code path.
 
 ## Updates
 
