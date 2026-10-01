@@ -64,6 +64,30 @@ on the last record examined"). SQ-11 is a slice of IW-3, not blocked by IW-1.
 3. IW-3 read contract (includes SQ-11), time-range, conversation_id index.
 4. IW-4 topic metadata, discovery, read telemetry.
 
+## IW-4 consultation (2026-10-01)
+
+Brief: `T-3304-consult/iw4-brief.md` (facts, research summary, options A-D). Research:
+`T-3304-consult/research-kafka-pulsar.md`, `research-nats-rabbitmq-redis-mqtt-matrix.md`
+(27 source links). Five consultants, each from an empty folder (no access to the others):
+Codex (`iw4-codex.md`), GLM-5.3 (`iw4-glm.md`), qwen3:14b (`iw4-qwen.md`), and — added at the
+operator's prompt — gpt-oss:20b (`iw4-gptoss.md`) and gemma4 (`iw4-gemma4.md`), local via Ollama.
+
+| Question | Codex | GLM-5.3 | qwen3 | gpt-oss | gemma4 |
+|---|---|---|---|---|---|
+| Option | C | C, sequenced (tracking first) | C | C | C |
+| Owner | required, accountable identity | required, validated identity | optional, encouraged | warn, auto-infer | from identity |
+| Purpose | required on explicit create | **never blocks**; marked incomplete | optional | warn + nightly audit | structured type, not free text |
+| Read tracking | sound; "last fetch" not "last read"; empty vs data fetch | sound; fetch != read | sound | sound | sound |
+| Dead-topic N | 30 d, flag | 30 d (>= 2x retention), flag, per-topic override | 30 d, flag | 30 d, flag | 14 d flag, auto-delete 90 d |
+| Key catch | rule misses **written-but-unread** topics (ring20 probe) | ensure-topic must not count as activity; track **writers** | — | flag "no reads after last write" | — |
+| Wildcards | later | later (would mask typos) | later | later | later |
+| Missed | retention-gap signal (= IW-3 step 1) | writer governance | access control | access control | audit trail |
+
+Convergence: 5/5 C; 5/5 no server-side cursors; 5/5 flag rather than delete (gemma4 alone
+adds deletion at 90 d); 5/5 wildcards later. 4/5 against a hard block on purpose.
+Two catches change the design: Codex's written-but-unread class (the ring20 probe would never
+trip "no read AND no write") and GLM's "an ensure/metadata touch is not activity".
+
 ## Corrections (2026-10-01, IW-2 walk-through)
 
 - **Codex answer on file is the second run.** The first-batch Codex run (discarded with the
@@ -138,3 +162,11 @@ How the question arose, during the SQ-11 (T-2573) walk-through, 2026-10-01:
 12. **Operator ruling on IW-3:** "take your recommendation … vote for B" → option B,
     ordered gap signal → SQ-11 c2 → page end reasons → time-range. SQ-11 recorded as c2
     on T-2573 as part of that recommendation.
+13. IW-4 presented (A-D, recommending C). **Operator:** what exactly is the problem, and how
+    do Kafka and other open-source systems solve it? → two research agents (Kafka/Pulsar/
+    catalogs; NATS/RabbitMQ/Redis/MQTT/Matrix/Pub/Sub), findings saved with sources.
+14. **Operator:** consult the three harnesses; then noted other local models → gpt-oss:20b
+    and gemma4 added (the first `ollama list` had been truncated to 12 lines, hiding them).
+15. IW-4 re-presented as B / C / C-prime after the consultation. **Operator ruling:**
+    "let's go with C as suggested and recommended" → C-prime (recorded in T-3304 § Decisions).
+    All IW-1..IW-5 now answered; inception go/no-go next.

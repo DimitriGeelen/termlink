@@ -88,9 +88,9 @@ Research artifact: `docs/reports/T-3304-hub-storage-model.md`.
   disposition: answered
   rationale: Operator ruled option B on 2026-10-01 — keep the cursor model; add, in order, the retention-gap signal, the SQ-11 deadline fix (c2), page end reasons, then hub-side time-range reads on hub receive time. No query language, no cross-topic queries, no new indexes now (worst filtered read measured 79 ms). Evidence: report § IW-3.
 - **IW-4: How should agents discover and select the topics relevant to them?**
-  confidence: 0
-  disposition:
-  rationale:
+  confidence: 3
+  disposition: answered
+  rationale: Operator ruled C-prime on 2026-10-01 ("C, as suggested and recommended") after a research round (Kafka, Pulsar, NATS, RabbitMQ, Redis, MQTT, Matrix, Pub/Sub; 27 sources) and five consultants (Codex, GLM-5.3, qwen3, gpt-oss:20b, gemma4) — 5/5 chose C; two catches reshaped it. Evidence: report § IW-4 consultation.
 - **IW-5: Does the answer change the SQ-11 (T-2573) fix choice?**
   confidence: 3
   disposition: answered
@@ -194,6 +194,12 @@ No evidence yet; operator asked to consult three non-Anthropic agents (Codex, GL
 - **Why:** (1) is silent loss today and IW-2 makes sweeping routine on every hub; (2) both Codex and GLM asked for exactly this; (4) serves IW-1 — a hub authoritative for a window should answer questions about the window; the index already exists.
 - **Rejected:** A without time-range (leaves "what happened while I was down" to client-side download-and-filter); C extra indexes now (worst filtered read measured 79 ms; add only when measured); D nothing (silent gaps become routine after IW-2).
 - **Never (3 of 3 reviewers):** a query language, cross-topic queries or joins.
+
+### 2026-10-01 — IW-4: topic metadata, discovery, "is anyone reading?" (operator ruling)
+- **Chose:** C-prime — (1) a hub-side record per topic, outside the log (retention cannot erase it): owner taken from the creator's signed identity, optional purpose/description shown as "incomplete" when missing, last writer + write rate, per-reader last fetch and last fetch that returned messages (coalesced, not written per poll); (2) never refuse creating a topic; `--ensure-topic` takes the same path; existing topics get an owner only where derivable, else "owner unknown"; (3) two review flags, never deletion — **idle** (no posts and no fetches for 30 d) and **unread** (posts continue, no fetch for 30 d); ensure/metadata touches are not activity; per-topic override of N; (4) build order: tracking + flags first, catalog second; (5) deferred: wildcard subscriptions, relevance queries, tags.
+- **Why:** matches every researched system (metadata outside the log; reader activity tracked server-side); catches the real incident (the ring20 probe is "unread", which a no-read-and-no-write rule never fires on — Codex); owner from identity cannot be junk, and never blocking creation avoids routing-around (GLM; 4 of 5 against a hard purpose requirement).
+- **Rejected:** A nothing; B optional catalog (optional is how 12/113 happened); C original (required free-text purpose becomes junk and blocks writes; its single dead-topic rule misses the ring20 case); D relevance queries + wildcards now (5/5 said later; no measured need).
+- **Dissent recorded:** gemma4 wanted auto-deletion at 90 d (rejected: Pulsar's auto-delete wipes topic settings; four consultants against). qwen3 and gpt-oss raised access control — out of scope here; belongs to T-2422 (per-agent authorization, revisit ripe).
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.

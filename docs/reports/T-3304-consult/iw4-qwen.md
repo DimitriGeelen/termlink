@@ -1,0 +1,17 @@
+1. **Which option would you choose, and the strongest argument against your choice?**  
+I would choose **Option C**, as it addresses the core issues of metadata management, discovery, and dead-topic detection without overcomplicating the system. The strongest argument against it is that introducing a "required owner + purpose" may be too burdensome for users, especially if they are not accustomed to formal metadata management. However, this is mitigated by the auto-filling of known patterns and the refinement to track per-reader last-fetch times without server-side cursors, which strikes a balance between usability and oversight.
+
+2. **Is "required owner + purpose" the right enforcement, or will it be filled with junk? What would you do instead?**  
+While the intent is noble, requiring owner and purpose may lead to **junk data** if not enforced with care. Users might fill in placeholders or leave fields incomplete. A better approach would be to **make owner and purpose optional but highly encouraged**, with automated tools or prompts that guide users toward meaningful descriptions. Additionally, a **lightweight validation system** could flag incomplete or nonsensical entries for review by the owner or system administrators.
+
+3. **Per-reader last-fetch tracking without server-side cursors: sound, or should the hub own cursors (consumer-group style)? Trade-offs.**  
+This approach is **sound** for a system like TermLink where the hub is not responsible for tracking reader positions. It avoids the overhead of maintaining server-side cursors, which is especially valuable in a small-scale, agent-driven environment. However, it relies on **client-side fidelity**—if clients do not report fetch times accurately, the system may misrepresent activity. A trade-off is that while it is lightweight and decentralized, it may lack the precision of a hub-managed model like Kafka’s consumer groups.
+
+4. **The dead-topic rule: what N, flag vs auto-delete, and what should count as "activity"?**  
+A reasonable **N** would be **30 days**, allowing for occasional inactivity without prematurely flagging a topic. The system should **flag** rather than auto-delete, giving operators the opportunity to review and decide. "Activity" should be defined as **either a write or a read within the N-day window**, ensuring that topics are not flagged simply because no one is reading them, but still have ongoing writes.
+
+5. **Wildcard subscriptions / hierarchical names: now, later, or never for a fleet of this size?**  
+For a **fleet of this size**, wildcard subscriptions and hierarchical names can be **deferred** until there is a demonstrated need. Implementing them now would introduce unnecessary complexity and overhead. However, **designing the system with extensibility in mind** (e.g., by reserving naming conventions or allowing future integration) ensures that they can be added later without major disruption.
+
+6. **One thing this framing misses.**  
+The framing does not consider **security and access control** in the context of metadata and discovery. For example, if topics are to be discovered by tags or owners, there is a risk of **exposing sensitive topics** to unauthorized readers. The system should include **fine-grained access control** and **metadata visibility policies**, ensuring that only authorized entities can see or interact with certain topics. This is especially important if the hub is used across multiple projects or teams with different access requirements.

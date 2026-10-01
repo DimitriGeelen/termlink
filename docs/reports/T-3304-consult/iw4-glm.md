@@ -1,0 +1,25 @@
+1. **Choice, and the strongest argument against it**
+
+C, but not as a package — sequenced. Ship the read-tracking and dead-topic flagging first (pure hub-side, no workflow change), the metadata requirement second. Rationale: the only measured incident (health-probe at 2,777 records, unknown readership) is fixed by the two refinements alone; and the catalog's value over B is exactly that optional fields won't be filled — at 12/113 current adoption, an optional catalog is a dead catalog. Every system in the research sets metadata at creation because retrofitting fails.
+
+Strongest counter: C leaves auto-creation in place, so most topics will get pattern-generated boilerplate metadata with near-zero information content, while the "required" fields bite mainly humans creating bespoke topics. That's a governance tax producing compliance theater — and the actual sprawl lever (auto-create, the Kafka mistake) remains untouched. If the catalog fills with junk, C is just B with friction. The mitigation is Q2: make the boilerplate machine-true rather than human-supplied.
+
+2. **Required owner + purpose**
+
+Split them. Owner: require, and validate against a known identity (agent roster or human handle). An owner's only job is routing a question before deletion; validation makes junk structurally impossible and makes flags actionable. Purpose: do not block on it. Enforce by visibility, not gate — creation without a purpose succeeds, the topic is marked incomplete, and `list` shows that until someone fills it. Blocking a write path in a message bus is the worst available outcome; the Kafka lesson is that people route around friction (auto-create stayed on because turning it off broke things). On backfill: owner-by-pattern is safe (it's derivable from the name); pattern-inferred *purpose* is plausible-but-sometimes-wrong. Backfill owner mechanically, leave purpose blank-and-flagged for non-pattern topics, and let the flag apply pressure. One line: make junk expensive (validated owner), honesty cheap (pattern-true purpose), and never reject a creation.
+
+3. **Last-fetch vs server-side cursors**
+
+Sound, and correctly scoped. Consumer groups buy exact lag, delivery semantics, and rebalancing — none of which this fleet needs (it's observation, not a work queue). Server-side cursors would reverse an already-made design decision, add a commit protocol and reset semantics, make reader restarts the hub's problem, and raise an unanswered topology question (readers on a few machines — whose cursor store serves a cross-hub reader?). Two honest weaknesses: last-fetch measures polling, not reading (fetch-and-discard looks alive), and on a quiet topic, a recent fetch proves little. If real lag is ever needed, there's a cheap escape hatch: readers echo their cursor position in fetch requests as telemetry — the hub learns lag without owning semantics. Adopt only on need.
+
+4. **The dead-topic rule**
+
+Flag only, never auto-delete — and here the framing is right, but for a sharper reason than "caution": retention already bounds a dead topic's cost to one table row, while auto-delete plus auto-creation produces churn, not cleanup (delete `dm:x`, the next message silently re-creates it with pattern metadata and no history). N: at least 2× retention — 30 days default, with per-topic override stored in the same metadata table (an owner can declare "monthly, N=90"). Critical detail given `--ensure-topic`: activity must count only message appends and actual fetches, never metadata touches — otherwise every agent's boot-time ensure marks every topic alive forever and the rule is dead on arrival. The flag should present evidence (last write, last fetch, distinct readers ever, per-reader recency) and let the human decide; known-quiet patterns like `agent-presence` should be annotated as expected-quiet via pattern metadata.
+
+5. **Wildcard subscriptions**
+
+Later — and not because of fleet size (113 topics is nothing) but because there's no demonstrated consumer pain, and it's the costliest item: wildcard reads force cross-topic merging over per-topic offsets, effectively rebuilding cursor complexity hub-side. Wildcards would also *mask* creation typos by matching them, hiding sprawl instead of surfacing it. The cheap prerequisite now: naming discipline. `dm:`, `inbox:`, `state:` already are a hierarchy — keep that convention strict so wildcards can be added later without renames. Build trigger: an actual agent need, e.g. cross-topic reactions or "everything about project X."
+
+6. **What the framing misses**
+
+It is entirely read-side ("is anyone reading?"), but the one measured incident is equally a writer-governance failure: something *wrote* 2,777 probe records nobody read. The hub sees every append — recording last-writer identity and write rate per topic is free, answers "who do I ask about this noisy topic," doubles as drift detection (a catalog owner who never appears as reader or writer is stale metadata), and would have flagged health-probe at record ~50 instead of 2,777. Track writers with the same energy as readers.
