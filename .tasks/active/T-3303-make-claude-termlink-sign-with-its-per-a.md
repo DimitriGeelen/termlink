@@ -29,8 +29,8 @@ related_tasks: []
 created: 2026-10-01T13:27:27Z
 last_update: 2026-10-01T13:58:17Z
 date_finished:
-# revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
-# revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
+revisit_at: 2026-10-15
+revisit_evidence_needed: d1993 dm topics for claude-termlink quiet 14 days -> rename 6738 to the claude-termlink sidecar entry, drop the d1993 line
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
 # bvp_scores:                     # confirmed per-driver scores 0-5, set by `fw bvp confirm` (T-1924).
 #                                 # Sovereignty boundary — only set after human or agent confirmation.
@@ -65,8 +65,8 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] The place where this project's Claude sessions get their environment is identified (claude-fw launcher, `.claude/settings.json` `env`, or the fleet cockpit unit), and `TERMLINK_AGENT_ID=claude-termlink` is set there; a new session reports `termlink agent identity --resolve --no-create` = `6738c073bbcc587a`, `source: per_agent`
-- [ ] Both sidecar mailboxes stay watched; a dated rule records when d1993 is retired for this agent (its dm topics quiet for N days), and how to rename 6738 to the `claude-termlink` entry
+- [x] The place where this project's Claude sessions get their environment is identified (claude-fw launcher, `.claude/settings.json` `env`, or the fleet cockpit unit), and `TERMLINK_AGENT_ID=claude-termlink` is set there; a new session reports `termlink agent identity --resolve --no-create` = `6738c073bbcc587a`, `source: per_agent`
+- [x] Both sidecar mailboxes stay watched; a dated rule records when d1993 is retired for this agent (its dm topics quiet for N days), and how to rename 6738 to the `claude-termlink` entry
 - [ ] pen's owner is told (DM) that pen signs with the shared host key, with the T-3302 brief as context — their decision, not ours
 
 
@@ -229,6 +229,12 @@ bvp_scores_proposed:
 -->
 
 ## Decisions
+
+### 2026-10-01 — where the identity is set, and the mailbox retirement rule
+- **Where:** `.claude/settings.local.json` `env.TERMLINK_AGENT_ID=claude-termlink`, set by runme action 8 (log runme-20261001T150324Z, rc=0, verified: other keys unchanged; resolution 6738c073bbcc587a, source per_agent). The hook-registering `.claude/settings.json` is B-005-protected and was not touched. Applies to NEW sessions.
+- **Retirement rule (AC2):** both sidecar mailboxes stay in `.context/cron/notify-sidecar-agents.conf` (`claude-termlink` d1993 and `claude-termlink-alt` 6738). On or after **2026-10-15** (`revisit_at`), if no new posts landed on this agent's d1993 dm topics in the previous 14 days (`termlink channel list --json`, per-topic latest ts), rename the 6738 line to `claude-termlink` and remove the d1993 line, in one commit. If d1993 is still in use, re-date by 14 days and name the peer still using it.
+- **AC3 (tell pen's owner) is open:** pen signs with the shared host key too. Its owner and contact route need confirming with the operator before any message is sent, because a DM to the shared fingerprint could land in this host's own mailboxes.
+
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
