@@ -55,7 +55,26 @@ The robust path is to read `sender_id` from the local hub's view
 of any topic this host has posted to. `channel info` is O(1) and
 sufficient — no envelope fetch required.
 
-**Primary path:**
+**Primary path (T-3303):** the configured identity, read-only. Never use plain
+`--resolve`: it creates a key when none exists.
+
+```
+termlink agent identity --resolve --no-create --json | jq -r '.fingerprint // empty'
+```
+
+This honours `TERMLINK_AGENT_ID` (set to `claude-termlink` for this project's
+sessions by T-3303), so it returns the agent's OWN key (6738c073…). The old
+heuristic below returned the shared host key (d1993…, the busiest presence
+sender) even after the switch, so mail sent to `claude-termlink` by name, which
+lands in the 6738 mailbox, was never shown.
+
+**Transition (until T-3303's d1993 retirement, revisit 2026-10-15):** ALSO walk
+`dm:<host-fp>:*` for the shared host key, which still carries this agent's older
+threads. Use the host fingerprint
+`env -u TERMLINK_AGENT_ID termlink agent identity --resolve --no-create --json | jq -r .fingerprint`,
+and label each topic with the identity it was found under.
+
+**Legacy heuristic** (only if the resolver exits 3 / no_identity):
 
 ```
 termlink channel info agent-presence --json | jq -r '.senders[0].sender_id // empty'
