@@ -27,6 +27,32 @@ Status: awaiting the operator's decision. Recommendation: **B, per-agent key can
   - Do: the status quo. Mail to either is delivered.
   - Cost: the attribution problem in A persists, and so does the confusing dual mailbox.
 
+## Scoring against the joint value drivers (operator request, 2026-10-01)
+
+Each option scores −2..+2 per driver, multiplied by the driver's weight. Drivers come from `policy/value-drivers.yaml` (framework and TermLink). F1–F3 (prompt / context / component fabric) are not affected by this choice and are left out.
+
+| Driver (weight) | A host key | B per-agent | C both | Why |
+|---|---|---|---|---|
+| D1 Antifragility (9) | −1 | +1 | 0 | One shared key = one blast radius: rotate or lose it and every agent on the host changes identity at once. Per-agent keys contain that. |
+| D2 Reliability (7) | −2 | +2 | −1 | Auditable attribution. Under A, acks and receipts from pen and 126 sessions are indistinguishable (the SQ-19 class). Under C the ambiguity remains and the mail splits across two boxes. |
+| D3 Usability (5) | +1 | 0 | −1 | A is simplest. B has a transition with two mailboxes, then is simple. C stays confusing indefinitely. |
+| D4 Portability (3) | 0 | 0 | 0 | All use the existing env/key mechanism. |
+| F-RECALL (6) | −1 | +1 | 0 | Per-agent sender_id makes history (recent-dm, ack-history, claims) answerable per agent. |
+| F-AUTONOMY (4) | −1 | +1 | 0 | Unattended wake/inject routes by fingerprint. Under A, pen's injector and ours watch the same identity. |
+| F-ORCH (5) | −1 | +1 | 0 | Orchestration (find-idle, claim, handoff) can trust who signed. |
+| **Weighted total** | **−33** | **+38** | **−12** | Indicative, not precise. The ordering is robust; the magnitudes are judgement. |
+
+### Steelman / strawman
+
+- **A, steelman.** On one host, every agent runs as root and can read every key in `~/.termlink/identities/`. So per-agent keys give **no protection against a malicious co-resident agent**: "forgeable" is true either way within the host. A has zero migration, keeps the 11 live threads where they are, and adds no new moving parts right after T-3291 showed what moving parts cost.
+- **A, strawman.** "It works, so don't touch it." This ignores that it is already *not* working as intended: pen's acks count as ours, and an ack-lag check class had to be demoted because of it.
+- **B, steelman.** It removes a whole class of misattribution (acks, receipts, claims, presence) by construction rather than by heuristics. It matches what the systemd agents already do and why. The delivery rail already watches the per-agent mailbox, so most of the plumbing exists. It scales to many agents per host and allows per-agent rotation and revocation.
+- **B, strawman.** "Per-agent keys make us secure." False, per A's steelman: B buys **accidental-misattribution prevention and observability, not security against a hostile local process**. If that is the goal, B is not enough; it would need per-agent OS users or a key agent.
+- **C, steelman.** Nothing breaks, nothing to build, and the sidecar delivers to both. Decide later, when a concrete incident shows which way to go.
+- **C, strawman.** Indecision as policy. T-3061 set up the dual watch explicitly as *temporary* pending this decision, and keeping it permanently is the confusing state A and B each try to end.
+
+**Net:** B, on the honest grounds of reliability and attribution clarity, not security. If security against co-resident agents ever becomes a goal, that is a separate, larger decision (per-agent OS users).
+
 ## What GO on B would authorise (build tasks, not done here)
 
 1. **Find where this project's Claude sessions get their environment** (claude-fw launcher / `.claude/settings.json` `env`) and set `TERMLINK_AGENT_ID=claude-termlink` there. Verify with `termlink agent identity --resolve --no-create` that it prints `6738...` and `source: per_agent`.
