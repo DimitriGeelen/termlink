@@ -1,0 +1,102 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2573: BUG: subscribe walk-deadline drops collected messages, resume skips them
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-01T21:58:38Z
+# ============================================================================
+
+task_id: T-2573
+task_name: "BUG: subscribe walk-deadline drops collected messages, resume skips them"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-09T14:52:50Z
+completed: 2026-10-01T21:58:17Z
+duration_days: 53
+updates_count: 5
+first_commit: 2026-08-09T16:56:31+02:00
+last_commit: 2026-10-01T23:58:11+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  FILE subscribe walk-deadline data-loss — wire-contract fix needs consumer audit (analysis + options + ACs). mark filed backlog (captured, horizon later). SQ-11 c2 — a subscribe walk that hits the hub deadline now returns the collected messages (data.messages) with data.next_cursor = last scanned + 1; shared client::deadline_partial_page turns it into a page for CLI subscribe (stderr note with resume offset; --follow no longer retries the same cursor forever), MCP termlink_channel_subscribe (deadline_partial: true) and inbox delivery. Regression: union of deadline pages == every matching record once, every call advances. Also repaired the task file (an earlier edit had put the SQ-11 decision inside a template comment)
+
+# Key outcomes
+outcomes:
+  - 'Decide the deadline-partial contract shape and record rationale: option (c)'
+  - 'Implement the chosen shape so a deadline mid-walk delivers the collected'
+  - 'Consumer audit: enumerate every `channel.subscribe` consumer (CLI'
+  - 'Load-bearing regression test: a topic large enough to trip a low'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'FILE subscribe walk-deadline data-loss — wire-contract fix needs consumer audit (analysis + options + ACs)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-10-01 — SQ-11: deadline contract shape (operator ruling)'
+    chose: 'c2 — keep error `WALK_DEADLINE_EXCEEDED` (-32020) and add `data.messages` (the records collected so far) with `data.next_cursor = last_scanned + 1`.'
+    rationale: 'fails safe both ways — unupgraded clients see exactly today''s loud error; upgraded clients get every message and always progress. Codex and GLM-5.3 (T-3304 consult) independently asked for this shape. Ruled as part of T-3304 IW-3 option B ("take your recommendation"), where it is step 2 after the retention-gap signal.'
+    alternatives_rejected: ['a (defer: silent loss stays), b (rewind: livelock on a too-big span), c1 (flagged partial success: silently short pages for single-shot clients).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/2026-08-09.yaml'
+  - '.context/episodic/T-2572.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/feedback-stream.yaml'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-hub/src/channel.rs'
+  - 'crates/termlink-mcp/src/tools.rs'
+  - 'crates/termlink-session/src/client.rs'
+  - 'crates/termlink-session/src/inbox_channel.rs'
+  - '.tasks/active/T-2573-bug-subscribe-walk-deadline-drops-collec.md'
+  - '.tasks/completed/T-2572-bug-future-offset-claimack-poisons-subsc.md'
+  - '.termlink-task'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-08-09T16:56:31'
+    action: 'T-2573: FILE subscribe walk-deadline data-loss — wire-contract fix needs consumer audit (analysis + options + ACs)'
+  - time: '2026-08-09T16:56:42'
+    action: 'T-2573: mark filed backlog (captured, horizon later)'
+  - time: '2026-10-01T23:58:11'
+    action: 'T-2573: SQ-11 c2 — a subscribe walk that hits the hub deadline now returns the collected messages (data.messages) with data.next_cursor = last scanned + 1; shared client::deadline_partial_page turns it into a page for CLI subscribe (stderr note with resume offset; --follow no longer retries the same cursor forever), MCP termlink_channel_subscribe (deadline_partial: true) and inbox delivery. Regression: union of deadline pages == every matching record once, every call advances. Also repaired the task file (an earlier edit had put the SQ-11 decision inside a template comment)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 76745 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-012]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 76745
+  commits: 3
+  files_changed: 18
+  lines_added: 604
+  lines_removed: 60
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2573-bug-subscribe-walk-deadline-drops-collec.md
+generated_by: context-agent-hybrid

@@ -1302,3 +1302,10 @@ decisions:
   date: 2026-10-01
   task: T-3304
   rationale: "Auto-captured from task file on completion"
+
+- id: PD-180
+  decision: "c2 — keep error `WALK_DEADLINE_EXCEEDED` (-32020) and add `data.messages`"
+  scope: project
+  date: 2026-10-01
+  task: T-2573
+  rationale: "Auto-captured from task file on completion"

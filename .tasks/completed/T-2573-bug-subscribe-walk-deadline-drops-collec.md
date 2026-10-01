@@ -7,20 +7,20 @@ description: >
   silently skips that span. Fix: make deadline resume lossless (return partial messages,
   or set next_cursor to the first uncollected offset). Found in T-2468 verb-2 hunt.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-012]
-components: []
+components: [crates/termlink-cli/src/commands/channel.rs, crates/termlink-hub/src/channel.rs, crates/termlink-mcp/src/tools.rs, crates/termlink-session/src/client.rs, crates/termlink-session/src/inbox_channel.rs, runme.sh, scripts/run-procasfit-round.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-09T14:52:50Z
-last_update: 2026-10-01T21:41:20Z
-date_finished:
+last_update: 2026-10-01T21:58:17Z
+date_finished: 2026-10-01T21:58:17Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -317,3 +317,16 @@ callers no longer parse the error themselves.
 
 ### 2026-10-01T21:41:20Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-485e31cd
+- **Timestamp:** 2026-10-01T21:58:30Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** none
+
+### 2026-10-01T21:58:17Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
