@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3318: channel subscribe --tail N shows the last N of the FIRST page, not of the topic
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-01T23:16:44Z
+# ============================================================================
+
+task_id: T-3318
+task_name: "channel subscribe --tail N shows the last N of the FIRST page, not of the topic"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-01T23:09:47Z
+completed: 2026-10-01T23:15:35Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-10-02T01:15:34+02:00
+last_commit: 2026-10-02T01:15:34+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  channel subscribe --tail N now returns the last N of the topic, not of the first page. Single-shot mode fetched one page (--limit, default 100) from cursor 0 and sliced it, so --tail 3 on framework:pickup (298 records) printed 97..99 as if newest. Tail mode now walks while the hub advances next_cursor, keeping only N rendered entries (bounded memory); filters still mean last N matching. Tests: 3 new incl. a fake-hub 250-record multi-page walk (filtered + unfiltered); CLI suite 1175+180+3 pass, clippy rc 0 with no new warnings; live --tail 3 now 295..297 / 147..149.
+
+# Key outcomes
+outcomes:
+  - 'With `--tail N` and no `--follow`, subscribe pages until the hub returns an empty page or the cursor stops advancing, then prints the last N collected entries (text and `--json`)'
+  - 'Memory stays bounded at N rendered entries regardless of topic size (trimmed after each page)'
+  - 'Filters still apply: `--tail` with `--conversation-id`/sender filters returns the last N MATCHING records'
+  - 'A pure, unit-tested helper decides "keep paging" (page non-empty AND next_cursor advanced), and an integration-style test with a mocked multi-page walk proves `--tail 3` over 250 records yields offsets 247..249'
+  - '`cargo test -p termlink` (CLI crate) passes, and the live `--tail 3` on framework:pickup returns its newest 3 offsets'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - '.tasks/active/T-3318-channel-subscribe---tail-n-shows-the-las.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-02T01:15:34'
+    action: 'T-3318: channel subscribe --tail N now returns the last N of the topic, not of the first page. Single-shot mode fetched one page (--limit, default 100) from cursor 0 and sliced it, so --tail 3 on framework:pickup (298 records) printed 97..99 as if newest. Tail mode now walks while the hub advances next_cursor, keeping only N rendered entries (bounded memory); filters still mean last N matching. Tests: 3 new incl. a fake-hub 250-record multi-page walk (filtered + unfiltered); CLI suite 1175+180+3 pass, clippy rc 0 with no new warnings; live --tail 3 now 295..297 / 147..149.'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 2
+  lines_added: 385
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3318-channel-subscribe---tail-n-shows-the-las.md
+generated_by: context-agent-hybrid
