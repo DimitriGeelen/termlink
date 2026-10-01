@@ -138,12 +138,22 @@ pub async fn sweep(sessions_dir: &Path) {
     // T-3293: reap orphaned data-plane sockets on EVERY sweep — before the
     // early return below, which fires whenever no session died this cycle and
     // would otherwise leave orphans from earlier deaths untouched forever.
-    let reaped = liveness::reap_orphan_data_sockets(sessions_dir, ORPHAN_DATA_SOCKET_GRACE);
-    if reaped > 0 {
+    let reap = liveness::reap_orphan_data_sockets(sessions_dir, ORPHAN_DATA_SOCKET_GRACE);
+    if reap.removed > 0 {
         tracing::info!(
-            reaped,
+            reaped = reap.removed,
             dir = %sessions_dir.display(),
             "Supervisor: reaped orphaned data-plane sockets (<id>.sock.data without a registration)"
+        );
+    }
+    if reap.failed > 0 {
+        // T-3299: say it. Under systemd ProtectSystem=strict a dir outside
+        // ReadWritePaths is read-only, and every delete there failed silently.
+        tracing::warn!(
+            failed = reap.failed,
+            dir = %sessions_dir.display(),
+            first_error = reap.first_error.as_deref().unwrap_or("?"),
+            "Supervisor: could NOT remove orphaned data-plane sockets — is this dir writable by the hub (systemd ReadWritePaths)?"
         );
     }
 

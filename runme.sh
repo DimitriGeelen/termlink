@@ -32,14 +32,30 @@ cd "$PROJECT_ROOT" || { echo "runme: cannot cd to $PROJECT_ROOT" >&2; exit 2; }
 # Test seam (PL-213): fixtures point the installs at a scratch dir so this script's
 # own logic — install, idempotence, tamper-detection, verification — can be proven
 # without writing to real host state. Default is the real path.
-CRON_DIR="${RUNME_CRON_DIR:-/etc/cron.d}"
+# T-3299: every default below that touches REAL host state goes through `seam`.
+# Twice in one session a test reached a real default because its seam was
+# missing — a hub test reaped ~10k real files (T-3293), and a fixture run
+# overwrote /etc/systemd/system/termlink-hub.service (T-3299). Under
+# RUNME_FIXTURE=1 (exported by tests/runme-fixtures.sh) reaching a real default
+# ABORTS the run (exit 2) before anything is touched, so a new action is
+# protected even when its fixture seam was forgotten.
+seam() {  # seam <VAR> <RUNME_SEAM> <real default>
+    if [ -n "${!2+x}" ]; then printf -v "$1" '%s' "${!2}"; return; fi
+    if [ "${RUNME_FIXTURE:-0}" = "1" ]; then
+        echo "runme: FIXTURE run reached the REAL default for $2 ($3) — refusing before touching host state (T-3299)" >&2
+        exit 2
+    fi
+    printf -v "$1" '%s' "$3"
+}
+
+seam CRON_DIR RUNME_CRON_DIR "/etc/cron.d"
 # Keep the drift checker pointed at the same place, or the verification step would
 # arbitrate against a directory this run never touched.
 [ -n "${RUNME_CRON_DIR:-}" ] && export CRON_DRIFT_INSTALLED_DIR="$RUNME_CRON_DIR"
 # T-3272 seams: the closure action reads/writes task files through these, so the
 # fixtures can prove it against a scratch tree and a fake fw — never real tasks.
-TASKS_DIR="${RUNME_TASKS_DIR:-$PROJECT_ROOT/.tasks}"
-FW="${RUNME_FW:-$PROJECT_ROOT/.agentic-framework/bin/fw}"
+seam TASKS_DIR RUNME_TASKS_DIR "$PROJECT_ROOT/.tasks"
+seam FW RUNME_FW "$PROJECT_ROOT/.agentic-framework/bin/fw"
 
 RUNME_ARGS="$*"   # captured before parsing shifts them away (logged, T-3273)
 DRY_RUN=0
@@ -297,7 +313,7 @@ fi
 # (ONE install path, as before) or RUNME_TERMLINK_DESTS (space-separated list,
 # first = always-install, rest = refresh-if-present); RUNME_SKIP_BUILD=1.
 # ---------------------------------------------------------------------------
-TL_SRC="${RUNME_TERMLINK_SRC:-$PROJECT_ROOT/target/local-fast/termlink}"
+seam TL_SRC RUNME_TERMLINK_SRC "$PROJECT_ROOT/target/local-fast/termlink"
 
 # --- Cached builds (T-3292) -------------------------------------------------
 # Builds dominated runme (11-32 min per run). Two causes, both fixed here:
@@ -312,9 +328,9 @@ TL_SRC="${RUNME_TERMLINK_SRC:-$PROJECT_ROOT/target/local-fast/termlink}"
 #    `release`.
 # Seams (fixtures only): RUNME_CARGO, RUNME_BUILD_REPO, RUNME_BUILD_STAMP_DIR;
 # RUNME_SKIP_BUILD=1 skips building entirely and treats outputs as current.
-BUILD_STAMP_DIR="${RUNME_BUILD_STAMP_DIR:-$PROJECT_ROOT/.context/working/runme-build-stamps}"
-BUILD_REPO="${RUNME_BUILD_REPO:-$PROJECT_ROOT}"
-CARGO="${RUNME_CARGO:-$(command -v cargo || echo "${HOME:-/root}/.cargo/bin/cargo")}"
+seam BUILD_STAMP_DIR RUNME_BUILD_STAMP_DIR "$PROJECT_ROOT/.context/working/runme-build-stamps"
+seam BUILD_REPO RUNME_BUILD_REPO "$PROJECT_ROOT"
+seam CARGO RUNME_CARGO "$(command -v cargo || echo "${HOME:-/root}/.cargo/bin/cargo")"
 CODE_PATHS="crates Cargo.toml Cargo.lock"
 
 build_is_current() {  # <label> <output-binary> -> 0 when <output> was built from the current code
@@ -346,7 +362,7 @@ if [ -n "${RUNME_TERMLINK_DESTS:-}" ]; then
 elif [ -n "${RUNME_TERMLINK_DEST:-}" ]; then
     TL_DESTS="$RUNME_TERMLINK_DEST"
 else
-    TL_DESTS="${HOME:-/root}/.cargo/bin/termlink /usr/local/bin/termlink ${HOME:-/root}/.local/bin/termlink"
+    seam TL_DESTS RUNME_TERMLINK_DESTS "${HOME:-/root}/.cargo/bin/termlink /usr/local/bin/termlink ${HOME:-/root}/.local/bin/termlink"
 fi
 
 tl_accepts_no_create() {  # <binary> -> 0 if the flag is accepted and nothing is minted
@@ -425,9 +441,9 @@ install_termlink
 # RUNME_HUB_BIN, RUNME_HUB_WAIT_SECS.
 # ---------------------------------------------------------------------------
 HUB_UNIT=termlink-hub
-HUB_SYSTEMCTL="${RUNME_HUB_SYSTEMCTL:-systemctl}"
-HUB_PROC="${RUNME_HUB_PROC:-/proc}"
-HUB_RT="${RUNME_HUB_RUNTIME_DIR:-/var/lib/termlink}"
+seam HUB_SYSTEMCTL RUNME_HUB_SYSTEMCTL "systemctl"
+seam HUB_PROC RUNME_HUB_PROC "/proc"
+seam HUB_RT RUNME_HUB_RUNTIME_DIR "/var/lib/termlink"
 HUB_BIN="${RUNME_HUB_BIN:-$(set -- $TL_DESTS; echo "$1")}"
 HUB_WAIT="${RUNME_HUB_WAIT_SECS:-30}"
 
@@ -479,6 +495,65 @@ restart_hub() {
     fi
 }
 
+# ---------------------------------------------------------------------------
+# ACTION 5a — hub systemd unit (T-3299)
+#
+# termlink-hub.service runs with ProtectSystem=strict, so everything outside
+# ReadWritePaths is read-only in the hub's namespace. T-3295 made the hub sweep
+# the legacy /tmp/termlink-0 session pool, but /tmp was read-only for it: every
+# delete failed with EROFS and, until T-3299, nothing said so. The tracked unit
+# now adds `-/tmp/termlink-0` to ReadWritePaths. Installed when it differs;
+# daemon-reload + restart; verified in the hub's OWN mount table
+# (/proc/<pid>/mountinfo) that the pool is mounted read-write, and the unit is
+# active. Idempotent: identical unit => skip.
+# Seams (fixtures only): RUNME_HUB_UNIT_SRC, RUNME_HUB_UNIT_DEST, RUNME_HUB_RW_PATH
+# (+ RUNME_HUB_SYSTEMCTL / RUNME_HUB_PROC from action 5).
+# ---------------------------------------------------------------------------
+seam HUB_UNIT_SRC RUNME_HUB_UNIT_SRC "$PROJECT_ROOT/.context/systemd/termlink-hub.service"
+seam HUB_UNIT_DEST RUNME_HUB_UNIT_DEST "/etc/systemd/system/termlink-hub.service"
+seam HUB_RW_PATH RUNME_HUB_RW_PATH "/tmp/termlink-0"
+
+install_hub_unit() {
+    if [ ! -f "$HUB_UNIT_SRC" ]; then
+        say "  FAILED  tracked unit missing: $HUB_UNIT_SRC"; FAILED=$((FAILED+1)); return
+    fi
+    if cmp -s "$HUB_UNIT_SRC" "$HUB_UNIT_DEST"; then
+        say "  skip    unit already installed and identical: $HUB_UNIT_DEST"; SKIPPED=$((SKIPPED+1)); return
+    fi
+    if [ "$DRY_RUN" = "1" ]; then
+        say "  [DRY]   would install $HUB_UNIT_SRC -> $HUB_UNIT_DEST, daemon-reload, restart $HUB_UNIT"; DONE=$((DONE+1)); return
+    fi
+    local old_pid; old_pid="$(hub_mainpid)"
+    if ! install -m 644 "$HUB_UNIT_SRC" "$HUB_UNIT_DEST"; then
+        say "  FAILED  could not install $HUB_UNIT_DEST"; FAILED=$((FAILED+1)); return
+    fi
+    "$HUB_SYSTEMCTL" daemon-reload
+    if ! "$HUB_SYSTEMCTL" restart "$HUB_UNIT"; then
+        say "  FAILED  systemctl restart $HUB_UNIT failed after installing the unit"; FAILED=$((FAILED+1)); return
+    fi
+    local i pid="" active=""
+    for i in $(seq 1 "$HUB_WAIT"); do
+        active="$("$HUB_SYSTEMCTL" is-active "$HUB_UNIT" 2>/dev/null)"; pid="$(hub_mainpid)"
+        [ "$active" = "active" ] && [ -n "$pid" ] && [ "$pid" != "0" ] && [ "$pid" != "$old_pid" ] && break
+        sleep 1
+    done
+    local problems=""
+    cmp -s "$HUB_UNIT_SRC" "$HUB_UNIT_DEST" || problems="$problems installed-unit-differs;"
+    [ "$active" = "active" ] || problems="$problems unit=${active:-unknown};"
+    if [ -d "$HUB_RW_PATH" ]; then
+        awk -v p="$HUB_RW_PATH" '$5==p && $6 ~ /^rw/ {f=1} END{exit !f}' "$HUB_PROC/$pid/mountinfo" 2>/dev/null \
+            || problems="$problems $HUB_RW_PATH-not-writable-in-hub-namespace;"
+    fi
+    if [ -z "$problems" ]; then
+        say "  OK      unit installed and verified: $HUB_UNIT active (pid $pid); $HUB_RW_PATH read-write in the hub's namespace"; DONE=$((DONE+1))
+    else
+        say "  FAILED  hub unit verification:$problems"; FAILED=$((FAILED+1))
+    fi
+}
+
+head2 "5a. Hub systemd unit (T-3299) — legacy session pool writable"
+install_hub_unit
+
 head2 "5. Local hub onto the installed binary (T-3290)"
 restart_hub
 
@@ -506,11 +581,11 @@ restart_hub
 # RUNME_FLEET_DOCTOR, RUNME_FLEET_REMOTE, RUNME_TOFU, RUNME_FLEET_WAIT_SECS.
 # ---------------------------------------------------------------------------
 FLEET_HUBS="${RUNME_FLEET_HUBS:-ring20-management}"
-MUSL_SRC="${RUNME_MUSL_SRC:-$PROJECT_ROOT/target/x86_64-unknown-linux-musl/local-fast/termlink}"
-FLEET_DEPLOY="${RUNME_FLEET_DEPLOY:-bash $PROJECT_ROOT/scripts/fleet-deploy-binary.sh}"
-FLEET_DOCTOR="${RUNME_FLEET_DOCTOR:-termlink fleet doctor --json}"
-FLEET_REMOTE="${RUNME_FLEET_REMOTE:-}"
-TOFU="${RUNME_TOFU:-termlink tofu verify}"
+seam MUSL_SRC RUNME_MUSL_SRC "$PROJECT_ROOT/target/x86_64-unknown-linux-musl/local-fast/termlink"
+seam FLEET_DEPLOY RUNME_FLEET_DEPLOY "bash $PROJECT_ROOT/scripts/fleet-deploy-binary.sh"
+seam FLEET_DOCTOR RUNME_FLEET_DOCTOR "termlink fleet doctor --json"
+seam FLEET_REMOTE RUNME_FLEET_REMOTE ""
+seam TOFU RUNME_TOFU "termlink tofu verify"
 FLEET_WAIT="${RUNME_FLEET_WAIT_SECS:-90}"
 STAGED=/tmp/termlink.new
 
@@ -624,9 +699,9 @@ upgrade_fleet_hubs
 # RUNME_ZOMBIE_PROC (proc root), RUNME_ZOMBIE_KILL (signal command),
 # RUNME_ZOMBIE_WAIT_SECS.
 # ---------------------------------------------------------------------------
-ZOMBIE_DETECT="${RUNME_ZOMBIE_DETECT:-python3 $PROJECT_ROOT/scripts/lib/session-zombies.py}"
-ZOMBIE_PROC="${RUNME_ZOMBIE_PROC:-/proc}"
-ZOMBIE_KILL="${RUNME_ZOMBIE_KILL:-kill -TERM}"
+seam ZOMBIE_DETECT RUNME_ZOMBIE_DETECT "python3 $PROJECT_ROOT/scripts/lib/session-zombies.py"
+seam ZOMBIE_PROC RUNME_ZOMBIE_PROC "/proc"
+seam ZOMBIE_KILL RUNME_ZOMBIE_KILL "kill -TERM"
 ZOMBIE_WAIT="${RUNME_ZOMBIE_WAIT_SECS:-10}"
 
 zombie_still_is() {  # <pid> <name> -> 0 if the pid is still that register session

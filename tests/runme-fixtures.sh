@@ -85,6 +85,12 @@ echo "error: unexpected argument '--no-create' found" >&2; exit 2
 EOS
 chmod +x "$TMP/tl-new" "$TMP/tl-old"
 cp "$TMP/tl-old" "$TMP/bin/termlink"
+# T-3299: fixture mode — runme ABORTS (exit 2) if any action reaches a REAL
+# host default because its seam is missing, instead of touching the host.
+export RUNME_FIXTURE=1
+# Build seams: SKIP_BUILD means these are never used, but fixture mode requires
+# every host default to be explicit. `false` as cargo can never build anything.
+export RUNME_BUILD_STAMP_DIR="$TMP/build-stamps" RUNME_BUILD_REPO="$REPO_ROOT" RUNME_CARGO=false
 export RUNME_SKIP_BUILD=1 RUNME_TERMLINK_SRC="$TMP/tl-new" RUNME_TERMLINK_DEST="$TMP/bin/termlink"
 # T-3290: the hub-restart action must NEVER reach the real systemctl, /proc or
 # /var/lib/termlink. A fake systemctl keeps MainPID in a state file; `restart`
@@ -106,7 +112,8 @@ case "$1" in
       rotate) printf 'new-secret' > "$H/rt/hub.secret" ;;
     esac
     n=$((pid+1)); echo "$n" > "$H/pid"; mkdir -p "$H/proc/$n"
-    ln -sfn "${FAKE_HUB_NEW_EXE:-$FAKE_HUB_BIN}" "$H/proc/$n/exe" ;;
+    ln -sfn "${FAKE_HUB_NEW_EXE:-$FAKE_HUB_BIN}" "$H/proc/$n/exe"
+    if [ -n "${FAKE_HUB_MOUNTINFO:-}" ]; then printf '%s\n' "$FAKE_HUB_MOUNTINFO" > "$H/proc/$n/mountinfo"; fi ;;
 esac
 EOS
 chmod +x "$H/systemctl"
@@ -125,6 +132,11 @@ export FAKE_HUB_DIR="$H" FAKE_HUB_BIN="$H/hubbin"
 export RUNME_HUB_SYSTEMCTL="$H/systemctl" RUNME_HUB_PROC="$H/proc" RUNME_HUB_RUNTIME_DIR="$H/rt" \
        RUNME_HUB_BIN="$H/hubbin" RUNME_HUB_WAIT_SECS=2
 hub_state 100 "$H/hubbin"
+# T-3299 action 5a: tracked vs installed unit (identical by default => skip);
+# NEVER the real /etc/systemd/system unit. RW path is a scratch dir checked
+# against the fake hub's mountinfo.
+printf 'unit-v1\n' > "$H/unit.src"; cp "$H/unit.src" "$H/unit.dest"; mkdir -p "$H/rwpool"
+export RUNME_HUB_UNIT_SRC="$H/unit.src" RUNME_HUB_UNIT_DEST="$H/unit.dest" RUNME_HUB_RW_PATH="$H/rwpool"
 # T-3290 action 6: the fleet upgrade must NEVER reach the real fleet. Fake fleet
 # doctor reads a hub version from a state file; fake deploy records the call and
 # (FAKE_DEPLOY_MODE) sets the new version, fails, or rotates the secret; fake tofu
@@ -247,7 +259,7 @@ if [ "$(id -u)" != "0" ] && [ -n "${CI:-}" ]; then
 fi
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|') + 4 ))   # +1 termlink install (T-3287); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297)
+EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|') + 5 ))   # +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297)
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -611,6 +623,38 @@ out=$(RUNME_ZOMBIE_DETECT=false run); rc=$?
 if [ "$rc" = "1" ] && echo "$out" | grep -q "zombie detector could not run — nothing reaped"; then
     ok "zombie: detector failure => FAILED, nothing reaped (fail-closed)"
 else bad "zombie detector failure" "rc=$rc: $out"; fi
+
+# ---------------------------------------------------------------------------
+# 18. T-3299 — hub unit install, through the fake systemctl / proc.
+# ---------------------------------------------------------------------------
+hub_state 900 "$H/hubbin"; printf 'unit-v2\n' > "$H/unit.src"
+out=$(run --dry-run); rc=$?
+if echo "$out" | grep -q "would install $H/unit.src -> $H/unit.dest, daemon-reload, restart termlink-hub" && grep -q unit-v1 "$H/unit.dest" && [ ! -e "$H/restarts" ]; then
+    ok "hub unit: --dry-run reports the install and changes nothing"
+else bad "hub unit dry-run" "rc=$rc: $out"; fi
+hub_state 910 "$H/hubbin"
+out=$(FAKE_HUB_MOUNTINFO="36 25 0:1 / $H/rwpool rw,relatime - btrfs /dev/x rw" run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      unit installed and verified: termlink-hub active (pid 911); $H/rwpool read-write" \
+   && cmp -s "$H/unit.src" "$H/unit.dest"; then
+    ok "hub unit: differing unit installed, hub restarted, pool verified read-write in the hub's namespace"
+else bad "hub unit install" "rc=$rc: $out"; fi
+hub_state 920 "$H/hubbin"; printf 'unit-v3\n' > "$H/unit.src"
+out=$(FAKE_HUB_MOUNTINFO="36 25 0:1 / $H/rwpool ro,relatime - btrfs /dev/x ro" run); rc=$?
+if [ "$rc" = "1" ] && echo "$out" | grep -q "rwpool-not-writable-in-hub-namespace"; then
+    ok "hub unit: pool still read-only for the hub after install => FAILED (the T-3299 defect)"
+else bad "hub unit ro must fail" "rc=$rc: $out"; fi
+cp "$H/unit.src" "$H/unit.dest"; hub_state 100 "$H/hubbin"
+
+# ---------------------------------------------------------------------------
+# 19. T-3299 — fixture mode refuses real defaults. Dropping one seam must abort
+#     the whole run before any action touches the host.
+# ---------------------------------------------------------------------------
+before="$(sha256sum /etc/systemd/system/termlink-hub.service 2>/dev/null)"
+out=$(env -u RUNME_HUB_UNIT_DEST RUNME_CRON_DIR="$TMP/cron" bash "$RUNME" 2>&1); rc=$?
+after="$(sha256sum /etc/systemd/system/termlink-hub.service 2>/dev/null)"
+if [ "$rc" = "2" ] && echo "$out" | grep -q "FIXTURE run reached the REAL default for RUNME_HUB_UNIT_DEST" && [ "$before" = "$after" ]; then
+    ok "fixture mode: a missing seam aborts the run (exit 2) and the real unit file is untouched"
+else bad "fixture guard" "rc=$rc: $(echo "$out" | tail -3)"; fi
 
 echo ""
 echo "----------------------------------------"

@@ -75,14 +75,16 @@ const DATA_SOCKET_SUFFIX: &str = ".sock.data";
 /// registration beside it is never touched (the live-or-dead decision belongs to
 /// `is_alive` + `cleanup_stale`), and neither is a young one: a session creates its
 /// files in sequence, so a just-created data socket can briefly precede its JSON.
-/// Returns the number of files removed.
-pub fn reap_orphan_data_sockets(sessions_dir: &Path, grace: std::time::Duration) -> usize {
+/// Returns how many were removed and how many could NOT be (T-3299: a sweep that
+/// cannot write — e.g. a read-only mount under systemd `ProtectSystem=strict` —
+/// must not look like a sweep with nothing to do).
+pub fn reap_orphan_data_sockets(sessions_dir: &Path, grace: std::time::Duration) -> ReapOutcome {
+    let mut out = ReapOutcome::default();
     let entries = match std::fs::read_dir(sessions_dir) {
         Ok(e) => e,
-        Err(_) => return 0,
+        Err(_) => return out,
     };
     let now = std::time::SystemTime::now();
-    let mut removed = 0;
     for entry in entries.flatten() {
         let name = entry.file_name();
         let Some(name) = name.to_str() else { continue };
@@ -96,11 +98,32 @@ pub fn reap_orphan_data_sockets(sessions_dir: &Path, grace: std::time::Duration)
             .ok()
             .and_then(|t| now.duration_since(t).ok())
             .is_some_and(|age| age >= grace);
-        if old_enough && std::fs::remove_file(entry.path()).is_ok() {
-            removed += 1;
+        if !old_enough {
+            continue;
+        }
+        match std::fs::remove_file(entry.path()) {
+            Ok(()) => out.removed += 1,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            Err(e) => {
+                out.failed += 1;
+                if out.first_error.is_none() {
+                    out.first_error = Some(format!("{}: {e}", entry.path().display()));
+                }
+            }
         }
     }
-    removed
+    out
+}
+
+/// Result of [`reap_orphan_data_sockets`].
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct ReapOutcome {
+    /// Orphaned data sockets removed.
+    pub removed: usize,
+    /// Orphans that could not be removed (permission, read-only filesystem, ...).
+    pub failed: usize,
+    /// The first failure, for the log line.
+    pub first_error: Option<String>,
 }
 
 #[cfg(test)]
@@ -213,7 +236,8 @@ mod tests {
 
         let n = reap_orphan_data_sockets(dir.path(), std::time::Duration::ZERO);
 
-        assert_eq!(n, 1);
+        assert_eq!(n.removed, 1);
+        assert_eq!(n.failed, 0);
         assert!(!orphan.exists());
     }
 
@@ -229,8 +253,29 @@ mod tests {
 
         let n = reap_orphan_data_sockets(dir.path(), std::time::Duration::ZERO);
 
-        assert_eq!(n, 0);
+        assert_eq!(n, ReapOutcome::default());
         assert!(data.exists() && json.exists() && sock.exists());
+    }
+
+    /// T-3299: a delete that fails must be counted and reported, not swallowed —
+    /// the read-only /tmp under ProtectSystem=strict looked like "nothing to do".
+    #[test]
+    fn reap_counts_a_failed_delete_instead_of_swallowing_it() {
+        let dir = tempfile::tempdir().unwrap();
+        // A non-empty DIRECTORY named like an orphan: remove_file fails on it
+        // (EISDIR/EPERM), deterministically and without needing root to drop.
+        let stuck = dir.path().join("tl-stuck.sock.data");
+        std::fs::create_dir(&stuck).unwrap();
+        std::fs::write(stuck.join("x"), b"").unwrap();
+        let orphan = dir.path().join("tl-ok.sock.data");
+        std::fs::write(&orphan, b"").unwrap();
+
+        let n = reap_orphan_data_sockets(dir.path(), std::time::Duration::ZERO);
+
+        assert_eq!(n.removed, 1);
+        assert_eq!(n.failed, 1, "the failed delete must be counted");
+        assert!(n.first_error.as_deref().is_some_and(|e| e.contains("tl-stuck.sock.data")));
+        assert!(!orphan.exists());
     }
 
     #[test]
@@ -245,7 +290,7 @@ mod tests {
 
         let n = reap_orphan_data_sockets(dir.path(), std::time::Duration::from_secs(3600));
 
-        assert_eq!(n, 0, "a data socket younger than the grace may precede its JSON");
+        assert_eq!(n, ReapOutcome::default(), "a data socket younger than the grace may precede its JSON");
         assert!(young.exists() && unrelated.exists() && odd.exists());
     }
 }

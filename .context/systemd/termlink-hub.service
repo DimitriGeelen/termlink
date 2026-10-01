@@ -43,8 +43,15 @@ RestartSec=5
 NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectHome=read-only
-# ReadWritePaths lets hub write to its state dir only.
-ReadWritePaths=/var/lib/termlink
+# ReadWritePaths lets hub write to its state dir — and (T-3299) to the legacy
+# /tmp/termlink-0 session pool. Sessions launched without TERMLINK_RUNTIME_DIR
+# (e.g. from a tmux server started under `env -i`) register there, and since
+# T-3295 the hub sweeps that pool too. Under ProtectSystem=strict all of /
+# (including /tmp) is read-only in the hub's namespace, so without this entry
+# every cleanup there failed with EROFS — silently, until T-3299 made the sweep
+# report delete failures. The leading '-' makes the path optional (no error on
+# hosts where the pool does not exist).
+ReadWritePaths=/var/lib/termlink -/tmp/termlink-0
 
 [Install]
 WantedBy=multi-user.target
