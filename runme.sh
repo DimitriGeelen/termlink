@@ -759,6 +759,57 @@ head2 "7. Zombie register sessions — one-time reap (T-3297, T-3291 S3b)"
 reap_zombie_sessions
 
 # ---------------------------------------------------------------------------
+# ACTION 8 — this project's Claude sessions sign as claude-termlink's own key
+# (T-3303; operator GO on T-3302 option B, 2026-10-01)
+#
+# Every session here signed with the shared host key (d1993c2c3ec44c94), so on
+# the wire this agent, pen-agent and 126 other sessions were indistinguishable
+# and attribution fell back to unsigned metadata. Setting
+# TERMLINK_AGENT_ID=claude-termlink in the project's Claude settings env makes
+# its sessions resolve the per-agent key (6738c073bbcc587a), as the systemd
+# agents already do with --identity-key. Takes effect for NEW sessions.
+# The enforcement-config file .claude/settings.json is protected (B-005) and
+# untouched; this merges ONE key into .claude/settings.local.json and verifies
+# every other key is unchanged. Idempotent. Both sidecar mailboxes stay watched
+# through the transition (T-3303 AC2).
+# Seam (fixtures only): RUNME_CLAUDE_LOCAL_SETTINGS.
+# ---------------------------------------------------------------------------
+seam CLAUDE_LOCAL_SETTINGS RUNME_CLAUDE_LOCAL_SETTINGS "$PROJECT_ROOT/.claude/settings.local.json"
+
+set_agent_identity_env() {
+    local f="$CLAUDE_LOCAL_SETTINGS" res
+    res="$(python3 - "$f" "$DRY_RUN" <<'EOP'
+import json, os, sys, copy
+p, dry = sys.argv[1], sys.argv[2] == "1"
+d = json.load(open(p)) if os.path.exists(p) else {}
+if d.get("env", {}).get("TERMLINK_AGENT_ID") == "claude-termlink":
+    print("skip"); sys.exit(0)
+if dry:
+    print("dry"); sys.exit(0)
+before = copy.deepcopy(d)
+d.setdefault("env", {})["TERMLINK_AGENT_ID"] = "claude-termlink"
+tmp = p + ".runme-tmp"
+with open(tmp, "w") as fh:
+    json.dump(d, fh, indent=2); fh.write("\n")
+os.replace(tmp, p)
+after = json.load(open(p))
+others_same = {k: v for k, v in after.items() if k != "env"} == {k: v for k, v in before.items() if k != "env"}
+env_same = {k: v for k, v in after.get("env", {}).items() if k != "TERMLINK_AGENT_ID"} == before.get("env", {})
+print("ok" if after["env"]["TERMLINK_AGENT_ID"] == "claude-termlink" and others_same and env_same else "mismatch")
+EOP
+)" || res="error"
+    case "$res" in
+        skip) say "  skip    $f already sets TERMLINK_AGENT_ID=claude-termlink"; SKIPPED=$((SKIPPED+1)) ;;
+        dry)  say "  [DRY]   would add env.TERMLINK_AGENT_ID=claude-termlink to $f (all other keys preserved)"; DONE=$((DONE+1)) ;;
+        ok)   say "  OK      set and verified: $f env.TERMLINK_AGENT_ID=claude-termlink; every other key unchanged (new sessions sign as 6738c073)"; DONE=$((DONE+1)) ;;
+        *)    say "  FAILED  could not set or verify TERMLINK_AGENT_ID in $f ($res)"; FAILED=$((FAILED+1)) ;;
+    esac
+}
+
+head2 "8. Claude sessions sign with claude-termlink's own key (T-3303, T-3302 GO option B)"
+set_agent_identity_env
+
+# ---------------------------------------------------------------------------
 # Verification — the project's own drift checker is the arbiter, not this script.
 # Using the repo's existing check rather than a bespoke one means this cannot
 # quietly disagree with what `fw audit` will say five minutes from now.

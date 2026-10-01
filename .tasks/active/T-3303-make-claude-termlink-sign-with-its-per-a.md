@@ -1,13 +1,18 @@
 ---
 id: T-3303
-name: "Make claude-termlink sign with its per-agent key and migrate its mailbox (T-3302 GO, option B)"
+name: "Make claude-termlink sign with its per-agent key and migrate its mailbox (T-3302
+  GO, option B)"
 description: >
-  T-3302 GO on B: (1) set TERMLINK_AGENT_ID=claude-termlink where this project's Claude sessions get their environment, verify identity resolves 6738c073 source per_agent; (2) keep both sidecar mailboxes (claude-termlink d1993 + claude-termlink-alt 6738) until d1993's topics are quiet N days, then make 6738 the claude-termlink entry; (3) tell pen's owner pen shares the host key. Brief: docs/reports/T-3302-identity-canonical-brief.md
+  T-3302 GO on B: (1) set TERMLINK_AGENT_ID=claude-termlink where this project's Claude
+  sessions get their environment, verify identity resolves 6738c073 source per_agent;
+  (2) keep both sidecar mailboxes (claude-termlink d1993 + claude-termlink-alt 6738)
+  until d1993's topics are quiet N days, then make 6738 the claude-termlink entry;
+  (3) tell pen's owner pen shares the host key. Brief: docs/reports/T-3302-identity-canonical-brief.md
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -22,8 +27,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-01T13:27:27Z
-last_update: 2026-10-01T13:27:27Z
-date_finished: null
+last_update: 2026-10-01T13:58:17Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,6 +39,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-01T13:58:18Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3303: Make claude-termlink sign with its per-agent key and migrate its mailbox (T-3302 GO, option B)
@@ -236,3 +255,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3303-make-claude-termlink-sign-with-its-per-a.md
 - **Context:** Initial task creation
+
+### 2026-10-01T13:58:17Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

@@ -88,6 +88,10 @@ cp "$TMP/tl-old" "$TMP/bin/termlink"
 # T-3299: fixture mode — runme ABORTS (exit 2) if any action reaches a REAL
 # host default because its seam is missing, instead of touching the host.
 export RUNME_FIXTURE=1
+# T-3303 action 8: a scratch Claude local-settings file, already carrying the
+# env key by default (=> skip); never the real .claude/settings.local.json.
+printf '{"permissions":{"allow":["Bash(ls:*)"]},"env":{"TERMLINK_AGENT_ID":"claude-termlink"}}\n' > "$TMP/claude-local.json"
+export RUNME_CLAUDE_LOCAL_SETTINGS="$TMP/claude-local.json"
 # Build seams: SKIP_BUILD means these are never used, but fixture mode requires
 # every host default to be explicit. `false` as cargo can never build anything.
 export RUNME_BUILD_STAMP_DIR="$TMP/build-stamps" RUNME_BUILD_REPO="$REPO_ROOT" RUNME_CARGO=false
@@ -259,7 +263,7 @@ if [ "$(id -u)" != "0" ] && [ -n "${CI:-}" ]; then
 fi
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|') + 5 ))   # +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297)
+EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|') + 6 ))   # +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303)
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -658,6 +662,27 @@ after="$(sha256sum /etc/systemd/system/termlink-hub.service 2>/dev/null)"
 if [ "$rc" = "2" ] && echo "$out" | grep -q "FIXTURE run reached the REAL default for RUNME_HUB_UNIT_DEST" && [ "$before" = "$after" ]; then
     ok "fixture mode: a missing seam aborts the run (exit 2) and the real unit file is untouched"
 else bad "fixture guard" "rc=$rc: $(echo "$out" | tail -3)"; fi
+
+# ---------------------------------------------------------------------------
+# 20. T-3303 — identity env merged into Claude local settings, scratch file only.
+# ---------------------------------------------------------------------------
+CL="$TMP/claude-local.json"
+printf '{"permissions":{"allow":["Bash(ls:*)"]},"enableAllProjectMcpServers":true,"env":{"KEEP":"1"}}\n' > "$CL"
+out=$(run --dry-run); rc=$?
+if echo "$out" | grep -q "would add env.TERMLINK_AGENT_ID=claude-termlink" && ! grep -q TERMLINK_AGENT_ID "$CL"; then
+    ok "identity env: --dry-run reports and changes nothing"
+else bad "identity env dry-run" "rc=$rc: $out"; fi
+out=$(run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      set and verified: $CL" && python3 -c "
+import json,sys; d=json.load(open('$CL'))
+assert d['env']=={'KEEP':'1','TERMLINK_AGENT_ID':'claude-termlink'}, d
+assert d['permissions']=={'allow':['Bash(ls:*)']} and d['enableAllProjectMcpServers'] is True"; then
+    ok "identity env: key added, existing env and all other keys preserved"
+else bad "identity env merge" "rc=$rc: $out $(cat "$CL")"; fi
+out=$(run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "skip    $CL already sets TERMLINK_AGENT_ID=claude-termlink"; then
+    ok "identity env: second run skips (idempotent)"
+else bad "identity env idempotent" "rc=$rc: $out"; fi
 
 echo ""
 echo "----------------------------------------"
