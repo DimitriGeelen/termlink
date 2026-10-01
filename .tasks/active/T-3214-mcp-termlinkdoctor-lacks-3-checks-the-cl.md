@@ -13,7 +13,7 @@ description: >
   says the CLI verb), port the missing checks, drop or mirror 'strict'; then un-ignore
   the parity case.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -33,7 +33,7 @@ related_tasks: [T-2991, T-1712, T-1689, T-2069, T-3215]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-28T23:48:32Z
-last_update: '2026-09-29T07:33:24Z'
+last_update: 2026-10-01T15:49:18Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -137,7 +137,13 @@ with `strict` mirrored — it is the only one that cannot re-drift, and the CLI 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
 - [ ] AC0 — The operator's ruling on SQ-8 (option 1 / 2 / 3 above, and `strict` mirrored vs
-      dropped) is recorded in `## Decisions` BEFORE any source edit. Producer-not-judge: the agent
+      dropped) is recorded in `## Decisions
+
+### 2026-10-01 — SQ-8 RULED by the operator: option 1b
+- **Chose:** the doctor checks move into a small NEUTRAL crate (e.g. `termlink-doctor`) that both the CLI and `termlink-mcp` depend on, so parity is a property of the code. **Mirror `strict`** into the CLI envelope and make the CLI's `ok` honour it. **Annotate** `termlink_doctor` with `readOnlyHint: true` and a `title` (MCP review criteria: every tool carries read/destructive hints; ours carry none).
+- **Rejected:** (1) the checks living inside `termlink-mcp` (the crate would own config/audit logic); (2) a subprocess (version skew: this host ran three termlink binaries at different versions until 2026-10-01; it also breaks the in-process tests); (3) duplicated helpers (a second `hubs.toml` parser is the drift class itself).
+- **Scoring** (joint value drivers): 1 = +46, 2 = +9, 3 = −20; steelman/strawman given in the session dialogue 2026-10-01.
+` BEFORE any source edit. Producer-not-judge: the agent
       that wrote the options does not pick one.
 - [ ] AC1 — After the ruling: `termlink_doctor` (MCP) and `termlink doctor --json` (CLI) emit the
       SAME check list — same `check` names in the same order, same `status` per check — against an
@@ -371,3 +377,6 @@ with `strict` mirrored — it is the only one that cannot re-drift, and the CLI 
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3214-mcp-termlinkdoctor-lacks-3-checks-the-cl.md
 - **Context:** Initial task creation
+
+### 2026-10-01T15:49:18Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
