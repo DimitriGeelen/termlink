@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3317: decisions.yaml breaks on every decision capture: file list is column-0, vendored writer expects 2-space
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-01T23:08:51Z
+# ============================================================================
+
+task_id: T-3317
+task_name: "decisions.yaml breaks on every decision capture: file list is column-0, vendored writer expects 2-space"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-01T23:05:52Z
+completed: 2026-10-01T23:08:38Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-10-02T01:07:57+02:00
+last_commit: 2026-10-02T01:08:37+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  decisions.yaml re-indented to the vendored writer's form — the real cause of the recurring breakage. lib/decision.sh greps '^  - id: PD-' for the next id and appends 2-space entries; our list was at column 0 (PyYAML dump shape), so every capture restarted at PD-001 with a mismatched indent. Parsed content identical (198 entries); a real capture on a scratch copy now lands as PD-181 and parses. New FAIL-tier guard check-decisions-yaml-format.sh + fixtures 10/10 (real pre-fix file fires; real writer capture clean in the fixed form, reproduces the break in the old one). Vendored writer untouched (G-062).. corrected root cause filed upstream as a reply to framework:pickup 164 (offset 297) and sent to 832-Workflow-designer's inbox (offset 149) with a 10-second exposure check; both read back byte-identical (df53cfa472cdb13c, 75ab30299a21fa03)
+
+# Key outcomes
+outcomes:
+  - '`decisions.yaml` is re-indented to the writer''s form (`  - id:` under `decisions:`), and its parsed content is identical before and after (same list, same values, same order)'
+  - 'A capture on a scratch copy through the real vendored `context.sh add-decision` lands as PD-181, and the file still parses afterwards (this proves the writer and file now agree)'
+  - '`scripts/check-decisions-yaml-format.sh` fires (rc 1) when a column-0 `- id:` entry or a mixed indent is present, and passes on the current file; it carries a `# guard-layer: source` marker, and `tests/decisions-yaml-format-fixtures.sh` pins it, including the real pre-fix file from git'
+  - 'The vendored writer is NOT patched (G-062); the corrected root cause is filed upstream as new evidence on framework:pickup offset 164 and read back'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'decisions.yaml re-indented to the vendored writer''s form — the real cause of the recurring breakage. lib/decision.sh greps ''^  - id: PD-'' for the next id and appends 2-space entries; our list was at column 0 (PyYAML dump shape), so every capture restarted at PD-001 with a mismatched indent. Parsed content identical (198 entries); a real capture on a scratch copy now lands as PD-181 and parses. New FAIL-tier guard check-decisions-yaml-format.sh + fixtures 10/10 (real pre-fix file fires; real writer capture clean in the fixed form, reproduces the break in the old one). Vendored writer untouched (G-062).'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/project/decisions.yaml'
+  - 'docs/reports/T-3317-to-workflow-designer.md'
+  - 'docs/reports/T-3317-upstream-decisions-yaml-root-cause.md'
+  - 'scripts/check-decisions-yaml-format.sh'
+  - '.tasks/active/T-3317-decisionsyaml-breaks-on-every-decision-c.md'
+  - 'tests/decisions-yaml-format-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-02T01:07:57'
+    action: 'T-3317: decisions.yaml re-indented to the vendored writer''s form — the real cause of the recurring breakage. lib/decision.sh greps ''^  - id: PD-'' for the next id and appends 2-space entries; our list was at column 0 (PyYAML dump shape), so every capture restarted at PD-001 with a mismatched indent. Parsed content identical (198 entries); a real capture on a scratch copy now lands as PD-181 and parses. New FAIL-tier guard check-decisions-yaml-format.sh + fixtures 10/10 (real pre-fix file fires; real writer capture clean in the fixed form, reproduces the break in the old one). Vendored writer untouched (G-062).'
+  - time: '2026-10-02T01:08:37'
+    action: 'T-3317: corrected root cause filed upstream as a reply to framework:pickup 164 (offset 297) and sent to 832-Workflow-designer''s inbox (offset 149) with a 10-second exposure check; both read back byte-identical (df53cfa472cdb13c, 75ab30299a21fa03)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 2
+  commits: 2
+  files_changed: 6
+  lines_added: 1788
+  lines_removed: 1290
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3317-decisionsyaml-breaks-on-every-decision-c.md
+generated_by: context-agent-hybrid
