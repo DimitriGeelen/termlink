@@ -14,7 +14,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-10-01T18:13:59Z
-last_update: 2026-10-01T18:14:36Z
+last_update: 2026-10-01T18:22:01Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -76,25 +76,25 @@ Research artifact: `docs/reports/T-3304-hub-storage-model.md`.
 -->
 
 - **IW-1: Should the hub be a queryable source of truth, or a transport where agents keep their own history?**
-  confidence: 0
-  disposition:
-  rationale:
+  confidence: 3
+  disposition: answered
+  rationale: Operator ruled option B on 2026-10-01 — the hub is authoritative for coordination within a declared retention window; long-term records live elsewhere; "forever" becomes an owned exception. Evidence: docs/reports/T-3304-hub-storage-model.md (Synthesis; 2 of 3 consulted agents converge on B; scoring A -20 / B +48 / C 0).
 - **IW-2: What retention and pruning model (defaults, who decides, automatic vs explicit sweep)?**
-  confidence: 1
-  disposition:
-  rationale:
+  confidence: 3
+  disposition: answered
+  rationale: Operator ruled option C on 2026-10-01 ("C then") — bounded default for new topics, forever only with owner+reason, existing hub sweeper (T-2427) on everywhere we can, plus a ceiling checked on post (bounded topics past 2x their limit trim oldest, loudly; forever topics warn, never delete). Default window 14 days = agent recommendation, assumed accepted (operator did not name a window). Evidence: report § IW-2.
 - **IW-3: Is cursor + optional filter enough, or are time-range / cross-topic / metadata-index queries needed?**
-  confidence: 0
-  disposition:
-  rationale:
+  confidence: 3
+  disposition: answered
+  rationale: Operator ruled option B on 2026-10-01 — keep the cursor model; add, in order, the retention-gap signal, the SQ-11 deadline fix (c2), page end reasons, then hub-side time-range reads on hub receive time. No query language, no cross-topic queries, no new indexes now (worst filtered read measured 79 ms). Evidence: report § IW-3.
 - **IW-4: How should agents discover and select the topics relevant to them?**
   confidence: 0
   disposition:
   rationale:
 - **IW-5: Does the answer change the SQ-11 (T-2573) fix choice?**
-  confidence: 1
-  disposition:
-  rationale:
+  confidence: 3
+  disposition: answered
+  rationale: No — SQ-11 is a slice of IW-3 and both serious reviewers asked for exactly c2. Ruled c2 with IW-3 on 2026-10-01; recorded on T-2573.
 
 ## Exploration Plan
 
@@ -175,6 +175,25 @@ No evidence yet; operator asked to consult three non-Anthropic agents (Codex, GL
      can be revised before fw inception decide. -->
 
 ## Decisions
+
+### 2026-10-01 — IW-1: what is the hub? (operator ruling)
+- **Chose:** B — authoritative for coordination within a declared retention window. The hub is the trusted, queryable record of coordination (who is doing what, recent messages, current state) for a bounded period; long-term records (decisions, learnings, archives) live in purpose-built stores (git, files, a database); retention "forever" becomes a deliberate exception with a named owner.
+- **Why:** states honestly what the fleet already does (75 of 111 topics are "forever"); gives one trusted answer to "what happened while I was down"; keeps the hub small; gives SQ-11 and an append-time retention cap a rule to follow. Codex and GLM-5.3 converged on it independently.
+- **Rejected:** A transport only (agents are unreliable record-keepers; it degrades into an unguaranteed archive — how the 75 forever topics happened); C queryable archive (fills the disk of the machine everyone coordinates through; every query becomes a contract; rebuilds what git/files do better).
+- **Follow-on (not yet decided):** charter non-goal #2 is reworded to match — exact wording comes back to the operator for approval before docs/CHARTER.md changes (three-copy canary, T-2484). IW-2..IW-4 still open, taken one at a time.
+
+### 2026-10-01 — IW-2: retention defaults and enforcement (operator ruling)
+- **Chose:** C — (1) new topics default to bounded, **14 days** (assumed; operator did not name a window — Codex said 7, GLM 14); "forever" only when set explicitly with an owner and a reason; the four operator-durable topics keep forever. (2) Turn on the existing hub retention sweeper (T-2427, `TERMLINK_SWEEP_INTERVAL_SECS`) everywhere we run hubs — on at .107 (hourly, verified), off at .122 and .121. (3) A safety ceiling checked on post: a bounded topic past 2x its limit trims its oldest records on the spot and logs it loudly; forever topics get a size warning, never deletion.
+- **Why:** all three reviewers want the default flipped from forever; Codex and GLM both want growth bounded even when the periodic mechanism is off or broken (it is off on .122/.121 today).
+- **Rejected:** A keep as is (contradicts IW-1: "authoritative for a declared window" cannot hold with forever-by-omission); B defaults + sweeper only (trusts one mechanism completely).
+- **Not decided here:** what happens to the 75 existing forever topics (separate review, nothing cut automatically); the inbox "don't drop unacknowledged" guard needs a design check.
+- **Process note:** the operator challenged the first IW-2 framing as biased toward the conversation; re-checking the reviewers and the code found the sweeper already existed and was on — the first framing's "35 bounded topics are never swept" was false.
+
+### 2026-10-01 — IW-3: what to add to reads (operator ruling)
+- **Chose:** B, in this order: (1) **retention-gap signal** — a reader whose cursor fell behind the oldest surviving record is told so explicitly ("records before X were swept"); (2) **SQ-11 fix, option c2** (T-2573) — a deadline hands back the collected messages plus a resume point that always advances (last scanned + 1); (3) **every page says why it ended** (limit / end of topic / deadline); (4) **hub-side time-range reads** using the existing (topic, ts) index and the hub's own receive time.
+- **Why:** (1) is silent loss today and IW-2 makes sweeping routine on every hub; (2) both Codex and GLM asked for exactly this; (4) serves IW-1 — a hub authoritative for a window should answer questions about the window; the index already exists.
+- **Rejected:** A without time-range (leaves "what happened while I was down" to client-side download-and-filter); C extra indexes now (worst filtered read measured 79 ms; add only when measured); D nothing (silent gaps become routine after IW-2).
+- **Never (3 of 3 reviewers):** a query language, cross-topic queries or joins.
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.

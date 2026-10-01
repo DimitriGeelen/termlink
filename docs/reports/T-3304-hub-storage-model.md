@@ -64,8 +64,77 @@ on the last record examined"). SQ-11 is a slice of IW-3, not blocked by IW-1.
 3. IW-3 read contract (includes SQ-11), time-range, conversation_id index.
 4. IW-4 topic metadata, discovery, read telemetry.
 
+## Corrections (2026-10-01, IW-2 walk-through)
+
+- **Codex answer on file is the second run.** The first-batch Codex run (discarded with the
+  rest of that batch) said "profiles: telemetry 24-72h, coordination ~14d"; the
+  synthesis table above quotes that version. The answer on file says **7-day default plus
+  a byte ceiling, incremental background sweeps**. The direction is unchanged.
+- **The hub already has a background retention sweeper** (T-2427,
+  `crates/termlink-hub/src/retention_sweeper.rs`, env-gated
+  `TERMLINK_SWEEP_INTERVAL_SECS`). It is on at .107 (3600 s; 9 runs, 1,561 records
+  pruned since 10:52 on 2026-10-01) and off at .122 and .121 (interval 0, via
+  `fleet governor-status`). An earlier claim in the IW-2 framing — "only one sweep cron,
+  35 bounded topics never swept" — was false.
+- **Retention-gap detection is NOT live.** `Bus::gap_before` (T-2463) exists in the bus
+  library, but nothing in the hub calls it (only its own tests) — a reader whose cursor was
+  swept is not told and silently resumes at the oldest surviving record. The synthesis line
+  "already exists: retention-gap detection" is wrong at the hub level.
+- **Measured (IW-3):** worst-case filtered read of the largest topic
+  (`health:ring20-fedprobe`, 2,777 records, filter matching nothing) = 79 ms; the
+  `records` table already has an index on `(topic, ts_unix_ms)`; `ts` is sender-supplied
+  with hub-time fallback; CLI `--since/--until` filter client-side only.
+- **Verified fact that stands:** `Bus::post` never applies retention, so a hub with the
+  sweeper off has no bound at all.
+
 ## Dialogue Log
 
-- 2026-10-01 — Operator, during SQ-11: "do we want the hub to have a source of
-  truth that can be queryable? … ask three of our … non-Anthropic agents … there's
-  real value in there." SQ-11 left open pending this.
+How the question arose, during the SQ-11 (T-2573) walk-through, 2026-10-01:
+
+1. **Operator:** is the 20 s limit about *downloading* messages? Downloads and binary
+   blobs can be big and should be asynchronous, not under a time limit.
+   **Answer:** no — it caps the hub's server-side walk of its own log. Messages are
+   small envelopes returned in bounded pages; binary payloads use the separate chunked
+   artifact/file path (`MAX_PAYLOAD_SIZE` 16 MB per frame) and never meet this limit.
+2. **Operator:** so the agent asks, the hub searches, and if it takes too long the hub
+   just tells it to go away?
+   **Answer:** yes, except it does say goodbye (error -32020 with a resume position) —
+   the bug is that it discards what it found and the resume position skips past it.
+3. **Operator:** why does the agent ask "from position 100 onwards"?
+   **Answer:** a topic is an append-only list with numbered offsets; the agent keeps
+   its cursor (how far it got) and asks only for what is new.
+4. **Operator:** if the agent already has 0-99 and asks from 100, that needs no search.
+   **Answer (verified, `crates/termlink-bus/src/meta.rs:276`):** correct — the hub jumps
+   to 100 through an index. Only a *filtered* request (by conversation or reply-to) opens
+   records one by one; that is the only slow path. This corrected an earlier example
+   (an unfiltered read of the 2,777-record probe topic is instant, not a trigger).
+5. **Operator:** "you explained it was about searching for a topic, not giving me new
+   messages — maybe you're confusing things."
+   **Answer:** agreed, the confusion was the agent's wording: there is one operation,
+   "give me new messages in topic X from position N", optionally filtered; "search" only
+   fits the filtered form.
+6. **Operator — the principle question:** does the hub store messages; retention;
+   pruning; do agents keep their own history; "do we want the hub to have a source of
+   truth that can be queryable?"; how would that be facilitated (pruning, chunking,
+   subscriptions, topics, how agents select and ask for topics, time windows, cost
+   cuts). "Ask three of our … non-Anthropic agents … there's real value in there."
+   → this inception; SQ-11 left open.
+7. Consultation run (Codex, GLM-5.3, qwen3:14b); synthesis above; IW-1 presented with
+   options A/B/C, value-driver scoring and steelman/strawman.
+8. **Operator ruling on IW-1:** "record B, with all this discussion we had" →
+   option B, authoritative for coordination within a declared retention window
+   (recorded in T-3304 § Decisions). Charter non-goal #2 rewording to come back for
+   approval. IW-2..IW-4 and SQ-11 still open.
+9. IW-2 first framing (options A-D, recommending a hub timer) — **operator:** "it's
+   clearly in favour of C, but also driven by our earlier conversation; look at the
+   external reviewers' advice". Re-check found the timer already exists and is on at
+   .107 (see Corrections), and the reviewers split on enforcement (Codex: background
+   sweep; GLM: cron + cap on post; qwen: inconsistent) while all three agree on a bounded
+   default. Reframed as A keep / B default + sweeper everywhere / C B + ceiling on post.
+10. **Operator ruling on IW-2:** "Alright, C then" → option C; 14-day default assumed
+    (agent recommendation; operator did not name a window).
+11. IW-3 presented (A honest reads / B + time-range / C + indexes / D nothing), after
+    measuring the slow path (79 ms) and finding the hub never surfaces retention gaps.
+12. **Operator ruling on IW-3:** "take your recommendation … vote for B" → option B,
+    ordered gap signal → SQ-11 c2 → page end reasons → time-range. SQ-11 recorded as c2
+    on T-2573 as part of that recommendation.
