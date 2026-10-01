@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3307: Hub tells a subscriber its cursor fell behind retention (retention-gap signal)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-01T21:40:39Z
+# ============================================================================
+
+task_id: T-3307
+task_name: "Hub tells a subscriber its cursor fell behind retention (retention-gap signal)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-01T19:22:16Z
+completed: 2026-10-01T21:40:27Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-10-01T23:39:02+02:00
+last_commit: 2026-10-01T23:39:02+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  retention-gap signal — channel.subscribe reports oldest_offset and, when the requested cursor was already swept, gap {requested_cursor, oldest_offset, skipped}; CLI subscribe warns on stderr when the cursor was its own (--resume or a later page; JSON line with --json, stdout unchanged); MCP subscribe passes both through and its description tells agents what a gap means. Tests: hub 3 new + 502 lib + integration, CLI 2 new, MCP parity 37
+
+# Key outcomes
+outcomes:
+  - 'Hub: every successful `channel.subscribe` response carries `oldest_offset` (null on an empty topic) and, iff the requested cursor is below it, `gap: {requested_cursor, oldest_offset, skipped}`; existing fields unchanged (backward compatible)'
+  - 'Hub regression test: post N records, sweep/trim the first K, subscribe from a cursor < K → response has `gap.skipped == K - cursor` and `oldest_offset == K`; subscribe from >= K → no `gap`'
+  - 'CLI `channel subscribe` warns loudly on stderr (topic + missed offset range) when the hub reports a gap AND the cursor was the reader''s own (loaded by `--resume`, or advanced by an earlier page in the same run — a slow `--follow` reader overtaken by the sweeper); a fresh first read from an explicit `--cursor` does not warn; with `--json` the warning is a JSON line on stderr, stdout stays unchanged for line-oriented consumers'
+  - 'MCP `termlink_channel_subscribe` passes `oldest_offset` and `gap` through to the caller'
+  - '`cargo test -p termlink-hub` and the touched CLI/MCP tests pass'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-hub/src/channel.rs'
+  - 'crates/termlink-mcp/src/tools.rs'
+  - '.tasks/active/T-3307-hub-tells-a-subscriber-its-cursor-fell-b.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-01T23:39:02'
+    action: 'T-3307: retention-gap signal — channel.subscribe reports oldest_offset and, when the requested cursor was already swept, gap {requested_cursor, oldest_offset, skipped}; CLI subscribe warns on stderr when the cursor was its own (--resume or a later page; JSON line with --json, stdout unchanged); MCP subscribe passes both through and its description tells agents what a gap means. Tests: hub 3 new + 502 lib + integration, CLI 2 new, MCP parity 37'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 138 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-012]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 138
+  commits: 1
+  files_changed: 4
+  lines_added: 206
+  lines_removed: 9
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3307-hub-tells-a-subscriber-its-cursor-fell-b.md
+generated_by: context-agent-hybrid

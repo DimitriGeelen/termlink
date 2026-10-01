@@ -8,12 +8,12 @@ description: >
   resuming at the oldest record. IW-2 makes sweeping routine, so this is the first
   silent-loss path to close.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-012]
-components: []
+components: [crates/termlink-cli/src/commands/channel.rs, crates/termlink-hub/src/channel.rs, crates/termlink-mcp/src/tools.rs, runme.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -26,8 +26,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-01T19:22:16Z
-last_update: 2026-10-01T21:11:35Z
-date_finished:
+last_update: 2026-10-01T21:40:27Z
+date_finished: 2026-10-01T21:40:27Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -244,6 +244,19 @@ grep -q "oldest_offset (the oldest record still kept)" crates/termlink-mcp/src/t
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-10-01 — the hub cannot judge a gap; it reports one
+- **What changed:** the filing said "wire `Bus::gap_before` into subscribe". It keys on
+  server-persisted cursors, which this fleet barely uses (2 rows), so it would have
+  stayed silent for every real reader. Checking the raw cursor instead would warn every
+  FRESH reader that starts at 0 on a swept topic — the trap `gap_before` documents.
+- **Plan impact:** split the job: the hub reports the fact (`oldest_offset`, `gap`), the
+  client judges, because only it knows whether the cursor was its own resume point. The
+  CLI also treats a cursor as "ours" after its first page, so a slow `--follow` reader
+  overtaken by the sweeper mid-run is warned too.
+- **Triggered:** the session-crate inbox reader (`inbox_channel.rs`, which resumes from a
+  saved cursor) does not yet surface `gap` — left for T-3308's consumer audit, which
+  touches the same callers.
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -306,3 +319,16 @@ grep -q "oldest_offset (the oldest record still kept)" crates/termlink-mcp/src/t
 
 ### 2026-10-01T21:11:35Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-e5f73126
+- **Timestamp:** 2026-10-01T21:40:31Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** none
+
+### 2026-10-01T21:40:27Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
