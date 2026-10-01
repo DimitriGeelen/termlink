@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3316: checkpoint.sh budget still crashes: user-level /resume shadows the T-3165 fix
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-01T22:48:49Z
+# ============================================================================
+
+task_id: T-3316
+task_name: "checkpoint.sh budget still crashes: user-level /resume shadows the T-3165 fix"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-01T22:46:06Z
+completed: 2026-10-01T22:48:39Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-10-02T00:48:27+02:00
+last_commit: 2026-10-02T00:48:27+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  stop the false 'HOOK CRASHED: checkpoint' on every /resume. The user-level /resume skill shadows the project copy T-3165 fixed, and calls 'checkpoint.sh budget', a verb this vendored build lacks; the T-821 crash trap then labelled the argument error a hook malfunction (51 logged, all this one call). checkpoint.sh now accepts 'budget' as an alias for 'status', and an unknown verb prints usage on stderr with rc 1, no banner and no crash-log line. Registered in .vendor-divergence.yaml; tests/checkpoint-verb-fixtures.sh 10/10, with the pre-fix script reproducing both defects. The user-level ~/.claude/commands/resume.md (outside the repo) now calls 'status'.
+
+# Key outcomes
+outcomes:
+  - '`checkpoint.sh budget` exits 0 and prints the same token reading as `status` (vendored alias, registered in `.vendor-divergence.yaml`)'
+  - 'An unknown verb prints its usage to stderr and exits 1, with no "HOOK CRASHED" banner and no line added to `.hook-crashes.log`'
+  - 'User-level `/root/.claude/commands/resume.md` calls `checkpoint.sh status`, which works in this build and in upstream; it no longer names `budget`'
+  - '`tests/checkpoint-verb-fixtures.sh` pins all three behaviours against a scratch crash log (it touches no real host state)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'stop the false ''HOOK CRASHED: checkpoint'' on every /resume. The user-level /resume skill shadows the project copy T-3165 fixed, and calls ''checkpoint.sh budget'', a verb this vendored build lacks; the T-821 crash trap then labelled the argument error a hook malfunction (51 logged, all this one call). checkpoint.sh now accepts ''budget'' as an alias for ''status'', and an unknown verb prints usage on stderr with rc 1, no banner and no crash-log line. Registered in .vendor-divergence.yaml; tests/checkpoint-verb-fixtures.sh 10/10, with the pre-fix script reproducing both defects. The user-level ~/.claude/commands/resume.md (outside the repo) now calls ''status''.'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/agents/context/checkpoint.sh'
+  - '.tasks/active/T-3316-checkpointsh-budget-still-crashes-user-l.md'
+  - 'tests/checkpoint-verb-fixtures.sh'
+  - '.vendor-divergence.yaml'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-02T00:48:27'
+    action: 'T-3316: stop the false ''HOOK CRASHED: checkpoint'' on every /resume. The user-level /resume skill shadows the project copy T-3165 fixed, and calls ''checkpoint.sh budget'', a verb this vendored build lacks; the T-821 crash trap then labelled the argument error a hook malfunction (51 logged, all this one call). checkpoint.sh now accepts ''budget'' as an alias for ''status'', and an unknown verb prints usage on stderr with rc 1, no banner and no crash-log line. Registered in .vendor-divergence.yaml; tests/checkpoint-verb-fixtures.sh 10/10, with the pre-fix script reproducing both defects. The user-level ~/.claude/commands/resume.md (outside the repo) now calls ''status''.'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 4
+  lines_added: 434
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3316-checkpointsh-budget-still-crashes-user-l.md
+generated_by: context-agent-hybrid

@@ -4,10 +4,10 @@ name: "checkpoint.sh budget still crashes: user-level /resume shadows the T-3165
 description: >
   checkpoint.sh budget still crashes: user-level /resume shadows the T-3165 fix
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -22,8 +22,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-01T22:46:06Z
-last_update: 2026-10-01T22:46:06Z
-date_finished: null
+last_update: 2026-10-01T22:48:39Z
+date_finished: 2026-10-01T22:48:39Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -49,10 +49,10 @@ user-level `/root/.claude/commands/resume.md`, which takes precedence and still 
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `checkpoint.sh budget` exits 0 and prints the same token reading as `status` (vendored alias, registered in `.vendor-divergence.yaml`)
-- [ ] An unknown verb prints its usage to stderr and exits 1, with no "HOOK CRASHED" banner and no line added to `.hook-crashes.log`
-- [ ] User-level `/root/.claude/commands/resume.md` calls `checkpoint.sh status`, which works in this build and in upstream; it no longer names `budget`
-- [ ] `tests/checkpoint-verb-fixtures.sh` pins all three behaviours against a scratch crash log (it touches no real host state)
+- [x] `checkpoint.sh budget` exits 0 and prints the same token reading as `status` (vendored alias, registered in `.vendor-divergence.yaml`)
+- [x] An unknown verb prints its usage to stderr and exits 1, with no "HOOK CRASHED" banner and no line added to `.hook-crashes.log`
+- [x] User-level `/root/.claude/commands/resume.md` calls `checkpoint.sh status`, which works in this build and in upstream; it no longer names `budget`
+- [x] `tests/checkpoint-verb-fixtures.sh` pins all three behaviours against a scratch crash log (it touches no real host state)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -302,3 +302,16 @@ either change, the guard layer turns red.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3316-checkpointsh-budget-still-crashes-user-l.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-6b84cc19
+- **Timestamp:** 2026-10-01T22:48:41Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** none
+
+### 2026-10-01T22:48:39Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
