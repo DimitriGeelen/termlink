@@ -4549,3 +4549,9 @@ learnings:
   task: unknown
   date: 2026-09-28
   context: Added via context agent
+- id: PL-393
+  learning: "Canary crontab comments state run times in UTC (29 of 34 files, e.g. 'Daily at 07:57 UTC'), but this host's timezone is Europe/Berlin and cron uses LOCAL time: jobs fire 1-2h earlier in UTC than stated (07:57 fired at 05:57Z). The schedule itself is fine. Read heartbeat timestamps (UTC) rather than the comments; when touching a crontab, write 'local time (Europe/Berlin)'. Found 2026-10-01 when the session-leak canary had not yet run: it was installed at 07:09Z, after its 05:57Z slot."
+  source: unknown
+  task: T-3211
+  date: 2026-10-01
+  context: Added via context agent
