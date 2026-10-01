@@ -7,10 +7,10 @@ description: >
   rate (not only absolute count) fires. Evidence: docs/reports/VALUE-REVIEW-repo-2026-09-19-consolidated.md
   C-14, C-15.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [value-review, arc:arc-009]
 components: []
 related_tasks: []
@@ -25,7 +25,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-19T22:12:00Z
-last_update: '2026-09-20T08:45:20Z'
+last_update: 2026-10-01T16:56:02Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -80,8 +80,9 @@ C-15 (the rate-based trigger that would have surfaced this) is agent work, but i
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Ring20 manager asked the purpose question (is the fed-probe a checked round-trip canary? will they tag cv_key?) on a durable DM, offset recorded (operator: SQ-10 b)
+- [ ] runme action bounds `health:ring20-fedprobe` retention (latest-per-cv-key if ring20 tags, else keep the last 100) and sweeps once, verified by `channel info` count (operator: SQ-10 a)
+- [ ] Ring20's answer recorded; if nothing checks the round trip, the probe's stop/re-target is requested
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -248,6 +249,13 @@ C-15 (the rate-based trigger that would have surfaced this) is agent work, but i
 
 ## Decisions
 
+### 2026-10-01 — SQ-10 RULED by the operator: a + b, plus the purpose question
+- **Purpose (analysis):** each record is a `FED-PROBE-RT fedprobe-<time>-<pid>-<n>` round-trip token, i.e. a ring20-side **federation health canary** (can .122 write to .107?). Its value lives on ring20's side and needs only the latest round trip, not an archive (2,772 records, forever, ~90-100/day, never read or acked here). **Whether the value is realised cannot be seen from here.**
+- **Refocus proposed:** `latest-per-cv-key` retention (T-2245) with ring20 tagging a stable `metadata.cv_key` per probe source, so the topic holds the last successful round trip per source, bounded forever.
+- **(b) done:** DM to the ring20 manager (9219671e28054458) on .122's hub, `dm:6738c073bbcc587a:9219671e28054458` offset 1, thread T-2988. The recipient's presence was ABSENT at send time (.122's hub restarted earlier), so it waits durably. It was also the first live post under claude-termlink's per-agent identity (T-3303).
+- **(a) next session:** the runme retention action. Operator-approved.
+
+
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
      Format:
@@ -276,3 +284,7 @@ C-15 (the rate-based trigger that would have surfaced this) is agent work, but i
 
 ### 2026-09-19T22:35:29Z — status-update [task-update-agent]
 - **Change:** tags: +arc:arc-009
+
+### 2026-10-01T16:56:02Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
