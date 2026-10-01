@@ -1133,6 +1133,21 @@ fn walk_subscribe_records(
 }
 
 /// `channel.subscribe(topic, cursor?, limit?)` → `{messages, next_cursor}`.
+/// T-3307: the `gap` block of a `channel.subscribe` response — present iff the
+/// requested `cursor` is below the oldest surviving offset, i.e. records in
+/// `[cursor, oldest_offset)` were swept by retention and cannot be returned.
+/// `None` on an empty topic or when the cursor is inside the window.
+fn retention_gap_json(cursor: u64, oldest_offset: Option<u64>) -> Option<Value> {
+    let oldest = oldest_offset?;
+    (cursor < oldest).then(|| {
+        json!({
+            "requested_cursor": cursor,
+            "oldest_offset": oldest,
+            "skipped": oldest - cursor,
+        })
+    })
+}
+
 pub async fn handle_channel_subscribe(id: Value, params: &Value) -> RpcResponse {
     let bus = match bus_or_err(id.clone()) {
         Ok(b) => b,
@@ -1265,6 +1280,14 @@ pub(crate) async fn handle_channel_subscribe_with(
     // `walk_deadline_from_env`) — a wedged walk now LOUD-refuses with
     // `WALK_DEADLINE_EXCEEDED` + resumable `data.next_cursor` instead of
     // holding its blocking-pool thread forever.
+    // T-3307 (arc-012 step 1): retention-gap signal. `bus.subscribe` starts at
+    // the oldest surviving record when `cursor` was swept, and says nothing. Read
+    // the retention horizon now (one indexed lookup) so the response can report
+    // it. The hub reports the FACT; the client judges whether it was a loss —
+    // only the client knows whether `cursor` was its own resume point or a
+    // fresh read from an arbitrary offset (the trap `Bus::gap_before` avoids by
+    // keying on server-persisted cursors, which readers here do not use).
+    let oldest_offset = bus.oldest_offset(&topic).ok().flatten();
     let deadline = walk_deadline_from_env();
     let walk = match tokio::task::spawn_blocking(move || {
         walk_subscribe_records(
@@ -1350,6 +1373,13 @@ pub(crate) async fn handle_channel_subscribe_with(
     };
 
     let mut body = json!({"messages": messages, "next_cursor": next_cursor});
+    {
+        let obj = body.as_object_mut().expect("subscribe response body is an object");
+        obj.insert("oldest_offset".to_string(), json!(oldest_offset));
+        if let Some(gap) = retention_gap_json(cursor, oldest_offset) {
+            obj.insert("gap".to_string(), gap);
+        }
+    }
     if let Some(cvs) = current_values_json {
         body.as_object_mut()
             .expect("subscribe response body is an object")
@@ -2943,6 +2973,68 @@ mod tests {
         let v = unwrap_success(sub);
         let msgs = v["messages"].as_array().unwrap();
         assert_eq!(msgs.len(), 0);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn subscribe_reports_retention_gap_when_cursor_was_swept() {
+        // T-3307: post 0..5, sweep 0..3. A reader resuming at 1 must be TOLD it
+        // missed [1, 3) — before this, the response just started at 3 silently.
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("dm:gap", Retention::Forever).unwrap();
+        let key = signing_key();
+        for n in 0u32..5 {
+            let p = post_params(&key, "dm:gap", "note", &n.to_le_bytes(), 1_000 + n as i64);
+            let _ = handle_channel_post_with(&bus, json!(n), &p).await;
+        }
+        let trim = handle_channel_trim_with(
+            &bus,
+            json!(90),
+            &json!({"topic": "dm:gap", "before_offset": 3}),
+        )
+        .await;
+        assert_eq!(unwrap_success(trim)["deleted"], 3);
+
+        let behind = unwrap_success(
+            handle_channel_subscribe_with(&bus, json!(91), &json!({"topic": "dm:gap", "cursor": 1}))
+                .await,
+        );
+        assert_eq!(behind["oldest_offset"], 3);
+        assert_eq!(behind["gap"]["requested_cursor"], 1);
+        assert_eq!(behind["gap"]["oldest_offset"], 3);
+        assert_eq!(behind["gap"]["skipped"], 2);
+        // The live records are still delivered — the gap is reported, not a refusal.
+        assert_eq!(behind["messages"].as_array().unwrap().len(), 2);
+        assert_eq!(behind["messages"][0]["offset"], 3);
+
+        let inside = unwrap_success(
+            handle_channel_subscribe_with(&bus, json!(92), &json!({"topic": "dm:gap", "cursor": 3}))
+                .await,
+        );
+        assert_eq!(inside["oldest_offset"], 3);
+        assert!(inside.get("gap").is_none(), "cursor inside the window must not report a gap");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn subscribe_empty_topic_reports_null_oldest_and_no_gap() {
+        // T-3307: an empty topic has no retention horizon — oldest_offset is null,
+        // and no cursor can be "behind" it.
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("dm:empty", Retention::Forever).unwrap();
+        let v = unwrap_success(
+            handle_channel_subscribe_with(&bus, json!(1), &json!({"topic": "dm:empty", "cursor": 7}))
+                .await,
+        );
+        assert!(v["oldest_offset"].is_null());
+        assert!(v.get("gap").is_none());
+    }
+
+    #[test]
+    fn retention_gap_json_boundaries() {
+        assert!(retention_gap_json(0, None).is_none());
+        assert!(retention_gap_json(5, Some(5)).is_none());
+        assert!(retention_gap_json(6, Some(5)).is_none());
+        let g = retention_gap_json(2, Some(5)).unwrap();
+        assert_eq!(g["skipped"], 3);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

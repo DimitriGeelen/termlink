@@ -2,9 +2,13 @@
 id: T-3307
 name: "Hub tells a subscriber its cursor fell behind retention (retention-gap signal)"
 description: >
-  arc-012 step 1 (T-3304 IW-3 B): wire Bus::gap_before (T-2463, currently uncalled by the hub) into channel.subscribe so a reader whose cursor is below the oldest surviving offset gets an explicit gap (oldest offset, missed range) instead of silently resuming at the oldest record. IW-2 makes sweeping routine, so this is the first silent-loss path to close.
+  arc-012 step 1 (T-3304 IW-3 B): wire Bus::gap_before (T-2463, currently uncalled
+  by the hub) into channel.subscribe so a reader whose cursor is below the oldest
+  surviving offset gets an explicit gap (oldest offset, missed range) instead of silently
+  resuming at the oldest record. IW-2 makes sweeping routine, so this is the first
+  silent-loss path to close.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -22,8 +26,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-01T19:22:16Z
-last_update: 2026-10-01T19:22:28Z
-date_finished: null
+last_update: 2026-10-01T21:11:35Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,20 +38,44 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-01T21:11:35Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3307: Hub tells a subscriber its cursor fell behind retention (retention-gap signal)
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+arc-012 step 1 (T-3304 IW-3 B). `channel.subscribe` silently starts at the oldest surviving
+record when the requested cursor was swept (`crates/termlink-hub/src/channel.rs`
+handle_channel_subscribe_with; `Bus::subscribe` -> `records_from(cursor)`). `Bus::gap_before`
+(T-2463) exists but keys on server-persisted cursors, which this fleet barely uses (2 rows) —
+readers keep their own cursors. Design: the HUB reports the fact (oldest surviving offset; a
+`gap` block when the request starts below it); the CLIENT judges, because only it knows
+whether it was resuming (a gap = lost messages) or starting fresh (a gap = nothing lost).
+The hub retention sweeper already runs hourly on .107, so this loss path is live today.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Hub: every successful `channel.subscribe` response carries `oldest_offset` (null on an empty topic) and, iff the requested cursor is below it, `gap: {requested_cursor, oldest_offset, skipped}`; existing fields unchanged (backward compatible)
+- [x] Hub regression test: post N records, sweep/trim the first K, subscribe from a cursor < K → response has `gap.skipped == K - cursor` and `oldest_offset == K`; subscribe from >= K → no `gap`
+- [x] CLI `channel subscribe` warns loudly on stderr (topic + missed offset range) when the hub reports a gap AND the cursor was the reader's own (loaded by `--resume`, or advanced by an earlier page in the same run — a slow `--follow` reader overtaken by the sweeper); a fresh first read from an explicit `--cursor` does not warn; with `--json` the warning is a JSON line on stderr, stdout stays unchanged for line-oriented consumers
+- [x] MCP `termlink_channel_subscribe` passes `oldest_offset` and `gap` through to the caller
+- [x] `cargo test -p termlink-hub` and the touched CLI/MCP tests pass
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -171,6 +199,11 @@ date_finished: null
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+cargo test -p termlink-hub --lib -- retention_gap subscribe_reports_retention_gap subscribe_empty_topic_reports > /tmp/.t3307-hub 2>&1 && grep -q "test result: ok. [34] passed" /tmp/.t3307-hub
+cargo test -p termlink --bins -- retention_gap_warning > /tmp/.t3307-cli 2>&1 && grep -q "test result: ok. 2 passed" /tmp/.t3307-cli
+grep -q '"oldest_offset"' crates/termlink-hub/src/channel.rs
+grep -q "oldest_offset (the oldest record still kept)" crates/termlink-mcp/src/tools.rs
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -270,3 +303,6 @@ date_finished: null
 
 ### 2026-10-01T19:22:28Z — status-update [task-update-agent]
 - **Change:** tags: +arc:arc-012
+
+### 2026-10-01T21:11:35Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

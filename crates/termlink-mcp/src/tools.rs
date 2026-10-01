@@ -29235,7 +29235,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_subscribe",
-        description = "Pull messages from a bus topic starting at an optional cursor. Returns messages plus a next_cursor for resumption. One-shot — the MCP caller loops externally if needed. Set from_latest=true to read only the single latest envelope on the topic (late-joiner room-state read without full replay)."
+        description = "Pull messages from a bus topic starting at an optional cursor. Returns messages plus a next_cursor for resumption, and oldest_offset (the oldest record still kept). If the response carries `gap` {requested_cursor, oldest_offset, skipped}, records before oldest_offset were removed by retention: when the cursor was your own resume point, you missed `skipped` messages. One-shot — the MCP caller loops externally if needed. Set from_latest=true to read only the single latest envelope on the topic (late-joiner room-state read without full replay)."
     )]
     async fn termlink_channel_subscribe(
         &self,

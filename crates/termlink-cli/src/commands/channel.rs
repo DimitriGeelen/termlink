@@ -2889,6 +2889,34 @@ pub(crate) fn create_error_is_already_exists(msg: &str) -> bool {
 /// fails. Pure (no I/O) so it is unit-testable, and emitted unconditionally to
 /// stderr (json-safe) — matching the sibling best-effort warnings in this file
 /// rather than being dropped in `--json` mode (Directive #2: no silent failures).
+/// T-3307: stderr warning for a hub-reported retention gap on `channel.subscribe`
+/// (`result["gap"] = {requested_cursor, oldest_offset, skipped}`). `None` when the
+/// hub reported no gap (or predates T-3307 and sends no field). Pure so it is
+/// unit-testable; `json` selects a single-line JSON form for machine consumers.
+pub(crate) fn retention_gap_warning(topic: &str, result: &Value, json: bool) -> Option<String> {
+    let gap = result.get("gap")?;
+    let from = gap.get("requested_cursor")?.as_u64()?;
+    let oldest = gap.get("oldest_offset")?.as_u64()?;
+    let skipped = gap.get("skipped").and_then(|v| v.as_u64()).unwrap_or(oldest.saturating_sub(from));
+    if json {
+        return Some(
+            json!({
+                "warning": "retention_gap",
+                "topic": topic,
+                "requested_cursor": from,
+                "oldest_offset": oldest,
+                "skipped": skipped,
+            })
+            .to_string(),
+        );
+    }
+    Some(format!(
+        "warning: {skipped} message(s) on '{topic}' were removed by retention before this reader got them \
+         (offsets {from}..{last}); continuing from offset {oldest}",
+        last = oldest.saturating_sub(1)
+    ))
+}
+
 fn ensure_topic_warn_msg(topic: &str, err: &str) -> String {
     format!(
         "warning: --ensure-topic channel.create failed for {topic}: {err} \
@@ -9462,12 +9490,20 @@ pub(crate) async fn cmd_channel_subscribe(
         cursor_store::remove(topic, fp)
             .context("clear persisted cursor")?;
     }
+    // T-3307: `cursor_is_ours` — the start position is this reader's own resume
+    // point (loaded from the store). It also becomes true after the first page,
+    // since every later cursor is our own progress. Only then does a hub-reported
+    // retention gap mean lost messages; a fresh read from `--cursor N` does not.
+    let mut cursor_is_ours = false;
     let mut cursor = if resume {
         match identity_fingerprint
             .as_ref()
             .and_then(|fp| cursor_store::get(topic, fp).ok().flatten())
         {
-            Some(stored) => stored,
+            Some(stored) => {
+                cursor_is_ours = true;
+                stored
+            }
             None => cursor, // no entry → fall through to --cursor value
         }
     } else {
@@ -9583,6 +9619,15 @@ pub(crate) async fn cmd_channel_subscribe(
             }
             Err(e) => return Err(anyhow!("Hub returned error for channel.subscribe: {e}")),
         };
+        // T-3307: the hub reports when `cursor` was already swept by retention.
+        // Warn on stderr (stdout stays the message stream) only when the cursor
+        // was our own — then records really were lost to this reader.
+        if cursor_is_ours {
+            if let Some(warning) = retention_gap_warning(topic, &result, json_output) {
+                eprintln!("{warning}");
+            }
+        }
+        cursor_is_ours = true;
         // T-2105: render cv_index snapshot BEFORE the messages stream.
         // Snapshot is one-shot — clear the flag so paginated calls don't re-fetch.
         if request_cv_snapshot {
@@ -12902,6 +12947,30 @@ mod tests {
     // T-2654: the --ensure-topic heal-failure warning must name the topic and
     // the "unknown topic" consequence so an operator can trace a later -32013
     // back to the failed create. Load-bearing: emptying the helper body fails this.
+    #[test]
+    fn retention_gap_warning_names_topic_and_range() {
+        // T-3307
+        let r = json!({"messages": [], "next_cursor": 5,
+            "gap": {"requested_cursor": 1, "oldest_offset": 3, "skipped": 2}});
+        let w = retention_gap_warning("dm:x", &r, false).unwrap();
+        assert!(w.contains("2 message(s)"), "{w}");
+        assert!(w.contains("'dm:x'"), "{w}");
+        assert!(w.contains("offsets 1..2"), "{w}");
+        assert!(w.contains("from offset 3"), "{w}");
+        let j: Value = serde_json::from_str(&retention_gap_warning("dm:x", &r, true).unwrap()).unwrap();
+        assert_eq!(j["warning"], "retention_gap");
+        assert_eq!(j["skipped"], 2);
+    }
+
+    #[test]
+    fn retention_gap_warning_absent_without_gap_or_on_old_hub() {
+        // T-3307: no `gap` field (cursor inside the window, or a pre-T-3307 hub) → no warning.
+        assert!(retention_gap_warning("t", &json!({"messages": [], "next_cursor": 0}), false).is_none());
+        assert!(
+            retention_gap_warning("t", &json!({"oldest_offset": 0, "next_cursor": 0}), true).is_none()
+        );
+    }
+
     #[test]
     fn ensure_topic_warn_msg_names_topic_and_consequence() {
         let m = ensure_topic_warn_msg("work-queue", "hub error: code=-32010 message=AUTH_DENIED");
