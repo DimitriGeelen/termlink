@@ -26,6 +26,29 @@ run() { RUNME_CRON_DIR="$TMP/cron" bash "$RUNME" "$@" 2>&1; }
 
 mkdir -p "$TMP/cron"
 
+# T-2988 (action 9): stateful fake termlink for health:ring20-fedprobe. State is
+# "<kind> <value> <count>" in $FAKE_FEDPROBE_STATE; default = already bounded, so
+# every other case below skips action 9 without touching a real hub.
+export FAKE_FEDPROBE_STATE="$TMP/fedprobe.state"
+echo "messages 100 100" > "$FAKE_FEDPROBE_STATE"
+cat > "$TMP/fake-tl-fedprobe" <<'EOS'
+#!/usr/bin/env bash
+read -r kind value count < "$FAKE_FEDPROBE_STATE"
+case "$1 $2" in
+  "channel info")
+    [ -n "${FAKE_FEDPROBE_MISSING:-}" ] && { echo "unknown topic" >&2; exit 1; }
+    printf '{"topic":"%s","count":%s,"retention":{"kind":"%s","value":%s}}\n' "$3" "$count" "$kind" "$value" ;;
+  "channel set-retention")
+    spec="$5"; echo "${spec%%:*} ${spec#*:} $count" > "$FAKE_FEDPROBE_STATE" ;;
+  "channel sweep")
+    [ -n "${FAKE_FEDPROBE_NOSWEEP:-}" ] && exit 0
+    [ "$kind" = "messages" ] && [ "$count" -gt "$value" ] && count=$value
+    echo "$kind $value $count" > "$FAKE_FEDPROBE_STATE" ;;
+esac
+EOS
+chmod +x "$TMP/fake-tl-fedprobe"
+export RUNME_FEDPROBE_TL="$TMP/fake-tl-fedprobe"
+
 # T-3272: the closure action goes through RUNME_TASKS_DIR + RUNME_FW. Exported for
 # EVERY invocation below (including the --decide cases, which do a real run) so no
 # fixture can ever close a real task.
@@ -263,7 +286,7 @@ if [ "$(id -u)" != "0" ] && [ -n "${CI:-}" ]; then
 fi
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|') + 6 ))   # +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303)
+EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|') + 7 ))   # +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988)
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -683,6 +706,33 @@ out=$(run); rc=$?
 if [ "$rc" = "0" ] && echo "$out" | grep -q "skip    $CL already sets TERMLINK_AGENT_ID=claude-termlink"; then
     ok "identity env: second run skips (idempotent)"
 else bad "identity env idempotent" "rc=$rc: $out"; fi
+
+# ---------------------------------------------------------------------------
+# 21. T-2988 — bound health:ring20-fedprobe (fake termlink, scratch state only).
+# ---------------------------------------------------------------------------
+echo "forever 0 2777" > "$FAKE_FEDPROBE_STATE"
+out=$(run --dry-run); rc=$?
+if echo "$out" | grep -q "would set health:ring20-fedprobe retention forever -> messages 100" && grep -q "^forever 0 2777$" "$FAKE_FEDPROBE_STATE"; then
+    ok "fedprobe: --dry-run reports and changes nothing"
+else bad "fedprobe dry-run" "rc=$rc: $out"; fi
+out=$(run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      health:ring20-fedprobe now keeps the last 100; swept to 100 records (verified)" && grep -q "^messages 100 100$" "$FAKE_FEDPROBE_STATE"; then
+    ok "fedprobe: retention set, swept to 100, verified"
+else bad "fedprobe bound" "rc=$rc: $out $(cat "$FAKE_FEDPROBE_STATE")"; fi
+out=$(run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "skip    health:ring20-fedprobe already keeps the last 100"; then
+    ok "fedprobe: second run skips (idempotent)"
+else bad "fedprobe idempotent" "rc=$rc: $out"; fi
+echo "forever 0 2777" > "$FAKE_FEDPROBE_STATE"
+out=$(FAKE_FEDPROBE_NOSWEEP=1 run); rc=$?
+if [ "$rc" != "0" ] && echo "$out" | grep -q "FAILED  health:ring20-fedprobe: after set-retention + sweep it reads 'messages 100 2777'"; then
+    ok "fedprobe: a sweep that does not take effect is FAILED, not OK"
+else bad "fedprobe no-sweep" "rc=$rc: $out"; fi
+out=$(FAKE_FEDPROBE_MISSING=1 run); rc=$?
+if echo "$out" | grep -q "skip    health:ring20-fedprobe not found on the local hub"; then
+    ok "fedprobe: missing topic is a skip"
+else bad "fedprobe missing" "rc=$rc: $out"; fi
+echo "messages 100 100" > "$FAKE_FEDPROBE_STATE"
 
 echo ""
 echo "----------------------------------------"

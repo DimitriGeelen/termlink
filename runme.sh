@@ -246,9 +246,8 @@ fi
 # T-3284 = go recorded 2026-09-30 (log runme-20260930T185754Z, rc=0)
 # T-3291 = go recorded 2026-09-30 (log runme-20260930T215045Z, rc=0)
 # T-3302 = go, T-3006 = no-go, T-3200 = no-go recorded 2026-10-01 (log runme-20261001T132546Z, rc=0)
-APPROVED_DECISIONS=(
-    "T-3304|go|Operator 2026-10-01: GO after ruling all five questions — IW-1 B (hub authoritative for coordination within a declared retention window), IW-2 C (14-day default, forever needs owner+reason, sweeper on every hub, ceiling on post), IW-3 B (retention-gap signal, SQ-11 c2, page end reasons, hub-side time range), IW-4 C-prime (hub-side topic record outside the log, owner from identity, idle/unread flags, never refuse creation). Evidence: docs/reports/T-3304-hub-storage-model.md (three-agent consult, research on 8 systems, five-model IW-4 consult)."
-)
+# T-3304 = go recorded 2026-10-01 (log runme-20261001T193212Z, rc=0)
+APPROVED_DECISIONS=()
 if [ -n "${RUNME_TEST_APPROVED_DECISIONS+x}" ]; then
     APPROVED_DECISIONS=()
     [ -n "$RUNME_TEST_APPROVED_DECISIONS" ] && mapfile -t APPROVED_DECISIONS <<< "$RUNME_TEST_APPROVED_DECISIONS"
@@ -810,6 +809,62 @@ EOP
 
 head2 "8. Claude sessions sign with claude-termlink's own key (T-3303, T-3302 GO option B)"
 set_agent_identity_env
+
+# ---------------------------------------------------------------------------
+# ACTION 9 — bound health:ring20-fedprobe to its last 100 records
+# (T-2988; operator ruling SQ-10 a+b, 2026-10-01)
+#
+# ring20's federation round-trip probe posts ~90-100 tokens a day to this hub,
+# retention "forever" (2,777 records when measured), and nothing here reads it.
+# The operator ruled: bound it and sweep once. The last 100 posts (~1 day) stay
+# readable, so ring20's own round-trip check is unaffected. If ring20 later tags
+# its posts with a stable metadata.cv_key, this becomes latest-per-cv-key.
+# Idempotent: skips when already "messages 100" with <= 100 records; verifies
+# by re-reading retention and count after the sweep. A missing topic is a skip.
+# Seam (fixtures only): RUNME_FEDPROBE_TL (the termlink CLI).
+# ---------------------------------------------------------------------------
+seam FEDPROBE_TL RUNME_FEDPROBE_TL "termlink"
+FEDPROBE_TOPIC="health:ring20-fedprobe"
+FEDPROBE_KEEP=100
+
+fedprobe_state() {  # -> "<kind> <value> <count>" or "missing"
+    $FEDPROBE_TL channel info "$FEDPROBE_TOPIC" --json 2>/dev/null | python3 -c '
+import json, sys
+try:
+    d = json.load(sys.stdin)
+except Exception:
+    print("missing"); sys.exit(0)
+r = d.get("retention") or {}
+if "count" not in d:
+    print("missing"); sys.exit(0)
+print(r.get("kind", "?"), r.get("value", 0), d.get("count", 0))'
+}
+
+bound_fedprobe() {
+    local st kind value count
+    st="$(fedprobe_state)"
+    if [ "$st" = "missing" ] || [ -z "$st" ]; then
+        say "  skip    $FEDPROBE_TOPIC not found on the local hub (nothing to bound)"; SKIPPED=$((SKIPPED+1)); return
+    fi
+    read -r kind value count <<< "$st"
+    if [ "$kind" = "messages" ] && [ "$value" = "$FEDPROBE_KEEP" ] && [ "$count" -le "$FEDPROBE_KEEP" ]; then
+        say "  skip    $FEDPROBE_TOPIC already keeps the last $FEDPROBE_KEEP ($count records)"; SKIPPED=$((SKIPPED+1)); return
+    fi
+    if [ "$DRY_RUN" = "1" ]; then
+        say "  [DRY]   would set $FEDPROBE_TOPIC retention $kind -> messages $FEDPROBE_KEEP and sweep ($count records now)"; DONE=$((DONE+1)); return
+    fi
+    $FEDPROBE_TL channel set-retention "$FEDPROBE_TOPIC" --retention "messages:$FEDPROBE_KEEP" >/dev/null 2>&1
+    $FEDPROBE_TL channel sweep "$FEDPROBE_TOPIC" >/dev/null 2>&1
+    read -r kind value count <<< "$(fedprobe_state)"
+    if [ "$kind" = "messages" ] && [ "$value" = "$FEDPROBE_KEEP" ] && [ "${count:-999999}" -le "$FEDPROBE_KEEP" ]; then
+        say "  OK      $FEDPROBE_TOPIC now keeps the last $FEDPROBE_KEEP; swept to $count records (verified)"; DONE=$((DONE+1))
+    else
+        say "  FAILED  $FEDPROBE_TOPIC: after set-retention + sweep it reads '$kind $value $count'"; FAILED=$((FAILED+1))
+    fi
+}
+
+head2 "9. Bound health:ring20-fedprobe to its last $FEDPROBE_KEEP records (T-2988, SQ-10)"
+bound_fedprobe
 
 # ---------------------------------------------------------------------------
 # Verification — the project's own drift checker is the arbiter, not this script.
