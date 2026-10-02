@@ -67,11 +67,11 @@ All agents on one host sign as one TermLink identity (T-1448), so `dm:<fp>` and 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
 - [x] The addressee metadata key is agreed (operator ruling via /decision-brief, recorded in ## Decisions) and stated once in docs
-- [ ] notify-sidecar counts an unread message only when its `to_circuit` names this agent's circuit (level-by-level, both grammars), or names none, or names a session/agent not live here whose deepest live ancestor is this agent (fallback ladder)
-- [ ] `agent contact` / `scripts/agent-send.sh` set `to_circuit` (path form) when the target is a named agent
-- [ ] Hermetic fixtures cover: addressed-to-me wakes, addressed-to-other does not, unaddressed wakes, V9 grammar parses identically to path form, fallback to project level when the named agent is not live; a mutant removing the filter turns a fixture red
-- [ ] The convention is documented once (docs/operations/notify-sidecar-api.md)
-- [ ] 055 is told the convention on framework:pickup (reply to offset 257)
+- [x] notify-sidecar counts an unread message only when its `to_circuit` names this agent's circuit (level-by-level, both grammars), or names none, or names a session/agent not live here whose deepest live ancestor is this agent (fallback ladder)
+- [x] `agent contact` / `scripts/agent-send.sh` set `to_circuit` (path form) when the target is a named agent
+- [x] Hermetic fixtures cover: addressed-to-me wakes, addressed-to-other does not, unaddressed wakes, V9 grammar parses identically to path form, fallback to project level when the named agent is not live; a mutant removing the filter turns a fixture red
+- [x] The convention is documented once (docs/operations/notify-sidecar-api.md)
+- [x] 055 is told the convention (on their inbox, @16 of inbox:cacc73ea32b121dd/055-agentic-fleet-cockpit, rather than framework:pickup, which AEF is retiring in favour of inboxes)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -107,6 +107,10 @@ All agents on one host sign as one TermLink identity (T-1448), so `dm:<fp>` and 
 -->
 
 ## Verification
+bash tests/notify-sidecar-circuit-fixtures.sh > /tmp/.t3325a 2>&1 && grep -q 'failed: 0' /tmp/.t3325a
+bash tests/notify-sidecar-inbox-fixtures.sh > /tmp/.t3325b 2>&1 && grep -q 'failed: 0' /tmp/.t3325b
+grep -q '^## Addressing' docs/operations/notify-sidecar-api.md
+grep -q 'to_circuit=' scripts/agent-send.sh
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -293,6 +297,12 @@ All agents on one host sign as one TermLink identity (T-1448), so `dm:<fp>` and 
      legacy tasks lacking this section. -->
 
 ## Updates
+
+### 2026-10-03 — built, deployed, live
+1. Commit 308ee29a7: circuit.py classifier, sidecar filter + ack cap + last_mail_sig, agent-send stamps to_circuit (live-proven on a scratch topic: //dimitrimintdev/cacc73ea32b121dd/@t3325-593505), runme action 10, docs.
+2. Operator ran runme (runme-20261002T231616Z-1156031.log, rc=0): action 10 restarted 3 sidecars, verified 0 stale; flags now carry last_mail_sig.
+3. Found while waiting: claude-termlink's sidecar receipted mail as delivered while this agent has no wake consumer and notify-injector is scheduled by nothing; AEF waited ~1 day (@62..@131), 055's consult went unseen. Acknowledged both (055 @15/@16, AEF @137/@138). Receive stages "injected" and "replied" do not exist; to be decided as one decision with shipping sidecars inside the binary (operator question 2026-10-03).
+4. Pre-existing, not caused here: scripts/test-agent-send-orchestration.sh O5 fails identically with this change stashed; it also leaves dm:6738c073...:ab000... scratch topics on the hub (now counted in claude-termlink-alt's pending).
 
 ### 2026-10-03 — Q1 reframed onto the five-level circuit; project-UUID request sent to AEF
 - Operator: use the agreed five-level circuit address (host/hub/project/session/agent) and its fallback ladder, not new keys. Evidence on the hub: AEF D-599/T-3433 (inbox:cacc73ea32b121dd/010-termlink @39-42, V9 grammar announced), AEF @53 "the five-level circuit model stands"; peers send `from_circuit` in path form. Revised brief recommends C (read path + V9, write path now, follow AEF's cut). Q1 ruling still OPEN.
