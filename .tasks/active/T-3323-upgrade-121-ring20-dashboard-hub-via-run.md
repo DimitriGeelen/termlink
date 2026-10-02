@@ -22,7 +22,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-02T16:52:01Z
-last_update: 2026-10-02T16:52:01Z
+last_update: 2026-10-02T16:56:09Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -46,11 +46,11 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `scripts/fleet-deploy-binary.sh --swap-restart` relaunches a detached hub with the RUNNING hub's TERMLINK_RUNTIME_DIR (read from /proc/<pid>/environ), falling back to the exec session's env only when unreadable — so a restart can never move the hub to a fresh runtime dir and rotate its secret/cert (PL-021)
-- [ ] runme.sh action 6 includes ring20-dashboard (.121) alongside ring20-management; comments and the action heading no longer say ".121 has no foothold"
-- [ ] runme fixtures still pass (action count derived, no real host touched)
-- [ ] After the operator's runme run: fleet doctor shows .121 serving the deployed version with status ok (secret still authenticates) and `tofu verify` passes (cert unchanged); its governor reports the T-3310 retention fields
-- [ ] `.context/cron/fleet-version-floors.conf` note for ring20-dashboard updated to the measured state (0.12.39 before, foothold exists)
+- [x] `scripts/fleet-deploy-binary.sh --swap-restart` relaunches a detached hub with the RUNNING hub's TERMLINK_RUNTIME_DIR (read from /proc/<pid>/environ), falling back to the exec session's env only when unreadable — so a restart can never move the hub to a fresh runtime dir and rotate its secret/cert (PL-021)
+- [x] runme.sh action 6 includes ring20-dashboard (.121) alongside ring20-management; comments and the action heading no longer say ".121 has no foothold"
+- [x] runme fixtures still pass (action count derived, no real host touched)
+- [x] After the operator's runme run: fleet doctor shows .121 serving the deployed version with status ok (secret still authenticates) and `tofu verify` passes (cert unchanged); its governor reports the T-3310 retention fields
+- [x] `.context/cron/fleet-version-floors.conf` note for ring20-dashboard updated to the measured state (0.12.39 before, foothold exists)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -87,92 +87,12 @@ date_finished: null
 
 ## Verification
 
-# Shell commands that MUST pass before work-completed. One per line.
-# Lines starting with # are comments (skipped). Empty lines ignored.
-# The completion gate runs each command — if any exits non-zero, completion is blocked.
-#
-# Toolchain hint (L-291): if you edited *.vbproj/*.csproj/*.xaml add `dotnet build`;
-# *.go → `go build ./...`; Cargo.toml → `cargo check`; tsconfig.json → `tsc --noEmit`;
-# pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
-# past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
-#
-# ── Pipefail/SIGPIPE: grepping a command's output (L-387, T-2090, T-2743, T-2738) ──
-#
-# THE DEFAULT — redirect to a file, then grep the file:
-#     cmd > /tmp/.out 2>&1 && grep -q "PATTERN" /tmp/.out
-#     curl -sf "$(bin/fw watchtower url)/page" -o /tmp/.out && grep -q "PAT" /tmp/.out
-# Correct at any output size, and `&&` keeps the PRODUCING command's exit code in
-# the verdict. Reach for this first; the alternative below is the special case.
-#
-# NEVER `cmd | grep -q PAT` (L-387) — why: P-011 runs each line under `set -eo
-# pipefail`. When grep matches it exits and closes stdin while cmd is still
-# writing, cmd takes SIGPIPE, the pipeline exits 141 — verification "fails" with
-# the pattern present. Captured 4× (T-1716, T-1838, T-1862, T-1863).
-#
-# THE EXCEPTION — capture first, grep the capture:
-#     out=$(cmd 2>&1); echo "$out" | grep -q "PATTERN"
-# Valid ONLY while "$out" fits the 65536-byte pipe buffer, and it is on you to
-# know that it does. Above that the form inverts and becomes the very failure
-# L-387 describes: echo blocks on the full pipe, grep -q exits, echo takes
-# SIGPIPE, rc=141 (T-2743 — measured on a 146,366-byte Watchtower page, 3/3 runs,
-# deterministic not racy; rendered routes run 50-200KB, so anything that curls a
-# page is over the line). It also discards cmd's exit code, so a 404 yields an
-# empty capture that grep merely fails to match rather than a failed line.
-# If you do use it: single pipe only, no intermediate tail/awk/sed stage between
-# capture and grep (T-2090) — the middle stage is what `grep -q` slams its stdin
-# on, and grep scans the whole captured string anyway, so the `tail -3` was
-# cosmetic. `echo "$out" | grep -q PAT`, nothing between.
-#
-# ── Asserting an ABSENCE: prove the search could have succeeded (T-3144) ──
-#
-# `! grep -q "PATTERN" file` exits 0 when the pattern is absent. It ALSO exits 0
-# when the file was renamed, deleted, or is empty — so the leg cannot distinguish
-# "the bad thing is not there" from "I could not look", and the gate reports green
-# over a check that never ran. Pair every absence assertion with something that
-# fails if the search could not happen:
-#
-#     test -f path/to/file && ! grep -q "PATTERN" path/to/file    # existence first
-#     grep -q "KNOWN_MARKER" f && ! grep -q "PATTERN" f           # positive companion
-#     cmd > /tmp/.out 2>&1 && ! grep -q "PATTERN" /tmp/.out       # &&-joined producer
-#
-# Count-equals-zero is the same defect wearing a different hat, and it is the one
-# that bites hardest over a COMMAND's output rather than a file:
-#
-#     [ "$(cargo clippy --workspace 2>&1 | grep -c "^error")" = "0" ]   # WRONG
-#
-# If cargo is missing, or dies before emitting diagnostics, there are no `^error`
-# lines, the count is 0, and the leg passes — a build gate that goes green
-# precisely when the build could not run. Measured in this corpus, not invented.
-# Keep the producer's exit code in the verdict:
-#
-#     cargo clippy --workspace > /tmp/.out 2>&1 && ! grep -q "^error" /tmp/.out
-#
-# T-3144 censused 2853 task files: 71 absence assertions, 41 already correct, 30
-# not. The convention mostly works — this note is here so the next one is written
-# right, because a vacuous leg is invisible until the day the path moves.
-#
-# TEST RUNNERS need a guard either way (T-2738). `set -e` is suppressed inside the
-# `if` condition the gate runs each line in, so in `cmd1; cmd2` only cmd2 is the
-# verdict — and the pass marker you grep for survives a partial failure: a suite
-# printing "3 failed, 9 passed" satisfies `grep -q "9 passed"`, and generalising
-# to `grep -qE "[0-9]+ passed"` matches the same output. Keep the exit code:
-#     python3 -m pytest <file> -q > /tmp/.out 2>&1 && grep -q passed /tmp/.out
-# or add the guard the exit code used to supply:
-#     out=$(python3 -m pytest <file> -q 2>&1); echo "$out" | grep -q passed && ! echo "$out" | grep -q failed
-#     out=$(bats <file> 2>&1); echo "$out" | grep -q '^ok 1 ' && ! echo "$out" | grep -q '^not ok'
-# The close gate refuses the unguarded form. Bypass: FW_ALLOW_UNJUDGED_TEST_RUN=1.
-#
-# REHEARSING A LINE BY HAND DOES NOT REHEARSE THE GATE (T-2743). Your interactive
-# shell has no `set -eo pipefail`. A line has returned 0 by hand and 141 under
-# P-011, from the same directory, the same second. To rehearse for real:
-#     bash -c 'set -eo pipefail; <your verification line>'
-#
-# Enforcement-baseline hint (L-398, T-1886): if you edited `.claude/settings.json`
-# (added/removed/reorganised hooks), add `bin/fw enforcement baseline` to your
-# Verification block. Otherwise the canonical hash diverges and `fw doctor`
-# reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
-# Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
-# the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+grep -q "RUN_RT=" scripts/fleet-deploy-binary.sh && grep -q 'RUNTIME=\${RUN_RT:-' scripts/fleet-deploy-binary.sh
+grep -q 'FLEET_HUBS="${RUNME_FLEET_HUBS:-ring20-management ring20-dashboard}"' runme.sh
+bash tests/runme-fixtures.sh > /tmp/.t3323-runme 2>&1 && grep -q "0 failed" /tmp/.t3323-runme
+grep -q "^ring20-dashboard 0.12.103" .context/cron/fleet-version-floors.conf
+bash scripts/check-fleet-binary-freshness.sh --no-heartbeat > /tmp/.t3323-fleet 2>&1 && grep -q "ring20-dashboard: served=0.12.103" /tmp/.t3323-fleet
+termlink tofu verify 192.168.10.121:9100 > /tmp/.t3323-tofu 2>&1
 
 ## RCA
 
@@ -265,6 +185,12 @@ date_finished: null
      legacy tasks lacking this section. -->
 
 ## Updates
+
+### 2026-10-02T17:10Z — deployed and verified live [claude]
+- runme rc=0 (runme-20261002T165923Z-4075926.log): ring20-dashboard 0.12.39 -> 0.12.103 via --swap-restart; fleet doctor ok, tofu verify ok.
+- Live probe after: hub relaunched as `/usr/local/bin/termlink hub start --tcp 0.0.0.0:9100` with TERMLINK_RUNTIME_DIR=/var/lib/termlink; hub.secret + hub.cert.pem still dated 2026-05-02 (no rotation); session tl-cl4jd2gx reconnected (same pid); governor reports T-3310 retention fields.
+- Floor set: ring20-dashboard 0.12.103; fleet binary canary rc 0.
+- Left open (their host, their call): .121's hub has no supervisor (no systemd unit, no watchdog) — it will not come back after a crash or reboot.
 
 ### 2026-10-02T16:52:01Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
