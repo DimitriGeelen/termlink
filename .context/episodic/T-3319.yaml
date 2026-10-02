@@ -1,0 +1,94 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3319: Learn from message traffic: derive knowledge from the hub's message and event flow (with AEF, external review, operator discussion)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-02T17:51:22Z
+# ============================================================================
+
+task_id: T-3319
+task_name: "Learn from message traffic: derive knowledge from the hub's message and event flow (with AEF, external review, operator discussion)"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-02T14:53:39Z
+completed: 2026-10-02T17:51:10Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-10-02T17:52:45+02:00
+last_commit: 2026-10-02T19:29:04+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  research artifact + external consultation (Codex, GLM-5.3, qwen3:14b, gemma4; run isolated, none saw another's answer). Raw material measured read-only (4,367 records / 12.4 MB; framework:pickup richest; ~108 of 407 channel:learnings are test fixtures; per-host sender fingerprint; AEF ingested 1 learning of 407). 4/4 qualified yes: narrow, knowledge lives in AEF memory, no hub archive; all flag attribution. Splits: hub-side 'unanswered age' view; first measure. Recommended first operator question: routing (filings answered) vs mining (patterns). Nothing posted to any hub.. record Q0 operator ruling (C: routing first, mining folded into triage; stop rule <2 recurring cross-project classes -> no miner); IW-0..IW-5 declared; dialogue log
+
+# Key outcomes
+outcomes:
+  - 'Problem statement validated'
+  - 'Assumptions tested'
+  - 'Recommendation written with rationale'
+  - '[REVIEW] Review exploration findings and approve go/no-go decision'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'research artifact + external consultation (Codex, GLM-5.3, qwen3:14b, gemma4; run isolated, none saw another''s answer). Raw material measured read-only (4,367 records / 12.4 MB; framework:pickup richest; ~108 of 407 channel:learnings are test fixtures; per-host sender fingerprint; AEF ingested 1 learning of 407). 4/4 qualified yes: narrow, knowledge lives in AEF memory, no hub archive; all flag attribution. Splits: hub-side ''unanswered age'' view; first measure. Recommended first operator question: routing (filings answered) vs mining (patterns). Nothing posted to any hub.'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-10-02 — Q0: routing or mining (operator ruling)'
+    chose: 'C — routing first, mining folded into the triage. Triage the framework:pickup backlog by addressee (answer/file what concerns TermLink, acknowledge the rest), coding each filing''s class (addressee, class, already-seen-elsewhere) as the mining yield test; propose an "unanswered filing" audit to AEF. Stop rule set in advance: fewer than 2 recurring cross-project classes -> no miner.'
+    rationale: 'the proven failure is routing: 98 inbound filings unprocessed since 2026-09-25 while the pickup canary fired daily; AEF''s inbound learnings feed holds 1 of 407; AEF''s own router exists because a bug report sat unread for three months. Codex and GLM diagnose routing; the backlog must be read anyway, so coding classes costs minutes.'
+    alternatives_rejected: ['A routing only (+43: answers repeats one at a time forever); B mining only (+21: learns from filings nobody answers); D defer (-38: how the 98 accumulated). C scored +58. - **Left open:** IW-1..IW-5.']
+  - decision: '2026-10-02 — IW-2: who does the mining (operator ruling)'
+    chose: 'C — termlink extracts and publishes an evidence digest (recurring classes with offsets and raising projects, unanswered filings and ages, read receipts, attribution confidence) on framework:pickup; AEF interprets it and owns the knowledge in its memory; termlink never writes into AEF''s learnings or tasks.'
+    rationale: 'only the hub sees delivery and readership; all 5 recurring classes are AEF''s defects; AEF is currently silent, so a joint start would not start (Codex: "the hub owns transport facts; AEF owns interpreted knowledge").'
+    alternatives_rejected: ['A joint co-design first (-2, blocked on a silent partner); B mine and share unspecified "outcomes" (+35, drifts into interpreting AEF''s code, G-062); D AEF alone (-20, cannot see receipts). C scored +60. - **Left open:** digest cadence; IW-4 (hub view) and IW-5 (LLM) deferred.']
+  - decision: '2026-10-02 — Q0 stop-rule result (from T-3324)'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/reports/T-3319-consult/brief.md'
+  - 'docs/reports/T-3319-consult/codex.md'
+  - 'docs/reports/T-3319-consult/gemma4.md'
+  - 'docs/reports/T-3319-consult/glm.md'
+  - 'docs/reports/T-3319-consult/qwen.md'
+  - 'docs/reports/T-3319-learn-from-message-traffic.md'
+  - '.tasks/active/T-3319-learn-from-message-traffic-derive-knowle.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-02T17:52:45'
+    action: 'T-3319: research artifact + external consultation (Codex, GLM-5.3, qwen3:14b, gemma4; run isolated, none saw another''s answer). Raw material measured read-only (4,367 records / 12.4 MB; framework:pickup richest; ~108 of 407 channel:learnings are test fixtures; per-host sender fingerprint; AEF ingested 1 learning of 407). 4/4 qualified yes: narrow, knowledge lives in AEF memory, no hub archive; all flag attribution. Splits: hub-side ''unanswered age'' view; first measure. Recommended first operator question: routing (filings answered) vs mining (patterns). Nothing posted to any hub.'
+  - time: '2026-10-02T19:29:04'
+    action: 'T-3319: record Q0 operator ruling (C: routing first, mining folded into triage; stop rule <2 recurring cross-project classes -> no miner); IW-0..IW-5 declared; dialogue log'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 177 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-012]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 177
+  commits: 2
+  files_changed: 7
+  lines_added: 623
+  lines_removed: 14
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3319-learn-from-message-traffic-derive-knowle.md
+generated_by: context-agent-hybrid

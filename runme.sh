@@ -251,10 +251,8 @@ fi
 # T-3291 = go recorded 2026-09-30 (log runme-20260930T215045Z, rc=0)
 # T-3302 = go, T-3006 = no-go, T-3200 = no-go recorded 2026-10-01 (log runme-20261001T132546Z, rc=0)
 # T-3304 = go recorded 2026-10-01 (log runme-20261001T193212Z, rc=0)
-# T-3319 = go: operator rulings 2026-10-02 (Q0 = C, IW-2 = C; recorded in the task's Decisions/Updates)
-APPROVED_DECISIONS=(
-    "T-3319|go|Operator rulings 2026-10-02: Q0 = C (routing first, mining folded into triage, done in T-3324: 98 filings coded, stop rule passed with 5 recurring cross-project classes); IW-2 = C (termlink extracts and publishes an evidence digest on framework:pickup, AEF owns the conclusions and its memory, termlink never writes AEF memory). GO authorises one build task: the first evidence digest, with per-agent attribution (T-3325) before any per-agent claim."
-)
+# T-3319 = go recorded 2026-10-02 (log runme-20261002T175105Z, rc=0)
+APPROVED_DECISIONS=()
 if [ -n "${RUNME_TEST_APPROVED_DECISIONS+x}" ]; then
     APPROVED_DECISIONS=()
     [ -n "$RUNME_TEST_APPROVED_DECISIONS" ] && mapfile -t APPROVED_DECISIONS <<< "$RUNME_TEST_APPROVED_DECISIONS"
