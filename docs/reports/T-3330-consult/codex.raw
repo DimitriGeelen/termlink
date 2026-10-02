@@ -1,0 +1,164 @@
+Reading additional input from stdin...
+2026-10-02T23:36:57.351491Z ERROR codex_models_manager::manager: failed to load models cache: EOF while parsing a value at line 1 column 0
+OpenAI Codex v0.153.4
+--------
+workdir: /opt/termlink
+model: gpt-6-astra
+provider: openai
+approval: never
+sandbox: read-only
+reasoning effort: none
+reasoning summaries: none
+session id: 01a0fefa-6448-7930-9649-c1bad6ec3329
+--------
+user
+You are being consulted as an independent design reviewer. Give your own view; disagree with the framing where you think it is wrong. Answer in English, in under ~900 words, using the numbered headings below. Use hierarchical labels (1, 1a, 1ab) for lists, never plain bullets. Do not modify any files.
+
+## The system
+
+TermLink is a coordination substrate for a fleet of AI coding agents (and one human operator) across several machines. Charter: "a hub-mediated, durable append-log message bus with terminal endpoints — lets a fleet of AI agents discover each other, exchange durable messages, claim work, and control terminal sessions." Charter non-goals include: not a durable database / system of record (topics are retention-bounded), and not a second cross-host bus (hubs are independent; no federation).
+
+Several projects (each with its own agent) run on one host and share one hub. Most use a governance framework, "AEF", maintained by a separate agent. Messages between agents travel as hub topic posts (`inbox:<hub>/<project>`, `dm:<fp>:<fp>`), each with metadata (from_project, conversation_id, client_msg_id, from_circuit, and now to_circuit).
+
+## The receive side today (measured)
+
+1. TermLink's own receive side is shell scripts ("sidecars") run from one git checkout; releases ship only the binary.
+   1a. "received": a per-topic watermark receipt (`msg_type=receipt`, `stage=delivered`, `up_to=<offset>`) posted by a poller every 15 s. No per-message id or timestamp field; time = hub envelope time.
+   1b. "injected" (message put into the agent's session): never emitted — the component that injects is scheduled by nothing, because no agent session is registered with an injectable terminal.
+   1c. "replied": not emitted.
+   1d. Receipts are durable envelopes on the topic (all kept, subject to retention), but the hub's summary view keeps only the latest per sender.
+2. AEF has built its own receiver (Python, per agent): an HTTP API on 127.0.0.1 with a bearer token. The sender calls the recipient's receiver DIRECTLY (POST /message, synchronous "RECEIVED" + timestamp), bypassing the hub; the hub is only a fallback (topic post, which currently sends no receipt), plus planned cross-host discovery. States: SENT, RECEIVED, HANDED_OVER (only after the agent's prompt hook surfaced it), REPLIED, UNDELIVERABLE, REJECTED, ESCALATED. Timestamps go to a per-project ledger file (`.context/sidecar/direct-ack.jsonl`), readable only on that project's disk. Same-host only until a later slice publishes receiver endpoints to the hub.
+3. Incident that triggered this: a peer agent waited ~1 day for answers; the TermLink sidecar had receipted its mail as delivered, but nothing put it in front of the agent. Nobody could see the stall.
+
+## The operator's requirements
+
+R1. Every stage is a timestamped API call back to the sender: RECEIVED as soon as stored, INJECTED when put into the session, REPLIED when answered. All timestamps stored.
+R2. A communication-telemetry STANDARD for all agents (ours and every other project's): every step and the delay between steps, for the sidecar path and other inbox paths.
+R3. Telemetry must be PULLABLE from other agents, and every agent also OFFERS it regularly (about daily).
+R4. Agents work with that telemetry and reflect on what it means.
+R5. All sidecars should ship with every TermLink deployment.
+
+## The decision (IW-1): who owns the receive-side stages and the telemetry record?
+
+Options under consideration:
+A. AEF's receiver owns it all; TermLink only transports messages and injects into sessions; telemetry lives in each project's ledger.
+B. TermLink owns it all: move the whole receive side into the termlink binary with AEF's state names; ask AEF to retire its receiver.
+C. Split by layer: TermLink keeps a per-message telemetry record on the hub (client_msg_id, stage, timestamp; all events kept), a pull verb, and a daily per-agent digest; each receiver (AEF's, or TermLink's) reports its stages into it using one vocabulary. Because AEF's primary path is a direct HTTP call that never touches the hub, C requires direct-call receivers to MIRROR their stage events to the hub asynchronously (never in the message's path; buffer locally if the hub is down).
+D. Defer.
+
+## Questions
+
+1. Which option would you choose, and the single strongest argument against your choice?
+2. Is the hub the right home for cross-agent telemetry given the charter's non-goals (system of record; second bus)? If not, where?
+3. What breaks first in each option (failure modes), and how would you detect it?
+4. For R3 (pull + daily offer): what should the record and the digest contain, minimally, so an agent can actually act on it (not just store it)?
+5. What is missing from this framing — a risk, an option, or a requirement nobody stated?
+codex
+## 1. Choice and strongest objection
+
+Choose **C, amended: receivers own observations; TermLink owns a shared telemetry protocol and a retention-bounded query projection.** Do not make TermLink the authority on stages it cannot observe.
+
+The incident was an observability and execution failure: a poller’s watermark was presented as delivery, although no functioning route into the agent’s session existed. Changing receiver ownership alone would not fix that.
+
+**The strongest argument against C is that asynchronous mirroring creates two histories.** A message can reach an agent while its telemetry remains buffered, lost, or rejected. The hub must distinguish “no progress” from “no recent observation.” Otherwise C reproduces the original false confidence with more precise-looking timestamps.
+
+## 2. Is the hub the right home?
+
+Yes, for **operational telemetry within one hub’s scope**, provided “all events kept” means “all events retained within a declared retention window.” Indefinite history would contradict the charter. Anyone requiring longer history needs an explicit export/archive owner.
+
+Hub telemetry about direct HTTP delivery is not inherently a second message bus. It becomes one if telemetry events trigger delivery, retries, or work execution as an alternative transport. Keep observation separate from those commands.
+
+However, C does not solve fleet-wide telemetry across independent hubs. Each agent needs a declared home hub; the operator can query those hubs separately or use an external, read-only aggregation service. Do not quietly introduce federation through telemetry.
+
+Per-project ledgers are useful local outboxes and diagnostic evidence, but poor shared operational interfaces: availability depends on access to each project’s filesystem.
+
+## 3. What breaks first, and detection
+
+3a. **A — fragmented visibility and adoption.** Agents outside AEF lack a common reporting contract; inaccessible ledgers prevent shared diagnosis. Detect through a roster of expected agents, advertised capabilities, and reporting freshness. AEF could implement a standard, but ownership alone does not make that standard universal.
+
+3b. **B — mistaken authority and migration gaps.** The binary cannot truthfully assert HANDED_OVER or REPLIED without evidence from agent integrations. Existing receivers may coexist during migration and duplicate delivery. Detect using an end-to-end canary through the actual prompt hook, stage provenance, and duplicate-message counters. Binary packaging improves deployment consistency; it does not establish semantic completeness.
+
+3c. **C — telemetry divergence.** Local buffering fills, reports arrive out of order, and a missing event looks like stalled delivery. Detect through reporter heartbeats, sequence gaps, outbox age/depth, and reconciliation against receiver state. Report ingestion lag separately from message-handling delay.
+
+3d. **D — the existing silent stall persists.** Mail continues receiving reassuring watermarks while no injection mechanism runs. Immediately expose “injectable session unavailable,” pending-message age, and last successful injection. Deferring ownership need not mean deferring this repair.
+
+## 4. Minimal actionable record and digest
+
+4a. **Identity and context.** Use a stable message identity qualified by sender identity, plus conversation, sender, recipient, intended circuit/session, transport path, and available hub coordinates. Define whether retries preserve identity and how delivery attempts are distinguished.
+
+4b. **Append-only observations.** Each event needs a unique event ID, message/attempt identity, stage, observing component, occurrence time, hub ingestion time, and outcome or reason code. Preserve evidence and corrections rather than overwriting history. Include reply-message linkage for REPLIED.
+
+4c. **Precise semantics.** RECEIVED means durably accepted by the recipient’s receiving component—not merely posted to the hub. INJECTED means successfully surfaced through the declared session mechanism; it does not mean understood. REPLIED means a correlated response was emitted; it does not mean the request was resolved. Model rejection, delivery failure, and escalation separately from the normal progression.
+
+4d. **Operational context.** Advertise supported stages, receiver/session availability, telemetry freshness, retention coverage, and an expected response deadline or service class. Without expectations, elapsed time cannot reliably identify a problem. Cross-host delay calculations must acknowledge clock uncertainty.
+
+4e. **Pull interface.** Support queries by agent, message, conversation, stage, age, and time range, with pagination and explicit completeness/freshness indicators.
+
+4f. **Daily offer.** Include unresolved messages grouped by required action, oldest age and overdue count, stage-delay distributions with sample counts, failures, missing observations, and comparison with the previous period. Every exception should identify an owner and a concrete next action. Include a pull cursor or reference for details, not message bodies by default.
+
+Daily reporting supports reflection; urgent stalls need earlier alerts.
+
+## 5. Missing requirements and alternatives
+
+5a. **R1 conflates notification with transport.** Require timestamped, sender-visible stage events. Synchronous callbacks to sender endpoints introduce availability coupling; durable asynchronous publication can satisfy the underlying need.
+
+5b. **There is no stated recovery owner.** Specify who notices overdue work, retries safely, repairs injection, or escalates to the human. R4 needs an accountable action loop, not merely generated commentary.
+
+5c. **Trust and privacy are unspecified.** Authenticate reporters, constrain whose stages they may assert, and authorize telemetry queries. Metadata can reveal sensitive project activity.
+
+5d. **A smaller migration option exists.** Standardize events and capability reporting, ship a supported receiver/injection integration with every deployment, then adapt AEF. R5 requires deployable functionality—not necessarily absorbing every receiver into one binary.
+tokens used
+4,881
+## 1. Choice and strongest objection
+
+Choose **C, amended: receivers own observations; TermLink owns a shared telemetry protocol and a retention-bounded query projection.** Do not make TermLink the authority on stages it cannot observe.
+
+The incident was an observability and execution failure: a poller’s watermark was presented as delivery, although no functioning route into the agent’s session existed. Changing receiver ownership alone would not fix that.
+
+**The strongest argument against C is that asynchronous mirroring creates two histories.** A message can reach an agent while its telemetry remains buffered, lost, or rejected. The hub must distinguish “no progress” from “no recent observation.” Otherwise C reproduces the original false confidence with more precise-looking timestamps.
+
+## 2. Is the hub the right home?
+
+Yes, for **operational telemetry within one hub’s scope**, provided “all events kept” means “all events retained within a declared retention window.” Indefinite history would contradict the charter. Anyone requiring longer history needs an explicit export/archive owner.
+
+Hub telemetry about direct HTTP delivery is not inherently a second message bus. It becomes one if telemetry events trigger delivery, retries, or work execution as an alternative transport. Keep observation separate from those commands.
+
+However, C does not solve fleet-wide telemetry across independent hubs. Each agent needs a declared home hub; the operator can query those hubs separately or use an external, read-only aggregation service. Do not quietly introduce federation through telemetry.
+
+Per-project ledgers are useful local outboxes and diagnostic evidence, but poor shared operational interfaces: availability depends on access to each project’s filesystem.
+
+## 3. What breaks first, and detection
+
+3a. **A — fragmented visibility and adoption.** Agents outside AEF lack a common reporting contract; inaccessible ledgers prevent shared diagnosis. Detect through a roster of expected agents, advertised capabilities, and reporting freshness. AEF could implement a standard, but ownership alone does not make that standard universal.
+
+3b. **B — mistaken authority and migration gaps.** The binary cannot truthfully assert HANDED_OVER or REPLIED without evidence from agent integrations. Existing receivers may coexist during migration and duplicate delivery. Detect using an end-to-end canary through the actual prompt hook, stage provenance, and duplicate-message counters. Binary packaging improves deployment consistency; it does not establish semantic completeness.
+
+3c. **C — telemetry divergence.** Local buffering fills, reports arrive out of order, and a missing event looks like stalled delivery. Detect through reporter heartbeats, sequence gaps, outbox age/depth, and reconciliation against receiver state. Report ingestion lag separately from message-handling delay.
+
+3d. **D — the existing silent stall persists.** Mail continues receiving reassuring watermarks while no injection mechanism runs. Immediately expose “injectable session unavailable,” pending-message age, and last successful injection. Deferring ownership need not mean deferring this repair.
+
+## 4. Minimal actionable record and digest
+
+4a. **Identity and context.** Use a stable message identity qualified by sender identity, plus conversation, sender, recipient, intended circuit/session, transport path, and available hub coordinates. Define whether retries preserve identity and how delivery attempts are distinguished.
+
+4b. **Append-only observations.** Each event needs a unique event ID, message/attempt identity, stage, observing component, occurrence time, hub ingestion time, and outcome or reason code. Preserve evidence and corrections rather than overwriting history. Include reply-message linkage for REPLIED.
+
+4c. **Precise semantics.** RECEIVED means durably accepted by the recipient’s receiving component—not merely posted to the hub. INJECTED means successfully surfaced through the declared session mechanism; it does not mean understood. REPLIED means a correlated response was emitted; it does not mean the request was resolved. Model rejection, delivery failure, and escalation separately from the normal progression.
+
+4d. **Operational context.** Advertise supported stages, receiver/session availability, telemetry freshness, retention coverage, and an expected response deadline or service class. Without expectations, elapsed time cannot reliably identify a problem. Cross-host delay calculations must acknowledge clock uncertainty.
+
+4e. **Pull interface.** Support queries by agent, message, conversation, stage, age, and time range, with pagination and explicit completeness/freshness indicators.
+
+4f. **Daily offer.** Include unresolved messages grouped by required action, oldest age and overdue count, stage-delay distributions with sample counts, failures, missing observations, and comparison with the previous period. Every exception should identify an owner and a concrete next action. Include a pull cursor or reference for details, not message bodies by default.
+
+Daily reporting supports reflection; urgent stalls need earlier alerts.
+
+## 5. Missing requirements and alternatives
+
+5a. **R1 conflates notification with transport.** Require timestamped, sender-visible stage events. Synchronous callbacks to sender endpoints introduce availability coupling; durable asynchronous publication can satisfy the underlying need.
+
+5b. **There is no stated recovery owner.** Specify who notices overdue work, retries safely, repairs injection, or escalates to the human. R4 needs an accountable action loop, not merely generated commentary.
+
+5c. **Trust and privacy are unspecified.** Authenticate reporters, constrain whose stages they may assert, and authorize telemetry queries. Metadata can reveal sensitive project activity.
+
+5d. **A smaller migration option exists.** Standardize events and capability reporting, ship a supported receiver/injection integration with every deployment, then adapt AEF. R5 requires deployable functionality—not necessarily absorbing every receiver into one binary.
