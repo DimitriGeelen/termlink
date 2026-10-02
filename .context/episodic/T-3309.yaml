@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3309: Hub records per-topic activity and flags idle and unread topics
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-02T12:30:34Z
+# ============================================================================
+
+task_id: T-3309
+task_name: "Hub records per-topic activity and flags idle and unread topics"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-01T19:22:42Z
+completed: 2026-10-02T12:29:09Z
+duration_days: 1
+updates_count: 3
+first_commit: 2026-10-02T14:29:04+02:00
+last_commit: 2026-10-02T14:29:04+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  hub records per-topic activity and flags idle/unread topics (arc-012 step 4, T-3304 IW-4 C'). New bus tables topic_activity + topic_readers beside the log (retention never deletes them): last writer/time, write count, last fetch, last DATA fetch, fetch count, unread_since (oldest write awaiting a data fetch), per named reader. topic_metadata posts are not activity. Flags (advisory, 30 d, TERMLINK_TOPIC_FLAG_DAYS): idle = watched N days and no write or fetch for N days; unread = a write waited N days for any data fetch (catches the written-but-never-read probe class). Hub records subscribe fetches (optional 'reader' param; empty polls throttled to once a minute; inspect:true walks not counted) and channel.list carries activity/flags/flag_days (+readers on request). CLI info shows activity/flags/readers and inspects without counting; list marks flagged topics; subscribe names itself via TERMLINK_AGENT_ID/identity. MCP subscribe takes 'reader'. Tests: bus 5, hub 2, CLI 2 new; five crates green (bus 118, hub 508, session 499, CLI 1178+180, MCP 942+37); clippy rc 0, nothing on changed lines.
+
+# Key outcomes
+outcomes:
+  - 'The bus keeps `topic_activity` (tracking start, last write and writer, write count, last fetch, last data fetch, fetch count, `unread_since_ms`) and `topic_readers` (per named reader: last fetch, last data fetch) in SQLite tables beside the log. A sweep leaves them intact, `delete_topic` removes them, and a `topic_metadata` post does not count as a write. Bus test pins each.'
+  - '`activity_flags` (pure): `idle` = watched at least N days and no write or fetch for N days; `unread` = a write has waited N days with no data fetch, which fires on a busy unread topic. Unit-tested at the boundaries.'
+  - 'The hub records each `channel.subscribe` as a fetch (data fetch when it returned records) under an optional `reader` param. Empty polls persist at most once a minute per (topic, reader), and `inspect: true` walks are not recorded. Tests pin the throttle.'
+  - '`channel.list` entries carry `activity`, `flags` and `flag_days` (default 30, `TERMLINK_TOPIC_FLAG_DAYS`), plus `readers` when asked with `readers: true`. Handler test proves the round trip.'
+  - 'CLI: `channel info` shows activity, flags and readers (text + JSON) and inspects with `inspect: true`; `channel list` marks flagged topics; `channel subscribe` names itself via `TERMLINK_AGENT_ID` or the loaded identity. MCP subscribe accepts `reader` (default `TERMLINK_AGENT_ID`); MCP list passes the fields through. Unit-tested.'
+  - 'The five touched crates'' tests pass, and clippy adds no warnings on changed lines.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-bus/src/activity.rs'
+  - 'crates/termlink-bus/src/lib.rs'
+  - 'crates/termlink-bus/src/meta.rs'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-hub/src/channel.rs'
+  - 'crates/termlink-mcp/src/tools.rs'
+  - '.tasks/active/T-3309-hub-records-per-topic-activity-and-flags.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-02T14:29:04'
+    action: 'T-3309: hub records per-topic activity and flags idle/unread topics (arc-012 step 4, T-3304 IW-4 C''). New bus tables topic_activity + topic_readers beside the log (retention never deletes them): last writer/time, write count, last fetch, last DATA fetch, fetch count, unread_since (oldest write awaiting a data fetch), per named reader. topic_metadata posts are not activity. Flags (advisory, 30 d, TERMLINK_TOPIC_FLAG_DAYS): idle = watched N days and no write or fetch for N days; unread = a write waited N days for any data fetch (catches the written-but-never-read probe class). Hub records subscribe fetches (optional ''reader'' param; empty polls throttled to once a minute; inspect:true walks not counted) and channel.list carries activity/flags/flag_days (+readers on request). CLI info shows activity/flags/readers and inspects without counting; list marks flagged topics; subscribe names itself via TERMLINK_AGENT_ID/identity. MCP subscribe takes ''reader''. Tests: bus 5, hub 2, CLI 2 new; five crates green (bus 118, hub 508, session 499, CLI 1178+180, MCP 942+37); clippy rc 0, nothing on changed lines.'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1026 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-012]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1026
+  commits: 1
+  files_changed: 7
+  lines_added: 696
+  lines_removed: 15
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3309-hub-records-per-topic-activity-and-flags.md
+generated_by: context-agent-hybrid
