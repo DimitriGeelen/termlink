@@ -5,7 +5,7 @@ description: "Build arc for the T-3304 GO: IW-1 B, IW-2 C, IW-3 B, IW-4 C-prime.
   \ signal, SQ-11 c2 (T-2573), page end reasons, activity tracking + idle/unread flags,\
   \ retention defaults + ceiling on post, sweeper on .122/.121, hub topic record +\
   \ backfill, hub-side time range, forever-topic review, charter non-goal #2 rewording."
-status: draft
+status: in-progress
 anchor_task: T-3304
 headline_mechanic: "An agent whose read position was swept receives an explicit gap notice instead of\
   \ silently skipping messages, and the operator sees every topic's owner, last writer\

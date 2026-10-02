@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3308: Subscribe pages state why they ended (limit / end of topic / deadline)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-02T11:32:18Z
+# ============================================================================
+
+task_id: T-3308
+task_name: "Subscribe pages state why they ended (limit / end of topic / deadline)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-01T19:22:29Z
+completed: 2026-10-02T11:31:13Z
+duration_days: 1
+updates_count: 3
+first_commit: 2026-10-02T13:31:11+02:00
+last_commit: 2026-10-02T13:31:11+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  subscribe pages say why they ended (arc-012 step 3, T-3304 IW-3). Hub adds end_reason 'limit' (page full, more may follow) / 'end' (caught up), and 'deadline' in WALK_DEADLINE_EXCEEDED data; client deadline pages carry it too. CLI single-shot subscribe now notes on stderr when a page was cut by --limit (it used to stop silently after 100). The session-crate inbox reader pages to the end (was one 1000-record page, so transfers past it were never seen on a one-shot inbox list), falls back to full-page heuristics on old hubs, caps at 200 pages, and records a retention gap only when it resumed from its own cursor (FallbackCtx::take_retention_gaps + warn). MCP description documents end_reason. Tests: hub 3, session 4, CLI 1 new; four-crate suites all green (hub 506, session 499, CLI 1176+180, MCP 942+37 parity); clippy rc 0, no warnings on changed lines.
+
+# Key outcomes
+outcomes:
+  - 'Hub `channel.subscribe` success responses carry `end_reason`: `"limit"` (the page filled; more may follow from `next_cursor`) or `"end"` (no further record at read time). The `WALK_DEADLINE_EXCEEDED` error data carries `end_reason: "deadline"`. Hub tests pin all three, plus a filtered walk ending in `end`.'
+  - '`client::deadline_partial_page` sets `end_reason: "deadline"` on the page it builds (existing test extended).'
+  - 'CLI single-shot subscribe (no `--follow`, no `--tail`), when the page ends on `limit`, prints a stderr note naming the topic, the resume offset and the ways to continue (a JSON line with `--json`); stdout is unchanged. The note is absent on `end` and on old hubs with no field. Unit-tested.'
+  - 'The inbox reader pages until the page does not end on `limit` (old hubs: until a page is shorter than the limit), bounded by a page cap so a runaway hub cannot spin it. Transfers past the first 1000 records are found (test with a fake multi-page client response sequence).'
+  - 'The inbox reader, when it resumed from its own saved cursor and the hub reports `gap`, logs a `tracing::warn!` naming topic and skipped count, and records it on `FallbackCtx`, exposed through `take_retention_gaps()`. A fresh read from 0 records nothing. Tested.'
+  - 'The MCP `termlink_channel_subscribe` description documents `end_reason`. Workspace tests for hub, session, CLI and MCP pass, and clippy adds no new warnings on the touched files.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-hub/src/channel.rs'
+  - 'crates/termlink-mcp/src/tools.rs'
+  - 'crates/termlink-session/src/client.rs'
+  - 'crates/termlink-session/src/inbox_channel.rs'
+  - '.tasks/active/T-3308-subscribe-pages-state-why-they-ended-lim.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-02T13:31:11'
+    action: 'T-3308: subscribe pages say why they ended (arc-012 step 3, T-3304 IW-3). Hub adds end_reason ''limit'' (page full, more may follow) / ''end'' (caught up), and ''deadline'' in WALK_DEADLINE_EXCEEDED data; client deadline pages carry it too. CLI single-shot subscribe now notes on stderr when a page was cut by --limit (it used to stop silently after 100). The session-crate inbox reader pages to the end (was one 1000-record page, so transfers past it were never seen on a one-shot inbox list), falls back to full-page heuristics on old hubs, caps at 200 pages, and records a retention gap only when it resumed from its own cursor (FallbackCtx::take_retention_gaps + warn). MCP description documents end_reason. Tests: hub 3, session 4, CLI 1 new; four-crate suites all green (hub 506, session 499, CLI 1176+180, MCP 942+37 parity); clippy rc 0, no warnings on changed lines.'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 968 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-012]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 968
+  commits: 1
+  files_changed: 6
+  lines_added: 476
+  lines_removed: 22
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3308-subscribe-pages-state-why-they-ended-lim.md
+generated_by: context-agent-hybrid

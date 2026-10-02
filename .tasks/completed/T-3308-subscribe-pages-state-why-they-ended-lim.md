@@ -6,12 +6,12 @@ description: >
   so clients can tell a full page from the end of the topic from a deadline cut; consumer
   audit of CLI/MCP/inbox callers.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-012]
-components: []
+components: [crates/termlink-cli/src/commands/channel.rs, crates/termlink-hub/src/channel.rs, crates/termlink-mcp/src/tools.rs, crates/termlink-session/src/client.rs, crates/termlink-session/src/inbox_channel.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -24,8 +24,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-01T19:22:29Z
-last_update: 2026-10-02T11:08:53Z
-date_finished:
+last_update: 2026-10-02T11:31:13Z
+date_finished: 2026-10-02T11:31:13Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -325,3 +325,16 @@ grep -q "finished rc=0" /tmp/claude-0/-opt-termlink/e817a600-b7cc-4402-a9cf-c959
 
 ### 2026-10-02T11:08:53Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-79a4c359
+- **Timestamp:** 2026-10-02T11:32:11Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** none
+
+### 2026-10-02T11:31:13Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
