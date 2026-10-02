@@ -8,12 +8,12 @@ description: >
   keep it); a bounded topic past 2x its limit trims oldest on post and logs it loudly;
   forever topics get a size warning, never deletion.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-012]
-components: []
+components: [crates/termlink-bus/src/lib.rs, crates/termlink-bus/src/limits.rs, crates/termlink-bus/src/meta.rs, crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/commands/infrastructure.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-cli/src/main.rs, crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/lib.rs, crates/termlink-hub/src/retention_sweeper.rs, crates/termlink-hub/src/router.rs, crates/termlink-hub/src/topic_policy.rs, crates/termlink-mcp/src/tools.rs, crates/termlink-protocol/src/lib.rs, crates/termlink-protocol/src/retention_defaults.rs, runme.sh, scripts/check-forever-owner-freshness.sh, tests/forever-owner-canary-fixtures.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -26,8 +26,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-01T19:22:54Z
-last_update: 2026-10-02T15:59:43Z
-date_finished:
+last_update: 2026-10-02T16:34:07Z
+date_finished: 2026-10-02T16:34:07Z
 revisit_at: 2026-11-15
 revisit_evidence_needed: enforcement auto-flipped on every hub, or the backstop canary named who still sends bare forever
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
@@ -256,3 +256,16 @@ grep -q "forever-owner-canary.crontab" runme.sh
 ### 2026-10-02T14:16:04Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-1abcbd99
+- **Timestamp:** 2026-10-02T16:37:21Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** none
+
+### 2026-10-02T16:34:07Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

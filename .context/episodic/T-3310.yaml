@@ -1,0 +1,124 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3310: Retention defaults: 14-day default for new topics, forever only with owner+reason, ceiling checked on post
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-02T16:37:33Z
+# ============================================================================
+
+task_id: T-3310
+task_name: "Retention defaults: 14-day default for new topics, forever only with owner+reason, ceiling checked on post"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-01T19:22:54Z
+completed: 2026-10-02T16:34:07Z
+duration_days: 1
+updates_count: 3
+first_commit: 2026-10-02T16:17:00+02:00
+last_commit: 2026-10-02T18:34:04+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  record D1 operator ruling (D+: label bare forever now, evidence-driven auto-enforcement after 14 quiet days, 2026-11-15 task-filing backstop, loud opt-out, pinned by test); real ACs; dialogue log. record D2 operator ruling (B: inbox:*/dm:* default to newest 1000, all other new topics 14 days, one shared default table). file inceptions raised during the D3 discussion: T-3319 learn from message traffic (now), T-3320 settings surface (next), T-3321 message compaction (later, DEFER behind T-3319). record D3 operator ruling (C: count/age/size ceilings on post, configurable, forever warn-only; disk reclamation filed as T-3322); T-3304 dialogue log. governor views show the retention policy (forever-needs-owner mode + enforcement state + bare-forever senders + post trims, flagged OPT-OUT when never) in hub status --governor and fleet governor-status; channel list flags forever topics past a ceiling (over_ceiling, never trimmed); end-to-end refusal test (14 quiet days -> bare forever create refused -32602 naming --owner/--reason, no stealth create; owned and default creates still work). Mutant check: disabling the auto-flip turns 2 topic_policy tests red (file restored == HEAD). Task: all 13 ACs ticked, Verification block, Evolution (client defaults were the forever source; sweeps never shrink logs -> T-3322; ceiling check cadence; D2 table is code not config -> T-3320; sender clocks). Suites: hub 514, CLI 1179+180+3, bus 130, MCP 942+99+37, canary fixtures 16/16.. fabric cards for the new retention modules, canary and fixtures. canary uses timezone-aware UTC (utcnow deprecation warning); live-verified after runme rc=0: 0.12.103 on local + .122, governor reports forever-needs-owner=auto enforcing from 2026-10-16, canary healthy, plain create gets days:14
+
+# Key outcomes
+outcomes:
+  - 'Hub `channel.create` accepts optional `owner` + `reason`; stores them; the four operator-durable topics keep forever without them'
+  - 'A forever create without owner+reason is accepted, labelled `unowned_forever`, warned in the response and hub log, and recorded (time, sender identity) (D1 layer C)'
+  - '`channel list` / `info` (CLI + MCP) show owner, reason and the `unowned_forever` label'
+  - 'Enforcement switches on by itself after 14 days with no bare-forever create; after that a bare forever create is refused (-32602) with a message naming the owner/reason flags; a bare-forever create restarts the clock (D1 layer 1)'
+  - '`TERMLINK_FOREVER_REQUIRES_OWNER` = auto (default) / on / never; `never` is reported in `hub status --governor` and `fleet governor-status` (D1 layer 3)'
+  - 'Backstop canary: fires if enforcement is still off on 2026-11-15 or any hub runs `never`, names the identities still sending bare forever, and files ONE task (same filing contract as the T-3267 filer: body-marker de-dup, never under CI, pending-commit manifest); crontab wired into runme (D1 layer 2)'
+  - 'Fixture/unit tests: flips at 14 quiet days, not at 13, clock resets on a bare create; a mutant removing the auto-flip turns them red (D1 layer 4)'
+  - 'One shared default-retention table used by CLI `channel create`, CLI auto-create (ensure_topic) and MCP create: `inbox:*` and `dm:*` -> Messages(1000); `state:*` -> Latest; presence/chat-arc/agent-listeners-*/agent-conv-* -> Messages(1000); debris -> Days(7); everything else (incl. `sidecar:*`) -> Days(14) (D2)'
+  - 'Hub config file `<runtime_dir>/retention.yaml` (+ env overrides) holds the D3 caps and the D1 mode/quiet window; absent file = built-in defaults; invalid file is loud and falls back; per-topic retention still via `channel set-retention` (D3). The D2 per-name defaults stay a shared code table: clients send them explicitly, so a hub file could not change them (see Evolution; configurable defaults -> T-3320)'
+  - 'Ceilings checked on post (D3): Messages(N) trims at 2N back to N; Days topics trim at 10,000 records and when the oldest is past 2x the window (back to the window); bounded topics trim at 64 MB live; Latest/LatestPerCvKey compact past 10,000; every trim logged and counted'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fabric cards for the new retention modules, canary and fixtures'
+    source: git-mined
+  - description: 'governor views show the retention policy (forever-needs-owner mode + enforcement state + bare-forever senders + post trims, flagged OPT-OUT when never) in hub status --governor and fleet governor-status; channel list flags forever topics past a ceiling (over_ceiling, never trimmed); end-to-end refusal test (14 quiet days -> bare forever create refused -32602 naming --owner/--reason, no stealth create; owned and default creates still work). Mutant check: disabling the auto-flip turns 2 topic_policy tests red (file restored == HEAD). Task: all 13 ACs ticked, Verification block, Evolution (client defaults were the forever source; sweeps never shrink logs -> T-3322; ceiling check cadence; D2 table is code not config -> T-3320; sender clocks). Suites: hub 514, CLI 1179+180+3, bus 130, MCP 942+99+37, canary fixtures 16/16.'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-10-02 — D1: hub handling of a bare "forever" create (operator ruling)'
+    chose: 'D+ — accept and label as `unowned_forever` now; enforcement (refuse) switches on automatically after 14 days with no bare-forever create; backstop canary on 2026-11-15 that files a task if enforcement is still off or a hub opts out; opt-out `TERMLINK_FOREVER_REQUIRES_OWNER=never` stays possible but is reported daily; fixture tests and a mutant pin the auto-flip. revisit_at 2026-11-15 as the human reminder.'
+    rationale: 'every current client and every old binary sends forever explicitly and cannot send an owner, so a strict refusal breaks unattended agents'' posts to new topics on day one; a silent downgrade loses mail older than 14 days without telling the sender (Directive #2). The operator accepted D but called the "switch stays off forever" strawman valid, so the flip is driven by measured fleet behaviour, not by memory, with an action-filing backstop.'
+    alternatives_rejected: ['A refuse now (breaks fleet, score -44); B silent downgrade to 14 d (-9, silent loss); C label only (+37, no path to enforcement). D scored +46 before the layers. - **Assumed (overturnable):** the 14-day quiet window and the 2026-11-15 backstop date were agent proposals; the operator accepted them unchanged. - **Left open:** D2 new-client defaults (incl. `inbox:*` / `dm:*`), D3 meaning of "2x its limit" for day-based topics.']
+  - decision: '2026-10-02 — D2: what new clients ask for by default (operator ruling)'
+    chose: 'B — mail by count, everything else by age: `inbox:*` and `dm:*` default to Messages(1000) (the bound the hub inbox mirror, `hub channel.rs:243`, and the CLI `dm:*` path, `channel.rs:2806`, already apply); every other new topic, including `sidecar:*`, defaults to Days(14); existing exceptions kept (`state:*` Latest, debris Days(7), presence/chat topics Messages(1000)). One shared table for CLI create, auto-create and MCP create.'
+    rationale: 'bounds every topic while mail is never deleted for being unread, only when outnumbered, and a reader that falls behind a trim is told (T-3307/T-3308 gap signal).'
+    alternatives_rejected: ['A uniform 14 d (-11: deletes unread mail, hides rail outages); C mail forever with automatic owner (+21: rubber-stamp ownership reopens forever-by-default); D keep-until-read (+11: depends on T-3309 read data that is a lead, not a verdict, and is the most code). B scored +46. - **Left open:** D3, the meaning of "2x its limit" for the post-time ceiling (sets the real margin before a mail trim).']
+  - decision: '2026-10-02 — D3: ceilings checked on post (operator ruling)'
+    chose: 'C — count, age and live-size ceilings on post, read from a hub config file and changeable per topic; 2x hysteresis (trim at 2x, back to 1x). Defaults: Messages(N) 2N; Days topics 10,000 records and oldest past 2x window; 64 MB live for bounded topics; Latest/LPCK compact past 10,000; Forever warn-only at 10,000 / 64 MB, never deleted. Disk reclamation (rewrite a log over 8 MB and more than half dead, offsets unchanged) is its own build task.'
+    rationale: 'operator asked for count + age + size, configurable. Measured 2026-10-02: sweeps delete index rows but log files never shrink (agent-presence 31.6 MB on disk vs 0.55 MB live, ~98% dead; bus 49 MB on disk vs 12.4 MB live), so only C bounds disk too.'
+    alternatives_rejected: ['A count only (+28: large payloads evade it); B no reclamation (+37: disk still grows); D rely on sweeper (-20: off on .122/.121). C +41, reliability scored +1 for rewrite risk. - **Assumed (overturnable):** all numbers are agent proposals accepted unchanged. - **Operator side-points recorded as inceptions:** T-3319 learn from message traffic (now), T-3320 settings surface (next), T-3321 compaction (later, DEFER behind T-3319).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-cli/src/commands/infrastructure.rs'
+  - 'crates/termlink-cli/src/commands/remote.rs'
+  - 'crates/termlink-hub/src/channel.rs'
+  - 'docs/reports/T-3304-hub-storage-model.md'
+  - '.fabric/components/crates-termlink-bus-src-limits.yaml'
+  - '.fabric/components/crates-termlink-hub-src-topic_policy.yaml'
+  - '.fabric/components/crates-termlink-protocol-src-retention_defaults.yaml'
+  - '.fabric/components/scripts-check-forever-owner-freshness.yaml'
+  - '.fabric/components/tests-forever-owner-canary-fixtures.yaml'
+  - 'scripts/check-forever-owner-freshness.sh'
+  - '.tasks/active/T-3310-retention-defaults-14-day-default-for-ne.md'
+  - '.tasks/active/T-3319-learn-from-message-traffic-derive-knowle.md'
+  - '.tasks/active/T-3320-termlink-settings-surface-own-settings-p.md'
+  - '.tasks/active/T-3321-message-compaction-summarise-repeated-me.md'
+  - '.tasks/active/T-3322-reclaim-dead-space-in-topic-logs-rewrite.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-02T16:17:00'
+    action: 'T-3310: record D1 operator ruling (D+: label bare forever now, evidence-driven auto-enforcement after 14 quiet days, 2026-11-15 task-filing backstop, loud opt-out, pinned by test); real ACs; dialogue log'
+  - time: '2026-10-02T16:44:45'
+    action: 'T-3310: record D2 operator ruling (B: inbox:*/dm:* default to newest 1000, all other new topics 14 days, one shared default table)'
+  - time: '2026-10-02T16:54:36'
+    action: 'T-3310: file inceptions raised during the D3 discussion: T-3319 learn from message traffic (now), T-3320 settings surface (next), T-3321 message compaction (later, DEFER behind T-3319)'
+  - time: '2026-10-02T17:12:25'
+    action: 'T-3310: record D3 operator ruling (C: count/age/size ceilings on post, configurable, forever warn-only; disk reclamation filed as T-3322); T-3304 dialogue log'
+  - time: '2026-10-02T18:07:15'
+    action: 'T-3310: governor views show the retention policy (forever-needs-owner mode + enforcement state + bare-forever senders + post trims, flagged OPT-OUT when never) in hub status --governor and fleet governor-status; channel list flags forever topics past a ceiling (over_ceiling, never trimmed); end-to-end refusal test (14 quiet days -> bare forever create refused -32602 naming --owner/--reason, no stealth create; owned and default creates still work). Mutant check: disabling the auto-flip turns 2 topic_policy tests red (file restored == HEAD). Task: all 13 ACs ticked, Verification block, Evolution (client defaults were the forever source; sweeps never shrink logs -> T-3322; ceiling check cadence; D2 table is code not config -> T-3320; sender clocks). Suites: hub 514, CLI 1179+180+3, bus 130, MCP 942+99+37, canary fixtures 16/16.'
+  - time: '2026-10-02T18:07:21'
+    action: 'T-3310: fabric cards for the new retention modules, canary and fixtures'
+  - time: '2026-10-02T18:34:04'
+    action: 'T-3310: canary uses timezone-aware UTC (utcnow deprecation warning); live-verified after runme rc=0: 0.12.103 on local + .122, governor reports forever-needs-owner=auto enforcing from 2026-10-16, canary healthy, plain create gets days:14'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 7 commit(s), 1271 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-012]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1271
+  commits: 7
+  files_changed: 16
+  lines_added: 1050
+  lines_removed: 178
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3310-retention-defaults-14-day-default-for-ne.md
+generated_by: context-agent-hybrid
