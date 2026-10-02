@@ -66,10 +66,11 @@ All agents on one host sign as one TermLink identity (T-1448), so `dm:<fp>` and 
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] The addressee metadata key is agreed (operator ruling via /decision-brief, recorded in ## Decisions) and stated once in docs
-- [ ] notify-sidecar counts an unread message only when its addressee key names this agent, or the message names no addressee (back-compatible: old senders still wake)
-- [ ] `agent contact` / `scripts/agent-send.sh` set the addressee key when the target is a named agent
-- [ ] Hermetic fixtures cover: addressed-to-me wakes, addressed-to-other does not, unaddressed wakes; a mutant removing the filter turns a fixture red
+- [x] The addressee metadata key is agreed (operator ruling via /decision-brief, recorded in ## Decisions) and stated once in docs
+- [ ] notify-sidecar counts an unread message only when its `to_circuit` names this agent's circuit (level-by-level, both grammars), or names none, or names a session/agent not live here whose deepest live ancestor is this agent (fallback ladder)
+- [ ] `agent contact` / `scripts/agent-send.sh` set `to_circuit` (path form) when the target is a named agent
+- [ ] Hermetic fixtures cover: addressed-to-me wakes, addressed-to-other does not, unaddressed wakes, V9 grammar parses identically to path form, fallback to project level when the named agent is not live; a mutant removing the filter turns a fixture red
+- [ ] The convention is documented once (docs/operations/notify-sidecar-api.md)
 - [ ] 055 is told the convention on framework:pickup (reply to offset 257)
 
 ### Human
@@ -273,6 +274,13 @@ All agents on one host sign as one TermLink identity (T-1448), so `dm:<fp>` and 
      - **Why:** [rationale]
      - **Rejected:** [alternatives and why not]
 -->
+
+### 2026-10-03 — Q1: addressee = five-level circuit, grammar C (operator ruling)
+- **Operator words:** "Cozzyte is suggested and you see fit", read as "C, as suggested, proceed as you see fit" (voice transcription; reading stated back, overturnable). Earlier the same day the operator directed that addressing reuse the agreed five-level circuit (host/hub/project/session/agent) with a fallback ladder towards level 1.
+- **Chose:** C. The key is `to_circuit`, mirroring `from_circuit`. Read both grammars: path form (`//host/hub/project/session/agent`, or without the leading `//host`) and AEF V9 (`aef::host=…::hub=…::project=…::session=…::@agent::`). Write path form now and switch to V9 at AEF's announced write-side cutover. Match level by level from level 1. Wake when every named level matches this agent's circuit; do not wake when a named level differs. When the named session/agent is not live here, fall back to the deepest level that resolves, so the project-level owner wakes and nothing is silently dropped. A message without `to_circuit` wakes (back-compatible).
+- **Why:** it fixes misdelivery on the traffic that exists today (peers already send path-form `from_circuit`), survives AEF's V9 cutover without a second change, and copies AEF's own dual-read migration pattern. Score +73 vs A +44, B +27, D −11.
+- **Rejected:** A, path form only (breaks at the V9 cutover). B, V9 only (nobody sends it yet, so it is untestable on real traffic). D, wait for AEF (the bug is silent and live, filing 257).
+- **Left open:** the project level is the folder name until AEF mints the UUID (requested at AEF inbox @129 / framework:pickup @303); per-project signing identity for trust (AEF @53 proposal 3); whether `dm:` moves to circuit addressing. The fallback rule is the operator's description: no written copy was found, so AEF is asked to confirm it.
 
 ## Decision
 
