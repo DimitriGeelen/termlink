@@ -170,3 +170,12 @@ How the question arose, during the SQ-11 (T-2573) walk-through, 2026-10-01:
 15. IW-4 re-presented as B / C / C-prime after the consultation. **Operator ruling:**
     "let's go with C as suggested and recommended" → C-prime (recorded in T-3304 § Decisions).
     All IW-1..IW-5 now answered; inception go/no-go next.
+16. T-3310 D1 (how the hub treats a bare "forever" create, given every client sends forever
+    explicitly by default and old binaries cannot send an owner) presented A refuse / B downgrade
+    / C accept-and-label / D C-now-A-later, recommending D. **Operator:** comfortable with D, but
+    the strawman ("the switch stays off forever") is valid: what keeps the risk remediated?
+    **Answer:** four layers: evidence-driven auto-flip after 14 quiet days, a 2026-11-15 backstop
+    canary that files a task, loud daily reporting of any opt-out, a fixture test plus mutant
+    pinning the flip; revisit_at as the weakest, human layer.
+17. **Operator ruling on T-3310 D1:** "proceed as suggested" -> D+ (D with layers 1-4, 14 days,
+    2026-11-15). Recorded in T-3310 § Decisions. D2 next.

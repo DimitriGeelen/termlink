@@ -1,13 +1,17 @@
 ---
 id: T-3310
-name: "Retention defaults: 14-day default for new topics, forever only with owner+reason, ceiling checked on post"
+name: "Retention defaults: 14-day default for new topics, forever only with owner+reason,
+  ceiling checked on post"
 description: >
-  arc-012 step 5 (T-3304 IW-2 C): new topics default to 14 days (forever-by-omission ends); forever requires an owner and a reason (the four operator-durable topics keep it); a bounded topic past 2x its limit trims oldest on post and logs it loudly; forever topics get a size warning, never deletion.
+  arc-012 step 5 (T-3304 IW-2 C): new topics default to 14 days (forever-by-omission
+  ends); forever requires an owner and a reason (the four operator-durable topics
+  keep it); a bounded topic past 2x its limit trims oldest on post and logs it loudly;
+  forever topics get a size warning, never deletion.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [arc:arc-012]
 components: []
 related_tasks: []
@@ -22,8 +26,10 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-01T19:22:54Z
-last_update: 2026-10-01T19:23:06Z
-date_finished: null
+last_update: 2026-10-02T14:16:04Z
+date_finished:
+revisit_at: 2026-11-15
+revisit_evidence_needed: enforcement auto-flipped on every hub, or the backstop canary named who still sends bare forever
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,53 +40,50 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-02T14:16:04Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3310: Retention defaults: 14-day default for new topics, forever only with owner+reason, ceiling checked on post
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+arc-012 step 5 (T-3304 IW-2, operator ruling C): bound topic growth by default. Design and
+evidence: `docs/reports/T-3304-hub-storage-model.md`. Sub-decisions are walked one at a time
+(D1 ruled 2026-10-02, D2/D3 open; see ## Decisions).
+
+Measured 2026-10-02 (local hub, `channel list --json`): 120 topics, 81 forever (32 `inbox:*`,
+18 `sidecar:*`, 4 `dm:*`), 39 bounded. Every client asks for forever EXPLICITLY by default
+(`cli.rs:1848`, CLI ensure_topic `channel.rs:2941`, MCP `tools.rs:18888`), so a hub-side default
+change alone changes almost nothing, and old binaries cannot send owner/reason.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] Hub `channel.create` accepts optional `owner` + `reason`; stores them; the four operator-durable topics keep forever without them
+- [ ] A forever create without owner+reason is accepted, labelled `unowned_forever`, warned in the response and hub log, and recorded (time, sender identity) (D1 layer C)
+- [ ] `channel list` / `info` (CLI + MCP) show owner, reason and the `unowned_forever` label
+- [ ] Enforcement switches on by itself after 14 days with no bare-forever create; after that a bare forever create is refused (-32602) with a message naming the owner/reason flags; a bare-forever create restarts the clock (D1 layer 1)
+- [ ] `TERMLINK_FOREVER_REQUIRES_OWNER` = auto (default) / on / never; `never` is reported in `hub status --governor` and `fleet governor-status` (D1 layer 3)
+- [ ] Backstop canary: fires if enforcement is still off on 2026-11-15 or any hub runs `never`, names the identities still sending bare forever, and files a task via the T-3267 filer; crontab installed by runme (D1 layer 2)
+- [ ] Fixture/unit tests: flips at 14 quiet days, not at 13, clock resets on a bare create; a mutant removing the auto-flip turns them red (D1 layer 4)
+- [ ] New-client defaults per D2 (open)
+- [ ] Ceiling checked on post per D3 (open): a bounded topic past 2x its limit trims oldest on post and logs it; forever topics get a size warning, never deletion
+- [ ] A create that omits retention gets Days(14) (debris namespaces keep Days(7))
 
-### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-
-     ── Prefix routing (T-1811, T-1878): default to [REVIEWER] if Expected is grep-able ──
-     If your Expected clause is grep-able / file-exists / structural (a deterministic
-     shell check), prefer [REVIEWER] — that AC should be an Agent AC with the reviewer
-     command in `## Verification` instead of a Human AC here. Only keep [REVIEW] if
-     verification genuinely needs human taste (tone, feel, layout rhythm).
-     See CLAUDE.md §AC Classification Guidance for the conversion rule.
-
-     [REVIEW] example (genuine human judgment):
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
-
-     [REVIEWER] example (static-scan-verifiable — convert to Agent AC + Verification):
-       - [ ] [REVIEWER] Block message names both bypass mechanisms
-         **Steps:**
-         1. Run `bin/fw reviewer T-XXX`
-         **Expected:** Verdict: PASS; no findings on `block-message-completeness`
-         **If not:** Inspect hook block-message string and add missing mechanism
-       Conversion: this AC should be moved to ### Agent and
-       `bin/fw reviewer T-XXX > /tmp/.rev 2>&1 && grep -q "Overall:.*PASS" /tmp/.rev`
-       added to ## Verification. NEVER `... 2>&1 | grep -q ...` — that is the shape the
-       Pipefail/SIGPIPE section below forbids, and this line used to prescribe it.
--->
 
 ## Verification
 
@@ -242,14 +245,23 @@ date_finished: null
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+### 2026-10-02 — D1: hub handling of a bare "forever" create (operator ruling)
+- **Chose:** D+ — accept and label as `unowned_forever` now; enforcement (refuse) switches on
+  automatically after 14 days with no bare-forever create; backstop canary on 2026-11-15 that
+  files a task if enforcement is still off or a hub opts out; opt-out
+  `TERMLINK_FOREVER_REQUIRES_OWNER=never` stays possible but is reported daily; fixture tests and
+  a mutant pin the auto-flip. revisit_at 2026-11-15 as the human reminder.
+- **Why:** every current client and every old binary sends forever explicitly and cannot send an
+  owner, so a strict refusal breaks unattended agents' posts to new topics on day one; a silent
+  downgrade loses mail older than 14 days without telling the sender (Directive #2). The operator
+  accepted D but called the "switch stays off forever" strawman valid, so the flip is driven by
+  measured fleet behaviour, not by memory, with an action-filing backstop.
+- **Rejected:** A refuse now (breaks fleet, score -44); B silent downgrade to 14 d (-9, silent
+  loss); C label only (+37, no path to enforcement). D scored +46 before the layers.
+- **Assumed (overturnable):** the 14-day quiet window and the 2026-11-15 backstop date were agent
+  proposals; the operator accepted them unchanged.
+- **Left open:** D2 new-client defaults (incl. `inbox:*` / `dm:*`), D3 meaning of "2x its limit"
+  for day-based topics.
 
 ## Decision
 
@@ -270,3 +282,7 @@ date_finished: null
 
 ### 2026-10-01T19:23:06Z — status-update [task-update-agent]
 - **Change:** tags: +arc:arc-012
+
+### 2026-10-02T14:16:04Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
