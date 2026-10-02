@@ -19,7 +19,7 @@ tags: [arc:arc-012]
 components: []
 related_tasks: [T-3310, T-3321, T-3309, T-3304]
 created: 2026-10-02T14:53:39Z
-last_update: 2026-10-02T17:28:25Z
+last_update: 2026-10-02T17:29:05Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -176,6 +176,11 @@ bvp_scores_proposed:
 - **Rejected:** A routing only (+43: answers repeats one at a time forever); B mining only (+21:
   learns from filings nobody answers); D defer (-38: how the 98 accumulated). C scored +58.
 - **Left open:** IW-1..IW-5.
+
+### 2026-10-02 — Q0 stop-rule result (from T-3324)
+- The pre-set stop rule PASSED: 5 classes were raised by 2+ projects in offsets 163-298. All five
+  are AEF's defect classes; only 1 of 98 inbound filings was addressed to termlink. So mining has
+  material, and the material is about the framework — which bears directly on IW-1/IW-2.
 
 ## Decision
 

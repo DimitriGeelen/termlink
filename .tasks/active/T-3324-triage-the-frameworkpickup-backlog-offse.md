@@ -28,7 +28,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-02T17:29:14Z
-last_update: 2026-10-02T17:29:36Z
+last_update: 2026-10-02T17:29:38Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -66,11 +66,11 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Every inbound filing past offset 162 is coded in `docs/reports/T-3324-pickup-triage.md`: offset, from, addressee (termlink / AEF / other), class, seen-elsewhere, action
-- [ ] Every filing addressed to TermLink has an outcome: a task filed (ID cited), an existing task cited, or an answer posted (offset cited)
-- [ ] Stop-rule result recorded against the threshold set in advance (>=2 recurring cross-project classes -> mining continues to IW-1; fewer -> no miner), and fed back to T-3319
-- [ ] Proposal for an "unanswered filing" audit posted to framework:pickup (offset cited, read back)
-- [ ] Pickup canary acked to the triaged offset; `check-framework-pickup-freshness.sh` exits 0
+- [x] Every inbound filing past offset 162 is coded in `docs/reports/T-3324-pickup-triage.md`: offset, from, addressee (termlink / AEF / other), class, seen-elsewhere, action
+- [x] Every filing addressed to TermLink has an outcome: a task filed (ID cited), an existing task cited, or an answer posted (offset cited)
+- [x] Stop-rule result recorded against the threshold set in advance (>=2 recurring cross-project classes -> mining continues to IW-1; fewer -> no miner), and fed back to T-3319
+- [x] Proposal for an "unanswered filing" audit posted to framework:pickup (offset cited, read back)
+- [x] Pickup canary acked to the triaged offset; `check-framework-pickup-freshness.sh` exits 0
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -107,92 +107,12 @@ bvp_scores_proposed:
 
 ## Verification
 
-# Shell commands that MUST pass before work-completed. One per line.
-# Lines starting with # are comments (skipped). Empty lines ignored.
-# The completion gate runs each command — if any exits non-zero, completion is blocked.
-#
-# Toolchain hint (L-291): if you edited *.vbproj/*.csproj/*.xaml add `dotnet build`;
-# *.go → `go build ./...`; Cargo.toml → `cargo check`; tsconfig.json → `tsc --noEmit`;
-# pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
-# past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
-#
-# ── Pipefail/SIGPIPE: grepping a command's output (L-387, T-2090, T-2743, T-2738) ──
-#
-# THE DEFAULT — redirect to a file, then grep the file:
-#     cmd > /tmp/.out 2>&1 && grep -q "PATTERN" /tmp/.out
-#     curl -sf "$(bin/fw watchtower url)/page" -o /tmp/.out && grep -q "PAT" /tmp/.out
-# Correct at any output size, and `&&` keeps the PRODUCING command's exit code in
-# the verdict. Reach for this first; the alternative below is the special case.
-#
-# NEVER `cmd | grep -q PAT` (L-387) — why: P-011 runs each line under `set -eo
-# pipefail`. When grep matches it exits and closes stdin while cmd is still
-# writing, cmd takes SIGPIPE, the pipeline exits 141 — verification "fails" with
-# the pattern present. Captured 4× (T-1716, T-1838, T-1862, T-1863).
-#
-# THE EXCEPTION — capture first, grep the capture:
-#     out=$(cmd 2>&1); echo "$out" | grep -q "PATTERN"
-# Valid ONLY while "$out" fits the 65536-byte pipe buffer, and it is on you to
-# know that it does. Above that the form inverts and becomes the very failure
-# L-387 describes: echo blocks on the full pipe, grep -q exits, echo takes
-# SIGPIPE, rc=141 (T-2743 — measured on a 146,366-byte Watchtower page, 3/3 runs,
-# deterministic not racy; rendered routes run 50-200KB, so anything that curls a
-# page is over the line). It also discards cmd's exit code, so a 404 yields an
-# empty capture that grep merely fails to match rather than a failed line.
-# If you do use it: single pipe only, no intermediate tail/awk/sed stage between
-# capture and grep (T-2090) — the middle stage is what `grep -q` slams its stdin
-# on, and grep scans the whole captured string anyway, so the `tail -3` was
-# cosmetic. `echo "$out" | grep -q PAT`, nothing between.
-#
-# ── Asserting an ABSENCE: prove the search could have succeeded (T-3144) ──
-#
-# `! grep -q "PATTERN" file` exits 0 when the pattern is absent. It ALSO exits 0
-# when the file was renamed, deleted, or is empty — so the leg cannot distinguish
-# "the bad thing is not there" from "I could not look", and the gate reports green
-# over a check that never ran. Pair every absence assertion with something that
-# fails if the search could not happen:
-#
-#     test -f path/to/file && ! grep -q "PATTERN" path/to/file    # existence first
-#     grep -q "KNOWN_MARKER" f && ! grep -q "PATTERN" f           # positive companion
-#     cmd > /tmp/.out 2>&1 && ! grep -q "PATTERN" /tmp/.out       # &&-joined producer
-#
-# Count-equals-zero is the same defect wearing a different hat, and it is the one
-# that bites hardest over a COMMAND's output rather than a file:
-#
-#     [ "$(cargo clippy --workspace 2>&1 | grep -c "^error")" = "0" ]   # WRONG
-#
-# If cargo is missing, or dies before emitting diagnostics, there are no `^error`
-# lines, the count is 0, and the leg passes — a build gate that goes green
-# precisely when the build could not run. Measured in this corpus, not invented.
-# Keep the producer's exit code in the verdict:
-#
-#     cargo clippy --workspace > /tmp/.out 2>&1 && ! grep -q "^error" /tmp/.out
-#
-# T-3144 censused 2853 task files: 71 absence assertions, 41 already correct, 30
-# not. The convention mostly works — this note is here so the next one is written
-# right, because a vacuous leg is invisible until the day the path moves.
-#
-# TEST RUNNERS need a guard either way (T-2738). `set -e` is suppressed inside the
-# `if` condition the gate runs each line in, so in `cmd1; cmd2` only cmd2 is the
-# verdict — and the pass marker you grep for survives a partial failure: a suite
-# printing "3 failed, 9 passed" satisfies `grep -q "9 passed"`, and generalising
-# to `grep -qE "[0-9]+ passed"` matches the same output. Keep the exit code:
-#     python3 -m pytest <file> -q > /tmp/.out 2>&1 && grep -q passed /tmp/.out
-# or add the guard the exit code used to supply:
-#     out=$(python3 -m pytest <file> -q 2>&1); echo "$out" | grep -q passed && ! echo "$out" | grep -q failed
-#     out=$(bats <file> 2>&1); echo "$out" | grep -q '^ok 1 ' && ! echo "$out" | grep -q '^not ok'
-# The close gate refuses the unguarded form. Bypass: FW_ALLOW_UNJUDGED_TEST_RUN=1.
-#
-# REHEARSING A LINE BY HAND DOES NOT REHEARSE THE GATE (T-2743). Your interactive
-# shell has no `set -eo pipefail`. A line has returned 0 by hand and 141 under
-# P-011, from the same directory, the same second. To rehearse for real:
-#     bash -c 'set -eo pipefail; <your verification line>'
-#
-# Enforcement-baseline hint (L-398, T-1886): if you edited `.claude/settings.json`
-# (added/removed/reorganised hooks), add `bin/fw enforcement baseline` to your
-# Verification block. Otherwise the canonical hash diverges and `fw doctor`
-# reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
-# Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
-# the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+test -f docs/reports/T-3324-pickup-triage.md
+grep -qF "fw-upgrade-clobbers-local-changes" docs/reports/T-3324-pickup-triage.md
+grep -q "^| 167 " docs/reports/T-3324-pickup-triage.md && grep -q "^| 298 " docs/reports/T-3324-pickup-triage.md
+ls .tasks/active/T-3325-*.md
+ls .tasks/completed/T-3326-*.md
+bash scripts/check-framework-pickup-freshness.sh > /tmp/.t3324-canary 2>&1 && grep -q "healthy" /tmp/.t3324-canary
 
 ## RCA
 
@@ -285,6 +205,12 @@ bvp_scores_proposed:
      legacy tasks lacking this section. -->
 
 ## Updates
+
+### 2026-10-02T17:45Z — triage done [claude]
+- 98 inbound filings (offsets 163-298) coded in docs/reports/T-3324-pickup-triage.md: AEF 58, other 38 (36 = AEF replies to 055), termlink 1, broadcast 1. 38 own outbound counted, not triaged.
+- termlink outcomes: 167 -> T-3181 (open, human-owned, horizon now); 220 answered; 241 covered (T-3291/T-3293/T-3294); 249 answered; 250 adopted (T-3326, done); 257 item 4 -> T-3325; 217 ack. Receipt + answers posted at framework:pickup offset 299 (read back, sha256 match).
+- Stop rule (set in advance): PASSES — 5 classes raised by 2+ projects (fw-upgrade-clobbers-local-changes 4, consumer-path-assumptions 3, secret-in-unignored-path 3, bvp-scoring-calibration 2, tier1-write-gate-misclassification 2). All are AEF's defect classes.
+- AEF "unanswered filing" audit proposal posted at offset 300 (read back, sha256 match). Canary acked to 300; consumer receipt at 301; canary healthy.
 
 ### 2026-10-02T17:29:14Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
