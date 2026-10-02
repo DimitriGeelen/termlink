@@ -1180,6 +1180,74 @@ fn retention_gap_json(cursor: u64, oldest_offset: Option<u64>) -> Option<Value> 
     })
 }
 
+/// T-3309: an empty poll is persisted at most this often per (topic, reader);
+/// data fetches are always persisted. Long-pollers re-fetch every few seconds,
+/// and the IW-4 flags work in days, so a minute of resolution loses nothing.
+const FETCH_PERSIST_INTERVAL_MS: i64 = 60_000;
+
+/// T-3309: decide whether to persist this fetch. Pure over the throttle map so
+/// the rule is unit-tested; the caller holds the lock.
+fn fetch_should_persist(
+    last: &mut std::collections::HashMap<(String, String), i64>,
+    topic: &str,
+    reader: &str,
+    returned: usize,
+    now_ms: i64,
+) -> bool {
+    let key = (topic.to_string(), reader.to_string());
+    let due = returned > 0
+        || last
+            .get(&key)
+            .is_none_or(|t| now_ms - *t >= FETCH_PERSIST_INTERVAL_MS);
+    if due {
+        last.insert(key, now_ms);
+    }
+    due
+}
+
+fn fetch_throttle() -> &'static std::sync::Mutex<std::collections::HashMap<(String, String), i64>> {
+    static T: std::sync::OnceLock<std::sync::Mutex<std::collections::HashMap<(String, String), i64>>> =
+        std::sync::OnceLock::new();
+    T.get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()))
+}
+
+/// T-3309: record a subscribe fetch on the bus (best-effort telemetry: a failure
+/// is logged and never fails the read).
+fn note_subscribe_fetch(bus: &Bus, topic: &str, reader: Option<&str>, returned: usize) {
+    let now = activity_now_ms();
+    let due = {
+        let mut map = fetch_throttle().lock().expect("fetch throttle poisoned");
+        fetch_should_persist(&mut map, topic, reader.unwrap_or(""), returned, now)
+    };
+    if due && let Err(e) = bus.note_fetch(topic, reader, returned, now) {
+        tracing::warn!(topic, error = %e, "T-3309: could not record topic fetch activity");
+    }
+}
+
+fn activity_now_ms() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0)
+}
+
+/// T-3309: flag threshold in days (`TERMLINK_TOPIC_FLAG_DAYS`, default 30).
+fn topic_flag_days() -> u64 {
+    std::env::var("TERMLINK_TOPIC_FLAG_DAYS")
+        .ok()
+        .and_then(|v| v.parse::<u64>().ok())
+        .filter(|d| *d > 0)
+        .unwrap_or(termlink_bus::DEFAULT_FLAG_DAYS)
+}
+
+/// T-3309: the `activity` + `flags` fields for one `channel.list` entry.
+fn activity_json(act: &termlink_bus::TopicActivity, now_ms: i64, days: u64) -> (Value, Value) {
+    (
+        json!(act),
+        json!(termlink_bus::activity_flags(act, now_ms, days)),
+    )
+}
+
 pub async fn handle_channel_subscribe(id: Value, params: &Value) -> RpcResponse {
     let bus = match bus_or_err(id.clone()) {
         Ok(b) => b,
@@ -1320,6 +1388,8 @@ pub(crate) async fn handle_channel_subscribe_with(
     // fresh read from an arbitrary offset (the trap `Bus::gap_before` avoids by
     // keying on server-persisted cursors, which readers here do not use).
     let oldest_offset = bus.oldest_offset(&topic).ok().flatten();
+    // T-3309: optional self-declared reader name for per-reader fetch activity.
+    let reader = param_str(params, "reader").map(str::to_string);
     let deadline = walk_deadline_from_env();
     let walk = match tokio::task::spawn_blocking(move || {
         walk_subscribe_records(
@@ -1343,6 +1413,11 @@ pub(crate) async fn handle_channel_subscribe_with(
     };
     if let Some(msg) = walk.error_msg {
         return ErrorResponse::internal_error(id, &msg).into();
+    }
+    // T-3309: an inspection walk (`channel info` counting senders) is not a
+    // read; recording it would clear the very `unread` flag being inspected.
+    if !params.get("inspect").and_then(|v| v.as_bool()).unwrap_or(false) {
+        note_subscribe_fetch(bus, &topic, reader.as_deref(), walk.messages.len());
     }
     let next_cursor = walk.last_offset.map(|o| o + 1).unwrap_or(cursor);
     if walk.deadline_hit {
@@ -1728,6 +1803,15 @@ pub(crate) async fn handle_channel_list_with(
         Ok(v) => v,
         Err(e) => return ErrorResponse::internal_error(id, &format!("channel.list: {e}")).into(),
     };
+    // T-3309: activity is telemetry — a read failure drops the fields (logged),
+    // never the listing.
+    let activity = bus.all_topic_activity().unwrap_or_else(|e| {
+        tracing::warn!(error = %e, "channel.list: topic activity read failed — omitting activity");
+        Default::default()
+    });
+    let with_readers = params.get("readers").and_then(|v| v.as_bool()).unwrap_or(false);
+    let now_ms = activity_now_ms();
+    let flag_days = topic_flag_days();
     let filtered: Vec<Value> = names
         .into_iter()
         .filter(|n| prefix.is_empty() || n.starts_with(prefix))
@@ -1760,6 +1844,17 @@ pub(crate) async fn handle_channel_list_with(
                 json!({"name": name, "retention": retention_to_json(ret), "count": count});
             if let Ok(Some(lo)) = bus.latest_offset(&name) {
                 entry["latest_offset"] = json!(lo);
+            }
+            // T-3309: absent `activity` means the hub has not seen this topic
+            // written or fetched since tracking began — not "never used".
+            if let Some(act) = activity.get(&name) {
+                let (a, f) = activity_json(act, now_ms, flag_days);
+                entry["activity"] = a;
+                entry["flags"] = f;
+                entry["flag_days"] = json!(flag_days);
+            }
+            if with_readers {
+                entry["readers"] = json!(bus.topic_readers(&name).unwrap_or_default());
             }
             entry
         })
@@ -2717,6 +2812,53 @@ mod tests {
         // the walk cannot know nothing follows without reading one more record.
         // The reader's next call then returns an empty page that says "end".
         assert_eq!(sub(3, 2).await["end_reason"], "limit");
+    }
+
+    #[test]
+    fn t3309_fetch_throttle_persists_data_always_and_polls_once_a_minute() {
+        let mut m = std::collections::HashMap::new();
+        assert!(fetch_should_persist(&mut m, "t", "r", 0, 1_000), "first poll persists");
+        assert!(!fetch_should_persist(&mut m, "t", "r", 0, 30_000), "poll within a minute is coalesced");
+        assert!(fetch_should_persist(&mut m, "t", "r", 3, 31_000), "a data fetch always persists");
+        assert!(!fetch_should_persist(&mut m, "t", "r", 0, 60_000));
+        assert!(fetch_should_persist(&mut m, "t", "r", 0, 91_000), "a minute after the last persist");
+        assert!(fetch_should_persist(&mut m, "t", "other", 0, 91_000), "keyed per reader");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn t3309_list_reports_activity_flags_and_readers() {
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("dm:act", Retention::Forever).unwrap();
+        bus.create_topic("dm:quiet", Retention::Forever).unwrap();
+        let key = signing_key();
+        let p = post_params(&key, "dm:act", "note", b"hi", 1_000);
+        let _ = handle_channel_post_with(&bus, json!(1), &p).await;
+        let _ = unwrap_success(
+            handle_channel_subscribe_with(
+                &bus,
+                json!(2),
+                &json!({"topic": "dm:act", "cursor": 0, "reader": "t3309-reader"}),
+            )
+            .await,
+        );
+        let list = unwrap_success(
+            handle_channel_list_with(&bus, json!(3), &json!({"prefix": "dm:", "readers": true})).await,
+        );
+        let topics = list["topics"].as_array().unwrap();
+        let act = topics.iter().find(|t| t["name"] == "dm:act").unwrap();
+        assert_eq!(act["activity"]["writes_total"], 1);
+        assert!(act["activity"]["last_writer"].is_string());
+        assert_eq!(act["activity"]["fetches_total"], 1);
+        assert!(act["activity"]["unread_since_ms"].is_null(), "the subscribe returned data");
+        assert_eq!(act["flags"], json!([]));
+        assert_eq!(act["flag_days"], 30);
+        assert_eq!(act["readers"][0]["reader"], "t3309-reader");
+        let quiet = topics.iter().find(|t| t["name"] == "dm:quiet").unwrap();
+        assert!(quiet.get("activity").is_none(), "never written or fetched: no activity row");
+        assert_eq!(quiet["readers"], json!([]));
+        // Without readers:true the per-reader list is not computed.
+        let plain = unwrap_success(handle_channel_list_with(&bus, json!(4), &json!({"prefix": "dm:act"})).await);
+        assert!(plain["topics"][0].get("readers").is_none());
     }
 
     #[test]

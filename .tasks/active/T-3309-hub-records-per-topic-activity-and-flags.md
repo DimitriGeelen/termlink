@@ -2,12 +2,16 @@
 id: T-3309
 name: "Hub records per-topic activity and flags idle and unread topics"
 description: >
-  arc-012 step 4 (T-3304 IW-4 C-prime 1+3): hub records last writer + write rate per topic and per-reader last fetch / last fetch that returned messages (coalesced, not per poll); flags idle (no posts and no fetches 30 d) and unread (posts continue, no fetch 30 d); ensure-topic and metadata touches are not activity; per-topic override of N; flags only, never deletion.
+  arc-012 step 4 (T-3304 IW-4 C-prime 1+3): hub records last writer + write rate per
+  topic and per-reader last fetch / last fetch that returned messages (coalesced,
+  not per poll); flags idle (no posts and no fetches 30 d) and unread (posts continue,
+  no fetch 30 d); ensure-topic and metadata touches are not activity; per-topic override
+  of N; flags only, never deletion.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [arc:arc-012]
 components: []
 related_tasks: []
@@ -22,8 +26,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-01T19:22:42Z
-last_update: 2026-10-01T19:22:54Z
-date_finished: null
+last_update: 2026-10-02T12:11:24Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,20 +38,49 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-02T12:11:24Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3309: Hub records per-topic activity and flags idle and unread topics
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+arc-012 step 4, the tracking half of T-3304 IW-4 C′ (operator ruling). The hub keeps
+per-topic activity OUTSIDE the message log, so retention cannot delete it, and flags
+topics as `idle` or `unread` after 30 days. Flags are advisory: it flags, never deletes.
+The 5-consultant IW-4 review made two design catches binding:
+- an ensure/describe touch is not activity (GLM);
+- "no read AND no write" misses a topic written constantly and read by nobody, the ring20
+  probe class, so `unread` keys on writes waiting for a data fetch (Codex).
+
+Owner and purpose belong to the hub topic record (T-3312), not here.
+
+Process note: the source edits were made while session focus was still T-3211, so the
+G-020 AC gate did not check them; these ACs were written afterwards, against the code as
+built. Recorded rather than smoothed over.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] The bus keeps `topic_activity` (tracking start, last write and writer, write count, last fetch, last data fetch, fetch count, `unread_since_ms`) and `topic_readers` (per named reader: last fetch, last data fetch) in SQLite tables beside the log. A sweep leaves them intact, `delete_topic` removes them, and a `topic_metadata` post does not count as a write. Bus test pins each.
+- [x] `activity_flags` (pure): `idle` = watched at least N days and no write or fetch for N days; `unread` = a write has waited N days with no data fetch, which fires on a busy unread topic. Unit-tested at the boundaries.
+- [x] The hub records each `channel.subscribe` as a fetch (data fetch when it returned records) under an optional `reader` param. Empty polls persist at most once a minute per (topic, reader), and `inspect: true` walks are not recorded. Tests pin the throttle.
+- [x] `channel.list` entries carry `activity`, `flags` and `flag_days` (default 30, `TERMLINK_TOPIC_FLAG_DAYS`), plus `readers` when asked with `readers: true`. Handler test proves the round trip.
+- [x] CLI: `channel info` shows activity, flags and readers (text + JSON) and inspects with `inspect: true`; `channel list` marks flagged topics; `channel subscribe` names itself via `TERMLINK_AGENT_ID` or the loaded identity. MCP subscribe accepts `reader` (default `TERMLINK_AGENT_ID`); MCP list passes the fields through. Unit-tested.
+- [x] The five touched crates' tests pass, and clippy adds no warnings on changed lines.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -171,6 +204,12 @@ date_finished: null
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+cargo test -p termlink-bus --lib t3309 > /tmp/.t3309b 2>&1 && grep -q "test result: ok. 1 passed" /tmp/.t3309b
+cargo test -p termlink-bus --lib activity > /tmp/.t3309a 2>&1 && grep -q "test result: ok" /tmp/.t3309a && ! grep -q " 0 passed" /tmp/.t3309a
+cargo test -p termlink-hub --lib t3309 > /tmp/.t3309h 2>&1 && grep -q "test result: ok. 2 passed" /tmp/.t3309h
+cargo test -p termlink --bin termlink t3309 > /tmp/.t3309c 2>&1 && grep -q "test result: ok. 2 passed" /tmp/.t3309c
+grep -q "finished rc=0" /tmp/claude-0/-opt-termlink/e817a600-b7cc-4402-a9cf-c959eb30f655/scratchpad/t3309-test.log
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -210,6 +249,24 @@ date_finished: null
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-10-02 — inspecting a topic must not count as reading it
+- **What changed:** `channel info` counts senders by walking the topic through
+  `channel.subscribe`. Under fetch tracking that inspection is a DATA fetch and would
+  clear `unread`, the flag the operator is inspecting. Inspection walks now send
+  `inspect: true`, which the hub does not record. Real consumers still count, including
+  old clients that never send the flag.
+- **Plan impact:** "fetch" means a `channel.subscribe` call. Topics read only through
+  other RPCs (`cv_keys`, `agent find-idle`, search) will look unread. agent-presence is
+  the likely case, since it is discovered through cv_index. The flags are labelled
+  advisory with their threshold; T-3314 (forever-topic review) must treat `unread` on
+  such topics as a lead, not a verdict.
+- **Triggered:** CLI-derived readers that also walk via subscribe (thread, search,
+  digest) count as reads. That is deliberate: a human reading a thread is a reader. The
+  inbox reader (T-3308) sends no reader name, so it counts at topic level only.
+  Per-reader naming there, and owner/purpose, belong to T-3312's hub topic record.
+  Tracking starts at deploy: no flag can fire for 30 days after the upgrade, by design
+  (`tracking_since_ms`).
 
 ## Recommendation
 
@@ -270,3 +327,7 @@ date_finished: null
 
 ### 2026-10-01T19:22:54Z — status-update [task-update-agent]
 - **Change:** tags: +arc:arc-012
+
+### 2026-10-02T12:11:24Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

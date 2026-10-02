@@ -204,6 +204,8 @@ impl Meta {
         tx.execute("DELETE FROM cursors WHERE topic = ?1", params![name])?;
         tx.execute("DELETE FROM offsets WHERE topic = ?1", params![name])?;
         tx.execute("DELETE FROM claims WHERE topic = ?1", params![name])?;
+        tx.execute("DELETE FROM topic_activity WHERE topic = ?1", params![name])?;
+        tx.execute("DELETE FROM topic_readers WHERE topic = ?1", params![name])?;
         tx.execute("DELETE FROM topics WHERE name = ?1", params![name])?;
         tx.commit()?;
         Ok(Some(records as u64))
@@ -883,6 +885,109 @@ fn compose_claim_id(now_ns: u128, seq: u64, topic: &str, offset: u64) -> String 
     format!("clm-{now_ns}-{seq}-{topic_tag}-{offset}")
 }
 
+impl Meta {
+    /// T-3309: record a write. Sets `unread_since_ms` only if it is unset, so it
+    /// keeps the OLDEST write still waiting for a data fetch.
+    pub(crate) fn note_write(&self, topic: &str, writer: &str, ts_ms: i64) -> Result<()> {
+        let conn = self.conn.lock().expect("meta mutex poisoned");
+        conn.execute(
+            "INSERT INTO topic_activity (topic, tracking_since_ms, last_write_ms, last_writer, \
+                 writes_total, unread_since_ms) VALUES (?1, ?2, ?2, ?3, 1, ?2) \
+             ON CONFLICT(topic) DO UPDATE SET \
+                 last_write_ms = MAX(COALESCE(last_write_ms, 0), ?2), \
+                 last_writer = ?3, writes_total = writes_total + 1, \
+                 unread_since_ms = COALESCE(unread_since_ms, ?2)",
+            params![topic, ts_ms, writer],
+        )?;
+        Ok(())
+    }
+
+    /// T-3309: record a `channel.subscribe` fetch. `returned > 0` is a DATA fetch,
+    /// which clears `unread_since_ms`. `reader` is optional: unnamed fetches still
+    /// count at topic level.
+    pub(crate) fn note_fetch(
+        &self,
+        topic: &str,
+        reader: Option<&str>,
+        returned: usize,
+        now_ms: i64,
+    ) -> Result<()> {
+        let data: Option<i64> = (returned > 0).then_some(now_ms);
+        let mut conn = self.conn.lock().expect("meta mutex poisoned");
+        let tx = conn.transaction()?;
+        tx.execute(
+            "INSERT INTO topic_activity (topic, tracking_since_ms, last_fetch_ms, \
+                 last_data_fetch_ms, fetches_total) VALUES (?1, ?2, ?2, ?3, 1) \
+             ON CONFLICT(topic) DO UPDATE SET \
+                 last_fetch_ms = ?2, fetches_total = fetches_total + 1, \
+                 last_data_fetch_ms = COALESCE(?3, last_data_fetch_ms), \
+                 unread_since_ms = CASE WHEN ?3 IS NULL THEN unread_since_ms ELSE NULL END",
+            params![topic, now_ms, data],
+        )?;
+        if let Some(r) = reader.filter(|r| !r.is_empty()) {
+            tx.execute(
+                "INSERT INTO topic_readers (topic, reader, last_fetch_ms, last_data_fetch_ms) \
+                     VALUES (?1, ?2, ?3, ?4) \
+                 ON CONFLICT(topic, reader) DO UPDATE SET last_fetch_ms = ?3, \
+                     last_data_fetch_ms = COALESCE(?4, last_data_fetch_ms)",
+                params![topic, r, now_ms, data],
+            )?;
+        }
+        tx.commit()?;
+        Ok(())
+    }
+
+    /// T-3309: activity rows for every tracked topic (for `channel.list`).
+    pub(crate) fn all_activity(
+        &self,
+    ) -> Result<std::collections::HashMap<String, crate::activity::TopicActivity>> {
+        let conn = self.conn.lock().expect("meta mutex poisoned");
+        let mut stmt = conn.prepare(
+            "SELECT topic, tracking_since_ms, last_write_ms, last_writer, writes_total, \
+                 last_fetch_ms, last_data_fetch_ms, fetches_total, unread_since_ms \
+             FROM topic_activity",
+        )?;
+        let rows = stmt.query_map([], |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                crate::activity::TopicActivity {
+                    tracking_since_ms: r.get(1)?,
+                    last_write_ms: r.get(2)?,
+                    last_writer: r.get(3)?,
+                    writes_total: r.get::<_, i64>(4)? as u64,
+                    last_fetch_ms: r.get(5)?,
+                    last_data_fetch_ms: r.get(6)?,
+                    fetches_total: r.get::<_, i64>(7)? as u64,
+                    unread_since_ms: r.get(8)?,
+                },
+            ))
+        })?;
+        let mut out = std::collections::HashMap::new();
+        for row in rows {
+            let (t, a) = row?;
+            out.insert(t, a);
+        }
+        Ok(out)
+    }
+
+    /// T-3309: named readers of `topic`, most recent first.
+    pub(crate) fn topic_readers(&self, topic: &str) -> Result<Vec<crate::activity::ReaderActivity>> {
+        let conn = self.conn.lock().expect("meta mutex poisoned");
+        let mut stmt = conn.prepare(
+            "SELECT reader, last_fetch_ms, last_data_fetch_ms FROM topic_readers \
+             WHERE topic = ?1 ORDER BY last_fetch_ms DESC",
+        )?;
+        let rows = stmt.query_map(params![topic], |r| {
+            Ok(crate::activity::ReaderActivity {
+                reader: r.get(0)?,
+                last_fetch_ms: r.get(1)?,
+                last_data_fetch_ms: r.get(2)?,
+            })
+        })?;
+        Ok(rows.collect::<std::result::Result<Vec<_>, _>>()?)
+    }
+}
+
 fn init_schema(conn: &Connection) -> Result<()> {
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS schema_version (
@@ -929,6 +1034,25 @@ fn init_schema(conn: &Connection) -> Result<()> {
             ON claims (topic, offset);
          CREATE INDEX IF NOT EXISTS idx_claims_topic_until
             ON claims (topic, claimed_until);
+         -- T-3309: per-topic activity, outside the log (retention never deletes it).
+         CREATE TABLE IF NOT EXISTS topic_activity (
+            topic              TEXT PRIMARY KEY,
+            tracking_since_ms  INTEGER NOT NULL,
+            last_write_ms      INTEGER,
+            last_writer        TEXT,
+            writes_total       INTEGER NOT NULL DEFAULT 0,
+            last_fetch_ms      INTEGER,
+            last_data_fetch_ms INTEGER,
+            fetches_total      INTEGER NOT NULL DEFAULT 0,
+            unread_since_ms    INTEGER
+         );
+         CREATE TABLE IF NOT EXISTS topic_readers (
+            topic              TEXT NOT NULL,
+            reader             TEXT NOT NULL,
+            last_fetch_ms      INTEGER NOT NULL,
+            last_data_fetch_ms INTEGER,
+            PRIMARY KEY (topic, reader)
+         );
          INSERT OR IGNORE INTO schema_version (version) VALUES (1);",
     )?;
     Ok(())

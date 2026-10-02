@@ -9653,6 +9653,10 @@ pub struct ChannelSubscribeParams {
     /// false — preserves backward compatibility. Mirror of CLI flag
     /// `--include-current-value`.
     pub include_current_value: Option<bool>,
+    /// T-3309: optional name for this reader (e.g. your agent id). The hub
+    /// records per-reader last-fetch times so an operator can see who still
+    /// reads a topic. Defaults to `TERMLINK_AGENT_ID` when that is set.
+    pub reader: Option<String>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -29297,6 +29301,16 @@ impl TermLinkTools {
             && let Some(obj) = params.as_object_mut()
         {
             obj.insert("include_current_value".to_string(), serde_json::json!(true));
+        }
+        // T-3309: per-reader activity on the hub.
+        if let Some(r) = p
+            .reader
+            .clone()
+            .or_else(|| std::env::var("TERMLINK_AGENT_ID").ok())
+            .filter(|r| !r.trim().is_empty())
+            && let Some(obj) = params.as_object_mut()
+        {
+            obj.insert("reader".to_string(), serde_json::json!(r));
         }
         match termlink_session::client::rpc_call(
             &hub_socket,

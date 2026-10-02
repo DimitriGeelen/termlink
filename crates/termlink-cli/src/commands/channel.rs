@@ -4233,9 +4233,13 @@ pub(crate) async fn cmd_channel_info(
 ) -> Result<()> {
     let sock = hub_socket_or_json_exit(hub, json_output)?;
     // Pull retention + count from channel.list with the topic name as exact prefix.
-    let list_resp = rpc_call_authed(&sock, method::CHANNEL_LIST, json!({"prefix": topic}))
-        .await
-        .context("Hub rpc_call (channel.list) failed")?;
+    let list_resp = rpc_call_authed(
+        &sock,
+        method::CHANNEL_LIST,
+        json!({"prefix": topic, "readers": true}),
+    )
+    .await
+    .context("Hub rpc_call (channel.list) failed")?;
     let list_result = client::unwrap_result(list_resp)
         .map_err(|e| anyhow!("Hub returned error for channel.list: {e}"))?;
     let topics = list_result["topics"].as_array().cloned().unwrap_or_default();
@@ -4260,7 +4264,7 @@ pub(crate) async fn cmd_channel_info(
         let resp = rpc_call_authed(
             &sock,
             method::CHANNEL_SUBSCRIBE,
-            json!({"topic": topic, "cursor": cursor, "limit": limit}),
+            json!({"topic": topic, "cursor": cursor, "limit": limit, "inspect": true}),
         )
         .await
         .context("Hub rpc_call (channel.subscribe) failed")?;
@@ -4354,6 +4358,14 @@ pub(crate) async fn cmd_channel_info(
             map.insert("since".to_string(), json!(s));
             map.insert("posts_since".to_string(), json!(ps));
         }
+        // T-3309: hub-side activity (absent on hubs predating it).
+        if let Some(map) = obj.as_object_mut() {
+            for k in ["activity", "flags", "flag_days", "readers"] {
+                if let Some(v) = entry.get(k) {
+                    map.insert(k.to_string(), v.clone());
+                }
+            }
+        }
         println!("{}", serde_json::to_string_pretty(&obj)?);
         return Ok(());
     }
@@ -4383,7 +4395,94 @@ pub(crate) async fn cmd_channel_info(
             println!("  {s}  up to {}  (ts={})", r.up_to, r.ts);
         }
     }
+    for line in activity_lines(&entry, now_unix_ms()) {
+        println!("{line}");
+    }
     Ok(())
+}
+
+/// T-3309: render the hub's per-topic activity for `channel info`. Empty for a
+/// hub predating T-3309. Times are shown as ages so a stale topic is obvious.
+pub(crate) fn activity_lines(entry: &Value, now_ms: i64) -> Vec<String> {
+    let Some(a) = entry.get("activity") else {
+        return Vec::new();
+    };
+    let age = |k: &str| -> String {
+        a.get(k)
+            .and_then(|v| v.as_i64())
+            .map_or("never".to_string(), |t| format_age_ms(now_ms - t))
+    };
+    let mut out = vec![
+        format!(
+            "Activity: {} write(s), last {} by {}; {} fetch(es), last {}, last with data {}",
+            a.get("writes_total").and_then(|v| v.as_u64()).unwrap_or(0),
+            age("last_write_ms"),
+            a.get("last_writer").and_then(|v| v.as_str()).unwrap_or("-"),
+            a.get("fetches_total").and_then(|v| v.as_u64()).unwrap_or(0),
+            age("last_fetch_ms"),
+            age("last_data_fetch_ms"),
+        ),
+        format!("Tracked since: {}", age("tracking_since_ms")),
+    ];
+    if a.get("unread_since_ms").and_then(|v| v.as_i64()).is_some() {
+        out.push(format!("Unread since: {} (writes waiting for a data fetch)", age("unread_since_ms")));
+    }
+    let flags: Vec<&str> = entry
+        .get("flags")
+        .and_then(|v| v.as_array())
+        .map(|a| a.iter().filter_map(|f| f.as_str()).collect())
+        .unwrap_or_default();
+    let days = entry.get("flag_days").and_then(|v| v.as_u64()).unwrap_or(30);
+    out.push(if flags.is_empty() {
+        format!("Flags: none ({days}-day threshold)")
+    } else {
+        format!("Flags: {} ({days}-day threshold; advisory, nothing is deleted)", flags.join(", "))
+    });
+    if let Some(rs) = entry.get("readers").and_then(|v| v.as_array())
+        && !rs.is_empty()
+    {
+        out.push(format!("Readers: {}", rs.len()));
+        for r in rs.iter().take(5) {
+            out.push(format!(
+                "  {}  last fetch {}",
+                r.get("reader").and_then(|v| v.as_str()).unwrap_or("?"),
+                r.get("last_fetch_ms")
+                    .and_then(|v| v.as_i64())
+                    .map_or("?".to_string(), |t| format_age_ms(now_ms - t)),
+            ));
+        }
+    }
+    out
+}
+
+fn format_age_ms(ms: i64) -> String {
+    let s = ms.max(0) / 1000;
+    match s {
+        0..=59 => format!("{s}s ago"),
+        60..=3599 => format!("{}m ago", s / 60),
+        3600..=86_399 => format!("{}h ago", s / 3600),
+        _ => format!("{}d ago", s / 86_400),
+    }
+}
+
+/// T-3309: `  (idle, unread)` for a `channel list` row, empty when unflagged
+/// or when the hub predates activity tracking.
+pub(crate) fn topic_flag_suffix(t: &Value) -> String {
+    let flags: Vec<&str> = t
+        .get("flags")
+        .and_then(|v| v.as_array())
+        .map(|a| a.iter().filter_map(|f| f.as_str()).collect())
+        .unwrap_or_default();
+    if flags.is_empty() { String::new() } else { format!("  ({})", flags.join(", ")) }
+}
+
+/// T-3309: the name this CLI reader reports to the hub for per-reader activity:
+/// `TERMLINK_AGENT_ID` when set (readable), else the identity fingerprint when
+/// one is already loaded (`--resume`/`--reset`). `None` sends no name.
+pub(crate) fn subscribe_reader_name(agent_id: Option<String>, identity_fp: Option<&str>) -> Option<String> {
+    agent_id
+        .filter(|a| !a.trim().is_empty())
+        .or_else(|| identity_fp.map(str::to_string))
 }
 
 /// T-1332: msg_types that DON'T count toward "unread" — purely meta envelopes
@@ -9608,6 +9707,13 @@ pub(crate) async fn cmd_channel_subscribe(
             run_ws_reconnect_loop(&sock, topic, json_output, &mut cursor).await;
         }
         let mut params = json!({"topic": topic, "cursor": cursor, "limit": limit});
+        if let Some(r) = subscribe_reader_name(
+            std::env::var("TERMLINK_AGENT_ID").ok(),
+            identity_fingerprint.as_deref(),
+        ) && let Some(obj) = params.as_object_mut()
+        {
+            obj.insert("reader".to_string(), json!(r));
+        }
         if let Some(cid) = conversation_id
             && let Some(obj) = params.as_object_mut()
         {
@@ -10917,9 +11023,11 @@ pub(crate) async fn cmd_channel_list(
                     let name = t["name"].as_str().unwrap_or("?");
                     let kind = t["retention"]["kind"].as_str().unwrap_or("?");
                     let value = t["retention"].get("value");
+                    // T-3309: advisory idle/unread flags from the hub.
+                    let flags = topic_flag_suffix(t);
                     match value {
-                        Some(v) => println!("  {name}  [{kind}:{v}]"),
-                        None => println!("  {name}  [{kind}]"),
+                        Some(v) => println!("  {name}  [{kind}:{v}]{flags}"),
+                        None => println!("  {name}  [{kind}]{flags}"),
                     }
                 }
             }
@@ -17677,6 +17785,38 @@ mod tests {
         let v = vec![10, 20, 30, 40, 50, 60];
         // Last 4 should be [30, 40, 50, 60] — oldest first.
         assert_eq!(tail_slice(&v, Some(4)), vec![30, 40, 50, 60]);
+    }
+
+    #[test]
+    fn t3309_activity_lines_render_ages_flags_and_readers() {
+        let day = 86_400_000i64;
+        let now = 100 * day;
+        let entry = json!({
+            "activity": {
+                "tracking_since_ms": 10 * day, "last_write_ms": now - 3_600_000,
+                "last_writer": "probe", "writes_total": 2800, "last_fetch_ms": null,
+                "last_data_fetch_ms": null, "fetches_total": 0, "unread_since_ms": 50 * day
+            },
+            "flags": ["unread"], "flag_days": 30,
+            "readers": [{"reader": "claude-termlink", "last_fetch_ms": now - 120_000}]
+        });
+        let l = activity_lines(&entry, now).join("\n");
+        assert!(l.contains("2800 write(s), last 1h ago by probe"), "{l}");
+        assert!(l.contains("0 fetch(es), last never"), "{l}");
+        assert!(l.contains("Unread since: 50d ago"), "{l}");
+        assert!(l.contains("Flags: unread (30-day threshold"), "{l}");
+        assert!(l.contains("claude-termlink  last fetch 2m ago"), "{l}");
+        assert!(activity_lines(&json!({"name": "old-hub"}), now).is_empty(), "old hub: nothing");
+    }
+
+    #[test]
+    fn t3309_flag_suffix_and_reader_name() {
+        assert_eq!(topic_flag_suffix(&json!({"flags": ["idle", "unread"]})), "  (idle, unread)");
+        assert_eq!(topic_flag_suffix(&json!({"flags": []})), "");
+        assert_eq!(topic_flag_suffix(&json!({"name": "x"})), "");
+        assert_eq!(subscribe_reader_name(Some("agent-a".into()), Some("fp")), Some("agent-a".into()));
+        assert_eq!(subscribe_reader_name(Some("  ".into()), Some("fp")), Some("fp".into()));
+        assert_eq!(subscribe_reader_name(None, None), None);
     }
 
     #[test]

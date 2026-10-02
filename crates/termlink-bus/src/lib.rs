@@ -8,6 +8,7 @@
 //! `Bus::open`, `create_topic` + `list_topics` via SQLite metadata.
 //! Log-append + subscribe + retention sweep land in follow-up wedges.
 
+mod activity;
 mod artifact_store;
 mod claim;
 mod envelope;
@@ -16,6 +17,7 @@ mod log;
 mod meta;
 mod retention;
 
+pub use activity::{DEFAULT_FLAG_DAYS, ReaderActivity, TopicActivity, activity_flags};
 pub use artifact_store::{ArtifactStore, StreamingPutOutcome};
 pub use claim::{ClaimInfo, ClaimsSummary, IdleAgent, ReleaseInfo, TransferInfo};
 pub use envelope::Envelope;
@@ -190,6 +192,14 @@ impl Bus {
         let byte_pos = appender.append(&bytes).await?;
         let length = bytes.len() as u64;
         let offset = self.meta.record_append(topic, byte_pos, length, env.ts_unix_ms)?;
+        // T-3309: record the write outside the log. A topic_metadata envelope
+        // (describe / ensure touch) is not activity. Best-effort: activity is
+        // telemetry, so a failure here must never fail the post itself.
+        if env.msg_type != "topic_metadata"
+            && let Err(e) = self.meta.note_write(topic, &env.sender_id, env.ts_unix_ms)
+        {
+            eprintln!("warning: T-3309: could not record write activity on {topic}: {e}");
+        }
         // T-1289: wake any subscribers blocked in `subscribe_blocking` for
         // this topic. No-op when there are no waiters; cheap atomic.
         self.notifier_for(topic).notify_waiters();
@@ -284,6 +294,32 @@ impl Bus {
     /// (dialog.heartbeat reconnect must surface gaps, not silently skip turns).
     ///
     /// Returns `BusError::UnknownTopic` if the topic was never registered.
+    /// T-3309: record a `channel.subscribe` fetch (see `activity` module).
+    pub fn note_fetch(
+        &self,
+        topic: &str,
+        reader: Option<&str>,
+        returned: usize,
+        now_ms: i64,
+    ) -> Result<()> {
+        self.meta.note_fetch(topic, reader, returned, now_ms)
+    }
+
+    /// T-3309: activity of every tracked topic, keyed by topic name.
+    pub fn all_topic_activity(&self) -> Result<std::collections::HashMap<String, TopicActivity>> {
+        self.meta.all_activity()
+    }
+
+    /// T-3309: activity of one topic, `None` when the hub has not seen it used.
+    pub fn topic_activity(&self, topic: &str) -> Result<Option<TopicActivity>> {
+        Ok(self.meta.all_activity()?.remove(topic))
+    }
+
+    /// T-3309: named readers of `topic`, most recent first.
+    pub fn topic_readers(&self, topic: &str) -> Result<Vec<ReaderActivity>> {
+        self.meta.topic_readers(topic)
+    }
+
     pub fn oldest_offset(&self, topic: &str) -> Result<Option<Offset>> {
         if !self.meta.topic_exists(topic)? {
             return Err(BusError::UnknownTopic(topic.to_string()));
@@ -1634,6 +1670,50 @@ mod tests {
             Err(e) => panic!("unexpected error variant: {e:?}"),
             Ok(_) => panic!("expected UnknownTopic error, got iterator"),
         }
+    }
+
+    #[tokio::test]
+    async fn t3309_activity_survives_retention_and_tracks_reads() {
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("t", Retention::Messages(1)).unwrap();
+        assert!(bus.topic_activity("t").unwrap().is_none(), "creating a topic is not activity");
+        let w1 = Envelope { sender_id: "alice".into(), ts_unix_ms: 1_000, ..env("t", b"a") };
+        let w2 = Envelope { sender_id: "bob".into(), ts_unix_ms: 2_000, ..env("t", b"b") };
+        bus.post("t", &w1).await.unwrap();
+        bus.post("t", &w2).await.unwrap();
+        // An ensure/describe touch must not make a topic look alive.
+        let meta = Envelope { msg_type: "topic_metadata".into(), ts_unix_ms: 9_000, ..env("t", b"m") };
+        bus.post("t", &meta).await.unwrap();
+        bus.sweep("t", 10_000).unwrap();
+        let a = bus.topic_activity("t").unwrap().unwrap();
+        assert_eq!(a.writes_total, 2, "the sweep removed records, not the activity");
+        assert_eq!(a.last_writer.as_deref(), Some("bob"));
+        assert_eq!(a.last_write_ms, Some(2_000));
+        assert_eq!(a.unread_since_ms, Some(1_000), "the OLDEST unread write");
+        // An empty poll is a fetch but not a read.
+        bus.note_fetch("t", Some("reader-1"), 0, 3_000).unwrap();
+        let a = bus.topic_activity("t").unwrap().unwrap();
+        assert_eq!(a.fetches_total, 1);
+        assert_eq!(a.last_fetch_ms, Some(3_000));
+        assert_eq!(a.last_data_fetch_ms, None);
+        assert_eq!(a.unread_since_ms, Some(1_000));
+        // A data fetch clears unread; the next write starts a new unread window.
+        bus.note_fetch("t", Some("reader-1"), 2, 4_000).unwrap();
+        bus.note_fetch("t", None, 1, 4_500).unwrap();
+        let a = bus.topic_activity("t").unwrap().unwrap();
+        assert_eq!(a.unread_since_ms, None);
+        assert_eq!(a.last_data_fetch_ms, Some(4_500));
+        assert_eq!(a.fetches_total, 3);
+        let w3 = Envelope { ts_unix_ms: 5_000, ..env("t", b"c") };
+        bus.post("t", &w3).await.unwrap();
+        assert_eq!(bus.topic_activity("t").unwrap().unwrap().unread_since_ms, Some(5_000));
+        let readers = bus.topic_readers("t").unwrap();
+        assert_eq!(readers.len(), 1, "unnamed fetches count at topic level only");
+        assert_eq!(readers[0].reader, "reader-1");
+        assert_eq!(readers[0].last_data_fetch_ms, Some(4_000));
+        bus.delete_topic("t").unwrap();
+        assert!(bus.topic_activity("t").unwrap().is_none());
+        assert!(bus.topic_readers("t").unwrap().is_empty());
     }
 
     #[tokio::test]
