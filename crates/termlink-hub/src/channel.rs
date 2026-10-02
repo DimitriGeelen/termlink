@@ -1958,6 +1958,16 @@ pub(crate) async fn handle_channel_list_with(
             if matches!(ret, Retention::Forever) && owner.is_none() && reason.is_none() {
                 entry["unowned_forever"] = json!(true);
             }
+            // T-3310 D3: a forever topic past a ceiling is warned about and
+            // never trimmed; the list carries the flag so it can be seen.
+            if matches!(ret, Retention::Forever)
+                && let Ok(st) = bus.topic_stats(&name)
+            {
+                let c = bus.ceilings();
+                if st.records > c.max_records || st.live_bytes > c.max_live_bytes {
+                    entry["over_ceiling"] = json!(true);
+                }
+            }
             // T-3309: absent `activity` means the hub has not seen this topic
             // written or fetched since tracking began — not "never used".
             if let Some(act) = activity.get(&name) {
@@ -3263,6 +3273,15 @@ mod tests {
         assert_eq!(v["unowned_forever"], false);
         let list = unwrap_success(handle_channel_list_with(&bus, json!(5), &json!({"prefix": "old-client"})).await);
         assert_eq!(list["topics"][0]["owner"], "ops");
+        // A forever topic past its ceiling is flagged in the list (never trimmed).
+        bus.set_ceilings(termlink_bus::Ceilings { max_records: 1, ..Default::default() });
+        for i in 0..2u32 {
+            let p = post_params(&signing_key(), "old-client", "n", &i.to_le_bytes(), 1000 + i as i64);
+            let _ = handle_channel_post_with(&bus, json!(10 + i), &p).await;
+        }
+        let list = unwrap_success(handle_channel_list_with(&bus, json!(6), &json!({"prefix": "old-client"})).await);
+        assert_eq!(list["topics"][0]["over_ceiling"], true);
+        assert_eq!(list["topics"][0]["count"], 2, "forever is never trimmed");
         assert!(list["topics"][0].get("unowned_forever").is_none());
         // Enforcement decision itself is pinned in topic_policy tests; here the
         // refusal path: watch clock moved back 15 days and no bare create since.
@@ -3272,6 +3291,18 @@ mod tests {
             crate::topic_policy::ForeverMode::Auto, 14, &bus2.bare_forever_summary().unwrap(), activity_now_ms(),
         );
         assert!(e.enforced, "14 quiet days: auto mode enforces");
+        // ...and the hub then REFUSES a bare forever create of a new topic,
+        // naming the fix, while owner+reason and bounded creates still work.
+        let (code, msg) = unwrap_error(
+            handle_channel_create_as(&bus2, json!(7), &json!({"name": "late-old-client", "retention": forever}), None).await,
+        );
+        assert_eq!(code, -32602);
+        assert!(msg.contains("--owner <who> --reason <why>"), "{msg}");
+        assert!(!bus2.list_topics().unwrap().contains(&"late-old-client".to_string()), "no stealth create");
+        let _ = unwrap_success(
+            handle_channel_create_as(&bus2, json!(8), &json!({"name": "late-owned", "retention": forever, "owner": "ops", "reason": "kept"}), None).await,
+        );
+        let _ = unwrap_success(handle_channel_create_as(&bus2, json!(9), &json!({"name": "late-plain"}), None).await);
     }
 
     #[test]

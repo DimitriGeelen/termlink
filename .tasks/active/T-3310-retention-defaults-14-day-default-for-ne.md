@@ -26,7 +26,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-01T19:22:54Z
-last_update: 2026-10-02T14:54:36Z
+last_update: 2026-10-02T15:59:43Z
 date_finished:
 revisit_at: 2026-11-15
 revisit_evidence_needed: enforcement auto-flipped on every hub, or the backstop canary named who still sends bare forever
@@ -73,109 +73,32 @@ change alone changes almost nothing, and old binaries cannot send owner/reason.
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Hub `channel.create` accepts optional `owner` + `reason`; stores them; the four operator-durable topics keep forever without them
-- [ ] A forever create without owner+reason is accepted, labelled `unowned_forever`, warned in the response and hub log, and recorded (time, sender identity) (D1 layer C)
-- [ ] `channel list` / `info` (CLI + MCP) show owner, reason and the `unowned_forever` label
-- [ ] Enforcement switches on by itself after 14 days with no bare-forever create; after that a bare forever create is refused (-32602) with a message naming the owner/reason flags; a bare-forever create restarts the clock (D1 layer 1)
-- [ ] `TERMLINK_FOREVER_REQUIRES_OWNER` = auto (default) / on / never; `never` is reported in `hub status --governor` and `fleet governor-status` (D1 layer 3)
-- [ ] Backstop canary: fires if enforcement is still off on 2026-11-15 or any hub runs `never`, names the identities still sending bare forever, and files a task via the T-3267 filer; crontab installed by runme (D1 layer 2)
-- [ ] Fixture/unit tests: flips at 14 quiet days, not at 13, clock resets on a bare create; a mutant removing the auto-flip turns them red (D1 layer 4)
-- [ ] One shared default-retention table used by CLI `channel create`, CLI auto-create (ensure_topic) and MCP create: `inbox:*` and `dm:*` -> Messages(1000); `state:*` -> Latest; presence/chat-arc/agent-listeners-*/agent-conv-* -> Messages(1000); debris -> Days(7); everything else (incl. `sidecar:*`) -> Days(14) (D2)
-- [ ] Hub config file (in runtime_dir) holds the D2 default table and the D3 caps; absent file = built-in defaults; per-topic retention still via `channel set-retention` (D3)
-- [ ] Ceilings checked on post (D3): Messages(N) trims at 2N back to N; Days topics trim at 10,000 records and when the oldest is past 2x the window (back to the window); bounded topics trim at 64 MB live; Latest/LatestPerCvKey compact past 10,000; every trim logged and counted
-- [ ] Forever topics: warn only (hub log + counter + flag) at 10,000 records or 64 MB live; never deleted (D3)
-- [ ] Trim/warn counters in `hub status --governor` and `fleet governor-status`
-- [ ] A create that omits retention gets Days(14) (debris namespaces keep Days(7))
+- [x] Hub `channel.create` accepts optional `owner` + `reason`; stores them; the four operator-durable topics keep forever without them
+- [x] A forever create without owner+reason is accepted, labelled `unowned_forever`, warned in the response and hub log, and recorded (time, sender identity) (D1 layer C)
+- [x] `channel list` / `info` (CLI + MCP) show owner, reason and the `unowned_forever` label
+- [x] Enforcement switches on by itself after 14 days with no bare-forever create; after that a bare forever create is refused (-32602) with a message naming the owner/reason flags; a bare-forever create restarts the clock (D1 layer 1)
+- [x] `TERMLINK_FOREVER_REQUIRES_OWNER` = auto (default) / on / never; `never` is reported in `hub status --governor` and `fleet governor-status` (D1 layer 3)
+- [x] Backstop canary: fires if enforcement is still off on 2026-11-15 or any hub runs `never`, names the identities still sending bare forever, and files ONE task (same filing contract as the T-3267 filer: body-marker de-dup, never under CI, pending-commit manifest); crontab wired into runme (D1 layer 2)
+- [x] Fixture/unit tests: flips at 14 quiet days, not at 13, clock resets on a bare create; a mutant removing the auto-flip turns them red (D1 layer 4)
+- [x] One shared default-retention table used by CLI `channel create`, CLI auto-create (ensure_topic) and MCP create: `inbox:*` and `dm:*` -> Messages(1000); `state:*` -> Latest; presence/chat-arc/agent-listeners-*/agent-conv-* -> Messages(1000); debris -> Days(7); everything else (incl. `sidecar:*`) -> Days(14) (D2)
+- [x] Hub config file `<runtime_dir>/retention.yaml` (+ env overrides) holds the D3 caps and the D1 mode/quiet window; absent file = built-in defaults; invalid file is loud and falls back; per-topic retention still via `channel set-retention` (D3). The D2 per-name defaults stay a shared code table: clients send them explicitly, so a hub file could not change them (see Evolution; configurable defaults -> T-3320)
+- [x] Ceilings checked on post (D3): Messages(N) trims at 2N back to N; Days topics trim at 10,000 records and when the oldest is past 2x the window (back to the window); bounded topics trim at 64 MB live; Latest/LatestPerCvKey compact past 10,000; every trim logged and counted
+- [x] Forever topics: warn only (hub log + counter + `over_ceiling` in channel list) at 10,000 records or 64 MB live; never deleted (D3)
+- [x] Trim/warn counters in `hub status --governor` and `fleet governor-status`
+- [x] A create that omits retention gets Days(14) (debris namespaces keep Days(7))
 
 
 ## Verification
 
-# Shell commands that MUST pass before work-completed. One per line.
-# Lines starting with # are comments (skipped). Empty lines ignored.
-# The completion gate runs each command — if any exits non-zero, completion is blocked.
-#
-# Toolchain hint (L-291): if you edited *.vbproj/*.csproj/*.xaml add `dotnet build`;
-# *.go → `go build ./...`; Cargo.toml → `cargo check`; tsconfig.json → `tsc --noEmit`;
-# pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
-# past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
-#
-# ── Pipefail/SIGPIPE: grepping a command's output (L-387, T-2090, T-2743, T-2738) ──
-#
-# THE DEFAULT — redirect to a file, then grep the file:
-#     cmd > /tmp/.out 2>&1 && grep -q "PATTERN" /tmp/.out
-#     curl -sf "$(bin/fw watchtower url)/page" -o /tmp/.out && grep -q "PAT" /tmp/.out
-# Correct at any output size, and `&&` keeps the PRODUCING command's exit code in
-# the verdict. Reach for this first; the alternative below is the special case.
-#
-# NEVER `cmd | grep -q PAT` (L-387) — why: P-011 runs each line under `set -eo
-# pipefail`. When grep matches it exits and closes stdin while cmd is still
-# writing, cmd takes SIGPIPE, the pipeline exits 141 — verification "fails" with
-# the pattern present. Captured 4× (T-1716, T-1838, T-1862, T-1863).
-#
-# THE EXCEPTION — capture first, grep the capture:
-#     out=$(cmd 2>&1); echo "$out" | grep -q "PATTERN"
-# Valid ONLY while "$out" fits the 65536-byte pipe buffer, and it is on you to
-# know that it does. Above that the form inverts and becomes the very failure
-# L-387 describes: echo blocks on the full pipe, grep -q exits, echo takes
-# SIGPIPE, rc=141 (T-2743 — measured on a 146,366-byte Watchtower page, 3/3 runs,
-# deterministic not racy; rendered routes run 50-200KB, so anything that curls a
-# page is over the line). It also discards cmd's exit code, so a 404 yields an
-# empty capture that grep merely fails to match rather than a failed line.
-# If you do use it: single pipe only, no intermediate tail/awk/sed stage between
-# capture and grep (T-2090) — the middle stage is what `grep -q` slams its stdin
-# on, and grep scans the whole captured string anyway, so the `tail -3` was
-# cosmetic. `echo "$out" | grep -q PAT`, nothing between.
-#
-# ── Asserting an ABSENCE: prove the search could have succeeded (T-3144) ──
-#
-# `! grep -q "PATTERN" file` exits 0 when the pattern is absent. It ALSO exits 0
-# when the file was renamed, deleted, or is empty — so the leg cannot distinguish
-# "the bad thing is not there" from "I could not look", and the gate reports green
-# over a check that never ran. Pair every absence assertion with something that
-# fails if the search could not happen:
-#
-#     test -f path/to/file && ! grep -q "PATTERN" path/to/file    # existence first
-#     grep -q "KNOWN_MARKER" f && ! grep -q "PATTERN" f           # positive companion
-#     cmd > /tmp/.out 2>&1 && ! grep -q "PATTERN" /tmp/.out       # &&-joined producer
-#
-# Count-equals-zero is the same defect wearing a different hat, and it is the one
-# that bites hardest over a COMMAND's output rather than a file:
-#
-#     [ "$(cargo clippy --workspace 2>&1 | grep -c "^error")" = "0" ]   # WRONG
-#
-# If cargo is missing, or dies before emitting diagnostics, there are no `^error`
-# lines, the count is 0, and the leg passes — a build gate that goes green
-# precisely when the build could not run. Measured in this corpus, not invented.
-# Keep the producer's exit code in the verdict:
-#
-#     cargo clippy --workspace > /tmp/.out 2>&1 && ! grep -q "^error" /tmp/.out
-#
-# T-3144 censused 2853 task files: 71 absence assertions, 41 already correct, 30
-# not. The convention mostly works — this note is here so the next one is written
-# right, because a vacuous leg is invisible until the day the path moves.
-#
-# TEST RUNNERS need a guard either way (T-2738). `set -e` is suppressed inside the
-# `if` condition the gate runs each line in, so in `cmd1; cmd2` only cmd2 is the
-# verdict — and the pass marker you grep for survives a partial failure: a suite
-# printing "3 failed, 9 passed" satisfies `grep -q "9 passed"`, and generalising
-# to `grep -qE "[0-9]+ passed"` matches the same output. Keep the exit code:
-#     python3 -m pytest <file> -q > /tmp/.out 2>&1 && grep -q passed /tmp/.out
-# or add the guard the exit code used to supply:
-#     out=$(python3 -m pytest <file> -q 2>&1); echo "$out" | grep -q passed && ! echo "$out" | grep -q failed
-#     out=$(bats <file> 2>&1); echo "$out" | grep -q '^ok 1 ' && ! echo "$out" | grep -q '^not ok'
-# The close gate refuses the unguarded form. Bypass: FW_ALLOW_UNJUDGED_TEST_RUN=1.
-#
-# REHEARSING A LINE BY HAND DOES NOT REHEARSE THE GATE (T-2743). Your interactive
-# shell has no `set -eo pipefail`. A line has returned 0 by hand and 141 under
-# P-011, from the same directory, the same second. To rehearse for real:
-#     bash -c 'set -eo pipefail; <your verification line>'
-#
-# Enforcement-baseline hint (L-398, T-1886): if you edited `.claude/settings.json`
-# (added/removed/reorganised hooks), add `bin/fw enforcement baseline` to your
-# Verification block. Otherwise the canonical hash diverges and `fw doctor`
-# reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
-# Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
-# the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+cargo test -p termlink-protocol retention_defaults > /tmp/.t3310-proto 2>&1 && grep -q "3 passed" /tmp/.t3310-proto
+cargo test -p termlink-bus > /tmp/.t3310-bus 2>&1 && grep -q "test result: ok" /tmp/.t3310-bus && ! grep -q "FAILED" /tmp/.t3310-bus
+cargo test -p termlink-hub --lib topic_policy > /tmp/.t3310-pol 2>&1 && grep -q "5 passed" /tmp/.t3310-pol
+cargo test -p termlink-hub --lib t3310 > /tmp/.t3310-hub 2>&1 && grep -q "2 passed" /tmp/.t3310-hub
+cargo test -p termlink --bin termlink t3310 > /tmp/.t3310-cli 2>&1 && grep -q "test result: ok" /tmp/.t3310-cli && ! grep -q "FAILED" /tmp/.t3310-cli
+bash tests/forever-owner-canary-fixtures.sh > /tmp/.t3310-fx 2>&1 && grep -q "16 passed, 0 failed" /tmp/.t3310-fx
+bash tests/runme-fixtures.sh > /tmp/.t3310-runme 2>&1 && grep -q "0 failed" /tmp/.t3310-runme
+bash scripts/check-canary-log-hygiene.sh > /tmp/.t3310-hyg 2>&1
+grep -q "forever-owner-canary.crontab" runme.sh
 
 ## RCA
 
@@ -195,27 +118,42 @@ change alone changes almost nothing, and old binaries cannot send owner/reason.
 
 ## Evolution
 
-<!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
-     understanding evolved during build — what was learned that wasn't known at
-     filing, what in the original plan no longer fits, what triggered pivots
-     or new sub-tasks. Mandatory at slice boundaries (when applicable) and
-     before --status work-completed.
+### 2026-10-02 — client defaults, not hub defaults, were the forever source
+- **What changed:** every client (CLI create, CLI --ensure-topic, MCP create) asked for
+  `forever` EXPLICITLY, so the IW-2 plan ("flip the hub default") would have changed almost
+  nothing, and a strict "forever needs an owner" would have broken every old binary.
+- **Plan impact:** D1 became accept-label-record now with evidence-driven auto-enforcement
+  (operator ruling D+); the default table moved to `termlink-protocol` and clients send it
+  explicitly (so an older hub gets bounded topics too).
+- **Triggered:** D1/D2/D3 operator rulings (see Decisions).
 
-     Origin: T-1717 grill Q4 — "the understanding of what we need and want
-     evolves with the process of materialisation." Structural counter to §ACD:
-     spec-vs-build divergence is logged as soon as it happens, not lost as
-     folklore.
+### 2026-10-02 — sweeps never shrink log files
+- **What changed:** measured `agent-presence` at 31.6 MB on disk vs 0.55 MB live; bus 49 MB vs
+  12.4 MB. Index-only trims bound the record count, not the disk.
+- **Triggered:** T-3322 (rewrite mostly-dead logs, offsets unchanged), per D3 = C.
 
-     Format (one entry per slice boundary or significant insight):
-       ### YYYY-MM-DD — [topic]
-       - **What changed:** [what we learned that we didn't know at filing]
-       - **Plan impact:** [what in the plan no longer fits]
-       - **Triggered:** [new sub-task / pivot / scope cut, with task ID if filed]
+### 2026-10-02 — ceiling check cost
+- **What changed:** checking count/bytes/oldest on every post is O(records) per post; it made
+  the bus suite 71 s and pushed the T-2258 concurrency test past its 10 s bound under load.
+- **Plan impact:** checks run every Nth post (latest 1, messages N/8 capped at 64, else 64);
+  the 2x margin absorbs the delay. Bus suite back to ~11 s.
 
-     The completion gate (T-1718) blocks --status work-completed when this
-     section exists but is empty/template-only. Use --skip-evolution to bypass
-     (logged Tier-2). Non-arc tasks may leave this empty.
--->
+### 2026-10-02 — D2 table is code, not config
+- **What changed:** the AC said the hub config file holds the D2 table. It cannot usefully:
+  clients compute the per-name default and send it explicitly (needed so old hubs get it).
+  The hub file holds what the hub decides: D3 caps, D1 mode and quiet window.
+- **Plan impact:** AC reworded; making the per-name defaults configurable fleet-wide belongs
+  with the settings surface (T-3320), which needs clients to read shared config.
+
+### 2026-10-02 — sender clocks
+- **What changed:** age trims use the record's sender-supplied timestamp (as the sweeper always
+  did), so a sender with a badly wrong clock has its records aged out at once. Unchanged risk,
+  now also on post; noted, not fixed here.
+
+### 2026-10-02 — operator side-points became inceptions
+- T-3319 learn from message traffic (now), T-3320 settings surface (next), T-3321 compaction
+  (later, DEFER behind T-3319). T-3319 research confirmed T-3310 does not trim the raw material
+  it wants: framework:pickup and channel:learnings are operator-durable forever.
 
 ## Recommendation
 

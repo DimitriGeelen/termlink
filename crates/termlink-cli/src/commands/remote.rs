@@ -2672,6 +2672,10 @@ pub(crate) fn render_fleet_governor_section(
                     g("cv_index_overflow_total"),
                     g("cv_index_cap_per_topic"),
                 );
+                // T-3310: retention policy (forever-needs-owner mode, post trims).
+                if let Some(line) = crate::commands::infrastructure::retention_policy_line(v) {
+                    let _ = writeln!(out, "    {line}");
+                }
             }
             Err(e) => {
                 let _ = writeln!(out, "  {}  ✗ {}", name, e);

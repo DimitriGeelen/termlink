@@ -864,6 +864,35 @@ pub(crate) fn cmd_hub_restart(json: bool) -> Result<()> {
 /// Pure helper — takes the parsed JSON value and produces the multi-line
 /// string. Kept pure so a unit test can pin the format without spinning up
 /// a hub.
+/// T-3310: one line summarising the hub's retention policy — the "forever
+/// needs an owner" mode and enforcement state, and post-time trim counters.
+/// `None` for a hub that predates T-3310 (it reports no such fields).
+pub(crate) fn retention_policy_line(v: &serde_json::Value) -> Option<String> {
+    let mode = v.get("forever_requires_owner")?.as_str()?;
+    let n = |k: &str| v.get(k).and_then(|x| x.as_u64()).map_or("n/a".to_string(), |n| n.to_string());
+    let state = match v.get("forever_enforced").and_then(|x| x.as_bool()) {
+        Some(true) => "enforcing".to_string(),
+        Some(false) => match v.get("forever_enforce_at_ms").and_then(|x| x.as_i64()) {
+            Some(at) => {
+                let now = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map_or(0, |d| d.as_millis() as i64);
+                format!("not yet: enforces in {} day(s) if no bare-forever create", ((at - now).max(0) + 86_399_999) / 86_400_000)
+            }
+            None => "not enforcing".to_string(),
+        },
+        None => "n/a".to_string(),
+    };
+    let senders = v.get("bare_forever_senders").and_then(|x| x.as_array()).map_or(0, |a| a.len());
+    let loud = if mode == "never" { "  ⚠ OPT-OUT" } else { "" };
+    Some(format!(
+        "Retention: forever-needs-owner={mode} ({state}, {senders} bare-forever sender(s)); post trims={} ({} records), forever warnings={}{loud}",
+        n("post_trims_total"),
+        n("post_trimmed_records_total"),
+        n("forever_warnings_total"),
+    ))
+}
+
 pub(crate) fn render_governor_section(v: &serde_json::Value) -> String {
     use std::fmt::Write;
     let mut out = String::new();
@@ -874,6 +903,10 @@ pub(crate) fn render_governor_section(v: &serde_json::Value) -> String {
             .unwrap_or_else(|| "n/a".to_string())
     };
     let _ = writeln!(out, "Governor:");
+    // T-3310: retention policy line (absent on pre-T-3310 hubs).
+    if let Some(line) = retention_policy_line(v) {
+        let _ = writeln!(out, "  {line}");
+    }
     let _ = writeln!(
         out,
         "  Connections: {}/{} (capacity_hits_total={})",
@@ -1760,6 +1793,20 @@ fn sum_inbox_counts(topics: &[serde_json::Value]) -> (u64, Vec<String>) {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn t3310_retention_policy_line() {
+        assert_eq!(crate::commands::infrastructure::retention_policy_line(&serde_json::json!({"connections_active": 1})), None, "pre-T-3310 hub");
+        let v = serde_json::json!({
+            "forever_requires_owner": "never", "forever_enforced": false,
+            "post_trims_total": 2, "post_trimmed_records_total": 40, "forever_warnings_total": 1,
+            "bare_forever_senders": [{"sender": "peer:x"}]
+        });
+        let l = crate::commands::infrastructure::retention_policy_line(&v).unwrap();
+        assert!(l.contains("forever-needs-owner=never") && l.contains("OPT-OUT") && l.contains("post trims=2 (40 records)"), "{l}");
+        let v = serde_json::json!({"forever_requires_owner": "auto", "forever_enforced": true});
+        assert!(crate::commands::infrastructure::retention_policy_line(&v).unwrap().contains("(enforcing, 0 bare-forever"));
+    }
+
     use super::{audit_secret_cache, render_governor_section, secret_cache_dir, sum_inbox_counts};
     use std::fs;
     use std::os::unix::fs::PermissionsExt;

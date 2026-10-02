@@ -4349,7 +4349,7 @@ pub(crate) async fn cmd_channel_info(
         }
         // T-3309: hub-side activity (absent on hubs predating it).
         if let Some(map) = obj.as_object_mut() {
-            for k in ["activity", "flags", "flag_days", "readers", "owner", "reason", "unowned_forever"] {
+            for k in ["activity", "flags", "flag_days", "readers", "owner", "reason", "unowned_forever", "over_ceiling"] {
                 if let Some(v) = entry.get(k) {
                     map.insert(k.to_string(), v.clone());
                 }
@@ -4487,6 +4487,9 @@ pub(crate) fn topic_flag_suffix(t: &Value) -> String {
     // T-3310 D1: a forever topic with no owner and no reason.
     if t.get("unowned_forever").and_then(|v| v.as_bool()) == Some(true) {
         flags.push("unowned forever");
+    }
+    if t.get("over_ceiling").and_then(|v| v.as_bool()) == Some(true) {
+        flags.push("over ceiling");
     }
     if flags.is_empty() { String::new() } else { format!("  ({})", flags.join(", ")) }
 }
