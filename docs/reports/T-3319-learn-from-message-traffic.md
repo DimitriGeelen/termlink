@@ -169,6 +169,14 @@ the recommended first question (see Synthesis):
 
 <!-- C-001: record questions posed by the operator, answers, course corrections, outcomes. -->
 
+1. **Origin (2026-10-02, during T-3310 D3):** operator: deriving knowledge from the large message
+   flow is an inception of its own, involving AEF, an external review and a discussion; horizon now.
+2. Q0 presented (routing vs mining), opening with a correction: the agent had listed "watch for
+   replies" but never read the inbound pickup canary, which had fired daily since 2026-09-25 with
+   98 unprocessed filings. Options A routing / B mining / C routing first with mining folded into
+   triage / D defer; recommended C.
+3. **Operator ruling on Q0:** "Proceed as suggested" -> C. Q1 next.
+
 ## Consultation
 
 Brief: `T-3319-consult/brief.md` (identical text to every reviewer). Method as T-3304:
