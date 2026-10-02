@@ -25,6 +25,7 @@ pub use envelope::Envelope;
 pub use error::{BusError, Result};
 pub use limits::{
     CeilingAction, Ceilings, DEFAULT_MAX_LIVE_BYTES, DEFAULT_MAX_RECORDS, TopicStats, ceiling_action,
+    check_every,
 };
 pub use log::Offset;
 pub use meta::{BareForeverSender, BareForeverSummary};
@@ -169,6 +170,18 @@ impl Bus {
     /// Records, live bytes and oldest timestamp indexed for `topic`.
     pub fn topic_stats(&self, topic: &str) -> Result<TopicStats> {
         self.meta.topic_stats(topic)
+    }
+
+    /// T-3310: run `apply_ceiling` when `offset` lands on the topic's check
+    /// cadence. Returns the number of records trimmed (0 when not checked).
+    fn maybe_apply_ceiling(&self, topic: &str, offset: Offset) -> Result<u64> {
+        let Some(retention) = self.meta.topic_retention(topic)? else {
+            return Ok(0);
+        };
+        if !(offset + 1).is_multiple_of(check_every(retention)) {
+            return Ok(0);
+        }
+        self.apply_ceiling(topic, now_unix_ms())
     }
 
     /// T-3310 D3: check `topic` against its ceiling after a post and trim (or,
@@ -343,7 +356,8 @@ impl Bus {
         }
         // T-3310 D3: ceilings checked on post. Best-effort like activity: the
         // record is already durable, so a failed trim must not fail the post.
-        if let Err(e) = self.apply_ceiling(topic, now_unix_ms()) {
+        // Checked every Nth post (see `limits::check_every`), not every post.
+        if let Err(e) = self.maybe_apply_ceiling(topic, offset) {
             eprintln!("warning: T-3310: ceiling check failed on {topic}: {e}");
         }
         // T-1289: wake any subscribers blocked in `subscribe_blocking` for
@@ -1102,6 +1116,8 @@ mod tests {
             let e = Envelope { ts_unix_ms: now_unix_ms(), ..env("flood", format!("m{i}").as_bytes()) };
             bus.post("flood", &e).await.unwrap();
         }
+        // Day topics are checked every 64th post; check now.
+        assert_eq!(bus.apply_ceiling("flood", now_unix_ms()).unwrap(), 3);
         assert_eq!(bus.topic_record_count("flood").unwrap(), 2, "past 4, back to 4/2");
     }
 
@@ -1117,6 +1133,7 @@ mod tests {
         for _ in 0..3 {
             bus.post("big", &env("big", &[b'x'; 100])).await.unwrap();
         }
+        assert!(bus.apply_ceiling("big", now_unix_ms()).unwrap() >= 1);
         let s = bus.topic_stats("big").unwrap();
         assert!(s.live_bytes <= 3 * len / 2, "trimmed to at most half the ceiling: {s:?}");
         assert!(s.records >= 1, "newest record kept");
@@ -1131,6 +1148,9 @@ mod tests {
         bus.create_topic("keep", Retention::Forever).unwrap();
         for i in 0..6 {
             bus.post("keep", &env("keep", format!("m{i}").as_bytes())).await.unwrap();
+        }
+        for _ in 0..3 {
+            assert_eq!(bus.apply_ceiling("keep", now_unix_ms()).unwrap(), 0);
         }
         assert_eq!(bus.topic_record_count("keep").unwrap(), 6, "forever is never deleted");
         let c = bus.ceiling_counters();

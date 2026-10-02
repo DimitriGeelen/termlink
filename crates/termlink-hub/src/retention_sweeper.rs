@@ -220,6 +220,8 @@ mod tests {
     #[tokio::test]
     async fn sweep_all_prunes_bounded_skips_forever() {
         let (_d, bus) = tmp_bus();
+        // Pin the sweeper alone: T-3310 post-time ceilings off.
+        bus.set_ceilings(termlink_bus::Ceilings { on_post: false, ..Default::default() });
         bus.create_topic("bounded", Retention::Messages(2)).unwrap();
         bus.create_topic("immortal", Retention::Forever).unwrap();
         for i in 0..5 {

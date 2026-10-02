@@ -149,6 +149,28 @@ pub const BROADCAST_GLOBAL_TOPIC: &str = "broadcast:global";
 pub fn init_bus(root: PathBuf) {
     let bus = Bus::open(&root)
         .unwrap_or_else(|e| panic!("failed to open channel bus at {}: {e}", root.display()));
+    // T-3310 D3: retention limits come from `<runtime_dir>/retention.yaml` +
+    // environment. An invalid file is loud and falls back to the defaults
+    // rather than stopping the hub.
+    let runtime_dir = root.parent().map(PathBuf::from).unwrap_or_else(|| root.clone());
+    let pol = match crate::topic_policy::load(&runtime_dir) {
+        Ok(p) => p,
+        Err(e) => {
+            tracing::error!(error = %e, "T-3310: retention config invalid — running on built-in defaults");
+            eprintln!("termlink-hub: T-3310: retention config invalid ({e}); running on built-in defaults");
+            crate::topic_policy::TopicPolicy::default()
+        }
+    };
+    bus.set_ceilings(pol.ceilings);
+    crate::topic_policy::set_policy(pol);
+    tracing::info!(
+        max_records = pol.ceilings.max_records,
+        max_live_bytes = pol.ceilings.max_live_bytes,
+        on_post = pol.ceilings.on_post,
+        forever_mode = pol.forever_mode.as_str(),
+        quiet_days = pol.quiet_days,
+        "T-3310: topic retention policy loaded"
+    );
     // T-1162: auto-register broadcast:global so the event.broadcast shim can
     // dual-write without a separate bootstrap step. Idempotent on name+policy.
     if let Err(e) = bus.create_topic(BROADCAST_GLOBAL_TOPIC, Retention::Messages(1000)) {
@@ -394,12 +416,12 @@ fn retention_to_json(r: Retention) -> Value {
 }
 
 /// `channel.create(name, retention)` — idempotent on name.
-pub async fn handle_channel_create(id: Value, params: &Value) -> RpcResponse {
+pub async fn handle_channel_create(id: Value, params: &Value, peer_addr: Option<&str>) -> RpcResponse {
     let bus = match bus_or_err(id.clone()) {
         Ok(b) => b,
         Err(r) => return r,
     };
-    handle_channel_create_with(bus, id, params).await
+    handle_channel_create_as(bus, id, params, peer_addr).await
 }
 
 /// T-2058: topic-name patterns that have demonstrated high envelope rates
@@ -455,10 +477,33 @@ pub(crate) fn is_debris_pattern(name: &str) -> bool {
         || name.starts_with("smoke-")
 }
 
+#[cfg(test)]
 pub(crate) async fn handle_channel_create_with(
     bus: &Bus,
     id: Value,
     params: &Value,
+) -> RpcResponse {
+    handle_channel_create_as(bus, id, params, None).await
+}
+
+/// T-3310: convert the shared default table's value into the bus type.
+fn retention_from_default(d: termlink_protocol::retention_defaults::DefaultRetention) -> Retention {
+    use termlink_protocol::retention_defaults::DefaultRetention as D;
+    match d {
+        D::Forever => Retention::Forever,
+        D::Latest => Retention::Latest,
+        D::Messages(n) => Retention::Messages(n),
+        D::Days(n) => Retention::Days(n),
+    }
+}
+
+/// `channel.create` with the caller's peer address, used to name who still
+/// sends bare forever when the client does not send a `sender_id` (T-3310 D1).
+pub(crate) async fn handle_channel_create_as(
+    bus: &Bus,
+    id: Value,
+    params: &Value,
+    peer_addr: Option<&str>,
 ) -> RpcResponse {
     let name = match param_str(params, "name") {
         Some(n) if !n.is_empty() => n,
@@ -487,16 +532,17 @@ pub(crate) async fn handle_channel_create_with(
             // T-2426: debris namespaces born without an explicit retention
             // default to Days(7) instead of Forever — prevents the T-2424
             // debris class from re-accumulating. Explicit retention wins.
+            // T-3310 D2: the shared default table (termlink-protocol) decides —
+            // 14 days for ordinary topics, newest 1000 for mail, forever only
+            // for the four operator-durable topics. Forever-by-omission ends.
             if is_debris_pattern(name) {
                 tracing::info!(
                     topic = %name,
                     retention = "days:7",
                     "channel.create on test-debris namespace with no explicit retention — defaulting to Days(7) instead of Forever (T-2426; pass an explicit retention to keep test output longer)"
                 );
-                Retention::Days(7)
-            } else {
-                Retention::Forever
             }
+            retention_from_default(termlink_protocol::retention_defaults::default_retention(name))
         }
     };
     // T-2058: loud-not-silent warn at create time for the known-high-rate
@@ -519,13 +565,66 @@ pub(crate) async fn handle_channel_create_with(
             "channel.create on single-value-state topic with Retention::Forever — consider Retention::Latest (T-2142) so old envelopes don't accumulate"
         );
     }
-    match bus.create_topic(name, retention) {
+    // T-3310 D1: owner and reason. The operator-durable four are owned by the
+    // operator without being asked; any other forever topic should name both.
+    use termlink_protocol::retention_defaults as rd;
+    let nonempty = |k: &str| param_str(params, k).filter(|v| !v.trim().is_empty());
+    let durable = rd::is_operator_durable(name);
+    let owner = nonempty("owner").or(if durable { Some(rd::OPERATOR_DURABLE_OWNER) } else { None });
+    let reason = nonempty("reason").or(if durable { Some(rd::OPERATOR_DURABLE_REASON) } else { None });
+    let bare_forever = matches!(retention, Retention::Forever) && owner.is_none() && reason.is_none();
+    let mut warning: Option<String> = None;
+    if bare_forever {
+        let is_new = matches!(bus.topic_retention(name), Ok(None));
+        if is_new {
+            let pol = crate::topic_policy::policy();
+            let now = activity_now_ms();
+            let state = match bus.bare_forever_summary() {
+                Ok(s) => crate::topic_policy::enforcement(pol.forever_mode, pol.quiet_days, &s, now),
+                Err(e) => {
+                    tracing::warn!(error = %e, "T-3310: bare-forever record unreadable — not enforcing");
+                    crate::topic_policy::enforcement(
+                        crate::topic_policy::ForeverMode::Never,
+                        pol.quiet_days,
+                        &termlink_bus::BareForeverSummary { watch_since_ms: now, last_create_ms: None, senders: vec![] },
+                        now,
+                    )
+                }
+            };
+            if state.enforced {
+                tracing::warn!(topic = %name, "T-3310: refused bare forever create (enforcement on)");
+                return ErrorResponse::new(id, -32602, &crate::topic_policy::refusal_message(name)).into();
+            }
+            let sender = nonempty("sender_id")
+                .map(str::to_string)
+                .or_else(|| peer_addr.map(|a| format!("peer:{a}")))
+                .unwrap_or_else(|| "local".to_string());
+            if let Err(e) = bus.note_bare_forever(name, &sender, now) {
+                tracing::warn!(topic = %name, error = %e, "T-3310: could not record bare forever create");
+            }
+            tracing::warn!(
+                topic = %name,
+                sender = %sender,
+                "T-3310: topic created as forever with no owner and no reason — labelled unowned_forever; \
+                 the hub will refuse this once every client has upgraded (pass owner+reason, or a bounded retention)"
+            );
+        }
+        warning = Some(format!(
+            "topic '{name}' is forever with no owner and no reason (unowned_forever, T-3310); \
+             name an owner and reason, or use a bounded retention"
+        ));
+    }
+    match bus.create_topic_owned(name, retention, owner, reason) {
         Ok(created) => Response::success(
             id,
             json!({
                 "ok": true,
                 "name": name,
                 "retention": retention_to_json(retention),
+                "owner": owner,
+                "reason": reason,
+                "unowned_forever": bare_forever,
+                "warning": warning,
                 // T-1429.5: true if this call inserted the topic, false if
                 // it already existed. Lets clients describe-on-first-create
                 // without re-emitting topic_metadata envelopes on every
@@ -1812,6 +1911,12 @@ pub(crate) async fn handle_channel_list_with(
     let with_readers = params.get("readers").and_then(|v| v.as_bool()).unwrap_or(false);
     let now_ms = activity_now_ms();
     let flag_days = topic_flag_days();
+    // T-3310 D1: owner/reason per topic; a forever topic with neither is
+    // labelled unowned_forever so the T-3314 review has a ready list.
+    let owners = bus.topic_owners().unwrap_or_else(|e| {
+        tracing::warn!(error = %e, "channel.list: topic owners read failed — omitting owners");
+        Default::default()
+    });
     let filtered: Vec<Value> = names
         .into_iter()
         .filter(|n| prefix.is_empty() || n.starts_with(prefix))
@@ -1844,6 +1949,14 @@ pub(crate) async fn handle_channel_list_with(
                 json!({"name": name, "retention": retention_to_json(ret), "count": count});
             if let Ok(Some(lo)) = bus.latest_offset(&name) {
                 entry["latest_offset"] = json!(lo);
+            }
+            let (owner, reason) = owners.get(&name).cloned().unwrap_or((None, None));
+            if owner.is_some() || reason.is_some() {
+                entry["owner"] = json!(owner);
+                entry["reason"] = json!(reason);
+            }
+            if matches!(ret, Retention::Forever) && owner.is_none() && reason.is_none() {
+                entry["unowned_forever"] = json!(true);
             }
             // T-3309: absent `activity` means the hub has not seen this topic
             // written or fetched since tracking began — not "never used".
@@ -3102,12 +3215,63 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn create_non_debris_topic_without_retention_stays_forever() {
+    async fn create_non_debris_topic_without_retention_gets_14_days_t3310() {
+        // T-3310 D2: forever-by-omission ends; ordinary topics default to 14 days.
         let (_d, bus) = tmp_bus();
         let resp =
             handle_channel_create_with(&bus, json!(1), &json!({"name": "release-notes"})).await;
         let v = unwrap_success(resp);
+        assert_eq!(v["retention"], json!({"kind": "days", "value": 14}));
+        assert_eq!(v["unowned_forever"], false);
+        // Mail defaults to a count, never to an age.
+        let v = unwrap_success(
+            handle_channel_create_with(&bus, json!(2), &json!({"name": "inbox:x/010-termlink"})).await,
+        );
+        assert_eq!(v["retention"], json!({"kind": "messages", "value": 1000}));
+        // The operator-durable four keep forever and are owned without asking.
+        let v = unwrap_success(
+            handle_channel_create_with(&bus, json!(3), &json!({"name": "framework:pickup"})).await,
+        );
         assert_eq!(v["retention"]["kind"], "forever");
+        assert_eq!(v["owner"], "operator");
+        assert_eq!(v["unowned_forever"], false);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn bare_forever_create_is_labelled_recorded_then_refused_t3310() {
+        // T-3310 D1 (D+): accept + label + record while the fleet upgrades;
+        // refuse once enforcement is on; an owner+reason is always accepted.
+        let (_d, bus) = tmp_bus();
+        let forever = json!({"kind": "forever"});
+        let v = unwrap_success(
+            handle_channel_create_as(&bus, json!(1), &json!({"name": "old-client", "retention": forever}), Some("10.0.0.9:5000")).await,
+        );
+        assert_eq!(v["unowned_forever"], true);
+        assert!(v["warning"].as_str().unwrap().contains("unowned_forever"));
+        let s = bus.bare_forever_summary().unwrap();
+        assert_eq!(s.senders[0].sender, "peer:10.0.0.9:5000");
+        // Re-creating an EXISTING topic is not a new bare create.
+        let _ = handle_channel_create_as(&bus, json!(2), &json!({"name": "old-client", "retention": forever}), None).await;
+        assert_eq!(bus.bare_forever_summary().unwrap().senders[0].creates, 1);
+        // channel.list labels it.
+        let list = unwrap_success(handle_channel_list_with(&bus, json!(3), &json!({"prefix": "old-client"})).await);
+        assert_eq!(list["topics"][0]["unowned_forever"], true);
+        // Owner + reason claims it: label gone, owner listed.
+        let v = unwrap_success(
+            handle_channel_create_with(&bus, json!(4), &json!({"name": "old-client", "retention": forever, "owner": "ops", "reason": "audit"})).await,
+        );
+        assert_eq!(v["unowned_forever"], false);
+        let list = unwrap_success(handle_channel_list_with(&bus, json!(5), &json!({"prefix": "old-client"})).await);
+        assert_eq!(list["topics"][0]["owner"], "ops");
+        assert!(list["topics"][0].get("unowned_forever").is_none());
+        // Enforcement decision itself is pinned in topic_policy tests; here the
+        // refusal path: watch clock moved back 15 days and no bare create since.
+        let (_d2, bus2) = tmp_bus();
+        bus2.set_forever_watch_since(activity_now_ms() - 15 * 86_400_000).unwrap();
+        let e = crate::topic_policy::enforcement(
+            crate::topic_policy::ForeverMode::Auto, 14, &bus2.bare_forever_summary().unwrap(), activity_now_ms(),
+        );
+        assert!(e.enforced, "14 quiet days: auto mode enforces");
     }
 
     #[test]
@@ -3667,11 +3831,12 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn create_absent_retention_still_defaults() {
-        // Backward-compat: no retention key → default (Forever for non-debris), not an error.
+        // Backward-compat: no retention key → default, not an error. T-3310 D2:
+        // the default for an ordinary topic is now 14 days, not forever.
         let (_d, bus) = tmp_bus();
         let resp = handle_channel_create_with(&bus, json!(1), &json!({"name": "plain-topic"})).await;
         let _ = unwrap_success(resp);
-        assert_eq!(bus.topic_retention("plain-topic").unwrap(), Some(Retention::Forever));
+        assert_eq!(bus.topic_retention("plain-topic").unwrap(), Some(Retention::Days(14)));
     }
 
     // === T-2245 (R2b): latest_per_cv_key retention + channel.sweep trigger ===

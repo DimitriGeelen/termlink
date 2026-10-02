@@ -17,6 +17,7 @@ pub use termlink_session::invocation_audit;
 pub mod rpc_audit;
 pub mod template_cache;
 pub mod topic_lint;
+pub mod topic_policy;
 pub mod trust;
 pub mod webhook;
 pub mod server;

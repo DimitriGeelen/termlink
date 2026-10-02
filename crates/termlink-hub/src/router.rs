@@ -82,7 +82,7 @@ pub async fn route(req: &Request, peer_addr: Option<&str>) -> Option<RpcResponse
         "session.heartbeat" => handle_heartbeat(id, &req.params),
         "session.deregister_remote" => handle_deregister_remote(id, &req.params),
         control::method::CHANNEL_CREATE => {
-            crate::channel::handle_channel_create(id, &req.params).await
+            crate::channel::handle_channel_create(id, &req.params, peer_addr).await
         }
         control::method::CHANNEL_SET_RETENTION => {
             crate::channel::handle_channel_set_retention(id, &req.params).await
@@ -957,9 +957,7 @@ fn handle_hub_governor_status(id: serde_json::Value) -> RpcResponse {
     let conn = crate::governor::conn_governor();
     let rate = crate::governor::rate_governor();
     let dedupe = crate::dedupe::post_dedupe();
-    Response::success(
-        id,
-        json!({
+    let mut body = json!({
             "connections_active": conn.current(),
             "connections_max": conn.max(),
             "capacity_hits_total": conn.capacity_hits_total(),
@@ -994,9 +992,17 @@ fn handle_hub_governor_status(id: serde_json::Value) -> RpcResponse {
             "retention_sweep_interval_secs": crate::retention_sweeper::interval_active_secs(),
             "retention_sweep_runs_total": crate::retention_sweeper::runs_total(),
             "retention_sweep_pruned_total": crate::retention_sweeper::pruned_total(),
-        }),
-    )
-    .into()
+    });
+    // T-3310: ceilings, post-time trims, and the "forever needs an owner"
+    // enforcement state (incl. who still sends bare forever).
+    if let Some(obj) = body.as_object_mut() {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        obj.extend(crate::topic_policy::status_fields(crate::channel::bus(), now));
+    }
+    Response::success(id, body).into()
 }
 
 /// Handle `hub.capabilities` — return the list of JSON-RPC methods this hub

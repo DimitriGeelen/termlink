@@ -123,6 +123,19 @@ pub fn ceiling_action(r: Retention, s: TopicStats, now_ms: i64, c: Ceilings) -> 
     }
 }
 
+/// How often (every Nth post) the ceiling is checked. Checking reads the
+/// topic's count, bytes and oldest time, which is O(records), so doing it on
+/// every post made a busy topic quadratic and held the metadata lock against
+/// concurrent readers (caught by the T-2258 concurrency test). The 2x margin
+/// absorbs the delay: a messages(N) topic is checked at least every N/8 posts.
+pub fn check_every(r: Retention) -> u64 {
+    match r {
+        Retention::Latest => 1,
+        Retention::Messages(n) => (n / 8).clamp(1, 64),
+        _ => 64,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -183,6 +196,16 @@ mod tests {
         assert_eq!(ceiling_action(r, st(10_000, 1000, None), NOW, c()), CeilingAction::None);
         assert!(matches!(ceiling_action(r, st(10_001, 0, None), NOW, c()), CeilingAction::WarnForever { .. }));
         assert!(matches!(ceiling_action(r, st(1, 1001, None), NOW, c()), CeilingAction::WarnForever { .. }));
+    }
+
+    #[test]
+    fn check_cadence_scales_with_the_limit() {
+        assert_eq!(check_every(Retention::Latest), 1);
+        assert_eq!(check_every(Retention::Messages(3)), 1);
+        assert_eq!(check_every(Retention::Messages(1000)), 64);
+        assert_eq!(check_every(Retention::Messages(80)), 10);
+        assert_eq!(check_every(Retention::Days(14)), 64);
+        assert_eq!(check_every(Retention::Forever), 64);
     }
 
     #[test]
