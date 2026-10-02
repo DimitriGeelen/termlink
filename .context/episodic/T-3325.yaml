@@ -1,0 +1,95 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3325: notify-sidecar: honour an addressee / reply-to agent id so a reply to one co-resident agent does not wake the other agent sharing its TermLink identity
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-02T23:18:22Z
+# ============================================================================
+
+task_id: T-3325
+task_name: "notify-sidecar: honour an addressee / reply-to agent id so a reply to one co-resident agent does not wake the other agent sharing its TermLink identity"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-02T17:34:23Z
+completed: 2026-10-02T23:18:06Z
+duration_days: 0
+updates_count: 4
+first_commit: 2026-10-03T00:24:17+02:00
+last_commit: 2026-10-03T01:18:06+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  real ACs; Q1 reframed onto the five-level circuit (operator); project-UUID priority request sent to AEF (inbox @129, framework:pickup @303). record operator ruling Q1 = C (to_circuit; read path + V9, write path, match level by level with fallback ladder); ACs updated. five-level circuit addressing in the notify sidecar (operator ruling Q1 = C). ACs, verification, updates (deployed via runme rc=0; 055 and AEF acknowledged)
+
+# Key outcomes
+outcomes:
+  - 'The addressee metadata key is agreed (operator ruling via /decision-brief, recorded in ## Decisions) and stated once in docs'
+  - 'notify-sidecar counts an unread message only when its `to_circuit` names this agent''s circuit (level-by-level, both grammars), or names none, or names a session/agent not live here whose deepest live ancestor is this agent (fallback ladder)'
+  - '`agent contact` / `scripts/agent-send.sh` set `to_circuit` (path form) when the target is a named agent'
+  - 'Hermetic fixtures cover: addressed-to-me wakes, addressed-to-other does not, unaddressed wakes, V9 grammar parses identically to path form, fallback to project level when the named agent is not live; a mutant removing the filter turns a fixture red'
+  - 'The convention is documented once (docs/operations/notify-sidecar-api.md)'
+  - '055 is told the convention (on their inbox, @16 of inbox:cacc73ea32b121dd/055-agentic-fleet-cockpit, rather than framework:pickup, which AEF is retiring in favour of inboxes)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-10-03 — Q1: addressee = five-level circuit, grammar C (operator ruling)'
+    chose: 'C. The key is `to_circuit`, mirroring `from_circuit`. Read both grammars: path form (`//host/hub/project/session/agent`, or without the leading `//host`) and AEF V9 (`aef::host=…::hub=…::project=…::session=…::@agent::`). Write path form now and switch to V9 at AEF''s announced write-side cutover. Match level by level from level 1. Wake when every named level matches this agent''s circuit; do not wake when a named level differs. When the named session/agent is not live here, fall back to the deepest level that resolves, so the project-level owner wakes and nothing is silently dropped. A message without `to_circuit` wakes (back-compatible).'
+    rationale: 'it fixes misdelivery on the traffic that exists today (peers already send path-form `from_circuit`), survives AEF''s V9 cutover without a second change, and copies AEF''s own dual-read migration pattern. Score +73 vs A +44, B +27, D −11.'
+    alternatives_rejected: ['A, path form only (breaks at the V9 cutover). B, V9 only (nobody sends it yet, so it is untestable on real traffic). D, wait for AEF (the bug is silent and live, filing 257). - **Left open:** the project level is the folder name until AEF mints the UUID (requested at AEF inbox @129 / framework:pickup @303); per-project signing identity for trust (AEF @53 proposal 3); whether `dm:` moves to circuit addressing. The fallback rule is the operator''s description: no written copy was found, so AEF is asked to confirm it.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/operations/notify-sidecar-api.md'
+  - 'runme.sh'
+  - 'scripts/agent-send.sh'
+  - 'scripts/lib/circuit.py'
+  - 'scripts/notify-sidecar.sh'
+  - '.tasks/active/T-3325-notify-sidecar-honour-an-addressee--repl.md'
+  - 'tests/notify-sidecar-circuit-fixtures.sh'
+  - 'tests/runme-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-03T00:24:17'
+    action: 'T-3325: real ACs; Q1 reframed onto the five-level circuit (operator); project-UUID priority request sent to AEF (inbox @129, framework:pickup @303)'
+  - time: '2026-10-03T00:54:35'
+    action: 'T-3325: record operator ruling Q1 = C (to_circuit; read path + V9, write path, match level by level with fallback ladder); ACs updated'
+  - time: '2026-10-03T01:15:25'
+    action: 'T-3325: five-level circuit addressing in the notify sidecar (operator ruling Q1 = C)'
+  - time: '2026-10-03T01:18:06'
+    action: 'T-3325: ACs, verification, updates (deployed via runme rc=0; 055 and AEF acknowledged)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 343 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [pickup-triage, notify-rail]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 343
+  commits: 4
+  files_changed: 8
+  lines_added: 836
+  lines_removed: 37
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3325-notify-sidecar-honour-an-addressee--repl.md
+generated_by: context-agent-hybrid

@@ -10,12 +10,12 @@ description: >
   (and the doorbell path): wake only when metadata names this agent (addressee / reply_to
   agent id), or the message names none.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [pickup-triage, notify-rail]
-components: []
+components: [runme.sh, scripts/agent-send.sh, scripts/notify-sidecar.sh, tests/runme-fixtures.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -28,8 +28,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-02T17:34:23Z
-last_update: 2026-10-02T19:25:57Z
-date_finished:
+last_update: 2026-10-02T23:18:06Z
+date_finished: 2026-10-02T23:18:06Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -316,3 +316,16 @@ grep -q 'to_circuit=' scripts/agent-send.sh
 ### 2026-10-02T19:25:57Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-f3d41724
+- **Timestamp:** 2026-10-02T23:18:15Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** none
+
+### 2026-10-02T23:18:06Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
