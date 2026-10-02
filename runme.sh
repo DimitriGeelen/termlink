@@ -574,7 +574,10 @@ restart_hub
 # ExecStart binary and `systemctl restart` (G-070; the first run found .122 had
 # moved from a watchdog to systemd, and fleet-deploy-binary's guard rightly
 # refused --swap-restart); otherwise --swap-restart for a watchdog-launched hub.
-# .121 is NOT here: no foothold from this host — asked via its operator agent.
+# .121 (ring20-dashboard) joined on 2026-10-02 (T-3323): it now has a root
+# remote-exec session, and its hub runs detached (no systemd unit), so it takes the
+# --swap-restart path. That path relaunches with the RUNNING hub's runtime dir and
+# arguments, read from /proc, so the secret and cert stay where they are (PL-021).
 #
 # Build cost (T-3292): the musl build runs only when some hub is behind. A hub is
 # current if it serves the version of any current-code build (host or musl).
@@ -585,7 +588,7 @@ restart_hub
 # Seams (fixtures only): RUNME_FLEET_HUBS, RUNME_MUSL_SRC, RUNME_FLEET_DEPLOY,
 # RUNME_FLEET_DOCTOR, RUNME_FLEET_REMOTE, RUNME_TOFU, RUNME_FLEET_WAIT_SECS.
 # ---------------------------------------------------------------------------
-FLEET_HUBS="${RUNME_FLEET_HUBS:-ring20-management}"
+FLEET_HUBS="${RUNME_FLEET_HUBS:-ring20-management ring20-dashboard}"
 seam MUSL_SRC RUNME_MUSL_SRC "$PROJECT_ROOT/target/x86_64-unknown-linux-musl/local-fast/termlink"
 seam FLEET_DEPLOY RUNME_FLEET_DEPLOY "bash $PROJECT_ROOT/scripts/fleet-deploy-binary.sh"
 seam FLEET_DOCTOR RUNME_FLEET_DOCTOR "termlink fleet doctor --json"
@@ -678,7 +681,7 @@ upgrade_fleet_hubs() {
     done
 }
 
-head2 "6. Fleet hubs reachable from here (T-3290) — .121 has no foothold"
+head2 "6. Fleet hubs reachable from here (T-3290; .121 added by T-3323)"
 upgrade_fleet_hubs
 
 # ---------------------------------------------------------------------------

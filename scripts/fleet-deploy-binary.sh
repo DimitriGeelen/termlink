@@ -218,6 +218,15 @@ PID=\$(pgrep -f '[t]ermlink hub start' | head -1)
 [ -z "\$PID" ] && { echo "no running hub — staging only"; exit 0; }
 TARGET=\$(readlink "/proc/\$PID/exe")
 echo "running hub PID=\$PID at \$TARGET"
+# T-3323: capture the RUNNING hub's runtime dir and arguments BEFORE the kill.
+# Relaunching with the exec session's env (or the old ~/.termlink/runtime
+# fallback) could move the hub to a fresh runtime dir, where it regenerates its
+# secret and cert and every client loses auth (PL-021).
+RUN_RT=\$(tr '\\0' '\\n' < "/proc/\$PID/environ" 2>/dev/null | sed -n 's/^TERMLINK_RUNTIME_DIR=//p' | head -1)
+mapfile -d '' RUN_ARGV < "/proc/\$PID/cmdline" 2>/dev/null || RUN_ARGV=()
+RUN_ARGS=("\${RUN_ARGV[@]:1}")
+[ "\${#RUN_ARGS[@]}" -ge 2 ] && [ "\${RUN_ARGS[0]}" = hub ] || RUN_ARGS=(hub start --tcp 0.0.0.0:9100)
+echo "running hub runtime_dir=\${RUN_RT:-<unreadable>} args=\${RUN_ARGS[*]}"
 
 # Backup
 cp "\$TARGET" "\$TARGET.\$(date +%s).bak" 2>/dev/null || echo "WARN: backup failed"
@@ -246,9 +255,10 @@ echo "swap done"
 sleep 1
 HOME_DIR=\$(getent passwd "\$(id -un)" | cut -d: -f6)
 cd "\$HOME_DIR"
-RUNTIME=\${TERMLINK_RUNTIME_DIR:-"\$HOME_DIR/.termlink/runtime"}
+RUNTIME=\${RUN_RT:-\${TERMLINK_RUNTIME_DIR:-"\$HOME_DIR/.termlink/runtime"}}
+echo "relaunching with TERMLINK_RUNTIME_DIR=\$RUNTIME"
 TERMLINK_RUNTIME_DIR="\$RUNTIME" \
-  setsid nohup "\$TARGET" hub start --tcp 0.0.0.0:9100 \
+  setsid nohup "\$TARGET" "\${RUN_ARGS[@]}" \
   >> /tmp/termlink-hub.log 2>&1 < /dev/null &
 NEW_PID=\$!
 echo "relaunched hub PID=\$NEW_PID"
