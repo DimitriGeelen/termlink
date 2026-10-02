@@ -4,10 +4,10 @@ name: "Codify uniquely labelled lists (1, 1a, 1ab) in agent output; propose to t
 description: >
   Operator 2026-10-03: never plain bullet lists in output to the operator; every list item carries a unique hierarchical label (1, 1a, 1ab) so it can be referred to directly. Codify in CLAUDE.md (clobber-safe section) and the decision-brief skill, and propose it to AEF for the framework.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [operator-rule, upstream, pickup]
 components: []
 related_tasks: []
@@ -22,8 +22,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-02T22:43:19Z
-last_update: 2026-10-02T22:43:19Z
-date_finished: null
+last_update: 2026-10-02T22:44:32Z
+date_finished: 2026-10-02T22:44:32Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -276,3 +276,16 @@ timeout 30 termlink channel subscribe framework:pickup --cursor 306 --limit 1 --
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3329-codify-uniquely-labelled-lists-1-1a-1ab-.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-b42ea78f
+- **Timestamp:** 2026-10-02T22:44:34Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** none
+
+### 2026-10-02T22:44:32Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
