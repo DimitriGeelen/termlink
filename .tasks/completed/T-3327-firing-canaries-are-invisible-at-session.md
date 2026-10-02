@@ -12,10 +12,10 @@ description: >
   (shadowed) and the handover generator is vendored, so this may split into a local
   change plus an upstream filing.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [canaries, G-019]
 components: []
 related_tasks: []
@@ -30,8 +30,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-02T17:38:54Z
-last_update: 2026-10-02T23:34:51Z
-date_finished:
+last_update: 2026-10-02T23:38:29Z
+date_finished: 2026-10-02T23:38:29Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -304,3 +304,16 @@ bash scripts/session-start-alerts.sh --json > /tmp/.t3327b 2>&1 && python3 -c "i
 ### 2026-10-02T23:34:51Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-7bda76e1
+- **Timestamp:** 2026-10-02T23:38:33Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** none
+
+### 2026-10-02T23:38:29Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
