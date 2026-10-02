@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3328: Hand the vendor-divergence register implementation to AEF for framework inclusion (consult 832)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-02T22:33:06Z
+# ============================================================================
+
+task_id: T-3328
+task_name: "Hand the vendor-divergence register implementation to AEF for framework inclusion (consult 832)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-02T22:30:58Z
+completed: 2026-10-02T22:32:54Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-03T00:32:54+02:00
+last_commit: 2026-10-03T00:32:54+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  vendor-divergence register handed to AEF for framework inclusion (operator request) — framework:pickup @304 proposal + code, @305 live register; pointers AEF inbox @130, 832 inbox @159 (credit + consult)
+
+# Key outcomes
+outcomes:
+  - 'Feature proposal posted to framework:pickup with the check script, fixtures and CLAUDE.md section inline, crediting 832-Workflow-designer and asking AEF to consult 832 on their implementation'
+  - 'The full current .vendor-divergence.yaml posted in the same thread (same conversation_id), after a secret/machine-local scan'
+  - '832 told on its inbox that AEF has been pointed at them, with the thread reference'
+  - 'Offsets recorded in this task'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-3328-hand-the-vendor-divergence-register-impl.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-03T00:32:54'
+    action: 'T-3328: vendor-divergence register handed to AEF for framework inclusion (operator request) — framework:pickup @304 proposal + code, @305 live register; pointers AEF inbox @130, 832 inbox @159 (credit + consult)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [upstream, pickup, vendor-divergence]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 1
+  lines_added: 279
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3328-hand-the-vendor-divergence-register-impl.md
+generated_by: context-agent-hybrid
