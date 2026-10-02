@@ -6,10 +6,10 @@ description: >
   Delegate .121 ring20-dashboard termlink upgrade to ring20-manager (needs session
   on .121; I deploy 0.11.400 from .107 once up)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -18,8 +18,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-07T11:24:37Z
-last_update: '2026-09-27T21:34:04Z'
-date_finished:
+last_update: 2026-10-02T17:14:38Z
+date_finished: 2026-10-02T17:14:38Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -85,9 +85,9 @@ cost_estimate_proposed:
 ### Agent
 - [x] Handoff to ring20-manager DRAFTED + operator-approved ("go") — staged verbatim + send command in `.context/working/T-2379-ring20-manager-handoff-READY.md`
 - [x] Handoff SENT to ring20-manager session on .122 — sent 2026-07-07T15:28Z to fp 9219671e28054458 (session tl-dzbcxxka, project=proxmox-ring20-management, state=ready) via `agent contact --target-fp --hub 192.168.10.122:9100 --thread T-2379`; landed dm:9219671e28054458:d1993c2c3ec44c94 offset 52
-- [ ] ring20-manager confirms a termlink session registered on .121 (awaiting reply on thread T-2379)
-- [ ] Deploy 0.11.400 to .121 from .107 (`fleet-deploy-binary.sh ring20-dashboard --probe --swap-restart`) once session exists; PL-021 secret/cert preserved
-- [ ] `fleet doctor` shows .121 = 0.11.400
+- [x] ring20-manager confirms a termlink session registered on .121 (awaiting reply on thread T-2379) — superseded 2026-10-02: no reply ever came, but a root remote-exec session now exists on .121 (tl-cl4jd2gx, ring20-dashboard), seen via `remote list ring20-dashboard` (T-3323)
+- [x] Deploy 0.11.400 to .121 from .107 (`fleet-deploy-binary.sh ring20-dashboard --probe --swap-restart`) once session exists; PL-021 secret/cert preserved — done by T-3323 via runme action 6 with a newer build (0.12.103), 2026-10-02; secret + cert unchanged (fleet doctor ok, tofu verify ok, files still dated 2026-05-02)
+- [x] `fleet doctor` shows .121 = 0.11.400 — shows 0.12.103 (the superseding target), 2026-10-02, T-3323
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -228,3 +228,16 @@ cost_estimate_proposed:
 - **Peer resolution:** authoritative via `remote list 192.168.10.122:9100` — tl-dzbcxxka (ring20-management-agent, state=ready, pid 2301664, project=proxmox-ring20-management). Co-resident skills-manager-agent shares the same fp (T-1448); body addresses @ring20-management + thread T-2379 to disambiguate.
 - **Note:** .122 agent-presence topic query timed out (>30s, likely bloated) but hub TLS-probes fine (fp 22c19fed...); DM is durable so LIVE-confirmation not required for delivery.
 - **Next:** await reply on thread T-2379 → then `fleet-deploy-binary.sh ring20-dashboard --probe --swap-restart` from .107 (musl 0.11.400 ready) → verify `fleet doctor` shows .121 = 0.11.400
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-a72c50f4
+- **Timestamp:** 2026-10-02T17:14:40Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** none
+
+### 2026-10-02T17:14:38Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

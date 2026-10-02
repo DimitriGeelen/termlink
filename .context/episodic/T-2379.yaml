@@ -1,0 +1,105 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2379: Delegate .121 ring20-dashboard termlink upgrade to ring20-manager (needs session on .121; I deploy 0.11.400 from .107 once up)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-02T17:14:48Z
+# ============================================================================
+
+task_id: T-2379
+task_name: "Delegate .121 ring20-dashboard termlink upgrade to ring20-manager (needs session on .121; I deploy 0.11.400 from .107 once up)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-07-07T11:24:37Z
+completed: 2026-10-02T17:14:38Z
+duration_days: 87
+updates_count: 2
+first_commit: 2026-07-07T16:09:45+02:00
+last_commit: 2026-07-07T16:09:45+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  send ring20-manager handoff for .121 upgrade (landed dm offset 52 on .122)
+
+# Key outcomes
+outcomes:
+  - 'Handoff to ring20-manager DRAFTED + operator-approved ("go") — staged verbatim + send command in `.context/working/T-2379-ring20-manager-handoff-READY.md`'
+  - 'Handoff SENT to ring20-manager session on .122 — sent 2026-07-07T15:28Z to fp 9219671e28054458 (session tl-dzbcxxka, project=proxmox-ring20-management, state=ready) via `agent contact --target-fp --hub 192.168.10.122:9100 --thread T-2379`; landed dm:9219671e28054458:d1993c2c3ec44c94 offset 52'
+  - 'ring20-manager confirms a termlink session registered on .121 (awaiting reply on thread T-2379) — superseded 2026-10-02: no reply ever came, but a root remote-exec session now exists on .121 (tl-cl4jd2gx, ring20-dashboard), seen via `remote list ring20-dashboard` (T-3323)'
+  - 'Deploy 0.11.400 to .121 from .107 (`fleet-deploy-binary.sh ring20-dashboard --probe --swap-restart`) once session exists; PL-021 secret/cert preserved — done by T-3323 via runme action 6 with a newer build (0.12.103), 2026-10-02; secret + cert unchanged (fleet doctor ok, tofu verify ok, files still dated 2026-05-02)'
+  - '`fleet doctor` shows .121 = 0.11.400 — shows 0.12.103 (the superseding target), 2026-10-02, T-3323'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.claude/settings.local.json'
+  - '.context/audits/2026-07-06.yaml'
+  - '.context/audits/2026-07-07.yaml'
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/episodic/T-2376.yaml'
+  - '.context/episodic/T-2377.yaml'
+  - '.context/episodic/T-2378.yaml'
+  - '.context/project/decisions.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/.compact-log'
+  - '.context/working/feedback-stream.yaml'
+  - '.context/working/focus.yaml'
+  - '.context/working/.gate-bypass-log.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.loop-detect.json'
+  - '.context/working/.pre-compact.last-run'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/.session-start-ts'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - '.tasks/active/T-1452-revisit-due-scansh-cron--handover-banner.md'
+  - '.tasks/active/T-2379-delegate-121-ring20-dashboard-termlink-u.md'
+  - '.tasks/completed/T-2376-upgrade-all-107-termlink-processes-to-la.md'
+  - '.tasks/completed/T-2377-upgrade-field-hub-122-ring20-management-.md'
+  - '.tasks/completed/T-2378-correct-misleading-121-own-fork-claim-in.md'
+  - '.termlink-task'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-07-07T16:09:45'
+    action: 'T-2379: send ring20-manager handoff for .121 upgrade (landed dm offset 52 on .122)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 125630 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 125630
+  commits: 1
+  files_changed: 28
+  lines_added: 4768
+  lines_removed: 3971
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2379-delegate-121-ring20-dashboard-termlink-u.md
+generated_by: context-agent-hybrid
