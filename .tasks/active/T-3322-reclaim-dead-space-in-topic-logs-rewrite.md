@@ -1,20 +1,16 @@
 ---
-id: T-3310
-name: "Retention defaults: 14-day default for new topics, forever only with owner+reason,
-  ceiling checked on post"
+id: T-3322
+name: "Reclaim dead space in topic logs: rewrite a log over 8 MB and more than half dead, offsets unchanged"
 description: >
-  arc-012 step 5 (T-3304 IW-2 C): new topics default to 14 days (forever-by-omission
-  ends); forever requires an owner and a reason (the four operator-durable topics
-  keep it); a bounded topic past 2x its limit trims oldest on post and logs it loudly;
-  forever topics get a size warning, never deletion.
+  T-3310 D3 (operator ruling C, 2026-10-02): sweeps delete index rows but log files never shrink (agent-presence 31.6 MB on disk vs 0.55 MB live). Rewrite a topic log keeping live records only, byte_pos updated, offsets unchanged, atomic rename under the topic lock, safe against concurrent readers and a crash mid-rewrite (crash tests). Trigger: file > 8 MB and > 50% dead, configurable in the hub config file from T-3310. After T-3310.
 
-status: started-work
+status: captured
 workflow_type: build
 owner: agent
-horizon: now
+horizon: next
 tags: [arc:arc-012]
 components: []
-related_tasks: []
+related_tasks: [T-3310]
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
@@ -25,11 +21,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-10-01T19:22:54Z
-last_update: 2026-10-02T14:54:36Z
-date_finished:
-revisit_at: 2026-11-15
-revisit_evidence_needed: enforcement auto-flipped on every hub, or the backstop canary named who still sends bare forever
+created: 2026-10-02T15:12:07Z
+last_update: 2026-10-02T15:12:07Z
+date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -40,53 +34,53 @@ revisit_evidence_needed: enforcement auto-flipped on every hub, or the backstop 
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
-bvp_scores_proposed:
-  - ts: '2026-10-02T14:16:04Z'
-    estimator: bvp-estimator-v1-heuristic
-    scores:
-      D1: 4
-      D2: 0
-      D3: 3
-      D4: 2
-      F-RECALL: 0
-      F-ORCH: 0
-    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
-      (body:component-discoverability); D4=2 (body:env-class-handled); 
-      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
-    rubric_sha: e4a00f38e801
 ---
 
-# T-3310: Retention defaults: 14-day default for new topics, forever only with owner+reason, ceiling checked on post
+# T-3322: Reclaim dead space in topic logs: rewrite a log over 8 MB and more than half dead, offsets unchanged
 
 ## Context
 
-arc-012 step 5 (T-3304 IW-2, operator ruling C): bound topic growth by default. Design and
-evidence: `docs/reports/T-3304-hub-storage-model.md`. Sub-decisions are walked one at a time
-(D1 ruled 2026-10-02, D2/D3 open; see ## Decisions).
-
-Measured 2026-10-02 (local hub, `channel list --json`): 120 topics, 81 forever (32 `inbox:*`,
-18 `sidecar:*`, 4 `dm:*`), 39 bounded. Every client asks for forever EXPLICITLY by default
-(`cli.rs:1848`, CLI ensure_topic `channel.rs:2941`, MCP `tools.rs:18888`), so a hub-side default
-change alone changes almost nothing, and old binaries cannot send owner/reason.
+<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Hub `channel.create` accepts optional `owner` + `reason`; stores them; the four operator-durable topics keep forever without them
-- [ ] A forever create without owner+reason is accepted, labelled `unowned_forever`, warned in the response and hub log, and recorded (time, sender identity) (D1 layer C)
-- [ ] `channel list` / `info` (CLI + MCP) show owner, reason and the `unowned_forever` label
-- [ ] Enforcement switches on by itself after 14 days with no bare-forever create; after that a bare forever create is refused (-32602) with a message naming the owner/reason flags; a bare-forever create restarts the clock (D1 layer 1)
-- [ ] `TERMLINK_FOREVER_REQUIRES_OWNER` = auto (default) / on / never; `never` is reported in `hub status --governor` and `fleet governor-status` (D1 layer 3)
-- [ ] Backstop canary: fires if enforcement is still off on 2026-11-15 or any hub runs `never`, names the identities still sending bare forever, and files a task via the T-3267 filer; crontab installed by runme (D1 layer 2)
-- [ ] Fixture/unit tests: flips at 14 quiet days, not at 13, clock resets on a bare create; a mutant removing the auto-flip turns them red (D1 layer 4)
-- [ ] One shared default-retention table used by CLI `channel create`, CLI auto-create (ensure_topic) and MCP create: `inbox:*` and `dm:*` -> Messages(1000); `state:*` -> Latest; presence/chat-arc/agent-listeners-*/agent-conv-* -> Messages(1000); debris -> Days(7); everything else (incl. `sidecar:*`) -> Days(14) (D2)
-- [ ] Hub config file (in runtime_dir) holds the D2 default table and the D3 caps; absent file = built-in defaults; per-topic retention still via `channel set-retention` (D3)
-- [ ] Ceilings checked on post (D3): Messages(N) trims at 2N back to N; Days topics trim at 10,000 records and when the oldest is past 2x the window (back to the window); bounded topics trim at 64 MB live; Latest/LatestPerCvKey compact past 10,000; every trim logged and counted
-- [ ] Forever topics: warn only (hub log + counter + flag) at 10,000 records or 64 MB live; never deleted (D3)
-- [ ] Trim/warn counters in `hub status --governor` and `fleet governor-status`
-- [ ] A create that omits retention gets Days(14) (debris namespaces keep Days(7))
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
+### Human
+<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
+     Remove this section if all criteria are agent-verifiable.
+     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
+
+     ── Prefix routing (T-1811, T-1878): default to [REVIEWER] if Expected is grep-able ──
+     If your Expected clause is grep-able / file-exists / structural (a deterministic
+     shell check), prefer [REVIEWER] — that AC should be an Agent AC with the reviewer
+     command in `## Verification` instead of a Human AC here. Only keep [REVIEW] if
+     verification genuinely needs human taste (tone, feel, layout rhythm).
+     See CLAUDE.md §AC Classification Guidance for the conversion rule.
+
+     [REVIEW] example (genuine human judgment):
+       - [ ] [REVIEW] Dashboard renders correctly
+         **Steps:**
+         1. Open https://example.com/dashboard in browser
+         2. Verify all panels load within 2 seconds
+         3. Check browser console for errors
+         **Expected:** All panels visible, no console errors
+         **If not:** Screenshot the broken panel and note the console error
+
+     [REVIEWER] example (static-scan-verifiable — convert to Agent AC + Verification):
+       - [ ] [REVIEWER] Block message names both bypass mechanisms
+         **Steps:**
+         1. Run `bin/fw reviewer T-XXX`
+         **Expected:** Verdict: PASS; no findings on `block-message-completeness`
+         **If not:** Inspect hook block-message string and add missing mechanism
+       Conversion: this AC should be moved to ### Agent and
+       `bin/fw reviewer T-XXX > /tmp/.rev 2>&1 && grep -q "Overall:.*PASS" /tmp/.rev`
+       added to ## Verification. NEVER `... 2>&1 | grep -q ...` — that is the shape the
+       Pipefail/SIGPIPE section below forbids, and this line used to prescribe it.
+-->
 
 ## Verification
 
@@ -248,52 +242,14 @@ change alone changes almost nothing, and old binaries cannot send owner/reason.
 
 ## Decisions
 
-### 2026-10-02 — D1: hub handling of a bare "forever" create (operator ruling)
-- **Chose:** D+ — accept and label as `unowned_forever` now; enforcement (refuse) switches on
-  automatically after 14 days with no bare-forever create; backstop canary on 2026-11-15 that
-  files a task if enforcement is still off or a hub opts out; opt-out
-  `TERMLINK_FOREVER_REQUIRES_OWNER=never` stays possible but is reported daily; fixture tests and
-  a mutant pin the auto-flip. revisit_at 2026-11-15 as the human reminder.
-- **Why:** every current client and every old binary sends forever explicitly and cannot send an
-  owner, so a strict refusal breaks unattended agents' posts to new topics on day one; a silent
-  downgrade loses mail older than 14 days without telling the sender (Directive #2). The operator
-  accepted D but called the "switch stays off forever" strawman valid, so the flip is driven by
-  measured fleet behaviour, not by memory, with an action-filing backstop.
-- **Rejected:** A refuse now (breaks fleet, score -44); B silent downgrade to 14 d (-9, silent
-  loss); C label only (+37, no path to enforcement). D scored +46 before the layers.
-- **Assumed (overturnable):** the 14-day quiet window and the 2026-11-15 backstop date were agent
-  proposals; the operator accepted them unchanged.
-- **Left open:** D2 new-client defaults (incl. `inbox:*` / `dm:*`), D3 meaning of "2x its limit"
-  for day-based topics.
-
-### 2026-10-02 — D2: what new clients ask for by default (operator ruling)
-- **Chose:** B — mail by count, everything else by age: `inbox:*` and `dm:*` default to
-  Messages(1000) (the bound the hub inbox mirror, `hub channel.rs:243`, and the CLI `dm:*`
-  path, `channel.rs:2806`, already apply); every other new topic, including `sidecar:*`,
-  defaults to Days(14); existing exceptions kept (`state:*` Latest, debris Days(7),
-  presence/chat topics Messages(1000)). One shared table for CLI create, auto-create and MCP create.
-- **Why:** bounds every topic while mail is never deleted for being unread, only when outnumbered,
-  and a reader that falls behind a trim is told (T-3307/T-3308 gap signal).
-- **Rejected:** A uniform 14 d (-11: deletes unread mail, hides rail outages); C mail forever with
-  automatic owner (+21: rubber-stamp ownership reopens forever-by-default); D keep-until-read (+11:
-  depends on T-3309 read data that is a lead, not a verdict, and is the most code). B scored +46.
-- **Left open:** D3, the meaning of "2x its limit" for the post-time ceiling (sets the real margin
-  before a mail trim).
-
-### 2026-10-02 — D3: ceilings checked on post (operator ruling)
-- **Chose:** C — count, age and live-size ceilings on post, read from a hub config file and
-  changeable per topic; 2x hysteresis (trim at 2x, back to 1x). Defaults: Messages(N) 2N; Days
-  topics 10,000 records and oldest past 2x window; 64 MB live for bounded topics; Latest/LPCK
-  compact past 10,000; Forever warn-only at 10,000 / 64 MB, never deleted. Disk reclamation
-  (rewrite a log over 8 MB and more than half dead, offsets unchanged) is its own build task.
-- **Why:** operator asked for count + age + size, configurable. Measured 2026-10-02: sweeps delete
-  index rows but log files never shrink (agent-presence 31.6 MB on disk vs 0.55 MB live, ~98%
-  dead; bus 49 MB on disk vs 12.4 MB live), so only C bounds disk too.
-- **Rejected:** A count only (+28: large payloads evade it); B no reclamation (+37: disk still
-  grows); D rely on sweeper (-20: off on .122/.121). C +41, reliability scored +1 for rewrite risk.
-- **Assumed (overturnable):** all numbers are agent proposals accepted unchanged.
-- **Operator side-points recorded as inceptions:** T-3319 learn from message traffic (now),
-  T-3320 settings surface (next), T-3321 compaction (later, DEFER behind T-3319).
+<!-- Record decisions ONLY when choosing between alternatives.
+     Skip for tasks with no meaningful choices.
+     Format:
+     ### [date] — [topic]
+     - **Chose:** [what was decided]
+     - **Why:** [rationale]
+     - **Rejected:** [alternatives and why not]
+-->
 
 ## Decision
 
@@ -307,14 +263,7 @@ change alone changes almost nothing, and old binaries cannot send owner/reason.
 
 ## Updates
 
-### 2026-10-01T19:22:54Z — task-created [task-create-agent]
+### 2026-10-02T15:12:07Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3310-retention-defaults-14-day-default-for-ne.md
+- **Output:** /opt/termlink/.tasks/active/T-3322-reclaim-dead-space-in-topic-logs-rewrite.md
 - **Context:** Initial task creation
-
-### 2026-10-01T19:23:06Z — status-update [task-update-agent]
-- **Change:** tags: +arc:arc-012
-
-### 2026-10-02T14:16:04Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
-- **Change:** horizon: next → now (auto-sync)

@@ -183,4 +183,11 @@ How the question arose, during the SQ-11 (T-2573) walk-through, 2026-10-01:
     count + rest 14 d / C mail forever auto-owned / D keep until read, recommending B.
     **Operator ruling:** "I agree with the recommendation" -> B. Recorded in T-3310 § Decisions.
     D3 next.
+19. **Operator** (before D3): retention should combine count, age and size; limits configurable
+    via a settings page (TermLink's own, inside AEF settings when vendored), possibly its own
+    inception; a job collapsing duplicates like AEF folds audit warnings, with a fidelity concern;
+    then: deriving knowledge from the message flow is an inception of its own, with AEF, an
+    external review and a discussion with the operator, horizon now. -> T-3319 / T-3320 / T-3321.
+20. T-3310 D3 (ceilings on post) presented A count / B count+age+size / C B + disk reclamation /
+    D none, after measuring that log files never shrink. **Operator ruling:** "as suggested" -> C.
 
