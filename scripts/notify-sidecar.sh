@@ -229,7 +229,7 @@ _resolve_receipt_identity() {
 # so a steady unread state does not spam receipts (and the guard survives restart).
 # Best-effort: any failure is non-fatal (the heartbeat/flag cycle still completes).
 _auto_confirm_topic() {
-    local topic="$1" fp="$2" latest_off guard prev
+    local topic="$1" fp="$2" foreign_min="${3:--}" first_unread="${4:-0}" latest_off guard prev
     # Watermark to ack = the latest CONTENT offset on the topic. `channel unread
     # --json`'s latest_offset is unreliable (null even when unread>0), so read the
     # topic tail directly and take the max offset over content envelopes only —
@@ -245,6 +245,17 @@ _auto_confirm_topic() {
                             and .msg_type != "topic_metadata")
                    | .offset ] | (max // empty)' 2>/dev/null)"
     case "$latest_off" in ''|*[!0-9]*) return 0 ;; esac   # no content to ack
+
+    # T-3325: the receipt is a WATERMARK on an identity co-resident agents share, so
+    # acking past a message addressed to one of them marks it read for them too. Ack
+    # only up to the message before the first one addressed elsewhere.
+    case "$foreign_min" in
+        ''|-|*[!0-9]*) ;;
+        *) [ $((foreign_min - 1)) -lt "$latest_off" ] && latest_off=$((foreign_min - 1))
+           # Capped below the first unread message: nothing of ours to ack.
+           case "$first_unread" in ''|*[!0-9]*) first_unread=0 ;; esac
+           [ "$latest_off" -ge "$first_unread" ] || return 0 ;;
+    esac
 
     # Resolve the receipt-signing identity BEFORE the guard is computed (T-3065).
     # Order matters: the guard name embeds the identity, so resolving afterwards would
@@ -303,18 +314,101 @@ _auto_confirm_topic() {
     fi
 }
 
-# Probe unread mail. Echoes "<count>\t<latest_topic>". Honors the test hook for
+# T-3325 — five-level circuit addressing (operator ruling Q1 = C). Each unread
+# message is classified by scripts/lib/circuit.py against OUR circuit; only mail
+# for us (or unaddressed, or falling back to us) counts and wakes, and auto-confirm
+# never acks past mail addressed to a co-resident agent that shares our identity —
+# the ack watermark is shared, so acking it would mark THEIR mail read for them.
+#
+# Our circuit, resolved once per process. Overridable for tests and odd hosts:
+#   FW_SIDECAR_SELF_HOST (default `hostname -f`), FW_SIDECAR_SELF_HUB (default the
+#   local hub's TLS fingerprint). An empty level is simply not compared.
+CIRCUIT_PY="$HERE/lib/circuit.py"
+_self_host="" _self_hub="" _self_circuit_resolved=0
+_resolve_self_circuit() {
+    [ "$_self_circuit_resolved" -eq 1 ] && return 0
+    _self_circuit_resolved=1
+    _self_host="${FW_SIDECAR_SELF_HOST-$(hostname -f 2>/dev/null || hostname 2>/dev/null)}"
+    if [ -n "${FW_SIDECAR_SELF_HUB+x}" ]; then
+        _self_hub="$FW_SIDECAR_SELF_HUB"
+    else
+        _self_hub="$("$TERMLINK" hub fingerprint 2>/dev/null | head -1 | sed -n 's/^sha256:\([0-9a-f]\{16\}\).*/\1/p')"
+    fi
+}
+
+# Agents LIVE on this host = a sidecar heartbeat (epoch-ms) in our notify_dir no older
+# than FW_SIDECAR_LIVE_WINDOW_MS (default 120000 = 8 missed 15s cycles). Used only for
+# the fallback ladder: mail naming a co-resident agent that is NOT live falls back to
+# the project level and wakes us, instead of waiting for an agent that is not there.
+_live_agents() {
+    local now window f a hb out=""
+    now="$(now_ms)"; window="${FW_SIDECAR_LIVE_WINDOW_MS:-120000}"
+    for f in "$notify_dir"/*.heartbeat; do
+        [ -f "$f" ] || continue
+        a="$(basename "$f" .heartbeat)"
+        [ "$a" = "$agent_id" ] && continue
+        hb="$(tr -dc '0-9' < "$f" 2>/dev/null)"
+        [ -n "$hb" ] || continue
+        [ $((now - hb)) -le "$window" ] && out="$out${out:+,}$a"
+    done
+    # Plus agents LIVE on the presence rail (agent-listeners.sh): an agent can be
+    # reachable without running a sidecar here (055 at the time of writing), and
+    # mail addressed to it must not fall back to us. Seam FW_SIDECAR_PRESENCE_AGENTS
+    # (comma list, may be empty) replaces the lookup for hermetic tests.
+    local pres
+    if [ -n "${FW_SIDECAR_PRESENCE_AGENTS+x}" ]; then
+        pres="$FW_SIDECAR_PRESENCE_AGENTS"
+    else
+        pres="$(timeout 15 bash "$HERE/agent-listeners.sh" --json 2>/dev/null \
+            | jq -r '(.listeners // .)[]? | select(.status=="LIVE") | .agent_id // empty' 2>/dev/null \
+            | grep -vxF "$agent_id" | sort -u | paste -sd, -)"
+    fi
+    [ -n "$pres" ] && out="$out${out:+,}$pres"
+    printf '%s' "$out"
+}
+
+# Classify one topic's unread envelopes. Echoes "<wake> <foreign_min|-> <newest_wake|->"
+# or returns non-zero when classification is unavailable (no first_unread, fetch or
+# parse failure); the caller then falls back to the raw unread count, so a broken
+# classifier degrades to the old behaviour (spurious wake), never to a missed one.
+_classify_topic() {
+    local topic="$1" first="$2" n="$3" limit res
+    case "$first" in ''|*[!0-9]*) return 1 ;; esac
+    [ -r "$CIRCUIT_PY" ] || return 1
+    _resolve_self_circuit
+    limit=$(( n * 3 + 50 )); [ "$limit" -gt 1000 ] && limit=1000
+    res="$("$TERMLINK" channel subscribe "$topic" "${hub_args[@]}" \
+                --cursor "$first" --limit "$limit" --json 2>/dev/null \
+        | python3 "$CIRCUIT_PY" classify --first-unread "$first" \
+            --self-host "$_self_host" --self-hub "$_self_hub" \
+            --self-project "$SELF_PROJECT" --self-agent "$agent_id" \
+            --live "$(_live_agents)" 2>/dev/null)" || return 1
+    # Every unread message must have been classified. A short fetch (hub hiccup, limit)
+    # would otherwise report "0 to wake" for mail it never saw — a silent miss.
+    local seen
+    seen="$(printf '%s' "$res" | jq -r '(.mine + .unaddressed + .fallback + .foreign)' 2>/dev/null)"
+    case "$seen" in ''|*[!0-9]*) return 1 ;; esac
+    [ "$seen" -ge "$n" ] || return 1
+    printf '%s' "$res" | jq -r '"\(.wake) \(.foreign_min_offset // "-") \(.newest_wake_offset // "-")"' 2>/dev/null \
+        | grep -E '^[0-9]+ ' || return 1
+}
+
+# Probe unread mail. Echoes "<count>\t<latest_topic>\t<sig>". Honors the test hook for
 # hub-independent unit testing; otherwise sums unread across dm:<self>:* topics.
 probe_mail() {
     if [ -n "${TERMLINK_NOTIFY_TEST_UNREAD:-}" ]; then
-        printf '%s\t%s\n' "${TERMLINK_NOTIFY_TEST_UNREAD}" "${TERMLINK_NOTIFY_TEST_LATEST_TOPIC:-}"
+        printf '%s\t%s\t?\n' "${TERMLINK_NOTIFY_TEST_UNREAD}" "${TERMLINK_NOTIFY_TEST_LATEST_TOPIC:-}"
         return 0
     fi
 
     local fp
     fp="$(resolve_self_fp)" || return 3
 
-    local total=0 latest=""
+    # sig: per-topic newest offset of mail that wakes us. write_cycle advances the
+    # arrival record (last_mail_ts) only when it changes, so mail for us that sits
+    # behind a co-resident's unacked message does not re-wake us every cycle. A "?"
+    # entry (classifier unavailable) keeps the old advance-every-cycle behaviour.
+    local total=0 latest="" sig=""
     # dm:<sorted_a>:<sorted_b> — self appears in either slot.
     local topics
     if [ -n "${TERMLINK_NOTIFY_TEST_TOPICS:-}" ]; then
@@ -358,17 +452,27 @@ probe_mail() {
         topics="$(printf '%s\n%s\n' "$_dm_topics" "$_inbox_topics" | sed '/^$/d')"
     fi
 
-    local t n
+    local t n u first cls wake fmin newest
     while IFS= read -r t; do
         [ -n "$t" ] || continue
-        n="$("$TERMLINK" channel unread "$t" "${hub_args[@]}" --sender "$fp" --json 2>/dev/null \
-            | jq -r '.unread_count // 0' 2>/dev/null)"
+        u="$("$TERMLINK" channel unread "$t" "${hub_args[@]}" --sender "$fp" --json 2>/dev/null)"
+        n="$(printf '%s' "$u" | jq -r '.unread_count // 0' 2>/dev/null)"
         case "$n" in ''|*[!0-9]*) n=0 ;; esac
         if [ "$n" -gt 0 ]; then
-            total=$((total + n))
-            latest="$t"
-            # V6-S3: recipient auto-confirm (journal + stage=delivered receipt).
-            [ "$auto_confirm" -eq 1 ] && _auto_confirm_topic "$t" "$fp"
+            first="$(printf '%s' "$u" | jq -r '.first_unread // empty' 2>/dev/null)"
+            if cls="$(_classify_topic "$t" "$first" "$n")"; then
+                read -r wake fmin newest <<<"$cls"
+            else
+                wake="$n" fmin="-" newest="?"
+            fi
+            if [ "$wake" -gt 0 ]; then
+                total=$((total + wake))
+                latest="$t"
+                sig="$sig$t@$newest;"
+            fi
+            # V6-S3: recipient auto-confirm (journal + stage=delivered receipt), capped
+            # below the first message addressed to someone else (T-3325).
+            [ "$auto_confirm" -eq 1 ] && _auto_confirm_topic "$t" "$fp" "$fmin" "$first"
         fi
     done <<EOF
 $topics
@@ -382,10 +486,11 @@ EOF
         if [ "$b" -gt 0 ]; then
             total=$((total + b))
             [ -z "$latest" ] && latest="agent-chat-arc"
+            sig="${sig}agent-chat-arc@?;"
         fi
     fi
 
-    printf '%s\t%s\n' "$total" "$latest"
+    printf '%s\t%s\t%s\n' "$total" "$latest" "$sig"
 }
 
 write_cycle() {
@@ -397,8 +502,11 @@ write_cycle() {
         echo "notify-sidecar: cannot resolve self identity (pass --self-fp)" >&2
         return 3
     fi
+    local rest sig
     pending="${probe%%$'\t'*}"
-    latest="${probe#*$'\t'}"
+    rest="${probe#*$'\t'}"
+    latest="${rest%%$'\t'*}"
+    if [ "$rest" != "${rest#*$'\t'}" ]; then sig="${rest#*$'\t'}"; else sig="?"; fi
     case "$pending" in ''|*[!0-9]*) pending=0 ;; esac
 
     mkdir -p "$notify_dir" 2>/dev/null || { echo "notify-sidecar: cannot create $notify_dir" >&2; return 3; }
@@ -426,15 +534,22 @@ write_cycle() {
     #
     # Carried forward from the previous flag rather than kept in memory, so the
     # record survives a sidecar restart exactly as the ack guards do.
-    local prev_mail_ts="" prev_mail_topic=""
+    local prev_mail_ts="" prev_mail_topic="" prev_mail_sig=""
     if [ -r "$notify_dir/$agent_id.flag" ]; then
         prev_mail_ts="$(grep -E '^last_mail_ts=' "$notify_dir/$agent_id.flag" 2>/dev/null | head -1 | cut -d= -f2-)"
         prev_mail_topic="$(grep -E '^last_mail_topic=' "$notify_dir/$agent_id.flag" 2>/dev/null | head -1 | cut -d= -f2-)"
+        prev_mail_sig="$(grep -E '^last_mail_sig=' "$notify_dir/$agent_id.flag" 2>/dev/null | head -1 | cut -d= -f2-)"
     fi
-    local mail_ts="$prev_mail_ts" mail_topic="$prev_mail_topic"
+    local mail_ts="$prev_mail_ts" mail_topic="$prev_mail_topic" mail_sig="$prev_mail_sig"
     if [ "$pending" -gt 0 ] 2>/dev/null; then
-        mail_ts="$hb"
-        mail_topic="$latest"
+        # T-3325: advance only on NEW mail for us (sig changed). A "?" in sig means
+        # the classifier was unavailable for some topic: keep the pre-T-3325
+        # advance-every-cycle behaviour rather than risk sitting on unseen mail.
+        case "$sig" in
+            *'?'*) mail_ts="$hb"; mail_topic="$latest" ;;
+            *)     if [ "$sig" != "$prev_mail_sig" ]; then mail_ts="$hb"; mail_topic="$latest"; fi ;;
+        esac
+        mail_sig="$sig"
     fi
 
     {
@@ -443,6 +558,7 @@ write_cycle() {
         printf 'ts=%s\n' "$hb"
         printf 'last_mail_ts=%s\n' "$mail_ts"
         printf 'last_mail_topic=%s\n' "$mail_topic"
+        printf 'last_mail_sig=%s\n' "$mail_sig"
     } > "$notify_dir/.$agent_id.flag.tmp" \
         && mv -f "$notify_dir/.$agent_id.flag.tmp" "$notify_dir/$agent_id.flag"
 

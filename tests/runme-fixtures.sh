@@ -49,6 +49,20 @@ EOS
 chmod +x "$TMP/fake-tl-fedprobe"
 export RUNME_FEDPROBE_TL="$TMP/fake-tl-fedprobe"
 
+# T-3325 (action 10): stateful fake stale-sidecar detector. State file holds the
+# detector's JSON; default = nothing stale, so every other case skips the action.
+# The fake supervisor flips stale -> current unless FAKE_SIDECAR_NOFIX is set. The
+# fake kill only records pids, so no real process is ever signalled.
+export FAKE_SIDECAR_STATE="$TMP/sidecar.state" FAKE_SIDECAR_KILLED="$TMP/sidecar.killed"
+echo '{"stale_count":0,"current_count":3,"stale":[]}' > "$FAKE_SIDECAR_STATE"
+printf '#!/usr/bin/env bash\ncat "$FAKE_SIDECAR_STATE"\n' > "$TMP/fake-sidecar-detect"
+printf '#!/usr/bin/env bash\necho "$1" >> "$FAKE_SIDECAR_KILLED"\n' > "$TMP/fake-sidecar-kill"
+printf '#!/usr/bin/env bash\n[ -n "${FAKE_SIDECAR_NOFIX:-}" ] && exit 0\necho %s > "$FAKE_SIDECAR_STATE"\n' \
+    "'{\"stale_count\":0,\"current_count\":2,\"stale\":[]}'" > "$TMP/fake-sidecar-supervisor"
+chmod +x "$TMP/fake-sidecar-detect" "$TMP/fake-sidecar-kill" "$TMP/fake-sidecar-supervisor"
+export RUNME_SIDECAR_DETECT="$TMP/fake-sidecar-detect" RUNME_SIDECAR_KILL="$TMP/fake-sidecar-kill" \
+       RUNME_SIDECAR_SUPERVISOR="$TMP/fake-sidecar-supervisor"
+
 # T-3272: the closure action goes through RUNME_TASKS_DIR + RUNME_FW. Exported for
 # EVERY invocation below (including the --decide cases, which do a real run) so no
 # fixture can ever close a real task.
@@ -286,7 +300,7 @@ if [ "$(id -u)" != "0" ] && [ -n "${CI:-}" ]; then
 fi
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|') + 7 ))   # +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988)
+EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|') + 8 ))   # +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -733,6 +747,36 @@ if echo "$out" | grep -q "skip    health:ring20-fedprobe not found on the local 
     ok "fedprobe: missing topic is a skip"
 else bad "fedprobe missing" "rc=$rc: $out"; fi
 echo "messages 100 100" > "$FAKE_FEDPROBE_STATE"
+
+# ---------------------------------------------------------------------------
+# 22. T-3325 — restart stale notify-sidecars (fake detector/kill/supervisor only).
+# ---------------------------------------------------------------------------
+STALE2='{"stale_count":2,"current_count":0,"stale":[{"pid":111,"agent_id":"a1"},{"pid":222,"agent_id":"a2"}]}'
+echo "$STALE2" > "$FAKE_SIDECAR_STATE"; : > "$FAKE_SIDECAR_KILLED"
+out=$(run --dry-run); rc=$?
+if echo "$out" | grep -q "would restart 2 stale sidecar(s): a1 a2" && [ ! -s "$FAKE_SIDECAR_KILLED" ]; then
+    ok "sidecars: --dry-run reports and signals nothing"
+else bad "sidecars dry-run" "rc=$rc: $out"; fi
+out=$(run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      restarted 2 sidecar(s) onto current code: a1 a2 (verified: 0 stale, 2 current)" \
+   && [ "$(tr '\n' ' ' < "$FAKE_SIDECAR_KILLED")" = "111 222 " ]; then
+    ok "sidecars: stale pids signalled, supervisor restarts them, verified"
+else bad "sidecars restart" "rc=$rc: $out killed=$(cat "$FAKE_SIDECAR_KILLED")"; fi
+out=$(run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "skip    all 2 notify-sidecar(s) already run the current code"; then
+    ok "sidecars: second run skips (idempotent)"
+else bad "sidecars idempotent" "rc=$rc: $out"; fi
+echo "$STALE2" > "$FAKE_SIDECAR_STATE"
+out=$(FAKE_SIDECAR_NOFIX=1 run); rc=$?
+if [ "$rc" != "0" ] && echo "$out" | grep -q "FAILED  after restart: stale=2"; then
+    ok "sidecars: a restart that leaves them stale is FAILED, not OK"
+else bad "sidecars no-fix" "rc=$rc: $out"; fi
+echo "not json" > "$FAKE_SIDECAR_STATE"
+out=$(run); rc=$?
+if [ "$rc" != "0" ] && echo "$out" | grep -q "FAILED  check-stale-sidecar-code gave no readable result"; then
+    ok "sidecars: unreadable detector output is FAILED (fail-closed), never a skip"
+else bad "sidecars unreadable" "rc=$rc: $out"; fi
+echo '{"stale_count":0,"current_count":3,"stale":[]}' > "$FAKE_SIDECAR_STATE"
 
 echo ""
 echo "----------------------------------------"

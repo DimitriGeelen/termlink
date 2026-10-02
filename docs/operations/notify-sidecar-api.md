@@ -95,3 +95,67 @@ bash scripts/notify-sidecar-supervisor.sh --emit-unit auto
 Fixtures: `bash tests/notify-sidecar-api-fixtures.sh` (hermetic, PL-213 seams:
 `SIDECAR_API_TEST_FQDN`, `SIDECAR_API_TEST_IP`, `SIDECAR_API_TEST_HUB_RC`, `SIDECAR_API_TEST_PTY_STATE`,
 `SIDECAR_API_TEST_SESSION_STATE`, `SIDECAR_API_INJECTOR`, `SIDECAR_API_ACKER`).
+
+## Addressing — who a message is for (T-3325, five-level circuit)
+
+Co-resident agents can share one TermLink identity (T-1448), and with it the same `dm:`
+topic and receipt watermark. Before T-3325 the sidecar woke its agent on any unread
+message, including mail meant for a neighbour (framework:pickup 257 item 4). It now reads
+an address on each unread message and wakes only for its own mail.
+
+**The key is `metadata.to_circuit`**, the counterpart of the `from_circuit` peers already
+send. The address is the five-level circuit agreed with AEF (D-599 / T-3433): host / hub /
+project / session / agent. The operator ruled grammar option C on 2026-10-03: **read both
+grammars, write the path form, switch writing to V9 when AEF cuts over.**
+
+| Form | Example |
+|---|---|
+| path, from host | `//dimitrimintdev/cacc73ea32b121dd/010-termlink/@claude-termlink` |
+| path, from hub | `cacc73ea32b121dd/010-termlink` |
+| path, with session | `//host/hub/project/<session>/@agent` |
+| AEF V9 | `aef::host=dimitrimintdev::hub=cacc73ea::project=010-termlink::@claude-termlink::` |
+
+`@` marks the agent in both grammars, so a sender can leave out a level it cannot know.
+For example, `agent-send.sh` writes `//<host>/<hub>/@<agent>` because presence carries no
+project. A bare `metadata.to_project` (set by `termlink agent contact name:project`) is read
+as a project-level address.
+
+**The match is level by level, from level 1** (`scripts/lib/circuit.py`):
+
+| Message says | Verdict | Wakes? |
+|---|---|---|
+| no address (or unparseable) | unaddressed | yes, as before T-3325 |
+| host / hub / project different from ours | foreign | no |
+| agent = us | mine | yes |
+| agent ≠ us, and that agent is LIVE (fresh sidecar heartbeat here, or LIVE on agent-presence) | foreign | no |
+| agent ≠ us, not live | fallback | yes: the ladder falls back to the deepest level that resolves, so nothing is dropped |
+| stops above agent, every named level matches | mine | yes |
+
+The session level is read but never decides the verdict: the sidecar serves an agent and has
+no session identity to compare. Host comparison accepts a short name against an FQDN. Hub
+comparison accepts a prefix of at least 8 hex characters (`sha256:` is stripped).
+
+**Acks stop at foreign mail.** The receipt is a watermark on a shared identity, so acking past
+a neighbour's message would mark it read for them. Auto-confirm acks only up to the message
+before the first foreign one, and acks nothing when that falls below `first_unread`.
+
+**The arrival record advances only on new mail for us.** `last_mail_ts` changes when
+`last_mail_sig` (the per-topic newest offset that wakes us) changes. Mail of ours waiting
+behind an unacked foreign message therefore does not re-wake the agent every cycle.
+
+**Fail direction is always "wake".** If the classifier is missing, a fetch comes back short,
+or a topic's `first_unread` is unknown, the sidecar uses the raw unread count and the old
+advance-every-cycle record (a `?` in `last_mail_sig`). A broken filter causes a spurious
+wake. It never causes a silent miss.
+
+Overrides: `FW_SIDECAR_SELF_HOST` (default `hostname -f`), `FW_SIDECAR_SELF_HUB` (default the
+local hub's TLS fingerprint, 16 hex), `FW_SIDECAR_SELF_PROJECT` (default `010-termlink`),
+`FW_SIDECAR_LIVE_WINDOW_MS` (default 120000), `FW_SIDECAR_PRESENCE_AGENTS` (test seam that
+replaces the presence lookup). Fixtures: `bash tests/notify-sidecar-circuit-fixtures.sh`.
+
+**Open, outside this change:**
+1. The project level is the folder name until AEF mints the project UUID (requested at AEF
+   inbox @129).
+2. Per-project signing identity, for trust rather than routing (AEF @53, proposal 3).
+3. The fallback rule as written here is the operator's description; AEF has been asked to
+   confirm it.

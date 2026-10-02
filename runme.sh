@@ -875,6 +875,69 @@ head2 "9. Bound health:ring20-fedprobe to its last $FEDPROBE_KEEP records (T-298
 bound_fedprobe
 
 # ---------------------------------------------------------------------------
+# ACTION 10 — restart notify-sidecars that run stale code (T-3325)
+#
+# A sidecar is a long-lived process: editing scripts/notify-sidecar.sh changes nothing
+# for one already running (T-3205). T-3325 changed it so a sidecar wakes only for mail
+# addressed to its agent (five-level circuit, operator ruling Q1 = C). Until each
+# sidecar restarts, it keeps waking the wrong agent. The supervisor never restarts a
+# live sidecar, and a restart posts receipts peers can see and can inject into live
+# prompts, so it is an operator action, here.
+# Idempotent: skipped when check-stale-sidecar-code reports none stale. Otherwise each
+# stale pid gets SIGTERM; one supervisor sweep starts the missing ones from
+# notify-sidecar-agents.conf; then the detector runs again. Verified: stale_count is 0
+# and at least as many sidecars run current code as were restarted. Fail-closed: an
+# unreadable detector result is FAILED, never a skip.
+# Seams (fixtures only): RUNME_SIDECAR_DETECT, RUNME_SIDECAR_KILL, RUNME_SIDECAR_SUPERVISOR.
+# ---------------------------------------------------------------------------
+seam SIDECAR_DETECT RUNME_SIDECAR_DETECT "bash $PROJECT_ROOT/scripts/check-stale-sidecar-code.sh --json"
+seam SIDECAR_KILL RUNME_SIDECAR_KILL "kill"
+seam SIDECAR_SUPERVISOR RUNME_SIDECAR_SUPERVISOR "bash $PROJECT_ROOT/scripts/notify-sidecar-supervisor.sh --quiet"
+
+sidecar_state() {  # -> "<stale_count> <current_count> <pid:agent,...>" or "error"
+    $SIDECAR_DETECT 2>/dev/null | python3 -c '
+import json, sys
+try:
+    d = json.load(sys.stdin)
+    s = d["stale_count"]; c = d["current_count"]
+except Exception:
+    print("error"); sys.exit(0)
+print(s, c, ",".join("%s:%s" % (x.get("pid"), x.get("agent_id")) for x in d.get("stale", [])) or "-")'
+}
+
+restart_stale_sidecars() {
+    local st stale current list pid agents="" n=0 i
+    st="$(sidecar_state)"
+    if [ "$st" = "error" ] || [ -z "$st" ]; then
+        say "  FAILED  check-stale-sidecar-code gave no readable result; cannot tell which sidecars are stale"; FAILED=$((FAILED+1)); return
+    fi
+    read -r stale current list <<< "$st"
+    if [ "$stale" = "0" ]; then
+        say "  skip    all $current notify-sidecar(s) already run the current code"; SKIPPED=$((SKIPPED+1)); return
+    fi
+    for i in ${list//,/ }; do agents="$agents ${i#*:}"; done
+    if [ "$DRY_RUN" = "1" ]; then
+        say "  [DRY]   would restart $stale stale sidecar(s):$agents"; DONE=$((DONE+1)); return
+    fi
+    for i in ${list//,/ }; do
+        pid="${i%%:*}"
+        $SIDECAR_KILL "$pid" 2>/dev/null && n=$((n+1))
+        for _ in 1 2 3 4 5 6 7 8 9 10; do kill -0 "$pid" 2>/dev/null || break; sleep 1; done
+    done
+    $SIDECAR_SUPERVISOR >/dev/null 2>&1
+    sleep 2
+    read -r stale current list <<< "$(sidecar_state)"
+    if [ "$stale" = "0" ] && [ "${current:-0}" -ge "$n" ] 2>/dev/null; then
+        say "  OK      restarted $n sidecar(s) onto current code:$agents (verified: 0 stale, $current current)"; DONE=$((DONE+1))
+    else
+        say "  FAILED  after restart: stale=$stale current=$current (wanted 0 stale, >= $n current). Check: bash scripts/check-stale-sidecar-code.sh"; FAILED=$((FAILED+1))
+    fi
+}
+
+head2 "10. Restart notify-sidecars onto the current code (T-3325 addressing)"
+restart_stale_sidecars
+
+# ---------------------------------------------------------------------------
 # Verification — the project's own drift checker is the arbiter, not this script.
 # Using the repo's existing check rather than a bespoke one means this cannot
 # quietly disagree with what `fw audit` will say five minutes from now.

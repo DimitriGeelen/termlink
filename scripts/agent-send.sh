@@ -493,6 +493,24 @@ fi
 # A non-relay send leaves relay_hops empty → no extra metadata (back-compat).
 relay_meta_args=()
 [ -n "$relay_hops" ] && relay_meta_args=(--metadata relay_hops="$relay_hops")
+# T-3325: address the turn with the five-level circuit (operator ruling Q1 = C:
+# path form on write) so the recipient's notify sidecar wakes only the agent it is
+# for. Co-resident agents can share one identity, and with it the dm topic. Levels
+# we cannot know are left out: presence carries no project, and a remote hub's id
+# is not known here. The `@` marks the agent segment, so an omitted level is
+# unambiguous. Nothing is stamped when neither host nor hub is known; an
+# unaddressed turn still wakes, which was the behaviour before T-3325.
+if [ -n "${to_agent_id:-}" ]; then
+    _tc_host="$(printf '%s' "${listener:-}" | jq -r '.host // empty' 2>/dev/null)"
+    _tc_hub=""
+    [ -z "$peer_hub" ] && _tc_hub="$("$TERMLINK" hub fingerprint 2>/dev/null \
+        | sed -n 's/^sha256:\([0-9a-f]\{16\}\).*/\1/p' | head -1)"
+    _tc=""
+    if [ -n "$_tc_host" ]; then _tc="//$_tc_host${_tc_hub:+/$_tc_hub}/@$to_agent_id"
+    elif [ -n "$_tc_hub" ]; then _tc="$_tc_hub/@$to_agent_id"
+    fi
+    [ -n "$_tc" ] && relay_meta_args+=(--metadata to_circuit="$_tc")
+fi
 post_json="$("$TERMLINK" channel post "$topic" --msg-type turn --payload "$message" \
                 --metadata conversation_id="$cid" \
                 "${relay_meta_args[@]+"${relay_meta_args[@]}"}" \
