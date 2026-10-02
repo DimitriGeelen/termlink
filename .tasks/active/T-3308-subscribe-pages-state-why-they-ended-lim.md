@@ -2,9 +2,11 @@
 id: T-3308
 name: "Subscribe pages state why they ended (limit / end of topic / deadline)"
 description: >
-  arc-012 step 3 (T-3304 IW-3 B): every channel.subscribe page carries an end reason so clients can tell a full page from the end of the topic from a deadline cut; consumer audit of CLI/MCP/inbox callers.
+  arc-012 step 3 (T-3304 IW-3 B): every channel.subscribe page carries an end reason
+  so clients can tell a full page from the end of the topic from a deadline cut; consumer
+  audit of CLI/MCP/inbox callers.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -22,8 +24,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-01T19:22:29Z
-last_update: 2026-10-01T19:22:41Z
-date_finished: null
+last_update: 2026-10-02T11:08:53Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,20 +36,48 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-02T11:08:53Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3308: Subscribe pages state why they ended (limit / end of topic / deadline)
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+arc-012 step 3 (T-3304 IW-3: "the page says why it ended"). A `channel.subscribe` page
+today carries `messages` + `next_cursor` and no reason it stopped. A reader cannot tell
+"caught up" from "page full, more follow". Two callers lose data because of that:
+- **CLI single-shot subscribe** prints the first `--limit` (100) records and exits
+  silently, even when thousands follow.
+- **The session-crate inbox reader** (`inbox_channel.rs`) fetches one page of up to 1000
+  from a cursor that a one-shot `inbox list` always starts at 0, so later transfers on a
+  big `inbox:*` topic are never seen.
+
+It also does not surface the retention `gap` T-3307 added, although it resumes from a
+cursor it saved itself, which is the case where a gap is a real loss (handoff in T-3307
+§Evolution).
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Hub `channel.subscribe` success responses carry `end_reason`: `"limit"` (the page filled; more may follow from `next_cursor`) or `"end"` (no further record at read time). The `WALK_DEADLINE_EXCEEDED` error data carries `end_reason: "deadline"`. Hub tests pin all three, plus a filtered walk ending in `end`.
+- [x] `client::deadline_partial_page` sets `end_reason: "deadline"` on the page it builds (existing test extended).
+- [x] CLI single-shot subscribe (no `--follow`, no `--tail`), when the page ends on `limit`, prints a stderr note naming the topic, the resume offset and the ways to continue (a JSON line with `--json`); stdout is unchanged. The note is absent on `end` and on old hubs with no field. Unit-tested.
+- [x] The inbox reader pages until the page does not end on `limit` (old hubs: until a page is shorter than the limit), bounded by a page cap so a runaway hub cannot spin it. Transfers past the first 1000 records are found (test with a fake multi-page client response sequence).
+- [x] The inbox reader, when it resumed from its own saved cursor and the hub reports `gap`, logs a `tracing::warn!` naming topic and skipped count, and records it on `FallbackCtx`, exposed through `take_retention_gaps()`. A fresh read from 0 records nothing. Tested.
+- [x] The MCP `termlink_channel_subscribe` description documents `end_reason`. Workspace tests for hub, session, CLI and MCP pass, and clippy adds no new warnings on the touched files.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -171,6 +201,11 @@ date_finished: null
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+cargo test -p termlink-hub --lib end_reason > /tmp/.t3308h 2>&1 && grep -q "test result: ok" /tmp/.t3308h && ! grep -q " 0 passed" /tmp/.t3308h
+cargo test -p termlink-session --lib t3308 > /tmp/.t3308s 2>&1 && grep -q "test result: ok" /tmp/.t3308s && ! grep -q " 0 passed" /tmp/.t3308s
+cargo test -p termlink --bin termlink t3308 > /tmp/.t3308c 2>&1 && grep -q "test result: ok" /tmp/.t3308c && ! grep -q " 0 passed" /tmp/.t3308c
+grep -q "finished rc=0" /tmp/claude-0/-opt-termlink/e817a600-b7cc-4402-a9cf-c959eb30f655/scratchpad/t3308-test.log
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -210,6 +245,23 @@ date_finished: null
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-10-02 — "the page says why it ended" turned out to be a data-loss fix, not polish
+- **What changed:** IW-3 framed end reasons as making the read contract explicit. In
+  the code, the missing reason was hiding two real truncations. The CLI's single-shot
+  subscribe stopped after `--limit` records with no sign more existed. The inbox reader
+  fetched one 1000-record page, and a one-shot `inbox list` always starts at 0, so later
+  transfers on a big `inbox:*` topic were never seen. A third instance of the same shape
+  (`--tail` slicing only the first page) was found the same day and fixed as T-3318.
+- **Plan impact:** the inbox reader now pages. It continues on `limit` or `deadline`; on
+  an old hub with no field it falls back to "a full page means maybe more"; and a page
+  cap (200) stops a runaway hub. `"limit"` is honest about its limit: a page that fills
+  exactly at the topic's end still says `limit`, because the walk cannot know nothing
+  follows without reading one more record. The next call returns `end`.
+- **Triggered:** the inbox reader's gap is recorded on `FallbackCtx::take_retention_gaps()`
+  and logged, but none of its 29 callers prints it yet. Surfacing it per caller (CLI
+  `inbox list`, MCP inbox tools) is a candidate for T-3309/T-3313 or a small follow-up.
+  T-3313 (hub-side time range) can reuse `end_reason` as-is.
 
 ## Recommendation
 
@@ -270,3 +322,6 @@ date_finished: null
 
 ### 2026-10-01T19:22:41Z — status-update [task-update-agent]
 - **Change:** tags: +arc:arc-012
+
+### 2026-10-02T11:08:53Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

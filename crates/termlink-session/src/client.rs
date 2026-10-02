@@ -392,6 +392,9 @@ pub fn deadline_partial_page(resp: &RpcResponse) -> Option<serde_json::Value> {
         "messages": messages,
         "next_cursor": next_cursor,
         "deadline_partial": true,
+        // T-3308: same read contract as a success page — this one ended on the
+        // hub's walk deadline, so more may follow from `next_cursor`.
+        "end_reason": "deadline",
     }))
 }
 
@@ -434,6 +437,7 @@ mod tests {
         assert_eq!(page["next_cursor"], 9);
         assert_eq!(page["messages"].as_array().unwrap().len(), 2);
         assert_eq!(page["deadline_partial"], true);
+        assert_eq!(page["end_reason"], "deadline"); // T-3308
 
         // Pre-T-2573 hub: deadline error without messages → not a page.
         let old: RpcResponse = ErrorResponse::with_data(

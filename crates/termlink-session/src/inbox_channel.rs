@@ -67,6 +67,20 @@ pub struct FallbackCtx {
     cursors: HashMap<String, u64>,
     warned: HashSet<(String, &'static str)>,
     legacy_only_peers: HashSet<String>,
+    /// T-3308: retention gaps seen while resuming from a cursor this ctx saved
+    /// itself — records the hub deleted before this reader got them.
+    retention_gaps: Vec<RetentionGap>,
+}
+
+/// T-3308: one retention gap observed by the inbox reader. Only recorded when
+/// the reader resumed from its OWN saved cursor: a fresh read from 0 on a swept
+/// topic is not a loss (T-3307's rule — the hub reports, the client judges).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct RetentionGap {
+    pub topic: String,
+    pub requested_cursor: u64,
+    pub oldest_offset: u64,
+    pub skipped: u64,
 }
 
 impl FallbackCtx {
@@ -89,6 +103,12 @@ impl FallbackCtx {
 
     pub fn is_legacy_only(&self, host_port: &str) -> bool {
         self.legacy_only_peers.contains(host_port)
+    }
+
+    /// T-3308: drain the retention gaps recorded since the last call, so a
+    /// caller can tell the operator that records were lost before delivery.
+    pub fn take_retention_gaps(&mut self) -> Vec<RetentionGap> {
+        std::mem::take(&mut self.retention_gaps)
     }
 
     #[cfg(test)]
@@ -140,9 +160,16 @@ pub async fn list_via_channel_with_client(
     ctx: &mut FallbackCtx,
 ) -> io::Result<Vec<InboxEntry>> {
     let topic = format!("{TOPIC_PREFIX}{target}");
-    let saved_cursor = ctx.cursors.get(&topic).copied().unwrap_or(0);
-    match call_channel_subscribe_via_client(client, &topic, saved_cursor).await {
-        Ok((messages, next_cursor)) => {
+    let own_cursor = ctx.cursors.get(&topic).copied();
+    let saved_cursor = own_cursor.unwrap_or(0);
+    let walked = page_through_subscribe(
+        saved_cursor,
+        &mut ClientPages { client, topic: &topic },
+    )
+    .await;
+    match walked {
+        Ok((messages, next_cursor, first_gap)) => {
+            note_retention_gap(ctx, host_port, &topic, own_cursor, first_gap);
             if ctx.warn_once(host_port, "channel.subscribe") {
                 tracing::info!(
                     host = %host_port,
@@ -484,11 +511,121 @@ fn extract_methods(resp: &RpcResponse) -> io::Result<Vec<String>> {
     }
 }
 
+/// T-3308: one `channel.subscribe` page as the inbox reader needs it.
+struct SubscribePage {
+    messages: Vec<Value>,
+    next_cursor: u64,
+    /// `"limit"` / `"end"` / `"deadline"`; `None` from a hub predating T-3308.
+    end_reason: Option<String>,
+    /// The hub's T-3307 `gap`, when the requested cursor was already swept.
+    gap: Option<RetentionGap>,
+}
+
+/// T-3308: page size the inbox reader asks for.
+const INBOX_PAGE_LIMIT: u64 = 1000;
+/// T-3308: upper bound on pages per read, so a hub that keeps answering "limit"
+/// (or a bug) cannot spin the reader forever. 200 x 1000 records.
+const INBOX_MAX_PAGES: usize = 200;
+
+/// T-3308: does the walk continue after this page? Only while the cursor
+/// advances, and only when the page says more may follow — `limit` or
+/// `deadline` — or, from a hub too old to say, when the page came back full.
+fn inbox_page_continues(page: &SubscribePage, cursor: u64) -> bool {
+    if page.next_cursor <= cursor {
+        return false;
+    }
+    match page.end_reason.as_deref() {
+        Some("limit") | Some("deadline") => true,
+        Some(_) => false,
+        None => page.messages.len() as u64 >= INBOX_PAGE_LIMIT,
+    }
+}
+
+/// T-3308: read every page from `cursor`. Before, the reader fetched ONE page of
+/// up to 1000 records, so on a bigger `inbox:*` topic a one-shot `inbox list`
+/// (which always starts at 0) never saw later transfers. Returns all messages,
+/// the final cursor, and the gap reported on the FIRST page (the only one whose
+/// requested cursor the caller chose).
+trait PageSource {
+    async fn fetch(&mut self, cursor: u64) -> Result<SubscribePage, SubscribeError>;
+}
+
+struct ClientPages<'a> {
+    client: &'a mut Client,
+    topic: &'a str,
+}
+
+impl PageSource for ClientPages<'_> {
+    async fn fetch(&mut self, cursor: u64) -> Result<SubscribePage, SubscribeError> {
+        call_channel_subscribe_via_client(self.client, self.topic, cursor).await
+    }
+}
+
+async fn page_through_subscribe<S: PageSource>(
+    mut cursor: u64,
+    source: &mut S,
+) -> Result<(Vec<Value>, u64, Option<RetentionGap>), SubscribeError> {
+    let mut all = Vec::new();
+    let mut first_gap = None;
+    for page_no in 0..INBOX_MAX_PAGES {
+        let page = source.fetch(cursor).await?;
+        if page_no == 0 {
+            first_gap = page.gap.clone();
+        }
+        let more = inbox_page_continues(&page, cursor);
+        let next = page.next_cursor.max(cursor);
+        all.extend(page.messages);
+        cursor = next;
+        if !more {
+            return Ok((all, cursor, first_gap));
+        }
+    }
+    tracing::warn!(
+        pages = INBOX_MAX_PAGES,
+        cursor,
+        "T-3308: inbox read stopped at the page cap; the rest is read on the next call"
+    );
+    Ok((all, cursor, first_gap))
+}
+
+/// T-3308: record a hub-reported gap as a LOSS only when the reader resumed
+/// from a cursor it saved itself (`own_cursor`). A first read from 0 on a swept
+/// topic is a fresh reader, not a loss (T-3307).
+fn note_retention_gap(
+    ctx: &mut FallbackCtx,
+    host_port: &str,
+    topic: &str,
+    own_cursor: Option<u64>,
+    gap: Option<RetentionGap>,
+) {
+    let (Some(_), Some(gap)) = (own_cursor, gap) else { return };
+    tracing::warn!(
+        host = %host_port,
+        topic = %topic,
+        requested_cursor = gap.requested_cursor,
+        oldest_offset = gap.oldest_offset,
+        skipped = gap.skipped,
+        "T-3308: {} inbox record(s) were removed by retention before this reader got them",
+        gap.skipped
+    );
+    ctx.retention_gaps.push(RetentionGap { topic: topic.to_string(), ..gap });
+}
+
+fn gap_from_result(v: &Value) -> Option<RetentionGap> {
+    let g = v.get("gap")?;
+    Some(RetentionGap {
+        topic: String::new(),
+        requested_cursor: g.get("requested_cursor")?.as_u64()?,
+        oldest_offset: g.get("oldest_offset")?.as_u64()?,
+        skipped: g.get("skipped")?.as_u64()?,
+    })
+}
+
 async fn call_channel_subscribe_via_client(
     client: &mut Client,
     topic: &str,
     cursor: u64,
-) -> Result<(Vec<Value>, u64), SubscribeError> {
+) -> Result<SubscribePage, SubscribeError> {
     let resp = client
         .call(
             control::method::CHANNEL_SUBSCRIBE,
@@ -496,7 +633,7 @@ async fn call_channel_subscribe_via_client(
             json!({
                 "topic": topic,
                 "cursor": cursor,
-                "limit": 1000,
+                "limit": INBOX_PAGE_LIMIT,
             }),
         )
         .await
@@ -507,7 +644,12 @@ async fn call_channel_subscribe_via_client(
     if let Some(page) = crate::client::deadline_partial_page(&resp) {
         let messages = page["messages"].as_array().cloned().unwrap_or_default();
         let next_cursor = page["next_cursor"].as_u64().unwrap_or(cursor);
-        return Ok((messages, next_cursor));
+        return Ok(SubscribePage {
+            messages,
+            next_cursor,
+            end_reason: Some("deadline".to_string()),
+            gap: None,
+        });
     }
 
     match resp {
@@ -523,7 +665,16 @@ async fn call_channel_subscribe_via_client(
                 .get("next_cursor")
                 .and_then(|v| v.as_u64())
                 .unwrap_or(cursor);
-            Ok((messages, next_cursor))
+            Ok(SubscribePage {
+                messages,
+                next_cursor,
+                end_reason: ok
+                    .result
+                    .get("end_reason")
+                    .and_then(|v| v.as_str())
+                    .map(str::to_string),
+                gap: gap_from_result(&ok.result),
+            })
         }
         RpcResponse::Error(e) if e.error.code == RPC_METHOD_NOT_FOUND => {
             Err(SubscribeError::MethodNotFound)
@@ -777,6 +928,97 @@ mod tests {
             synth_msg("file.init", json!({})), // missing transfer_id
         ];
         assert!(fold_envelopes(&msgs).is_empty());
+    }
+
+    /// T-3308: a fake hub that pages like the real one.
+    struct FakePages {
+        total: u64,
+        limit: u64,
+        /// None = a hub predating T-3308 (no end_reason field).
+        new_hub: bool,
+        oldest: u64,
+        calls: usize,
+    }
+
+    impl PageSource for FakePages {
+        async fn fetch(&mut self, cursor: u64) -> Result<SubscribePage, SubscribeError> {
+            self.calls += 1;
+            let start = cursor.max(self.oldest);
+            let end = (start + self.limit).min(self.total);
+            let messages: Vec<Value> = (start..end).map(|o| json!({"offset": o})).collect();
+            let full = messages.len() as u64 == self.limit;
+            Ok(SubscribePage {
+                next_cursor: if end > start { end } else { cursor },
+                end_reason: self.new_hub.then(|| if full { "limit" } else { "end" }.to_string()),
+                gap: (cursor < self.oldest).then(|| RetentionGap {
+                    topic: String::new(),
+                    requested_cursor: cursor,
+                    oldest_offset: self.oldest,
+                    skipped: self.oldest - cursor,
+                }),
+                messages,
+            })
+        }
+    }
+
+    #[tokio::test]
+    async fn t3308_inbox_reader_reads_past_the_first_page() {
+        // Before T-3308 one page (1000) was all a one-shot `inbox list` ever saw.
+        let mut hub = FakePages { total: 2500, limit: INBOX_PAGE_LIMIT, new_hub: true, oldest: 0, calls: 0 };
+        let (msgs, next, gap) = page_through_subscribe(0, &mut hub).await.ok().unwrap();
+        assert_eq!(msgs.len(), 2500);
+        assert_eq!(msgs.last().unwrap()["offset"], 2499);
+        assert_eq!(next, 2500);
+        assert!(gap.is_none());
+        assert_eq!(hub.calls, 3);
+    }
+
+    #[tokio::test]
+    async fn t3308_inbox_reader_pages_an_old_hub_by_page_size() {
+        // A hub with no end_reason: a full page means "maybe more".
+        let mut hub = FakePages { total: 2000, limit: INBOX_PAGE_LIMIT, new_hub: false, oldest: 0, calls: 0 };
+        let (msgs, next, _) = page_through_subscribe(0, &mut hub).await.ok().unwrap();
+        assert_eq!(msgs.len(), 2000);
+        assert_eq!(next, 2000);
+        assert_eq!(hub.calls, 3, "two full pages, then an empty one that stops the walk");
+    }
+
+    #[tokio::test]
+    async fn t3308_inbox_reader_stops_when_cursor_does_not_advance() {
+        struct Stuck;
+        impl PageSource for Stuck {
+            async fn fetch(&mut self, cursor: u64) -> Result<SubscribePage, SubscribeError> {
+                Ok(SubscribePage {
+                    messages: vec![],
+                    next_cursor: cursor,
+                    end_reason: Some("limit".into()),
+                    gap: None,
+                })
+            }
+        }
+        let (msgs, next, _) = page_through_subscribe(7, &mut Stuck).await.ok().unwrap();
+        assert!(msgs.is_empty());
+        assert_eq!(next, 7);
+    }
+
+    #[tokio::test]
+    async fn t3308_inbox_reader_records_gap_only_for_its_own_cursor() {
+        let mut ctx = FallbackCtx::new();
+        let mut hub = FakePages { total: 50, limit: INBOX_PAGE_LIMIT, new_hub: true, oldest: 30, calls: 0 };
+        // Resumed from a cursor this ctx saved: a real loss.
+        let (msgs, _, gap) = page_through_subscribe(10, &mut hub).await.ok().unwrap();
+        assert_eq!(msgs.len(), 20);
+        note_retention_gap(&mut ctx, "h:1", "inbox:t", Some(10), gap);
+        let gaps = ctx.take_retention_gaps();
+        assert_eq!(gaps.len(), 1);
+        assert_eq!(gaps[0].topic, "inbox:t");
+        assert_eq!(gaps[0].skipped, 20);
+        assert!(ctx.take_retention_gaps().is_empty(), "take drains");
+        // A fresh reader starting at 0 on the same swept topic: not a loss.
+        let (_, _, gap) = page_through_subscribe(0, &mut hub).await.ok().unwrap();
+        assert!(gap.is_some(), "the hub still reports the fact");
+        note_retention_gap(&mut ctx, "h:1", "inbox:t", None, gap);
+        assert!(ctx.take_retention_gaps().is_empty());
     }
 
     #[test]

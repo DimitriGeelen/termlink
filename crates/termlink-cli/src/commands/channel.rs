@@ -9395,6 +9395,31 @@ pub(crate) fn tail_slice<T: Clone>(items: &[T], tail: Option<usize>) -> Vec<T> {
     }
 }
 
+/// T-3308: when a single-shot subscribe page ended because it was FULL
+/// (`end_reason: "limit"`), say so and say how to continue. `None` when the
+/// reader is caught up (`"end"`), and for a hub predating the field — the
+/// absence of a reason is not evidence that more records exist.
+pub(crate) fn page_limit_note(topic: &str, result: &Value, json: bool) -> Option<String> {
+    if result.get("end_reason").and_then(|v| v.as_str()) != Some("limit") {
+        return None;
+    }
+    let next = result.get("next_cursor").and_then(|v| v.as_u64())?;
+    let shown = result
+        .get("messages")
+        .and_then(|v| v.as_array())
+        .map_or(0, |a| a.len());
+    if json {
+        return Some(
+            json!({"note": "page_limit", "topic": topic, "shown": shown, "next_cursor": next})
+                .to_string(),
+        );
+    }
+    Some(format!(
+        "note: page full ({shown} message(s) shown) — more may follow on '{topic}' from offset {next}; \
+         continue with --cursor {next}, raise --limit, use --tail N for the newest, or --follow"
+    ))
+}
+
 /// T-3318: in single-shot `--tail` mode, keep fetching pages while the hub
 /// advances the cursor. An empty page that still advances (a filtered walk or a
 /// deadline-partial page that matched nothing) is not the end; a page whose
@@ -9980,6 +10005,10 @@ pub(crate) async fn cmd_channel_subscribe(
                 for chunk in kept {
                     print!("{}", chunk);
                 }
+            } else if let Some(note) = page_limit_note(topic, &result, json_output) {
+                // T-3308: a single-shot read used to stop after one page with no
+                // sign that more existed. stdout is unchanged; the note is stderr.
+                eprintln!("{note}");
             }
             return Ok(());
         }
@@ -17648,6 +17677,23 @@ mod tests {
         let v = vec![10, 20, 30, 40, 50, 60];
         // Last 4 should be [30, 40, 50, 60] — oldest first.
         assert_eq!(tail_slice(&v, Some(4)), vec![30, 40, 50, 60]);
+    }
+
+    #[test]
+    fn t3308_page_limit_note_only_on_limit() {
+        let full = json!({"messages": [{"offset": 0}, {"offset": 1}], "next_cursor": 2, "end_reason": "limit"});
+        let n = page_limit_note("dm:x", &full, false).unwrap();
+        assert!(n.contains("'dm:x'") && n.contains("offset 2") && n.contains("--cursor 2"), "{n}");
+        let j: Value = serde_json::from_str(&page_limit_note("dm:x", &full, true).unwrap()).unwrap();
+        assert_eq!(j["note"], "page_limit");
+        assert_eq!(j["next_cursor"], 2);
+        assert_eq!(j["shown"], 2);
+        let caught_up = json!({"messages": [], "next_cursor": 5, "end_reason": "end"});
+        assert!(page_limit_note("dm:x", &caught_up, false).is_none());
+        let old_hub = json!({"messages": [{"offset": 0}], "next_cursor": 1});
+        assert!(page_limit_note("dm:x", &old_hub, false).is_none());
+        let deadline = json!({"messages": [], "next_cursor": 9, "end_reason": "deadline"});
+        assert!(page_limit_note("dm:x", &deadline, false).is_none(), "deadline has its own note");
     }
 
     #[test]

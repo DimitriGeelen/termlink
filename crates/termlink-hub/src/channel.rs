@@ -1073,6 +1073,35 @@ struct SubscribeWalk {
     error_msg: Option<String>,
     deadline_hit: bool,
     records_scanned: u64,
+    /// T-3308: the walk stopped because `limit` matches were collected, so more
+    /// records may follow from `next_cursor`. False means the iterator ran out.
+    limit_hit: bool,
+}
+
+/// T-3308: why a `channel.subscribe` page ended — the read contract from
+/// T-3304 IW-3. `"limit"`: the page filled, more may follow from `next_cursor`.
+/// `"end"`: no further record existed at read time (the reader is caught up).
+/// `"deadline"` is carried by the `WALK_DEADLINE_EXCEEDED` error data instead.
+fn subscribe_end_reason(limit_hit: bool) -> &'static str {
+    if limit_hit { "limit" } else { "end" }
+}
+
+/// T-2573 + T-3308: the `WALK_DEADLINE_EXCEEDED` error data — the partial page,
+/// its resume point, and `end_reason: "deadline"` so a reader that treats the
+/// error as a page sees the same read contract as a success response.
+fn subscribe_deadline_data(
+    deadline_ms: u64,
+    records_scanned: u64,
+    next_cursor: u64,
+    messages: Vec<Value>,
+) -> Value {
+    json!({
+        "deadline_ms": deadline_ms,
+        "records_scanned": records_scanned,
+        "next_cursor": next_cursor,
+        "messages": messages,
+        "end_reason": "deadline",
+    })
 }
 
 /// The `channel.subscribe` record walk, factored out of the
@@ -1094,6 +1123,7 @@ fn walk_subscribe_records(
     let mut error_msg: Option<String> = None;
     let mut deadline_hit = false;
     let mut records_scanned: u64 = 0;
+    let mut limit_hit = false;
     for item in iter {
         if started.elapsed() >= deadline {
             deadline_hit = true;
@@ -1120,6 +1150,7 @@ fn walk_subscribe_records(
         }
         messages.push(envelope_to_json(offset, &env));
         if messages.len() >= limit {
+            limit_hit = true;
             break;
         }
     }
@@ -1129,6 +1160,7 @@ fn walk_subscribe_records(
         error_msg,
         deadline_hit,
         records_scanned,
+        limit_hit,
     }
 }
 
@@ -1327,15 +1359,16 @@ pub(crate) async fn handle_channel_subscribe_with(
             // filtered out were correctly skipped — so a client that delivers
             // `messages` and resumes from `next_cursor` is lossless and always
             // progresses. Unupgraded clients still see the same loud error.
-            json!({
-                "deadline_ms": deadline.as_millis() as u64,
-                "records_scanned": walk.records_scanned,
-                "next_cursor": next_cursor,
-                "messages": walk.messages,
-            }),
+            subscribe_deadline_data(
+                deadline.as_millis() as u64,
+                walk.records_scanned,
+                next_cursor,
+                walk.messages,
+            ),
         )
         .into();
     }
+    let end_reason = subscribe_end_reason(walk.limit_hit);
     let messages = walk.messages;
 
     // T-2027/T-2089 slice 2 — assemble the current-value prefix from the
@@ -1382,6 +1415,7 @@ pub(crate) async fn handle_channel_subscribe_with(
     {
         let obj = body.as_object_mut().expect("subscribe response body is an object");
         obj.insert("oldest_offset".to_string(), json!(oldest_offset));
+        obj.insert("end_reason".to_string(), json!(end_reason));
         if let Some(gap) = retention_gap_json(cursor, oldest_offset) {
             obj.insert("gap".to_string(), gap);
         }
@@ -2644,6 +2678,79 @@ mod tests {
         let want: Vec<u64> = (0..total).filter(|n| n % 3 == 0).collect();
         assert_eq!(got, want, "union of pages must equal every matching record, once, in order");
         assert!(partial_calls >= 2, "the test must actually exercise the deadline path");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn subscribe_end_reason_limit_then_end() {
+        // T-3308: a full page says "limit" (more may follow), a short or empty
+        // page says "end" (caught up). Before, both looked identical.
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("dm:er", Retention::Forever).unwrap();
+        let key = signing_key();
+        for n in 0u32..5 {
+            let p = post_params(&key, "dm:er", "note", &n.to_le_bytes(), 1_000 + n as i64);
+            let _ = handle_channel_post_with(&bus, json!(n), &p).await;
+        }
+        let sub = |cursor: u64, limit: u64| {
+            let bus = &bus;
+            async move {
+                unwrap_success(
+                    handle_channel_subscribe_with(
+                        bus,
+                        json!(1),
+                        &json!({"topic": "dm:er", "cursor": cursor, "limit": limit}),
+                    )
+                    .await,
+                )
+            }
+        };
+        let full = sub(0, 2).await;
+        assert_eq!(full["end_reason"], "limit");
+        assert_eq!(full["next_cursor"], 2);
+        let short = sub(4, 2).await;
+        assert_eq!(short["end_reason"], "end");
+        assert_eq!(short["messages"].as_array().unwrap().len(), 1);
+        let empty = sub(5, 2).await;
+        assert_eq!(empty["end_reason"], "end");
+        assert_eq!(empty["next_cursor"], 5);
+        // A page that fills exactly at the end of the topic still says "limit":
+        // the walk cannot know nothing follows without reading one more record.
+        // The reader's next call then returns an empty page that says "end".
+        assert_eq!(sub(3, 2).await["end_reason"], "limit");
+    }
+
+    #[test]
+    fn end_reason_filtered_walk_that_runs_out_is_end() {
+        // T-3308: a filtered walk that collects fewer than `limit` matches ran out
+        // of records, so it is "end" even though it scanned many.
+        let walk = walk_subscribe_records(
+            walk_test_iter(6, 0),
+            Some("no-such-conversation".to_string()),
+            None,
+            2,
+            std::time::Duration::from_secs(60),
+        );
+        assert!(!walk.limit_hit);
+        assert_eq!(subscribe_end_reason(walk.limit_hit), "end");
+        assert_eq!(walk.records_scanned, 6);
+        let walk = walk_subscribe_records(
+            walk_test_iter(6, 0),
+            None,
+            None,
+            2,
+            std::time::Duration::from_secs(60),
+        );
+        assert!(walk.limit_hit);
+        assert_eq!(subscribe_end_reason(walk.limit_hit), "limit");
+    }
+
+    #[test]
+    fn end_reason_deadline_error_data_carries_deadline() {
+        let d = subscribe_deadline_data(20_000, 7, 12, vec![json!({"offset": 3})]);
+        assert_eq!(d["end_reason"], "deadline");
+        assert_eq!(d["next_cursor"], 12);
+        assert_eq!(d["records_scanned"], 7);
+        assert_eq!(d["messages"][0]["offset"], 3);
     }
 
     #[test]
