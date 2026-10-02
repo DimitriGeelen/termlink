@@ -26,7 +26,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-01T19:22:54Z
-last_update: 2026-10-02T14:17:01Z
+last_update: 2026-10-02T14:44:45Z
 date_finished:
 revisit_at: 2026-11-15
 revisit_evidence_needed: enforcement auto-flipped on every hub, or the backstop canary named who still sends bare forever
