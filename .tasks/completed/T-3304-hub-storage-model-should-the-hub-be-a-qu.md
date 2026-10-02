@@ -12,7 +12,7 @@ owner: human
 horizon: null
 tags: []
 components: []
-related_tasks: []
+related_tasks: [T-3307, T-2573, T-3308, T-3309, T-3310, T-3311, T-3312, T-3313, T-3314, T-3315]
 created: 2026-10-01T18:13:59Z
 last_update: 2026-10-01T19:32:17Z
 date_finished: 2026-10-01T19:32:17Z
