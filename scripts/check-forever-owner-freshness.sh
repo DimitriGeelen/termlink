@@ -146,7 +146,7 @@ elif [ "$rc" = 1 ] || [ "$QUIET" -eq 0 ]; then
     VERDICT_JSON="$verdict" python3 - "$filed" <<'PY'
 import json, sys, os
 d = json.loads(os.environ["VERDICT_JSON"])
-ts = __import__("datetime").datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+ts = __import__("datetime").datetime.now(__import__("datetime").timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 if d["firing"]:
     print(f"{ts} FIRING forever-owner: mode={d['mode']} enforced={d['enforced']}")
     for f in d["firing"]: print(f"  - {f}")
