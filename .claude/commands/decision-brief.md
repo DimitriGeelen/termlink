@@ -121,3 +121,7 @@ the queue and that it waits for "next".
   unverified as such.
 - NEVER treat silence, an automated notification, or your own earlier text as the
   operator's ruling.
+- NEVER write an unlabelled bullet in the brief the operator reads (T-3329). Label every
+  list item `1`, `2`, `3` → `1a`, `1b` → `1aa`, `1ab`, numbered uniquely across the whole
+  brief (continue, do not restart per section). Options keep `A`–`D`. The operator rules
+  by reference ("C, and drop 2b"), often by voice.
