@@ -13,6 +13,7 @@ mod artifact_store;
 mod claim;
 mod envelope;
 mod error;
+mod limits;
 mod log;
 mod meta;
 mod retention;
@@ -22,7 +23,11 @@ pub use artifact_store::{ArtifactStore, StreamingPutOutcome};
 pub use claim::{ClaimInfo, ClaimsSummary, IdleAgent, ReleaseInfo, TransferInfo};
 pub use envelope::Envelope;
 pub use error::{BusError, Result};
+pub use limits::{
+    CeilingAction, Ceilings, DEFAULT_MAX_LIVE_BYTES, DEFAULT_MAX_RECORDS, TopicStats, ceiling_action,
+};
 pub use log::Offset;
+pub use meta::{BareForeverSender, BareForeverSummary};
 pub use retention::Retention;
 
 /// Iterator yielded by `Bus::subscribe` — one `(offset, envelope)` per
@@ -48,8 +53,10 @@ pub struct Gap {
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::collections::HashSet;
 use std::sync::Arc;
 use std::sync::Mutex as StdMutex;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use tokio::sync::Notify;
 use tokio::time::{timeout, Duration};
@@ -64,6 +71,22 @@ pub struct Bus {
     /// successful append; `subscribe_blocking` listens on it. Enables
     /// long-poll without busy polling (T-1289 / T-243 dialog liveness).
     notifiers: StdMutex<HashMap<String, Arc<Notify>>>,
+    /// T-3310 D3: ceilings checked on every post (configurable).
+    ceilings: StdMutex<Ceilings>,
+    /// T-3310: forever topics already warned about in this process, so a
+    /// topic past its ceiling warns once rather than on every post.
+    forever_warned: StdMutex<HashSet<String>>,
+    post_trims_total: AtomicU64,
+    post_trimmed_records_total: AtomicU64,
+    forever_warnings_total: AtomicU64,
+}
+
+/// T-3310: counters for the post-time ceilings, for `hub.governor_status`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, serde::Serialize)]
+pub struct CeilingCounters {
+    pub post_trims_total: u64,
+    pub post_trimmed_records_total: u64,
+    pub forever_warnings_total: u64,
 }
 
 impl Bus {
@@ -78,7 +101,125 @@ impl Bus {
             meta,
             appenders: StdMutex::new(HashMap::new()),
             notifiers: StdMutex::new(HashMap::new()),
+            ceilings: StdMutex::new(Ceilings::default()),
+            forever_warned: StdMutex::new(HashSet::new()),
+            post_trims_total: AtomicU64::new(0),
+            post_trimmed_records_total: AtomicU64::new(0),
+            forever_warnings_total: AtomicU64::new(0),
         })
+    }
+
+    /// T-3310 D3: replace the post-time ceilings (hub config file).
+    pub fn set_ceilings(&self, c: Ceilings) {
+        *self.ceilings.lock().expect("ceilings mutex poisoned") = c;
+    }
+
+    /// T-3310 D3: the ceilings currently applied on post.
+    pub fn ceilings(&self) -> Ceilings {
+        *self.ceilings.lock().expect("ceilings mutex poisoned")
+    }
+
+    /// T-3310 D3: trims and warnings made on post since this bus opened.
+    pub fn ceiling_counters(&self) -> CeilingCounters {
+        CeilingCounters {
+            post_trims_total: self.post_trims_total.load(Ordering::Relaxed),
+            post_trimmed_records_total: self.post_trimmed_records_total.load(Ordering::Relaxed),
+            forever_warnings_total: self.forever_warnings_total.load(Ordering::Relaxed),
+        }
+    }
+
+    /// T-3310 D1: create a topic and record its owner/reason. On an existing
+    /// topic with the same policy, a supplied owner/reason is recorded too, so
+    /// an unowned forever topic can be claimed by re-creating it with an owner.
+    pub fn create_topic_owned(
+        &self,
+        name: &str,
+        retention: Retention,
+        owner: Option<&str>,
+        reason: Option<&str>,
+    ) -> Result<bool> {
+        let created = self.meta.create_topic(name, retention)?;
+        if owner.is_some() || reason.is_some() {
+            self.meta.set_topic_owner(name, owner, reason)?;
+        }
+        Ok(created)
+    }
+
+    /// T-3310: owner/reason of every topic that has one.
+    pub fn topic_owners(&self) -> Result<HashMap<String, (Option<String>, Option<String>)>> {
+        self.meta.all_topic_owners()
+    }
+
+    /// T-3310 D1: record that `sender` created the NEW topic `topic` as
+    /// forever without an owner and reason.
+    pub fn note_bare_forever(&self, topic: &str, sender: &str, ts_ms: i64) -> Result<()> {
+        self.meta.note_bare_forever(topic, sender, ts_ms)
+    }
+
+    /// T-3310 D1: the bare-forever record (watch clock + senders).
+    pub fn bare_forever_summary(&self) -> Result<BareForeverSummary> {
+        self.meta.bare_forever_summary()
+    }
+
+    /// Test seam for the D1 clock.
+    pub fn set_forever_watch_since(&self, ms: i64) -> Result<()> {
+        self.meta.set_forever_watch_since(ms)
+    }
+
+    /// Records, live bytes and oldest timestamp indexed for `topic`.
+    pub fn topic_stats(&self, topic: &str) -> Result<TopicStats> {
+        self.meta.topic_stats(topic)
+    }
+
+    /// T-3310 D3: check `topic` against its ceiling after a post and trim (or,
+    /// for a forever topic, warn). Returns the number of records trimmed.
+    pub fn apply_ceiling(&self, topic: &str, now_ms: i64) -> Result<u64> {
+        let Some(retention) = self.meta.topic_retention(topic)? else {
+            return Ok(0);
+        };
+        let ceilings = self.ceilings();
+        if !ceilings.on_post {
+            return Ok(0);
+        }
+        let stats = self.meta.topic_stats(topic)?;
+        let action = ceiling_action(retention, stats, now_ms, ceilings);
+        let (trimmed, reason) = match action {
+            CeilingAction::None => return Ok(0),
+            CeilingAction::WarnForever { reason } => {
+                let first = self
+                    .forever_warned
+                    .lock()
+                    .expect("forever_warned mutex poisoned")
+                    .insert(topic.to_string());
+                if first {
+                    self.forever_warnings_total.fetch_add(1, Ordering::Relaxed);
+                    eprintln!(
+                        "warning: T-3310: forever topic {topic} is past its ceiling ({reason}): \
+                         {} records, {} live bytes. Forever topics are never trimmed; bound it with \
+                         `channel set-retention` or give it an owner and reason.",
+                        stats.records, stats.live_bytes
+                    );
+                }
+                return Ok(0);
+            }
+            CeilingAction::KeepLast { keep, reason } => {
+                (self.meta.sweep_records(topic, None, Some(keep))?, reason)
+            }
+            CeilingAction::KeepAfter { cutoff_ms, reason } => {
+                (self.meta.sweep_records(topic, Some(cutoff_ms), None)?, reason)
+            }
+            CeilingAction::KeepBytes { target, reason } => (self.meta.keep_bytes(topic, target)?, reason),
+            CeilingAction::CompactPerKey => (self.compact_per_cv_key(topic)?, "per-key topic past ceiling"),
+        };
+        if trimmed > 0 {
+            self.post_trims_total.fetch_add(1, Ordering::Relaxed);
+            self.post_trimmed_records_total.fetch_add(trimmed, Ordering::Relaxed);
+            eprintln!(
+                "termlink-bus: T-3310 trimmed {trimmed} oldest record(s) from {topic} on post ({reason}); \
+                 readers behind the trim are told via the subscribe gap signal"
+            );
+        }
+        Ok(trimmed)
     }
 
     /// Get or lazily create the per-topic Notify. Cheap — Arc clone, no IO.
@@ -199,6 +340,11 @@ impl Bus {
             && let Err(e) = self.meta.note_write(topic, &env.sender_id, env.ts_unix_ms)
         {
             eprintln!("warning: T-3309: could not record write activity on {topic}: {e}");
+        }
+        // T-3310 D3: ceilings checked on post. Best-effort like activity: the
+        // record is already durable, so a failed trim must not fail the post.
+        if let Err(e) = self.apply_ceiling(topic, now_unix_ms()) {
+            eprintln!("warning: T-3310: ceiling check failed on {topic}: {e}");
         }
         // T-1289: wake any subscribers blocked in `subscribe_blocking` for
         // this topic. No-op when there are no waiters; cheap atomic.
@@ -920,6 +1066,99 @@ mod tests {
         (dir, bus)
     }
 
+    /// A bus with T-3310's post-time ceilings off, for tests that pin what the
+    /// explicit `sweep` does on its own.
+    fn tmp_bus_sweep_only() -> (TempDir, Bus) {
+        let (dir, bus) = tmp_bus();
+        bus.set_ceilings(Ceilings { on_post: false, ..Ceilings::default() });
+        (dir, bus)
+    }
+
+    #[tokio::test]
+    async fn t3310_messages_topic_trims_on_post_past_2n() {
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("t", Retention::Messages(3)).unwrap();
+        for i in 0..6 {
+            bus.post("t", &env("t", format!("m{i}").as_bytes())).await.unwrap();
+        }
+        assert_eq!(bus.topic_record_count("t").unwrap(), 6, "2N reached, not passed");
+        bus.post("t", &env("t", b"m6")).await.unwrap();
+        let offsets: Vec<u64> = bus.subscribe("t", 0).unwrap().map(|r| r.unwrap().0).collect();
+        assert_eq!(offsets, vec![4, 5, 6], "trimmed back to N, newest kept");
+        let c = bus.ceiling_counters();
+        assert_eq!((c.post_trims_total, c.post_trimmed_records_total), (1, 4));
+        // Offsets stay monotonic across the trim.
+        assert_eq!(bus.post("t", &env("t", b"m7")).await.unwrap(), 7);
+    }
+
+    #[tokio::test]
+    async fn t3310_days_topic_has_a_count_ceiling_on_post() {
+        // The operator's flood case: a 14-day topic must not grow without
+        // bound inside its window.
+        let (_dir, bus) = tmp_bus();
+        bus.set_ceilings(Ceilings { max_records: 4, ..Ceilings::default() });
+        bus.create_topic("flood", Retention::Days(14)).unwrap();
+        for i in 0..5 {
+            let e = Envelope { ts_unix_ms: now_unix_ms(), ..env("flood", format!("m{i}").as_bytes()) };
+            bus.post("flood", &e).await.unwrap();
+        }
+        assert_eq!(bus.topic_record_count("flood").unwrap(), 2, "past 4, back to 4/2");
+    }
+
+    #[tokio::test]
+    async fn t3310_byte_ceiling_trims_oldest_on_post() {
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("big", Retention::Messages(1000)).unwrap();
+        let one = bus.post("big", &env("big", &[b'x'; 100])).await.unwrap();
+        let len = bus.topic_stats("big").unwrap().live_bytes;
+        assert_eq!(one, 0);
+        // Ceiling = 3 records' worth; the 4th post passes it and trims to half.
+        bus.set_ceilings(Ceilings { max_live_bytes: 3 * len, ..Ceilings::default() });
+        for _ in 0..3 {
+            bus.post("big", &env("big", &[b'x'; 100])).await.unwrap();
+        }
+        let s = bus.topic_stats("big").unwrap();
+        assert!(s.live_bytes <= 3 * len / 2, "trimmed to at most half the ceiling: {s:?}");
+        assert!(s.records >= 1, "newest record kept");
+        let offsets: Vec<u64> = bus.subscribe("big", 0).unwrap().map(|r| r.unwrap().0).collect();
+        assert_eq!(*offsets.last().unwrap(), 3, "the newest record survives");
+    }
+
+    #[tokio::test]
+    async fn t3310_forever_topic_warns_and_never_trims() {
+        let (_dir, bus) = tmp_bus();
+        bus.set_ceilings(Ceilings { max_records: 2, ..Ceilings::default() });
+        bus.create_topic("keep", Retention::Forever).unwrap();
+        for i in 0..6 {
+            bus.post("keep", &env("keep", format!("m{i}").as_bytes())).await.unwrap();
+        }
+        assert_eq!(bus.topic_record_count("keep").unwrap(), 6, "forever is never deleted");
+        let c = bus.ceiling_counters();
+        assert_eq!(c.forever_warnings_total, 1, "warned once, not on every post");
+        assert_eq!(c.post_trims_total, 0);
+    }
+
+    #[tokio::test]
+    async fn t3310_owner_and_bare_forever_record() {
+        let (dir, bus) = tmp_bus();
+        assert!(bus.create_topic_owned("a", Retention::Forever, None, None).unwrap());
+        assert!(!bus.create_topic_owned("a", Retention::Forever, Some("ops"), Some("audit log")).unwrap());
+        let owners = bus.topic_owners().unwrap();
+        assert_eq!(owners.get("a"), Some(&(Some("ops".into()), Some("audit log".into()))));
+        bus.note_bare_forever("b", "fp-old", 1000).unwrap();
+        bus.note_bare_forever("c", "fp-old", 3000).unwrap();
+        bus.note_bare_forever("d", "fp-other", 2000).unwrap();
+        let s = bus.bare_forever_summary().unwrap();
+        assert_eq!(s.last_create_ms, Some(3000));
+        assert_eq!(s.senders[0], BareForeverSender { sender: "fp-old".into(), creates: 2, last_ms: 3000 });
+        // The watch clock survives a reopen (it is set once, on first open).
+        let since = s.watch_since_ms;
+        drop(bus);
+        let reopened = Bus::open(dir.path()).unwrap();
+        assert_eq!(reopened.bare_forever_summary().unwrap().watch_since_ms, since);
+        assert_eq!(reopened.topic_owners().unwrap().len(), 1, "owner persisted");
+    }
+
     #[tokio::test]
     async fn delete_topic_removes_everything() {
         let (dir, bus) = tmp_bus();
@@ -1225,7 +1464,7 @@ mod tests {
     /// `subscribe`'s silent jump-to-oldest.
     #[tokio::test]
     async fn gap_before_detects_fell_behind_subscriber() {
-        let (_dir, bus) = tmp_bus();
+        let (_dir, bus) = tmp_bus_sweep_only();
         bus.create_topic("t", Retention::Messages(2)).unwrap();
         for i in 0..5 {
             bus.post("t", &env("t", format!("m{i}").as_bytes())).await.unwrap();
@@ -1248,7 +1487,7 @@ mod tests {
     /// This is the discriminator that a raw-cursor check would get wrong.
     #[tokio::test]
     async fn gap_before_none_for_fresh_and_caught_up() {
-        let (_dir, bus) = tmp_bus();
+        let (_dir, bus) = tmp_bus_sweep_only();
         bus.create_topic("t", Retention::Messages(2)).unwrap();
         for i in 0..5 {
             bus.post("t", &env("t", format!("m{i}").as_bytes())).await.unwrap();
@@ -1282,7 +1521,7 @@ mod tests {
 
     #[tokio::test]
     async fn sweep_retention_messages_keeps_last_n() {
-        let (_dir, bus) = tmp_bus();
+        let (_dir, bus) = tmp_bus_sweep_only();
         bus.create_topic("t", Retention::Messages(2)).unwrap();
         for i in 0..5 {
             bus.post("t", &env("t", format!("m{i}").as_bytes())).await.unwrap();
@@ -1299,7 +1538,7 @@ mod tests {
 
     #[tokio::test]
     async fn sweep_retention_latest_keeps_one() {
-        let (_dir, bus) = tmp_bus();
+        let (_dir, bus) = tmp_bus_sweep_only();
         bus.create_topic("t", Retention::Latest).unwrap();
         for i in 0..5 {
             bus.post("t", &env("t", format!("m{i}").as_bytes())).await.unwrap();
@@ -1456,7 +1695,7 @@ mod tests {
 
     #[tokio::test]
     async fn sweep_retention_days_keeps_fresh() {
-        let (_dir, bus) = tmp_bus();
+        let (_dir, bus) = tmp_bus_sweep_only();
         bus.create_topic("t", Retention::Days(1)).unwrap();
         let day_ms: i64 = 86_400_000;
         let now: i64 = 10 * day_ms;
@@ -1485,7 +1724,7 @@ mod tests {
         // T-1285: subscribers that disconnect across a retention sweep must
         // be able to detect that their cursor fell behind. oldest_offset()
         // is the cheap signal: cursor < oldest_offset == gap.
-        let (_dir, bus) = tmp_bus();
+        let (_dir, bus) = tmp_bus_sweep_only();
         bus.create_topic("t", Retention::Messages(2)).unwrap();
 
         // No records yet — None.
@@ -1522,7 +1761,7 @@ mod tests {
         // the client unread/ack math needs: after a sweep, count-1 under-states
         // the latest offset by the number of swept records, silently dropping
         // unread rows. The test pins the exact divergence.
-        let (_dir, bus) = tmp_bus();
+        let (_dir, bus) = tmp_bus_sweep_only();
         bus.create_topic("t", Retention::Messages(2)).unwrap();
 
         // Registered but never posted → None (distinct from offset 0).

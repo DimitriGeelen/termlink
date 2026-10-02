@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::Path;
 
 use rusqlite::{Connection, OptionalExtension, params};
@@ -16,9 +17,11 @@ impl Meta {
     pub(crate) fn open(path: &Path) -> Result<Self> {
         let conn = Connection::open(path)?;
         init_schema(&conn)?;
-        Ok(Self {
+        let meta = Self {
             conn: std::sync::Mutex::new(conn),
-        })
+        };
+        meta.migrate_t3310()?;
+        Ok(meta)
     }
 
     /// Idempotent topic creation. Returns `Ok(true)` when the topic was
@@ -1053,6 +1056,17 @@ fn init_schema(conn: &Connection) -> Result<()> {
             last_data_fetch_ms INTEGER,
             PRIMARY KEY (topic, reader)
          );
+         -- T-3310: hub-wide state (the bare-forever watch clock) and the record of
+         -- bare-forever creates that drives D1's automatic enforcement.
+         CREATE TABLE IF NOT EXISTS hub_state (
+            key   TEXT PRIMARY KEY,
+            value INTEGER NOT NULL
+         );
+         CREATE TABLE IF NOT EXISTS forever_requests (
+            ts_ms  INTEGER NOT NULL,
+            topic  TEXT NOT NULL,
+            sender TEXT NOT NULL
+         );
          INSERT OR IGNORE INTO schema_version (version) VALUES (1);",
     )?;
     Ok(())
@@ -1116,5 +1130,179 @@ mod claim_id_tests {
         let x = generate_claim_id("same-topic", 7, 1_000);
         let y = generate_claim_id("same-topic", 7, 1_000);
         assert_ne!(x, y, "consecutive generate_claim_id calls must never collide");
+    }
+}
+
+/// T-3310: one sender's bare-forever creates (forever, no owner/reason).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct BareForeverSender {
+    pub sender: String,
+    pub creates: u64,
+    pub last_ms: i64,
+}
+
+/// T-3310: what the hub knows about bare-forever creates, for the D1
+/// enforcement clock and the backstop canary.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct BareForeverSummary {
+    /// When this hub started watching (first open of a T-3310 bus).
+    pub watch_since_ms: i64,
+    /// Most recent bare-forever create of a NEW topic, if any.
+    pub last_create_ms: Option<i64>,
+    pub senders: Vec<BareForeverSender>,
+}
+
+/// T-3310 additions to the metadata store: topic ownership, the bare-forever
+/// record, and the per-topic stats the post-time ceilings read.
+impl Meta {
+    /// Add the T-3310 columns to an existing `topics` table. `ALTER TABLE ADD
+    /// COLUMN` is not idempotent in SQLite, so each column is checked first.
+    pub(crate) fn migrate_t3310(&self) -> Result<()> {
+        let conn = self.conn.lock().expect("meta mutex poisoned");
+        let cols: Vec<String> = conn
+            .prepare("PRAGMA table_info(topics)")?
+            .query_map([], |r| r.get::<_, String>(1))?
+            .collect::<std::result::Result<_, _>>()?;
+        for col in ["owner", "reason"] {
+            if !cols.iter().any(|c| c == col) {
+                conn.execute(&format!("ALTER TABLE topics ADD COLUMN {col} TEXT"), [])?;
+            }
+        }
+        conn.execute(
+            "INSERT OR IGNORE INTO hub_state (key, value) VALUES ('forever_watch_since_ms', ?1)",
+            params![now_unix_ms()],
+        )?;
+        Ok(())
+    }
+
+    /// Set owner and/or reason on an existing topic. `None` leaves a field
+    /// unchanged. Returns false when the topic does not exist.
+    pub(crate) fn set_topic_owner(
+        &self,
+        name: &str,
+        owner: Option<&str>,
+        reason: Option<&str>,
+    ) -> Result<bool> {
+        let conn = self.conn.lock().expect("meta mutex poisoned");
+        let n = conn.execute(
+            "UPDATE topics SET owner = COALESCE(?2, owner), reason = COALESCE(?3, reason) \
+             WHERE name = ?1",
+            params![name, owner, reason],
+        )?;
+        Ok(n > 0)
+    }
+
+    /// Owner and reason of every topic that has at least one of them.
+    pub(crate) fn all_topic_owners(
+        &self,
+    ) -> Result<HashMap<String, (Option<String>, Option<String>)>> {
+        let conn = self.conn.lock().expect("meta mutex poisoned");
+        let mut stmt = conn.prepare(
+            "SELECT name, owner, reason FROM topics WHERE owner IS NOT NULL OR reason IS NOT NULL",
+        )?;
+        let rows = stmt.query_map([], |r| {
+            Ok((r.get::<_, String>(0)?, (r.get(1)?, r.get(2)?)))
+        })?;
+        Ok(rows.collect::<std::result::Result<_, _>>()?)
+    }
+
+    /// Record a bare-forever create of a new topic.
+    pub(crate) fn note_bare_forever(&self, topic: &str, sender: &str, ts_ms: i64) -> Result<()> {
+        let conn = self.conn.lock().expect("meta mutex poisoned");
+        conn.execute(
+            "INSERT INTO forever_requests (ts_ms, topic, sender) VALUES (?1, ?2, ?3)",
+            params![ts_ms, topic, sender],
+        )?;
+        Ok(())
+    }
+
+    pub(crate) fn bare_forever_summary(&self) -> Result<BareForeverSummary> {
+        let conn = self.conn.lock().expect("meta mutex poisoned");
+        let watch_since_ms: i64 = conn
+            .query_row(
+                "SELECT value FROM hub_state WHERE key = 'forever_watch_since_ms'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap_or_else(|_| now_unix_ms());
+        let last_create_ms: Option<i64> =
+            conn.query_row("SELECT MAX(ts_ms) FROM forever_requests", [], |r| r.get(0))?;
+        let mut stmt = conn.prepare(
+            "SELECT sender, COUNT(*), MAX(ts_ms) FROM forever_requests \
+             GROUP BY sender ORDER BY MAX(ts_ms) DESC",
+        )?;
+        let senders = stmt
+            .query_map([], |r| {
+                Ok(BareForeverSender {
+                    sender: r.get(0)?,
+                    creates: r.get::<_, i64>(1)? as u64,
+                    last_ms: r.get(2)?,
+                })
+            })?
+            .collect::<std::result::Result<_, _>>()?;
+        Ok(BareForeverSummary { watch_since_ms, last_create_ms, senders })
+    }
+
+    /// Test seam: move the watch clock (the clock is otherwise set once, on
+    /// the first open of a T-3310 bus).
+    pub(crate) fn set_forever_watch_since(&self, ms: i64) -> Result<()> {
+        let conn = self.conn.lock().expect("meta mutex poisoned");
+        conn.execute(
+            "INSERT INTO hub_state (key, value) VALUES ('forever_watch_since_ms', ?1) \
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            params![ms],
+        )?;
+        Ok(())
+    }
+
+    /// Records, live bytes and oldest timestamp currently indexed for `topic`.
+    pub(crate) fn topic_stats(&self, topic: &str) -> Result<crate::limits::TopicStats> {
+        let conn = self.conn.lock().expect("meta mutex poisoned");
+        let (records, live_bytes, oldest): (i64, i64, Option<i64>) = conn.query_row(
+            "SELECT COUNT(*), COALESCE(SUM(length), 0), MIN(ts_unix_ms) FROM records WHERE topic = ?1",
+            params![topic],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+        )?;
+        Ok(crate::limits::TopicStats {
+            records: records as u64,
+            live_bytes: live_bytes as u64,
+            oldest_ts_ms: oldest,
+        })
+    }
+
+    /// Drop the oldest records of `topic` until at most `target` live bytes
+    /// remain. Returns the number of records deleted. Index-only.
+    pub(crate) fn keep_bytes(&self, topic: &str, target: u64) -> Result<u64> {
+        let mut conn = self.conn.lock().expect("meta mutex poisoned");
+        let tx = conn.transaction()?;
+        // Walk newest-first, summing lengths; the first offset whose running
+        // total passes `target` and everything older goes.
+        let cutoff: Option<i64> = {
+            let mut stmt = tx.prepare(
+                "SELECT offset, length FROM records WHERE topic = ?1 ORDER BY offset DESC",
+            )?;
+            let mut rows = stmt.query(params![topic])?;
+            let mut total: u64 = 0;
+            let mut cut = None;
+            while let Some(row) = rows.next()? {
+                let off: i64 = row.get(0)?;
+                let len: i64 = row.get(1)?;
+                total = total.saturating_add(len as u64);
+                if total > target {
+                    cut = Some(off);
+                    break;
+                }
+            }
+            cut
+        };
+        let deleted = match cutoff {
+            Some(off) => tx.execute(
+                "DELETE FROM records WHERE topic = ?1 AND offset <= ?2",
+                params![topic, off],
+            )? as u64,
+            None => 0,
+        };
+        tx.commit()?;
+        Ok(deleted)
     }
 }
