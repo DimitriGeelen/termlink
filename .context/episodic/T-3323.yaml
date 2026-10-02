@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3323: Upgrade .121 ring20-dashboard hub via runme now that it has a remote-exec foothold
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-02T17:10:17Z
+# ============================================================================
+
+task_id: T-3323
+task_name: "Upgrade .121 ring20-dashboard hub via runme now that it has a remote-exec foothold"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-02T16:52:01Z
+completed: 2026-10-02T17:09:13Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-02T18:56:07+02:00
+last_commit: 2026-10-02T19:06:04+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  .121 (ring20-dashboard) joins runme action 6. It now has a root remote-exec session (read-only probe: x86_64, /usr/local/bin/termlink 0.12.39, hub detached with no systemd unit, TERMLINK_RUNTIME_DIR=/var/lib/termlink with hub.secret + May cert). fleet-deploy-binary --swap-restart hardened: the relaunch reuses the RUNNING hub's TERMLINK_RUNTIME_DIR and arguments read from /proc/<pid>/{environ,cmdline} (rendered heredoc verified against the local hub: /var/lib/termlink, hub start --tcp 0.0.0.0:9100 --json), instead of the exec session's env with a ~/.termlink/runtime fallback that would have rotated secret+cert (PL-021). runme fixtures 75/75. Floors note updated; .121 stays exempt until the upgrade is verified.. .121 upgraded and verified live (0.12.39 -> 0.12.103; secret + cert unchanged, runtime dir and args preserved, session reconnected, T-3310 fields served); floor ring20-dashboard 0.12.103; fleet binary canary green
+
+# Key outcomes
+outcomes:
+  - '`scripts/fleet-deploy-binary.sh --swap-restart` relaunches a detached hub with the RUNNING hub''s TERMLINK_RUNTIME_DIR (read from /proc/<pid>/environ), falling back to the exec session''s env only when unreadable — so a restart can never move the hub to a fresh runtime dir and rotate its secret/cert (PL-021)'
+  - 'runme.sh action 6 includes ring20-dashboard (.121) alongside ring20-management; comments and the action heading no longer say ".121 has no foothold"'
+  - 'runme fixtures still pass (action count derived, no real host touched)'
+  - 'After the operator''s runme run: fleet doctor shows .121 serving the deployed version with status ok (secret still authenticates) and `tofu verify` passes (cert unchanged); its governor reports the T-3310 retention fields'
+  - '`.context/cron/fleet-version-floors.conf` note for ring20-dashboard updated to the measured state (0.12.39 before, foothold exists)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: '.121 (ring20-dashboard) joins runme action 6. It now has a root remote-exec session (read-only probe: x86_64, /usr/local/bin/termlink 0.12.39, hub detached with no systemd unit, TERMLINK_RUNTIME_DIR=/var/lib/termlink with hub.secret + May cert). fleet-deploy-binary --swap-restart hardened: the relaunch reuses the RUNNING hub''s TERMLINK_RUNTIME_DIR and arguments read from /proc/<pid>/{environ,cmdline} (rendered heredoc verified against the local hub: /var/lib/termlink, hub start --tcp 0.0.0.0:9100 --json), instead of the exec session''s env with a ~/.termlink/runtime fallback that would have rotated secret+cert (PL-021). runme fixtures 75/75. Floors note updated; .121 stays exempt until the upgrade is verified.'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/cron/fleet-version-floors.conf'
+  - 'runme.sh'
+  - 'scripts/fleet-deploy-binary.sh'
+  - '.tasks/active/T-3323-upgrade-121-ring20-dashboard-hub-via-run.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-02T18:56:07'
+    action: 'T-3323: .121 (ring20-dashboard) joins runme action 6. It now has a root remote-exec session (read-only probe: x86_64, /usr/local/bin/termlink 0.12.39, hub detached with no systemd unit, TERMLINK_RUNTIME_DIR=/var/lib/termlink with hub.secret + May cert). fleet-deploy-binary --swap-restart hardened: the relaunch reuses the RUNNING hub''s TERMLINK_RUNTIME_DIR and arguments read from /proc/<pid>/{environ,cmdline} (rendered heredoc verified against the local hub: /var/lib/termlink, hub start --tcp 0.0.0.0:9100 --json), instead of the exec session''s env with a ~/.termlink/runtime fallback that would have rotated secret+cert (PL-021). runme fixtures 75/75. Floors note updated; .121 stays exempt until the upgrade is verified.'
+  - time: '2026-10-02T19:06:04'
+    action: 'T-3323: .121 upgraded and verified live (0.12.39 -> 0.12.103; secret + cert unchanged, runtime dir and args preserved, session reconnected, T-3310 fields served); floor ring20-dashboard 0.12.103; fleet binary canary green'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 17 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [fleet, arc:arc-012]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 17
+  commits: 2
+  files_changed: 4
+  lines_added: 318
+  lines_removed: 100
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3323-upgrade-121-ring20-dashboard-hub-via-run.md
+generated_by: context-agent-hybrid

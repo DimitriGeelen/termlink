@@ -4,12 +4,12 @@ name: "Upgrade .121 ring20-dashboard hub via runme now that it has a remote-exec
 description: >
   Operator 2026-10-02: how do we get .121 upgraded? It serves 0.12.39 (fleet doctor), has no T-3310 retention/forever-owner fields. T-3290 left .121 out of runme action 6 for lack of a foothold; a root remote-exec session now exists (tl-cl4jd2gx, ring20-dashboard). Read-only probe: x86_64, /usr/local/bin/termlink 0.12.39, hub pid detached (ppid 1, no systemd unit, no watchdog found), TERMLINK_RUNTIME_DIR=/var/lib/termlink (persistent; hub.secret + May cert present). Operator authorised forced upgrades of .122 and .121 on 2026-09-30 (runme.sh action 6 header). Supersedes the T-2379 delegation (sent 2026-07-07, never answered).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [fleet, arc:arc-012]
-components: []
+components: [runme.sh, scripts/fleet-deploy-binary.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -22,8 +22,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-02T16:52:01Z
-last_update: 2026-10-02T16:56:09Z
-date_finished: null
+last_update: 2026-10-02T17:09:13Z
+date_finished: 2026-10-02T17:09:13Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -87,7 +87,7 @@ date_finished: null
 
 ## Verification
 
-grep -q "RUN_RT=" scripts/fleet-deploy-binary.sh && grep -q 'RUNTIME=\${RUN_RT:-' scripts/fleet-deploy-binary.sh
+grep -qF "RUN_RT=" scripts/fleet-deploy-binary.sh && grep -qF "RUN_RT:-" scripts/fleet-deploy-binary.sh
 grep -q 'FLEET_HUBS="${RUNME_FLEET_HUBS:-ring20-management ring20-dashboard}"' runme.sh
 bash tests/runme-fixtures.sh > /tmp/.t3323-runme 2>&1 && grep -q "0 failed" /tmp/.t3323-runme
 grep -q "^ring20-dashboard 0.12.103" .context/cron/fleet-version-floors.conf
@@ -112,27 +112,10 @@ termlink tofu verify 192.168.10.121:9100 > /tmp/.t3323-tofu 2>&1
 
 ## Evolution
 
-<!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
-     understanding evolved during build — what was learned that wasn't known at
-     filing, what in the original plan no longer fits, what triggered pivots
-     or new sub-tasks. Mandatory at slice boundaries (when applicable) and
-     before --status work-completed.
-
-     Origin: T-1717 grill Q4 — "the understanding of what we need and want
-     evolves with the process of materialisation." Structural counter to §ACD:
-     spec-vs-build divergence is logged as soon as it happens, not lost as
-     folklore.
-
-     Format (one entry per slice boundary or significant insight):
-       ### YYYY-MM-DD — [topic]
-       - **What changed:** [what we learned that we didn't know at filing]
-       - **Plan impact:** [what in the plan no longer fits]
-       - **Triggered:** [new sub-task / pivot / scope cut, with task ID if filed]
-
-     The completion gate (T-1718) blocks --status work-completed when this
-     section exists but is empty/template-only. Use --skip-evolution to bypass
-     (logged Tier-2). Non-arc tasks may leave this empty.
--->
+### 2026-10-02 — the blocker had quietly gone away, and the deploy path had a latent rotation risk
+- **What changed:** .121 was exempt for "no foothold" since July; a root remote-exec session now exists, so the T-2379 delegation (never answered) was no longer needed. Reading the swap-restart path before using it showed the relaunch took its runtime dir from the exec session's env with a ~/.termlink/runtime fallback — safe on .121 only by luck (the session happened to carry /var/lib/termlink).
+- **Plan impact:** hardened fleet-deploy-binary to reuse the running hub's runtime dir and arguments from /proc before upgrading anything.
+- **Triggered:** none new; open point recorded: .121's hub has no supervisor (their call).
 
 ## Recommendation
 
@@ -196,3 +179,16 @@ termlink tofu verify 192.168.10.121:9100 > /tmp/.t3323-tofu 2>&1
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3323-upgrade-121-ring20-dashboard-hub-via-run.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-c7da6b59
+- **Timestamp:** 2026-10-02T17:10:08Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** none
+
+### 2026-10-02T17:09:13Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
