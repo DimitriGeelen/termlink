@@ -28,7 +28,7 @@ pub use limits::{
     check_every,
 };
 pub use log::Offset;
-pub use meta::{BareForeverSender, BareForeverSummary};
+pub use meta::{BareForeverSender, BareForeverSummary, TopicOwners};
 pub use retention::Retention;
 
 /// Iterator yielded by `Bus::subscribe` — one `(offset, envelope)` per
@@ -147,7 +147,7 @@ impl Bus {
     }
 
     /// T-3310: owner/reason of every topic that has one.
-    pub fn topic_owners(&self) -> Result<HashMap<String, (Option<String>, Option<String>)>> {
+    pub fn topic_owners(&self) -> Result<TopicOwners> {
         self.meta.all_topic_owners()
     }
 

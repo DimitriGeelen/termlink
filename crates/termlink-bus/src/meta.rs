@@ -1133,6 +1133,9 @@ mod claim_id_tests {
     }
 }
 
+/// T-3310: topic name -> (owner, reason), for topics that have either.
+pub type TopicOwners = HashMap<String, (Option<String>, Option<String>)>;
+
 /// T-3310: one sender's bare-forever creates (forever, no owner/reason).
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct BareForeverSender {
@@ -1193,9 +1196,7 @@ impl Meta {
     }
 
     /// Owner and reason of every topic that has at least one of them.
-    pub(crate) fn all_topic_owners(
-        &self,
-    ) -> Result<HashMap<String, (Option<String>, Option<String>)>> {
+    pub(crate) fn all_topic_owners(&self) -> Result<TopicOwners> {
         let conn = self.conn.lock().expect("meta mutex poisoned");
         let mut stmt = conn.prepare(
             "SELECT name, owner, reason FROM topics WHERE owner IS NOT NULL OR reason IS NOT NULL",

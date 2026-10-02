@@ -176,6 +176,10 @@ install_crontab arc-claim-drift-canary.crontab    "$CRON_DIR/termlink-arc-claim-
 # sessions and orphaned data sockets, both invisible for weeks before T-3291.
 install_crontab session-leak-canary.crontab       "$CRON_DIR/termlink-session-leak-canary"
 
+# T-3310 (arc-012 step 5, D1 backstop) — fires if the hub opts out of "forever
+# needs an owner", or is still not enforcing it after 2026-11-15; files one task.
+install_crontab forever-owner-canary.crontab      "$CRON_DIR/termlink-forever-owner-canary"
+
 # close_task <T-ID> <reason>
 # Closes a task the operator has ALREADY approved closing, then VERIFIES it
 # landed in completed/ with status work-completed.

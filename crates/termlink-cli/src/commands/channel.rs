@@ -782,27 +782,49 @@ async fn run_ws_reconnect_loop(
 
 pub(crate) async fn cmd_channel_create(
     name: &str,
-    retention: &str,
+    retention: Option<&str>,
+    owner: Option<&str>,
+    reason: Option<&str>,
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
-    let retention_val = parse_retention(retention)?;
+    // T-3310 D2: no --retention means the shared default table, sent
+    // explicitly so an older hub (whose own default is forever) gets it too.
+    let retention_val = match retention {
+        Some(spec) => parse_retention(spec)?,
+        None => termlink_protocol::retention_defaults::default_retention(name).to_json(),
+    };
+    let mut params = json!({"name": name, "retention": retention_val});
+    if let Some(o) = owner {
+        params["owner"] = json!(o);
+    }
+    if let Some(r) = reason {
+        params["reason"] = json!(r);
+    }
     let sock = hub_socket_or_json_exit(hub, json_output)?;
-    let resp = rpc_call_authed(
-        &sock,
-        method::CHANNEL_CREATE,
-        json!({"name": name, "retention": retention_val}),
-    )
-    .await
-    .context("Hub rpc_call failed")?;
+    let resp = rpc_call_authed(&sock, method::CHANNEL_CREATE, params)
+        .await
+        .context("Hub rpc_call failed")?;
     let result = client::unwrap_result(resp)
         .map_err(|e| anyhow!("Hub returned error for channel.create: {e}"))?;
     if json_output {
         println!("{}", serde_json::to_string_pretty(&result)?);
     } else {
-        println!("Created topic '{}' (retention: {})", name, retention);
+        println!("Created topic '{}' (retention: {})", name, retention_label(&retention_val));
+        if let Some(w) = result.get("warning").and_then(|w| w.as_str()) {
+            eprintln!("warning: {w}");
+        }
     }
     Ok(())
+}
+
+/// Human form of a retention JSON value (`days:14`, `messages:1000`, `forever`).
+fn retention_label(v: &Value) -> String {
+    let kind = v.get("kind").and_then(|k| k.as_str()).unwrap_or("?");
+    match v.get("value").and_then(|x| x.as_u64()) {
+        Some(n) => format!("{kind}:{n}"),
+        None => kind.to_string(),
+    }
 }
 
 /// T-2244 (R2a): change the retention policy of an EXISTING topic. The
@@ -2791,40 +2813,11 @@ pub(crate) async fn fetch_fleet_presence_via_chat_arc(
     ))
 }
 
-/// T-2126: topic-name patterns demonstrated to grow without bound under
-/// real fleet load. Duplicated verbatim from
-/// `crates/termlink-hub/src/channel.rs::is_high_rate_pattern` (T-2058)
-/// per the T-2069 convention: tiny pure helpers are duplicated, not
-/// cross-crate-shared. Keep the two definitions in lockstep.
-///
-/// When `ensure_topic` auto-creates a topic on the operator's behalf
-/// (CLI `channel dm` or `channel post --ensure-topic`), match against
-/// this predicate to pick `Messages(1000)` instead of `Forever`. The
-/// hub still emits its T-2058 loud-warn if a Forever-retention pattern
-/// slips through (e.g. from a script that calls `channel.create`
-/// directly) — this is defence-in-depth for the operator-default path.
-pub(crate) fn is_high_rate_pattern(name: &str) -> bool {
-    matches!(name, "agent-presence" | "agent-chat-arc")
-        || name.starts_with("agent-listeners-")
-        || name.starts_with("agent-conv-")
-        || name.starts_with("dm:")
-}
-
-/// T-2145: topic-name patterns where the topic name IS the key (single-value
-/// durable state — `state:deploy-mode`, `state:current-leader`,
-/// `state:active-version`). `Retention::Latest` (T-2142) is the right answer
-/// because old envelopes are pure history noise. Duplicated verbatim from
-/// `crates/termlink-hub/src/channel.rs::is_single_value_state_pattern` per
-/// the T-2069 convention — keep the two definitions in lockstep.
-///
-/// Sibling of `is_high_rate_pattern` — the two predicates partition the
-/// "warn on operator-default Retention::Forever" space (disjoint by prefix,
-/// no overlap). `ensure_topic` picks `Latest` for these; the hub still
-/// emits a defence-in-depth warn if `Forever` slips through a direct
-/// `channel.create` script path.
-pub(crate) fn is_single_value_state_pattern(name: &str) -> bool {
-    name.starts_with("state:")
-}
+// T-3310: `is_high_rate_pattern` / `is_single_value_state_pattern` moved to
+// `termlink_protocol::retention_defaults` with the shared default table, which
+// is now the only place `ensure_topic` and `channel create` read defaults from.
+#[cfg(test)]
+use termlink_protocol::retention_defaults::{is_high_rate_pattern, is_single_value_state_pattern};
 
 /// T-2426: topic-name patterns that are test debris by convention — the
 /// exact allowlist classes `scripts/sweep-test-debris.sh` (T-2424) deletes.
@@ -2925,21 +2918,17 @@ fn ensure_topic_warn_msg(topic: &str, err: &str) -> String {
 }
 
 async fn ensure_topic(sock: &TransportAddr, name: &str) -> Result<bool> {
-    let retention = if is_single_value_state_pattern(name) {
-        json!({"kind": "latest"})
-    } else if is_high_rate_pattern(name) {
-        json!({"kind": "messages", "value": 1000})
-    } else if is_debris_pattern(name) {
-        // T-2426: debris namespaces self-clean instead of accumulating
-        // Forever until the next manual sweep (T-2424 deleted 851 of these).
+    // T-3310 D2: the shared default table. It used to fall through to forever
+    // for every name it did not recognise, which is how inbox:* and sidecar:*
+    // topics became forever by omission.
+    if is_debris_pattern(name) {
+        // T-2426: debris namespaces self-clean instead of accumulating.
         eprintln!(
             "note: '{name}' matches a test-debris namespace — auto-created with retention days:7 \
              (T-2426; use `channel create {name} --retention ...` first if the output must outlive a week)"
         );
-        json!({"kind": "days", "value": 7})
-    } else {
-        json!({"kind": "forever"})
-    };
+    }
+    let retention = termlink_protocol::retention_defaults::default_retention(name).to_json();
     let resp = rpc_call_authed(
         sock,
         method::CHANNEL_CREATE,
@@ -4360,7 +4349,7 @@ pub(crate) async fn cmd_channel_info(
         }
         // T-3309: hub-side activity (absent on hubs predating it).
         if let Some(map) = obj.as_object_mut() {
-            for k in ["activity", "flags", "flag_days", "readers"] {
+            for k in ["activity", "flags", "flag_days", "readers", "owner", "reason", "unowned_forever"] {
                 if let Some(v) = entry.get(k) {
                     map.insert(k.to_string(), v.clone());
                 }
@@ -4395,10 +4384,32 @@ pub(crate) async fn cmd_channel_info(
             println!("  {s}  up to {}  (ts={})", r.up_to, r.ts);
         }
     }
+    for line in owner_lines(&entry) {
+        println!("{line}");
+    }
     for line in activity_lines(&entry, now_unix_ms()) {
         println!("{line}");
     }
     Ok(())
+}
+
+/// T-3310 D1: the `Owner:` line for `channel info`. Empty when the hub
+/// reports nothing (a pre-T-3310 hub, or a bounded topic nobody claimed).
+pub(crate) fn owner_lines(entry: &Value) -> Vec<String> {
+    let s = |k: &str| entry.get(k).and_then(|v| v.as_str()).map(str::to_string);
+    match (s("owner"), s("reason")) {
+        (None, None) if entry.get("unowned_forever").and_then(|v| v.as_bool()) == Some(true) => vec![
+            "Owner: none — forever with no owner and no reason (unowned forever, T-3310). \
+             Claim it: channel create <topic> --retention forever --owner <who> --reason <why>"
+                .to_string(),
+        ],
+        (None, None) => Vec::new(),
+        (o, r) => vec![format!(
+            "Owner: {}{}",
+            o.unwrap_or_else(|| "-".to_string()),
+            r.map(|r| format!(" — {r}")).unwrap_or_default()
+        )],
+    }
 }
 
 /// T-3309: render the hub's per-topic activity for `channel info`. Empty for a
@@ -4468,11 +4479,15 @@ fn format_age_ms(ms: i64) -> String {
 /// T-3309: `  (idle, unread)` for a `channel list` row, empty when unflagged
 /// or when the hub predates activity tracking.
 pub(crate) fn topic_flag_suffix(t: &Value) -> String {
-    let flags: Vec<&str> = t
+    let mut flags: Vec<&str> = t
         .get("flags")
         .and_then(|v| v.as_array())
         .map(|a| a.iter().filter_map(|f| f.as_str()).collect())
         .unwrap_or_default();
+    // T-3310 D1: a forever topic with no owner and no reason.
+    if t.get("unowned_forever").and_then(|v| v.as_bool()) == Some(true) {
+        flags.push("unowned forever");
+    }
     if flags.is_empty() { String::new() } else { format!("  ({})", flags.join(", ")) }
 }
 
@@ -17814,6 +17829,14 @@ mod tests {
         assert_eq!(topic_flag_suffix(&json!({"flags": ["idle", "unread"]})), "  (idle, unread)");
         assert_eq!(topic_flag_suffix(&json!({"flags": []})), "");
         assert_eq!(topic_flag_suffix(&json!({"name": "x"})), "");
+        // T-3310: the unowned-forever label rides along with the activity flags.
+        assert_eq!(
+            topic_flag_suffix(&json!({"flags": ["idle"], "unowned_forever": true})),
+            "  (idle, unowned forever)"
+        );
+        assert_eq!(owner_lines(&json!({"owner": "ops", "reason": "audit log"})), vec!["Owner: ops — audit log"]);
+        assert!(owner_lines(&json!({"unowned_forever": true}))[0].contains("--owner <who> --reason <why>"));
+        assert!(owner_lines(&json!({"name": "bounded"})).is_empty(), "nothing to say for an unclaimed bounded topic");
         assert_eq!(subscribe_reader_name(Some("agent-a".into()), Some("fp")), Some("agent-a".into()));
         assert_eq!(subscribe_reader_name(Some("  ".into()), Some("fp")), Some("fp".into()));
         assert_eq!(subscribe_reader_name(None, None), None);

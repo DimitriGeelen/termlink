@@ -8712,13 +8712,17 @@ pub struct ChannelCreateParams {
     /// Topic name (e.g. "broadcast:global", "channel:learnings")
     pub name: String,
     /// Retention policy kind: "forever" | "days" | "messages" | "latest" |
-    /// "latest_per_cv_key". Default: forever. "latest" keeps only the single
-    /// most-recent envelope; "latest_per_cv_key" (T-2245) keeps the most-recent
-    /// record per distinct metadata.cv_key — for current-state-per-agent topics
-    /// like agent-presence where record count should track agent COUNT.
+    /// "latest_per_cv_key". Default (T-3310): by name — 14 days, newest 1000
+    /// for inbox:*/dm:*, forever only for the four operator-durable topics.
+    /// "latest" keeps only the single most-recent envelope; "latest_per_cv_key"
+    /// (T-2245) keeps the most-recent record per distinct metadata.cv_key.
     pub retention_kind: Option<String>,
     /// Retention value for "days" or "messages" kinds. Ignored for the others.
     pub retention_value: Option<u64>,
+    /// Who keeps this topic (T-3310). A 'forever' topic should name one.
+    pub owner: Option<String>,
+    /// Why it is kept (T-3310). A 'forever' topic should name one.
+    pub reason: Option<String>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -18885,14 +18889,26 @@ impl TermLinkTools {
         if !hub_socket.exists() {
             return hub_down_err();
         }
-        let retention = match retention_json(p.retention_kind.as_deref().unwrap_or("forever"), p.retention_value) {
-            Ok(r) => r,
-            Err(e) => return json_err(e),
+        // T-3310 D2: no retention_kind means the shared default table (14 days;
+        // inbox/dm newest 1000; forever only for the operator-durable four).
+        let retention = match p.retention_kind.as_deref() {
+            Some(kind) => match retention_json(kind, p.retention_value) {
+                Ok(r) => r,
+                Err(e) => return json_err(e),
+            },
+            None => termlink_protocol::retention_defaults::default_retention(&p.name).to_json(),
         };
+        let mut params = serde_json::json!({"name": p.name, "retention": retention});
+        if let Some(o) = &p.owner {
+            params["owner"] = serde_json::json!(o);
+        }
+        if let Some(r) = &p.reason {
+            params["reason"] = serde_json::json!(r);
+        }
         match termlink_session::client::rpc_call(
             &hub_socket,
             termlink_protocol::control::method::CHANNEL_CREATE,
-            serde_json::json!({"name": p.name, "retention": retention}),
+            params,
         )
         .await
         {

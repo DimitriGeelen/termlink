@@ -829,8 +829,16 @@ async fn main() -> Result<()> {
             IdentityAction::Rotate { force, json } => commands::identity::cmd_identity_rotate(force, json),
         },
         Command::Channel { action } => match action {
-            ChannelAction::Create { name, retention, hub, json } => {
-                commands::channel::cmd_channel_create(&name, &retention, hub.as_deref(), json).await
+            ChannelAction::Create { name, retention, owner, reason, hub, json } => {
+                commands::channel::cmd_channel_create(
+                    &name,
+                    retention.as_deref(),
+                    owner.as_deref(),
+                    reason.as_deref(),
+                    hub.as_deref(),
+                    json,
+                )
+                .await
             }
             ChannelAction::SetRetention { name, retention, hub, json } => {
                 commands::channel::cmd_channel_set_retention(&name, &retention, hub.as_deref(), json).await

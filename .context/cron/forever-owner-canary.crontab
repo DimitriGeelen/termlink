@@ -1,0 +1,21 @@
+# T-3310 (arc-012 step 5, D1 backstop) — "forever needs an owner" canary
+# Source of truth: /opt/termlink/.context/cron/forever-owner-canary.crontab (git-tracked)
+# Installed to:    /etc/cron.d/termlink-forever-owner-canary (USER field syntax — do NOT load into a user crontab)
+#
+# The hub accepts a forever topic with no owner and no reason while old clients
+# upgrade, and starts refusing it by itself after 14 days with no such create.
+# FIRES when the hub runs with forever_requires_owner=never (an opt-out stays
+# loud every day), or when 2026-11-15 has passed and the hub is still not
+# enforcing — naming who still sends bare forever — and FILES ONE TASK for it
+# (de-duplicated; left uncommitted for the next session, T-3269).
+# Empty log = healthy. /canaries auto-discovers this log; tooling errors go to
+# the .stderr sink (T-2842).
+#
+# Operator action on firing: upgrade the named senders' termlink binaries, or
+# record a decision to keep the opt-out. Detail: bash scripts/check-forever-owner-freshness.sh
+SHELL=/bin/bash
+# /root/.cargo/bin first: the cron must read the current binary (T-3288 lesson).
+PATH=/root/.cargo/bin:/usr/local/bin:/usr/bin:/bin
+
+# Daily at 08:07 UTC — offset from the 07:57 session-leak canary.
+7 8 * * * root cd /opt/termlink && bash scripts/check-forever-owner-freshness.sh --quiet >> .context/working/.forever-owner-canary.log 2>> .context/working/.forever-owner-canary.log.stderr

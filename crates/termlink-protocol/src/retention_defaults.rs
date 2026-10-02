@@ -10,8 +10,7 @@
 //! - `state:*`                                  -> latest
 //! - `inbox:*`, `dm:*` (mail: bounded by count, never by age, so unread mail
 //!   is only lost by being outnumbered)          -> messages 1000
-//! - `agent-presence`, `agent-chat-arc`, `agent-listeners-*`, `agent-conv-*`
-//!                                               -> messages 1000
+//! - `agent-presence`, `agent-chat-arc`, `agent-listeners-*`, `agent-conv-*` -> messages 1000
 //! - test-debris names (T-2426)                 -> days 7
 //! - everything else, including `sidecar:*`     -> days 14
 //!

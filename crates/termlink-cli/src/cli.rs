@@ -1844,9 +1844,20 @@ pub(crate) enum ChannelAction {
         /// Topic name (e.g. "broadcast:global", "channel:learnings")
         name: String,
 
-        /// Retention: "forever", "days:N", or "messages:N" (default: forever)
-        #[arg(long, default_value = "forever")]
-        retention: String,
+        /// Retention: "forever", "days:N", "messages:N", "latest" or
+        /// "latest-per-cv-key". Default (T-3310): by name — 14 days for
+        /// ordinary topics, newest 1000 for inbox:*/dm:*, forever only for the
+        /// four operator-durable topics.
+        #[arg(long)]
+        retention: Option<String>,
+
+        /// Who keeps this topic (T-3310). A forever topic should name one.
+        #[arg(long)]
+        owner: Option<String>,
+
+        /// Why it is kept (T-3310). A forever topic should name one.
+        #[arg(long)]
+        reason: Option<String>,
 
         /// Target hub address (unix path or host:port). Default: local hub.
         #[arg(long)]
