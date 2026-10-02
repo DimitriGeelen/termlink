@@ -26,7 +26,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-01T19:22:54Z
-last_update: 2026-10-02T14:16:04Z
+last_update: 2026-10-02T14:17:01Z
 date_finished:
 revisit_at: 2026-11-15
 revisit_evidence_needed: enforcement auto-flipped on every hub, or the backstop canary named who still sends bare forever
@@ -80,7 +80,7 @@ change alone changes almost nothing, and old binaries cannot send owner/reason.
 - [ ] `TERMLINK_FOREVER_REQUIRES_OWNER` = auto (default) / on / never; `never` is reported in `hub status --governor` and `fleet governor-status` (D1 layer 3)
 - [ ] Backstop canary: fires if enforcement is still off on 2026-11-15 or any hub runs `never`, names the identities still sending bare forever, and files a task via the T-3267 filer; crontab installed by runme (D1 layer 2)
 - [ ] Fixture/unit tests: flips at 14 quiet days, not at 13, clock resets on a bare create; a mutant removing the auto-flip turns them red (D1 layer 4)
-- [ ] New-client defaults per D2 (open)
+- [ ] One shared default-retention table used by CLI `channel create`, CLI auto-create (ensure_topic) and MCP create: `inbox:*` and `dm:*` -> Messages(1000); `state:*` -> Latest; presence/chat-arc/agent-listeners-*/agent-conv-* -> Messages(1000); debris -> Days(7); everything else (incl. `sidecar:*`) -> Days(14) (D2)
 - [ ] Ceiling checked on post per D3 (open): a bounded topic past 2x its limit trims oldest on post and logs it; forever topics get a size warning, never deletion
 - [ ] A create that omits retention gets Days(14) (debris namespaces keep Days(7))
 
@@ -262,6 +262,20 @@ change alone changes almost nothing, and old binaries cannot send owner/reason.
   proposals; the operator accepted them unchanged.
 - **Left open:** D2 new-client defaults (incl. `inbox:*` / `dm:*`), D3 meaning of "2x its limit"
   for day-based topics.
+
+### 2026-10-02 — D2: what new clients ask for by default (operator ruling)
+- **Chose:** B — mail by count, everything else by age: `inbox:*` and `dm:*` default to
+  Messages(1000) (the bound the hub inbox mirror, `hub channel.rs:243`, and the CLI `dm:*`
+  path, `channel.rs:2806`, already apply); every other new topic, including `sidecar:*`,
+  defaults to Days(14); existing exceptions kept (`state:*` Latest, debris Days(7),
+  presence/chat topics Messages(1000)). One shared table for CLI create, auto-create and MCP create.
+- **Why:** bounds every topic while mail is never deleted for being unread, only when outnumbered,
+  and a reader that falls behind a trim is told (T-3307/T-3308 gap signal).
+- **Rejected:** A uniform 14 d (-11: deletes unread mail, hides rail outages); C mail forever with
+  automatic owner (+21: rubber-stamp ownership reopens forever-by-default); D keep-until-read (+11:
+  depends on T-3309 read data that is a lead, not a verdict, and is the most code). B scored +46.
+- **Left open:** D3, the meaning of "2x its limit" for the post-time ceiling (sets the real margin
+  before a mail trim).
 
 ## Decision
 

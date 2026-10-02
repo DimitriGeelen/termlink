@@ -179,3 +179,8 @@ How the question arose, during the SQ-11 (T-2573) walk-through, 2026-10-01:
     pinning the flip; revisit_at as the weakest, human layer.
 17. **Operator ruling on T-3310 D1:** "proceed as suggested" -> D+ (D with layers 1-4, 14 days,
     2026-11-15). Recorded in T-3310 § Decisions. D2 next.
+18. T-3310 D2 (new-client default retention, especially mail) presented A uniform 14 d / B mail by
+    count + rest 14 d / C mail forever auto-owned / D keep until read, recommending B.
+    **Operator ruling:** "I agree with the recommendation" -> B. Recorded in T-3310 § Decisions.
+    D3 next.
+
