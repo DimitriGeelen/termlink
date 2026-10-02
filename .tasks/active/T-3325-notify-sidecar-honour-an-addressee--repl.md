@@ -1,13 +1,19 @@
 ---
 id: T-3325
-name: "notify-sidecar: honour an addressee / reply-to agent id so a reply to one co-resident agent does not wake the other agent sharing its TermLink identity"
+name: "notify-sidecar: honour an addressee / reply-to agent id so a reply to one co-resident
+  agent does not wake the other agent sharing its TermLink identity"
 description: >
-  From framework:pickup offset 257 item 4 (055-agentic-fleet-cockpit, T-406), triaged in T-3324. All co-resident agents on a host sign as one TermLink identity (T-1448), and the notify sidecar on that identity belongs to claude-termlink, so a DM reply meant for 055 wakes the TermLink agent instead. Fix in termlink's own scripts/notify-sidecar.sh (and the doorbell path): wake only when metadata names this agent (addressee / reply_to agent id), or the message names none.
+  From framework:pickup offset 257 item 4 (055-agentic-fleet-cockpit, T-406), triaged
+  in T-3324. All co-resident agents on a host sign as one TermLink identity (T-1448),
+  and the notify sidecar on that identity belongs to claude-termlink, so a DM reply
+  meant for 055 wakes the TermLink agent instead. Fix in termlink's own scripts/notify-sidecar.sh
+  (and the doorbell path): wake only when metadata names this agent (addressee / reply_to
+  agent id), or the message names none.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [pickup-triage, notify-rail]
 components: []
 related_tasks: []
@@ -22,8 +28,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-02T17:34:23Z
-last_update: 2026-10-02T17:34:23Z
-date_finished: null
+last_update: 2026-10-02T19:25:57Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,20 +40,37 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-02T19:25:58Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3325: notify-sidecar: honour an addressee / reply-to agent id so a reply to one co-resident agent does not wake the other agent sharing its TermLink identity
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+All agents on one host sign as one TermLink identity (T-1448), so `dm:<fp>` and the project inbox are shared; the notify sidecar wakes whichever agent owns it on any unread message, including messages meant for a co-resident agent (framework:pickup 257 item 4). Fix: a per-message addressee key that the sidecar filters on.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] The addressee metadata key is agreed (operator ruling via /decision-brief, recorded in ## Decisions) and stated once in docs
+- [ ] notify-sidecar counts an unread message only when its addressee key names this agent, or the message names no addressee (back-compatible: old senders still wake)
+- [ ] `agent contact` / `scripts/agent-send.sh` set the addressee key when the target is a named agent
+- [ ] Hermetic fixtures cover: addressed-to-me wakes, addressed-to-other does not, unaddressed wakes; a mutant removing the filter turns a fixture red
+- [ ] 055 is told the convention on framework:pickup (reply to offset 257)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -263,7 +286,15 @@ date_finished: null
 
 ## Updates
 
+### 2026-10-03 — Q1 reframed onto the five-level circuit; project-UUID request sent to AEF
+- Operator: use the agreed five-level circuit address (host/hub/project/session/agent) and its fallback ladder, not new keys. Evidence on the hub: AEF D-599/T-3433 (inbox:cacc73ea32b121dd/010-termlink @39-42, V9 grammar announced), AEF @53 "the five-level circuit model stands"; peers send `from_circuit` in path form. Revised brief recommends C (read path + V9, write path now, follow AEF's cut). Q1 ruling still OPEN.
+- Operator: ask the AEF agents to prioritise the minted project UUID and send the fix ahead of their release. Posted (conversation_id t3325-project-uuid) to inbox:cacc73ea32b121dd/999-Agentic-Engineering-Framework @129 and framework:pickup @303 (relates to 055 P-014 @251). Status delivered-unconfirmed; awaiting reply on inbox:cacc73ea32b121dd/010-termlink.
+
 ### 2026-10-02T17:34:23Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3325-notify-sidecar-honour-an-addressee--repl.md
 - **Context:** Initial task creation
+
+### 2026-10-02T19:25:57Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
