@@ -4,4 +4,5 @@
 # check-release-publication-freshness.sh, which escalates after 14 days.
 # Do not hand-edit a date to silence escalation — fix the member, or reclassify it.
 check-audit-warning-acknowledgement.sh  2026-09-30T00:33:22Z
+check-installed-binary-drift.sh  2026-10-02T05:41:01Z
 check-receiver-ack-lag.sh  2026-09-29T22:04:59Z
