@@ -1,13 +1,21 @@
 ---
 id: T-3327
-name: "Firing canaries are invisible at session start: surface /canaries problems in /resume and the handover"
+name: "Firing canaries are invisible at session start: surface /canaries problems
+  in /resume and the handover"
 description: >
-  Found 2026-10-02 (T-3319/T-3324): the framework-pickup canary fired daily for 7 days (98 unprocessed filings) and no session noticed; its log is only read when someone runs /canaries. G-019: the fix is not 'remember to run /canaries' but making FIRING/ERRORING/STALE canaries part of what /resume and the handover show by default. Candidate: /resume step 1 runs scripts/canary-status.sh --quiet --json and lists problems by name; the handover generator includes the same list. /resume is user-level (shadowed) and the handover generator is vendored, so this may split into a local change plus an upstream filing.
+  Found 2026-10-02 (T-3319/T-3324): the framework-pickup canary fired daily for 7
+  days (98 unprocessed filings) and no session noticed; its log is only read when
+  someone runs /canaries. G-019: the fix is not 'remember to run /canaries' but making
+  FIRING/ERRORING/STALE canaries part of what /resume and the handover show by default.
+  Candidate: /resume step 1 runs scripts/canary-status.sh --quiet --json and lists
+  problems by name; the handover generator includes the same list. /resume is user-level
+  (shadowed) and the handover generator is vendored, so this may split into a local
+  change plus an upstream filing.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [canaries, G-019]
 components: []
 related_tasks: []
@@ -22,8 +30,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-02T17:38:54Z
-last_update: 2026-10-02T17:38:54Z
-date_finished: null
+last_update: 2026-10-02T23:34:51Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,20 +42,36 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-02T23:34:52Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 1
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=1 (body:episodic-only); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3327: Firing canaries are invisible at session start: surface /canaries problems in /resume and the handover
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Two blind spots at session start, both found the hard way: the framework-pickup canary fired 7 days unseen (T-3324), and on 2026-10-03 peer mail from AEF (@62–@131) and 055 sat unseen for up to a day because nothing surfaced the inbox (T-3325/T-3330). Making both part of /resume's default output.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] A read-only script `scripts/session-start-alerts.sh` prints, by name, (1) every canary that is FIRING / ERRORING / STALE (from `canary-status.sh --json`), and (2) unread peer mail on this agent's inbox and dm topics with sender and age; exit 0 always, `--json` for scripting, fail-visible (a tooling error prints a line, never silence)
+- [x] `/resume` Step 1 runs it and Step 2 shows its output under its own heading — in BOTH the project copy (.claude/commands/resume.md) and the user-level copy that shadows it (~/.claude/commands/resume.md, T-3316)
+- [x] Hermetic fixtures cover firing / erroring / stale / healthy canaries and unread / no-unread mail, via test seams
+- [x] The handover half (vendored generator) is filed upstream with AEF rather than patched locally (G-062)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -83,6 +107,9 @@ date_finished: null
 -->
 
 ## Verification
+bash tests/session-start-alerts-fixtures.sh > /tmp/.t3327 2>&1 && grep -q 'failed: 0' /tmp/.t3327
+grep -q 'session-start-alerts' .claude/commands/resume.md
+bash scripts/session-start-alerts.sh --json > /tmp/.t3327b 2>&1 && python3 -c "import json;d=json.load(open('/tmp/.t3327b'));assert 'canaries' in d and 'mail' in d"
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -263,7 +290,17 @@ date_finished: null
 
 ## Updates
 
+### 2026-10-03 — built
+1. scripts/session-start-alerts.sh: canaries FIRING/ERRORING/STALE by name, plus peer mail not yet SHOWN (own per-topic marker; `--mark-seen`). The first live run listed 4 firing canaries and 87 never-shown inbox messages.
+2. /resume (project and user-level copies) runs it in Step 1, shows "Needs Attention" in Step 2, and in Step 3 acknowledges new peer mail and marks it seen.
+3. Fixtures 9/9; the first run caught a newest-first sorting bug (minute granularity).
+4. Handover-generator half filed upstream: AEF inbox @143 (conversation t3327-session-start-alerts).
+
 ### 2026-10-02T17:38:54Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3327-firing-canaries-are-invisible-at-session.md
 - **Context:** Initial task creation
+
+### 2026-10-02T23:34:51Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
