@@ -1,20 +1,20 @@
 ---
-id: T-3326
-name: "Operator-script contract: arm the log watch in the same turn the script is
-  handed over, not when the operator types 'running'"
+id: T-3324
+name: "Triage the framework:pickup backlog (offsets 163+) by addressee, coding each
+  filing's class (T-3319 Q0 = C)"
 description: >
-  From framework:pickup offset 250 (832-Workflow-designer, T-737), triaged in T-3324.
-  The CLAUDE.md runme rule (T-3273/T-3275) says what to do once the operator types
-  'running'; it never says to arm a watch. Observed here on 2026-10-02: runme handed
-  over twice, nothing armed until 'running'. Change the rule (above ## Core Principle,
-  clobber-safe) so handing over a log-writing script and arming a background watch
-  on latest.log happen in the same turn.
+  T-3319 Q0 ruled C (2026-10-02): routing first, mining folded into triage. 98 inbound
+  filings unprocessed since the last ack (offset 162, 2026-09-25) while the pickup
+  canary fired daily. For each filing: addressee (termlink / AEF / other project),
+  class, already-seen-elsewhere, and the action (answer, file task, or acknowledge
+  as not ours). Then ack the canary and propose an 'unanswered filing' audit to AEF.
+  Stop rule (set in advance): fewer than 2 recurring cross-project classes -> no miner.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
-tags: [pickup-triage, runme]
+horizon: null
+tags: [arc:arc-012, pickup-triage]
 components: []
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
@@ -27,9 +27,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-10-02T17:34:42Z
-last_update: 2026-10-02T17:35:22Z
-date_finished:
+created: 2026-10-02T17:29:14Z
+last_update: 2026-10-02T17:37:50Z
+date_finished: 2026-10-02T17:37:50Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -41,22 +41,22 @@ date_finished:
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 bvp_scores_proposed:
-  - ts: '2026-10-02T17:35:22Z'
+  - ts: '2026-10-02T17:29:36Z'
     estimator: bvp-estimator-v1-heuristic
     scores:
       D1: 4
       D2: 0
       D3: 3
-      D4: 2
-      F-RECALL: 0
+      D4: 4
+      F-RECALL: 2
       F-ORCH: 0
     rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
-      (body:component-discoverability); D4=2 (body:env-class-handled); 
-      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+      (body:component-discoverability); D4=4 (body:cross-machine); F-RECALL=2 
+      (body:lightly-promoted); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
 ---
 
-# T-3326: Operator-script contract: arm the log watch in the same turn the script is handed over, not when the operator types 'running'
+# T-3324: Triage the framework:pickup backlog (offsets 163+) by addressee, coding each filing's class (T-3319 Q0 = C)
 
 ## Context
 
@@ -66,9 +66,11 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] CLAUDE.md's runme rule (above `## Core Principle`, clobber-safe) says: when the agent hands over `/opt/termlink/runme.sh` (or any log-writing script), it arms a background watch on the log IN THE SAME TURN, so a run is read whether or not the operator types "running"; "running" stays a valid trigger
-- [x] The rule names how to arm it (a background wait-until-`finished rc=` on a log newer than the hand-over) and that a watch firing is acted on, not narrated
-- [x] The rule sits above `## Core Principle` (line check)
+- [x] Every inbound filing past offset 162 is coded in `docs/reports/T-3324-pickup-triage.md`: offset, from, addressee (termlink / AEF / other), class, seen-elsewhere, action
+- [x] Every filing addressed to TermLink has an outcome: a task filed (ID cited), an existing task cited, or an answer posted (offset cited)
+- [x] Stop-rule result recorded against the threshold set in advance (>=2 recurring cross-project classes -> mining continues to IW-1; fewer -> no miner), and fed back to T-3319
+- [x] Proposal for an "unanswered filing" audit posted to framework:pickup (offset cited, read back)
+- [x] Pickup canary acked to the triaged offset; `check-framework-pickup-freshness.sh` exits 0
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -105,9 +107,12 @@ bvp_scores_proposed:
 
 ## Verification
 
-grep -qF "Arm the watch when handing the script over" CLAUDE.md
-grep -qF "a background wait (\`run_in_background\`)" CLAUDE.md
-test "$(grep -nF 'Arm the watch when handing the script over' CLAUDE.md | cut -d: -f1)" -lt "$(grep -n '^## Core Principle' CLAUDE.md | cut -d: -f1)"
+test -f docs/reports/T-3324-pickup-triage.md
+grep -qF "fw-upgrade-clobbers-local-changes" docs/reports/T-3324-pickup-triage.md
+grep -q "^| 167 " docs/reports/T-3324-pickup-triage.md && grep -q "^| 298 " docs/reports/T-3324-pickup-triage.md
+ls .tasks/active/T-3325-*.md
+ls .tasks/completed/T-3326-*.md
+bash scripts/check-framework-pickup-freshness.sh > /tmp/.t3324-canary 2>&1 && grep -q "healthy" /tmp/.t3324-canary
 
 ## RCA
 
@@ -127,27 +132,10 @@ test "$(grep -nF 'Arm the watch when handing the script over' CLAUDE.md | cut -d
 
 ## Evolution
 
-<!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
-     understanding evolved during build — what was learned that wasn't known at
-     filing, what in the original plan no longer fits, what triggered pivots
-     or new sub-tasks. Mandatory at slice boundaries (when applicable) and
-     before --status work-completed.
-
-     Origin: T-1717 grill Q4 — "the understanding of what we need and want
-     evolves with the process of materialisation." Structural counter to §ACD:
-     spec-vs-build divergence is logged as soon as it happens, not lost as
-     folklore.
-
-     Format (one entry per slice boundary or significant insight):
-       ### YYYY-MM-DD — [topic]
-       - **What changed:** [what we learned that we didn't know at filing]
-       - **Plan impact:** [what in the plan no longer fits]
-       - **Triggered:** [new sub-task / pivot / scope cut, with task ID if filed]
-
-     The completion gate (T-1718) blocks --status work-completed when this
-     section exists but is empty/template-only. Use --skip-evolution to bypass
-     (logged Tier-2). Non-arc tasks may leave this empty.
--->
+### 2026-10-02 — the backlog was mostly not ours, and the receiver was silent too
+- **What changed:** expected a termlink backlog; found 1 of 98 inbound filings addressed to termlink and 58 to AEF. 055 (offset 257) showed AEF has posted nothing and left no consumer receipt in weeks, so the routing failure is on both ends, not only ours.
+- **Plan impact:** termlink's job here was a receipt plus a proposal to AEF (offsets 299/300), not a large fix list. The mining stop rule passed, but on AEF's defect classes, which points T-3319 IW-1/IW-2 toward AEF owning the knowledge.
+- **Triggered:** T-3325 (sidecar addressee), T-3326 (arm the log watch at hand-over; done).
 
 ## Recommendation
 
@@ -201,10 +189,33 @@ test "$(grep -nF 'Arm the watch when handing the script over' CLAUDE.md | cut -d
 
 ## Updates
 
-### 2026-10-02T17:34:42Z — task-created [task-create-agent]
+### 2026-10-02T17:45Z — triage done [claude]
+- 98 inbound filings (offsets 163-298) coded in docs/reports/T-3324-pickup-triage.md: AEF 58, other 38 (36 = AEF replies to 055), termlink 1, broadcast 1. 38 own outbound counted, not triaged.
+- termlink outcomes: 167 -> T-3181 (open, human-owned, horizon now); 220 answered; 241 covered (T-3291/T-3293/T-3294); 249 answered; 250 adopted (T-3326, done); 257 item 4 -> T-3325; 217 ack. Receipt + answers posted at framework:pickup offset 299 (read back, sha256 match).
+- Stop rule (set in advance): PASSES — 5 classes raised by 2+ projects (fw-upgrade-clobbers-local-changes 4, consumer-path-assumptions 3, secret-in-unignored-path 3, bvp-scoring-calibration 2, tier1-write-gate-misclassification 2). All are AEF's defect classes.
+- AEF "unanswered filing" audit proposal posted at offset 300 (read back, sha256 match). Canary acked to 300; consumer receipt at 301; canary healthy.
+
+### 2026-10-02T17:29:14Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3326-operator-script-contract-arm-the-log-wat.md
+- **Output:** /opt/termlink/.tasks/active/T-3324-triage-the-frameworkpickup-backlog-offse.md
 - **Context:** Initial task creation
 
-### 2026-10-02T17:35:22Z — status-update [task-update-agent]
+### 2026-10-02T17:29:36Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-7bcd1234
+- **Timestamp:** 2026-10-02T17:37:51Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** yes
+- **Reviewer:** inline
+- **Findings:** none
+
+- **Layer-1 escalations:** 1
+  1. **cross-project-blast** (medium) — Cross-project or cross-repo change
+     - matched: `cross-project`
+
+### 2026-10-02T17:37:50Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
