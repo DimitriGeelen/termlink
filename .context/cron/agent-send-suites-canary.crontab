@@ -1,0 +1,11 @@
+# T-3334 — Agent-send suites canary (daily run of the live-hub agent-send test suites)
+# Source of truth: /opt/termlink/.context/cron/agent-send-suites-canary.crontab (git-tracked)
+# Installed to:    /etc/cron.d/termlink-agent-send-suites-canary (USER field syntax — do NOT load into a user crontab)
+#
+# test-agent-send-orchestration.sh was red from T-2479 to T-3331 because nothing ran it:
+# the suites need a live hub, so CI cannot run them. This runs all four daily on this host.
+# Exit 0 healthy · 1 FIRING (a suite failed; the log line names suite and FAIL cases)
+# · 2 tooling (hub down / suite missing), stderr only. Empty log = healthy.
+SHELL=/bin/bash
+PATH=/root/.cargo/bin:/usr/local/bin:/usr/bin:/bin
+47 6 * * * root cd /opt/termlink && bash scripts/check-agent-send-suites-freshness.sh --quiet >> .context/working/.agent-send-suites-canary.log 2>> .context/working/.agent-send-suites-canary.log.stderr
