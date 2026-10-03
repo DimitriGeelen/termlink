@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3331: test-agent-send-orchestration: O5 fails on this host and the suite leaks dm: scratch topics
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-03T11:02:43Z
+# ============================================================================
+
+task_id: T-3331
+task_name: "test-agent-send-orchestration: O5 fails on this host and the suite leaks dm: scratch topics"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-02T23:21:08Z
+completed: 2026-10-03T11:02:26Z
+duration_days: 1
+updates_count: 2
+first_commit: 2026-10-03T13:01:31+02:00
+last_commit: 2026-10-03T13:01:31+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  agent-send exited 1 instead of 3 on give-up without diagnosis (set -e + trailing [ ] && echo, since T-2479); orchestration suite reaps its dm: scratch topics; 3 leaked topics removed
+
+# Key outcomes
+outcomes:
+  - 'The suite reaps every dm: topic it minted (all ending in its run''s peer_fp) on EXIT, via scripts/lib/reap-topic.sh; a run leaves zero `:ab0…` topics behind'
+  - 'The 3 already-leaked `dm:6738c073bbcc587a:ab0…` topics are removed and verified gone'
+  - 'O5''s failure is root-caused (exit-code contract vs the test''s expectation) and the suite runs 5/5 on this host, or the remaining failure is documented with cause'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'scripts/agent-send.sh'
+  - 'scripts/test-agent-send-orchestration.sh'
+  - '.tasks/active/T-3331-test-agent-send-orchestration-o5-fails-o.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-03T13:01:31'
+    action: 'T-3331: agent-send exited 1 instead of 3 on give-up without diagnosis (set -e + trailing [ ] && echo, since T-2479); orchestration suite reaps its dm: scratch topics; 3 leaked topics removed'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 701 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [bug, test, notify-rail]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 701
+  commits: 1
+  files_changed: 3
+  lines_added: 298
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3331-test-agent-send-orchestration-o5-fails-o.md
+generated_by: context-agent-hybrid

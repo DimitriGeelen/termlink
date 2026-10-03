@@ -4555,3 +4555,9 @@ learnings:
   task: T-3211
   date: 2026-10-01
   context: Added via context agent
+- id: PL-394
+  learning: "Under set -e, a trailing '[ test ] && cmd' as the LAST statement of a function or if-branch makes a false test the function's return status, killing the script with rc=1 before any later 'exit N'. agent-send.sh broke its documented exit 3 this way for every give-up without a diagnosis (T-2479 to T-3331). Use 'if [ test ]; then cmd; fi'."
+  source: unknown
+  task: T-3331
+  date: 2026-10-03
+  context: Added via context agent

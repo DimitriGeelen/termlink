@@ -4,12 +4,12 @@ name: "test-agent-send-orchestration: O5 fails on this host and the suite leaks 
 description: >
   Found during T-3325 (2026-10-03). O5 (no --transport, down host -> loud fallback) fails identically with T-3325 stashed: rc=1, no receipt within 2s. The suite posts to dm:<self-fp>:ab000...<n> on the LIVE hub and only removes its tmp dir, so each run leaks a topic (3 found, 5 records each), which then count as unread mail for claude-termlink-alt's sidecar. Fix: reap the minted topic via scripts/lib/reap-topic.sh (T-2754 pattern) and root-cause O5.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [bug, test, notify-rail]
-components: []
+components: [scripts/agent-send.sh, scripts/test-agent-send-orchestration.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -22,8 +22,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-02T23:21:08Z
-last_update: 2026-10-02T23:21:08Z
-date_finished: null
+last_update: 2026-10-03T11:02:26Z
+date_finished: 2026-10-03T11:02:26Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -192,6 +192,14 @@ timeout 20 termlink channel list --prefix "dm:" --json > /tmp/.t3331b 2>&1 && te
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
+**Symptom:** test-agent-send-orchestration O5 failed (rc=1, expected 3) on this host; separately each run leaked a dm:<self>:ab0… topic on the live hub, which then counted as unread mail for claude-termlink-alt's sidecar.
+
+**Root cause:** agent-send.sh runs under `set -euo pipefail`. T-2479 (ab7e6f21d) added `[ -n "$diag_line" ] && echo …` as the last command of an `if` branch in escalate_woken_but_silent. When no diagnosis line exists the test is false, the function returns 1, `set -e` kills the script with rc=1, and the documented `exit 3` (not acked) is never reached. The leak: the suite's EXIT trap removed only its tmp dir, never the topics it minted.
+
+**Why structurally allowed:** the suite that catches it runs nowhere (not in the guard layer, CI or cron), because it needs a live hub. The failing O5 sat red and unseen from T-2479 onward, and every caller that switched on rc=3 saw rc=1. The `[ … ] && cmd` shape is a known set -e trap, but nothing lints for it as a function's or script's last statement (22 scripts carry the line-end shape; most are harmless mid-function).
+
+**Prevention:** (1) fixed with an `if` and a comment naming the trap; (2) the suite now reaps its own topics, verified 0 left; (3) learning recorded (set -e + trailing `[ ] && cmd` turns a false test into the function's return status); (4) the suite needing a live hub and running nowhere is the same shipped-but-dark class as T-3288; follow-up: give it a home in the host-side canary run (filed as a follow-up note, not done here).
+
 ## Evolution
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
@@ -277,3 +285,21 @@ timeout 20 termlink channel list --prefix "dm:" --json > /tmp/.t3331b 2>&1 && te
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3331-test-agent-send-orchestration-o5-fails-o.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-f269b906
+- **Timestamp:** 2026-10-03T11:02:35Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — The suite reaps every dm: topic it minted (all ending in its run's peer_fp) on EXIT, via scripts/lib/reap-topic.sh; a run leaves zero `:ab0…` topics behind
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=scripts/lib/reap-topic.sh in: The suite reaps every dm: topic it minted (all ending in its run's peer_fp) on EXIT, via scripts/lib/reap-topic.sh; a run leaves zero `:ab0…` topics b`
+
+### 2026-10-03T11:02:26Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
