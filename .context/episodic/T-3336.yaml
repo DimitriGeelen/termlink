@@ -1,0 +1,92 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3336: Vector database dead: fw ask crashes (ModuleNotFoundError web) and the RAG index is stale since 2026-08-03
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-03T22:25:20Z
+# ============================================================================
+
+task_id: T-3336
+task_name: "Vector database dead: fw ask crashes (ModuleNotFoundError web) and the RAG index is stale since 2026-08-03"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-03T20:35:43Z
+completed: 2026-10-03T22:24:52Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-03T22:45:13+02:00
+last_commit: 2026-10-04T00:24:51+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  revive the vector database — fw ask import path (framework-owned web/ from FRAMEWORK_ROOT); fw index reindex imports from FRAMEWORK_ROOT and exits 2 when it cannot (was exit 0); index-reindex-hourly added to the cron registry (runme action 11 installs it); freshness canary (import / task lag / age) with fixtures 8/8 and crontab; both vendored fixes registered as divergences. parallel embedding in the reindex (3 concurrent batches, order preserved; FW_EMBED_WORKERS) — measured 70 -> 107 chunks/s (+53%), capped by OLLAMA_NUM_PARALLEL=3; registered as a divergence. verified — index covers T-3336 (8,813 files, 348,539 chunks); RCA
+
+# Key outcomes
+outcomes:
+  - '`fw ask` runs without PYTHONPATH tricks (framework-owned `web/` resolved from the framework root, not PROJECT_ROOT); the local fix to vendored code is registered in .vendor-divergence.yaml and filed upstream'
+  - 'The RAG index is rebuilt over the current corpus, and a query returns documents from October 2026 (e.g. docs/design/interactive-agent-communication.md)'
+  - 'The index stays fresh: an incremental rebuild is scheduled (cron, installed by runme) or triggered, and verified on disk'
+  - 'A freshness check fires when the index is stale or `fw ask` cannot run (G-019: it was dead for ~2 months with nothing firing)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'revive the vector database — fw ask import path (framework-owned web/ from FRAMEWORK_ROOT); fw index reindex imports from FRAMEWORK_ROOT and exits 2 when it cannot (was exit 0); index-reindex-hourly added to the cron registry (runme action 11 installs it); freshness canary (import / task lag / age) with fixtures 8/8 and crontab; both vendored fixes registered as divergences'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/bin/fw'
+  - '.agentic-framework/lib/ask.py'
+  - '.agentic-framework/web/embeddings.py'
+  - '.context/cron-registry.yaml'
+  - '.context/cron/vector-index-canary.crontab'
+  - 'runme.sh'
+  - 'scripts/check-vector-index-freshness.sh'
+  - '.tasks/active/T-3336-vector-database-dead-fw-ask-crashes-modu.md'
+  - 'tests/runme-fixtures.sh'
+  - 'tests/vector-index-freshness-fixtures.sh'
+  - '.vendor-divergence.yaml'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-03T22:45:13'
+    action: 'T-3336: revive the vector database — fw ask import path (framework-owned web/ from FRAMEWORK_ROOT); fw index reindex imports from FRAMEWORK_ROOT and exits 2 when it cannot (was exit 0); index-reindex-hourly added to the cron registry (runme action 11 installs it); freshness canary (import / task lag / age) with fixtures 8/8 and crontab; both vendored fixes registered as divergences'
+  - time: '2026-10-03T23:44:29'
+    action: 'T-3336: parallel embedding in the reindex (3 concurrent batches, order preserved; FW_EMBED_WORKERS) — measured 70 -> 107 chunks/s (+53%), capped by OLLAMA_NUM_PARALLEL=3; registered as a divergence'
+  - time: '2026-10-04T00:24:51'
+    action: 'T-3336: verified — index covers T-3336 (8,813 files, 348,539 chunks); RCA'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 109 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [bug, memory, rag, G-019]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 109
+  commits: 3
+  files_changed: 11
+  lines_added: 589
+  lines_removed: 9
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3336-vector-database-dead-fw-ask-crashes-modu.md
+generated_by: context-agent-hybrid

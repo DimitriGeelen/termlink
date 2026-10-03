@@ -4,12 +4,12 @@ name: "Vector database dead: fw ask crashes (ModuleNotFoundError web) and the RA
 description: >
   Operator 2026-10-03, highest priority: the semantic memory (fw ask / RAG over tasks, docs, learnings) is dead, which explains the agent losing earlier design rounds. Symptoms: lib/ask.py fails 'No module named web' without PYTHONPATH; .context/working/fw-vec-index.db mtime 2026-08-03. Diagnose import path, index location/freshness, rebuild path and schedule; fix; prove with a query that returns a September document; add detection so it cannot go dark silently again (G-019).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [bug, memory, rag, G-019]
-components: []
+components: [runme.sh, tests/runme-fixtures.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -22,8 +22,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-03T20:35:43Z
-last_update: 2026-10-03T20:35:43Z
-date_finished: null
+last_update: 2026-10-03T22:24:52Z
+date_finished: 2026-10-03T22:24:52Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -283,3 +283,16 @@ grep -q 'index reindex' /etc/cron.d/agentic-audit-termlink
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3336-vector-database-dead-fw-ask-crashes-modu.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-28bc683f
+- **Timestamp:** 2026-10-03T22:25:16Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** none
+
+### 2026-10-03T22:24:52Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
