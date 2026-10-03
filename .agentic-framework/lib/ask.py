@@ -20,6 +20,12 @@ import sys
 # Add project root to path so web modules are importable
 PROJECT_ROOT = os.environ.get("PROJECT_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, PROJECT_ROOT)
+# T-3336 (010-termlink, filed upstream): `web/` is FRAMEWORK-owned. In a vendored
+# consumer PROJECT_ROOT is the consumer project, which has no `web/`, so the import
+# below failed ("No module named 'web'") and `fw ask` was dead there. Resolve the
+# framework root from this file (lib/..) and put it first. Same class as T-2648/OBS-097.
+FRAMEWORK_ROOT = os.environ.get("FRAMEWORK_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, FRAMEWORK_ROOT)
 
 from web.embeddings import rag_retrieve, build_index
 from web.ask import get_model, should_think, SYSTEM_PROMPT, format_rag_context

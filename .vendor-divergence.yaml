@@ -187,6 +187,30 @@ last_vendor_event:
 # ---------------------------------------------------------------------------
 
 divergences:
+  - task: T-3336
+    commit: pending-same-commit
+    commit_note: Registered in the same commit that carries the fix (T-2882 precedent).
+    date: 2026-10-03
+    file: .agentic-framework/lib/ask.py
+    status: local-only
+    kind: fix
+    generality: GENERIC
+    symptom: "`fw ask` crashed in every vendored consumer: ModuleNotFoundError: No module named 'web'. lib/ask.py puts PROJECT_ROOT on sys.path, but web/ is framework-owned and lives under the framework root. Same class as T-2648/OBS-097."
+    fix: "Also insert FRAMEWORK_ROOT (env, else lib/..) at the front of sys.path."
+    evidence: "fw ask answers with sources and no PYTHONPATH (2026-10-03); before the fix it exited with the traceback."
+    upstream_note: "Upstream bleeding-edge lib/ask.py lines 20-22 carry the same defect (read 2026-10-03). Filed to AEF with T-3336."
+  - task: T-3336
+    commit: pending-same-commit
+    commit_note: Registered in the same commit that carries the fix.
+    date: 2026-10-03
+    file: .agentic-framework/bin/fw
+    status: local-only
+    kind: fix
+    generality: GENERIC
+    symptom: "`fw index reindex` could not import web.embeddings in a vendored consumer, and reported {status: unimportable} with exit 0, so an hourly cron would log success while nothing was indexed. Here the index froze at T-2508 for two months."
+    fix: "Run the reindex with PYTHONPATH=FRAMEWORK_ROOT, and exit 2 on unimportable."
+    evidence: "scripts/check-vector-index-freshness.sh (A: import path) and tests/vector-index-freshness-fixtures.sh 8/8."
+    upstream_note: "Filed to AEF with T-3336. 1409-sprind works around it by adding PYTHONPATH to its own cron line."
   - task: T-3270
     commit: 67ddecbcf
     commit_note: >

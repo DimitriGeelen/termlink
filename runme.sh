@@ -180,6 +180,7 @@ install_crontab session-leak-canary.crontab       "$CRON_DIR/termlink-session-le
 # needs an owner", or is still not enforcing it after 2026-11-15; files one task.
 install_crontab forever-owner-canary.crontab      "$CRON_DIR/termlink-forever-owner-canary"
 install_crontab agent-send-suites-canary.crontab  "$CRON_DIR/termlink-agent-send-suites-canary"
+install_crontab vector-index-canary.crontab       "$CRON_DIR/termlink-vector-index-canary"
 
 # close_task <T-ID> <reason>
 # Closes a task the operator has ALREADY approved closing, then VERIFIES it
@@ -937,6 +938,37 @@ restart_stale_sidecars() {
 
 head2 "10. Restart notify-sidecars onto the current code (T-3325 addressing)"
 restart_stale_sidecars
+
+# ---------------------------------------------------------------------------
+# ACTION 11 — schedule the hourly vector-index reindex (T-3336)
+#
+# The vector database behind `fw ask` / RAG stopped at T-2508 (early August): this
+# project's .context/cron-registry.yaml never had `index-reindex-hourly`, and the
+# reindex verb could not import the framework's web/ module in a vendored checkout
+# anyway (fixed in T-3336). Installs the registry crontab via `fw cron install`
+# (its dry run adds exactly this one line). Idempotent: skipped when the installed
+# file already carries `fw" index reindex`. Verified on disk after installing.
+# Seams (fixtures only): RUNME_AUDIT_CRON_FILE, RUNME_FW.
+# ---------------------------------------------------------------------------
+seam AUDIT_CRON_FILE RUNME_AUDIT_CRON_FILE "/etc/cron.d/agentic-audit-termlink"
+
+schedule_reindex() {
+    if grep -q 'index reindex' "$AUDIT_CRON_FILE" 2>/dev/null; then
+        say "  skip    $AUDIT_CRON_FILE already schedules the hourly vector reindex"; SKIPPED=$((SKIPPED+1)); return
+    fi
+    if [ "$DRY_RUN" = "1" ]; then
+        say "  [DRY]   would run: fw cron install (adds the hourly 'fw index reindex' line to $AUDIT_CRON_FILE)"; DONE=$((DONE+1)); return
+    fi
+    (cd "$PROJECT_ROOT" && $FW cron install >/dev/null 2>&1)
+    if grep -q 'index reindex' "$AUDIT_CRON_FILE" 2>/dev/null; then
+        say "  OK      hourly vector reindex installed and verified in $AUDIT_CRON_FILE"; DONE=$((DONE+1))
+    else
+        say "  FAILED  fw cron install ran but $AUDIT_CRON_FILE has no 'index reindex' line"; FAILED=$((FAILED+1))
+    fi
+}
+
+head2 "11. Schedule the hourly vector-index reindex (T-3336)"
+schedule_reindex
 
 # ---------------------------------------------------------------------------
 # Verification — the project's own drift checker is the arbiter, not this script.

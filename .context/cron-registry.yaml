@@ -7,6 +7,15 @@
 # Populated from live /etc/cron.d/agentic-audit-termlink (T-936)
 
 jobs:
+  - id: index-reindex-hourly
+    name: "Vector index incremental reindex (hourly)"
+    schedule: "20 * * * *"
+    command: "fw index reindex"
+    source_file: agentic-audit-termlink
+    origin_task: T-3336
+    status: active
+    description: "Re-embeds changed/added/removed corpus files so fw ask / RAG see current tasks and docs. Was never scheduled in this project: the index stopped at T-2508 (early August) and went unseen until 2026-10-03 (T-3336). Needs the T-3336 bin/fw fix (PYTHONPATH=FRAMEWORK_ROOT; unimportable exits 2)."
+
   - id: structural-30m
     name: "Structural audits (30 min)"
     schedule: "*/30 * * * *"

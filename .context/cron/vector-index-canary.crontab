@@ -1,0 +1,10 @@
+# T-3336 — Vector index freshness canary (fw ask / RAG memory alive and current)
+# Source of truth: /opt/termlink/.context/cron/vector-index-canary.crontab (git-tracked)
+# Installed to:    /etc/cron.d/termlink-vector-index-canary (USER field syntax — do NOT load into a user crontab)
+#
+# The index froze at T-2508 for two months with nothing firing (T-3336). Fires when the
+# reindex import path is broken, the index lags the newest task by > 50, or it is > 48 h
+# old with newer task files. Exit 0 healthy · 1 FIRING · 2 tooling (stderr only).
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+50 7 * * * root cd /opt/termlink && bash scripts/check-vector-index-freshness.sh --quiet >> .context/working/.vector-index-canary.log 2>> .context/working/.vector-index-canary.log.stderr

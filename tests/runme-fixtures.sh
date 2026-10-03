@@ -77,6 +77,10 @@ cat > "$TMP/fake-fw" <<'EOF'
 # fake `fw task update <id> --status <s> [...]` enforcing the REAL transition rule:
 # captured -> work-completed is refused ("Invalid transition"), as fw does.
 [ "$1 $2" = "task review" ] && exit 0      # T-3285: review marker step (a no-op here)
+if [ "$1 $2" = "cron install" ]; then       # T-3336: writes ONLY the fixture's audit cron file
+    [ -n "${FAKE_CRON_NOINSTALL:-}" ] && exit 0
+    echo '20 * * * * root cd "/x" && "/x/fw" index reindex' >> "$RUNME_AUDIT_CRON_FILE"; exit 0
+fi
 if [ "$1 $2" = "inception decide" ]; then   # T-3285: record like fw does, on disk
     f=$(ls "$RUNME_TASKS_DIR"/active/"$3"-*.md 2>/dev/null | head -1); [ -n "$f" ] || exit 1
     printf '\n## Decision\n\n**Decision**: %s\n' "$(printf '%s' "$4" | tr '[:lower:]' '[:upper:]')" >> "$f"; exit 0
@@ -96,6 +100,9 @@ EOF
 printf '#!/usr/bin/env bash\nexit 0\n' > "$TMP/noop-fw"   # claims success, moves nothing
 chmod +x "$TMP/fake-fw" "$TMP/noop-fw"
 export RUNME_TASKS_DIR="$TMP/tasks" RUNME_FW="$TMP/fake-fw"
+# T-3336 (action 11): default = reindex already scheduled, so every other case skips it.
+export RUNME_AUDIT_CRON_FILE="$TMP/agentic-audit-termlink"
+echo '20 * * * * root cd "/x" && "/x/fw" index reindex' > "$RUNME_AUDIT_CRON_FILE"
 # T-3276: the real runme.sh carries no pending closures or decisions once they are
 # done, so the fixtures feed the machinery through its test seams instead.
 export RUNME_TEST_CLOSES="T-3132|fixture approved closure
@@ -300,7 +307,7 @@ if [ "$(id -u)" != "0" ] && [ -n "${CI:-}" ]; then
 fi
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|') + 8 ))   # +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
+EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|') + 9 ))   # +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -777,6 +784,29 @@ if [ "$rc" != "0" ] && echo "$out" | grep -q "FAILED  check-stale-sidecar-code g
     ok "sidecars: unreadable detector output is FAILED (fail-closed), never a skip"
 else bad "sidecars unreadable" "rc=$rc: $out"; fi
 echo '{"stale_count":0,"current_count":3,"stale":[]}' > "$FAKE_SIDECAR_STATE"
+
+# ---------------------------------------------------------------------------
+# 23. T-3336 — schedule the hourly vector reindex (fake fw cron install, temp file only).
+# ---------------------------------------------------------------------------
+: > "$RUNME_AUDIT_CRON_FILE"
+out=$(run --dry-run); rc=$?
+if echo "$out" | grep -q "would run: fw cron install" && [ ! -s "$RUNME_AUDIT_CRON_FILE" ]; then
+    ok "reindex: --dry-run reports and installs nothing"
+else bad "reindex dry-run" "rc=$rc: $out"; fi
+out=$(run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      hourly vector reindex installed and verified" && grep -q 'index reindex' "$RUNME_AUDIT_CRON_FILE"; then
+    ok "reindex: installed and verified on disk"
+else bad "reindex install" "rc=$rc: $out"; fi
+out=$(run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "skip    .* already schedules the hourly vector reindex"; then
+    ok "reindex: second run skips (idempotent)"
+else bad "reindex idempotent" "rc=$rc: $out"; fi
+: > "$RUNME_AUDIT_CRON_FILE"
+out=$(FAKE_CRON_NOINSTALL=1 run); rc=$?
+if [ "$rc" != "0" ] && echo "$out" | grep -q "FAILED  fw cron install ran but"; then
+    ok "reindex: an install that leaves no line is FAILED, not OK"
+else bad "reindex no-install" "rc=$rc: $out"; fi
+echo '20 * * * * root cd "/x" && "/x/fw" index reindex' > "$RUNME_AUDIT_CRON_FILE"
 
 echo ""
 echo "----------------------------------------"
