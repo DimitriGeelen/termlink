@@ -4,12 +4,12 @@ name: "Agent-send suites canary: run the live-hub agent-send test suites daily s
 description: >
   T-3331 follow-up (G-019): scripts/test-agent-send-orchestration.sh was red from T-2479 until T-3331 because nothing ran it — the live-hub agent-send suites are not in the guard layer (no hub in CI) and not on cron. Add a daily host-side canary (substrate-smoke pattern: hub precheck -> exit 2 non-firing; any suite FAIL -> fire, naming suite and case), crontab installed by runme.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [canary, test, notify-rail]
-components: []
+components: [runme.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -22,8 +22,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-03T15:19:38Z
-last_update: 2026-10-03T15:19:38Z
-date_finished: null
+last_update: 2026-10-03T15:30:49Z
+date_finished: 2026-10-03T15:30:49Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -277,3 +277,21 @@ grep -q 'install_crontab agent-send-suites-canary.crontab' runme.sh
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3334-agent-send-suites-canary-run-the-live-hu.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-5dec33ef
+- **Timestamp:** 2026-10-03T15:30:54Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — `scripts/check-agent-send-suites-freshness.sh` runs the 4 live-hub agent-send suites; exit 0 all green, 1 any suite failed (FAILING lines name the suite and its FAIL cases), 2 hub unreachable or a sui
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=scripts/check-agent-send-suites-freshness.sh in: `scripts/check-agent-send-suites-freshness.sh` runs the 4 live-hub agent-send suites; exit 0 all green, 1 any suite failed (FAILING lines name the sui`
+
+### 2026-10-03T15:30:49Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
