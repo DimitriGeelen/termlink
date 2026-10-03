@@ -318,3 +318,114 @@ E2. RAIL opens with the same admission for 2026-09-22: "I reported the rail 'wor
 E3. The arc register (`ARC11`) and design docs hold the sidecar rounds (A7) and IAC consolidates A7 and A9, but nothing links A1 to A6 into one document: A6's native consumer (D1), A3's yield-point deafness rule (D2) and A5's wake obligation (D3) live only in their own inception reports.
 
 *End of report. Read-only survey; no other file was written.*
+
+---
+
+# F. Earlier rounds found by recall (2026-10-04)
+
+**Method.** The semantic index (`fw ask`) and a full read of sources neither history cites. Seven are new rounds (F1-F6, F11); four are additions to rounds already in section A (F7-F10). Same format as section A. Citations are `file:line` under `/opt/termlink`; `T-nnn` task files are `.tasks/completed/T-nnn-*.md` unless marked active. The rebuilt design that uses them is `docs/design/interactive-agent-communication.md`.
+
+**Total rounds now known:** 9 (section A) + 6 (AEF history, `T-3335-design-history-aef.md`) + 7 new here = **22**. AEF round 1 (receptionist, T-1135) and F4 below are the two halves of the same 2026-04-12 round; they are counted once each because each side records different content.
+
+## F1. Round — 2026-03-08 — T-007 terminal output capture, bidirectional (the origin of "control a terminal")
+
+F1a. **Sources.** `docs/reports/T-007-output-capture-bidirectional.md:13-17,99,239-253`; `.tasks/completed/T-007-it-004-output-capture--bidirectional-com.md:14` (created 2026-03-08).
+F1b. **Design as stated.**
+  F1ba. "The half-duplex problem: after injecting keystrokes (`command.inject`), there's no way to read what the terminal produced in response. Without output capture, TermLink is a blind remote control." (`T-007…:17`)
+  F1bb. Decision GO: a TermLink-owned PTY for registered sessions (master read/write), scrollback ring buffer, `query.output`, `data.stream`, `command.inject` wired to a PTY master write (`T-007…:239-253`).
+  F1bc. Constraint recorded on day one: "User must start their shell through TermLink… Existing terminal sessions can't be 'attached to' retroactively" (`T-007…:52-53`). This is the root of PL-237 (a running session cannot be made injectable later).
+F1c. **Operator's words.** None recorded in the report.
+F1d. **What it adds.** The injection primitive and its ownership precondition. Nothing in later rounds restates that the precondition was known in March 2026.
+
+## F2. Round — 2026-03-18 and 2026-04-24 — T-099 / T-1207 / T-173 the Stop hook: the harness reports a turn boundary
+
+F2a. **Sources.** `docs/reports/T-099-postmessage-sessionend-hook-request.md:21-37,57-67`; `docs/reports/T-1207-stop-hook-inception.md:5-12,45-72`; `.tasks/completed/T-1207-stop-hook-design--conversation-governanc.md:97`; `.tasks/completed/T-173-wire-stop-hook-for-conversation-governan.md:33`.
+F2b. **Design as stated.**
+  F2ba. Claude Code's `Stop` hook "fires when Claude finishes responding", `UserPromptSubmit` fires "before Claude processes a prompt" (`T-099…:21-37`). Both exist; T-099 closed NO-GO on a feature request because they already existed.
+  F2bb. T-1207 (the same events used for governance): Stop never blocks; "Stderr from a Stop hook becomes additional context the agent sees on the next turn", and the agent then asks the human a y/n (`T-1207 report:49-56`).
+  F2bc. A Stop hook is wired in this repo for governance (`stop-guard.sh`, T-1211, installed 2026-04-25; `T-173…:33`).
+F2c. **Operator's words (recorded as).** "No block. Use a y/n user-question pattern" and "Option B — live from day 1." (`T-1207 report:67-71`; `T-1207…:97`)
+F2d. **What it adds.** The hook primitives that AEF later uses to REPORT readiness (Stop sets ready, UserPromptSubmit clears it) existed and were wired here five months earlier, for a different purpose. A hook-to-agent channel (Stop stderr to the next turn's context) was designed and never reused for message surfacing. No round connected the two until AEF's T-3397 (2026-09-21).
+
+## F3. Round — 2026-03-23 — T-256 "the spawned agent can talk to the spawning agent", and T-233 persistent specialists
+
+F3a. **Sources.** `docs/reports/T-256-interactive-multi-agent-comms.md:5-83`; `docs/reports/T-233-Q1-persistent.md:26,59`; `docs/reports/T-233-Q1-hybrid.md:1-74` (task T-233 created 2026-03-23, `.tasks/completed/T-233-*.md:14`).
+F3b. **Design as stated.**
+  F3ba. Problem: orchestrator spawns workers, workers write files, the orchestrator polls. Wanted: workers talk back "in real-time — no polling" (`T-256…:5`).
+  F3bb. Findings: all event consumption is poll-based (250-500 ms); the gap is no `emit-to <target>`; option A `emit-to` (cleanest, not built), option B hub-side `event collect` fan-in (works today, shipped as a convention) (`T-256…:26,59-76`).
+  F3bc. Claude Code constraint: a background `termlink event collect` costs about 800 tokens versus 10-18K for polling (`T-256…:39-44`).
+  F3bd. T-233: a hybrid of persistent, warm-standby and on-demand specialists; "`termlink agent ask` can wake a specialist by injecting a prompt into a Claude Code session" (`T-233-Q1-persistent.md:26`).
+F3c. **Operator's words.** "the spawned agent can talk to the spawning agent" (`T-256…:50`); insisted on TermLink mesh agents over the Claude Code Agent tool (`T-256…:51`).
+F3d. **What it adds.** The earliest statement of the goal (no polling, two-way) and the first decision to prefer a wait over a poll. `emit-to` (push to a named target) was never built; push arrived 3.5 months later as the arc-004 hub-to-client WebSocket (A4).
+
+## F4. Round — 2026-04-12 — T-967 / T-1135 persistent "receptionist" sessions (TermLink side)
+
+F4a. **Sources.** `.tasks/completed/T-967-persistent-agent-sessions--mark-protect-.md:83,120-132`; `docs/reports/T-1135-persistent-sessions-response.md:35-88`; `docs/reports/T-967-persistent-sessions-findings.md`. AEF's side of the same round: AEF history round 1.
+F4b. **Design as stated.**
+  F4ba. Two needs conflict: the cleanup cron kills stale sessions, and persistent agent sessions "must stay alive indefinitely so other agents can discover and contact them" (`T-967…` Problem Statement).
+  F4bb. Joint design with the framework agent: KV `persistent=true` (cleanup exemption), tag `role:receptionist` plus `project:<name>`, a non-blocking health check at `fw context init`, `fw doctor` reports it, respawn manual via `fw termlink respawn` with auto-respawn only by explicit opt-in, config in `.framework.yaml` (`T-967…:120-125`).
+  F4bc. TermLink adds: `spawn --persistent`, cleanup warns about but does not remove dead persistent sessions, naming `{project}-agent`, and "a persistent session could be a lightweight 'receptionist' that only starts full Claude when a request arrives" (`T-1135 response:74,88`).
+F4c. **Operator's words (recorded).** "User approved: persistent agent sessions with KV persistent=true, tag role:receptionist, .framework.yaml config. Joint design with framework agent completed via PTY coordination." (`T-967…:132`, 2026-04-12T10:26Z)
+F4d. **Outcome.** GO. AEF's later audit says the receptionist "was never built" (AEF history round 1, `T-3396:29-38`).
+F4e. **What it adds.** The persistent always-present per-project process the operator described again on 2026-09-20 ("a sidekick that's listening all the time") and the lightweight-front, start-Claude-on-demand variant. The rule "auto-respawn needs explicit opt-in" later returns as the 7/7 vendor finding on respawn-from-mail.
+
+## F5. Round — 2026-04-30 — T-1425 agent-contact pattern RFC
+
+F5a. **Sources.** `docs/reports/T-1425-agent-contact-pattern-rfc.md:11-208` (key lines 29-46, 87-99, 150-160, 192-193).
+F5b. **Design as stated.**
+  F5ba. Vendored agents improvise agent-to-agent contact; the RFC proposes a verb that resolves a per-pair `dm:<sender>:<sender>` topic and posts `msg_type=request` with `metadata.thread`, `requires_ack`, optionally awaiting an `m.receipt` (`:36-46`).
+  F5bb. Solo synthesis, operator-requested fast-forward: Q2 ack semantics C (no ack by default, `--ack-required` opt-in); Q3 offline receiver C (queue by default, `--require-online` deferred); Q4 identity A (strict reject of a mismatched `metadata.from`) (`:150-160,192-193`).
+F5c. **Operator's words.** "Operator asked for fast-forward synthesis 0h into the 48h soak window." (`:150-152`)
+F5d. **What it adds.** The default that sends are fire-and-forget unless `--ack-required` — the origin of "delivered means queued" that A3 and A7 later had to undo — and the unbuilt `--require-online` (a send that fails fast when the peer is offline).
+
+## F6. Round — 2026-05-25 to 2026-05-31 — T-1807 / T-1809 doorbell+mail validation, and T-1898 the vendored agent runner
+
+F6a. **Sources.** `docs/reports/T-1807-doorbell-mail-loop-validation.md:35-84`; `.tasks/completed/T-1809-doorbell-respond-mode-signal--woken-chec.md` (ACs); `docs/reports/T-1898-vendored-agent-runner-inception.md:7-49`.
+F6b. **Design as stated.**
+  F6ba. T-1807: a 3-turn conversation over doorbell+mail passed with receipts per turn (offsets 0/3/6), but only with a mechanical responder. A live claude was blocked by two things: root cannot use `--dangerously-skip-permissions` (allowlist `Bash(termlink:*)` instead), and the doorbell `/check-arc` is read-only browse mode, so a woken claude reads the turn and never posts a receipt (`:47-77`).
+  F6bb. T-1809: the doorbell text becomes `/check-arc respond`, a respond-mode signal.
+  F6bc. T-1898 (2026-05-31): the presence half ships; "the agent half does not — no service holds an attached claude-code, reads `dm:<self>:*`, and replies"; the symptom was a LIVE agent with zero receipts on its DM topic (`T-1898 report:21`).
+F6c. **Operator's words (verbatim in the dialogue log).** "really bandaid fixing ??????!!! incept incept incept ,,, again fricking critical fucntionality" (`T-1898 report:29`); "YOU ARE VIOLATING FRAMEWORK GOVERNANCE!!!!" when the agent skipped inception (`:33`); "REFLECT ON WHY AND TELL ME" (`:37`).
+F6d. **What it adds.** The respond-mode signal (the doorbell must say "reply"); the first named gap "no service holds an attached claude and replies" — the native-consumer problem (A6, D1) four months before A6; and the first operator statement that this is critical functionality that keeps getting band-aided.
+
+## F7. Addition to A3 — 2026-06-27 / 06-28 — T-2295 three ack mechanisms, and "receipt on READ, not on detect"
+
+F7a. **Sources.** `.tasks/completed/T-2295-v3b-delivery-confirm-by-default--canary.md:158,216`.
+F7b. **Design as stated.** A sidecar that auto-acks on detection erases the very flag that wakes the agent (`channel ack` advances the same `<self>` frontier the sidecar reads), so the receipt must be emitted on READ. Cross-agent comms has THREE confirmation signals: (A) the `msg_type=receipt` envelope (a post, never touches the frontier), (B) the `channel.receipts` frontier, (C) the reply turn. The conversational paths standardise on A (`:158,216`).
+F7c. **Operator's words.** None recorded.
+F7d. **What it adds.** The rule that makes the L2/L3 ladder necessary, and the constraint on the sidecar's `--auto-confirm` (stored, never read), which is still what runs today.
+
+## F8. Addition to A5 — 2026-07-11 — T-2400 / T-2402 / T-2410 the deterministic-attention control loop
+
+F8a. **Sources.** `.tasks/active/T-2402-woken-but-silent-make-a-rung-yet-unanswe.md:33,50,58-60`; `.tasks/completed/T-2400-reachable-agents-launch-mute--tl-claude-.md:37-45`; `.tasks/completed/T-2410-idle-gate-agent-send-doorbell-ring-sende.md:50,230-232`.
+F8b. **Design as stated.**
+  F8ba. "The ONLY non-deterministic node left is the agent's cognition… You cannot make LLM cognition deterministic — so this task makes the ENVELOPE around it deterministic" (`T-2402:33`). Six stages: 1 durable obligation, 2 push wake, 3 idle-gated injection, 4 receipt-or-re-ring, 5 escalate-if-stuck, 6 wake-protocol obligation (`T-2402:50`).
+  F8bb. Stage 6: a woken agent drains ALL unread topics, a receipt per topic, and replies OR posts an explicit "acknowledged, no action needed"; "Silence is never a valid choice" (`T-2402:60`).
+  F8bc. T-2400: a `--reachable` agent comes up in manual permission mode, wakes, composes a reply and STALLS at "Do you want to proceed?" — discoverable and wakeable but MUTE; fixed by default auto-accept (`T-2400:37-45`).
+  F8bd. T-2410: the sender's blind inject can corrupt a busy peer's input; the sender-side ring is idle-gated; a persistently busy interactive peer is "the operator-held design fork (PL-253 / T-2396)" (`T-2410:50,232`).
+F8c. **Operator's words.** GO on the arc (`owner: human`); no new quotes in these files.
+F8d. **What it adds.** The six-stage control loop as one list (the history cites stages 3, 5, 6 only); the mute-agent failure; and the explicit statement that persistently busy peers are an operator-held design fork. That fork is exactly the urgent-bypass decision (open decision O2).
+
+## F9. Addition to A7 — 2026-09-21 / 09-22 — T-3050 sidecar launcher, T-3067 L3 evidence gate
+
+F9a. **Sources.** `.tasks/completed/T-3050-notify-sidecar-has-no-launcher---cron-su.md:5-25`; `.tasks/completed/T-3067-l3-stageread-tell-the-sender-its-message.md` (ACs 2, 6, 7).
+F9b. **Design as stated.** T-3050: the notify rail had been dark for 82 days because nothing starts it; a declared-agents conf plus an idempotent cron supervisor gives autostart and self-heal in one mechanism, with identity declared (`<agent-id> <self-fp>`) because `termlink whoami` is ambiguous across 18 candidate sessions. T-3067: L3 `stage=read` is posted only with `--evidence <kind>`; a bare inject "lands UNSUBMITTED and is discarded" (T-2396), so "I injected it" is not evidence; the e2e LADDER stage reports `L2-ONLY` as non-green.
+F9c. **Operator's words.** None recorded here.
+F9d. **What it adds.** The origin of the always-respawns launcher (the T-3075 spec's "always respawns" has a cron answer first) and the evidence rule behind INJECTED.
+
+## F10. Addition to A8 — 2026-09-30 — T-3280 pen-agent: the operator relays by hand because the agent route cannot reach
+
+F10a. **Sources.** `.tasks/completed/T-3280-ask-pen-agent-to-confirm-its-relayed-ope.md:269-273`.
+F10b. **What happened.** `agent-send.sh --to penelope` refused ("heartbeat does not declare pty_session — sender cannot ring the doorbell"); the fallback `agent contact` landed in the host's self-DM; an automated receipt 12 s later made the topic read, indistinguishable from pen's because all agents share one key. The operator pasted a prompt into pen's session directly.
+F10c. **Operator's words (recorded).** "Pen did a lot of stuff… She picked it up. It's all fine." (`T-3280…:270`)
+F10d. **What it adds.** A dated, operator-visible case of the rail failing to carry real work, and the shared-key defect that makes receipts unattributable. Not a design round; evidence for the status section.
+
+## F11. Round — 2026-10-01 — T-3304 hub storage model: retention for mail and for telemetry
+
+F11a. **Sources.** `docs/reports/T-3304-hub-storage-model.md:114-193` (items 6-20).
+F11b. **Design as stated (rulings).**
+  F11ba. IW-1 = B: the hub is authoritative for coordination within a declared retention window (item 8). IW-2 = C: a bounded default with a sweeper on every hub and a ceiling on post; 14-day default assumed (item 10). IW-3 = B: honest reads, an ordered gap signal first (item 12). IW-4 = C-prime (item 15). T-3310 D1 = D+, D2 = B (mail by count, the rest 14 days), D3 = C (ceilings on post) (items 17-20).
+  F11bb. Messages are small envelopes in bounded pages; binary payloads use the chunked artifact path and never meet the 20 s limit (item 1).
+  F11bc. Retention should combine count, age and size, with limits configurable from a settings page, plus a job collapsing duplicates; deriving knowledge from the message flow is its own inception → T-3319 / T-3320 / T-3321 (item 19).
+F11c. **Operator's words (verbatim in the log).** "record B, with all this discussion we had" (item 8); "Alright, C then" (item 10); "take your recommendation … vote for B" (item 12); "let's go with C as suggested and recommended" (item 15); "I agree with the recommendation" (item 18); "as suggested" (item 20).
+F11d. **What it adds.** The retention rulings the telemetry design must obey. The design's "for example 30 days" window (previous design §7) conflicts with the 14-day default (open decision O13).
