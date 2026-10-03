@@ -30,7 +30,20 @@ PASS=0; FAIL=0
 pass() { echo "  PASS: $*"; PASS=$((PASS + 1)); }
 fail() { echo "  FAIL: $*"; FAIL=$((FAIL + 1)); }
 
-tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
+# T-3331: every case posts a real turn to dm:<self-fp>:<peer_fp> on the LIVE hub.
+# Removing only the tmp dir leaked one topic per run, and each leaked topic then
+# counted as unread mail for the host's sidecars. Reap every topic carrying this
+# run's peer_fp on exit (T-2754 helper).
+. "$(dirname "${BASH_SOURCE[0]}")/lib/reap-topic.sh"
+_reap_run_topics() {
+    local t
+    for t in $("$TERMLINK" channel list --prefix "dm:" --json 2>/dev/null \
+                | jq -r --arg fp "${peer_fp:-}" '(.topics // .)[]?.name // empty
+                    | select($fp != "" and (endswith(":" + $fp) or startswith("dm:" + $fp + ":")))' 2>/dev/null); do
+        reap_topic "$t"
+    done
+}
+tmp="$(mktemp -d)"; trap 'rc=$?; _reap_run_topics; rm -rf "$tmp"; exit $rc' EXIT
 
 # T-2761: this test drives the real agent-send.sh, whose T-2402 give-up path
 # appends to the operator's woken-but-silent canary log. Redirect it into our own

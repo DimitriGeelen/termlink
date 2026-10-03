@@ -719,7 +719,11 @@ escalate_woken_but_silent() {
         printf -- '---\n'
     } >> "$log" 2>/dev/null; then
         echo "agent-send: ESCALATED woken-but-silent${diag_class:+ [$diag_class]} -> $log (operator-visible via /canaries)" >&2
-        [ -n "$diag_line" ] && echo "agent-send:   ↳ $diag_line" >&2
+        # T-3331: an `if`, not `[ … ] && echo`. As the branch's last command, a false
+        # test returns 1 from this function, and under `set -e` the script then died
+        # with rc=1 before reaching `exit 3`: every give-up without a diagnosis broke
+        # the documented exit contract (3 = not acked) since T-2479.
+        if [ -n "$diag_line" ]; then echo "agent-send:   ↳ $diag_line" >&2; fi
     else
         echo "agent-send: WARN could not write woken-but-silent canary log at $log" >&2
     fi
