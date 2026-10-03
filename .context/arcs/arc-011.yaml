@@ -8,6 +8,12 @@ description: 'The operator''s full spec for the sidecar rail, end to end: sender
   API); steps 7-10 do not exist.'
 status: in-progress
 anchor_task: T-3069
+# Operator directive 2026-10-04 (T-3335): the requirements-and-design document is the
+# HEADLINE of this arc. Requirements R-1.1..R-14.4 were confirmed by the operator; the
+# traceability file maps each to tasks, with status, verdicts and gaps (G1..G16).
+headline_doc: docs/design/interactive-agent-communication-requirements.md
+design_doc: docs/design/interactive-agent-communication.md
+traceability_doc: docs/design/interactive-agent-communication-traceability.md
 headline_mechanic: An agent sends a message (with an optional binary blob) to a peer and learns, as two
   separate confirmed events, that it was RECEIVED into the peer's local store and later INJECTED into
   the peer's prompt with the peer verified as working on it — without either side needing to be continuously
