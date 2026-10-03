@@ -46,10 +46,10 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `fw ask` runs without PYTHONPATH tricks (framework-owned `web/` resolved from the framework root, not PROJECT_ROOT); the local fix to vendored code is registered in .vendor-divergence.yaml and filed upstream
-- [ ] The RAG index is rebuilt over the current corpus, and a query returns documents from October 2026 (e.g. docs/design/interactive-agent-communication.md)
-- [ ] The index stays fresh: an incremental rebuild is scheduled (cron, installed by runme) or triggered, and verified on disk
-- [ ] A freshness check fires when the index is stale or `fw ask` cannot run (G-019: it was dead for ~2 months with nothing firing)
+- [x] `fw ask` runs without PYTHONPATH tricks (framework-owned `web/` resolved from the framework root, not PROJECT_ROOT); the local fix to vendored code is registered in .vendor-divergence.yaml and filed upstream
+- [x] The RAG index is rebuilt over the current corpus, and a query returns documents from October 2026 (e.g. docs/design/interactive-agent-communication.md)
+- [x] The index stays fresh: an incremental rebuild is scheduled (cron, installed by runme) or triggered, and verified on disk
+- [x] A freshness check fires when the index is stale or `fw ask` cannot run (G-019: it was dead for ~2 months with nothing firing)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -85,6 +85,9 @@ date_finished: null
 -->
 
 ## Verification
+bash scripts/check-vector-index-freshness.sh --no-heartbeat > /tmp/.t3336 2>&1 && grep -q 'covers through' /tmp/.t3336
+bash tests/vector-index-freshness-fixtures.sh > /tmp/.t3336b 2>&1 && grep -q 'failed: 0' /tmp/.t3336b
+grep -q 'index reindex' /etc/cron.d/agentic-audit-termlink
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -175,6 +178,11 @@ date_finished: null
 
 ## RCA
 
+**Symptom:** fw ask crashed; semantic recall had no content after T-2508; the agent lost months of design rounds.
+**Root cause:** reindex never scheduled here, and the vendored reindex/ask could not import web/ (PROJECT_ROOT instead of FRAMEWORK_ROOT), with the reindex exiting 0 on that failure.
+**Why structurally allowed:** nothing checked index freshness or the reindex result; the cron's output went to logger only.
+**Prevention:** scripts/check-vector-index-freshness.sh (daily canary, fixtures 8/8); reindex exits 2 when it cannot run; divergences registered and filed upstream.
+
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
      Non-bug-class tasks may leave this section empty or remove it.
@@ -264,6 +272,12 @@ date_finished: null
      legacy tasks lacking this section. -->
 
 ## Updates
+
+### 2026-10-04 — revived and verified
+1. Root causes: (a) index-reindex-hourly was never in this project's cron registry; (b) `fw index reindex` and `fw ask` could not import framework-owned web/ in a vendored checkout, and the reindex reported that as exit 0. Index frozen at T-2508 since early August.
+2. Fixes: import paths; reindex exits 2 when unimportable; registry entry installed (runme action 11, rc=0); index canary installed; parallel embedding (70 -> 107 chunks/s).
+3. Full reindex: the first run crashed (Ollama embed runner EOF, likely load from my parallel benchmark) and resumed from its .resume file: 8,813 files, 348,539 chunks, manifest + canary written; freshness check healthy; `fw ask` returns this week's T-3335 documents.
+4. Filed upstream: AEF inbox @217.
 
 ### 2026-10-03T20:35:43Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
