@@ -41,9 +41,22 @@ The operator has stated this design many times. The agent kept losing parts of i
 13. **The queue**, ordered by priority (S8).
 14. **The prompt-free check** (S7). It is independent of any LLM: it decides from the terminal's behaviour whether the agent's prompt is free.
 15. **The injector** (S10). It puts the message into the agent's session and verifies the agent started working on it.
-16. **The cron driver** (S11). It runs steps 23–27 on a schedule, so nothing needs an LLM online.
+16. **The cron driver** (S11). Every 30 seconds it checks the new-message flag and, when it is up, runs the queue / urgent / prompt-free logic (§3a), so nothing needs an LLM online.
 17. **The hub.** The durable substrate: topics, discovery, artifact (blob) storage, the telemetry record (§7), and the fallback path when a direct call cannot land.
 18. **The sender's ledger** (S6). One row per message sent, with the step it has reached.
+
+## 3a. Prompt observation and injection: the heart of the receive side
+
+This is the mechanism that makes the communication interactive. Without it, a message is stored and nobody sees it.
+
+18a. **A cron job runs every 30 seconds and checks the new-message flag.** (Operator, 2026-10-03. System cron's smallest unit is one minute, so "every 30 seconds" is built as a supervised loop or two cron entries 30 s apart: an implementation detail, not a change to the design.)
+18b. **When the flag is up, the message queue is read**, highest priority first.
+18c. **Urgent: injected immediately.** An urgent message does not wait for the prompt to become free; it is injected straight away, even when the agent is busy. (Operator, 2026-10-03.)
+18ca. **Not urgent: the job checks whether the agent's prompt is free.** The check is independent of any LLM: it reads how the terminal behaves, not what the agent says (S7; T-3079's classifier decides on screen quiescence and an empty input row; 466 samples, 0 false "free"). The result is one of FREE, BUSY or NOT RUNNING; NOT RUNNING is reported, never treated as busy.
+18cb. **Prompt free: inject.** The message is injected into the prompt now.
+18cc. **Prompt not free: wait for the next 30-second tick** and check again. The message stays queued and the flag stays up.
+18d. **Every injection is verified.** After injecting, the sidecar observes that the agent actually took the message, for example a FREE→BUSY transition or the message appearing in the agent's transcript. Only then is INJECTED reported to the sender (step 25).
+18e. **The design constraint the urgent path must meet.** Text typed into a busy prompt can land unsubmitted and be lost on the agent's next turn (T-2396, proven live). The urgent bypass therefore needs a delivery route that cannot be silently lost while the agent is busy, and it still needs the 18d verification. How to do that is a question for the consultation (T-3335), not a reason to drop the bypass.
 
 ## 4. The message, front to end
 
@@ -52,9 +65,9 @@ The operator has stated this design many times. The agent kept losing parts of i
 21. **RECEIVED.** The receiver's sidecar immediately calls the sender's sidecar: "received", with a timestamp.
 22. **STORED.** The receiver stores the message durably (it survives a restart), then calls the sender's sidecar again: "stored".
 23. **Flag up.** A new-message flag is set for the receiving agent.
-24. **Urgent?** The receiver reads the message's urgent flag.
-    24a. **Urgent:** injected immediately (operator 2026-10-03). (Open point O2: ruling SQ-4 says urgent shortens the WAIT but never skips the prompt-free CHECK, re-probing for up to 120 s, because injecting into a busy prompt can silently lose the text, T-2396.)
-    24b. **Not urgent:** queued. When the prompt is free, the injector takes the highest-priority message and injects it. While the prompt is busy, the cron-style check retries.
+24. **The 30-second tick (§3a).** A cron job checks the flag every 30 seconds. With the flag up, it reads the queue.
+    24a. **Urgent:** injected immediately, even if the agent is busy (operator 2026-10-03), by a route that cannot be silently lost (18e).
+    24b. **Not urgent:** if the prompt is FREE, injected now; if not, the message waits for the next 30-second tick.
 25. **INJECTED.** Once the message is in the agent's prompt, and the agent is verified to be working on it, the receiver's sidecar calls the sender's sidecar: "injected". Injection alone is not evidence: a bare inject can land unsubmitted and be discarded (T-2396), so INJECTED needs an observation, for example a BUSY transition or the message appearing in the receiver's transcript.
 26. **Flag down.** The new-message flag comes down only when the queue is empty.
 27. **The agent works** on the message.
@@ -108,6 +121,7 @@ The operator has stated this design many times. The agent kept losing parts of i
     53a. The injector needs a session started with a terminal it can type into (`tl-claude.sh start --reachable`). No agent on this host was started that way, and a running session cannot be given one afterwards (PL-237).
     53b. So the injector is scheduled by nothing (its own header, T-3207).
     53c. The wake consumers only log, and `claude-termlink` has none at all.
+    53d. **So the 30-second loop does not run for any real agent.** The FREE/BUSY classifier exists (T-3079) and was proven on one test session, and today's cron driver runs every 5 minutes (S11, `*/5`), not 30 seconds, and only notices the flag. No running agent's prompt is checked, so "inject when free" never triggers and urgent is never injected.
 54. **The slice register says otherwise.** `arc-011.yaml` records S7, S10 and S11 as **built**, and S10 as "PROVEN LIVE 2026-09-22". That proof was one injection into one test session on a fresh topic (T-3079). It was never turned into the running service for real agents. Recorded "built" therefore meant "worked once", which is the exact failure this document exists to stop.
 55. **Also not operating:** API calls back to the sender (RECEIVED, STORED, INJECTED and ANSWER READY are, at best, receipts on hub topics); per-step telemetry; the daily digest; sidecars shipped with deployments.
 56. **What does operate:** hub transport and storage; per-message addressing (T-3325, live since 2026-10-02 23:17Z); session-start listing of unseen mail (T-3327, manual); the polling-free acknowledgement rule.
@@ -116,7 +130,7 @@ The operator has stated this design many times. The agent kept losing parts of i
 ## 12. Open points and contradictions (for the operator)
 
 58. **O1, the send path.** Today's design (step 20) is sidecar → sidecar API. SQ-1 kept sending on the hub (`channel.post`), with the sidecar API local-only, because a cross-host sidecar API would make TermLink a second bus. AEF's receiver already does sidecar → sidecar on one host. Which holds across hosts, and who carries it?
-59. **O2, urgent into a busy prompt.** Today: "urgent is injected immediately". SQ-4: urgent never skips the prompt-free check, because text injected into a busy prompt can be silently lost (T-2396). Which rule, or what makes "immediately" safe?
+59. **O2, how the urgent bypass is made safe.** The operator's rule is that urgent bypasses the wait (18c). The earlier SQ-4 build re-probes for up to 120 s instead, because text typed into a busy prompt can be lost (T-2396). The design follows the operator: urgent bypasses. What is open is the route that makes a bypass into a busy agent impossible to lose silently (18e).
 60. **O3, RECEIVED vs STORED.** Are they two separate calls (today's design), or one (AEF's RECEIVED already means stored durably)?
 61. **O4, sessions not started injectable.** How does an already-running agent session become reachable, given PL-237?
 62. **O5, the session level** of the address (6d).
