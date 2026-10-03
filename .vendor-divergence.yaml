@@ -189,6 +189,18 @@ last_vendor_event:
 divergences:
   - task: T-3336
     commit: pending-same-commit
+    commit_note: Registered in the same commit that carries the change.
+    date: 2026-10-03
+    file: .agentic-framework/web/embeddings.py
+    status: local-only
+    kind: fix
+    generality: GENERIC
+    symptom: "reindex_incremental sent 64-chunk embed batches serially, leaving the GPU ~11% busy during a full reindex (RTX 5060 Ti, nomic-embed-text-v2-moe)."
+    fix: "_flush embeds its batches concurrently (ThreadPoolExecutor, order preserved via map); FW_EMBED_WORKERS, default 3 = this host's OLLAMA_NUM_PARALLEL."
+    evidence: "Benchmark 2026-10-03, 768 real chunks: 1 worker 70 chunks/s, 2 = 98, 3 = 107 (+53%), 4 = 104 (capped by NUM_PARALLEL=3)."
+    upstream_note: "To file with AEF alongside the T-3336 import fixes (inbox @217)."
+  - task: T-3336
+    commit: pending-same-commit
     commit_note: Registered in the same commit that carries the fix (T-2882 precedent).
     date: 2026-10-03
     file: .agentic-framework/lib/ask.py
