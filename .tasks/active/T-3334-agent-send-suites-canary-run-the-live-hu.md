@@ -268,6 +268,11 @@ grep -q 'install_crontab agent-send-suites-canary.crontab' runme.sh
 
 ## Updates
 
+### 2026-10-03 — built and live-checked
+1. First live run exited 2 (hub precheck timed out once at 15 s; the same call took 0.08 s right after; open stdin ruled out). Tooling, not firing: the canary behaved as designed.
+2. Second live run: all 4 suites ok, rc=0, 5 min 39 s.
+3. Crontab install handed to the operator via runme action 1.
+
 ### 2026-10-03T15:19:38Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3334-agent-send-suites-canary-run-the-live-hu.md
