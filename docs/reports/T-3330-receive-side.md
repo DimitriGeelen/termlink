@@ -244,3 +244,23 @@ The neutral brief is `T-3330-consult/brief.md`; it states the options and requir
 | Detection | reporter heartbeats, sequence gaps, outbox depth | **canary mail with deadlines** (INJECTED within T1, REPLIED within T2) | missing stages in the hub record | hub-vs-local reconciliation |
 
 Convergence: 4/4 choose C. 3/4 accept the hub as its home, with a retention window (Codex, GLM) or conditionally (qwen); gemma4 dissents. Codex and GLM both say R1's synchronous "call back to the sender" is the wrong mechanism and that record-and-pull satisfies the same need. Codex and GLM both say the stall itself is a liveness problem that telemetry alone only makes visible: it needs an alarm (GLM: R6), and fixing it need not wait for the telemetry decision (Codex 3d).
+
+## Operator's protocol design, read back and confirmed for recording (2026-10-03)
+
+The agent had drifted to "publish and pull". The operator restated the design: push by API between sidecars, with pull only as a fallback.
+
+1. Send: sender agent -> its own sidecar (API) -> the receiver's sidecar (API).
+2. RECEIVED: the receiver's sidecar immediately calls the sender's sidecar API.
+3. STORED: once the message is stored, the receiver's sidecar calls the sender's sidecar again.
+4. A new-message flag is set on receipt.
+5. Inject: an urgent message is injected into context at once; otherwise once the prompt is free. A cron-style check in the receiver's sidecar retries while the prompt is busy.
+6. INJECTED: called back to the sender's sidecar once the message is in the prompt.
+7. The flag is cleared only when the queue is empty.
+8. ANSWER READY: the receiver's sidecar tells the sender's sidecar an answer is ready; the sender pulls it.
+9. Push is primary. Where a push cannot land, the other side polls using the standard ladder (10).
+10. Standard polling fallback ladder, the framework default for ANY polling and changeable per situation; each rung polled twice: 15 s, 1 min, 5 min, 15 min, 1 h, 4 h, 1 d, 3 d, 1 week, 1 month, 1 quarter, 1 year. (Dictation said "50 seconds" and "50 minutes" for the 1st and 4th rungs; read as 15, pending operator correction.) Sent to AEF: framework:pickup @309 and AEF inbox @180, conversation t3330-polling-ladder, asking AEF to align its T-3434 retry ladder.
+11. Telemetry = the timestamped events of steps 2, 3, 6 and 8, plus the statistics and learning derived from them.
+
+Operator's further positions in the same exchange:
+12. Liveness alarm only for urgent messages. Everything else accumulates and escalates when it piles up, like audit warnings (design to be decided).
+13. The hub keeps the telemetry for now (the reproducible entity). An observability database comes later (the AEF agent, a specific hub or a specific agent, possibly bundled with every hub), and that is where the learning happens. What we do with the information is its own design inception, linked to T-3319.
