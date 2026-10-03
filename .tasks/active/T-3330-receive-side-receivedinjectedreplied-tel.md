@@ -60,16 +60,6 @@ bvp_scores_proposed:
 
 <!-- Key assumptions to test. Register with: fw assumption add "Statement" --task T-XXX -->
 
-### 2026-10-03 — IW-1: who owns the receive-side stages and the telemetry record (operator ruling)
-- **Chose:** C amended, matched to the operator's protocol design (research artifact § "Operator's protocol design"):
-  1. **Protocol:** sidecar-to-sidecar API calls carry RECEIVED, STORED, INJECTED and ANSWER READY. Push is primary; pull is the fallback on the standard polling ladder (15 s … 1 year, each rung twice; sent to AEF, pickup @309 / inbox @180).
-  2. **Telemetry:** every such call is a timestamped event. Each sidecar records its own and copies them to the hub in the background (outbox, never in the message path). The hub keeps them for a retention window; any agent can pull; each agent posts a daily digest.
-  3. **Alarms:** immediate alarms only for messages flagged urgent; how they surface is still to define. Everything else accumulates and escalates when it piles up, like audit warnings; how and where is still to define.
-  4. **The observability database** and the learning from the data come later, as their own design inception (linked to T-3319). The hub stays the home for now.
-- **Why:** it meets the operator's requirements (every step timestamped and visible to the sender; a standard for all agents; pullable plus a daily offer; reflection) while keeping the hub inside its charter (retention-bounded, not a second bus: cross-host sidecar calls are AEF's T-3688; TermLink supplies discovery and the telemetry record). External review chose C 4/4.
-- **Rejected:** A (per-project ledgers cannot be pulled by other agents); B (discards AEF's working receiver; a large port before anything improves); D (the silent stall continues). gemma4's separate observability store is not rejected but deferred, by the operator, to the learning inception.
-- **Left open:** IW-2 (event record, pull verb, digest), IW-3 (how sidecars ship; whether TermLink's own receive scripts are replaced by AEF's sidecar), IW-4 (interim wake path); how urgent alarms and escalations surface; the operator's "hub agent" idea (proposed as its own inception); sending our design to AEF for overlap feedback (operator, 2026-10-03).
-
 ## Open Questions
 
 <!-- T-2190 (T-2186 Slice 4): every IW-N question must be disposed before
@@ -187,6 +177,16 @@ Evidence gathering not done yet. Known so far (T-3325, 2026-10-03): the received
      - **Why:** [rationale]
      - **Rejected:** [alternatives and why not]
 -->
+
+### 2026-10-03 — IW-1: who owns the receive-side stages and the telemetry record (operator ruling)
+- **Chose:** C amended, matched to the operator's protocol design (research artifact § "Operator's protocol design"):
+  1. **Protocol:** sidecar-to-sidecar API calls carry RECEIVED, STORED, INJECTED and ANSWER READY. Push is primary; pull is the fallback on the standard polling ladder (15 s … 1 year, each rung twice; sent to AEF, pickup @309 / inbox @180).
+  2. **Telemetry:** every such call is a timestamped event. Each sidecar records its own and copies them to the hub in the background (outbox, never in the message path). The hub keeps them for a retention window; any agent can pull; each agent posts a daily digest.
+  3. **Alarms:** immediate alarms only for messages flagged urgent; how they surface is still to define. Everything else accumulates and escalates when it piles up, like audit warnings; how and where is still to define.
+  4. **The observability database** and the learning from the data come later, as their own design inception (linked to T-3319). The hub stays the home for now.
+- **Why:** it meets the operator's requirements (every step timestamped and visible to the sender; a standard for all agents; pullable plus a daily offer; reflection) while keeping the hub inside its charter (retention-bounded, not a second bus: cross-host sidecar calls are AEF's T-3688; TermLink supplies discovery and the telemetry record). External review chose C 4/4.
+- **Rejected:** A (per-project ledgers cannot be pulled by other agents); B (discards AEF's working receiver; a large port before anything improves); D (the silent stall continues). gemma4's separate observability store is not rejected but deferred, by the operator, to the learning inception.
+- **Left open:** IW-2 (event record, pull verb, digest), IW-3 (how sidecars ship; whether TermLink's own receive scripts are replaced by AEF's sidecar), IW-4 (interim wake path); how urgent alarms and escalations surface; the operator's "hub agent" idea (proposed as its own inception); sending our design to AEF for overlap feedback (operator, 2026-10-03).
 
 ## Decision
 
