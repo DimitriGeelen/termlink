@@ -1,0 +1,86 @@
+{
+  "schema": "role-handback/1",
+  "chain": "arc-011-design",
+  "step": 1,
+  "role": "requirements-collector",
+  "task": "T-3344",
+  "status": "blocked",
+  "blocked_reason": "operator interview on the open questions pending",
+  "output": {
+    "path": "docs/design/interactive-agent-communication-01-requirements.md",
+    "sha256": "b6997ea114b144ccb8b5d061a4b34dd6940613b0afb53767d3a55dfe8d5bdc43"
+  },
+  "inputs": [
+    {
+      "path": "docs/design/interactive-agent-communication-requirements.md",
+      "sha256": "1382ffcc0c028cb60a84e45cc9530c1958e0c06811a1cab6859af06078a6f8a1"
+    },
+    {
+      "path": "docs/design/interactive-agent-communication.md",
+      "sha256": "266fea47b5916d7b0181cf0f32968d408fb76a203d4b8da19d55f6f3a7e92196"
+    },
+    {
+      "path": "docs/reports/T-3335-design-review/comparison.md",
+      "sha256": "a725852f9097511a9d2c2c67253ada3a3939b7483a9dbea36f1d512edfb6c887"
+    },
+    {
+      "path": "docs/reports/T-3335-routing-consult/comparison.md",
+      "sha256": "7d40ef362096073b11628df256ea843d51788fc2f67fc14ca4bb5dd6aa7c7500"
+    }
+  ],
+  "summary": "Re-casts the operator's confirmed requirements R-1.1..R-13.1 into R-1..R-39 (type, source, rationale, priority, verification, Given-When-Then criteria) and carries the unconfirmed section 14 as R-40..R-43. Names seven adversaries (agent proposal, unconfirmed) and marks 'impossible' requirements against them. Glossary, 13 open conflicts, 3 resolved, an eight-class gap review (GP-0..GP-12) and drawings D-1..D-3 (all render with mmdc). Writes the 18 undecided operator questions OD-1..OD-18 as interview questions with lettered options, quoted reviewer positions and a recommendation each. Nothing in section 9 is decided. Five confirmed requirements (R-7, R-12, R-14, R-19, R-30) are contested by reviewers and stay as confirmed. R-3, R-12, R-17, R-19, R-24, R-39 do not operate today.",
+  "completion": [
+    {
+      "condition": "6.1 Every question answered or recorded as an open gap",
+      "met": false,
+      "evidence": "Section 4.2 answers QS-1..QS-14 from the confirmed requirements. Section 4.3 records QS-15..QS-23 as open gaps. The 18 operator decisions in section 9 are unanswered until the interview, so this is met only after it."
+    },
+    {
+      "condition": "6.2 Every requirement has a type, source, verification method and at least one acceptance criterion",
+      "met": true,
+      "evidence": "Section 6, R-1..R-43, items b, d and e. R-1 has no criterion for the operator leg (GP-11); it has two for 1:1 and many-to-many."
+    },
+    {
+      "condition": "6.3 The adversary is a named stakeholder, and every 'impossible' requirement names what it holds against",
+      "met": true,
+      "evidence": "Section 2.3 ADV-1..ADV-7 (proposal, GP-0). Item f of R-2, R-15, R-19, R-22, R-24, R-28, R-29, R-34, R-42."
+    },
+    {
+      "condition": "6.4 Glossary, conflicts and earlier-requirements sections present",
+      "met": true,
+      "evidence": "Section 5 (glossary), section 7 (conflicts C-1..C-13, 7.3 resolved), section 10 (earlier requirements, 43 rows)."
+    },
+    {
+      "condition": "6.5 Every required drawing D-1 to D-3 is present with id, caption and textual equivalent, and renders without error",
+      "met": true,
+      "evidence": "Sections 3.1, 3.2, 3.3 with text equivalents 3.1.1, 3.2.1, 3.3.1. Rendered with mmdc 3/3 rc 0 and no error text. scripts/design-render-check.py and role-handback-check.py are not adopted yet (README 2.2), so no render_check record exists."
+    }
+  ],
+  "open_questions": [
+    "Section 9.4 OD-1 cross-host send path vs the no-second-bus rule",
+    "9.5 OD-2 urgent into a busy prompt and the safe route",
+    "9.6 OD-3 polling ladder vs retry ladder",
+    "9.7 OD-4 RECEIVED and STORED: one call or two",
+    "9.8 OD-5 callback to sender or record and pull",
+    "9.9 OD-6 how an already-running session becomes reachable",
+    "9.10 OD-7 readiness: hooks vs screen, and owner",
+    "9.11 OD-8 stage vocabulary and acknowledged-no-action",
+    "9.12 OD-9 who owns the receive side and how sidecars ship",
+    "9.13 OD-10 session level of the address",
+    "9.14 OD-11 name-to-id directory",
+    "9.15 OD-12 address rulings D-599 and D-660",
+    "9.16 OD-13 section 14 items keep or drop",
+    "9.17 OD-14 alarms, escalation, hub steward",
+    "9.18 OD-15 interrupt consent, respawn, startup chain",
+    "9.19 OD-16 telemetry retention window",
+    "9.20 OD-17 proposed requirement changes (CAND-1..CAND-19)",
+    "9.21 OD-18 several agents per project: who answers",
+    "Section 8 GP-0 adversary list confirmation, GP-11 operator leg design, GP-12 measure for 'very simple'"
+  ],
+  "change_requests": [],
+  "decisions_needed": [
+    "Answer OD-1..OD-18 one at a time, in section 9 order",
+    "Confirm or amend the adversary list in section 2.3",
+    "Sign off the requirement list after the interview"
+  ]
+}
