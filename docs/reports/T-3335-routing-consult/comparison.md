@@ -224,3 +224,25 @@ Files: `round3-perspective.md`, `round3-questions.md`, answers `codex-r3.md`, `g
 52. **New requirement both raise:** an obligation contract (offered / accepted / declined / deadline /
     completed) and a visible "unanswered" state with escalation. That is the ring20-manager failure.
 53. Pending: 055, AEF, 832 on round 3; ring20-manager's inception protocol (separate request).
+
+# 055's round-2 answer (circuits)
+
+File: `/opt/055-agentic-fleet-cockpit/docs/reports/T-448-termlink-routing-round2.md` (inbox @489).
+
+54. **055 also revises to a conditional yes**: "Round 1 did miss something … we judged it as if it were
+    mail", and it had rejected the circuit on latency, "the one benefit that hardly matters when an AI
+    turn takes seconds to minutes."
+55. **Same real wins** as Codex and GLM: survives a hub failure, streamed partials, per-conversation order
+    and back-pressure. Not latency, hop count, hub load or privacy.
+56. **Its condition, first:** ONE log per conversation owned by the callee's home hub, keyed by
+    (conversation, seq, client_msg_id); both paths write into it; nudges computed from the log, never
+    from a path ("which is how M3 becomes impossible").
+57. **Differs on design:** TLS/TCP (WebSocket behind proxies), no QUIC, no TURN ("the hub path already is
+    that relay"); one-to-few as a star through the initiator's sidecar (GLM and Codex preferred pairwise);
+    many-to-many bridge = a hub topic.
+58. **Two receipts on a circuit:** persisted-and-acked, then harness-surfaced, "never one word for two facts".
+59. **Still against, and the order:** every measured 055 failure (M1-M4) was addressing, binding or the
+    harness, which a circuit does not fix "and can hide, because a working circuit to the wrong instance
+    looks healthy"; identity hygiene and the directory first, circuits second.
+60. Peers now: AEF online again, answering rounds 1+2; 832 acknowledged and could not read our files
+    (project boundary), so all briefs were posted to topic `t3335-for-832`.
