@@ -1249,6 +1249,12 @@ pub(crate) enum HubAction {
         /// Output startup info as JSON (socket, pidfile, pid)
         #[arg(long)]
         json: bool,
+
+        /// T-3340: start even though another live hub for this user already runs in a
+        /// different runtime dir. Without this flag, and without TERMLINK_RUNTIME_DIR
+        /// set, `hub start` refuses: a second hub silently splits sessions from inboxes.
+        #[arg(long)]
+        allow_second_hub: bool,
     },
     /// Stop a running hub server
     Stop {

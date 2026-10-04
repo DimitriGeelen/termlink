@@ -9,29 +9,72 @@ use serde_json::json;
 pub(crate) fn resolve_hub_paths() -> (PathBuf, PathBuf) {
     let default_pidfile = termlink_hub::pidfile::hub_pidfile_path();
     let default_socket = termlink_hub::server::hub_socket_path();
+    // Fallback: /var/lib/termlink/ (systemd-managed hubs). Only consulted if
+    // TERMLINK_RUNTIME_DIR is not explicitly set (tests set it to isolated temp
+    // dirs and should never discover the real hub).
+    let alt_dir = if std::env::var("TERMLINK_RUNTIME_DIR").is_err() {
+        Some(PathBuf::from("/var/lib/termlink"))
+    } else {
+        None
+    };
+    resolve_hub_paths_in(default_pidfile, default_socket, alt_dir.as_deref())
+}
 
-    // Check default runtime dir first
-    if matches!(
-        termlink_hub::pidfile::check(&default_pidfile),
-        termlink_hub::pidfile::PidfileStatus::Running(_) | termlink_hub::pidfile::PidfileStatus::Stale(_)
-    ) {
+/// T-3340: the pure core of `resolve_hub_paths`, with the alternate dir injectable.
+/// Order: a RUNNING default hub; then a RUNNING alternate hub; then a stale default
+/// pidfile (so `hub stop`/`restart` still find and clean it); then an alternate
+/// pidfile that merely exists (pre-T-3340 behaviour); else the defaults.
+/// Before T-3340 a STALE default pidfile won over a live /var/lib/termlink hub, so
+/// once a /tmp/termlink-$UID hub had ever existed, every client without the env
+/// var latched onto the dead or second hub.
+pub(crate) fn resolve_hub_paths_in(
+    default_pidfile: PathBuf,
+    default_socket: PathBuf,
+    alt_dir: Option<&std::path::Path>,
+) -> (PathBuf, PathBuf) {
+    use termlink_hub::pidfile::{check, PidfileStatus};
+    let default_status = check(&default_pidfile);
+    if matches!(default_status, PidfileStatus::Running(_)) {
         return (default_pidfile, default_socket);
     }
-
-    // Fallback: check /var/lib/termlink/ (systemd-managed hubs).
-    // Only do this if TERMLINK_RUNTIME_DIR is not explicitly set (tests set
-    // it to isolated temp dirs and should never discover the real hub).
-    if std::env::var("TERMLINK_RUNTIME_DIR").is_err() {
-        let alt_dir = PathBuf::from("/var/lib/termlink");
+    if let Some(alt_dir) = alt_dir {
         let alt_pidfile = alt_dir.join("hub.pid");
+        if matches!(check(&alt_pidfile), PidfileStatus::Running(_)) {
+            return (alt_pidfile, alt_dir.join("hub.sock"));
+        }
+        if matches!(default_status, PidfileStatus::Stale(_)) {
+            return (default_pidfile, default_socket);
+        }
         if alt_pidfile.exists() {
-            let alt_socket = alt_dir.join("hub.sock");
-            return (alt_pidfile, alt_socket);
+            return (alt_pidfile, alt_dir.join("hub.sock"));
         }
     }
-
-    // Nothing found — return defaults
     (default_pidfile, default_socket)
+}
+
+/// T-3340: refuse to start a second hub for this user. Applies only when
+/// TERMLINK_RUNTIME_DIR is unset (an explicit dir is a deliberate choice: the
+/// systemd unit and the test suites set it). Returns the refusal message, if any.
+pub(crate) fn second_hub_refusal(
+    env_set: bool,
+    allow: bool,
+    own_dir: &std::path::Path,
+    dirs: &[PathBuf],
+) -> Option<String> {
+    if env_set || allow {
+        return None;
+    }
+    let others = termlink_hub::pidfile::other_live_hubs(own_dir, dirs);
+    let (dir, pid) = others.first()?;
+    Some(format!(
+        "another termlink hub is already running for this user: pid {pid} in {} \
+         (this start would use {}). A second hub splits sessions from inboxes, silently \
+         (T-3340). Use the running hub: export TERMLINK_RUNTIME_DIR={} — or pass \
+         --allow-second-hub if a second hub is really intended.",
+        dir.display(),
+        own_dir.display(),
+        dir.display()
+    ))
 }
 
 /// T-2633: shared HOME-anchored resolver for the CLI's `~/.termlink/*.log`
@@ -115,9 +158,24 @@ async fn wait_for_shutdown_signal() {
     }
 }
 
-pub(crate) async fn cmd_hub_start(tcp_addr: Option<&str>, json_output: bool) -> Result<()> {
+pub(crate) async fn cmd_hub_start(tcp_addr: Option<&str>, json_output: bool, allow_second_hub: bool) -> Result<()> {
     let socket_path = termlink_hub::server::hub_socket_path();
     let pidfile_path = termlink_hub::pidfile::hub_pidfile_path();
+
+    // T-3340: never start a second hub for this user by accident.
+    if let Some(msg) = second_hub_refusal(
+        std::env::var("TERMLINK_RUNTIME_DIR").is_ok(),
+        allow_second_hub,
+        &termlink_session::discovery::runtime_dir(),
+        &termlink_hub::pidfile::candidate_runtime_dirs(),
+    ) {
+        if json_output {
+            println!("{}", json!({"ok": false, "error": msg}));
+        } else {
+            eprintln!("Error: {msg}");
+        }
+        std::process::exit(1);
+    }
 
     if !json_output {
         println!("Starting hub server...");
@@ -1793,6 +1851,68 @@ fn sum_inbox_counts(topics: &[serde_json::Value]) -> (u64, Vec<String>) {
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
+    fn t3340_dirs(tag: &str) -> (PathBuf, PathBuf, PathBuf) {
+        let base = std::env::temp_dir().join(format!("tl-3340-cli-{}-{tag}", std::process::id()));
+        let def = base.join("default");
+        let alt = base.join("alt");
+        std::fs::create_dir_all(&def).unwrap();
+        std::fs::create_dir_all(&alt).unwrap();
+        (base, def, alt)
+    }
+    const DEAD_PID: &str = "4194303"; // above the default pid_max: never alive
+
+    /// T-3340: the defect. A STALE default pidfile must not win over a LIVE alternate hub.
+    #[test]
+    fn t3340_stale_default_does_not_beat_live_alternate() {
+        let (base, def, alt) = t3340_dirs("stale-vs-live");
+        std::fs::write(def.join("hub.pid"), DEAD_PID).unwrap();
+        std::fs::write(alt.join("hub.pid"), std::process::id().to_string()).unwrap();
+        let (pf, sock) = super::resolve_hub_paths_in(def.join("hub.pid"), def.join("hub.sock"), Some(&alt));
+        assert_eq!(pf, alt.join("hub.pid"));
+        assert_eq!(sock, alt.join("hub.sock"));
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    /// T-3340: a RUNNING default hub still wins (explicitly started there).
+    #[test]
+    fn t3340_running_default_wins() {
+        let (base, def, alt) = t3340_dirs("running-default");
+        std::fs::write(def.join("hub.pid"), std::process::id().to_string()).unwrap();
+        std::fs::write(alt.join("hub.pid"), std::process::id().to_string()).unwrap();
+        let (pf, _) = super::resolve_hub_paths_in(def.join("hub.pid"), def.join("hub.sock"), Some(&alt));
+        assert_eq!(pf, def.join("hub.pid"));
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    /// T-3340: a stale default with no live alternate still resolves to the default, so
+    /// `hub stop`/`restart` can find and clean it.
+    #[test]
+    fn t3340_stale_default_without_live_alternate_kept() {
+        let (base, def, alt) = t3340_dirs("stale-only");
+        std::fs::write(def.join("hub.pid"), DEAD_PID).unwrap();
+        let (pf, _) = super::resolve_hub_paths_in(def.join("hub.pid"), def.join("hub.sock"), Some(&alt));
+        assert_eq!(pf, def.join("hub.pid"));
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    /// T-3340: `hub start` refuses when another live hub runs elsewhere, names it, and
+    /// does not refuse when the env var is set or --allow-second-hub is given.
+    #[test]
+    fn t3340_second_hub_refusal() {
+        let (base, def, alt) = t3340_dirs("refusal");
+        std::fs::write(alt.join("hub.pid"), std::process::id().to_string()).unwrap();
+        let dirs = vec![alt.clone(), def.clone()];
+        let msg = super::second_hub_refusal(false, false, &def, &dirs).expect("must refuse");
+        assert!(msg.contains(&std::process::id().to_string()) && msg.contains(alt.to_str().unwrap()), "{msg}");
+        assert!(msg.contains("--allow-second-hub") && msg.contains("TERMLINK_RUNTIME_DIR"), "{msg}");
+        assert_eq!(super::second_hub_refusal(true, false, &def, &dirs), None, "explicit env var is deliberate");
+        assert_eq!(super::second_hub_refusal(false, true, &def, &dirs), None, "--allow-second-hub overrides");
+        assert_eq!(super::second_hub_refusal(false, false, &alt, &dirs), None, "own dir is not another hub");
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
     #[test]
     fn t3310_retention_policy_line() {
         assert_eq!(crate::commands::infrastructure::retention_policy_line(&serde_json::json!({"connections_active": 1})), None, "pre-T-3310 hub");

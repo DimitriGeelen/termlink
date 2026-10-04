@@ -70,3 +70,5 @@ crates/termlink-mcp/src/tools.rs::procfs_available::proc-root              # T-2
 crates/termlink-cli/src/commands/metadata.rs::procfs_probe_detects_a_real_procfs::proc-root              # #[cfg(target_os = "linux")] positive; non-Linux complement below
 crates/termlink-cli/src/commands/metadata.rs::procfs_probe_reports_unavailable_on_non_linux::proc-root   # #[cfg(not(target_os = "linux"))] complement: asserts the probe is FALSE off Linux
 crates/termlink-mcp/src/tools.rs::mcp_procfs_probe_matches_cli_semantics::proc-root                      # T-3266: runtime cfg! branch — true on Linux, false + unavailable-no-procfs elsewhere
+crates/termlink-hub/src/pidfile.rs::is_termlink_process::proc-root  # T-3340: probes /proc/self/cmdline first; without procfs (macOS) returns true, i.e. pre-T-3340 existence-only liveness, documented in the fn comment
+crates/termlink-hub/src/pidfile.rs::check_reused_pid_of_non_termlink_process_is_stale::proc-path  # T-3340: test returns early when /proc/self/cmdline is absent (macOS CI), by design

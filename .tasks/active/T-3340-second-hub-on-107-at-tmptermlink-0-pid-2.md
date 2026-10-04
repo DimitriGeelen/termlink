@@ -1,10 +1,16 @@
 ---
 id: T-3340
-name: "Second hub on .107 at /tmp/termlink-0 (pid 2919639) splits sessions from inboxes, silently (AEF T-3779)"
+name: "Second hub on .107 at /tmp/termlink-0 (pid 2919639) splits sessions from inboxes,
+  silently (AEF T-3779)"
 description: >
-  Measured 2026-10-04: hub pid 906293 (/var/lib/termlink, TCP 9100, all sidecar inboxes) and hub pid 2919639 (~/.local/bin/termlink, no TERMLINK_RUNTIME_DIR, default /tmp/termlink-0, unix only, since 2026-10-03 21:03). Agents started without the env var bind to the second hub and are deaf with no signal (AEF T-3779, 055 M1). Find who starts it, stop it starting, migrate its sessions, and add detection (preflight or canary: more than one hub per host for one uid).
+  Measured 2026-10-04: hub pid 906293 (/var/lib/termlink, TCP 9100, all sidecar inboxes)
+  and hub pid 2919639 (~/.local/bin/termlink, no TERMLINK_RUNTIME_DIR, default /tmp/termlink-0,
+  unix only, since 2026-10-03 21:03). Agents started without the env var bind to the
+  second hub and are deaf with no signal (AEF T-3779, 055 M1). Find who starts it,
+  stop it starting, migrate its sessions, and add detection (preflight or canary:
+  more than one hub per host for one uid).
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -22,8 +28,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-04T10:50:14Z
-last_update: 2026-10-04T10:50:43Z
-date_finished: null
+last_update: 2026-10-04T13:18:17Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,6 +40,21 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-04T13:18:17Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 2
+      D3: 3
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=2 
+      (body:telemetry-or-audit-entry); D3=3 (body:component-discoverability); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3340: Second hub on .107 at /tmp/termlink-0 (pid 2919639) splits sessions from inboxes, silently (AEF T-3779)
@@ -70,9 +91,15 @@ hubs per uid; migrate the 32 sessions before the second hub is stopped (operator
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Pidfile liveness is "a termlink process", not "a process": a pidfile whose PID is alive but not termlink (reused PID) reads Stale, so `hub restart`/`stop` never signal an unrelated process (unit test)
+- [x] `resolve_hub_paths`: a Stale default-dir pidfile no longer wins over a live `/var/lib/termlink` hub (unit test with injectable dirs)
+- [x] `termlink hub start` refuses, naming the other hub's pid and runtime dir, when another live termlink hub for this uid exists in any other candidate dir (`/var/lib/termlink`, `$XDG_RUNTIME_DIR/termlink`, `$TMPDIR/termlink-$UID`, `/tmp/termlink-$UID`); `--allow-second-hub` overrides (unit test)
+- [x] Detection: `scripts/substrate-preflight.sh` gains a check that WARNs when more than one live termlink hub runs for this uid, naming each runtime dir and its session count; hermetic fixture via a seam
+- [x] `cargo test -p termlink-hub -p termlink-cli` passes for the touched modules; `cargo build --release` succeeds
+- [x] 055 asked to set `TERMLINK_RUNTIME_DIR=/var/lib/termlink` for `agentic-fleet-cockpit.service` and its OpenCode config (their project)
+
+### Out of scope (operator)
+Migrating the 32 sessions on `/tmp/termlink-0` and stopping hub pid 2919639: a runme action, after this ships.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -108,6 +135,11 @@ hubs per uid; migrate the 32 sessions before the second hub is stopped (operator
 -->
 
 ## Verification
+cargo test -p termlink-hub --lib pidfile > /tmp/.t3340a 2>&1 && grep -q "test result: ok" /tmp/.t3340a
+cargo test -p termlink --bin termlink t3340 > /tmp/.t3340b 2>&1 && grep -q "4 passed" /tmp/.t3340b
+bash tests/substrate-preflight-single-hub-fixtures.sh > /tmp/.t3340c 2>&1 && grep -q "failed: 0" /tmp/.t3340c
+bash scripts/check-platform-lock.sh > /tmp/.t3340d 2>&1 && grep -q "clean" /tmp/.t3340d
+bash -n scripts/substrate-preflight.sh
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -267,6 +299,14 @@ hubs per uid; migrate the 32 sessions before the second hub is stopped (operator
 
 ## Decisions
 
+### 2026-10-04 — scope of the guard
+- **Chose:** `hub start` refuses a second hub only when TERMLINK_RUNTIME_DIR is unset; `--allow-second-hub` overrides.
+- **Why:** an explicit runtime dir is a deliberate choice (the systemd unit and the test suites set it); the stray hub had none. Refusing on an explicit dir would let a stray hub block the canonical systemd hub.
+- **Rejected:** changing `discovery::runtime_dir()` to prefer /var/lib/termlink for every client (moves all sessions at once, including the 32 live ones; an operator action, not a code side effect).
+
+### 2026-10-04 — test result note
+- Full `cargo test -p termlink-hub --lib`: 517/518; the one failure is `channel_subscribe_no_hang_under_concurrent_walks_t2258`, a known load-sensitive 10 s stress test (T-2335, T-3293), in channel.rs which this change does not touch; 1 of 3 isolated reruns passed at load average ~10.
+
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
      Format:
@@ -292,3 +332,6 @@ hubs per uid; migrate the 32 sessions before the second hub is stopped (operator
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3340-second-hub-on-107-at-tmptermlink-0-pid-2.md
 - **Context:** Initial task creation
+
+### 2026-10-04T13:18:17Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

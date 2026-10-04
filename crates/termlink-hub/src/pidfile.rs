@@ -26,17 +26,68 @@ pub enum PidfileStatus {
 }
 
 /// Check the status of the hub pidfile.
+///
+/// T-3340: "Running" means the PID is alive AND is a termlink process. A pidfile
+/// whose PID was reused by an unrelated process reads Stale, so `hub restart` /
+/// `hub stop` never signal that process.
 pub fn check(pidfile: &Path) -> PidfileStatus {
     match read_pid(pidfile) {
         None => PidfileStatus::NotRunning,
         Some(pid) => {
-            if liveness::process_exists(pid) {
+            if liveness::process_exists(pid) && is_termlink_process(pid) {
                 PidfileStatus::Running(pid)
             } else {
                 PidfileStatus::Stale(pid)
             }
         }
     }
+}
+
+/// T-3340: is `pid` a termlink process? Reads the process command line where the
+/// platform exposes one (procfs). Without procfs (macOS) it cannot tell, and
+/// answers true so behaviour there is unchanged: existence alone, as before.
+pub fn is_termlink_process(pid: u32) -> bool {
+    let proc_root = Path::new("/proc");
+    if !proc_root.join("self").join("cmdline").exists() {
+        return true;
+    }
+    match fs::read(proc_root.join(pid.to_string()).join("cmdline")) {
+        Ok(bytes) => String::from_utf8_lossy(&bytes).contains("termlink"),
+        Err(_) => false,
+    }
+}
+
+/// T-3340: every runtime dir a hub for this user may live in, in the order the
+/// binary resolves them (`discovery::runtime_dir`), plus the systemd-managed
+/// `/var/lib/termlink` (T-935). Deduplicated.
+pub fn candidate_runtime_dirs() -> Vec<PathBuf> {
+    let uid = unsafe { libc::getuid() };
+    let mut dirs = vec![PathBuf::from("/var/lib/termlink")];
+    if let Ok(xdg) = std::env::var("XDG_RUNTIME_DIR") {
+        dirs.push(PathBuf::from(xdg).join("termlink"));
+    }
+    if let Ok(tmpdir) = std::env::var("TMPDIR") {
+        dirs.push(PathBuf::from(tmpdir).join(format!("termlink-{uid}")));
+    }
+    dirs.push(PathBuf::from(format!("/tmp/termlink-{uid}")));
+    let mut seen = Vec::new();
+    for d in dirs {
+        if !seen.contains(&d) {
+            seen.push(d);
+        }
+    }
+    seen
+}
+
+/// T-3340: live hubs in `dirs` other than the one in `own_dir`, as (dir, pid).
+pub fn other_live_hubs(own_dir: &Path, dirs: &[PathBuf]) -> Vec<(PathBuf, u32)> {
+    dirs.iter()
+        .filter(|d| d.as_path() != own_dir)
+        .filter_map(|d| match check(&d.join("hub.pid")) {
+            PidfileStatus::Running(pid) => Some((d.clone(), pid)),
+            _ => None,
+        })
+        .collect()
 }
 
 /// Write the current process PID to the pidfile.
@@ -120,6 +171,62 @@ mod tests {
             std::process::id(),
             n
         ))
+    }
+
+    /// T-3340: a pidfile naming a live process that is not termlink reads Stale.
+    /// PID 1 is always alive and is init/systemd, never termlink. Skipped where
+    /// the platform has no procfs (the check then cannot tell, by design).
+    #[test]
+    fn check_reused_pid_of_non_termlink_process_is_stale() {
+        if !Path::new("/proc/self/cmdline").exists() {
+            return;
+        }
+        let path = test_pidfile();
+        fs::write(&path, "1").unwrap();
+        assert_eq!(check(&path), PidfileStatus::Stale(1));
+        let _ = fs::remove_file(&path);
+    }
+
+    /// T-3340: our own test binary is a termlink process (termlink_hub-*), so a
+    /// pidfile naming it reads Running.
+    #[test]
+    fn check_own_termlink_pid_is_running() {
+        let path = test_pidfile();
+        write(&path).unwrap();
+        assert_eq!(check(&path), PidfileStatus::Running(std::process::id()));
+        let _ = fs::remove_file(&path);
+    }
+
+    /// T-3340: other_live_hubs finds a live hub in another dir and ignores its own
+    /// dir, empty dirs and stale pidfiles.
+    #[test]
+    fn other_live_hubs_finds_only_live_hubs_elsewhere() {
+        let base = std::env::temp_dir().join(format!("tl-3340-{}-{}", std::process::id(), COUNTER.fetch_add(1, Ordering::Relaxed)));
+        let own = base.join("own");
+        let live = base.join("live");
+        let stale = base.join("stale");
+        let empty = base.join("empty");
+        for d in [&own, &live, &stale, &empty] {
+            fs::create_dir_all(d).unwrap();
+        }
+        fs::write(own.join("hub.pid"), std::process::id().to_string()).unwrap();
+        fs::write(live.join("hub.pid"), std::process::id().to_string()).unwrap();
+        fs::write(stale.join("hub.pid"), "4194303").unwrap(); // above pid_max default: never alive
+        let dirs = vec![own.clone(), live.clone(), stale.clone(), empty.clone()];
+        let found = other_live_hubs(&own, &dirs);
+        assert_eq!(found, vec![(live.clone(), std::process::id())]);
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn candidate_runtime_dirs_include_systemd_and_tmp_default() {
+        let dirs = candidate_runtime_dirs();
+        let uid = unsafe { libc::getuid() };
+        assert_eq!(dirs[0], PathBuf::from("/var/lib/termlink"));
+        assert!(dirs.contains(&PathBuf::from(format!("/tmp/termlink-{uid}"))));
+        let mut dedup = dirs.clone();
+        dedup.dedup();
+        assert_eq!(dedup.len(), dirs.len());
     }
 
     #[test]

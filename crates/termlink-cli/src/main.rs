@@ -291,9 +291,8 @@ async fn main() -> Result<()> {
         // Infrastructure
         Command::Clean { dry_run, json, no_header, count } => commands::session::cmd_clean(dry_run, json, no_header, count),
         Command::Hub { action } => match action {
-            None | Some(HubAction::Start { tcp: None, json: false }) => commands::infrastructure::cmd_hub_start(None, false).await,
-            Some(HubAction::Start { tcp: None, json: true }) => commands::infrastructure::cmd_hub_start(None, true).await,
-            Some(HubAction::Start { tcp: Some(ref addr), json }) => commands::infrastructure::cmd_hub_start(Some(addr), json).await,
+            None => commands::infrastructure::cmd_hub_start(None, false, false).await,
+            Some(HubAction::Start { ref tcp, json, allow_second_hub }) => commands::infrastructure::cmd_hub_start(tcp.as_deref(), json, allow_second_hub).await,
             Some(HubAction::Stop { json }) => commands::infrastructure::cmd_hub_stop(json),
             Some(HubAction::Restart { json }) => commands::infrastructure::cmd_hub_restart(json),
             Some(HubAction::Status { json, short, check, governor }) => commands::infrastructure::cmd_hub_status(json, short, check, governor).await,

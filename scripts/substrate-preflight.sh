@@ -791,12 +791,57 @@ if [ "$JSON" -eq 0 ]; then
     echo "===================="
 fi
 
+# ---- Check 7: one hub per user (T-3340, AEF T-3779, 055 M1) -----------------
+# Two live hubs for one uid split sessions from inboxes, silently: an agent bound to
+# the wrong one sees no mail and nothing reports it. Check 6 stops at the FIRST
+# pidfile it finds, so it never saw the second hub. Seams (fixtures):
+#   TERMLINK_PREFLIGHT_TEST_HUB_DIRS   colon-separated candidate runtime dirs
+#   TERMLINK_PREFLIGHT_TEST_ALIVE_PIDS space-separated pids treated as live termlink
+check_single_hub() {
+    local uid dirs d pf pid n live_rows="" live_count=0 seen=" "
+    uid="${TERMLINK_PREFLIGHT_TEST_UID:-$(id -u)}"
+    if [ -n "${TERMLINK_PREFLIGHT_TEST_HUB_DIRS:-}" ]; then
+        dirs="${TERMLINK_PREFLIGHT_TEST_HUB_DIRS//:/ }"
+    else
+        dirs="/var/lib/termlink ${TERMLINK_RUNTIME_DIR:-} ${XDG_RUNTIME_DIR:+$XDG_RUNTIME_DIR/termlink} ${TMPDIR:+$TMPDIR/termlink-$uid} /tmp/termlink-$uid"
+    fi
+    for d in $dirs; do
+        case "$seen" in *" $d "*) continue ;; esac
+        seen="$seen$d "
+        pf="$d/hub.pid"
+        [ -f "$pf" ] || continue
+        pid=$(tr -cd '0-9' < "$pf")
+        [ -n "$pid" ] || continue
+        if [ -n "${TERMLINK_PREFLIGHT_TEST_ALIVE_PIDS:-}" ]; then
+            case " $TERMLINK_PREFLIGHT_TEST_ALIVE_PIDS " in *" $pid "*) ;; *) continue ;; esac
+        else
+            kill -0 "$pid" 2>/dev/null || continue
+            if [ -r "/proc/$pid/cmdline" ] && ! tr '\0' ' ' < "/proc/$pid/cmdline" | grep -q termlink; then
+                continue
+            fi
+        fi
+        n=$(find "$d/sessions" -maxdepth 1 -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
+        live_count=$((live_count + 1))
+        live_rows="${live_rows}${live_rows:+; }pid $pid in $d ($n sessions)"
+    done
+    if [ "$live_count" -gt 1 ]; then
+        emit_check "single-hub" "medium" "warn" \
+            "$live_count live termlink hubs for uid $uid: $live_rows — agents bound to the wrong one miss their mail, silently (T-3340)" \
+            "Pick the canonical hub (/var/lib/termlink under systemd), set TERMLINK_RUNTIME_DIR for every launcher, re-register the other hub's sessions there, then stop the other hub. Since T-3340, 'termlink hub start' refuses a second hub unless --allow-second-hub."
+    elif [ "$live_count" -eq 1 ]; then
+        emit_check "single-hub" "medium" "pass" "one live termlink hub for uid $uid: $live_rows"
+    else
+        emit_check "single-hub" "medium" "pass" "no live termlink hub found for uid $uid (Check 6 covers a down hub)"
+    fi
+}
+
 check_runtime_dir_volatility
 check_hubs_toml
 check_be_reachable_state
 check_binary_freshness
 check_hub_binary_freshness
 check_hub_unit_health
+check_single_hub
 
 # ---- Summary -----------------------------------------------------------
 
