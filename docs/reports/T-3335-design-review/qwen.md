@@ -1,103 +1,106 @@
-The provided table and notes document a series of technical decisions, task
-tasks, and configurations related to a system (likely an AI agent framework
-framework) involving **AEF** (Agent Execution Framework), **TERMLINK**, and
-and other components. Below is a structured summary of key points and conte
-context:
+## 1. Overall  
+**Verdict:** The design partially achieves the goal of interactive two-way 
+conversation between agents, but **the biggest weakness is the inconsistent
+inconsistent handling of urgency and readiness detection**. While SQ-4 expl
+explicitly prohibits urgent injection into busy prompts (ARC11:305-316), th
+this was later contradicted (2026-10-03, not recorded as superseded), creat
+creating ambiguity. The 30-second watcher (watcher.py:3-6) and "urgent imme
+immediately" rule (CONSULT:17) attempt to address this, but the unresolved 
+contradiction risks system instability during critical operations.  
 
 ---
 
-### **Key Technical Decisions & Tasks**
-1. **AEF Roadmap & Design**:
-   - **T-3396** (2026-09-20): Focus on "long-term road" with **PTY inject o
-on idle**.
-   - **T-3397** (2026-09-21): Cross-host communication is live, with **urge
-**urgent bypass** enabled.
-   - **T-3330** (2026-10-03): 
-     - Telemetry is standardized for **all vendor agents**.
-     - **Sidecars** are deployed with every deployment.
-     - **Urgent-only alarms** and daily digest for events.
-     - **Observability database** planned for later.
-
-2. **Circuit & Addressing**:
-   - **D-599** (2026-09-22): `inbox:<circuit-id>` addressing with 5 levels,
-levels, durable roles, and exact circuit matching.
-   - **D-660** (2026-09-27): AEF adopts `dm:`/`inbox:` addressing (not `sid
-`sidecar:`), superseding D-599's wording.
-   - **Circuit V9 grammar**: Five-part circuit with dual-read capability.
-
-3. **Polling & Retry Mechanisms**:
-   - **Ladder** (2026-10-03): Standard polling ladder with intervals from *
-**15 seconds to 1 year**, each rung executed **twice**.
-   - **Watcher** (2026-10-02): 30-second watcher with **urgent bypass**.
-
-4. **Injector & Prompt Handling**:
-   - **SQ-4** (2026-09-23): Urgent injections **never** occur in busy promp
-prompts (contradicted on 2026-10-03, but not marked as superseded).
-   - **SQ-1** (2026-09-23): Injector remains in **TermLink**, with sidecar 
-API as local control.
-
-5. **Backfill & Logging**:
-   - **SQ-6** (2026-09-23): Backfill is done **once**, recorded explicitly 
-as a backfill.
-   - **SQ-5** (2026-09-22): Wake-supervisor cron installed on operator appr
-approval.
+## 2. Gaps and Contradictions  
+- **Contradiction in urgency logic (SQ-4):** The rule "urgent never injects
+injects into a busy prompt" (ARC11:305-316) is explicitly contradicted on 2
+2026-10-03, yet the document does not mark this as superseded. This creates
+creates untestable ambiguity in urgency behavior.  
+- **Addressing conflicts (D-599 vs D-660):** D-599 mandates `inbox:<circuit
+`inbox:<circuit-id>` with durable roles, but D-660 (2026-09-27) adopts `dm:
+`dm:`/`inbox:` over `sidecar:`, explicitly rejecting "Option 3 (support bot
+both)" (decisions.yaml:4617-4622). This contradicts D-599’s requirements an
+and may break compatibility with prior implementations.  
+- **Naming model ambiguity (naming entry):** The 7-vendor review (IN-010@25
+(IN-010@250; `T-3751-review-brief.md:105-108`) is described as a review, no
+not a ruling, and no operator ruling on "2a" is recorded. This leaves the n
+naming model incomplete and untestable.  
+- **Missing fallback for CONTEXT_WINDOW:** While `TOKEN_CRITICAL` is define
+defined (T-3332), the document does not clarify how to handle exceeding the
+the 900k token limit, leaving a gap in session termination logic.  
 
 ---
 
-### **Contextual Notes**
-1. **Naming Model**:
-   - **Two identities per level** (operator ruling, 2026-10-03): Each level
-level (e.g., project, circuit) has two identities.
-   - **Project canonical ID**: Minted `pid` (unique identifier for projects
-projects).
-   - **Project slot**: Carries the minted ID (T-3751 IW-1 = C).
-   - **7-vendor review**: A review process for naming, but **no operator ru
-ruling** on specific naming rules (e.g., "2a" in note 2).
+## 3. The Hardest Parts  
+### **Readiness Detection (Harness Stop/Prompt Hooks vs Screen Inspection)*
+Inspection)**  
+**Solution:** Implement the 30-second watcher (watcher.py:3-6) to monitor m
+message flags and trigger readiness checks. Use the "urgent immediately" ru
+rule (CONSULT:17) to bypass readiness checks for urgent messages, but docum
+document this as a temporary exception.  
 
-2. **CONTEXT_WINDOW**:
-   - **Token budget thresholds** govern agent session limits:
-     - **950,000 tokens**: Maximum context window.
-     - **900,000 tokens**: Working limit.
-     - **`TOKEN_CRITICAL`**: ~902,000 tokens (trigger for stopping tasks).
-   - **Not part of communication design**, but critical for session termina
-termination policies (T-3192, CLAUDE.md).
+### **Urgent Bypass into a Busy Agent (SQ-4 Contradiction)**  
+**Solution:** Reconcile the contradiction in SQ-4 by explicitly defining a 
+fallback mechanism (e.g., "urgent bypass only if the agent is unresponsive 
+for >15s"). Log all bypassed urgent messages to track conflicts.  
 
-3. **Contradictions & Superseded Rules**:
-   - **SQ-4** (2026-09-23): Contradicted on **2026-10-03** but not marked a
-as superseded.
-   - **D-599** (2026-09-22): Superseded by **D-660** (2026-09-27) regarding
-regarding addressing schemes.
+### **Making Already-Running Sessions Reachable**  
+**Solution:** Use the sidecar API (D-645: blobs through the sidecar API) to
+to maintain session state and relay messages. Implement a heartbeat mechani
+mechanism (e.g., 15s ping) to confirm agent availability and queue messages
+messages if the agent is busy.  
 
----
-
-### **Operator Rulings & Agent Actions**
-- **Operator rulings** are explicitly documented (e.g., "operator decided: 
-urgent NEVER injects into a BUSY prompt").
-- **Agent-recorded** actions (e.g., SQ-2, 2026-09-22) are noted when operat
-operators approve or confirm changes.
-- **Standing directives** (e.g., D-700, 2026-10-02) require ongoing contact
-contact with specific components (010-termlink, 055).
+### **Cross-Host Send Path vs "No Second Bus" Charter Rule**  
+**Solution:** Route all cross-host communication through the sidecar API (D
+(D-645) and avoid duplicating infrastructure. Use the "durable role" logic 
+(D-599) to ensure redundancy without violating the "no second bus" rule.  
 
 ---
 
-### **Key Files & References**
-- **`decisions.yaml`**: Central repository for operator rulings (e.g., D-59
-D-599, D-660).
-- **`watcher.py`**: Implements 30-second watcher for urgent bypass.
-- **`.tasks/completed/T-xxxx-…`**: Task completion logs (e.g., T-2876, T-33
-T-3332).
-- **`IN-010@xx`**: Documentation on circuits and addressing (e.g., IN-010@3
-IN-010@39, IN-010@53).
-- **`T-3330R:xx`**: Review and confirmation of telemetry standards.
+## 4. Open Decisions  
+### **Naming Model (naming entry)**  
+**Recommendation:** Finalize the naming model by adopting "two identities p
+per level" (operator proposal) and explicitly defining "2a" (e.g., "project
+"project canonical id = minted `pid`", "project slot = minted id"). This en
+ensures clarity for vendor integration (IN-010@250).  
+
+### **Urgency Logic (SQ-4 Contradiction)**  
+**Recommendation:** Amend SQ-4 to define a clear urgency fallback (e.g., "u
+"urgent bypass only if the agent is unresponsive for >15s"). Record this as
+as a superseded rule to resolve the contradiction.  
 
 ---
 
-### **Summary**
-This system involves a complex interplay of **AEF**, **TERMLINK**, and **si
-**sidecar APIs**, with strict rules for addressing, polling, and session li
-limits. Operator rulings and agent actions are meticulously logged, but con
-contradictions (e.g., SQ-4) and unresolved naming rules (T-3751) highlight 
-areas requiring further clarification. The **CONTEXT_WINDOW** and **polling
-**polling ladder** are critical for ensuring reliability and scalability, w
-while **telemetry** and **observability** are key for vendor agent standard
-standardization.
+## 5. Build Order  
+**First:** Implement the sidecar API (D-645) to enable cross-host communica
+communication and backfill (SQ-6: backfill once, recorded as backfill).  
+**Next:** Deploy the 30-second watcher (watcher.py:3-6) and urgency bypass 
+logic (CONSULT:17).  
+**Acceptance Test:** Two real agents (A and B) exchange messages via the si
+sidecar API. Agent A sends a message to B; B confirms receipt, processes it
+it, and sends a response. A negative control: Agent B is busy; urgent messa
+message from A is bypassed and logged.  
+
+---
+
+## 6. Risks and Failure Modes  
+- **First Break:** Urgent message injection into a busy agent (SQ-4 contrad
+contradiction). Detection: Monitor for unprocessed urgent messages and log 
+mismatches between SQ-4 and the 2026-10-03 ruling.  
+- **Second Break:** Addressing conflicts (D-599 vs D-660). Detection: Test 
+`inbox:<circuit-id>` and `dm:`/`inbox:` compatibility; failure to route mes
+messages via sidecar: would indicate a conflict.  
+- **Third Break:** Naming model ambiguity (naming entry). Detection: Vendor
+Vendor agents fail to recognize `pid` or minted identities; traceability br
+breaks.  
+
+---
+
+## 7. What Is Missing from the Framing  
+- **Risk:** No explicit fallback for CONTEXT_WINDOW exceeding 900k tokens (
+(T-3332). If sessions exceed `TOKEN_CRITICAL` (902k), the system may crash 
+without defined behavior.  
+- **Option:** Lack of authentication/authorization for agent-to-agent commu
+communication. The design assumes trust but does not address security betwe
+between peers.  
+- **Gap:** No redundancy plan for the sidecar API (D-645). If the sidecar f
+fails, cross-host communication would break.
