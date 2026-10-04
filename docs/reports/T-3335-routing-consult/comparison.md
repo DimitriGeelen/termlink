@@ -91,3 +91,61 @@ hub relay only as fallback; hubs never synchronize messages (operator reflection
 20. **Open between the reviewers:** whether the sender posts straight into the destination hub (GLM,
     closer to the reflection) or always hands to its own hub (Codex, simpler: one retry owner).
 21. Pending: 055's answer (it runs two hubs on one host today), and AEF's when its agent is back.
+
+# Round 2 — the operator's circuit perspective (2026-10-04)
+
+Files: `round2-perspective.md`, `round2-questions.md`, answers `codex-r2.md`, `glm-r2.md`.
+
+## 5. Both changed their verdict, explicitly
+
+22. **Codex:** "Yes. I underweighted the requirement for a long-lived, bidirectional conversation."
+    It revises its round-1 "do not make direct sidecar connections the preferred transport yet" to
+    "direct circuits are a reasonable preferred transport for established conversations, provided their
+    delivery contract survives reconnection and fallback." Verdict: "Conditional yes … This better
+    matches the operator's intended product than my original hub-first prescription."
+23. **GLM:** "A conversation is not merely N letters." It retracts "Sidecar-to-sidecar should not be a
+    pillar" and accepts the operator's signalling/media framing "as the architecture statement":
+    "my own 2b framing (SIP + ICE/TURN) already contained the answer; I let the 'listening surface'
+    objection override it instead of scoping it."
+
+## 6. Agreed in round 2
+
+24. **What a circuit really buys is not speed.** Both: about 100 ms per turn against turns that take
+    seconds to minutes is noise. GLM: "Sold on speed alone, it loses." The real gains:
+    24a. the conversation survives a hub restart or upgrade (both; GLM's strongest point);
+    24b. streaming partial answers (both, if the receiving harness can use them);
+    24c. state negotiated once per conversation: identity, sequence, capabilities, flow control;
+    24d. less hub load for long conversations.
+25. **Set-up through the hubs**, which resolve role to instance at the home hub and check liveness;
+    a directory answer alone is not permission to connect.
+26. **Per-circuit, short-lived credentials minted by the hubs**, naming both instances. No sidecar holds
+    fleet secrets. GLM: this "defuses round 1's 31a objection … a leaked token is worth one
+    conversation and expires".
+27. **One delivery contract on both paths.** The receiver persists each turn before acknowledging;
+    sequence numbers per sender and conversation; deduplication on (conversation, sequence) across
+    circuit and hub fallback; on a break, resume at the last acknowledged sequence through the hub.
+28. **Multi-party:** pairwise circuits (full mesh) for small groups; reject a star through one agent's
+    sidecar; a bridge for larger groups only as an explicit, separately decided service.
+29. **Keep the hub path for** work claims, one-shot notifications, retention-critical traffic (GLM).
+30. **Main remaining risk:** the sidecar becomes a network service, and agent churn may break circuits
+    so often that traffic lives in the fallback. Measure the circuit-break rate.
+
+## 7. Still different
+
+| Point | Codex | GLM |
+|---|---|---|
+| Transport | Persistent TLS/TCP first; QUIC only when justified | QUIC preferred (TLS 1.3, streams, connection migration) |
+| Durable copy | Async hub copy is telemetry only; it cannot guarantee recovery of an acknowledged message | Async, batched copy to the destination hub is the single anchored record for retention and recovery |
+| What decides it | Measured responsiveness, streaming value, outage continuity, operating burden; compare warm circuit vs warm hub stream | Not the milliseconds: hub-restart survival and streaming. If neither matters yet, defer the circuit |
+| Build order | Circuit prototype now, alongside hub fallback | Signalling layer (round 1 slice) first; circuit as the second slice |
+| Hub as bridge | Reasonable for larger groups if specified | Only a bounded, non-durable relay leg; persistent group media drifts into replication |
+
+## 8. Net position after two rounds
+
+31. **The operator's model stands,** confirmed by both reviewers once the circuit requirement was put to
+    them: hubs = directory, liveness, authorization and circuit set-up (signalling) plus fallback;
+    established circuit = the route for a conversation; no message synchronization between hubs.
+32. **The conditions both attach** (items 25-27, 30) are what make it safe; they become requirements.
+33. **The decision left is ordering:** build the signalling layer first and the circuit second (GLM), or
+    prototype both together (Codex). Either way the signalling layer is needed first or alongside.
+34. Pending: 055 (two hubs on one host today), AEF (agent offline), 832 (silent).
