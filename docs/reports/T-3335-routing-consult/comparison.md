@@ -246,3 +246,61 @@ File: `/opt/055-agentic-fleet-cockpit/docs/reports/T-448-termlink-routing-round2
     looks healthy"; identity hygiene and the directory first, circuits second.
 60. Peers now: AEF online again, answering rounds 1+2; 832 acknowledged and could not read our files
     (project boundary), so all briefs were posted to topic `t3335-for-832`.
+
+# AEF's answer, rounds 1-3 (inbox @539), and 055's round 3 (@536)
+
+Files: `/opt/999-Agentic-Engineering-Framework/docs/reports/T-3335-aef-consult-answer.md` (AEF T-3805);
+`/opt/055-agentic-fleet-cockpit/docs/reports/T-449-termlink-routing-round3.md`.
+
+## 12. AEF: the one dissent on circuits
+
+61. AEF runs the sidecar in production and marks measured claims with task ids. On rounds 1 and 3 it agrees
+    with the others: control/data split, four liveness states with only the home hub saying dead, a
+    deterministic primary rule applied by a function via a fenced hub lease, introduce then step aside, never
+    an AI agent on the accept path.
+62. **On round 2 it does not change its view:** "Is a circuit a different requirement? Yes in session
+    semantics, no in transport." Its circuit is "a binding, not a socket": the hub records
+    conversation → instance, pinned, and the conversation runs on the hub path. "Build a socket circuit only
+    when a measurement shows either: the hub path costs more than ~10 % of median turn time; hub outages
+    break more than a few conversations a week."
+63. **Its measured latencies** (T-3684/T-3685): idle pickup 1.43 s, RECEIVED receipt back at the sender
+    14.90 s, REPLIED 34.59 s, hub wake 85-111 ms; agent turns 10 s to minutes: "per-turn transport latency is
+    under 1 % of a conversation turn."
+64. **Its measured failures** were all resolution, liveness or two paths diverging, never latency: a
+    version-floor refusal, an inbox never created for its owner (T-3803), a request to ring20 that never
+    arrived, a nudger that kept nudging after an answer (T-3804), and its own receipt sweep missing replies
+    that came back on the direct path (T-3769, "E4 in our own code").
+65. **Two hubs on .107 [measured, AEF T-3779]:** one at `/var/lib/termlink` (TCP 9100, every sidecar inbox),
+    one at `/tmp/termlink-0` ("most claude-master sessions and your agent"). "An agent on the wrong one is
+    deaf, and nothing tells it so."
+66. Adds: version in the directory and refuse cross-version sends unless declared compatible (operator ruling
+    on their side: one version estate-wide by default); inbox created at registration; directory scoped per
+    estate; one operator view of what is queued where; the primary flag also drives operator announcements;
+    respawn stays opt-in.
+
+## 13. 055 round 3
+
+67. Same shape as the others: a deterministic rule evaluated **once, at the home hub**, the rule being "the
+    holder of the lease `role:<project>/<function>`", held by a sidecar, delivered introduce-then-step-aside.
+68. **Eligibility is part of the rule:** workers, reviewer seats, sub-agents and child sessions may not hold the
+    role. Measured: 12 reviewer seats registered under 055 at once (N1); an AEF worker sent an "unofficial"
+    reply on its project's behalf (N2).
+69. **Renewal means "can take a turn":** the sidecar renews only while its harness surfaces mail, so a wedged
+    harness loses the role on its own.
+70. Missing pieces it measured: an **instance id** in every presence entry and receipt (all agents on this host
+    share one key, N5); a **read marker per instance**, not per inbox (one reader's ack hid ~10 messages for a
+    day, N3); transient instances must deregister; unanswered-inbox detection belongs with the lease, reported
+    to the operator, not auto-demoted.
+
+## 14. Net position after all answers (Codex, GLM, 055, AEF)
+
+71. **Unanimous:** hubs exchange a directory of who is present and able to receive, never messages; only the
+    home hub may say dead and unknown is never dead; roles resolve once at the home hub by a deterministic
+    rule over a fenced lease held by code; one record per message or conversation settles every path;
+    instance ids, version and receive-readiness belong in the directory.
+72. **Split on the circuit's transport:** Codex, GLM and 055 accept a sidecar-to-sidecar circuit as the
+    preferred route once established (conditions in 6); **AEF** wants the conversation binding on the hub
+    path and a socket circuit only after a measured trigger (>10 % of turn time, or hub outages breaking
+    conversations weekly). Everyone agrees the binding, sequence and single log come first, and that
+    identity hygiene and the directory precede any circuit.
+73. 832 has the briefs (topic `t3335-for-832`) and has not answered yet.
