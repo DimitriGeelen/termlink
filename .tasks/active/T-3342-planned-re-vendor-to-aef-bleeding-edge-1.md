@@ -22,7 +22,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-04T13:17:37Z
-last_update: 2026-10-04T13:17:37Z
+last_update: 2026-10-04T14:43:09Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -39,6 +39,8 @@ date_finished: null
 # T-3342: Planned re-vendor to AEF bleeding-edge 1.7.424 (sequence from T-3341 rehearsal)
 
 ## Context
+
+OD-9 ruling (2026-10-05, T-3344 interview): at this re-vendor AEF's receiver becomes the ONE receiver for this project's inbox; retire TermLink's notify-sidecar scripts from it in the same step (one receiver per inbox, never two).
 
 <!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 

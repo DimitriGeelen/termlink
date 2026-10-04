@@ -28,7 +28,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-04T14:28:12Z
-last_update: 2026-10-04T20:46:44Z
+last_update: 2026-10-04T22:11:22Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -278,6 +278,10 @@ exists: `docs/design/roles/README.md` section 3. Operator ruling A recorded in D
 -->
 
 ## Decisions
+
+### 2026-10-05 — OD-9 receive side (operator ruling)
+- **Chose:** C sequenced — AEF's receiver is the one receiver now where AEF runs (TermLink scripts retired there); `termlink sidecar` built to the same contract; switch per host after the two-agent acceptance test. Never two receivers on one inbox.
+- **Rejected:** A permanent AEF receiver (core promise depends on another project's governance); B scripts (unpackaged); D defer (re-vendor creates the collision anyway).
 
 ### 2026-10-05 — OD-8 stage names (operator ruling)
 - **Chose:** B — HANDED_OVER (transcript evidence, hook or typed); ATTEMPTED for a typed line without evidence; terminal ACKNOWLEDGED_NO_ACTION beside REPLIED.

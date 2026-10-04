@@ -164,3 +164,20 @@ the output in one pass after the last question.
    REPLIED. Chain: SENT -> RECEIVED -> STORED -> HANDED_OVER -> REPLIED | ACKNOWLEDGED_NO_ACTION.
 4. Authorises: R-24, R-28; the vocabulary proposed to AEF together with the five states (follow-up to
    framework:pickup offset 314). Leaves open: receive-side ownership (OD-9).
+
+## OD-9 Who owns the receive side, and how sidecars ship (section 9.12) — ruled C, sequenced
+
+1. Asked 2026-10-05 with options A (adopt AEF's receiver), B (extend TermLink's scripts), C (`termlink sidecar` in
+   the binary, AEF supplying harness adapters; Codex), D (defer). Facts given: releases ship the binary only;
+   TermLink's scripts are unpackaged and the injector unscheduled; AEF's `lib/sidecar` (1.7.424) runs with
+   receipts; the T-3341 rehearsal showed a re-vendor would start AEF's receiver beside ours on the same inbox.
+2. **Operator ruling: "c".** Read back as C, sequenced so there is exactly ONE receiver per inbox at every moment:
+   2a. now: AEF's receiver is the one running receiver wherever AEF is installed (here after the T-3342
+       re-vendor); TermLink's notify-sidecar scripts are retired from those inboxes;
+   2b. build: `termlink sidecar` in the binary to the same contract (OD-3, 4, 5, 7, 8 rulings);
+   2c. switch per host only after it passes the two-agent acceptance test with a negative control; AEF's
+       receiver is then retired on that host.
+   The sequencing is the orchestrator's addition (no reviewer source), accepted by the ruling.
+3. Authorises: R-6, R-39; "one receiver per inbox" as a requirement; retiring the scripts in the T-3342 plan; a
+   build task for `termlink sidecar` after the chain's planner step. Leaves open: the ownership split with AEF,
+   to be proposed to them.
