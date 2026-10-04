@@ -88,3 +88,20 @@ the output in one pass after the last question.
 
 5. Shared with AEF on 2026-10-04 at the operator's "yes": framework:pickup offset 314 (pickup_id
    010-termlink/T-3344-polling-ladder-v2-and-message-states, supersedes offset 309), plus a note on AEF's inbox.
+
+## OD-4 RECEIVED and STORED (section 9.7) — ruled A
+
+1. Asked 2026-10-04 with options A (two calls, defined precisely; Codex), B (one call after the durable write;
+   GLM, 055, AEF's build), C (two only where a sender can act on the gap), D (merge on a timing bound;
+   collector-synthesized). Orchestrator recommended A because OD-1 = C (circuits: "bytes arrived" and "saved"
+   are distinct facts) and OD-3 (stuck names the stalled step) make the second call useful.
+2. **Operator ruling: "Yep".** Read back as A: RECEIVED = arrived, not yet safe, informational; STORED = durably
+   saved, the only call that releases the sender and step 2 of the OD-3 states. On the hub path, where the store
+   is instant, both may travel in one message carrying both stages with two timestamps.
+3. Authorises: R-14, R-15; OD-3's "not accepted" splits into "not received" (transport) and "received, not
+   stored" (receiver). Leaves open: stage names (OD-8), calls vs records (OD-5).
+4. Operator follow-up (leads into OD-5): "what if the receiver sends to the sender and the sender is not
+   available? Then the retry kicks in. At the same time would we also want to store it with our hub ... register
+   the status? It does, because we send telemetry to the hub." Answered in place: R-12.1 already copies every
+   per-step event to the hub; proposed that the hub record is the truth and the callback a fast notice (one or
+   two attempts, no storm), the sender reading the hub record on return. Put to the operator as OD-5.
