@@ -85,3 +85,6 @@ the output in one pass after the last question.
 4. Authorises: R-30 and R-31 rewritten to the continuous ladder; the five states and the stuck deadlines as
    requirements (sender-visible, cockpit-visible); urgent deadlines. AEF's retry ladder (D-600) for re-sending is
    unaffected and stays AEF's. Leaves open: where escalation of "stuck" lands (OD-14).
+
+5. Shared with AEF on 2026-10-04 at the operator's "yes": framework:pickup offset 314 (pickup_id
+   010-termlink/T-3344-polling-ladder-v2-and-message-states, supersedes offset 309), plus a note on AEF's inbox.
