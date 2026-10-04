@@ -28,7 +28,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-04T14:28:12Z
-last_update: 2026-10-04T14:28:28Z
+last_update: 2026-10-04T14:57:05Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -278,6 +278,12 @@ exists: `docs/design/roles/README.md` section 3. Operator ruling A recorded in D
 -->
 
 ## Decisions
+
+### 2026-10-04 — OD-1 cross-host send path (operator ruling)
+- **Chose:** C — hubs set up a circuit; established conversations run sidecar-to-sidecar; the hub path is the fallback. Built after identity hygiene, the hub directory with liveness, and the hub-path conversation binding.
+- **Why:** the only option that delivers the operator's conversation model; Codex, GLM and 055 accepted it with conditions in round 2 (set-up via hubs, per-circuit credentials, one delivery contract and log).
+- **Rejected:** A hub carries cross-host (no circuit); B sidecar-to-sidecar for all mail; D binding only until measured (AEF's dissent; its measurement goes into the first build).
+- Log: docs/design/interactive-agent-communication/interview-step-01.md
 
 ### 2026-10-04 — arc-011 requirements become step 1 of the role chain (operator ruling)
 - **Chose:** A — re-cast the confirmed requirements document plus both review comparisons as step 1; OD-1..OD-18 become the interview questions, asked one at a time.
