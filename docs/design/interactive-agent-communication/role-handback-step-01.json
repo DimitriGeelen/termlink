@@ -8,7 +8,7 @@
   "blocked_reason": "operator interview on the open questions pending",
   "output": {
     "path": "docs/design/interactive-agent-communication-01-requirements.md",
-    "sha256": "34f0213918a6e93e299e6e93df73cbb645551c417a6c508802ee6916daeed6b0"
+    "sha256": "ddc9669955d3b245e969a60ddc59da2cc4f76186330a18424f159a083a57f42d"
   },
   "inputs": [
     {
@@ -28,7 +28,7 @@
       "sha256": "7d40ef362096073b11628df256ea843d51788fc2f67fc14ca4bb5dd6aa7c7500"
     }
   ],
-  "summary": "v0.2 after review round 1 (codex.md, glm.md). 1) Fidelity: R-7 (no 'same host'), R-29 ('halts'), R-34 (affirmative to_circuit), R-38 ('and learning from it') restored; collector additions in R-2, R-14, R-16, R-18, R-21, R-23, R-39 and in criteria R-9.e, R-11.e, R-12.e, R-23.e tagged [P] and listed as 'changed' with reason and source in section 10. 2) Authority tags [C] [H] [A] [P] on requirements and glossary; priorities labelled collector proposals, R-9 now P2, R-40..R-43 'U'. 3) Holds-against added to R-16, R-20, R-23; R-34 criterion exercises the impersonation case and states it does not test authentication. 4) Section 9 neutrality fixes in OD-3, 6, 7, 9, 10, 14, 15, 17, 18; OD-3.c.D and OD-4.c.D marked collector-synthesized. 5) D-1 adds operator terminal and credential custody; D-2 splits unavailability from explicit refusal; D-3 marks provisional states. 6) Weak criteria fixed (R-1, R-4, R-10, R-19, R-28, R-30, R-36, R-38); open bounds named (R-3, R-14, R-17, R-37). 7) mmdc re-run, 3/3 rc 0 (11.6). Nothing in section 9 is decided.",
+  "summary": "v0.3 after review round 2 (codex-r2.md, glm-r2.md): small fixes only. Authority labels aligned; [P]/[A] tags on R-12.d, R-14.e, R-30.e, R-36.e, R-38.e and listed in section 10; R-38.d names test reader; D-2 ends flow after rejection (no fallback marked [P]), mmdc 3/3 rc 0 (11.6.1); R-19.e delivery vs escalation separated; R-28.e woken agent must itself reply or say no action; OD-7 ownership marked collector-synthesized; OD-2.d fixed; dedupe stated as at-most-once acceptance; GP-13..15 routed to step 2. Nothing in section 9 is decided.",
   "completion": [
     {
       "condition": "6.1 Every question answered or recorded as an open gap",
@@ -53,7 +53,7 @@
     {
       "condition": "6.5 Every required drawing D-1 to D-3 is present with id, caption and textual equivalent, and renders without error",
       "met": true,
-      "evidence": "Sections 3.1-3.3 with text equivalents. mmdc re-run on all three, exit code 0 each (section 11.6). No render_check record: design-render-check.py is not adopted here."
+      "evidence": "Sections 3.1-3.3 with text equivalents. mmdc re-run on all three for v0.3, exit code 0 each (11.6.1). No render_check record: design-render-check.py is not adopted here."
     }
   ],
   "open_questions": [

@@ -1,7 +1,7 @@
 # Interactive agent communication: step 1, requirements
 
 **Task:** T-3344 · **Arc:** arc-011 · **Chain:** arc-011-design, step 1 · **Role:** requirements collector
-**Status:** DRAFT v0.2 in batch mode, after review round 1. Condition 6.1 of the card is met in form (every question is answered or recorded as an open gap). The operator interview on the open questions (section 9) and the operator's sign-off are pending and are the separate approval criterion.
+**Status:** DRAFT v0.3 in batch mode, after review round 1. Condition 6.1 of the card is met in form (every question is answered or recorded as an open gap). The operator interview on the open questions (section 9) and the operator's sign-off are pending and are the separate approval criterion.
 **Review link:** none yet. This project's Watchtower has no inline design-review page (profile P2.1). The operator reads this file in the repository.
 
 ## 0 Version history
@@ -9,6 +9,7 @@
 | Version | Date | Change | Task |
 |---|---|---|---|
 | 0.1 | 2026-10-04 | First draft, batch mode. The operator's confirmed requirements R-1.1..R-14.4 are re-cast into the role-card skeleton. The 18 open decisions are written as interview questions. | T-3344 |
+| 0.3 | 2026-10-04 | Small fixes after review round 2 (`docs/reports/T-3344-step1-review/codex-r2.md` and `glm-r2.md`): authority labels aligned (3.3.1.g with the glossary Stage entry); [P]/[A] tags added to R-12.d, R-14.e, R-30.e, R-36.e, R-38.e and listed in section 10; R-38.d verification names the test reader; D-2 no longer continues after an explicit rejection, "no fallback after rejection" marked [P], render check re-run (11.6); R-19.e counts only demonstrated delivery and keeps escalation separate; R-28.e requires the woken agent itself to reply or say no action; OD-7 ownership allocations marked collector-synthesized; OD-2.d no longer treats the R-23 exclusion as established; dedupe stated as at-most-once acceptance per message id (GP-5, CAND-2); GP-13..GP-15 added (durability failure scope, trusted evidence producers, adversary privileges), routed to step 2. No requirement added, nothing decided. | T-3344 |
 | 0.2 | 2026-10-04 | Remediation of review round 1 (`docs/reports/T-3344-step1-review/codex.md` and `glm.md`). (1) Fidelity: R-7, R-29, R-34, R-38 and R-3 restored to the operator's wording; the clauses the collector had added (R-2, R-14, R-16, R-18, R-21, R-23, R-39 and several acceptance criteria) are now marked [P] collector proposal pending the operator, and section 10 lists them as changed with reason and source. (2) Authority levels [C] [H] [A] [P] added to requirements and glossary. (3) "Holds against" added to R-16, R-20, R-23; R-34 acceptance now exercises the impersonation case or states what it does not test. (4) Section 9 neutrality fixes in OD-3, 6, 7, 9, 10, 14, 15, 17, 18; OD-3.c.D and OD-4.c.D marked collector-synthesized. (5) Drawings: provisional states marked, refusal distinguished from unavailability, sender sidecar, operator terminal and credential custody added to D-1. (6) Weak acceptance criteria fixed (R-1, R-4, R-10, R-19, R-28, R-30, R-36, R-38) and unconfirmed bounds marked open (R-3, R-14, R-17, R-37). (7) Priorities labelled collector proposals; R-9 no longer P3. (8) Condition 6.1 stated honestly. (9) Render check re-run, result in 11.6. | T-3344 |
 
 ## 1 Inputs of record
@@ -142,41 +143,43 @@ sequenceDiagram
   participant RCV as Receiving agent
   SND->>SS: give message (priority, optional blob)
   SS->>RS: push by API
-  alt receiver sidecar temporarily unavailable
-    SS->>HUB: fallback post to inbox topic
-    HUB-->>RS: pull when the sidecar is back
-    Note over SS,RS: retry and polling ladders, then UNDELIVERABLE or ESCALATED (provisional, OD-3)
-  else receiver explicitly refuses
+  alt receiver explicitly refuses
     RS-->>SS: REJECTED with a reason
-    Note over SS,RS: no fallback post, the sender sees REJECTED
-  end
-  RS-->>SS: RECEIVED with timestamp
-  RS->>RS: store durably, raise flag
-  RS-->>SS: STORED with timestamp
-  loop every 30 seconds
-    RS->>RS: flag up? read queue, highest priority first
-    alt urgent
-      RS->>RCV: type one fixed line now (route contested, OD-2)
-    else prompt free (harness says ready)
-      RS->>RCV: type one fixed line
-    else not free or agent not running
-      RS->>RS: wait for next tick, report NOT RUNNING if so
+    Note over SS,RS: PROPOSAL - no fallback after rejection, the flow ends here
+  else receiver accepts, now or after fallback
+    opt receiver sidecar temporarily unavailable
+      SS->>HUB: fallback post to inbox topic
+      HUB-->>RS: pull when the sidecar is back
+      Note over SS,RS: retry and polling ladders, then UNDELIVERABLE or ESCALATED (provisional, OD-3)
     end
+    RS-->>SS: RECEIVED with timestamp
+    RS->>RS: store durably, raise flag
+    RS-->>SS: STORED with timestamp
+    loop every 30 seconds
+      RS->>RS: flag up? read queue, highest priority first
+      alt urgent
+        RS->>RCV: type one fixed line now (route contested, OD-2)
+      else prompt free (harness says ready)
+        RS->>RCV: type one fixed line
+      else not free or agent not running
+        RS->>RS: wait for next tick, report NOT RUNNING if so
+      end
+    end
+    HRN->>RCV: prompt hook surfaces the stored message
+    HRN-->>RS: transcript shows the message
+    RS-->>SS: INJECTED with evidence (AEF name HANDED_OVER)
+    RS->>RS: flag down only when queue empty
+    RCV->>RS: answer, or explicit no action
+    RS-->>SS: ANSWER READY
+    SS->>RS: sender pulls the answer, roles swap
   end
-  HRN->>RCV: prompt hook surfaces the stored message
-  HRN-->>RS: transcript shows the message
-  RS-->>SS: INJECTED with evidence (AEF name HANDED_OVER)
-  RS->>RS: flag down only when queue empty
-  RCV->>RS: answer, or explicit no action
-  RS-->>SS: ANSWER READY
-  SS->>RS: sender pulls the answer, roles swap
 ```
 
 3.2.1 Text equivalent of D-2.
 3.2.1.a The sender gives a message to its sidecar. The sidecar pushes it to the receiver sidecar by API.
 3.2.1.b Unavailability path, no receiver sidecar answering: the sender sidecar posts to the hub inbox topic. The receiver sidecar pulls it when it is back. Retry and polling ladders run, ending in UNDELIVERABLE or ESCALATED. The ending states and the ladders are provisional (R-30, R-31, OD-3). Temporary unavailability is not a refusal.
-3.2.1.b2 Explicit refusal path: the receiver sidecar answers REJECTED with a reason. The sender sees REJECTED and no fallback post is made. REJECTED is a collector state in D-3 (provisional, OD-8); the requirements do not yet say which refusals exist.
-3.2.1.c The receiver sidecar answers RECEIVED, stores the message durably, raises the flag, then answers STORED (R-14, R-15, R-16).
+3.2.1.b2 Explicit refusal path: the receiver sidecar answers REJECTED with a reason. The sender sees REJECTED and the flow ends: it does not continue into RECEIVED or STORED. [P] "No fallback post after rejection" is a collector proposal, not a confirmed rule. REJECTED is a collector state in D-3 (provisional, OD-8); the requirements do not yet say which refusals exist.
+3.2.1.c On the accepting branch (including after fallback and pull), the receiver sidecar answers RECEIVED, stores the message durably, raises the flag, then answers STORED (R-14, R-15, R-16).
 3.2.1.d Every 30 seconds the receiver sidecar checks the flag and reads the queue, highest priority first (R-17, R-18).
 3.2.1.e Urgent: it types one fixed line at once, even into a busy prompt (R-19). The route that makes this safe is open (OD-2).
 3.2.1.f Not urgent and the harness says ready: it types the line (R-20, R-21).
@@ -218,7 +221,7 @@ stateDiagram-v2
 3.3.1.d TYPED is internal. It is not a stage the sender is told. The sender is told INJECTED only on transcript evidence (R-24). With no evidence in the window the message goes back to QUEUED.
 3.3.1.e Provisional: a QUEUED message whose deadline passes becomes ESCALATED. The deadline, and whether ESCALATED is terminal, are open (OD-14). The TYPED to QUEUED return and its evidence window (AEF uses 90 s) are provisional.
 3.3.1.f An INJECTED message ends as REPLIED (the sender pulled the answer) or as NO_ACTION. NO_ACTION is a proposed state that no implementation has. It needs an operator ruling (OD-8).
-3.3.1.g The names INJECTED and HANDED_OVER, and the extra states, are not decided (OD-8). The drawing shows the states the requirements allow. Every transition marked provisional (REJECTED, UNDELIVERABLE, ESCALATED, NO_ACTION, the TYPED to QUEUED return) is a collector proposal, not a confirmed transition. The confirmed spine is SENT, RECEIVED, STORED, QUEUED, INJECTED, ANSWER READY, REPLIED.
+3.3.1.g The names INJECTED and HANDED_OVER, and the extra states, are not decided (OD-8). The drawing shows the states the requirements allow. Every transition marked provisional (REJECTED, UNDELIVERABLE, ESCALATED, NO_ACTION, the TYPED to QUEUED return) is a collector proposal, not a confirmed transition. Authority of the stage names matches the glossary entry Stage (5.1): the stage umbrella is [A]; SENT, REPLIED and the failure stages are [P]. No stage name in this drawing is [C] as a name; the transitions between RECEIVED, STORED, INJECTED and ANSWER READY follow the operator's confirmed requirements (R-14, R-15, R-24, R-27).
 
 ## 4 Answers
 
@@ -434,7 +437,7 @@ R-12 **Sidecar to sidecar, push first.**
 R-12.a The sender's sidecar MUST deliver the message to the receiver's sidecar API, trying push first.
 R-12.b Functional · P1 · source `RQ` R-4.2; operator: "Send: sender agent -> its own sidecar (API) -> the receiver's sidecar (API)."
 R-12.c Rationale: delivery without the hub as the first path.
-R-12.d Verification: live test with a hub-side counter that stays unchanged on the push path.
+R-12.d Verification: [P] live test with a hub-side counter that stays unchanged on the push path (collector test instrument, see R-12.e).
 R-12.e Acceptance. Given both sidecars are up, when a message is sent, then it reaches the receiver sidecar by a direct API call. [P] Collector addition, as a test instrument for "push first": no message post to a hub topic is observed on that path.
 R-12.g Status: same host in AEF only. Cross-host is designed only. All three weighted reviewers disagree for cross-host, and the charter forbids a second bus (`RV1` points 2 and 11). Conflict C-2, question OD-1.
 
@@ -453,7 +456,7 @@ R-14.a On accepting a message the receiver's sidecar MUST call the sender's side
 R-14.b Interface · P1 · source `RQ` R-5.1; operator: "an API call that's received".
 R-14.c Rationale: the sender learns at once that the message arrived.
 R-14.d Verification: live test with timestamps on both sides.
-R-14.e Acceptance. Given the receiver sidecar is up, when it accepts a message, then the sender's record gains a RECEIVED row, with the receiver's timestamp, within a bound. The bound is open (operator; OD-4, OD-5). "Immediately" is the operator's word and has no number.
+R-14.e Acceptance. [P] Given the receiver sidecar is up, when it accepts a message, then the sender's record gains a RECEIVED row, with the receiver's timestamp, within a bound (the timestamp and the row are the collector proposal of R-14.a; the confirmed part is only that the call is made immediately). The bound is open (operator; OD-4, OD-5). "Immediately" is the operator's word and has no number.
 R-14.g Status: TermLink posts a hub receipt on a 15 s poll, per topic, with no per-message id (`RQ` 5 item 1). AEF answers synchronously, same host. Contested: OD-4 (one call or two), OD-5 (callback or record and pull).
 
 R-15 **STORED, durably, then a second call.**
@@ -497,7 +500,7 @@ R-19.a An urgent message MUST be injected immediately, even when the agent is bu
 R-19.b Security invariant · P1 · source `RQ` R-6.3; operator, 2026-10-03: "inject when it's free and with urgent bypass" and "urgent gets injected immediately".
 R-19.c Rationale: the operator wants an interruption that is not waited out. The qualifier is the operator's own: "Reliability is important at all times but can also be out of band." (SCAPI:207-208).
 R-19.d Verification: live test with the receiver inside a long tool call, plus a negative control in which the typed line is discarded.
-R-19.e Acceptance. Given an urgent message and a receiver in the middle of a long tool call, when the message is handled, then (1) it is already durable in the store, (2) a line is typed at once, (3) either transcript evidence appears and INJECTED is reported, or the message becomes eligible again and an escalation follows, and (4) the message count in the store is the same before and after. A discarded typed line never causes the message to vanish. Typing at once is the attempt that R-19 asks for; only (3) counts as delivery (R-24).
+R-19.e Acceptance. Given an urgent message and a receiver in the middle of a long tool call, when the message is handled, then (1) it is already durable in the store, (2) a line is typed at once, (3) either transcript evidence appears and INJECTED is reported, or no evidence appears and the message becomes eligible again, and (4) the message count in the store is the same before and after. A discarded typed line never causes the message to vanish. Typing at once is the attempt that R-19 asks for. Only demonstrated delivery (transcript evidence and INJECTED, R-24) counts as delivery. [P] If no evidence appears, an escalation follows; escalation is a separate outcome and is never counted as delivery.
 R-19.f Holds against: ADV-1 (a busy agent discards the typed line, T-2396), ADV-4.
 R-19.g Status: contested. Two of three weighted reviewers say never type into a busy prompt, and the operator's own earlier ruling SQ-4 says the same and is not recorded as superseded (`RQ` 6 item 16a, `RV1` point 10). No safe route is built (`RQ` 6 item 6). Conflict C-1, question OD-2.
 
@@ -580,7 +583,7 @@ R-28.a A woken agent MUST reply, or explicitly say "no action". It MUST NOT stay
 R-28.b Security invariant · P1 · source `RQ` R-9.3.
 R-28.c Rationale: "silence always means a bug" (T-2402).
 R-28.d Verification: live test with a negative control in which the agent posts nothing.
-R-28.e Acceptance. Given an injected message, when the agent replies, then the sender sees the reply. Given the agent explicitly says "no action", then the sender sees that outcome (its state name is OD-8). Negative control: given the turn ends with neither, then the message shows as unanswered to the sender and [P] an escalation follows within a deadline (deadline and terminal state are open: OD-8).
+R-28.e Acceptance. Given an injected message, then the woken agent itself produces either a reply or an explicit "no action"; forwarding a reply that someone else wrote does not satisfy this. When the agent replies, the sender sees the reply. Given the agent explicitly says "no action", then the sender sees that outcome (its state name is OD-8). Negative control: given the turn ends with neither, then the message shows as unanswered to the sender and [P] an escalation follows within a deadline (deadline and terminal state are open: OD-8).
 R-28.f Holds against: ADV-1.
 R-28.g Status: skill text only, no hook enforces it. Neither sender state set has a no-action state (`RQ` 9 item 4). Question: OD-8.
 
@@ -600,7 +603,7 @@ R-30.a Where a push cannot land, the other side MUST poll on this schedule, each
 R-30.b Functional · P2 · source `RQ` R-10.1; operator: "that should be the standard fallback mechanism for the framework for any polling activities."
 R-30.c Rationale: a standard cadence instead of ad-hoc retries.
 R-30.d Verification: simulated-clock test of the rung times.
-R-30.e Acceptance. Given a failed push and a simulated clock, then the intervals between successive polls are 15 s, 15 s, 1 min, 1 min, 5 min, 5 min and so on through 1 year, 1 year, in that order (each interval counted from the previous poll, not from the start). "Each rung twice" read as two consecutive polls at the same interval is the collector's reading; the first rung (15 s or 50 s) is open: OD-3.
+R-30.e Acceptance. Given a failed push and a simulated clock, then the intervals between successive polls are 15 s, 15 s, 1 min, 1 min, 5 min, 5 min and so on through 1 year, 1 year, in that order (each interval counted from the previous poll, not from the start). "Each rung twice" read as two consecutive polls at the same interval is [A] the collector's reading; the first rung (15 s or 50 s) is open: OD-3.
 R-30.g Status: designed only. The first rung "15" was read from the dictation "50" and has no recorded correction. All three weighted reviewers call the year-long polling wrong (`RV1` point 4). Conflict C-6, question OD-3.
 
 R-31 **The ladder is the framework default.**
@@ -653,7 +656,7 @@ R-36.a Each agent MUST post a daily digest and reflect on it.
 R-36.b Operational · P3 · source `RQ` R-12.2; operator: "one times per day".
 R-36.c Rationale: traffic data is only useful if someone reads it.
 R-36.d Verification: scheduled-job fixture.
-R-36.e Acceptance. Given 24 hours of traffic, then each agent has posted one digest with counts per step, delays, stuck messages and unanswered messages. Reflection: the digest carries a record that the agent reflected on it (what counts as reflection is open: operator). A missing digest appears as an entry on the pile-up escalation surface of R-37 (the surface is open: OD-14).
+R-36.e Acceptance. Given 24 hours of traffic, then each agent has posted one digest with counts per step, delays, stuck messages and unanswered messages. [P] Reflection: the digest carries a record that the agent reflected on it (collector proposal; what counts as reflection is open: operator). [P] A missing digest appears as an entry on the pile-up escalation surface of R-37 (collector proposal for the destination; the surface is open: OD-14).
 R-36.g Status: not built.
 
 R-37 **Alarms only for urgent.**
@@ -668,8 +671,8 @@ R-38 **Later: observability database, learning, hub steward.**
 R-38.a [C] Later: an observability database and the learning from it; possibly a hub-steward agent (a hub-steward agent MAY be added). [P] Until then, the telemetry MUST stay readable by such a later consumer.
 R-38.b Quality · P3 · source `RQ` R-12.4.
 R-38.c Rationale: the operator wants learning from traffic later.
-R-38.d Verification: review.
-R-38.e Acceptance. Given telemetry events on the hub, a test reader that uses only the pull of R-35 and the event fields of R-35.e reads all of them with no change to the message path. The compatibility contract is those fields; a real database consumer and the learning step are later and have no criterion yet.
+R-38.d Verification: a test reader reads the telemetry events through the pull of R-35 only (see R-38.e).
+R-38.e Acceptance. [P] Given telemetry events on the hub, a test reader that uses only the pull of R-35 and the event fields of R-35.e reads all of them with no change to the message path. The compatibility contract is those fields; a real database consumer and the learning step are later and have no criterion yet.
 R-38.g Status: later. The steward is T-3333, captured.
 
 ### 6.14 Deployment (`RQ` section 13)
@@ -757,7 +760,7 @@ R-43.g Status: `RQ` itself says it duplicates R-3.4. Proposed disposition: merge
 | GP-2 | Compromised sessions | AEF frames peer text as untrusted data (D-695, `RQ` O16 item 2). | No requirement says peer content is untrusted. No requirement limits what a compromised session can inject or claim. | CAND-1, step 2 |
 | GP-3 | Approval fatigue and attention | The operator wants alarms only for urgent mail (R-37). Codex: "successful delivery can itself make the agents unusable" (`RV1` point 18). | Rate limits, a bound on outstanding requests, expiry and cancellation. No limit on how often an urgent message may interrupt. | CAND-12, OD-15 |
 | GP-4 | Offline operation | R-7 and R-13 cover a hub outage. The offline queue covers hub blips (`RQ` 4 item 1). | What the sender sees when the receiver's host is offline for days. What a sidecar does when its own host has no network. Same-host delivery with the hub down is only partly built. | Step 4 |
-| GP-5 | Recovery | R-15 covers restart after STORED. The injector has an open gap that re-serves the oldest offset (`RQ` 8 item 5). | The recovery rule after a sidecar dies mid-delivery. Exactly-once on retry: receiver-side dedupe on `client_msg_id` is mandatory because the ladder outlives the hub's 5-minute dedupe window (`RQ` O16 item 3). | CAND-2 |
+| GP-5 | Recovery | R-15 covers restart after STORED. The injector has an open gap that re-serves the oldest offset (`RQ` 8 item 5). | The recovery rule after a sidecar dies mid-delivery. Retry safety: receiver-side dedupe on `client_msg_id` gives at-most-once acceptance per message id; effects are exactly-once only if the receiver's actions are idempotent. It is proposed as needed because the ladder outlives the hub's 5-minute dedupe window (`RQ` O16 item 3). | CAND-2 |
 | GP-6 | Revocation | The `sidecar:` alias has "no end date". | How a credential, a peer, a role holder or an address is revoked. How a revoked agent stops receiving. | Step 2, OD-12 |
 | GP-7 | Resource identity | The hub id is a rotating TLS fingerprint. The project slot is the folder name. All agents on a host share one key. 055 measured a read marker per inbox instead of per instance (`RV2` item 70). | Which identifiers are stable, who mints them, and the unit of "read" (inbox, instance or message). | OD-10, OD-11, OD-12 |
 | GP-8 | Unsupported targets | Injection needs a TermLink-owned PTY and a hook-capable harness. 055 runs opencode too. README promises macOS. Local models fail design review but that is not a target. | What the sender sees when the target has no hooks, no PTY, a headless session or another OS. Reachability must be a visible state, not an inference. | OD-6, OD-7, CAND-6 |
@@ -765,6 +768,9 @@ R-43.g Status: `RQ` itself says it duplicates R-3.4. Proposed disposition: merge
 | GP-10 | Version skew | 055: version skew makes a deaf agent look like an old one. AEF: refuse cross-version sends unless declared compatible (`RV2` item 66). | A version rule between sidecars. | CAND-13 |
 | GP-11 | Operator leg | R-1 includes agents with the operator. No component is built or designed for it (`RQ` 1 item 3). | A design for how the operator is a party to a conversation. | Operator, step 4 |
 | GP-12 | "Very simple" | R-6 says "very simple". The receive chain is about 2,460 shell lines (`RQ` 3 item 1d). | A measurable proxy for "simple". | Operator, step 3 |
+| GP-13 | Durability failure scope | R-15 requires a durable store before STORED. | What failures the store must survive (process crash, host crash, disk full, corruption). | Step 2 |
+| GP-14 | Trusted evidence producers | R-24 needs transcript evidence; the harness and the sidecar produce it. | Which component is trusted to produce evidence, and what a compromised producer can fake. | Step 2 |
+| GP-15 | Adversary privileges | 2.3 lists adversaries by name. | The exact privileges each adversary holds (files, sockets, keys, hub access). | Step 2 |
 
 8.2 What the gap review did not check: whether any of the status facts in section 15 of `RQ` changed after 2026-10-03; T-3770, T-3688 and T-3751 were not looked up.
 
@@ -796,7 +802,7 @@ OD-2.c.A Confirm the bypass, type only the fixed doorbell line, content stored f
 OD-2.c.B Never type into a busy prompt. Deliver urgent content through the harness's own hook channel. GLM: "Typing into a busy PTY should remain forbidden, full stop." Deliver urgent via the Stop-hook context channel. `RV1` point 10: "GLM offers a route none of the documents considered: deliver urgent content through the harness's own hook-context channel, which cannot be lost as unsubmitted input."
 OD-2.c.C Use an authenticated harness interrupt, and if none exists report the limit and escalate. Codex (`RV1` section 2): "Against typing into a busy terminal; prefer an authenticated harness interrupt, else report the limit and escalate. Keeping busy-PTY typing must be 'an explicit risk acceptance'".
 OD-2.c.D Keep SQ-4. Urgent only shortens the wait for a free prompt. SQ-4 text: "Urgent shortens the WAIT; it does not bypass the prompt-free CHECK." (`RQ` 6 item 13).
-OD-2.d Recommendation: A, with the content also delivered by the hook route of B, and SQ-4 recorded as superseded. Reason: it is the operator's confirmed rule. The reviewers' loss concern is about content, and R-23 already keeps content out of the typed line. A discarded doorbell then costs a delay, not a message. Re-injects are measured so the choice can be reversed on evidence.
+OD-2.d Recommendation: A, with the content also delivered by the hook route of B, and SQ-4 recorded as superseded. Reason: it is the operator's confirmed rule. The reviewers' loss concern is about content, and the [P] clause of R-23 (not yet confirmed by the operator) would keep content out of the typed line. A discarded doorbell then costs a delay, not a message. Re-injects are measured so the choice can be reversed on evidence.
 OD-2.e Changes: R-19, R-23, R-24.
 OD-2.f Sources: `RQ` O4; `RV1` point 10.
 
@@ -858,8 +864,8 @@ OD-7.a Question: is readiness taken only from harness hooks, and who builds the 
 OD-7.b Why: R-22 forbids the screen. The built TermLink classifier uses the screen. TermLink has no hook readiness, and its own T-3250 is captured with no ruling.
 OD-7.c Options.
 OD-7.c.A Hooks are primary and the screen classifier stays only as a labelled degraded fallback (`IAC` item 63). Ownership: not stated in the source.
-OD-7.c.B Hooks only. Retire the screen classifier. Ownership: each harness owner builds its own hook; TermLink owns none. `RV1` point 3: "Readiness comes from harness hooks, never from screen inspection, and a ready flag is only an observation."
-OD-7.c.C Hooks through a harness adapter contract. `RV1` point 13: 055 "Wants an adapter contract with READY/BUSY/NOT RUNNING plus evidence, two adapters from day one, and a per-release parity test." Ownership in this option: TermLink owns the adapter contract and AEF supplies the Claude adapter (Codex: "AEF should supply harness readiness/context adapters"); 055 would supply or test the opencode adapter.
+OD-7.c.B Hooks only. Retire the screen classifier. Ownership: [collector-synthesized allocation, no reviewer source] each harness owner builds its own hook; TermLink owns none. `RV1` point 3: "Readiness comes from harness hooks, never from screen inspection, and a ready flag is only an observation."
+OD-7.c.C Hooks through a harness adapter contract. `RV1` point 13: 055 "Wants an adapter contract with READY/BUSY/NOT RUNNING plus evidence, two adapters from day one, and a per-release parity test." Ownership in this option: [collector-synthesized allocation, no reviewer source: TermLink owns the adapter contract, AEF supplies the Claude adapter, 055 supplies or tests the opencode adapter]. The only sourced parts are 055's wish for an adapter contract and Codex's "AEF should supply harness readiness/context adapters".
 OD-7.c.D Keep the screen classifier as the main signal (the operator's 2026-09-20 words "use PTY inject when the cursor is silent"). Ownership: TermLink.
 OD-7.d Recommendation: C. Reason: all three reviewers want hooks, and 055 runs opencode, so a Claude-only wording is not enough.
 OD-7.e Changes: R-21 (harness-neutral wording), R-22, R-24.
@@ -996,7 +1002,7 @@ OD-17.d Recommendation: B, walking the table below one item at a time. Each item
 | Id | Candidate | Source | Recommended disposition |
 |---|---|---|---|
 | CAND-1 | Peer content is untrusted: "a request for action becomes a task proposal … never direct execution" (D-695) | `RQ` O16 item 2 | Accept, security invariant, P1 |
-| CAND-2 | Exactly-once: receiver-side dedupe on `client_msg_id` | `RQ` O16 item 3; D-600 | Accept, P1 |
+| CAND-2 | At-most-once acceptance per message id: receiver-side dedupe on `client_msg_id` (effects exactly-once only if the receiver's actions are idempotent) | `RQ` O16 item 3; D-600 | Accept, P1 |
 | CAND-3 | Closing rule: nothing is working until two real running agents pass a live test with a negative control | `RQ` O16 item 6; profile P1.2.e | Accept as the verification rule (it is already a standing operator rule) |
 | CAND-4 | How urgent is marked: `priority` in [-9,9], urgent at 5 or more by default | `RQ` O16 item 4 | Accept, and confirm the threshold |
 | CAND-5 | Liveness invariant: canary mail with deadlines (GLM R6) | `RQ` O16 item 5 | Decided in OD-14 |
@@ -1076,6 +1082,7 @@ OD-18.f Sources: `RV2` sections 9-14.
 | R-12.2 | R-36 | kept | confirmed |
 | R-12.3 | R-37 | kept | confirmed. Surfacing OD-14 |
 | R-12.4 | R-38 | kept | confirmed, restored in v0.2 to "an observability database and the learning from it". The "stay readable until then" clause is [P] |
+| R-12.d, R-14.e, R-36.e, R-30.e, R-38.e, R-19.e, R-28.e (criteria and verification, v0.3) | those items | [P] / [A] tagged | v0.3 tags the collector additions that sit inside criteria: R-12.d (hub counter test instrument), R-14.e (timestamp and RECEIVED row, bound open), R-36.e (reflection record; destination of a missing-digest entry), R-30.e ([A] reading of "each rung twice"), R-38.e (test reader and field contract), R-19.e (escalation after no evidence), R-28.e (escalation after neither reply nor no-action). Source: `codex-r2.md` and `glm-r2.md`. Strike the tagged clause to return to the confirmed wording |
 | R-13.1 | R-39 | changed [P] | "start from the deployment and not from a source checkout" is a collector inference from `RQ` section 13. Not met, OD-9 |
 | R-14.1 | R-40 | kept (unconfirmed) | the operator has not confirmed or dropped it, OD-13 |
 | R-14.2 | R-41 | kept (unconfirmed) | same |
@@ -1089,6 +1096,8 @@ OD-18.f Sources: `RV2` sections 9-14.
 11.3 Several requirements describe a state that does not operate today: R-3, R-12, R-17, R-19, R-24, R-39. The status lines say so. The closing rule (CAND-3) is the test before any of them may be called working.
 11.4 The adversary list in 2.3 is the agent's proposal and has not been confirmed (GP-0).
 11.5 Facts about what runs on the host come from `RQ` section 15, dated 2026-10-03. They were not re-measured.
+11.6.1 Render check re-run for v0.3 (D-2 changed: rejection branch ends the flow). Same method as below. Result: D-1 exit code 0, 39735-byte SVG; D-2 exit code 0, 37719-byte SVG; D-3 exit code 0, 52593-byte SVG; no error text in any output or SVG.
+
 11.6 Render check, re-run for v0.2. The three Mermaid blocks (D-1, D-2, D-3) were extracted from this file and rendered one by one with `mmdc -p <puppeteer-config> -i dN.mmd -o dN.svg`, where the config names `/usr/bin/chromium` with `--no-sandbox` (the default Chrome for mmdc is not installed on this host; a first run without the config failed with "Could not find Chrome", which is a tooling fault and not a drawing fault). Result: D-1 exit code 0, 39735-byte SVG; D-2 exit code 0, 36971-byte SVG; D-3 exit code 0, 52593-byte SVG; no "error" text in any output; no "Syntax error" text in any SVG. `scripts/design-render-check.py` is not adopted in this project, so no `render_check` record exists. The project's review surface has no design page yet (profile P2.1).
 
 ## 12 Change requests to earlier steps
