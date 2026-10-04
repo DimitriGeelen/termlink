@@ -28,7 +28,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-04T14:28:12Z
-last_update: 2026-10-04T14:57:05Z
+last_update: 2026-10-04T16:11:28Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -278,6 +278,11 @@ exists: `docs/design/roles/README.md` section 3. Operator ruling A recorded in D
 -->
 
 ## Decisions
+
+### 2026-10-04 — OD-2 urgent into a busy agent (operator ruling)
+- **Chose:** B — urgent content via the harness hook channel (next tool call / end of turn); never typed into a busy prompt; idle agents get the normal inject. SQ-4 reconciled: urgent bypasses the wait, never the check.
+- **Why:** meets the operator's immediacy rule with no typing risk; mid-turn hook delivery verified in this session.
+- **Rejected:** A doorbell typed into a busy prompt; C harness interrupt (none exposed today); D wait only.
 
 ### 2026-10-04 — OD-1 cross-host send path (operator ruling)
 - **Chose:** C — hubs set up a circuit; established conversations run sidecar-to-sidecar; the hub path is the fallback. Built after identity hygiene, the hub directory with liveness, and the hub-path conversation binding.
