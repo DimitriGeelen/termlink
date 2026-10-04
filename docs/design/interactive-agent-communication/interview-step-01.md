@@ -150,3 +150,17 @@ the output in one pass after the last question.
    contract, each harness's adapter comes from the team that runs that harness.
 3. Authorises: R-21 (harness-neutral wording), R-22, R-24; the contract and its parity test as requirements.
    Leaves open: ownership of the whole receive side and packaging (OD-9).
+
+## OD-8 Stage names, and "acknowledged, no action" (section 9.11) — ruled B
+
+1. Asked with options A (one name INJECTED, the operator's word), B (one name HANDED_OVER, AEF's word), C (two
+   names, today's split), D (keep names, add no-action only). All with transcript evidence required and ATTEMPTED
+   for a typed line without evidence; reviewers unanimous on that and on a terminal no-action state.
+2. Orchestrator recommended B over the output's A: after OD-2/OD-6 many hand-overs arrive through the hook channel,
+   where "injected" (typing) would be inaccurate; HANDED_OVER fits both routes and is what AEF already emits.
+3. **Operator ruling: "b".** Read back as: HANDED_OVER is the one name for "the agent's session received the
+   content", proven from its transcript, by hook or by typing; "inject" names the action; a typed doorbell with no
+   transcript evidence is ATTEMPTED (non-terminal marker); ACKNOWLEDGED_NO_ACTION is a terminal state beside
+   REPLIED. Chain: SENT -> RECEIVED -> STORED -> HANDED_OVER -> REPLIED | ACKNOWLEDGED_NO_ACTION.
+4. Authorises: R-24, R-28; the vocabulary proposed to AEF together with the five states (follow-up to
+   framework:pickup offset 314). Leaves open: receive-side ownership (OD-9).

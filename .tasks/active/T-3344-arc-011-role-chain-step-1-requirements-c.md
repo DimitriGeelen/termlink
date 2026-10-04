@@ -28,7 +28,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-04T14:28:12Z
-last_update: 2026-10-04T20:26:25Z
+last_update: 2026-10-04T20:46:44Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -278,6 +278,10 @@ exists: `docs/design/roles/README.md` section 3. Operator ruling A recorded in D
 -->
 
 ## Decisions
+
+### 2026-10-05 — OD-8 stage names (operator ruling)
+- **Chose:** B — HANDED_OVER (transcript evidence, hook or typed); ATTEMPTED for a typed line without evidence; terminal ACKNOWLEDGED_NO_ACTION beside REPLIED.
+- **Rejected:** A INJECTED (inaccurate for hook delivery); C/D two meanings under different names.
 
 ### 2026-10-04 — OD-7 readiness (operator ruling)
 - **Chose:** C — harness adapter contract (READY/BUSY/NOT RUNNING + evidence); Claude Code adapter = hooks; opencode adapter (055); parity test per release; screen classifier diagnostic only.
