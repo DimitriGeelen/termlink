@@ -105,3 +105,19 @@ the output in one pass after the last question.
    the status? It does, because we send telemetry to the hub." Answered in place: R-12.1 already copies every
    per-step event to the hub; proposed that the hub record is the truth and the callback a fast notice (one or
    two attempts, no storm), the sender reading the hub record on return. Put to the operator as OD-5.
+
+## OD-5 Callback to the sender, or record and pull (section 9.8) — ruled: hub record is the truth, callback a fast notice
+
+1. Put to the operator as the answer to his OD-4 follow-up (above), with the reviewers' evidence: GLM, the
+   callback "fails exactly when the sender is down"; 055 M3, a nudger that kept nudging after a reply that came by
+   the other path; Codex, push asynchronously from a durable outbox, pull repairs.
+2. **Operator ruling: "yes".** Read back as: the receiver writes each step (RECEIVED, STORED, HANDED_OVER, REPLIED)
+   to the hub record first (R-12.1 already copies every per-step event to the hub); the hub record is the single
+   source of truth for a message's state; the call back to the sender is a fast notice only, one or two quick
+   attempts, never a retry storm; a sender that was down reads the hub record for its open messages when it
+   returns, and never re-sends a message whose STORED is already recorded. The OD-3 states (and "stuck") are
+   computed from that record, so sender, receiver and cockpit see the same state. For circuits (OD-1 = C), each
+   turn is copied to the receiver's home hub: the single log per conversation.
+3. Authorises: R-14, R-15, R-26/R-27 (answer-ready pull) and R-35 aligned to record-first; nudgers and watchers
+   compute from the record (fixes the AEF T-3804 class). Leaves open: stage names (OD-8), alarm surface (OD-14),
+   telemetry retention (OD-16).

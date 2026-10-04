@@ -28,7 +28,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-04T14:28:12Z
-last_update: 2026-10-04T16:23:25Z
+last_update: 2026-10-04T17:17:37Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -278,6 +278,11 @@ exists: `docs/design/roles/README.md` section 3. Operator ruling A recorded in D
 -->
 
 ## Decisions
+
+### 2026-10-04 — OD-4 and OD-5 (operator rulings)
+- **OD-4 chose A:** two calls; RECEIVED informational, STORED releases the sender; may travel together on the hub path with two timestamps.
+- **OD-5 chose record-first:** the hub record (R-12.1 telemetry) is the single truth; the callback is a fast notice (one or two attempts); a returning sender reads the record; states are computed from it.
+- **Rejected:** OD-4 B one call (cannot name a receiver-side storage failure on a circuit); OD-5 callback-as-truth (fails exactly when the sender is down; two paths diverge, 055 M3).
 
 ### 2026-10-04 — OD-3 polling ladder and "stuck" (operator ruling)
 - **Chose:** the operator's ladder, continuous (43 polls: 15 s .. 2 years, no gaps), plus five message states (waiting, waiting for recipient, stuck, unknown, dead) with stuck deadlines per step (accept 1 min, hand-over 2 ticks after ready, answer 1 h; urgent 15 s / next tool call / 5 min).
