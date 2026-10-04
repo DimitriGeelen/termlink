@@ -4,10 +4,10 @@ name: "Adopt ring20's role-chain documentation layer (T-2222 v0.2), operator rul
 description: >
   Adopt ring20's role-chain documentation layer (T-2222 v0.2), operator ruling C
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -22,8 +22,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-04T10:39:58Z
-last_update: 2026-10-04T10:39:58Z
-date_finished: null
+last_update: 2026-10-04T10:42:40Z
+date_finished: 2026-10-04T10:42:40Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -285,3 +285,16 @@ cd docs/design/roles && sha256sum -c --quiet upstream-ring20/SHA256SUMS
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3339-adopt-ring20s-role-chain-documentation-l.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-17e73820
+- **Timestamp:** 2026-10-04T10:42:43Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** none
+
+### 2026-10-04T10:42:40Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
