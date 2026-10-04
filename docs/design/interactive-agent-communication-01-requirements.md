@@ -1,7 +1,7 @@
 # Interactive agent communication: step 1, requirements
 
 **Task:** T-3344 · **Arc:** arc-011 · **Chain:** arc-011-design, step 1 · **Role:** requirements collector
-**Status:** DRAFT in batch mode. The operator interview on the open questions (section 9) is pending, so completion condition 6.1 of the card is not yet met.
+**Status:** DRAFT v0.2 in batch mode, after review round 1. Condition 6.1 of the card is met in form (every question is answered or recorded as an open gap). The operator interview on the open questions (section 9) and the operator's sign-off are pending and are the separate approval criterion.
 **Review link:** none yet. This project's Watchtower has no inline design-review page (profile P2.1). The operator reads this file in the repository.
 
 ## 0 Version history
@@ -9,6 +9,7 @@
 | Version | Date | Change | Task |
 |---|---|---|---|
 | 0.1 | 2026-10-04 | First draft, batch mode. The operator's confirmed requirements R-1.1..R-14.4 are re-cast into the role-card skeleton. The 18 open decisions are written as interview questions. | T-3344 |
+| 0.2 | 2026-10-04 | Remediation of review round 1 (`docs/reports/T-3344-step1-review/codex.md` and `glm.md`). (1) Fidelity: R-7, R-29, R-34, R-38 and R-3 restored to the operator's wording; the clauses the collector had added (R-2, R-14, R-16, R-18, R-21, R-23, R-39 and several acceptance criteria) are now marked [P] collector proposal pending the operator, and section 10 lists them as changed with reason and source. (2) Authority levels [C] [H] [A] [P] added to requirements and glossary. (3) "Holds against" added to R-16, R-20, R-23; R-34 acceptance now exercises the impersonation case or states what it does not test. (4) Section 9 neutrality fixes in OD-3, 6, 7, 9, 10, 14, 15, 17, 18; OD-3.c.D and OD-4.c.D marked collector-synthesized. (5) Drawings: provisional states marked, refusal distinguished from unavailability, sender sidecar, operator terminal and credential custody added to D-1. (6) Weak acceptance criteria fixed (R-1, R-4, R-10, R-19, R-28, R-30, R-36, R-38) and unconfirmed bounds marked open (R-3, R-14, R-17, R-37). (7) Priorities labelled collector proposals; R-9 no longer P3. (8) Condition 6.1 stated honestly. (9) Render check re-run, result in 11.6. | T-3344 |
 
 ## 1 Inputs of record
 
@@ -78,10 +79,12 @@
 ```mermaid
 flowchart LR
   OP["S-1 Operator"]
+  OPT["Operator terminal: the operator types into the agent terminal [A]"]
+  CRED["Credential custody: hub secret and TLS pin, sidecar API token, shared host key (GP-1)"]
   PEER["S-3 Peer projects: AEF, 055, 832, ring20"]
   subgraph SENDHOST["Sender host"]
     SA["S-2 Sending agent"]
-    SCA["S-4 Sender sidecar"]
+    SCA["S-4 Sender sidecar (its own API and store)"]
   end
   subgraph HUBS["S-5 Hub: topics, receipts, presence, artifacts"]
     TOP["Durable topics and inbox"]
@@ -101,7 +104,13 @@ flowchart LR
   SCB -->|"4 one fixed line, typed"| RA
   RA --- HAR
   HAR -->|"5 ready flag and transcript evidence"| SCB
-  OP <-->|"talks through the agent terminal"| RA
+  OP <--> OPT
+  OPT <-->|"types and reads, no component designed (GP-11)"| RA
+  CRED -.->|"holds secrets for"| SCA
+  CRED -.->|"holds secrets for"| SCB
+  CRED -.->|"holds hub secret for"| TOP
+  ADV -.->|"steals or misuses credentials, ADV-7"| CRED
+  ADV -.->|"mis-heard or hurried approval, ADV-5"| OPT
   PEER --- TOP
   PEER --- PRES
   ADV -.->|"busy or silent agent, outage, impersonation, false green"| RA
@@ -114,7 +123,8 @@ flowchart LR
 3.1.1.b The sender sidecar delivers it to the receiver sidecar by API (arrow 2). Whether this may cross hosts is open (OD-1). The fallback is a post to a hub topic that the receiver sidecar pulls (arrows 2b and 2c).
 3.1.1.c The receiver sidecar reports the stages RECEIVED, STORED, INJECTED and ANSWER READY back to the sender sidecar (arrow 3).
 3.1.1.d The receiver sidecar types one fixed line into the receiving agent's session (arrow 4). The receiving agent runs under a harness. The harness reports readiness and transcript evidence to the sidecar (arrow 5).
-3.1.1.e The operator talks to an agent through that agent's terminal. No component for this leg is built (`RQ` 1 item 3).
+3.1.1.e The operator talks to an agent through the operator terminal, which is that agent's own terminal [A]. No component for this leg is built (`RQ` 1 item 3). The sender sidecar (arrow 1 and 2) holds the sender's API and store, like the receiver sidecar.
+3.1.1.e2 Credential custody (hub secret and TLS pin, sidecar API token, the shared host key) is a touchpoint of both sidecars and the hub. Who holds what is an open gap (GP-1). The adversaries reach the credentials (ADV-7) and the operator terminal (ADV-5).
 3.1.1.f Peer projects reach the same hub topics and the presence directory.
 3.1.1.g The adversaries act on the receiving agent, the receiver sidecar and the hub topics.
 
@@ -132,10 +142,13 @@ sequenceDiagram
   participant RCV as Receiving agent
   SND->>SS: give message (priority, optional blob)
   SS->>RS: push by API
-  alt receiver sidecar unreachable
+  alt receiver sidecar temporarily unavailable
     SS->>HUB: fallback post to inbox topic
     HUB-->>RS: pull when the sidecar is back
-    Note over SS,RS: retry and polling ladders, then UNDELIVERABLE or ESCALATED
+    Note over SS,RS: retry and polling ladders, then UNDELIVERABLE or ESCALATED (provisional, OD-3)
+  else receiver explicitly refuses
+    RS-->>SS: REJECTED with a reason
+    Note over SS,RS: no fallback post, the sender sees REJECTED
   end
   RS-->>SS: RECEIVED with timestamp
   RS->>RS: store durably, raise flag
@@ -161,12 +174,13 @@ sequenceDiagram
 
 3.2.1 Text equivalent of D-2.
 3.2.1.a The sender gives a message to its sidecar. The sidecar pushes it to the receiver sidecar by API.
-3.2.1.b Refusal path 1, no receiver sidecar: the sender sidecar posts to the hub inbox topic. The receiver sidecar pulls it when it is back. Retry and polling ladders run, ending in UNDELIVERABLE or ESCALATED (R-30, R-31).
+3.2.1.b Unavailability path, no receiver sidecar answering: the sender sidecar posts to the hub inbox topic. The receiver sidecar pulls it when it is back. Retry and polling ladders run, ending in UNDELIVERABLE or ESCALATED. The ending states and the ladders are provisional (R-30, R-31, OD-3). Temporary unavailability is not a refusal.
+3.2.1.b2 Explicit refusal path: the receiver sidecar answers REJECTED with a reason. The sender sees REJECTED and no fallback post is made. REJECTED is a collector state in D-3 (provisional, OD-8); the requirements do not yet say which refusals exist.
 3.2.1.c The receiver sidecar answers RECEIVED, stores the message durably, raises the flag, then answers STORED (R-14, R-15, R-16).
 3.2.1.d Every 30 seconds the receiver sidecar checks the flag and reads the queue, highest priority first (R-17, R-18).
 3.2.1.e Urgent: it types one fixed line at once, even into a busy prompt (R-19). The route that makes this safe is open (OD-2).
 3.2.1.f Not urgent and the harness says ready: it types the line (R-20, R-21).
-3.2.1.g Refusal path 2, not ready or the agent is not running: the message waits for the next tick. NOT RUNNING is reported, never treated as busy (`IAC` 20a).
+3.2.1.g Wait path, not ready or the agent is not running: the message waits for the next tick. NOT RUNNING is reported, never treated as busy (`IAC` 20a).
 3.2.1.h The prompt hook surfaces the stored message. The transcript shows it. Only then is INJECTED reported to the sender (R-24). The flag comes down only when the queue is empty (R-25).
 3.2.1.i The agent answers or says "no action" (R-28). The receiver sidecar tells the sender sidecar ANSWER READY. The sender pulls it. Roles swap (R-26, R-27).
 
@@ -178,33 +192,33 @@ sequenceDiagram
 stateDiagram-v2
   [*] --> SENT
   SENT --> RECEIVED : receiver sidecar calls back
-  SENT --> REJECTED : receiver refuses
-  SENT --> UNDELIVERABLE : retry budget used up
+  SENT --> REJECTED : receiver refuses (provisional)
+  SENT --> UNDELIVERABLE : retry budget used up (provisional, OD-3)
   RECEIVED --> STORED : durable store done
   STORED --> QUEUED : flag raised
   QUEUED --> QUEUED : not free or not running, wait for next tick
   QUEUED --> TYPED : urgent, or prompt free
   TYPED --> INJECTED : transcript evidence seen
-  TYPED --> QUEUED : no evidence in the window, eligible again
-  QUEUED --> ESCALATED : deadline passed
+  TYPED --> QUEUED : no evidence in the window, eligible again (window length provisional)
+  QUEUED --> ESCALATED : deadline passed (provisional, deadline open)
   INJECTED --> ANSWER_READY : agent answered
-  INJECTED --> NO_ACTION : agent said no action, proposed state OD-8
+  INJECTED --> NO_ACTION : agent said no action, provisional state OD-8
   ANSWER_READY --> REPLIED : sender pulled the answer
   REPLIED --> [*]
   NO_ACTION --> [*]
   UNDELIVERABLE --> [*]
   REJECTED --> [*]
-  ESCALATED --> [*]
+  ESCALATED --> [*] : provisional terminal, an escalation may be answered later (OD-14)
 ```
 
 3.3.1 Text equivalent of D-3.
 3.3.1.a A message starts as SENT. It becomes RECEIVED, then STORED, then QUEUED when the flag is raised.
-3.3.1.b A SENT message ends as REJECTED if the receiver refuses, or UNDELIVERABLE when the retry budget is used up.
+3.3.1.b Provisional: a SENT message ends as REJECTED if the receiver refuses, or UNDELIVERABLE when the retry budget is used up. Both states and the retry budget are collector proposals (OD-3, OD-8).
 3.3.1.c A QUEUED message stays QUEUED each tick while the prompt is not free or the agent is not running. It becomes TYPED when it is urgent or the prompt is free.
 3.3.1.d TYPED is internal. It is not a stage the sender is told. The sender is told INJECTED only on transcript evidence (R-24). With no evidence in the window the message goes back to QUEUED.
-3.3.1.e A QUEUED message whose deadline passes becomes ESCALATED.
+3.3.1.e Provisional: a QUEUED message whose deadline passes becomes ESCALATED. The deadline, and whether ESCALATED is terminal, are open (OD-14). The TYPED to QUEUED return and its evidence window (AEF uses 90 s) are provisional.
 3.3.1.f An INJECTED message ends as REPLIED (the sender pulled the answer) or as NO_ACTION. NO_ACTION is a proposed state that no implementation has. It needs an operator ruling (OD-8).
-3.3.1.g The names INJECTED and HANDED_OVER, and the extra states, are not decided (OD-8). The drawing shows the states the requirements allow, with the proposed one marked.
+3.3.1.g The names INJECTED and HANDED_OVER, and the extra states, are not decided (OD-8). The drawing shows the states the requirements allow. Every transition marked provisional (REJECTED, UNDELIVERABLE, ESCALATED, NO_ACTION, the TYPED to QUEUED return) is a collector proposal, not a confirmed transition. The confirmed spine is SENT, RECEIVED, STORED, QUEUED, INJECTED, ANSWER READY, REPLIED.
 
 ## 4 Answers
 
@@ -277,45 +291,46 @@ stateDiagram-v2
 
 ## 5 Glossary
 
-5.1 Each term is defined once. Later roles MUST use these meanings. A term marked (contested) has a definition the operator has not settled.
+5.1 Each term is defined once, with its authority level (6.1.h) in the last column. Later roles MUST use these meanings and MUST NOT treat a [P] or [A] part as confirmed. A term marked (contested) has a definition the operator has not settled.
 
-| Term | Meaning |
-|---|---|
-| Agent | A running AI session that does work. It has a role and an instance. |
-| Circuit | The five-level address of an agent: host, hub, project, session, agent. Carried in `to_circuit`. |
-| Conversation | A series of messages with one `conversation_id`. |
-| Doorbell | The one fixed line typed into a session to make it look at its stored mail. It carries a count and ids, no peer content. |
-| Flag | The new-message marker the sidecar raises when a message is stored and lowers only when the queue is empty. |
-| Hub | The server that carries durable topics, receipts, presence and artifacts. Per host or per fleet. State is per hub (G-060). |
-| Harness | The program that runs an agent and owns its hooks and its transcript. |
-| Home hub | The hub that holds a project's identity and decides liveness for it (contested, OD-18, OD-11). |
-| Injection | Typing the doorbell into the agent's session. Typing is not the same as the agent seeing the message. |
-| INJECTED | The stage reported to the sender when transcript evidence shows the agent saw the message. AEF calls it HANDED_OVER (contested, OD-8). |
-| Instance | One running copy at a level, for example one session. It has a runtime id. |
-| Message | One post carrying content, a priority, an id and a conversation id, with an optional blob. |
-| Polling ladder | The standard waiting cadence 15 s to 1 year, each rung twice (R-30). |
-| Priority | A number in [-9,9] on a queued message. Urgent is a high band (contested, CAND-4 in OD-17). |
-| Queue | The sidecar's store of messages not yet handed over, ordered by priority then arrival. |
-| RECEIVED | The receiver's sidecar tells the sender's sidecar immediately that it has the message (contested, OD-4). |
-| Retry ladder | AEF's schedule for re-sending a post, 2×1 min to 2×1 month, then dead-letter (D-600). Not the same as the polling ladder (contested, OD-3). |
-| Role | The function an agent serves in a project, such as manager. A role is not an instance. |
-| Sidecar | The separate, simple process per agent that stores, flags, queues, injects and reports. |
-| STORED | The message is durable on the receiver side and a second call goes back (contested, OD-4). |
-| Stage | One named step of delivery reported to the sender: SENT, RECEIVED, STORED, INJECTED, ANSWER READY, REPLIED and the failure stages. |
-| Startup chain | Start agent, start session, start project, start hub (R-9, never built). |
-| Tick | The 30-second check of the flag. |
-| Transcript evidence | A record in the receiver's own session transcript that shows the agent saw the message. |
-| Urgent | A message that is injected at once even when the agent is busy (R-19). How it is marked is open. |
-| Unreachable | An agent that cannot be woken now. Not the same as dead. |
+| Term | Meaning | Authority |
+|---|---|---|
+| Agent | A running AI session that does work. It has a role and an instance. | [A] |
+| Circuit | The five-level address of an agent: host, hub, project, session, agent. Carried in `to_circuit`. | [C] |
+| Conversation | A series of messages with one `conversation_id`. | [H] |
+| Doorbell | The one fixed line typed into a session to make it look at its stored mail. It carries a count and ids, no peer content. | [C] one line typed (R-23); [P] no peer content, count and ids |
+| Flag | The new-message marker the sidecar raises when a message is stored and lowers only when the queue is empty. | [C] raised; [C] lowered only when queue empty |
+| Hub | The server that carries durable topics, receipts, presence and artifacts. Per host or per fleet. State is per hub (G-060). | [H] |
+| Harness | The program that runs an agent and owns its hooks and its transcript. | [A] |
+| Home hub | The hub that holds a project's identity and decides liveness for it (contested, OD-18, OD-11). | [P] contested |
+| Injection | Typing the doorbell into the agent's session. Typing is not the same as the agent seeing the message. | [C] |
+| INJECTED | The stage reported to the sender when transcript evidence shows the agent saw the message. AEF calls it HANDED_OVER (contested, OD-8). | [C] contested name |
+| Instance | One running copy at a level, for example one session. It has a runtime id. | [C] |
+| Message | One post carrying content, a priority, an id and a conversation id, with an optional blob. | [A] |
+| Polling ladder | The standard waiting cadence 15 s to 1 year, each rung twice (R-30). | [C] first rung open |
+| Priority | A number in [-9,9] on a queued message. Urgent is a high band (contested, CAND-4 in OD-17). | [H] built injector |
+| Queue | The sidecar's store of messages not yet handed over, ordered by priority then arrival. | [C] priority order; [P] tie-break by arrival |
+| RECEIVED | The receiver's sidecar tells the sender's sidecar immediately that it has the message (contested, OD-4). | [C] contested |
+| Retry ladder | AEF's schedule for re-sending a post, 2×1 min to 2×1 month, then dead-letter (D-600). Not the same as the polling ladder (contested, OD-3). | [H] AEF D-600 |
+| Role | The function an agent serves in a project, such as manager. A role is not an instance. | [C] (R-11.2) |
+| Sidecar | The separate, simple process per agent that stores, flags, queues, injects and reports. | [C] |
+| STORED | The message is durable on the receiver side and a second call goes back (contested, OD-4). | [C] contested |
+| Stage | One named step of delivery reported to the sender: SENT, RECEIVED, STORED, INJECTED, ANSWER READY, REPLIED and the failure stages. | [A] umbrella; SENT, REPLIED and failure stages are [P] |
+| Startup chain | Start agent, start session, start project, start hub (R-9, never built). | [C] never built |
+| Tick | The 30-second check of the flag. | [C] |
+| Transcript evidence | A record in the receiver's own session transcript that shows the agent saw the message. | [C] |
+| Urgent | A message that is injected at once even when the agent is busy (R-19). How it is marked is open. | [C] marking open |
+| Unreachable | An agent that cannot be woken now. Not the same as dead. | [A] |
 
 ## 6 Requirements
 
 6.1 How to read this section.
 6.1.a R-1..R-39 are the operator's confirmed requirements (`RQ` R-1.1..R-13.1), carried over one for one. R-40..R-43 are unconfirmed (`RQ` section 14).
 6.1.b Each requirement has: **a** statement, **b** type, priority and source, **c** rationale, **d** verification method, **e** acceptance criteria, **f** what it holds against (only where it says something MUST be impossible), **g** status note.
-6.1.c Types: functional, security invariant, interface, operational, quality. Priority: P1 needed for the goal, P2 needed for a solid system, P3 later or unconfirmed.
+6.1.c Types: functional, security invariant, interface, operational, quality. Priority is a **collector proposal**, never an operator ruling: P1 needed for the goal, P2 needed for a solid system, P3 can come later in the build order, U unconfirmed requirement (R-40..R-43). A priority says nothing about whether the operator confirmed the requirement.
+6.1.h Authority levels. Every sentence that is not plain description carries one of these, or inherits the one of its requirement. **[C]** confirmed: the operator's wording, from `RQ` R-1.1..R-13.1. **[H]** historical fact: what the record or a build shows, not re-measured. **[A]** collector assumption: an inference the operator did not state. **[P]** proposed safeguard or change: a collector proposal pending the operator, which the operator may drop. A requirement statement without a tag is [C]. Section 10 lists every place where [P] or [A] text sits inside a requirement.
 6.1.d The closing rule of the operator's standing instruction applies to every verification below: nothing is called working until a live test with two real running agents and a negative control passes (profile P1.2.e, `IAC` item 58).
-6.1.e Where a requirement is contested by a reviewer, the statement stays as the operator confirmed it. The contest is named in **g** and decided in section 9.
+6.1.e Where a requirement is contested by a reviewer, the statement stays as the operator confirmed it. Clauses that the collector added are tagged [P] and are not part of the confirmed statement. The contest is named in **g** and decided in section 9.
 6.1.f "Status" facts come from `RQ` section 15 (2026-10-03) and were not re-measured in this step.
 
 ### 6.2 Goal (`RQ` section 1)
@@ -325,11 +340,11 @@ R-1.a Agents MUST hold interactive, two-way conversations with each other while 
 R-1.b Functional · P1 · source `RQ` R-1.1; operator, 2026-10-03: "I am absolutely very clear that I want to have this …".
 R-1.c Rationale: this is the goal the other requirements serve.
 R-1.d Verification: live test with two real agents (1:1), then three (many-to-many); a demonstration for the operator leg.
-R-1.e Acceptance. (1) Given agents A and B both running, when A sends a turn with a `conversation_id`, then the turn is in B's transcript and B's reply, with the same id, reaches A. (2) Given agents A, B and C on one broadcast topic, when A posts, then B and C each receive it. (3) The operator leg has no acceptance criterion yet, because no component is designed for it (GP-11).
+R-1.e Acceptance. (1) Given agents A and B both running, when A sends a turn with a `conversation_id`, then the turn is in B's transcript and B's reply, with the same id, reaches A. (2) Given agents A, B and C on one broadcast topic, when A posts and B replies with the same `conversation_id`, then C receives both A's post and B's reply, and A receives B's reply (many-to-many, not receipt only). (3) The operator leg has no acceptance criterion yet, because no component is designed for it (GP-11).
 R-1.g Status: 1:1 and broadcast carry on the hub. The live leg into a running agent does not operate on this host. The operator leg is designed only.
 
 R-2 **The sender always knows where its message is.**
-R-2.a The sender MUST be able to see, for every message it sent, the stage the message has reached with a timestamp. A message MUST NOT be in transit with its stage invisible to the sender.
+R-2.a [C] The sender MUST always know where its message is. [P] Collector expansion: the sender MUST be able to see, for every message it sent, the stage the message has reached, with a timestamp, and no message may be in transit with its stage invisible (the new impossibility clause is the collector's reading of R-1.2).
 R-2.b Functional, security invariant · P1 · source `RQ` R-1.2.
 R-2.c Rationale: the operator's failure was "you've been telling me it works" while mail sat stored and unseen (`RQ` 1 item 11).
 R-2.d Verification: negative-control test. Stop the receiver's injector, then read the sender's record.
@@ -342,7 +357,7 @@ R-3.a No agent MUST have to be attached or polling by hand for delivery to proce
 R-3.b Operational · P1 · source `RQ` R-1.3.
 R-3.c Rationale: an agent in the middle of work cannot also watch a mailbox.
 R-3.d Verification: live test with a receiver left idle at its prompt that runs no polling.
-R-3.e Acceptance. Given the receiving agent is idle at its prompt and runs no polling, when a message is sent, then the message appears in its transcript within a stated bound (proposed: two ticks plus margin, not confirmed).
+R-3.e Acceptance. Given the receiving agent is idle at its prompt and runs no polling, when a message is sent, then the message appears in its transcript within a bound. The bound is open (operator; OD-6). It is not confirmed, and two ticks plus margin is only a placeholder to make the test runnable.
 R-3.g Status: NOT met for agents on this host (`RQ` 1 item 5). A running session cannot be made injectable afterwards (PL-237). Conflict C-3, question OD-6.
 
 ### 6.3 Origins (`RQ` section 2)
@@ -352,7 +367,7 @@ R-4.a The system MUST keep the ability to inject keystrokes into a terminal sess
 R-4.b Interface · P1 · source `RQ` R-2.1; operator: "i wanted a means to simulate keyboard input and capture console output".
 R-4.c Rationale: the founding verb of TermLink and the base of the injector.
 R-4.d Verification: `scripts/session-selftest.sh` (spawn, exec a sentinel, cleanup).
-R-4.e Acceptance. Given a spawned session, when `termlink exec <s> 'echo <sentinel>' --json` runs, then the result is ok, exit code 0, and stdout carries the sentinel.
+R-4.e Acceptance. (1) Given a spawned session at a shell prompt, when `termlink pty inject <s> "echo <sentinel>" --enter` runs, then `termlink output <s>` shows the sentinel after the command ran (keystroke injection and read-back). (2) The prover `scripts/session-selftest.sh` checks the neighbouring `exec` round trip (ok, exit code 0, sentinel in stdout); it is evidence for R-4 only together with (1).
 R-4.g Status: built and operating.
 
 R-5 **Conversation over the hub, not fire-and-forget.**
@@ -370,15 +385,15 @@ R-6.a Each agent MUST have one sidecar: a separate, very simple process with an 
 R-6.b Functional, quality · P1 · source `RQ` R-3.1; operator wording "a separate process exposing an API … Very simple."
 R-6.c Rationale: carrying delivery must not depend on any LLM turn.
 R-6.d Verification: process inspection and an API call; a review of size against a measure that the operator has not given.
-R-6.e Acceptance. Given agent X is registered, when the agent's own process is killed, then X's sidecar is still running and its status call answers. Given two agents, then there are two sidecar processes.
+R-6.e Acceptance. Given agent X is registered, when the agent's own process is killed, then X's sidecar is still running and its status call answers. Given two agents, then there are two sidecar processes. This tests adjacency (one per agent), not simplicity; "very simple" has no measure (GP-12).
 R-6.g Status: built as shell scripts for three agents; the API that exists is local control only (`RQ` 3 item 1). "Very simple" has no measure (GP-12).
 
 R-7 **Independent of the hub.**
-R-7.a A sidecar MUST NOT need the hub to be up to accept, store, flag and inject a message from a sender on the same host.
+R-7.a A sidecar MUST be independent of the hub, because the hub goes down.
 R-7.b Operational · P1 · source `RQ` R-3.2; operator: "deliberately independent of the hub because the hub goes down".
 R-7.c Rationale: a hub outage must not stop local delivery.
 R-7.d Verification: stop the hub, then run the live test on one host.
-R-7.e Acceptance. Given the hub is stopped, when agent A on host H sends to agent B on host H, then B's sidecar stores and flags the message and the flow of R-17..R-25 completes.
+R-7.e Acceptance. [P] Proposed test scope, same host only: given the hub is stopped, when agent A on host H sends to agent B on host H, then B's sidecar stores and flags the message and the flow of R-17..R-25 completes. The cross-host case has no criterion until OD-1 is ruled. This scope makes the criterion testable and does not decide OD-1.
 R-7.g Status: partial. TermLink's sidecar reads hub topics to learn of mail. AEF's receiver takes loopback mail with no hub (`RQ` 3 item 3). `RV1` section 2 says GLM and 055 call this requirement untestable or without a stated benefit. Question: OD-1.
 
 R-8 **Always respawns, portably.**
@@ -391,10 +406,10 @@ R-8.g Status: built and operating on this host. Not verified on macOS.
 
 R-9 **Carries the startup chain.**
 R-9.a The sidecar MUST carry the startup chain: start the agent, the session, the project and the hub.
-R-9.b Functional · P3 · source `RQ` R-3.4; operator spec wording (RAIL:111-117).
+R-9.b Functional · P2 · source `RQ` R-3.4 (confirmed; the priority is a collector proposal); operator spec wording (RAIL:111-117).
 R-9.c Rationale: the operator wants one component that brings the whole chain up.
 R-9.d Verification: start from a fully stopped state, in a test estate.
-R-9.e Acceptance. Given the project, session, agent and hub are all stopped, when the startup chain runs, then each level is started in order and each is verified live before the next.
+R-9.e Acceptance. Given the project, session, agent and hub are all stopped, when the startup chain runs, then the agent, the session, the project and the hub are each started and each is live. [P] Collector addition: they start in the listed order and each is verified live before the next starts (the order and the serial check are not confirmed).
 R-9.g Status: not built, not designed beyond one sentence. The scope is contested: the 7-vendor review says no agent is respawned by inbound mail without an explicit grant (`RQ` O15.2). Question: OD-15.
 
 R-10 **Re-resolves a moved peer.**
@@ -402,7 +417,7 @@ R-10.a A sidecar MUST re-resolve a peer's address when the FQDN or IP stops reso
 R-10.b Functional · P2 · source `RQ` R-3.5.
 R-10.c Rationale: hosts change address.
 R-10.d Verification: fixture that changes name resolution between two sends.
-R-10.e Acceptance. Given a peer's FQDN now resolves to a new IP, when the sender's sidecar sends, then it uses the new address, or reports the failure to resolve. It never keeps sending to the old address silently.
+R-10.e Acceptance. Given a peer's FQDN now resolves to a new IP, when the sender's sidecar sends, then it re-resolves and the message reaches the peer at the new address. Negative control: given the name no longer resolves at all, then the failure is reported and nothing is sent to the old address silently.
 R-10.g Status: partial. It notices a change and does not reconnect (`RQ` 3 item 6).
 
 ### 6.5 Sending (`RQ` section 4)
@@ -412,7 +427,7 @@ R-11.a The sender MUST give the message, optionally with a blob, to its own side
 R-11.b Interface · P1 · source `RQ` R-4.1.
 R-11.c Rationale: one local send point where durability and identity are applied.
 R-11.d Verification: API fixture and live test.
-R-11.e Acceptance. Given a sender and its sidecar, when the sender calls send with a message and a blob, then the call returns a message id, and the receiver verifies the blob's sha256 before the message is flagged.
+R-11.e Acceptance. Given a sender and its sidecar, when the sender calls send with a message and a blob, then the call returns a message id. [P] Collector addition: the receiver verifies the blob's sha256 before the message is flagged.
 R-11.g Status: there is no send API on the TermLink sidecar. Senders use `agent-send.sh` and `channel post` (`RQ` 4 item 1). AEF has `fw sidecar send` on one host.
 
 R-12 **Sidecar to sidecar, push first.**
@@ -420,7 +435,7 @@ R-12.a The sender's sidecar MUST deliver the message to the receiver's sidecar A
 R-12.b Functional · P1 · source `RQ` R-4.2; operator: "Send: sender agent -> its own sidecar (API) -> the receiver's sidecar (API)."
 R-12.c Rationale: delivery without the hub as the first path.
 R-12.d Verification: live test with a hub-side counter that stays unchanged on the push path.
-R-12.e Acceptance. Given both sidecars are up, when a message is sent, then it reaches the receiver sidecar by a direct API call and no message post is made to a hub topic on that path.
+R-12.e Acceptance. Given both sidecars are up, when a message is sent, then it reaches the receiver sidecar by a direct API call. [P] Collector addition, as a test instrument for "push first": no message post to a hub topic is observed on that path.
 R-12.g Status: same host in AEF only. Cross-host is designed only. All three weighted reviewers disagree for cross-host, and the charter forbids a second bus (`RV1` points 2 and 11). Conflict C-2, question OD-1.
 
 R-13 **The hub is the fallback.**
@@ -434,11 +449,11 @@ R-13.g Status: built and operating.
 ### 6.6 Receiving (`RQ` section 5)
 
 R-14 **RECEIVED, immediately.**
-R-14.a On accepting a message the receiver's sidecar MUST call the sender's sidecar with RECEIVED and a timestamp, immediately.
+R-14.a On accepting a message the receiver's sidecar MUST call the sender's sidecar with RECEIVED, immediately. [P] The call carries a timestamp (collector addition; R-35 needs it).
 R-14.b Interface · P1 · source `RQ` R-5.1; operator: "an API call that's received".
 R-14.c Rationale: the sender learns at once that the message arrived.
 R-14.d Verification: live test with timestamps on both sides.
-R-14.e Acceptance. Given the receiver sidecar is up, when it accepts a message, then the sender's record gains a RECEIVED row, with the receiver's timestamp, within a bound (proposed: 2 s, not confirmed).
+R-14.e Acceptance. Given the receiver sidecar is up, when it accepts a message, then the sender's record gains a RECEIVED row, with the receiver's timestamp, within a bound. The bound is open (operator; OD-4, OD-5). "Immediately" is the operator's word and has no number.
 R-14.g Status: TermLink posts a hub receipt on a 15 s poll, per topic, with no per-message id (`RQ` 5 item 1). AEF answers synchronously, same host. Contested: OD-4 (one call or two), OD-5 (callback or record and pull).
 
 R-15 **STORED, durably, then a second call.**
@@ -451,11 +466,12 @@ R-15.f Holds against: ADV-3, ADV-4.
 R-15.g Status: no distinct STORED call exists in either build. AEF's RECEIVED already means stored. Contested: OD-4.
 
 R-16 **A new-message flag is raised.**
-R-16.a After the message is durably stored the sidecar MUST raise a new-message flag. The flag MUST NOT be raised before the store.
+R-16.a [C] A new-message flag MUST be raised. [A] The flag is raised after the message is durably stored and MUST NOT be raised before the store (ordering is the collector's reading of R-5.2 then R-5.3).
 R-16.b Functional · P1 · source `RQ` R-5.3.
 R-16.c Rationale: the tick reads the flag, so the flag is the trigger for injection.
 R-16.d Verification: fixture and live inspection of the flag file.
 R-16.e Acceptance. Given a message is stored, then the flag exists with a timestamp and a pending count, and the message is already readable from the store at that moment.
+R-16.f Holds against: ADV-3 (a flag up for a message that is not yet durable makes the tick type a doorbell for mail that a crash then loses), ADV-4 (an outage between flag and store).
 R-16.g Status: built and operating for three agents. Its pending count is shared with the sidecar's own auto-ack, so 0 can mean "receipted", not "seen" (`RQ` 5 item 2).
 
 ### 6.7 The 30-second tick (`RQ` section 6)
@@ -465,15 +481,15 @@ R-17.a A job MUST check the new-message flag every 30 seconds.
 R-17.b Functional · P1 · source `RQ` R-6.1; operator: "Every 30 seconds …".
 R-17.c Rationale: bounds pickup latency when the agent is idle. System cron cannot do 30 s, so it is a supervised loop (`IAC` 17a).
 R-17.d Verification: tick log over 100 consecutive ticks.
-R-17.e Acceptance. Given a running sidecar, then consecutive ticks are at most 30 s plus a stated tolerance apart, and a tick that finds the flag up proceeds to R-18.
+R-17.e Acceptance. Given a running sidecar, then consecutive ticks are at most 30 s plus a tolerance apart (the tolerance is open: operator), and a tick that finds the flag up proceeds to R-18.
 R-17.g Status: TermLink: not built (installed driver is `*/5`, checks no prompt). AEF: built (`SIDECAR_TICK`, default 30) for armed agents only.
 
 R-18 **Read the queue, highest priority first.**
-R-18.a With the flag up, the job MUST read the queue in order of priority, highest first, and by arrival time within one priority.
+R-18.a With the flag up, the job MUST read the queue in order of priority, highest first. [P] Within one priority, oldest first (collector addition from the built injector, `RQ` 6 item 3).
 R-18.b Functional · P1 · source `RQ` R-6.2.
 R-18.c Rationale: urgent mail must not wait behind routine mail.
 R-18.d Verification: fixture with three queued messages.
-R-18.e Acceptance. Given queued messages P=5 (arrived second), P=0 (first) and P=-1 (third), when the tick reads the queue, then the order is P=5, P=0, P=-1. Two messages with equal priority are read oldest first.
+R-18.e Acceptance. Given queued messages P=5 (arrived second), P=0 (first) and P=-1 (third), when the tick reads the queue, then the order is P=5, P=0, P=-1. [P] Two messages with equal priority are read oldest first.
 R-18.g Status: built inside the injector, which nothing schedules (`RQ` 6 item 1).
 
 R-19 **Urgent: injected immediately, by a route that cannot silently lose it.**
@@ -481,7 +497,7 @@ R-19.a An urgent message MUST be injected immediately, even when the agent is bu
 R-19.b Security invariant · P1 · source `RQ` R-6.3; operator, 2026-10-03: "inject when it's free and with urgent bypass" and "urgent gets injected immediately".
 R-19.c Rationale: the operator wants an interruption that is not waited out. The qualifier is the operator's own: "Reliability is important at all times but can also be out of band." (SCAPI:207-208).
 R-19.d Verification: live test with the receiver inside a long tool call, plus a negative control in which the typed line is discarded.
-R-19.e Acceptance. Given an urgent message and a receiver in the middle of a long tool call, when the message is handled, then (1) it is already durable in the store, (2) a line is typed at once, (3) either transcript evidence appears and INJECTED is reported, or the message becomes eligible again and an escalation follows, and (4) the message count in the store is the same before and after. A discarded typed line never causes the message to vanish.
+R-19.e Acceptance. Given an urgent message and a receiver in the middle of a long tool call, when the message is handled, then (1) it is already durable in the store, (2) a line is typed at once, (3) either transcript evidence appears and INJECTED is reported, or the message becomes eligible again and an escalation follows, and (4) the message count in the store is the same before and after. A discarded typed line never causes the message to vanish. Typing at once is the attempt that R-19 asks for; only (3) counts as delivery (R-24).
 R-19.f Holds against: ADV-1 (a busy agent discards the typed line, T-2396), ADV-4.
 R-19.g Status: contested. Two of three weighted reviewers say never type into a busy prompt, and the operator's own earlier ruling SQ-4 says the same and is not recorded as superseded (`RQ` 6 item 16a, `RV1` point 10). No safe route is built (`RQ` 6 item 6). Conflict C-1, question OD-2.
 
@@ -491,16 +507,17 @@ R-20.b Functional · P1 · source `RQ` R-6.4; operator: "If the prompt is not fr
 R-20.c Rationale: typing into a busy prompt loses the text.
 R-20.d Verification: live test with a busy receiver and a negative control.
 R-20.e Acceptance. Given a non-urgent message and a receiver that is not ready, when a tick runs, then nothing is typed and the message stays queued with the flag up. Given the receiver becomes ready, when the next tick runs, then the line is typed. If the agent is not running, then NOT RUNNING is reported and not treated as busy.
+R-20.f Holds against: ADV-1 (a busy agent discards typed text, T-2396).
 R-20.g Status: TermLink built it behind the screen classifier, not scheduled. AEF built it behind the ready flag, armed agents only.
 
 ### 6.8 Readiness (`RQ` section 7)
 
 R-21 **Readiness is reported by the harness.**
-R-21.a The harness's own hooks MUST report readiness: the Stop hook marks the session ready at the end of a turn and the prompt-submit hook clears it before the next turn. A missing or unreadable flag MUST read as not ready.
+R-21.a The harness's own hooks MUST report readiness: the Stop hook marks the session ready at the end of a turn and the prompt-submit hook clears it before the next turn. [P] A missing or unreadable flag MUST read as not ready (collector addition from AEF's build, `RQ` 7 item 1: `adapter.py`).
 R-21.b Interface · P1 · source `RQ` R-7.1.
 R-21.c Rationale: only the harness knows a turn is open.
 R-21.d Verification: hook fixture and live test.
-R-21.e Acceptance. Given the Stop hook fired for session S, then S's record says ready. Given a prompt is submitted, then S's record says not ready before the new turn starts. Given S's record is missing, then S reads not ready.
+R-21.e Acceptance. Given the Stop hook fired for session S, then S's record says ready. Given a prompt is submitted, then S's record says not ready before the new turn starts. [P] Given S's record is missing, then S reads not ready.
 R-21.g Status: AEF built it for `claude-fw --termlink` sessions. TermLink has none. Reviewers want a harness-neutral adapter (`RV1` point 13). Question: OD-7.
 
 R-22 **Readiness is not inferred from the screen.**
@@ -515,11 +532,12 @@ R-22.g Status: the built TermLink classifier infers from the screen. `IAC` still
 ### 6.9 Injection (`RQ` section 8)
 
 R-23 **One short line is typed.**
-R-23.a The sidecar MUST type one short line into the agent's session with `termlink pty inject`. The line MUST NOT carry peer content.
+R-23.a The sidecar MUST type one short line into the agent's session with `termlink pty inject`. [P] The line MUST NOT carry peer content (collector addition from the AEF build, `RQ` 8 item 1; see CAND-1).
 R-23.b Interface · P1 · source `RQ` R-8.1.
 R-23.c Rationale: the content arrives by the prompt hook, so a lost keystroke cannot lose content.
 R-23.d Verification: fixture that records the typed text.
-R-23.e Acceptance. Given a queued message, when the sidecar injects, then the typed text is one line, holds a count and message ids and no message body, and the target is the session named in the claim written before typing.
+R-23.e Acceptance. Given a queued message, when the sidecar injects, then the typed text is one line. [P] Collector additions: it holds a count and message ids and no message body, and the target is the session named in a claim written before typing.
+R-23.f Holds against: ADV-2 (a hostile or compromised sender whose text would otherwise be typed into another agent's prompt as input), ADV-1 (a lost keystroke would lose content typed inline).
 R-23.g Status: built in AEF and in the TermLink injector. Operating for armed sessions only.
 
 R-24 **INJECTED only with evidence.**
@@ -562,18 +580,18 @@ R-28.a A woken agent MUST reply, or explicitly say "no action". It MUST NOT stay
 R-28.b Security invariant · P1 · source `RQ` R-9.3.
 R-28.c Rationale: "silence always means a bug" (T-2402).
 R-28.d Verification: live test with a negative control in which the agent posts nothing.
-R-28.e Acceptance. Given an injected message, when the agent's turn ends with neither a reply nor a declared no-action, then an escalation is raised within the deadline. Given the agent posts an acknowledged-no-action, then the sender sees that terminal state.
+R-28.e Acceptance. Given an injected message, when the agent replies, then the sender sees the reply. Given the agent explicitly says "no action", then the sender sees that outcome (its state name is OD-8). Negative control: given the turn ends with neither, then the message shows as unanswered to the sender and [P] an escalation follows within a deadline (deadline and terminal state are open: OD-8).
 R-28.f Holds against: ADV-1.
 R-28.g Status: skill text only, no hook enforces it. Neither sender state set has a no-action state (`RQ` 9 item 4). Question: OD-8.
 
 R-29 **Deaf means halt.**
-R-29.a If an agent's ears are dead it MUST halt message-dependent work and say so. It MUST NOT assume there is no mail.
+R-29.a If an agent's ears are dead it MUST halt instead of assuming there is no mail, and it MUST say so.
 R-29.b Security invariant · P1 · source `RQ` R-9.4 (June, confirmed).
 R-29.c Rationale: "no flag" only means "no mail" if the listener is alive.
 R-29.d Verification: stale-heartbeat fixture and live test.
 R-29.e Acceptance. Given the sidecar heartbeat is stale, when the agent checks for mail, then the verdict is DEAF and the agent reports the halt. Given a fresh heartbeat and no flag, then the verdict is CLEAR.
 R-29.f Holds against: ADV-3, ADV-4, ADV-6 (a deaf agent that looks alive).
-R-29.g Status: `notify-check.sh` exists. Nothing runs it at a yield point, so no owner (`RQ` 9 item 5).
+R-29.g Status: what "halts" stops is not defined in the June wording (all work, or only work that depends on mail); open for steps 2 and 4. `notify-check.sh` exists. Nothing runs it at a yield point, so no owner (`RQ` 9 item 5).
 
 ### 6.11 Fallback polling (`RQ` section 10)
 
@@ -582,7 +600,7 @@ R-30.a Where a push cannot land, the other side MUST poll on this schedule, each
 R-30.b Functional · P2 · source `RQ` R-10.1; operator: "that should be the standard fallback mechanism for the framework for any polling activities."
 R-30.c Rationale: a standard cadence instead of ad-hoc retries.
 R-30.d Verification: simulated-clock test of the rung times.
-R-30.e Acceptance. Given a failed push and a simulated clock, then polls occur at 15 s ×2, 1 min ×2, 5 min ×2 and so on through 1 year ×2, in that order.
+R-30.e Acceptance. Given a failed push and a simulated clock, then the intervals between successive polls are 15 s, 15 s, 1 min, 1 min, 5 min, 5 min and so on through 1 year, 1 year, in that order (each interval counted from the previous poll, not from the start). "Each rung twice" read as two consecutive polls at the same interval is the collector's reading; the first rung (15 s or 50 s) is open: OD-3.
 R-30.g Status: designed only. The first rung "15" was read from the dictation "50" and has no recorded correction. All three weighted reviewers call the year-long polling wrong (`RV1` point 4). Conflict C-6, question OD-3.
 
 R-31 **The ladder is the framework default.**
@@ -612,12 +630,12 @@ R-33.e Acceptance. Given an address, then each of the five levels yields both a 
 R-33.g Status: partial. The hub id used today is the rotating TLS fingerprint and a hub name is not built. The project slot still uses the folder name (`RQ` 11 item 3). Questions: OD-11, OD-12.
 
 R-34 **Never fall back across projects.**
-R-34.a A message addressed with `to_circuit` MUST NOT be delivered to an agent of a different project.
+R-34.a Messages MUST be addressed with `to_circuit`, and MUST NOT fall back across projects: a message addressed with `to_circuit` MUST NOT be delivered to an agent of a different project.
 R-34.b Security invariant · P1 · source `RQ` R-11.3; agreed by both sides (IN-AEF@129, IN-010@141).
 R-34.c Rationale: a wrong delivery is worse than a visible failure.
 R-34.d Verification: fixture with only a wrong-project sidecar present.
-R-34.e Acceptance. Given `to_circuit` names project P and only project Q's sidecar is present, then nothing is delivered or woken at Q and the sender sees the target as unreachable.
-R-34.f Holds against: ADV-2 (impersonation, shared host key), ADV-6 (wrong binding).
+R-34.e Acceptance. (1) Routing: given `to_circuit` names project P and only project Q's sidecar is present, then nothing is delivered or woken at Q and the sender sees the target as unreachable. (2) Hostile session: given a session of project Q that signs with the shared host key and asserts it is P, when a message to P arrives, then Q's sidecar and agents are not woken for it and the sender does not see it as delivered. (2) tests the routing decision under that assertion. It does not test authentication of the sender, which is GP-1 and is not required by R-34.
+R-34.f Holds against: ADV-6 (wrong binding) in full. ADV-2 (impersonation, shared host key) only for the routing decision in (2): detecting that a session lies about its project needs sender authentication (GP-1, step 2), which R-34 does not provide.
 R-34.g Status: built for the wake decision. A message with no address still wakes everyone (`IAC` 11a). Question on the session level: OD-10.
 
 ### 6.13 Telemetry (`RQ` section 12)
@@ -635,7 +653,7 @@ R-36.a Each agent MUST post a daily digest and reflect on it.
 R-36.b Operational · P3 · source `RQ` R-12.2; operator: "one times per day".
 R-36.c Rationale: traffic data is only useful if someone reads it.
 R-36.d Verification: scheduled-job fixture.
-R-36.e Acceptance. Given 24 hours of traffic, then each agent has posted one digest with counts per step, delays, stuck messages and unanswered messages. A missing digest is itself visible.
+R-36.e Acceptance. Given 24 hours of traffic, then each agent has posted one digest with counts per step, delays, stuck messages and unanswered messages. Reflection: the digest carries a record that the agent reflected on it (what counts as reflection is open: operator). A missing digest appears as an entry on the pile-up escalation surface of R-37 (the surface is open: OD-14).
 R-36.g Status: not built.
 
 R-37 **Alarms only for urgent.**
@@ -643,25 +661,25 @@ R-37.a The system MUST raise an immediate alarm only for urgent messages. All ot
 R-37.b Operational · P2 · source `RQ` R-12.3; operator: "Liveness alarm only for urgent messages. Everything else accumulates and escalates …".
 R-37.c Rationale: alarm fatigue.
 R-37.d Verification: fixture with an overdue urgent message and a pile of routine ones.
-R-37.e Acceptance. Given an urgent message unhandled past its deadline, then an alarm is raised at once. Given many routine messages unhandled, then no immediate alarm is raised and an escalation entry appears when the pile crosses a threshold (the threshold is to be decided).
+R-37.e Acceptance. Given an urgent message unhandled past its deadline, then an alarm is raised at once. Given many routine messages unhandled, then no immediate alarm is raised and an escalation entry appears when the pile crosses a threshold. The threshold is open (operator, "design to be decided"), so the pile-up half of this criterion cannot fail a test yet.
 R-37.g Status: designed only. How it surfaces, and where the last rung lands, is open (OD-14). "Design to be decided" is the operator's own phrase.
 
 R-38 **Later: observability database, learning, hub steward.**
-R-38.a The telemetry MUST stay readable by a later observability database, and a hub-steward agent MAY be added.
+R-38.a [C] Later: an observability database and the learning from it; possibly a hub-steward agent (a hub-steward agent MAY be added). [P] Until then, the telemetry MUST stay readable by such a later consumer.
 R-38.b Quality · P3 · source `RQ` R-12.4.
 R-38.c Rationale: the operator wants learning from traffic later.
 R-38.d Verification: review.
-R-38.e Acceptance. Given telemetry events on the hub, a later consumer can read all of them without a change to the message path.
+R-38.e Acceptance. Given telemetry events on the hub, a test reader that uses only the pull of R-35 and the event fields of R-35.e reads all of them with no change to the message path. The compatibility contract is those fields; a real database consumer and the learning step are later and have no criterion yet.
 R-38.g Status: later. The steward is T-3333, captured.
 
 ### 6.14 Deployment (`RQ` section 13)
 
 R-39 **Every sidecar ships with every deployment.**
-R-39.a Every sidecar MUST ship with every TermLink deployment, and MUST start from the deployment and not from a source checkout.
+R-39.a Every sidecar MUST ship with every TermLink deployment. [P] It MUST start from the deployment and not from a source checkout (collector inference from `RQ` section 13, not the operator's words).
 R-39.b Operational · P1 · source `RQ` R-13.1; operator: "When the deployment is done we should deploy all the sidecars with it."
 R-39.c Rationale: today about 13 scripts run only from `/opt/termlink`.
 R-39.d Verification: install on a clean host or container from the release artifact, then start a sidecar.
-R-39.e Acceptance. Given a clean host with the release artifact installed and no `/opt/termlink` checkout, when an agent is registered, then its sidecar can be started and passes the live test.
+R-39.e Acceptance. [P] (the criterion tests the collector's inference) Given a clean host with the release artifact installed and no `/opt/termlink` checkout, when an agent is registered, then its sidecar can be started and passes the live test.
 R-39.g Status: NOT met. Releases publish the binary only (`RQ` 13 item 1). Question: OD-9.
 
 ### 6.15 Unconfirmed: discussed once and lost (`RQ` section 14)
@@ -670,7 +688,7 @@ R-39.g Status: NOT met. Releases publish the binary only (`RQ` 13 item 1). Quest
 
 R-40 **Native consumer (unconfirmed).**
 R-40.a For agents the project launches, the agent SHOULD confirm receipt from inside its own turn.
-R-40.b Functional · P3 · source `RQ` R-14.1 (T-2838, GO 2026-08-25).
+R-40.b Functional · U · source `RQ` R-14.1 (T-2838, GO 2026-08-25).
 R-40.c Rationale: "A receipt cannot exist unless a turn happened." (T2838R:175-208).
 R-40.d Verification: spike S2 re-run.
 R-40.e Acceptance. Given an agent launched by the project, then no receipt exists for a message unless a turn of that agent took place.
@@ -678,7 +696,7 @@ R-40.g Status: partly met by AEF's prompt hook plus transcript evidence (`RQ` 14
 
 R-41 **Typed assignment and result messages (unconfirmed).**
 R-41.a Assignments and results SHOULD be typed messages (`assignment.v0`, `result_manifest.v0`).
-R-41.b Interface · P3 · source `RQ` R-14.2.
+R-41.b Interface · U · source `RQ` R-14.2.
 R-41.c Rationale: an orchestrator needs machine-readable hand-offs.
 R-41.d Verification: schema fixture.
 R-41.e Acceptance. Given an `assignment.v0` message, then a consumer validates it against the schema and a malformed one is refused with a stated reason.
@@ -686,7 +704,7 @@ R-41.g Status: helpers only, no verb uses them.
 
 R-42 **The hub does not call a message delivered without a receipt (unconfirmed).**
 R-42.a The hub SHOULD refuse to call a message delivered without a receipt.
-R-42.b Security invariant · P3 · source `RQ` R-14.3.
+R-42.b Security invariant · U · source `RQ` R-14.3.
 R-42.c Rationale: "delivered" equal to "hub accepted" was the original failure.
 R-42.d Verification: hub fixture.
 R-42.e Acceptance. Given a post with no receipt, then the hub reports it as delivered-unconfirmed and never as delivered.
@@ -695,7 +713,7 @@ R-42.g Status: not built. The CLI already says delivered-unconfirmed versus cons
 
 R-43 **The startup chain (unconfirmed, duplicate).**
 R-43.a Same sentence as R-9.
-R-43.b Functional · P3 · source `RQ` R-14.4.
+R-43.b Functional · U · source `RQ` R-14.4.
 R-43.c Rationale: see R-9.
 R-43.d Verification: see R-9.
 R-43.e Acceptance: see R-9.
@@ -712,7 +730,7 @@ R-43.g Status: `RQ` itself says it duplicates R-3.4. Proposed disposition: merge
 | C-1 | Urgent into a busy prompt. The operator's 2026-10-03 words say bypass. The operator's SQ-4 (2026-09-23) says "urgent NEVER injects into a BUSY prompt". Codex and GLM say never type into a busy prompt. 055 agrees with the bypass on conditions. | `RQ` 6 item 16a; `RV1` section 2 and point 10 | R-19, R-23, R-24 | Left open: OD-2. R-19 stands as confirmed. SQ-4 is still recorded RESOLVED with no supersession. |
 | C-2 | Cross-host send. The operator's read-back sends sidecar to sidecar. SQ-1 keeps sending on the hub, and the charter forbids a second bus. Codex, GLM and 055 all say the hub carries cross-host mail. In `RV2` round 2 Codex, GLM and 055 accept a hub-set-up circuit for established conversations, and AEF wants a hub-path binding and a socket only after a measurement. | `RQ` O1; `RV1` points 2 and 11; `RV2` items 22-33, 61-62, 72 | R-7, R-12, R-13 | Left open: OD-1. R-12 stands as confirmed. |
 | C-3 | "No agent has to be attached" against the fact that a running session cannot be given a PTY afterwards (PL-237). Today R-3 is false for running agents on this host. | `RQ` O16 item 1, O3, section 15 | R-3 | Left open: OD-6. |
-| C-4 | Independence from the hub against the hub fallback and discovery. The design's own paths use the hub. `RV1` calls the independence "untestable" (GLM) and "has no stated failure it buys" (055). | `RQ` 3 item 3; `RV1` section 2 | R-7, R-13 | Left open: OD-1. The acceptance criterion of R-7 is limited to same-host delivery so that it can be tested. |
+| C-4 | Independence from the hub against the hub fallback and discovery. The design's own paths use the hub. `RV1` calls the independence "untestable" (GLM) and "has no stated failure it buys" (055). | `RQ` 3 item 3; `RV1` section 2 | R-7, R-13 | Left open: OD-1. The acceptance criterion of R-7 is proposed with a same-host test scope [P]. The statement of R-7 is the operator's unqualified wording, and the scope of "independent" across hosts is part of OD-1. |
 | C-5 | Screen against harness for readiness. The operator said once "use PTY inject when the cursor is silent". R-22 forbids inferring from the screen. `IAC` section 3a text still describes the screen classifier. | `RQ` 7 item 12a | R-21, R-22 | Left open: OD-7. R-22 stands as confirmed. |
 | C-6 | The polling ladder against the retry ladder, and against the reviewers. R-30 runs to a year. D-600 stops at about 76 days and dead-letters. All three weighted reviewers call the year-long polling wrong. The first rung "15" was a reading of "50". | `RQ` 10 item 7; `RV1` point 4 | R-30, R-31 | Left open: OD-3. |
 | C-7 | Callbacks against record-and-pull. The operator's read-back has synchronous calls back to the sender. Codex and GLM call the call back "wrong as written". All three reviewers say the durable record is the truth and the callback is an optimisation. RECEIVED and STORED are two calls in the read-back and one in AEF. | `RQ` 5 items 12 and 13, 9 item 12; `RV1` points 5 and section 2 | R-14, R-15, R-26 | Left open: OD-4, OD-5. |
@@ -785,13 +803,13 @@ OD-2.f Sources: `RQ` O4; `RV1` point 10.
 ### 9.6 OD-3 Polling ladder against retry ladder
 
 OD-3.a Question: is R-10.1 (15 s to one year, each rung twice) the right polling ladder, and how does it relate to AEF's retry ladder?
-OD-3.b Why: topics are retention-bounded, so late rungs poll for mail that no longer exists. The first rung "15" was a reading of "50".
+OD-3.b Why: topics are retention-bounded, so late rungs poll for mail that no longer exists. The dictation said "50 seconds" and "50 minutes" for the first and fourth rungs, read as 15 s and 15 min, "pending operator correction" (`RQ` 10 item 5). Urgent compression of the ladder is also undesigned (D-600: "designed in a separate conversation"; AEF's `retry_ladder.py` raises `NotImplementedError`), and `RQ` O11 lists it as a question to decide.
 OD-3.c Options.
 OD-3.c.A Keep R-10.1 as the operator confirmed, and confirm the first rung as 15 s. The operator, relayed to AEF: "that should be the standard fallback mechanism for the framework for any polling activities. It can be changed situationally, but that should be the standard." (`RQ` 10 item 5).
 OD-3.c.B Two mechanisms. `RV1` point 4: "The year-long polling ladder (R-10.1) is wrong. Topics are retention-bounded, so late rungs poll for messages that no longer exist. All three want two separate mechanisms: bounded retry for re-sending, and a short wait that ends in a visible 'stuck' escalation." The 12-rung ladder stays the default for other polling.
 OD-3.c.C Use AEF's retry ladder only: 2×1 min to 2×1 month, then dead-letter, about 76 days (D-600, `RQ` 10 item 4).
-OD-3.c.D Keep R-10.1 and cap its rungs by the retention of the topic being polled.
-OD-3.d Recommendation: B. Reason: all three reviewers say it, it does not drop the operator's ladder (it stays the framework default for other polling), and it gives the operator a visible "stuck". Ask the operator to confirm 15 s as the first rung in the same answer.
+OD-3.c.D Keep R-10.1 and cap its rungs by the retention of the topic being polled. (Collector-synthesized: no reviewer proposed this option.)
+OD-3.d Recommendation: B. Reason: all three reviewers say it, it does not drop the operator's ladder (it stays the framework default for other polling), and it gives the operator a visible "stuck". The operator also has to rule on the first rung (15 s or 50 s), the fourth rung (15 min or 50 min) and how urgent mail compresses the ladder; none of these is covered by A to D.
 OD-3.e Changes: R-30, R-31.
 OD-3.f Sources: `RQ` O11; `RV1` point 4.
 
@@ -803,7 +821,7 @@ OD-4.c Options.
 OD-4.c.A Two calls, defined precisely. Codex (`RV1` section 2): "Keep both, defined precisely: RECEIVED = volatile, STORED = durable, only STORED releases the sender".
 OD-4.c.B One call after the durable write. GLM: "answer once, after fsync-and-rename". 055: "RECEIVED after the durable write".
 OD-4.c.C Two events on the wire only if a sender can act on the gap, otherwise one (`IAC` item 61).
-OD-4.c.D Two calls, and RECEIVED may be merged into STORED when the store is faster than a set bound.
+OD-4.c.D Two calls, and RECEIVED may be merged into STORED when the store is faster than a set bound. (Collector-synthesized: no reviewer proposed this option.)
 OD-4.d Recommendation: A. Reason: it keeps the confirmed requirement and gives each call a different meaning, so the sender can tell "arrived" from "safe".
 OD-4.e Changes: R-14, R-15.
 OD-4.f Sources: `RQ` O2; `RV1` section 2.
@@ -830,7 +848,7 @@ OD-6.c.A Relaunch every agent through the reachable launcher. Codex: "Inventory 
 OD-6.c.B No relaunch. 055: "**No relaunch** ('not realistic for a mixed fleet'); a harness-side pull channel at the harness's yield points, marked pull-only".
 OD-6.c.C Accept that running sessions are reached only by pull and the session-start listing, and show the state (`RQ` O3).
 OD-6.c.D Relaunch through the launcher, and add a harness-side pull channel for the mixed fleet later.
-OD-6.d Recommendation: A, with every unlaunched agent shown as not reachable. Reason: two of three reviewers say it, and it is the only option that never reports mail as delivered to a session that cannot receive it.
+OD-6.d Recommendation: A, with every unlaunched agent shown as not reachable. Reason: Codex and GLM say it. B and C also label such sessions pull-only (they do not claim delivery), so the difference is cost and reach: A makes the session pushable and costs a relaunch of every agent, B and C leave it pull-only at no relaunch cost. The operator weighs that cost.
 OD-6.e Changes: R-3 (its acceptance and status).
 OD-6.f Sources: `RQ` O3; `RV1` section 2.
 
@@ -839,11 +857,11 @@ OD-6.f Sources: `RQ` O3; `RV1` section 2.
 OD-7.a Question: is readiness taken only from harness hooks, and who builds the hook for agents that are not AEF's?
 OD-7.b Why: R-22 forbids the screen. The built TermLink classifier uses the screen. TermLink has no hook readiness, and its own T-3250 is captured with no ruling.
 OD-7.c Options.
-OD-7.c.A Hooks are primary and the screen classifier stays only as a labelled degraded fallback (`IAC` item 63).
-OD-7.c.B Hooks only. Retire the screen classifier. `RV1` point 3: "Readiness comes from harness hooks, never from screen inspection, and a ready flag is only an observation."
-OD-7.c.C Hooks through a harness adapter contract. `RV1` point 13: 055 "Wants an adapter contract with READY/BUSY/NOT RUNNING plus evidence, two adapters from day one, and a per-release parity test."
-OD-7.c.D Keep the screen classifier as the main signal (the operator's 2026-09-20 words "use PTY inject when the cursor is silent").
-OD-7.d Recommendation: C. Reason: all three reviewers want hooks, and 055 runs opencode, so a Claude-only wording is not enough. Ownership: TermLink owns the adapter contract and AEF supplies the Claude adapter, which matches Codex's "AEF should supply harness readiness/context adapters."
+OD-7.c.A Hooks are primary and the screen classifier stays only as a labelled degraded fallback (`IAC` item 63). Ownership: not stated in the source.
+OD-7.c.B Hooks only. Retire the screen classifier. Ownership: each harness owner builds its own hook; TermLink owns none. `RV1` point 3: "Readiness comes from harness hooks, never from screen inspection, and a ready flag is only an observation."
+OD-7.c.C Hooks through a harness adapter contract. `RV1` point 13: 055 "Wants an adapter contract with READY/BUSY/NOT RUNNING plus evidence, two adapters from day one, and a per-release parity test." Ownership in this option: TermLink owns the adapter contract and AEF supplies the Claude adapter (Codex: "AEF should supply harness readiness/context adapters"); 055 would supply or test the opencode adapter.
+OD-7.c.D Keep the screen classifier as the main signal (the operator's 2026-09-20 words "use PTY inject when the cursor is silent"). Ownership: TermLink.
+OD-7.d Recommendation: C. Reason: all three reviewers want hooks, and 055 runs opencode, so a Claude-only wording is not enough.
 OD-7.e Changes: R-21 (harness-neutral wording), R-22, R-24.
 OD-7.f Sources: `RQ` O8; `RV1` points 3 and 13.
 
@@ -869,7 +887,7 @@ OD-9.c.A Adopt AEF's receiver (T-3330 option A). It reaches only AEF-governed pr
 OD-9.c.B Extend TermLink's scripts (option B). No package ships them.
 OD-9.c.C Move the receive side into the binary as `termlink sidecar` (option C), with AEF supplying the harness adapters. Codex (`RV1` point 7): "TermLink should own the transport-neutral message lifecycle … AEF should supply harness readiness/context adapters." Section 2: "One versioned runtime, ideally `termlink sidecar`".
 OD-9.c.D Defer (option D).
-OD-9.d Recommendation: C. Reason: it is the only option that ships through the existing channels, and it gives one owner, which all three reviewers asked for. GLM: "one owner, either TermLink's supervisor or AEF's watcher, not both." The port is about 2.5-3.9k shell lines.
+OD-9.d Recommendation: C. Reason: it gives one owner, which all three reviewers asked for, and it puts the receive side in the artifact that releases already publish. Packaging by A or B is not shown impossible: the record shows only that releases publish the binary alone today, so A or B would need a new packaging step. GLM: "one owner, either TermLink's supervisor or AEF's watcher, not both." The port is about 2.5-3.9k shell lines.
 OD-9.e Changes: R-6, R-39.
 OD-9.f Sources: `RQ` O9; `RV1` points 7 and section 2 packaging row.
 
@@ -882,7 +900,7 @@ OD-10.c.A Route to project and agent role. The session id is metadata (`IAC` ite
 OD-10.c.B Route to the exact session, fenced by incarnation. `RV1` point 15 (Codex): "readiness generation, exclusive injection ownership, invalidation on restart; never silently redirect an exact-session message to another instance."
 OD-10.c.C Both. `RV2` item 6: "Exact-instance messages fail loudly; role messages re-resolve. Never silently redirect."
 OD-10.c.D Canonical id plus runtime id exactly as the operator worded it, no further rule.
-OD-10.d Recommendation: C. Reason: it keeps role mail working when an instance restarts, and it never delivers an exact-session message to the wrong copy, which R-34 requires.
+OD-10.d Recommendation: C. Reason: it keeps role mail working when an instance restarts, and it never delivers an exact-session message to the wrong copy (Codex, `RV1` point 15; `RV2` item 6). R-34 concerns different projects and does not decide the session level; it is not the basis of this recommendation.
 OD-10.e Changes: R-32, R-33, R-34.
 OD-10.f Sources: `RQ` O6; `RV1` section 2 and point 15; `RV2` items 6, 47, 49.
 
@@ -930,11 +948,11 @@ OD-13.f Sources: `RQ` O7.
 OD-14.a Question: besides urgent alarms and pile-up escalation, is there an end-to-end canary, and where does the last escalation land?
 OD-14.b Why: the operator's rule is alarms only for urgent. All three reviewers say drift is caught only by a canary that sends a real message.
 OD-14.c Options.
-OD-14.c.A Urgent alarm, pile-up escalation like audit warnings, daily digest (`IAC` item 73). Nothing else.
-OD-14.c.B A plus an end-to-end canary. `RV1` point 9: "What breaks first is deployment drift: healthy-looking sidecars with no scheduler, wrong hub, missing hooks. Detected only by an end-to-end canary that sends a real message, not by process heartbeats." GLM's R6: "canary mail with deadlines, INJECTED within T1, REPLIED within T2" (`RQ` O16).
-OD-14.c.C Add a hub-steward agent (T-3333).
-OD-14.c.D Defer.
-OD-14.d Recommendation: B. Reason: the canary tests the rail, it is not a per-message alarm, so it does not break the operator's rule. The last rung must land in one place the operator reads, and that is proved by a negative control (T-3461 found an unread queue).
+OD-14.c.A Urgent alarm, pile-up escalation like audit warnings, daily digest (`IAC` item 73). Nothing else. The last rung of the escalation lands: not stated in the source.
+OD-14.c.B A plus an end-to-end canary. Whether a canary failure raises an immediate alarm or an escalation entry is for the operator (it is not a per-message alarm, but it is not a pile-up either). `RV1` point 9: "What breaks first is deployment drift: healthy-looking sidecars with no scheduler, wrong hub, missing hooks. Detected only by an end-to-end canary that sends a real message, not by process heartbeats." GLM's R6: "canary mail with deadlines, INJECTED within T1, REPLIED within T2" (`RQ` O16).
+OD-14.c.C Add a hub-steward agent (T-3333). The last rung lands with the steward agent, which then reports to the operator (collector reading; T-3333 has no recommendation).
+OD-14.c.D Defer. The last rung stays unspecified until decided.
+OD-14.d Recommendation: B. Reason: all three reviewers say drift is caught only by a canary. Whether a canary alarm fits the operator's "alarms only for urgent" rule is the operator's call and is not assumed here. Where the last rung lands is not answered by A to D: the operator names the place (one place the operator reads), and the build proves it with a negative control (T-3461 found an unread queue).
 OD-14.e Changes: R-37.
 OD-14.f Sources: `RQ` O14; `RV1` point 9; `IAC` item 73.
 
@@ -947,7 +965,7 @@ OD-15.c.A Interrupts only from an authenticated sender and only for agents that 
 OD-15.c.B No consent layer. Trust the host, as today.
 OD-15.c.C The operator approves each interrupt.
 OD-15.c.D Never interrupt. Urgent waits for a free prompt.
-OD-15.d Recommendation: A. Reason: C would cause approval fatigue, B leaves impersonation open, and D drops the confirmed urgent rule. The startup chain is then scoped to the sidecar and its host services (`IAC` item 72).
+OD-15.d Recommendation: A. Reason: C would cause approval fatigue, B leaves impersonation open, and D drops the confirmed urgent rule. The startup chain stays as confirmed in R-9 (agent, session, project and hub). `IAC` item 72 proposes to scope it to the sidecar and its host services; that would narrow R-9 and is a separate question for the operator, not part of this recommendation.
 OD-15.e Changes: R-8, R-9, R-19.
 OD-15.f Sources: `RQ` O15; `RV1` point 17.
 
@@ -973,7 +991,7 @@ OD-17.c.A Accept every candidate marked "accept".
 OD-17.c.B Accept only the ones the operator names.
 OD-17.c.C Reject all candidates.
 OD-17.c.D Defer the list to step 3 (security floor and phasing).
-OD-17.d Recommendation: B, walking the table below, taking my recommended disposition as the default for each.
+OD-17.d Recommendation: B, walking the table below one item at a time. Each item needs the operator's explicit disposition (accept, reject or defer); no item is accepted by default or by silence. The "recommended disposition" column is the collector's recommendation only.
 
 | Id | Candidate | Source | Recommended disposition |
 |---|---|---|---|
@@ -1010,55 +1028,55 @@ OD-18.c.A A deterministic rule at the project's home hub, over a fenced lease he
 OD-18.c.B A central coordinator agent that carries the traffic. `RV2` item 43: "Not a coordinator that carries all traffic (6b). Both reject it as the default; Codex allows it only where work must be triaged or aggregated."
 OD-18.c.C No exclusivity by rule. Codex (`RV2` section 10): "Rejected for exclusivity: observers with different views pick different winners". GLM adds fork-with-claim for pools: deliver to all holders, first to claim wins.
 OD-18.c.D The sender names the exact instance, and no role resolution exists.
-OD-18.d Recommendation: A for singleton roles, with fork-with-claim for pools later, eligibility rules (workers, reviewer seats and sub-agents may not hold a role, 055), and an obligation record with a visible "unanswered" state. Reason: all four consulted parties agree on this shape (`RV2` item 71), and "Resolution chooses whom to ask. Explicit acceptance establishes who owes an answer." (Codex, item 50).
+OD-18.d Recommendation: A for singleton roles, with fork-with-claim for pools later, eligibility rules (workers, reviewer seats and sub-agents may not hold a role, 055), and an obligation record with a visible "unanswered" state. Reason: Codex and GLM propose this shape for the resolution (`RV2` items 43-45); `RV2` item 71 covers directory and liveness, not the lease shape. And "Resolution chooses whom to ask. Explicit acceptance establishes who owes an answer." (Codex, item 50).
 OD-18.e Changes: R-32, R-34, new requirements after OD-17.
 OD-18.f Sources: `RV2` sections 9-14.
 
 ## 10 Earlier requirements
 
-10.1 The earlier list is `RQ` R-1.1..R-14.4. Every item is kept. None is changed or dropped, because the operator confirmed them and only the operator may change them. The R-n numbering is new.
+10.1 The earlier list is `RQ` R-1.1..R-14.4. None is dropped. Every item is kept in its confirmed wording, except where the table says "changed". A "changed" row means the new R-n text carries a collector clause tagged [P] (6.1.h) in addition to the operator's wording. The operator's wording stays in the R-n statement as [C], and the [P] clause is a proposal pending the operator, who may strike it. Only the operator may change a confirmed requirement. The R-n numbering is new.
 
 | Earlier | Now | Disposition | Reason |
 |---|---|---|---|
 | R-1.1 | R-1 | kept | confirmed |
-| R-1.2 | R-2 | kept | confirmed |
+| R-1.2 | R-2 | changed [P] | The new clause "no message in transit with its stage invisible" and "stage with a timestamp" are collector expansions of "the sender always knows where its message is". Source: `RQ` 1 item 4 and R-5.1 (timestamp). Strike the [P] clause to return to the confirmed wording |
 | R-1.3 | R-3 | kept | confirmed. Not met for running agents, OD-6 |
 | R-2.1 | R-4 | kept | confirmed |
 | R-2.2 | R-5 | kept | confirmed |
 | R-3.1 | R-6 | kept | confirmed. Ownership OD-9 |
-| R-3.2 | R-7 | kept | confirmed. Narrowed acceptance only, OD-1 |
+| R-3.2 | R-7 | kept | confirmed, restored unqualified in v0.2 (v0.1 had added "same host" to the statement, which pre-decided OD-1). The acceptance criterion has a [P] same-host test scope, and the cross-host scope is OD-1 |
 | R-3.3 | R-8 | kept | confirmed |
-| R-3.4 | R-9 | kept | confirmed. Scope OD-15 |
+| R-3.4 | R-9 | kept | confirmed. Scope OD-15. The criterion adds a [P] serial start order. Priority is a collector proposal (P2), not "unconfirmed" |
 | R-3.5 | R-10 | kept | confirmed |
-| R-4.1 | R-11 | kept | confirmed |
-| R-4.2 | R-12 | kept | confirmed. Contested, OD-1 |
+| R-4.1 | R-11 | kept | confirmed. The criterion adds a [P] blob sha256 check |
+| R-4.2 | R-12 | kept | confirmed. Contested, OD-1. The criterion adds a [P] "no hub post on the push path" test instrument |
 | R-4.3 | R-13 | kept | confirmed |
-| R-5.1 | R-14 | kept | confirmed. Contested, OD-4, OD-5 |
+| R-5.1 | R-14 | changed [P] | the call "carries a timestamp" is a collector addition (R-35 needs it). Source: `RQ` 5 item 3 (AEF returns a timestamp). Contested, OD-4, OD-5 |
 | R-5.2 | R-15 | kept | confirmed. Contested, OD-4 |
-| R-5.3 | R-16 | kept | confirmed |
+| R-5.3 | R-16 | kept | confirmed. The ordering "after the durable store" is an [A] collector reading |
 | R-6.1 | R-17 | kept | confirmed |
-| R-6.2 | R-18 | kept | confirmed |
+| R-6.2 | R-18 | changed [P] | "oldest first within one priority" is a collector addition from the built injector (`RQ` 6 item 3). Strike it to return to the confirmed wording |
 | R-6.3 | R-19 | kept | confirmed. Contested, OD-2 |
 | R-6.4 | R-20 | kept | confirmed |
-| R-7.1 | R-21 | kept | confirmed. Wording may be made harness-neutral, OD-7 |
+| R-7.1 | R-21 | changed [P] | "a missing or unreadable flag reads as not ready" comes from AEF's build (`RQ` 7 item 1), not from the operator's sentence. Wording may be made harness-neutral, OD-7 |
 | R-7.2 | R-22 | kept | confirmed |
-| R-8.1 | R-23 | kept | confirmed |
+| R-8.1 | R-23 | changed [P] | "no peer content" and "claim written before typing" come from the AEF build and the design record (`RQ` 8 item 1, CAND-1), not from the operator's sentence |
 | R-8.2 | R-24 | kept | confirmed. Name OD-8 |
 | R-8.3 | R-25 | kept | confirmed |
 | R-9.1 | R-26 | kept | confirmed. Contested, OD-5 |
 | R-9.2 | R-27 | kept | confirmed |
 | R-9.3 | R-28 | kept | confirmed |
-| R-9.4 | R-29 | kept | confirmed. No built owner |
+| R-9.4 | R-29 | kept | confirmed, restored to "halts" in v0.2 (v0.1 had narrowed it to "halts message-dependent work"). What "halts" stops is open. No built owner |
 | R-10.1 | R-30 | kept | confirmed. Contested, OD-3 |
 | R-10.2 | R-31 | kept | confirmed |
 | R-11.1 | R-32 | kept | confirmed |
 | R-11.2 | R-33 | kept | confirmed. "Hub name" not built, OD-12 |
-| R-11.3 | R-34 | kept | confirmed |
+| R-11.3 | R-34 | kept | confirmed, restored in v0.2 to include the affirmative "messages are addressed with `to_circuit`" |
 | R-12.1 | R-35 | kept | confirmed. Retention OD-16 |
 | R-12.2 | R-36 | kept | confirmed |
 | R-12.3 | R-37 | kept | confirmed. Surfacing OD-14 |
-| R-12.4 | R-38 | kept | confirmed |
-| R-13.1 | R-39 | kept | confirmed. Not met, OD-9 |
+| R-12.4 | R-38 | kept | confirmed, restored in v0.2 to "an observability database and the learning from it". The "stay readable until then" clause is [P] |
+| R-13.1 | R-39 | changed [P] | "start from the deployment and not from a source checkout" is a collector inference from `RQ` section 13. Not met, OD-9 |
 | R-14.1 | R-40 | kept (unconfirmed) | the operator has not confirmed or dropped it, OD-13 |
 | R-14.2 | R-41 | kept (unconfirmed) | same |
 | R-14.3 | R-42 | kept (unconfirmed) | same |
@@ -1066,12 +1084,12 @@ OD-18.f Sources: `RV2` sections 9-14.
 
 ## 11 Residual risks and notes for the operator
 
-11.1 This draft is not final. Completion condition 6.1 of the card (every question answered or recorded as an open gap) is met only after the interview on section 9.
-11.2 Section 6 states what the operator confirmed. At least five of those statements (R-7, R-12, R-14, R-19, R-30) are contested by reviewers. This document does not choose between them.
+11.1 This draft is not final. Completion condition 6.1 of the card (every question answered or recorded as an open gap) is met in form: QS-1..QS-14 are answered from the confirmed requirements and QS-15..QS-23 are recorded as open gaps. The operator interview on section 9 and the operator's sign-off are the separate approval criterion and are pending.
+11.2 Section 6 states what the operator confirmed ([C]) and marks collector additions ([P], [A]). At least five of those statements (R-7, R-12, R-14, R-19, R-30) are contested by reviewers. This document does not choose between them.
 11.3 Several requirements describe a state that does not operate today: R-3, R-12, R-17, R-19, R-24, R-39. The status lines say so. The closing rule (CAND-3) is the test before any of them may be called working.
 11.4 The adversary list in 2.3 is the agent's proposal and has not been confirmed (GP-0).
 11.5 Facts about what runs on the host come from `RQ` section 15, dated 2026-10-03. They were not re-measured.
-11.6 The Mermaid drawings were checked for rendering as recorded in the hand-back. The project's review surface has no design page yet (profile P2.1).
+11.6 Render check, re-run for v0.2. The three Mermaid blocks (D-1, D-2, D-3) were extracted from this file and rendered one by one with `mmdc -p <puppeteer-config> -i dN.mmd -o dN.svg`, where the config names `/usr/bin/chromium` with `--no-sandbox` (the default Chrome for mmdc is not installed on this host; a first run without the config failed with "Could not find Chrome", which is a tooling fault and not a drawing fault). Result: D-1 exit code 0, 39735-byte SVG; D-2 exit code 0, 36971-byte SVG; D-3 exit code 0, 52593-byte SVG; no "error" text in any output; no "Syntax error" text in any SVG. `scripts/design-render-check.py` is not adopted in this project, so no `render_check` record exists. The project's review surface has no design page yet (profile P2.1).
 
 ## 12 Change requests to earlier steps
 
