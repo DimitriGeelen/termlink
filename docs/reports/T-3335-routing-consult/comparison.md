@@ -149,3 +149,23 @@ Files: `round2-perspective.md`, `round2-questions.md`, answers `codex-r2.md`, `g
 33. **The decision left is ordering:** build the signalling layer first and the circuit second (GLM), or
     prototype both together (Codex). Either way the signalling layer is needed first or alongside.
 34. Pending: 055 (two hubs on one host today), AEF (agent offline), 832 (silent).
+
+# 055's answer (round 1 questions; written before the circuit addendum reached it)
+
+File: `/opt/055-agentic-fleet-cockpit/docs/reports/T-446-termlink-routing-consult.md` (055 commit 06f7a400, inbox @459).
+
+35. **Conditional yes** to a presence directory between hubs, relay only as fallback, no message sync:
+    "none of our measured failures needed replication, they needed a directory and sometimes relay."
+36. **Its biggest point: "present" must mean "can receive now"** (right hub, sidecar alive, harness able to
+    surface), not "process exists". Measured: two healthy hubs on one host; agents bound to the wrong one
+    saw 0 inbox topics instead of 54, unreported (M1). Adds a state **alive-but-deaf**, reported not
+    inferred, and wants each session's mail-hub binding visible in the directory.
+37. **Identity hygiene first:** the directory may carry only identities the home hub minted and observed;
+    ring20 advertised a wrong identity for a day (M2).
+38. **Same as Codex/GLM round 1 on "direct":** direct into the destination hub, not a listening sidecar
+    ("our failures were addressing and binding, not latency"). Its view after the circuit addendum is
+    pending.
+39. One settlement record per `client_msg_id` at the destination hub, dedup for days (M3, the 8 nudges).
+40. A human-readable directory and a read API for the cockpit; fix `CHARTER.md:17` before ratifying.
+41. First slice .107/.122 with three negative tests, the third its own: an agent started with `env -i`
+    on a second local hub must show the split binding and still receive or fail visibly.
