@@ -22,7 +22,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-04T00:15:37Z
-last_update: 2026-10-04T00:15:37Z
+last_update: 2026-10-04T00:19:40Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -57,6 +57,13 @@ just scheduled the hourly reindex that makes the lock likely. This ports AEF's f
 - [x] Both changed vendored files are registered in `.vendor-divergence.yaml` as a port of upstream AEF T-3786
 
 ### Human
+- [ ] [REVIEW] Watchtower "Ask" search still answers after the change
+  **Steps:**
+  1. Restart Watchtower so it loads the new code (it runs the old code until restarted)
+  2. Open http://192.168.10.107:3003/search, ask any question in the Ask box
+  **Expected:** An answer with sources, as before. If the index were unavailable, the page now says to run `fw index reindex` instead of starting a rebuild
+  **If not:** Note the error shown and tell the agent; the change is in `.agentic-framework/web/blueprints/discovery.py::_trigger_async_index_build`
+
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
      Remove this section if all criteria are agent-verifiable.
      Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
@@ -224,6 +231,13 @@ grep -q 'T-3337' .vendor-divergence.yaml
 -->
 
 ## Recommendation
+
+**Recommendation:** GO
+**Rationale:** The reader-side rebuild path that wiped AEF's index exists in our vendored copy and is now closed; fixture 4/4, and all 4 cases fail against the pre-fix file. The live index (348,627 rows) is untouched and `fw ask` answers.
+**Evidence:**
+- tests/vector-index-reader-no-rebuild-fixtures.sh: 4 passed, 0 failed
+- scripts/check-vector-index-freshness.sh: healthy, covers through T-3336
+- Not ported: upstream's atomic build (.building then swap); arrives with the next re-vendor
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
      (audit_inception_recommendation, lib/task-audit.sh:117) is shared, so the
