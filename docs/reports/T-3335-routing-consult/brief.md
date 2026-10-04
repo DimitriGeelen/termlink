@@ -1,3 +1,10 @@
+You are an independent architecture consultant, from outside this project. Work from the text below only; do not read other files.
+
+## Context
+TermLink is a hub-mediated, durable message bus that lets a fleet of AI coding agents (Claude Code and other harnesses, running in terminals on several hosts) discover each other, exchange durable messages, claim work and control terminal sessions. Each host runs a hub (several hubs on one host are possible). Each agent has a local "sidecar" process that receives mail for it and injects it into the agent's session. Addresses have five levels: //host/hub/project/session/agent, each with a canonical id and instance ids. Today hubs never talk to each other: a sender reaching an agent on another host posts directly into that host's hub ("client-driven cross-posting"), and the hub pushes a wake frame to the receiver (85-111 ms median). The operator's goal is interactive two-way conversation between running agents across hosts, with every step confirmed to the sender.
+
+The document below traces why "hubs never talk to hubs" became a rule, records the operator's reflection on what should replace it, and the agent's reflection and challenges. The operator explicitly invites challenge.
+
 # T-3335 — Why "hubs never talk to hubs"? Back to principles
 
 **Asked by the operator, 2026-10-04,** while deciding OD-1 (cross-host send path):
@@ -167,3 +174,16 @@ addressed messages.
          at each failure, consult liveness: suspect, retry with back-off; dead, stop and dead-letter.
     31g. **It is still a charter change** (non-goal #1 and the T-2569 tripwire forbid hubs exchanging
          even a directory), and the charter is unratified (T-2470).
+
+## Questions
+
+Answer in English, under ~1300 words, using the numbered headings below. Use hierarchical labels (1, 1a, 1ab), never plain bullets. Give your own view and disagree where you think the proposal is wrong. Do not modify any files.
+
+1. **The split.** Hubs exchange which identities are present and whether they are alive (control plane); agents talk directly once resolved (data plane); hub relay only as a fallback; hubs never synchronize messages. Is this the right architecture for a fleet of AI agents across hosts? Your verdict and its biggest weakness.
+2. **Protocol models.** Which existing protocol families should this borrow from, and what exactly from each: IP routing (RIP, OSPF, BGP), DNS, SIP registrar/proxy with ICE/STUN/TURN, gossip membership (SWIM, Serf, Consul), XMPP server-to-server, e-mail MX, or others. Scale: about 5 to 20 hubs, a few hundred agent instances, hubs mostly one hop from each other. Do you agree that IP routing is the wrong closest fit?
+3. **Liveness.** States (alive / suspect / dead / unknown?), who is authoritative, how fast "dead" may be declared, and exactly how a sender uses the answer (retry, stop, dead letter).
+4. **Directory contents.** What each hub advertises across the five address levels (host, hub, project, session, agent; each with a canonical id and instance ids), how it is scoped, cached and expired, and how a role address resolves to an instance.
+5. **The direct path.** What "direct" should mean here (sidecar-to-sidecar network connection, or direct into the destination hub), what it requires (listening surface, authentication, NAT/firewall, durability, receipts), and when direct should NOT be preferred.
+6. **The fallback ladder.** Order of attempts, what the sender is told at each step, how one message is settled when it may travel by more than one path, and deduplication.
+7. **First slice and test.** The smallest build that proves it with two real agents on two hosts, including a negative control (a dead agent, and a hub outage that must not be reported as dead).
+8. **What is missing:** a risk, an option or a requirement nobody stated.
