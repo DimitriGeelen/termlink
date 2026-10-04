@@ -61,7 +61,7 @@
 |---|---|---|
 | ADV-1 | A confused or overloaded agent: busy when typed into, silent when woken, unaware of mail | T-2396; the 2026-10-03 incident, mail stored and receipted and never surfaced (`RQ` 5 item 2) |
 | ADV-2 | A compromised or misbehaving session that injects, impersonates or force-interrupts | `RV1` point 17: any project can impersonate another with the one host key |
-| ADV-3 | A component that reports success it did not earn (a dark guard that reads green) | `RQ` 15 item 2: arc-003, arc-004, S10 "recorded as built, not operating" |
+| ADV-3 | A component that reports success it did not earn (a dark guard that reads green) | `RQ` 15 item 2: arc-003, arc-004, S10: recorded as built and not operating |
 | ADV-4 | A hub, host or network outage, or a blip | `RQ` R-3.2 "the hub goes down"; offline queue (`RQ` 4 item 1) |
 | ADV-5 | A hurried or mis-heard operator: voice transcription turned "15" into "50" and "C" into "Cozzyte" | `RQ` 10 item 5; `RQ` 11 item 11 |
 | ADV-6 | A stale or wrong binding: a second local hub, a wrong runtime directory, a deaf agent that looks alive | `RV2` items 36 and 65: two hubs on .107, an agent on the wrong one is deaf |
@@ -814,7 +814,7 @@ OD-5.a Question: is delivery settled by callbacks to the sender's sidecar, or by
 OD-5.b Why: a callback fails when the sender's sidecar is down. The operator's read-back is push by API with pull as the fallback.
 OD-5.c Options.
 OD-5.c.A Callbacks are the live path and are authoritative. The operator's design (`RQ` 5 item 12).
-OD-5.c.B The durable record is the truth and callbacks are an optimisation. `RV1` point 5: GLM, "nothing may be depend on [the callback] — it fails exactly when the sender is down." 055, "Settlement must come from the durable record", keyed by message id. Codex, "Receiver progress must not depend on sender availability. Pull repairs missed notifications."
+OD-5.c.B The durable record is the truth and callbacks are an optimisation. `RV1` point 5: GLM, "nothing may depend on [the callback] — it fails exactly when the sender is down." 055, "Settlement must come from the durable record", keyed by message id. Codex, "Receiver progress must not depend on sender availability. Pull repairs missed notifications."
 OD-5.c.C Record and pull only, no callbacks. Codex and GLM: the call back is "wrong as written" and record-and-pull meets the need (T3330R:242).
 OD-5.c.D Callbacks for the live path, and the hub record as the durable copy (`IAC` item 70).
 OD-5.d Recommendation: B, which includes the callbacks of D. Reason: it keeps the operator's push and makes it safe when the sender is down.
@@ -1006,7 +1006,7 @@ OD-17.f Sources: `RQ` O16; `RV1` section 3; `RV2` sections 3, 6, 9, 12, 13.
 OD-18.a Question: when a project has several agents, who answers a message addressed to the project or to a role, and who coordinates?
 OD-18.b Why: the operator raised it on 2026-10-04. `RV2` names ring20-manager's 8 unanswered requests as the real failure.
 OD-18.c Options.
-OD-18.c.A A deterministic rule at the project's home hub, over a fenced lease held by code. Introduce, then step aside. No AI agent on the path. `RV2` item 44: "Introduce, then step aside, resolved at the project's home hub." Item 45: "Neither ordinary resolution nor lease renewal should await an AI turn." (Codex).
+OD-18.c.A A deterministic rule at the project's home hub, over a fenced lease held by code. Introduce, then step aside. No AI agent on the path. `RV2` item 44: "Introduce, then step aside (6c semantics), resolved at the project's home hub." Item 45: "Neither ordinary resolution nor lease renewal should await an AI turn." (Codex).
 OD-18.c.B A central coordinator agent that carries the traffic. `RV2` item 43: "Not a coordinator that carries all traffic (6b). Both reject it as the default; Codex allows it only where work must be triaged or aggregated."
 OD-18.c.C No exclusivity by rule. Codex (`RV2` section 10): "Rejected for exclusivity: observers with different views pick different winners". GLM adds fork-with-claim for pools: deliver to all holders, first to claim wins.
 OD-18.c.D The sender names the exact instance, and no role resolution exists.
