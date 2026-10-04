@@ -121,3 +121,19 @@ the output in one pass after the last question.
 3. Authorises: R-14, R-15, R-26/R-27 (answer-ready pull) and R-35 aligned to record-first; nudgers and watchers
    compute from the record (fixes the AEF T-3804 class). Leaves open: stage names (OD-8), alarm surface (OD-14),
    telemetry retention (OD-16).
+
+## OD-6 Already-running sessions (section 9.9) — ruled B
+
+1. Asked 2026-10-04 with options A (relaunch every agent; Codex, GLM), B (no relaunch; harness-side pull at yield
+   points, marked pull-only; 055), C (pull and session-start listing only), D (relaunch now, harness pull later).
+2. Fact added by the orchestrator, checked in `.claude/settings.json`: every Claude Code session in this project
+   already runs `fw hook checkpoint post-tool` after every tool call (PostToolUse, no matcher); the hook reads its
+   script fresh each call, so a mail check in an already-registered hook reaches running sessions without a
+   relaunch. Limits stated: idle sessions fire no hook; other projects need their own vendored hook (AEF 1.7.424
+   ships sidecar hooks); whether Claude Code picks up newly REGISTERED hooks without a restart is unverified.
+3. **Operator ruling: "b".** Read back as: B with relaunch-on-natural-restart, never forced. A mail check in the
+   existing PostToolUse and Stop hooks delivers to every working session (transcript evidence); each session's
+   next natural start goes through the reachable launcher, so idle sessions become pushable over time; until then
+   an idle session without a typable terminal shows WAITING FOR RECIPIENT (OD-3 state).
+4. Authorises: R-3 acceptance and status; a hook-delivery requirement with transcript evidence; the launcher as
+   the default start path. Leaves open: readiness owner (OD-7); other harnesses (055 adapter).

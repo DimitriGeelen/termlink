@@ -28,7 +28,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-04T14:28:12Z
-last_update: 2026-10-04T17:17:37Z
+last_update: 2026-10-04T17:19:23Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -278,6 +278,10 @@ exists: `docs/design/roles/README.md` section 3. Operator ruling A recorded in D
 -->
 
 ## Decisions
+
+### 2026-10-04 — OD-6 already-running sessions (operator ruling)
+- **Chose:** B — no forced relaunch; mail delivered through the existing PostToolUse/Stop hooks at yield points; relaunch through the reachable launcher on natural restart; idle unreachable sessions show WAITING FOR RECIPIENT.
+- **Rejected:** A/D forced relaunch (interrupts every agent, loses context); C listing only.
 
 ### 2026-10-04 — OD-4 and OD-5 (operator rulings)
 - **OD-4 chose A:** two calls; RECEIVED informational, STORED releases the sender; may travel together on the hub path with two timestamps.
