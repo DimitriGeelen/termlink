@@ -22,7 +22,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-04T10:50:14Z
-last_update: 2026-10-04T10:50:14Z
+last_update: 2026-10-04T10:50:43Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -40,7 +40,32 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Read-only investigation 2026-10-04 (sub-agent; nothing changed):
+1. pid 2919639 (`/root/.local/bin/termlink hub start`, PPid 1, started 2026-10-03 21:03:26), cgroup
+   `system.slice/agentic-fleet-cockpit.service`, cwd `/opt/0506-Voxtype-extention`, env `OPENCODE=1`,
+   no TERMLINK_RUNTIME_DIR/XDG_RUNTIME_DIR/TMPDIR. `/tmp/termlink-0/invocation-audit.jsonl.1`: `hub status`,
+   `list`, `info`, then `hub restart` at 21:03:27 and `hub start` 109 ms later. Most likely an OpenCode agent
+   launched by the fleet cockpit ran `termlink hub restart`, which re-spawns `hub start` detached
+   (`crates/termlink-cli/src/commands/infrastructure.rs:732-790`). A hub already ran there before 21:03 (restart
+   refuses otherwise, `:736-753`); the original starter predates the audit log (2026-10-02 ~12:20).
+2. Code paths: `cmd_hub_start` (`infrastructure.rs:118`) checks "already running" only in its own runtime dir
+   (`crates/termlink-hub/src/pidfile.rs:60-91`); `resolve_hub_paths` (`infrastructure.rs:9-35`) prefers the
+   default dir whenever its pidfile is Running OR Stale, falling back to `/var/lib/termlink` only when no pidfile
+   exists, so once a `/tmp/termlink-0` hub exists every client without the env var latches onto it; MCP
+   `hub_restart` has the same logic (`crates/termlink-mcp/src/tools.rs` ~18750-18775). `agentic-fleet-cockpit.service`
+   and its tmux server carry no TERMLINK_* env, so every fleet pane resolves `/tmp/termlink-0`.
+3. Side risk: `pidfile::check` (`pidfile.rs:29-40`) is a bare process-exists test; a reused PID in a stale
+   pidfile would be SIGTERMed by restart.
+4. On the second hub: 32 sessions, all PIDs alive (26 on 0.12.103, others 0.12.13-0.12.90); ~23
+   `register --shell` task workers, 9 `claude-master-*`. `/var/lib/termlink/sessions` has 43.
+5. Detection blind: preflight Check 6 (`scripts/substrate-preflight.sh:749-751`) stops at the first pidfile found;
+   no canary counts hubs per uid.
+6. Not runme (its only evening log is 21:16, after the start); no commits 20:30-21:30.
+Recommended (not applied): `hub start` refuses when another live hub for the uid exists in any candidate dir
+(unless `--allow-second-hub`); `resolve_hub_paths` prefers a live `/var/lib/termlink` hub over a stale default
+pidfile; pidfile liveness checks `/proc/<pid>/cmdline`; set TERMLINK_RUNTIME_DIR in the cockpit's service and
+OpenCode config (055's project: file with them) or `/etc/environment`; a preflight check or canary counting live
+hubs per uid; migrate the 32 sessions before the second hub is stopped (operator approval).
 
 ## Acceptance Criteria
 
