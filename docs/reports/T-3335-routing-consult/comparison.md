@@ -169,3 +169,58 @@ File: `/opt/055-agentic-fleet-cockpit/docs/reports/T-446-termlink-routing-consul
 40. A human-readable directory and a read API for the cockpit; fix `CHARTER.md:17` before ratifying.
 41. First slice .107/.122 with three negative tests, the third its own: an agent started with `env -i`
     on a second local hub must show the split binding and still receive or fail visibly.
+
+# Round 3 — which of a project's agents answers? (2026-10-04)
+
+Files: `round3-perspective.md`, `round3-questions.md`, answers `codex-r3.md`, `glm-r3.md`.
+
+## 9. Agreed in round 3
+
+42. **A distinct problem.** Codex: "service selection … round 3 supplies responsibility." GLM:
+    "representation … the failure mode changes kind: 'reached, correctly addressed, nobody acted'."
+43. **Not a coordinator that carries all traffic (6b).** Both reject it as the default; Codex allows it only
+    where work must be triaged or aggregated.
+44. **Introduce, then step aside (6c semantics), resolved at the project's home hub.** Both put the
+    resolution in deterministic infrastructure at the home hub, with the introduction carrying the
+    exact instance, a generation/epoch, an expiry and the round-2 circuit credential. GLM: "The resolve
+    answer can literally be the circuit-token grant."
+45. **No AI agent on the critical path.** Codex: "Neither ordinary resolution nor lease renewal should
+    await an AI turn." Judgement only for ambiguous delegation, surfaced as an explicit state (Codex:
+    "triage pending"), never as a slow lookup.
+46. **The hub lease is acceptable for failover, with real fencing.** A claim id alone is not a fencing
+    token: use a generation/epoch stamped into every introduction, enforced wherever it is accepted, so
+    a partitioned old holder's actions are refused. A home-hub outage means "authority unknown, retry",
+    never takeover by another hub.
+47. **Addressing.** "ring20-manager" is a scoped alias for project + role, resolved exactly; ambiguity
+    returns candidates or an error, never a guess; hub-side fuzzy matching is rejected (GLM: "interpretation
+    belongs to the sender AI, exactness to the namespace"). Distinct negative answers: unknown project,
+    role unassigned, holders unavailable/suspect, capacity exhausted, authority unreachable.
+48. **Roles need authority.** Declaring "manager" does not make an agent the manager (Codex: eligibility vs
+    appointment); sensitive roles are controlled by the operator or project policy (GLM: otherwise
+    squattable, 055's M2).
+49. **Conversations stay with their instance.** A bound conversation moves only by explicit transfer
+    (claim-transfer already models it); death of the instance means dead letter and a new conversation,
+    never a silent redirect.
+50. **The real gap is obligation, not routing.** Both name ring20-manager's 8 unanswered requests:
+    Codex adds "offered, accepted or declined, progress deadline, completed or failed"; GLM adds
+    "unanswered" as a first-class, sender-visible state with escalation (nudge, another holder, cockpit or
+    human). "Resolution chooses whom to ask. Explicit acceptance establishes who owes an answer." (Codex)
+
+## 10. Different
+
+| Point | Codex | GLM |
+|---|---|---|
+| Deterministic rule (6d) | Rejected for exclusivity: observers with different views pick different winners | Accepted for selection **when evaluated at the home hub**, not by each sender; plus **fork-with-claim** for pools: deliver to all holders, first to claim wins |
+| Kinds of role | Singleton (appointed holder) vs pool (selection policy + admission) | Selection vs obligation; coordinator lease only where an obligation exists |
+| Lease timing | No number justified by the evidence | Renew on the presence heartbeat (5-10 s), TTL ~30 s |
+| Verifying the claim primitive | "verify [durable grants, ownership checks, restart safety] before reuse" | Reuse as is, same authority as liveness |
+| Extra | — | Advisory "in turn since T" busyness in presence; a human-facing resolve surface; a governed role taxonomy |
+
+## 11. Net position after three rounds
+
+51. **Your two options merge rather than compete:** the "central agent" becomes a deterministic role
+    resolver at the project's home hub (no bottleneck, no AI on the path), and "another agent takes over"
+    becomes a fenced lease for the roles that carry an obligation.
+52. **New requirement both raise:** an obligation contract (offered / accepted / declined / deadline /
+    completed) and a visible "unanswered" state with escalation. That is the ring20-manager failure.
+53. Pending: 055, AEF, 832 on round 3; ring20-manager's inception protocol (separate request).
