@@ -286,6 +286,7 @@ Reviewer positions: `docs/reports/T-3335-design-review/comparison.md`.
 | OD-15 | Interrupt consent; respawn and the startup chain | O15 | O14 | GLM, Codex: consent + authenticated sender |
 | OD-16 | Telemetry retention window | — | O13 | (not addressed) |
 | OD-17 | Proposed requirement changes, incl. reviewer additions | O16 | — | see comparison.md §3 |
+| OD-18 | Several agents/sessions per project: who answers a project or role address, and who coordinates (operator, 2026-10-04) | — | — | all four: resolve once at the home hub by a deterministic rule over a fenced lease held by code (sidecar/hub), introduce then step aside, never an AI agent on the path; eligibility (no workers/sub-agents); obligation tracking ("unanswered" visible). `docs/reports/T-3335-routing-consult/round3-perspective.md`, comparison.md §9-14 |
 
 Taken one at a time (standing instruction, 2026-10-01). Each shows both positions in the operator's or ruling's words, then a recommendation.
 
