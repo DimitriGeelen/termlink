@@ -21,7 +21,7 @@ profile: docs/design/roles/profiles/termlink.md
 steps:
   - step: 1
     role: Requirements collector
-    task: null
+    task: T-3344
     prompt: docs/design/roles/cards/requirements-collector.md
     inputs: [docs/design/interactive-agent-communication-requirements.md, docs/design/interactive-agent-communication.md, docs/reports/T-3335-design-review/comparison.md, docs/reports/T-3335-routing-consult/comparison.md]
     output: docs/design/interactive-agent-communication-01-requirements.md
