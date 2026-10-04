@@ -233,7 +233,7 @@ stateDiagram-v2
 
 **QS-6 How often, and what does the tick do?**
 4.2.10 Answer: a cron-style job checks the flag every 30 seconds (`RQ` R-6.1). With the flag up it reads the queue, highest priority first (`RQ` R-6.2). Urgent is injected immediately even when the agent is busy, by a route that cannot silently lose the message (`RQ` R-6.3). Not urgent: injected if the prompt is free, otherwise it waits for the next tick (`RQ` R-6.4). Operator's words: "Every 30 seconds … when the flag is up, the message queue gets read … urgent gets injected immediately. Non-urgent, we check again if the prompt is free. If the prompt is not free, we wait again until the next 30 seconds." (CONSULT:17).
-4.2.11 Follow-up QS-6.1, what is urgent and how is it marked? Answer on record: the queue has a `priority` clamped to [-9,9], and urgent is band 5 or more by default in the built injector (`RQ` 6 item 3, ARC11 S8 and S9). No confirmed requirement fixes the marking. See candidate C-4 in OD-17.
+4.2.11 Follow-up QS-6.1, what is urgent and how is it marked? Answer on record: the queue has a `priority` clamped to [-9,9], and urgent is band 5 or more by default in the built injector (`RQ` 6 item 3, ARC11 S8 and S9). No confirmed requirement fixes the marking. See candidate CAND-4 in OD-17.
 4.2.12 Follow-up QS-6.2, urgent into a busy prompt. Answer: confirmed as a bypass (R-6.3). The operator's earlier ruling SQ-4 said the opposite and has not been recorded as superseded. Open: OD-2.
 
 **QS-7 Who says the prompt is free?**
@@ -294,7 +294,7 @@ stateDiagram-v2
 | Instance | One running copy at a level, for example one session. It has a runtime id. |
 | Message | One post carrying content, a priority, an id and a conversation id, with an optional blob. |
 | Polling ladder | The standard waiting cadence 15 s to 1 year, each rung twice (R-30). |
-| Priority | A number in [-9,9] on a queued message. Urgent is a high band (contested, C-4 in OD-17). |
+| Priority | A number in [-9,9] on a queued message. Urgent is a high band (contested, CAND-4 in OD-17). |
 | Queue | The sidecar's store of messages not yet handed over, ordered by priority then arrival. |
 | RECEIVED | The receiver's sidecar tells the sender's sidecar immediately that it has the message (contested, OD-4). |
 | Retry ladder | AEF's schedule for re-sending a post, 2×1 min to 2×1 month, then dead-letter (D-600). Not the same as the polling ladder (contested, OD-3). |
@@ -701,3 +701,378 @@ R-43.d Verification: see R-9.
 R-43.e Acceptance: see R-9.
 R-43.g Status: `RQ` itself says it duplicates R-3.4. Proposed disposition: merge into R-9. Not decided: OD-13.
 
+## 7 Conflicts
+
+7.1 How to read this section. A conflict is a place where two sources say different things about the same requirement. "Left open" means the operator has not ruled. Reviewer findings that the operator has not ruled on are here and in section 9, not in section 6.
+
+7.2 Conflicts left open.
+
+| Id | Conflict | Sources | Affects | Disposition |
+|---|---|---|---|---|
+| C-1 | Urgent into a busy prompt. The operator's 2026-10-03 words say bypass. The operator's SQ-4 (2026-09-23) says "urgent NEVER injects into a BUSY prompt". Codex and GLM say never type into a busy prompt. 055 agrees with the bypass on conditions. | `RQ` 6 item 16a; `RV1` section 2 and point 10 | R-19, R-23, R-24 | Left open: OD-2. R-19 stands as confirmed. SQ-4 is still recorded RESOLVED with no supersession. |
+| C-2 | Cross-host send. The operator's read-back sends sidecar to sidecar. SQ-1 keeps sending on the hub, and the charter forbids a second bus. Codex, GLM and 055 all say the hub carries cross-host mail. In `RV2` round 2 Codex, GLM and 055 accept a hub-set-up circuit for established conversations, and AEF wants a hub-path binding and a socket only after a measurement. | `RQ` O1; `RV1` points 2 and 11; `RV2` items 22-33, 61-62, 72 | R-7, R-12, R-13 | Left open: OD-1. R-12 stands as confirmed. |
+| C-3 | "No agent has to be attached" against the fact that a running session cannot be given a PTY afterwards (PL-237). Today R-3 is false for running agents on this host. | `RQ` O16 item 1, O3, section 15 | R-3 | Left open: OD-6. |
+| C-4 | Independence from the hub against the hub fallback and discovery. The design's own paths use the hub. `RV1` calls the independence "untestable" (GLM) and "has no stated failure it buys" (055). | `RQ` 3 item 3; `RV1` section 2 | R-7, R-13 | Left open: OD-1. The acceptance criterion of R-7 is limited to same-host delivery so that it can be tested. |
+| C-5 | Screen against harness for readiness. The operator said once "use PTY inject when the cursor is silent". R-22 forbids inferring from the screen. `IAC` section 3a text still describes the screen classifier. | `RQ` 7 item 12a | R-21, R-22 | Left open: OD-7. R-22 stands as confirmed. |
+| C-6 | The polling ladder against the retry ladder, and against the reviewers. R-30 runs to a year. D-600 stops at about 76 days and dead-letters. All three weighted reviewers call the year-long polling wrong. The first rung "15" was a reading of "50". | `RQ` 10 item 7; `RV1` point 4 | R-30, R-31 | Left open: OD-3. |
+| C-7 | Callbacks against record-and-pull. The operator's read-back has synchronous calls back to the sender. Codex and GLM call the call back "wrong as written". All three reviewers say the durable record is the truth and the callback is an optimisation. RECEIVED and STORED are two calls in the read-back and one in AEF. | `RQ` 5 items 12 and 13, 9 item 12; `RV1` points 5 and section 2 | R-14, R-15, R-26 | Left open: OD-4, OD-5. |
+| C-8 | Address rulings. D-599 says `inbox:<circuit-id>`. D-660 says `inbox:<agent-id>` and "does NOT keep sidecar:". AEF says D-660's wording is being amended, and the amended text was not found. R-33 wants a hub name, and the id in use is a rotating fingerprint. | `RQ` 11 item 13 | R-32, R-33 | Left open: OD-12. |
+| C-9 | Alarms only for urgent against GLM's liveness invariant, canary mail with deadlines. All three reviewers say an end-to-end canary is what detects drift. | `RQ` 12 item 12b; `RV1` point 9 | R-37 | Left open: OD-14, CAND-5. R-37 stands as confirmed. |
+| C-10 | INJECTED needs transcript evidence (R-24). The built TermLink injector reports a weaker stage on a BUSY transition. The mapping to AEF's HANDED_OVER is "not decided anywhere". | `RQ` 8 items 3, 4 and 13 | R-24 | Left open: OD-8. |
+| C-11 | Two parallel receivers. TermLink has shell sidecars that run from a checkout. AEF has a receiver, watcher and hooks, for wrapper-started agents. All three reviewers say one owner. | `RQ` 3 and 13; `RV1` point 7 | R-6, R-39 | Left open: OD-9. |
+| C-12 | "Always respawns" and the startup chain against the 7-vendor result that no agent is respawned by inbound mail without an explicit grant. | `RQ` O15 item 2 | R-8, R-9 | Left open: OD-15. |
+| C-13 | Several agents under one project address. A project or role address has no rule for which agent answers. | operator, 2026-10-04; `RV2` sections 9-14 | R-32, R-34 | Left open: OD-18. |
+
+7.3 Conflicts resolved by the record.
+7.3.a **Tick interval.** TermLink built `*/5`. AEF proposed 15 s, "never validated". The operator said 30 s on 2026-10-02 and 2026-10-03. Resolved: 30 s (`RQ` 6 item 16b). R-17 carries it.
+7.3.b **Three calls or four.** The T-3330 brief had three calls. The read-back has four. Resolved: four, because it is later and the operator confirmed it (`RQ` 5 item 13a).
+7.3.c **Receiver-to-sender direction of the answer.** R-26 says the sender pulls. AEF delivers the reply as a pushed new message. Not a conflict in the requirement, which the operator confirmed. It is a design difference for step 4. It is raised in OD-5.
+
+## 8 Gap review
+
+8.1 Method. Card 3.4 asks what the questions did not cover. Eight classes are checked, plus the adversary list and four more that the reviewers raised. For each: what the record says, and what is missing. A gap is not a requirement. Each gap goes to the operator, or to the threat modeler at step 2, in the column "Goes to".
+
+| Id | Class | What the record shows | What is missing | Goes to |
+|---|---|---|---|---|
+| GP-0 | Adversary list | The operator named failures, not adversaries. | An operator-confirmed adversary list. 2.3 is the agent's proposal. | Operator, step 2 |
+| GP-1 | Credential custody | One host key signs for every agent. AEF's receiver uses a bearer token on loopback. Hub secrets live in the runtime directory (`RQ` 11 item 5; profile P3.2). | Who holds which credential, who may call a sidecar API, how the sidecar proves who sent a message. GLM: sidecar-to-sidecar calls "have no trust model" (`RV1` point 17). | Step 2, OD-15 |
+| GP-2 | Compromised sessions | AEF frames peer text as untrusted data (D-695, `RQ` O16 item 2). | No requirement says peer content is untrusted. No requirement limits what a compromised session can inject or claim. | CAND-1, step 2 |
+| GP-3 | Approval fatigue and attention | The operator wants alarms only for urgent mail (R-37). Codex: "successful delivery can itself make the agents unusable" (`RV1` point 18). | Rate limits, a bound on outstanding requests, expiry and cancellation. No limit on how often an urgent message may interrupt. | CAND-12, OD-15 |
+| GP-4 | Offline operation | R-7 and R-13 cover a hub outage. The offline queue covers hub blips (`RQ` 4 item 1). | What the sender sees when the receiver's host is offline for days. What a sidecar does when its own host has no network. Same-host delivery with the hub down is only partly built. | Step 4 |
+| GP-5 | Recovery | R-15 covers restart after STORED. The injector has an open gap that re-serves the oldest offset (`RQ` 8 item 5). | The recovery rule after a sidecar dies mid-delivery. Exactly-once on retry: receiver-side dedupe on `client_msg_id` is mandatory because the ladder outlives the hub's 5-minute dedupe window (`RQ` O16 item 3). | CAND-2 |
+| GP-6 | Revocation | The `sidecar:` alias has "no end date". | How a credential, a peer, a role holder or an address is revoked. How a revoked agent stops receiving. | Step 2, OD-12 |
+| GP-7 | Resource identity | The hub id is a rotating TLS fingerprint. The project slot is the folder name. All agents on a host share one key. 055 measured a read marker per inbox instead of per instance (`RV2` item 70). | Which identifiers are stable, who mints them, and the unit of "read" (inbox, instance or message). | OD-10, OD-11, OD-12 |
+| GP-8 | Unsupported targets | Injection needs a TermLink-owned PTY and a hook-capable harness. 055 runs opencode too. README promises macOS. Local models fail design review but that is not a target. | What the sender sees when the target has no hooks, no PTY, a headless session or another OS. Reachability must be a visible state, not an inference. | OD-6, OD-7, CAND-6 |
+| GP-9 | Time and order | GLM: clock skew across hosts corrupts the timestamped timeline (`RV1` point 19). GLM: two paths plus retries break per-conversation order (`RV2` item 16). | A rule for which clock a timestamp uses. Sequence numbers per conversation. | CAND-13, CAND-18 |
+| GP-10 | Version skew | 055: version skew makes a deaf agent look like an old one. AEF: refuse cross-version sends unless declared compatible (`RV2` item 66). | A version rule between sidecars. | CAND-13 |
+| GP-11 | Operator leg | R-1 includes agents with the operator. No component is built or designed for it (`RQ` 1 item 3). | A design for how the operator is a party to a conversation. | Operator, step 4 |
+| GP-12 | "Very simple" | R-6 says "very simple". The receive chain is about 2,460 shell lines (`RQ` 3 item 1d). | A measurable proxy for "simple". | Operator, step 3 |
+
+8.2 What the gap review did not check: whether any of the status facts in section 15 of `RQ` changed after 2026-10-03; T-3770, T-3688 and T-3751 were not looked up.
+
+## 9 Open questions
+
+9.1 These are the questions the operator has NOT answered. They are `RQ` and `IAC` OD-1..OD-18. The orchestrator puts them to the operator one at a time, in this order, and waits for "next" before the following one (standing instruction, 2026-10-01).
+9.2 For each question: **a** the question in one sentence; **b** why it matters; **c** options A to D, each with the strongest reviewer position, quoted from `RV1` or `RV2`; **d** the recommendation and its reason; **e** the requirements it changes; **f** sources. Nothing here is decided.
+9.3 Reviewer positions are quoted from the two comparison files. "Codex", "GLM" and "055" are the three weighted reviewers of `RV1`. In `RV2` the reviewers are Codex, GLM, 055 and AEF.
+
+### 9.4 OD-1 Cross-host send path
+
+OD-1.a Question: may a sidecar push a message directly to a sidecar on another host, or does the hub carry every cross-host message?
+OD-1.b Why: R-12 says push first. The charter forbids a second bus. The 2026-10-03 ruling hands the cross-host leg to AEF, and the charter objection then applies to AEF's plan.
+OD-1.c Options.
+OD-1.c.A The hub carries cross-host mail. Sidecar-to-sidecar push is for one host. Codex: "retain hub-mediated transport … If cross-host delivery while hubs are down is mandatory, explicitly amend the charter: assigning the second transport to AEF does not remove it from the architecture." 055: "Keep the hub as the cross-host carrier; sidecar-to-sidecar calls on one host only … A second bus adds a path, and E4 shows two paths diverge." GLM: "Cross-host sidecar-to-sidecar push *is* a second bus … The T-3330 ruling handing cross-host to AEF should be reopened." (`RV1` point 2).
+OD-1.c.B Sidecar to sidecar across hosts, and amend the charter openly. The operator's read-back: "Send: sender agent -> its own sidecar (API) -> the receiver's sidecar (API)." and "We have multiple hosts, so that's not a question." (`RQ` O1). `RV1` section 2: "Your read-back says sender sidecar to receiver sidecar first, with the hub as fallback. All three say the hub should be the carrier, and that the alternative is a charter change that must be decided openly, not inherited through the T-3330 ruling."
+OD-1.c.C The hubs set up a circuit and the sidecars then talk directly for an established conversation. Codex (`RV2` item 22): "direct circuits are a reasonable preferred transport for established conversations, provided their delivery contract survives reconnection and fallback." GLM: "A conversation is not merely N letters." Both attach conditions: set-up through the hubs, per-circuit short-lived credentials, one delivery contract on both paths (`RV2` items 25-27).
+OD-1.c.D The conversation is a binding on the hub path, and a socket circuit comes only after a measurement. AEF (`RV2` item 62): "Build a socket circuit only when a measurement shows either: the hub path costs more than ~10 % of median turn time; hub outages break more than a few conversations a week."
+OD-1.d Recommendation: A for the first build, with C or D decided later on measurements. Reason: A is what Codex, GLM and 055 said in the first review. It is consistent with AEF's measured position (D). It needs no charter change. It contradicts the operator's confirmed read-back, so only the operator can choose it.
+OD-1.e Changes: R-7, R-12, R-13.
+OD-1.f Sources: `RQ` O1; `RV1` points 2 and 11; `RV2` items 22-33, 61-62, 72.
+
+### 9.5 OD-2 Urgent into a busy prompt, and the safe route
+
+OD-2.a Question: when a message is urgent and the agent is busy, may the sidecar type into the prompt, and by what route is it kept from being lost?
+OD-2.b Why: this is the T-2396 loss mode. R-19 confirms the bypass. SQ-4 says never, and is not recorded as superseded.
+OD-2.c Options.
+OD-2.c.A Confirm the bypass, type only the fixed doorbell line, content stored first. 055 (`RV1` section 2): "**For** the bypass: record SQ-4 superseded; type only the fixed one-line doorbell, never content, message durable first; measure re-injects".
+OD-2.c.B Never type into a busy prompt. Deliver urgent content through the harness's own hook channel. GLM: "Typing into a busy PTY should remain forbidden, full stop." Deliver urgent via the Stop-hook context channel. `RV1` point 10: "GLM offers a route none of the documents considered: deliver urgent content through the harness's own hook-context channel, which cannot be lost as unsubmitted input."
+OD-2.c.C Use an authenticated harness interrupt, and if none exists report the limit and escalate. Codex (`RV1` section 2): "Against typing into a busy terminal; prefer an authenticated harness interrupt, else report the limit and escalate. Keeping busy-PTY typing must be 'an explicit risk acceptance'".
+OD-2.c.D Keep SQ-4. Urgent only shortens the wait for a free prompt. SQ-4 text: "Urgent shortens the WAIT; it does not bypass the prompt-free CHECK." (`RQ` 6 item 13).
+OD-2.d Recommendation: A, with the content also delivered by the hook route of B, and SQ-4 recorded as superseded. Reason: it is the operator's confirmed rule. The reviewers' loss concern is about content, and R-23 already keeps content out of the typed line. A discarded doorbell then costs a delay, not a message. Re-injects are measured so the choice can be reversed on evidence.
+OD-2.e Changes: R-19, R-23, R-24.
+OD-2.f Sources: `RQ` O4; `RV1` point 10.
+
+### 9.6 OD-3 Polling ladder against retry ladder
+
+OD-3.a Question: is R-10.1 (15 s to one year, each rung twice) the right polling ladder, and how does it relate to AEF's retry ladder?
+OD-3.b Why: topics are retention-bounded, so late rungs poll for mail that no longer exists. The first rung "15" was a reading of "50".
+OD-3.c Options.
+OD-3.c.A Keep R-10.1 as the operator confirmed, and confirm the first rung as 15 s. The operator, relayed to AEF: "that should be the standard fallback mechanism for the framework for any polling activities. It can be changed situationally, but that should be the standard." (`RQ` 10 item 5).
+OD-3.c.B Two mechanisms. `RV1` point 4: "The year-long polling ladder (R-10.1) is wrong. Topics are retention-bounded, so late rungs poll for messages that no longer exist. All three want two separate mechanisms: bounded retry for re-sending, and a short wait that ends in a visible 'stuck' escalation." The 12-rung ladder stays the default for other polling.
+OD-3.c.C Use AEF's retry ladder only: 2×1 min to 2×1 month, then dead-letter, about 76 days (D-600, `RQ` 10 item 4).
+OD-3.c.D Keep R-10.1 and cap its rungs by the retention of the topic being polled.
+OD-3.d Recommendation: B. Reason: all three reviewers say it, it does not drop the operator's ladder (it stays the framework default for other polling), and it gives the operator a visible "stuck". Ask the operator to confirm 15 s as the first rung in the same answer.
+OD-3.e Changes: R-30, R-31.
+OD-3.f Sources: `RQ` O11; `RV1` point 4.
+
+### 9.7 OD-4 RECEIVED and STORED: one call or two
+
+OD-4.a Question: does the receiver call the sender once (after the durable write) or twice (RECEIVED, then STORED)?
+OD-4.b Why: the operator's read-back has two calls. AEF answers once, after the store.
+OD-4.c Options.
+OD-4.c.A Two calls, defined precisely. Codex (`RV1` section 2): "Keep both, defined precisely: RECEIVED = volatile, STORED = durable, only STORED releases the sender".
+OD-4.c.B One call after the durable write. GLM: "answer once, after fsync-and-rename". 055: "RECEIVED after the durable write".
+OD-4.c.C Two events on the wire only if a sender can act on the gap, otherwise one (`IAC` item 61).
+OD-4.c.D Two calls, and RECEIVED may be merged into STORED when the store is faster than a set bound.
+OD-4.d Recommendation: A. Reason: it keeps the confirmed requirement and gives each call a different meaning, so the sender can tell "arrived" from "safe".
+OD-4.e Changes: R-14, R-15.
+OD-4.f Sources: `RQ` O2; `RV1` section 2.
+
+### 9.8 OD-5 Callback to the sender, or record and pull
+
+OD-5.a Question: is delivery settled by callbacks to the sender's sidecar, or by a durable record that the sender pulls?
+OD-5.b Why: a callback fails when the sender's sidecar is down. The operator's read-back is push by API with pull as the fallback.
+OD-5.c Options.
+OD-5.c.A Callbacks are the live path and are authoritative. The operator's design (`RQ` 5 item 12).
+OD-5.c.B The durable record is the truth and callbacks are an optimisation. `RV1` point 5: GLM, "nothing may be depend on [the callback] — it fails exactly when the sender is down." 055, "Settlement must come from the durable record", keyed by message id. Codex, "Receiver progress must not depend on sender availability. Pull repairs missed notifications."
+OD-5.c.C Record and pull only, no callbacks. Codex and GLM: the call back is "wrong as written" and record-and-pull meets the need (T3330R:242).
+OD-5.c.D Callbacks for the live path, and the hub record as the durable copy (`IAC` item 70).
+OD-5.d Recommendation: B, which includes the callbacks of D. Reason: it keeps the operator's push and makes it safe when the sender is down.
+OD-5.e Changes: R-14, R-15, R-26.
+OD-5.f Sources: `RQ` O10; `RV1` point 5.
+
+### 9.9 OD-6 How an already-running session becomes reachable
+
+OD-6.a Question: how does a session that is already running, without a TermLink PTY, become something a sidecar can reach?
+OD-6.b Why: PL-237: a running headless session cannot be retrofitted. R-3 is false for such sessions today.
+OD-6.c Options.
+OD-6.c.A Relaunch every agent through the reachable launcher. Codex: "Inventory capabilities; relaunch through the reachable launcher; UNREACHABLE until an end-to-end challenge succeeds". GLM: "Hooks-first; relaunch through one wrapper; an unwrapped session is 'pull-only — stated, not papered over'".
+OD-6.c.B No relaunch. 055: "**No relaunch** ('not realistic for a mixed fleet'); a harness-side pull channel at the harness's yield points, marked pull-only".
+OD-6.c.C Accept that running sessions are reached only by pull and the session-start listing, and show the state (`RQ` O3).
+OD-6.c.D Relaunch through the launcher, and add a harness-side pull channel for the mixed fleet later.
+OD-6.d Recommendation: A, with every unlaunched agent shown as not reachable. Reason: two of three reviewers say it, and it is the only option that never reports mail as delivered to a session that cannot receive it.
+OD-6.e Changes: R-3 (its acceptance and status).
+OD-6.f Sources: `RQ` O3; `RV1` section 2.
+
+### 9.10 OD-7 Readiness: hooks or screen, and who owns it
+
+OD-7.a Question: is readiness taken only from harness hooks, and who builds the hook for agents that are not AEF's?
+OD-7.b Why: R-22 forbids the screen. The built TermLink classifier uses the screen. TermLink has no hook readiness, and its own T-3250 is captured with no ruling.
+OD-7.c Options.
+OD-7.c.A Hooks are primary and the screen classifier stays only as a labelled degraded fallback (`IAC` item 63).
+OD-7.c.B Hooks only. Retire the screen classifier. `RV1` point 3: "Readiness comes from harness hooks, never from screen inspection, and a ready flag is only an observation."
+OD-7.c.C Hooks through a harness adapter contract. `RV1` point 13: 055 "Wants an adapter contract with READY/BUSY/NOT RUNNING plus evidence, two adapters from day one, and a per-release parity test."
+OD-7.c.D Keep the screen classifier as the main signal (the operator's 2026-09-20 words "use PTY inject when the cursor is silent").
+OD-7.d Recommendation: C. Reason: all three reviewers want hooks, and 055 runs opencode, so a Claude-only wording is not enough. Ownership: TermLink owns the adapter contract and AEF supplies the Claude adapter, which matches Codex's "AEF should supply harness readiness/context adapters."
+OD-7.e Changes: R-21 (harness-neutral wording), R-22, R-24.
+OD-7.f Sources: `RQ` O8; `RV1` points 3 and 13.
+
+### 9.11 OD-8 Stage names, and "acknowledged, no action"
+
+OD-8.a Question: which one name means "the agent saw it", and is "acknowledged, no action" a terminal state?
+OD-8.b Why: TermLink's INJECTED needs a BUSY transition. AEF's HANDED_OVER needs transcript evidence. "This is not decided anywhere." (T3330R:223).
+OD-8.c Options.
+OD-8.c.A One name, INJECTED (the operator's word), defined as transcript evidence. A typed line with no evidence is ATTEMPTED. Add a terminal ACKNOWLEDGED_NO_ACTION. `RV1` point 6: "Nothing may be called INJECTED/HANDED_OVER without transcript evidence (GLM: otherwise 'ATTEMPTED'). All three add a terminal 'no action' state."
+OD-8.c.B One name, HANDED_OVER (AEF's word, `IAC` item 74), with the same additions.
+OD-8.c.C Two names: INJECTED for the typed line with a BUSY transition, HANDED_OVER for transcript evidence (today's split).
+OD-8.c.D Keep the names and add only the no-action state.
+OD-8.d Recommendation: A. Reason: it is the operator's own word, it meets R-24, and "ATTEMPTED" keeps the weaker TermLink evidence visible without calling it more than it is.
+OD-8.e Changes: R-24, R-28.
+OD-8.f Sources: `RQ` O13; `RV1` point 6.
+
+### 9.12 OD-9 Who owns the receive side, and how sidecars ship
+
+OD-9.a Question: whose receive side is the one that ships: AEF's receiver, TermLink's scripts, or a new `termlink sidecar` in the binary?
+OD-9.b Why: R-39 says every sidecar ships with every deployment. Releases ship the binary only. Two receivers exist.
+OD-9.c Options.
+OD-9.c.A Adopt AEF's receiver (T-3330 option A). It reaches only AEF-governed projects.
+OD-9.c.B Extend TermLink's scripts (option B). No package ships them.
+OD-9.c.C Move the receive side into the binary as `termlink sidecar` (option C), with AEF supplying the harness adapters. Codex (`RV1` point 7): "TermLink should own the transport-neutral message lifecycle … AEF should supply harness readiness/context adapters." Section 2: "One versioned runtime, ideally `termlink sidecar`".
+OD-9.c.D Defer (option D).
+OD-9.d Recommendation: C. Reason: it is the only option that ships through the existing channels, and it gives one owner, which all three reviewers asked for. GLM: "one owner, either TermLink's supervisor or AEF's watcher, not both." The port is about 2.5-3.9k shell lines.
+OD-9.e Changes: R-6, R-39.
+OD-9.f Sources: `RQ` O9; `RV1` points 7 and section 2 packaging row.
+
+### 9.13 OD-10 Session level of the address
+
+OD-10.a Question: does a message address a role and a project, or an exact session?
+OD-10.b Why: the operator's wording is "a canonical id plus a runtime id". Six of seven vendors said routing does not stop at a session label. Codex raised the incarnation problem.
+OD-10.c Options.
+OD-10.c.A Route to project and agent role. The session id is metadata (`IAC` item 64).
+OD-10.c.B Route to the exact session, fenced by incarnation. `RV1` point 15 (Codex): "readiness generation, exclusive injection ownership, invalidation on restart; never silently redirect an exact-session message to another instance."
+OD-10.c.C Both. `RV2` item 6: "Exact-instance messages fail loudly; role messages re-resolve. Never silently redirect."
+OD-10.c.D Canonical id plus runtime id exactly as the operator worded it, no further rule.
+OD-10.d Recommendation: C. Reason: it keeps role mail working when an instance restarts, and it never delivers an exact-session message to the wrong copy, which R-34 requires.
+OD-10.e Changes: R-32, R-33, R-34.
+OD-10.f Sources: `RQ` O6; `RV1` section 2 and point 15; `RV2` items 6, 47, 49.
+
+### 9.14 OD-11 Name-to-id directory
+
+OD-11.a Question: who keeps the directory that maps a project name to its id?
+OD-11.b Why: R-33 needs stable ids. The decision in AEF T-3751 is open.
+OD-11.c Options.
+OD-11.c.A The hub keeps project identity cards (`IAC` item 65).
+OD-11.c.B No directory. Ids ride inside names (7/7 vendor option B).
+OD-11.c.C AEF keeps it.
+OD-11.c.D Each project keeps its own.
+OD-11.d Recommendation: A, with this rule from the routing consultation: "the directory may carry only identities the home hub minted and observed" (055, `RV2` item 37), and `RV2` item 71 ("hubs exchange a directory of who is present and able to receive, never messages; only the home hub may say dead and unknown is never dead"). Reason: the reviewers did not address ownership, but they agree on this rule and A is the option that applies it.
+OD-11.e Changes: R-33.
+OD-11.f Sources: `RQ` O5; `RV2` items 37, 71.
+
+### 9.15 OD-12 Address rulings D-599 and D-660, and stable ids
+
+OD-12.a Question: which address ruling stands, and does the `sidecar:` alias get an end date?
+OD-12.b Why: D-599 says `inbox:<circuit-id>`. D-660 says `inbox:<agent-id>` and "does NOT keep sidecar:". AEF says D-660's wording is being amended. The hub id used is a rotating fingerprint.
+OD-12.c Options.
+OD-12.c.A D-599 stands. Ask AEF for the amended D-660 text. Give the alias an end date.
+OD-12.c.B D-660 stands.
+OD-12.c.C Both stay, indefinitely. D-660 says "Option 3 (support both) was explicitly refused".
+OD-12.c.D D-599, plus a hub name as canonical and the fingerprint as instance id (R-33).
+OD-12.d Recommendation: A. Reason: it needs no new decision of ours beyond asking AEF, and it ends the open-ended alias. The hub name of D is a separate build question.
+OD-12.e Changes: R-32, R-33.
+OD-12.f Sources: `RQ` O12.
+
+### 9.16 OD-13 Section 14 items: keep or drop
+
+OD-13.a Question: of R-40..R-43, which does the operator want kept?
+OD-13.b Why: they were discussed once and lost. Nothing confirms them.
+OD-13.c Options.
+OD-13.c.A Keep R-41 and R-42 as later slices. Drop R-43 as a duplicate of R-9. Keep R-40 only if TermLink wants a consumer that is not AEF's.
+OD-13.c.B Keep all four.
+OD-13.c.C Drop all four and record them as dropped by decision.
+OD-13.c.D Keep only R-40, since the by-construction receipt is its own safeguard.
+OD-13.d Recommendation: A. Reason: it is the disposition that `RQ` O7 already suggests, and R-42 helps R-2's honest "delivered".
+OD-13.e Changes: R-40..R-43.
+OD-13.f Sources: `RQ` O7.
+
+### 9.17 OD-14 Alarms, escalation and the hub steward
+
+OD-14.a Question: besides urgent alarms and pile-up escalation, is there an end-to-end canary, and where does the last escalation land?
+OD-14.b Why: the operator's rule is alarms only for urgent. All three reviewers say drift is caught only by a canary that sends a real message.
+OD-14.c Options.
+OD-14.c.A Urgent alarm, pile-up escalation like audit warnings, daily digest (`IAC` item 73). Nothing else.
+OD-14.c.B A plus an end-to-end canary. `RV1` point 9: "What breaks first is deployment drift: healthy-looking sidecars with no scheduler, wrong hub, missing hooks. Detected only by an end-to-end canary that sends a real message, not by process heartbeats." GLM's R6: "canary mail with deadlines, INJECTED within T1, REPLIED within T2" (`RQ` O16).
+OD-14.c.C Add a hub-steward agent (T-3333).
+OD-14.c.D Defer.
+OD-14.d Recommendation: B. Reason: the canary tests the rail, it is not a per-message alarm, so it does not break the operator's rule. The last rung must land in one place the operator reads, and that is proved by a negative control (T-3461 found an unread queue).
+OD-14.e Changes: R-37.
+OD-14.f Sources: `RQ` O14; `RV1` point 9; `IAC` item 73.
+
+### 9.18 OD-15 Interrupt consent, respawn and the startup chain
+
+OD-15.a Question: may a peer interrupt a working session, may inbound mail start an agent, and what is the startup chain?
+OD-15.b Why: with the urgent bypass, a peer can force-interrupt a session, and one host key lets any project impersonate another.
+OD-15.c Options.
+OD-15.c.A Interrupts only from an authenticated sender and only for agents that allow it. Respawn only with an explicit operator grant, a budget and restart limits. `RV1` point 17: "sidecar-to-sidecar calls have no trust model; one host key serves every agent, so any project can impersonate another; urgent bypass lets a peer force-interrupt a working session." The 7-vendor result: no agent is respawned by inbound mail "without an explicit operator grant, budget, restart limits and an authenticated sender" (`RQ` O15).
+OD-15.c.B No consent layer. Trust the host, as today.
+OD-15.c.C The operator approves each interrupt.
+OD-15.c.D Never interrupt. Urgent waits for a free prompt.
+OD-15.d Recommendation: A. Reason: C would cause approval fatigue, B leaves impersonation open, and D drops the confirmed urgent rule. The startup chain is then scoped to the sidecar and its host services (`IAC` item 72).
+OD-15.e Changes: R-8, R-9, R-19.
+OD-15.f Sources: `RQ` O15; `RV1` point 17.
+
+### 9.19 OD-16 Telemetry retention window
+
+OD-16.a Question: how long does the hub keep the telemetry events?
+OD-16.b Why: the design says "for example 30 days". The mail ruling (T-3304 IW-2) says 14 days.
+OD-16.c Options.
+OD-16.c.A 14 days, with count, age and size ceilings (the T-3304 ruling).
+OD-16.c.B 30 days.
+OD-16.c.C Per class: delivery events short, digests long.
+OD-16.c.D Keep until the digest has consumed them.
+OD-16.d Recommendation: A. Reason: it is an existing operator ruling, and 30 days was only an example. The reviewers did not address this question.
+OD-16.e Changes: R-35.
+OD-16.f Sources: `IAC` item 71.
+
+### 9.20 OD-17 Proposed requirement changes
+
+OD-17.a Question: which of the candidate additions below become requirements?
+OD-17.b Why: none was made. `RQ` O16 and the reviewers each proposed some. Per the standing instruction the orchestrator walks them one at a time, and each is a separate yes or no.
+OD-17.c Options.
+OD-17.c.A Accept every candidate marked "accept".
+OD-17.c.B Accept only the ones the operator names.
+OD-17.c.C Reject all candidates.
+OD-17.c.D Defer the list to step 3 (security floor and phasing).
+OD-17.d Recommendation: B, walking the table below, taking my recommended disposition as the default for each.
+
+| Id | Candidate | Source | Recommended disposition |
+|---|---|---|---|
+| CAND-1 | Peer content is untrusted: "a request for action becomes a task proposal … never direct execution" (D-695) | `RQ` O16 item 2 | Accept, security invariant, P1 |
+| CAND-2 | Exactly-once: receiver-side dedupe on `client_msg_id` | `RQ` O16 item 3; D-600 | Accept, P1 |
+| CAND-3 | Closing rule: nothing is working until two real running agents pass a live test with a negative control | `RQ` O16 item 6; profile P1.2.e | Accept as the verification rule (it is already a standing operator rule) |
+| CAND-4 | How urgent is marked: `priority` in [-9,9], urgent at 5 or more by default | `RQ` O16 item 4 | Accept, and confirm the threshold |
+| CAND-5 | Liveness invariant: canary mail with deadlines (GLM R6) | `RQ` O16 item 5 | Decided in OD-14 |
+| CAND-6 | Reachability as a visible per-agent state: receiver up, right hub, adapter present, last surface time | `RV1` point 12 (055) | Accept, P1 |
+| CAND-7 | Harness neutrality: an adapter contract | `RV1` point 13 (055) | Decided in OD-7 |
+| CAND-8 | An explicit mail-hub setting, separate from `TERMLINK_RUNTIME_DIR` | `RV1` point 14 (055, E2) | Accept, P2 |
+| CAND-9 | Session incarnation and fencing | `RV1` point 15 (Codex) | Decided in OD-10 |
+| CAND-10 | Sender-side send-and-wait: the sender can yield and wait for the answer | `RV1` point 16 (GLM) | Accept, P2 (asked for in April) |
+| CAND-11 | Security and consent | `RV1` point 17 | Decided in OD-15 |
+| CAND-12 | Attention budgets: rate limits, bounded outstanding requests, expiry, cancellation | `RV1` point 18 (Codex, 055) | Accept, P2 |
+| CAND-13 | Clock skew and version skew rules | `RV1` point 19; `RV2` item 66 | Accept, P2 |
+| CAND-14 | Obligation contract and a visible "unanswered" state with escalation | `RV2` item 52 | Accept, P1. It extends R-28 and is the ring20-manager failure. |
+| CAND-15 | Directory and liveness: only the home hub may say dead, and unknown is never dead | `RV2` item 71 | Decide with OD-11 and OD-18 |
+| CAND-16 | Per-circuit short-lived credentials, one delivery contract on both paths | `RV2` items 26-27 | Only if OD-1 chooses circuits |
+| CAND-17 | Fleet admission and signed advertisements | `RV2` item 15 (GLM) | Defer to the threat model |
+| CAND-18 | Ordering: a sequence number per sender and conversation | `RV2` items 16, 27 | Accept, P2 |
+| CAND-19 | One settlement record per `client_msg_id` at the destination | `RV2` items 39, 56 (055) | Accept, P1. It supports OD-5 option B. |
+
+OD-17.d.1 Also pending, as consequences of other questions: the wording of R-14, R-15 and R-26 follows OD-4 and OD-5. R-33 follows OD-12. R-43 follows OD-13. The two lists of open decisions were merged in `RQ` and `IAC` (Codex's drift point, `RV1` point 20), so that item needs no decision.
+OD-17.e Changes: new requirements, numbered after R-43.
+OD-17.f Sources: `RQ` O16; `RV1` section 3; `RV2` sections 3, 6, 9, 12, 13.
+
+### 9.21 OD-18 Several agents per project: who answers
+
+OD-18.a Question: when a project has several agents, who answers a message addressed to the project or to a role, and who coordinates?
+OD-18.b Why: the operator raised it on 2026-10-04. `RV2` names ring20-manager's 8 unanswered requests as the real failure.
+OD-18.c Options.
+OD-18.c.A A deterministic rule at the project's home hub, over a fenced lease held by code. Introduce, then step aside. No AI agent on the path. `RV2` item 44: "Introduce, then step aside, resolved at the project's home hub." Item 45: "Neither ordinary resolution nor lease renewal should await an AI turn." (Codex).
+OD-18.c.B A central coordinator agent that carries the traffic. `RV2` item 43: "Not a coordinator that carries all traffic (6b). Both reject it as the default; Codex allows it only where work must be triaged or aggregated."
+OD-18.c.C No exclusivity by rule. Codex (`RV2` section 10): "Rejected for exclusivity: observers with different views pick different winners". GLM adds fork-with-claim for pools: deliver to all holders, first to claim wins.
+OD-18.c.D The sender names the exact instance, and no role resolution exists.
+OD-18.d Recommendation: A for singleton roles, with fork-with-claim for pools later, eligibility rules (workers, reviewer seats and sub-agents may not hold a role, 055), and an obligation record with a visible "unanswered" state. Reason: all four consulted parties agree on this shape (`RV2` item 71), and "Resolution chooses whom to ask. Explicit acceptance establishes who owes an answer." (Codex, item 50).
+OD-18.e Changes: R-32, R-34, new requirements after OD-17.
+OD-18.f Sources: `RV2` sections 9-14.
+
+## 10 Earlier requirements
+
+10.1 The earlier list is `RQ` R-1.1..R-14.4. Every item is kept. None is changed or dropped, because the operator confirmed them and only the operator may change them. The R-n numbering is new.
+
+| Earlier | Now | Disposition | Reason |
+|---|---|---|---|
+| R-1.1 | R-1 | kept | confirmed |
+| R-1.2 | R-2 | kept | confirmed |
+| R-1.3 | R-3 | kept | confirmed. Not met for running agents, OD-6 |
+| R-2.1 | R-4 | kept | confirmed |
+| R-2.2 | R-5 | kept | confirmed |
+| R-3.1 | R-6 | kept | confirmed. Ownership OD-9 |
+| R-3.2 | R-7 | kept | confirmed. Narrowed acceptance only, OD-1 |
+| R-3.3 | R-8 | kept | confirmed |
+| R-3.4 | R-9 | kept | confirmed. Scope OD-15 |
+| R-3.5 | R-10 | kept | confirmed |
+| R-4.1 | R-11 | kept | confirmed |
+| R-4.2 | R-12 | kept | confirmed. Contested, OD-1 |
+| R-4.3 | R-13 | kept | confirmed |
+| R-5.1 | R-14 | kept | confirmed. Contested, OD-4, OD-5 |
+| R-5.2 | R-15 | kept | confirmed. Contested, OD-4 |
+| R-5.3 | R-16 | kept | confirmed |
+| R-6.1 | R-17 | kept | confirmed |
+| R-6.2 | R-18 | kept | confirmed |
+| R-6.3 | R-19 | kept | confirmed. Contested, OD-2 |
+| R-6.4 | R-20 | kept | confirmed |
+| R-7.1 | R-21 | kept | confirmed. Wording may be made harness-neutral, OD-7 |
+| R-7.2 | R-22 | kept | confirmed |
+| R-8.1 | R-23 | kept | confirmed |
+| R-8.2 | R-24 | kept | confirmed. Name OD-8 |
+| R-8.3 | R-25 | kept | confirmed |
+| R-9.1 | R-26 | kept | confirmed. Contested, OD-5 |
+| R-9.2 | R-27 | kept | confirmed |
+| R-9.3 | R-28 | kept | confirmed |
+| R-9.4 | R-29 | kept | confirmed. No built owner |
+| R-10.1 | R-30 | kept | confirmed. Contested, OD-3 |
+| R-10.2 | R-31 | kept | confirmed |
+| R-11.1 | R-32 | kept | confirmed |
+| R-11.2 | R-33 | kept | confirmed. "Hub name" not built, OD-12 |
+| R-11.3 | R-34 | kept | confirmed |
+| R-12.1 | R-35 | kept | confirmed. Retention OD-16 |
+| R-12.2 | R-36 | kept | confirmed |
+| R-12.3 | R-37 | kept | confirmed. Surfacing OD-14 |
+| R-12.4 | R-38 | kept | confirmed |
+| R-13.1 | R-39 | kept | confirmed. Not met, OD-9 |
+| R-14.1 | R-40 | kept (unconfirmed) | the operator has not confirmed or dropped it, OD-13 |
+| R-14.2 | R-41 | kept (unconfirmed) | same |
+| R-14.3 | R-42 | kept (unconfirmed) | same |
+| R-14.4 | R-43 | kept (unconfirmed) | duplicate of R-9. Proposed merge, OD-13 |
+
+## 11 Residual risks and notes for the operator
+
+11.1 This draft is not final. Completion condition 6.1 of the card (every question answered or recorded as an open gap) is met only after the interview on section 9.
+11.2 Section 6 states what the operator confirmed. At least five of those statements (R-7, R-12, R-14, R-19, R-30) are contested by reviewers. This document does not choose between them.
+11.3 Several requirements describe a state that does not operate today: R-3, R-12, R-17, R-19, R-24, R-39. The status lines say so. The closing rule (CAND-3) is the test before any of them may be called working.
+11.4 The adversary list in 2.3 is the agent's proposal and has not been confirmed (GP-0).
+11.5 Facts about what runs on the host come from `RQ` section 15, dated 2026-10-03. They were not re-measured.
+11.6 The Mermaid drawings were checked for rendering as recorded in the hand-back. The project's review surface has no design page yet (profile P2.1).
+
+## 12 Change requests to earlier steps
+
+12.1 None. This is step 1.
