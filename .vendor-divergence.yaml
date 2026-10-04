@@ -187,6 +187,30 @@ last_vendor_event:
 # ---------------------------------------------------------------------------
 
 divergences:
+  - task: T-3337
+    commit: pending-same-commit
+    commit_note: Registered in the same commit that carries the port.
+    date: 2026-10-04
+    file: .agentic-framework/web/embeddings.py
+    status: landed-upstream
+    kind: fix
+    generality: GENERIC
+    symptom: "Any vector-index reader (post-write hook, fw recall, fw ask, Watchtower) that hit a transient open error fell through _get_db() to build_index(), which unlinks the live index first and rebuilds for hours under the caller's timeout; a killed rebuild leaves an almost empty index. AEF lost 2.5 GB -> 45 KB on 2026-10-03."
+    fix: "_get_db() raises RuntimeError naming `fw index reindex` on an open error, an empty index, or a missing file; it never calls build_index()."
+    evidence: "tests/vector-index-reader-no-rebuild-fixtures.sh 4/4; against the pre-fix file all 4 cases fail (missing/corrupt/empty each call build_index)."
+    upstream_note: "Port of AEF T-3786 (bleeding-edge 4593863c4 + d06a58401, reported at inbox @390; upstream fix not read here). Upstream also makes build_index atomic (.building then swap), which is NOT ported. A re-vendor onto that release is safe for this entry."
+  - task: T-3337
+    commit: pending-same-commit
+    commit_note: Registered in the same commit that carries the port.
+    date: 2026-10-04
+    file: .agentic-framework/web/blueprints/discovery.py
+    status: landed-upstream
+    kind: fix
+    generality: GENERIC
+    symptom: "Watchtower's discovery page started a background build_index() when the index was not ready, deleting the live index."
+    fix: "_trigger_async_index_build only logs that `fw index reindex` is needed."
+    evidence: "tests/vector-index-reader-no-rebuild-fixtures.sh (discovery case)."
+    upstream_note: "Port of AEF T-3786, as above."
   - task: T-3336
     commit: pending-same-commit
     commit_note: Registered in the same commit that carries the change.

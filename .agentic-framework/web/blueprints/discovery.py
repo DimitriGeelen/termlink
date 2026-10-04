@@ -27,13 +27,9 @@ def _trigger_async_index_build():
     if _index_build_thread and _index_build_thread.is_alive():
         return  # Already building
     def _build():
-        try:
-            from web.embeddings import build_index
-            log.info("Background index build started")
-            build_index()
-            log.info("Background index build completed")
-        except Exception as e:
-            log.warning("Background index build failed: %s", e)
+        # T-3337 (port of AEF T-3786): a page view must never rebuild the index;
+        # build_index deletes the live file first. Only `fw index reindex` builds.
+        log.warning("vector index not ready; run `fw index reindex` (Watchtower never rebuilds it)")
     _index_build_thread = threading.Thread(target=_build, daemon=True)
     _index_build_thread.start()
 

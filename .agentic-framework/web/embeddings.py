@@ -487,11 +487,19 @@ def _get_db() -> sqlite3.Connection:
                 _db_opened_at = time.time()
                 log.info("Reusing existing vector index with %d documents", count)
                 return _db
-        except Exception:
-            pass  # Fall through to full rebuild
+        except Exception as e:  # T-3337 (port of AEF T-3786): never rebuild from a reader
+            raise RuntimeError(
+                f"vector index unavailable ({type(e).__name__}: {e}); "
+                "run `fw index reindex` — readers never rebuild the index") from e
+        raise RuntimeError(
+            "vector index unavailable (empty); run `fw index reindex` — readers never rebuild the index")
 
-    build_index()
-    return _db
+    # T-3337: no usable index file. A reader used to call build_index() here, which
+    # deletes any existing file first and rebuilds for hours under a caller's timeout;
+    # a killed rebuild left an almost empty index (AEF T-3786: 2.5 GB -> 45 KB).
+    # Only `fw index reindex` (reindex_incremental) builds.
+    raise RuntimeError(
+        "vector index missing; run `fw index reindex` — readers never build the index")
 
 
 # ---------------------------------------------------------------------------
