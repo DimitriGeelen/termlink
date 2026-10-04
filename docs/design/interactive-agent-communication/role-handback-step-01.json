@@ -8,7 +8,7 @@
   "blocked_reason": "operator interview on the open questions pending",
   "output": {
     "path": "docs/design/interactive-agent-communication-01-requirements.md",
-    "sha256": "b6997ea114b144ccb8b5d061a4b34dd6940613b0afb53767d3a55dfe8d5bdc43"
+    "sha256": "34f0213918a6e93e299e6e93df73cbb645551c417a6c508802ee6916daeed6b0"
   },
   "inputs": [
     {
@@ -28,32 +28,32 @@
       "sha256": "7d40ef362096073b11628df256ea843d51788fc2f67fc14ca4bb5dd6aa7c7500"
     }
   ],
-  "summary": "Re-casts the operator's confirmed requirements R-1.1..R-13.1 into R-1..R-39 (type, source, rationale, priority, verification, Given-When-Then criteria) and carries the unconfirmed section 14 as R-40..R-43. Names seven adversaries (agent proposal, unconfirmed) and marks 'impossible' requirements against them. Glossary, 13 open conflicts, 3 resolved, an eight-class gap review (GP-0..GP-12) and drawings D-1..D-3 (all render with mmdc). Writes the 18 undecided operator questions OD-1..OD-18 as interview questions with lettered options, quoted reviewer positions and a recommendation each. Nothing in section 9 is decided. Five confirmed requirements (R-7, R-12, R-14, R-19, R-30) are contested by reviewers and stay as confirmed. R-3, R-12, R-17, R-19, R-24, R-39 do not operate today.",
+  "summary": "v0.2 after review round 1 (codex.md, glm.md). 1) Fidelity: R-7 (no 'same host'), R-29 ('halts'), R-34 (affirmative to_circuit), R-38 ('and learning from it') restored; collector additions in R-2, R-14, R-16, R-18, R-21, R-23, R-39 and in criteria R-9.e, R-11.e, R-12.e, R-23.e tagged [P] and listed as 'changed' with reason and source in section 10. 2) Authority tags [C] [H] [A] [P] on requirements and glossary; priorities labelled collector proposals, R-9 now P2, R-40..R-43 'U'. 3) Holds-against added to R-16, R-20, R-23; R-34 criterion exercises the impersonation case and states it does not test authentication. 4) Section 9 neutrality fixes in OD-3, 6, 7, 9, 10, 14, 15, 17, 18; OD-3.c.D and OD-4.c.D marked collector-synthesized. 5) D-1 adds operator terminal and credential custody; D-2 splits unavailability from explicit refusal; D-3 marks provisional states. 6) Weak criteria fixed (R-1, R-4, R-10, R-19, R-28, R-30, R-36, R-38); open bounds named (R-3, R-14, R-17, R-37). 7) mmdc re-run, 3/3 rc 0 (11.6). Nothing in section 9 is decided.",
   "completion": [
     {
       "condition": "6.1 Every question answered or recorded as an open gap",
-      "met": false,
-      "evidence": "Section 4.2 answers QS-1..QS-14 from the confirmed requirements. Section 4.3 records QS-15..QS-23 as open gaps. The 18 operator decisions in section 9 are unanswered until the interview, so this is met only after it."
+      "met": true,
+      "evidence": "Met in form: section 4.2 answers QS-1..QS-14 from the confirmed requirements, section 4.3 records QS-15..QS-23 as open gaps (11.1). Operator sign-off on section 9 is the separate approval criterion and is pending, hence status blocked."
     },
     {
       "condition": "6.2 Every requirement has a type, source, verification method and at least one acceptance criterion",
       "met": true,
-      "evidence": "Section 6, R-1..R-43, items b, d and e. R-1 has no criterion for the operator leg (GP-11); it has two for 1:1 and many-to-many."
+      "evidence": "Section 6, R-1..R-43, items b, d, e. Unconfirmed bounds are named open (R-3, R-14, R-17, R-37); R-1 operator leg has no criterion (GP-11)."
     },
     {
       "condition": "6.3 The adversary is a named stakeholder, and every 'impossible' requirement names what it holds against",
       "met": true,
-      "evidence": "Section 2.3 ADV-1..ADV-7 (proposal, GP-0). Item f of R-2, R-15, R-19, R-22, R-24, R-28, R-29, R-34, R-42."
+      "evidence": "Section 2.3 ADV-1..ADV-7 (proposal, GP-0). Item f on R-2, R-15, R-16, R-19, R-20, R-22, R-23, R-24, R-28, R-29, R-34, R-42; R-34.f states its limit."
     },
     {
       "condition": "6.4 Glossary, conflicts and earlier-requirements sections present",
       "met": true,
-      "evidence": "Section 5 (glossary), section 7 (conflicts C-1..C-13, 7.3 resolved), section 10 (earlier requirements, 43 rows)."
+      "evidence": "Section 5 (with authority column), section 7, section 10 (43 rows, 6 marked changed with reason and source)."
     },
     {
       "condition": "6.5 Every required drawing D-1 to D-3 is present with id, caption and textual equivalent, and renders without error",
       "met": true,
-      "evidence": "Sections 3.1, 3.2, 3.3 with text equivalents 3.1.1, 3.2.1, 3.3.1. Rendered with mmdc 3/3 rc 0 and no error text. scripts/design-render-check.py and role-handback-check.py are not adopted yet (README 2.2), so no render_check record exists."
+      "evidence": "Sections 3.1-3.3 with text equivalents. mmdc re-run on all three, exit code 0 each (section 11.6). No render_check record: design-render-check.py is not adopted here."
     }
   ],
   "open_questions": [
