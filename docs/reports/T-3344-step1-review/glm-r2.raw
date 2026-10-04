@@ -1,0 +1,70 @@
+[0m
+> build · glm-5.3
+[0m
+[0m→ [0mRead brief.md
+[0m→ [0mRead brief.md[90m [offset=490][0m
+[0m→ [0mRead brief.md[90m [offset=1007][0m
+[0m→ [0mRead brief.md[90m [offset=1492][0m
+## 1 Disposition of each round-1 finding
+
+1a (1a, 6.2 qualifications): partly fixed — R-1.e(3) still has no operator-leg criterion and R-43.d/e still point to R-9; both remain openly labelled (GP-11) and routed, nothing hidden.
+
+1b (1b, missing "holds against"): fixed — R-16.f (ADV-3, ADV-4), R-23.f (ADV-2, ADV-1) and R-20.f (ADV-1) now exist; the adversary list itself stays a GP-0 proposal, as routed.
+
+1c (1c, 6.4 met): no fix needed, unchanged.
+
+1d (1d, render unverified): fixed — 11.6 records executed mmdc runs, exit 0, per-drawing SVG sizes.
+
+1e (1e, 6.1): addressed — the header and 11.1 claim 6.1 met in form only; interview and sign-off stated pending.
+
+1f (2a, unmarked re-casts): fixed — 6.1.h adds [C]/[H]/[A]/[P]; section 10 marks R-2, R-14, R-18, R-21, R-23, R-39 changed [P] with reason and source.
+
+1g (2b, R-7): fixed — R-7.a restored unqualified; the same-host scope is [P] in R-7.e and "does not decide OD-1"; C-4 rewritten.
+
+1h (2c, R-21): fixed — the missing-flag clause is [P] in R-21.a/e, sourced to AEF's adapter; the R-7.1 row is changed.
+
+1i (2d, R-23): fixed — no-peer-content and claim-before-typing are [P] in R-23.a/e; the R-8.1 row is changed.
+
+1j (2e, R-39): fixed — the checkout clause is [P] in R-39.a/e; the R-13.1 row is changed.
+
+1k (2f, R-2/R-14/R-18): fixed — each carries [P] tags and a changed row in section 10.
+
+1l (3a, neutrality fine): no fix needed, unchanged.
+
+1m (3b, OD-18.d overreach, synthesized options, OD-1.d): fixed — OD-18.d now rests on RV2 items 43–45 and scopes item 71 correctly; OD-3.c.D and OD-4.c.D are marked collector-synthesized; OD-1.d remains transparently labelled.
+
+1n (3c, R-7 pre-deciding OD-1): fixed — see 1g; the other provisional labels (D-2/D-3, OD-17.d "no acceptance by silence") hold.
+
+1o (4a, R-1.e(3)): not fixed — inherent; no component exists to write a criterion against, correctly routed GP-11.
+
+1p (4b, R-3.e/R-14.e): fixed as recommended — bounds marked open (OD-6; OD-4/OD-5), placeholders named as placeholders.
+
+1q (4c, R-6): partly fixed — R-6.e now admits it tests adjacency, not simplicity; the measure stays open (GP-12).
+
+1r (4d, R-37.e): partly fixed — threshold marked open and the text states the pile-up half cannot fail a test yet; the number is the operator's to give.
+
+1s (4e, R-38/R-36): partly fixed — R-38.e is now runnable via a test reader on R-35 fields (R-38.d still says "review"); R-36.e names the R-37 escalation surface, itself open (OD-14).
+
+1t (5a, usable overall): stands.
+
+1u (5b, step-2 risks): fixed — holds-against added; R-7 unqualified keeps both OD-1 architectures live; D-1 now shows sender sidecar, operator terminal, credential custody and the ADV-5/ADV-7 touchpoints (3.1.1.e/e2). GP-0 remains provisional by design.
+
+1v (5c, pre-hand-off fixes): all four executed (1g, 1b, 1f, 1p).
+
+## 2 New problems introduced
+
+2a Confirmed requirement changed without marking: none found. The four restorations (R-7, R-29, R-34, R-38) are each flagged in section 10, and R-34.e(2) explicitly fences what it does not test (GP-1).
+
+2b Open question that now leans: none; recommendations were de-leaned (OD-6.d, OD-9.d, OD-14.d, OD-15.d, OD-17.d).
+
+2c Decision the operator has not made: none pre-made, but two labelling inconsistencies are new: 3.3.1.g calls SENT..REPLIED "the confirmed spine" while the glossary Stage entry marks SENT, REPLIED and failure stages [P]; and R-36.e's reflection-record clause plus R-30.e's "collector's reading" are untagged and absent from section 10 despite 6.1.h's promise.
+
+## 3 Verdict
+
+3a Yes, with named small fixes — v0.2 is fit as input for the operator interview and then the threat modeler.
+
+3b Fix 1: align 3.3.1.g with the glossary's authority levels for Stage.
+
+3c Fix 2: tag the R-36.e clause [P] and list it and R-30.e's reading in section 10.
+
+3d Fix 3: replace R-38.d's "review" with the test-reader verification its criterion now describes.
