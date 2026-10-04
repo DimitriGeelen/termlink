@@ -42,3 +42,46 @@ the output in one pass after the last question.
 4. Authorises: OD-2 = B in step 1 (changes R-19, R-23, R-24); a delivery-adapter requirement for harnesses without
    hooks (055's adapter point); an acceptance test that an urgent message reaches a busy agent mid-turn with
    transcript evidence. Leaves open: interrupt consent (OD-15); other harnesses' routes (OD-7).
+
+## OD-3 Polling ladder (section 9.6) — ruled A, modified: continuous ladder plus defined message states
+
+1. Asked 2026-10-04 with options A (keep R-10.1), B (two mechanisms: short wait then visible "stuck"; reviewers),
+   C (AEF retry ladder only), D (R-10.1 capped by retention; collector-synthesized). Orchestrator recommended B.
+   Orchestrator correction to the reviewers' premise: inbox topics keep the newest 1000 messages by count, not by
+   age (T-3310), so a message on a quiet inbox can survive a year; the real gap is that nothing turns "waiting"
+   into a visible "stuck".
+2. **Operator ruling (voice, read back and confirmed):** first rung 15 s and fourth rung 15 min are correct
+   ("50" = 15). Keep the operator's ladder, but continuous, "no gaps", instead of each rung twice. Poll moments
+   after send:
+   2a. 15 s, 30 s, 45 s;
+   2b. 1, 2, 3, 4, 5, 10, 15, 30, 45 min;
+   2c. 1, 2, 3, 4, 8, 12, 16, 20, 24 h;
+   2d. 2, 3, 4, 5, 6, 7 days (1 week);
+   2e. 2, 3, 4 weeks;
+   2f. 1, 2, 3 months (3 months = 1 quarter);
+   2g. 2, 3, 4 quarters (= 1 year);
+   2h. 2 years (last poll). 43 polls over two years.
+   Interpretations confirmed: "15 seconds, 15 seconds, 15 seconds" = 15/30/45 s; "13 minutes" = 30 min;
+   "2 weeks, 2 weeks, 4 weeks" = 2/3/4 weeks; "1 quarter" = 3 months.
+3. **Operator asked to define "stuck"; definition approved ("That's good, that's really good"):**
+   3a. Message steps: SENT → STORED (destination accepted) → HANDED_OVER (transcript evidence) → REPLIED or
+       explicit no-action. At each poll the sender classifies the message:
+   3b. WAITING — the next step is not yet due. Keep polling.
+   3c. WAITING FOR RECIPIENT — the recipient is known not running or not able to receive (e.g. AEF's
+       WAITING_NO_RECIPIENT). Keep polling, show it, deliver when the recipient returns.
+   3d. STUCK — the next step is overdue AND the party responsible is reachable and alive. Show it to the sender and
+       the cockpit, naming the stalled step: not accepted (SENT, no STORED within 1 min while the destination hub is
+       reachable); not handed over (STORED, no HANDED_OVER within 2 ticks of the agent becoming ready, about 1 min,
+       while alive and ready — the 2026-10-03 failure); not answered (HANDED_OVER, no reply/no-action within 1 h
+       while alive; a sender may set another deadline per message).
+   3e. UNKNOWN — the sender cannot get information (destination hub unreachable, liveness unknown). Keep polling,
+       show "unknown since T", never treat as dead.
+   3f. DEAD — the recipient's home hub declares that instance ended. Stop polling, dead letter to the sender.
+   3g. Urgent: accepted within 15 s; handed over at the next tool call or turn end (OD-2 ruling); answered within
+       5 min.
+   3h. The ladder decides when the sender looks; the state is a label that appears and clears; polling continues
+       behind it. "Stuck" means someone can fix something now; "unknown" and "waiting for recipient" mean nothing to
+       fix yet.
+4. Authorises: R-30 and R-31 rewritten to the continuous ladder; the five states and the stuck deadlines as
+   requirements (sender-visible, cockpit-visible); urgent deadlines. AEF's retry ladder (D-600) for re-sending is
+   unaffected and stays AEF's. Leaves open: where escalation of "stuck" lands (OD-14).

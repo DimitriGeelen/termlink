@@ -28,7 +28,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-04T14:28:12Z
-last_update: 2026-10-04T16:11:28Z
+last_update: 2026-10-04T16:23:25Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -278,6 +278,11 @@ exists: `docs/design/roles/README.md` section 3. Operator ruling A recorded in D
 -->
 
 ## Decisions
+
+### 2026-10-04 — OD-3 polling ladder and "stuck" (operator ruling)
+- **Chose:** the operator's ladder, continuous (43 polls: 15 s .. 2 years, no gaps), plus five message states (waiting, waiting for recipient, stuck, unknown, dead) with stuck deadlines per step (accept 1 min, hand-over 2 ticks after ready, answer 1 h; urgent 15 s / next tool call / 5 min).
+- **Why:** keeps the operator's standard; "stuck" = overdue while the responsible party is reachable, distinct from unknown and waiting-for-recipient, so alarms stay meaningful.
+- **Rejected:** B short wait then stop (operator keeps polling); C AEF retry ladder only; D retention cap.
 
 ### 2026-10-04 — OD-2 urgent into a busy agent (operator ruling)
 - **Chose:** B — urgent content via the harness hook channel (next tool call / end of turn); never typed into a busy prompt; idle agents get the normal inject. SQ-4 reconciled: urgent bypasses the wait, never the check.
