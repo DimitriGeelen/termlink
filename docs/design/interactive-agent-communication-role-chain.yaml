@@ -1,0 +1,81 @@
+# arc-011 design role chain — v1 (T-3339), in ring20's format (docs/design/roles/upstream-ring20/role-chain-arc-008.yaml).
+# One task per role, run in order; a step starts only when the step before it is approved.
+# Driver: ring20's scripts/role-chain.py is NOT adopted yet (needs `fw reviewer judge`/`verdict apply`, absent in
+# vendored AEF 1.6.29). Until the re-vendor the orchestrator keeps the order and ticks by hand:
+# docs/design/roles/README.md section 3. Completion alone is never approval.
+#
+# Every role session receives, in this order: rules (CLAUDE.md project sections), common, its card, adapter,
+# profile, then the step facts (input hashes). Upstream originals are provenance only.
+#
+# OPEN (operator decision, queued after the re-vendor decision): whether the existing headline requirements
+# document becomes step 1's output (re-cast into the skeleton), or step 1 runs as a fresh interview.
+# Step tasks are created when the chain starts (task: null until then).
+version: 1
+chain: arc-011-design
+arc: arc-011
+design: docs/design/interactive-agent-communication.md
+rules: CLAUDE.md
+common: docs/design/roles/cards/_common.md
+adapter: docs/design/roles/adapters/aef.md
+profile: docs/design/roles/profiles/termlink.md
+steps:
+  - step: 1
+    role: Requirements collector
+    task: null
+    prompt: docs/design/roles/cards/requirements-collector.md
+    inputs: [docs/design/interactive-agent-communication-requirements.md, docs/design/interactive-agent-communication.md, docs/reports/T-3335-design-review/comparison.md, docs/reports/T-3335-routing-consult/comparison.md]
+    output: docs/design/interactive-agent-communication-01-requirements.md
+    decides: true
+    operator: interview, one question at a time with playback and an explicit go (ring20 lesson 5.14); signs the requirements off
+  - step: 2
+    role: Threat modeler
+    task: null
+    prompt: docs/design/roles/cards/threat-modeler.md
+    inputs: [docs/design/interactive-agent-communication-01-requirements.md]
+    output: docs/design/interactive-agent-communication-02-threat-model.md
+    decides: true
+    operator: accepts the residual risks (injection into a busy session, hub-to-hub trust, per-circuit credentials)
+  - step: 3
+    role: Security floor and phasing
+    task: null
+    prompt: docs/design/roles/cards/mvp-specialist.md
+    inputs: [docs/design/interactive-agent-communication-01-requirements.md, docs/design/interactive-agent-communication-02-threat-model.md]
+    output: docs/design/interactive-agent-communication-03-floor-and-phasing.md
+    decides: true
+  - step: 4
+    role: Architect
+    task: null
+    prompt: docs/design/roles/cards/architect.md
+    inputs: [docs/design/interactive-agent-communication-01-requirements.md, docs/design/interactive-agent-communication-02-threat-model.md, docs/design/interactive-agent-communication-03-floor-and-phasing.md]
+    output: docs/design/interactive-agent-communication-04-architecture.md
+    decides: true
+  - step: 5
+    role: Evidence specialist
+    task: null
+    prompt: docs/design/roles/cards/evidence-specialist.md
+    inputs: [docs/design/interactive-agent-communication-04-architecture.md]
+    output: docs/design/interactive-agent-communication-05-evidence.md
+    decides: false
+    iterates_with: 6
+  - step: 6
+    role: Pseudo-coder
+    task: null
+    prompt: docs/design/roles/cards/pseudo-coder.md
+    inputs: [docs/design/interactive-agent-communication-04-architecture.md, docs/design/interactive-agent-communication-05-evidence.md]
+    output: docs/design/interactive-agent-communication-06-pseudo-code.md
+    decides: false
+    iterates_with: 5
+  - step: 7
+    role: Review panel and disposition
+    task: null
+    prompt: docs/design/roles/cards/review-panel.md
+    inputs: [docs/design/interactive-agent-communication-01-requirements.md, docs/design/interactive-agent-communication-04-architecture.md, docs/design/interactive-agent-communication-06-pseudo-code.md]
+    output: docs/design/interactive-agent-communication-07-review.md
+    decides: true
+  - step: 8
+    role: Planner
+    task: null
+    prompt: docs/design/roles/cards/planner.md
+    inputs: [docs/design/interactive-agent-communication-04-architecture.md, docs/design/interactive-agent-communication-07-review.md]
+    output: docs/design/interactive-agent-communication-08-plan.md
+    decides: true
