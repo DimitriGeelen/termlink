@@ -137,3 +137,16 @@ the output in one pass after the last question.
    an idle session without a typable terminal shows WAITING FOR RECIPIENT (OD-3 state).
 4. Authorises: R-3 acceptance and status; a hook-delivery requirement with transcript evidence; the launcher as
    the default start path. Leaves open: readiness owner (OD-7); other harnesses (055 adapter).
+
+## OD-7 Readiness: hooks or screen, and who owns it (section 9.10) — ruled C
+
+1. Asked 2026-10-04 with options A (hooks first, screen classifier as labelled fallback), B (hooks only, each
+   harness owner builds its own; ownership collector-synthesized), C (hooks through a harness adapter contract;
+   055 and Codex), D (screen classifier as the main signal).
+2. **Operator ruling: "c".** Read back as: a harness adapter contract with READY, BUSY, NOT RUNNING plus evidence
+   of hand-over; the Claude Code adapter is the hooks already chosen in OD-2 and OD-6; 055's opencode adapter is
+   the second; a parity test per release; the screen classifier is kept only as a diagnostic and never gates a
+   hand-over. Proposed ownership (orchestrator's, no reviewer source; to be confirmed with OD-9): TermLink owns the
+   contract, each harness's adapter comes from the team that runs that harness.
+3. Authorises: R-21 (harness-neutral wording), R-22, R-24; the contract and its parity test as requirements.
+   Leaves open: ownership of the whole receive side and packaging (OD-9).
