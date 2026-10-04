@@ -971,6 +971,71 @@ head2 "11. Schedule the hourly vector-index reindex (T-3336)"
 schedule_reindex
 
 # ---------------------------------------------------------------------------
+# ACTION 12 — stop the stray second hub at /tmp/termlink-0 (T-3343, ruling B)
+#
+# T-3340: an agent's `hub restart` without TERMLINK_RUNTIME_DIR left a second hub
+# running at /tmp/termlink-0 beside the canonical /var/lib/termlink one; clients
+# without the env var used it, and mail posted there never reached its readers. The
+# operator ruled B: rescue the stranded mail first (done, T-3343 report), then stop.
+# Preconditions, each FAILED (never skipped) when unmet: the pid is a termlink hub;
+# every installed termlink carries the T-3340 guard (`hub start --allow-second-hub`
+# exists), so nothing can recreate the stray hub; the rescue report exists.
+# Graceful `hub stop` against the stray dir; no SIGKILL. Verified: the pid is gone AND
+# a client without TERMLINK_RUNTIME_DIR now resolves the canonical hub's pid.
+# Idempotent: skipped when no live hub is recorded in the stray dir.
+# Seams (fixtures only): RUNME_STRAY_HUB_DIR, RUNME_CANON_HUB_DIR, RUNME_STRAY_TL,
+#   RUNME_STRAY_ALIVE, RUNME_STRAY_PROC_ROOT, RUNME_STRAY_GUARD_BINS, RUNME_STRAY_RESCUE_REPORT.
+# ---------------------------------------------------------------------------
+seam STRAY_DIR RUNME_STRAY_HUB_DIR "/tmp/termlink-0"
+seam CANON_DIR RUNME_CANON_HUB_DIR "/var/lib/termlink"
+seam STRAY_TL RUNME_STRAY_TL "termlink"
+seam STRAY_ALIVE RUNME_STRAY_ALIVE "kill -0"
+seam STRAY_PROC RUNME_STRAY_PROC_ROOT "/proc"
+seam STRAY_GUARD_BINS RUNME_STRAY_GUARD_BINS "${HOME:-/root}/.cargo/bin/termlink /usr/local/bin/termlink ${HOME:-/root}/.local/bin/termlink"
+seam STRAY_REPORT RUNME_STRAY_RESCUE_REPORT "$PROJECT_ROOT/docs/reports/T-3343-stray-hub-rescue.md"
+
+stop_stray_hub() {
+    local pid canon_pid b missing="" now_pid i
+    pid="$(tr -cd '0-9' 2>/dev/null < "$STRAY_DIR/hub.pid")"
+    if [ -z "$pid" ] || ! $STRAY_ALIVE "$pid" 2>/dev/null; then
+        say "  skip    no live hub recorded in $STRAY_DIR (already stopped)"; SKIPPED=$((SKIPPED+1)); return
+    fi
+    if ! tr '\0' ' ' < "$STRAY_PROC/$pid/cmdline" 2>/dev/null | grep -q 'termlink.*hub'; then
+        say "  FAILED  pid $pid in $STRAY_DIR/hub.pid is not a termlink hub process; refusing to stop it"; FAILED=$((FAILED+1)); return
+    fi
+    for b in $STRAY_GUARD_BINS; do
+        [ -x "$b" ] || continue
+        "$b" hub start --help 2>/dev/null | grep -q -- '--allow-second-hub' || missing="$missing $b"
+    done
+    if [ -n "$missing" ]; then
+        say "  FAILED  installed termlink lacks the T-3340 guard:$missing — run action 4 first (re-run this script)"; FAILED=$((FAILED+1)); return
+    fi
+    if [ ! -s "$STRAY_REPORT" ]; then
+        say "  FAILED  rescue report $STRAY_REPORT missing — stranded mail must be rescued first (T-3343)"; FAILED=$((FAILED+1)); return
+    fi
+    canon_pid="$(tr -cd '0-9' 2>/dev/null < "$CANON_DIR/hub.pid")"
+    if [ "$DRY_RUN" = "1" ]; then
+        say "  [DRY]   would stop stray hub pid $pid ($STRAY_DIR); canonical hub is pid ${canon_pid:-?} ($CANON_DIR)"; DONE=$((DONE+1)); return
+    fi
+    TERMLINK_RUNTIME_DIR="$STRAY_DIR" $STRAY_TL hub stop >/dev/null 2>&1
+    for i in $(seq 1 15); do $STRAY_ALIVE "$pid" 2>/dev/null || break; sleep 1; done
+    if $STRAY_ALIVE "$pid" 2>/dev/null; then
+        say "  FAILED  stray hub pid $pid still alive 15 s after 'hub stop' (no SIGKILL by design; inspect it)"; FAILED=$((FAILED+1)); return
+    fi
+    now_pid="$(env -u TERMLINK_RUNTIME_DIR $STRAY_TL hub status --json 2>/dev/null | python3 -c 'import json,sys
+try: print(json.load(sys.stdin).get("pid",""))
+except Exception: print("")')"
+    if [ -n "$canon_pid" ] && [ "$now_pid" = "$canon_pid" ]; then
+        say "  OK      stray hub pid $pid stopped; a client without TERMLINK_RUNTIME_DIR now resolves the canonical hub pid $canon_pid (verified)"; DONE=$((DONE+1))
+    else
+        say "  FAILED  stray hub pid $pid stopped, but a client without TERMLINK_RUNTIME_DIR resolves pid '${now_pid:-none}', not the canonical ${canon_pid:-?}"; FAILED=$((FAILED+1))
+    fi
+}
+
+head2 "12. Stop the stray second hub at /tmp/termlink-0 (T-3343, mail rescued first)"
+stop_stray_hub
+
+# ---------------------------------------------------------------------------
 # Verification — the project's own drift checker is the arbiter, not this script.
 # Using the repo's existing check rather than a bespoke one means this cannot
 # quietly disagree with what `fw audit` will say five minutes from now.

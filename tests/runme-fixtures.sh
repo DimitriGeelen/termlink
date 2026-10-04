@@ -103,6 +103,29 @@ export RUNME_TASKS_DIR="$TMP/tasks" RUNME_FW="$TMP/fake-fw"
 # T-3336 (action 11): default = reindex already scheduled, so every other case skips it.
 export RUNME_AUDIT_CRON_FILE="$TMP/agentic-audit-termlink"
 echo '20 * * * * root cd "/x" && "/x/fw" index reindex' > "$RUNME_AUDIT_CRON_FILE"
+# T-3343 (action 12): fake stray hub. Default = no pidfile in the stray dir, so every
+# other case skips the action. The fake termlink records a stop and then answers
+# status with the canonical pid; the fake liveness reads a state file; no real
+# process or hub is ever touched.
+mkdir -p "$TMP/stray" "$TMP/canon" "$TMP/proc/4242" "$TMP/guardbin"
+echo 906 > "$TMP/canon/hub.pid"
+printf 'termlink\0hub\0start\0' > "$TMP/proc/4242/cmdline"
+export FAKE_STRAY_STATE="$TMP/stray.state"; echo alive > "$FAKE_STRAY_STATE"
+cat > "$TMP/fake-stray-tl" <<'EOS'
+#!/usr/bin/env bash
+case "$1 $2" in
+  "hub start") [ -n "${FAKE_STRAY_NOGUARD:-}" ] || echo "      --allow-second-hub" ;;
+  "hub stop") [ -n "${FAKE_STRAY_NOSTOP:-}" ] || echo dead > "$FAKE_STRAY_STATE" ;;
+  "hub status") if grep -q dead "$FAKE_STRAY_STATE"; then echo '{"pid":906}'; else echo '{"pid":4242}'; fi ;;
+esac
+EOS
+printf '#!/usr/bin/env bash\ngrep -q alive "$FAKE_STRAY_STATE"\n' > "$TMP/fake-stray-alive"
+cp "$TMP/fake-stray-tl" "$TMP/guardbin/termlink"
+chmod +x "$TMP/fake-stray-tl" "$TMP/fake-stray-alive" "$TMP/guardbin/termlink"
+echo "rescued" > "$TMP/rescue-report.md"
+export RUNME_STRAY_HUB_DIR="$TMP/stray" RUNME_CANON_HUB_DIR="$TMP/canon" RUNME_STRAY_TL="$TMP/fake-stray-tl" \
+       RUNME_STRAY_ALIVE="$TMP/fake-stray-alive" RUNME_STRAY_PROC_ROOT="$TMP/proc" \
+       RUNME_STRAY_GUARD_BINS="$TMP/guardbin/termlink" RUNME_STRAY_RESCUE_REPORT="$TMP/rescue-report.md"
 # T-3276: the real runme.sh carries no pending closures or decisions once they are
 # done, so the fixtures feed the machinery through its test seams instead.
 export RUNME_TEST_CLOSES="T-3132|fixture approved closure
@@ -307,7 +330,7 @@ if [ "$(id -u)" != "0" ] && [ -n "${CI:-}" ]; then
 fi
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|') + 9 ))   # +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
+EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|') + 10 ))   # +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -807,6 +830,45 @@ if [ "$rc" != "0" ] && echo "$out" | grep -q "FAILED  fw cron install ran but"; 
     ok "reindex: an install that leaves no line is FAILED, not OK"
 else bad "reindex no-install" "rc=$rc: $out"; fi
 echo '20 * * * * root cd "/x" && "/x/fw" index reindex' > "$RUNME_AUDIT_CRON_FILE"
+
+# 24. T-3343 — stop the stray hub (fake termlink, fake liveness, fake /proc only).
+out=$(run); rc=$?
+if echo "$out" | grep -q "skip    no live hub recorded in $TMP/stray"; then
+    ok "stray hub: no pidfile in the stray dir -> skip"
+else bad "stray none" "rc=$rc: $out"; fi
+echo 4242 > "$TMP/stray/hub.pid"; echo alive > "$FAKE_STRAY_STATE"
+out=$(run --dry-run); rc=$?
+if echo "$out" | grep -q "would stop stray hub pid 4242" && grep -q alive "$FAKE_STRAY_STATE"; then
+    ok "stray hub: --dry-run reports and stops nothing"
+else bad "stray dry-run" "rc=$rc: $out"; fi
+out=$(FAKE_STRAY_NOGUARD=1 run); rc=$?
+if [ "$rc" != "0" ] && echo "$out" | grep -q "FAILED  installed termlink lacks the T-3340 guard" && grep -q alive "$FAKE_STRAY_STATE"; then
+    ok "stray hub: refuses while an installed termlink lacks the guard"
+else bad "stray noguard" "rc=$rc: $out"; fi
+out=$(RUNME_STRAY_RESCUE_REPORT="$TMP/no-such-report.md" run); rc=$?
+if [ "$rc" != "0" ] && echo "$out" | grep -q "FAILED  rescue report" && grep -q alive "$FAKE_STRAY_STATE"; then
+    ok "stray hub: refuses before the mail is rescued"
+else bad "stray noreport" "rc=$rc: $out"; fi
+printf 'bash\0sleep\0' > "$TMP/proc/4242/cmdline"
+out=$(run); rc=$?
+if [ "$rc" != "0" ] && echo "$out" | grep -q "is not a termlink hub process" && grep -q alive "$FAKE_STRAY_STATE"; then
+    ok "stray hub: a reused pid that is not a termlink hub is never stopped"
+else bad "stray foreign pid" "rc=$rc: $out"; fi
+printf 'termlink\0hub\0start\0' > "$TMP/proc/4242/cmdline"
+out=$(run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      stray hub pid 4242 stopped; a client without TERMLINK_RUNTIME_DIR now resolves the canonical hub pid 906"; then
+    ok "stray hub: stopped and the canonical hub verified"
+else bad "stray stop" "rc=$rc: $out"; fi
+out=$(run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "skip    no live hub recorded"; then
+    ok "stray hub: second run skips (idempotent)"
+else bad "stray idempotent" "rc=$rc: $out"; fi
+echo alive > "$FAKE_STRAY_STATE"
+out=$(FAKE_STRAY_NOSTOP=1 run); rc=$?
+if [ "$rc" != "0" ] && echo "$out" | grep -q "still alive 15 s after 'hub stop'"; then
+    ok "stray hub: a hub that will not stop is FAILED, never killed hard"
+else bad "stray nostop" "rc=$rc: $out"; fi
+rm -f "$TMP/stray/hub.pid"; echo alive > "$FAKE_STRAY_STATE"
 
 echo ""
 echo "----------------------------------------"
