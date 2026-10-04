@@ -262,6 +262,31 @@ Each item: stated once, not carried forward, or recorded but not built. Citation
 
 ## 6. Open decisions for the operator
 
+**Merged numbering (2026-10-04, after the external review).** The two design documents numbered their
+open decisions differently (Codex review, point 2h). From now on both use **OD-n**; the old numbers stay
+below for reference. Order = walk-through order (reviewer disagreement with the confirmed design first).
+Reviewer positions: `docs/reports/T-3335-design-review/comparison.md`.
+
+| OD | Question | Requirements doc | Design doc | Reviewers (Codex / GLM / 055) |
+|---|---|---|---|---|
+| OD-1 | Cross-host send path vs the no-second-bus charter rule | O1 | O1 | all three: hub carries cross-host |
+| OD-2 | Urgent into a busy prompt, and the safe route | O4 | O2 | Codex, GLM against typing; 055 for (doorbell line only) |
+| OD-3 | Polling ladder vs retry ladder (R-10.1) | O11 | O9 | all three: no year-long poll; two mechanisms; visible "stuck" |
+| OD-4 | RECEIVED and STORED: one call or two | O2 | O3 | GLM, 055 one; Codex two, defined |
+| OD-5 | Callback to sender, or record and pull | O10 | O12 | all three: durable record authoritative, callback optional |
+| OD-6 | How an already-running session becomes reachable | O3 | O4 | Codex, GLM relaunch; 055 harness-side pull channel |
+| OD-7 | Readiness: hooks vs screen; owner for non-AEF agents | O8 | O5 | all three: hooks; 055 adds a harness adapter contract |
+| OD-8 | Stage vocabulary, and "acknowledged, no action" | O13 | O16 | all three: one evidence-backed vocabulary + no-action state |
+| OD-9 | Who owns the receive side, and how sidecars ship | O9 | O8 | all three: one owner; Codex/GLM: one versioned package |
+| OD-10 | Session level of the address | O6 | O6 | Codex: role vs exact-session, fenced by incarnation |
+| OD-11 | Name-to-id directory | O5 | O7 | (not addressed) |
+| OD-12 | Address rulings D-599/D-660 and the stable ids | O12 | O10 | (not addressed) |
+| OD-13 | Section 14 items (native consumer, typed messages, hub refusal, startup chain) | O7 | O11 | (not addressed) |
+| OD-14 | Alarms, escalation, hub steward | O14 | O15 | all three: end-to-end canary, not heartbeats |
+| OD-15 | Interrupt consent; respawn and the startup chain | O15 | O14 | GLM, Codex: consent + authenticated sender |
+| OD-16 | Telemetry retention window | — | O13 | (not addressed) |
+| OD-17 | Proposed requirement changes, incl. reviewer additions | O16 | — | see comparison.md §3 |
+
 Taken one at a time (standing instruction, 2026-10-01). Each shows both positions in the operator's or ruling's words, then a recommendation.
 
 59. **O1. The send path across hosts.**
