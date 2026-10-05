@@ -428,4 +428,22 @@ the output in one pass after the last question.
        sender shows WAITING FOR RECIPIENT; a short blocking wait remains for quick exchanges.
    8c. Bias noted by the orchestrator: second P1-above-document recommendation in a row.
    8d. Leaves open: default deadline (OD-3's 1 h natural); late replies after STUCK still wake, marked late.
+9. **CAND-12 attention budgets — ruled A (source control), refined in dialogue** (2026-10-06).
+   9a. Operator reframed the risk as flooding (re-sending too often, piling up) and asked for ladder adherence, a
+       cumulative per-agent cap derived from system capacity, and back-off against storms borrowed from networking
+       (CSMA/CD, spanning tree). Along the way OD-3 was corrected to two ladders by priority (see OD-3, point 6).
+   9b. Cap derivation given: the hub is not the bottleneck (1,000 open messages at the 15 s rung ≈ 67/s, within the
+       governor's 1,000/s); receiver attention is: cap ≈ answer rate × answer deadline × peers ≈ 20 × 1 h × 5 ≈ 100,
+       a guess until telemetry; then adaptive like TCP's congestion window.
+   9c. Ruled: P1 ladder-governed re-sends with jitter, early re-sends refused; P1 cumulative per-agent cap starting
+       at 100, adaptive, overflow waits at the sender and shows in needs-attention; P1 storm prevention (hop limit,
+       circuit breaker, coalesced hand-overs, and the three message classes below); P2 expiry, cancellation,
+       receiver-advertised window.
+   9d. Operator's definitional correction: stage confirmations are automatic replies too and must keep flowing.
+       Three classes, confirmed "yes": (1) protocol receipts always flow, are never answered, do not count against
+       the cap; (2) automatic content carries the marker, gets receipts, never triggers an automatic content reply,
+       counts against the cap, hop-limited, may be answered deliberately; (3) deliberate content, normal rules.
+       Nothing automatic answers anything automatic; receipts answer nothing; only an agent's decision creates
+       content.
+   9e. Leaves open: jitter width, adaptive-cap parameters, hop-limit value (step 4); telling AEF.
 

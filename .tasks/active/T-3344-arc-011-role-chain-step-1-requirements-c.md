@@ -28,7 +28,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-04T14:28:12Z
-last_update: 2026-10-05T22:27:10Z
+last_update: 2026-10-05T23:40:50Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -278,6 +278,12 @@ exists: `docs/design/roles/README.md` section 3. Operator ruling A recorded in D
 -->
 
 ## Decisions
+
+### 2026-10-06 — OD-17 CAND-12 preventing flooding (operator ruling, refined in dialogue)
+- **Chose:** A — source control. P1: re-sends follow the message's own ladder (corrected OD-3: normal each rung twice, urgent continuous) with random jitter; an early re-send is refused and the sender told why; duplicates never reset it. P1: a cumulative cap on open messages per sending agent, starting at 100 (derived: answer rate ~20/h × 1 h deadline × ~5 peers — a guess until measured), adaptive once telemetry exists (grow while answered on time, halve when STUCK rises); over the cap sends wait at the sender, never dropped, shown in needs-attention. P1 storm prevention: hop limit on forwarded messages; three message classes — (1) protocol receipts (RECEIVED/STORED/HANDED_OVER) always flow, are never answered by anything (no ack of an ack), do not count against the cap; (2) automatic content (auto-responders, notifications, status broadcasts, canary pings, escalations, digests) carries the automatic marker, gets receipts, never triggers an automatic content reply (RFC 3834), counts against the cap, hop-limited; an agent may read it and answer deliberately; (3) deliberate content incl. REPLIED, normal rules; rule: nothing automatic answers anything automatic, receipts answer nothing, only an agent's decision creates content; circuit breaker toward a failing peer; hand-overs coalesced into one bundle at the receiver. P2: expiry, cancellation, receiver-advertised window.
+- **Operator's framing and corrections, part of the ruling:** the risk is flooding (re-sending too often, piling up); adhere to the ladder; a cumulative per-agent cap derived from what the system can handle; back-off against broadcast storms from networking (CSMA/CD, spanning tree); the automatic-message definition must not block stage receipts.
+- **Rejected:** B receiver-side limits (symptom, no loop or lockstep cover); C all P2 (first release could flood itself); D hub governor only (protects the hub, not agents).
+- **Left open:** jitter width, adaptive-cap parameters, hop-limit value (architect, step 4); telling AEF the per-priority ladders replace D-600 for agent mail.
 
 ### 2026-10-06 — OD-3 correction: two polling ladders by priority (operator, during CAND-12)
 - **Correction:** normal messages (priority < 5) poll each rung twice — 1 min, 5 min, 15 min, 1 h, 4 h, 1 day, 3 days, 1 week, 1 month, 1 quarter, 1 year; urgent (priority >= 5) poll the continuous 43-rung ladder (15 s … 2 years). The OD-3 record had applied the continuous ladder to all messages. States and stuck deadlines unchanged. A message's ladder also governs its re-sends before STORED, replacing D-600 for agent mail (normal ladder = D-600 extended to years). AEF to be told; pickup offset 314 carries the superseded form.
