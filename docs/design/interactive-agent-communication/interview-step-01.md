@@ -181,3 +181,16 @@ the output in one pass after the last question.
 3. Authorises: R-6, R-39; "one receiver per inbox" as a requirement; retiring the scripts in the T-3342 plan; a
    build task for `termlink sidecar` after the chain's planner step. Leaves open: the ownership split with AEF,
    to be proposed to them.
+
+## OD-10 Session level of the address (section 9.13) — ruled C
+
+1. Asked 2026-10-05 with options A (route by project and role; session id metadata), B (exact session only,
+   fenced by incarnation; Codex), C (both, with a rule: exact-instance fails loudly, role re-resolves, never
+   silently redirect; reviewer consensus), D (canonical plus runtime id as worded, no further rule).
+2. **Operator ruling: "C".** Read back as: the address carries both ids (canonical plus runtime, as the operator
+   worded it); a NEW request goes to project + role and the home hub resolves it to one live copy (how: OD-18);
+   mail INSIDE a conversation goes to the exact copy the conversation is bound to (OD-1 circuits), and if that copy
+   has ended the sender gets a dead letter (OD-3 DEAD), never a silent redirect; a conversation moves to another
+   copy only by explicit hand-over with its context; a copy's runtime id is never reused (orchestrator's addition).
+3. Authorises: R-32, R-33, R-34; fail-loudly and never-redirect as requirements. Leaves open: role resolution
+   (OD-18), the name-to-id directory (OD-11).
