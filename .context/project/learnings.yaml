@@ -4561,3 +4561,9 @@ learnings:
   task: T-3331
   date: 2026-10-03
   context: Added via context agent
+- id: PL-395
+  learning: "Never rewrite a bash script while instances of it are running: bash reads the file incrementally, so a running copy executes a mix of old and new bytes (syntax errors at lines that are fine on disk). Restart the running instances after the edit, or write to a temp file and mv it into place (new inode)."
+  source: unknown
+  task: T-3346
+  date: 2026-10-05
+  context: Added via context agent

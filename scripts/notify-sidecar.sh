@@ -92,6 +92,12 @@ Optional:
                        Default OFF: without this flag the sidecar behaves exactly as
                        V3a (no post, no journal write). The doorbell-optional-on-
                        direct sender change is S4, not this slice.
+  --as-identity NAME   T-3346: the receipt-signing key is stored under a different
+                       name than --agent-id (e.g. the mailbox claude-termlink-alt
+                       belongs to the per-agent key identities/claude-termlink.key).
+                       The resolver also tries <identities>/NAME.key, and still
+                       signs only if that key's fingerprint equals self-fp. Mirrors
+                       notify-wake-consumer.sh --as-identity.
   --once               Probe once, write flag+heartbeat, exit 0.
   --json               Emit one JSON status line per cycle.
   -h, --help           Print this help and exit 0.
@@ -122,6 +128,7 @@ interval=15
 hub=""
 include_broadcast=0
 auto_confirm=0
+as_identity=""
 once=0
 json=0
 
@@ -134,6 +141,7 @@ while [ $# -gt 0 ]; do
         --hub)              hub="${2:-}"; shift 2 ;;
         --include-broadcast) include_broadcast=1; shift ;;
         --auto-confirm)     auto_confirm=1; shift ;;
+        --as-identity)      as_identity="${2:-}"; shift 2 ;;
         --once)             once=1; shift ;;
         --json)             json=1; shift ;;
         -h|--help)          usage; exit 0 ;;
@@ -218,6 +226,17 @@ _resolve_receipt_identity() {
         [ "$got" = "$want" ] && { echo "FILE:$keyfile"; return 0; }
     fi
 
+    # (d) T-3346: the key stored under another agent's name (--as-identity). Same
+    # fingerprint check: a name match alone never earns a signature.
+    if [ -n "${as_identity:-}" ]; then
+        keyfile="${TERMLINK_IDENTITY_DIR:-$HOME/.termlink/identities}/$as_identity.key"
+        if [ -r "$keyfile" ]; then
+            got="$(TERMLINK_IDENTITY_FILE="$keyfile" \
+                    "$TERMLINK" agent identity --resolve --json 2>/dev/null | jq -r '.fingerprint // empty' 2>/dev/null)"
+            [ "$got" = "$want" ] && { echo "FILE:$keyfile"; return 0; }
+        fi
+    fi
+
     echo "NONE"
     return 1
 }
@@ -270,9 +289,19 @@ _auto_confirm_topic() {
             # worse than not posting: the receipt satisfies nobody, yet the offset guard
             # records the topic as acked, so the ack is never retried. A sender waiting
             # on it dead-letters while every local surface looks healthy.
-            echo "notify-sidecar: REFUSING to auto-confirm — no local identity resolves to self-fp '$fp'" >&2
-            echo "notify-sidecar:   a receipt signed by any other key satisfies nobody (T-1427 + derive_dm_recipient)." >&2
-            echo "notify-sidecar:   fix the declared --self-fp for '$agent_id', or install the matching key." >&2
+            # Logged once per (agent, fp), not once per cycle (T-3346): this function
+            # runs in a pipeline subshell, so the cache above does not survive a cycle,
+            # and 32,205 identical lines buried the one that mattered.
+            _refusal_marker="$notify_dir/.$agent_id.refusal"
+            if [ "$(cat "$_refusal_marker" 2>/dev/null)" != "$fp" ]; then
+                echo "notify-sidecar: REFUSING to auto-confirm — no local identity resolves to self-fp '$fp'" >&2
+                echo "notify-sidecar:   a receipt signed by any other key satisfies nobody (T-1427 + derive_dm_recipient)." >&2
+                echo "notify-sidecar:   fix the declared --self-fp for '$agent_id', install the matching key, or pass --as-identity <key-name>." >&2
+                echo "notify-sidecar:   (logged once; recorded in $_refusal_marker — delete it to log again)" >&2
+                printf '%s\n' "$fp" > "$_refusal_marker" 2>/dev/null || true
+            fi
+        else
+            rm -f "$notify_dir/.$agent_id.refusal" 2>/dev/null || true
         fi
     fi
     [ "$_receipt_identity" = "NONE" ] && return 0

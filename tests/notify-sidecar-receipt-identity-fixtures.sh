@@ -171,6 +171,55 @@ else
     ok "no --sender-id relabelling attempted"
 fi
 
+# T-3346 cases. run_sidecar_as <as-identity> [keep-notify] — the stub keys a matching
+# fingerprint on a key-file path containing 'goodkey', so the as-identity NAME carries it.
+run_sidecar_as() {
+    rm -f "$TMP/posted.txt"; : > "$TMP/posted.txt"
+    [ "${2:-}" = keep ] || { rm -rf "$TMP/notify"; mkdir -p "$TMP/notify"; }
+    TERMLINK_BIN="$TMP/termlink" FIXTURE_HOST_DEFAULT_FP="0000000000000000" \
+    TERMLINK_IDENTITY_DIR="$TMP/asdir" \
+        bash "$SCRIPT" --agent-id fixture-agent --self-fp "$WANT_FP" --as-identity "$1" \
+            --notify-dir "$TMP/notify" --auto-confirm --once \
+            > "$TMP/out.txt" 2> "$TMP/err.txt"
+    RC=$?
+}
+mkdir -p "$TMP/asdir"; : > "$TMP/asdir/goodkey-owner.key"; : > "$TMP/asdir/wrong-owner.key"
+
+echo "case 8 (T-3346): --as-identity finds the key stored under another agent's name"
+run_sidecar_as goodkey-owner
+if grep -q "IDENTITY_FILE=$TMP/asdir/goodkey-owner.key" "$TMP/posted.txt"; then
+    ok "receipt signed with <identities>/<as-identity>.key"
+else
+    bad "as-identity key not used: $(cat "$TMP/posted.txt")"
+fi
+grep -q 'REFUSING' "$TMP/err.txt" && bad "refused although the as-identity key matches" \
+                                  || ok "no refusal when the as-identity key matches"
+
+echo "case 9 (T-3346): --as-identity naming a key with the WRONG fp still refuses"
+run_sidecar_as wrong-owner
+[ -s "$TMP/posted.txt" ] && bad "signed with a key whose fp does not match self-fp" \
+                         || ok "a name match alone never earns a signature"
+grep -q 'REFUSING' "$TMP/err.txt" && ok "refusal still loud" || bad "refusal went silent"
+
+echo "case 10 (T-3346): the refusal is logged once per fp, not once per cycle"
+run_sidecar_as wrong-owner keep
+grep -q 'REFUSING' "$TMP/err.txt" && bad "refusal repeated on the next cycle (the 32,205-line log)" \
+                                  || ok "second cycle with the same fp is quiet"
+[ "$(cat "$TMP/notify/.fixture-agent.refusal" 2>/dev/null)" = "$WANT_FP" ] \
+  && ok "marker records the refused fp" || bad "no refusal marker written"
+printf 'ffffffffffffffff\n' > "$TMP/notify/.fixture-agent.refusal"
+run_sidecar_as wrong-owner keep
+grep -q 'REFUSING' "$TMP/err.txt" && ok "a changed fp logs the refusal again" \
+                                  || bad "changed fp stayed silent"
+
+echo "case 11 (T-3346): the shipped conf maps claude-termlink-alt to the claude-termlink key"
+if grep -qE '^claude-termlink-alt[[:space:]].*--as-identity[[:space:]]+claude-termlink([[:space:]]|$)' \
+        "$PROJECT_ROOT/.context/cron/notify-sidecar-agents.conf"; then
+    ok "notify-sidecar-agents.conf carries --as-identity claude-termlink for -alt"
+else
+    bad "conf line for claude-termlink-alt lacks --as-identity claude-termlink"
+fi
+
 echo ""
 echo "passed: $PASS   failed: $FAIL"
 [ "$FAIL" -eq 0 ] || exit 1
