@@ -280,3 +280,35 @@ the output in one pass after the last question.
 4. Authorises: R-37 changed accordingly; the canary task; the landing place with its negative-control test.
    Leaves open: the channel by which the urgent alarm reaches the operator; the hub steward (T-3333) stays parked.
 
+## OD-15 Interrupt consent, respawn and the startup chain (section 9.18) — ruled A, refined in dialogue
+
+1. Asked 2026-10-05 with options A (interrupts only from allowed authenticated senders; respawn only under an operator
+   grant with budget and restart limits), B (no consent layer), C (operator approves each interrupt), D (never
+   interrupt). Facts given: OD-2 B already makes urgent arrive via the hook, never typed; OD-6 B forbids forced
+   relaunch; senders are verified by signing key (T-1427); per-agent keys exist (runme action 8, T-3346); R-9 unbuilt.
+2. Operator dialogue (two turns):
+   2a. agrees with A; starting an agent that is not running needs operator approval, with pre-approved situations
+       recorded (Tier 2 = one-off approval, Tier 3 = pre-approved category); the agent may propose pre-approval when
+       a situation recurs;
+   2b. distinguish addressing something not running (role, project, dead session: may be started) from an exact
+       agent that existed and is gone (not a valid start);
+   2c. but an agent that died mid-conversation should be started again to reread its context and pick up.
+   Orchestrator: agreed; the line is "resume the same conversation, never substitute a fresh copy" — in Claude Code
+   the transcript is the conversation state and `--resume <session-id>` reloads it.
+3. **Operator ruling: "yes"** to A refined:
+   3a. mid-turn urgent delivery only from senders the receiver allows by verified key (default: own project plus the
+       operator); others are downgraded to normal, never dropped;
+   3b. mail may start an agent only for role or project addressing with nothing live, under a Tier-2 approval or a
+       Tier-3 grant (budget, restart limit, allowed senders);
+   3c. an exact instance that died mid-conversation is resumed (same transcript) only if the home hub says DEAD
+       (never UNKNOWN), the conversation is open, the transcript is resumable, and a grant covers it; a resume
+       counts against the restart limit, and a second death on the same message flags it to the operator while the
+       sender sees STUCK;
+   3d. an instance that ended cleanly or cannot be resumed: dead letter, the sender sees DEAD, and re-addressing to
+       the role is the sender's choice; a fresh copy never answers conversation mail;
+   3e. the agent proposes a Tier-3 grant after 3 recurring Tier-2 approvals; the operator approves;
+   3f. R-9 stays as confirmed; its "start the agent" step follows 3b to 3d.
+4. Authorises: R-9, R-19 and the consent rules beside R-8; an allow-list requirement; a resume requirement; the
+   grant format. Leaves open: grant fields and storage (architect, step 4); the IAC-72 narrowing of R-9; how urgent
+   is marked (CAND-4, OD-17).
+

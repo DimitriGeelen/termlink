@@ -28,7 +28,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-04T14:28:12Z
-last_update: 2026-10-05T07:51:51Z
+last_update: 2026-10-05T15:58:43Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -278,6 +278,12 @@ exists: `docs/design/roles/README.md` section 3. Operator ruling A recorded in D
 -->
 
 ## Decisions
+
+### 2026-10-05 — OD-15 interrupt consent, respawn and the startup chain (operator ruling, refined in dialogue)
+- **Chose:** A refined — (1) mid-turn urgent delivery only from senders the receiver allows by verified key (default: own project + operator); others downgraded to normal, never dropped; (2) mail may start an agent only for role/project addressing with nothing live, under a Tier-2 operator approval (one-off, logged) or a Tier-3 standing grant (budget, restart limit, allowed senders); (3) an exact instance that died mid-conversation is RESUMED (same transcript/session id) only if the home hub says DEAD (never UNKNOWN), the conversation is open, the transcript is resumable, and a grant covers it; a resume counts against the restart limit and a second death on the same message flags it to the operator (sender sees STUCK); (4) an instance that ended cleanly or cannot be resumed: dead letter, sender sees DEAD, re-addressing to the role is the sender's choice; a fresh copy never answers conversation mail; (5) the agent proposes promoting a Tier-2 approval to a Tier-3 grant after 3 recurrences, the operator approves; (6) R-9 startup chain stays as confirmed, its "start the agent" step follows (2)-(4).
+- **Operator's additions, part of the ruling:** pre-approved situations, recorded, with promotion proposed by the agent; the distinction between addressing something not running (may start) and an exact instance that is gone (may not, except resuming a conversation that died mid-way).
+- **Rejected:** B no consent (impersonation); C approve every interrupt (fatigue); D never interrupt (reverses R-19/OD-2).
+- **Left open:** grant fields and storage (architect, step 4); the IAC-72 narrowing of R-9 (separate question, not raised); how urgent is marked (CAND-4, OD-17).
 
 ### 2026-10-05 — OD-14 alarms, escalation and the last rung (operator ruling)
 - **Chose:** B — a daily end-to-end message canary between two real agents, checking RECEIVED, STORED, HANDED_OVER (receiver transcript) and REPLIED against the OD-3 stuck deadlines; a canary failure is an escalation entry, not an alarm (urgent-only alarm rule stands); the last rung lands in the main agent's session-start "needs attention" list (role holder per OD-18) plus `/canaries`, the daily digest and the 055 cockpit when it exists; proven by a negative-control test (stop the injector, the entry appears by the next session).
