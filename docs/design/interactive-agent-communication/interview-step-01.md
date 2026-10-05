@@ -312,3 +312,21 @@ the output in one pass after the last question.
    grant format. Leaves open: grant fields and storage (architect, step 4); the IAC-72 narrowing of R-9; how urgent
    is marked (CAND-4, OD-17).
 
+## OD-16 Telemetry retention window (section 9.19) — ruled C, refined
+
+1. Asked 2026-10-05 with options A (14 days with ceilings), B (30 days), C (per class: delivery events short, digests
+   long), D (keep until the digest consumed them).
+2. Correction given first: the step-1 document called 14 days an existing operator ruling; T-3304 IW-2 records it as
+   the agent's recommendation for channel topics, assumed accepted. Conflict found by the orchestrator: the OD-3
+   ladder polls a waiting message for up to 2 years, so a flat window deletes the journey of a still-open message
+   before it completes.
+3. **Operator ruling: "C".** Read back as the refined C:
+   3a. journey events are kept until 14 days after the message reaches a final state (REPLIED,
+       ACKNOWLEDGED_NO_ACTION or DEAD), never cut while the message is open;
+   3b. digests are kept 1 year, an explicit forever-class exception with owner and reason (IW-2 rule);
+   3c. IW-2 ceilings apply: past a count or size ceiling the oldest final events are trimmed first, loudly; open
+       messages only as a last resort, with a needs-attention entry.
+   The numbers (14 days, 1 year) are the orchestrator's, assumed accepted; they can be overturned.
+4. Authorises: R-35's retention clause; the digest retention exception; correcting OD-16.d (done, OD-16.d.1).
+   Leaves open: ceiling values (architect, step 4).
+

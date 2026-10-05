@@ -28,7 +28,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-04T14:28:12Z
-last_update: 2026-10-05T15:58:43Z
+last_update: 2026-10-05T18:15:06Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -278,6 +278,13 @@ exists: `docs/design/roles/README.md` section 3. Operator ruling A recorded in D
 -->
 
 ## Decisions
+
+### 2026-10-05 — OD-16 telemetry retention window (operator ruling)
+- **Chose:** C refined — journey events kept until 14 days after the message reaches a final state (REPLIED, ACKNOWLEDGED_NO_ACTION, DEAD), never cut while the message is open (the OD-3 ladder can keep a message waiting up to 2 years); digests kept 1 year as an explicit forever-class exception with owner and reason (IW-2 rule); IW-2 count/size ceilings apply, trimming the oldest FINAL events first, loudly, and open-message events only as a last resort with a needs-attention entry.
+- **Numbers:** 14 days and 1 year are the agent's proposal, assumed accepted (operator ruled "C" without naming others); can be overturned.
+- **Correction recorded:** the step-1 document called 14 days "an existing operator ruling"; T-3304 IW-2 shows it was the agent's recommendation, for topics, assumed accepted. Fixed in OD-16.d.1.
+- **Rejected:** A flat 14 days and B flat 30 days (both cut the journey of a still-open message); D until digested (trusts one mechanism, rejected in IW-2).
+- **Left open:** ceiling values (architect, step 4).
 
 ### 2026-10-05 — OD-15 interrupt consent, respawn and the startup chain (operator ruling, refined in dialogue)
 - **Chose:** A refined — (1) mid-turn urgent delivery only from senders the receiver allows by verified key (default: own project + operator); others downgraded to normal, never dropped; (2) mail may start an agent only for role/project addressing with nothing live, under a Tier-2 operator approval (one-off, logged) or a Tier-3 standing grant (budget, restart limit, allowed senders); (3) an exact instance that died mid-conversation is RESUMED (same transcript/session id) only if the home hub says DEAD (never UNKNOWN), the conversation is open, the transcript is resumable, and a grant covers it; a resume counts against the restart limit and a second death on the same message flags it to the operator (sender sees STUCK); (4) an instance that ended cleanly or cannot be resumed: dead letter, sender sees DEAD, re-addressing to the role is the sender's choice; a fresh copy never answers conversation mail; (5) the agent proposes promoting a Tier-2 approval to a Tier-3 grant after 3 recurrences, the operator approves; (6) R-9 startup chain stays as confirmed, its "start the agent" step follows (2)-(4).

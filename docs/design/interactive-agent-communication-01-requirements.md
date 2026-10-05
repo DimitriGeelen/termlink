@@ -985,6 +985,7 @@ OD-16.c.B 30 days.
 OD-16.c.C Per class: delivery events short, digests long.
 OD-16.c.D Keep until the digest has consumed them.
 OD-16.d Recommendation: A. Reason: it is an existing operator ruling, and 30 days was only an example. The reviewers did not address this question.
+OD-16.d.1 Correction (2026-10-05, interview): the 14 days is NOT an operator ruling. T-3304 IW-2 records it as "agent recommendation, assumed accepted (operator did not name a window)", and it set the default for channel topics, not telemetry. The operator ruled C in the interview; see interview-step-01.md OD-16.
 OD-16.e Changes: R-35.
 OD-16.f Sources: `IAC` item 71.
 
