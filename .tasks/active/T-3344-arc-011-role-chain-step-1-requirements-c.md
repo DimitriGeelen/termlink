@@ -28,7 +28,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-04T14:28:12Z
-last_update: 2026-10-05T07:13:43Z
+last_update: 2026-10-05T07:23:29Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -278,6 +278,10 @@ exists: `docs/design/roles/README.md` section 3. Operator ruling A recorded in D
 -->
 
 ## Decisions
+
+### 2026-10-05 — OD-12 address rulings and stable hub id (operator ruling)
+- **Chose:** D — D-599 circuit form stands; hub canonical id minted once (today's fingerprint prefix becomes it, nothing renamed), fingerprint becomes the hub instance id; sidecar: alias ends one release after T-3342 (forward + warn until then); ask AEF for amended D-660.
+- **Rejected:** A (leaves cert rotation renaming inboxes); B D-660; C both names.
 
 ### 2026-10-05 — OD-11 name-to-id directory (operator ruling, with the operator's location insight)
 - **Chose:** A — home-hub project identity cards from observed authenticated registrations; pid minted once by the framework (names display only); hubs exchange cards, never messages; only the home hub says dead.

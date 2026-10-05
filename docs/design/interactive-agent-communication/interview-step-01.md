@@ -227,3 +227,23 @@ the output in one pass after the last question.
    rewording the exchange needs ("hubs never sync messages; hubs may exchange a directory of whom they serve"),
    which the operator approves separately via T-2470. Leaves open: relay of addressed mail between hubs as a
    fallback; OD-18 role lease; the re-mint command for a fork (AEF owns pid minting; to be proposed to AEF).
+
+## OD-12 Address rulings D-599/D-660 and stable ids (section 9.15) — ruled D
+
+1. Asked 2026-10-05 with options A (D-599 stands, ask AEF for amended D-660, end the `sidecar:` alias),
+   B (D-660 stands), C (both indefinitely), D (D-599 plus a stable hub canonical id and the fingerprint as instance).
+2. Facts given: every live inbox is in D-599 form `inbox:<hub-id>/<project>`; `sidecar:` topics still exist and are
+   posted to (sidecar:999 holds 30 messages on the canonical hub); the hub id in inbox names is the first 16 hex of
+   the TLS fingerprint (verified with `hub probe`), so a certificate regeneration (PL-021 class) would silently rename
+   every inbox on that hub. Orchestrator recommended D because OD-10/OD-11 apply "stable minted id plus observed id"
+   at the session and project levels and the hub level was the one inconsistency left.
+3. **Operator ruling: "D".** Read back as D including A's actions:
+   3a. D-599's circuit form stands; AEF is asked for the amended D-660 text so both records agree;
+   3b. each hub gets a canonical id minted once and stored with its runtime state, used in inbox names; the TLS
+       fingerprint becomes the hub's instance id, observed on its card;
+   3c. migration: today's fingerprint-based ids become the existing hubs' canonical ids, so nothing is renamed now;
+       only a future rotation stops renaming inboxes;
+   3d. the `sidecar:` alias ends one release after the T-3342 re-vendor; until then mail posted there is forwarded
+       and the sender is warned.
+4. Authorises: R-32, R-33; a hub-identity requirement; the alias end date; the request to AEF. Leaves open: where and
+   how the hub id is minted (architect, step 4).
