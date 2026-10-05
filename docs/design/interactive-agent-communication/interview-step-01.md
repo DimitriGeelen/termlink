@@ -343,4 +343,17 @@ the output in one pass after the last question.
        task; own-request replies exempt; delegation goes through claims). A +30 → +35, order unchanged. The operator
        confirmed the correction and then ruled "A".
    2d. Leaves open: framing markers (adapter, OD-7); threat coverage (step 2).
+3. **CAND-2 at-most-once acceptance — ruled A, refined in dialogue; CAND-19 merged in** (2026-10-05).
+   3a. Facts given: hub dedupe holds (sender, id) for 5 minutes only (`dedupe.rs:41`, T-2049); nothing receiver-side
+       looks at `client_msg_id`; AEF D-600 retries up to monthly and OD-3 keeps a message alive up to 2 years.
+   3b. Operator: it must be stored right; if lost before storing, ask for retransmit; if it still has to be
+       injected it must still be injected; without an answer we still chase it — "not that straightforward, cut and
+       dry, one-dimensional".
+   3c. Orchestrator agreed: idempotence per stage, not per message. Ruled as: a stage memory per message id (the
+       settlement record, at the hub per OD-5) with one stored copy, one hand-over, one reply; a duplicate before
+       STORED is stored (retransmit works); a known id with lost content triggers a resend request; STORED but not
+       handed over: not stored twice, hand-over continues, sender told the stage; HANDED_OVER without reply: never
+       handed over twice, sender told when; REPLIED: the reply is returned again. Chasing stays with OD-3 and OD-14;
+       a duplicate never resets it. Retention per OD-16. CAND-19 merged, not asked again.
+   3d. Leaves open: same id with different content (step 2).
 

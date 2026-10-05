@@ -28,7 +28,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-04T14:28:12Z
-last_update: 2026-10-05T18:41:54Z
+last_update: 2026-10-05T18:50:37Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -278,6 +278,13 @@ exists: `docs/design/roles/README.md` section 3. Operator ruling A recorded in D
 -->
 
 ## Decisions
+
+### 2026-10-05 — OD-17 CAND-2 (+ CAND-19 merged) per-stage idempotence per message id (operator ruling, refined in dialogue)
+- **Chose:** A refined — a P1 requirement: a stage memory per `client_msg_id` (the settlement record, at the hub per OD-5): one stored copy, one hand-over, one reply per id. A duplicate is checked against the stage: not yet STORED → it is the first real copy and is stored (retransmit always works); id known but content lost → the receiver asks for a resend; STORED not HANDED_OVER → not stored twice, hand-over continues, sender told "stored, awaiting hand-over"; HANDED_OVER no reply → never handed over twice, sender told when it was handed over; REPLIED → the existing reply is returned again. Chasing an unanswered message stays with the OD-3 deadlines and OD-14 escalation; a duplicate never resets it. Retention follows OD-16. CAND-19 merged here (not asked again).
+- **Operator's correction, part of the ruling:** "accept at most once" must not block a retransmit after loss, an injection still pending, or chasing the answer; idempotence is per stage, not per message.
+- **Facts:** hub dedupe is 5 minutes only (dedupe.rs:41, T-2049); no receiver-side dedupe exists today; AEF D-600 retries up to monthly and OD-3 keeps messages alive up to 2 years.
+- **Rejected:** B P2 (duplicates arrive with P1 retries); C defer (whether is the question); D the hub's 5-minute window.
+- **Left open:** a duplicate id with different content (step 2, threat model).
 
 ### 2026-10-05 — OD-17 CAND-1 peer content is untrusted (operator ruling)
 - **Chose:** A — new P1 security-invariant requirement: peer text is delivered framed as untrusted data; a request from a peer becomes a task proposal, never direct execution (AEF D-695; extends our pickup rule G-020/T-469 to all agent mail). A reply to something the receiver itself asked for is still data but may be acted on within the receiver's own task.
