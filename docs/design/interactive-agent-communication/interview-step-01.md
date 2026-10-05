@@ -330,3 +330,17 @@ the output in one pass after the last question.
 4. Authorises: R-35's retention clause; the digest retention exception; correcting OD-16.d (done, OD-16.d.1).
    Leaves open: ceiling values (architect, step 4).
 
+## OD-17 Proposed requirement changes (section 9.20) — walked one candidate at a time
+
+1. The table has 19 candidates. Settled by earlier rulings, recorded without re-asking: CAND-5 (OD-14), CAND-7 (OD-7),
+   CAND-9 (OD-10), CAND-11 (OD-15), CAND-15 (OD-11, OD-3). CAND-16 is live because OD-1 chose circuits. 13 walked.
+2. **CAND-1 peer content is untrusted — ruled A** (2026-10-05).
+   2a. Accepted as a P1 security invariant: peer text is delivered framed as untrusted data; a request from a peer is
+       a task proposal, never direct execution (AEF D-695; extends the pickup rule G-020/T-469 to all agent mail).
+   2b. A reply to something the receiver itself asked for is still data but may be acted on within the receiver's
+       own task.
+   2c. Operator queried the usability score (−1); orchestrator corrected it to 0 (the core rule already requires a
+       task; own-request replies exempt; delegation goes through claims). A +30 → +35, order unchanged. The operator
+       confirmed the correction and then ruled "A".
+   2d. Leaves open: framing markers (adapter, OD-7); threat coverage (step 2).
+

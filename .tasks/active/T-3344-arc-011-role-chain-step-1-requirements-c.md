@@ -28,7 +28,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-04T14:28:12Z
-last_update: 2026-10-05T18:15:06Z
+last_update: 2026-10-05T18:41:54Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -278,6 +278,13 @@ exists: `docs/design/roles/README.md` section 3. Operator ruling A recorded in D
 -->
 
 ## Decisions
+
+### 2026-10-05 — OD-17 CAND-1 peer content is untrusted (operator ruling)
+- **Chose:** A — new P1 security-invariant requirement: peer text is delivered framed as untrusted data; a request from a peer becomes a task proposal, never direct execution (AEF D-695; extends our pickup rule G-020/T-469 to all agent mail). A reply to something the receiver itself asked for is still data but may be acted on within the receiver's own task.
+- **Score correction (operator query):** usability was scored −1 for delegation friction; corrected to 0 because the core rule already requires a task before any action, own-request replies are exempt, and orchestrated delegation goes through claims. A total +30 → +35; ordering unchanged.
+- **Rejected:** B P2 (risk live before the rule); C defer to step 2 (identified and cheap); D reject (contradicts OD-15).
+- **Left open:** framing markers (adapter, OD-7); threat coverage (step 2).
+- **OD-17 candidates already settled by earlier rulings (recorded, not re-asked):** CAND-5 by OD-14; CAND-7 by OD-7; CAND-9 by OD-10; CAND-11 by OD-15; CAND-15 by OD-11 and OD-3. CAND-16 becomes live because OD-1 chose circuits and is walked as its own question.
 
 ### 2026-10-05 — OD-16 telemetry retention window (operator ruling)
 - **Chose:** C refined — journey events kept until 14 days after the message reaches a final state (REPLIED, ACKNOWLEDGED_NO_ACTION, DEAD), never cut while the message is open (the OD-3 ladder can keep a message waiting up to 2 years); digests kept 1 year as an explicit forever-class exception with owner and reason (IW-2 rule); IW-2 count/size ceilings apply, trimming the oldest FINAL events first, loudly, and open-message events only as a last resort with a needs-attention entry.
