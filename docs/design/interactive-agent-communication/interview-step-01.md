@@ -394,4 +394,17 @@ the output in one pass after the last question.
        corrected); computed from the existing back channel, no new channel; a silent back channel shows UNKNOWN,
        never DEAD.
    6d. Leaves open: the no-surfacing threshold for an idle agent (step 4).
+7. **CAND-8 explicit mail-hub setting — ruled A with 14e–14h, P1** (2026-10-06).
+   7a. Facts given: TERMLINK_RUNTIME_DIR does two jobs (local files and, implicitly, which hub carries mail); the
+       stray hub of 2026-10-04 split 32 sessions this way; T-3340 fixed the local case by better guessing; T-3345
+       lets a client read a hub's id over an authenticated call. Orchestrator recommended P1 against the document's
+       P2 because CAND-6's "right hub" needs a declared answer.
+   7b. Operator asked: hub crash, a new hub, several instances, an agent on another host. Answered from OD-11/OD-12
+       and the R-34 principle (a wrong delivery is worse than a visible failure).
+   7c. Ruled: projects declare their mail hub by canonical id plus address; clients verify via `hub_id` and refuse on
+       mismatch; runtime dir for local files only. 14e restart or cert rotation keeps the id; 14f a new hub has a new
+       id, clients refuse, recovery is a restore or an operator-approved re-home via runme with mail rescue; 14g the
+       same id in two places is flagged, never guessed; 14h agents on any host reach the declared home hub over
+       authenticated TLS, never a local fallback, and a project move includes re-homing ("moved to X").
+   7d. Leaves open: declaration file and format (step 4).
 

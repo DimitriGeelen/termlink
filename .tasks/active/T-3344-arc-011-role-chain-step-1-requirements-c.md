@@ -28,7 +28,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-04T14:28:12Z
-last_update: 2026-10-05T21:32:19Z
+last_update: 2026-10-05T22:04:36Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -278,6 +278,12 @@ exists: `docs/design/roles/README.md` section 3. Operator ruling A recorded in D
 -->
 
 ## Decisions
+
+### 2026-10-06 — OD-17 CAND-8 explicit mail-hub declaration (operator ruling)
+- **Chose:** A with 14e–14h — P1 (the step-1 document said P2; CAND-6's "right hub" needs it): each project declares its mail hub by canonical hub id plus address, in its own files (travels with the project, OD-11); clients verify the reached hub reports that id (`hub_id`, T-3345), refusing and flagging any mismatch, never silently using another hub; `TERMLINK_RUNTIME_DIR` is for local runtime files only; the declared hub is what CAND-6's "right hub" checks. 14e: a hub restart or cert rotation keeps the canonical id (OD-12), no action. 14f: a new hub has a new id; clients refuse loudly; recovery is a restore (id travels with state) or an operator-approved re-home (Tier 2, Tier 3 if recurring) applied by a runme action with mail rescue (T-3343 pattern). 14g: the same id seen in two places is flagged, never guessed (OD-11 applied to hubs). 14h: the declaration names the home hub's id and address, so an agent on any host reaches it over authenticated TLS; unreachable means UNKNOWN and waiting, never fallback to a local hub; a project move includes re-homing, and the old hub answers "moved to X"; circuits may be set up via another hub but the record goes to the home hub (OD-5).
+- **Operator's questions, answered in the ruling:** hub crash, new hub, several instances, agent on another host.
+- **Rejected:** B P2 (CAND-6 depends on it); C T-3340 guessing only (single-host, directory-based, the class that failed); D defer (whether, not where).
+- **Left open:** declaration file and format (architect, step 4).
 
 ### 2026-10-06 — OD-17 CAND-6 reachability as a visible per-agent state (operator ruling)
 - **Chose:** A with 16e — P1: four fields on the agent's home-hub card (OD-11): receiver up, right hub (binding: the hub receiving the reports owns the agent's inbox), adapter present, last surface time (= latest real HANDED_OVER or confirmation, never a heartbeat); readable by peers (subject to OD-15 consent) and by the operator, landing in needs-attention when a field goes bad; R-29's CLEAR verdict requires recent surfacing progress, not just a fresh heartbeat (corrects R-29.e). 16e: the fields are computed at the home hub from the existing telemetry back channel (R-35, OD-5); no new channel; a silent back channel shows UNKNOWN, never DEAD (OD-3).
