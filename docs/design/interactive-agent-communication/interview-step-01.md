@@ -372,4 +372,12 @@ the output in one pass after the last question.
        invariants. Staging: each dimension required once its subject exists; all before arc-011 closes.
    4d. Flagged for the write-up: R-29.e "fresh heartbeat and no flag = CLEAR" contradicts the 32,205-refusal failure.
    4e. Leaves open: test estate and agent pairs (step 5).
+5. **CAND-4 how urgent is marked — ruled A** (2026-10-05).
+   5a. Facts given (code check): sender sets metadata `priority`, default 0; receiver clamps to −9..9
+       (`journal-mirror.sh:164`); queue ordered by priority then time (`notify-sidecar-api.sh:142`); urgent threshold
+       5, per-receiver override (`notify-injector.sh:98`); no `--priority` send option; AEF does not use priority.
+   5b. Ruled: priority −9..9, default 0, clamped at the receiver; urgent at 5 or more by default (threshold
+       confirmed), receiver may change its own; urgency honoured only from allowed senders per OD-15, others
+       downgraded, never dropped. Follow-ups: `--priority` in the send tooling; ask AEF to carry the field.
+   5c. Leaves open: revisit the threshold after the canary has run; attention budgets (CAND-12).
 

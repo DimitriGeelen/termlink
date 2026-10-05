@@ -28,7 +28,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-04T14:28:12Z
-last_update: 2026-10-05T20:06:54Z
+last_update: 2026-10-05T21:17:52Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -278,6 +278,11 @@ exists: `docs/design/roles/README.md` section 3. Operator ruling A recorded in D
 -->
 
 ## Decisions
+
+### 2026-10-05 — OD-17 CAND-4 how urgent is marked (operator ruling)
+- **Chose:** A — `priority` integer −9..9 in message metadata, default 0, clamped at the receiver (journal-mirror.sh:164); urgent at ≥5 by default (threshold confirmed), a receiver may change its own threshold (INJECTOR_URGENT_THRESHOLD, notify-injector.sh:98); the queue orders by priority then time (notify-sidecar-api.sh:142); urgency honoured only from allowed senders (OD-15), others downgraded, never dropped. Build follow-ups: a `--priority` option in the send tooling; ask AEF to carry the field.
+- **Rejected:** B yes/no flag (loses existing ordering); C no default threshold (senders cannot predict); D defer (already built).
+- **Left open:** revisit the threshold after the canary has run; attention budgets (CAND-12).
 
 ### 2026-10-05 — OD-17 CAND-3 how arc-011 proves it works (operator ruling, after external review)
 - **Chose:** A revised with staging — tests chosen per FAILURE MODE at the lowest tier that can see it; four tiers: fixture (simulated time for long schedules), live hub, one real agent + scripted peer through the INSTALLED scheduler and hooks per supported harness, real agents for round trips (incl. the three-agent many-to-many of R-1.e, ACKNOWLEDGED_NO_ACTION, resume refused); dimensions across tiers: two hubs over a circuit, crash/reboot at the worst moments, the installed system (clean install/upgrade/boot from the release artifact, systemd and not); negative controls kill-checked (green before the break, red after), with the three real failures as standing controls (second hub in another runtime dir, signing key under the wrong name, scheduler/hook not installed) plus a blocked reply leg at tier 4; continuous proof (daily canary from the installed artifact, rotated across hosts/pairs, own staleness detected, escalation landing shown; drill re-run after cert rotation, re-vendor, host reboot); mutant-per-push only for invariants (dedupe, ordering, consent, never-fallback). Staging: each dimension's tests become required when the thing they test exists; all required before arc-011 closes.
