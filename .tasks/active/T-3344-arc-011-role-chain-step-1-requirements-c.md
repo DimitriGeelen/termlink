@@ -28,7 +28,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-04T14:28:12Z
-last_update: 2026-10-05T21:17:52Z
+last_update: 2026-10-05T21:32:19Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -278,6 +278,12 @@ exists: `docs/design/roles/README.md` section 3. Operator ruling A recorded in D
 -->
 
 ## Decisions
+
+### 2026-10-06 — OD-17 CAND-6 reachability as a visible per-agent state (operator ruling)
+- **Chose:** A with 16e — P1: four fields on the agent's home-hub card (OD-11): receiver up, right hub (binding: the hub receiving the reports owns the agent's inbox), adapter present, last surface time (= latest real HANDED_OVER or confirmation, never a heartbeat); readable by peers (subject to OD-15 consent) and by the operator, landing in needs-attention when a field goes bad; R-29's CLEAR verdict requires recent surfacing progress, not just a fresh heartbeat (corrects R-29.e). 16e: the fields are computed at the home hub from the existing telemetry back channel (R-35, OD-5); no new channel; a silent back channel shows UNKNOWN, never DEAD (OD-3).
+- **Operator's check, confirmed:** the hub sets up the circuit; established conversations run directly sidecar to sidecar; step events and a copy of each turn go to the home hub on a back channel, never in the message's own path (OD-1 C, OD-5, R-35.e).
+- **Rejected:** B operator-only (sender stays blind, operator becomes relay); C P2 (delivery without visibility repeats the failure); D canaries only (one pair once a day; the claude-termlink-alt sidecar fooled every existing signal).
+- **Left open:** how long without surfacing is bad for an idle agent with no mail (architect, step 4).
 
 ### 2026-10-05 — OD-17 CAND-4 how urgent is marked (operator ruling)
 - **Chose:** A — `priority` integer −9..9 in message metadata, default 0, clamped at the receiver (journal-mirror.sh:164); urgent at ≥5 by default (threshold confirmed), a receiver may change its own threshold (INJECTOR_URGENT_THRESHOLD, notify-injector.sh:98); the queue orders by priority then time (notify-sidecar-api.sh:142); urgency honoured only from allowed senders (OD-15), others downgraded, never dropped. Build follow-ups: a `--priority` option in the send tooling; ask AEF to carry the field.

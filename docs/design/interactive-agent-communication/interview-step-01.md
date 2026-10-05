@@ -380,4 +380,18 @@ the output in one pass after the last question.
        confirmed), receiver may change its own; urgency honoured only from allowed senders per OD-15, others
        downgraded, never dropped. Follow-ups: `--priority` in the send tooling; ask AEF to carry the field.
    5c. Leaves open: revisit the threshold after the canary has run; attention budgets (CAND-12).
+6. **CAND-6 reachability as a visible per-agent state — ruled A with 16e** (2026-10-06, "proceed as suggested").
+   6a. Facts given: every existing signal (sidecar, presence and waker heartbeats, waker canary) proves a process is
+       alive, not that mail reaches the agent; the claude-termlink-alt sidecar had a seconds-old heartbeat while
+       refusing 32,205 confirmations; R-29.e accepts "fresh heartbeat and no flag" as CLEAR.
+   6b. Operator asked whether this is the same back channel as the sidecar telemetry, given that established
+       conversations run directly. Confirmed from OD-1 C and OD-5: the hub sets up the circuit, conversations run
+       sidecar to sidecar, step events and a copy of each turn go to the home hub outside the message path (R-35.e);
+       the reachability fields are computed from that same back channel.
+   6c. Ruled: four fields on the home-hub card (receiver up; right hub as a binding check; adapter present; last
+       surface time = latest real HANDED_OVER or confirmation, never a heartbeat); readable by peers under OD-15 and
+       by the operator, needs-attention when a field goes bad; R-29 CLEAR needs recent surfacing progress (R-29.e
+       corrected); computed from the existing back channel, no new channel; a silent back channel shows UNKNOWN,
+       never DEAD.
+   6d. Leaves open: the no-surfacing threshold for an idle agent (step 4).
 
