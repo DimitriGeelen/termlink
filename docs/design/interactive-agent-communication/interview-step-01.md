@@ -260,3 +260,23 @@ the output in one pass after the last question.
        over work: an expiry, authorisation checked at execution time, a fencing token;
    2d. R-43 is dropped as a duplicate of R-9.
 3. Authorises: R-40..R-43 updated as above. Leaves open: the R-41 slice (planner, step 8).
+
+## OD-14 Alarms, escalation and the last rung (section 9.17) — ruled B
+
+1. Asked 2026-10-05 with options A (urgent alarm + pile-up escalation + digest, no canary), B (A plus an end-to-end
+   canary), C (a hub-steward agent, T-3333), D (defer). The step-1 document recommended B and left open whether a
+   canary failure is an alarm and where the last rung lands; the orchestrator proposed answers from what exists.
+2. Facts given: three failures fired nothing — 3 October (mail stored, never surfaced), the stray second hub, and the
+   claude-termlink-alt sidecar (healthy heartbeat, 32,205 refused confirmations, fixed in T-3346). Existing parts:
+   ~20 cron canaries, `/canaries`, the session-start "needs attention" list (T-3327), and the on-demand provers
+   `comms-selftest.sh` and `session-message-selftest.sh`.
+3. **Operator ruling: "b".** Read back as B with the proposed answers:
+   3a. a daily end-to-end message canary between two real agents, checking RECEIVED, STORED, HANDED_OVER in the
+       receiver's transcript, and REPLIED, against the OD-3 stuck deadlines;
+   3b. a canary failure is an escalation entry, never an alarm; the urgent-only alarm rule stands;
+   3c. the last rung lands in the main agent's session-start "needs attention" list (role holder per OD-18), plus
+       `/canaries`, the daily digest and the 055 cockpit view when it exists;
+   3d. the build proves the landing with a negative control: stop the injector, the entry appears by the next session.
+4. Authorises: R-37 changed accordingly; the canary task; the landing place with its negative-control test.
+   Leaves open: the channel by which the urgent alarm reaches the operator; the hub steward (T-3333) stays parked.
+

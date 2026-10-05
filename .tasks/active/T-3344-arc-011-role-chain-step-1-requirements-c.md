@@ -279,6 +279,11 @@ exists: `docs/design/roles/README.md` section 3. Operator ruling A recorded in D
 
 ## Decisions
 
+### 2026-10-05 — OD-14 alarms, escalation and the last rung (operator ruling)
+- **Chose:** B — a daily end-to-end message canary between two real agents, checking RECEIVED, STORED, HANDED_OVER (receiver transcript) and REPLIED against the OD-3 stuck deadlines; a canary failure is an escalation entry, not an alarm (urgent-only alarm rule stands); the last rung lands in the main agent's session-start "needs attention" list (role holder per OD-18) plus `/canaries`, the daily digest and the 055 cockpit when it exists; proven by a negative-control test (stop the injector, the entry appears by the next session).
+- **Rejected:** A no canary (3 October, the stray hub and the claude-termlink-alt sidecar all failed with nothing firing); C hub-steward agent (adds the dependency it monitors; T-3333 stays parked); D defer (last rung lands nowhere).
+- **Left open:** the channel by which the urgent alarm itself reaches the operator.
+
 ### 2026-10-05 — OD-13 section 14 items (operator ruling)
 - **Chose:** A refined — R-40 merged into R-28 (satisfied by OD-2/6/8); R-42 now ("delivered" only with a recorded HANDED_OVER); R-41 later slice with expiry, execution-time authorisation, fencing token; R-43 dropped (duplicate of R-9).
 - **Rejected:** B keep all (duplicate); C drop all (loses R-42); D R-40 only.
