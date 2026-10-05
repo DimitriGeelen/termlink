@@ -28,7 +28,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-04T14:28:12Z
-last_update: 2026-10-05T22:12:08Z
+last_update: 2026-10-05T22:27:10Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -278,6 +278,10 @@ exists: `docs/design/roles/README.md` section 3. Operator ruling A recorded in D
 -->
 
 ## Decisions
+
+### 2026-10-06 — OD-3 correction: two polling ladders by priority (operator, during CAND-12)
+- **Correction:** normal messages (priority < 5) poll each rung twice — 1 min, 5 min, 15 min, 1 h, 4 h, 1 day, 3 days, 1 week, 1 month, 1 quarter, 1 year; urgent (priority >= 5) poll the continuous 43-rung ladder (15 s … 2 years). The OD-3 record had applied the continuous ladder to all messages. States and stuck deadlines unchanged. A message's ladder also governs its re-sends before STORED, replacing D-600 for agent mail (normal ladder = D-600 extended to years). AEF to be told; pickup offset 314 carries the superseded form.
+- **Confirmation:** read back; operator answered "next" without corrections; recorded as confirmed, can be overturned.
 
 ### 2026-10-06 — OD-17 CAND-10 yield-and-wake (operator ruling)
 - **Chose:** A, P1 (the step-1 document said P2; the operator asked for it 2026-04-26 T-243 and 2026-05-25 T-1800) — a send may carry "awaiting reply by <deadline>" and the sender yields (ends its turn); the reply is handed over into the sender's session linked to the conversation (OD-2/OD-6 delivery, OD-5 record); if the deadline passes first the sender is woken with STUCK (OD-3); an idle sender that cannot be woken shows WAITING FOR RECIPIENT; a short blocking wait (seconds) remains for quick exchanges (`termlink agent ask` exists, blocks up to 30 s by default).

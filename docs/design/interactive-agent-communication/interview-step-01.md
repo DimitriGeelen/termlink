@@ -86,6 +86,18 @@ the output in one pass after the last question.
    requirements (sender-visible, cockpit-visible); urgent deadlines. AEF's retry ladder (D-600) for re-sending is
    unaffected and stays AEF's. Leaves open: where escalation of "stuck" lands (OD-14).
 
+6. **Correction, 2026-10-06 (operator, during OD-17 CAND-12): two ladders by priority, not one.** The record above
+   applied the continuous ladder to all messages; the operator's intent was:
+   6a. normal messages (priority below 5): each rung twice — 1 min, 5 min, 15 min, 1 h, 4 h, 1 day, 3 days, 1 week,
+       1 month, 1 quarter, 1 year (22 polls, a little over two years; rungs from R-10.1 of 2026-10-03, its 15 s rung
+       dropped because the operator began normal at 1 min);
+   6b. urgent messages (priority 5 or higher): the continuous ladder of point 2 (15 s … 2 years, 43 polls);
+   6c. the five states and stuck deadlines of point 3 are unchanged;
+   6d. a message's ladder also governs its re-sends before STORED: one schedule per priority class for re-sending
+       and polling; for agent mail this replaces AEF's D-600 (the normal ladder is D-600 extended to years instead of
+       dead-lettering at a month). AEF to be told (point 5's pickup offset 314 carries the superseded form).
+   Read back to the operator, who answered "next" without corrections; recorded as confirmed, can be overturned.
+
 5. Shared with AEF on 2026-10-04 at the operator's "yes": framework:pickup offset 314 (pickup_id
    010-termlink/T-3344-polling-ladder-v2-and-message-states, supersedes offset 309), plus a note on AEF's inbox.
 
