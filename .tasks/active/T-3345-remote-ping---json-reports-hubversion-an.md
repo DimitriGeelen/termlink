@@ -29,7 +29,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-05T07:10:31Z
-last_update: 2026-10-05T12:26:54Z
+last_update: 2026-10-05T12:43:25Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -113,6 +113,8 @@ grep -q 'fn fetch_hub_identity' crates/termlink-cli/src/commands/remote.rs
 grep -q 'mcp-hub-version' crates/termlink-mcp/src/tools.rs
 bash scripts/check-mcp-parity-census.sh --quiet
 bash scripts/check-platform-lock.sh --quiet
+# Shipped == live (G-069): the canonical hub must itself report its id. Goes green after runme actions 4+5 (install + restart).
+termlink remote ping 127.0.0.1:9100 --secret-file /var/lib/termlink/hub.secret --json > /tmp/.t3345-live 2>&1 && grep -q '"hub_id":"cacc73ea32b121dd"' /tmp/.t3345-live
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
