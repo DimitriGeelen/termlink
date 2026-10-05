@@ -356,4 +356,20 @@ the output in one pass after the last question.
        handed over twice, sender told when; REPLIED: the reply is returned again. Chasing stays with OD-3 and OD-14;
        a duplicate never resets it. Retention per OD-16. CAND-19 merged, not asked again.
    3d. Leaves open: same id with different content (step 2).
+4. **CAND-3 the closing rule — ruled A revised, with staging** (2026-10-05, after external review).
+   4a. Dialogue: first proposal "two real agents for every delivery requirement"; operator: too heavy; tiered
+       draft (fixture, live hub, two agents); operator: a one-agent tier is missing; four tiers; operator asked for
+       external review. Codex (16 findings) and GLM (13) agreed with each other: select per failure mode, tier 1
+       overclaims, check binding not identity, add topology/harness/crash/installed-system dimensions, kill-checked
+       controls, continuous proof. GLM: the draft "would have passed all three cited failures".
+   4b. Operator corrected the scoring: usability is value to the user, not test effort; scores re-done (A +63,
+       C +21, B +2, D −21); effort belongs to the cost axis and is handled by staging.
+   4c. Ruled: per-failure-mode selection; four tiers (fixture; live hub; one real agent + scripted peer through the
+       installed scheduler and hooks, per harness; real agents for round trips incl. three-agent many-to-many,
+       no-action and resume-refused); dimensions two hubs, crash/reboot, installed system; kill-checked negative
+       controls with the three real failures as standing controls; continuous canary from the installed artifact,
+       rotated, staleness detected, re-run after rotation, re-vendor and reboot; mutants per push only for
+       invariants. Staging: each dimension required once its subject exists; all before arc-011 closes.
+   4d. Flagged for the write-up: R-29.e "fresh heartbeat and no flag = CLEAR" contradicts the 32,205-refusal failure.
+   4e. Leaves open: test estate and agent pairs (step 5).
 

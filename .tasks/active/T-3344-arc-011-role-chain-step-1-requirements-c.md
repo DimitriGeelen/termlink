@@ -28,7 +28,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-04T14:28:12Z
-last_update: 2026-10-05T18:50:37Z
+last_update: 2026-10-05T20:06:54Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -278,6 +278,14 @@ exists: `docs/design/roles/README.md` section 3. Operator ruling A recorded in D
 -->
 
 ## Decisions
+
+### 2026-10-05 — OD-17 CAND-3 how arc-011 proves it works (operator ruling, after external review)
+- **Chose:** A revised with staging — tests chosen per FAILURE MODE at the lowest tier that can see it; four tiers: fixture (simulated time for long schedules), live hub, one real agent + scripted peer through the INSTALLED scheduler and hooks per supported harness, real agents for round trips (incl. the three-agent many-to-many of R-1.e, ACKNOWLEDGED_NO_ACTION, resume refused); dimensions across tiers: two hubs over a circuit, crash/reboot at the worst moments, the installed system (clean install/upgrade/boot from the release artifact, systemd and not); negative controls kill-checked (green before the break, red after), with the three real failures as standing controls (second hub in another runtime dir, signing key under the wrong name, scheduler/hook not installed) plus a blocked reply leg at tier 4; continuous proof (daily canary from the installed artifact, rotated across hosts/pairs, own staleness detected, escalation landing shown; drill re-run after cert rotation, re-vendor, host reboot); mutant-per-push only for invariants (dedupe, ordering, consent, never-fallback). Staging: each dimension's tests become required when the thing they test exists; all required before arc-011 closes.
+- **Path:** operator found "two real agents for every requirement" too heavy, added the missing one-agent tier, then asked for external review (`docs/reports/T-3344-cand3-review/`: Codex 16 findings, GLM 13, comparison; no disagreement between them).
+- **Score corrections (operator):** usability is value to the user, not our test effort. D3: A −1→+2, B +1→−1, C −2→0, D +1→−1; C F-AUTONOMY −1→0. Totals A +63, C +21, B +2, D −21. Test effort belongs on the cost axis, handled by staging.
+- **Rejected:** B tiered draft (passes all three real failures, per both reviewers); C two agents per delivery requirement (heavy and blind to topology, harness, install); D profile rule only (later steps read the requirements).
+- **Also flagged (Codex 6):** R-29.e treats "fresh heartbeat and no flag" as CLEAR — to be corrected in the step-1 write-up.
+- **Left open:** the test estate and agent pairs (step 5).
 
 ### 2026-10-05 — OD-17 CAND-2 (+ CAND-19 merged) per-stage idempotence per message id (operator ruling, refined in dialogue)
 - **Chose:** A refined — a P1 requirement: a stage memory per `client_msg_id` (the settlement record, at the hub per OD-5): one stored copy, one hand-over, one reply per id. A duplicate is checked against the stage: not yet STORED → it is the first real copy and is stored (retransmit always works); id known but content lost → the receiver asks for a resend; STORED not HANDED_OVER → not stored twice, hand-over continues, sender told "stored, awaiting hand-over"; HANDED_OVER no reply → never handed over twice, sender told when it was handed over; REPLIED → the existing reply is returned again. Chasing an unanswered message stays with the OD-3 deadlines and OD-14 escalation; a duplicate never resets it. Retention follows OD-16. CAND-19 merged here (not asked again).
