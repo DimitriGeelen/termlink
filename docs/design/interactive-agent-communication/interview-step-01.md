@@ -407,4 +407,13 @@ the output in one pass after the last question.
        same id in two places is flagged, never guessed; 14h agents on any host reach the declared home hub over
        authenticated TLS, never a local fallback, and a project move includes re-homing ("moved to X").
    7d. Leaves open: declaration file and format (step 4).
+8. **CAND-10 sender-side send-and-wait — ruled A (yield-and-wake), P1** (2026-10-06).
+   8a. Facts given: the operator asked for it on 2026-04-26 (T-243, "send and wait instead of immediate response")
+       and 2026-05-25 (T-1800); `termlink agent ask` blocks up to 30 s; `--await-ack` waits for delivery, not an
+       answer; the delivery half (reply handed over into the sender's session) is already required.
+   8b. Ruled: a send may carry "awaiting reply by <deadline>"; the sender yields; the reply is handed over into its
+       session linked to the conversation; past the deadline the sender is woken with STUCK; an unwakeable idle
+       sender shows WAITING FOR RECIPIENT; a short blocking wait remains for quick exchanges.
+   8c. Bias noted by the orchestrator: second P1-above-document recommendation in a row.
+   8d. Leaves open: default deadline (OD-3's 1 h natural); late replies after STUCK still wake, marked late.
 

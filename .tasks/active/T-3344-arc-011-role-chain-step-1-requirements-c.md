@@ -28,7 +28,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-04T14:28:12Z
-last_update: 2026-10-05T22:04:36Z
+last_update: 2026-10-05T22:12:08Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -278,6 +278,12 @@ exists: `docs/design/roles/README.md` section 3. Operator ruling A recorded in D
 -->
 
 ## Decisions
+
+### 2026-10-06 — OD-17 CAND-10 yield-and-wake (operator ruling)
+- **Chose:** A, P1 (the step-1 document said P2; the operator asked for it 2026-04-26 T-243 and 2026-05-25 T-1800) — a send may carry "awaiting reply by <deadline>" and the sender yields (ends its turn); the reply is handed over into the sender's session linked to the conversation (OD-2/OD-6 delivery, OD-5 record); if the deadline passes first the sender is woken with STUCK (OD-3); an idle sender that cannot be woken shows WAITING FOR RECIPIENT; a short blocking wait (seconds) remains for quick exchanges (`termlink agent ask` exists, blocks up to 30 s by default).
+- **Rejected:** B P2 (agents keep polling, the April "absolutely not working"); C blocking only (holds the turn, tool time limits, cannot wait for a busy peer); D defer.
+- **Bias noted:** second consecutive P1-above-document recommendation; the first slice grows.
+- **Left open:** the default deadline when none is given (OD-3's 1 h answer deadline the natural default); a reply after STUCK still wakes the sender, marked late (orchestrator proposal).
 
 ### 2026-10-06 — OD-17 CAND-8 explicit mail-hub declaration (operator ruling)
 - **Chose:** A with 14e–14h — P1 (the step-1 document said P2; CAND-6's "right hub" needs it): each project declares its mail hub by canonical hub id plus address, in its own files (travels with the project, OD-11); clients verify the reached hub reports that id (`hub_id`, T-3345), refusing and flagging any mismatch, never silently using another hub; `TERMLINK_RUNTIME_DIR` is for local runtime files only; the declared hub is what CAND-6's "right hub" checks. 14e: a hub restart or cert rotation keeps the canonical id (OD-12), no action. 14f: a new hub has a new id; clients refuse loudly; recovery is a restore (id travels with state) or an operator-approved re-home (Tier 2, Tier 3 if recurring) applied by a runme action with mail rescue (T-3343 pattern). 14g: the same id seen in two places is flagged, never guessed (OD-11 applied to hubs). 14h: the declaration names the home hub's id and address, so an agent on any host reaches it over authenticated TLS; unreachable means UNKNOWN and waiting, never fallback to a local hub; a project move includes re-homing, and the old hub answers "moved to X"; circuits may be set up via another hub but the record goes to the home hub (OD-5).
