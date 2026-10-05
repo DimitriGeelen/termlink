@@ -194,3 +194,36 @@ the output in one pass after the last question.
    copy only by explicit hand-over with its context; a copy's runtime id is never reused (orchestrator's addition).
 3. Authorises: R-32, R-33, R-34; fail-loudly and never-redirect as requirements. Leaves open: role resolution
    (OD-18), the name-to-id directory (OD-11).
+
+## OD-11 Name-to-id directory (section 9.14) — ruled A, with the operator's location insight
+
+1. Asked 2026-10-05 with options A (the hub keeps project identity cards), B (no directory, ids inside names),
+   C (AEF keeps it), D (each project keeps its own). Orchestrator recommended A built as: the project id is minted
+   once by the project's framework (AEF's pid) and never changes, names are display only; each home hub keeps a
+   card per project filled only from authenticated registrations it observed (project id, roles, live copies,
+   liveness, version); hubs exchange cards, never messages, and never re-announce another hub's cards; only the
+   home hub may say dead, anything it cannot confirm is unknown.
+2. **Operator's additional insight (raised before ruling):** "directories of course can change ... I can have a
+   same project which is copied to another project, a directory, even on another host, or I could rename the
+   directory." Answered and folded in:
+   2a. Identity is the minted pid, written into the project's own `.framework.yaml`, so it travels with the files.
+       Folder path and host are OBSERVED ATTRIBUTES on the card, never the identity (cf. T-2815: a path-derived
+       name is wrong inside a git worktree).
+   2b. Folder renamed or moved on the same host: same pid, same project; the card updates path and display name.
+   2c. Moved to another host: the same pid registers at the new host's hub, which becomes its home hub; the old
+       hub sees no live copies, marks the project "moved to hub X" and stops answering for it; senders follow the
+       new card; no silent redirect.
+   2d. Copied and both copies running: two places carry the same pid. By default the copy is a SECOND INSTANCE of
+       the same project (own instance ids, OD-10; role mail per OD-18). A copy meant as a NEW project (a fork)
+       must re-mint its own pid.
+   2e. The first time a hub sees a pid in a new place while the old place is still alive, it does not guess: it
+       flags "same project id seen at X and Y" to the operator and the cockpit; the copy is treated as a second
+       instance until declared a fork and re-minted. This stops a fork from receiving the original's mail.
+   2f. Runtime ids of sessions and agents belong to the running copy and are never reused (OD-10), so moving or
+       copying never makes an old address reach a new copy.
+3. **Operator ruling: "A. That's good, but we have additional insight on A. Is that recorded then too now with
+   this?"** Read back as: A, including 2a-2f as part of the ruling. Recorded here and in the task's Decisions.
+4. Authorises: R-33; the directory, card-exchange and location rules (2a-2f) as requirements; proposing the charter
+   rewording the exchange needs ("hubs never sync messages; hubs may exchange a directory of whom they serve"),
+   which the operator approves separately via T-2470. Leaves open: relay of addressed mail between hubs as a
+   fallback; OD-18 role lease; the re-mint command for a fork (AEF owns pid minting; to be proposed to AEF).

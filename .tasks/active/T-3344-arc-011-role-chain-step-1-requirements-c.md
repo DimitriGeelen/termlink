@@ -28,7 +28,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-04T14:28:12Z
-last_update: 2026-10-04T22:33:59Z
+last_update: 2026-10-05T07:13:43Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -278,6 +278,11 @@ exists: `docs/design/roles/README.md` section 3. Operator ruling A recorded in D
 -->
 
 ## Decisions
+
+### 2026-10-05 — OD-11 name-to-id directory (operator ruling, with the operator's location insight)
+- **Chose:** A — home-hub project identity cards from observed authenticated registrations; pid minted once by the framework (names display only); hubs exchange cards, never messages; only the home hub says dead.
+- **Operator's insight, part of the ruling:** identity is the pid carried in the project's files; path and host are observed attributes; rename/move updates the card; a move to another host changes the home hub and the old hub marks "moved to X"; a running copy is a second instance unless declared a fork and re-minted; a pid first seen in a new place while the old is alive is flagged to the operator, never guessed.
+- **Rejected:** B no directory; C AEF keeps it (non-AEF users have none); D per project (cannot report liveness).
 
 ### 2026-10-05 — OD-10 address session level (operator ruling)
 - **Chose:** C — new requests to project + role (home hub resolves); conversation mail to the bound exact copy, dead letter if ended, never redirected; runtime ids never reused.
