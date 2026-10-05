@@ -10,12 +10,12 @@ description: >
   via a checked runme action (new binary installed, rescue done, pid is that hub);
   then verify a client without TERMLINK_RUNTIME_DIR reaches the canonical hub.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [runme.sh, tests/runme-fixtures.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -28,8 +28,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-04T13:50:54Z
-last_update: 2026-10-04T13:51:06Z
-date_finished:
+last_update: 2026-10-05T14:03:58Z
+date_finished: 2026-10-05T14:03:49Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -65,11 +65,11 @@ bvp_scores_proposed:
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Every message on the stray hub's mail topics (sidecar:*, framework:pickup, channel:learnings, aef-*) is classified present-on-canonical / missing / noise, with the evidence (client_msg_id or payload hash), in `docs/reports/T-3343-stray-hub-rescue.md`
-- [ ] Each missing message is re-posted to the same topic on the canonical hub, marked `rescued_from=/tmp/termlink-0` with the original sender, timestamp and client_msg_id, and none is posted twice (re-run is a no-op)
-- [ ] AEF and 055 are told what was rescued for them
-- [ ] A runme action stops pid 2919639 only when: the installed termlink carries the T-3340 guard, the rescue report exists, and the pid is a termlink hub whose runtime dir is /tmp/termlink-0; it verifies the process is gone; hermetic fixture case in tests/runme-fixtures.sh
-- [ ] After the stop, a client without TERMLINK_RUNTIME_DIR resolves the canonical hub (hub status shows pid 906293), checked from the runme log
+- [x] Every message on the stray hub's mail topics (sidecar:*, framework:pickup, channel:learnings, aef-*) is classified present-on-canonical / missing / noise, with the evidence (client_msg_id or payload hash), in `docs/reports/T-3343-stray-hub-rescue.md`
+- [x] Each missing message is re-posted to the same topic on the canonical hub, marked `rescued_from=/tmp/termlink-0` with the original sender, timestamp and client_msg_id, and none is posted twice (re-run is a no-op)
+- [x] AEF and 055 are told what was rescued for them
+- [x] A runme action stops pid 2919639 only when: the installed termlink carries the T-3340 guard, the rescue report exists, and the pid is a termlink hub whose runtime dir is /tmp/termlink-0; it verifies the process is gone; hermetic fixture case in tests/runme-fixtures.sh
+- [x] After the stop, a client without TERMLINK_RUNTIME_DIR resolves the canonical hub (hub status shows pid 906293), checked from the runme log — **met by a different route (2026-10-05):** the host rebooted at 11:38 UTC (13:38 CEST; `uptime -s` prints local time), ending pid 2919639 and wiping /tmp/termlink-0 before runme ran; action 12 therefore logged `skip no live hub recorded in /tmp/termlink-0 (already stopped)` (runme-20261005T134701Z-689395.log, rc=0). Action 5 restarted the canonical hub as pid 794225; `env -u TERMLINK_RUNTIME_DIR termlink hub status` shows that pid at /var/lib/termlink, and exactly one `hub start` process runs. The stop logic itself is proven only by its fixture cases, not by a live stop
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -292,3 +292,21 @@ bvp_scores_proposed:
 
 ### 2026-10-04T13:51:06Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-177c47c0
+- **Timestamp:** 2026-10-05T14:03:50Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#4 (Agent)** — A runme action stops pid 2919639 only when: the installed termlink carries the T-3340 guard, the rescue report exists, and the pid is a termlink hub whose runtime dir is /tmp/termlink-0; it verifies t
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=tests/runme-fixtures.sh in: A runme action stops pid 2919639 only when: the installed termlink carries the T-3340 guard, the rescue report exists, and the pid is a termlink hub w`
+
+### 2026-10-05T14:03:49Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

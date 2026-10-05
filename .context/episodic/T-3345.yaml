@@ -1,0 +1,89 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3345: remote ping --json reports hub_version and hub_id (authenticated version read for AEF T-2415 gate; ring20 T-2459)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-05T14:03:15Z
+# ============================================================================
+
+task_id: T-3345
+task_name: "remote ping --json reports hub_version and hub_id (authenticated version read for AEF T-2415 gate; ring20 T-2459)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-05T07:10:31Z
+completed: 2026-10-05T13:59:41Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-05T09:11:06+02:00
+last_commit: 2026-10-05T15:47:49+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  file remote ping hub_version/hub_id task (ring20 T-2459 asks 2-3). hub.version states the hub's own hub_id + hub_instance_id (OD-12); remote ping (CLI + MCP) reports hub_version/protocol_version/hub_id/hub_instance_id from that authenticated call. completion gated on the canonical hub reporting hub_id live (after runme actions 4+5). runme contract — start watch + finish watch, re-armed after every session restart (operator 2026-10-05: agent did not know a watched run had started)
+
+# Key outcomes
+outcomes:
+  - '`hub.version` returns `hub_id` (canonical id; today first 16 hex of the hub''s own cert fingerprint, OD-12 3c) and `hub_instance_id` (full `sha256:` fingerprint); both `null` when the hub has no cert on disk, never a guessed value'
+  - '`termlink remote ping` (hub and session forms) calls `hub.version` and `--json` carries `hub_version`, `protocol_version`, `hub_id`, `hub_instance_id`; an old hub without the method yields nulls plus `hub_version_error`, and the ping still succeeds'
+  - 'MCP `termlink_remote_ping` returns the same four fields (parity)'
+  - 'Unit tests: id derivation (prefix, bare hex, too short, non-hex) and fingerprint read from a generated cert file match `cert_fingerprint` of the same DER'
+  - 'Live: against a scratch hub on the new binary (own runtime dir, port 19345), `remote ping --json` `hub_id` (90534e29df709310) equals the 16-hex prefix `hub probe` returns; against the canonical hub (still 0.12.103) it reports `hub_version` and `hub_id: null`, no guess'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - 'crates/termlink-cli/src/commands/remote.rs'
+  - 'crates/termlink-hub/src/router.rs'
+  - 'crates/termlink-hub/src/tls.rs'
+  - 'crates/termlink-mcp/src/tools.rs'
+  - '.tasks/active/T-3345-remote-ping---json-reports-hubversion-an.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-05T09:11:06'
+    action: 'T-3345: file remote ping hub_version/hub_id task (ring20 T-2459 asks 2-3)'
+  - time: '2026-10-05T14:43:24'
+    action: 'T-3345: hub.version states the hub''s own hub_id + hub_instance_id (OD-12); remote ping (CLI + MCP) reports hub_version/protocol_version/hub_id/hub_instance_id from that authenticated call'
+  - time: '2026-10-05T14:43:47'
+    action: 'T-3345: completion gated on the canonical hub reporting hub_id live (after runme actions 4+5)'
+  - time: '2026-10-05T15:47:49'
+    action: 'T-3345: runme contract — start watch + finish watch, re-armed after every session restart (operator 2026-10-05: agent did not know a watched run had started)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 409 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 409
+  commits: 4
+  files_changed: 6
+  lines_added: 468
+  lines_removed: 22
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3345-remote-ping---json-reports-hubversion-an.md
+generated_by: context-agent-hybrid

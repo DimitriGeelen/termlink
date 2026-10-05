@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3343: Rescue stranded mail from stray hub /tmp/termlink-0, then stop it (operator ruling B)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-05T14:03:58Z
+# ============================================================================
+
+task_id: T-3343
+task_name: "Rescue stranded mail from stray hub /tmp/termlink-0, then stop it (operator ruling B)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-04T13:50:54Z
+completed: 2026-10-05T14:03:49Z
+duration_days: 1
+updates_count: 2
+first_commit: 2026-10-04T16:00:56+02:00
+last_commit: 2026-10-04T16:00:56+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  rescue stranded mail from stray hub (43 re-posted, 3 present, 9 test noise; idempotent) + runme action 12 stops it only when guard installed, mail rescued and pid is a termlink hub; verifies env-less client reaches canonical hub
+
+# Key outcomes
+outcomes:
+  - 'Every message on the stray hub''s mail topics (sidecar:*, framework:pickup, channel:learnings, aef-*) is classified present-on-canonical / missing / noise, with the evidence (client_msg_id or payload hash), in `docs/reports/T-3343-stray-hub-rescue.md`'
+  - 'Each missing message is re-posted to the same topic on the canonical hub, marked `rescued_from=/tmp/termlink-0` with the original sender, timestamp and client_msg_id, and none is posted twice (re-run is a no-op)'
+  - 'AEF and 055 are told what was rescued for them'
+  - 'A runme action stops pid 2919639 only when: the installed termlink carries the T-3340 guard, the rescue report exists, and the pid is a termlink hub whose runtime dir is /tmp/termlink-0; it verifies the process is gone; hermetic fixture case in tests/runme-fixtures.sh'
+  - 'After the stop, a client without TERMLINK_RUNTIME_DIR resolves the canonical hub (hub status shows pid 906293), checked from the runme log — **met by a different route (2026-10-05):** the host rebooted at 13:38 UTC, ending pid 2919639 and wiping /tmp/termlink-0 before runme ran; action 12 therefore logged `skip no live hub recorded in /tmp/termlink-0 (already stopped)` (runme-20261005T134701Z-689395.log, rc=0). Action 5 restarted the canonical hub as pid 794225; `env -u TERMLINK_RUNTIME_DIR termlink hub status` shows that pid at /var/lib/termlink, and exactly one `hub start` process runs. The stop logic itself is proven only by its fixture cases, not by a live stop'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/reports/T-3343-stray-hub-rescue.md'
+  - 'runme.sh'
+  - 'scripts/rescue-stray-hub-mail.py'
+  - '.tasks/active/T-3343-rescue-stranded-mail-from-stray-hub-tmpt.md'
+  - 'tests/runme-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-04T16:00:56'
+    action: 'T-3343: rescue stranded mail from stray hub (43 re-posted, 3 present, 9 test noise; idempotent) + runme action 12 stops it only when guard installed, mail rescued and pid is a termlink hub; verifies env-less client reaches canonical hub'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1452 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1452
+  commits: 1
+  files_changed: 5
+  lines_added: 685
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3343-rescue-stranded-mail-from-stray-hub-tmpt.md
+generated_by: context-agent-hybrid
