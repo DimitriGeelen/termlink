@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3346: notify-sidecar --as-identity: claude-termlink-alt never auto-confirms (its fp's key is stored as claude-termlink); log the refusal once
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-05T15:50:52Z
+# ============================================================================
+
+task_id: T-3346
+task_name: "notify-sidecar --as-identity: claude-termlink-alt never auto-confirms (its fp's key is stored as claude-termlink); log the refusal once"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-05T15:45:51Z
+completed: 2026-10-05T15:50:36Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-10-05T17:50:28+02:00
+last_commit: 2026-10-05T17:50:28+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  notify-sidecar --as-identity — claude-termlink-alt now signs receipts with identities/claude-termlink.key (it refused every ack: 32,205 REFUSING lines); refusal logged once per fp; fixtures 18/18 + mutant
+
+# Key outcomes
+outcomes:
+  - '`notify-sidecar.sh --as-identity NAME` makes the receipt-identity resolver try `$TERMLINK_IDENTITY_DIR/NAME.key` (default `~/.termlink/identities`), returning the same `FILE:` result the existing key-file branch does; a key whose fp does not match still refuses (never signs with a wrong key)'
+  - 'The refusal is logged once per (agent, fp) — a marker under notify_dir — not once per cycle; it re-logs when the fp changes'
+  - '`notify-sidecar-agents.conf` gives claude-termlink-alt `--as-identity claude-termlink`; the supervisor''s flag-drift check restarts the running sidecar onto it'
+  - 'Fixtures: new cases in tests/notify-sidecar-receipt-identity-fixtures.sh for the as-identity hit, as-identity mismatch (still refuses), and once-only refusal; whole suite green'
+  - 'Live: after the restart (pid 2145712, 2026-10-05 ~15:48 UTC) no new REFUSING line; guard `.claude-termlink-alt.inbox_cacc73ea32b121dd_010_termlink.FILE__root__termlink_identities_claude_termlink_key.acked` = 733 written, flag pending=0, no refusal marker. The two sibling sidecars were restarted onto the current code as well (pids 2199184, 2200263)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'notify-sidecar --as-identity — claude-termlink-alt now signs receipts with identities/claude-termlink.key (it refused every ack: 32,205 REFUSING lines); refusal logged once per fp; fixtures 18/18 + mutant'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/cron/notify-sidecar-agents.conf'
+  - '.context/project/learnings.yaml'
+  - 'scripts/notify-sidecar.sh'
+  - '.tasks/active/T-3346-notify-sidecar---as-identity-claude-term.md'
+  - 'tests/notify-sidecar-receipt-identity-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-05T17:50:28'
+    action: 'T-3346: notify-sidecar --as-identity — claude-termlink-alt now signs receipts with identities/claude-termlink.key (it refused every ack: 32,205 REFUSING lines); refusal logged once per fp; fixtures 18/18 + mutant'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 5
+  lines_added: 368
+  lines_removed: 4
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3346-notify-sidecar---as-identity-claude-term.md
+generated_by: context-agent-hybrid
