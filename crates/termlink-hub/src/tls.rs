@@ -23,6 +23,34 @@ pub fn hub_key_path() -> PathBuf {
     discovery::runtime_dir().join("hub.key.pem")
 }
 
+/// SHA-256 fingerprint (`sha256:<hex>`) of the hub's own certificate on disk,
+/// or `None` when there is no readable cert (T-3345). Same value `hub probe`
+/// and `hub fingerprint` report, because it is the same DER through the same
+/// `cert_fingerprint`.
+pub fn own_cert_fingerprint() -> Option<String> {
+    own_cert_fingerprint_at(&hub_cert_path())
+}
+
+/// [`own_cert_fingerprint`] for an explicit path (test seam).
+pub fn own_cert_fingerprint_at(path: &Path) -> Option<String> {
+    let pem = std::fs::read_to_string(path).ok()?;
+    let der = rustls_pemfile::certs(&mut BufReader::new(pem.as_bytes())).next()?.ok()?;
+    Some(termlink_session::tofu::cert_fingerprint(&der))
+}
+
+/// The hub's canonical id, derived from a fingerprint (T-3345, OD-12 ruling 3c).
+///
+/// Until the architect decides how canonical ids are minted (arc-011 step 4),
+/// the canonical id IS the first 16 hex of the TLS fingerprint — the value
+/// every live `inbox:<hub-id>/<project>` name already uses, so nothing is
+/// renamed. Clients must read it from `hub.version`, never derive it, so that
+/// only this function changes when minting lands.
+pub fn hub_id_from_fingerprint(fingerprint: &str) -> Option<String> {
+    let hex = fingerprint.strip_prefix("sha256:").unwrap_or(fingerprint);
+    let id = hex.get(..16)?;
+    id.chars().all(|c| c.is_ascii_hexdigit()).then(|| id.to_ascii_lowercase())
+}
+
 /// Load existing cert+key from disk, or generate a new self-signed pair.
 ///
 /// Persist-if-present (T-985, follows T-933 hub-secret pattern): if valid
@@ -176,6 +204,36 @@ mod tests {
         // Build client connector
         let connector = build_client_connector(&cert_path);
         assert!(connector.is_ok(), "Connector should build from valid cert");
+    }
+
+    #[test]
+    fn own_cert_fingerprint_matches_cert_fingerprint_of_same_der_t3345() {
+        let dir = test_dir();
+        let cert_path = dir.join("hub.cert.pem");
+        let CertifiedKey { cert, .. } =
+            generate_simple_self_signed(vec!["localhost".to_string()]).unwrap();
+        std::fs::write(&cert_path, cert.pem()).unwrap();
+
+        let fp = own_cert_fingerprint_at(&cert_path).expect("fingerprint of a real cert");
+        assert_eq!(fp, termlink_session::tofu::cert_fingerprint(cert.der()));
+        let id = hub_id_from_fingerprint(&fp).unwrap();
+        assert_eq!(id.len(), 16);
+        assert!(fp.starts_with(&format!("sha256:{id}")));
+
+        assert_eq!(own_cert_fingerprint_at(&dir.join("absent.pem")), None);
+        std::fs::write(dir.join("junk.pem"), "not a cert").unwrap();
+        assert_eq!(own_cert_fingerprint_at(&dir.join("junk.pem")), None);
+    }
+
+    #[test]
+    fn hub_id_from_fingerprint_shapes_t3345() {
+        let hex = "cacc73ea32b121dd206a6ce20278a319e8dda6b6b4d6d5872105acccdc546d66";
+        assert_eq!(hub_id_from_fingerprint(&format!("sha256:{hex}")).as_deref(), Some("cacc73ea32b121dd"));
+        assert_eq!(hub_id_from_fingerprint(hex).as_deref(), Some("cacc73ea32b121dd"));
+        assert_eq!(hub_id_from_fingerprint("sha256:CACC73EA32B121DD00").as_deref(), Some("cacc73ea32b121dd"));
+        assert_eq!(hub_id_from_fingerprint("sha256:cacc73ea"), None, "too short");
+        assert_eq!(hub_id_from_fingerprint("sha256:zzzz73ea32b121dd00"), None, "non-hex");
+        assert_eq!(hub_id_from_fingerprint(""), None);
     }
 
     #[test]

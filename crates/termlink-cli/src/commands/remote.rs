@@ -1125,6 +1125,46 @@ pub(crate) async fn cmd_remote_ping(
     }
 }
 
+/// T-3345: the hub's self-stated identity from the authenticated `hub.version`
+/// call — `{hub_version, protocol_version, hub_id, hub_instance_id}`. A hub too
+/// old to serve the method (or to report the id) yields nulls plus
+/// `hub_version_error`; the ping itself still succeeds. Never derives the id
+/// client-side (OD-12): the hub is the authority on its own id.
+async fn fetch_hub_identity(rpc_client: &mut client::Client) -> serde_json::Value {
+    match rpc_client.call("hub.version", serde_json::json!("hub-version"), serde_json::json!({})).await {
+        Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => serde_json::json!({
+            "hub_version": r.result.get("hub_version").cloned().unwrap_or(serde_json::Value::Null),
+            "protocol_version": r.result.get("protocol_version").cloned().unwrap_or(serde_json::Value::Null),
+            "hub_id": r.result.get("hub_id").cloned().unwrap_or(serde_json::Value::Null),
+            "hub_instance_id": r.result.get("hub_instance_id").cloned().unwrap_or(serde_json::Value::Null),
+        }),
+        Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => hub_identity_unknown(format!("{} {}", e.error.code, e.error.message)),
+        Err(e) => hub_identity_unknown(e.to_string()),
+    }
+}
+
+fn hub_identity_unknown(err: String) -> serde_json::Value {
+    serde_json::json!({
+        "hub_version": null, "protocol_version": null, "hub_id": null,
+        "hub_instance_id": null, "hub_version_error": err,
+    })
+}
+
+/// Merge the identity fields into a ping envelope; text-mode suffix.
+fn merge_hub_identity(envelope: &mut serde_json::Value, ident: &serde_json::Value) {
+    if let (Some(dst), Some(src)) = (envelope.as_object_mut(), ident.as_object()) {
+        for (k, v) in src { dst.insert(k.clone(), v.clone()); }
+    }
+}
+
+fn hub_identity_suffix(ident: &serde_json::Value) -> String {
+    format!(
+        " — hub {} id {}",
+        ident["hub_version"].as_str().unwrap_or("?"),
+        ident["hub_id"].as_str().unwrap_or("?"),
+    )
+}
+
 async fn cmd_remote_ping_inner(
     conn: &RemoteConn<'_>,
     session: Option<&str>,
@@ -1141,6 +1181,7 @@ async fn cmd_remote_ping_inner(
         }
     };
     let auth_ms = start.elapsed().as_millis();
+    let ident = fetch_hub_identity(&mut rpc_client).await;
 
     match session {
         Some(target) => {
@@ -1151,7 +1192,7 @@ async fn cmd_remote_ping_inner(
                     let total_ms = start.elapsed().as_millis();
                     let rpc_ms = ping_start.elapsed().as_millis();
                     if json {
-                        println!("{}", serde_json::json!({
+                        let mut out = serde_json::json!({
                             "ok": true,
                             "hub": conn.hub,
                             "session": target,
@@ -1161,15 +1202,18 @@ async fn cmd_remote_ping_inner(
                             "total_ms": total_ms as u64,
                             "auth_ms": auth_ms as u64,
                             "rpc_ms": rpc_ms as u64,
-                        }));
+                        });
+                        merge_hub_identity(&mut out, &ident);
+                        println!("{out}");
                     } else {
                         println!(
-                            "PONG from {} ({}) on {} — state: {} — {}ms (auth: {}ms, rpc: {}ms)",
+                            "PONG from {} ({}) on {} — state: {} — {}ms (auth: {}ms, rpc: {}ms){}",
                             r.result["id"].as_str().unwrap_or("?"),
                             r.result["display_name"].as_str().unwrap_or("?"),
                             conn.hub,
                             r.result["state"].as_str().unwrap_or("?"),
                             total_ms, auth_ms, rpc_ms,
+                            hub_identity_suffix(&ident),
                         );
                     }
                     Ok(())
@@ -1201,18 +1245,21 @@ async fn cmd_remote_ping_inner(
                     let discover_ms = discover_start.elapsed().as_millis();
                     let count = r.result["sessions"].as_array().map(|a| a.len()).unwrap_or(0);
                     if json {
-                        println!("{}", serde_json::json!({
+                        let mut out = serde_json::json!({
                             "ok": true,
                             "hub": conn.hub,
                             "sessions": count,
                             "total_ms": total_ms as u64,
                             "auth_ms": auth_ms as u64,
                             "discover_ms": discover_ms as u64,
-                        }));
+                        });
+                        merge_hub_identity(&mut out, &ident);
+                        println!("{out}");
                     } else {
                         println!(
-                            "PONG from hub {} — {} session(s) — {}ms (auth: {}ms, discover: {}ms)",
+                            "PONG from hub {} — {} session(s) — {}ms (auth: {}ms, discover: {}ms){}",
                             conn.hub, count, total_ms, auth_ms, discover_ms,
+                            hub_identity_suffix(&ident),
                         );
                     }
                     Ok(())

@@ -1,13 +1,20 @@
 ---
 id: T-3345
-name: "remote ping --json reports hub_version and hub_id (authenticated version read for AEF T-2415 gate; ring20 T-2459)"
+name: "remote ping --json reports hub_version and hub_id (authenticated version read
+  for AEF T-2415 gate; ring20 T-2459)"
 description: >
-  ring20-dashboard's T-2459 prompt to AEF asks for an authenticated version read to clear AEF's T-2415 version-floor gate, and the recipient hub's id to address inbox:<hub-id>/<name>. TermLink has the hub.version RPC (router.rs:149) but no single-hub verb exposes it: remote ping --json returns only latency/sessions. Add hub_version (from the authenticated hub.version call) and hub_id (first 16 hex of the TLS fingerprint, as hub probe returns) to remote ping --json. Today: version only via fleet doctor; hub id via 'termlink hub probe <addr>' (unauthenticated).
+  ring20-dashboard's T-2459 prompt to AEF asks for an authenticated version read to
+  clear AEF's T-2415 version-floor gate, and the recipient hub's id to address inbox:<hub-id>/<name>.
+  TermLink has the hub.version RPC (router.rs:149) but no single-hub verb exposes
+  it: remote ping --json returns only latency/sessions. Add hub_version (from the
+  authenticated hub.version call) and hub_id (first 16 hex of the TLS fingerprint,
+  as hub probe returns) to remote ping --json. Today: version only via fleet doctor;
+  hub id via 'termlink hub probe <addr>' (unauthenticated).
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -22,8 +29,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-05T07:10:31Z
-last_update: 2026-10-05T07:10:31Z
-date_finished: null
+last_update: 2026-10-05T12:26:54Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,20 +41,36 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-05T12:26:54Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3345: remote ping --json reports hub_version and hub_id (authenticated version read for AEF T-2415 gate; ring20 T-2459)
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+AEF's cross-hub sidecar (T-3855, v1.8.2) derives the recipient hub id from the unauthenticated `hub probe` fingerprint and needs the canonical id plus version from an authenticated call (AEF @717, 2026-10-05). OD-12 (T-3344 interview) ruled a stable canonical hub id with the fingerprint as instance id; 3c: today's fingerprint-based ids ARE the canonical ids, minting mechanism left to step 4 (architect). So the HUB states its own id in `hub.version`, and clients read it, never derive it — when minting lands only the hub's source changes.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `hub.version` returns `hub_id` (canonical id; today first 16 hex of the hub's own cert fingerprint, OD-12 3c) and `hub_instance_id` (full `sha256:` fingerprint); both `null` when the hub has no cert on disk, never a guessed value
+- [x] `termlink remote ping` (hub and session forms) calls `hub.version` and `--json` carries `hub_version`, `protocol_version`, `hub_id`, `hub_instance_id`; an old hub without the method yields nulls plus `hub_version_error`, and the ping still succeeds
+- [x] MCP `termlink_remote_ping` returns the same four fields (parity)
+- [x] Unit tests: id derivation (prefix, bare hex, too short, non-hex) and fingerprint read from a generated cert file match `cert_fingerprint` of the same DER
+- [x] Live: against a scratch hub on the new binary (own runtime dir, port 19345), `remote ping --json` `hub_id` (90534e29df709310) equals the 16-hex prefix `hub probe` returns; against the canonical hub (still 0.12.103) it reports `hub_version` and `hub_id: null`, no guess
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -83,6 +106,13 @@ date_finished: null
 -->
 
 ## Verification
+
+cargo test --release -p termlink-hub --lib -- tls::tests::hub_id_from_fingerprint_shapes_t3345 tls::tests::own_cert_fingerprint_matches_cert_fingerprint_of_same_der_t3345 router::tests::hub_version_returns_binary_version_and_protocol_version > /tmp/.t3345 2>&1 && grep -q "test result: ok. 3 passed" /tmp/.t3345
+grep -q '"hub_id": hub_id' crates/termlink-hub/src/router.rs
+grep -q 'fn fetch_hub_identity' crates/termlink-cli/src/commands/remote.rs
+grep -q 'mcp-hub-version' crates/termlink-mcp/src/tools.rs
+bash scripts/check-mcp-parity-census.sh --quiet
+bash scripts/check-platform-lock.sh --quiet
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -267,3 +297,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3345-remote-ping---json-reports-hubversion-an.md
 - **Context:** Initial task creation
+
+### 2026-10-05T12:26:54Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

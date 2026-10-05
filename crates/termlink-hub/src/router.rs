@@ -813,13 +813,23 @@ fn handle_register_remote(id: serde_json::Value, params: &serde_json::Value) -> 
 /// Tier-A (opaque). No params, no auth beyond what the connection already has.
 /// T-1132 (from T-1071 GO) — fleet doctor calls this to surface version diversity
 /// across the fleet before a Tier-B RPC fails on a skewed hub.
+///
+/// T-3345 (OD-12): also states the hub's own identity — `hub_id` (canonical
+/// id, today the 16-hex fingerprint prefix) and `hub_instance_id` (the full
+/// TLS fingerprint). Both are `null` when the hub has no cert on disk; the
+/// hub never guesses. Clients read these instead of deriving the id from an
+/// unauthenticated `hub probe`.
 fn handle_hub_version(id: serde_json::Value) -> RpcResponse {
+    let instance = crate::tls::own_cert_fingerprint();
+    let hub_id = instance.as_deref().and_then(crate::tls::hub_id_from_fingerprint);
     Response::success(
         id,
         json!({
             "hub_version": env!("CARGO_PKG_VERSION"),
             "protocol_version": termlink_protocol::DATA_PLANE_VERSION,
             "control_plane_version": termlink_protocol::CONTROL_PLANE_VERSION,
+            "hub_id": hub_id,
+            "hub_instance_id": instance,
         }),
     )
     .into()

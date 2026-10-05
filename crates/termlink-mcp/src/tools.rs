@@ -16285,6 +16285,27 @@ impl TermLinkTools {
             };
             let auth_ms = start.elapsed().as_millis() as u64;
 
+            // T-3345: the hub's self-stated identity (OD-12) — read, never derived.
+            let ident = match rpc_client
+                .call("hub.version", serde_json::json!("mcp-hub-version"), serde_json::json!({}))
+                .await
+            {
+                Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => serde_json::json!({
+                    "hub_version": r.result.get("hub_version").cloned().unwrap_or(serde_json::Value::Null),
+                    "protocol_version": r.result.get("protocol_version").cloned().unwrap_or(serde_json::Value::Null),
+                    "hub_id": r.result.get("hub_id").cloned().unwrap_or(serde_json::Value::Null),
+                    "hub_instance_id": r.result.get("hub_instance_id").cloned().unwrap_or(serde_json::Value::Null),
+                }),
+                Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => serde_json::json!({
+                    "hub_version": null, "protocol_version": null, "hub_id": null, "hub_instance_id": null,
+                    "hub_version_error": format!("{} {}", e.error.code, e.error.message),
+                }),
+                Err(e) => serde_json::json!({
+                    "hub_version": null, "protocol_version": null, "hub_id": null, "hub_instance_id": null,
+                    "hub_version_error": e.to_string(),
+                }),
+            };
+
             let (method, params, kind) = match &p.session {
                 Some(target) => (
                     "termlink.ping",
@@ -16299,7 +16320,7 @@ impl TermLinkTools {
                 Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => {
                     let total_ms = start.elapsed().as_millis() as u64;
                     let rpc_ms = total_ms.saturating_sub(auth_ms);
-                    serde_json::to_string_pretty(&serde_json::json!({
+                    let mut out = serde_json::json!({
                         "ok": true,
                         "hub": p.hub,
                         "kind": kind,
@@ -16308,8 +16329,13 @@ impl TermLinkTools {
                         "total_ms": total_ms,
                         "auth_ms": auth_ms,
                         "rpc_ms": rpc_ms,
-                    }))
-                    .unwrap_or_else(json_err)
+                    });
+                    if let (Some(dst), Some(src)) = (out.as_object_mut(), ident.as_object()) {
+                        for (k, v) in src {
+                            dst.insert(k.clone(), v.clone());
+                        }
+                    }
+                    serde_json::to_string_pretty(&out).unwrap_or_else(json_err)
                 }
                 Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => json_err(format!(
                     "Ping failed: {} {}",
