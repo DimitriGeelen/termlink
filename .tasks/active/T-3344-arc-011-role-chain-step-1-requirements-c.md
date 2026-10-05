@@ -28,7 +28,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-04T14:28:12Z
-last_update: 2026-10-05T07:23:29Z
+last_update: 2026-10-05T07:35:19Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -278,6 +278,10 @@ exists: `docs/design/roles/README.md` section 3. Operator ruling A recorded in D
 -->
 
 ## Decisions
+
+### 2026-10-05 — OD-13 section 14 items (operator ruling)
+- **Chose:** A refined — R-40 merged into R-28 (satisfied by OD-2/6/8); R-42 now ("delivered" only with a recorded HANDED_OVER); R-41 later slice with expiry, execution-time authorisation, fencing token; R-43 dropped (duplicate of R-9).
+- **Rejected:** B keep all (duplicate); C drop all (loses R-42); D R-40 only.
 
 ### 2026-10-05 — OD-12 address rulings and stable hub id (operator ruling)
 - **Chose:** D — D-599 circuit form stands; hub canonical id minted once (today's fingerprint prefix becomes it, nothing renamed), fingerprint becomes the hub instance id; sidecar: alias ends one release after T-3342 (forward + warn until then); ask AEF for amended D-660.

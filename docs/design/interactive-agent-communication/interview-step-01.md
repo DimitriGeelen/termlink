@@ -247,3 +247,16 @@ the output in one pass after the last question.
        and the sender is warned.
 4. Authorises: R-32, R-33; a hub-identity requirement; the alias end date; the request to AEF. Leaves open: where and
    how the hub id is minted (architect, step 4).
+
+## OD-13 Section 14 items (section 9.16) — ruled A, refined
+
+1. Asked 2026-10-05 with options A (keep R-41, R-42 as later slices, drop R-43, R-40 conditional), B (keep all),
+   C (drop all), D (keep only R-40). Orchestrator refined A from the operator's later rulings.
+2. **Operator ruling: "A".** Read back as the refined A:
+   2a. R-40 (native consumer) is satisfied by OD-2, OD-6 and OD-8 and merged into R-28 (reply or no-action);
+   2b. R-42 is promoted to a requirement now, as part of OD-5: nothing, hub or tool, reports "delivered" without a
+       recorded HANDED_OVER; until then it says "accepted" or "stored";
+   2c. R-41 (typed assignment/result messages) is kept as a later slice, with Codex's fields for messages that hand
+       over work: an expiry, authorisation checked at execution time, a fencing token;
+   2d. R-43 is dropped as a duplicate of R-9.
+3. Authorises: R-40..R-43 updated as above. Leaves open: the R-41 slice (planner, step 8).
