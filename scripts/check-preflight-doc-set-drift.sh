@@ -20,7 +20,10 @@
 #
 # Exit codes:
 #   0    All surfaces agree
-#   1    Drift detected (diagnostic table on stderr)
+#   1    Drift detected (diagnostic table on stdout: a finding, T-3379)
+#        Tooling errors (exit 2) go to stderr. Cron routes stdout to the
+#        firing log and stderr to the .stderr sink, so a finding must never
+#        be printed to stderr or it reads ERRORING, not FIRING (T-2685).
 #   2    Tooling error (missing file, no match found)
 #
 # Pure read; no network; no state mutation. Safe in any context.
@@ -41,7 +44,7 @@ Detect /preflight check-count drift across the canonical surfaces.
 
 Options:
   --quiet         Empty-log canary mode: no stdout on PASS, only emit on
-                  DRIFT/ERROR (exit non-zero with diagnostic to stderr).
+                  DRIFT/ERROR (DRIFT table on stdout, ERROR on stderr).
                   Pairs with cron pattern (T-2160 convention).
   --no-heartbeat  Suppress the T-2193 heartbeat-file touch. Used by the
                   meta-canary (check-canary-aliveness.sh with
@@ -198,17 +201,17 @@ if [ "$drifted" -eq 0 ]; then
     exit 0
 fi
 
-echo "preflight-doc-set-drift: DETECTED" >&2
-echo "" >&2
-printf '  %-8s %s\n' "Surface" "Claimed count" >&2
-printf '  %-8s %s\n' "-------" "-------------" >&2
+echo "preflight-doc-set-drift: DETECTED"
+echo ""
+printf '  %-8s %s\n' "Surface" "Claimed count"
+printf '  %-8s %s\n' "-------" "-------------"
 for name in "${ORDER[@]}"; do
     marker=""
     [ "${COUNTS[$name]}" != "$first" ] && marker=" <-- DRIFT"
-    printf '  %-8s %s%s\n' "$name" "${COUNTS[$name]}" "$marker" >&2
+    printf '  %-8s %s%s\n' "$name" "${COUNTS[$name]}" "$marker"
 done
-echo "" >&2
-echo "Resync: pick the authoritative source (typically the script's docstring)" >&2
-echo "and bring the other three surfaces into agreement. T-2185/T-2186/T-2187" >&2
-echo "show the per-surface edit pattern." >&2
+echo ""
+echo "Resync: pick the authoritative source (typically the script's docstring)"
+echo "and bring the other surfaces into agreement. T-2185/T-2186/T-2187"
+echo "show the per-surface edit pattern."
 exit 1
