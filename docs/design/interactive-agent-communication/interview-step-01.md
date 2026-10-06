@@ -468,4 +468,22 @@ the output in one pass after the last question.
          trust model to step 2. Recorded as P1 requirements of the circuit slice, after identity, directory and
          binding. Persist-before-ack is OD-5, dedupe is CAND-2, sequence numbers are CAND-18.
     12b. Leaves open: credential lifetime and binding (step 2).
+13. **CAND-18 ordering by sequence number — ruled A, refined in dialogue** (2026-10-06).
+    13a. Operator checked his understanding (message reconstruction, pick-up in a conversation, checking and
+         identifying sequences: confirmed with a worked example), then set the principle: hubs may keep different
+         ledgers, the source of change is the sender, sequencing as in TCP. Orchestrator explained TCP (sender-
+         assigned SEQ, cumulative ACK, SACK, duplicates by number, random ISN), SCTP (TSN plus per-stream SSN, no
+         head-of-line blocking across streams) and Kafka's idempotent producer (producer id, sequence, epoch);
+         operator found the SCTP/Kafka mapping "very good".
+    13b. Operator asked whether sender numbering and hub numbering in parallel, with the truth read from the sender's,
+         is logical. Confirmed: the sender's number is the truth about the conversation; the hub's offset is the
+         truth about that hub's storage and arrival; the hub record maps one to the other; the receiver still checks
+         the sender's numbers (gaps, duplicates, reused numbers), since a number is a claim like any peer content.
+    13c. Ruled: P1 sender-assigned per-conversation number, durable, never reused; P1 hub offsets local only, mapped
+         in the hub record; P1 cumulative `up_to` per conversation in receipts, receiver flags gaps, duplicates and
+         reused numbers; with the circuit slice, bounded buffering, gap reports with resend, resume from the last
+         acknowledged number. Order per conversation only; non-conversation messages by hub arrival.
+    13d. Leaves open: gap-wait bound (step 4); same number with different content (step 2).
+14. **OD-17 complete** (2026-10-06): 12 candidates walked and ruled; CAND-5, -7, -9, -11, -15 settled by earlier rulings;
+    CAND-19 merged into CAND-2.
 

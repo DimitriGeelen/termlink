@@ -28,7 +28,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-04T14:28:12Z
-last_update: 2026-10-06T07:08:13Z
+last_update: 2026-10-06T07:39:18Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -278,6 +278,13 @@ exists: `docs/design/roles/README.md` section 3. Operator ruling A recorded in D
 -->
 
 ## Decisions
+
+### 2026-10-06 — OD-17 CAND-18 conversation order: the sender's sequence is the truth (operator ruling, refined in dialogue)
+- **Chose:** A — P1: the sender numbers its messages per conversation (#1, #2 …); that number is the source of truth for order and completeness, kept durably by the sender and never reused (a new instance is recognised by its instance id, OD-10, like Kafka's producer epoch). P1: hub offsets are local storage/arrival positions only, may differ per hub, never compared across hubs or used to order a conversation; the hub record maps (conversation, sender, number) → its offset, and stage state is tracked per (conversation, sender, number). P1: receipts carry a cumulative `up_to` per conversation (TCP ACK); the receiver verifies — gaps reported, duplicates dropped (CAND-2 key), the same number with different content flagged, never accepted (a sequence number is a claim like any peer content, CAND-1). With the circuit slice: buffering out-of-order messages for a bounded time, gap reports with resend (SACK), resume after a break from the last acknowledged number via the hub. Ordering is per conversation only (SCTP per-stream): a gap in one conversation never holds another. Messages outside a conversation are ordered by hub arrival.
+- **Operator's points, part of the ruling:** hubs may keep different ledgers, but the source of change is the sender, who initiates and has full knowledge; sequencing as in TCP; sender and hub numbering run in parallel and the truth of a conversation is read from the sender's numbering. Operator called the SCTP and Kafka mapping "very good".
+- **Sources given:** TCP RFC 9293 (SEQ/ACK, cumulative ack, ISN), SACK RFC 2018, SCTP RFC 9260 (TSN plus per-stream SSN), Kafka KIP-98 (producer id, sequence, epoch).
+- **Rejected:** B all now (same value, more cost); C hub offsets only (cannot order across paths or re-sends); D defer (CAND-2 needs a cross-path key).
+- **Left open:** gap-wait bound (step 4); same number with different content as a threat (step 2).
 
 ### 2026-10-06 — OD-17 CAND-16 per-circuit credentials and one delivery contract (operator ruling)
 - **Chose:** A — recorded as settled by OD-1 (point 3: "per-circuit short-lived credentials minted by the hubs, one delivery contract and one log per conversation on both paths"; point 4: "the conditions become requirements"). P1 requirements of the circuit slice, after identity, directory and hub-path binding (OD-1 build order). Persist-before-ack = OD-5; dedupe = CAND-2; sequence numbers = CAND-18. Credential lifetime and binding go to step 2.
