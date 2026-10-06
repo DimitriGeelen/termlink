@@ -145,6 +145,28 @@ def project_id() -> str:
     Refuses `.agentic-framework` or empty (T-3671): that is the vendored
     framework dir, never a project, and signing as it mis-routes every consult.
     """
+    # T-3370 (LOCAL DIVERGENCE, registered in .vendor-divergence.yaml; filed upstream):
+    # honour AEF's own canonical project label, RAIL_PROJECT_LABEL (T-2905), before the
+    # directory name — exactly as lib/rail-identity.sh:rail_project_label does. Without
+    # it a project whose directory differs from its fleet name (/opt/termlink vs
+    # 010-termlink) gets a receiver on an inbox no peer writes to. Precedence: env
+    # FW_RAIL_PROJECT_LABEL, then RAIL_PROJECT_LABEL in .framework.yaml, then basename.
+    # Normalised like the rail only when SET, so the basename default is unchanged.
+    label = os.environ.get("FW_RAIL_PROJECT_LABEL", "").strip()
+    if not label:
+        try:
+            fy = outbox._root() / ".framework.yaml"
+            for line in fy.read_text(encoding="utf-8").splitlines():
+                m = re.match(r"^RAIL_PROJECT_LABEL:\s*['\"]?([^'\"#\s]+)", line)
+                if m:
+                    label = m.group(1).strip()
+                    break
+        except OSError:
+            label = ""
+    if label:
+        norm = re.sub(r"[^a-z0-9.-]", "", label.lower().replace(" ", "-").replace("_", "-"))
+        if norm and norm != ".agentic-framework":
+            return norm
     name = outbox._root().name
     if not name or name == ".agentic-framework":
         raise CircuitError(
