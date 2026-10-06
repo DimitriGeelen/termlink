@@ -6,7 +6,7 @@ description: >
   CANDs, GP-0, GP-12, OD-3 correction) into docs/design/interactive-agent-communication-01-requirements.md
   as v0.4, from the interview log and docs/reports/T-3344-step1-rulings-summary.md.
 
-status: captured
+status: started-work
 workflow_type: specification
 owner: agent
 horizon: now
@@ -25,7 +25,7 @@ related_tasks: [T-3344]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:10:38Z
-last_update: '2026-10-06T10:17:48Z'
+last_update: 2026-10-06T20:31:43Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -73,15 +73,15 @@ Arc: arc-011. Rulings summary: `docs/reports/T-3344-step1-rulings-summary.md`.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `docs/design/interactive-agent-communication-01-requirements.md` carries a v0.4 version row naming T-3344/this task and the interview log
-- [ ] Every section-9 open question OD-1..OD-18 is marked ruled with its ruling and a link to its log section; GP-11 stays marked open
-- [ ] Requirements R-1..R-43 changed as the rulings authorise (each ruling's 'Authorises' list in the log is checked off one by one)
-- [ ] R-29.e corrected: CLEAR requires recent surfacing progress, never a fresh heartbeat alone (CAND-3 4d, CAND-6)
-- [ ] Section 2.3 adds ADV-8, ADV-9, ADV-10 and widens ADV-6 (GP-0)
-- [ ] R-6 acceptance rewritten to verified behaviour per GP-12; counts recorded as tripwires only
-- [ ] R-30/R-31 carry the two ladders by priority (OD-3 correction of 2026-10-06), not the single continuous ladder
-- [ ] Section 12 (or a handoff section) lists what goes to steps 2-8, consistent with the summary's section 11
-- [ ] A role-handback/1 record returned to the orchestrator
+- [x] `docs/design/interactive-agent-communication-01-requirements.md` carries a v0.4 version row naming T-3344/this task and the interview log
+- [x] Every section-9 open question OD-1..OD-18 is marked ruled with its ruling and a link to its log section; GP-11 stays marked open
+- [x] Requirements R-1..R-43 changed as the rulings authorise (each ruling's 'Authorises' list in the log is checked off one by one)
+- [x] R-29.e corrected: CLEAR requires recent surfacing progress, never a fresh heartbeat alone (CAND-3 4d, CAND-6)
+- [x] Section 2.3 adds ADV-8, ADV-9, ADV-10 and widens ADV-6 (GP-0)
+- [x] R-6 acceptance rewritten to verified behaviour per GP-12; counts recorded as tripwires only
+- [x] R-30/R-31 carry the two ladders by priority (OD-3 correction of 2026-10-06), not the single continuous ladder
+- [x] Section 12 (or a handoff section) lists what goes to steps 2-8, consistent with the summary's section 11
+- [x] A role-handback/1 record returned to the orchestrator
 
 ## Verification
 
@@ -186,3 +186,6 @@ grep -q 'ACKNOWLEDGED_NO_ACTION' docs/design/interactive-agent-communication-01-
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3348-arc-011-step-1-fold-the-operators-ruling.md
 - **Context:** Initial task creation
+
+### 2026-10-06T20:31:43Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
