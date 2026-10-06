@@ -202,11 +202,14 @@ if [ "$ALL" -eq 1 ]; then
     exit $?
 fi
 
+# T-3380: an absent heartbeat is a FINDING (exit 1), so it goes to stdout. The meta-canary
+# crontab routes stderr to the .stderr sink, and anything there reads ERRORING ("could not
+# run", T-2842) instead of FIRING. Only exit 2 (could not look) writes to stderr.
 if [ ! -e "$HEARTBEAT_FILE" ]; then
-    echo "CANARY HEARTBEAT ABSENT ($CANARY_NAME): $HEARTBEAT_FILE" >&2
-    echo "  Either the canary has never run since the heartbeat-touch landed, or the canary script predates it." >&2
+    echo "CANARY HEARTBEAT ABSENT ($CANARY_NAME): $HEARTBEAT_FILE"
+    echo "  Either the canary has never run since the heartbeat-touch landed, or the canary script predates it."
     if [ -n "$CANARY_PROBE_CMD" ]; then
-        echo "  Manual run to seed it: $CANARY_PROBE_CMD" >&2
+        echo "  Manual run to seed it: $CANARY_PROBE_CMD"
     fi
     exit 1
 fi

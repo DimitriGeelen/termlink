@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3379: check-preflight-doc-set-drift prints DETECTED to stderr so a finding reads ERRORING
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-06T23:01:51Z
+# ============================================================================
+
+task_id: T-3379
+task_name: "check-preflight-doc-set-drift prints DETECTED to stderr so a finding reads ERRORING"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-06T22:56:17Z
+completed: 2026-10-06T23:01:40Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-07T01:01:35+02:00
+last_commit: 2026-10-07T01:01:35+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  drift detector prints its finding to stdout (tooling errors stay on stderr), so a finding reads FIRING not ERRORING; fixtures 7/7 with mutant; survey filed T-3380
+
+# Key outcomes
+outcomes:
+  - 'On drift the detector writes the DETECTED table to stdout and nothing to stderr, exit 1'
+  - 'On a tooling error (unreadable surface) it writes to stderr only, exit 2; on agreement exit 0, and `--quiet` prints nothing'
+  - 'Header comment and `--help` state the stream contract'
+  - 'New fixture suite `tests/preflight-doc-set-drift-fixtures.sh` pins the three cases through the `REPO_ROOT` seam, with a mutant that moves the finding back to stderr and turns a case red (7/7, mutant M1 caught)'
+  - 'Other canary scripts checked for the same shape (finding printed to stderr); any found filed as their own tasks — every script named in `.context/cron/*.crontab` scanned for an `exit 1` preceded by 2+ stderr echo lines: 4 hits; 3 are installers/services where stderr is right (install-heartbeat-cron, notify-sidecar-supervisor, tl-claude); 1 is the same defect, `check-canary-aliveness.sh` HEARTBEAT ABSENT → filed T-3380'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'drift detector prints its finding to stdout (tooling errors stay on stderr), so a finding reads FIRING not ERRORING; fixtures 7/7 with mutant; survey filed T-3380'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'scripts/check-preflight-doc-set-drift.sh'
+  - '.tasks/active/T-3379-check-preflight-doc-set-drift-prints-det.md'
+  - '.tasks/active/T-3380-check-canary-aliveness-prints-heartbeat-.md'
+  - 'tests/preflight-doc-set-drift-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-07T01:01:35'
+    action: 'T-3379: drift detector prints its finding to stdout (tooling errors stay on stderr), so a finding reads FIRING not ERRORING; fixtures 7/7 with mutant; survey filed T-3380'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [bug]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 4
+  lines_added: 495
+  lines_removed: 20
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3379-check-preflight-doc-set-drift-prints-det.md
+generated_by: context-agent-hybrid

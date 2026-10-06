@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3381: Triage firing canaries 2026-10-07: canary-aliveness (21/22 alive) and forever-archival
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-06T23:04:50Z
+# ============================================================================
+
+task_id: T-3381
+task_name: "Triage firing canaries 2026-10-07: canary-aliveness (21/22 alive) and forever-archival"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-06T23:02:03Z
+completed: 2026-10-06T23:04:38Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-10-07T01:04:37+02:00
+last_commit: 2026-10-07T01:04:37+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  notify-sidecar canary writes its heartbeat on EXIT (canary-aliveness was NO-HEARTBEAT; sweep now 29/29 alive), fixtures 18/18; forever-archival triaged to T-3382 (no retention change: OD-16)
+
+# Key outcomes
+outcomes:
+  - 'The preflight-doc-set-drift `.stderr` sink, which holds only the drift report fixed by T-3378, is cleared (copy kept in the session scratchpad)'
+  - 'canary-aliveness: the canary that is not alive is named, with its cause, and fixed here or filed as its own task — notify-sidecar-canary (T-3051) is cron-scheduled but its script never wrote a heartbeat (NO-HEARTBEAT); fixed here, sweep now "all 29 cron-scheduled canaries alive"'
+  - '`scripts/check-notify-sidecar-freshness.sh` writes `.notify-sidecar-canary.heartbeat` on EXIT (T-2843 pattern), skips it under `--no-heartbeat`, and takes the path from `NOTIFY_CANARY_HEARTBEAT_FILE` so fixtures never touch the real heartbeat'
+  - '`tests/notify-sidecar-canary-fixtures.sh` pins the heartbeat (written on a run, absent under `--no-heartbeat`, real file untouched by the suite) and still passes (18/18)'
+  - 'forever-archival: the topic over the ceiling is named, with its count and growth, and fixed here or filed as its own task (bounding a topic''s retention is a destructive change and needs the operator''s go) — not over the ceiling; two project inboxes are Forever and growing ~60/day (010-termlink 882, AEF 885). The canary''s count cap conflicts with OD-16 (never cut an open message), so filed T-3382 (waits on arc-011 step 4); no retention changed'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'notify-sidecar canary writes its heartbeat on EXIT (canary-aliveness was NO-HEARTBEAT; sweep now 29/29 alive), fixtures 18/18; forever-archival triaged to T-3382 (no retention change: OD-16)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'scripts/check-notify-sidecar-freshness.sh'
+  - '.tasks/active/T-3381-triage-firing-canaries-2026-10-07-canary.md'
+  - '.tasks/active/T-3382-project-inbox-topics-are-forever-and-gro.md'
+  - 'tests/notify-sidecar-canary-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-07T01:04:37'
+    action: 'T-3381: notify-sidecar canary writes its heartbeat on EXIT (canary-aliveness was NO-HEARTBEAT; sweep now 29/29 alive), fixtures 18/18; forever-archival triaged to T-3382 (no retention change: OD-16)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 4
+  lines_added: 738
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3381-triage-firing-canaries-2026-10-07-canary.md
+generated_by: context-agent-hybrid

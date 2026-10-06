@@ -1,19 +1,15 @@
 ---
-id: T-3379
-name: "check-preflight-doc-set-drift prints DETECTED to stderr so a finding reads
-  ERRORING"
+id: T-3378
+name: "Preflight doc set says 6 checks; T-3340 added Check 7"
 description: >
-  The detector writes its DETECTED report to stderr; the crontab routes stderr to
-  the .stderr sink, so a real finding is classified ERRORING (could not run) instead
-  of FIRING, against the T-2685 exit-code/stream contract. Findings go to stdout,
-  tooling errors to stderr.
+  T-3340 added preflight Check 7 (one hub per user) and updated the CLAUDE.md catalog to seven, but the script docstring, the /preflight skill, the cron comment and substrate-getting-started still say six; the doc-set drift canary has reported it since 2026-10-04. Sync all to 7.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
-tags: [bug]
-components: []
+horizon: null
+tags: []
+components: [scripts/substrate-preflight.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -41,9 +37,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-10-06T22:56:17Z
-last_update: 2026-10-06T22:59:17Z
-date_finished:
+created: 2026-10-06T22:55:50Z
+last_update: 2026-10-06T22:59:00Z
+date_finished: 2026-10-06T22:59:00Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -54,38 +50,24 @@ date_finished:
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
-bvp_scores_proposed:
-  - ts: '2026-10-06T22:59:18Z'
-    estimator: bvp-estimator-v1-heuristic
-    scores:
-      D1: 4
-      D2: 4
-      D3: 3
-      D4: 2
-      F-RECALL: 2
-      F-ORCH: 0
-    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
-      (body:component-discoverability); D4=2 (body:env-class-handled); 
-      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
-    rubric_sha: e4a00f38e801
 ---
 
-# T-3379: check-preflight-doc-set-drift prints DETECTED to stderr so a finding reads ERRORING
+# T-3378: Preflight doc set says 6 checks; T-3340 added Check 7
 
 ## Context
 
-`scripts/check-preflight-doc-set-drift.sh` printed its DETECTED table to stderr. The crontab (T-2685 idiom) routes
-stderr to `.preflight-doc-set-drift-canary.log.stderr`, so `/canaries` showed the real 6-vs-7 drift (T-3378) as
-ERRORING ("could not run") instead of FIRING, from 2026-10-04 until 2026-10-07.
+T-3340 (commit 2b042c2d6) added preflight Check 7 (one hub per user) to `scripts/substrate-preflight.sh` and
+the CLAUDE.md catalog says "Seven checks", but the script's own docstring, the `/preflight` skill, the cron
+recipe and the getting-started sample still say six. The preflight-doc-set-drift canary found it (script 6,
+catalog 7, skill 6, cron 6, getting-started 6); its report went to stderr, filed separately as T-3379.
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] On drift the detector writes the DETECTED table to stdout and nothing to stderr, exit 1
-- [x] On a tooling error (unreadable surface) it writes to stderr only, exit 2; on agreement exit 0, and `--quiet` prints nothing
-- [x] Header comment and `--help` state the stream contract
-- [x] New fixture suite `tests/preflight-doc-set-drift-fixtures.sh` pins the three cases through the `REPO_ROOT` seam, with a mutant that moves the finding back to stderr and turns a case red (7/7, mutant M1 caught)
-- [x] Other canary scripts checked for the same shape (finding printed to stderr); any found filed as their own tasks — every script named in `.context/cron/*.crontab` scanned for an `exit 1` preceded by 2+ stderr echo lines: 4 hits; 3 are installers/services where stderr is right (install-heartbeat-cron, notify-sidecar-supervisor, tl-claude); 1 is the same defect, `check-canary-aliveness.sh` HEARTBEAT ABSENT → filed T-3380
+- [x] `scripts/substrate-preflight.sh` docstring has a `#   Check 7:` entry describing the one-hub-per-user check
+- [x] `.claude/commands/preflight.md`, `docs/operations/substrate-cron-recipes.md` and `docs/operations/substrate-getting-started.md` say seven / 7 wherever they state the count
+- [x] `bash scripts/check-preflight-doc-set-drift.sh` exits 0 (all five surfaces agree)
+- [x] The preflight fixture suites still pass (hubs-toml 10/10, runtime-dir 17/17, single-hub 5/5); the drift checker itself has no fixtures, which T-3379 adds with its stream fix
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -122,8 +104,8 @@ ERRORING ("could not run") instead of FIRING, from 2026-10-04 until 2026-10-07.
 
 ## Verification
 
-bash tests/preflight-doc-set-drift-fixtures.sh
 bash scripts/check-preflight-doc-set-drift.sh --no-heartbeat
+grep -q '^#   Check 7:' scripts/substrate-preflight.sh
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -291,20 +273,6 @@ bash scripts/check-preflight-doc-set-drift.sh --no-heartbeat
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
-**Symptom:** `/canaries` showed preflight-doc-set-drift as ERRORING (the canary could not run) while it had in fact
-found real drift: CLAUDE.md said 7 preflight checks, four other surfaces said 6 (fixed in T-3378).
-
-**Root cause:** the detector predates T-2685's stream split. It wrote both its finding (exit 1) and its tooling
-error (exit 2) to stderr. Once T-2685 routed stderr to a separate `.stderr` sink and T-2842 classified any
-`.stderr` content as ERRORING, the finding landed in the wrong channel.
-
-**Why structurally allowed:** T-2685's hygiene check (`check-canary-log-hygiene.sh`) inspects the crontab
-redirects, not what each script writes to which stream, and this detector had no fixtures at all, so nothing
-asserted where its output went.
-
-**Prevention:** the new fixture suite pins the stream per exit code (with a mutant), and the survey of other
-canary scripts (last AC) closes the same shape elsewhere.
-
 ## Evolution
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
@@ -381,10 +349,19 @@ canary scripts (last AC) closes the same shape elsewhere.
 
 ## Updates
 
-### 2026-10-06T22:56:17Z — task-created [task-create-agent]
+### 2026-10-06T22:55:50Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3379-check-preflight-doc-set-drift-prints-det.md
+- **Output:** /opt/termlink/.tasks/active/T-3378-preflight-doc-set-says-6-checks-t-3340-a.md
 - **Context:** Initial task creation
 
-### 2026-10-06T22:59:17Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-d17d430e
+- **Timestamp:** 2026-10-06T22:59:03Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-10-06T22:59:00Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

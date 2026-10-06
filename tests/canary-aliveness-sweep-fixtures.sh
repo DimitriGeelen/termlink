@@ -205,6 +205,24 @@ out=$(HEARTBEAT_FILE="$W/.absent-canary.heartbeat" CANARY_NAME="absent" \
       CANARY_PROBE_CMD="" bash "$SCRIPT" 2>&1); rc=$?
 if [ "$rc" = 1 ] && grep -q "HEARTBEAT ABSENT" <<<"$out"; then ok "single-canary absent heartbeat exits 1"
 else bad "single-canary absent" "rc=$rc out=$out"; fi
+
+# T-3380: the absent-heartbeat FINDING must reach stdout (the cron firing log) with stderr
+# empty; on stderr it lands in the .stderr sink and reads ERRORING, not FIRING.
+absent_streams() { # script -> sets rc, sout, serr
+    HEARTBEAT_FILE="$W/.absent-canary.heartbeat" CANARY_NAME="absent" CANARY_PROBE_CMD="" \
+        bash "$1" >"$W/.so" 2>"$W/.se"; rc=$?; sout=$(cat "$W/.so"); serr=$(cat "$W/.se")
+}
+absent_streams "$SCRIPT"
+if [ "$rc" = 1 ] && grep -q "HEARTBEAT ABSENT" <<<"$sout" && [ -z "$serr" ]; then
+    ok "absent heartbeat: finding on stdout, stderr empty (FIRING, not ERRORING)"
+else bad "absent heartbeat streams" "rc=$rc stdout=[$sout] stderr=[$serr]"; fi
+sed 's/^    echo "CANARY HEARTBEAT ABSENT (\$CANARY_NAME): \$HEARTBEAT_FILE"$/&  >\&2/' "$SCRIPT" > "$W/.mutant.sh"
+if cmp -s "$SCRIPT" "$W/.mutant.sh"; then bad "M-T3380 mutant could not be built" ""
+else
+    absent_streams "$W/.mutant.sh"
+    if grep -q "HEARTBEAT ABSENT" <<<"$sout" && [ -z "$serr" ]; then bad "M-T3380 mutant (finding to stderr) NOT caught" ""
+    else ok "M-T3380 mutant (finding to stderr) is caught"; fi
+fi
 cleanup
 
 echo

@@ -1,13 +1,17 @@
 ---
 id: T-3380
-name: "check-canary-aliveness prints HEARTBEAT ABSENT (a finding, exit 1) to stderr, so it reads ERRORING"
+name: "check-canary-aliveness prints HEARTBEAT ABSENT (a finding, exit 1) to stderr,
+  so it reads ERRORING"
 description: >
-  Found by the T-3379 survey: in single-canary mode, scripts/check-canary-aliveness.sh:205-211 writes the HEARTBEAT ABSENT finding to stderr before exit 1. Meta-canary crontabs route stderr to the .stderr sink, so a never-run canary reads ERRORING (could not run) instead of FIRING. Same fix and fixture pattern as T-3379.
+  Found by the T-3379 survey: in single-canary mode, scripts/check-canary-aliveness.sh:205-211
+  writes the HEARTBEAT ABSENT finding to stderr before exit 1. Meta-canary crontabs
+  route stderr to the .stderr sink, so a never-run canary reads ERRORING (could not
+  run) instead of FIRING. Same fix and fixture pattern as T-3379.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [bug]
 components: []
 related_tasks: []
@@ -38,8 +42,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T23:01:09Z
-last_update: 2026-10-06T23:01:09Z
-date_finished: null
+last_update: 2026-10-06T23:05:00Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,20 +54,36 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-06T23:05:00Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3380: check-canary-aliveness prints HEARTBEAT ABSENT (a finding, exit 1) to stderr, so it reads ERRORING
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Found by the T-3379 survey. In single-canary (meta-canary) mode `scripts/check-canary-aliveness.sh` printed its
+HEARTBEAT ABSENT finding (exit 1) to stderr. The meta-canary crontab lines route stderr to the `.stderr` sink, so a
+canary that never ran read ERRORING ("could not run") instead of FIRING. The STALE finding already goes to stdout.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] HEARTBEAT ABSENT (exit 1) prints to stdout; the stat failure (exit 2) stays on stderr
+- [x] `tests/canary-aliveness-sweep-fixtures.sh` pins it: absent heartbeat gives exit 1, the finding on stdout and empty stderr, with a mutant that moves it back to stderr and is caught
+- [x] The fixtures still pass in full (27/27)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -99,6 +119,8 @@ date_finished: null
 -->
 
 ## Verification
+
+bash tests/canary-aliveness-sweep-fixtures.sh
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -266,6 +288,19 @@ date_finished: null
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
+**Symptom:** none observed live yet; found by the T-3379 survey. A canary that had never written a heartbeat would
+show on `/canaries` as ERRORING (could not run) rather than FIRING (never ran).
+
+**Root cause:** the single-canary branch predates T-2685's stream split and wrote its HEARTBEAT ABSENT finding to
+stderr; after T-2685 routed stderr to the `.stderr` sink and T-2842 classified sink content as ERRORING, a finding
+landed in the "could not run" channel. The STALE branch was already on stdout, so the two findings disagreed.
+
+**Why structurally allowed:** the fixtures merged the streams (`2>&1`), so they asserted the message existed but not
+where it went; `check-canary-log-hygiene.sh` checks crontab redirects, not what scripts write to which stream.
+
+**Prevention:** the new fixture captures stdout and stderr separately for the absent case, with a mutant. Same class
+as T-3379; both were surveyed across every cron-scheduled script.
+
 ## Evolution
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
@@ -346,3 +381,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3380-check-canary-aliveness-prints-heartbeat-.md
 - **Context:** Initial task creation
+
+### 2026-10-06T23:05:00Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
