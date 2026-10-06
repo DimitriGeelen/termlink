@@ -6,7 +6,7 @@ description: >
   lists corrections. Step 2 may not start before this sign-off (role chain: completion
   alone is never approval).
 
-status: captured
+status: started-work
 workflow_type: specification
 owner: human
 horizon: now
@@ -25,7 +25,7 @@ related_tasks: [T-3344, T-3348]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:12:27Z
-last_update: '2026-10-06T10:17:52Z'
+last_update: 2026-10-06T22:39:50Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -73,8 +73,8 @@ Arc: arc-011. Rulings summary: `docs/reports/T-3344-step1-rulings-summary.md`.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] The fold task T-3348 is work-completed before sign-off is requested
-- [ ] The sign-off (date, version signed, any corrections) is recorded in T-3344's Decisions and as an approval note in the role-chain yaml step 1
+- [x] The fold task T-3348 is work-completed before sign-off is requested
+- [x] The sign-off (date, version signed, any corrections) is recorded in T-3344's Decisions and as an approval note in the role-chain yaml step 1
 
 ### Human
 - [ ] [REVIEW] Sign off step 1
@@ -185,3 +185,6 @@ grep -q 'approved' docs/design/interactive-agent-communication-role-chain.yaml
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3349-arc-011-step-1-operator-sign-off-of-the-.md
 - **Context:** Initial task creation
+
+### 2026-10-06T22:39:50Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
