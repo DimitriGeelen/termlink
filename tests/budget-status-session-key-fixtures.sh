@@ -82,9 +82,17 @@ print(level, tokens)
 [ "$(echo "$r"|awk '{print $1}')" = "warn" ] && ok "absent transcript_path degrades to trusting the cache (unchanged behaviour)" \
                                              || no "absent transcript_path broke the fast path: '$r'"
 
-echo "WRITE SIDE: the real gate emits session_key"
-grep -q '"session_key": "%s"' "$GATE" && ok "write-site stamps session_key" || no "write-site does not stamp session_key"
-grep -q 'BG_SESSION_KEY' "$GATE" && ok "write-site derives the key from transcript_path" || no "no key derivation"
+echo "WRITE SIDE: the real gate stamps the session identity on the cache"
+# T-3370: the AEF 1.8.3 re-vendor carries this fix upstream as T-3598 (divergence-check
+# row #14, CARRIED). Same property — every cache write names the session that wrote it,
+# and a reader treats another session's cache as not its own — under upstream's field
+# name `claude_session_id`, derived from the hook's stdin session_id, else the transcript
+# file stem. The read-side cases above model our original `session_key`; the property they
+# pin (foreign cache distrusted, legacy cache trusted) is the one upstream implements.
+grep -q '"claude_session_id": "%s"' "$GATE" && ok "write-site stamps claude_session_id (upstream T-3598)" || no "write-site does not stamp the session identity"
+grep -q "data.get('session_id')" "$GATE" && grep -q 'os.path.basename(_tp)' "$GATE" \
+  && ok "identity derived from stdin session_id, else the transcript stem" || no "no session-identity derivation"
+grep -q "cache_sid != caller_sid" "$GATE" && ok "reader distrusts a cache stamped by another session" || no "no foreign-session check on the read side"
 
 echo
 echo "T-3127 proof: $P passed, $F failed"
