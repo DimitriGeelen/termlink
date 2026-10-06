@@ -53,8 +53,8 @@ sends to us reach RECEIVED / HANDED_OVER. Analysis and step order: `docs/reports
 - [x] CLAUDE.md differs from the pre-upgrade copy only in the framework-managed region below `## Core Principle`
 - [x] Every NOT-CARRIED fix in the divergence check is re-applied or explicitly dispositioned, T-3178 (Tier-1 write gate) first, each with its fixture green
 - [x] `.vendor-divergence.yaml` records the new `last_vendor_event` and the re-applied fixes; `check-vendor-divergence.sh` exits 0
-- [ ] `fw doctor` shows no new FAIL; the guard layer has no new FAIL-tier red compared with before the upgrade
-- [ ] `fw cron install` run from /opt/termlink; the sidecar-sweep job is installed
+- [x] `fw doctor` shows no new FAIL; the guard layer has no new FAIL-tier red compared with before the upgrade
+- [x] `fw cron install` run from /opt/termlink; the sidecar-sweep job is installed
 - [x] Exactly one receiver consumes `inbox:cacc73ea32b121dd/010-termlink`; a test send from another identity reaches RECEIVED
 - [x] Upstream filings sent for: step 7b overwriting the origin toolkit, shallow-clone refusal in the default upgrade path, T-3178 still open, hazard H1
 
