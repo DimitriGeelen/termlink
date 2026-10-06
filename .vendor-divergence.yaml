@@ -28,17 +28,13 @@
 
 schema_version: 1
 last_vendor_event:
-  commit: 8c1cca561
-  date: 2026-06-08
-  description: "fw update v1.6.7 -> v1.6.295 (444 files)"
+  commit: cd7599053
+  date: '2026-10-06'
+  description: "fw upgrade v1.6.29 -> v1.8.3, run from a full upstream clone (T-3370, operator ruling A)"
   # NOT promoted to the 2026-08-25 event below — see vendor_events[] for why the
   # baseline stays wide on purpose.
-  note: >
-    The baseline for "at risk". Commits touching .agentic-framework/ BEFORE this
-    were either carried by the update or already lost; only later ones are
-    pending destruction by the next event. Note that T-2469's message says
-    "re-vendor recommended" — recommended, not performed — so it is NOT a vendor
-    event, and treating it as one understates the window.
+  note: >-
+    PROMOTED on 2026-10-06 (T-3370). Unlike the 2026-08-25 event, this one replaced the whole vendored tree and every registered divergence was checked against it first (docs/reports/T-3344-aef-upgrade-divergence-check.md): each is now either re-applied AFTER this commit (entries carry also_task_ids T-3370 and a reapplied note), carried upstream (landed-upstream), or dispositioned. Previous baseline: 8c1cca561 (2026-06-08, fw update v1.6.7 -> v1.6.295 (444 files)).
 
 # READ THIS BEFORE RUNNING fw upgrade / fw update / any re-vendor.
 #
@@ -223,30 +219,42 @@ divergences:
     fix: "_flush embeds its batches concurrently (ThreadPoolExecutor, order preserved via map); FW_EMBED_WORKERS, default 3 = this host's OLLAMA_NUM_PARALLEL."
     evidence: "Benchmark 2026-10-03, 768 real chunks: 1 worker 70 chunks/s, 2 = 98, 3 = 107 (+53%), 4 = 104 (capped by NUM_PARALLEL=3)."
     upstream_note: "To file with AEF alongside the T-3336 import fixes (inbox @217)."
+    also_task_ids:
+      - T-3370
+    reapplied_1_8_3: >-
+      Re-applied after the 1.8.3 re-vendor in ceeb661e0 (T-3370): git apply of the original patch, clean.
   - task: T-3336
     commit: pending-same-commit
     commit_note: Registered in the same commit that carries the fix (T-2882 precedent).
     date: 2026-10-03
     file: .agentic-framework/lib/ask.py
-    status: local-only
+    status: landed-upstream
     kind: fix
     generality: GENERIC
     symptom: "`fw ask` crashed in every vendored consumer: ModuleNotFoundError: No module named 'web'. lib/ask.py puts PROJECT_ROOT on sys.path, but web/ is framework-owned and lives under the framework root. Same class as T-2648/OBS-097."
     fix: "Also insert FRAMEWORK_ROOT (env, else lib/..) at the front of sys.path."
     evidence: "fw ask answers with sources and no PYTHONPATH (2026-10-03); before the fix it exited with the traceback."
     upstream_note: "Upstream bleeding-edge lib/ask.py lines 20-22 carry the same defect (read 2026-10-03). Filed to AEF with T-3336."
+    also_task_ids:
+      - T-3370
+    landed_note: >-
+      Carried in AEF 1.8.3 (checked 2026-10-06, docs/reports/T-3344-aef-upgrade-divergence-check.md): l.21-27 put FRAMEWORK_ROOT on sys.path, citing AEF T-3783 and 010 T-3336.
   - task: T-3336
     commit: pending-same-commit
     commit_note: Registered in the same commit that carries the fix.
     date: 2026-10-03
     file: .agentic-framework/bin/fw
-    status: local-only
+    status: landed-upstream
     kind: fix
     generality: GENERIC
     symptom: "`fw index reindex` could not import web.embeddings in a vendored consumer, and reported {status: unimportable} with exit 0, so an hourly cron would log success while nothing was indexed. Here the index froze at T-2508 for two months."
     fix: "Run the reindex with PYTHONPATH=FRAMEWORK_ROOT, and exit 2 on unimportable."
     evidence: "scripts/check-vector-index-freshness.sh (A: import path) and tests/vector-index-freshness-fixtures.sh 8/8."
     upstream_note: "Filed to AEF with T-3336. 1409-sprind works around it by adding PYTHONPATH to its own cron line."
+    also_task_ids:
+      - T-3370
+    landed_note: >-
+      Carried in AEF 1.8.3 (checked 2026-10-06, docs/reports/T-3344-aef-upgrade-divergence-check.md): fw index reindex sets PYTHONPATH and exits 2 on unimportable (AEF T-3783).
   - task: T-3270
     commit: 67ddecbcf
     commit_note: >
@@ -270,6 +278,10 @@ divergences:
       onto it is not covered, so a chained drifting `git commit -m "T-X:"` is still
       blocked. A re-vendor deletes only the NOTE (the helper stays invisible to the
       gate, i.e. the pre-SQ-23 state), not any protection.
+    also_task_ids:
+      - T-3370
+    reapplied_1_8_3: >-
+      Re-applied after the 1.8.3 re-vendor in ceeb661e0 (T-3370): clean apply; tests/focus-drift-helper-exception-fixtures.sh 5/5.
   - task: T-3269
     commit: a14cd49de
     commit_note: >
@@ -294,6 +306,10 @@ divergences:
       re-vendor deletes only the call site: the helper, the manifest writers, the
       /resume step and the procAsFit prompt step are project-owned and survive, so
       a lost hook degrades to "committed at the next /resume" rather than to silence.
+    also_task_ids:
+      - T-3370
+    reapplied_1_8_3: >-
+      Re-applied after the 1.8.3 re-vendor in ceeb661e0 (T-3370): clean apply; tests/commit-pending-fixtures.sh 17/17 (with our /resume restored).
   - task: T-3198
     commit: pending-same-commit
     commit_note: >
@@ -303,7 +319,7 @@ divergences:
     date: 2026-09-28
     file: .agentic-framework/agents/task-create/update-task.sh
     also: .agentic-framework/lib/reviewer/static_scan.py
-    status: filed-upstream
+    status: landed-upstream
     filed_at: "framework:pickup offset 218 (read-back verified 2026-09-28, sha256 8d309e1ce306ba32, 6523 bytes — content byte-identical; the 1-byte delta vs the source file is the trailing newline that bash $(cat ...) strips, confirmed as a pure suffix difference)"
     kind: sovereignty-policy
     generality: GENERIC
@@ -347,6 +363,10 @@ divergences:
       of a sovereignty rule is the copy that drifts — and exits 2 if extraction fails,
       so a rename cannot produce a vacuous pass.
 
+    also_task_ids:
+      - T-3370
+    landed_note: >-
+      SUPERSEDED, not re-applied: AEF solved the same ruling with its verdict ledger (T-3579/T-3581, lib/verdict_ledger.py, signed dispatch provenance). Our fixture was retired in T-3370; a replacement fixture against the ledger is T-3373.
   - task: T-3189
     commit: pending-same-commit
     commit_note: >
@@ -400,6 +420,10 @@ divergences:
       177-of-210 boilerplate path in its Verification block, so a naive implementation of
       this same idea fabricates costs at scale and looks like it is working.
 
+    also_task_ids:
+      - T-3370
+    reapplied_1_8_3: >-
+      Re-applied after the 1.8.3 re-vendor in fc4adbd5f (T-3370): body derivation as the LAST tier, after write_set; 34/34.
   - task: T-3188
     commit: pending-same-commit
     commit_note: >
@@ -443,6 +467,10 @@ divergences:
       it breaks nothing — unlike T-3178, where a restore reopens a security hole with no
       symptom.
 
+    also_task_ids:
+      - T-3370
+    reapplied_1_8_3: >-
+      Re-applied after the 1.8.3 re-vendor in fc4adbd5f (T-3370): target_blast_radius for all types placed AFTER components and BEFORE upstream's T-3512 write_set leg; 19/19.
   - task: T-3187
     commit: pending-same-commit
     commit_note: >
@@ -452,7 +480,7 @@ divergences:
       registration, and only the entry's own task id is the match key.
     date: 2026-09-27
     file: .agentic-framework/agents/context/lib/safe-commands.sh
-    status: filed-upstream
+    status: landed-upstream
     filed_at: "framework:pickup offset 206 (bug-report, read-back verified byte-identical 2026-09-27) — amends our own offset 202"
     kind: security-fix-correction
     generality: GENERIC
@@ -480,6 +508,10 @@ divergences:
       Inseparable from T-3178 in practice: anyone taking one must take the other, which
       is why the upstream filing is an AMENDMENT to offset 202 rather than a new report.
 
+    also_task_ids:
+      - T-3370
+    landed_note: >-
+      Carried in AEF 1.8.3 (checked 2026-10-06, docs/reports/T-3344-aef-upgrade-divergence-check.md): AEF T-3643 /dev/null strip, ported from 055. Our extension to /dev/stdout and /dev/stderr is the new T-3370 entry below.
   - task: T-3185
     commit: pending-same-commit
     commit_note: >
@@ -523,6 +555,10 @@ divergences:
       open a hole, it reverts to recommending unwritten tasks first. Visible on the next
       ranking read, unlike T-3178's silently-restored bypass.
 
+    also_task_ids:
+      - T-3370
+    reapplied_1_8_3: >-
+      Re-applied after the 1.8.3 re-vendor in 4685184d2 (T-3370): all-no-signal exclusion beside upstream's T-3485 degenerate alarm; 10/10.
   - task: T-3184
     commit: pending-same-commit
     commit_note: >
@@ -576,6 +612,10 @@ divergences:
       scoring amplifies that and the override flag does not address it — a human would be
       overriding scores that were never assessments. Tracked at T-3172.
 
+    also_task_ids:
+      - T-3370
+    reapplied_1_8_3: >-
+      Re-applied after the 1.8.3 re-vendor in 4685184d2 (T-3370): BVP_HUMAN_APPROVAL in acd_gate opens all five verbs (upstream opened confirm only); rationale mandatory, no floor, first-set exempt; stickiness ADOPTS upstream bvp_sticky.py (confirmed_via + digest) instead of our bvp_scores_source; 40/40.
   - task: T-3178
     commit: pending-same-commit
     commit_note: >
@@ -624,6 +664,10 @@ divergences:
       `tests` is not in the vendor include list, so consumers cannot inherit coverage.
       Local fixtures live at tests/safe-commands-write-pattern-fixtures.sh.
 
+    also_task_ids:
+      - T-3370
+    reapplied_1_8_3: >-
+      Re-applied after the 1.8.3 re-vendor in 91ef587f5 (T-3370): merged onto upstream's T-3643 strip; herestrings; 44/44 write-pattern fixtures.
   - task: T-3176
     commit: pending-same-commit
     commit_note: >
@@ -667,6 +711,10 @@ divergences:
       surface the regression. That is precisely why 832 chose a config switch over a code
       deletion: the divergence stays legible in a config file rather than invisible in a diff.
       On any re-vendor, re-check this entry FIRST.
+    also_task_ids:
+      - T-3370
+    reapplied_1_8_3: >-
+      Re-applied after the 1.8.3 re-vendor in 4685184d2 (T-3370): confirmation telemetry ledger only; the confirm switch is superseded by AEF T-3487.
   - task: T-3127
     commit: pending-same-commit
     commit_note: >
@@ -675,7 +723,7 @@ divergences:
       subject — `T-3127:` — which IS knowable.
     date: 2026-09-25
     file: .agentic-framework/agents/context/budget-gate.sh
-    status: filed-upstream
+    status: landed-upstream
     filed_at: "framework:pickup offset 157 (defect), plus the fix on the same thread"
     kind: defect-fix
     generality: GENERIC
@@ -705,6 +753,10 @@ divergences:
       DELETED unless upstream carried it. Re-check by running the fixture suite: if the
       two-session assertion fails, the fix is gone and this entry must return to
       local-only. The suite is the detector; this register is the reminder.
+    also_task_ids:
+      - T-3370
+    landed_note: >-
+      Carried in AEF 1.8.3 (checked 2026-10-06, docs/reports/T-3344-aef-upgrade-divergence-check.md): AEF T-3598 stamps claude_session_id and distrusts a foreign-session cache; tests/budget-status-session-key-fixtures.sh now asserts that field (7/7).
   - task: T-2982
     commit: pending-same-commit
     commit_note: >
@@ -713,7 +765,7 @@ divergences:
       id parsed from the commit subject — `T-2982:` — which IS knowable.
     date: 2026-09-21
     file: .agentic-framework/lib/hook-telemetry.sh
-    status: filed-upstream
+    status: landed-upstream
     filed_at: "framework:pickup offset 132"
     kind: defect-report
     generality: GENERIC
@@ -757,6 +809,10 @@ divergences:
       ("harness cannot go red"), that is the signal the upstream fix landed —
       move this entry to landed-upstream and invert leg 1 into a regression
       guard. If leg 1 still passes, the fix has not landed; leave it here.
+    also_task_ids:
+      - T-3370
+    landed_note: >-
+      Carried in AEF 1.8.3 (checked 2026-10-06, docs/reports/T-3344-aef-upgrade-divergence-check.md): AEF T-3371 serialises the read-modify-write with flock.
   - task: T-2961
     commit: pending-same-commit
     commit_note: >
@@ -765,7 +821,7 @@ divergences:
       `T-2961:` — which resolves.
     date: 2026-09-19
     file: .agentic-framework/agents/context/lib/safe-commands.sh
-    status: local-only
+    status: landed-upstream
     kind: fix
     generality: GENERIC
     symptom: >
@@ -797,6 +853,10 @@ divergences:
       register debt. Re-check this entry at the already-surfaced sovereign
       re-vendor decision (T-2950).
 
+    also_task_ids:
+      - T-3370
+    landed_note: >-
+      Carried in AEF 1.8.3 (checked 2026-10-06, docs/reports/T-3344-aef-upgrade-divergence-check.md): checkpoint.sh arm with budget|status safe (1.8.3 l.572-586).
   - task: T-2882
     commit: pending-same-commit
     commit_note: >
@@ -845,6 +905,10 @@ divergences:
       against both implementations would prove nothing (T-2814).
     upstream_ref: "framework:pickup offset 83 (T-2882, filed 2026-09-03) — carries the root cause, the three-part fix, and the fixture evidence including the pre-fix mutant case. Not yet confirmed carried upstream, so still at risk on a re-vendor."
 
+    also_task_ids:
+      - T-3370
+    reapplied_1_8_3: >-
+      PARTIAL in 1.8.3 (part 3 carried as AEF T-3210). Residue (parts 1-2) dispositioned to T-3375.
   - task: T-2866
     commit: pending-same-commit
     commit_note: >
@@ -888,8 +952,15 @@ divergences:
       this host.
     upstream_ref: "framework:pickup offset 75 (T-2861); handed directly to the live arc-012 sessions under T-2866"
 
+    also_task_ids:
+      - T-3370
+    reapplied_1_8_3: >-
+      NOT re-applied: on this host the 1.8.3 doctor reports 'Installed claude-fw matches repo source (2 copies on PATH, all current)', so the false drift does not fire here. The local copy was deleted by the re-vendor; the upstream defect report stands.
   - task: T-2687
-    also_task_ids: [T-2813, T-2839]
+    also_task_ids:
+      - T-2813
+      - T-2839
+      - T-3370
     restored: >
       DELETED by the 2026-08-26 re-vendor (9b47462c5) and restored the same day
       under T-2839, commit be0fcfa68 — which is why that task id appears here.
@@ -925,6 +996,8 @@ divergences:
     evidence: tests/pickup-failopen-fixtures.sh — 12 assertions, all refusal paths
     upstream_ref: "framework:pickup offset 27"
 
+    reapplied_1_8_3: >-
+      Re-applied after the 1.8.3 re-vendor in ceeb661e0 (T-3370): be0fcfa68 form, clean; tests/pickup-failopen-fixtures.sh 12/12.
   - task: T-2304
     commit: 78a7a6de1
     date: 2026-07-02
@@ -1098,6 +1171,34 @@ divergences:
       hook-trapped script is labelled a crash, including argument errors) is
       plausibly still upstream and is worth filing at framework:pickup.
 
+    also_task_ids:
+      - T-3370
+    reapplied_1_8_3: >-
+      Re-applied after the 1.8.3 re-vendor in 0e9d8545e (T-3370): residue only: unknown verb drops the crash trap (budget is native in 1.8.3).
+  - task: T-3370
+    commit: 93297d781
+    date: '2026-10-06'
+    file: .agentic-framework/lib/sidecar/circuit.py
+    status: local-only
+    kind: fix
+    generality: GENERIC
+    symptom: >-
+      AEF's sidecar project_id() is the basename of the project directory, so /opt/termlink became 'termlink' and its receiver would have read inbox:<hub>/termlink, a topic no peer writes to; peers address 010-termlink. lib/rail-identity.sh already honours RAIL_PROJECT_LABEL; the sidecar did not.
+    fix: >-
+      project_id() honours FW_RAIL_PROJECT_LABEL, then RAIL_PROJECT_LABEL in .framework.yaml, then the basename; normalised like the rail only when set, so the default is unchanged.
+    evidence: fw sidecar whoami -> agent 010-termlink, inbox:cacc73ea32b121dd/010-termlink; probe send RECEIVED.
+    upstream_note: To file with AEF (T-3370 upstream filings).
+  - task: T-3370
+    commit: 91ef587f5
+    date: '2026-10-06'
+    file: .agentic-framework/agents/context/lib/safe-commands.sh
+    status: local-only
+    kind: fix
+    generality: GENERIC
+    symptom: Upstream's T-3643 strip covers /dev/null only, so `cmd >/dev/stdout` and `cmd 2>/dev/stderr` classify as file writes.
+    fix: The strip also accepts /dev/stdout and /dev/stderr (our T-3187 behaviour).
+    evidence: tests/safe-commands-write-pattern-fixtures.sh 44/44 (2 cases failed before).
+    upstream_note: To file with AEF together with T-3178.
 not_divergence:
   - kind: vendor-event
     tasks: [T-2705]
