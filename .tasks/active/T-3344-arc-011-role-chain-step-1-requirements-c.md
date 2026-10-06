@@ -28,7 +28,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-04T14:28:12Z
-last_update: 2026-10-06T10:59:06Z
+last_update: 2026-10-06T20:44:28Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -53,6 +53,20 @@ bvp_scores_proposed:
     rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
       (body:component-discoverability); D4=2 (body:env-class-handled); 
       F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+  - ts: '2026-10-06T19:40:42Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 2
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=2 
+      (body:telemetry-or-audit-entry); D3=3 (body:component-discoverability); 
+      D4=2 (body:env-class-handled); F-RECALL=2 (body:lightly-promoted); 
+      F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
 ---
 
@@ -477,6 +491,16 @@ exists: `docs/design/roles/README.md` section 3. Operator ruling A recorded in D
 - **Why:** the operator ruled these for ring20 the same day; one practice across projects. Scored A +39, B +26, C 0, D −5.
 - **Rejected:** B (keep asking before every subscription review — friction without a catch), C (reference only), D (defer).
 - **Left open:** a TermLink route ledger (ring20/AEF territory) until needed.
+
+### 2026-10-06 — T-3349 step-1 sign-off: requirements v0.4 (operator ruling)
+- **Chose:** B — approve v0.4 (commit a217f5651) and rule the worker's five judgement calls at the same time, one at
+  a time: (J1) the new `[O]` authority tag; (J2) collector-proposed `[P]` priorities on R-44..R-71; (J3) CAND-17
+  deferred to step 2; (J4) R-7 cross-host acceptance bound by credential lifetime, left to step 2; (J5) acceptance
+  scenarios for new requirements are test shapes with no numbers beyond the log's.
+- **Why:** the five calls are the only content not traceable to an operator ruling. Scored A +26, B +42, C +27, D −26.
+- **Rejected:** A (approves the calls unexamined), C (outside reviewers cannot judge "as meant"), D (stalls the arc).
+- **Pending:** J1–J5 rulings, then the role-chain yaml approval note and T-3349 closure (operator).
+- **Left open:** section 13.2 of v0.4 (GP-11 first).
 
 ## Decision
 
