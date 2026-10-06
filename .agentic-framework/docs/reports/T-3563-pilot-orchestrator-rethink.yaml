@@ -1,0 +1,124 @@
+# T-3563 pilot draft — arc 'orchestrator-rethink'. Drafted 2026-09-29 by an isolated Claude Opus 5 worker (Read/Grep/Glob only) from the arc and its anchor inception. NOT yet applied to .context/arcs/orchestrator-rethink.yaml; pending external review.
+purpose: Make the framework use outcome-informed model routing in everyday operation, under explicit human
+  policy and regression protection, so shipped infrastructure delivers observable orchestration.
+objective: Ordinary framework workloads select models using recorded outcomes; the 13 identified routing-policy
+  parameters have explicit human dispositions, including deferrals; and routing, cache and governance
+  contracts have regression protection.
+supports: []
+success_criteria:
+- id: SC-1
+  criterion: A framework dispatch given only --task-type (no --model) resolves its model from route_cache,
+    and the outcome is written back.
+  evidence: 'docs/reports/orchestrator-rethink-demo/README.md — meta-01-*.json show resolution_source:
+    route_cache; cache-02→cache-03 deltas show write-back'
+- id: SC-2
+  criterion: Each of the 13 silently-defaulted routing-policy constants has an explicit recorded ruling
+    rather than a code-author default.
+  evidence: .tasks/completed/T-1642-arc-a--orchestrator-routing-policy-consu.md §Recommendation records
+    GO and a table of 13 proposed defaults, each named as a separate decision still to be recorded in
+    decisions.yaml. The cited material does not establish a human disposition and rationale per parameter;
+    those records must be linked before this criterion passes.
+- id: SC-3
+  criterion: G-061's minimum defenses are evidenced — MCP task_id audit, an approved fallback-order regression
+    test, governance-frame golden fixture, task-type tag validator and the Watchtower /orchestrator page.
+  evidence: .context/project/concerns.yaml#G-061 records partial mitigation — four of the five minimum
+    defenses shipped (T-1646, T-1648, T-1649, T-1647); the fallback-chain order test remains deferred
+    pending the policy consultation. T-1650's route_cache schema test is additional protection, not a
+    substitute for the missing one.
+- id: SC-4
+  criterion: At least one autonomous workload — not agent-run verification — dispatches through the orchestrator
+    over a sustained period.
+  evidence: .context/project/concerns.yaml#G-064 — status closed 2026-06-10, 481 dispatches / 290 cron
+    firings, escalation-triage live since 2026-05-14
+non_goals:
+- Cost-aware / cost-weighted model selection — deferred to T-1637, kept horizon:later.
+- Solving the sub-agent /tmp/ bypass (G-015); T-1645 reframes the claim instead.
+- Parallel-execution architecture — opened as the sibling arc parallel-execution-aef via T-2303.
+- Agent-side closure of this arc; the closure verdict is the operator's.
+context:
+- point: T-1061 was called shipped on cargo tests and line-number reads; the user replied that nothing
+    orchestrated and routing rules were never consulted.
+  source: .tasks/completed/T-1641-t-1061-orchestrator-arc-reconsideration-.md#problem-statement
+- point: A 10-worker TermLink investigation found the substrate behaviourally real but operationally dormant
+    — zero framework call-sites passed task_type or --model.
+  source: docs/reports/T-1641-orchestrator-arc-reconsideration.md#findings
+- point: Thirteen routing-policy parameters — fallback chain, promotion/failure thresholds, cache TTL,
+    confidence, taxonomy — were defaulted by code authors, never asked.
+  source: docs/reports/T-1641-orchestrator-arc-reconsideration.md#findings
+- point: The demo proved read path, write path and failure path on the wire, but every cache row came
+    from synthetic verification dispatches.
+  source: docs/reports/orchestrator-rethink-demo/README.md#closure-status
+- point: That absence of real consumers was registered as G-064 and later closed once cron-driven escalation
+    triage supplied autonomous dispatch volume.
+  source: .context/project/concerns.yaml#G-064
+- point: The same 'shipped before substrate-verified' signature appeared in three arcs in five weeks,
+    making this arc the pattern's test case.
+  source: .context/project/decisions.yaml#D-058
+decisions:
+- decision: 'Split the reconsideration three ways: policy (T-1642), framework wiring (T-1643), drift defenses
+    (T-1644).'
+  status: active
+  date: 2026-05-01
+  source: .tasks/completed/T-1641-t-1061-orchestrator-arc-reconsideration-.md#decision
+- decision: Treat 'shipped before substrate-verified' as a recurring class, not an incident; register
+    G-062.
+  status: active
+  date: 2026-05-01
+  source: D-058
+- decision: Arc stays OPEN by default; fw arc close refuses under CLAUDECODE=1, closure is the operator's.
+  status: active
+  date: 2026-05-02
+  source: .tasks/completed/T-1671-implement-default-to-open-agent-gate-in-.md
+- decision: 'Defer the fallback-chain order regression test: pinning the order would lock a policy default
+    by accident.'
+  status: active
+  date: 2026-05-01
+  source: .context/project/concerns.yaml#G-061
+- decision: Parallel-execution work becomes a sibling arc rather than an extension of this one.
+  status: active
+  date: 2026-06-10
+  source: .tasks/completed/T-2303-scoping-inception--parallel-execution-ar.md
+open_questions:
+- question: Is the three-task-type demo sufficient evidence for closure, or must further work ship first?
+  source: .context/arcs/orchestrator-rethink.yaml
+- question: The fallback-chain order test remains unwritten pending the policy ruling it depends on —
+    who unblocks it?
+  source: .context/project/concerns.yaml#G-061
+- question: Where are the human dispositions and rationales for all 13 T-1642 policy parameters, including
+    explicit deferrals?
+  source: .tasks/completed/T-1642-arc-a--orchestrator-routing-policy-consu.md#recommendation
+- question: 'constituent_tasks lists 31 tasks while 123 task files carry arc_id: orchestrator-rethink
+    (or arc-003) — which set does closure count?'
+  source: .context/arcs/orchestrator-rethink.yaml
+history:
+- date: 2026-05-01
+  event: Arc opened after user pushback; T-1641 reconsideration returns GO on a three-way split.
+  source: T-1641
+- date: 2026-05-02
+  event: Framework-side wiring lands; routing demo captured on the wire.
+  source: .tasks/completed/T-1643-arc-b--framework-side-wiring-of-orchestr.md
+- date: 2026-05-02
+  event: Agent auto-closed the arc, reverted two minutes later; close gate built in response.
+  source: .context/arcs/orchestrator-rethink.yaml
+- date: 2026-05-02
+  event: Closure declared OPEN as 5th incident; G-064 registered for zero production consumers.
+  source: docs/reports/orchestrator-rethink-demo/README.md#closure-status
+- date: 2026-06-10
+  event: G-064 closed on measured cron dispatch volume; closure verdict still unrecorded.
+  source: .context/project/concerns.yaml#G-064
+evidence:
+  research_report: docs/reports/T-1641-orchestrator-arc-reconsideration.md
+  dialogue_log: docs/reports/T-1641-orchestrator-arc-reconsideration.md#dialogue-log-c-001-extension
+  demo: docs/reports/orchestrator-rethink-demo/README.md
+provenance:
+- .context/arcs/orchestrator-rethink.yaml
+- .tasks/completed/T-1641-t-1061-orchestrator-arc-reconsideration-.md
+- docs/reports/T-1641-orchestrator-arc-reconsideration.md
+- docs/reports/orchestrator-rethink-demo/README.md
+- .context/project/decisions.yaml
+- .context/project/concerns.yaml
+- .tasks/completed/T-1642-arc-a--orchestrator-routing-policy-consu.md
+- .tasks/completed/T-1643-arc-b--framework-side-wiring-of-orchestr.md
+- .tasks/completed/T-1671-implement-default-to-open-agent-gate-in-.md
+- .tasks/completed/T-1732-prompt-triage-as-g-064-first-real-consum.md
+- .tasks/completed/T-2303-scoping-inception--parallel-execution-ar.md

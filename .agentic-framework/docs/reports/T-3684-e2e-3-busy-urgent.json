@@ -1,0 +1,189 @@
+{
+  "busy_since": 1791033947.0939784,
+  "turn_end_observed": 1791034041.587755,
+  "non_urgent": {
+    "msg": "5443f54c-4abf-4a2c-af07-922f3aca9e32",
+    "inject": {
+      "msg_id": "5443f54c-4abf-4a2c-af07-922f3aca9e32",
+      "event": "INJECT_ATTEMPT",
+      "ts": "2026-10-03T13:27:38.841190+00:00",
+      "trigger": "tick",
+      "session": "tl-xy5af5ok",
+      "target_session_id": "4116f3df-ab67-4585-a925-55763a726dbb",
+      "ok": true
+    },
+    "handed_over": {
+      "msg_id": "5443f54c-4abf-4a2c-af07-922f3aca9e32",
+      "event": "HANDED_OVER",
+      "ts": "2026-10-03T13:27:40.203151+00:00",
+      "evidence": "transcript:4116f3df-ab67-4585-a925-55763a726dbb.jsonl"
+    },
+    "send_to_inject_s": 103.48462700843811,
+    "turn_end_to_inject_s": 17.253435134887695,
+    "send_to_handed_over_s": 104.84658789634705
+  },
+  "urgent": {
+    "msg": "0fd3b050-ebc6-45ef-8128-a36d81db0e03",
+    "inject": {
+      "msg_id": "0fd3b050-ebc6-45ef-8128-a36d81db0e03",
+      "event": "INJECT_ATTEMPT",
+      "ts": "2026-10-03T13:26:02.428595+00:00",
+      "trigger": "on-store",
+      "session": "tl-xy5af5ok",
+      "target_session_id": "4116f3df-ab67-4585-a925-55763a726dbb",
+      "ok": true,
+      "urgent_bypass": true
+    },
+    "busy_at_inject": true,
+    "pty_has_line_while_busy": true,
+    "handed_over": {
+      "msg_id": "0fd3b050-ebc6-45ef-8128-a36d81db0e03",
+      "event": "HANDED_OVER",
+      "ts": "2026-10-03T13:27:19.972348+00:00",
+      "evidence": "transcript:4116f3df-ab67-4585-a925-55763a726dbb.jsonl"
+    },
+    "send_to_inject_s": 0.7282400131225586,
+    "send_to_handed_over_s": 78.27199292182922
+  },
+  "hub_urgent": {
+    "msg": "446d6629-d25a-4aec-b7ae-5a88e1e4290d",
+    "inject": {
+      "msg_id": "446d6629-d25a-4aec-b7ae-5a88e1e4290d",
+      "event": "INJECT_ATTEMPT",
+      "ts": "2026-10-03T13:26:08.407331+00:00",
+      "trigger": "tick",
+      "session": "tl-xy5af5ok",
+      "target_session_id": "4116f3df-ab67-4585-a925-55763a726dbb",
+      "ok": true,
+      "urgent_bypass": true
+    },
+    "busy_at_inject": true
+  },
+  "b_events": [
+    {
+      "msg_id": "5443f54c-4abf-4a2c-af07-922f3aca9e32",
+      "event": "STORED",
+      "ts": "2026-10-03T13:25:55.400642+00:00",
+      "sender": "t3684a-woejcj"
+    },
+    {
+      "msg_id": "0fd3b050-ebc6-45ef-8128-a36d81db0e03",
+      "event": "STORED",
+      "ts": "2026-10-03T13:26:02.386466+00:00",
+      "sender": "t3684a-woejcj"
+    },
+    {
+      "msg_id": "0fd3b050-ebc6-45ef-8128-a36d81db0e03",
+      "event": "INJECT_TYPING",
+      "ts": "2026-10-03T13:26:02.404399+00:00",
+      "trigger": "on-store",
+      "session": "tl-xy5af5ok",
+      "target_session_id": "4116f3df-ab67-4585-a925-55763a726dbb"
+    },
+    {
+      "msg_id": "0fd3b050-ebc6-45ef-8128-a36d81db0e03",
+      "event": "INJECT_ATTEMPT",
+      "ts": "2026-10-03T13:26:02.428595+00:00",
+      "trigger": "on-store",
+      "session": "tl-xy5af5ok",
+      "target_session_id": "4116f3df-ab67-4585-a925-55763a726dbb",
+      "ok": true,
+      "urgent_bypass": true
+    },
+    {
+      "msg_id": "446d6629-d25a-4aec-b7ae-5a88e1e4290d",
+      "event": "STORED",
+      "ts": "2026-10-03T13:26:08.356626+00:00",
+      "sender": "t3684a-woejcj"
+    },
+    {
+      "msg_id": "446d6629-d25a-4aec-b7ae-5a88e1e4290d",
+      "event": "INGESTED_FROM_HUB",
+      "ts": "2026-10-03T13:26:08.356887+00:00",
+      "topic": "inbox:cacc73ea32b121dd/t3684b-woejcj",
+      "offset": 0,
+      "hub_ts": 1791033963211
+    },
+    {
+      "msg_id": "446d6629-d25a-4aec-b7ae-5a88e1e4290d",
+      "event": "RECEIPT_SENT",
+      "ts": "2026-10-03T13:26:08.360815+00:00",
+      "state": "RECEIVED",
+      "via": "direct"
+    },
+    {
+      "msg_id": "446d6629-d25a-4aec-b7ae-5a88e1e4290d",
+      "event": "INJECT_TYPING",
+      "ts": "2026-10-03T13:26:08.379841+00:00",
+      "trigger": "tick",
+      "session": "tl-xy5af5ok",
+      "target_session_id": "4116f3df-ab67-4585-a925-55763a726dbb"
+    },
+    {
+      "msg_id": "446d6629-d25a-4aec-b7ae-5a88e1e4290d",
+      "event": "INJECT_ATTEMPT",
+      "ts": "2026-10-03T13:26:08.407331+00:00",
+      "trigger": "tick",
+      "session": "tl-xy5af5ok",
+      "target_session_id": "4116f3df-ab67-4585-a925-55763a726dbb",
+      "ok": true,
+      "urgent_bypass": true
+    },
+    {
+      "msg_id": "0fd3b050-ebc6-45ef-8128-a36d81db0e03",
+      "event": "HANDED_OVER",
+      "ts": "2026-10-03T13:27:19.972348+00:00",
+      "evidence": "transcript:4116f3df-ab67-4585-a925-55763a726dbb.jsonl"
+    },
+    {
+      "msg_id": "0fd3b050-ebc6-45ef-8128-a36d81db0e03",
+      "event": "CONFIRM_SENT",
+      "ts": "2026-10-03T13:27:20.005806+00:00",
+      "status": 200,
+      "recorded": true
+    },
+    {
+      "msg_id": "446d6629-d25a-4aec-b7ae-5a88e1e4290d",
+      "event": "HANDED_OVER",
+      "ts": "2026-10-03T13:27:20.008624+00:00",
+      "evidence": "transcript:4116f3df-ab67-4585-a925-55763a726dbb.jsonl"
+    },
+    {
+      "msg_id": "446d6629-d25a-4aec-b7ae-5a88e1e4290d",
+      "event": "RECEIPT_SENT",
+      "ts": "2026-10-03T13:27:20.042950+00:00",
+      "state": "HANDED_OVER",
+      "via": "direct"
+    },
+    {
+      "msg_id": "5443f54c-4abf-4a2c-af07-922f3aca9e32",
+      "event": "INJECT_TYPING",
+      "ts": "2026-10-03T13:27:38.815810+00:00",
+      "trigger": "tick",
+      "session": "tl-xy5af5ok",
+      "target_session_id": "4116f3df-ab67-4585-a925-55763a726dbb"
+    },
+    {
+      "msg_id": "5443f54c-4abf-4a2c-af07-922f3aca9e32",
+      "event": "INJECT_ATTEMPT",
+      "ts": "2026-10-03T13:27:38.841190+00:00",
+      "trigger": "tick",
+      "session": "tl-xy5af5ok",
+      "target_session_id": "4116f3df-ab67-4585-a925-55763a726dbb",
+      "ok": true
+    },
+    {
+      "msg_id": "5443f54c-4abf-4a2c-af07-922f3aca9e32",
+      "event": "HANDED_OVER",
+      "ts": "2026-10-03T13:27:40.203151+00:00",
+      "evidence": "transcript:4116f3df-ab67-4585-a925-55763a726dbb.jsonl"
+    },
+    {
+      "msg_id": "5443f54c-4abf-4a2c-af07-922f3aca9e32",
+      "event": "CONFIRM_SENT",
+      "ts": "2026-10-03T13:27:40.235274+00:00",
+      "status": 200,
+      "recorded": true
+    }
+  ]
+}

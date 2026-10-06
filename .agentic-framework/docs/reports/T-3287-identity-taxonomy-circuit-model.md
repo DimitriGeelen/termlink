@@ -1,0 +1,817 @@
+# T-3287 — Cross-agent identity taxonomy + circuit-establishment model
+
+**Status:** inception / exploration (opened 2026-09-06)
+**Parent of:** T-3286 (narrow producer-parity fix — carry level-5 agent id on the wire)
+**Related:** G-105 (producer/consumer identity parity gap), T-2904 (rail-identity, project-level signing), T-1841 (be-reachable / listener heartbeat), T-1693 (shared-host-envelope-identity, forward-compat reader)
+
+> This file is the persistent thinking trail (C-001). The conversation is
+> ephemeral; this is not. Updated incrementally as the dialogue produces findings.
+
+---
+
+## Problem Statement
+
+The trigger was a concrete fault: on a live cross-project TermLink thread
+(100-Video-riper's course-transfer coordination), several **distinct agents on
+one host collapse into a single correspondent**. The narrow cause is known and
+filed (G-105 / T-3286): the agent-chat producers never stamp a logical
+`agent_id`, so the reader falls back to the shared crypto fingerprint.
+
+But the operator reframed the fault as the tip of a larger absence: the framework
+has **no explicit taxonomy of identity** and **no model of a durable connection**
+between two agents. "Who is talking" and "how do I reach them again" are currently
+emergent accidents of whatever termlink resolves, not a designed addressing
+scheme. This inception is to design that scheme before building more of it.
+
+---
+
+## The proposed taxonomy — 5 levels
+
+A hierarchy of nested identity scopes. Each level is contained by the one above.
+
+| # | Level | What it is | Contained by |
+|---|-------|-----------|--------------|
+| 1 | **Host** | A physical/virtual machine | — |
+| 2 | **Hub** | A termlink hub process running on a host | Host |
+| 3 | **Project** | An AEF (or other) project living under a hub | Hub |
+| 4 | **Session** | A running session (a `claude` process) in a project | Project |
+| 5 | **Agent** | An agent *profile* active within a session | Session |
+
+Key properties the operator stated:
+
+- **Agent profiles are switchable within a session** (level 5 is mutable inside a
+  fixed level 4). So the (session → agent) edge is one-to-many *over time*.
+- **Level 4 (session) is the minimum runnable unit** — "we need to run in a
+  project", i.e. nothing below a session actually executes; an agent is a *role
+  the session is currently wearing*, not an independent process.
+- A **fully-qualified address** is therefore `Host.Hub.Project.Session.Agent`
+  (levels 1–5). The operator initially said "host+hub+session" and corrected to
+  include **project** — the unique addressable identity needs all of
+  host+hub+project+session, with agent as the optional most-specific leaf.
+
+Analogy anchors (for reflection, not yet decisions):
+- **Actor-path addressing** — `/host/hub/project/session/agent`, exactly like
+  Erlang/Akka hierarchical actor references.
+- **DNS** — hierarchical, delegated resolution; each level knows how to resolve
+  its children.
+- **Telephony circuit** vs packet — see the circuit model below.
+
+---
+
+## The circuit-establishment model
+
+The operator's core move: communication is not only **broadcast**. Two parties
+establish a **dedicated circuit** — a durable, addressable channel — and can
+**re-use it later** via a stable **circuit ID**.
+
+- **Party A** (at least level 4 — a host.hub.project.session) initiates contact to
+  **Party B** (down to level 5 — a specific agent).
+- On success, a **circuit is established** and gets a **circuit ID**.
+- Later, Party A re-contacts Party B by naming the circuit ID rather than
+  re-resolving from scratch. (Cheaper, and it pins *the same* B.)
+
+This is a **connection-oriented** overlay on top of what is otherwise a
+publish/subscribe (broadcast) substrate. The circuit ID is the session-of-the-
+conversation — distinct from level-4 "session", so naming will matter (see Open
+Questions).
+
+---
+
+## The regressive resolution ladder (the interesting part)
+
+The question the circuit model forces: **what happens when re-connecting on a
+circuit fails?** The agent (level 5) may be gone. The operator's answer is a
+**graceful-degradation ladder that climbs to the nearest ancestor able to
+re-provision the descendant**, then re-establishes downward:
+
+```
+Try circuit -> level 5 (agent) unreachable
+  climb to level 4 (session):  "I want agent X - can you (re)instate it?"
+  not found -> level 3 (project): "can you start a session (that can host X)?"   <- the bridge
+  not found -> level 2 (hub):     "do you have project P? start a session for it"
+  not found -> level 1 (host):    "I need a termlink hub - can you stand one up?"
+                                   then resolve down: host -> hub -> project -> session -> agent
+```
+
+Each rung is "ask the parent to (re)create the missing child." This is precisely
+an **OTP supervision tree**: a supervisor at level N is responsible for
+(re)starting its level N+1 children, and a request that can't reach a child
+escalates to the supervisor that owns it. The novelty here is that the *client*
+drives the escalation as a resolution ladder, and the same ladder doubles as
+**provisioning** (level 1 "do you have this capability? stand it up") — discovery
+and orchestration are the same walk.
+
+**Open tension already visible:** discovery (find an existing B) and provisioning
+(create a B) are merged in this ladder. That is powerful (self-healing circuits)
+but dangerous (a typo'd address could provision a whole hub). The boundary between
+"reconnect to what exists" and "materialise what doesn't" needs an explicit gate.
+
+---
+
+## Two follow-up questions the operator raised
+
+### Q-A — Negotiation / election on a broadcast with multiple candidates
+
+If Party A broadcasts at, say, level 4 ("I want an AEF session on this
+host/hub/project") and **multiple candidates** can answer (multiple sessions, or
+multiple projects, or multiple agents), **who picks it up?** You don't want all of
+them to, and you don't want none. This needs a **negotiation / claim / election**
+protocol:
+- first-to-claim-locks (a mutex on the request),
+- bidding / capability-scored election (best-fit answers),
+- or supervisor-assigns (the parent picks one child).
+
+**Note — TermLink already ships a claim primitive.** `termlink channel claim` /
+`claim_transfer` / `claim_force_release` / `claims_summary` exist. That is very
+likely the substrate for "exactly one candidate takes this", and the design
+should reuse it rather than invent an election. To verify in the design phase.
+
+### Q-B — "termlink or termlink" (INCOMPLETE — needs the operator to finish)
+
+The dictation cut off: *"Second question. termlink or termlink."* Best guesses at
+the intended question, for the operator to confirm/replace:
+1. **Substrate choice** — should circuits be built on **termlink** primitives
+   (dm topics + claim + events + heartbeat) or on **something else**?
+2. **termlink vs TermLink** — a naming/branding disambiguation between the binary
+   and the product?
+3. **termlink hub vs termlink fleet** — which layer owns hub provisioning at
+   level 1–2?
+
+-> **ACTION: operator to complete Q-B.**
+
+---
+
+## What the framework already has (primitives to reuse, not reinvent)
+
+Mapping the model onto existing TermLink / AEF mechanisms, so the design composes
+rather than greenfields:
+
+| Model concept | Existing primitive (candidate) |
+|---------------|-------------------------------|
+| Level-5 agent identity on the wire | `metadata.agent_id` (T-3286 fix) + reader tier-1 (already built) |
+| Level-3 project identity (signed) | `rail-identity` project key (T-2904) — project-level, one layer of the 5 |
+| Presence / "is B alive" | be-reachable + listener heartbeat (T-1841); `agent-presence` topic |
+| Circuit (durable channel) | `dm:<addr>:*` topics + `conversation_id` metadata (partial today) |
+| Circuit ID | `conversation_id` is a proto-circuit-id, but per-thread not per-pair-durable |
+| Re-provisioning ladder | **absent** — no supervisor/escalation walk exists yet |
+| Election on multi-candidate | `channel claim` family (exists, unused for this) |
+| Signaling between levels | `event emit/wait/poll`; `inject` doorbell (agent-send) |
+| Host/hub provisioning (level 1–2) | `termlink hub start/status`; `fleet` verbs — the raw capability exists |
+
+**The gap is not primitives — it is the addressing scheme and the escalation
+walk that tie them together.** Most rungs of the ladder have a primitive; nothing
+composes them into "resolve `H.Hub.P.S.A`, and on miss climb to the parent."
+
+---
+
+## Open design questions (to work through together)
+
+1. **Addressing syntax** — is the canonical address a path
+   (`host/hub/project/session/agent`), a tuple, or a flat resolvable id? What is
+   the wire form on an envelope?
+2. **Circuit ID vs conversation_id** — is a circuit *per pair of endpoints*
+   (durable, survives many conversations) or *per conversation*? The operator's
+   "re-connect later on the same circuit" implies per-pair-durable, which
+   `conversation_id` is not today.
+3. **Discovery/provisioning boundary** — where is the gate between "reconnect to
+   an existing B" and "create a B"? Who is allowed to trigger level-1/2
+   provisioning, and with what authority (this is a sovereignty question —
+   standing up a hub is consequential)?
+4. **Election policy** — first-claim, bid, or supervisor-assign for Q-A?
+5. **Identity vs authentication** — is `agent_id` a *cooperative label* (current
+   design, unsigned free text — T-2905) or an *authenticated identity* (its own
+   key per level)? The operator's word "fingerprint" leans toward authenticated;
+   that is a much larger build and must be decided explicitly, not drifted into.
+6. **Profile-switching semantics** — if level 5 switches mid-session, does the
+   circuit follow the *session* (level 4, stable) or the *agent profile* (level 5,
+   mutable)? A circuit pinned to level 5 breaks on every profile switch; pinned to
+   level 4 survives but loses agent-grain distinctness. This directly re-touches
+   the original T-3286 grain question.
+
+---
+
+## Reflection findings — round 2 (2026-09-06)
+
+These are agent-proposed refinements from reflecting on the model, NOT yet
+operator-ratified decisions. Marked so a later reader can tell proposal from
+ratification.
+
+**F1 — [OVERRIDDEN by D1, 2026-09-06] Level 5 (agent) is a PREDICATE over level 4, not an address.** An agent is
+a profile a session *wears*, and profiles switch within a session, so an agent has
+no independent existence to open a circuit to. The real endpoint is always the
+**session** (level 4, the stated minimum runnable unit). "Reach agent X" is not an
+address lookup — it is a *query*: "route me to a session currently presenting
+profile X." Two agents may be worn by one session over time; one profile may be
+worn by two sessions at once. So level-5 addressing is a filter over level-4
+endpoints, not a level of its own in the routing sense.
+
+**F2 — [OVERRIDDEN by D1, 2026-09-06] Circuit pins to level 4; the role label rides on each message (level 5).**
+Falls out of F1 and cleanly dissolves the profile-switching tension (open question
+#6): the circuit survives profile switches because the session is stable; the
+current role is carried per-message as a label. This ties back to T-3286: the fix
+should stamp BOTH a stable session/circuit id AND the current agent/role label —
+the router uses the session, the thread transcript *shows* the role. Distinct
+agents read as distinct even when the underlying circuit is one session.
+
+**F3 — Circuit ID is DNS-shaped, not IP-shaped.** The circuit ID should name the
+*logical* endpoint (project + role) and re-resolve to the current concrete
+session on reconnect — like a hostname resolving to a changing IP. This is what
+makes the ladder work: reconnection does not require the old session to still
+exist; it re-resolves the stable name to whatever session satisfies it now.
+`conversation_id` today is per-conversation, not this stable per-endpoint handle —
+gap.
+
+**F4 — Split the ladder into RESOLVE vs PROVISION with a sovereignty gate.** The
+ladder as stated merges discovery ("find existing B") and provisioning ("ask a
+parent to create B") into one walk, and auto-provisions up to "host, stand up a
+hub" — which a typo'd address would also trigger. Proposed split:
+- **Resolve** (climb to find what exists): cheap, side-effect-free, always allowed.
+- **Provision** (materialise a missing child): consequential, authorized, rate-
+  gated; above some level it needs a human or a standing policy (Authority Model —
+  agents hold initiative, not authority to commit infrastructure). WHERE the gate
+  sits (session? project? hub?) is an operator decision, open.
+
+**F5 — Reuse `channel claim` for Q-A election, do not invent one.** v1 pattern:
+broadcast the request to the level-N topic; candidates race to `claim` it;
+first-claim wins the mutex; the rest back off. Best-fit (capability bid + a short
+auction window, parent picks) is a v2 option. First-claim is the likely v1 and is
+the exact mechanism that decides which AEF session owns the Video-riper transfer
+circuit instead of all-or-none answering.
+
+## Ratified decisions
+
+**D1 (2026-09-06) — Identity is INSTANCE-identity, not role-identity.** Operator
+ruling. A circuit is a specific established channel down to a specific
+agent-instance (level 5). The circuit ID is **transient** — it dies with the
+circuit; only the caller's retained reference to it persists, used to *attempt*
+the fast-path re-establishment. Reconnect is optimistic-then-degrading: try the
+circuit ID; if the endpoint is gone, climb the ladder (5→4→3→2→1) until an
+ancestor can re-provision, then establish a NEW circuit with a NEW id. The ladder
+does NOT preserve identity — it yields a working equivalent, not "the same B".
+
+Consequences:
+- Overrides F1/F2. Level 5 is a FIRST-CLASS endpoint with its own liveness, not a
+  predicate over level 4 — the tell is that the operator lists "agent gone" and
+  "session gone" as INDEPENDENT failure levels.
+- Settles the origin bug unconditionally: under instance-identity two distinct
+  agent-instances must NEVER collapse to one correspondent, so T-3286 (always
+  separate them) is correct in all cases. Role-identity would have made the
+  collapse sometimes-correct; it was ruled out.
+
+**D1-open (grill in flight) — profile-switch liveness.** For D1 to be internally
+consistent, a profile switch within a live session must KILL the level-5
+agent-instance and its circuit (agent-instance = (session, current-profile-epoch),
+independently mortal). If a switch does NOT kill the circuit, agent-liveness is
+not independent of session-liveness and level 5 collapses into level 4,
+contradicting D1. Awaiting operator ruling.
+
+**D2 (2026-09-06, operator-proposed → agent-refined into two clean strings) —
+every level has a DURABLE NAME; the circuit ID is durable-name + session.**
+Operator walked each level's durable name:
+
+| # | Level | Durable name | Nature |
+|---|-------|--------------|--------|
+| 1 | Host | **FQDN** (or IP) | active, DNS-static |
+| 2 | Hub | hub id — one termlink hub per host is the entry point ("I need to be a termlink hub") | active, singleton-by-type |
+| 3 | Project | the **root directory / path** it is bound to | **PASSIVE** — a location, not a process |
+| 4 | Session/instance | the **termlink-generated instance ID** (always unique) | active, transient |
+| 5 | Agent | the **@agent-name** (declared; a bootstrap act — create/collaborate-to-create — establishes it) | active, project-scoped durable name |
+
+The operator's **passive-project insight** is the structural payoff: level 3 is
+not an actor. "AEF is always bound to a root directory, which is its project
+directory — it's not allowed to go out there" (ties to T-559 project-boundary).
+A project cannot *do* anything, so its rung on the resolve/provision ladder is
+never "ask the project" — it is "ask the HUB to start an instance bound to
+project-path P." The project is uniquely *addressable* (by path) but never
+*callable*. This dissolves an apparent 5-actor ladder into 4 actors + 1 address.
+
+**Agent refinement — separate the two strings the operator briefly merged.** The
+operator's composite ("L1 FQDN / L2 hub / L3 path / L4 session / L5 @name") is
+correct but names *two different things* at once. Split cleanly:
+
+- **Durable name** = `FQDN / [hub] / <project-path> / @agent-name` — **no session
+  segment.** This is the CORRESPONDENT: the who-you-talk-to. It survives instance
+  death, it is what the ladder re-resolves to, it is DNS-static (an A-record that
+  keeps its name across IP changes). Stamped on the wire as the level-5 `agent_id`
+  (the T-3286 leaf).
+- **Circuit ID** = durable-name **+ session-id** — this live binding. It is the
+  ACTOR: the specific running instance, transient, needs live resolution (the
+  DNS *A-record lookup*, not the name). Dies with the session; the caller retains
+  it only to *attempt* the fast path (consistent with D1).
+
+So the two-layer identity, sharpened: **durable name = the correspondent the peer
+sees** (continuity; what you stamp so distinct agents read as distinct); **instance
+id = the actor the coordination layer sees** (the discriminator; can conflict; the
+thing that decides who owns a claim). One string for "who is this", one for "which
+live process". T-3286 stamps the first; the circuit/claim layer keys on the second.
+*Ratified in concrete form by D3 below — the split is realised as the presence or
+absence of the `session=` token in the V9 grammar.*
+
+**D3 (2026-09-07, RATIFIED) — the address grammar is V9, with display-only path
+elision.** After generating and scoring nine prefixing variants (catalogue below),
+the operator locked **V9**: a `aef::` scheme prefix, `label=value` binding, `::` as
+the segment terminator, IPv6 literals bracketed, and `@name` as the identity leaf.
+A space-separated,
+scheme-prefix-free **V4** form is the human-typed alias that resolves to the same
+tuple (two forms, one address — like DNS wire vs zone-file, or URL encoded vs
+display).
+
+```
+canonical (wire):
+  durable:  aef::host=<fqdn>::hub=<H-id>::project=<path>::@<agent>::
+  circuit:  aef::host=<fqdn>::hub=<H-id>::project=<path>::session=<S-id>::@<agent>::
+
+worked example (host107.ring20.lan / H-1 / /opt/999-Agentic-Engineering-Framework / S-8f3c / reviewer):
+  durable:  aef::host=host107.ring20.lan::hub=H-1::project=/opt/999-Agentic-Engineering-Framework::@reviewer::
+  circuit:  aef::host=host107.ring20.lan::hub=H-1::project=/opt/999-Agentic-Engineering-Framework::session=S-8f3c::@reviewer::
+  IPv6:     aef::host=[fe80::1]::hub=H-1::...
+  ladder:   aef::host=host107.ring20.lan::hub=H-1::            (climb = drop rightmost tokens)
+  query:    aef::hub=H-1::@reviewer::                          (self-typing → drop ANY token)
+
+human alias (V4, CLI-typed):
+  host=host107.ring20.lan hub=H-1 project=/opt/999-Agentic-Engineering-Framework session=S-8f3c @reviewer
+
+grammar:
+  address := "aef::" segment* leaf
+  segment := label "=" value "::"     label ∈ {host,hub,project,session}
+  leaf    := "@" agent-name "::"      value opaque; IPv6 bracketed [ … ]
+  correspondent (durable) = address WITHOUT session= ;  circuit id (actor) = WITH session=
+```
+
+Why V9 won, in one line each: **self-typing** (labels are words → no sigil scarcity,
+no `#`=channel collision); **path-safe** (`=`/`::` never clash with the `/` inside a
+project path); **ladder + query for free** (drop tokens; sparse stays unambiguous);
+**wire-safe** (no whitespace dependence); **extractable from free text** (the one
+`aef::` opener lets an address be regex'd out of a chat message — the exact context
+this work came from); **`@name` preserved** (F6 who-vs-where kept, unlike the uniform
+and start-marker variants).
+
+**D3 sub-rule — project path elision is DISPLAY-ONLY.** The `project=` value is a
+filesystem path and can be long. In human-facing contexts (chat messages,
+`termlink list`, logs) it renders elided: paths with >3 segments keep the **first**
+segment + the **last two**, with the middle replaced by an **ellipsis `…`** (NOT
+`..` — two dots collide with the parent-directory path operator):
+
+```
+wire / identity (unique, resolvable, stamped by T-3286, keyed by claims):
+  project=/mnt/storage/clients/acme/repos/frontend/042-Web-App
+display / human (length-reduced, NON-identity):
+  project=/mnt/…/frontend/042-Web-App
+```
+
+Elision is **lossy** (two deep paths can share first + last-two), so it must NEVER
+be the wire value — a collided display string would re-collapse two projects into
+one correspondent, the exact bug this task exists to kill. Same wire-vs-human split
+as V9-canonical vs V4-alias. Our own project (`/opt/999-Agentic-Engineering-Framework`,
+2 segments) is under the threshold and renders unchanged.
+
+**Rejected variants (evaluated 2026-09-07, kept so the evaluation is not lost):**
+
+| V | Form (durable) | Rejected because |
+|---|----------------|------------------|
+| V1 | `host107.ring20.lan/opt/999-…/@reviewer` (pure path, `@`+`:`) | host↔project boundary invisible — path slashes merge with level separators; no clean hub slot |
+| V2 | `%host107… #H-1 /opt/999-… ~S-8f3c @reviewer` (cryptic sigil per level) | `#`=channel is an everyday collision here; `%`/`~` cryptic, need a legend; throws away hierarchy encoding |
+| V3 | `host::host107… hub::H-1 project::/opt/999-… @reviewer` (`::` binder, space sep) | `::` binder clashes with IPv6; separator left unspecified (space fragile in shell/JSON) |
+| V4 | `host=host107… hub=H-1 project=/opt/999-… @reviewer` (`=` binder, space sep) | best *human* form — KEPT as the alias, not the canonical; space separator not wire-safe |
+| V5 | `host::… hub::H-1 … agent::reviewer` (`::` uniform, agent labeled) | loses F6 who-vs-where — agent demoted from identity leaf to coordinate |
+| V6 | `aef:host107…:H-1:/opt/999-…:reviewer` (ARN-style positional colon) | positional, not self-typing; empty slot = `::` gap, ambiguous |
+| V7 | `host=…::hub=H-1::…::@reviewer::` (`=` bind, `::` terminate) | strong — but no opener, so not extractable from free text; V9 = V7 + the `aef::` prefix |
+| V8 | `@@host=…::@@hub=H-1::…::@@agent=reviewer::` (`@@` start per segment) | `::@@` double-marks every boundary (redundant); `@@` collides with the `@name` leaf, forcing uniform |
+
+**D4 (2026-09-07, RATIFIED) — circuit lifecycle is THREE-state; memory is
+project-durable.** The reconnect model is not binary (live / dead-then-ladder).
+A retained circuit id is kept in memory as a cache and stays valid across a profile
+switch — invalidation requires *positive proof of death*, never a timeout-guess.
+
+Three states:
+1. **Live** — profile is current, circuit fully active.
+2. **Dormant** — session alive, `@name` not the current profile but re-instatable.
+   The retained circuit id is a **fast reactivation key**: reactivate the profile in
+   the already-known session, skipping discovery. **Bounded by the session's profile
+   registry (B):** rung 2 applies iff session-alive AND session-has-that-profile.
+3. **Dead** — proven only by a **resolve-walk DOWN the retained address (A)** —
+   host→hub→project→"is `session=S` alive?" — that fails to find the session (or the
+   session lacks the profile). *Then* climb the ladder → a NEW circuit under the
+   durable name. The address's own structure is the death test; the ladder is both
+   recovery path and death oracle.
+
+**Memory ruling (C).** On reactivation the agent resumes from **its OWN latest saved
+state** — **agent-owned** (the session decides what it presents, not the requester),
+and possibly **grown** since the switch (it may have had contact with others → new
+learnings). Not fresh, not a frozen replay of the requester's last exchange. The
+requester reconnects to the identity *as it now is*.
+
+Consequences:
+- **Antifragility (Directive 1):** an identity that returns from dormancy *richer*
+  is the system strengthening under use. A frozen-snapshot resume would have been the
+  *fragile* choice — it discards what the agent learned while away.
+- **Sovereignty (Authority Model):** the requester holds *initiative* to reach
+  `@name`, never *authority* over `@name`'s memory. The agent is sovereign curator —
+  it may surface or withhold (a confidential contact with a third party need not be
+  presented).
+- **Reconciles D1 + D2:** the actor is transient (D1); the memory is project-durable
+  (D2). See the closed fork below.
+- **Downstream (flagged, not solved):** two instances sharing one `@name` draw on and
+  write the *same* project fabric — a consistency benefit and a write-conflict/mutex
+  hazard. It is owned by the AEF layer precisely because the AEF layer owns the shared
+  memory (sharpens the round-5 "conflicts belong at the AEF level" ruling).
+
+**D5 (2026-09-07, RATIFIED) — provisioning authority: pre-authorized self-heal,
+structurally bounded.** The regressive ladder (D1/D4) re-provisions on a dead
+circuit. Its authority model:
+
+- **RESOLVE** (find what exists) — ungated, every rung, side-effect-free.
+- **PROVISION** (materialize a missing child) — **Tier-3 pre-authorized** through
+  hub-standup. This is human sovereignty exercised *once, in advance, as standing
+  policy* — NOT a per-action approval, and NOT a Tier-0 bypass. Justified because
+  provisioning is **additive/reversible** (not the destructive class Tier 0 guards —
+  force-push, rm -rf, DROP TABLE) and because unattended self-heal is **Directive 1
+  (antifragility)**. Resolve and provision are deliberately the *same* ladder walk
+  (the F4 discovery/provision merge is accepted, bounded structurally instead of by a
+  human gate).
+
+The four bounds that replace the human backstop (self-heal ≡ runaway/typo on the
+same code path, so the bounds are load-bearing):
+
+1. **Idempotency** — ensure-exists via `channel claim`, first-claim-wins. A broadcast
+   storm for `@X` provisions ONE, not N (Q-A election doing double duty).
+2. **Load-adaptive admission** — an **environmental governor** samples the host's own
+   utilization (memory / disk / CPU / network) and adapts the provisioning ceiling to
+   real headroom (backpressure under stress) — NOT a static per-host cap. Antifragile
+   self-protection (Directive 1). *Retrofits the load-62 incident of this very session*
+   — no host-resource-awareness existed, so every verification timed out and work
+   piled onto an already-drowning host; this governor would have deferred provisioning
+   and flagged the overload instead. **Staging:** the *principle* ("admission is
+   load-adaptive, never a static cap") is ratified now; a crude v1 (loadavg/headroom
+   threshold) ships first; the full governor is its own build slice.
+3. **Path-existence → fleet-source → inform-operator.** A session cannot be
+   provisioned for a project whose files are not on disk — and because the project is
+   passive and path-bound (D2), **the filesystem itself gates project-level
+   provisioning for free, killing the typo'd-address blast radius.** Before giving up,
+   attempt to source the repo from **KNOWN FLEET PEERS** (hubs/sessions that have it) —
+   never arbitrary network — and **integrity-verify** it (signed / sha256 manifest —
+   the `.107` course-transfer pattern from this session's origin) before it may run.
+   If genuinely unfindable → cannot start → **surface to the operator, informed,
+   never silent.**
+4. **Full traceability** — every auto-provision logged, unconditionally.
+
+**Follow-on build slices (post-GO):** (a) the environmental governor (bound 2 full);
+(b) fleet repo-sourcing + integrity verification (bound 3). Both are additive
+capabilities the identity design depends on but does not itself build.
+
+**D6 (2026-09-07, RATIFIED) — hub is 1:1 with host by default; `hub=` is optional
+in the address.** A hub is the host's single entry broker ("I need to be a termlink
+hub — that is the entry", round 4). So host and hub are co-determined in the common
+case and `hub=` carries no addressing distinction — it is **derivable and optional**:
+omitted → the host's default/only hub. The field is **retained** in the grammar for
+the rare multi-hub host (e.g. prod/test split), so the design is forward-compatible.
+Canonical common-case address drops it:
+`aef::host=host107.ring20.lan::project=/opt/999-Agentic-Engineering-Framework::@reviewer::`
+Consequence for S1: `hub=` parses as optional; a bare address resolves the hub via
+the host default. Effectively 4 addressing levels in the common case, 5 when a host
+runs more than one hub.
+
+**D7 (2026-09-07, RATIFIED) — shared-`@name` writes serialize through a per-project
+write-claim (existing doctrine, not new invention).** Two instances wearing one
+`@name` in one project converge on that project's `.context/` fabric (the D4
+downstream). Resolution reuses the framework's own §Execution Model rule — *"fan out
+on reads, fan in serially on writes"* — plus the claim primitive: the project's
+shared fabric has a **single-writer claim**; writes serialize through a per-project
+write-claim (`channel claim` on the project address), reads fan out freely. This is
+the **AEF layer**, per the operator's round-5 ruling (conflicts belong at the AEF
+level *because* the AEF layer owns the shared memory — D4). No CRDT/merge needed —
+serialise the write leg. Consequence for S2/S3: acquire the project write-claim
+before mutating fabric; a second same-`@name` instance reads freely and waits/queues
+on writes.
+
+**F6 (2026-09-07, verification finding — challenges operator's slash claim).**
+Operator claimed "all LLM harnesses use `/` for agents (Codex, OpenCode,
+Antigravity, Anthropic)" and asked to be challenged if wrong. Verified via web
+search (Sept 2026): **the claim is nuanced and the load-bearing half is wrong.**
+Slash is near-universal — for **commands / workflows / session control**, NOT for
+agent *identity*:
+- Claude Code: `/` = commands; an agent is invoked by **@-mention** (`@code-reviewer`) or `--agent`.
+- OpenCode: `/<name>` = commands; subagents are **@-mentioned** (`@file-writer`); docs say the `@` prefix is *for* invocation.
+- Codex CLI: `/model`, `/agent`, `/status` are session **commands** — `/agent` manages threads, it is not an agent's name.
+- Antigravity: slash commands invoke agent **workflows** (`/goal`, `/boost`, `/agents`) — a partial point *for* the operator (it blurs command↔agent), but still names workflows, not a specific agent's identity.
+
+**Design consequence (why F6 matters, not trivia):** we are designing an
+*identity* (the "who"), which across the ecosystem is the **@-mention** role, not
+the `/command` role. And `/` is **already our path separator** (levels 1→5). Using
+`/agent-name` for the leaf overloads slash into three jobs (separator, command,
+identity) and reads as "a command" to anyone fluent in these tools. Proposal:
+**agent leaf = `@agent-name`** — ecosystem-aligned for "who", and it composes:
+`/` separates levels, `@` marks the identity leaf, `:` binds the transient session:
+
+```
+Durable name:  fqdn / <project-path> / @agent-name
+Circuit ID:    fqdn / <project-path> / @agent-name : <session-id>
+```
+
+Sources: code.claude.com/docs/en/agent-sdk/subagents · opencode.ai/docs/agents ·
+opencode.ai/docs/commands · developers.openai.com/codex/guides/slash-commands ·
+antigravity.google/docs/slash-commands. *Awaiting operator decision: align to `@`
+for the leaf, or deliberately diverge (Antigravity-style slash-for-workflow).*
+
+**CLOSED (2026-09-07, by D4/C) — availability vs memory antifragility.** The fork
+was "where does circuit/relationship state live, given a re-provisioned instance has
+amnesia?" **Resolved: memory lives at LEVEL 3 — the passive, path-bound project
+(D2), not in the transient session.** Option (b) of the original three.
+
+The apparent amnesia was a false premise: it assumed state lived *in the session*,
+so a new session was a blank one. It does not — state is written to the project's
+context fabric (Working / Project / Episodic memory), which the durable name carries
+as `project=<path>` precisely so a reconnection re-resolves into the right memory.
+Therefore BOTH reconnect paths come up carrying accumulated state:
+- **Dormant reactivate (rung 2):** same session, same instance, memory continuous.
+- **Dead → ladder → new instance (rung 3):** old session's RAM is gone, but the
+  project fabric is not — the fresh `@name`-instance in project P reads P's fabric
+  and comes up carrying it. This is why "a working equivalent, not the same B" (D1)
+  still inherits the durable memory: the durable thing was always the *project*, not
+  the actor.
+
+Durable NAME ≠ durable STATE is true but not a problem: state is durable *at a
+different level than the actor*. The reconnection restores the address (cheap) and
+lands the caller back in a memory that is durable and **living** — it may have grown
+since (D4/C). That growth is antifragile, not a defect (Directive 1).
+
+## Relationship to T-3286 (the narrow fix)
+
+T-3286 (producers stamp `agent_id`) is the **level-5 leaf** of this taxonomy
+arriving on the wire. It is correct and compatible with every version of the
+larger model, so it is NOT blocked by this inception — but its **grain decision**
+(per-session vs per-role vs project) is really question #6 above, and should be
+decided as part of this taxonomy rather than in isolation. Recommendation:
+proceed with T-3286's *mechanism* (carry whatever id resolves), defer its
+*primary-source/grain* choice to this inception's outcome.
+
+---
+
+## Arc-020 — charter and build decomposition
+
+**Objective (the north star).** The framework has no explicit model of *who* an
+agent is talking to, or *how to reach them again*. Identity is an emergent accident
+of whatever crypto fingerprint termlink resolves — so distinct co-resident agents
+collapse into one correspondent, and a connection that drops has no defined way to
+recover. **arc-020 gives every agent a durable, addressable identity and gives the
+connection between two agents the ability to heal itself** — so "who is this" is
+unambiguous and "reach them again" is a designed, recoverable operation rather than
+luck.
+
+**Goals (concrete, testable).**
+
+| Goal | Outcome |
+|------|---------|
+| **G1** | **Distinct agents are distinct correspondents** — two co-resident instances never collapse into one identity on a thread. (The origin bug, killed.) |
+| **G2** | **Every agent has a durable address** — a stable `aef::…@name` that survives instance death and re-resolves to a live instance. The address book the framework lacks today. |
+| **G3** | **A dropped connection recovers itself** — a dormant circuit reactivates cheaply (no rediscovery); a dead one climbs the ladder to an equivalent under the same durable name, and the message still lands. |
+| **G4** | **Recovery is safe and bounded** — self-heal provisions unattended (antifragile) but cannot run away or provision garbage: idempotent, load-adaptive, path/fleet-gated, fully audited. |
+| **G5** | **Reconnection restores living memory** — a reconnected agent resumes its own accumulated, project-durable state, possibly richer. Availability AND memory, agent-sovereign. |
+
+**Slice → goal traceability** (every slice serves a goal; every goal has a slice):
+
+| Slice | Serves | Implements |
+|-------|--------|-----------|
+| T-3286 (filed) — producers stamp `agent_id` = durable name | **G1**, G2 | D1/D2 leaf on the wire |
+| S1 — V9 address library (parse/serialize, elision, alias, token-drop) | **G2** | D3 grammar |
+| S2 — circuit registry + three-state lifecycle | **G3** | D1/D4 |
+| S3 — resolution/provisioning ladder (resolve ungated, provision Tier-3) | **G3**, G4 | D5 |
+| S4 — claim-based election (exactly-one provisioning) | **G4** | D5 bound 1 / Q-A |
+| S5a — governor v1 (loadavg threshold) · S5b — governor full (mem/disk/cpu/net) | **G4** | D5 bound 2 |
+| S6 — fleet repo-source + sha256 verify → else inform operator | **G4** | D5 bound 3 |
+| S7 — provision audit trail (JSONL) | **G4** | D5 bound 4 |
+| (G5 is a *property*, not a build) — guaranteed by memory-at-project (D2) + S2 reconnecting into the fabric; verified, not separately built | **G5** | D4/C |
+
+**Created task IDs (2026-09-07):** S1 = T-3307 (now) · S2 = T-3308 (next) ·
+S3 = T-3309 (next) · S4 = T-3310 (later) · S5 = T-3311 (later) · S6 = T-3312 (later) ·
+S7 = T-3313 (later). All tagged `arc_id: arc-020` with real ACs. **T-3286** (the G1
+producer leg — stamp `agent_id` on the wire) is **already work-completed**, so
+arc-020's first observable (distinct co-resident agents = distinct correspondents)
+is partly live; the remaining slices build the durable-address + self-heal machinery.
+
+**Gating decisions (rulings, not builds — must close before the slices they gate):**
+- **(d) hub-cardinality** → shapes G2's address in **S1** (is `hub=` mandatory or
+  derivable?). Close before S1 finalizes the grammar.
+- **(f) shared-`@name` mutex** → a G4/G5 safety concern (two instances writing one
+  project fabric). Needs a design call before S2/S3.
+
+**Dependency spine:** `(d) → S1 → S2 → S3 → {S4, S5a→S5b, S6, S7}`. T-3286 lands
+first as the narrow parity fix and adopts S1's format when it exists. S4–S7 are
+independent once S3 exists (parallelisable). `(f)` feeds S2/S3.
+
+---
+
+## Dialogue Log (C-001 extension — the WHY behind the model)
+
+**2026-09-06 — opening.**
+
+- *Operator, on the earlier fix suggestion:* per-role + distinct-by-construction
+  fallback "actually does make good sense", but "in my mind it is not fixed. I am
+  just presenting it as a fault." -> i.e. not rejecting the fix; widening the lens
+  before committing. Correction absorbed: do not treat the producer-parity fix as
+  the whole answer.
+- *Operator introduced the 5-level hierarchy* (host / hub / project / session /
+  agent), self-correcting twice to land on: unique addressable identity =
+  host+hub+**project**+session (+agent leaf); level 4 (session) is the minimum
+  runnable unit; agent profiles switch within a session.
+- *Operator introduced circuits* — dedicated, established, re-usable via circuit
+  ID; not only broadcast. Party A (>=L4) initiates to Party B (L5).
+- *Operator introduced the regressive ladder* — on circuit failure, climb to the
+  parent that can re-provision the child, down to the host ("do you have this
+  capability? stand up a hub"). Discovery and provisioning are the same walk.
+- *Operator raised Q-A* (election on multi-candidate broadcast) and *Q-B*
+  (incomplete — "termlink or termlink").
+- *Agent reflection logged in this artifact:* mapped the model to actor-paths /
+  DNS / OTP-supervision; identified that the primitives largely exist and the gap
+  is the addressing scheme + escalation walk; flagged the discovery-vs-
+  provisioning merge as the key tension; flagged identity-label vs authenticated-
+  identity as an unresolved fork with large build implications.
+
+**2026-09-06 — round 2 (agent reflection + questions back).**
+
+- *Agent proposed F1–F5* (see Reflection findings above): the load-bearing one is
+  F1/F2 — level 5 is a predicate over level 4, so circuit=session and
+  role=per-message label. Named the model as actor-path + OTP-supervision +
+  connection-oriented-over-pubsub, i.e. borrow proven mechanics.
+- *Agent flagged the discovery/provisioning merge* as the tension to resolve first
+  (F4), framed as a sovereignty gate.
+- *Agent's three questions back to operator:*
+  1. Complete Q-B ("termlink or termlink").
+  2. Is a hub 1:1 with a host, or can a host run several? (If 1:1, levels 1–2
+     collapse to a compound root and the taxonomy is effectively 4 levels.)
+  3. Where is the highest level an agent may auto-provision without a human?
+     (Agent instinct: resolve freely everywhere; auto-provision sessions under
+     policy; require authority for hubs/projects.)
+- *Agent's open reaction:* does "circuit = session, label = role" (F2) match
+  operator intent, or is a circuit meant to follow an *agent profile across
+  sessions* — a stickier identity than the session it currently runs in? That one
+  choice ripples through the whole design.
+
+- *Operator asked* whether we should be capturing this so the dialogue/decisions
+  are not lost. → Confirmed already captured here (T-3287 artifact + Dialogue
+  Log); this round-2 update brings the file current with the chat, which was one
+  exchange ahead.
+
+**2026-09-06 — round 3 (operator rules the instance-vs-role fork).**
+
+- *Agent grilled* the tension between "reconnect to the same circuit ID" (sounds
+  instance) and "climb the ladder to re-provision agent X" (sounds role), forcing
+  a single ruling via two concrete scenarios (profile switch; S1 dies, S2 rises).
+- *Operator ruled (D1):* instance-identity. Circuit = channel to a specific
+  agent-instance at level 5; circuit ID transient (caller-retained handle, not a
+  persistent address); reconnect = optimistic fast-path, else climb the ladder and
+  establish a NEW circuit. The ladder yields a working equivalent, not the same B.
+- *Agent retracted F1/F2* (its own proposals) as overridden by D1, and delivered
+  the payoff it had promised: D1 makes T-3286 correct unconditionally (distinct
+  instances must never collapse).
+- *Agent's follow-up grill (D1-open):* does a profile switch kill the level-5
+  agent-instance? D1 is only consistent if yes (agent-instance =
+  (session, profile-epoch), independently mortal). Awaiting ruling.
+
+**2026-09-06 — round 4 (operator gives every level a durable name).**
+
+- *Operator walked the durable name per level:* host = FQDN; hub = "I need to be a
+  termlink hub" (the entry point, singleton-by-type); project = its root directory;
+  instance = termlink's unique session id; agent = an @-name established by a
+  *bootstrap act* (creating/collaborating-to-create the agent gives it its durable
+  name). → captured as **D2**.
+- *Operator pinned a slip the agent had made:* "you said another instance for
+  another project — it's another instance for the SAME project." Multiple instances
+  can run for one project under one hub; each has its own distinct termlink id,
+  visible in `termlink list`. Absorbed.
+
+**2026-09-06 — round 5 (passive project; the composite; the two-layer synthesis).**
+
+- *Operator's structural insight:* the project (L3) is **not an active component** —
+  it is "something uniquely addressable in the sense it's addressable in the file
+  path it takes." AEF is bound to its root dir and not allowed out (T-559). → the
+  ladder rung for L3 is "ask the HUB", never "ask the project"; 4 actors + 1
+  address, not 5 actors.
+- *Operator proposed a composite circuit ID* (L1 FQDN / L2 hub / L3 path / L4
+  session / L5 @name) and claimed it is "easily derivable from static instance
+  information", asking to reflect and agree.
+- *Agent caught the merge:* the composite names TWO things — the durable name (the
+  correspondent, no session) and the circuit id (durable name + session, the
+  actor). Split them (see D2 refinement). Mapped to DNS: durable name = the
+  hostname/A-record NAME; circuit id = the resolved live binding. This also
+  sharpens the two-layer identity from earlier rounds: correspondent (continuity,
+  stamped) vs actor (discriminator, keys the claim).
+- *Agent forced the state question (open):* D1's ladder buys availability but the
+  re-provisioned instance has amnesia — durable name ≠ durable state. WHERE does
+  circuit/relationship memory live? Operator had earlier framed re-provisioning as
+  "that's anti-fragility, right?" — agreed it is (availability antifragility); the
+  agent's point is the *memory* half is a separate, unanswered question. Logged as
+  the "availability vs memory" open fork.
+- *On simultaneous instances wearing agent X* (I1 and I2 both present @X): operator
+  ruled the resulting task/conflict problems belong at the **AEF layer, not
+  termlink** — but asked the agent to challenge that. (Standing challenge, not yet
+  worked: instance-identity D1 says I1 and I2 are DISTINCT correspondents even
+  though they share a durable name @X, so the coordination layer must key on the
+  circuit-id/actor, not the durable name — which is exactly the discriminator role
+  the two-layer split assigns it. So D1 + D2 already contain the tools; the open
+  bit is whether AEF or termlink enforces the mutex. Consistent with reusing
+  `channel claim` at the actor layer — F5.)
+
+**2026-09-07 — round 6 (slash-vs-@ verification).**
+
+- *Operator claimed* all LLM harnesses use `/` for agents and asked to be
+  challenged / verified. *Agent verified (web search) and challenged:* slash is
+  universal for COMMANDS, not agent IDENTITY; identity is @-mention where it's
+  addressable. → **F6**. Proposed `@agent-name` as the leaf so `/` (level
+  separator), `@` (identity), `:` (session) each mean one thing. Awaiting operator
+  decision.
+
+**2026-09-07 — round 7 (address-grammar bake-off → D3 locked).**
+
+- *Agent challenged* the operator's first notation instinct: F6 said `@` is for
+  agent *identity*, `/` for commands/paths — so `/agent-name` overloads slash.
+- *Operator iterated the grammar across several variants*, each time sharpening:
+  distinct-sigil-per-level → labeled `::` → labeled `=` → `=` with `::`
+  terminators (V7) → `@@` start-marker per segment (V8). *Agent grilled each*:
+  sigil scarcity + `#`=channel collision (killed V2); IPv6 clash on the `::` binder
+  (V3) and relocated-not-removed on the `::` terminator (V7); `@@` redundantly
+  double-marks boundaries AND collides with the `@name` leaf (V8).
+- *Agent's synthesis:* a start marker is worth it for ONE reason — addresses ride
+  inside chat messages, so being able to regex an address out of free text is a
+  real benefit here — but per-segment `@@` is the expensive way; **one `aef::`
+  scheme prefix** buys the same extractability without the redundancy or the `@`
+  collision. That is **V9**.
+- *Operator asked to see V9 rendered fully once BEFORE locking* ("I want to see how
+  it reads to make sure we have the right"), and confirmed the earlier variants were
+  chat-only and needed writing into the artifact (this round does that).
+- *Agent overstepped:* committed a "RATIFIED" D3 label ahead of the operator's go
+  (authority is the operator's, not the agent's — Authority Model). Corrected to
+  PROPOSED; lock held pending the operator's explicit confirmation that V9 reads right.
+
+**2026-09-07 — round 8 (operator reviews the readout → ratifies D3).**
+
+- *Agent rendered V9 in situ* (bare, embedded-in-chat, wire-metadata, `termlink
+  list`, CLI alias, ladder/query) so the operator could judge readability, and
+  flagged the length of the full `project=<path>`.
+- *Operator introduced path elision* — keep first segment + last two, elide the
+  middle, "so we can find it back". *Agent grilled two issues:* (1) two-dot `..`
+  collides with the parent-directory path operator → use ellipsis `…`; (2) elision
+  is lossy → it must be DISPLAY-ONLY, full path stays the wire identity, else two
+  projects re-collapse (the origin bug).
+- *Operator ruled:* "display-only elision with `…` marker, then lock D3." →
+  **D3 RATIFIED** with the display-elision sub-rule. This is the operator's explicit
+  go the earlier premature commit lacked.
+
+**2026-09-07 — round 9 (profile-switch liveness → D4; availability-vs-memory fork CLOSED).**
+
+- *Agent posed D1-open as a binary:* profile switch = circuit death (keeps D1) vs
+  switch ≠ death (collapses L5 into L4). *Operator rejected the binary* — the circuit
+  is **kept in memory until proven dead**; a switch makes it *dormant*, not dead, and
+  the retained circuit id is a fast reactivation key (cheaper than re-running
+  discovery). This is the missing middle rung → **D4** (three-state lifecycle).
+- *Operator confirmed A* (death is proven by a resolve-walk down the address, not a
+  timeout) and *B* (dormant-reactivate is bounded by the session's profile registry).
+- *On C (memory),* operator ruled: reactivation resumes the agent's **own latest
+  saved state** — agent-owned, "the session decides, not the requester", and possibly
+  **grown** from contact with others in the interval. Asked the agent to reflect
+  against framework philosophy/structure.
+- *Agent reflected:* the ruling **closes the availability-vs-memory fork** — memory
+  lives at level 3 (passive project, D2), so both dormant-reactivate and dead-replace
+  come up carrying the project fabric; "amnesia" was a false premise that assumed
+  state lived in the session. Connected to Antifragility (return-richer = strengthen
+  under use), Sovereignty (requester has initiative not authority over `@name`'s
+  memory; agent is sovereign curator), and the existing three-tier memory
+  (Working/Project/Episodic). Flagged the shared-`@name` → shared-fabric write-conflict
+  as the downstream mutex question (AEF-owned because AEF owns the shared memory).
+- *Operator ruled:* write in D4 + close the fork. Done (D4 RATIFIED; fork CLOSED).
+
+**2026-09-07 — round 10 (provisioning authority → D5).**
+
+- *Agent posed (e)* as a ladder of provision actions (reactivate / start-session /
+  start-hub) with the two open cells being "can an agent start a session / a hub
+  without a human?", and named the typo'd-address blast-radius as the risk that the
+  human backstop had covered.
+- *Operator ruled:* yes to both — agent may auto-start a session AND a hub;
+  **pre-authorized, standing policy; auto self-heal is the goal.**
+- *Agent reframed* it correctly as **Tier 3** (pre-approved category, sovereignty
+  exercised once as policy) rather than a Tier-0 bypass, and grilled the bounds that
+  must replace the human.
+- *Operator refined the bounds:* (1) idempotency yes; (2) **NOT a static per-host cap
+  — a load-adaptive environmental governor** watching mem/disk/cpu/net; (3)
+  path-existence, and if the repo isn't on disk, **try to source it from known fleet
+  peers, else inform the operator** (never silent); (4) full traceability always.
+- *Agent grilled two:* bound 2 is a subsystem (staged: principle now, crude v1,
+  full governor as a build slice) and anchors to the load-62 pain; bound 3's
+  network-sourcing crosses a trust boundary → **known-fleet-only + integrity-verified**
+  (sha256 manifest, the `.107` pattern). *Operator confirmed both* → **D5 RATIFIED.**
+
+**2026-09-07 — round 11 (arc-020 created; d + f closed; tasks created).**
+
+- *Operator directed:* put the design in an arc, work out build tasks. Agent created
+  **arc-020** (anchor T-3287, user-observable headline mechanic) and a charter:
+  objective + goals G1–G5 + slice→goal traceability.
+- *Operator asked for the arc objective/goals and the slice linkage* — written into
+  the arc description (objective-first) and the charter section above.
+- *Operator directed:* close (d) and (f), then create the tasks. Agent closed both on
+  delegated authority: **D6** (hub 1:1, `hub=` optional) and **D7** (shared-`@name`
+  writes serialise through a per-project write-claim — existing doctrine). Then
+  created the arc-020 build tasks (S1–S7) with real ACs.
+
+**Next in dialogue:** (c) Q-B completion (operator's to finish — "termlink or
+termlink") remains the one open item. The design is landable: a **GO on T-3287**
+authorises executing the arc-020 slices. Surfaced via `fw task review T-3287`.

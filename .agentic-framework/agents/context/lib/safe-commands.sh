@@ -18,10 +18,35 @@
 
 # --- T-2834: chain-aware entry point -------------------------------------
 #
-# _fw_chain_split emits one segment per line, splitting on chain operators that
-# are NOT inside quotes: `&&`, `||`, `&`, `|`, `;`, and newline. Quote tracking
+# _fw_chain_split emits one NUL-TERMINATED segment per chain operator that is
+# NOT inside quotes: `&&`, `||`, `&`, `|`, `;`, and newline. Quote tracking
 # matters — without it `grep -q "a && b"` splits into two bogus segments and a
 # read-only command starts blocking.
+#
+# T-3223: the delimiter is NUL, not newline, and that is the whole point.
+#
+# This function was already quote-aware, so a newline inside a quoted argument
+# was correctly kept INSIDE its segment. Then the segment was printed with
+# `printf '%s\n'` and read back by `mapfile -t` / `read -r` — line-delimited.
+# A segment that legitimately contained a newline arrived at the caller as
+# several segments, each a fragment of a quoted string, none of them a command.
+#
+# Measured: a real multi-line commit message split into six clauses, five of
+# which were prose from the message body, all read as unsafe. So `git add -A
+# … && git commit -q -m "<multi-line message>"` — the framework's own
+# documented post-completion form, in the shape agents actually type it —
+# was refused. The short single-line fixtures in the test suite never met it.
+#
+# The structure was right and the CHANNEL threw it away, which is the same
+# class this whole cluster keeps hitting (L-547, OBS-355) one layer down: a
+# delimiter-scan standing in for structure, so an argument that CONTAINS a
+# delimiter is treated as a boundary. NUL cannot appear in a bash command
+# string, so it is the only delimiter that cannot collide with content.
+#
+# Callers MUST read with `-d ''`:
+#     while IFS= read -r -d '' seg; do … done < <(_fw_chain_split "$cmd")
+# `read -d ''` is bash 4.0+; `mapfile -d` would need 4.4, so the loop form is
+# used at every call site for portability (D4).
 #
 # Deliberately NOT handled: command substitution. `echo $(git commit -m 'T-X: y')`
 # still reads as safe. Extracting `$(...)` as a segment would also catch the
@@ -62,12 +87,12 @@ _fw_chain_split() {
                     continue
                 fi
                 [ "$nxt" = "$ch" ] && i=$((i+1))
-                printf '%s\n' "$seg"; seg="" ;;
-            ';'|$'\n') printf '%s\n' "$seg"; seg="" ;;
+                printf '%s\0' "$seg"; seg="" ;;
+            ';'|$'\n') printf '%s\0' "$seg"; seg="" ;;
             *)       seg+="$ch" ;;
         esac
     done
-    printf '%s\n' "$seg"
+    printf '%s\0' "$seg"
 }
 
 # A compound command is safe only if EVERY segment is safe.
@@ -85,7 +110,11 @@ _fw_chain_split() {
 is_bash_safe_command() {
     local _cmd="$1" _seg _n=0
     local -a _segs=() _kept=()
-    mapfile -t _segs < <(_fw_chain_split "$_cmd")
+    # T-3223: `-d ''`. mapfile -t here read the splitter's NUL stream as lines,
+    # so a segment containing a newline arrived as several bogus segments.
+    while IFS= read -r -d '' _seg; do
+        _segs+=("$_seg")
+    done < <(_fw_chain_split "$_cmd")
     for _seg in "${_segs[@]}"; do
         [[ "$_seg" =~ ^[[:space:]]*$ ]] && continue
         _kept+=("$_seg"); _n=$((_n+1))
@@ -97,6 +126,126 @@ is_bash_safe_command() {
         return 0
     fi
     _fw_single_command_is_safe "$_cmd"
+}
+
+# --- T-3374 (OBS-423): env-prefix denylist ------------------------------------
+#
+# The T-1908 stripper below removes leading `NAME=VALUE` prefixes so the base
+# command can be read. It stripped ANY name. That is fail-OPEN: the classifier
+# decides SAFE from the base command AFTER stripping, while some of those
+# prefixes are precisely what decides what that base name RESOLVES to.
+#
+# Measured before this fix, all four classified SAFE:
+#     PATH=/tmp cat x            LD_PRELOAD=/tmp/e.so cat x
+#     BASH_ENV=/tmp/e.sh cat x   IFS=x cat y
+#
+# A grep for these names in this file returned nothing — there was no denylist
+# that missed them; the category was never represented. Sibling of OBS-422 in
+# the same function, but the opposite direction: that one over-blocks reads,
+# this one under-blocks writes.
+#
+# WHY A DENYLIST AND NOT A NAME ALLOWLIST. An allowlist (`FW_*` only) is
+# strictly safer and was rejected deliberately: tests/unit/safe_commands_env_-
+# prefix.bats pins `FOO=1 BAR=2 fw work-on T-X` as SAFE, a documented T-1908 /
+# L-399 contract. Rewriting that test so this change could pass would be
+# weakening a pinned contract to accommodate the fix. The denylist keeps every
+# pinned contract green and still closes the measured hole. The residual — a
+# denylist cannot cover a name nobody thought of — is real, is NOT claimed away,
+# and the allowlist alternative is recorded as a Sovereign question in T-3374.
+#
+# FAILURE DIRECTION IS TOWARD BLOCKING, same idiom as the T-3096 wrapper loop:
+# on a denied name the strip loop STOPS, leaving `NAME=VALUE` as the first word,
+# which matches no case arm, so the line gates. This function can only ever
+# REFUSE something that previously passed; it cannot admit anything.
+
+# _fw_env_prefix_is_denied <NAME> — true when NAME redirects what a following
+# command resolves to, makes the shell/interpreter execute extra code, or
+# changes how the line is parsed.
+_fw_env_prefix_is_denied() {
+    case "$1" in
+        # binary resolution / the shell itself
+        PATH|SHELL) return 0 ;;
+        # dynamic linker — LD_* (ELF) and DYLD_* (macOS; D4 portability, the
+        # framework is not Linux-only)
+        LD_*|DYLD_*) return 0 ;;
+        # shell startup files, option sets, and exported-function smuggling
+        ENV|BASH_ENV|SHELLOPTS|BASHOPTS|BASH_FUNC_*) return 0 ;;
+        # word splitting — changes how the command line itself is parsed
+        IFS) return 0 ;;
+        # interpreter module/option paths: these run code at interpreter start
+        PYTHONPATH|PYTHONHOME|PYTHONSTARTUP|PERL5LIB|PERL5OPT|RUBYOPT|NODE_OPTIONS) return 0 ;;
+        # git hands these to a shell. `git` is broadly allowlisted for read-only
+        # sub-verbs, so these turn an allowlisted read into arbitrary execution.
+        GIT_SSH|GIT_SSH_COMMAND|GIT_ASKPASS|GIT_PROXY_COMMAND) return 0 ;;
+        GIT_EXTERNAL_DIFF|GIT_PAGER|GIT_EDITOR|GIT_SEQUENCE_EDITOR) return 0 ;;
+        # GIT_CONFIG_* can inject core.pager / diff.external at invocation time,
+        # which is the same arbitrary-execution vector one indirection further out.
+        GIT_CONFIG|GIT_CONFIG_GLOBAL|GIT_CONFIG_SYSTEM) return 0 ;;
+        GIT_CONFIG_COUNT|GIT_CONFIG_KEY_*|GIT_CONFIG_VALUE_*) return 0 ;;
+        #
+        # DELIBERATELY NOT DENIED — repository retargeting: GIT_DIR, GIT_WORK_TREE,
+        # GIT_INDEX_FILE, GIT_OBJECT_DIRECTORY, GIT_ALTERNATE_OBJECT_DIRECTORIES.
+        # These change WHICH repository is read, not WHAT executes, and the git
+        # sub-verb allowlist already constrains this path to read-only verbs. A
+        # read of a different repo is still a read.
+        #
+        # This boundary was drawn by a failing test, and the test was right:
+        # tests/unit/safe_commands_env_prefix.bats:44 pins `GIT_DIR=foo git status`
+        # as safe. The first draft of this denylist included GIT_DIR and broke it.
+        # The fix was to narrow the denylist to the execution-causing names —
+        # NOT to edit the test, which would have been weakening a pinned contract
+        # to make a new change pass. Recorded because the distinction (redirecting
+        # what is READ vs. redirecting what RUNS) is the useful line here, and it
+        # was not obvious until something bit.
+        # generic spawn-a-program hooks
+        PAGER|EDITOR|VISUAL) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+# _fw_strip_env_prefixes <cmd> — strip leading NAME=VALUE prefixes, stopping at
+# the first DENIED name. Result in $_FW_ENV_STRIPPED (a global rather than a
+# command substitution: this runs on the hook hot path and a fork per Bash tool
+# call is a cost with no benefit).
+#
+# ONE implementation, deliberately. The regex used to appear TWICE — once here
+# and once re-entered inside the T-3096 wrapper loop, which is what makes
+# `env PATH=/tmp cat x` a distinct bypass from `PATH=/tmp cat x`. Two copies of
+# a security predicate is two chances to fix only one; the duplication is
+# removed rather than the denylist being pasted into both.
+# T-3454: the loop also consumes a leading `time` keyword. `time` changes
+# nothing about what resolves or what executes — it reports how long the
+# remainder took — but an unstripped `time` made the whole line unclassifiable,
+# so the gate refused it as "writes nothing the gate can detect". The effect was
+# perverse rather than merely inconvenient: MEASURING the cost of an otherwise
+# permitted command required a wrapper that turned it into a refusal, so the
+# pressure ran against measuring. That is a bad direction for a framework whose
+# repeated failure mode is acting on unmeasured cost (T-3450, T-3451, L-621).
+#
+# Safe for the same reason the NAME=VALUE strip is safe: stripping only ever
+# exposes the REMAINDER to the identical classification, and write detection
+# (has_bash_write_pattern) runs against the ORIGINAL, unstripped line at every
+# call site. `time rm -rf x` strips to `rm -rf x`, which is still a write and
+# still blocked. Interleaving is handled because both forms are consumed by the
+# same loop, so `time FOO=1 git status` and `FOO=1 time git status` behave alike.
+_fw_strip_env_prefixes() {
+    local c="$1" _name _prev=""
+    while [ "$c" != "$_prev" ]; do
+        _prev="$c"
+        if [[ "$c" =~ ^([A-Za-z_][A-Za-z0-9_]*)=[^[:space:]]+[[:space:]]+(.*)$ ]]; then
+            _name="${BASH_REMATCH[1]}"
+            _fw_env_prefix_is_denied "$_name" && break
+            c="${BASH_REMATCH[2]}"
+            continue
+        fi
+        # Bare `time` and POSIX `time -p`. Deliberately NOT `/usr/bin/time`,
+        # which takes its own options (-o FILE writes a file) and is a real
+        # program rather than a shell keyword.
+        if [[ "$c" =~ ^time([[:space:]]+-p)?[[:space:]]+(.*)$ ]]; then
+            c="${BASH_REMATCH[2]}"
+        fi
+    done
+    _FW_ENV_STRIPPED="$c"
 }
 
 # Single (non-compound) command classification. This is the original
@@ -113,6 +262,61 @@ _fw_single_command_is_safe() {
     # segment", which failed on the first run of this very fix.
     cmd="${cmd#"${cmd%%[![:space:]]*}"}"
     cmd="${cmd%"${cmd##*[![:space:]]}"}"
+
+    # F-15 (T-3466): a TERMINAL `VAR=$(cmd)` assignment — the whole remaining
+    # segment is one assignment whose value is a command substitution, nothing
+    # after it. This is a different shape from the T-1908 env-prefix stripper
+    # below: that one strips a `KEY=VALUE` PREFIX in front of a command that
+    # follows it (`KEY=VALUE cmd args`); here the assignment IS the entire
+    # statement and the command to judge sits INSIDE `$( )`. The file's own
+    # header comment (T-2834 block, "Deliberately NOT handled: command
+    # substitution") scoped that exclusion to the general case — an argument
+    # elsewhere on the line containing `$(...)`, e.g. `curl "$(fw watchtower
+    # url)/page"`, where widening would risk admitting the OUTER command on the
+    # strength of an inner one it doesn't share safety with. A terminal
+    # assignment has no outer command to conflate with; the substitution's
+    # result is the entire effect of the line.
+    #
+    # Delegates to the top-level, chain-aware entry point (not a second call
+    # into this function) so `X=$(cmd1 && cmd2)` requires EVERY clause inside
+    # the substitution to be independently safe, same as top-level chains
+    # (T-2834's compound-command rule). Recursion terminates because the
+    # matched string is strictly shorter than $cmd each time (the `VAR=$(` and
+    # trailing `)` are stripped), and the outer redirect/rm/tee/heredoc scan
+    # (has_bash_write_pattern) still runs against the ORIGINAL, un-recursed
+    # line at every call site — this cannot admit a write no matter what the
+    # inner command resolves to.
+    #
+    # Extraction is a plain prefix/suffix strip, not a balanced-paren parser:
+    # for a well-formed `VAR=$( ... )` matching this anchored pattern, stripping
+    # `VAR=$(` off the front and the LAST `)` off the back is exactly correct
+    # for arbitrary nesting (each inner `$(...)` still closes inside what's
+    # captured) — verified against `X=$(echo $(hostname))` in the Decisions
+    # section. It only goes wrong if the line contains a literal unbalanced `)`
+    # as DATA, which is not a shape this dispatch's two reproduction cases hit,
+    # and the failure direction there is a garbled inner string that will not
+    # match any allowlist arm — i.e. still toward blocking, not toward opening.
+    if [[ "$cmd" =~ ^[A-Za-z_][A-Za-z0-9_]*=\$\((.*)\)[[:space:]]*$ ]]; then
+        is_bash_safe_command "${BASH_REMATCH[1]}" && return 0
+        return 1
+    fi
+
+    # T-3644 (ported from 055, framework:pickup offset 227): a segment that is
+    # ONLY a literal assignment — `WURL=x` in `WURL=x; curl -sf "$WURL/"` — runs
+    # nothing and writes nothing. The whole segment must be the assignment: the
+    # value is unquoted words, "double" or 'single' quoted runs, nothing else,
+    # so `X=1 rm -rf /` (whitespace after the value) never matches. No command
+    # substitution in any form: `$(`, `$((` and backticks are refused here even
+    # inside double quotes (the terminal `VAR=$(cmd)` shape is F-15 above).
+    # A bare assignment persists for the REST of the line, so `PATH=/tmp; cat x`
+    # changes what `cat` resolves to — the T-3374 denylist applies here too.
+    # Writes are still judged separately by has_bash_write_pattern on the
+    # original line, so `X=1 > f` stays blocked.
+    if [[ "$cmd" =~ ^([A-Za-z_][A-Za-z0-9_]*)=(([^[:space:]\"\'\`\;\&\|\<\>\(\)]|\"[^\"\`]*\"|\'[^\']*\')*)$ ]]; then
+        _fw_env_prefix_is_denied "${BASH_REMATCH[1]}" && return 1
+        [[ "${BASH_REMATCH[2]}" == *'$('* ]] && return 1
+        return 0
+    fi
 
     # T-2988: strip shell grouping punctuation from the segment's edges.
     #
@@ -173,9 +377,9 @@ _fw_single_command_is_safe() {
     # matches, the safe-command path is skipped, and the downstream
     # captured-status check blocks the very command the focus-drift block
     # message recommended. Strip one prefix at a time until none remain.
-    while [[ "$cmd" =~ ^[A-Za-z_][A-Za-z0-9_]*=[^[:space:]]+[[:space:]]+(.*)$ ]]; do
-        cmd="${BASH_REMATCH[1]}"
-    done
+    # T-3374: now stops at a denied name (PATH/LD_*/BASH_ENV/IFS/...), leaving it
+    # as the first word so no case arm matches and the line gates.
+    _fw_strip_env_prefixes "$cmd"; cmd="$_FW_ENV_STRIPPED"
 
     # T-3096: strip TRANSPARENT WRAPPERS and judge the command they wrap.
     #
@@ -262,9 +466,31 @@ _fw_single_command_is_safe() {
         [ -z "$_wrest" ] && break
         cmd="$_wrest"
         # `env`'s K=V assignments are re-stripped by re-entering the T-1908 loop.
-        while [[ "$cmd" =~ ^[A-Za-z_][A-Za-z0-9_]*=[^[:space:]]+[[:space:]]+(.*)$ ]]; do
-            cmd="${BASH_REMATCH[1]}"
-        done
+        # T-3374: this is the SECOND entry point, and the one that makes
+        # `env PATH=/tmp cat x` a distinct bypass from the bare form. It calls
+        # the same helper, so the denylist cannot drift between the two.
+        _fw_strip_env_prefixes "$cmd"; cmd="$_FW_ENV_STRIPPED"
+    done
+
+    # T-3344: strip trailing NON-WRITING redirection tokens — fd-dups (`2>&1`,
+    # `1>&2`) and /dev/null sinks (`2>/dev/null`, `>/dev/null`, `&>/dev/null`).
+    # Fourth recorded instance of the positional-token-reader class (T-1908
+    # env prefixes, T-2988 grouping, T-3096 wrappers): `fw bvp 2>&1` extracted
+    # `2>&1` as the sub-verb, matched no arm, and a command this file already
+    # allowlists read back as unsafe. Only fd-dups and /dev/null are stripped —
+    # a redirect to any real file never matches, and has_bash_write_pattern
+    # judges the ORIGINAL unstripped line separately, so this cannot widen
+    # what writes are admitted.
+    local _rprev=""
+    while [ "$cmd" != "$_rprev" ]; do
+        _rprev="$cmd"
+        case "$cmd" in
+            *[[:space:]][0-9]'>&'[0-9]) cmd="${cmd%[[:space:]][0-9]>&[0-9]}" ;;
+            *[[:space:]]'2>/dev/null'|*[[:space:]]'2> /dev/null') cmd="${cmd%2>*/dev/null}"; cmd="${cmd%2>/dev/null}" ;;
+            *[[:space:]]'>/dev/null'|*[[:space:]]'> /dev/null') cmd="${cmd%>*/dev/null}"; cmd="${cmd%>/dev/null}" ;;
+            *[[:space:]]'&>/dev/null') cmd="${cmd%&>/dev/null}" ;;
+        esac
+        cmd="${cmd%"${cmd##*[![:space:]]}"}"
     done
 
     # Extract the base command (first word, strip path).
@@ -339,7 +565,37 @@ _fw_single_command_is_safe() {
             ;;
 
         # Category 3: Searching
-        grep|rg|find|which|where|type|command)
+        grep|rg|which|where|type|command)
+            return 0
+            ;;
+
+        # T-3344: the G-087-safe budget reader. /resume prescribes
+        # `checkpoint.sh budget` as THE way to read the budget cache, and the
+        # gate blocked it whenever focus sat on a completed task — exactly the
+        # moment /resume runs it. `budget` and `status` are pure reads
+        # (verified against the case arms at checkpoint.sh:547/:599 — echo,
+        # cat, python-print only). `post-tool`, `reset`, and `baseline` write
+        # counters/caches and are deliberately absent.
+        checkpoint.sh)
+            local cp_sub
+            cp_sub=$(echo "$cmd" | awk '{print $2}')
+            case "$cp_sub" in
+                budget|status)
+                    return 0
+                    ;;
+            esac
+            ;;
+
+        # T-3238: find is a search tool with a MUTATION grammar bolted on.
+        # `-delete` removes what it matches, `-exec`/`-execdir`/`-ok`/`-okdir`
+        # run an arbitrary command per match, and `-fprint`/`-fprintf`/
+        # `-fprint0`/`-fls` write files with no shell redirect — so the
+        # unconditional arm above admitted `find . -delete` with no active
+        # task. Same L-547 class as T-3237's bare wget one arm up: the verdict
+        # was keyed on the first word, not the whole command. Pure-search
+        # forms (-name/-type/-mtime/-print/-print0) stay safe.
+        find)
+            _fw_find_has_action_predicate "$cmd" && return 1
             return 0
             ;;
 
@@ -414,9 +670,25 @@ _fw_single_command_is_safe() {
                     esac
                     ;;
                 channel)
+                    # T-3425: `subscribe` is a cursor-bounded read of a topic (the
+                    # sidecar inbox's own primitive) and `cv-keys` reads the hub's
+                    # in-memory client_msg_id index; neither writes. `post`, `ack`,
+                    # `create`, `claim`, `release`, `react`, `reply` stay absent.
                     case "$tl_sub2" in
                         list|info|members|search|thread|threads|unread|state|pinned|\
-                        digest|snippet|receipts|describe|claims)
+                        digest|snippet|receipts|describe|claims|subscribe|cv-keys|\
+                        ack-status|ack-history)
+                            return 0
+                            ;;
+                    esac
+                    ;;
+                pty)
+                    # T-3344: `pty output <session>` reads a session's recent
+                    # output — the worker-observability read /resume-era
+                    # monitoring uses. `pty inject` and `pty mode` write into
+                    # the session and are deliberately absent.
+                    case "$tl_sub2" in
+                        output)
                             return 0
                             ;;
                     esac
@@ -510,11 +782,23 @@ _fw_single_command_is_safe() {
                     case "$fw_sub3" in status|log|worker-commits) return 0 ;; esac
                     ;;
                 arc)
-                    case "$fw_sub3" in list|ls|show|review|show-suggestions|help) return 0 ;; esac
+                    # T-3536: judge-driver and review-driver added. Both post-date
+                    # T-3096's derivation, which is why they were absent rather than
+                    # excluded — see the parity note at the end of this arm.
+                    #   judge-driver  lib/arc.sh:1971 "Read-only. … never mutates the
+                    #                 arc YAML … it only reports a verdict"; and
+                    #                 lib/arc_driver_judge.py has zero write calls.
+                    #   review-driver T-3429's static check. `approve-driver` DOES
+                    #                 mutate scoped_drivers[] and stays absent.
+                    case "$fw_sub3" in list|ls|show|review|show-suggestions|help|judge-driver|review-driver) return 0 ;; esac
                     ;;
                 bvp)
                     # bare `fw bvp` is the ranking; `fw bvp T-123` is per-task detail.
-                    case "$fw_sub3" in ""|arcs|--quadrant|--include-proposed|--include-completed|--help|-h|T-*) return 0 ;; esac
+                    # T-3536: `judge` added — lib/bvp_judge.py:383 "Never writes
+                    # anything. Never touches `bvp_scores:`", zero write calls in the
+                    # module. `confirm` writes bvp_scores: and stays absent, as does
+                    # `estimate-cost`, which writes cost_estimate:.
+                    case "$fw_sub3" in ""|arcs|--quadrant|--include-proposed|--include-completed|--help|-h|T-*|judge) return 0 ;; esac
                     ;;
                 healing)
                     case "$fw_sub3" in diagnose|patterns|suggest) return 0 ;; esac
@@ -556,6 +840,25 @@ _fw_single_command_is_safe() {
                     ;;
                 termlink)
                     case "$fw_sub3" in check|status|result) return 0 ;; esac
+                    ;;
+                sidecar)
+                    # T-3425 (OBS-461): the peer-consult sidecar's read surface.
+                    # `whoami` prints ids; `inbox --peek` reads the topic without
+                    # advancing the cursor (plain `inbox` ADVANCES it and is absent);
+                    # `status` reads our own outbox/ledger files — unless `--probe`,
+                    # which calls the hub, so that form stays gated. `send`, `sweep`
+                    # and `e2e` all write (ledger rows, a dispatched worker) and are
+                    # deliberately absent. Without this arm a session whose focus
+                    # is captured or partial-complete could not even see whether a
+                    # consult was waiting for it.
+                    # T-3856: `alerts` is the /resume step-7 mail check; it runs at
+                    # session START, before focus. It reads; `--mark-seen` writes
+                    # only the sidecar shown ledger (framework state, like `fw context`).
+                    case "$fw_sub3" in
+                        whoami|alerts) return 0 ;;
+                        inbox)  case " $cmd " in *" --peek "*) return 0 ;; esac ;;
+                        status) case " $cmd " in *" --probe "*) ;; *) return 0 ;; esac ;;
+                    esac
                     ;;
                 cron)
                     case "$fw_sub3" in status|list) return 0 ;; esac
@@ -600,6 +903,14 @@ _fw_single_command_is_safe() {
                             return 0
                             ;;
                     esac
+                    ;;
+                whoami)
+                    # T-3534: bare `fw whoami` only reads .framework.yaml and the
+                    # hostname. `--register` MINTS an id and writes the file, so it
+                    # is absent — same sub-verb granularity as `fw config get` vs
+                    # `set`. Identity questions are exactly what an agent asks
+                    # between tasks, when focus is most likely to be null.
+                    case " $cmd " in *" --register "*) ;; *) return 0 ;; esac
                     ;;
                 note)
                     # T-2878: observation capture. Same class as the context
@@ -654,42 +965,27 @@ _fw_single_command_is_safe() {
             esac
             ;;
 
-        # Category 4c (T-2961): checkpoint.sh read verbs.
-        #
-        # `checkpoint.sh status` is the verb the P-009 budget rule mandates, and
-        # `checkpoint.sh budget` is the verb the /resume skill mandates (absent in
-        # this vendored build — version skew, T-2950; today it prints usage and
-        # exits 1, which is harmless, and post-re-vendor it is contractually the
-        # G-087-safe cache read). Both gated whenever focus was null — which is
-        # precisely the post-completion state where the framework REQUIRES the
-        # agent to read its budget before deciding to start another task or hand
-        # over. Measured three refusals in one session (2026-09-19) before this
-        # arm was added: the only documented safe budget read was unavailable in
-        # exactly the state it exists for. Same deadlock class as the T-2878
-        # context add-* and T-2052 task-create exemptions.
-        #
-        # This does NOT breach the Tier 0 scope boundary that keeps `./script.sh`
-        # out (the T-2742 rule above): that rule is about ARBITRARY files, whose
-        # contents a command-string scan cannot see. `checkpoint.sh` here is the
-        # same trust class as the `fw`/`bin/fw` arm — a named framework verb
-        # surface judged by name plus sub-verb, not by file contents. `status`
-        # was read to verify: its only write is the ensure_counter bootstrap
-        # (creates .context/working/.tool-counter if absent — the exempt wrap-up
-        # path). The mutating arms (`post-tool` increments counters and can
-        # trigger auto-handover; `reset` deletes session state) fall through and
-        # stay gated, mirroring the systemctl/git verb-scoping treatment.
-        checkpoint.sh)
-            local cp_sub
-            cp_sub=$(echo "$cmd" | awk '{print $2}')
-            case "$cp_sub" in
-                status|budget)
-                    return 0
-                    ;;
-            esac
-            ;;
-
         # Category 5: System utilities
-        curl|wget|date|uname|ps|ss|id|whoami|hostname|env|printenv|df|du|free|uptime|lsb_release|nproc)
+        #
+        # T-3222: curl and wget are NOT unconditionally safe, and their presence
+        # here contradicted the admission rule this list states for itself —
+        # "only verbs that cannot write a file WITHOUT a shell redirect", which
+        # is the basis on which it excludes awk and uniq. `curl -o FILE` and
+        # `wget -O FILE` write a file with no redirect, so has_bash_write_pattern
+        # (which looks for redirects) never sees them, and both were admitted
+        # with NO ACTIVE TASK. Reported by peer 832-Workflow-designer as a side
+        # finding on their T-638; confirmed here against the live hook.
+        #
+        # The destination is the hazard, not the flag: `curl -o -` and
+        # `wget -O -` write to stdout and stay safe. T-3237 closed the bare
+        # form too: `wget URL` with no flag writes the remote filename into
+        # cwd (wget's default), so wget is safe only with an explicit stdout
+        # destination; bare `curl URL` (stdout default) stays safe.
+        curl|wget)
+            _fw_fetch_writes_file "$cmd" && return 1
+            return 0
+            ;;
+        date|uname|ps|ss|id|whoami|hostname|env|printenv|df|du|free|uptime|lsb_release|nproc)
             return 0
             ;;
 
@@ -767,81 +1063,429 @@ _fw_single_command_is_safe() {
 has_bash_write_pattern() {
     local cmd="$1"
 
-    # ── T-3178 (LOCAL DIVERGENCE, registered in .vendor-divergence.yaml) ────────────
-    # Every rule below uses a HERESTRING, never `echo "$cmd" | grep -qE`. Under
-    # `set -o pipefail` a matching `grep -q` exits and closes the pipe, echo takes
-    # SIGPIPE, and the pipeline returns 141. On THIS predicate a non-zero return means
-    # "no write pattern found", so the security gate fails OPEN on a match — the
-    # loudest possible case of L-387 / T-2743. A herestring has no pipe and no SIGPIPE.
+    # T-3643 (ported from 055, framework:pickup offset 224): a redirect to
+    # /dev/null writes nothing. Strip those tokens (`>/dev/null`, `> /dev/null`,
+    # `1>`, `2>`, `&>`, `>>`) before the redirect scan, so `cat a > /dev/null`
+    # is not a write. The terminator must be whitespace, a separator or end of
+    # line: `/dev/nullx`, `/dev/null.bak`, `/dev/null/sub` are ordinary paths
+    # and stay writes, and any OTHER redirect on the line still bites below.
+    # (The T-3344 strip in is_bash_safe_command covers the allowlist side only;
+    # check-active-task consults THIS scan first.)
+    local _scan="$cmd" _sprev=""
+    while [ "$_scan" != "$_sprev" ]; do
+        _sprev="$_scan"
+        _scan=$(printf '%s' "$_scan" | sed -E 's#(^|[^>&0-9])([0-9]|&)?>>?[[:space:]]*/dev/null([[:space:];|&)]|$)#\1 \3#')
+    done
 
-    # Redirect to a FILE. The test is what FOLLOWS the operator, not what precedes it:
-    # `>` or `>>` not followed by `&` opens a file; `>&` duplicates a descriptor.
-    #
-    # The previous rule was '[^2>&]>[^>&]|>>', which tested the character BEFORE the
-    # operator — but `2>&1` and `2> file` differ only AFTER it, so a numbered-fd
-    # redirect to a file classified as not-a-write and the Tier-1 active-task gate
-    # admitted it with no task. Measured live in this tree before the fix:
-    #   `bin/fw audit 2> out.txt` -> not-write, `bin/fw audit &> out.txt` -> not-write.
-    # `&>` is bash shorthand for `>file 2>&1` and is unambiguously a file write.
-    # Reported by 050-email-archive (P-006 / their T-2257); the `&>` case is ours.
-    #
-    # A trailing operator with nothing after it matches `$` and counts as a write —
-    # fail CLOSED, because a truncated command line is not evidence of safety.
-    #
-    # T-3187: redirects to a NULL OR STANDARD SINK are stripped first. `2>/dev/null`
-    # opens no file — the kernel discards the descriptor — and it is one of the most
-    # common idioms in this tree. Without this, the rule above makes it a write, and the
-    # first command run after shipping T-3178 was blocked for exactly that. That is the
-    # fail-CLOSED half of the defect T-3178 set out to fix, reintroduced by the other
-    # rule, and false refusals are how an operator learns the gate is noise (T-2818).
-    #
-    # Stripping rather than short-circuiting is what keeps a MIX correct:
-    #   cmd 2>/dev/null            -> strips to `cmd 2`            -> not-write
-    #   cmd > out.txt 2>/dev/null  -> strips to `cmd > out.txt 2`  -> WRITE, correctly
-    #
-    # The trailing boundary is load-bearing: without it `/dev/nullish` matches
-    # `/dev/null` and the tail `ish` is left behind, silently exempting a real write.
-    # That would be a NEW fail-open, which is strictly worse than the false positive
-    # being fixed. `\2` puts the boundary character back.
-    local _probe
-    _probe="$(sed -E 's#>>?[[:space:]]*/dev/(null|stderr|stdout)([^A-Za-z0-9_./-]|$)#\2#g' <<< "$cmd")"
-    # If the strip failed for any reason, test the ORIGINAL. A broken strip must make
-    # the gate stricter, never looser.
-    [ -n "$_probe" ] || _probe="$cmd"
-    if grep -qE '>>?($|[^&])' <<< "$_probe"; then
+    # Redirect operators (but not comparison operators like 2>&1)
+    if echo "$_scan" | grep -qE '[^2>&]>[^>&]|>>'; then
         return 0
     fi
 
-    # In-place sed. Anchored on an actual FLAG, not a bare `-i` substring.
-    #
-    # The previous rule was '\bsed\b.*-i' with no boundary after `-i`, so ANY `-i`
-    # anywhere after the word `sed` matched — including inside a filename. A plain
-    # read, `grep -n -A 14 ... T-2958-...-go-in-the-decis.md`, was refused as an
-    # in-place edit because the filename contains "-in-". That is the mirror of the
-    # bypass above: one predicate failing open on a real write and closed on a real
-    # read, and the false refusals are what teach an operator the gate is noise
-    # (T-2818), which is how the bypass survives unnoticed.
-    #
-    # Matches `-i`, `-i.bak`, `--in-place`, and clustered short flags like `-ni`,
-    # while a following alphanumeric or `-` (as in `-in-the`) does not match.
-    if grep -qE '\bsed\b.*(^|[[:space:]])(-[a-zA-Z]*i([^a-zA-Z0-9-]|$)|--in-place)' <<< "$cmd"; then
+    # In-place sed
+    if echo "$cmd" | grep -qE '\bsed\b.*-i'; then
         return 0
     fi
 
     # Destructive file operations (already caught by Tier 0 but belt-and-suspenders)
-    if grep -qE '\b(rm|rmdir)\b' <<< "$cmd"; then
+    if echo "$cmd" | grep -qE '\b(rm|rmdir)\b'; then
         return 0
     fi
 
     # Heredoc
-    if grep -qE '<<\s*['"'"'"]?EOF' <<< "$cmd"; then
+    if echo "$cmd" | grep -qE '<<\s*['"'"'"]?EOF'; then
         return 0
     fi
 
     # tee (writes to file)
-    if grep -qE '\btee\b' <<< "$cmd"; then
+    if echo "$cmd" | grep -qE '\btee\b'; then
         return 0
     fi
 
     return 1
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T-3221: is this command a COMMIT CHECKPOINT, as opposed to a command that
+# merely mentions one?
+#
+# Two branches in check-active-task.sh admit a Bash command on the strength of
+# it being a `git commit` — the T-2054 null-focus branch (a completed task must
+# still be able to commit its own file-move) and the T-3179 partial-complete
+# branch. Both rationales are correct: a commit persists work already produced
+# under the Write/Edit gate, so it is not new work.
+#
+# Both tested whether the command CONTAINED the words, against the raw
+# unstripped string, unanchored to any clause:
+#
+#     [[ "$BASH_CMD" =~ (^|[[:space:]])git[[:space:]]+commit($|[[:space:]]) ]]
+#
+# Measured against the live hook with focus null, that admitted (T-3221):
+#
+#     git commit -m "…" ; rm -rf /tmp/x          every clause, past every gate
+#     git commit -m "…" | tee f                  a write the gate had FLAGGED
+#     somebinary --flag "please git commit this" an unknown binary, admitted
+#                                                because a quoted ARGUMENT said so
+#     git commit -m "$(cat /etc/hostname)"       arbitrary substitution
+#
+# The accident that makes this hard to see: `echo "git commit" > f` was blocked,
+# because a quote character sits immediately before `git` and the regex wants a
+# space there. Whether the hole opened depended on whether a space happened to
+# precede the word inside the quotes. Correctness was punctuation luck.
+#
+# Reported by peer 832-Workflow-designer (their T-638) and confirmed in-tree
+# here before acting. This is L-547 (T-2834) once more — a fast-path exemption
+# classifying part of a command instead of the whole of it — keyed on the quoted
+# payload rather than the first word.
+#
+# COMPOSITION, not a hand-rolled list. Requiring every clause to be
+# independently admissible via _fw_single_command_is_safe, OR to be the commit
+# itself, is what keeps `git add -A && git commit -m "…"` working: that is the
+# documented post-completion form, and `git add`'s admissibility lives in the
+# shared allowlist. A hand-written "cd or git commit" pair would have broken it,
+# and would drift from the allowlist the moment either changed.
+#
+# Every failure direction is toward BLOCKING: an unrecognised clause, an
+# unbalanced quote, a substitution, or no commit clause at all all return 1,
+# which sends the command to the task gate rather than past it.
+# T-3222: does this SINGLE clause make curl/wget write a file?
+#
+# WHY THIS IS CLAUSE-SCOPED and not an extra pattern in has_bash_write_pattern,
+# which is where the admission rule would otherwise suggest it belongs:
+# has_bash_write_pattern scans the whole raw command string, so it already
+# classifies `git commit -m "we no longer rm -rf the output dir"` as a WRITE —
+# a MENTION in a commit message, treated as an action. Measured, and registered
+# as OBS-356; it predates all of this. Adding curl to that scanner would have
+# added another instance of the exact class this cluster of tasks exists to
+# remove. Here the input is one clause, quote-stripped, with its base already
+# extracted — so only a real invocation can match.
+#
+# The DESTINATION is the hazard, not the flag. `curl -o -` and `wget -O -`
+# write to stdout and are safe; `wget -o LOG` writes a log file and is not.
+#
+# Failure direction is toward TREATING IT AS A WRITE, which blocks: an
+# unparseable clause (unbalanced quote) returns 0 here, and an unrecognised
+# spelling of an output flag falls into the catch-all cluster tests rather than
+# out of them. Blocking sends the command to the task gate, which admits it
+# whenever a task is active; admitting it skips every gate there is.
+_fw_fetch_writes_file() {
+    local cmd="$1" stripped base tok rest
+    # T-3237: the two tools invert their DEFAULTS, and the pre-fix version only
+    # judged flags — so bare `wget URL`, which writes the remote filename into
+    # cwd with no flag at all, classified safe on the strength of having typed
+    # nothing. curl bare writes to stdout and genuinely is safe. So for wget the
+    # burden of proof flips: it is a write UNLESS an explicit stdout destination
+    # (`-O-`, `-O -`, `--output-document=-`) or a no-download mode (`--spider`,
+    # `--help`, `--version`) is present. The two trackers below carry that.
+    local wget_stdout=0 wget_nofetch=0
+    stripped="$(_fw_strip_quoted "$cmd")" || return 0
+
+    # shellcheck disable=SC2086  # deliberate word-splitting: tokenising argv
+    set -- $stripped
+    [ $# -eq 0 ] && return 1
+    base="${1##*/}"
+    shift
+
+    while [ $# -gt 0 ]; do
+        tok="$1"; shift
+        case "$tok" in
+            # Long forms, both spellings, for both tools.
+            --output=-|--output-document=-)   wget_stdout=1; continue ;;
+            --output=*|--output-document=*)   return 0 ;;
+            --output|--output-document|--output-file)
+                [ "${1:-}" = "-" ] || return 0
+                wget_stdout=1
+                continue ;;
+            --remote-name|--remote-header-name|--output-dir|--create-dirs)
+                return 0 ;;
+            --spider|--help|--version)
+                # No-download modes: nothing is fetched, so nothing lands in cwd.
+                wget_nofetch=1; continue ;;
+            --*) continue ;;
+            -) continue ;;
+            -h|-V)
+                wget_nofetch=1; continue ;;
+            -*)
+                # Short-flag cluster. curl allows bundling (`-sO`, `-so FILE`),
+                # so test the letters rather than the whole token.
+                rest="${tok#-}"
+                # curl -O / wget -O: writes to a file with no separate argument
+                # for curl (remote name) and with one for wget.
+                case "$rest" in
+                    *O*)
+                        if [ "$base" = wget ]; then
+                            # wget -O takes a value: attached (`-O-`, `-Ofile`)
+                            # or the next token.
+                            case "$rest" in
+                                *O)   [ "${1:-}" = "-" ] || return 0
+                                      wget_stdout=1 ;;
+                                *O-)  wget_stdout=1 ;;
+                                *)    return 0 ;;
+                            esac
+                        else
+                            return 0   # curl -O always names a local file
+                        fi
+                        continue ;;
+                esac
+                case "$rest" in
+                    *o*)
+                        # wget -o is the LOG file (always a write). curl -o is
+                        # the output file (stdout when the target is `-`).
+                        if [ "$base" = wget ]; then return 0; fi
+                        # T-3643: /dev/null joins `-` — it discards the body.
+                        case "$rest" in
+                            *o)   [ "${1:-}" = "-" ] || [ "${1:-}" = "/dev/null" ] || return 0 ;;
+                            *o-)  ;;
+                            *)    return 0 ;;   # attached value, e.g. -ofile
+                        esac
+                        continue ;;
+                esac
+                continue ;;
+            *) continue ;;
+        esac
+    done
+    # T-3237: wget with no explicit stdout destination and no no-download mode
+    # is running its DEFAULT, and the default writes the remote filename to cwd.
+    if [ "$base" = wget ] && [ "$wget_stdout" -eq 0 ] && [ "$wget_nofetch" -eq 0 ]; then
+        return 0
+    fi
+    return 1
+}
+
+# T-3238: does this SINGLE find clause carry an action/mutation predicate?
+#
+# Clause-scoped on quote-stripped text, for the same reason _fw_fetch_writes_file
+# above is: a whole-string scan would turn a MENTION into an action —
+# `grep -q '\-delete' file` or `find . -name "-delete"` must not gate. After
+# _fw_strip_quoted, quoted arguments are gone, so only a bare predicate token in
+# argv position can match. Backslash-escaped chars are dropped by the stripper
+# too (`\;` after -exec), which costs nothing: the `-exec` itself is the signal.
+#
+# Failure direction is toward BLOCKING: an unparseable clause (unbalanced quote)
+# reads as carrying an action, which sends the command to the task gate rather
+# than past it — the same asymmetry argument as the compound-command judge.
+_fw_find_has_action_predicate() {
+    local stripped tok
+    stripped="$(_fw_strip_quoted "$1")" || return 0
+    # shellcheck disable=SC2086  # deliberate word-splitting: tokenising argv
+    set -- $stripped
+    while [ $# -gt 0 ]; do
+        tok="$1"; shift
+        case "$tok" in
+            -delete|-exec|-execdir|-ok|-okdir|-fprint|-fprintf|-fprint0|-fls)
+                return 0 ;;
+        esac
+    done
+    return 1
+}
+
+# T-3454: env prefixes are stripped before the match, which is what makes the
+# T-3179 partial-complete allowance reachable at all.
+#
+# The measured deadlock: focus sits on a partial-complete task, the commit
+# targets a DIFFERENT (closed) task, so the focus-drift gate refuses and its
+# block message prescribes `FW_SWITCH_FOCUS=1 <cmd>` as the universal remedy —
+# correctly noting that focusing the target is impossible because it is closed.
+# Adding that prefix then broke this regex, so the commit was no longer
+# recognised as a commit clause, fell through to _fw_single_command_is_safe,
+# and was refused as a write. Drop the prefix and focus-drift refuses again.
+# Two gates, two prescribed remedies, no line satisfying both — the same class
+# as T-3299, where G-020 blocks both escape routes its own message names.
+#
+# Reuses _fw_strip_env_prefixes rather than adding a second regex: that
+# primitive already carries the denylist of execution-causing names, so
+# `PATH=/tmp git commit` still fails this match (the strip stops at the denied
+# name, the residue does not look like a commit clause) and is refused. Fails
+# closed, and there is one copy of the denylist rather than two.
+_fw_is_git_commit_clause() {
+    local seg
+    seg="$(_fw_strip_quoted "$1")" || return 1
+    seg="${seg#"${seg%%[![:space:]]*}"}"
+    _fw_strip_env_prefixes "$seg"; seg="$_FW_ENV_STRIPPED"
+    [[ "$seg" =~ ^git[[:space:]]+commit([[:space:]]|$) ]]
+}
+
+# Remove quoted spans, tracking WHICH quote opened each one. A regex that
+# strips `'[^']*'` and `"[^"]*"` independently pairs an apostrophe inside a
+# double-quoted string with the next unrelated quote and desyncs everything
+# after it — the same defect T-3217's linter had, and the reason that one is a
+# state machine too. An unterminated quote returns non-zero, so the caller
+# blocks rather than guessing.
+_fw_strip_quoted() {
+    local s="$1" out="" q="" ch i n=${#1}
+    for (( i=0; i<n; i++ )); do
+        ch="${s:i:1}"
+        if [ -n "$q" ]; then
+            [ "$ch" = "$q" ] && q=""
+            continue
+        fi
+        case "$ch" in
+            "'"|'"') q="$ch" ;;
+            '\')     i=$((i+1)) ;;
+            *)       out+="$ch" ;;
+        esac
+    done
+    [ -n "$q" ] && return 1
+    printf '%s' "$out"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T-3299: is this command a METADATA-ONLY `fw task update` — the shape the
+# G-020 block message itself prescribes as the escape route?
+#
+# G-020 (check-active-task.sh, build-readiness gate) blocks everything that
+# falls through to it while the focused build task has placeholder ACs — and
+# its own printed remedy, `fw task update T-XXX --type inception`, fell
+# through with everything else: `update` is not a safe-listed task sub-verb,
+# and no earlier checkpoint admits it. The gate quoted the remedy back
+# verbatim while refusing it (OBS-353, measured 2026-08-29). Sibling of
+# L-399/T-1890, one notch worse: there the bypass was rejected downstream;
+# here the gate rejects its own prescription before anything downstream runs.
+#
+# NARROW BY CONSTRUCTION. A clause qualifies only when its argv is exactly
+# `fw task update`, ONE task id, and flags drawn from the metadata set the
+# gate's remedies need: --type/-t, --horizon, --status/-s, --reason/-r (each
+# consuming the next token as its value) and bare --switch-focus (the T-1890
+# sentinel update-task.sh consumes silently). Anything else — --add-tag,
+# --owner, --skip-*, a second task id, an unrecognised token — disqualifies
+# the clause and the command falls through to the gate as before.
+#
+# NO `=`-ATTACHED FORMS (`--type=inception`). update-task.sh's parser takes
+# values as the NEXT argv token only; admitting a form the downstream parser
+# rejects with "Unknown option" would be the exact T-1890 parity break this
+# fix exists to close, from the other direction.
+#
+# Values must be UNQUOTED single tokens. _fw_strip_quoted deletes quoted
+# content, so a double-quoted value leaves a valueless flag and the clause is
+# refused — toward blocking, which every failure direction here is: command
+# substitution, an unbalanced quote, a write pattern on the stripped view, an
+# unrecognised flag, and a missing value all return 1, sending the command to
+# the gate rather than past it.
+#
+# Same composition as is_commit_checkpoint_command below, for the same reason:
+# chained clauses (`cd … && bin/fw task update …`) are admitted only when every
+# other clause is independently safe via the SHARED allowlist, so this cannot
+# drift from it.
+#
+# CONSUMED AT EXACTLY ONE CHECKPOINT — the G-020 block branch in
+# check-active-task.sh — per that file's SAFE_ALLOWED argument (:269): a
+# predicate honoured at one site fails toward blocking if the site is ever
+# lost; one honoured at many fails toward permitting when one forgets. The
+# drift gate (T-1730) runs BEFORE that branch, so a metadata update naming a
+# task other than the focus is still blocked (or Tier-2 logged) upstream.
+_fw_is_task_metadata_update_clause() {
+    local seg tok
+    seg="$(_fw_strip_quoted "$1")" || return 1
+    seg="${seg#"${seg%%[![:space:]]*}"}"
+    # T-1908/T-1890: tolerate env-var prefixes (FW_SWITCH_FOCUS=1 fw task update …)
+    while [[ "$seg" =~ ^[A-Za-z_][A-Za-z0-9_]*=[^[:space:]]+[[:space:]]+(.*)$ ]]; do
+        seg="${BASH_REMATCH[1]}"
+    done
+    # shellcheck disable=SC2086  # deliberate word-splitting: tokenising argv
+    set -- $seg
+    [ $# -ge 4 ] || return 1
+    [ "${1##*/}" = "fw" ] || return 1
+    [ "$2" = "task" ] && [ "$3" = "update" ] || return 1
+    shift 3
+    local task_seen=0
+    while [ $# -gt 0 ]; do
+        tok="$1"; shift
+        case "$tok" in
+            T-[0-9]*)
+                [[ "$tok" =~ ^T-[0-9]+$ ]] || return 1
+                [ "$task_seen" -eq 1 ] && return 1
+                task_seen=1 ;;
+            --type|-t|--horizon|--status|-s|--reason|-r)
+                [ $# -ge 1 ] || return 1
+                case "$1" in -*|T-[0-9]*) return 1 ;; esac
+                shift ;;
+            --switch-focus) ;;
+            *) return 1 ;;
+        esac
+    done
+    [ "$task_seen" -eq 1 ]
+}
+
+# TRUE only for a command whose every clause is either the metadata-only task
+# update itself or independently admissible via the shared allowlist.
+is_task_metadata_update_command() {
+    local cmd="$1" seg found=0
+    local -a segs=()
+
+    case "$cmd" in *'$('*|*'`'*) return 1 ;; esac
+
+    local cmd_view
+    cmd_view="$(_fw_strip_quoted "$cmd")" || return 1
+    has_bash_write_pattern "$cmd_view" && return 1
+
+    while IFS= read -r -d '' seg; do
+        segs+=("$seg")
+    done < <(_fw_chain_split "$cmd")
+    for seg in "${segs[@]}"; do
+        [[ "$seg" =~ ^[[:space:]]*$ ]] && continue
+        if _fw_is_task_metadata_update_clause "$seg"; then
+            found=1
+            continue
+        fi
+        _fw_single_command_is_safe "$seg" || return 1
+    done
+    [ "$found" -eq 1 ]
+}
+
+# TRUE only for a command that IS a commit checkpoint: at least one clause is a
+# real `git commit`, and every other clause is independently admissible.
+is_commit_checkpoint_command() {
+    local cmd="$1" seg found=0
+    local -a segs=()
+
+    # Command substitution can carry anything and is judged by nothing here.
+    case "$cmd" in *'$('*|*'`'*) return 1 ;; esac
+
+    # `--no-verify`/`-n` skips the commit-msg hook that enforces P-002, which is
+    # the thing that makes this whole allowance sound. Pre-existing rule at both
+    # call sites, kept here so the two branches cannot drift apart on it.
+    [[ "$cmd" =~ (^|[[:space:]])(--no-verify|-n)([[:space:]]|$) ]] && return 1
+
+    # Defect 2 (T-3221): the has_bash_write_pattern check in check-active-task.sh
+    # falls through with `:` rather than exiting, so a command already correctly
+    # identified as a WRITE reached these branches and was handed exit 0 — the
+    # gate saw the write and admitted it anyway. Re-asserted here rather than
+    # patched at that one call site, so the guarantee travels with the predicate
+    # to every caller. This is also what makes the T-3179 block message's claim
+    # that "write patterns void the allowance" true; it was not before.
+    #
+    # T-3245: judged on a QUOTE-STRIPPED view, not the raw line. CLAUDE.md
+    # mandates a `Co-Authored-By: ... <noreply@anthropic.com>` trailer on every
+    # commit, and that `<...>` sits inside a quoted `-m` argument —
+    # has_bash_write_pattern's redirect regex cannot tell it from a real `<`
+    # operator, so the ONLY remedy the T-3179 block message names ("drop the
+    # redirect and run the commit bare") was unreachable for a commit carrying
+    # the trailer the framework itself requires. Scope decision: reuse
+    # _fw_strip_quoted (the same primitive _fw_is_git_commit_clause already
+    # trusts, a few lines below) HERE ONLY, rather than making
+    # has_bash_write_pattern itself quote-aware. That keeps the blast radius to
+    # this one predicate's two call sites (T-2054 null-focus, T-3179
+    # partial-complete) instead of every caller of has_bash_write_pattern
+    # (T-3096's sed/awk/yq write-detection among them) — a general rewrite of
+    # that scanner is a separate, larger change this task does not need to make
+    # to close the measured deadlock. Fails closed the same way _fw_strip_quoted
+    # always has: an unbalanced quote makes it return non-zero, cmd_view falls
+    # back to the untouched original, and the stray metacharacter still blocks.
+    local cmd_view
+    cmd_view="$(_fw_strip_quoted "$cmd")" || cmd_view="$cmd"
+    has_bash_write_pattern "$cmd_view" && return 1
+
+    # T-3223: `-d ''` — see the splitter's contract note.
+    while IFS= read -r -d '' seg; do
+        segs+=("$seg")
+    done < <(_fw_chain_split "$cmd")
+    for seg in "${segs[@]}"; do
+        [[ "$seg" =~ ^[[:space:]]*$ ]] && continue
+        if _fw_is_git_commit_clause "$seg"; then
+            found=1
+            continue
+        fi
+        _fw_single_command_is_safe "$seg" || return 1
+    done
+    [ "$found" -eq 1 ]
 }

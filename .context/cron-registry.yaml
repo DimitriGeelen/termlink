@@ -151,3 +151,11 @@ jobs:
     origin_task: T-1452
     status: active
     description: "Daily scan of .tasks/active for revisit_at <= today; ripe deferrals are written to .context/working/.revisits-due.txt and surfaced by the handover banner. Closes G-053 (DEFER decisions previously had no structural revisit reminder). PROJECT_ROOT is explicit per T-2810 — without it the scan silently finds nothing in a vendored consumer."
+  - id: sidecar-sweep-5m
+    name: Sidecar ack-ledger sweep (5 min)
+    schedule: '3,8,13,18,23,28,33,38,43,48,53,58 * * * *'
+    command: flock -n /var/lock/agentic-cron-sidecar-sweep-5m-termlink.lock -c 'fw sidecar sweep'
+    source_file: agentic-audit.crontab
+    origin_task: T-3673
+    status: active
+    description: "Walks the peer-consult ack ledger and escalates unacked consults (T-3418, T-3673). Without this job unacked consults never escalate."

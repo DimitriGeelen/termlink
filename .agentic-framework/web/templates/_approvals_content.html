@@ -2,10 +2,10 @@
 
 <!-- Summary counts bar — T-1416 (T-1388 B6 / F5): split into Decisions vs Verifications -->
 <div class="approvals-summary">
-    <a href="#section-decisions" class="approval-stat approval-stat-group {{ 'decisions-active' if (tier0_count + go_count) else '' }}" style="text-decoration:none; color:inherit;">
-        <span class="stat-value">{{ tier0_count + go_count }}</span>
+    <a href="#section-decisions" class="approval-stat approval-stat-group {{ 'decisions-active' if (tier0_count + go_count + decided_unclosed_count) else '' }}" style="text-decoration:none; color:inherit;">
+        <span class="stat-value">{{ tier0_count + go_count + decided_unclosed_count }}</span>
         <span class="stat-label">Decisions</span>
-        <span class="stat-breakdown">{{ tier0_count }} Tier 0 · {{ go_count }} GO/NO-GO</span>
+        <span class="stat-breakdown">{{ tier0_count }} Tier 0 · {{ go_count }} GO/NO-GO{% if decided_unclosed_count %} · {{ decided_unclosed_count }} to close{% endif %}</span>
     </a>
     {% if paused_count and paused_count > 0 %}
     <a href="#section-paused" class="approval-stat approval-stat-group ac-active" style="text-decoration:none; color:inherit;">
@@ -14,11 +14,18 @@
         <span class="stat-breakdown">Workers awaiting answer</span>
     </a>
     {% endif %}
+    {% if waiting_messages or waiting_error %}
+    <a href="#section-waiting" class="approval-stat approval-stat-group ac-active" style="text-decoration:none; color:inherit;">
+        <span class="stat-value">{{ waiting_messages|length if not waiting_error else '?' }}</span>
+        <span class="stat-label">Waiting</span>
+        <span class="stat-breakdown">Messages with no recipient</span>
+    </a>
+    {% endif %}
     {% if arc_close_count and arc_close_count > 0 %}
     <a href="#section-arc-closure" class="approval-stat approval-stat-group decisions-active" style="text-decoration:none; color:inherit;">
         <span class="stat-value">{{ arc_close_count }}</span>
         <span class="stat-label">Arc Closure</span>
-        <span class="stat-breakdown">Close-ready arcs</span>
+        <span class="stat-breakdown">Meeting L1 + L2</span>
     </a>
     {% endif %}
     {% if bvp_proposal_count and bvp_proposal_count > 0 %}
@@ -188,7 +195,8 @@
             {{ t.rec_decision }}
             {% endif %}
         </summary>
-        <div style="font-size:0.85rem; margin-top:0.4rem; white-space:pre-wrap; line-height:1.5;">{{ t.recommendation }}</div>
+        {# T-3587: rendered Markdown (shared renderer) — refs link or show as dead #}
+        <div class="rendered-md" style="font-size:0.85rem; margin-top:0.4rem; line-height:1.5;">{{ t.recommendation_html | safe }}</div>
     </details>
     {% else %}
     {# T-1214: Fallback context when agent recommendation is missing #}
@@ -236,12 +244,67 @@
 {% endfor %}
 {% endif %}
 
-<!-- T-1961: Arc closure — arcs that are close-ready (in-progress + ≥80% complete + anchor Recommendation) -->
+<!-- T-3175: DECIDED but still open. The exact complement of the Decisions
+     section above: a task leaves that one the moment a decision is recorded, and
+     used to arrive nowhere. The sovereignty gate (update-task.sh:87) refuses agent
+     closure on owner: human, so the single remaining action is the operator's —
+     and it was on no surface at all. Measured: three inceptions invisible here,
+     one of them for six days. -->
+{% if decided_unclosed %}
+<h2 id="section-decided-unclosed" class="approvals-group-heading">Decided — awaiting closure</h2>
+<div class="section-header">
+    <h3>You already decided these</h3>
+    <small>{{ decided_unclosed_count }} inception{{ '' if decided_unclosed_count == 1 else 's' }} — decision recorded, task still open. One step left.</small>
+</div>
+{% for t in decided_unclosed %}
+<div class="approval-card">
+    <div class="approval-header">
+        <a href="/inception/{{ t.task_id }}"><strong>{{ t.task_id }}</strong></a>
+        <span class="badge badge-{{ 'go' if t.decision == 'GO' else 'nogo' }}">{{ t.decision }}</span>
+        <span class="muted">{{ t.status }}{% if t.owner %} · owner: {{ t.owner }}{% endif %}</span>
+    </div>
+    <div class="approval-body">
+        <div>{{ t.name }}</div>
+        <small class="muted">Decision is recorded; the task is still in <code>active/</code>.
+        Close it from <a href="/inception/{{ t.task_id }}">/inception/{{ t.task_id }}</a>.</small>
+    </div>
+</div>
+{% endfor %}
+{% endif %}
+
+<!-- T-3694 (T-3691 item 5): keystones left captured. A captured task that owns an
+     unbuilt design-register row, or is an arc's keystone / slice 1, for more than
+     3 days. Same predicate as the fw audit WARN (lib/design_register.py). -->
+{% if stale_keystones %}
+<h2 id="section-stale-keystones" class="approvals-group-heading">Stale Keystones</h2>
+<div class="section-header">
+    <h3>Keystones still captured</h3>
+    <small>{{ stale_keystones|length }} task{{ '' if stale_keystones|length == 1 else 's' }} the arc depends on, captured for more than 3 days</small>
+</div>
+{% for k in stale_keystones %}
+<div class="approval-card stale-keystone" data-task-id="{{ k.task_id }}">
+    <div class="approval-header">
+        <a href="/tasks/{{ k.task_id }}"><strong>{{ k.task_id }}</strong></a>
+        <span class="badge badge-nogo">captured {{ k.days_captured }} day{{ '' if k.days_captured == 1 else 's' }}</span>
+        {% if k.arc %}<span class="muted">arc: <a href="/arcs/{{ k.arc }}">{{ k.arc }}</a></span>{% endif %}
+    </div>
+    <div class="approval-body">
+        <div>{{ k.name }}</div>
+        <small class="muted">{{ k.reasons|join('; ') }} · captured since {{ k.captured_since }}</small>
+    </div>
+</div>
+{% endfor %}
+{% endif %}
+
+<!-- T-1961: Arc closure queue — in-progress arcs meeting L1 + L2 (T-3552); anchor advisory and demo evidence shown per card -->
 {% if arcs_close_ready %}
 <h2 id="section-arc-closure" class="approvals-group-heading">Arc Closure</h2>
 <div class="section-header">
-    <h3>Arcs ready for review</h3>
-    <small>{{ arc_close_count }} arc{{ '' if arc_close_count == 1 else 's' }} — completion ≥80% with agent <code>## Recommendation</code> on anchor</small>
+    <h3>Arc closure queue</h3>
+    {# T-3552: the subtitle described the OLD predicate (completion ≥80%). An arc
+       list whose caption names a threshold it no longer uses teaches the reader a
+       rule the code does not follow. #}
+    <small>{{ arc_close_count }} arc{{ '' if arc_close_count == 1 else 's' }} — nothing unestimated (L1) and no high-value work left (L2); demo evidence and anchor advisory shown per arc</small>
 </div>
 {% for a in arcs_close_ready %}
 <div class="approval-card arc-closure" data-arc-slug="{{ a.slug }}" data-verdict="{{ a.verdict }}">
@@ -253,7 +316,7 @@
             {% if a.blocked_reason %}
             <span class="verdict-badge" data-verdict="BLOCKED"
                   style="display:inline-block; padding:0.15rem 0.55rem; border-radius:3px; font-size:0.72rem; font-weight:700; letter-spacing:0.05em; background:var(--wt-warn); color:#1a1a1a;"
-                  title="Meets the completion threshold but is not yet reviewable">BLOCKED</span>
+                  title="Meets L1 and L2, but the anchor advisory is missing">BLOCKED</span>
             {% else %}
             <span class="verdict-badge" data-verdict="{{ _v }}"
                   style="display:inline-block; padding:0.15rem 0.55rem; border-radius:3px; font-size:0.72rem; font-weight:700; letter-spacing:0.05em;
@@ -315,11 +378,28 @@
         {% endif %}
     </div>
     {% endif %}
+    {# T-3553 (T-3548 Slice B): demo evidence, stated HERE rather than discovered at
+       the close form. §ACD/G-062's mandatory question is whether a captured artefact
+       shows the headline_mechanic firing; `fw arc demo-check` answers it from the
+       arc's recorded demo_evidence:. Computing that and not showing it would be the
+       measure-it-and-report-it-nowhere shape this slice exists to remove. #}
+    {% if a.readiness and a.readiness.l4_evaluated %}
+    {% set _l4 = a.readiness.l4 %}
+    <div class="headline-mechanic-box"
+         style="border-left-color:{{ 'var(--wt-success)' if _l4.passed else 'var(--wt-warn)' }};">
+        <strong>Demo evidence:</strong>
+        {% if _l4.passed %}present and traceable to this arc.{% else %}{{ _l4.summary }}{% endif %}
+    </div>
+    {% endif %}
     {% if a.headline_mechanic %}
     {# T-2111: headline_mechanic moved out of .approval-meta (0.75rem muted) into
        the readable .headline-mechanic-box callout — body text + accent stripe on
        tinted primary bg. Same class as T-2110's arc_review.html. #}
-    <div class="headline-mechanic-box">{{ a.headline_mechanic }}</div>
+    {# T-3571: labelled and neutral — unlabelled, in the same style as the two
+       warning boxes above it, it read as a third complaint. #}
+    <div class="headline-mechanic-box" style="border-left-color:var(--pico-muted-border-color); font-style:normal;">
+        <strong>Headline mechanic:</strong> {{ a.headline_mechanic }}
+    </div>
     {% endif %}
 </div>
 {% endfor %}
@@ -400,6 +480,57 @@
 {% endfor %}
 {% endif %}
 
+<!-- T-3782: peer messages waiting for a recipient — listed until handed over, answered or dropped -->
+{% if waiting_messages or waiting_error %}
+<h2 id="section-waiting" class="approvals-group-heading">Messages waiting for a recipient</h2>
+<div class="section-header">
+    <h3>Nobody has taken these</h3>
+    <small>{{ waiting_messages|length }} message{{ '' if waiting_messages|length == 1 else 's' }} — they never expire; each stays here until handed over, answered, or dropped by you</small>
+</div>
+{% if waiting_error %}
+<div class="approval-card pending">
+    <div class="approval-risk"><span style="color:var(--wt-danger);">[ERROR]</span> The waiting list could not be read</div>
+    <div class="approval-meta">{{ waiting_error }} — run <code>fw sidecar waiting</code> in this project.</div>
+</div>
+{% endif %}
+{% for wm in waiting_messages %}
+<div class="approval-card pending">
+    <div class="approval-risk">
+        {% if wm.urgent %}<span style="color:var(--wt-danger);">[URGENT]</span>{% endif %}
+        {% if wm.side == 'inbound' %}From <strong>{{ wm.peer or 'unknown' }}</strong>{% else %}Sent to <strong>{{ wm.peer or 'unknown' }}</strong>{% endif %}
+        <span style="color:var(--pico-muted-color); font-weight:normal; font-size:0.85rem;">— waiting {{ wm.age_label }} · {{ wm.state }}</span>
+    </div>
+    <div class="approval-meta">
+        Conversation <code>{{ wm.conversation_id or '-' }}</code>
+        · message <code>{{ wm.id[:12] }}</code>
+        · {{ wm.side }} via {{ wm.via }}
+        {% if wm.escalated %} · pushed: {{ wm.escalated|join(', ') }}{% endif %}
+        {% if wm.last_recover %} · last recover: {{ wm.last_recover.event }} {{ (wm.last_recover.ts or '')[:16] }}{% endif %}
+    </div>
+    {% if wm.reason %}<div style="font-size:0.8rem; color:var(--pico-muted-color);">Reason: {{ wm.reason }}</div>{% endif %}
+    <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap; margin-top:0.5rem;">
+        {% if 'recover' in wm.actions %}
+        <form hx-post="/api/sidecar/recover" hx-target="#waiting-result-{{ loop.index }}" hx-swap="innerHTML" style="margin:0;"
+              hx-confirm="Start this project's agent (claude-fw --termlink) with this message as its first prompt?">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="msg_id" value="{{ wm.id }}">
+            <button type="submit" class="outline" style="margin:0; padding:0.25rem 0.75rem;">Recover</button>
+        </form>
+        {% else %}
+        <small style="color:var(--pico-muted-color);">Recover runs in the recipient's project.</small>
+        {% endif %}
+        <form hx-post="/api/sidecar/drop" hx-target="#waiting-result-{{ loop.index }}" hx-swap="innerHTML" style="margin:0; display:flex; gap:0.5rem; align-items:center;">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="msg_id" value="{{ wm.id }}">
+            <input type="text" name="reason" placeholder="Reason for dropping (required)" required style="margin:0; padding:0.25rem 0.5rem; min-width:16rem;">
+            <button type="submit" class="secondary outline" style="margin:0; padding:0.25rem 0.75rem;">Drop</button>
+        </form>
+    </div>
+    <div id="waiting-result-{{ loop.index }}"></div>
+</div>
+{% endfor %}
+{% endif %}
+
 <!-- T-1416 (T-1388 B6 / F5): Verifications group (Section C) -->
 {% if pending_acs %}
 <h2 id="section-verifications" class="approvals-group-heading">Verifications</h2>
@@ -420,15 +551,21 @@
     {% endif %}
 </div>
 
-<!-- Batch completion button (T-846) — only for tasks with ALL ACs checked -->
+<!-- Batch completion button (T-846). T-3590: offered only for partial-complete tasks
+     whose every Human criterion is ticked (web.shared.is_ready_for_batch_completion);
+     the form posts exactly the ids listed here and the handler re-checks each one. -->
 {% if ready_count is defined and ready_count > 0 %}
+{% set batch_ids = batch_ready | map(attribute='task_id') | list %}
 <div id="batch-complete-result" style="margin-bottom:0.5rem;">
     <form hx-post="/api/approvals/complete-batch" hx-target="#batch-complete-result" hx-swap="innerHTML"
-          hx-confirm="Complete {{ ready_count }} task(s) with all Human ACs checked?" style="display:inline;">
+          hx-confirm="Complete {{ ready_count }} task(s) with all Human ACs checked: {{ batch_ids | join(', ') }}?" style="display:inline;">
         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        {% for tid in batch_ids %}<input type="hidden" name="task_id" value="{{ tid }}">
+        {% endfor %}
         <button type="submit" style="background:var(--wt-success); border-color:var(--wt-success); color:white; padding:0.3rem 0.8rem; font-size:0.75rem; margin:0;">
             Complete {{ ready_count }} Ready Task{{ 's' if ready_count != 1 }}
         </button>
+        <small style="color:var(--pico-muted-color); margin-left:0.4rem;">{{ batch_ids | join(', ') }}</small>
     </form>
 </div>
 {% endif %}
@@ -597,7 +734,15 @@ function filterACs(filter) {
             <span class="status-badge badge-{{ t.status|replace('-','') }}">{{ t.status }}</span>
         </div>
     </div>
-    {% set unchecked_count = t.human_acs | rejectattr('checked') | list | length %}
+    {# T-3590: canonical count from web.shared, not the display list (which misses a Human block after a `## ` heading) #}
+    {% set unchecked_count = t.unchecked_count %}
+    {% set shown_unchecked = t.human_acs | rejectattr('checked') | list | length %}
+    {% if unchecked_count > shown_unchecked %}
+    <p class="human-ac-hidden-note" style="margin:0.3rem 0; font-size:0.8rem; color:var(--pico-muted-color);">
+        {{ unchecked_count - shown_unchecked }} unticked Human criteri{{ 'on' if unchecked_count - shown_unchecked == 1 else 'a' }} sit outside the Acceptance Criteria section and are not shown here —
+        <a href="/tasks/{{ t.task_id }}">open the task</a>.
+    </p>
+    {% endif %}
     {% for ac in t.human_acs %}
     <details class="human-ac-card" {% if not ac.checked %}open{% endif %}
              style="margin:0.3rem 0; padding:0.4rem 0.6rem; border-radius:4px; background:var(--pico-code-background-color);">
@@ -624,15 +769,15 @@ function filterACs(filter) {
             <div style="margin-bottom:0.3rem;"><strong>Steps:</strong></div>
             <ol style="margin:0 0 0.3rem 1rem; padding:0;">
                 {% for step in ac.steps %}
-                <li>{{ step }}</li>
+                <li>{{ step | safe }}</li>
                 {% endfor %}
             </ol>
             {% endif %}
             {% if ac.expected %}
-            <div><strong>Expected:</strong> {{ ac.expected }}</div>
+            <div><strong>Expected:</strong> {{ ac.expected | safe }}</div>
             {% endif %}
             {% if ac.if_not %}
-            <div style="color:var(--pico-muted-color);"><strong>If not:</strong> {{ ac.if_not }}</div>
+            <div style="color:var(--pico-muted-color);"><strong>If not:</strong> {{ ac.if_not | safe }}</div>
             {% endif %}
         </div>
         {% endif %}
@@ -654,7 +799,7 @@ function filterACs(filter) {
 {% endif %}
 
 <!-- Empty state -->
-{% if not pending_tier0 and not pending_go and not pending_acs and not paused_dispatches %}
+{% if not pending_tier0 and not pending_go and not pending_acs and not paused_dispatches and not waiting_messages and not waiting_error %}
 <div class="empty-state">
     <p>Nothing needs your attention.</p>
     <p><small>Tier 0 gates, inception decisions, and human acceptance criteria will appear here when pending.</small></p>

@@ -172,10 +172,68 @@ check_verification_parseable() {
 #
 # Read lib/comment_strip.py for the rule, the DOTALL failure modes, and the
 # three-disposition direction rule (discarded / counted / executed).
+# T-3134: the range start is ANCHORED, and only the FIRST range is taken.
+#
+# The previous form was `sed -n '/^## Verification/,/^## /p'`. Two defects in
+# one expression:
+#
+#   1. The start pattern is a PREFIX match. `## Verification Provenance`,
+#      `## Verification Notes` — anything beginning with those words — opens a
+#      range. So does the shipped task template's own Human-AC comment, which
+#      carries the line `## Verification` instead of a Human AC here...` at
+#      column 0. Every task created from that template inherits it.
+#   2. sed ranges REPEAT. The second match opens a second range running to the
+#      next `## ` or EOF, and every line of that section's prose is handed to
+#      the loop in update-task.sh that evals verification commands.
+#
+# So the gate's execution surface silently included arbitrary task prose. It was
+# reached live on T-3132 and again on T-3130. Both times T-2991's
+# parseable-check refused the block before the read loop evaluated any of it,
+# which is that control doing exactly its job — but it is the LAST line of
+# defence, not the first. Prose that happens to parse as shell runs, and
+# `import` is a screenshot tool: that is how 56MB of PostScript reached this
+# repo's root (T-2990), from a python body, not from a heading.
+#
+# awk rather than sed, because the fix needs state (`seen`) that a sed range
+# cannot hold. `lib/reviewer/static_scan.py:extract_section` has always done
+# this correctly — it anchors with `\\s*\\n` after the name. Two
+# implementations of one job, one right, and nothing compared them; that
+# divergence is the finding under the finding.
 extract_verification_block() {
     local file="$1"
-    sed -n '/^## Verification/,/^## /p' "$file" 2>/dev/null \
-        | sed '$d' | tail -n +2 \
+    awk '
+        /^## Verification[[:space:]]*$/ { if (!seen) { seen=1; inblk=1 }; next }
+        inblk && /^## / { inblk=0 }
+        inblk { print }
+    ' "$file" 2>/dev/null \
         | python3 "${FRAMEWORK_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}/lib/comment_strip.py" 2>/dev/null \
-        | grep -vE '^\s*$|^\s*#|^\s*```' || true
+        | grep -vE '^\s*$|^\s*#|^\s*```'
+
+    # T-3232 (arc-012 review C3). The `|| true` that used to close this pipeline
+    # collapsed EVERY failure of EVERY stage into the exact value this function
+    # returns for a task that simply has no `## Verification` section: empty
+    # stdout, exit 0. The close gate reads that as "nothing to verify" and allows
+    # completion with zero commands run and no output printed.
+    #
+    # The defect was never that extraction can fail — it is that failure was
+    # INDISTINGUISHABLE from success-with-nothing-to-do. Measured before the fix:
+    # a clean block yields 12 bytes rc=0; the same block with one 0xff byte in it
+    # yields 0 bytes rc=0, because comment_strip.py dies on UnicodeDecodeError,
+    # `2>/dev/null` eats the traceback and `|| true` ate the status.
+    #
+    # PIPESTATUS rather than pipefail, because the two stages disagree on what 1
+    # MEANS. pipefail cannot tell python-exploded (1) from grep-filtered-
+    # everything-out (1), and the second is a normal outcome — a block whose lines
+    # are all comments is legitimately empty. Per-stage status is the only way to
+    # classify them differently, which is the whole point of the fix.
+    #
+    # stdout is deliberately unchanged, so consumers that read only stdout are
+    # unaffected: lib/verify_queue.py:89 shells out and uses `r.stdout` alone.
+    local st=("${PIPESTATUS[@]}")
+    if [ "${st[0]}" -ne 0 ] \
+       || [ "${st[1]}" -ne 0 ] \
+       || [ "${st[2]}" -gt 1 ]; then
+        return 2
+    fi
+    return 0
 }

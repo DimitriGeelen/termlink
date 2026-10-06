@@ -35,7 +35,6 @@ import os
 import sys
 import re
 import glob
-import json
 import statistics
 from pathlib import Path
 
@@ -87,187 +86,14 @@ def _str_safe_load(text):
     return yaml.load(text, Loader=_L)
 
 
-# --------------------------- T-3184 BVP scoring is an agent decision (LOCAL DIVERGENCE)
-# Registered in .vendor-divergence.yaml. OPERATOR RULING 2026-09-27, not an agent
-# proposal: setting BVP scores requires no human involvement, and the same applies to
-# value drivers and arc drivers. All five §ACD-gated verbs open — confirm, weight --set,
-# driver --add, driver --remove, auto-promote --enable. The human keeps an OVERRIDE, and
-# the override is STICKY (see _bvp_scores_are_human_set below).
-#
-# SUPERSEDES T-3176, which opened `confirm` only, behind a switch defaulting OFF.
-#
-# Why the gate's removal is not a weakening: measured across 2877 tasks with parseable
-# frontmatter, 449 carry a PROPOSED score and 0 carry a CONFIRMED one — a 100% block rate
-# over ~7 months. Every BVP-derived surface has therefore never held a data point, and
-# `--quadrant hv-lc` returned "No tasks match" because the axis was never populated. An
-# approval gate that produces zero data is replaced by a provenance mechanism that
-# preserves authority where it has actually been exercised.
-#
-# A CONFIG DEFAULT, NOT A DELETION. Setting BVP_HUMAN_APPROVAL true restores §ACD gating
-# on all five verbs. Two reasons it is not simply deleted: a consumer who wants the gate
-# can have it, and — the asymmetry that matters — a re-vendor silently REINSTATES the gate
-# with no symptom. Scoring would just quietly stop producing data again, which is the
-# exact condition that went unnoticed for seven months.
-_HUMAN_APPROVAL_KEY = 'BVP_HUMAN_APPROVAL'
-_TRUTHY = {'1', 'true', 'yes', 'on'}
-
-
-def _bvp_human_approval_required():
-    """True only when a human has explicitly and recognisably re-armed the gate.
-
-    Resolution order: env var (operator override + the seam the fixtures drive), then
-    the .framework.yaml key, then the ruling's default of NOT required.
-
-    The polarity is inverted from T-3176's switch on purpose. There, an unknown value
-    resolved to the CLOSED state because the thing being guarded was a sovereignty
-    boundary. Here the operator has ruled that scoring is not a sovereignty boundary, so
-    an unreadable or unparseable config must not silently re-impose a gate that produces
-    no data — that failure is invisible, and invisibility is what let the 0-of-449
-    condition persist. Human authority now lives in the sticky override, which is
-    evidence-bearing, rather than in a refusal, which is not.
-    """
-    env = os.environ.get(_HUMAN_APPROVAL_KEY)
-    if env is not None:
-        return env.strip().lower() in _TRUTHY
-    try:
-        cfg_text = (PROJECT_ROOT / '.framework.yaml').read_text()
-    except OSError:
-        return False
-    try:
-        cfg = _str_safe_load(cfg_text)
-    except Exception:
-        return False
-    if not isinstance(cfg, dict):
-        return False
-    val = cfg.get(_HUMAN_APPROVAL_KEY)
-    if val is None:
-        return False
-    return str(val).strip().lower() in _TRUTHY
-
-
-def _bvp_scores_are_human_set(fm):
-    """THE STICKY OVERRIDE. True when a human set or corrected this task's scores.
-
-    Two states, never three: `human` or freely-recomputed. 832-Workflow-designer's
-    design at framework:pickup offsets 190/191, and they are right that an
-    "unknown provenance" third state reintroduces the ambiguity being removed.
-
-    The operator's requirement in their own words — "after a next BVP assessment run,
-    that doesn't get overridden." So this is read on the AGENT path before writing, and
-    a True answer refuses the write. A human can still overwrite their own override by
-    passing --i-am-human, because sovereignty includes changing your mind.
-    """
-    return str((fm or {}).get('bvp_scores_source') or '').strip().lower() == 'human'
-
-
-def _weight_has_history(driver_id):
-    """True when this driver's weight has been set before.
-
-    Decides `first_set` for `weight --set`: with no prior entry the call establishes a
-    baseline and needs no justification; with one, it CHANGES an established value and
-    the weight-history audit needs to know why (T-3184).
-
-    FAIL-SAFE TOWARD REQUIRING A RATIONALE: an unreadable or unparseable history returns
-    True, so the exemption is never granted on the strength of a failed read. Asking for
-    a rationale that was not strictly needed costs a sentence; skipping one that was
-    needed loses the reason permanently, and the whole point of the file is that the
-    reasons survive.
-    """
-    try:
-        text = HISTORY_PATH.read_text()
-    except OSError:
-        return False          # no history file at all: nothing has ever been set
-    try:
-        data = _str_safe_load(text)
-    except Exception:
-        return True           # unreadable: assume history exists, demand the rationale
-    entries = (data or {}).get('history') if isinstance(data, dict) else data
-    if not isinstance(entries, list):
-        return True
-    for e in entries:
-        if isinstance(e, dict) and str(e.get('driver') or e.get('driver_id') or '') == str(driver_id):
-            return True
-    return False
-
-
-def _bvp_telemetry_path():
-    """Append-only confirmation ledger.
-
-    The override env var exists BEFORE any test suite does, deliberately — 832
-    shipped theirs the other way round and their first fixture run wrote rows into
-    the real ledger. It is append-only, so those rows cannot be removed and are
-    documented as a permanent contaminant instead. Cheap to prevent, permanent if not.
-    """
-    override = os.environ.get('FW_BVP_TELEMETRY_PATH')
-    if override:
-        return Path(override)
-    return PROJECT_ROOT / '.context' / 'telemetry' / 'bvp-confirmations.ndjson'
-
-
-def _count_no_signal(proposal_entry, confirmed_keys):
-    """How many drivers in this proposal were scored with NO evidence to score on.
-
-    Amendment (a), and the one we rate load-bearing. The estimator renders a
-    no-signal driver as 2 — its own default — so a proposal where every driver is
-    no-signal promotes unchanged and logs as `proposer_exact`: the estimator
-    agreeing with itself, recorded as evidence that it is accurate. Measured here,
-    74 of 449 proposals (16%) are exactly that. Without this count any accuracy
-    figure derived from the ledger is inflated by those rows, and the telemetry
-    becomes a measurement that cannot fail.
-
-    Read from the estimator's own rationale string, which is the only place the
-    distinction survives — `D1=2 (no-signal); D2=2 (no-signal); ...`. Returns
-    (no_signal_count, driver_count). A proposal whose rationale we cannot read
-    returns a count of None rather than 0: "we did not measure" must not render
-    as "measured, and none".
-    """
-    driver_count = len(confirmed_keys)
-    if not isinstance(proposal_entry, dict):
-        return None, driver_count
-    rationale = proposal_entry.get('rationale')
-    if not isinstance(rationale, str) or not rationale.strip():
-        return None, driver_count
-    return len(re.findall(r'no-signal', rationale)), driver_count
-
-
-def _append_confirmation_row(row):
-    """One NDJSON line per confirmation. Returns (ok, error_text).
-
-    Never raises — the caller decides what a failed append means. It must not be
-    silent: a confirmation that reached the task file but not the ledger is the
-    write-only-sink class (G-063) pointed at our own telemetry.
-    """
-    path = _bvp_telemetry_path()
-    try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, 'a') as fh:
-            fh.write(json.dumps(row, sort_keys=True) + "\n")
-        return True, None
-    except (OSError, TypeError, ValueError) as exc:
-        return False, str(exc)
-
-
 # ----------------------------------------------------------- §ACD agent gate
-def acd_gate(verb, args, refusal_hint="", auto_ok=False):
+def acd_gate(verb, args, refusal_hint=""):
     """T-1671 §ACD shape: refuse under $CLAUDECODE=1 unless --i-am-human or
     --from-watchtower. Returns True if allowed, False if refused (and prints
-    error). Used by all mutating verbs.
-
-    `auto_ok` was T-3176's surgical opening for `confirm` alone. T-3184 SUPERSEDES that:
-    the operator ruled that scoring and the value model are both agent decisions, so ALL
-    FIVE call sites now pass `auto_ok=not _bvp_human_approval_required()`. The refusal
-    text below therefore only ever prints when a human has deliberately re-armed the gate
-    with BVP_HUMAN_APPROVAL, which is the one case where it is still true.
-
-    Human authority did not move out of this function into nothing — it moved into the
-    STICKY OVERRIDE (`bvp_scores_source: human`), which is evidence-bearing. A refusal
-    records that something was blocked; provenance records what a human actually decided.
-    """
+    error). Used by all mutating verbs."""
     if os.environ.get('CLAUDECODE') != '1':
         return True
     if '--i-am-human' in args or '--from-watchtower' in args:
-        return True
-    if auto_ok:
         return True
     print(f"Error: agents must not invoke 'fw bvp {verb}' directly (§ACD, M6).", file=sys.stderr)
     print("", file=sys.stderr)
@@ -284,45 +110,20 @@ def acd_gate(verb, args, refusal_hint="", auto_ok=False):
     return False
 
 
-def require_rationale(args, min_chars=0, first_set=False):
-    """Pulls --rationale out of args. Returns (rationale_text, ok).
-
-    T-3184, operator ruling: --rationale STAYS MANDATORY — emphatically, and with the
-    observation that agents should be better at writing one than humans — but
-
-      (1) the 30-character minimum is REMOVED. A length floor measures typing, not
-          thought. It cannot tell "D1 raised: the gate is now load-bearing" (a real
-          reason, 44 chars) from 30 characters of filler, so it taxed the honest case
-          and never caught the dishonest one.
-
-      (2) it is NOT required when the value is being set for the FIRST time
-          (`first_set=True`). Establishing a baseline is not a decision that needs
-          defending; CHANGING an established value is, and that is precisely what the
-          weight-history audit exists to reconstruct.
-
-    `min_chars` is retained in the signature for callers that pass it explicitly, but
-    it is no longer applied by default — the default is now 0.
-    """
+def require_rationale(args, min_chars=30):
+    """Pulls --rationale value out of args, validates min length. Returns
+    (rationale_text, ok). Prints error on failure."""
     if '--rationale' not in args:
-        if first_set:
-            return '', True
-        print("Error: --rationale is required when changing an established value.", file=sys.stderr)
-        print("  Say why it changed — the weight-history audit reconstructs decisions", file=sys.stderr)
-        print("  from these, and 'updated' reconstructs nothing (R6).", file=sys.stderr)
-        print("  Not required for a first-time set (T-3184).", file=sys.stderr)
+        print("Error: --rationale is required.", file=sys.stderr)
+        print(f"  Provide ≥{min_chars} chars explaining why (R6 mitigation — thin", file=sys.stderr)
+        print("  rationales make weight-history audit useless).", file=sys.stderr)
         return None, False
     idx = args.index('--rationale')
     if idx + 1 >= len(args):
         print("Error: --rationale needs a value.", file=sys.stderr)
         return None, False
     rationale = args[idx + 1]
-    # An empty or whitespace-only rationale is a MISSING one wearing a flag, so it is
-    # still refused. That is the one length check worth keeping: it distinguishes
-    # "said nothing" from "said something short", which a 30-char floor could not.
-    if not rationale.strip():
-        print("Error: --rationale was given but is empty.", file=sys.stderr)
-        return None, False
-    if min_chars and len(rationale) < min_chars:
+    if len(rationale) < min_chars:
         print(f"Error: --rationale must be ≥{min_chars} characters (got {len(rationale)}).", file=sys.stderr)
         print(f"  Provided: {rationale!r}", file=sys.stderr)
         return None, False
@@ -461,39 +262,47 @@ def compute_cost(cost_estimate):
     return None, None, None, None, 'absent'
 
 
-def _proposal_is_all_no_signal(fm):
-    """T-3185: True when EVERY driver in the latest proposal was scored with no evidence.
-
-    Read from the estimator's own rationale string, because that is the only place the
-    distinction survives — the score itself is just `2`, indistinguishable from a
-    considered midpoint. The estimator writes `Dn=2 (no-signal)` per driver, so a
-    proposal is fully unassessed when the no-signal count reaches the driver count.
-
-    RETURNS FALSE WHEN IT CANNOT TELL. An absent, empty or unparseable rationale, or a
-    proposal with no scores, all return False — the task keeps its quadrant. "Could not
-    measure" must not render as "measured, and empty" (T-3105), and the cost of being
-    wrong here is asymmetric: wrongly excluding a real task hides work, wrongly keeping
-    an unassessed one merely leaves today's behaviour in place.
-    """
-    proposed = (fm or {}).get('bvp_scores_proposed')
-    if not proposed:
-        return False
-    latest = proposed[-1] if isinstance(proposed, list) else proposed
-    if not isinstance(latest, dict):
-        return False
-    scores = latest.get('scores')
-    if not isinstance(scores, dict) or not scores:
-        return False
-    rationale = latest.get('rationale')
-    if not isinstance(rationale, str) or not rationale.strip():
-        return False
-    return len(re.findall(r'no-signal', rationale)) >= len(scores)
+# T-3485: value-axis equality defect. `bvp_norm >= bvp_median` is true AT
+# equality, which is harmless while the median sits mid-distribution but
+# manufactures a verdict when it doesn't: if the median itself has collapsed
+# onto the corpus floor (median == min(bvp_vals)), then by definition at
+# least half the corpus is tied at that floor value, and `>=` promotes every
+# one of those tied, floor-scoring tasks into `hv`. Measured live: 13/25
+# zero-scored tasks, median 0.00, all 13 in hv-lc. Swapping to `>` does not
+# repair this — it just moves the same tied mass to `lv`, which is equally
+# manufactured (nothing in the corpus becomes newly distinguishable; the
+# verdict for the tied mass is still invented, just on the other side).
+#
+# The repair withholds a verdict for the tied-at-floor mass instead of
+# guessing which side it belongs on — same shape as `quadrant()` already
+# returning '-' for missing cost/value: absence of a real signal renders "I
+# cannot judge this", not a spelled-out bucket. `QUAD_VALUE_WITHHELD` is
+# scoped narrowly: it only fires when a task's own value score equals a
+# degenerate median (median == corpus floor), so a task genuinely above that
+# median is untouched and still classifies normally. On any corpus where the
+# median does NOT sit on the floor (the common case), `value_axis_degenerate`
+# is False and this function's behaviour is byte-identical to before.
+QUAD_VALUE_WITHHELD = 'v-thin'
 
 
-def quadrant(bvp_norm, cost, bvp_median, cost_median):
-    """Return one of hv-lc / hv-hc / lv-lc / lv-hc or '-' if either missing."""
+def value_axis_degenerate(bvp_vals):
+    """True when the value-axis median cannot separate the corpus — it sits
+    at the distribution's floor, which forces >=50% of the corpus to be tied
+    there (T-3485). Median-of-n floor-equality implies at least ceil(n/2)
+    values equal that floor: the smallest values determining the median can
+    be no smaller than the true minimum, so if they equal it, they ARE it."""
+    if not bvp_vals:
+        return False
+    return statistics.median(bvp_vals) == min(bvp_vals)
+
+
+def quadrant(bvp_norm, cost, bvp_median, cost_median, degenerate=False):
+    """Return one of hv-lc / hv-hc / lv-lc / lv-hc, QUAD_VALUE_WITHHELD for a
+    degenerate-median tie, or '-' if either axis is missing."""
     if bvp_norm is None or cost is None:
         return '-'
+    if degenerate and bvp_norm == bvp_median:
+        return QUAD_VALUE_WITHHELD
     hv = bvp_norm >= bvp_median
     lc = cost <= cost_median
     return ('hv' if hv else 'lv') + '-' + ('lc' if lc else 'hc')
@@ -558,8 +367,6 @@ def cmd_rank(filter_quadrant=None, include_proposed=False, include_completed=Fal
             'cost': cost,
             'cost_src': src,
             'source': source,
-            # T-3185: was every driver scored with nothing to score on?
-            'all_no_signal': _proposal_is_all_no_signal(fm) if source == 'proposed' else False,
         })
 
     if not rows:
@@ -571,24 +378,18 @@ def cmd_rank(filter_quadrant=None, include_proposed=False, include_completed=Fal
             print("Or pass `--include-proposed` to see estimator-proposed scores (advisory).")
         return 0
 
-    # T-3185: a fully-unassessed proposal is excluded from the thresholds AND from
-    # quadrant assignment. Its score is left untouched — option (d) rescores nothing —
-    # but a task the estimator knew nothing about must not be ranked as work, and must
-    # not drag the median that decides everyone else's placement. Measured before this
-    # change: 31 of 35 eligible tasks scored identically at the all-2 default and sorted
-    # to the top of the work-this-first list.
-    _ranked = [r for r in rows if not r.get('all_no_signal')]
-    bvp_vals = [r['bvp_norm'] for r in _ranked]
+    bvp_vals = [r['bvp_norm'] for r in rows]
     # Medians are taken over KNOWN costs only — an unknown-cost task must not shift
     # the threshold that decides everyone else's quadrant (T-3068).
-    cost_vals = [r['cost'] for r in _ranked if r['cost'] is not None]
+    cost_vals = [r['cost'] for r in rows if r['cost'] is not None]
     bvp_median = statistics.median(bvp_vals) if bvp_vals else 0.5
     cost_median = statistics.median(cost_vals) if cost_vals else 4.0
+    # T-3485: degeneracy is a property of the whole distribution, computed once
+    # per rank rather than per-row — see value_axis_degenerate() docstring.
+    _value_degenerate = value_axis_degenerate(bvp_vals)
     for r in rows:
-        if r.get('all_no_signal'):
-            r['quadrant'] = '-'
-            continue
-        r['quadrant'] = quadrant(r['bvp_norm'], r['cost'], bvp_median, cost_median)
+        r['quadrant'] = quadrant(r['bvp_norm'], r['cost'], bvp_median, cost_median,
+                                  degenerate=_value_degenerate)
 
     # T-3068: say what the ranking could not place, and say it before the table
     # rather than after — a quadrant filter that silently drops most of the corpus
@@ -599,37 +400,25 @@ def cmd_rank(filter_quadrant=None, include_proposed=False, include_completed=Fal
     # expected state, not an anomaly, and the operator needs to see its size to
     # know how much weight the quadrant split can carry.
     _n_total = len(rows)
-    # T-3185: report the exclusion before the table, for the same reason T-3068 reports
-    # unknown costs there — a filter that quietly removes most of the corpus reads as
-    # complete coverage (T-2680). These tasks are not low-value; they are UNASSESSED,
-    # and the difference is the whole point.
-    _n_nosignal = sum(1 for r in rows if r.get('all_no_signal'))
-    if _n_nosignal:
-        _pct_ns = 100.0 * _n_nosignal / _n_total if _n_total else 0.0
-        print(f"NOTE: {_n_nosignal}/{_n_total} task(s) ({_pct_ns:.0f}%) scored every driver "
-              f"no-signal — the estimator had nothing to read.")
-        print("      They are UNASSESSED, not low-value. Excluded from the quadrant and "
-              "from the")
-        print("      thresholds, so they neither top the ranking nor move anyone else's "
-              "placement.")
-        print("      Scores are unchanged; write a Context/AC body and re-run the "
-              "estimator (T-3185).")
-        print()
-
     _n_unknown = sum(1 for r in rows if r['cost'] is None)
     if _n_unknown:
         _pct = 100.0 * _n_unknown / _n_total if _n_total else 0.0
         print(f"NOTE: {_n_unknown}/{_n_total} task(s) ({_pct:.0f}%) have no known cost "
               f"— blast_radius unmeasured, so no quadrant (COST/QUAD show '-').")
-        # T-3185: report the ACTUAL threshold population, not `total - unknown_cost`.
-        # That arithmetic was right until all-no-signal tasks began being excluded as
-        # well; it then over-reported by every excluded task that happened to carry a
-        # cost — here it claimed 37 when the real figure was 3. A disclosure that
-        # misstates its own scope is the T-2680 defect, and shipping one inside the
-        # change that fixes T-2680's cousin would have been its own punchline.
-        print(f"      Quadrant thresholds are computed over the {len(cost_vals)} "
-              f"task(s) with a cost that were not excluded above.")
+        print(f"      Quadrant thresholds are computed over the {_n_total - _n_unknown} "
+              f"task(s) that do have one.")
         print("      Cost becomes measurable once `components:` is resolved; see T-3068.")
+        print()
+
+    # T-3485: same disclosure discipline as the cost-unknown NOTE above — a
+    # quadrant that silently reclassifies a large tied mass as unplaceable
+    # must say so, or the count shift reads as missing tasks rather than a
+    # withheld verdict.
+    _n_withheld = sum(1 for r in rows if r['quadrant'] == QUAD_VALUE_WITHHELD)
+    if _n_withheld:
+        print(f"NOTE: {_n_withheld}/{_n_total} task(s) have a value score tied at a "
+              f"degenerate median (median sits at the corpus floor, bvp_norm={bvp_median:.2f}) "
+              f"— quadrant withheld ('{QUAD_VALUE_WITHHELD}') rather than guessed. See T-3485.")
         print()
 
     if filter_quadrant:
@@ -771,25 +560,95 @@ def _latest_proposed_scores(fm):
     return scores
 
 
+# T-3503: membership is resolved by the CANONICAL helper, not re-derived here.
+#
+# This function matched `arc_id:` only, so an arc whose members bind via the legacy
+# `arc:<slug>` tag yielded zero members — and cmd_arcs() then `continue`d, dropping
+# the arc from the ranking entirely. Reported by cashweb-integration-agent
+# (agent-chat-arc @1247). The identical copy in web/blueprints/bvp.py carries the
+# same fix, so `fw bvp arcs` and Watchtower /bvp cannot disagree.
+#
+# Delegating rather than adding a fifth regex is the framework's own instruction:
+# audit's T-1881 check exists to stop inline membership scans ("Any NEW occurrence
+# is silent-corpus #3 in waiting") and its mitigation reads "Migrate to
+# lib/arc_membership.{sh,py}". That rail could not have caught THIS site — its
+# pattern requires the literal token `grep`, so a Python reinvention is invisible
+# to it, which is why it passed while both copies were wrong (OBS-546).
+#
+# The caches also remove an O(arcs x tasks) blow-up: membership was re-derived per
+# arc over the whole corpus, so `fw bvp arcs` did ~20 x 3,484 frontmatter parses
+# and exceeded a 300s timeout on this repo. Both indices are now built once.
+_ARC_MEMBERSHIP_INDEX = None
+_ARC_FM_INDEX = None
+
+
+def _arc_membership_index():
+    """(by_arc_id, by_tag, degraded_reason) from lib/arc_membership.py, cached.
+
+    `degraded_reason` is None on success, else a string: the canonical helper could
+    not be loaded and membership has fallen back to `arc_id:`-only. The caller MUST
+    surface it. `fw bvp` is a core verb and must not crash, but silently falling
+    back to the exact defect being fixed would be worse than crashing.
+    """
+    global _ARC_MEMBERSHIP_INDEX
+    if _ARC_MEMBERSHIP_INDEX is None:
+        try:
+            lib_dir = str(FRAMEWORK_ROOT / 'lib')
+            if lib_dir not in sys.path:
+                sys.path.insert(0, lib_dir)
+            from arc_membership import scan_tasks_by_arc_membership
+            by_id, by_tag = scan_tasks_by_arc_membership(PROJECT_ROOT)
+            _ARC_MEMBERSHIP_INDEX = (by_id, by_tag, None)
+        except Exception as exc:  # noqa: BLE001 - never break a core verb
+            _ARC_MEMBERSHIP_INDEX = ({}, {}, f'{type(exc).__name__}: {exc}')
+    return _ARC_MEMBERSHIP_INDEX
+
+
+def _task_frontmatter_index():
+    """{task_id: frontmatter} over the corpus, built once."""
+    global _ARC_FM_INDEX
+    if _ARC_FM_INDEX is None:
+        idx = {}
+        for sub in ('active', 'completed'):
+            for p in sorted(glob.glob(str(PROJECT_ROOT / '.tasks' / sub / 'T-*.md'))):
+                fm = parse_frontmatter(Path(p))
+                if fm and fm.get('id'):
+                    idx[str(fm['id']).strip()] = fm
+        _ARC_FM_INDEX = idx
+    return _ARC_FM_INDEX
+
+
+def arc_membership_degraded():
+    """Reason string when membership could not use the canonical union, else None."""
+    return _arc_membership_index()[2]
+
+
 def _arc_member_tasks(arc_slug, arc_id_str):
-    """T-1849 dual-form: tasks bind via arc_id: <slug> OR arc_id: arc-NNN."""
-    members = []
-    patterns = [
-        str(PROJECT_ROOT / '.tasks' / 'active' / 'T-*.md'),
-        str(PROJECT_ROOT / '.tasks' / 'completed' / 'T-*.md'),
-    ]
+    """Frontmatter of every task in the arc, by the canonical union.
+
+    T-1849 dual-form (`arc_id: <slug>` or `arc_id: arc-NNN`) UNION the legacy
+    `arc:<slug>` tag form (T-3503). Returns [] for an arc that genuinely has no
+    members — which the caller renders as zero, never drops.
+    """
     targets = {x for x in (arc_slug, arc_id_str) if x}
     if not targets:
-        return members
-    for pattern in patterns:
-        for p in sorted(glob.glob(pattern)):
-            fm = parse_frontmatter(Path(p))
-            if not fm:
-                continue
-            arc_id = fm.get('arc_id')
-            if arc_id and str(arc_id) in targets:
-                members.append(fm)
-    return members
+        return []
+    by_id, by_tag, degraded = _arc_membership_index()
+    fm_index = _task_frontmatter_index()
+
+    if degraded:
+        # Canonical helper unavailable: arc_id:-only, the pre-T-3503 behaviour,
+        # surfaced by the caller via arc_membership_degraded() and never silent.
+        return [fm for fm in fm_index.values()
+                if fm.get('arc_id') and str(fm['arc_id']).strip() in targets]
+
+    ids = set()
+    for key in (arc_slug, arc_id_str):
+        if key:
+            ids.update(by_id.get(key, []))
+    if arc_slug:
+        ids.update(by_tag.get(f'arc:{arc_slug}', []))
+    return [fm_index[t] for t in sorted(ids) if t in fm_index]
 
 
 def _arc_rolled_up_scores(members):
@@ -838,6 +697,21 @@ def cmd_arcs():
                 members = _arc_member_tasks(arc_slug, arc_id_str)
                 scores, source = _arc_rolled_up_scores(members)
                 if not scores:
+                    # T-3503: was `continue`, which DELETED the arc from the table.
+                    # That collapsed two different states into one invisible one —
+                    # "no members found" and "members found but none scored" — so an
+                    # arc missing from the ranking was indistinguishable from an arc
+                    # that does not exist, in the table used to choose arcs. Report
+                    # which of the two it is; never omit the row.
+                    rows.append({
+                        'slug': data.get('slug', path.stem),
+                        'arc_id': data.get('id', '-'),
+                        'name': (data.get('name') or '')[:40],
+                        'bvp_raw': None,
+                        'bvp_norm': None,
+                        'status': data.get('status', '-'),
+                        'source': 'no-members' if not members else 'members-unscored',
+                    })
                     continue
         raw, norm, _ = compute_bvp(scores, global_weights)
         rows.append({
@@ -853,11 +727,21 @@ def cmd_arcs():
         print("No arcs have `bvp_scores:` set yet (and no constituent-task rollup available).")
         print("Per D2: arcs compared across arcs use only global drivers (D1-D4 + free).")
         return 0
-    rows.sort(key=lambda r: r['bvp_norm'], reverse=True)
-    print(f"{'ARC':<8} {'SLUG':<24} {'STATUS':<12} {'BVP':>5} {'NORM':>6}  {'SOURCE':<18} NAME")
-    print('-' * 96)
+    # T-3503: unscorable arcs sort LAST and render '-', rather than being dropped or
+    # claiming a score of zero. An arc we cannot score is not an arc worth nothing.
+    rows.sort(key=lambda r: (r['bvp_norm'] is None, -(r['bvp_norm'] or 0.0)))
+    degraded = arc_membership_degraded()
+    if degraded:
+        print(f"WARNING: arc membership DEGRADED to arc_id:-only — {degraded}")
+        print("         Tag-only arcs are under-counted in this table (T-3503).")
+    slug_width = max(24, max((len(r['slug']) for r in rows), default=24))
+    sep_len = 8 + 1 + slug_width + 1 + 12 + 1 + 5 + 1 + 6 + 2 + 18 + 1 + 8
+    print(f"{'ARC':<8} {'SLUG':<{slug_width}} {'STATUS':<12} {'BVP':>5} {'NORM':>6}  {'SOURCE':<18} NAME")
+    print('-' * sep_len)
     for r in rows:
-        print(f"{r['arc_id']:<8} {r['slug']:<24} {r['status']:<12} {r['bvp_raw']:>5} {r['bvp_norm']:>6.2f}  {r['source']:<18} {r['name']}")
+        raw = '-' if r['bvp_raw'] is None else f"{r['bvp_raw']:>5}"
+        norm = '     -' if r['bvp_norm'] is None else f"{r['bvp_norm']:>6.2f}"
+        print(f"{r['arc_id']:<8} {r['slug']:<{slug_width}} {r['status']:<12} {raw:>5} {norm}  {r['source']:<18} {r['name']}")
     return 0
 
 
@@ -906,15 +790,12 @@ def cmd_weight(args):
         print(f"Error: weight {new_weight} out of range (0-9)", file=sys.stderr)
         return 2
 
-    # T-3184: a first-ever weight for this driver establishes a baseline and is exempt;
-    # changing an established one is what the weight-history audit reconstructs.
-    rationale, ok = require_rationale(args, first_set=not _weight_has_history(driver_id))
+    rationale, ok = require_rationale(args)
     if not ok:
         return 2
 
     if not acd_gate('weight', args,
-                    refusal_hint="Correct flow: human runs `bin/fw bvp weight --set Dn=N --rationale \"...\" --i-am-human`",
-                    auto_ok=not _bvp_human_approval_required()):
+                    refusal_hint="Correct flow: human runs `bin/fw bvp weight --set Dn=N --rationale \"...\" --i-am-human`"):
         return 1
 
     policy_path, policy = _load_policy_preserving()
@@ -971,12 +852,20 @@ def cmd_driver(args):
     # Must route before --add — propose has no acd_gate; add does.
     if '--propose' in args:
         return _driver_propose(args)
+    # T-3428: the two read-only scoring-spec surfaces. Routed before --add so
+    # `--validate-scoring` is never mistaken for an add that forgot a name.
+    if '--validate-scoring' in args:
+        return _driver_validate_scoring(args)
+    if '--explain' in args:
+        return _driver_explain(args)
     if '--add' in args:
         return _driver_add(args)
     if '--remove' in args:
         return _driver_remove(args)
     print("Usage: fw bvp driver --init [--force]", file=sys.stderr)
-    print("       fw bvp driver --add \"name\" --weight N --rationale \"...\" [--drop Fn --drop-name NAME]", file=sys.stderr)
+    print("       fw bvp driver --add \"name\" --weight N --rationale \"...\" [--drop Fn --drop-name NAME] [--scoring-file FILE]", file=sys.stderr)
+    print("       fw bvp driver --validate-scoring FILE", file=sys.stderr)
+    print("       fw bvp driver --explain <driver-id-or-name> T-XXXX [--scoring-file FILE]", file=sys.stderr)
     # `--remove` takes no --drop; the old usage line said it did (same
     # docs↔CLI divergence class as T-3069, fixed here incidentally).
     print("       fw bvp driver --remove Fn --rationale \"...\"", file=sys.stderr)
@@ -1052,11 +941,13 @@ def _driver_init(args):
 
 # ---------------------------------------------------------- confirm (T-1924)
 def cmd_confirm(args):
-    """Move bvp_scores_proposed: → bvp_scores: with confirmed_by/at; clear proposed.
+    """Move bvp_scores_proposed: → bvp_scores: with confirmed_by/at/via; clear proposed.
 
-    Sovereignty boundary (F7, D8): only the human confirms. After confirm, the
+    Sovereignty boundary (F7, D8) — WAIVED for the identity check by T-3487
+    (operator directive, 2026-09-26): the §ACD gate below is opt-in via
+    FW_REQUIRE_BVP_CONFIRM_APPROVAL=1, not a hard refusal. After confirm, the
     estimator's M3 v2-delta logic must skip this task (T-1922 reads bvp_scores
-    presence as the "sticky" signal). --override D=N lets the human alter
+    presence as the "sticky" signal). --override D=N lets the caller alter
     individual driver scores at confirm time.
 
     Form validation precedes §ACD (consistent with T-1920/T-1926).
@@ -1065,7 +956,8 @@ def cmd_confirm(args):
         print("""Usage: fw bvp confirm T-<id> [--override Dn=N]... [--i-am-human|--from-watchtower]
 
   Moves bvp_scores_proposed: → bvp_scores: on the named task.
-  Records confirmed_by (=$USER) and confirmed_at (UTC ISO-8601).
+  Records confirmed_by (=$USER), confirmed_at (UTC ISO-8601), and
+  confirmed_via (agent|human|watchtower — T-3487 provenance).
   Clears bvp_scores_proposed: so the estimator's next sweep can re-populate
   per M3 v2-delta semantics.
 
@@ -1075,7 +967,11 @@ def cmd_confirm(args):
     --i-am-human       sovereignty override for §ACD gate (T-1671 shape)
     --from-watchtower  Flask backend POST
 
-  Refuses under $CLAUDECODE=1 unless --i-am-human or --from-watchtower.
+  T-3487 (2026-09-26, operator-authorised sovereignty waiver): the §ACD
+  human-approval gate on this verb is now OPT-IN. By default confirm proceeds
+  under $CLAUDECODE=1 with no --i-am-human/--from-watchtower (confirmed_via
+  records 'agent'). Set FW_REQUIRE_BVP_CONFIRM_APPROVAL=1 to restore the
+  original hard refusal.
 
   Note: confirm has NO effect if the task has no bvp_scores_proposed: AND no
   --override flags — there's nothing to write. In that case, propose first
@@ -1121,19 +1017,17 @@ def cmd_confirm(args):
     # the §ACD refusal). Different ordering from cmd_weight (where rationale
     # validation precedes §ACD) — confirm has no comparable "form" check that
     # benefits from running first.
-    # T-3176/T-3184: decided ONCE, here, and handed to the gate. `confirmed_by` and the
-    # provenance field both read the same variable, so the task file cannot claim a
-    # different path from the one the gate actually took.
     #
-    # `human_invocation` is the positive form and is what stamps provenance. An agent
-    # confirming under the ruling is NOT a human invocation even though it is now allowed.
-    human_invocation = ('--i-am-human' in args or '--from-watchtower' in args)
-    auto_path = not human_invocation
-
-    if not acd_gate('confirm', args,
-                    refusal_hint="Correct flow: human reviews proposed scores in Watchtower or runs `fw bvp confirm T-<id> --i-am-human`",
-                    auto_ok=not _bvp_human_approval_required()):
-        return 1
+    # T-3487: sovereignty waiver (operator directive, 2026-09-26) — the human-
+    # approval gate on THIS verb only is now opt-in via FW_REQUIRE_BVP_CONFIRM_APPROVAL=1
+    # (restores the exact acd_gate() refusal below). Default (unset) skips the
+    # gate — confirm proceeds under $CLAUDECODE=1 with no --i-am-human/--from-watchtower.
+    # acd_gate() itself is untouched; its other 4 call sites (weight, driver --add,
+    # driver --remove, auto-promote --enable) are unaffected by this switch.
+    if os.environ.get('FW_REQUIRE_BVP_CONFIRM_APPROVAL') == '1':
+        if not acd_gate('confirm', args,
+                        refusal_hint="Correct flow: human reviews proposed scores in Watchtower or runs `fw bvp confirm T-<id> --i-am-human`"):
+            return 1
 
     # Locate task file.
     matches = []
@@ -1163,26 +1057,6 @@ def cmd_confirm(args):
     else:
         fm = _str_safe_load(fm_text)
 
-    # ── T-3184 STICKY OVERRIDE ──────────────────────────────────────────────────────
-    # The operator's requirement, verbatim: "after a next BVP assessment run, that
-    # doesn't get overridden." Removing the approval gate without this turns every
-    # human correction into a value with a shelf life — the estimator re-proposes, the
-    # next automated confirm promotes, and the correction is gone with no error and no
-    # record that it ever existed. That is the silent-overwrite failure, and it is worse
-    # than the gate it replaces, because the gate at least failed loudly.
-    #
-    # Refused on the AGENT path only. A human can overwrite their own override with
-    # --i-am-human, because sovereignty includes changing your mind.
-    if auto_path and _bvp_scores_are_human_set(fm):
-        print(f"Refusing to overwrite human-set scores on {task_id} (bvp_scores_source: human).",
-              file=sys.stderr)
-        print("  Scoring is an agent decision (T-3184), but a human OVERRIDE is sticky —", file=sys.stderr)
-        print("  it survives every later assessment run by design.", file=sys.stderr)
-        print(f"  Current: {fm.get('bvp_scores')}", file=sys.stderr)
-        print("  To change it deliberately, a human runs:", file=sys.stderr)
-        print(f"    fw bvp confirm {task_id} [--override Dn=N]... --i-am-human", file=sys.stderr)
-        return 1
-
     proposed = fm.get('bvp_scores_proposed') if fm else None
     if not proposed and not overrides:
         print(f"Nothing to confirm for {task_id}: bvp_scores_proposed: is empty and no --override values supplied.", file=sys.stderr)
@@ -1192,7 +1066,6 @@ def cmd_confirm(args):
     # Build the confirmed map. Proposed is a list of timestamped entries
     # (per T-1918 schema); take the newest entry's scores dict.
     confirmed = {}
-    latest = None
     if proposed:
         latest = proposed[-1] if isinstance(proposed, list) else proposed
         # latest is expected to have a 'scores' key per M3, or be the scores dict directly.
@@ -1201,38 +1074,83 @@ def cmd_confirm(args):
                 confirmed.update({k: int(v) for k, v in (latest.get('scores') or {}).items()})
             else:
                 confirmed.update({k: int(v) for k, v in latest.items() if isinstance(v, (int, float)) and not isinstance(v, bool)})
-    # T-3176: snapshot the proposal BEFORE overrides land and before the field is
-    # cleared. This is the whole reason the telemetry is worth anything — `confirm`
-    # PROMOTES an existing proposal rather than writing scores from scratch, so a row
-    # can say what the estimator guessed and what it got wrong. Had auto-confirm
-    # written from scratch, every row would say the same thing.
-    proposed_scores = dict(confirmed)
-
     confirmed.update(overrides)
 
     if not confirmed:
         print(f"Error: no scores to write — proposed was non-empty but didn't contain a score map.", file=sys.stderr)
         return 1
 
+    # T-3487: WHO/BY-WHAT-AUTHORITY provenance. confirmed_by/at alone no longer
+    # distinguish "a human ran this" from "an agent ran this" now that the §ACD
+    # gate is opt-in (FW_REQUIRE_BVP_CONFIRM_APPROVAL) rather than a hard refusal
+    # — $USER is the OS user either way. confirmed_via records which of the three
+    # legal paths this confirm took.
+    if '--from-watchtower' in args:
+        confirmed_via = 'watchtower'
+    elif '--i-am-human' in args:
+        confirmed_via = 'human'
+    elif os.environ.get('CLAUDECODE') == '1':
+        confirmed_via = 'agent'
+    else:
+        confirmed_via = 'human'
+
+    # ── T-3523 (D-661 leg 3): an operator's adjustment is STICKY ──────────────
+    #
+    # Operator ruling 2026-09-27: legs 1 and 2 waived human approval for BVP scoring
+    # and arc drivers, so an agent can now score the value of its own work. This is
+    # the counterweight that keeps that waiver reversible: "when we get new scoring
+    # that it doesn't overwrite the adjusted values", and "means skip and report".
+    #
+    # Two routes, neither needing the operator to tick anything: provenance
+    # (confirmed_via is one of the operator's own doors) and digest (the stored
+    # values no longer match the stamp written with them — a hand-edit). An AGENT
+    # confirm yields to either; a human/watchtower confirm is the operator speaking
+    # and always proceeds.
+    if confirmed_via == 'agent':
+        try:
+            _lib = str(FRAMEWORK_ROOT / 'lib')
+            if _lib not in sys.path:
+                sys.path.insert(0, _lib)
+            import bvp_sticky as _sticky
+            _state = _sticky.sticky_state(
+                fm.get('bvp_scores'),
+                confirmed_via=fm.get('confirmed_via'),
+                stamped_digest=(fm.get('bvp_scores_stamp') or {}).get('digest'),
+            )
+        except Exception as _exc:  # noqa: BLE001 — a missing guard must not corrupt
+            # Fail CLOSED here, unlike most degradations in this codebase: if the
+            # protection cannot run we decline to overwrite rather than overwrite
+            # unprotected. The cost of a false skip is one operator re-run; the cost
+            # of a false overwrite is a silently discarded operator judgement.
+            print(f"REFUSING: sticky-check unavailable ({type(_exc).__name__}: {_exc})",
+                  file=sys.stderr)
+            print("  Not overwriting bvp_scores while the operator-adjustment guard "
+                  "cannot run. Re-run once lib/bvp_sticky.py is importable.", file=sys.stderr)
+            return 1
+        if _state['sticky']:
+            print(_sticky.format_skip(task_id, 'bvp_scores', _state))
+            print(f"  Existing scores kept: {fm.get('bvp_scores')}")
+            print(f"  To override deliberately, confirm as yourself: "
+                  f"fw bvp confirm {task_id} --i-am-human")
+            print(_sticky.format_summary(skipped=1, written=0))
+            return 0
+
     fm['bvp_scores'] = confirmed
     fm['bvp_scores_proposed'] = []  # M3 — cleared; estimator may re-populate next sweep.
-    # T-3176 amendment (b): $USER on the auto path records the OS account the agent
-    # happens to run as, which makes an automatic confirmation indistinguishable from
-    # an operator's in the task file — the one place a reader looks to tell them apart.
-    fm['confirmed_by'] = ('agent:auto (T-3184)' if auto_path
-                          else os.environ.get('USER', 'unknown'))
+    fm['confirmed_by'] = os.environ.get('USER', 'unknown')
     fm['confirmed_at'] = _utc_now()
-
-    # T-3184: stamp provenance, two states and never three. A human invocation marks the
-    # scores sticky; an agent run leaves the field ALONE rather than writing 'agent'.
-    #
-    # Leaving it alone is the deliberate part. Writing 'agent' would create a third
-    # readable state whose meaning ("assessed automatically") is indistinguishable from
-    # its absence ("never assessed"), which is the ambiguity 832 removed at offsets
-    # 190/191 and the same confusion T-3105 rules on for audit rows. Absence means
-    # freely-recomputable, and that is all it needs to mean.
-    if human_invocation:
-        fm['bvp_scores_source'] = 'human'
+    fm['confirmed_via'] = confirmed_via
+    # Stamp what we wrote, so the NEXT write can tell whether these values are still
+    # the ones an agent put there. A human/watchtower confirm is stamped too — the
+    # provenance route already protects it, and a stamp keeps the record uniform.
+    try:
+        _lib = str(FRAMEWORK_ROOT / 'lib')
+        if _lib not in sys.path:
+            sys.path.insert(0, _lib)
+        import bvp_sticky as _sticky_w
+        fm['bvp_scores_stamp'] = _sticky_w.stamp(confirmed)
+    except Exception:  # noqa: BLE001 — an unstamped write is unprotected, not wrong
+        pass
 
     # Re-serialise frontmatter + write back.
     if _HAS_RUAMEL:
@@ -1249,53 +1167,245 @@ def cmd_confirm(args):
     print(f"  Scores: {confirmed}")
     if overrides:
         print(f"  Overrides applied: {overrides}")
-    print(f"  Confirmed by: {fm['confirmed_by']}  at: {fm['confirmed_at']}")
+    print(f"  Confirmed by: {fm['confirmed_by']}  at: {fm['confirmed_at']}  via: {fm['confirmed_via']}")
     print(f"  bvp_scores_proposed: cleared (M3 — estimator may re-propose if next pass diverges by ≥2)")
+    return 0
 
-    # T-3176: record the confirmation. Human confirmations are recorded too — a
-    # ledger holding only auto rows cannot answer "is the estimator better or worse
-    # than the operator", which is the question the operator actually asked for.
-    delta = {k: [proposed_scores.get(k), v] for k, v in confirmed.items()
-             if proposed_scores.get(k) != v}
-    no_signal, driver_count = _count_no_signal(latest, confirmed.keys())
-    row = {
-        'ts': fm['confirmed_at'],
-        'task': task_id,
-        'path': 'auto' if auto_path else 'human',
-        'confirmed_by': fm['confirmed_by'],
-        'proposal_existed': bool(proposed_scores),
-        'proposed': proposed_scores,
-        'confirmed': confirmed,
-        'overrides': overrides,
-        'delta_vs_proposed': delta,
-        # A proposal existed and was promoted byte-identical, with no overrides.
-        'proposer_exact': bool(proposed_scores) and not delta and not overrides,
-        'no_signal_count': no_signal,
-        'driver_count': driver_count,
-        # The flag amendment (a) exists to expose: every driver scored with nothing
-        # to score on. None (rationale unreadable) is NOT False — we did not measure.
-        'all_no_signal': (None if no_signal is None
-                          else bool(driver_count) and no_signal >= driver_count),
-        'estimator': latest.get('estimator') if isinstance(latest, dict) else None,
-        'rubric_sha': latest.get('rubric_sha') if isinstance(latest, dict) else None,
-    }
-    ok, err = _append_confirmation_row(row)
-    if not ok:
-        # The scores ARE written; only the record failed. Say so loudly and exit
-        # non-zero, so nothing downstream reads this run as cleanly recorded. A
-        # confirmation silently missing from the ledger is G-063 aimed at ourselves.
-        print(f"ERROR: scores were confirmed but the telemetry row could NOT be written: {err}",
-              file=sys.stderr)
-        print(f"  Ledger: {_bvp_telemetry_path()}", file=sys.stderr)
-        print(f"  {task_id} is confirmed on disk; the ledger is now incomplete.", file=sys.stderr)
+
+def _load_estimator():
+    """Import agents/termlink/bvp-estimator/estimator.py by path.
+
+    It is a script, not a package, so there is no import statement that
+    reaches it. Raises on failure — callers decide whether a tooling fault is
+    a refusal (it is not, for _has_scorer) or an error (it is, for the
+    scoring-spec verbs, which have nothing to say without it).
+    """
+    import importlib.util
+    est_path = FRAMEWORK_ROOT / 'agents' / 'termlink' / 'bvp-estimator' / 'estimator.py'
+    spec = importlib.util.spec_from_file_location('bvp_estimator_for_cli', est_path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _has_scorer(driver_id, name, entry=None):
+    """T-3427: ask the estimator whether a driver can be scored at all.
+
+    Calls has_scorer(). T-3428 added the `entry` argument: when the caller
+    supplied `--scoring-file`, the candidate entry carries a declarative
+    `scoring:` block that is not in the policy file yet, and the spec IS the
+    answer. If the estimator cannot be imported the answer is unknown, not
+    "no": say so on stderr and let the add proceed, because refusing on our
+    own tooling fault would be a false block.
+    """
+    try:
+        return bool(_load_estimator().has_scorer(driver_id, name, entry))
+    except Exception as exc:  # pragma: no cover - tooling fault, not a verdict
+        print(f"WARN: could not consult the estimator for a scorer ({exc}); "
+              f"proceeding without the T-3427 check", file=sys.stderr)
+        return True
+
+
+def _read_scoring_file(path_str):
+    """Load a `scoring:` spec from a YAML file. Returns (spec, errors).
+
+    Accepts both shapes, because both are what an author writes: a bare spec
+    (`kind: signals` at the top level) or a file wrapping it under `scoring:`.
+    Guessing between them is safe — `scoring:` is not a valid spec key, so the
+    two cannot be confused.
+    """
+    path = Path(path_str)
+    if not path.is_file():
+        return None, [f"{path_str}: no such file"]
+    try:
+        data = yaml.safe_load(path.read_text()) or {}
+    except yaml.YAMLError as exc:
+        return None, [f"{path_str}: YAML parse error: {exc}"]
+    if not isinstance(data, dict):
+        return None, [f"{path_str}: top level must be a mapping"]
+    spec = data.get('scoring') if isinstance(data.get('scoring'), dict) else data
+    try:
+        errors = _load_estimator().validate_scoring_spec(spec)
+    except Exception as exc:
+        return None, [f"could not load the estimator to validate: {exc}"]
+    return spec, errors
+
+
+def _driver_validate_scoring(args):
+    """T-3428: `fw bvp driver --validate-scoring <yaml>` — check a spec offline.
+
+    Read-only, so NOT §ACD-gated: validating a file the operator is drafting
+    carries no policy authority. Exists so an author finds out a spec is wrong
+    BEFORE spending the one free driver slot on it.
+    """
+    idx = args.index('--validate-scoring')
+    if idx + 1 >= len(args):
+        print("Error: --validate-scoring needs a YAML file path", file=sys.stderr)
+        return 2
+    path_str = args[idx + 1]
+    spec, errors = _read_scoring_file(path_str)
+    if errors:
+        print(f"INVALID: {path_str} — {len(errors)} error(s)", file=sys.stderr)
+        for e in errors:
+            print(f"  - {e}", file=sys.stderr)
+        return 2
+    levels = sorted(int(k) for k in (spec.get('levels') or {}))
+    print(f"OK: {path_str} is a valid scoring spec")
+    print(f"  kind:           {spec.get('kind')}")
+    print(f"  strip_template: {spec.get('strip_template', True)}")
+    print(f"  levels:         {', '.join('L' + str(l) for l in levels)}")
+    for lvl in levels:
+        sigs = spec['levels'][lvl] if lvl in spec['levels'] else spec['levels'][str(lvl)]
+        kinds = ', '.join(f"{k}({len(v) if isinstance(v, (list, dict)) else 1})"
+                          for k, v in sigs.items())
+        print(f"    L{lvl}: {kinds}")
+    print("")
+    print("  Attach it to a driver with:")
+    print(f"    fw bvp driver --add \"<name>\" --weight N --rationale \"...\" --scoring-file {path_str}")
+    return 0
+
+
+def _find_driver_entry(driver_key, task_fm=None):
+    """Locate a driver entry by id or name: policy first, then the task's arc.
+
+    Returns (entry, source) or (None, None). Policy wins on collision, the
+    same precedence estimate_task() applies when it merges arc-scoped drivers.
+    """
+    policy = load_policy()
+    for section in ('protected_drivers', 'free_drivers'):
+        for d in (policy.get(section) or []):
+            if not isinstance(d, dict):
+                continue
+            if driver_key in (d.get('id'), d.get('name')):
+                return d, f"policy/value-drivers.yaml ({section})"
+    if task_fm:
+        try:
+            arc_data = _load_estimator()._resolve_arc_data(task_fm) or {}
+        except Exception:
+            arc_data = {}
+        for sd in (arc_data.get('scoped_drivers') or []):
+            if not isinstance(sd, dict):
+                continue
+            if driver_key in (sd.get('id'), sd.get('name')):
+                return sd, f".context/arcs/{task_fm.get('arc_id')}.yaml (scoped_drivers)"
+    return None, None
+
+
+def _driver_explain(args):
+    """T-3428: `fw bvp driver --explain <driver> <T-XXXX>` — the level ladder.
+
+    Prints, per declared level, which signals matched and which did not, then
+    the winning score. Read-only; NOT §ACD-gated. This is the surface that
+    makes a declarative driver debuggable — without it an author can see the
+    score but not why, which is the same opacity the hardcoded handler table
+    had (OBS-463).
+    """
+    idx = args.index('--explain')
+    if idx + 2 >= len(args):
+        print("Error: --explain needs <driver-id-or-name> <T-XXXX>", file=sys.stderr)
+        return 2
+    driver_key, task_id = args[idx + 1], args[idx + 2]
+    if not re.fullmatch(r'T-\d+', task_id):
+        print(f"Error: {task_id!r} is not a task id (expected T-NNNN)", file=sys.stderr)
+        return 2
+
+    matches = list((PROJECT_ROOT / '.tasks' / 'active').glob(f'{task_id}-*.md')) + \
+              list((PROJECT_ROOT / '.tasks' / 'completed').glob(f'{task_id}-*.md'))
+    if not matches:
+        print(f"Error: task {task_id} not found under .tasks/{{active,completed}}/", file=sys.stderr)
+        return 2
+    task_path = matches[0]
+
+    try:
+        est = _load_estimator()
+    except Exception as exc:
+        print(f"Error: could not load the estimator: {exc}", file=sys.stderr)
         return 1
+    fm, body = est.parse_task(task_path)
+    tags = list(fm.get('tags') or [])
+
+    entry, source = _find_driver_entry(driver_key, fm)
+    if entry is None:
+        print(f"Error: driver {driver_key!r} not found in policy or in "
+              f"{task_id}'s arc scoped_drivers", file=sys.stderr)
+        return 2
+
+    d_id = entry.get('id') or entry.get('name')
+    d_name = entry.get('name') or d_id
+    print(f"Driver: {d_id} '{d_name}'   weight={entry.get('weight')}")
+    print(f"Source: {source}")
+    print(f"Task:   {task_id}  ({task_path.name})")
+    print("")
+
+    # T-3428: `--scoring-file` lets an author try a DRAFT spec against a real
+    # task before spending the one free slot on it — the companion to
+    # `--validate-scoring`, which only checks shape. Without it the only way
+    # to see what a spec scores is to attach it to live policy first.
+    draft = None
+    if '--scoring-file' in args:
+        sfidx = args.index('--scoring-file')
+        if sfidx + 1 >= len(args):
+            print("Error: --scoring-file needs a YAML file path", file=sys.stderr)
+            return 2
+        draft, draft_errors = _read_scoring_file(args[sfidx + 1])
+        if draft_errors:
+            print(f"Error: --scoring-file {args[sfidx + 1]} is not a valid scoring spec:", file=sys.stderr)
+            for e in draft_errors:
+                print(f"  - {e}", file=sys.stderr)
+            return 2
+
+    spec = draft if draft is not None else est.load_scoring_spec(entry)
+    if draft is not None:
+        print(f"Spec source: DRAFT {args[args.index('--scoring-file') + 1]} "
+              f"(not attached to {d_id}; nothing is written)")
+    if spec is None:
+        # Not an error: the driver may be scored by a hand-written handler,
+        # which is the RICHER mechanism. Say which, so the absence of a spec
+        # does not read as a fault.
+        if est.has_scorer(d_id, d_name):
+            print("No declarative `scoring:` block — this driver is scored by a")
+            print("hand-written handler in agents/termlink/bvp-estimator/estimator.py.")
+            print(f"Score it with: fw bvp estimate {task_id} --dry-run --json")
+            return 0
+        print("No declarative `scoring:` block and no handler — this driver is UNSCORED")
+        print("(T-3427: omitted from `scores` and left out of the ranking denominator).")
+        print("Give it a mechanism: fw bvp driver --validate-scoring <yaml>, then")
+        print("re-add with --scoring-file. See policy/value-drivers.yaml header.")
+        return 1
+
+    errors = est.validate_scoring_spec(spec)
+    if errors:
+        print(f"INVALID spec — {len(errors)} error(s); this driver scores as UNSCORED:", file=sys.stderr)
+        for e in errors:
+            print(f"  - {e}", file=sys.stderr)
+        return 2
+
+    strip = spec.get('strip_template', True) is not False
+    print(f"Spec: kind={spec.get('kind')}  strip_template={strip}")
+    # Dispatch order is handler → alias → spec, so an attached spec on a
+    # handler-backed driver is INERT. Say so here rather than let the ladder
+    # below read as what the estimator actually did.
+    if draft is None and (d_id in est._handler_table() or d_name in est._handler_table()):
+        print(f"NOTE: {d_id} also has a hand-written handler, which WINS "
+              f"(handler → alias → spec).")
+        print("      The ladder below is what the spec would score, not what the "
+              "estimator used.")
+    ladder = est.declarative_matches(spec, fm, body, tags)
+    for lvl in sorted(ladder):
+        if ladder[lvl]:
+            print(f"  L{lvl}  MATCH   " + "; ".join(ladder[lvl]))
+        else:
+            print(f"  L{lvl}  -")
+    score, evidence = est.score_declarative(spec, fm, body, tags)
+    print("")
+    print(f"Score: {score}   (highest matching level; 0 = measured no-signal, not unscored)")
+    print(f"Evidence: {'; '.join(evidence)}")
     return 0
 
 
 def _driver_add(args):
     if not acd_gate('driver --add', args,
-                    refusal_hint="Adding a driver is a policy-edit; the human approves the framing.",
-                    auto_ok=not _bvp_human_approval_required()):
+                    refusal_hint="Adding a driver is a policy-edit; the human approves the framing."):
         return 1
     idx = args.index('--add')
     if idx + 1 >= len(args):
@@ -1314,7 +1424,7 @@ def _driver_add(args):
     if not 0 <= weight <= 9:
         print(f"Error: weight {weight} out of range (0-9)", file=sys.stderr)
         return 2
-    rationale, ok = require_rationale(args, first_set=True)  # T-3184: new driver = baseline
+    rationale, ok = require_rationale(args)
     if not ok:
         return 2
 
@@ -1389,6 +1499,57 @@ def _driver_add(args):
         next_n += 1
     new_id = f'F{next_n}'
 
+    # T-3428 (OBS-463 leg 2): `--scoring-file` attaches a declarative scoring
+    # spec to the new entry. An invalid spec is refused with every error named
+    # — writing a broken block would produce a driver that LOOKS scorable in
+    # the policy file and is treated as UNSCORED by the estimator, which is the
+    # silent-divergence shape this task exists to remove. A valid spec IS a
+    # scorer, so it also lifts the T-3427 refusal below without --allow-unscored.
+    scoring_spec = None
+    if '--scoring-file' in args:
+        sfidx = args.index('--scoring-file')
+        if sfidx + 1 >= len(args):
+            print("Error: --scoring-file needs a YAML file path", file=sys.stderr)
+            return 2
+        scoring_spec, spec_errors = _read_scoring_file(args[sfidx + 1])
+        if spec_errors:
+            print(f"Error: --scoring-file {args[sfidx + 1]} is not a valid scoring spec "
+                  f"({len(spec_errors)} error(s)) — nothing was written.", file=sys.stderr)
+            for e in spec_errors:
+                print(f"  - {e}", file=sys.stderr)
+            print("", file=sys.stderr)
+            print("  Check it in isolation first:", file=sys.stderr)
+            print(f"    fw bvp driver --validate-scoring {args[sfidx + 1]}", file=sys.stderr)
+            print("  Schema: policy/value-drivers.yaml header, §Declarative scoring specs.", file=sys.stderr)
+            return 2
+
+    # T-3427 (OBS-463): a free driver is only a name unless the estimator has a
+    # scorer for it — without one it scores 0 on every non-inception task and
+    # STILL enters the ranking denominator, so adding it ranks every real task
+    # lower. Measured on a consumer (1409-sprind): weight 8, 46/50 tasks at 0,
+    # the flagship "rising to #1" was 2×58 vs 2×54 arithmetic. A gated, capped,
+    # deliberate verb must not produce that silently. Refuse, name the
+    # consequence, and offer the bypass for an operator reserving the slot.
+    candidate_entry = {'scoring': scoring_spec} if scoring_spec else None
+    unscored = not _has_scorer(new_id, name, candidate_entry)
+    if unscored and '--allow-unscored' not in args:
+        print(f"Error: '{name}' has no scorer in the estimator (would be {new_id}) — refused (T-3427).", file=sys.stderr)
+        print("", file=sys.stderr)
+        print("  Scoring is dispatched from a handler table in agents/termlink/bvp-estimator/estimator.py;", file=sys.stderr)
+        print("  a driver with no handler scores 0 on every non-inception task, and its weight still", file=sys.stderr)
+        print("  enters the normalisation denominator — every real task ranks LOWER for adding it.", file=sys.stderr)
+        print("  Prose `rubric:` text alone changes nothing — the estimator does not read it.", file=sys.stderr)
+        print("", file=sys.stderr)
+        print("  GIVE IT A MECHANISM (T-3428) — a declarative `scoring:` spec needs no framework", file=sys.stderr)
+        print("  code change. Draft it, check it, then attach it:", file=sys.stderr)
+        print("    fw bvp driver --validate-scoring my-driver-scoring.yaml", file=sys.stderr)
+        print(f"    fw bvp driver --add \"{name}\" --weight {weight} --scoring-file my-driver-scoring.yaml ...", file=sys.stderr)
+        print("  Schema: policy/value-drivers.yaml header, §Declarative scoring specs.", file=sys.stderr)
+        print("", file=sys.stderr)
+        print("  To reserve the slot anyway (it will be listed UNSCORED and left out of ranking sums):", file=sys.stderr)
+        print(f"    fw bvp driver --add \"{name}\" --weight {weight} --allow-unscored ...", file=sys.stderr)
+        return 2
+
     if drop_id:
         if drop_id.startswith('D'):
             print(f"Error: cannot drop protected driver {drop_id}", file=sys.stderr)
@@ -1438,6 +1599,8 @@ def _driver_add(args):
         policy['free_drivers'] = free
 
     new_entry = {'id': new_id, 'name': name, 'weight': weight, 'protected': False, 'rationale': rationale}
+    if scoring_spec:
+        new_entry['scoring'] = scoring_spec
     if not policy.get('free_drivers'):
         policy['free_drivers'] = []
     policy['free_drivers'].append(new_entry)
@@ -1449,6 +1612,7 @@ def _driver_add(args):
         'name': name,
         'weight': weight,
         'rationale': rationale,
+        'scoring': 'declarative' if scoring_spec else None,
         'dropped': drop_id,
         # T-3066: the slot id alone made the audit log unreadable after any
         # reallocation — "dropped F1" is true of two different deletions.
@@ -1457,10 +1621,15 @@ def _driver_add(args):
         'agent_session': bool(os.environ.get('CLAUDECODE')),
         'ts': _utc_now(),
     })
+    _flag = ' UNSCORED' if unscored else (' +scoring-spec' if scoring_spec else '')
     if drop_id:
-        print(f"OK: added {new_id} '{name}' weight={weight}; dropped {drop_id} '{drop_name}' (M1 add-one-drop-one)")
+        print(f"OK: added {new_id} '{name}' weight={weight}{_flag}; dropped {drop_id} '{drop_name}' (M1 add-one-drop-one)")
     else:
-        print(f"OK: added {new_id} '{name}' weight={weight}")
+        print(f"OK: added {new_id} '{name}' weight={weight}{_flag}")
+    if scoring_spec:
+        print(f"    scoring: declarative spec, levels "
+              f"{', '.join('L' + str(l) for l in sorted(int(k) for k in scoring_spec.get('levels') or {}))}")
+        print(f"    Explain it on a task: fw bvp driver --explain {new_id} T-XXXX")
     return 0
 
 
@@ -1505,7 +1674,7 @@ def _driver_propose(args):
         print(f"Error: weight {weight} out of range (0-9)", file=sys.stderr)
         return 2
 
-    rationale, ok = require_rationale(args, first_set=True)  # T-3184: new driver = baseline
+    rationale, ok = require_rationale(args)
     if not ok:
         return 2
 
@@ -1589,8 +1758,7 @@ def _driver_remove(args):
         return 2
 
     if not acd_gate('driver --remove', args,
-                    refusal_hint="Removing a driver is a policy-edit; the human approves the framing.",
-                    auto_ok=not _bvp_human_approval_required()):
+                    refusal_hint="Removing a driver is a policy-edit; the human approves the framing."):
         return 1
 
     policy_path, policy = _load_policy_preserving()
@@ -1704,8 +1872,7 @@ def cmd_auto_promote(args):
     # ---- enable/disable verbs (§ACD-gated, T-1932) ---------------------
     if '--enable' in args:
         if not acd_gate('auto-promote --enable', args,
-                        refusal_hint="Enabling auto-promote is a policy-edit (D8). Run from Watchtower or pass --i-am-human.",
-                        auto_ok=not _bvp_human_approval_required()):
+                        refusal_hint="Enabling auto-promote is a policy-edit (D8). Run from Watchtower or pass --i-am-human."):
             return 1
         rationale, ok = require_rationale(args)
         if not ok:
@@ -1905,6 +2072,19 @@ USAGE:
                                   refuses if the slot changed hands (T-3066)
   fw bvp driver --remove Fn --rationale "..."
                                   remove free driver (D1-D4 protected)
+  fw bvp driver --add ... --scoring-file FILE
+                                  attach a declarative `scoring:` spec to the new driver
+                                  (T-3428). A valid spec IS a scorer, so it lifts the
+                                  T-3427 no-scorer refusal — no framework code change
+                                  needed to make a project or arc driver actually score.
+  fw bvp driver --validate-scoring FILE
+                                  check a scoring spec offline before spending a slot on
+                                  it; prints the level ladder or every validation error
+  fw bvp driver --explain <driver-id-or-name> T-XXXX [--scoring-file FILE]
+                                  per-level evidence for one driver on one task: which
+                                  signals matched at which level, and the winning score.
+                                  --scoring-file tries a DRAFT spec against a real task
+                                  without attaching it to policy (nothing is written)
   fw bvp estimate-cost T-<id> [--dry-run] [--json]
   fw bvp estimate-cost all|sweep|determinism ...
                                   propose cost_estimate per task (advisory, T-1935).
@@ -1915,7 +2095,9 @@ USAGE:
                                   as unbuilt. See `fw bvp estimate-cost --help`.
   fw bvp confirm T-<id> [--override Dn=N]... [--i-am-human|--from-watchtower]
                                   move bvp_scores_proposed → bvp_scores
-                                  (sovereignty boundary, F7/D8, §ACD-gated)
+                                  (agents may confirm, D-661; run `fw bvp judge`
+                                  first; operator edits via Watchtower or
+                                  --i-am-human are sticky, T-3523)
   fw bvp estimate T-<id> [--dry-run] [--json]
                                   score a task and write bvp_scores_proposed:
                                   (heuristic v1, NOT sovereignty-bearing)
@@ -1925,6 +2107,12 @@ USAGE:
                                   R3 regression guard (max delta ≤1)
   fw bvp estimate measure-a3 [--n N] [--output PATH]
                                   A3 latency measurement (mean <5s SLA)
+  fw bvp judge T-<id> [--json]
+                                  judge a PROPOSED score: presence/sufficiency/
+                                  goal-hierarchy (T-3526, D-662). Read-only.
+  fw bvp judge T-<id> --dispatch [--timeout N] [--json]
+                                  judge via isolated TermLink worker; see
+                                  `fw bvp judge --help`
   fw bvp auto-promote [--dry-run]
                                   promote captured → started-work for HV/LC
                                   tasks (off by default; reads policy
@@ -2152,6 +2340,57 @@ EOF
             fi
             return $_rc
         fi
+    fi
+    # T-3526 (D-662 slice 2 of 3): 'judge' verb — independent judge of a
+    # PROPOSED score against presence/sufficiency/goal-hierarchy. Read-only:
+    # writes nothing, ever (not bvp_scores:, not bvp_scores_proposed:). Kept
+    # out of the in-process Python heredoc for the same reason 'estimate' is —
+    # a separate concern with its own dispatch mode, invokable directly via
+    # TermLink convention (lib/bvp_judge_dispatch_cli.py mirrors T-1951's
+    # reviewer --dispatch shape rather than inventing a second one).
+    if [ "${1:-}" = "judge" ]; then
+        shift
+        local sub="${1:-}"
+        if [ -z "$sub" ] || [ "$sub" = "--help" ] || [ "$sub" = "-h" ]; then
+            cat <<'EOF'
+fw bvp judge — judge a PROPOSED score against presence/sufficiency/goal-hierarchy (T-3526)
+
+USAGE:
+  fw bvp judge T-<id> [--json]
+                            judge inline; read-only, writes nothing
+  fw bvp judge T-<id> --dispatch [--timeout N] [--json]
+                            judge via isolated TermLink worker (T-1951 shape);
+                            result posted to the fw bus — read with
+                            `fw bus manifest T-<id>`
+
+NOTES:
+  - Judges the LATEST bvp_scores_proposed: entry; never writes bvp_scores: or
+    bvp_scores_proposed: (D-662, T-3524 slice 2 of 3). The proposer stays
+    agents/termlink/bvp-estimator/estimator.py; the human's door stays
+    `fw bvp confirm` (T-1924), protected by the T-3523 sticky guard.
+  - Verdict is green/amber/red/unknown (lib/judge_verdict.py, T-3525);
+    amber/red/unknown always carry actionable guidance.
+  - Open tasks only; closed (work-completed) tasks are skipped, never rescored.
+EOF
+            return 0
+        fi
+        local _has_jdispatch=0 _jarg
+        for _jarg in "$@"; do
+            if [ "$_jarg" = "--dispatch" ]; then _has_jdispatch=1; break; fi
+        done
+        if [ "$_has_jdispatch" = "1" ]; then
+            local _jdispatch_args=()
+            for _jarg in "$@"; do
+                [ "$_jarg" != "--dispatch" ] && _jdispatch_args+=("$_jarg")
+            done
+            exec env PROJECT_ROOT="$PROJECT_ROOT" FRAMEWORK_ROOT="$FRAMEWORK_ROOT" \
+                PYTHONPATH="$FRAMEWORK_ROOT" \
+                python3 -m lib.bvp_judge_dispatch_cli "${_jdispatch_args[@]}"
+        fi
+        PROJECT_ROOT="$PROJECT_ROOT" FRAMEWORK_ROOT="$FRAMEWORK_ROOT" \
+            PYTHONPATH="$FRAMEWORK_ROOT" \
+            python3 -m lib.bvp_judge_cli "$@"
+        return $?
     fi
     _bvp_python_engine "$@"
 }

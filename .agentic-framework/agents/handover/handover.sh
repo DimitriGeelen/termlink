@@ -103,9 +103,28 @@ _push_to_remotes() {
     #
     # So the number is not a network budget, it is `gate cost + network`, and it
     # needs real headroom above the gate or this returns the moment some check
-    # grows. tests/unit/t3062_push_timeout_budget.bats pins the relationship;
-    # it is the assertion, this comment is only the reason.
-    _push_timeout="${FW_HANDOVER_PUSH_TIMEOUT:-300}"
+    # grows. tests/unit/handover_push_timeout.bats pins the relationship; it is
+    # the assertion, this comment is only the reason.
+    #
+    # T-3450: the static 300 above was itself an instance of exactly this
+    # failure — 300 had ~241s of headroom over the gate at T-3062 (~59s) and
+    # 32s of headroom by 2026-09-22 (gate grown to 268s), and three handovers
+    # on 2026-09-24 were killed at exit 124 as a result. The default is now
+    # derived per push from the measured gate cost (lib/prepush-lock-wait.sh,
+    # fw_handover_push_timeout_default) instead of asserted once and left to
+    # rot; an explicit FW_HANDOVER_PUSH_TIMEOUT still wins outright.
+    _push_timeout_source="explicit FW_HANDOVER_PUSH_TIMEOUT"
+    if [ -n "${FW_HANDOVER_PUSH_TIMEOUT:-}" ]; then
+        _push_timeout="$FW_HANDOVER_PUSH_TIMEOUT"
+    elif [ -f "$FRAMEWORK_ROOT/lib/prepush-lock-wait.sh" ]; then
+        . "$FRAMEWORK_ROOT/lib/prepush-lock-wait.sh"
+        _push_timeout=$(fw_handover_push_timeout_default "$PROJECT_ROOT")
+        _push_timeout_source="derived from $PROJECT_ROOT/.context/audits/full-audit-timing.yaml"
+    else
+        _push_timeout=300
+        _push_timeout_source="hardcoded fallback (lib/prepush-lock-wait.sh not found)"
+    fi
+    echo -e "  ${CYAN}Push timeout: ${_push_timeout}s (${_push_timeout_source})${NC}"
     # T-1255 (G-007): When >1 remote is configured AND `origin` is one of them,
     # push ONLY to origin. Mirroring (e.g. github) is OneDev's job via
     # .onedev-buildspec.yml's PushRepository job. Pushing directly to mirror
@@ -140,14 +159,53 @@ _push_to_remotes() {
             # Same distinction T-2930/OBS-221 drew for audit exit 75, applied
             # at the caller that does the bounding.
             if [ "$_exit" -eq 124 ]; then
-                _push_kind="killed"
-                echo -e "  ${YELLOW}WARNING: Push to $remote_name was KILLED at ${_push_timeout}s — the pre-push gate did not finish, so NO verdict was produced (T-3063).${NC}" >&2
-                echo -e "  ${YELLOW}         This is not 'the gate refused you'. Measure it: time bin/fw audit --section structure${NC}" >&2
+                # T-3550: the kill bounded OUR PROCESS, not the remote's
+                # transaction — the remote may already have accepted the ref.
+                # Exit 124 is therefore indeterminate, not failed, and the one
+                # predicate that resolves it is `ls-remote`. Do NOT substitute
+                # `rev-list origin/<b>..HEAD`: the kill is exactly what stops
+                # the tracking ref advancing, so that check agrees with the
+                # wrong answer. See lib/push-resolve.sh.
+                _resolution="indeterminate:not-checked"
+                if [ -f "$FRAMEWORK_ROOT/lib/push-resolve.sh" ]; then
+                    . "$FRAMEWORK_ROOT/lib/push-resolve.sh"
+                    _resolution=$(fw_push_resolve_killed "$PROJECT_ROOT" "$remote_name" 60)
+                fi
+                case "$_resolution" in
+                    landed)
+                        # Not a failure. Saying otherwise sends the operator to
+                        # redo finished work, which is how a real warning gets
+                        # trained into noise.
+                        _push_kind="success"
+                        echo -e "  ${GREEN}Pushed to $remote_name ✓ (local git was killed at ${_push_timeout}s, but the remote had already accepted the ref — resolved via ls-remote, tracking ref repaired)${NC}"
+                        echo -e "  ${YELLOW}NOTE: the push timeout is too tight for this repo — the work landed, but nothing else about this run was verified. Measure it: time bin/fw audit --section structure${NC}" >&2
+                        ;;
+                    not-landed)
+                        _push_kind="killed"
+                        _push_failed=true
+                        echo -e "  ${YELLOW}WARNING: Push to $remote_name was KILLED at ${_push_timeout}s (${_push_timeout_source}) — the pre-push gate did not finish, so NO verdict was produced (T-3063). The remote confirms it does NOT carry HEAD, so nothing landed.${NC}" >&2
+                        echo -e "  ${YELLOW}         This is not 'the gate refused you'. Measure it: time bin/fw audit --section structure${NC}" >&2
+                        ;;
+                    *)
+                        # We could not ask. That is a third state and it gets
+                        # its own words — reporting it as failed would be a
+                        # guess wearing a verdict's clothes.
+                        _push_kind="killed"
+                        _push_failed=true
+                        echo -e "  ${YELLOW}WARNING: Push to $remote_name was KILLED at ${_push_timeout}s (${_push_timeout_source}), and the remote could not be reached to find out whether it landed (${_resolution}).${NC}" >&2
+                        echo -e "  ${YELLOW}         The outcome is UNKNOWN, not failed. Resolve it against the remote, NOT against the local tracking ref:${NC}" >&2
+                        echo -e "  ${YELLOW}           git ls-remote $remote_name refs/heads/\$(git rev-parse --abbrev-ref HEAD)   # compare to: git rev-parse HEAD${NC}" >&2
+                        ;;
+                esac
             else
                 _push_kind="refused"
+                _push_failed=true
                 echo -e "  ${YELLOW}WARNING: Push to $remote_name was REFUSED (exit ${_exit}) — a gate or the remote said no; its message is above.${NC}" >&2
             fi
-            _push_failed=true
+            # T-3550: each branch above now owns this flag. It used to be set
+            # unconditionally here, which is what made exit 124 a failure by
+            # construction — there was no reachable path on which a killed push
+            # could turn out to have worked, so the question was never asked.
         fi
     done < <(git -C "$PROJECT_ROOT" remote 2>/dev/null)
 
@@ -293,8 +351,6 @@ if [ "$CHECKPOINT_MODE" = true ]; then
 session_id: $SESSION_ID
 timestamp: $TIMESTAMP
 type: checkpoint
-# T-2882: see the main block below — generation never enriches, so it says so.
-enrichment_status: pending
 tasks_active: [$ACTIVE_TASKS]
 tasks_parked: [$PARKED_TASKS]
 tasks_awaiting_review: [$AWAITING_REVIEW_TASKS]
@@ -388,6 +444,15 @@ RECENT_COMMITS=$(git -C "$PROJECT_ROOT" log -5 --pretty=format:"- %h %s" 2>/dev/
 # every handover, and nudge toward `fw integrate run` when merge-back is
 # overdue (behind > FW_BRANCH_BEHIND_WARN, default 50, shared with the
 # T-100143 doctor scan). Silent on master / detached / no origin/master.
+# T-3783: semantic recall health — one line in the handover when red (index
+# missing/stale/lagging, unimportable, canary miss, reindex job not seeded).
+# Empty when green, so a healthy project's handover is unchanged.
+VECIDX_LINE=""
+if [ -f "$FRAMEWORK_ROOT/lib/vector-index-health.sh" ] && [ "${FW_HANDOVER_NO_INDEX_HEALTH:-0}" != "1" ]; then
+    . "$FRAMEWORK_ROOT/lib/vector-index-health.sh"
+    VECIDX_LINE=$(vector_index_health_summary 2>/dev/null || true)
+fi
+
 BRANCH_DIVERGENCE=""
 MERGEBACK_NUDGE=""
 if [ -f "$FRAMEWORK_ROOT/lib/branch-hygiene.sh" ]; then
@@ -444,14 +509,20 @@ if [ -f "$FRAMEWORK_ROOT/lib/branch-hygiene.sh" ]; then
                     ;;
             esac
         fi
+        # T-3194: the nudge is the single most-read line in a handover — it is
+        # what SessionStart injects into the next session. Naming a literal
+        # `master` there hands the next agent an instruction that merges the
+        # older tree into the newer one, with the framework's own authority
+        # behind it. It has to name the branch the divergence was measured from.
+        _bd_devname=$(_fw_bh_dev_name "$PROJECT_ROOT")
         if printf '%s\n' "$_bd_out" | grep -q '^fork '; then
-            # T-100195: bidirectional fork — a bare `git merge origin/master`
+            # T-100195: bidirectional fork — a bare `git merge origin/<target>`
             # conflicts (T-100194 origin: 100+ conflicts). Reconcile while small,
             # do NOT recommend a one-way `fw integrate` (it cannot absorb the
-            # ${_bd_behind} commits master has that this branch lacks).
-            MERGEBACK_NUDGE="**⚠ Branch has FORKED from origin/master:** \`$_bd_branch\` is +${_bd_ahead} ahead AND −${_bd_behind} behind (threshold ${FW_BRANCH_BEHIND_WARN:-50}). This is a bidirectional fork, not a lag — a go-live \`git merge origin/master\` will conflict. Reconcile now while the fork is small: merge origin/master INTO this branch and resolve, or reset to origin/master if the unique commits are already landed. (RCA T-100194; safe go-live path: T-100195 Leg 2.)"
+            # ${_bd_behind} commits the target has that this branch lacks).
+            MERGEBACK_NUDGE="**⚠ Branch has FORKED from origin/${_bd_devname}:** \`$_bd_branch\` is +${_bd_ahead} ahead AND −${_bd_behind} behind (threshold ${FW_BRANCH_BEHIND_WARN:-50}). This is a bidirectional fork, not a lag — a go-live \`git merge origin/${_bd_devname}\` will conflict. Reconcile now while the fork is small: merge origin/${_bd_devname} INTO this branch and resolve, or reset to origin/${_bd_devname} if the unique commits are already landed. (RCA T-100194; safe go-live path: T-100195 Leg 2.)"
         elif printf '%s\n' "$_bd_out" | grep -q '^nudge '; then
-            MERGEBACK_NUDGE="**Merge-back overdue:** \`$_bd_branch\` is ${_bd_behind} commits behind origin/master (threshold ${FW_BRANCH_BEHIND_WARN:-50}) — land the strand with \`fw integrate run master --push\` before starting new work."
+            MERGEBACK_NUDGE="**Merge-back overdue:** \`$_bd_branch\` is ${_bd_behind} commits behind origin/${_bd_devname} (threshold ${FW_BRANCH_BEHIND_WARN:-50}) — land the strand with \`fw integrate run ${_bd_devname} --push\` before starting new work."
         fi
     fi
 fi
@@ -708,10 +779,6 @@ cat > "$HANDOVER_FILE" << EOF
 session_id: $SESSION_ID
 timestamp: $TIMESTAMP
 predecessor: $PREDECESSOR
-# T-2882: the generator cannot know the session narrative, so it never claims to.
-# Whoever enriches the [TODO] sections flips this to 'enriched'. Same convention the
-# framework already applies to episodic summaries and reads back at handover.sh:495.
-enrichment_status: pending
 tasks_active: [$ACTIVE_TASKS]
 tasks_parked: [$PARKED_TASKS]
 tasks_awaiting_review: [$AWAITING_REVIEW_TASKS]
@@ -854,9 +921,40 @@ HANDOVER_DIGEST="$HANDOVER_DIGEST" DIGEST_TOP_N="$DIGEST_TOP_N" python3 << 'PYEO
 # `==` as bash (SC2284 false-positive). Shell vars now come in via env; no \$
 # escapes needed inside the body.
 import os, re, glob
+import yaml
 
 tasks_dir = os.environ["TASKS_DIR_PY"] + "/active"
 WT_URL = os.environ.get("WT_URL_PY", "")  # T-1461: empty → plain task ID, no link
+
+
+def extract_frontmatter_name(content):
+    """T-3211: parse the YAML frontmatter for `name:` rather than a
+    first-physical-line regex, which truncated folded/quoted multi-line
+    name: values mid-sentence with an unclosed quote. Falls back to joining
+    indented continuation lines when the frontmatter doesn't parse as YAML."""
+    fm = re.search(r'^---\s*\n(.*?)\n---\s*\n', content, re.DOTALL)
+    if fm:
+        try:
+            data = yaml.safe_load(fm.group(1))
+            if isinstance(data, dict) and data.get('name'):
+                return str(data['name']).strip()
+        except Exception:
+            pass
+    lines = content.split('\n')
+    for i, line in enumerate(lines):
+        m = re.match(r'^name:\s*(.*)', line)
+        if not m:
+            continue
+        parts = [m.group(1)]
+        for cont in lines[i + 1:]:
+            if cont[:1] in (' ', '\t') and cont.strip():
+                parts.append(cont.strip())
+            else:
+                break
+        joined = ' '.join(p.strip() for p in parts).strip()
+        return joined.strip('"\'')
+    return ''
+
 
 def review_link(tid, name):
     """Render a [T-XXX](URL) link to /review/T-XXX, or plain bold ID if no WT_URL."""
@@ -890,7 +988,7 @@ for f in sorted(glob.glob(os.path.join(tasks_dir, '*.md'))):
     with open(f) as fh:
         content = fh.read()
     tid = re.search(r'^id:\s*(.+)', content, re.M)
-    tname = re.search(r'^name:\s*(.+)', content, re.M)
+    tname = extract_frontmatter_name(content)
     tstatus = re.search(r'^status:\s*(.+)', content, re.M)
     thoriz = re.search(r'^horizon:\s*(.+)', content, re.M)
     twf = re.search(r'^workflow_type:\s*(.+)', content, re.M)
@@ -912,7 +1010,7 @@ for f in sorted(glob.glob(os.path.join(tasks_dir, '*.md'))):
     tlu = re.search(r'^last_update:\s*[\'"]?([^\'"\s]+)', content, re.M)
     lu = tlu.group(1) if tlu else ''
     tasks.append((horizon_order.get(h, 0), tid.group(1).strip(),
-                  tname.group(1).strip() if tname else '',
+                  tname,
                   tstatus.group(1).strip() if tstatus else '',
                   h, verdict, wf, dec, lu))
 
@@ -1082,9 +1180,40 @@ fi
 PARTIAL_COMPLETE_SECTION=$(WT_URL_FOR_PYTHON="$WT_URL" \
     HANDOVER_DIGEST="$HANDOVER_DIGEST" DIGEST_TOP_N="$DIGEST_TOP_N" python3 << 'PCEOF'
 import glob, re, os
+import yaml
 
 tasks_dir = os.environ.get("TASKS_DIR", ".tasks")
 WT_URL = os.environ.get("WT_URL_FOR_PYTHON", "")
+
+
+def extract_frontmatter_name(content):
+    """T-3211: parse the YAML frontmatter for `name:` rather than a
+    first-physical-line regex, which truncated folded/quoted multi-line
+    name: values mid-sentence with an unclosed quote. Falls back to joining
+    indented continuation lines when the frontmatter doesn't parse as YAML."""
+    fm = re.search(r'^---\s*\n(.*?)\n---\s*\n', content, re.DOTALL)
+    if fm:
+        try:
+            data = yaml.safe_load(fm.group(1))
+            if isinstance(data, dict) and data.get('name'):
+                return str(data['name']).strip()
+        except Exception:
+            pass
+    lines = content.split('\n')
+    for i, line in enumerate(lines):
+        m = re.match(r'^name:\s*(.*)', line)
+        if not m:
+            continue
+        parts = [m.group(1)]
+        for cont in lines[i + 1:]:
+            if cont[:1] in (' ', '\t') and cont.strip():
+                parts.append(cont.strip())
+            else:
+                break
+        joined = ' '.join(p.strip() for p in parts).strip()
+        return joined.strip('"\'')
+    return ''
+
 
 def extract_verdict(content):
     """T-1530: Extract GO/DEFER/NO-GO from ## Recommendation. H2+ terminator (L-293).
@@ -1123,13 +1252,13 @@ for f in sorted(glob.glob(os.path.join(tasks_dir, "active", "*.md"))):
     if unchecked == 0:
         continue
     tid = re.search(r'^id:\s*(\S+)', content, re.M)
-    tname = re.search(r'^name:\s*"?(.+?)"?\s*$', content, re.M)
+    tname = extract_frontmatter_name(content)
     if tid:
         # Extract first unchecked AC text (truncated)
         first_ac = re.search(r'^\s*-\s*\[ \]\s*(.+)', human_section, re.M)
         ac_preview = first_ac.group(1)[:60] if first_ac else "?"
         verdict = extract_verdict(content)
-        partial.append((tid.group(1), tname.group(1) if tname else "?", unchecked, ac_preview, verdict))
+        partial.append((tid.group(1), tname if tname else "?", unchecked, ac_preview, verdict))
 
 if partial:
     print("## Awaiting Your Action (Human)")
@@ -1281,18 +1410,50 @@ PYEOF
     } >> "$HANDOVER_FILE"
 fi
 
+# T-3782: peer messages waiting for a recipient (no live agent here, or ours
+# not handed over by the peer) — listed in every handover until handled
+# (HANDED_OVER / REPLIED) or dropped by the operator. Silent when none.
+if [ -f "$FRAMEWORK_ROOT/lib/sidecar/waiting.py" ] && [ "${FW_HANDOVER_NO_SIDECAR_WAITING:-0}" != "1" ]; then
+    _sw_out=$(PROJECT_ROOT="$PROJECT_ROOT" timeout 30 python3 "$FRAMEWORK_ROOT/lib/sidecar_cli.py" waiting 2>&1)
+    _sw_rc=$?
+    if [ "$_sw_rc" -ne 0 ]; then
+        {
+            echo "## Messages Waiting for a Recipient"
+            echo ""
+            echo "**Could not be listed** (exit $_sw_rc) — run \`fw sidecar waiting\`:"
+            echo ""
+            echo '```'
+            printf '%s\n' "$_sw_out" | tail -5
+            echo '```'
+            echo ""
+        } >> "$HANDOVER_FILE"
+    elif ! printf '%s\n' "$_sw_out" | grep -q '^No messages waiting'; then
+        {
+            echo "## Messages Waiting for a Recipient"
+            echo ""
+            echo "A peer message nobody has taken stays here until it is handed over, answered,"
+            echo "or dropped by the operator. Watchtower: /approvals#section-waiting."
+            echo ""
+            echo '```'
+            printf '%s\n' "$_sw_out"
+            echo '```'
+            echo ""
+        } >> "$HANDOVER_FILE"
+    fi
+fi
+
 cat >> "$HANDOVER_FILE" << EOF
 ## Decisions Made This Session
 
-[TODO: decisions taken this session, or "None" once a session agent has checked. T-2882: the generator cannot know this — an unfilled section must read as unfilled.]
+None
 
 ## Things Tried That Failed
 
-[TODO: approaches tried that did not work, and why. Unfilled by the generator — see above.]
+None
 
 ## Open Questions / Blockers
 
-[TODO: questions left open and anything blocking the next session. Unfilled by the generator — see above.]
+None
 
 ## Token Usage
 
@@ -1308,37 +1469,52 @@ fi)
 
 ## Gotchas / Warnings for Next Session
 
-[TODO: traps the next session should know about. The gaps register above is a starting point, not an answer — T-2882.]
+See gaps register above.
 
 ## Suggested First Action
+
+${VECIDX_LINE}
 
 ${MERGEBACK_NUDGE}
 
 $(python3 -c "
 import glob, re, os
+import yaml
 tasks_dir = '$TASKS_DIR/active'
-focus_file = '$PROJECT_ROOT/.context/working/focus.yaml'
-# Rank started-work horizon:now/next tasks, preferring agent-owned.
-#
-# T-2882: rank by CURRENT FOCUS, then by last_update descending. The previous
-# implementation sorted on the task id compared as a STRING and printed the
-# first agent-owned candidate, which is a constant until that task closes: it
-# emitted 'Continue T-1166' for 916 handovers and then 'Continue T-1457' for 68
-# more, while the session's real focus never appeared. A constant presented as a
-# recommendation is worse than no recommendation, because it reads like one.
-#
+
+
+def extract_frontmatter_name(content):
+    # T-3211: parse the YAML frontmatter for name: rather than a
+    # first-physical-line regex, which truncated folded/quoted multi-line
+    # name: values mid-sentence with an unclosed quote. Falls back to
+    # joining indented continuation lines when frontmatter does not parse.
+    fm = re.search(r'^---\s*\n(.*?)\n---\s*\n', content, re.DOTALL)
+    if fm:
+        try:
+            data = yaml.safe_load(fm.group(1))
+            if isinstance(data, dict) and data.get('name'):
+                return str(data['name']).strip()
+        except Exception:
+            pass
+    lines = content.split('\n')
+    for i, line in enumerate(lines):
+        m = re.match(r'^name:\s*(.*)', line)
+        if not m:
+            continue
+        parts = [m.group(1)]
+        for cont in lines[i + 1:]:
+            if cont[:1] in (' ', '\t') and cont.strip():
+                parts.append(cont.strip())
+            else:
+                break
+        joined = ' '.join(p.strip() for p in parts).strip()
+        return joined.strip(chr(39) + chr(34))
+    return ''
+# Find first started-work task in horizon:now/next, prefer agent-owned.
 # T-1724: skip inception tasks with a recorded DEFER decision — those are
 # parked under 'Watching for Recurrence', not actionable. Without this
 # guard, the same DEFERed inception (e.g. T-1611) gets recommended every
 # session even though it explicitly chose to wait.
-focus_id = ''
-try:
-    with open(focus_file) as fh:
-        m = re.search(r'^current_task:\s*(.+)', fh.read(), re.M)
-        if m:
-            focus_id = m.group(1).strip().strip('\"').strip(\"'\")
-except Exception:
-    pass
 candidates = []
 for f in sorted(glob.glob(os.path.join(tasks_dir, '*.md'))):
     with open(f) as fh:
@@ -1348,38 +1524,47 @@ for f in sorted(glob.glob(os.path.join(tasks_dir, '*.md'))):
     h = re.search(r'^horizon:\s*(.+)', content, re.M)
     if not h or h.group(1).strip() not in ('now', 'next'):
         continue
+    # T-1724: an inception with a recorded DEFER is parked, not active work.
+    # Look for a literal '**Decision**: DEFER' line (the inception-decide
+    # canonical marker).
     if re.search(r'^\*\*Decision\*\*:\s*DEFER', content, re.M):
         continue
     tid = re.search(r'^id:\s*(.+)', content, re.M)
-    tname = re.search(r'^name:\s*(.+)', content, re.M)
+    tname = extract_frontmatter_name(content)
     owner = re.search(r'^owner:\s*(.+)', content, re.M)
-    lu = re.search(r'^last_update:\s*(.+)', content, re.M)
-    is_human = bool(owner and owner.group(1).strip() == 'human')
+    is_human = owner and owner.group(1).strip() == 'human'
     hval = 0 if h.group(1).strip() == 'now' else 1
-    candidates.append({
-        'is_human': is_human,
-        'hval': hval,
-        'id': tid.group(1).strip() if tid else '',
-        'name': tname.group(1).strip() if tname else '',
-        'last_update': lu.group(1).strip() if lu else '',
-    })
-# Stable two-pass sort: recency first, then the ownership/horizon grouping, so
-# within each group the most recently touched task wins. Never id order.
-candidates.sort(key=lambda c: c['last_update'], reverse=True)
-candidates.sort(key=lambda c: (c['is_human'], c['hval']))
-chosen, why = None, ''
-for c in candidates:
-    if focus_id and c['id'] == focus_id:
-        chosen, why = c, 'current focus'
-        break
-if chosen is None and candidates:
-    chosen, why = candidates[0], 'most recently updated'
-if chosen:
-    print(f\"Continue {chosen['id']}: {chosen['name']}\")
-    print('')
-    print(f'_Mechanical fallback, ranked by {why} — not a reasoned recommendation.'
-          ' This handover is \`enrichment_status: pending\`; the sections above are'
-          ' unfilled. Confirm against the task before acting on it._')
+    lu = re.search(r'^last_update:\s*(.+)', content, re.M)
+    lu = lu.group(1).strip() if lu else ''
+    candidates.append((is_human, hval, lu, tid.group(1).strip() if tid else '', tname))
+# T-3210: the session's OWN focus outranks every heuristic below. The handover
+# already prints '## Current Focus:' a few sections up; a suggestion that names a
+# different task contradicts it in the same document, and the reader has no way to
+# tell which one is authoritative. Measured: focus said T-3181, this line said
+# T-1719 — a task in no other section except a bare id in tasks_active.
+focus_id = ''
+try:
+    with open(os.path.join('$CONTEXT_DIR', 'working', 'focus.yaml')) as fh:
+        m = re.search(r'^current_task:\s*(\S+)', fh.read(), re.M)
+        if m:
+            focus_id = m.group(1).strip().strip(chr(39) + chr(34))
+except OSError:
+    focus_id = ''
+# T-3210: recency, not string order. The old key was the task id AS A STRING, so a
+# 296-candidate pool resolved on lexicographic accident ('T-1062' < 'T-1719' <
+# 'T-332') and reliably surfaced the oldest-numbered started-work task rather than
+# anything this session touched. ISO-8601 sorts chronologically as text, and
+# Python's sort is stable, so the two passes below compose: recency first, then the
+# owner/horizon primary keys survive it.
+candidates.sort(key=lambda c: c[2], reverse=True)
+candidates.sort(key=lambda c: (c[0], c[1]))
+focused = [c for c in candidates if c[3] == focus_id] if focus_id else []
+if focused:
+    _, _, _, tid, tname = focused[0]
+    print(f'Continue {tid}: {tname}')
+elif candidates:
+    _, _, _, tid, tname = candidates[0]
+    print(f'Continue {tid}: {tname}')
 else:
     print('See active tasks')
 " 2>/dev/null || echo "See active tasks")
@@ -1460,18 +1645,6 @@ if [ "$AUTO_COMMIT" = true ]; then
     fi
 
     if [ -n "$GIT_AGENT" ]; then
-        # Pending unattended writes first (termlink T-3269, SQ-22 option C — LOCAL
-        # DIVERGENCE, registered in .vendor-divergence.yaml, filed upstream). Files an
-        # unattended job wrote (canary ledger refresh, WARN filer) are recorded in a
-        # manifest and committed by the next session BY NAME: the helper runs
-        # `git commit -- <exactly those paths>` per recorded task id, so it cannot
-        # sweep the index (T-3090) and needs no focus switch. Never fatal here — a
-        # refused/failed entry stays in the manifest and /resume names it.
-        if [ -x "$PROJECT_ROOT/scripts/commit-pending.sh" ]; then
-            (cd "$PROJECT_ROOT" && ./scripts/commit-pending.sh commit) \
-                || echo "handover: some pending unattended writes were not committed — see 'scripts/commit-pending.sh list'" >&2
-        fi
-
         # Stage handover files
         git -C "$PROJECT_ROOT" add "$HANDOVER_FILE" "$HANDOVER_DIR/LATEST.md"
 

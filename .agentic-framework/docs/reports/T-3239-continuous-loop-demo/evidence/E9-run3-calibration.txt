@@ -1,0 +1,186 @@
+T-3246 / arc-012 E9 - does the loop DO WORK across a restart?
+generated:  2026-09-01T20:37:00Z
+repo sha:   8454a4600
+claude:     2.1.245 (Claude Code)
+sandbox:    /tmp/tmp.lt966NuqnV/proj   (real fw init)
+hooks:      PostToolUse=7 PreCompact=1 PreToolUse=9 SessionStart=3
+backlog:    5 E9 tasks in .tasks/active/ (matched by name, not counted)
+dials:      FW_CONTEXT_WINDOW=72000 (critical 68400), CACHE_AGE=1, RECHECK=1
+policy:     MAX_RESTARTS=4, max_iterations=8, tier_ceiling=1
+armed:      1
+
+directive:  Work the backlog in .tasks/active/ one task at a time. For each task: run './.agentic-framework/bin/fw work-on <ID>', create the file its acceptance criterion names with exactly the content it specifies, tick that AC from '- [ ]' to '- [x]' in the task file, then close it with './.agentic-framework/bin/fw task update <ID> --status work-completed'. Then move to the next task. Do not stop until every task is closed.
+
+----- wrapper transcript (tail) -----
+|------|--------------|---------|-----|--------|
+| T-006 | `item1.txt` | `done1` | ticked | work-completed |
+| T-007 | `item2.txt` | `done2` | ticked | work-completed |
+| T-008 | `item3.txt` | `done3` | ticked | work-completed |
+| T-009 | `item4.txt` | `done4` | ticked | work-completed |
+| T-010 | `item5.txt` | `done5` | ticked | work-completed |
+
+Each task's `## Verification` section contained `grep -qx 'doneN' itemN.txt`, and the P-011 completion gate ran and passed those commands during each `work-completed` transition — so the content is confirmed by the framework's own gate, not just by my write. Each file is written with a trailing newline (a single `doneN` line), which is what `grep -qx` matches.
+
+The work is uncommitted — the files, the modified task files, and the auto-generated episodic YAMLs in `.context/episodic/` are all sitting in the working tree. Your instructions didn't mention committing, so I stopped short of that. Say the word if you want it committed.
+
+claude-fw: Re-arm #1 — claude exited (code 0) with no restart signal,
+  and a continuous run is armed. Relaunching in 5 seconds.
+  To stop the run:   touch /tmp/tmp.lt966NuqnV/proj/.context/working/.continuous-halt
+  Or disarm it:      fw continuous disarm
+  Or just press Ctrl+C.
+
+Error: Input must be provided either through stdin or as a prompt argument when using --print
+
+claude-fw: Re-arm #2 — claude exited (code 1) with no restart signal,
+  and a continuous run is armed. Relaunching in 5 seconds.
+  To stop the run:   touch /tmp/tmp.lt966NuqnV/proj/.context/working/.continuous-halt
+  Or disarm it:      fw continuous disarm
+  Or just press Ctrl+C.
+
+Error: Input must be provided either through stdin or as a prompt argument when using --print
+
+claude-fw: Re-arm #3 — claude exited (code 1) with no restart signal,
+  and a continuous run is armed. Relaunching in 5 seconds.
+  To stop the run:   touch /tmp/tmp.lt966NuqnV/proj/.context/working/.continuous-halt
+  Or disarm it:      fw continuous disarm
+  Or just press Ctrl+C.
+
+Error: Input must be provided either through stdin or as a prompt argument when using --print
+
+claude-fw: Re-arm #4 — claude exited (code 1) with no restart signal,
+  and a continuous run is armed. Relaunching in 5 seconds.
+  To stop the run:   touch /tmp/tmp.lt966NuqnV/proj/.context/working/.continuous-halt
+  Or disarm it:      fw continuous disarm
+  Or just press Ctrl+C.
+
+Error: Input must be provided either through stdin or as a prompt argument when using --print
+
+claude-fw: Continuous run is armed, but the restart budget is exhausted
+  (4/4 within the last 3600s). Stopping.
+
+----- loop event ledger -----
+{"ts": "2026-09-01T20:37:00Z", "event": "start", "reason": "armed", "restart_count": 0, "wrapper_pid": 1007840, "detail": "restart=enabled max_restarts=4 window=3600s armed=yes termlink=0"}
+{"ts": "2026-09-01T20:39:19Z", "event": "iterate", "reason": "rearm", "restart_count": 1, "wrapper_pid": 1007840, "detail": "clean exit (code=0) with no signal; continuous run armed; budget 1/4 in 3600s"}
+{"ts": "2026-09-01T20:39:30Z", "event": "iterate", "reason": "rearm", "restart_count": 2, "wrapper_pid": 1007840, "detail": "clean exit (code=1) with no signal; continuous run armed; budget 2/4 in 3600s"}
+{"ts": "2026-09-01T20:39:42Z", "event": "iterate", "reason": "rearm", "restart_count": 3, "wrapper_pid": 1007840, "detail": "clean exit (code=1) with no signal; continuous run armed; budget 3/4 in 3600s"}
+{"ts": "2026-09-01T20:39:53Z", "event": "iterate", "reason": "rearm", "restart_count": 4, "wrapper_pid": 1007840, "detail": "clean exit (code=1) with no signal; continuous run armed; budget 4/4 in 3600s"}
+{"ts": "2026-09-01T20:40:05Z", "event": "exit", "reason": "max-restarts", "restart_count": 4, "wrapper_pid": 1007840, "detail": "re-arm refused: 4 restarts within 3600s window >= MAX_RESTARTS=4", "exit_code": 1}
+
+----- backlog outcome (the join that matters) -----
+{
+  "restarts": [],
+  "closed": [
+    [
+      "T-006",
+      "2026-09-01T20:37:42Z"
+    ],
+    [
+      "T-007",
+      "2026-09-01T20:38:03Z"
+    ],
+    [
+      "T-008",
+      "2026-09-01T20:38:23Z"
+    ],
+    [
+      "T-009",
+      "2026-09-01T20:38:43Z"
+    ],
+    [
+      "T-010",
+      "2026-09-01T20:39:03Z"
+    ]
+  ],
+  "closed_ignored_non_e9": [],
+  "closed_after_first_restart": [],
+  "still_active": 0,
+  "artefacts": [
+    "item1.txt",
+    "item2.txt",
+    "item3.txt",
+    "item4.txt",
+    "item5.txt"
+  ],
+  "artefacts_wrong_content": []
+}
+
+----- continuous-mode state after the run -----
+enabled: true
+max_iterations: 8
+tier_ceiling: 1
+expires_after_seconds: 86400
+current_iteration: 4
+tasks_completed: 5
+max_tasks: null
+last_terminated_reason: ''
+last_resumed_at: '2026-09-01T20:40:04Z'
+completed_task_ids:
+- T-006
+- T-007
+- T-008
+- T-009
+- T-010
+last_directive_seen: 'Work the backlog in .tasks/active/ one task at a time. For each
+  task: run ''./.agentic-framework/bin/fw work-on <ID>'', create the file its acceptance
+  criterion names with exactly the content it specifi'
+last_source: startup
+
+wrapper exit code: 1
+
+----- assertions -----
+  FAIL  the budget trip produced a real restart  iterate/restart events = 0
+  PASS  the loop closed at least two real tasks  E9 tasks in completed/ = 5
+  FAIL  WORK CONTINUED ACROSS THE RESTART (the deliverable)  tasks closed after first restart = 0
+  PASS  the closes were real work, not bookkeeping  artefacts with CORRECT content = 5 (wrong = 0)
+
+PASS: 2  FAIL: 2
+
+==================== CALIBRATION ANALYSIS (added post-run) ====================
+
+This run is the first E9 with a CORRECT rig (real backlog created by the real
+verb, onboarding tasks removed, verification lines live, positive control passed
+— see E9-positive-control.txt). Its 2/4 is therefore the first attributable
+E9 result. Both PASSes and both FAILs mean something.
+
+WHAT PASSED, AND IT IS NOT NOTHING
+  5 of 5 backlog tasks closed, every one through the P-011 verification gate, and
+  all 5 artefacts carried the exact required content (wrong = 0). The loop does
+  real, gated work. Prior runs could not support this claim: they closed fw
+  init's onboarding tasks, which carried no verification line at all.
+
+WHAT FAILED, AND WHY — measured from the sandbox transcript, not inferred
+  baseline (first turn)   52841
+  final (last turn)       67471
+  critical (0.95*72000)   68400
+  ---------------------------------------------
+  MISSED THE TRIP BY        929 tokens
+
+  5 tasks cost 14630 tokens        -> ~2926 per task
+  headroom 68400 - 52841 = 15559   -> 15559 / 2926 ~= 5.3 tasks per window
+
+  Five tasks is almost exactly ONE window's worth of work. The session spent 94%
+  of its headroom, finished the entire backlog, and exited cleanly 929 tokens
+  short of critical. No trip, so no restart, so nothing could close "after the
+  first restart". The ledger shows four iterate/rearm events (clean exit, no
+  signal) and zero iterate/restart — the wrapper relaunching a session that had
+  nothing left to do, four times, until MAX_RESTARTS.
+
+THE SHAPE OF THE MISTAKE
+  Run 2 starved the loop: too little headroom (~2.5k) for the work.
+  Run 3 starved the trip:  too little work (14.6k) for the headroom (15.6k).
+
+  Same error, opposite directions: sizing one of {window, backlog} without
+  reference to the other. Neither number is wrong on its own. What has to be true
+  is a RATIO — the backlog must outlast the window. That is not a harness detail;
+  it is the arc's entire premise, that work can exceed one context and survive
+  the boundary. A backlog that fits in one window cannot test it, however
+  correctly the loop behaves.
+
+  Note this failure was PREDICTED before the run ended, from the live gauge
+  reading 52711 against a 68400 critical with the backlog already half closed.
+  The prediction is what makes the result evidence rather than an accident.
+
+NEXT
+  N_BACKLOG 5 -> 12 (~2.3 windows at the measured cost), WINDOW unchanged at
+  72000. The trip should land near task 5-6, with real closes on both sides.
+  If WINDOW changes, N_BACKLOG must be re-derived from the per-task cost.

@@ -1,0 +1,33 @@
+# continuous-mode
+
+> Continuous-run counters (T-3169, arc-012 S3).
+
+**Type:** script | **Subsystem:** framework-core | **Location:** `lib/continuous-mode.sh`
+
+## What It Does
+
+Continuous-run counters (T-3169, arc-012 S3).
+`.continuous-mode.yaml` carries TWO ceilings, counted in different units:
+current_iteration / max_iterations  — SESSIONS. Advanced by SessionStart
+(agents/context/inject-next-directive.py). Bounds how many context
+windows one run may consume.
+tasks_completed   / max_tasks       — TASKS. Advanced here, on the
+work-completed transition. Bounds how much WORK one run may do.
+They are not interchangeable and neither substitutes for the other. Before
+T-3164 the two were the same number by accident, because a session could only
+take one turn and the run advanced a window per unit of work; `max_iterations: 5`
+
+## Used By (6)
+
+| Component | Relationship | Description |
+|-----------|--------------|-------------|
+| [inject-next-directive](/docs/generated/agents-context-inject-next-directive) | called_by | T-2364/T-2365 (T-2158 S2+S3) — next-directive injector for post-compact resume. |
+| [update-task](/docs/generated/agents-task-create-update-task) | called_by | Task Update Agent - Status transitions with auto-triggers |
+| [audit-yaml-validator](/docs/generated/audit-yaml-validator) | called_by | Validate all project YAML files parse correctly. Part of the audit structure section. Added as regression test after T-206 silent corruption. |
+| [fw](/docs/generated/bin-fw) | called_by | Single entry point for all framework operations. Reads .framework.yaml from the project directory to resolve FRAMEWORK_ROOT, then routes commands to the appropriate agent. Supports both in-repo and shared tooling modes. |
+| [t3268_continuous_cycling_detector](/docs/generated/tests-unit-t3268_continuous_cycling_detector) | tests_by | T-3268 (G-099 what_remains) — G-099 fixed the "wrapper says armed but turn driver isn't" drift class and named, but did not build, the detector for a sibling class: `last_terminated_reason` (bin/claude-fw:388) is a one-way latch that… |
+| [audit-yaml-validator](/docs/generated/audit-yaml-validator) | called_by | Validate all project YAML files parse correctly. Part of the audit structure section. Added as regression test after T-206 silent corruption. |
+
+---
+*Auto-generated from Component Fabric. Card: `lib-continuous-mode.yaml`*
+*Last verified: 2026-09-03*

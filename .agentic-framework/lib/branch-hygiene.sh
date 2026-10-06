@@ -6,8 +6,18 @@
 # their own WARN formatting and count lines. Always exits 0: this is an
 # advisory rail, never a gate.
 #
-# Judged against TARGET = origin/master when present, else master. Repos with
-# no master lineage produce no findings (nothing to judge against).
+# Judged against TARGET = the DEV branch — `origin/$FW_DEV_BRANCH` (default
+# `bleeding-edge`) when present, then its local ref, and only then origin/master
+# or master. T-3188. Under the release train (CLAUDE.md §Release-Train Branch
+# Model) master lags deliberately, so judging landings against it would report
+# every branch already landed on bleeding-edge as unlanded; the master legs
+# remain solely for a master-only consumer that has no dev branch. Repos with
+# neither lineage produce no findings (nothing to judge against).
+#
+# This header said "TARGET = origin/master" for as long as the code did not
+# (T-3545 / OBS-467). Read the resolution chain in fw_branch_hygiene, not this
+# comment, if the two ever disagree again — and see the parity test in
+# tests/unit/t3545_branch_hygiene_header_parity.bats, which exists to stop them.
 #
 # Finding classes (one token-prefixed line each):
 #   merged-undeleted <branch>                    local branch tip contained in TARGET
@@ -53,6 +63,20 @@
 #                                                Excludes the current branch's own
 #                                                upstream: that is where you are
 #                                                standing, not a strand.
+#   unlanded-by-design <branch> task=<T-NNNN>    branch is unlanded because its
+#                                                GOVERNING TASK is parked (status
+#                                                captured, or horizon later) — not
+#                                                because nobody got to it. Replaces
+#                                                behind-threshold / diverged-fork /
+#                                                remote-unlanded for such a branch,
+#                                                so no surface recommends landing it
+#                                                (T-3510, OBS-547).
+#   parked-but-landed <branch> task=<T-NNNN>     governing task is STILL parked while
+#                                                its code is already in TARGET. The
+#                                                task record and the tree disagree.
+#                                                Distinct from merged-undeleted,
+#                                                which is the tidy-up class and gets
+#                                                read as debris (L-642).
 #
 # Origin: T-100139 inception measured 29 merged-but-undeleted branches and live
 # strands 215-248 commits behind master, all invisible. C1 (T-100142) deletes
@@ -79,13 +103,70 @@ _bh_days_since_commit() {
     echo $(( (now - last) / 86400 ))
 }
 
+# T-3510 (OBS-547): resolve a branch name to its GOVERNING TASK's parked-ness.
+#
+# Parking is recorded in the TASK — `status: captured`, `horizon: later`, the
+# Sovereign question written in the body — and nowhere in the branch. Every other
+# rail in this file reads topology, and topology has no field for "deliberately
+# unlanded", so `unmerged because it is not ready` and `unmerged because nobody
+# got to it` are byte-identical to it.
+#
+# On 2026-09-26 that cost a sovereignty gate. This scan reported
+# `t3487-remove-bvp-arc-approval-gate` as landable while T-3487 sat
+# captured/horizon:later on an unanswered Sovereign question, the audit's
+# mitigation line recommended `fw integrate run`, and a batch-merge worker did
+# exactly that — taking the `fw arc close` identity gate off by default. No rule
+# was broken; the rail simply could not express the distinction.
+#
+# Echoes "<task-id> <parked|live>", and NOTHING when the branch carries no
+# resolvable task id. That silence is load-bearing, not laziness: a branch this
+# helper cannot explain must fall through to its existing classification rather
+# than be quietly exempted. Two of the four branches in that same merge —
+# `dispatch-f25` and `dispatch-f21-f24` — carry no task id at all, so a helper
+# that defaulted to "not parked" would read as coverage it does not have.
+# T-3511: DELEGATES to lib/task-parked.sh. The body of this function used to live
+# here (T-3510, one commit earlier); it moved the moment a second caller appeared —
+# the pre-merge gate — rather than after the two had drifted. Keep it a delegation:
+# parked-ness read in two places with two implementations is how arc membership
+# reached five readers that disagreed.
+_bh_governing_task() {
+    local repo="$1" br="$2"
+    local _tp="${BASH_SOURCE[0]%/*}/task-parked.sh"
+    # Degrade to "unresolvable" (empty) if the lib is absent, never to a verdict.
+    # Every caller already treats empty as "classify as before", so a missing lib
+    # reverts this rail to its pre-T-3510 behaviour instead of breaking the scan
+    # that audit and doctor both depend on.
+    [ -f "$_tp" ] || return 0
+    # shellcheck source=lib/task-parked.sh
+    . "$_tp"
+    fw_branch_governing_task "$repo" "$br"
+}
+
 fw_branch_hygiene() {
     local repo="${1:-.}"
     local behind_warn="${FW_BRANCH_BEHIND_WARN:-50}"
     local stale_days="${FW_BRANCH_STALE_DAYS:-30}"
 
+    # ── T-3188: "landed" means landed on the DEV branch, not on master ──
+    #
+    # Under the release train (§Release-Train Branch Model) master only
+    # fast-forwards at a release, so between releases it deliberately lags.
+    # Judging "landed" against master therefore reports every branch that HAS
+    # landed on bleeding-edge as unlanded, and reports master's own lag — the
+    # release train's product — as drift. The target has to be the branch work
+    # actually lands on.
+    #
+    # Fallback is preserved exactly: a repo with no dev branch (every
+    # master-only consumer) resolves to the pre-T-3188 target and behaves as
+    # before. FW_DEV_BRANCH is the same knob the T-3187 identity guard reads,
+    # not a second one.
+    local _bh_dev="${FW_DEV_BRANCH:-bleeding-edge}"
     local target
-    if git -C "$repo" rev-parse --verify -q origin/master >/dev/null 2>&1; then
+    if git -C "$repo" rev-parse --verify -q "origin/$_bh_dev" >/dev/null 2>&1; then
+        target="origin/$_bh_dev"
+    elif git -C "$repo" rev-parse --verify -q "refs/heads/$_bh_dev" >/dev/null 2>&1; then
+        target="$_bh_dev"
+    elif git -C "$repo" rev-parse --verify -q origin/master >/dev/null 2>&1; then
         target=origin/master
     elif git -C "$repo" rev-parse --verify -q master >/dev/null 2>&1; then
         target=master
@@ -93,13 +174,114 @@ fw_branch_hygiene() {
         return 0
     fi
 
-    local br behind ahead
+    # ── T-3187: branch IDENTITY, not merely reconcilability ──
+    #
+    # Every finding class below asks "can this branch still be reconciled?".
+    # None asks "is this the branch we are supposed to be on?". Those are
+    # different questions, and the gap between them is measurable: the session
+    # sat on `t2539-staging` for 41 days (cut 2026-07-16 for T-2539, which
+    # closed 19 seconds later, then never left). It was 0 BEHIND master the
+    # whole time — a clean fast-forward — so `diverged-fork` had no reason to
+    # fire and every other class passed it silently. Being on the sanctioned
+    # branch and being on some tidy wrong branch produced identical output.
+    #
+    # That is the false-green shape: a check that cannot see its subject
+    # reports the same thing as a check that looked and was satisfied. The fix
+    # is to name the expected branch, so the finding is about identity.
+    #
+    # Deliberately scoped three ways, because a guard that cries everywhere
+    # gets muted and then it is worse than absent:
+    #   1. Silent unless the repo HAS the dev branch. A consumer project on a
+    #      master-only model never sees this class.
+    #   2. Main checkout only. A linked worktree sits on a feature branch by
+    #      design (§Worktree Policy), so firing there would flag correct work.
+    #      Discriminator: --git-dir == --git-common-dir only in the main tree.
+    #   3. Reports, never blocks. WARN is the right volume for a branch you may
+    #      have switched to on purpose.
+    #
+    # `master` DOES fire: under the release train (§Release-Train Branch Model)
+    # master is merge-only, so a session authoring there is as wrong as one on
+    # a stale feature branch — and PROTECT_MASTER would block its first commit.
+    local _bh_dev="${FW_DEV_BRANCH:-bleeding-edge}"
+    if git -C "$repo" rev-parse --verify -q "refs/heads/$_bh_dev" >/dev/null 2>&1 &&
+       [ "$(git -C "$repo" rev-parse --git-dir 2>/dev/null)" = \
+         "$(git -C "$repo" rev-parse --git-common-dir 2>/dev/null)" ]; then
+        local _bh_cur
+        _bh_cur=$(git -C "$repo" branch --show-current 2>/dev/null)
+        if [ -z "$_bh_cur" ]; then
+            echo "wrong-branch detached-HEAD expected=$_bh_dev"
+        elif [ "$_bh_cur" != "$_bh_dev" ]; then
+            echo "wrong-branch $_bh_cur expected=$_bh_dev"
+        fi
+    fi
+
+    # ── T-3360: the dev branch is AHEAD of its remote and NOT PUSHED ─────────
+    #
+    # Every other rail in this file measures a branch BEHIND its target and asks
+    # "can this still be reconciled?". None asked the opposite question, and the
+    # opposite direction is the one that strands work: origin/bleeding-edge last
+    # received a commit on 2026-09-07 23:06, the pre-push audit gate then refused
+    # every push for ~3 days, and the branch climbed to 32 commits ahead. Every
+    # handover in that window ran, committed, and reported success — the refusal
+    # appeared only in the tail of the handover's own stdout. Nothing watched the
+    # gap (OBS-394/395; the gate's root cause is fixed in T-3357).
+    #
+    # Reports the AGE of the oldest unpushed commit, not just the count: "32
+    # ahead" is a number, "32 ahead, oldest 3 days" is the thing worth acting on.
+    # Deliberately NOT "time since last push" — git records no reliable push
+    # timestamp (the remote-tracking reflog is absent on fresh clones and
+    # prunable), whereas commit dates are always present.
+    #
+    # Scoped three ways so it cannot become noise: silent with no remote-tracking
+    # counterpart (a local-only repo has nothing to be ahead OF), silent at or
+    # under the threshold, and WARN-only — an unpushed branch is a normal state
+    # mid-session, it is only the SIZE and AGE of the gap that is a finding.
+    local ahead_warn="${FW_BRANCH_AHEAD_WARN:-20}"
+    local _bh_up="refs/remotes/origin/$_bh_dev"
+    if git -C "$repo" rev-parse --verify -q "$_bh_up" >/dev/null 2>&1 &&
+       git -C "$repo" rev-parse --verify -q "refs/heads/$_bh_dev" >/dev/null 2>&1; then
+        local _bh_un _bh_oldest _bh_odays
+        _bh_un=$(git -C "$repo" rev-list --count "$_bh_up..refs/heads/$_bh_dev" 2>/dev/null || echo 0)
+        if [ "${_bh_un:-0}" -gt "$ahead_warn" ]; then
+            # `git log` is newest-first, so the LAST line is the oldest commit
+            # in the unpushed range — i.e. when the stranding began.
+            _bh_oldest=$(git -C "$repo" log --format=%ct "$_bh_up..refs/heads/$_bh_dev" 2>/dev/null | tail -1)
+            if [ -n "$_bh_oldest" ]; then
+                _bh_odays=$(( ( $(date +%s) - _bh_oldest ) / 86400 ))
+            else
+                _bh_odays=0
+            fi
+            echo "ahead-unpushed $_bh_dev ahead=$_bh_un oldest_days=$_bh_odays (threshold $ahead_warn)"
+        fi
+    fi
+
+    local br behind ahead _gov _gov_id _gov_state
     # ── local branches: merged-undeleted, else behind-threshold ──
     while IFS= read -r br; do
         [ -z "$br" ] && continue
         [ "$br" = "master" ] && continue
+        # T-3188: the dev branch is the trunk, not a feature branch. It is
+        # ahead of master by construction between releases, so scanning it for
+        # "unlanded" would report the release train working as designed.
+        [ "$br" = "$_bh_dev" ] && continue
+        # T-3510: both fields are empty when the branch carries no resolvable task
+        # id, which routes every arm below to its pre-change behaviour.
+        _gov=$(_bh_governing_task "$repo" "$br")
+        _gov_id=${_gov%% *}
+        _gov_state=${_gov##* }
         if git -C "$repo" merge-base --is-ancestor "refs/heads/$br" "$target" 2>/dev/null; then
-            echo "merged-undeleted $br"
+            if [ "$_gov_state" = parked ]; then
+                # T-3510: the 2026-09-26 incident's own signature, and the reason
+                # this class exists rather than leaving it as merged-undeleted.
+                # `merged-undeleted` is the tidy-up class — it reads as debris and
+                # gets triaged as debris (L-642: the consequential finding and the
+                # cosmetic one rendered in the same voice). A parked task whose code
+                # is already live is not debris: the task record and the tree
+                # disagree, and the task is the side that carries the reason.
+                echo "parked-but-landed $br task=$_gov_id — task is PARKED but its code is already in $target; task record and tree disagree"
+            else
+                echo "merged-undeleted $br"
+            fi
         else
             behind=$(git -C "$repo" rev-list --count "refs/heads/$br..$target" 2>/dev/null || echo 0)
             ahead=$(git -C "$repo" rev-list --count "$target..refs/heads/$br" 2>/dev/null || echo 0)
@@ -113,6 +295,12 @@ fw_branch_hygiene() {
                 continue
             fi
             local _dtag="days=${_days:-unknown}"
+            # T-3510: classify first, then let a parked governing task override the
+            # verdict. Structured this way so the parked check cannot accidentally
+            # SUPPRESS a finding — it only ever substitutes one that would have been
+            # emitted anyway, and a branch under the thresholds stays silent exactly
+            # as before.
+            local _class=""
             if [ "${behind:-0}" -gt "$behind_warn" ] && [ "${ahead:-0}" -gt "$behind_warn" ]; then
                 # Bidirectional fork (T-100195): BOTH directions past threshold.
                 # An unmerged branch behind master always has >=1 unique commit
@@ -122,10 +310,20 @@ fw_branch_hygiene() {
                 # ALSO substantially ahead: a `git merge` conflicts and even a
                 # one-way `fw integrate` cannot absorb what master has. Distinct
                 # finding so the WARN names the reconcile-while-small remedy.
-                echo "diverged-fork $br ahead=$ahead behind=$behind $_dtag (threshold $behind_warn)"
+                _class="diverged-fork $br ahead=$ahead behind=$behind $_dtag (threshold $behind_warn)"
             elif [ "${behind:-0}" -gt "$behind_warn" ]; then
                 # Pure lag (small ahead): landable with a one-way `fw integrate`.
-                echo "behind-threshold $br behind=$behind $_dtag (threshold $behind_warn)"
+                _class="behind-threshold $br behind=$behind $_dtag (threshold $behind_warn)"
+            fi
+            if [ -n "$_class" ]; then
+                if [ "$_gov_state" = parked ]; then
+                    # T-3510: unlanded because it is NOT READY, not because nobody
+                    # got to it. Says what is owed — nothing — because the previous
+                    # wording said the opposite and was acted on.
+                    echo "unlanded-by-design $br task=$_gov_id — governing task is parked; NO merge is owed, landing it ships work its task has not settled"
+                else
+                    echo "$_class"
+                fi
             fi
         fi
     done < <(git -C "$repo" for-each-ref --format='%(refname:short)' refs/heads/)
@@ -215,7 +413,20 @@ fw_branch_hygiene() {
         if [ "$remote_ahead" = "0" ]; then
             echo "remote-contained $br"
         else
-            echo "remote-unlanded $br ahead=$remote_ahead"
+            # T-3510: same predicate as the local loop. A remote ref whose governing
+            # task is parked is not a strand either — and `remote-unlanded` is the
+            # line the 2026-09-26 batch worker would also have read.
+            # `remote-contained` deliberately keeps its wording: a contained ref is
+            # already landed, and the local loop's `parked-but-landed` is where that
+            # disagreement is reported. A remote-ONLY parked branch that is already
+            # contained therefore reports as merely deletable — known, narrow, and
+            # left to the blocking leg (T-3511) rather than papered over here.
+            _gov=$(_bh_governing_task "$repo" "$br")
+            if [ "${_gov##* }" = parked ]; then
+                echo "unlanded-by-design $br task=${_gov%% *} — governing task is parked; NO merge is owed, landing it ships work its task has not settled"
+            else
+                echo "remote-unlanded $br ahead=$remote_ahead"
+            fi
         fi
     done < <(git -C "$repo" for-each-ref --format='%(refname:short)' refs/remotes/origin/)
 
@@ -251,25 +462,40 @@ fw_branch_hygiene_head() {
 }
 
 # ── T-100144 (C3 of T-100139): divergence summary for handover ──
-# Prints machine-parseable lines for the current checkout vs origin/master:
-#   divergence <branch> ahead=<n> behind=<n>     (any non-master branch)
+# Prints machine-parseable lines for the current checkout vs the DEV branch
+# (`origin/$FW_DEV_BRANCH`, default `bleeding-edge`; origin/master only when no
+# dev branch exists — T-3188):
+#   divergence <branch> ahead=<n> behind=<n>     (any branch that is neither
+#                                                master nor the dev branch)
 #   fork ahead=<a> behind=<b> threshold=<t>      (T-100195: behind > threshold AND ahead > threshold —
 #                                                bidirectional fork; a go-live `git merge` conflicts)
 #   nudge behind=<n> threshold=<t>               (behind > FW_BRANCH_BEHIND_WARN AND ahead <= threshold —
 #                                                pure/small lag; land with `fw integrate run`)
-# Silent (no output, exit 0) on master, detached HEAD, or no origin/master —
-# the handover stays neutral on a tidy checkout. Threshold shared with the
+# Silent (no output, exit 0) on master, on the dev branch itself, on detached
+# HEAD, or when the comparand does not resolve — the handover stays neutral on a
+# tidy checkout. Silence ON the dev branch is the point: bleeding-edge running
+# ahead of master IS the release train, not divergence. Threshold shared with the
 # fw_branch_hygiene doctor scan above. `fork` and `nudge` are mutually exclusive:
 # a fork needs reconcile-while-small, a lag needs a one-way land — never both.
 fw_branch_divergence() {
     local repo="${1:-.}"
     local br behind ahead warn
     br=$(git -C "$repo" branch --show-current 2>/dev/null)
-    if [ -z "$br" ] || [ "$br" = "master" ]; then
+    # T-3188: silent on the DEV branch, which is where the session is supposed
+    # to be. Measuring bleeding-edge against origin/master would report the
+    # release train's deliberate lag as divergence at every handover.
+    local _bh_dev="${FW_DEV_BRANCH:-bleeding-edge}"
+    local dtarget
+    if git -C "$repo" rev-parse --verify -q "origin/$_bh_dev" >/dev/null 2>&1; then
+        dtarget="origin/$_bh_dev"
+    else
+        dtarget=origin/master
+    fi
+    if [ -z "$br" ] || [ "$br" = "master" ] || [ "$br" = "$_bh_dev" ]; then
         return 0
     fi
-    git -C "$repo" rev-parse --verify -q origin/master >/dev/null 2>&1 || return 0
-    set -- $(git -C "$repo" rev-list --left-right --count origin/master...HEAD 2>/dev/null)
+    git -C "$repo" rev-parse --verify -q "$dtarget" >/dev/null 2>&1 || return 0
+    set -- $(git -C "$repo" rev-list --left-right --count "$dtarget"...HEAD 2>/dev/null)
     behind="${1:-0}"; ahead="${2:-0}"
     warn="${FW_BRANCH_BEHIND_WARN:-50}"
     echo "divergence $br ahead=$ahead behind=$behind"
@@ -299,15 +525,44 @@ fw_branch_divergence() {
 #                                            (`git merge --ff-only`, cannot conflict)
 #   nudge (0<ahead<=t, behind>t)          → advise landing the unique commits
 #                                            via `fw integrate run` (one-way)
-#                                            rather than merging origin/master in
+#                                            rather than merging the dev branch in
 #   minor (0<ahead<=t, 0<behind<=t)       → advise `fw sync` (rebase+push)
 #
 # Exit codes: 0 = no action needed / safely reconciled / advisory printed.
 #             1 = refused (fork) or an attempted fast-forward failed.
-#             2 = usage error (not a repo / no origin / no origin/master).
+#             2 = usage error (not a repo / no origin / no comparand ref).
+# ── T-3194: one name for the branch every remediation string must point at ──
+# fw_branch_hygiene and fw_branch_divergence each resolve their own comparand
+# (they prefer different refs, deliberately, and both are pinned by T-3188's
+# tests — so this helper does NOT try to unify them). What it unifies is the
+# far more error-prone half: the branch NAME that gets interpolated into advice
+# printed by four different files. Before T-3194 those said `master` literally,
+# which under the release train tells the operator to merge the older tree into
+# the newer one — the advice actively undoing what the measurement just found.
+#
+# Echoes the dev branch when one exists locally or on origin, else `master`,
+# which is the pre-T-3185 reading and keeps unsplit repos' output byte-identical.
+_fw_bh_dev_name() {
+    local repo="${1:-.}"
+    local dev="${FW_DEV_BRANCH:-bleeding-edge}"
+    if git -C "$repo" rev-parse --verify -q "origin/$dev" >/dev/null 2>&1 \
+       || git -C "$repo" rev-parse --verify -q "refs/heads/$dev" >/dev/null 2>&1; then
+        echo "$dev"
+    else
+        echo master
+    fi
+}
+
 fw_go_live() {
     local repo="${1:-.}"
     local warn="${FW_BRANCH_BEHIND_WARN:-50}"
+    # T-3194: go-live does not merely ADVISE against a target, it fast-forwards
+    # ONTO one. Retargeting the prose while the `git merge --ff-only` below
+    # still aimed at master would be worse than leaving both wrong: between
+    # releases master is behind, so that merge moves the checkout BACKWARD
+    # while the message says it reconciled.
+    local _gl_dev
+    _gl_dev=$(_fw_bh_dev_name "$repo")
 
     git -C "$repo" rev-parse --git-dir >/dev/null 2>&1 || {
         echo "not a git repository: $repo" >&2
@@ -317,28 +572,28 @@ fw_go_live() {
         echo "no 'origin' remote — nothing to reconcile" >&2
         return 2
     }
-    git -C "$repo" fetch origin master >/dev/null 2>&1
-    git -C "$repo" rev-parse --verify -q origin/master >/dev/null 2>&1 || {
-        echo "origin/master not found — nothing to reconcile against" >&2
+    git -C "$repo" fetch origin "$_gl_dev" >/dev/null 2>&1
+    git -C "$repo" rev-parse --verify -q "origin/$_gl_dev" >/dev/null 2>&1 || {
+        echo "origin/$_gl_dev not found — nothing to reconcile against" >&2
         return 2
     }
 
     local branch ahead behind
     branch=$(git -C "$repo" branch --show-current 2>/dev/null)
-    set -- $(git -C "$repo" rev-list --left-right --count origin/master...HEAD 2>/dev/null)
+    set -- $(git -C "$repo" rev-list --left-right --count "origin/$_gl_dev"...HEAD 2>/dev/null)
     behind="${1:-0}"; ahead="${2:-0}"
 
     if [ "$ahead" -eq 0 ] && [ "$behind" -eq 0 ]; then
-        echo "up to date with origin/master."
+        echo "up to date with origin/$_gl_dev."
         return 0
     fi
 
     if [ "$ahead" -gt "$warn" ] && [ "$behind" -gt "$warn" ]; then
         echo "REFUSED: diverged-fork (ahead=$ahead behind=$behind, threshold $warn)." >&2
-        echo "A bare 'git merge origin/master' will conflict (see T-100194) — not doing that." >&2
+        echo "A bare 'git merge origin/$_gl_dev' will conflict (see T-100194) — not doing that." >&2
         echo "Reconcile while small instead:" >&2
-        echo "  - merge origin/master INTO ${branch:-HEAD} and resolve by hand, or" >&2
-        echo "  - reset ${branch:-HEAD} if its unique commits already landed elsewhere, or" >&2
+        echo "  - merge origin/$_gl_dev INTO ${branch:-HEAD} and resolve by hand, or" >&2
+        echo "  - reset ${branch:-HEAD} to origin/$_gl_dev if its unique commits already landed elsewhere, or" >&2
         echo "  - route through the T-2473 union resolver once it lands." >&2
         echo "See T-100195 (detection) / T-100194 (RCA)." >&2
         return 1
@@ -346,8 +601,8 @@ fw_go_live() {
 
     if [ "$ahead" -eq 0 ]; then
         echo "ff-clean (ahead=0 behind=$behind) — fast-forwarding."
-        if git -C "$repo" merge --ff-only origin/master; then
-            echo "fast-forwarded to origin/master."
+        if git -C "$repo" merge --ff-only "origin/$_gl_dev"; then
+            echo "fast-forwarded to origin/$_gl_dev."
             return 0
         fi
         echo "fast-forward failed unexpectedly — investigate before retrying." >&2
@@ -355,13 +610,13 @@ fw_go_live() {
     fi
 
     if [ "$behind" -eq 0 ]; then
-        echo "ahead of origin/master (ahead=$ahead) — nothing to reconcile; push when ready (fw sync / fw push)."
+        echo "ahead of origin/$_gl_dev (ahead=$ahead) — nothing to reconcile; push when ready (fw sync / fw push)."
         return 0
     fi
 
     if [ "$behind" -gt "$warn" ]; then
         echo "behind-threshold (ahead=$ahead behind=$behind, threshold $warn) — a lag with unique commits, not a fork."
-        echo "Land your unique commits with 'fw integrate run master --push' (one-way) rather than merging origin/master in."
+        echo "Land your unique commits with 'fw integrate run $_gl_dev --push' (one-way) rather than merging origin/$_gl_dev in."
         return 0
     fi
 

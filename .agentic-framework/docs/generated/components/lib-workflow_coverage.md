@@ -1,28 +1,33 @@
 # workflow_coverage
 
-> TODO: describe what this component does
+> workflow_coverage — audit-time check for workflow → dispatcher coverage.
 
 **Type:** script | **Subsystem:** framework-core | **Location:** `lib/workflow_coverage.py`
 
 ## What It Does
 
-T-1803: a workflow declared but not dispatched in this many days is "stale" —
-a maintenance signal (consider deprecating), not a runtime failure. Surfaced
-as audit WARN, not FAIL. Threshold picked as ≈ one quarter; param-injectable
-for tests, no config plumbing until pressure (T-819 pattern).
+T-3273: worker_kinds that are valid (lib.resolver.VALID_WORKER_KINDS) but
+deliberately absent from lib.spawn._DISPATCHERS — they never spawn a worker
+at all, so "not in _DISPATCHERS" is not the runtime-trap this checker exists
+to catch. "ollama-direct" (T-1719 A3) answers synchronously in fw ask's own
+process; see .context/project/workflows/ask.yaml's header comment and
+lib/resolver.py:95. Sibling exemption to the `inline:` flag, which excludes
+non-resolver-driven workflows from the staleness check the same way.
 
-## Dependencies (2)
-
-| Component | Relationship | Description |
-|-----------|--------------|-------------|
-| [spawn](/docs/generated/lib-spawn) | uses | TODO: describe what this component does |
-| [resolver](/docs/generated/lib-resolver) | uses | TODO: describe what this component does |
-
-## Used By (2)
+## Dependencies (3)
 
 | Component | Relationship | Description |
 |-----------|--------------|-------------|
-| [test_workflow_coverage](/docs/generated/tests-unit-test_workflow_coverage) | called_by | TODO: describe what this component does |
+| [spawn](/docs/generated/lib-spawn) | uses | spawn — dispatch driver: read resolver envelope, spawn worker, finalise outcome. |
+| [resolver](/docs/generated/lib-resolver) | uses | Resolver — workflow lookup, prompt assembly, variant selection, telemetry. |
+| [resolver](/docs/generated/lib-resolver) | calls | Resolver — workflow lookup, prompt assembly, variant selection, telemetry. |
+
+## Used By (3)
+
+| Component | Relationship | Description |
+|-----------|--------------|-------------|
+| [test_workflow_coverage](/docs/generated/tests-unit-test_workflow_coverage) | called_by | T-1798: Unit tests for lib/workflow_coverage.py. |
+| [audit-yaml-validator](/docs/generated/audit-yaml-validator) | called_by | Validate all project YAML files parse correctly. Part of the audit structure section. Added as regression test after T-206 silent corruption. |
 | [audit-yaml-validator](/docs/generated/audit-yaml-validator) | called_by | Validate all project YAML files parse correctly. Part of the audit structure section. Added as regression test after T-206 silent corruption. |
 
 ---

@@ -149,6 +149,88 @@ print('JSON_END')
 #        be synced without copying files.
 # Return:
 #   0 — sync completed (or nothing to sync, or consumer-skip)
+# ---------------------------------------------------------------------------
+# T-3165 (arc-012): the concurrent-session withholding guard.
+#
+# THE PROBLEM. The T-2240 pre-push gate refuses a push when a vendored-class file
+# is stale in the COMMITTED tree, and prescribes `fw vendor self` as the fix. That
+# command syncs every vendored class from the WORKING tree — including files a
+# concurrent task has uncommitted. So the remedy for my drift silently stages
+# someone else's unfinished work into `.agentic-framework/`, which is exactly
+# where consumers pull from. Third occurrence in three consecutive sessions.
+#
+# It is a false-green of the usual family: the signal that would reveal the
+# problem — a stale-vendor warning — has just been cleared by the command that
+# caused it. Nothing objects, and the agent only avoids it by already knowing
+# which files belong to another task. Nothing surfaces that list.
+#
+# THE RULE. A source file that differs from HEAD is by construction not yet
+# committed, so vendoring it ships uncommitted work across a trust boundary.
+# Real runs therefore withhold dirty vendored-class files by default. The caller
+# names their own via FW_VENDOR_ONLY so the push gate can still be cleared
+# normally, and FW_VENDOR_ALL=1 restores the old sweep as a logged, explicit act.
+#
+# DRY-RUN AND --check ARE DELIBERATELY NOT GUARDED. They are drift DETECTORS, and
+# a detector that hides drift because the file is dirty is the very blindness this
+# guard exists to prevent (T-3165 AC4). They report what is truly out of sync;
+# only the mutating path withholds.
+# ---------------------------------------------------------------------------
+_SV_DIRTY_SET=""
+_SV_WITHHELD=""
+_SV_GUARD_READY=false
+
+# Build the dirty set once per process. Any failure leaves the set empty, which
+# means "withhold nothing" — the guard fails OPEN, because refusing to sync on a
+# git hiccup would break the push-gate remedy for everyone.
+_sv_guard_init() {
+    [ "$_SV_GUARD_READY" = true ] && return 0
+    _SV_GUARD_READY=true
+    _SV_DIRTY_SET=""
+    command -v git >/dev/null 2>&1 || return 0
+    git -C "$FRAMEWORK_ROOT" rev-parse --git-dir >/dev/null 2>&1 || return 0
+    # Porcelain v1: XY<space>path. Rename rows carry "old -> new"; keep the new
+    # path, which is the one on disk. Untracked ("??") counts as dirty — an
+    # untracked lib/*.py is uncommitted work exactly like a modified one.
+    _SV_DIRTY_SET=$(git -C "$FRAMEWORK_ROOT" status --porcelain 2>/dev/null \
+        | cut -c4- | sed 's/.* -> //')
+    return 0
+}
+
+# 0 = withhold this file, 1 = sync it.
+_sv_is_withheld() {
+    local src="$1" rel
+    [ "${FW_VENDOR_ALL:-0}" = "1" ] && return 1
+    _sv_guard_init
+    [ -n "$_SV_DIRTY_SET" ] || return 1
+    rel="${src#$FRAMEWORK_ROOT/}"
+    # The caller's own in-flight files. Space-separated repo-relative paths.
+    case " ${FW_VENDOR_ONLY:-} " in
+        *" $rel "*) return 1 ;;
+    esac
+    printf '%s\n' "$_SV_DIRTY_SET" | grep -qxF -- "$rel" || return 1
+
+    # Already reported? Withhold silently — helpers may re-examine a path.
+    if printf '%s\n' "$_SV_WITHHELD" | grep -qxF -- "$rel"; then
+        return 0
+    fi
+    _SV_WITHHELD="${_SV_WITHHELD}${rel}
+"
+    # AC2: name each withheld file AT the moment it is withheld. Reporting from a
+    # single end-of-run hook would need a call site in bin/fw — a file a concurrent
+    # task holds uncommitted, which is the exact hazard this guard exists to stop.
+    # The preamble prints once; the file lines accumulate under it.
+    if [ "${_SV_GUARD_BANNER:-0}" != "1" ]; then
+        _SV_GUARD_BANNER=1
+        echo -e "  ${YELLOW}Self-vendor: withholding uncommitted file(s) not named by this caller${NC}" >&2
+        echo "  Each differs from HEAD, so vendoring it would ship another task's" >&2
+        echo "  unfinished work to consumers under your commit." >&2
+        echo "    if one is YOURS:  FW_VENDOR_ONLY=\"<path> <path>\" bin/fw vendor self" >&2
+        echo "    sync anyway:      FW_VENDOR_ALL=1 bin/fw vendor self   (logged Tier-2)" >&2
+    fi
+    echo "      withheld: $rel" >&2
+    return 0
+}
+
 _self_vendor_libs() {
     local dry_run="${1:-false}"
     local _self_vendor="$FRAMEWORK_ROOT/.agentic-framework"
@@ -175,6 +257,9 @@ _self_vendor_libs() {
     # subdirs at real-run only.
     while IFS= read -r _sv_src; do
         [ -f "$_sv_src" ] || continue
+        # T-3165: real runs withhold a concurrent task's uncommitted files.
+        # Detectors (dry-run / --check) are deliberately exempt.
+        [ "$dry_run" = true ] || ! _sv_is_withheld "$_sv_src" || continue
         _sv_rel="${_sv_src#$FRAMEWORK_ROOT/lib/}"
         _sv_dst="$_self_vendor/lib/$_sv_rel"
         if [ ! -f "$_sv_dst" ] || ! diff -q "$_sv_src" "$_sv_dst" > /dev/null 2>&1; then
@@ -234,6 +319,9 @@ _self_vendor_templates() {
     local _svt_src _svt_name _svt_dst
     for _svt_src in "$FRAMEWORK_ROOT/.tasks/templates/"*.md; do
         [ -f "$_svt_src" ] || continue
+        # T-3165: real runs withhold a concurrent task's uncommitted files.
+        # Detectors (dry-run / --check) are deliberately exempt.
+        [ "$dry_run" = true ] || ! _sv_is_withheld "$_svt_src" || continue
         _svt_name=$(basename "$_svt_src")
         _svt_dst="$_self_vendor/.tasks/templates/$_svt_name"
         if [ ! -f "$_svt_dst" ] || ! diff -q "$_svt_src" "$_svt_dst" > /dev/null 2>&1; then
@@ -303,10 +391,21 @@ _self_vendor_policy() {
     # designer refuses to install" with no visible cause. Load-bearing from A2
     # onward, because A2 is what makes the vendored pin the thing consumers verify
     # against. Parity pinned by tests/unit/t3064_self_vendor_designer.bats.
-    for _svp_name in value-drivers.yaml bvp-scoring-rubric.md capability-overlay/tool-set.yaml anti-patterns.yaml escalation-patterns.yaml designer-pin.yaml; do
+    # T-3428: driver-scoring-example.yaml is the worked declarative `scoring:`
+    # spec that the vendored value-drivers.yaml header AND the vendored
+    # lib/bvp.sh refusal messages both name by path. Omitting it would point
+    # every consumer at a file that is not there — the same docs↔reality gap
+    # T-3064 found for designer-pin.yaml, one list entry earlier.
+    # T-3580 round 5: review-backends.yaml is the ONE worker-kind→vendor mapping the vendored
+    # lib/verdict_ledger.py derives every review dispatch's vendor from (it falls back to
+    # FRAMEWORK_ROOT/policy/, which in a consumer is .agentic-framework/policy/).
+    for _svp_name in value-drivers.yaml bvp-scoring-rubric.md capability-overlay/tool-set.yaml anti-patterns.yaml escalation-patterns.yaml designer-pin.yaml driver-scoring-example.yaml review-backends.yaml; do
         _svp_src="$FRAMEWORK_ROOT/policy/$_svp_name"
         _svp_dst="$_self_vendor/policy/$_svp_name"
         [ -f "$_svp_src" ] || continue
+        # T-3165: real runs withhold a concurrent task's uncommitted files.
+        # Detectors (dry-run / --check) are deliberately exempt.
+        [ "$dry_run" = true ] || ! _sv_is_withheld "$_svp_src" || continue
         if [ ! -f "$_svp_dst" ] || ! diff -q "$_svp_src" "$_svp_dst" > /dev/null 2>&1; then
             if [ "$dry_run" != true ]; then
                 _svp_dst_dir="$(dirname "$_svp_dst")"
@@ -376,6 +475,9 @@ _self_vendor_shim() {
     local _svs_src _svs_rel _svs_dst
     while IFS= read -r _svs_src; do
         [ -f "$_svs_src" ] || continue
+        # T-3165: real runs withhold a concurrent task's uncommitted files.
+        # Detectors (dry-run / --check) are deliberately exempt.
+        [ "$dry_run" = true ] || ! _sv_is_withheld "$_svs_src" || continue
         _svs_rel="${_svs_src#$FRAMEWORK_ROOT/bin/}"
         _svs_dst="$_self_vendor/bin/$_svs_rel"
         if [ ! -f "$_svs_dst" ] || ! diff -q "$_svs_src" "$_svs_dst" > /dev/null 2>&1; then
@@ -458,6 +560,9 @@ _self_vendor_agents() {
     local _sva_src _sva_rel _sva_dst _sva_dst_dir
     while IFS= read -r _sva_src; do
         [ -f "$_sva_src" ] || continue
+        # T-3165: real runs withhold a concurrent task's uncommitted files.
+        # Detectors (dry-run / --check) are deliberately exempt.
+        [ "$dry_run" = true ] || ! _sv_is_withheld "$_sva_src" || continue
         _sva_rel="${_sva_src#$FRAMEWORK_ROOT/agents/}"
         _sva_dst="$_self_vendor/agents/$_sva_rel"
         if [ ! -f "$_sva_dst" ] || ! diff -q "$_sva_src" "$_sva_dst" > /dev/null 2>&1; then
@@ -520,6 +625,9 @@ _self_vendor_web() {
     local _svw_src _svw_rel _svw_dst _svw_dst_dir
     while IFS= read -r _svw_src; do
         [ -f "$_svw_src" ] || continue
+        # T-3165: real runs withhold a concurrent task's uncommitted files.
+        # Detectors (dry-run / --check) are deliberately exempt.
+        [ "$dry_run" = true ] || ! _sv_is_withheld "$_svw_src" || continue
         _svw_rel="${_svw_src#$FRAMEWORK_ROOT/web/}"
         _svw_dst="$_self_vendor/web/$_svw_rel"
         if [ ! -f "$_svw_dst" ] || ! diff -q "$_svw_src" "$_svw_dst" > /dev/null 2>&1; then
@@ -800,6 +908,131 @@ _fw_classify_upstream_source() {
     return 2
 }
 
+# ─────────────────────────────────────────────────────────────────────────────
+# T-3150 — project-owned regions in a consumer's CLAUDE.md
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Step [1/10] rebuilds a consumer's CLAUDE.md as (consumer header) + (framework
+# governance). The previous form was `sed -n '1,/^## Core Principle$/{ /^## Core Principle$/d; p; }'`
+# applied to the consumer file: what survived an upgrade was whatever happened
+# to sit ABOVE the line `## Core Principle`. That is a content-shaped contract —
+# a consumer that organised its governance coherently, putting its own
+# completion rules next to the framework's completion rules and therefore BELOW
+# that heading, lost them silently on every upgrade. Observed three times in one
+# upgrade of a live consumer.
+#
+# The markers below make survival DECLARED rather than inferred from position:
+#
+#     <!-- project-owned: begin -->
+#     ...anything...
+#     <!-- project-owned: end -->
+#
+# Semantics (see T-3150):
+#   1. At least one well-formed region  => rebuilt file is
+#      header + framework governance + every region in file order, verbatim,
+#      INCLUDING the marker lines (that is what makes the next upgrade find
+#      them again).
+#   2. ALL regions survive — not just the first.
+#   3. A region that already sits above `## Core Principle` is in the header
+#      already; it is de-duplicated by content so a second upgrade is a no-op.
+#   4. No markers => byte-identical behaviour to the positional path.
+#   5. An unmatched marker REFUSES the rewrite. Guessing at to-EOF, or falling
+#      through to the positional path, would destroy the content the operator
+#      was marking in order to protect.
+
+# Report unmatched project-owned markers in $1. Prints one human-readable line
+# per problem (empty output = well-formed) and always exits 0; the caller
+# decides what an unmatched marker means.
+_fw_project_owned_check() {
+    awk '
+        /^[[:space:]]*<!-- project-owned: begin -->[[:space:]]*$/ {
+            if (open) {
+                print "line " openline ": <!-- project-owned: begin --> has no matching <!-- project-owned: end --> (a second begin opens at line " NR ")"
+                bad = 1
+                exit
+            }
+            open = 1; openline = NR; next
+        }
+        /^[[:space:]]*<!-- project-owned: end -->[[:space:]]*$/ {
+            if (!open) {
+                print "line " NR ": <!-- project-owned: end --> has no matching <!-- project-owned: begin -->"
+                bad = 1
+                exit
+            }
+            open = 0; next
+        }
+        END {
+            if (!bad && open) {
+                print "line " openline ": <!-- project-owned: begin --> has no matching <!-- project-owned: end -->"
+            }
+        }
+    ' "$1"
+}
+
+# Number of project-owned regions opened in $1.
+_fw_project_owned_count() {
+    grep -c '^[[:space:]]*<!-- project-owned: begin -->[[:space:]]*$' "$1" 2>/dev/null || true
+}
+
+# Print the $2'th (1-based) project-owned region of $1, marker lines included.
+# One region per call rather than an array — `mapfile -d ''` needs bash 4.4 and
+# this file still has to run under macOS's bash 3.2 (same reason _sed_i exists).
+_fw_project_owned_region() {
+    awk -v want="$2" '
+        /^[[:space:]]*<!-- project-owned: begin -->[[:space:]]*$/ {
+            idx++
+            if (idx == want) { inr = 1; print; next }
+        }
+        inr {
+            print
+            if ($0 ~ /^[[:space:]]*<!-- project-owned: end -->[[:space:]]*$/) inr = 0
+        }
+    ' "$1"
+}
+
+# T-3884: the enforcement baseline is sha256(json.dumps(settings.hooks,
+# sort_keys=True)) — the same hash `fw enforcement baseline` writes.
+_ef_hooks_hash() {   # _ef_hooks_hash <settings.json>
+    python3 -c '
+import json, hashlib, sys
+with open(sys.argv[1]) as f:
+    data = json.load(f)
+print(hashlib.sha256(json.dumps(data.get("hooks", {}), sort_keys=True).encode()).hexdigest())
+' "$1" 2>/dev/null
+}
+
+# T-3882: step 3b's "run 'fw cron install' to deploy" is one mid-run line; 832
+# counted a dry run as the install. The closing next steps say it again, with
+# the job ids. Prints nothing when no job was added.
+_t3882_cron_next_step() {   # _t3882_cron_next_step <target> "<id id ...>"
+    local ids="$2" n
+    [ -n "$ids" ] || return 0
+    n=$(wc -w <<< "$ids" | tr -d ' ')
+    echo "  4. ${n} new cron job(s) (${ids}) are NOT running yet — deploy: cd $1 && fw cron install"
+}
+
+# _ef_baseline_state <project> → missing | nosettings | match | changed
+_ef_baseline_state() {
+    local b="$1/.context/project/enforcement-baseline.sha256" s="$1/.claude/settings.json" h
+    [ -f "$s" ] || { echo nosettings; return 0; }
+    [ -f "$b" ] || { echo missing; return 0; }
+    h=$(_ef_hooks_hash "$s")
+    if [ -n "$h" ] && [ "$h" = "$(tr -d '[:space:]' < "$b")" ]; then echo match; else echo changed; fi
+}
+
+# _ef_step10_action <pre-state> <post-state> → ok | refresh | create | warn-drift | skip
+# A baseline that matched before and differs now was changed by THIS upgrade
+# (step 5) and is refreshed; one that already differed before is a drift the
+# upgrade must not launder.
+_ef_step10_action() {
+    case "$2" in
+        nosettings) echo skip ;;
+        missing)    echo create ;;
+        match)      echo ok ;;
+        changed)    if [ "$1" = match ]; then echo refresh; else echo warn-drift; fi ;;
+    esac
+}
+
 do_upgrade() {
     local target_dir=""
     local dry_run=false
@@ -826,10 +1059,14 @@ do_upgrade() {
     # hasn't yet wired `fw vendor self` into pre-push. Operators who have wired
     # pre-push (no inline redundancy needed) opt out via --no-self-vendor.
     local no_self_vendor=false
+    # T-3850: passed through to do_vendor, which otherwise refuses when local
+    # files under .agentic-framework/ would be deleted or overwritten.
+    local -a _vendor_extra=()
 
     while [[ $# -gt 0 ]]; do
         case $1 in
             --dry-run) dry_run=true; shift ;;
+            --allow-delete-locals) _vendor_extra+=(--allow-delete-locals); shift ;;
             --force) force=true; shift ;;
             --force-downgrade) force_downgrade=true; shift ;;
             --strict) strict=true; shift ;;
@@ -854,6 +1091,9 @@ do_upgrade() {
                 echo "                          diagnostic (T-2093 V1-B, F4). Without this flag the"
                 echo "                          upgrade continues on step failure (current behaviour)"
                 echo "                          but a PARTIAL footer surfaces the count."
+                echo "  --allow-delete-locals   Let the vendor step delete/overwrite local files under"
+                echo "                          .agentic-framework/ not listed in .fwvendor-preserve.yaml"
+                echo "                          (T-3850; logged Tier-2, copies kept). Default: refuse."
                 echo "  --no-self-vendor        Skip the inline framework self-vendor refresh"
                 echo "                          (T-2095 V1-D, F2). Default: keep inline (T-1217"
                 echo "                          invariant). Opt-out for operators who fire"
@@ -1210,12 +1450,17 @@ do_upgrade() {
                 # put in front of the reader. Naming the targeted bypass is L-399
                 # discipline — a block message that offers only a mechanism aimed at
                 # another failure is how agents end up routing around the gate.
-                echo -e "          Upgrading from it would overwrite the consumer's files with a" >&2
-                echo -e "          history that never held them." >&2
-                echo -e "          Likely cause: a stale global shim. Check which fw is running:" >&2
-                echo -e "            readlink -f \"\$(command -v fw)\"" >&2
-                echo -e "          Then re-run from the consumer's own vendored framework, or from an" >&2
-                echo -e "          upstream checkout that contains the consumer's commit." >&2
+                if fw_source_is_shallow "$FRAMEWORK_ROOT"; then
+                    # T-3714: truncated history, not a foreign one — one command fixes it.
+                    echo -e "          Remedy: ${BOLD}git -C $FRAMEWORK_ROOT fetch --unshallow${NC}, then re-run fw upgrade." >&2
+                else
+                    echo -e "          Upgrading from it would overwrite the consumer's files with a" >&2
+                    echo -e "          history that never held them." >&2
+                    echo -e "          Likely cause: a stale global shim. Check which fw is running:" >&2
+                    echo -e "            readlink -f \"\$(command -v fw)\"" >&2
+                    echo -e "          Then re-run from the consumer's own vendored framework, or from an" >&2
+                    echo -e "          upstream checkout that contains the consumer's commit." >&2
+                fi
                 echo -e "          To proceed anyway: ${BOLD}FW_ALLOW_FOREIGN_SOURCE=1${NC} (logged Tier-2)." >&2
             else
                 echo -e "          Running fw upgrade here would downgrade the runtime (.agentic-framework/)" >&2
@@ -1257,12 +1502,33 @@ do_upgrade() {
     fi
 
     # ── 1. CLAUDE.md — preserve project sections, update governance ──
+    # T-3884: did the enforcement baseline match BEFORE this upgrade touched
+    # settings.json? Step 10 refreshes it only then — never launders a drift.
+    local _ef_pre_state
+    _ef_pre_state=$(_ef_baseline_state "$target_dir")
+    # T-3882: cron jobs step 3b ADDED in this (real) run, for the closing next steps.
+    local _cron_added_ids=""
+
     echo -e "${YELLOW}[1/10] CLAUDE.md governance sections${NC}"
 
     local project_claude="$target_dir/CLAUDE.md"
     local template_file="$FRAMEWORK_ROOT/lib/templates/claude-project.md"
 
     if [ -f "$project_claude" ] && [ -f "$template_file" ]; then
+        # T-3150: refuse before touching anything when a project-owned marker is
+        # unmatched. Both the positional path and a to-EOF guess would drop or
+        # mangle exactly the content the markers were added to protect.
+        local marker_problems
+        marker_problems=$(_fw_project_owned_check "$project_claude")
+        if [ -n "$marker_problems" ]; then
+            echo -e "  ${RED}REFUSED${NC}  Unmatched project-owned marker in $project_claude" >&2
+            printf '        %s\n' "$marker_problems" >&2
+            echo -e "        A project-owned region is \`<!-- project-owned: begin -->\` ... \`<!-- project-owned: end -->\`." >&2
+            echo -e "        Close the region (or remove the stray marker) and re-run \`fw upgrade\`." >&2
+            echo -e "        CLAUDE.md was NOT rewritten — no other upgrade step ran." >&2
+            return 1
+        fi
+
         # Extract project-specific sections (everything before "## Core Principle")
         local project_header
         project_header=$(sed -n '1,/^## Core Principle$/{ /^## Core Principle$/d; p; }' "$project_claude")
@@ -1310,26 +1576,61 @@ plus Claude Code-specific integration notes.
             fi
         fi
 
+        # T-3150: collect the declared project-owned regions that must survive.
+        # Regions already contained in the header sit above `## Core Principle`
+        # and would otherwise be emitted twice — de-duplicating by content is
+        # what makes a second `fw upgrade` a no-op.
+        local project_owned="" _po_count _po_i _po_region
+        _po_count=$(_fw_project_owned_count "$project_claude")
+        _po_i=1
+        while [ "$_po_i" -le "${_po_count:-0}" ]; do
+            _po_region=$(_fw_project_owned_region "$project_claude" "$_po_i")
+            _po_i=$((_po_i + 1))
+            [ -n "$_po_region" ] || continue
+            case "$project_header" in *"$_po_region"*) continue ;; esac
+            if [ -n "$project_owned" ]; then
+                project_owned="$project_owned
+$_po_region"
+            else
+                project_owned="$_po_region"
+            fi
+        done
+
+        # The tail the rebuilt file should carry: framework governance, then the
+        # surviving project-owned regions. With no markers this is byte-for-byte
+        # the pre-T-3150 tail.
+        local governance_tail="$governance"
+        if [ -n "$project_owned" ]; then
+            governance_tail="$governance
+$project_owned"
+        fi
+
         # Compare current governance with template
         local current_governance
         current_governance=$(sed -n '/^## Core Principle$/,$ p' "$project_claude")
 
-        if [ "$current_governance" = "$governance" ]; then
+        if [ "$current_governance" = "$governance_tail" ]; then
             echo -e "  ${GREEN}OK${NC}  Already up to date"
         else
             changes=$((changes + 1))
             if [ "$dry_run" = true ]; then
                 local current_lines new_lines
                 current_lines=$(echo "$current_governance" | wc -l)
-                new_lines=$(echo "$governance" | wc -l)
+                new_lines=$(echo "$governance_tail" | wc -l)
                 echo -e "  ${CYAN}WOULD UPDATE${NC}  Governance sections ($current_lines → $new_lines lines)"
             else
                 # Backup before overwriting
                 cp "$project_claude" "${project_claude}.bak"
                 # Write combined file, fix any leftover placeholders
                 project_header="${project_header//__PROJECT_NAME__/$project_name}"
-                printf '%s\n%s\n' "$project_header" "$governance" > "$project_claude"
+                printf '%s\n%s\n' "$project_header" "$governance_tail" > "$project_claude"
                 echo -e "  ${GREEN}UPDATED${NC}  Governance sections refreshed from framework template. Backup: CLAUDE.md.bak"
+                if [ -n "$project_owned" ]; then
+                    local _po_kept
+                    _po_kept=$(printf '%s\n' "$project_owned" \
+                        | grep -c '^[[:space:]]*<!-- project-owned: begin -->[[:space:]]*$' || true)
+                    echo -e "  ${GREEN}KEPT${NC}     $_po_kept project-owned region(s) preserved verbatim below governance"
+                fi
 
                 # T-1629/G-055: Detect inline-customization regressions in
                 # governance sections. The wholesale-replace above cannot
@@ -1460,6 +1761,18 @@ plus Claude Code-specific integration notes.
             cat > "$target_dir/.context/cron-registry.yaml" << 'CRONREGEOF'
 # Cron Registry — Structured source of truth for scheduled jobs (T-448)
 # Read by web/blueprints/cron.py and fw cron generate.
+#
+# Every job REQUIRES a unique, non-empty string `id:` (T-3171). `fw cron
+# generate` refuses to write a crontab if any job is missing one or if two
+# jobs share one — `fw cron list`, `fw cron run <id>`, and Watchtower
+# pause/resume all key off `id:` directly and error/404 without it. If you
+# are building this file from an existing crontab (no ids in `crontab -l`),
+# invent a short kebab-case id per job before generating.
+#
+# Reserved ids — web/blueprints/cron.py special-cases these to infer
+# "last run" from filesystem artifacts instead of cron audit output. Naming
+# an unrelated job with one of these ids silently hijacks that display
+# logic: docs-daily, retention-daily, pickup-process, liveness-1m.
 jobs: []
 CRONREGEOF
         fi
@@ -1470,6 +1783,43 @@ CRONREGEOF
             echo -e "  ${CYAN}WOULD SEED${NC}  Cron registry + directory"
         else
             echo -e "  ${GREEN}SEEDED${NC}  Cron registry + directory"
+        fi
+    fi
+
+    # T-3673: framework-owned cron jobs missing from an existing registry.
+    # Add-only by id — an operator-edited job with the same id is never touched.
+    if [ -f "$target_dir/.context/cron-registry.yaml" ] && [ -f "$FRAMEWORK_ROOT/lib/cron-seed.sh" ]; then
+        source "$FRAMEWORK_ROOT/lib/cron-seed.sh"
+        local _cs_out _cs_line _cs_added=0
+        _cs_out=$(CRON_SEED_DRY_RUN=$([ "$dry_run" = true ] && echo 1) \
+            cron_seed_ensure_jobs "$target_dir/.context/cron-registry.yaml" "$target_dir" 2>&1) || {
+            echo -e "  ${YELLOW}WARN${NC}  Cron registry job merge failed: $_cs_out"
+            _cs_out=""
+        }
+        while IFS= read -r _cs_line; do
+            case "$_cs_line" in
+                ADDED\ *)
+                    _cs_added=$((_cs_added + 1)); changes=$((changes + 1))
+                    if [ "$dry_run" = true ]; then
+                        echo -e "  ${CYAN}WOULD ADD${NC}  cron job ${_cs_line#ADDED }"
+                    else
+                        echo -e "  ${GREEN}ADDED${NC}  cron job ${_cs_line#ADDED }"
+                        _cron_added_ids="${_cron_added_ids:+$_cron_added_ids }${_cs_line#ADDED }"   # T-3882
+                    fi ;;
+                PRESENT\ *) echo -e "  ${GREEN}OK${NC}  cron job ${_cs_line#PRESENT } already present" ;;
+            esac
+        done <<< "$_cs_out"
+        if [ "$_cs_added" -gt 0 ] && [ "$dry_run" != true ]; then
+            # T-3835: $FRAMEWORK_ROOT may be the temp upstream clone; generate
+            # resolves the consumer's durable fw itself and refuses a temp one.
+            # Its refusal is shown, not swallowed.
+            local _cg_out
+            if _cg_out=$(cd "$target_dir" && PROJECT_ROOT="$target_dir" "$FRAMEWORK_ROOT/bin/fw" cron generate 2>&1); then
+                echo -e "  ${GREEN}OK${NC}  Cron source regenerated — run 'fw cron install' to deploy"
+            else
+                echo -e "  ${YELLOW}WARN${NC}  'fw cron generate' failed — run it manually, then 'fw cron install'"
+                printf '%s\n' "$_cg_out" | sed 's/^/        /'
+            fi
         fi
     fi
 
@@ -1497,6 +1847,30 @@ CRONREGEOF
             echo -e "  ${CYAN}WOULD SEED${NC}  BVP policy files ($bvp_seeded file(s))"
         else
             echo -e "  ${GREEN}SEEDED${NC}  BVP policy files ($bvp_seeded file(s))"
+        fi
+    fi
+
+    # ── 3d. Project objectives authoring task (T-3636, T-3535 IW-3) ──
+    # One authoring moment per project. A consumer with no objectives file and no
+    # objectives-authoring task gets ONE task to write its own. Never a copy of the
+    # framework's objectives.yaml (Directive 4) — that file is this repo's state.
+    local _obj_lib="$FRAMEWORK_ROOT/lib/objectives-seed.sh"
+    [ -f "$_obj_lib" ] || _obj_lib="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/objectives-seed.sh"
+    if [ -f "$_obj_lib" ] && [ -d "$target_dir/.tasks" ]; then
+        # shellcheck source=lib/objectives-seed.sh
+        source "$_obj_lib"
+        if [ "$(fw_objectives_seed_status "$target_dir")" = "needed" ]; then
+            changes=$((changes + 1))
+            if [ "$dry_run" = true ]; then
+                echo -e "  ${CYAN}WOULD SEED${NC}  task: write down this project's objectives (.context/project/objectives.yaml)"
+            else
+                local _obj_task
+                if _obj_task=$(fw_objectives_seed_task "$target_dir" "$FRAMEWORK_ROOT" "$project_name"); then
+                    echo -e "  ${GREEN}SEEDED${NC}  task $(basename "$_obj_task" .md): write down this project's objectives (one time)"
+                else
+                    echo -e "  ${YELLOW}WARN${NC}  could not seed the objectives task — see message above"
+                fi
+            fi
         fi
     fi
 
@@ -1540,7 +1914,7 @@ CRONREGEOF
             do_vendor --target "$target_dir" --source "$FRAMEWORK_ROOT" --dry-run 2>&1 | sed 's/^/  /'
             _vendor_rc=${PIPESTATUS[0]}
         else
-            do_vendor --target "$target_dir" --source "$FRAMEWORK_ROOT" 2>&1 | sed 's/^/  /'
+            do_vendor --target "$target_dir" --source "$FRAMEWORK_ROOT" ${_vendor_extra[@]+"${_vendor_extra[@]}"} 2>&1 | sed 's/^/  /'
             _vendor_rc=${PIPESTATUS[0]}
         fi
         if [ "$_vendor_rc" -ne 0 ]; then
@@ -1589,12 +1963,21 @@ CRONREGEOF
                     # printed "=== Upgrade Complete ===" and exited 0.
                     local _shim_link_dir
                     _shim_link_dir=$(dirname "$link_target" 2>/dev/null || echo "")
-                    if [ -n "$_shim_link_dir" ] && [ -f "$_shim_link_dir/../FRAMEWORK.md" ]; then
+                    # T-3831: FRAMEWORK.md alone does not mean "framework repo" —
+                    # every vendored copy ships it since T-2805. The vendor's
+                    # .upstream sentinel (T-2232) does: a vendored copy has it,
+                    # the framework repo never does. A link into a vendored copy
+                    # is a working (if old-style) entry point: leave it, go on.
+                    if [ -n "$_shim_link_dir" ] && [ -f "$_shim_link_dir/../FRAMEWORK.md" ] \
+                        && [ -f "$_shim_link_dir/../.upstream" ]; then
+                        echo -e "  ${CYAN}SKIP${NC}  $current_fw links into a vendored copy ($_shim_link_dir/..) — left as is"
+                        echo -e "         Not replacing it: writing the shim through it would overwrite that copy's bin/fw."
+                    elif [ -n "$_shim_link_dir" ] && [ -f "$_shim_link_dir/../FRAMEWORK.md" ]; then
                         echo -e "  ${RED}REFUSED${NC}  $current_fw resolves into a framework repo ($_shim_link_dir/..)"
                         echo -e "         Refusing to overwrite a framework repo's bin/fw with the shim."
                         echo -e "         Inspect: ls -la $current_fw && readlink -f $current_fw"
                         return 1
-                    fi
+                    else
                     # T-1278: remove symlink before copy. Plain `cp` follows the
                     # destination symlink and writes the shim *through* it into
                     # the framework repo's bin/fw, corrupting the real CLI into
@@ -1606,6 +1989,7 @@ CRONREGEOF
                     echo -e "  ${GREEN}MIGRATED${NC}  Replaced global symlink with project-detecting shim"
                     echo -e "  ${CYAN}INFO${NC}  Shim migration: fw now routes to the project you're standing in"
                     echo -e "  ${CYAN}INFO${NC}  Each project uses its own framework version (no global install dependency)"
+                    fi
                 fi
             fi
         elif [ -f "$current_fw" ] && ! grep -q 'find_fw' "$current_fw" 2>/dev/null; then
@@ -1628,6 +2012,11 @@ CRONREGEOF
     # residue is indistinguishable from a supported install, and bin/fw-router
     # no longer consults it at all. Detection stays in `fw doctor`, which
     # reports the directory and the rm -rf to run.
+
+    # T-3836: snapshot .mcp.json before step 5 — settings regeneration runs
+    # lib/init.sh code that has rewritten it before. Step 6 compares against this.
+    local _mcp_snapshot=""
+    [ -f "$target_dir/.mcp.json" ] && _mcp_snapshot=$(cat "$target_dir/.mcp.json" 2>/dev/null || true)
 
     # ── 5. .claude/settings.json (hooks config) ──
     echo -e "${YELLOW}[5/10] Claude Code hooks (.claude/settings.json)${NC}"
@@ -1763,7 +2152,12 @@ print(f'{len(fw_hooks)}|{len(consumer_hooks)}|{len(missing)}|{stale}|{missing_na
                 # set -e mid-function — a stuck-on force=true crosses governance
                 # (the flag is a sovereignty bypass). Subshell makes the override
                 # impossible to leak; the parent's `force` stays untouched.
-                ( force=true; generate_claude_code_config "$target_dir" ) >/dev/null
+                # T-3833: output is captured, not discarded — the merge's
+                # KEPT/CARRIED/REMOVED lines are how an operator learns what
+                # happened to hooks the template does not own.
+                local _regen_out
+                _regen_out=$( ( force=true; generate_claude_code_config "$target_dir" ) )
+                printf '%s\n' "$_regen_out" | grep -E '^ +(CARRIED|KEPT|REMOVED) ' || true
 
                 local hook_analysis_after missing_count_after missing_names_after stale_after nonportable_after
                 hook_analysis_after=$(_t2912_hook_gap "$settings_file")
@@ -1895,6 +2289,61 @@ print(sum(len(v) for v in data.get('hooks', {}).values()))
     # Framework-recommended MCP servers
     local recommended_servers='{"context7":1,"playwright":1,"termlink":1,"fw":1}'
 
+    if [ -f "$mcp_file" ] && [ -n "$_mcp_snapshot" ]; then
+        # T-3836: compare against the pre-step-5 snapshot. Any server, or any env
+        # key of a server, that existed before this upgrade and is gone now was
+        # dropped by the upgrade itself — restore it and name it. "OK" below is
+        # only printed when nothing had to be restored.
+        local _mcp_restored
+        _mcp_restored=$(MCP_FILE="$mcp_file" MCP_SNAPSHOT="$_mcp_snapshot" \
+            MCP_DRY="$([ "$dry_run" = true ] && echo 1)" python3 -c "
+import json, os
+def servers_of(raw):
+    if not isinstance(raw, dict):
+        return {}
+    s = raw.get('mcpServers') if isinstance(raw.get('mcpServers'), dict) else raw
+    return s if isinstance(s, dict) else {}
+try:
+    before = servers_of(json.loads(os.environ['MCP_SNAPSHOT']))
+except ValueError:
+    before = {}
+p = os.environ['MCP_FILE']
+with open(p) as f:
+    raw = json.load(f)
+now = servers_of(raw)
+restored = []
+for name, entry in before.items():
+    if name not in now:
+        now[name] = entry
+        restored.append(f'server {name}')
+        continue
+    if not isinstance(entry, dict) or not isinstance(now[name], dict):
+        continue
+    for field, val in entry.items():
+        if field == 'env' and isinstance(val, dict):
+            env_now = now[name].get('env') if isinstance(now[name].get('env'), dict) else {}
+            for k, v in val.items():
+                if k not in env_now:
+                    env_now[k] = v
+                    restored.append(f'{name}.env.{k}')
+            now[name]['env'] = env_now
+        elif field not in now[name]:
+            now[name][field] = val
+            restored.append(f'{name}.{field}')
+if restored and not os.environ.get('MCP_DRY'):
+    with open(p, 'w') as f:
+        json.dump({'mcpServers': now}, f, indent=2)
+        f.write('\n')
+print(', '.join(restored))
+" 2>/dev/null || echo "parse-error")
+        if [ "$_mcp_restored" = "parse-error" ]; then
+            echo -e "  ${YELLOW}WARN${NC}  .mcp.json could not be compared with its pre-upgrade copy (parse error)"
+        elif [ -n "$_mcp_restored" ]; then
+            changes=$((changes + 1))
+            echo -e "  ${YELLOW}RESTORED${NC}  dropped during this upgrade: $_mcp_restored"
+        fi
+    fi
+
     if [ -f "$mcp_file" ]; then
         # Check for missing recommended servers. T-1354: servers live under
         # top-level `mcpServers` key (Claude Code schema). If an older file
@@ -1949,8 +2398,10 @@ with open(mcp_file, 'w') as f:
 " 2>/dev/null
                 echo -e "  ${GREEN}UPDATED${NC}  Added missing MCP servers: $missing_mcp_names (preserved $existing_count existing)"
             fi
-        else
+        elif [ -z "${_mcp_restored:-}" ] || [ "${_mcp_restored:-}" = "parse-error" ]; then
             echo -e "  ${GREEN}OK${NC}  $existing_count MCP server(s) configured (all recommended present)"
+        else
+            echo -e "  ${GREEN}OK${NC}  $existing_count MCP server(s) configured after restore (all recommended present)"
         fi
     else
         changes=$((changes + 1))
@@ -2202,6 +2653,27 @@ MCPJSON
         skipped=$((skipped + 1))
     fi
 
+    # ── 8a. Project identity back-fill (T-3750) ──
+    # fw init mints project_id (T-3534, lib/setup.sh) but a consumer initialised
+    # before T-3534 has none until someone runs `fw whoami --register`. Upgrade
+    # is the one verb every consumer runs, so it back-fills here. ensure()
+    # preserves an existing id unconditionally — never re-identify a project.
+    if [ -f "$yaml_file" ] && [ -f "$FRAMEWORK_ROOT/lib/project_identity.sh" ]; then
+        # shellcheck disable=SC1091
+        . "$FRAMEWORK_ROOT/lib/project_identity.sh"
+        local _pid_existing
+        _pid_existing=$(fw_project_id "$target_dir")
+        if [ -n "$_pid_existing" ]; then
+            echo -e "  ${GREEN}OK${NC}  Project identity $_pid_existing"
+        elif [ "$dry_run" = true ]; then
+            echo -e "  ${CYAN}WOULD MINT${NC}  project_id (none recorded; T-3534)"
+            changes=$((changes + 1))
+        else
+            echo -e "  ${GREEN}MINTED${NC}  project_id: $(fw_project_identity_ensure "$target_dir") (once; never changes)"
+            changes=$((changes + 1))
+        fi
+    fi
+
     # ── 8b. Upgrade audit trail (.context/audits/upgrades.yaml) ──
     if [ "$dry_run" != true ] && [ -n "${current_pinned:-}" ] && [ "${current_pinned:-}" != "$fw_version" ]; then
         local audit_file="$target_dir/.context/audits/upgrades.yaml"
@@ -2223,27 +2695,33 @@ EOF
 
     # ── 10. Enforcement baseline (T-884: auto-create if missing) ──
     echo -e "${YELLOW}[10/10] Enforcement baseline${NC}"
-    local ef_baseline="$target_dir/.context/project/enforcement-baseline.sha256"
-    local ef_settings="$target_dir/.claude/settings.json"
-    if [ -f "$ef_baseline" ]; then
-        echo -e "  ${GREEN}OK${NC}  Enforcement baseline exists"
-    elif [ -f "$ef_settings" ]; then
-        if [ "$dry_run" = true ]; then
-            echo -e "  ${CYAN}WOULD CREATE${NC}  Enforcement baseline"
-            changes=$((changes + 1))
-        else
-            if PROJECT_ROOT="$target_dir" "$FRAMEWORK_ROOT/bin/fw" enforcement baseline >/dev/null 2>&1; then
-                echo -e "  ${GREEN}CREATED${NC}  Enforcement baseline"
+    # T-3884: "exists" is not "matches" — step 5 may have rewritten the hooks.
+    local _ef_action
+    _ef_action=$(_ef_step10_action "${_ef_pre_state:-match}" "$(_ef_baseline_state "$target_dir")")
+    case "$_ef_action" in
+        ok)
+            echo -e "  ${GREEN}OK${NC}  Enforcement baseline matches settings.json" ;;
+        create|refresh)
+            local _ef_verb=CREATED _ef_would=CREATE _ef_why=""
+            [ "$_ef_action" = refresh ] && { _ef_verb=REFRESHED; _ef_would=REFRESH; _ef_why=" (settings.json hooks regenerated by this upgrade)"; }
+            if [ "$dry_run" = true ]; then
+                echo -e "  ${CYAN}WOULD ${_ef_would}${NC}  Enforcement baseline${_ef_why}"
+                changes=$((changes + 1))
+            elif PROJECT_ROOT="$target_dir" "$FRAMEWORK_ROOT/bin/fw" enforcement baseline >/dev/null 2>&1; then
+                echo -e "  ${GREEN}${_ef_verb}${NC}  Enforcement baseline${_ef_why}"
                 changes=$((changes + 1))
             else
-                echo -e "  ${YELLOW}SKIP${NC}  Could not create enforcement baseline"
+                echo -e "  ${YELLOW}SKIP${NC}  Could not write enforcement baseline — run: fw enforcement baseline"
                 skipped=$((skipped + 1))
-            fi
-        fi
-    else
-        echo -e "  ${YELLOW}SKIP${NC}  No settings.json — enforcement baseline not applicable"
-        skipped=$((skipped + 1))
-    fi
+            fi ;;
+        warn-drift)
+            echo -e "  ${YELLOW}WARN${NC}  Enforcement baseline was already CHANGED before this upgrade — not refreshed (it guards against hook tampering)."
+            echo -e "         Review the hooks: fw enforcement status; if they are right: fw enforcement baseline"
+            skipped=$((skipped + 1)) ;;
+        *)
+            echo -e "  ${YELLOW}SKIP${NC}  No settings.json — enforcement baseline not applicable"
+            skipped=$((skipped + 1)) ;;
+    esac
 
     # T-1323: Detect stale tracked __pycache__ files inside vendored framework.
     # do_vendor now ships a .gitignore that prevents future leaks; this advisory
@@ -2327,6 +2805,7 @@ EOF
             echo "  1. Review changes: cd $target_dir && git diff"
             echo "  2. Commit: fw git commit -m 'T-012: fw upgrade — sync framework improvements'"
             echo "  3. Run: fw doctor  # Verify health"
+            _t3882_cron_next_step "$target_dir" "$_cron_added_ids"
 
             # T-2094 F10 (T-2078 V1-C): post-upgrade fw doctor advisory.
             _t2094_emit_doctor_advisory "$target_dir"
@@ -2505,7 +2984,7 @@ _t3113_emit_worktree_advisory() {
     else
         echo ""
         echo -e "  $stale of $count linked worktree(s) run older enforcement than this project."
-        echo -e "  Land and remove:  fw integrate run master --push  (then fw worktree gc)"
+        echo -e "  Land and remove:  fw integrate run bleeding-edge --push  (then fw worktree gc)"
         echo -e "  Or refresh in place: fw upgrade <worktree-path>"
     fi
     return 0  # always 0 — advisory, never blocks the upgrade

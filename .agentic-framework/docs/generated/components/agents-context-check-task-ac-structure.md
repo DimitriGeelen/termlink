@@ -11,12 +11,18 @@
 T-2420: Task AC structure validation hook (bash wrapper).
 The fw hook dispatcher (bin/fw) loads .sh files; actual logic in check-task-ac-structure.py.
 
+## Dependencies (1)
+
+| Component | Relationship | Description |
+|-----------|--------------|-------------|
+| [check-task-ac-structure](/docs/generated/agents-context-check-task-ac-structure-py) | calls | T-2420: Task AC structure validation hook (implements T-2418 GO). |
+
 ## Used By (2)
 
 | Component | Relationship | Description |
 |-----------|--------------|-------------|
-| [check_task_ac_structure](/docs/generated/tests-unit-check_task_ac_structure) | called_by | TODO: describe what this component does |
-| [check_task_ac_structure](/docs/generated/tests-unit-check_task_ac_structure) | tests_by | TODO: describe what this component does |
+| [check_task_ac_structure](/docs/generated/tests-unit-check_task_ac_structure) | called_by | T-2420: check-task-ac-structure PreToolUse hook — unit tests. |
+| [check_task_ac_structure](/docs/generated/tests-unit-check_task_ac_structure) | tests_by | T-2420: check-task-ac-structure PreToolUse hook — unit tests. |
 
 ---
 *Auto-generated from Component Fabric. Card: `agents-context-check-task-ac-structure.yaml`*

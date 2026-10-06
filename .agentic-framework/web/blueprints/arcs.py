@@ -29,6 +29,7 @@ from typing import Any
 
 import yaml
 from flask import Blueprint, abort, request
+from markupsafe import escape   # T-3429: reviewer reasons are rendered into an error card
 
 from lib.arc_membership import (
     scan_tasks_by_arc_id as _scan_tasks_by_arc_id_shared,
@@ -388,9 +389,10 @@ def _task_meta_index() -> dict[str, dict[str, Any]]:
     reference costs one pointer and makes the comparison mean what it reads as.
     """
     global _TASK_META_INDEX
-    from web.shared import get_all_task_metadata
+    from web.shared import request_task_metadata
 
-    rows = get_all_task_metadata()
+    # T-3600: once per request — _resolve_constituents asks per constituent.
+    rows = request_task_metadata()
     if _TASK_META_INDEX is not None and _TASK_META_INDEX[0] is rows:
         return _TASK_META_INDEX[1]
 
@@ -593,14 +595,27 @@ _DEMO_HINT_RE = re.compile(
 )
 
 
+# Mirrors the grep in audit_inception_recommendation (lib/task-audit.sh).
+_REC_LINE_RE = re.compile(
+    r"^[ \t]*[-*]?[ \t]*\*\*Recommendation:\*\*[ \t]*\*{0,2}[A-Za-z]", re.MULTILINE
+)
+
+
 def _anchor_recommendation(arc: dict[str, Any]) -> dict[str, Any]:
     """T-1960: read the arc's anchor-task `## Recommendation` block and return
     a structured dict for /arcs/<slug>/close.
 
     Returns keys: present (bool), verdict, rationale, evidence, raw,
     suggested_demo (first docs/reports/* path OR https?:// URL found in
-    evidence text, '' when none), anchor_id ('' when no anchor_task).
+    evidence text, '' when none), anchor_id (the task the recommendation was
+    read from, '' when none), source ('close_task' | 'anchor_task' | ''),
+    expected_task (where the agent should write one: close_task, else
+    anchor_task, else '').
     All keys always present.
+
+    T-3843 (055 T-454): the arc's close-out task (`close_task:`) is read first;
+    the anchor — usually the arc's first design task, written long before
+    closing — is only the fallback.
     """
     out = {
         "present": False,
@@ -612,25 +627,43 @@ def _anchor_recommendation(arc: dict[str, Any]) -> dict[str, Any]:
         "raw": "",
         "suggested_demo": "",
         "anchor_id": "",
+        "source": "",
+        "expected_task": "",
     }
-    anchor = str(arc.get("anchor_task") or "").strip()
-    if not anchor:
-        return out
-    out["anchor_id"] = anchor
-    body = None
-    for sub in ("active", "completed"):
-        candidates = sorted((PROJECT_ROOT / ".tasks" / sub).glob(f"{anchor}-*.md"))
-        if candidates:
-            try:
-                body = candidates[0].read_text(encoding="utf-8")
-            except OSError:
-                body = None
-            break
-    if not body:
-        return out
+
+    def _tid(key: str) -> str:
+        val = str(arc.get(key) or "").strip()
+        return "" if val in ("null", "~") else val
+
+    close_task = _tid("close_task")
+    anchor = _tid("anchor_task")
+    out["expected_task"] = close_task or anchor
     from web.shared import extract_recommendation, render_markdown_safe
-    rec = extract_recommendation(body)
-    if not rec.get("raw"):
+    rec = None
+    for source, tid in (("close_task", close_task), ("anchor_task", anchor)):
+        if not tid:
+            continue
+        body = None
+        for sub in ("active", "completed"):
+            candidates = sorted((PROJECT_ROOT / ".tasks" / sub).glob(f"{tid}-*.md"))
+            if candidates:
+                try:
+                    body = candidates[0].read_text(encoding="utf-8")
+                except OSError:
+                    body = None
+                break
+        if not body:
+            continue
+        r = extract_recommendation(body)
+        # Same substance test as the CLI gate (audit_inception_recommendation,
+        # lib/task-audit.sh): a `**Recommendation:** <word>` line, so the page
+        # and `fw arc review` never disagree about whether one exists.
+        if r.get("raw") and _REC_LINE_RE.search(r["raw"]):
+            rec = r
+            out["anchor_id"] = tid
+            out["source"] = source
+            break
+    if rec is None:
         return out
     out["present"] = True
     out["verdict"] = rec.get("verdict", "?")
@@ -643,6 +676,25 @@ def _anchor_recommendation(arc: dict[str, Any]) -> dict[str, Any]:
     if m:
         out["suggested_demo"] = m.group(1).rstrip(".,;:!?)")
     return out
+
+
+def _suggested_decision(rec: dict[str, Any]) -> str:
+    """T-3841: one-line decision text from a close recommendation, '' without one.
+
+    "CLOSE — <rationale> (agent recommendation, T-XXX)". Whitespace is collapsed
+    so the arc YAML gets a single-line `decision:` value.
+    """
+    if not rec.get("present"):
+        return ""
+    verdict = str(rec.get("verdict") or "").strip()
+    if verdict in ("", "?"):
+        verdict = ""
+    rationale = " ".join(str(rec.get("rationale") or "").split())
+    text = " — ".join(p for p in (verdict, rationale) if p)
+    if not text:
+        return ""
+    src = str(rec.get("anchor_id") or "").strip()
+    return f"{text} (agent recommendation{', ' + src if src else ''})"
 
 
 def _arc_reports(arc_id: str) -> list[dict[str, str]]:
@@ -730,6 +782,133 @@ def arcs_index():
     )
 
 
+# ── T-3564: arc page layout — quick links, purpose, task overview, story ──
+# One ordered list of {id, title} drives BOTH the quick-link bar and the
+# section wrappers in arc_detail.html, so a link and its target cannot drift.
+
+def _source_ref(src: Any) -> dict[str, str]:
+    """Turn a story `source:` string into {text, href} ('' href = plain text)."""
+    text = str(src or "").strip()
+    if not text:
+        return {"text": "", "href": ""}
+    path = text.split("#", 1)[0]
+    if re.fullmatch(r"T-\d+", path):
+        return {"text": text, "href": f"/tasks/{path}"}
+    m = re.match(r"\.tasks/(?:active|completed)/(T-\d+)-", path)
+    if m:
+        return {"text": text, "href": f"/tasks/{m.group(1)}"}
+    if path.startswith("docs/") and (PROJECT_ROOT / path).is_file():
+        return {"text": text, "href": f"/file/{path}"}
+    return {"text": text, "href": ""}
+
+
+def _arc_story(arc: dict[str, Any]) -> dict[str, Any]:
+    """Normalise the T-3563 story fields; absent/empty fields stay empty."""
+    def _text(v: Any) -> str:
+        return str(v).strip() if v not in (None, "") else ""
+
+    def _rows(key: str, primary: str) -> list[dict[str, Any]]:
+        raw = arc.get(key)
+        out: list[dict[str, Any]] = []
+        if not isinstance(raw, list):
+            return out
+        for item in raw:
+            if isinstance(item, dict):
+                text = _text(item.get(primary))
+                if not text:
+                    continue
+                row = {k: _text(v) for k, v in item.items()}
+                row["text"] = text
+                row["source_ref"] = _source_ref(item.get("source"))
+                out.append(row)
+            elif _text(item):
+                out.append({"text": _text(item), "source_ref": _source_ref("")})
+        return out
+
+    ev_raw = arc.get("evidence")
+    evidence = []
+    if isinstance(ev_raw, dict):
+        for k, v in ev_raw.items():
+            if _text(v):
+                evidence.append({"label": str(k).replace("_", " "), "ref": _source_ref(v),
+                                 "value": _text(v)})
+    return {
+        "purpose": _text(arc.get("purpose")),
+        "objective": _text(arc.get("objective")),
+        "success_criteria": _rows("success_criteria", "criterion"),
+        "context": _rows("context", "point"),
+        "decisions": _rows("decisions", "decision"),
+        "open_questions": _rows("open_questions", "question"),
+        "non_goals": _rows("non_goals", "text"),
+        "history": _rows("history", "event"),
+        "evidence": evidence,
+        "story_review": _text(arc.get("story_review")),
+    }
+
+
+def _task_overview(constituents: list[dict[str, Any]]) -> dict[str, Any]:
+    """Counts by status (completed -> 'done'), open tasks, and tasks awaiting review.
+
+    A work-completed task still in active/ is partial-complete (waiting on a
+    human), so it is labelled 'awaiting review' and kept out of the open list.
+    """
+    counts: dict[str, int] = {}
+    open_tasks: list[dict[str, Any]] = []
+    awaiting: list[dict[str, Any]] = []
+    for c in constituents:
+        if c.get("missing"):
+            label = "missing"
+        elif c.get("completed"):
+            label = "done"
+        elif str(c.get("status") or "") == "work-completed":
+            label = "awaiting review"
+            awaiting.append(c)
+        else:
+            label = str(c.get("status") or "?")
+            open_tasks.append(c)
+        counts[label] = counts.get(label, 0) + 1
+    order = ["done", "awaiting review", "started-work", "issues", "captured"]
+    ordered = sorted(counts.items(),
+                     key=lambda kv: (order.index(kv[0]) if kv[0] in order else len(order), kv[0]))
+    open_order = ["issues", "started-work", "captured"]
+    open_tasks.sort(key=lambda c: open_order.index(c.get("status")) if c.get("status") in open_order
+                    else len(open_order))
+    return {"counts": ordered, "open_tasks": open_tasks, "awaiting_review": awaiting,
+            "total": len(constituents)}
+
+
+def _arc_sections(arc: dict[str, Any], story: dict[str, Any], constituents: list,
+                  reports: list, bvp_info: Any) -> list[dict[str, str]]:
+    """Ordered {id, title} of every section the page renders (drives quick links)."""
+    s: list[dict[str, str]] = []
+    if story["purpose"] or story["objective"]:
+        s.append({"id": "purpose", "title": "Purpose"})
+    s.append({"id": "task-overview", "title": "Task overview"})
+    for sid, title, key in (
+        ("success-criteria", "Success criteria", "success_criteria"),
+        ("context", "Context", "context"),
+        ("decisions", "Decisions", "decisions"),
+        ("open-questions", "Open questions", "open_questions"),
+        ("non-goals", "Non-goals", "non_goals"),
+        ("history", "History", "history"),
+        ("evidence", "Evidence", "evidence"),
+    ):
+        if story[key]:
+            s.append({"id": sid, "title": title})
+    if bvp_info:
+        s.append({"id": "bvp-signals", "title": "BVP signals"})
+        if isinstance(bvp_info, dict) and bvp_info.get("scoped_drivers"):
+            s.append({"id": "scoped-drivers", "title": "Scoped drivers"})
+    if reports:
+        s.append({"id": "reports", "title": "Reports & evidence"})
+    s.append({"id": "constituent-tasks", "title": "Constituent tasks"})
+    if arc.get("status") == "closed":
+        s.append({"id": "arc-closed", "title": "Arc closed"})
+    else:
+        s.append({"id": "completion-check", "title": "Completion check"})
+    return s
+
+
 @bp.route("/arcs/<arc_id>")
 def arc_detail(arc_id: str):
     """Detail page for one arc.
@@ -756,8 +935,14 @@ def arc_detail(arc_id: str):
     reports = _arc_reports(arc_slug)
     # T-1930 (arc-006): BVP signals — arc-level scores, coherence, proposed drivers.
     bvp_info = _bvp_signals(arc, arc_slug, arc_numeric)
+    story = _arc_story(arc)
+    sections = _arc_sections(arc, story, constituents, reports, bvp_info)
     return render_page(
         "arc_detail.html",
+        story=story,
+        sections=sections,
+        section_ids={x["id"] for x in sections},
+        task_overview=_task_overview(constituents),
         page_title=f"Arc: {arc.get('name', arc_id)}",
         arc=arc,
         arc_id=arc_id,
@@ -812,41 +997,30 @@ def _bvp_coherence_for_arc(arc: dict, arc_slug: str, arc_numeric: str) -> list[d
     if not claims:
         return []
 
-    # Collect constituent task paths (either slug or arc-NNN form).
-    constituent_paths: list[Path] = []
-    tasks_dir = PROJECT_ROOT / ".tasks"
-    for sub in ("active", "completed"):
-        for p in (tasks_dir / sub).glob("T-*.md"):
-            try:
-                m = _FRONTMATTER_RE.match(p.read_text())
-            except OSError:
-                continue
-            if not m:
-                continue
-            try:
-                fm = yaml.safe_load(m.group(1)) or {}
-            except yaml.YAMLError:
-                continue
+    # Collect constituent task frontmatters (either slug or arc-NNN form).
+    # T-3574: this used to read + yaml.safe_load every task file twice over (once
+    # to find members, once per claimed driver). Members come from the cached
+    # task index; each is parsed once via the mtime-cached frontmatter reader.
+    from web.blueprints.bvp import _parse_frontmatter, _task_index
+    index = _task_index()
+    ids: set[str] = set()
+    for key in (arc_slug, arc_numeric):
+        if key:
+            ids.update(index["by_arc_id"].get(key, []))
+    constituent_fms: list[dict] = []
+    for tid in sorted(ids):
+        for p in index["paths_by_id"].get(tid, []):
+            fm = _parse_frontmatter(p) or {}
             aid = str(fm.get("arc_id") or "").strip()
             if aid and (aid == arc_slug or (arc_numeric and aid == arc_numeric)):
-                constituent_paths.append(p)
-    if not constituent_paths:
+                constituent_fms.append(fm)
+    if not constituent_fms:
         return []
 
     findings: list[dict] = []
     for driver_id, claim_val in claims.items():
         scores = []
-        for p in constituent_paths:
-            try:
-                m = _FRONTMATTER_RE.match(p.read_text())
-            except OSError:
-                continue
-            if not m:
-                continue
-            try:
-                fm = yaml.safe_load(m.group(1)) or {}
-            except yaml.YAMLError:
-                continue
+        for fm in constituent_fms:
             s = (fm.get("bvp_scores") or {}).get(driver_id)
             if s is None:
                 continue
@@ -937,6 +1111,28 @@ def _bvp_signals(arc: dict, arc_slug: str, arc_numeric: str) -> dict:
         reverse=True,
     )
 
+    # T-3429 (D-586): the reviewer verdict is what the Approve button now acts
+    # on, so the row has to show it BEFORE the click — a button whose outcome is
+    # only discoverable by pressing it is the shape this surface exists to avoid.
+    # Read straight off the persisted `reviewer:` block; the page never runs the
+    # reviewer itself (a render that mutates arc YAML would be a worse bug than
+    # a stale verdict, and `fw arc review-driver <arc> --all` refreshes it).
+    for p in proposed_sorted:
+        rv = p.get("reviewer")
+        if not isinstance(rv, dict) or not rv:
+            p["reviewer_state"] = "not-reviewed"
+            p["reviewer_failed"] = []
+            continue
+        checks = rv.get("checks") or {}
+        failed = sorted(
+            c.get("check") or k
+            for k, c in checks.items()
+            if isinstance(c, dict) and c.get("verdict") == "fail"
+        )
+        p["reviewer_state"] = "pass" if str(rv.get("verdict")) == "pass" else "fail"
+        p["reviewer_failed"] = failed
+        p["reviewer_ts"] = rv.get("ts")
+
     scoped = arc.get("scoped_drivers") or []
     if not isinstance(scoped, list):
         scoped = []
@@ -976,7 +1172,12 @@ def arc_approve_driver(arc_id):
         return '<p style="color: var(--pico-del-color);">Driver name required.</p>', 400
     if len(name) > 64:
         return '<p style="color: var(--pico-del-color);">Driver name too long (max 64).</p>', 400
-    cmd = ["bin/fw", "arc", "approve-driver", slug, name, "--from-watchtower"]
+    # T-3429 (D-586): the DEFAULT path — no --from-watchtower — so the static
+    # reviewer certifies the driver and the entry records approved_by:
+    # reviewer:<id>. The override flag is deliberately not passed: clicking
+    # Approve should mean "run the check", not "skip it because a human clicked".
+    # A FAIL comes back on stderr and is surfaced below.
+    cmd = ["bin/fw", "arc", "approve-driver", slug, name]
     if weight_raw:
         try:
             w = int(weight_raw)
@@ -994,9 +1195,16 @@ def arc_approve_driver(arc_id):
         return f'<p style="color: var(--pico-del-color);">Failed to invoke fw: {e}</p>', 500
     if result.returncode != 0:
         err = (result.stderr or "").strip() or f"fw arc approve-driver exited {result.returncode}"
-        # Show only first line (block messages can be long).
-        first = err.splitlines()[0] if err else "unknown error"
-        return f'<p style="color: var(--pico-del-color);">{first}</p>', 400
+        lines = err.splitlines()
+        # T-3429: a review refusal names one FAILED line per failed check. The
+        # old "first line only" rule would have shown the headline and dropped
+        # every reason — which is the one thing the operator needs to act on.
+        detail = [ln.strip() for ln in lines if ln.strip().startswith("FAILED (")]
+        head = lines[0] if lines else "unknown error"
+        body = escape(head)
+        if detail:
+            body += "<br>" + "<br>".join(escape(d) for d in detail)
+        return f'<p style="color: var(--pico-del-color);">{body}</p>', 400
     return redirect(f"/arcs/{slug}")
 
 
@@ -1358,6 +1566,17 @@ def arc_close_surface(arc_id):
     if not prev_demo_value and recommendation.get("suggested_demo"):
         prev_demo_value = recommendation["suggested_demo"]
 
+    # T-3841 (055): pre-fill the decision with the recommendation shown above, the
+    # way the demo is. Left unchanged, the arc records the agent's verdict and
+    # rationale instead of `decision: null` ("Decision: unspecified"). A POST
+    # re-render keeps whatever the operator submitted, even an empty field.
+    decision_prefilled = False
+    if request.method == "POST":
+        prev_decision = request.form.get("decision", "")
+    else:
+        prev_decision = _suggested_decision(recommendation)
+        decision_prefilled = bool(prev_decision)
+
     return render_page(
         "arc_close.html",
         page_title=f"Close arc: {arc.get('name', arc_id)}",
@@ -1372,7 +1591,8 @@ def arc_close_surface(arc_id):
         error_msg=error_msg,
         prev_demo_mode=request.form.get("demo_mode", "") if request.method == "POST" else "",
         prev_demo_value=prev_demo_value,
-        prev_decision=request.form.get("decision", "") if request.method == "POST" else "",
+        prev_decision=prev_decision,
+        decision_prefilled=decision_prefilled,
         prev_justification=request.form.get("justification", "") if request.method == "POST" else "",
     )
 

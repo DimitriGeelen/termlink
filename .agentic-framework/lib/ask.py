@@ -17,22 +17,21 @@ import json
 import os
 import sys
 
-# Add project root to path so web modules are importable
-PROJECT_ROOT = os.environ.get("PROJECT_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.insert(0, PROJECT_ROOT)
-# T-3336 (010-termlink, filed upstream): `web/` is FRAMEWORK-owned. In a vendored
-# consumer PROJECT_ROOT is the consumer project, which has no `web/`, so the import
-# below failed ("No module named 'web'") and `fw ask` was dead there. Resolve the
-# framework root from this file (lib/..) and put it first. Same class as T-2648/OBS-097.
-FRAMEWORK_ROOT = os.environ.get("FRAMEWORK_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.insert(0, FRAMEWORK_ROOT)
+# web/ is FRAMEWORK-owned: in a vendored consumer it lives under .agentic-framework/,
+# not PROJECT_ROOT, so FRAMEWORK_ROOT goes first on the path (T-3783, 010 T-3336:
+# `fw ask` died with "No module named web" in every vendored consumer).
+FRAMEWORK_ROOT = os.environ.get("FRAMEWORK_ROOT") or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PROJECT_ROOT = os.environ.get("PROJECT_ROOT", FRAMEWORK_ROOT)
+for _p in (PROJECT_ROOT, FRAMEWORK_ROOT):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
 from web.embeddings import rag_retrieve, build_index
 from web.ask import get_model, should_think, SYSTEM_PROMPT, format_rag_context
 
 import ollama
 
-sys.path.insert(0, os.path.join(PROJECT_ROOT, "lib"))
+sys.path.insert(0, os.path.join(FRAMEWORK_ROOT, "lib"))
 
 
 CONCISE_ADDENDUM = "\n\nBe extremely concise — answer in 2-3 sentences maximum."
@@ -274,13 +273,36 @@ def main():
     parser.add_argument("--limit", type=int, default=10, help="Max chunks to retrieve")
     args = parser.parse_args()
 
+    # T-3783: say so loudly when semantic recall is degraded, so a thin answer is
+    # never mistaken for "nothing known". stderr: --json stdout stays clean.
+    if os.environ.get("FW_RECALL_NO_BANNER") != "1":
+        try:
+            import importlib.util
+            _spec = importlib.util.spec_from_file_location(
+                "vector_index_health", os.path.join(FRAMEWORK_ROOT, "lib", "vector_index_health.py"))
+            _vih = importlib.util.module_from_spec(_spec)
+            _spec.loader.exec_module(_vih)
+            _line = _vih.degraded_banner(PROJECT_ROOT, FRAMEWORK_ROOT)
+        except Exception as _exc:  # noqa: BLE001
+            _line = f"semantic recall degraded: health check unavailable ({_exc}) — fix: fw doctor"
+        if _line:
+            print(_line, file=sys.stderr)
+
     think = None
     if args.think:
         think = True
     elif args.no_think:
         think = False
 
-    result = ask(args.query, limit=args.limit, concise=args.concise, think=think)
+    try:
+        result = ask(args.query, limit=args.limit, concise=args.concise, think=think)
+    except Exception as exc:  # noqa: BLE001
+        from web.embeddings import IndexUnavailable
+        if not isinstance(exc, IndexUnavailable):
+            raise
+        # T-3786: the index is never built from here; say why and how to fix it.
+        print(f"fw ask: {exc}", file=sys.stderr)
+        sys.exit(3)
 
     if args.json_output:
         print(json.dumps(result, indent=2))

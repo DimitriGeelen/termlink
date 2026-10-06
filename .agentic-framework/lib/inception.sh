@@ -5,6 +5,10 @@
 # Ensure _fw_cmd/_emit_user_command are available (T-1143)
 [[ -z "${_FW_PATHS_LOADED:-}" ]] && source "${FRAMEWORK_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}/lib/paths.sh" 2>/dev/null || true
 
+# Anchored AC / Recommendation section extraction (T-3148, sibling to
+# lib/verification-port.sh:extract_verification_block, T-3134)
+[[ -z "${_FW_SECTION_EXTRACT_LOADED:-}" ]] && source "${FRAMEWORK_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}/lib/section-extract.sh" 2>/dev/null || true
+
 do_inception() {
     local subcmd="${1:-}"
     shift || true
@@ -126,9 +130,15 @@ do_inception_start() {
         local _log_file="${PROJECT_ROOT}/.context/working/.gate-bypass-log.yaml"
         local _ts
         _ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+        # T-3412: $name is free text (inception title) and can contain a single
+        # quote, the escape character for this single-quoted YAML scalar. Double
+        # it per the YAML rule (same idiom as T-1861 / create-task.sh's sibling
+        # logger) instead of interpolating raw — sibling bug found while fixing
+        # agents/task-create/create-task.sh:_log_recommendation_bypass.
+        local _t3412_esc_name="${name//\'/\'\'}"
         {
             echo "- timestamp: '$_ts'"
-            echo "  task: '<filing: $name>'"
+            echo "  task: '<filing: $_t3412_esc_name>'"
             echo "  flag: '--i-am-human'"
             echo "  caller: 'do_inception_start'"
             echo "  reason: 'filing-time recommendation gate (T-1715/T-1716)'"
@@ -305,11 +315,12 @@ PYINCEPTION
 tick_inception_decide_acs() {
     local task_file="$1"
     [ -f "$task_file" ] || return 0
-    python3 - "$task_file" << 'PYTICK'
+    python3 - "$task_file" "$FRAMEWORK_ROOT" "$PROJECT_ROOT" << 'PYTICK'
 import re
 import sys
 
 task_file = sys.argv[1]
+_human_ticked = []  # T-3695: provenance rows for lib/human_ac_ticks.py
 with open(task_file) as f:
     content = f.read()
 
@@ -372,6 +383,7 @@ for line in lines:
             has_marker = (TICK_MARKER in line) or (TICK_MARKER in prev_line)
             if has_marker or any(p.search(m.group(2)) for p in PATTERNS):
                 line = f'{m.group(1)}- [x]{m.group(2)}'
+                _human_ticked.append(m.group(2))
     elif in_agent and has_recommendation:
         m = re.match(r'^(\s*)- \[ \]\s*(.*)$', line)
         if m:
@@ -383,6 +395,22 @@ for line in lines:
 
 with open(task_file, 'w') as f:
     f.write('\n'.join(out))
+
+# T-3695: a ### Human tick written by the decision command is the human's decision
+# (decide is refused under agent control without --i-am-human / --from-watchtower), so
+# record its provenance — `fw audit` FAILs on Human ticks that have none.
+if _human_ticked and len(sys.argv) > 3 and sys.argv[2]:
+    try:
+        import os
+        from pathlib import Path
+        sys.path.insert(0, os.path.join(sys.argv[2], 'lib'))
+        import human_ac_ticks as _hat
+        _tid = re.search(r'T-\d+', os.path.basename(task_file))
+        _root = Path(sys.argv[3] or os.getcwd())
+        _hat.record_ticked(_root, _tid.group(0) if _tid else '?', '\n'.join(out), _human_ticked,
+                           'inception-decide', os.environ.get('USER') or 'operator')
+    except Exception as _e:  # never break a decision on telemetry; the audit will say so
+        print(f'WARN: Human-tick provenance not recorded ({_e})', file=sys.stderr)
 PYTICK
 }
 
@@ -546,10 +574,59 @@ do_inception_decide() {
     # Mirrors update-task.sh:73-105 AC counting logic; no new behavior, just
     # early validation. (T-131 in downstream 003-NTB-ATC-Plugin / P-010.)
     if [ "$decision" = "go" ] || [ "$decision" = "no-go" ]; then
+        # T-3279 (G-102): decision-readiness preflight — runs the SAME disposition
+        # predicate the completion gate (T-2190) enforces, BEFORE anything mutates
+        # the task body (tick_inception_decide_acs writes the file too). Without
+        # this, a decide on an under-disposed inception records the decision, then
+        # the completion side-effect refuses — the class-2 stuck state (decision
+        # recorded, status started-work) the operator hit on T-3278, with the
+        # gate's agent-facing stderr surfaced raw in Watchtower. Refuse HERE,
+        # body untouched, in language both operator and agent can act on.
+        #
+        # T-3641 (ported from 055 P-001): fail CLOSED. A missing library, an
+        # undefined predicate, or a crashed predicate used to skip this preflight
+        # silently — on the sovereignty path. Refuse instead, body untouched.
+        local _ir_lib="$FRAMEWORK_ROOT/lib/inception-readiness.sh"
+        if ! source "$_ir_lib" 2>/dev/null || ! command -v inception_underdisposed_questions >/dev/null 2>&1; then
+            echo -e "${RED}ERROR: Cannot record $decision_upper — decision-readiness check could not load.${NC}" >&2
+            echo "  $_ir_lib did not load, or did not define inception_underdisposed_questions" >&2
+            echo "  (FRAMEWORK_ROOT=$FRAMEWORK_ROOT). Nothing was written — the task body is untouched." >&2
+            return 1
+        fi
+        local _underdisposed _ud_rc=0
+        # T-3539: rc 1 is a FINDING signal (this runs under `set -euo pipefail`),
+        # so capture it. T-3641: rc>1, or rc!=0 with no report, is a crash.
+        _underdisposed=$(inception_underdisposed_questions "$task_file") || _ud_rc=$?
+        if [ "$_ud_rc" -gt 1 ] || { [ "$_ud_rc" -ne 0 ] && [ -z "$_underdisposed" ]; }; then
+            echo -e "${RED}ERROR: Cannot record $decision_upper — decision-readiness check failed (rc=$_ud_rc) without a report.${NC}" >&2
+            echo "  inception_underdisposed_questions from $_ir_lib crashed. Nothing was written — the task body is untouched." >&2
+            return 1
+        fi
+        if [ -n "$_underdisposed" ]; then
+            local _ud_count
+            _ud_count=$(printf '%s\n' "$_underdisposed" | grep -c .)
+            echo -e "${RED}ERROR: Cannot record $decision_upper — $_ud_count Open Question(s) not yet disposed.${NC}" >&2
+            echo "" >&2
+            echo "This inception's decision is not ready: each IW-N under '## Open Questions'" >&2
+            echo "needs 'disposition: answered|deferred|dissolved' plus a one-line rationale" >&2
+            echo "before a go/no-go can complete (T-2190 disposition gate)." >&2
+            echo "" >&2
+            echo "Not yet disposed:" >&2
+            printf '%s\n' "$_underdisposed" | sed 's/^/    - /' >&2
+            echo "" >&2
+            echo "Nothing was written — the task body is untouched. Fill the dispositions" >&2
+            echo "(deferring a question to the build work is a valid disposition), then decide again." >&2
+            return 1
+        fi
+
         tick_inception_decide_acs "$task_file"
 
         local _ac_section _agent_acs _agent_total _agent_checked _agent_unchecked
-        _ac_section=$(sed -n '/^## Acceptance Criteria/,/^## /p' "$task_file" 2>/dev/null | sed '$d' | sed '/<!--/,/-->/d')
+        # T-3148: anchored, FIRST-WINS extraction (lib/section-extract.sh).
+        # T-3696: structural strip (lib/comment_strip.py). `sed '/<!--/,/-->/d'`
+        # opened a range on a one-line comment and ran to the NEXT -->, deleting
+        # the real Agent ACs between and letting the unchecked-AC gate pass.
+        _ac_section=$(extract_ac_section "$task_file" | python3 "${FRAMEWORK_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}/lib/comment_strip.py")
         if echo "$_ac_section" | grep -q '^### Agent'; then
             _agent_acs=$(echo "$_ac_section" | awk '/^### Agent/{f=1; next} /^### /{f=0} f')
             _agent_total=$(echo "$_agent_acs" | grep -cE '^\s*-\s*\[[ x]\]' || true)
@@ -563,7 +640,9 @@ do_inception_decide() {
                 echo "" >&2
                 # T-1836 (T-1831 C-3): body-vs-checkbox drift hint at decide-preflight.
                 local _rec_block _rec_filled=false
-                _rec_block=$(sed -n '/^## Recommendation/,/^## /p' "$task_file" 2>/dev/null | sed '$d')
+                # T-3148: anchored, LAST-WINS extraction — the template ships
+                # a stub here and real content is appended after it (T-3144).
+                _rec_block=$(extract_recommendation_block "$task_file")
                 if [ -n "$_rec_block" ] && echo "$_rec_block" | grep -qE '^\*\*(Recommendation|Rationale|Evidence)(:\*\*|\*\*:)'; then
                     _rec_filled=true
                 fi
@@ -740,7 +819,9 @@ EOF
                 return "$_uts_rc"
             fi
         fi
-        "$AGENTS_DIR/task-create/update-task.sh" "$task_id" --status work-completed --skip-sovereignty --reason "Inception decision: $decision_upper" 2>&1
+        # T-3586: --i-am-human — decide already refused agents (T-1259) before reaching here,
+        # and a Watchtower-driven decide inherits CLAUDECODE=1 from the Flask process.
+        "$AGENTS_DIR/task-create/update-task.sh" "$task_id" --status work-completed --skip-sovereignty --i-am-human --reason "Inception decision: $decision_upper" 2>&1
         _uts_rc=$?
         if [ "$_uts_rc" -ne 0 ]; then
             echo "" >&2

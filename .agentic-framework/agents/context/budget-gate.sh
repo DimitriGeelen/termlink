@@ -98,8 +98,12 @@ _supervision_notice() {
     fi
 }
 
-# Context window size — conservative default, override via FW_CONTEXT_WINDOW.
-# Opus 4.6 supports 1M but 300K is a safe default for quality + cost control.
+# CONFIGURED BUDGET CAP — not a measurement of the model's context window.
+# A deliberate quality-and-cost dial, override via FW_CONTEXT_WINDOW / fw config set
+# CONTEXT_WINDOW. Every percentage derived from it is a percentage OF THIS CAP, and
+# the reader-facing messages say so (T-3204) — "~95% of context window" read as a
+# hard limit approaching, when it is a policy dial at its configured value, and the
+# two license opposite actions.
 CONTEXT_WINDOW=$(fw_config_int "CONTEXT_WINDOW" 300000)
 
 # Token thresholds (autoCompact disabled — D-027)
@@ -128,43 +132,42 @@ try:
 except:
     data = {}
 
+import re
 tool_name = data.get('tool_name', '')
 command = data.get('tool_input', {}).get('command', '')
+
+# T-3598: the CLAUDE session making this call. Every Claude process in the
+# project (parent + TermLink workers) writes the same cache, and the framework
+# session_id in it comes from session.yaml, which they all share, so only the
+# Claude session id can tell them apart. Stdin session_id first, else the
+# transcript file stem (Claude Code names transcripts by session id).
+caller_sid = data.get('session_id') or ''
+if not caller_sid:
+    _tp = data.get('transcript_path') or ''
+    if _tp:
+        caller_sid = os.path.splitext(os.path.basename(_tp))[0]
+caller_sid = re.sub(r'[^A-Za-z0-9._-]', '', caller_sid)
 
 # Read cached status file
 status_file = '$STATUS_FILE'
 level = 'unknown'
 tokens = 0
 age = 999
-
-# T-3127: .budget-status is ONE shared path. Every concurrently dispatched
-# worker in this project writes and reads it, so without a discriminator each
-# reads whichever session wrote last. Measured: two workers read ~504k while
-# their real figures were ~169k/~160k. That is a plausible PANIC - mandates
-# carry context stop conditions, so a healthy worker can stop at once and
-# report an exhaustion it never hit. The discriminator is transcript_path,
-# which Claude Code passes to the hook on stdin and which is genuinely
-# per-session (session.yaml is shared and would NOT discriminate).
-_sess_key = os.path.basename(data.get('transcript_path') or '')
-if _sess_key.endswith('.jsonl'):
-    _sess_key = _sess_key[:-6]
+owner = 'mine'
 
 if os.path.exists(status_file):
     try:
         with open(status_file) as f:
             s = json.load(f)
-        _cached_key = s.get('session_key', '')
-        # A record from ANOTHER session is not evidence about this one. Leave
-        # level='unknown'/age=999 so the caller falls through to the slow path
-        # and re-reads this session's own transcript. Degrades safely: a record
-        # with no session_key (pre-fix writer) is still trusted, so this is
-        # backward compatible and never makes a single-session run worse.
-        if _sess_key and _cached_key and _cached_key != _sess_key:
-            pass
-        else:
-            level = s.get('level', 'unknown')
-            tokens = s.get('tokens', 0)
-            age = int(time.time()) - s.get('timestamp', 0)
+        level = s.get('level', 'unknown')
+        tokens = s.get('tokens', 0)
+        age = int(time.time()) - s.get('timestamp', 0)
+        # T-3598: a cache stamped by another Claude session is not this
+        # session's budget. Legacy caches (no claude_session_id) and callers
+        # with no identity keep the old age-only behaviour.
+        cache_sid = s.get('claude_session_id') or ''
+        if cache_sid and caller_sid and cache_sid != caller_sid:
+            owner = 'foreign'
     except:
         pass
 
@@ -225,7 +228,9 @@ is_wrapup_write = tool_name in ('Write', 'Edit') and any(p in file_path for p in
 _cls = 'allowed' if (is_allowed_cmd or is_read_tool or is_wrapup_write) else 'blocked'
 # Fields 6 and 7+ are T-2919: classifier mode, then the free-text reason the
 # call was refused. The reason is last because it contains spaces.
-print(f'{level} {tokens} {age} {tool_name} {_cls} {_classifier} {_reason}')
+# Field 8 (T-3598): caller Claude session id ('-' when unknown); field 9: cache
+# owner. Both before the free-text reason, which must stay last.
+print(f'{level} {tokens} {age} {tool_name} {_cls} {_classifier} {caller_sid or \"-\"} {owner} {_reason}')
 " 2>/dev/null)
 
 # Parse result
@@ -238,7 +243,11 @@ CMD_CLASS=$(echo "$RESULT" | awk '{print $5}')
 # T-2919: classifier mode + why the call was refused, so the block message can
 # name the offending segment instead of just saying no.
 CMD_CLASSIFIER=$(echo "$RESULT" | awk '{print $6}')
-CMD_REASON=$(echo "$RESULT" | cut -d' ' -f7-)
+# T-3598: which Claude session is calling, and whether the cache is its own.
+CALLER_SID=$(echo "$RESULT" | awk '{print $7}')
+[ "$CALLER_SID" = "-" ] && CALLER_SID=""
+CACHE_OWNER=$(echo "$RESULT" | awk '{print $8}')
+CMD_REASON=$(echo "$RESULT" | cut -d' ' -f9-)
 
 # Default to safe values if Python failed
 STATUS_LEVEL=${STATUS_LEVEL:-unknown}
@@ -262,18 +271,21 @@ _classifier_notice() {
 # Previous Bug 3 fix blindly trusted stale critical, creating a trap where
 # the slow path (which re-reads the actual transcript) could never run after
 # compaction or session restart, permanently blocking the agent.
-if [ "${STATUS_AGE}" -lt "$STATUS_MAX_AGE" ]; then
+# T-3598: ...and only when this Claude session wrote it. A foreign cache (the
+# parent's, or a TermLink worker's) is skipped here and forces a re-read of the
+# caller's own transcript below, so neither session acts on the other's number.
+if [ "$CACHE_OWNER" != "foreign" ] && [ "${STATUS_AGE}" -lt "$STATUS_MAX_AGE" ]; then
     case "$STATUS_LEVEL" in
         ok)
             exit 0
             ;;
         warn)
-            echo "Note: Context at ~${STATUS_TOKENS} tokens (~$((STATUS_TOKENS * 100 / CONTEXT_WINDOW))%). Commit before starting new work. (docs/context-compaction.md)" >&2
+            echo "Note: Context at ~${STATUS_TOKENS} tokens (~$((STATUS_TOKENS * 100 / CONTEXT_WINDOW))% of the ${CONTEXT_WINDOW}-token budget cap). Commit before starting new work. (docs/context-compaction.md)" >&2
             _supervision_notice
             exit 0
             ;;
         urgent)
-            echo "WARNING: Context at ~${STATUS_TOKENS} tokens (~$((STATUS_TOKENS * 100 / CONTEXT_WINDOW))%). Do not start new work. Commit and handover." >&2
+            echo "WARNING: Context at ~${STATUS_TOKENS} tokens (~$((STATUS_TOKENS * 100 / CONTEXT_WINDOW))% of the ${CONTEXT_WINDOW}-token budget cap). Do not start new work. Commit and handover." >&2
             echo "  Details: docs/context-compaction.md (budget ladder, what to do at each level)" >&2
             _supervision_notice
             exit 0
@@ -288,7 +300,7 @@ if [ "${STATUS_AGE}" -lt "$STATUS_MAX_AGE" ]; then
             echo "  SESSION WRAPPING UP (~${STATUS_TOKENS} tokens)" >&2
             echo "══════════════════════════════════════════════════════════" >&2
             echo "" >&2
-            echo "  Context is at ~$((STATUS_TOKENS * 100 / CONTEXT_WINDOW))% of context window." >&2
+            echo "  Context is at ~$((STATUS_TOKENS * 100 / CONTEXT_WINDOW))% of the ${CONTEXT_WINDOW}-token budget cap." >&2
             echo "  Task files already have all essential state. Time to wrap up." >&2
             echo "" >&2
             echo "  ALLOWED: git commit/push, $(_fw_cmd) handover, reading files," >&2
@@ -317,6 +329,11 @@ fi
 # the actual transcript before deciding to block.
 FORCE_RECHECK=0
 if [ "$STATUS_LEVEL" = "critical" ] && [ "${STATUS_AGE}" -ge "$STATUS_MAX_AGE" ]; then
+    FORCE_RECHECK=1
+fi
+# T-3598: a foreign cache says nothing about this session, and the recheck
+# counter is shared too — skipping here would let 4 of 5 calls through unmeasured.
+if [ "$CACHE_OWNER" = "foreign" ]; then
     FORCE_RECHECK=1
 fi
 
@@ -365,6 +382,17 @@ if [ -z "${TRANSCRIPT:-}" ]; then
 fi
 
 if [ -z "${TRANSCRIPT:-}" ]; then
+    # T-3241: previously exited silently, leaving whatever cache already existed
+    # in place — a stale "ok" from an earlier, real reading sits there
+    # indefinitely with nothing marking it untrustworthy. Write an honest
+    # "unknown" instead. Fails open exactly as before (no case arm matches
+    # "unknown"); only the on-disk claim changes.
+    NT_SESSION_ID=""
+    if [ -f "$CONTEXT_DIR/working/session.yaml" ]; then
+        NT_SESSION_ID=$(grep "^session_id:" "$CONTEXT_DIR/working/session.yaml" 2>/dev/null | cut -d: -f2 | tr -d ' ') || true
+    fi
+    printf '{"level": "unknown", "tokens": null, "timestamp": %d, "session_id": "%s", "claude_session_id": "%s", "source": "budget-gate", "note": "no transcript found", "baseline_tokens": null, "headroom_tokens": null, "headroom_ratio": null}' \
+        "$(date +%s)" "${NT_SESSION_ID:-unknown}" "$CALLER_SID" > "$STATUS_FILE" 2>/dev/null || true
     exit 0
 fi
 
@@ -379,26 +407,76 @@ TS_FILE="$CONTEXT_DIR/working/.session-start-ts"
 if [ -f "$TS_FILE" ]; then
     SESSION_START_TS=$(tr -d '[:space:]' < "$TS_FILE" 2>/dev/null) || SESSION_START_TS=""
 fi
-TOKENS=$(tail -c 10000000 "$TRANSCRIPT" 2>/dev/null | python3 "$FRAMEWORK_ROOT/lib/context_tokens.py" "$SESSION_START_TS" 2>/dev/null)
-[[ "$TOKENS" =~ ^[0-9]+$ ]] || TOKENS=0
-
-LEVEL="ok"
-if [ "$TOKENS" -ge "$TOKEN_CRITICAL" ]; then
-    LEVEL="critical"
-elif [ "$TOKENS" -ge "$TOKEN_URGENT" ]; then
-    LEVEL="urgent"
-elif [ "$TOKENS" -ge "$TOKEN_WARN" ]; then
-    LEVEL="warn"
+# T-3241 (folds in field report 001-CashWeb T-222/G-087): --with-model surfaces
+# the "was this confidently measured" signal context_tokens.py already computes
+# internally (an empty model = give-up, whether from too-few-in-scope-entries,
+# no entries at all, or an uncaught scan crash e.g. UnicodeDecodeError on invalid
+# UTF-8 during transcript line iteration) but which the bare-integer form this
+# used to call collapses into an indistinguishable "0". Pre-fix, the regex
+# fallback `[[ "$TOKENS" =~ ^[0-9]+$ ]] || TOKENS=0` fed a crash/give-up AND a
+# genuine zero-usage session into the same branch below, producing
+# {"level":"ok","tokens":0} in both cases — byte-identical to every reader.
+# SCAN_OK preserves the distinction that fallback erased.
+SCAN_RESULT=$(tail -c 10000000 "$TRANSCRIPT" 2>/dev/null | python3 "$FRAMEWORK_ROOT/lib/context_tokens.py" "$SESSION_START_TS" --with-model 2>/dev/null)
+RAW_TOKENS=$(printf '%s' "$SCAN_RESULT" | cut -f1)
+RAW_MODEL=$(printf '%s' "$SCAN_RESULT" | cut -sf2)
+if [[ "$RAW_TOKENS" =~ ^[0-9]+$ ]] && [ -n "$RAW_MODEL" ]; then
+    TOKENS="$RAW_TOKENS"
+    SCAN_OK=1
+else
+    TOKENS=0
+    SCAN_OK=0
 fi
 
-# Write status file (fast-path cache for subsequent gate calls)
-# T-3127: stamp the per-session key so a concurrent worker can tell this
-# record is not its own. Derived with sed rather than a second python start,
-# to hold the script's stated <100ms budget.
-BG_SESSION_KEY=$(printf '%s' "$INPUT" | sed -n 's/.*"transcript_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
-BG_SESSION_KEY=$(basename "${BG_SESSION_KEY:-}" 2>/dev/null); BG_SESSION_KEY="${BG_SESSION_KEY%.jsonl}"
-printf '{"level": "%s", "tokens": %d, "timestamp": %d, "source": "budget-gate", "session_key": "%s"}' \
-    "$LEVEL" "$TOKENS" "$(date +%s)" "${BG_SESSION_KEY:-}" > "$STATUS_FILE" 2>/dev/null || true
+# T-3241: the cache now carries its own writer identity so a reader can
+# mechanically tell "this number is not from my session" instead of trusting a
+# plausible-looking but foreign or stale value.
+BG_SESSION_ID=""
+if [ -f "$CONTEXT_DIR/working/session.yaml" ]; then
+    BG_SESSION_ID=$(grep "^session_id:" "$CONTEXT_DIR/working/session.yaml" 2>/dev/null | cut -d: -f2 | tr -d ' ') || true
+fi
+
+if [ "$SCAN_OK" -eq 1 ]; then
+    LEVEL="ok"
+    if [ "$TOKENS" -ge "$TOKEN_CRITICAL" ]; then
+        LEVEL="critical"
+    elif [ "$TOKENS" -ge "$TOKEN_URGENT" ]; then
+        LEVEL="urgent"
+    elif [ "$TOKENS" -ge "$TOKEN_WARN" ]; then
+        LEVEL="warn"
+    fi
+    # T-3248: useful-headroom fields ride along in the same cache write, so the
+    # loop can read WINDOW - BASELINE from the file it already reads. BASELINE
+    # is measured from this session's OWN transcript (first in-scope usage entry
+    # — checkpoint.sh get_baseline_tokens; full scan once, then served from the
+    # .session-baseline cache, so this subprocess is cheap on repeat calls).
+    # Measurement only: nothing below gates, warns, or blocks on these fields —
+    # if a threshold is ever warranted it is a separate task, argued from the
+    # observed distribution (T-3248 AC 5). Nulls when the baseline is not yet
+    # measurable — never a fabricated number (same honesty rule as T-3241).
+    BASELINE=$(bash "$SCRIPT_DIR/checkpoint.sh" baseline "$TRANSCRIPT" 2>/dev/null) || BASELINE=0
+    [[ "$BASELINE" =~ ^[0-9]+$ ]] || BASELINE=0
+    if [ "$BASELINE" -gt 0 ]; then
+        HEADROOM=$((CONTEXT_WINDOW - BASELINE))
+        HEADROOM_RATIO=$(awk -v h="$HEADROOM" -v w="$CONTEXT_WINDOW" 'BEGIN{printf "%.2f", h/w}')
+        HR_JSON=", \"baseline_tokens\": ${BASELINE}, \"headroom_tokens\": ${HEADROOM}, \"headroom_ratio\": ${HEADROOM_RATIO}"
+    else
+        HR_JSON=', "baseline_tokens": null, "headroom_tokens": null, "headroom_ratio": null'
+    fi
+    # Write status file (fast-path cache for subsequent gate calls)
+    printf '{"level": "%s", "tokens": %d, "timestamp": %d, "session_id": "%s", "claude_session_id": "%s", "source": "budget-gate"%s}' \
+        "$LEVEL" "$TOKENS" "$(date +%s)" "${BG_SESSION_ID:-unknown}" "$CALLER_SID" "$HR_JSON" > "$STATUS_FILE" 2>/dev/null || true
+else
+    # T-3241: scan failed (unreadable/unparseable transcript, or too few in-scope
+    # entries to trust a scope decision — context_tokens.py's own "return 0 rather
+    # than guess" path) — write "unknown", never a fabricated "ok". No case arm
+    # below matches "unknown", so this call still fails open (same as the
+    # pre-existing no-transcript path) — only the ON-DISK claim changes, not gate
+    # enforcement.
+    LEVEL="unknown"
+    printf '{"level": "unknown", "tokens": null, "timestamp": %d, "session_id": "%s", "claude_session_id": "%s", "source": "budget-gate", "note": "scan failed or produced no data", "baseline_tokens": null, "headroom_tokens": null, "headroom_ratio": null}' \
+        "$(date +%s)" "${BG_SESSION_ID:-unknown}" "$CALLER_SID" > "$STATUS_FILE" 2>/dev/null || true
+fi
 LEVEL=${LEVEL:-ok}
 TOKENS=${TOKENS:-0}
 
@@ -407,12 +485,12 @@ case "$LEVEL" in
         exit 0
         ;;
     warn)
-        echo "Note: Context at ${TOKENS} tokens (~$((TOKENS * 100 / CONTEXT_WINDOW))%). Commit before starting new work. (docs/context-compaction.md)" >&2
+        echo "Note: Context at ${TOKENS} tokens (~$((TOKENS * 100 / CONTEXT_WINDOW))% of the ${CONTEXT_WINDOW}-token budget cap). Commit before starting new work. (docs/context-compaction.md)" >&2
         _supervision_notice
         exit 0
         ;;
     urgent)
-        echo "WARNING: Context at ${TOKENS} tokens (~$((TOKENS * 100 / CONTEXT_WINDOW))%). Do not start new work. Commit and handover." >&2
+        echo "WARNING: Context at ${TOKENS} tokens (~$((TOKENS * 100 / CONTEXT_WINDOW))% of the ${CONTEXT_WINDOW}-token budget cap). Do not start new work. Commit and handover." >&2
         echo "  Details: docs/context-compaction.md (budget ladder, what to do at each level)" >&2
         _supervision_notice
         exit 0
@@ -427,7 +505,7 @@ case "$LEVEL" in
         echo "  SESSION WRAPPING UP (${TOKENS} tokens)" >&2
         echo "══════════════════════════════════════════════════════════" >&2
         echo "" >&2
-        echo "  Context is at ~$((TOKENS * 100 / CONTEXT_WINDOW))% of context window." >&2
+        echo "  Context is at ~$((TOKENS * 100 / CONTEXT_WINDOW))% of the ${CONTEXT_WINDOW}-token budget cap." >&2
         echo "  Task files already have all essential state. Time to wrap up." >&2
         echo "" >&2
         echo "  ALLOWED: git commit/push, $(_fw_cmd) handover, reading files," >&2

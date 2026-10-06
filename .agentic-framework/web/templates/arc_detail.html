@@ -35,6 +35,16 @@
     .focus-dot.on { background: var(--pico-primary); }
     .focus-dot.off { background: transparent; border: 1px solid var(--pico-muted-color); }
     .focus-dot-btn:hover .focus-dot { box-shadow: 0 0 0 2px var(--pico-primary-focus, rgba(0,127,255,0.3)); }
+    /* T-3564: quick links + purpose + task overview */
+    .arc-quicklinks { display: flex; flex-wrap: wrap; gap: 0.3rem 0.9rem; align-items: baseline; position: sticky; top: 0; z-index: 5; margin: 0.4rem 0 0.8rem 0; padding: 0.4rem 0.7rem; font-size: 0.9rem; background: var(--pico-background-color); border: 1px solid var(--pico-muted-border-color); border-radius: 4px; }
+    .arc-quicklinks .jump-label { color: var(--pico-muted-color); font-weight: 600; }
+    .arc-quicklinks a { white-space: nowrap; }
+    .arc-purpose { padding: 0.8rem 1rem; border-left: 4px solid var(--pico-primary); background: var(--pico-card-background-color); margin: 1rem 0; }
+    .arc-purpose p { margin: 0.3rem 0; }
+    .arc-purpose blockquote { margin: 0.3rem 0 0.6rem 0; padding: 0; border: 0; font-size: 1.15rem; }
+    .arc-src { font-size: 0.8em; color: var(--pico-muted-color); }
+    .arc-story li { margin-bottom: 0.5rem; }
+    section[id], h3[id] { scroll-margin-top: 4.5rem; }
 </style>
 
 <p><a href="/arcs">← All arcs</a></p>
@@ -68,7 +78,25 @@
         {% if arc.closed_at %} · closed: <small>{{ arc.closed_at }}</small>{% endif %}
     </p>
 </article>
+{# T-3564 round 3: the bar sat INSIDE .arc-header, and a sticky element cannot leave
+   its parent, so it scrolled away with the header card (independent re-review). As a
+   sibling in the page column it stays pinned for the whole page. #}
+<nav class="arc-quicklinks" aria-label="Arc sections">
+    <span class="jump-label">Jump to:</span>
+    {% for sec in sections %}<a href="#{{ sec.id }}">{{ sec.title }}</a>{% endfor %}
+</nav>
 
+{# ── T-3564: purpose, task overview, story sections ── #}
+{% if 'purpose' in section_ids %}
+<section id="purpose" class="arc-purpose">
+    <h2>Purpose</h2>
+    {% if story.purpose %}<blockquote><strong>{{ story.purpose }}</strong></blockquote>{% endif %}
+    {% if story.objective %}<p>{{ story.objective }}</p>{% endif %}
+</section>
+{% endif %}
+
+<section id="task-overview">
+    <h2>Task overview</h2>
 <div class="stats-strip">
     <div class="stat-box">
         <div class="v">{{ stats.completed }} / {{ stats.total }}</div>
@@ -87,6 +115,98 @@
         <div class="l">Audit detective (G-062 / T-1656)</div>
     </div>
 </div>
+    {% if task_overview.total %}
+    <p>
+        {% for label, n in task_overview.counts %}<span class="badge {% if label == 'done' %}badge-ok{% elif label == 'started-work' %}badge-info{% elif label == 'issues' or label == 'awaiting review' %}badge-warn{% else %}badge-muted{% endif %}">{{ n }} {{ label }}</span> {% endfor %}
+    </p>
+    {% for title, rows in (('Open tasks', task_overview.open_tasks), ('Awaiting human review', task_overview.awaiting_review)) %}
+    {% if rows %}
+    <p class="muted" style="margin-bottom: 0.2rem;">{{ title }} ({{ rows|length }}):</p>
+    <ul>
+        {% for c in rows[:10] %}
+        <li><a href="/tasks/{{ c.id }}">{{ c.id }}</a> {{ c.name }} <small class="muted">· {{ c.status }}</small></li>
+        {% endfor %}
+        {% if rows|length > 10 %}<li class="muted">… +{{ rows|length - 10 }} more — <a href="#constituent-tasks">full table</a></li>{% endif %}
+    </ul>
+    {% endif %}
+    {% endfor %}
+    {% if not task_overview.open_tasks and not task_overview.awaiting_review %}<p class="muted">No open tasks.</p>{% endif %}
+    {% else %}<p class="muted">No constituent tasks yet.</p>{% endif %}
+    <p><small><a href="#constituent-tasks">Full task table ↓</a></small></p>
+</section>
+
+{% if 'success-criteria' in section_ids %}
+<section id="success-criteria" class="arc-story">
+    <h2>Success criteria</h2>
+    <ul>
+        {% for r in story.success_criteria %}
+        <li>{% if r.id %}<strong>{{ r.id }}</strong> {% endif %}{{ r.text }}
+            {% if r.evidence %}<br><small class="muted">Evidence: {{ r.evidence }}</small>{% endif %}</li>
+        {% endfor %}
+    </ul>
+</section>
+{% endif %}
+
+{% if 'context' in section_ids %}
+<section id="context" class="arc-story">
+    <h2>Context</h2>
+    <ul>
+        {% for r in story.context %}<li>{{ r.text }}{% if r.source_ref.text %} <span class="arc-src">— {% if r.source_ref.href %}<a href="{{ r.source_ref.href }}">{{ r.source_ref.text }}</a>{% else %}<code>{{ r.source_ref.text }}</code>{% endif %}</span>{% endif %}</li>{% endfor %}
+    </ul>
+</section>
+{% endif %}
+
+{% if 'decisions' in section_ids %}
+<section id="decisions" class="arc-story">
+    <h2>Decisions</h2>
+    <ul>
+        {% for r in story.decisions %}
+        <li>{{ r.text }}
+            {% if r.status %}<span class="badge {% if r.status == 'active' %}badge-ok{% else %}badge-muted{% endif %}">{{ r.status }}</span>{% endif %}
+            {% if r.date %}<small class="muted">{{ r.date }}</small>{% endif %}{% if r.source_ref.text %} <span class="arc-src">— {% if r.source_ref.href %}<a href="{{ r.source_ref.href }}">{{ r.source_ref.text }}</a>{% else %}<code>{{ r.source_ref.text }}</code>{% endif %}</span>{% endif %}</li>
+        {% endfor %}
+    </ul>
+</section>
+{% endif %}
+
+{% if 'open-questions' in section_ids %}
+<section id="open-questions" class="arc-story">
+    <h2>Open questions</h2>
+    <ul>
+        {% for r in story.open_questions %}<li>{{ r.text }}{% if r.source_ref.text %} <span class="arc-src">— {% if r.source_ref.href %}<a href="{{ r.source_ref.href }}">{{ r.source_ref.text }}</a>{% else %}<code>{{ r.source_ref.text }}</code>{% endif %}</span>{% endif %}</li>{% endfor %}
+    </ul>
+</section>
+{% endif %}
+
+{% if 'non-goals' in section_ids %}
+<section id="non-goals" class="arc-story">
+    <h2>Non-goals</h2>
+    <ul>
+        {% for r in story.non_goals %}<li>{{ r.text }}</li>{% endfor %}
+    </ul>
+</section>
+{% endif %}
+
+{% if 'history' in section_ids %}
+<section id="history" class="arc-story">
+    <h2>History</h2>
+    <ul>
+        {% for r in story.history %}<li>{% if r.date %}<strong>{{ r.date }}</strong> — {% endif %}{{ r.text }}{% if r.source_ref.text %} <span class="arc-src">— {% if r.source_ref.href %}<a href="{{ r.source_ref.href }}">{{ r.source_ref.text }}</a>{% else %}<code>{{ r.source_ref.text }}</code>{% endif %}</span>{% endif %}</li>{% endfor %}
+    </ul>
+</section>
+{% endif %}
+
+{% if 'evidence' in section_ids %}
+<section id="evidence" class="arc-story">
+    <h2>Evidence</h2>
+    <ul>
+        {% for r in story.evidence %}
+        <li>{{ r.label }}: {% if r.ref.href %}<a href="{{ r.ref.href }}">{{ r.value }}</a>{% else %}<code>{{ r.value }}</code>{% endif %}</li>
+        {% endfor %}
+    </ul>
+    {% if story.story_review %}<p class="muted"><small>{{ story.story_review }}</small></p>{% endif %}
+</section>
+{% endif %}
 
 {% if has_specialized_view %}
 <p><strong>Specialized view available:</strong> <a href="/orchestrator">→ /orchestrator</a> (MCP audit, live sessions, recent dispatches).</p>
@@ -176,7 +296,7 @@
 
     {# Currently approved scoped drivers — with per-row Remove (T-1976) + live weight sliders (T-1977) #}
     {% if bvp_info.scoped_drivers %}
-    <h3>Scoped drivers ({{ bvp_info.scoped_drivers|length }} / 3 max)</h3>
+    <h3 id="scoped-drivers">Scoped drivers ({{ bvp_info.scoped_drivers|length }} / 3 max)</h3>
     <p class="muted"><small>Drag a slider to preview the new weight (no commit). Press <strong>Commit weight changes</strong> below to persist via <code>fw arc set-scoped-weight --from-watchtower</code> (§ACD, D8). Rationale ≥30 chars required (R6). [T-1977]</small></p>
     <table id="scoped-sliders-table">
         <thead><tr><th>Name</th><th>Server</th><th>Slider</th><th>Current</th><th>Rationale</th><th>Approved</th><th></th></tr></thead>
@@ -303,7 +423,14 @@
     {# Proposed drivers — agent-suggested, awaiting approve / approve-none #}
     {% if bvp_info.proposed_drivers %}
     <h3>Proposed scoped drivers ({{ bvp_info.proposed_drivers|length }} awaiting approval)</h3>
-    <p class="muted">Estimator-proposed drivers. Approve up to 3 (M2; weight ≤6), or approve none with justification (R6: ≥30 chars).</p>
+    {# T-3429 (D-586): the operator-approval step is no longer the default path.
+       Approve runs the external value-driver reviewer; the verdict below is the
+       one it will act on. #}
+    <p class="muted">Estimator-proposed drivers. <strong>Approve</strong> runs the value-driver reviewer
+      — checks (a) scorable, (b) distinct, (c) distinguishes — and adds the driver only on PASS
+      (<code>approved_by: reviewer:…</code>). Up to 3 (M2; weight ≤6), or approve none with
+      justification (R6: ≥30 chars). Refresh every verdict:
+      <code>bin/fw arc review-driver {{ arc_slug }} --all</code>.</p>
     {% for p in bvp_info.proposed_drivers %}
     <article style="margin-bottom: 1rem; padding: 0.8rem;">
         <header style="margin-bottom: 0.5rem;">
@@ -313,6 +440,23 @@
             <strong>{{ p.get('name', '?')|replace('-', ' ')|title }}</strong>
             <code class="muted" style="margin-left: 0.4rem; font-size: 0.85em; opacity: 0.7;">{{ p.get('name', '?') }}</code>
             <small class="muted">· proposed {{ p.get('ts', '—') }} by {{ p.get('source', 'agent') }}</small>
+            {# T-3429: verdict up front, so the Approve button's outcome is
+               readable without pressing it. #}
+            {% if p.get('reviewer_state') == 'pass' %}
+            <span style="margin-left: 0.5rem; padding: 0.1rem 0.5rem; border-radius: 0.3rem;
+                         background: var(--pico-ins-color, #2a7); color: #fff; font-size: 0.8em;"
+                  title="Reviewed {{ p.get('reviewer_ts', '—') }} — checks (a) scorable, (b) distinct, (c) distinguishes">
+              Reviewer: PASS</span>
+            {% elif p.get('reviewer_state') == 'fail' %}
+            <span style="margin-left: 0.5rem; padding: 0.1rem 0.5rem; border-radius: 0.3rem;
+                         background: var(--pico-del-color, #c33); color: #fff; font-size: 0.8em;"
+                  title="Reviewed {{ p.get('reviewer_ts', '—') }}">
+              Reviewer: FAIL — {{ p.get('reviewer_failed', [])|join(', ') }}</span>
+            {% else %}
+            <span class="muted" style="margin-left: 0.5rem; font-size: 0.8em;"
+                  title="No reviewer: block on this proposal yet — Approve will run the reviewer now">
+              Reviewer: not reviewed</span>
+            {% endif %}
         </header>
         {% if p.get('rationale') %}<p>{{ p.rationale }}</p>{% endif %}
         <form method="POST" action="/api/arc/{{ arc_slug }}/approve-driver" style="display: inline;">
@@ -322,6 +466,11 @@
             <label>Rationale: <input type="text" name="rationale" value="{{ p.get('rationale', '') }}" minlength="10" style="width: 22em;" required></label>
             <button type="submit">Approve</button>
         </form>
+        {% if p.get('reviewer_state') == 'fail' %}
+        <p class="muted"><small>Approve will refuse while the reviewer fails. Fix the driver
+          (a missing <code>scoring:</code> spec is the usual one — T-3428), or override with
+          <code>bin/fw arc approve-driver {{ arc_slug }} "{{ p.get('name', '') }}" --i-am-human</code>.</small></p>
+        {% endif %}
     </article>
     {% endfor %}
     {% else %}
@@ -345,15 +494,17 @@
 {% endif %}
 
 {% if reports %}
-<h2>Reports &amp; evidence</h2>
+<section id="reports"><h2>Reports &amp; evidence</h2>
 <p class="muted">Arc-keyed reports under <code>docs/reports/{{ arc_id }}-*.md</code>:</p>
 <ul>
     {% for r in reports %}
     <li><a href="/file/{{ r.path }}"><code>{{ r.name }}</code></a></li>
     {% endfor %}
 </ul>
+</section>
 {% endif %}
 
+<section id="constituent-tasks">
 <h2>Constituent tasks{% if constituents %} <small class="muted" style="font-weight:normal;">({{ constituents|length }})</small>{% endif %}</h2>
 {% if constituents %}
 <p class="muted"><small>BVP_norm = score weighted by drivers / max-possible, [0,1]. BVP_raw = unscaled sum. Cost = composite F8. Italic + <code>*</code> = estimator-proposed (not yet human-confirmed). <code>—</code> = no score data yet. Numbers match <a href="/bvp">/bvp</a> scatter (same compute helpers). [T-1978]</small></p>
@@ -413,8 +564,10 @@
 {% else %}
 <p class="muted">No constituent tasks. Tag tasks with <code>arc:{{ arc_id }}</code> or run <code>fw arc tag {{ arc_id }} T-XXXX</code>.</p>
 {% endif %}
+</section>
 
 {% if arc.status != 'closed' %}
+<section id="completion-check">
 <h2>§Arc Completion Discipline — three-question check</h2>
 <p class="muted">Per CLAUDE.md, before declaring this arc shipped, you MUST be able to answer all three with concrete evidence — not by argument:</p>
 <div class="completion-check">
@@ -461,9 +614,12 @@
 {% if arc.demo_evidence %}
 <p class="muted"><small><strong>Latest demo on file:</strong> <code>{{ arc.demo_evidence }}</code> — preserved across any aborted close attempts.</small></p>
 {% endif %}
+</section>
 {% else %}
+<section id="arc-closed">
 <h2>Arc closed</h2>
 <p>Decision: <strong>{{ arc.decision or 'unspecified' }}</strong>{% if arc.closed_at %} · {{ arc.closed_at }}{% endif %}</p>
+</section>
 {% endif %}
 
 <script>

@@ -965,14 +965,51 @@ _HUMAN_AC_MECHANICAL_RE = re.compile(
         \brow\s+(written|appended) |
         \bstatus:\s*\w+      |
         # === Conformance-checking dialect (T-1897 widening) ===
-        # "block message names X / names the X / names current focus"
-        \bnames?\s+(the\s+|current\s+|missing\s+)?\S |
-        # "shows X / shows the Y / shows current Z"  (NB: taste gate suppresses
-        # "shows good", "shows rhythm" via _HUMAN_AC_TASTE_RE).
+        #
+        # T-3554 (OBS-571): these two alternates ended in `\S`, which matches ANY
+        # non-space character — so `\bnames?\s+\S` matched any English sentence
+        # containing "name" followed by a word. Measured:
+        #     MATCH 'name y'   | Please name your favourite colour.
+        #     MATCH 'shows s'  | This paragraph shows something entirely subjective.
+        # Every one of the 13 tasks on the D-626 delegation surface classified
+        # `deterministic` on a fragment like that, and none was safely delegable
+        # (4 strategic ratifications, 6 act-in-the-world, 1 render/taste, 2 with a
+        # sovereign sibling criterion). Worse, the T-3445 rail WARNs only when
+        # reviewer-closeable is 0 — reporting 13 fake ones suppressed the alarm for
+        # exactly the condition the fakes created.
+        #
+        # T-1897's intent was CONFORMANCE: "block message names `--switch-focus`",
+        # "shows .context/working/focus.yaml". The object of the verb is an
+        # identifier, not prose. Requiring it to LOOK like one keeps every case
+        # T-1897 was built for and drops the English.
+        #
+        # `(?-i: )` on the ALL-CAPS branch is load-bearing: this pattern compiles
+        # with re.I, under which `[A-Z][A-Z0-9_]{2,}` matches any three-letter word
+        # — which is how "your" and "something" got through the first draft of this
+        # very fix.
+        \bnames?\s+(?:(?:the|current|missing)\s+)*(?:
+            `[^`]+`                                  # `--flag`, `focus.yaml`
+          | --?[A-Za-z][\w-]*                        # --switch-focus, -f
+          | [\w.-]+/[\w./-]+                         # .context/working/focus.yaml
+          | (?-i:[A-Z][A-Z0-9_]{2,})                 # FW_SAFE_MODE, PROJECT_ROOT
+          | T-\d+                                    # T-1730
+          | "[^"]+"                                  # "focus.yaml"
+          | [\w-]+\.(?:py|sh|md|ya?ml|json|jsonl|html|txt|log|cast)\b
+        ) |
+        # "shows X" — same tightening. (NB: the taste gate additionally suppresses
+        # "shows good", "shows rhythm" via _HUMAN_AC_TASTE_RE.)
         # Negation objects excluded (T-2641): "maps show no prompt" is a
         # UI-absence assertion, not grep-able conformance — 832 foreign-corpus
         # FP on their T-100 (rail 240 fixture).
-        \bshows?\s+(?!no\b)(the\s+|current\s+|missing\s+)?\S |
+        \bshows?\s+(?!no\b)(?:(?:the|current|missing)\s+)*(?:
+            `[^`]+`
+          | --?[A-Za-z][\w-]*
+          | [\w.-]+/[\w./-]+
+          | (?-i:[A-Z][A-Z0-9_]{2,})
+          | T-\d+
+          | "[^"]+"
+          | [\w-]+\.(?:py|sh|md|ya?ml|json|jsonl|html|txt|log|cast)\b
+        ) |
         # "points at X / points to X"
         \bpoints?\s+(at|to)\b |
         # "contains the override flag / contains the focus name"
@@ -2085,6 +2122,89 @@ def detect_l387_sigpipe_risk(verification_section: str) -> list[Finding]:
     return findings
 
 
+_DECAY_TASK_PATH_RE = re.compile(r"\.tasks/active/(T-[0-9]+)")
+
+
+def _resolve_tasks_dir(task_path: str | None) -> Path | None:
+    """Find the `.tasks/` directory that owns `task_path`, or None.
+
+    Walks up from the task file rather than assuming a CWD, because the reviewer
+    runs from Watchtower (FRAMEWORK_ROOT) as well as the CLI (PROJECT_ROOT) —
+    the same split that made T-1317 add an explicit `cd` to the P-011 runner.
+    """
+    if not task_path:
+        return None
+    try:
+        p = Path(task_path).resolve()
+    except (OSError, ValueError):
+        return None
+    for parent in p.parents:
+        if parent.name == ".tasks" and (parent / "active").is_dir():
+            return parent
+    return None
+
+
+def detect_decaying_task_path_ref(
+    verification_section: str, task_path: str | None = None
+) -> list[Finding]:
+    """Verification line pins another task by its `.tasks/active/` path.
+
+    That path is a *decaying* reference. It passes at close — the referenced
+    task is still in `active/` then — and becomes a permanent false-red the
+    moment that task moves to `.tasks/completed/`. Nothing fires at the moment
+    of decay: the referenced task's own close breaks a *different* task's
+    verification block, and no gate looks sideways.
+
+    Safe rewrite — glob both trays, which matches wherever the task now lives:
+        grep -l PATTERN .tasks/*/T-1851-*.md
+
+    Only *decayed* references are flagged (referenced task no longer in
+    `active/`). A live reference to an in-flight sibling is legitimate and
+    common, so flagging it would cry wolf on ~every task that coordinates with
+    another. That distinction needs the filesystem, so when the tasks dir
+    cannot be resolved the detector stays silent rather than guessing.
+
+    Measured population at introduction (T-3274): 79 completed tasks pin such a
+    path in `## Verification`; 54 had already decayed. Only 1-2 surface per
+    audit run because CTL-013 re-runs a rotating window, so the rest sit latent
+    until they rotate into view.
+    """
+    findings: list[Finding] = []
+    if not verification_section:
+        return findings
+    tasks_dir = _resolve_tasks_dir(task_path)
+    if tasks_dir is None:
+        return findings
+    active_dir = tasks_dir / "active"
+    for lineno, raw in enumerate(verification_section.splitlines(), start=1):
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        refs = _DECAY_TASK_PATH_RE.findall(line)
+        if not refs:
+            continue
+        # Self-references decay too (the task's own file moves on close), and
+        # are the shape that blocked all 14 CTL-028 backfills in T-3265 round 3.
+        decayed = [r for r in dict.fromkeys(refs) if not list(active_dir.glob(f"{r}-*.md"))]
+        if not decayed:
+            continue
+        findings.append(
+            Finding(
+                pattern_id="decaying-task-path-ref",
+                pattern_name="Verification pins a .tasks/active/ path that has decayed",
+                detection_confidence="deterministic",
+                # `partial` keeps the verdict at CONCERN. The verification line
+                # is genuinely broken, but the WORK it attested to is usually
+                # intact — only the path moved. Failing the task would punish
+                # the author for a sibling task's later close.
+                lie_severity="partial",
+                location=f"Verification:line {lineno}",
+                evidence=f"{', '.join(decayed)} no longer in active/ — {line[:150]}",
+            )
+        )
+    return findings
+
+
 def detect_ac_verify_mismatch(ac_section: str, verification_section: str) -> list[Finding]:
     """AC checked AND mentions a specific file path, but no verification line touches it.
 
@@ -2597,9 +2717,29 @@ def evaluate_escalations(
             if not haystack:
                 continue
             try:
-                m = re.search(pattern, haystack, re.IGNORECASE)
+                matches = list(re.finditer(pattern, haystack, re.IGNORECASE))
             except re.error:
                 continue
+            # T-3642: optional exclude_pattern (e.g. a negation) is tested
+            # against the CURRENT CLAUSE ending at the match — clamped on
+            # [.;:\n] so a "never" in the previous sentence cannot suppress a
+            # genuine hit in the next one (055's fail-open trap). Excluded hits
+            # are skipped and scanning continues. An unparseable exclude
+            # pattern means no exclusion: the rail fails loud, not open.
+            exclude = None
+            if matcher.get("exclude_pattern"):
+                try:
+                    exclude = re.compile(matcher["exclude_pattern"], re.IGNORECASE)
+                except re.error:
+                    exclude = None
+            m = None
+            for cand in matches:
+                if exclude is not None:
+                    clause = re.split(r"[.;:\n]", haystack[: cand.start()])[-1]
+                    if exclude.search(clause):
+                        continue
+                m = cand
+                break
             if m:
                 triggers.append(
                     EscalationTrigger(
@@ -2641,6 +2781,9 @@ def scan_task(
     findings.extend(detect_reviewer_prose_mismatch(ac_section))
     # v1.5 +1: T-2059 — L-387 SIGPIPE detector (closes 7+ historical captures)
     findings.extend(detect_l387_sigpipe_risk(verif_section))
+    # v1.7 +1: T-3274 — decaying `.tasks/active/<T-XXXX>` verification refs
+    # (54 already-decayed instances in the corpus at introduction)
+    findings.extend(detect_decaying_task_path_ref(verif_section, task_path))
     # v1.6 +1: T-2147 — audience-mismatch (T-2143 leg B); reviewer-time
     # backstop for CLAUDE.md §AC Classification audience axis (T-2148).
     findings.extend(detect_audience_mismatch(ac_section))
@@ -2725,16 +2868,6 @@ _VERDICT_SECTION_RE = re.compile(
 
 
 def render_verdict_md(verdict: Verdict) -> str:
-    # T-3198: record the verdict's PROVENANCE. The T-1951 dispatch path runs the
-    # scan inside an isolated TermLink worker with FW_REVIEWER_IN_DISPATCH=1
-    # (dispatch_cli.py:185); the inline path does not. Without this line a reader
-    # — and, more importantly, the R-033 sovereignty gate — cannot distinguish an
-    # EXTERNAL review from an agent reviewing its own work in the same session.
-    # The sovereignty relaxation keys on `external-dispatch` and on nothing else,
-    # so this string is load-bearing: do not emit it unconditionally.
-    _reviewer_provenance = (
-        "external-dispatch" if os.environ.get("FW_REVIEWER_IN_DISPATCH") else "inline"
-    )
     lines = [
         VERDICT_HEADER,
         "",
@@ -2743,7 +2876,6 @@ def render_verdict_md(verdict: Verdict) -> str:
         f"- **Catalogue:** {verdict.catalogue_version}",
         f"- **Overall:** {verdict.overall}",
         f"- **Needs Human:** {'yes' if verdict.needs_human else 'no'}",
-        f"- **Reviewer:** {_reviewer_provenance}",
     ]
     if verdict.risk_declared:
         lines.append(f"- **Risk (declared):** {verdict.risk_declared}")

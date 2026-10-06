@@ -28,6 +28,10 @@ source "$FRAMEWORK_ROOT/lib/keylock.sh" 2>/dev/null || true
 # Render-surface predicate (T-1766)
 source "$FRAMEWORK_ROOT/lib/render_surface.sh" 2>/dev/null || true
 
+# Anchored AC / Recommendation section extraction (T-3148, sibling to
+# lib/verification-port.sh:extract_verification_block, T-3134)
+source "$FRAMEWORK_ROOT/lib/section-extract.sh"
+
 # === Extracted gate functions (T-415) ===
 # Each function accesses outer-scope variables: TASK_FILE, TASK_ID, SKIP_*, colors
 
@@ -61,9 +65,69 @@ _t2864_reconcile_index() {
     return 0
 }
 
+# T-1032: after `git mv active/ → completed/` runs, the old active/ path no
+# longer exists in the working tree. Agents that reason from a pre-move git
+# status snapshot construct `git add <old-active-path>` and hit `fatal:
+# pathspec did not match any files`. Emit an explicit next-step hint naming
+# the invariant (rename staged in index; episodic added separately below and
+# untracked). Opt out with FW_QUIET_NEXT_HINT=1 for scripted callers that
+# parse stdout.
+_print_move_next_hint() {
+    [ "${FW_QUIET_NEXT_HINT:-0}" = "1" ] && return 0
+    local tid="${1:-$TASK_ID}"
+    printf '  \xe2\x86\xb3 rename staged in index; episodic added below (untracked)\n'
+    printf "  \xe2\x86\xb3 next: git add .context/episodic/%s.yaml && git commit -m '%s: close ...' && git push\n" "$tid" "$tid"
+}
+
+# Bypass policy (T-3586). Runs at the moment a --skip-* flag is CONSUMED — i.e. a gate
+# would have refused and the flag is what lets the call through — not at parse time,
+# so a flag an internal caller passes on a path where its gate never fires stays inert.
+#
+# Two rules:
+#   1. Every consumed --skip-* needs a non-empty reason (--reason "..." or the flag's
+#      own argument). Humans included: an unexplained bypass is not auditable.
+#   2. A flag whose gate protects a criterion or ownership is refused under
+#      CLAUDECODE=1 (agent sessions and dispatched workers) unless --i-am-human.
+#      Origin: T-3583's worker closed with --skip-acceptance-criteria and reason ''
+#      leaving two criteria unbuilt, against its prompt.
+# Agent-usable with a reason: the flags whose skip is a ruled agent path
+# (--skip-render-review under T-3557 until T-3580 lands) or whose gate guards an
+# artefact's shape rather than a criterion or ownership. Table: T-3586 task file.
+# Env-var bypasses (FW_*) are unchanged: they have no reason surface.
+_BYPASS_AGENT_REFUSED=" --skip-acceptance-criteria --skip-verification --skip-sovereignty --skip-human-ownership --skip-rca --skip-recommendation --skip-inception-decision --skip-self-deferral "
+_BYPASS_REASON_REQUIRED=" --skip-acceptance-criteria --skip-verification --skip-sovereignty --skip-human-ownership --skip-rca --skip-recommendation --skip-inception-decision --skip-render-review --skip-evolution --skip-disposition-gate --skip-inception-scope-trace --skip-register-requirements --skip-self-deferral "
+enforce_bypass_policy() {
+    local flag="$1" reason="$2"
+    case "$_BYPASS_REASON_REQUIRED" in *" $flag "*) ;; *) return 0 ;; esac
+    if [ -z "${reason//[[:space:]]/}" ]; then
+        echo -e "${RED}ERROR: $flag needs a reason — an unexplained bypass is refused (T-3586)${NC}" >&2
+        echo "  Add --reason \"why this gate should not apply\" (logged to .context/working/.gate-bypass-log.yaml)." >&2
+        exit 1
+    fi
+    case "$_BYPASS_AGENT_REFUSED" in *" $flag "*) ;; *) return 0 ;; esac
+    if [ "${CLAUDECODE:-}" = "1" ] && [ "$I_AM_HUMAN" != true ]; then
+        echo -e "${RED}ERROR: $flag is refused in an agent session (CLAUDECODE=1) — T-3586${NC}" >&2
+        echo "  This gate protects a criterion or the operator's ownership; an agent does not waive it." >&2
+        echo "  Instead:" >&2
+        echo "    1. Finish the work, tick each criterion as it is met, and retry." >&2
+        echo "    2. If part of it genuinely belongs elsewhere: file it as its own task" >&2
+        echo "       (bin/fw task create --name \"...\"), then ask the operator to rule on" >&2
+        echo "       narrowing this one. Do not narrow it yourself." >&2
+        echo "    3. Otherwise stop and report what refused and why — that is a valid outcome." >&2
+        echo "  The operator can pass --i-am-human with --reason from their own terminal." >&2
+        exit 1
+    fi
+}
+
 # Gate bypass audit log (T-1142)
 log_gate_bypass() {
     local flag="$1" caller="${2:-manual}"
+    local _policy_reason="$REASON"
+    [ "$flag" = "--skip-render-review" ] && _policy_reason="${SKIP_RENDER_REVIEW_REASON:-$REASON}"
+    enforce_bypass_policy "$flag" "$_policy_reason"
+    if [ "$I_AM_HUMAN" = true ] && [ "${CLAUDECODE:-}" = "1" ]; then
+        caller="$caller [--i-am-human under CLAUDECODE=1]"
+    fi
     local log_file="$PROJECT_ROOT/.context/working/.gate-bypass-log.yaml"
     local timestamp
     timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -83,93 +147,45 @@ log_gate_bypass() {
     echo "  reason: '${_esc_reason:-}'" >> "$log_file"
 }
 
-# T-3198: does an EXTERNAL reviewer verdict stand in for the human tick?
-#
-# Rubber-stamping is dead by operator ruling (2026-09-28): a low-risk task whose
-# remaining Human ACs are mechanical does not need a person to click. What it
-# needs is a reviewer that is not the agent that did the work. `fw reviewer
-# T-XXX --dispatch` (T-1951) is exactly that — it runs the scan inside an
-# isolated TermLink worker, so the verdict has an author other than this session.
-#
-# Prints the satisfying verdict's scan id on stdout and returns 0 ONLY when all
-# of the following hold. Any doubt returns 1 and the gate stays engaged:
-#   1. a `## Reviewer Verdict` block exists
-#   2. `Overall: PASS`
-#   3. `Needs Human: no`
-#   4. `Reviewer: external-dispatch`  (not an inline self-scan)
-#   5. frontmatter has no `human_signoff: required`
-#   6. frontmatter has no `risk: high|medium`
-#   7. zero remaining UNCHECKED `[REVIEW]` Human ACs
-#
-# (7) is where "not high risk" is actually decided. `[RUBBER-STAMP]` is the
-# mechanical class this ruling releases; `[REVIEW]` is declared human judgment
-# and is never released — see CLAUDE.md §Human AC Format Requirements (T-325).
-#
-# FAIL-CLOSED: unreadable file, absent block, unparseable frontmatter or missing
-# python3 all return 1. A sovereignty gate that opens because it could not
-# evaluate itself is worse than no gate at all.
-external_reviewer_clears_sovereignty() {
-    python3 - "$TASK_FILE" <<'PYREV' 2>/dev/null || return 1
-import sys, re
-try:
-    text = open(sys.argv[1], encoding="utf-8").read()
-except OSError:
-    sys.exit(1)
-
-fm_m = re.match(r"^---\s*\n(.*?)\n---", text, re.DOTALL)
-fm = fm_m.group(1) if fm_m else ""
-if re.search(r"^human_signoff:\s*[\"']?required\b", fm, re.M):
-    sys.exit(1)
-if re.search(r"^risk:\s*[\"']?(high|medium)\b", fm, re.M | re.I):
-    sys.exit(1)
-
-v_m = re.search(r"^## Reviewer Verdict[^\n]*\n(.*?)(?=^#{2,} |\Z)", text, re.M | re.S)
-if not v_m:
-    sys.exit(1)
-block = v_m.group(1)
-
-def field(name):
-    m = re.search(r"^- \*\*%s:\*\*\s*(\S+)" % name, block, re.M | re.I)
-    return (m.group(1).strip() if m else "")
-
-if field("Overall").upper() != "PASS":
-    sys.exit(1)
-if field("Needs Human").lower() != "no":
-    sys.exit(1)
-if field("Reviewer").lower() != "external-dispatch":
-    sys.exit(1)
-
-# Remaining UNCHECKED Human ACs must all be mechanical. Scan every `### Human`
-# block, with HTML comments stripped so the template's own examples never count.
-human_blocks = re.findall(r"^### Human\s*$(.*?)(?=^#{2,} |\Z)", text, re.M | re.S)
-human = re.sub(r"<!--.*?-->", "", "\n".join(human_blocks), flags=re.S)
-for line in human.splitlines():
-    if re.match(r"\s*-\s*\[\s*\]", line) and "[REVIEW]" in line:
-        sys.exit(1)
-
-print(field("Scan ID") or "unknown")
-PYREV
+# Reviewer-verdict application (T-3579, T-3557 slice 2)
+# An independent reviewer's GREEN verdict, recorded in .context/reviews/verdicts.jsonl
+# for the current text of a REVIEWER-JUDGES Human criterion, ticks that criterion and,
+# when nothing is left for the operator to answer, hands ownership to the agent. This is
+# the NORMAL path — no flag, no bypass. The closer only reads the ledger; verdicts are
+# written by `fw reviewer verdict record`, by a reviewer who is not the producer.
+# Runs BEFORE the R-033 sovereignty gate so an all-green task reaches it as owner: agent.
+apply_reviewer_verdicts() {
+    [ "$NEW_STATUS" = "work-completed" ] || return 0
+    # T-3581: a missing validator is a REFUSAL, never a skip — a tick this module wrote earlier
+    # would otherwise survive with nothing left to revalidate it.
+    if [ ! -f "$FRAMEWORK_ROOT/lib/verdict_ledger.py" ]; then
+        echo -e "${RED}ERROR: lib/verdict_ledger.py is missing — reviewer-derived ticks cannot be revalidated; refusing to close${NC}" >&2
+        echo "  Restore it (bin/fw vendor self / fw upgrade) and retry." >&2
+        exit 1
+    fi
+    local applied
+    # T-3581: runs at EVERY close attempt and also WITHDRAWS reviewer-derived ticks whose
+    # verdict no longer validates. A crash here must refuse the close, not skip the check:
+    # a stale tick that survives a broken revalidation is the hole this closes.
+    if ! applied=$(PROJECT_ROOT="$PROJECT_ROOT" python3 "$FRAMEWORK_ROOT/lib/verdict_ledger.py" apply "$TASK_ID" 2>&1); then
+        echo -e "${RED}ERROR: reviewer-verdict revalidation failed — refusing to close${NC}" >&2
+        echo "$applied" | tail -5 >&2
+        exit 1
+    fi
+    if echo "$applied" | grep -q '"withdrawn": \[{'; then
+        echo -e "${YELLOW}Reviewer verdict WITHDRAWN (no longer valid): $applied${NC}"
+    fi
+    if echo "$applied" | grep -q '"verdict_id"'; then
+        echo -e "${GREEN}Reviewer verdict applied: $applied${NC}"
+    fi
 }
 
 # Human Sovereignty Gate (R-033/T-198)
 # Block agent from completing human-owned tasks without human interaction.
-# T-3198: an external TermLink reviewer PASS now satisfies it for low-risk work.
 check_human_sovereignty() {
     local current_owner
     current_owner=$({ grep "^owner:" "$TASK_FILE" 2>/dev/null || true; } | head -1 | sed 's/owner:[[:space:]]*//')
     if [ "$current_owner" = "human" ]; then
-        local _rev_scan_id
-        if _rev_scan_id=$(external_reviewer_clears_sovereignty); then
-            # Loud and logged, never silent — a reader of the register must be
-            # able to tell a reviewer-closed task from a human-closed one.
-            echo -e "${GREEN}Sovereignty gate (R-033): satisfied by EXTERNAL reviewer verdict (T-3198)${NC}"
-            echo "  Verdict: PASS / Needs Human: no / Reviewer: external-dispatch"
-            echo "  Scan ID: ${_rev_scan_id}"
-            echo "  No [REVIEW] Human AC outstanding; risk not declared high/medium."
-            log_gate_bypass "external-reviewer" \
-                "check_human_sovereignty: external-dispatch PASS scan=${_rev_scan_id}"
-            return 0
-        fi
         if [ "$SKIP_SOVEREIGNTY" = true ]; then
             echo -e "${YELLOW}WARNING: Completing human-owned task (--skip-sovereignty bypass)${NC}"
             log_gate_bypass "--skip-sovereignty" "check_human_sovereignty"
@@ -193,7 +209,9 @@ check_acceptance_criteria() {
     local agent_acs ac_total ac_checked ac_unchecked ac_label
     local human_acs placeholder_acs placeholder_count
 
-    ac_section=$(sed -n '/^## Acceptance Criteria/,/^## /p' "$TASK_FILE" 2>/dev/null | sed '$d')
+    # T-3148: anchored, FIRST-WINS extraction (see lib/section-extract.sh header
+    # for why AC is first-wins while Recommendation, below, is last-wins).
+    ac_section=$(extract_ac_section "$TASK_FILE")
     # Strip HTML comments — template examples contain checkbox patterns that get miscounted.
     # T-1967 (L-414 root cause): sed range matching does NOT close on the same line where
     # it opens — `/<!--/,/-->/d` on a one-line `<!-- ... -->` enters delete-mode at that
@@ -285,7 +303,9 @@ check_acceptance_criteria() {
             # rather than re-doing the work. CLAUDE.md §Progressive AC ticking is
             # the procedural rule; this message surfaces it at the point of refusal.
             local _rec_block _rec_filled=false
-            _rec_block=$(sed -n '/^## Recommendation/,/^## /p' "$TASK_FILE" 2>/dev/null | sed '$d')
+            # T-3148: anchored, LAST-WINS extraction — the template ships a
+            # stub here and real content is appended after it (T-3144).
+            _rec_block=$(extract_recommendation_block "$TASK_FILE")
             if [ -n "$_rec_block" ] && echo "$_rec_block" | grep -qE '^\*\*(Recommendation|Rationale|Evidence)(:\*\*|\*\*:)'; then
                 _rec_filled=true
             fi
@@ -302,7 +322,7 @@ check_acceptance_criteria() {
             fi
             echo "Options:" >&2
             echo "  1. Check the criteria in the task file, then retry" >&2
-            echo "  2. Use --skip-acceptance-criteria to bypass (logged)" >&2
+            echo "  2. Operator only: --skip-acceptance-criteria --reason \"...\" (refused for agents, T-3586)" >&2
             # T-2624 read-value wiring: this gate IS the tl_archive edge of the
             # task-lifecycle map — point the tripping agent at the process picture.
             if [ -f "$PROJECT_ROOT/.context/designer/projects/aef-task-lifecycle/meta.json" ]; then
@@ -445,7 +465,7 @@ PYREC
             echo "" >&2
             echo "Options:" >&2
             echo "  1. Add the Recommendation block, then retry" >&2
-            echo "  2. Bypass via flag (logged Tier 2): --skip-recommendation" >&2
+            echo "  2. Operator only: --skip-recommendation --reason \"...\" (refused for agents, T-3586)" >&2
             echo "  3. Bypass via env var (logged Tier 2, T-1890 parity):" >&2
             echo "       FW_ALLOW_EMPTY_RECOMMENDATION=1 bin/fw task update T-XXX --status work-completed" >&2
             exit 1
@@ -482,9 +502,12 @@ check_rca_for_bugfix() {
     [ "$NEW_STATUS" = "work-completed" ] || return 0
 
     local task_title task_type task_tags is_bug
-    task_title=$(grep '^name:' "$TASK_FILE" | head -1 | sed 's/name:[[:space:]]*//' | tr -d '"')
-    task_type=$(grep '^workflow_type:' "$TASK_FILE" | head -1 | sed 's/workflow_type:[[:space:]]*//' | tr -d '"' | tr -d "'")
-    task_tags=$(grep '^tags:' "$TASK_FILE" | head -1 | sed 's/tags:[[:space:]]*//')
+    # T-3301: '|| true' on each — a missing frontmatter key makes grep exit 1,
+    # and under set -euo pipefail that killed the whole close mid-flight
+    # (observed: tags-less task file died right after the AC-count print).
+    task_title=$(grep '^name:' "$TASK_FILE" | head -1 | sed 's/name:[[:space:]]*//' | tr -d '"' || true)
+    task_type=$(grep '^workflow_type:' "$TASK_FILE" | head -1 | sed 's/workflow_type:[[:space:]]*//' | tr -d '"' | tr -d "'" || true)
+    task_tags=$(grep '^tags:' "$TASK_FILE" | head -1 | sed 's/tags:[[:space:]]*//' || true)
 
     # Non-bug workflow types never gate on RCA, regardless of title keywords
     # (T-2132: "fix request" / "feature request" tasks are not bug fixes).
@@ -553,7 +576,7 @@ PYRCA
             echo "" >&2
             echo "Options:" >&2
             echo "  1. Add the RCA block, then retry" >&2
-            echo "  2. Use --skip-rca to bypass (logged, T-1550)" >&2
+            echo "  2. Operator only: --skip-rca --reason \"...\" (refused for agents, T-3586)" >&2
             exit 1
             ;;
     esac
@@ -594,29 +617,21 @@ check_render_surface_human_ac() {
         return 0
     fi
 
+    # T-1901: scan ALL `### Human` blocks (not just the first). T-3288 (OBS-373):
+    # tolerate heading suffixes — `### Human (Slice 1)` is a Human block; the
+    # prior exact-match regex saw only the empty template stub and false-blocked
+    # T-1719's close. Logic lives in lib/human_review_state.py so bats can pin it.
     local review_state
-    review_state=$(python3 - "$TASK_FILE" <<'PYREV' 2>/dev/null || echo "error"
-import sys, re
-try:
-    text = open(sys.argv[1]).read()
-except OSError:
-    print("error"); sys.exit(0)
-# T-1901: scan ALL `### Human` blocks (not just the first). When a task has
-# a template-comment Human block + a separate ACs Human block, the prior
-# `re.search` only saw the template block and returned "empty". `re.finditer`
-# captures every block; we union their content before scanning for [REVIEW].
-matches = list(re.finditer(r'^### Human\s*$(.*?)(?=^#{2,} |\Z)', text, re.MULTILINE | re.DOTALL))
-if not matches:
-    print("no_section"); sys.exit(0)
-human = "\n".join(m.group(1) for m in matches)
-human = re.sub(r'<!--.*?-->', '', human, flags=re.DOTALL)
-review_lines = [l for l in human.splitlines() if re.match(r'\s*-\s*\[[ x]\]\s*\[REVIEW\]', l)]
-if review_lines:
-    print("has_review"); sys.exit(0)
-ac_lines = [l for l in human.splitlines() if re.match(r'\s*-\s*\[[ x]\]', l)]
-print("only_other" if ac_lines else "empty")
-PYREV
-)
+    review_state=$(python3 "$FRAMEWORK_ROOT/lib/human_review_state.py" "$TASK_FILE" 2>/dev/null || echo "error")
+
+    # T-3579: a green verdict from an independent reviewer satisfies the gate in place of
+    # an unticked [REVIEW]. No bypass flag — this is the normal path. The gate names the
+    # verdict that satisfied it.
+    local verdict_line
+    if verdict_line=$(PROJECT_ROOT="$PROJECT_ROOT" python3 "$FRAMEWORK_ROOT/lib/verdict_ledger.py" check-render "$TASK_ID" 2>/dev/null); then
+        echo -e "${GREEN}Render-surface gate: satisfied by ${verdict_line} ✓${NC}"
+        return 0
+    fi
 
     case "$review_state" in
         has_review)
@@ -695,7 +710,7 @@ check_inception_decision() {
     echo "" >&2
     echo "Options:" >&2
     echo "  1. Record the decision: bin/fw inception decide $(basename "$TASK_FILE" .md | grep -oE '^T-[0-9]+') go|no-go|defer --rationale '...'" >&2
-    echo "  2. Use --skip-inception-decision to bypass (logged, T-1626)" >&2
+    echo "  2. Operator only: --skip-inception-decision --reason \"...\" (refused for agents, T-3586)" >&2
     exit 1
 }
 
@@ -901,6 +916,123 @@ check_evolution_log() {
     exit 1
 }
 
+# Design-conformance register gate (T-3691, structural prevention for T-3682)
+# Fires on --status work-completed for build tasks whose arc_id references a design
+# with a requirement register (structured YAML block with {id, text, owner_task, status}).
+# Checks that any scope fence deferring a register requirement names an EXISTING owner_task.
+#
+# Register lives in the design doc as a fenced YAML block listing R1-R15 with owner tasks.
+# If a task body mentions "deferred:R-id" or quotes the requirement text without naming
+# an owner_task that exists, the gate refuses: a spec requirement cannot be left unowned.
+#
+# Bypass policy (T-1890 parity):
+#   --skip-register-requirements "rationale"  (direct CLI, logged Tier-2)
+#   FW_SKIP_REGISTER_REQUIREMENTS=1           (env-var for git hooks, logged Tier-2)
+#
+# Origin: T-3682 audit found 6 slices deferring the same 7 sidecar requirements with NO
+# task ever assigned to build them. This gate prevents the pattern from reoccurring.
+check_register_requirements() {
+    [ "$NEW_STATUS" = "work-completed" ] || return 0
+
+    local task_type
+    task_type=$(grep '^workflow_type:' "$TASK_FILE" | head -1 | sed 's/workflow_type:[[:space:]]*//' | tr -d '"' | tr -d "'")
+
+    # Only build tasks; inceptions/specs/designs are not slices
+    [ "$task_type" = "build" ] || return 0
+
+    # T-3694: one predicate (lib/design_register.py close-check), shared with
+    # fw audit, fw doctor and /approvals. The T-3691 inline version resolved the
+    # arc by FILENAME only, so arc-011 (parallel-execution-aef.yaml, id: arc-011)
+    # was never found and the gate was inert for the very arc it was built for.
+    # The module resolves by id/slug too, reads register_docs: as well as
+    # design_doc:, and also refuses a closing task that still owns an unbuilt
+    # row (the T-3561 shape).
+    local register_entries
+    register_entries=$(PROJECT_ROOT="$PROJECT_ROOT" python3 "$FRAMEWORK_ROOT/lib/design_register.py" \
+        close-check "$TASK_FILE" --root "$PROJECT_ROOT" 2>&1) || true
+
+    # If any deferred requirements have no valid owner, refuse
+    if [ -n "$register_entries" ]; then
+        if [ "$SKIP_REGISTER_REQUIREMENTS" = true ]; then
+            echo -e "${YELLOW}WARNING: Register requirements deferred without valid owners (--skip-register-requirements bypass)${NC}"
+            log_gate_bypass "--skip-register-requirements" "check_register_requirements"
+            return 0
+        fi
+
+        if [ "${FW_SKIP_REGISTER_REQUIREMENTS:-0}" = "1" ]; then
+            echo -e "${YELLOW}WARNING: Register requirements deferred without valid owners (FW_SKIP_REGISTER_REQUIREMENTS=1 bypass)${NC}"
+            log_gate_bypass "FW_SKIP_REGISTER_REQUIREMENTS" "check_register_requirements"
+            return 0
+        fi
+
+        local task_id
+        task_id=$(basename "$TASK_FILE" | grep -oE '^T-[0-9]+')
+
+        echo -e "${RED}ERROR: Cannot complete — register requirements without a live owner (deferred here, or owned by this task and not built).${NC}" >&2
+        echo "" >&2
+        echo "T-3691 (T-3682 origin): this slice's scope fences items from the design's requirement" >&2
+        echo "register, but does not name an EXISTING owner task for each. The sidecar spec had" >&2
+        echo "7 deferred requirements and no owner — this gate prevents reoccurrence." >&2
+        echo "" >&2
+        echo "Failing requirement(s):" >&2
+        while IFS= read -r line; do
+            echo "  - $line" >&2
+        done <<< "$register_entries"
+        echo "" >&2
+        echo "To resolve:" >&2
+        echo "  1. For each deferred requirement, point owner_task at an ACTIVE task that will build it" >&2
+        echo "  2. For a row this task owns: build it (status: built), or re-point owner_task" >&2
+        echo "  3. Or remove the deferred item from this task's scope fence" >&2
+        echo "" >&2
+        echo "To override (Tier-2 logged):" >&2
+        echo "  --skip-register-requirements \"rationale\"  (direct fw task update)" >&2
+        echo "  FW_SKIP_REGISTER_REQUIREMENTS=1 <cmd>    (env-var for git hooks)" >&2
+        exit 1
+    fi
+
+    return 0
+}
+
+# Self-deferral gate (T-3694 — the hole T-3691 closed through)
+# A task's own result (ACs, Recommendation, Evolution, Decisions, scope fence —
+# not Context/RCA/Updates, which describe other tasks) must not defer its own
+# work to a task id that does not exist, is not active, or never mentions the
+# closing task. T-3691 closed with "deferred to separate tasks (T-3692, T-3693)":
+# T-3693 did not exist and T-3692 was an unrelated bug. A deferral the target
+# does not acknowledge is a deferral to nobody.
+# Predicate: lib/design_register.py self-deferral (shared with its tests).
+# Bypass: --skip-self-deferral --reason "..." (operator only; refused under
+# CLAUDECODE=1 without --i-am-human, logged Tier-2). No env-var form: the gate
+# guards a criterion, and an env var has no reason surface (T-3586).
+check_self_deferral() {
+    [ "$NEW_STATUS" = "work-completed" ] || return 0
+    local found
+    found=$(PROJECT_ROOT="$PROJECT_ROOT" python3 "$FRAMEWORK_ROOT/lib/design_register.py" \
+        self-deferral "$TASK_FILE" --root "$PROJECT_ROOT" 2>&1) || true
+    [ -n "$found" ] || return 0
+    if [ "$SKIP_SELF_DEFERRAL" = true ]; then
+        echo -e "${YELLOW}WARNING: deferral to an unowned target (--skip-self-deferral bypass)${NC}"
+        log_gate_bypass "--skip-self-deferral" "check_self_deferral"
+        return 0
+    fi
+    echo -e "${RED}ERROR: Cannot complete — this task defers its own work to a task that cannot own it.${NC}" >&2
+    echo "" >&2
+    echo "T-3694 (T-3691 origin): a deferral target must exist, be active, and mention this" >&2
+    echo "task (so the owner knows it inherited the work)." >&2
+    echo "" >&2
+    while IFS= read -r line; do
+        echo "  - $line" >&2
+    done <<< "$found"
+    echo "" >&2
+    echo "To resolve:" >&2
+    echo "  1. File the follow-up task (fw task create ...) and reference this task in it" >&2
+    echo "  2. Or add a line naming this task to the existing target's body" >&2
+    echo "  3. Or do the work here and drop the deferral" >&2
+    echo "" >&2
+    echo "Operator override (Tier-2 logged): --skip-self-deferral --reason \"...\"" >&2
+    exit 1
+}
+
 # Disposition-completeness gate (T-2190, T-2186 Slice 4)
 # Inception tasks must dispose every declared question in the ## Open Questions
 # body section. Each question gets answered / dissolved / deferred with cited
@@ -911,59 +1043,44 @@ check_evolution_log() {
 #   FW_SKIP_DISPOSITION_GATE=1           (git/wrapper / env-only callers)
 # Both logged Tier-2 to .context/working/.gate-bypass-log.yaml.
 check_disposition_gate() {
-    # Only fires on inception tasks
-    local wf
-    wf=$(grep -E "^workflow_type:" "$TASK_FILE" | head -1 | awk '{print $2}' | tr -d '"' | tr -d "'")
-    if [ "$wf" != "inception" ]; then
-        return 0
+    # T-3279 (G-102): the parsing predicate moved to lib/inception-readiness.sh so
+    # the decide preflight (lib/inception.sh) and review emission (lib/review.sh)
+    # run the SAME implementation — parity by construction. This function keeps
+    # the enforcement-point policy: messaging, bypass contract, Tier-2 logging.
+    #
+    # T-3641 (ported from 055 P-001): fail CLOSED for inceptions. A library that
+    # cannot load, a predicate that is undefined after sourcing, or a predicate
+    # that crashed (rc>1, or rc!=0 with no report) used to read as "ready" and let
+    # every inception complete unchecked. Non-inceptions are exempt by contract,
+    # so they still pass when the library is unavailable.
+    local _wf
+    _wf=$(grep -m1 -E '^workflow_type:' "$TASK_FILE" 2>/dev/null | awk '{print $2}' | tr -d "\"'") || true
+    local _ir_lib="$FRAMEWORK_ROOT/lib/inception-readiness.sh"
+    if ! source "$_ir_lib" 2>/dev/null || ! command -v inception_underdisposed_questions >/dev/null 2>&1; then
+        [ "$_wf" = "inception" ] || return 0
+        echo -e "${RED}ERROR: Cannot complete inception — disposition gate could not load.${NC}" >&2
+        echo "  $_ir_lib did not load, or did not define inception_underdisposed_questions" >&2
+        echo "  (FRAMEWORK_ROOT=$FRAMEWORK_ROOT). Refusing rather than completing unchecked." >&2
+        exit 1
     fi
 
-    # Backward-compat: if ## Open Questions section absent, no-op (grandfathered)
-    if ! grep -qE "^## Open Questions" "$TASK_FILE"; then
-        return 0
+    local underdisposed missing=0 missing_list="" _ud_rc=0
+    # T-3539: rc 1 is a FINDING signal, so capture it instead of letting `set -e`
+    # kill the gate. T-3641: anything else non-zero, or rc 1 with no report, is
+    # a crashed predicate and must refuse — `|| true` used to swallow it.
+    underdisposed=$(inception_underdisposed_questions "$TASK_FILE") || _ud_rc=$?
+    if [ "$_ud_rc" -gt 1 ] || { [ "$_ud_rc" -ne 0 ] && [ -z "$underdisposed" ]; }; then
+        echo -e "${RED}ERROR: Cannot complete — disposition predicate failed (rc=$_ud_rc) without a report.${NC}" >&2
+        echo "  inception_underdisposed_questions from $_ir_lib crashed; refusing rather than completing unchecked." >&2
+        exit 1
     fi
-
-    # Extract the Open Questions section between '## Open Questions' and the next '## '
-    local oq
-    oq=$(awk '/^## Open Questions/{flag=1;next} /^## /{flag=0} flag' "$TASK_FILE")
-
-    # Find IW-N (or any question marker) lines; for each, look for a sibling
-    # "disposition:" and "rationale:" within the same block.
-    # A "block" = lines from one question marker to the next (or section end).
-    local missing=0 missing_list=""
-    local current_q="" has_disposition=false has_rationale=false
-
-    while IFS= read -r line; do
-        # Match question markers (T-2218 RC5 fix): anchored to start-of-line marker
-        # forms only. The previous unanchored `IW-[0-9]+` branch matched IW-N
-        # mentions in prose (e.g. rationale text "depends on IW-1's answer"),
-        # causing a false flush of the prior question's disposition/rationale.
-        #   Valid: "- **IW-1: text**", "- IW-1: text", "### IW-1 title"
-        #   Plus the legacy Q-N list-item form (unchanged).
-        if echo "$line" | grep -qE "(^[[:space:]]*-[[:space:]]*\*?\*?IW-[0-9]+|^###[[:space:]]+IW-[0-9]+|^[[:space:]]*-[[:space:]]*Q-?[0-9]+)"; then
-            # Flush previous question's verdict
-            if [ -n "$current_q" ] && { [ "$has_disposition" = false ] || [ "$has_rationale" = false ]; }; then
-                missing=$((missing + 1))
-                missing_list="$missing_list\n    - $current_q (disposition=$has_disposition rationale=$has_rationale)"
-            fi
-            current_q=$(echo "$line" | grep -oE "IW-[0-9]+|Q-?[0-9]+" | head -1)
-            has_disposition=false
-            has_rationale=false
-            continue
-        fi
-        # Match dispositions
-        if echo "$line" | grep -qE "disposition:[[:space:]]*(answered|deferred|dissolved)"; then
-            has_disposition=true
-        fi
-        if echo "$line" | grep -qE "rationale:[[:space:]]*.+"; then
-            has_rationale=true
-        fi
-    done <<< "$oq"
-
-    # Flush the last question
-    if [ -n "$current_q" ] && { [ "$has_disposition" = false ] || [ "$has_rationale" = false ]; }; then
-        missing=$((missing + 1))
-        missing_list="$missing_list\n    - $current_q (disposition=$has_disposition rationale=$has_rationale)"
+    if [ -n "$underdisposed" ]; then
+        local q_id q_disp q_rat
+        while IFS=' ' read -r q_id q_disp q_rat; do
+            [ -n "$q_id" ] || continue
+            missing=$((missing + 1))
+            missing_list="$missing_list\n    - $q_id (${q_disp} ${q_rat})"
+        done <<< "$underdisposed"
     fi
 
     if [ "$missing" -eq 0 ]; then
@@ -1244,9 +1361,92 @@ run_verification_commands() {
     if ! declare -F extract_verification_block >/dev/null 2>&1; then
         source "${FRAMEWORK_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}/lib/verification-port.sh"
     fi
-    verify_cmds=$(extract_verification_block "$TASK_FILE")
+    # T-3232 (arc-012 review C3): capture the extractor's STATUS, not just its
+    # output. `|| extract_rc=$?` rather than a bare assignment because this file
+    # runs `set -euo pipefail` — an unguarded rc=2 would abort the script here
+    # with no message, which is a different silent failure, not a fix.
+    local extract_rc=0
+    verify_cmds=$(extract_verification_block "$TASK_FILE") || extract_rc=$?
 
-    [ -z "$verify_cmds" ] && return 0
+    # rc=2 means the extractor could not READ the block. That is NOT the same as
+    # the task not having one, and until T-3232 both produced empty output and
+    # exit 0 — so the gate below returned green having run nothing. Refuse.
+    #
+    # This deliberately does NOT re-check whether the file contains a
+    # `## Verification` heading. A guard that reimplements the code it guards
+    # cannot detect that code being fixed or re-broken (the G-072 class peer
+    # 577-CashWeb raised). The exit code is the entire contract.
+    if [ "$extract_rc" -eq 2 ]; then
+        if [ "${FW_ALLOW_UNEXTRACTABLE_VERIFICATION:-0}" = "1" ]; then
+            log_gate_bypass "FW_ALLOW_UNEXTRACTABLE_VERIFICATION" \
+                "verification block could not be extracted from $TASK_FILE" 2>/dev/null || true
+        else
+            echo "" >&2
+            echo -e "${RED}BLOCKED: the ## Verification block could not be extracted.${NC}" >&2
+            echo "" >&2
+            echo "  File: $TASK_FILE" >&2
+            echo "" >&2
+            echo "  The extractor failed — it did not report an ABSENT section, it reported" >&2
+            echo "  that it could not read the section that is there. Completing now would" >&2
+            echo "  run zero verification commands and print a pass (T-3232, arc-012 C3)." >&2
+            echo "" >&2
+            echo "  Most likely cause: a byte in the block is not valid UTF-8, so" >&2
+            echo "  lib/comment_strip.py cannot decode it. Find it with:" >&2
+            echo "    python3 -c \"import sys;d=open('$TASK_FILE','rb').read();d.decode('utf-8')\"" >&2
+            echo "" >&2
+            echo "  Bypass: FW_ALLOW_UNEXTRACTABLE_VERIFICATION=1 (logged Tier-2)" >&2
+            exit 1
+        fi
+    fi
+
+    # T-3546 / OBS-565: SAY the zero. This used to be a bare `return 0`, so a
+    # close that verified nothing printed exactly what a close with nothing to
+    # verify printed — nothing — and the two are the same text.
+    #
+    # Measured on T-3545: a splice put its `## Verification` heading mid-sentence
+    # inside the Human-AC template comment (whose own text contains the phrase
+    # "added to ## Verification"), so no heading existed at line start, the
+    # extractor returned empty, and the task closed with `6/6 checked ✓` and no
+    # gate section at all. T-3544 eleven minutes earlier printed
+    # `Verification: 18/18 passed ✓`. One absent line was the whole difference,
+    # and nobody notices an absence. Worse, `work-completed → started-work` is
+    # not a valid transition, so that task can never have the gate run on it.
+    #
+    # REPORTING, NOT GUARDING — the distinction is load-bearing. An empty block
+    # is legitimate: CLAUDE.md documents tasks without `## Verification` as
+    # backward-compatible, and refusing here would break every one of them. The
+    # rc=2 leg above already refuses when the block cannot be READ (T-3232).
+    # The heading probe below therefore only chooses WORDING; it never gates,
+    # never refuses, and never touches the exit code. That keeps intact the
+    # deliberate decision at the rc=2 branch not to re-derive the heading — a
+    # guard that reimplements the code it guards cannot detect that code being
+    # fixed or re-broken (the G-072 class 577-CashWeb raised).
+    if [ -z "$verify_cmds" ]; then
+        echo ""
+        echo -e "${CYAN}=== Verification Gate (P-011) ===${NC}"
+        if grep -q '^## Verification' "$TASK_FILE" 2>/dev/null; then
+            echo -e "  ${YELLOW}Verification: 0 commands — the section is present but yielded none.${NC}"
+            echo "  Nothing was verified. Most likely the block holds only comments."
+        elif grep -q '## Verification' "$TASK_FILE" 2>/dev/null; then
+            # T-3545's exact shape, and the reason this branch exists: the file
+            # visibly contains '## Verification', so telling the reader there is
+            # "no section" sends them looking for something they can already see.
+            # The heading is simply not at the start of a line — spliced into the
+            # Human-AC template comment, whose own text carries that phrase.
+            echo -e "  ${YELLOW}Verification: 0 commands — '## Verification' appears in this file but NOT at the start of a line.${NC}"
+            echo "  Nothing was verified. The heading is embedded in another line, so the"
+            echo "  extractor never saw a section (T-3545: spliced into the Human-AC"
+            echo "  template comment, which itself contains that phrase)."
+            echo "  Localise it with: grep -n '## Verification' $TASK_FILE"
+        else
+            echo -e "  ${YELLOW}Verification: skipped — no '## Verification' section in this task.${NC}"
+            echo "  Nothing was verified. That is allowed and may be correct; it is printed"
+            echo "  so an unverified close cannot look identical to a verified one."
+        fi
+        echo "  Note: work-completed → started-work is not a valid transition, so this"
+        echo "  gate cannot be re-run on this task once it closes."
+        return 0
+    fi
 
     # T-2991: refuse an unparseable block BEFORE the read loop below evals any
     # line of it. Order is the whole point — a multi-line `python3 -c "` block's
@@ -1291,9 +1491,23 @@ run_verification_commands() {
         # T-1493: close inherited keylock FDs in the subshell so daemons
         # spawned by the verification command (.NET VBCSCompiler, gradle,
         # etc.) cannot inherit the lock FD and block future fw task ops.
+        # T-3219: `< /dev/null` is load-bearing, not tidiness. This loop is fed
+        # by `done <<< "$verify_cmds"`, so the command list IS the loop's stdin.
+        # Without this redirect a verification command that reads stdin — `cat`,
+        # `read`, an interactive tool, a `while read` — consumes the REMAINING
+        # verification lines, which then never run. The gate counted them before
+        # the loop, so it reports e.g. "2/4 passed" and, because nothing failed,
+        # calls it green. Measured on the real gate before the fix:
+        #     Running 4 verification command(s)...
+        #       PASS: echo one
+        #       PASS: cat > /dev/null
+        #     Verification: 2/4 passed ✓        <- exit 0, task completed
+        # A false green in the gate whose whole purpose is preventing false
+        # greens. Reported independently by 832-Workflow-designer and confirmed
+        # in a vendored copy by 577-CashWeb-integration (their G-072).
         local _close_locks_cmd
         _close_locks_cmd=$(type keylock_subshell_close_cmd >/dev/null 2>&1 && keylock_subshell_close_cmd || true)
-        if (unset TASKS_DIR CONTEXT_DIR _FW_PATHS_LOADED; eval "$_close_locks_cmd"; cd "$PROJECT_ROOT" && eval "$cmd") > /tmp/verify-$$.out 2>&1; then
+        if (unset TASKS_DIR CONTEXT_DIR _FW_PATHS_LOADED; eval "$_close_locks_cmd"; cd "$PROJECT_ROOT" && eval "$cmd") > /tmp/verify-$$.out 2>&1 < /dev/null; then
             echo -e "  ${GREEN}PASS${NC}: $display_cmd"
             verify_pass=$((verify_pass + 1))
         else
@@ -1307,6 +1521,53 @@ run_verification_commands() {
     done <<< "$verify_cmds"
 
     echo ""
+
+    # T-3219: RECONCILE THE COUNT BEFORE JUDGING IT.
+    #
+    # The verdict below asks only "did anything fail?". That is green whenever
+    # verify_fail is 0 — including when the loop never reached most of the
+    # block. The fraction was already printed on the success line, and nothing
+    # compared its two halves: a denominator is evidence only if something
+    # compares it to the numerator.
+    #
+    # DELIBERATELY NOT BYPASSABLE BY --skip-verification. That flag means "I
+    # have seen these failures and I accept them". An unreconciled count is not
+    # a failure anyone can accept — it is the runner reporting that it does not
+    # know what it ran. Those are different speech acts and one flag must not
+    # cover both. If this fires, the block did not execute as written and the
+    # right response is to fix the block, not to wave it through.
+    #
+    # Cannot false-positive on blank or comment lines: extract_verification_block
+    # already strips `^\s*$`, `^\s*#` and fences, so every counted line is a
+    # command the loop is expected to run.
+    if [ "$((verify_pass + verify_fail))" -ne "$verify_total" ]; then
+        echo -e "${RED}ERROR: Cannot complete — verification count does not reconcile.${NC}" >&2
+        echo -e "  ran $((verify_pass + verify_fail)) of $verify_total command(s): ${verify_pass} passed, ${verify_fail} failed." >&2
+        echo -e "  $(( verify_total - verify_pass - verify_fail )) command(s) never ran, so this block was NOT verified." >&2
+        echo -e "" >&2
+        echo -e "  Most likely cause: a command in the block reads stdin and consumed the" >&2
+        echo -e "  remaining lines. Redirect it — e.g. 'somecmd < /dev/null' — or remove it." >&2
+        echo -e "  --skip-verification does NOT bypass this: it accepts failures, and an" >&2
+        echo -e "  unreconciled count is not a failure, it is an unknown." >&2
+        # `exit`, not `return` — and NOT because a return would be discarded.
+        # Measured (T-3220): a `return 1` here blocks exactly as hard today.
+        # The call site is a bare statement and `set -euo pipefail` is live at
+        # line 14, so errexit aborts the script on a non-zero return.
+        #
+        # `exit` is chosen because that teeth-giving `set -e` is 1700 lines away
+        # and invisible from here. Wrap the call in `if`/`||`/`&&`, or drop the
+        # `-e`, and every `return`-based guard in this function silently becomes
+        # a no-op with no diff to any guard. `exit` survives all of that. The two
+        # sibling failure paths (the malformed-block guard above, the
+        # "N verifications failed" path below) both `exit 1` — this matches them.
+        #
+        # An earlier revision of this comment claimed the caller discarded a
+        # non-zero return. It did not, and the caller it named did not exist.
+        # `tests/unit/t3220_verification_gate_exits.bats` pins the choice so the
+        # reason cannot drift from the mechanism again.
+        exit 1
+    fi
+
     if [ "$verify_fail" -gt 0 ]; then
         if [ "$SKIP_VERIFICATION" = true ]; then
             echo -e "${YELLOW}WARNING: $verify_fail/$verify_total verification(s) failed (--skip-verification bypass)${NC}"
@@ -1318,7 +1579,7 @@ run_verification_commands() {
             echo "Options:" >&2
             echo "  1. Fix the issues and retry" >&2
             echo "  2. Update ## Verification commands if they are wrong" >&2
-            echo "  3. Use --skip-verification to bypass (logged)" >&2
+            echo "  3. Operator only: --skip-verification --reason \"...\" (refused for agents, T-3586)" >&2
             exit 1
         fi
     else
@@ -1348,6 +1609,12 @@ SKIP_HUMAN_OWNERSHIP=false
 SKIP_RECOMMENDATION=false
 SKIP_RCA=false
 SKIP_EVOLUTION=false
+# T-3691: register-requirements gate (--skip-register-requirements / FW_SKIP_REGISTER_REQUIREMENTS=1)
+SKIP_REGISTER_REQUIREMENTS=false
+if [ "${FW_SKIP_REGISTER_REQUIREMENTS:-0}" = "1" ]; then
+    SKIP_REGISTER_REQUIREMENTS=true
+fi
+SKIP_SELF_DEFERRAL=false  # T-3694: flag only, no env-var form
 # T-2190: disposition-completeness gate (--skip-disposition-gate / FW_SKIP_DISPOSITION_GATE=1)
 SKIP_DISPOSITION_GATE=false
 if [ "${FW_SKIP_DISPOSITION_GATE:-0}" = "1" ]; then
@@ -1357,6 +1624,7 @@ SKIP_INCEPTION_DECISION=false
 SKIP_INCEPTION_SCOPE_TRACE=false
 SKIP_RENDER_REVIEW=false
 SKIP_RENDER_REVIEW_REASON=""
+I_AM_HUMAN=false  # T-3586: operator override for agent-refused --skip-* flags
 SCOPE_REDUCTION_ACK=""  # T-1762/P-012: --scope-reduction-acknowledged "rationale"
 # T-1719 A2: retrieval-happiness signal. Feeds the embeddings routing loop —
 # the rating is the outcome half of "recall returned chunks → was that useful?".
@@ -1381,6 +1649,8 @@ while [[ $# -gt 0 ]]; do
         --skip-recommendation) SKIP_RECOMMENDATION=true; shift ;;
         --skip-rca) SKIP_RCA=true; shift ;;
         --skip-evolution) SKIP_EVOLUTION=true; shift ;;
+        --skip-register-requirements) SKIP_REGISTER_REQUIREMENTS=true; shift ;;
+        --skip-self-deferral) SKIP_SELF_DEFERRAL=true; shift ;;
         --skip-disposition-gate)
             SKIP_DISPOSITION_GATE=true
             if [ -n "${2:-}" ] && [[ "${2:-}" != --* ]]; then
@@ -1398,8 +1668,13 @@ while [[ $# -gt 0 ]]; do
             shift ;;
         --skip-render-review)
             SKIP_RENDER_REVIEW=true
-            SKIP_RENDER_REVIEW_REASON="${2:-no rationale}"
-            shift 2 ;;
+            # T-3586: no "no rationale" default — a missing reason is refused when consumed.
+            if [ -n "${2:-}" ] && [[ "${2:-}" != --* ]] && [[ "${2:-}" != T-* ]]; then
+                SKIP_RENDER_REVIEW_REASON="$2"
+                shift
+            fi
+            shift ;;
+        --i-am-human) I_AM_HUMAN=true; shift ;;
         --scope-reduction-acknowledged)
             SCOPE_REDUCTION_ACK="$2"
             if [ -z "$SCOPE_REDUCTION_ACK" ]; then
@@ -1415,12 +1690,14 @@ while [[ $# -gt 0 ]]; do
             echo "  --skip-recommendation        Bypass recommendation gate (T-679)" >&2
             echo "  --skip-rca                   Bypass RCA gate for bug-class (T-1550, G-019)" >&2
             echo "  --skip-evolution             Bypass Evolution-log gate for arc-tagged builds (T-1718)" >&2
+            echo "  --skip-register-requirements \"...\"  Bypass design-conformance register gate (T-3691)" >&2
+            echo "  --skip-self-deferral         Bypass self-deferral gate (T-3694; operator only, needs --reason)" >&2
             echo "  --skip-inception-decision    Bypass inception decision gate (T-1626, G-052)" >&2
             echo "  --skip-inception-scope-trace \"...\"  Bypass GO-scope trace gate (T-1984, G-066)" >&2
             echo "  --skip-render-review \"...\" Bypass render-surface Human AC gate (T-1766)" >&2
             echo "  --scope-reduction-acknowledged \"...\"   Bypass task-pair §ACD gate (P-012, T-1762, G-066)" >&2
             echo "  --skip-human-ownership       Bypass human ownership reassignment" >&2
-            FORCE=true; SKIP_SOVEREIGNTY=true; SKIP_AC=true; SKIP_VERIFICATION=true; SKIP_HUMAN_OWNERSHIP=true; SKIP_RECOMMENDATION=true; SKIP_RCA=true; SKIP_EVOLUTION=true; SKIP_INCEPTION_DECISION=true; SKIP_INCEPTION_SCOPE_TRACE=true; SKIP_RENDER_REVIEW=true; SKIP_RENDER_REVIEW_REASON="--force bypass"; SCOPE_REDUCTION_ACK="--force bypass"
+            FORCE=true; SKIP_SOVEREIGNTY=true; SKIP_AC=true; SKIP_VERIFICATION=true; SKIP_HUMAN_OWNERSHIP=true; SKIP_RECOMMENDATION=true; SKIP_RCA=true; SKIP_EVOLUTION=true; SKIP_REGISTER_REQUIREMENTS=true; SKIP_SELF_DEFERRAL=true; SKIP_INCEPTION_DECISION=true; SKIP_INCEPTION_SCOPE_TRACE=true; SKIP_RENDER_REVIEW=true; SKIP_RENDER_REVIEW_REASON="--force bypass"; SCOPE_REDUCTION_ACK="--force bypass"
             shift ;;
         -h|--help)
             echo "Usage: update-task.sh T-XXX [options]"
@@ -1447,6 +1724,8 @@ while [[ $# -gt 0 ]]; do
             echo "  --skip-inception-scope-trace \"...\"  Bypass GO-scope trace gate (T-1984, G-066)"
             echo "  --scope-reduction-acknowledged \"...\"   Bypass task-pair §ACD gate (P-012, T-1762, G-066)"
             echo "  --skip-human-ownership       Bypass human ownership reassignment"
+            echo "  --i-am-human  Operator override: allows the criterion/ownership --skip-* flags"
+            echo "                under CLAUDECODE=1 (T-3586). Every consumed --skip-* needs --reason."
             echo "  --force, -f   (DEPRECATED) Sets all --skip-* flags"
             echo "  -h, --help    Show this help"
             echo ""
@@ -1476,6 +1755,20 @@ fi
 
 if [ -z "$TASK_FILE" ] || [ ! -f "$TASK_FILE" ]; then
     echo -e "${RED}ERROR: Task $TASK_ID not found${NC}" >&2
+    exit 1
+fi
+
+# ── T-3306: close-gate reentry guard (OBS-372) ──────────────────────────────
+# A work-completed transition exports FW_TASK_UPDATE_IN_CLOSE=<id> around its
+# P-011 verification run. A nested `fw task update` on the SAME id from that
+# subtree would block forever on the per-task keylock the close already holds
+# (origin: T-1719's happiness suite — 3h+ silent hang). Fail fast, name the
+# remedy. A nested update on a DIFFERENT id is legitimate and proceeds.
+if [ -n "${FW_TASK_UPDATE_IN_CLOSE:-}" ] && [ "$FW_TASK_UPDATE_IN_CLOSE" = "$TASK_ID" ]; then
+    echo -e "${RED}ERROR: reentry — this 'fw task update $TASK_ID' was invoked from inside $TASK_ID's own close (P-011 verification subtree).${NC}" >&2
+    echo "The close holds $TASK_ID's keylock; proceeding would deadlock (OBS-372, T-3306)." >&2
+    echo "Fix: point the verification/test at a throwaway fixture task instead of the task under close" >&2
+    echo "(pattern: tests/unit/t1719_happiness_signal.bats setup/teardown fixture)." >&2
     exit 1
 fi
 
@@ -1524,9 +1817,17 @@ print(json.dumps(row, sort_keys=True))
     echo -e "${GREEN}Happiness recorded:${NC} $_hv → .context/working/happiness.jsonl"
 fi
 
-# Acquire per-task lock to prevent concurrent modifications (T-587)
+# Acquire per-task lock to prevent concurrent modifications (T-587).
+# T-3306: bounded (120s) — an unguarded reentry path (a child process the
+# close-guard env didn't reach) must degrade to a loud timeout error, never
+# the unbounded silent hang OBS-372 measured at 3h+.
 if type keylock_acquire &>/dev/null; then
-    keylock_acquire "$TASK_ID"
+    if ! keylock_acquire "$TASK_ID" 120; then
+        echo -e "${RED}ERROR: could not acquire $TASK_ID's task lock within 120s.${NC}" >&2
+        echo "Another 'fw task update $TASK_ID' holds it — possibly this task's own" >&2
+        echo "in-flight close, if this command runs inside its verification (OBS-372, T-3306)." >&2
+        exit 1
+    fi
     trap 'keylock_release "$TASK_ID" 2>/dev/null' EXIT
 fi
 
@@ -1554,7 +1855,8 @@ if [ -n "$NEW_STATUS" ]; then
         if [ "$OLD_STATUS" = "work-completed" ] && [ "$(dirname "$TASK_FILE")" = "$TASKS_DIR/active" ]; then
             # T-193: Partial-complete re-run — check if human ACs now satisfied
             echo -e "${CYAN}Re-checking partial-complete status...${NC}"
-            AC_SECTION=$(sed -n '/^## Acceptance Criteria/,/^## /p' "$TASK_FILE" 2>/dev/null | sed '$d')
+            # T-3148: anchored, FIRST-WINS extraction (lib/section-extract.sh).
+            AC_SECTION=$(extract_ac_section "$TASK_FILE")
             # Strip HTML comments — template examples contain checkbox patterns.
             # T-1967: two-step strip (one-line first, then range) — see line ~87.
             AC_SECTION=$(echo "$AC_SECTION" | sed -E 's/<!--([^-]|-[^-]|--[^>])*-->//g' | sed '/<!--/,/-->/d')
@@ -1587,6 +1889,10 @@ if [ -n "$NEW_STATUS" ]; then
                     mv "$TASK_FILE" "$DEST"
                 fi
                 TASK_FILE="$DEST"
+                # T-3744: null the horizon AT the move, not only in the end-of-
+                # script invariant — a caller timeout (Watchtower decide, 30 s)
+                # killed the script between here and there three times.
+                _sed_i "s/^horizon:.*/horizon: null/" "$TASK_FILE"
                 # T-2864: reconcile the INDEX, not just the disk. The `|| mv`
                 # fallback above leaves the source tracked in the index while
                 # removing it from disk — so the `[ -e ]` check below passes
@@ -1608,6 +1914,7 @@ if [ -n "$NEW_STATUS" ]; then
                     exit 1
                 fi
                 echo -e "${GREEN}Moved to completed/${NC}"
+                _print_move_next_hint "$TASK_ID"
 
                 # T-2345: clean orphan review marker — marker exists to unblock
                 # fw inception decide (T-973), moot once task is in completed/.
@@ -1637,6 +1944,17 @@ if [ -n "$NEW_STATUS" ]; then
                 FW_BIN="$FRAMEWORK_ROOT/bin/fw"
                 if [ -x "$FW_BIN" ] && [ -f "$PROJECT_ROOT/.context/dispatches.jsonl" ]; then
                     PROJECT_ROOT="$PROJECT_ROOT" "$FW_BIN" outcome backprop "$TASK_ID" --skip-verification >/dev/null 2>&1 || true
+                fi
+
+                # T-3169 (arc-012 S3): advance the TASK-keyed continuous-run counter.
+                # Branch 1 of 2 — see the T-1698 note on the Trigger 2 path; both
+                # completion branches must carry this or the counter is half-wired
+                # in exactly the way that shipped T-1697 broken. No-op when the
+                # loop is disarmed, and never blocks a close.
+                if [ -f "$FRAMEWORK_ROOT/lib/continuous-mode.sh" ]; then
+                    # shellcheck source=/dev/null
+                    . "$FRAMEWORK_ROOT/lib/continuous-mode.sh"
+                    fw_continuous_note_task_completed "$TASK_ID" "$PROJECT_ROOT" || true
                 fi
             else
                 echo -e "${YELLOW}Still $ALL_UNCHECKED/$ALL_TOTAL ACs unchecked — task stays in active/${NC}"
@@ -1723,6 +2041,58 @@ PY
             fi
         fi
 
+        # === Decaying .tasks/active/ verification reference advisory (T-3274) ===
+        # Non-blocking heuristic, sibling of the L-387 advisory above. Warns when
+        # the ## Verification block pins another task by its `.tasks/active/<T-XXXX>`
+        # path AND that task is no longer in active/. Such a reference passes at
+        # close and turns into a permanent false-red the moment the referenced task
+        # completes — nothing fires at the moment of decay, because the referenced
+        # task's own close breaks a DIFFERENT task's verification block and no gate
+        # looks sideways. CTL-013 re-runs only a rotating window, so the population
+        # stays latent: 79 completed tasks pinned such a path when this landed, 54
+        # already decayed (T-3274, round 5 of the T-3265 audit sweep).
+        #
+        # Bypass: FW_SKIP_DECAY_ADVISORY=1 (advisory anyway — does NOT block).
+        if [ "$NEW_STATUS" = "started-work" ] && [ -z "${FW_SKIP_DECAY_ADVISORY:-}" ]; then
+            if command -v python3 >/dev/null 2>&1; then
+                _decay_findings=$(python3 - "$TASK_FILE" 2>/dev/null <<'PY' || true
+import sys
+from pathlib import Path
+for parent in [Path(sys.argv[0]).resolve()] + list(Path(sys.argv[0]).resolve().parents):
+    if (parent / "lib" / "reviewer" / "static_scan.py").exists():
+        sys.path.insert(0, str(parent))
+        break
+else:
+    sys.exit(0)
+try:
+    from lib.reviewer import static_scan as ss
+except Exception:
+    sys.exit(0)
+tf = sys.argv[1]
+try:
+    text = Path(tf).read_text()
+except Exception:
+    sys.exit(0)
+verif = ss.extract_section(text, "Verification") or ""
+if not verif:
+    sys.exit(0)
+for f in ss.detect_decaying_task_path_ref(verif, tf):
+    print(f"  - {f.location}: {f.evidence}")
+PY
+                )
+                if [ -n "$_decay_findings" ]; then
+                    echo ""
+                    echo -e "${YELLOW}ADVISORY (T-3274): Verification pins a .tasks/active/ path that has decayed${NC}"
+                    echo "$_decay_findings"
+                    echo "  These lines can no longer pass — the task they name has moved to completed/."
+                    echo "  Safe form (matches either tray):  grep -l PATTERN .tasks/*/T-XXXX-*.md"
+                    echo "  Suppress (does not block):  FW_SKIP_DECAY_ADVISORY=1 bin/fw task update ..."
+                    echo "  Reviewer pattern: decaying-task-path-ref (policy/anti-patterns.yaml)"
+                    echo ""
+                fi
+            fi
+        fi
+
         # === BVP Estimator Trigger (T-1922) ===
         # On transition to started-work ("ready"), fire the BVP estimator
         # in the background. Heuristic engine is ~10ms so the update latency
@@ -1774,6 +2144,7 @@ PY
 
         # === Human Sovereignty Gate (R-033/T-198) ===
         if [ "$NEW_STATUS" = "work-completed" ]; then
+            apply_reviewer_verdicts
             check_human_sovereignty
         fi
 
@@ -1785,7 +2156,11 @@ PY
 
         # === Verification Gate (P-011) ===
         if [ "$NEW_STATUS" = "work-completed" ]; then
+            # T-3306: mark the verification subtree so a nested `fw task update`
+            # on this same task fails fast instead of deadlocking on our keylock.
+            export FW_TASK_UPDATE_IN_CLOSE="$TASK_ID"
             run_verification_commands
+            unset FW_TASK_UPDATE_IN_CLOSE
         fi
 
         # === Recommendation Gate (T-679 / T-1529) ===
@@ -1834,6 +2209,21 @@ PY
         # without the section aren't gated.
         if [ "$NEW_STATUS" = "work-completed" ]; then
             check_evolution_log
+        fi
+
+        # === Register Requirements Gate (T-3691, T-3682 prevention) ===
+        # Build tasks on arcs with a design-conformance register must not defer
+        # spec requirements without naming an existing owner task. Prevents the
+        # sidecar pattern where 7 requirements were deferred with no owner.
+        if [ "$NEW_STATUS" = "work-completed" ]; then
+            check_register_requirements
+        fi
+
+        # === Self-deferral Gate (T-3694) ===
+        # The closing task's own result must not defer its work to a task that
+        # does not exist, is not active, or does not mention it.
+        if [ "$NEW_STATUS" = "work-completed" ]; then
+            check_self_deferral
         fi
 
         # === Task-pair §ACD Gate (P-012, T-1762, G-066 prong 2) ===
@@ -2097,6 +2487,15 @@ if [ -n "$NEW_STATUS" ] && [ "$NEW_STATUS" = "work-completed" ] && [ "$OLD_STATU
         echo -e "${YELLOW}Task stays in active/ — owner set to human${NC}"
         echo "Human review required — see Watchtower link below."
 
+        # T-3212 (arc-012 IW-5): a human gate STOPS the continuous run — it does
+        # not park this task and take the next one. Silent no-op when the loop is
+        # disarmed, which is every ordinary session.
+        if [ -f "$FRAMEWORK_ROOT/lib/continuous-mode.sh" ]; then
+            # shellcheck source=/dev/null
+            . "$FRAMEWORK_ROOT/lib/continuous-mode.sh"
+            fw_continuous_note_human_gate "$TASK_ID" "human-ac" "$PROJECT_ROOT" || true
+        fi
+
         # T-634: Auto-emit review (URL + QR + artifacts) on partial-complete
         if [ -f "$FRAMEWORK_ROOT/lib/review.sh" ]; then
             source "$FRAMEWORK_ROOT/lib/review.sh"
@@ -2137,6 +2536,8 @@ if [ -n "$NEW_STATUS" ] && [ "$NEW_STATUS" = "work-completed" ] && [ "$OLD_STATU
                 mv "$TASK_FILE" "$DEST"
             fi
             TASK_FILE="$DEST"
+            # T-3744: null the horizon at the move (see the sibling site above).
+            _sed_i "s/^horizon:.*/horizon: null/" "$TASK_FILE"
             # T-2864: reconcile the index (see the sibling call site above).
             _t2864_reconcile_index "$_t1863_orig" "$DEST"
             # T-1863: post-move orphan check — same rationale as the T-193
@@ -2150,23 +2551,20 @@ if [ -n "$NEW_STATUS" ] && [ "$NEW_STATUS" = "work-completed" ] && [ "$OLD_STATU
                 exit 1
             fi
             echo -e "${GREEN}Moved to completed/${NC}"
+            _print_move_next_hint "$TASK_ID"
             # T-2345: clean orphan review marker — marker exists to unblock
             # fw inception decide (T-973), moot once task is in completed/.
             # Idempotent; sibling cleanup at lib/inception.sh:731.
             rm -f "$PROJECT_ROOT/.context/working/.reviewed-$TASK_ID" 2>/dev/null || true
         fi
 
-        # T-2163 (arc-009 horizon-axis-hardening, Slice 4): null the stored
-        # horizon now that the file is in .tasks/completed/. Render derives
-        # `past` from _location (T-2160 Q1=(b)) so the stored value is
-        # behaviorally irrelevant — but a non-null value here is a YAML lie
-        # that CTL-030 (T-2162) would catch. Plug the source: write `null`.
-        # T-2300 (leg-gap): runs OUTSIDE the move-conditional so the re-close
-        # path (file already in completed/, status flip only) also nulls the
-        # horizon — was 8-instance CTL-030 class (T-2168/T-2180/T-2182/T-2196/
-        # T-2201/T-2203/T-2204/T-2248). Partial-complete branch does NOT touch
-        # this — that file stays in active/ and renders via the stored horizon.
-        _sed_i "s/^horizon:.*/horizon: null/" "$TASK_FILE"
+        # T-3235: the horizon null-ing that used to live here is now a
+        # post-condition at the end of this script (search: ARCHIVED-HORIZON
+        # INVARIANT). It was moved, not deleted. T-2163 introduced it and
+        # T-2300 widened it once after eight CTL-030 instances — but widening
+        # a site can never reach a branch whose entry condition is that site's
+        # exact complement, which is why the partial-complete recheck branch
+        # archived files with the horizon untouched for as long as it existed.
 
         # T-709: Push notification — task completed
         # T-2300: lifted out of move-conditional so re-close fires once too.
@@ -2181,7 +2579,19 @@ if [ -n "$NEW_STATUS" ] && [ "$NEW_STATUS" = "work-completed" ] && [ "$OLD_STATU
     # === Clear focus if this was the focused task (T-354) ===
     # Only for full completion (not partial-complete — human still needs focus)
     if [ "${PARTIAL_COMPLETE:-false}" = false ]; then
-        FOCUS_FILE="$CONTEXT_DIR/working/focus.yaml"
+        # T-3432: resolve through the SAME helper the gate reads (fw_focus_file,
+        # lib/paths.sh, T-3038) instead of hard-coding the shared focus.yaml.
+        # Under FW_SESSION_SCOPED_FOCUS=1 the reader
+        # (agents/context/check-active-task.sh) looks at focus.<key>.yaml, so a
+        # close that nulled focus.yaml left the scoped file still naming the
+        # just-completed task: every subsequent Bash/Write was refused
+        # ("work-completed") and T-2054's null-focus commit allowance never
+        # fired, because the focus the gate saw was not null. The worker could
+        # not commit its own close. L-399 producer/consumer parity: one
+        # resolver, both sides. fw_focus_file honours CONTEXT_DIR itself, and
+        # returns the shared path verbatim when scoped mode is off, so the
+        # default (interactive) behaviour is unchanged.
+        FOCUS_FILE="$(fw_focus_file "$PROJECT_ROOT")"
         if [ -f "$FOCUS_FILE" ]; then
             FOCUSED_TASK=$(grep "^current_task:" "$FOCUS_FILE" | sed 's/current_task:[[:space:]]*//')
             if [ "$FOCUSED_TASK" = "$TASK_ID" ]; then
@@ -2403,6 +2813,16 @@ with open(path, 'w') as f:
         if [ -x "$FW_BIN" ] && [ -f "$PROJECT_ROOT/.context/dispatches.jsonl" ]; then
             PROJECT_ROOT="$PROJECT_ROOT" "$FW_BIN" outcome backprop "$TASK_ID" --skip-verification >/dev/null 2>&1 || true
         fi
+
+        # T-3169 (arc-012 S3): advance the TASK-keyed continuous-run counter.
+        # Branch 2 of 2 — the sibling call is on the partial-complete re-run path
+        # above. The counter is idempotent per task id, so a task that reaches
+        # completion through both branches is still counted once.
+        if [ -f "$FRAMEWORK_ROOT/lib/continuous-mode.sh" ]; then
+            # shellcheck source=/dev/null
+            . "$FRAMEWORK_ROOT/lib/continuous-mode.sh"
+            fw_continuous_note_task_completed "$TASK_ID" "$PROJECT_ROOT" || true
+        fi
     fi
 
     # === Learning capture check for bugfix tasks (T-692, G-016, T-1192) ===
@@ -2437,6 +2857,34 @@ with open(path, 'w') as f:
             echo -e "${YELLOW}────────────────────────────────────────────${NC}"
         fi
     fi
+fi
+
+# === ARCHIVED-HORIZON INVARIANT (T-3235, peer 832 T-654 BUG 1) ===
+#
+# A task file that lives in .tasks/completed/ carries `horizon: null`. Asserted
+# here, once, on where TASK_FILE actually ENDED UP — not at the sites that move
+# it. Two branches archive a task, and their entry conditions are exact
+# complements (`OLD_STATUS != work-completed` for an ordinary completion vs
+# `OLD_STATUS == NEW_STATUS == work-completed` for the partial-complete
+# recheck), so no widening of one could ever reach the other. T-2163 wrote the
+# rule at the first site and T-2300 widened it there after eight CTL-030
+# instances; the second site was still archiving with the horizon untouched.
+#
+# The sharp end was `fw task archive-eligible`, which re-invokes
+# `--status work-completed` on tasks already at work-completed in active/ and
+# therefore drives EXCLUSIVELY through the unfixed branch — the sweep `fw audit`
+# recommends for stuck partial-completes would manufacture the CTL-030 failures
+# the same audit then reports.
+#
+# Keyed on LOCATION, never on status: a partial-complete that stays in active/
+# must KEEP its stored horizon (it still renders from it while the human owns
+# it), and that is the case a status-keyed check would break. Reported upstream
+# by peer 832-Workflow-designer (their T-654); confirmed in-tree against this
+# script before anything was changed. Zero instances here at the time of the
+# fix — a latent fault with no evidence yet, which is the cheapest moment.
+if [ -n "${TASK_FILE:-}" ] && [ -f "$TASK_FILE" ] \
+   && [ "$(dirname "$TASK_FILE")" = "$TASKS_DIR/completed" ]; then
+    _sed_i "s/^horizon:.*/horizon: null/" "$TASK_FILE"
 fi
 
 echo ""

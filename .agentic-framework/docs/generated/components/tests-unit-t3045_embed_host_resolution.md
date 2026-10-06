@@ -1,8 +1,8 @@
 # t3045_embed_host_resolution
 
-> TODO: describe what this component does
+> T-3045 A6 — how Config.EMBED_HOST resolves, pinned.
 
-**Type:** script | **Subsystem:** unknown | **Location:** `tests/unit/t3045_embed_host_resolution.bats`
+**Type:** script | **Subsystem:** tests | **Location:** `tests/unit/t3045_embed_host_resolution.bats`
 
 ## What It Does
 
@@ -16,6 +16,12 @@ request from ollama_host — the same machine by LAN IP. Nothing was broken and
 nothing was right.
 These tests cannot see settings.yaml (nor should they). What they CAN pin is
 the resolution RULE in web/config.py, which is tracked: unset falls back to
+
+## Dependencies (1)
+
+| Component | Relationship | Description |
+|-----------|--------------|-------------|
+| [config](/docs/generated/web-config) | tests | Environment-based configuration for Watchtower. |
 
 ---
 *Auto-generated from Component Fabric. Card: `tests-unit-t3045_embed_host_resolution.yaml`*

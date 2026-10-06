@@ -11,7 +11,7 @@ Source this file to get portable shell functions that work on
 both GNU (Linux) and BSD (macOS) systems.
 Usage: source "$FRAMEWORK_ROOT/lib/compat.sh"
 
-## Used By (26)
+## Used By (28)
 
 | Component | Relationship | Description |
 |-----------|--------------|-------------|
@@ -40,6 +40,8 @@ Usage: source "$FRAMEWORK_ROOT/lib/compat.sh"
 | [lib_version](/docs/generated/tests-unit-lib_version) | called_by | Unit tests for version (16 tests) |
 | [lib_version](/docs/generated/tests-unit-lib_version) | tests_by | Unit tests for version (16 tests) |
 | [episodic](/docs/generated/agents-context-lib-episodic) | called_by | Context Agent - generate-episodic command |
+| [checkpoint](/docs/generated/checkpoint) | called_by | Post-tool budget monitoring. Warns at thresholds, auto-triggers handover at critical, detects compaction, manages inception checkpoints. |
+| [episodic_worktree_mining](/docs/generated/tests-unit-episodic_worktree_mining) | tests_by | T-3129 — episodic git mining in a LINKED GIT WORKTREE, and the shape of a skipped measurement. |
 | [checkpoint](/docs/generated/checkpoint) | called_by | Post-tool budget monitoring. Warns at thresholds, auto-triggers handover at critical, detects compaction, manages inception checkpoints. |
 
 ---

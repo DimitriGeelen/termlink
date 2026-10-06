@@ -1,0 +1,80 @@
+{
+  "msg": "6fdf5d97-7de4-45fd-a556-d1168e9e1b12",
+  "via": "hub-topic",
+  "hub_ts": 1791033850950,
+  "send_to_received_s": 14.86681604385376,
+  "send_to_handed_over_s": 16.278527975082397,
+  "inject_triggers": [
+    "tick"
+  ],
+  "b_events": [
+    {
+      "msg_id": "6fdf5d97-7de4-45fd-a556-d1168e9e1b12",
+      "event": "STORED",
+      "ts": "2026-10-03T13:24:25.816611+00:00",
+      "sender": "t3684a-l8wf5q"
+    },
+    {
+      "msg_id": "6fdf5d97-7de4-45fd-a556-d1168e9e1b12",
+      "event": "INGESTED_FROM_HUB",
+      "ts": "2026-10-03T13:24:25.816816+00:00",
+      "topic": "inbox:cacc73ea32b121dd/t3684b-l8wf5q",
+      "offset": 0,
+      "hub_ts": 1791033850950
+    },
+    {
+      "msg_id": "6fdf5d97-7de4-45fd-a556-d1168e9e1b12",
+      "event": "RECEIPT_SENT",
+      "ts": "2026-10-03T13:24:25.820654+00:00",
+      "state": "RECEIVED",
+      "via": "direct"
+    },
+    {
+      "msg_id": "6fdf5d97-7de4-45fd-a556-d1168e9e1b12",
+      "event": "INJECT_TYPING",
+      "ts": "2026-10-03T13:24:25.837852+00:00",
+      "trigger": "tick",
+      "session": "tl-yovwvfe4",
+      "target_session_id": "d635d11c-7521-4378-a730-dd6fa709963c"
+    },
+    {
+      "msg_id": "6fdf5d97-7de4-45fd-a556-d1168e9e1b12",
+      "event": "INJECT_ATTEMPT",
+      "ts": "2026-10-03T13:24:25.861279+00:00",
+      "trigger": "tick",
+      "session": "tl-yovwvfe4",
+      "target_session_id": "d635d11c-7521-4378-a730-dd6fa709963c",
+      "ok": true
+    },
+    {
+      "msg_id": "6fdf5d97-7de4-45fd-a556-d1168e9e1b12",
+      "event": "HANDED_OVER",
+      "ts": "2026-10-03T13:24:27.228528+00:00",
+      "evidence": "transcript:d635d11c-7521-4378-a730-dd6fa709963c.jsonl"
+    },
+    {
+      "msg_id": "6fdf5d97-7de4-45fd-a556-d1168e9e1b12",
+      "event": "RECEIPT_SENT",
+      "ts": "2026-10-03T13:24:27.262075+00:00",
+      "state": "HANDED_OVER",
+      "via": "direct"
+    }
+  ],
+  "transcript": "d635d11c-7521-4378-a730-dd6fa709963c.jsonl [hook_additional_context] PEER-DATA block: 'Peer check LEGACY-gauxvplftv: no action and no reply needed; just end your turn.'",
+  "sender_receipt_received": {
+    "client_msg_id": "6fdf5d97-7de4-45fd-a556-d1168e9e1b12",
+    "state": "RECEIVED",
+    "by": "peer:t3684b-l8wf5q",
+    "via": "direct",
+    "ts": "2026-10-03T13:24:25.819762+00:00"
+  },
+  "sender_receipt_handed_over": {
+    "client_msg_id": "6fdf5d97-7de4-45fd-a556-d1168e9e1b12",
+    "state": "HANDED_OVER",
+    "by": "peer:t3684b-l8wf5q",
+    "via": "direct",
+    "ts": "2026-10-03T13:24:27.261280+00:00"
+  },
+  "sender_send_to_received_s": 14.898988962173462,
+  "sender_send_to_handed_over_s": 16.34050703048706
+}

@@ -14,6 +14,7 @@ bp = Blueprint("config", __name__)
 SETTINGS = [
     ("CONTEXT_WINDOW", "300000", "Context window size for budget enforcement (tokens)"),
     ("PORT", "3000", "Watchtower web UI listen port"),
+    ("PORT_SCAN_BASE", "3000", "First port tried when a project has no PORT set: fw serve scans 100 ports up from here, skips any held by another service, and records the chosen port as PORT in .framework.yaml (T-3662)"),
     ("RAIL_IDENTITY_FILE", "", "Project-owned termlink signing identity for outbound rail posts (T-2904). Empty = sign as host key, which is indistinguishable from co-resident agents. Created on first use."),
     ("RAIL_PROJECT_LABEL", "", "Canonical from_project label attached to outbound rail posts (T-2905). Empty = derived from the project directory name, normalised. Emitted, never typed at a call site."),
     ("DISPATCH_LIMIT", "2", "Agent tool dispatches before TermLink gate triggers"),
@@ -22,7 +23,8 @@ SETTINGS = [
     ("TOKEN_CHECK_INTERVAL", "5", "Check token usage every N tool calls"),
     ("HANDOVER_COOLDOWN", "600", "Seconds between auto-handover triggers"),
     ("STALE_TASK_DAYS", "7", "Days before a task is flagged stale"),
-    ("MAX_RESTARTS", "5", "Max consecutive auto-restarts"),
+    ("MAX_RESTARTS", "5", "Max auto-restarts within RESTART_WINDOW seconds. T-3243 made this a RATE limit: it was a lifetime count that killed a healthy loop after 4 hours-apart restarts, and claude-fw hardcoded 5 rather than reading this key at all."),
+    ("RESTART_WINDOW", "3600", "Sliding window (seconds) over which MAX_RESTARTS is counted. Restarts older than this stop counting, so an hours-apart continuous run never accumulates while a spin still trips the cap (T-3243)."),
     ("SAFE_MODE", "0", "Bypass task gate (escape hatch)"),
     ("CALL_WARN", "40", "Tool-call count threshold for warn level (fallback)"),
     ("CALL_URGENT", "60", "Tool-call count threshold for urgent level (fallback)"),
@@ -43,15 +45,31 @@ SETTINGS = [
     # from the registry — so they were env-var-only and never rendered here.
     ("BRANCH_BEHIND_WARN", "50", "Commits-behind-origin/master threshold for the branch-hygiene WARN and handover merge-back nudge; T-100143/T-100144"),
     ("STALE_ARC_DAYS", "30", "Days without a constituent-task commit before fw audit WARNs an in-progress arc as stale; T-1855"),
+    ("BRANCH_AHEAD_WARN", "20", "Commits-ahead-of-origin threshold for the branch-hygiene ahead-unpushed WARN; measures the opposite direction to BRANCH_BEHIND_WARN — work committed locally and never pushed; fires on the dev branch only, WARN-only; T-3360"),
     ("BRANCH_STALE_DAYS", "30", "Days without a commit ON a branch before its behind-count may raise a branch-hygiene staleness finding; gates BRANCH_BEHIND_WARN so a busy master cannot make every healthy branch stale; T-3094"),
+    # Release-train branch model (T-3185): DEV_BRANCH authors, RELEASE_BRANCH
+    # only ever fast-forwards from it at a release. Separate keys on purpose.
+    ("DEV_BRANCH", "bleeding-edge", "The sanctioned development branch — what the session commits to, what branch-hygiene measures 'landed' against, and the only writer of RELEASE_BRANCH; T-3185/T-3187/T-3188"),
+    ("RELEASE_BRANCH", "master", "The consumer install surface — the branch fw release tag-and-release fast-forwards before cutting the tag; nothing authors it directly; T-3185/T-3190"),
+    ("RELEASE_TAG_PATTERN", "v[0-9]*", "Glob for release tags read by fw release status; prefixed semver (designer-vX.Y.Z) is tried when nothing matches, else no matching tag and UNKNOWN commits, never 0; T-3585"),
     ("RETIRE_WHEN_ADVISORY", "1", "Enable the audit retire_when advisory rail for free drivers; 0 silences the section; T-2169"),
+    ("SIDECAR_TICK", "30", "Seconds between ticks of the always-on sidecar watcher: drains hub inbox topics, injects waiting peer messages (urgent at once, others only into a ready session), escalates unconfirmed sends, self-probes and writes liveness.yaml; T-3684/T-3685"),
+    ("SIDECAR_CONSULT_WARN_HOURS", "4", "Hours an inbound peer consult may sit unread on the sidecar inbox before fw audit and fw doctor WARN; far below the sibling dm: rail's 24 because a consult is a peer blocked on an answer; T-3544 / OBS-567"),
+    ("DELEGATION_SURFACE_WARN", "50", "Operator-only open-Human-criteria count above which fw audit and fw doctor WARN, but only while reviewer-closeable is 0 (lib/delegation.py:surface_verdict); T-3445 / D-626"),
     ("GITIGNORE_REGISTER_ADVISORY", "1", "Enable the audit WARN for .gitignore comment blocks that defer work without naming a T-/G-/OBS-/L- entry; 0 silences it; T-2994"),
     ("INDEX_STALE_DAYS", "7", "Days before fw doctor WARNs that the vector index is stale, measured from the corpus manifest's build time; T-3013"),
     ("RECALL_USAGE_DAYS", "7", "Window fw doctor looks back over for semantic-recall queries; zero rows in the window WARNs — the G-064 zero-consumer signal; T-3019"),
+    ("INDEX_MAX_AGE_HOURS", "24", "Hours since the vector index manifest was written before the vector-index health check FAILs (doctor, audit, handover, operator push); T-3783"),
+    ("INDEX_MAX_LAG", "50", "Task ids or learning ids on disk the vector index has never seen before the vector-index health check FAILs; T-3783"),
+    ("RECALL_FAIL_PCT_WARN", "10", "Percent of recall queries in 7 days that could not run above which the vector-index health check WARNs; T-3783"),
     ("INDEX_HANDOVERS", "1", "Include .context/handovers/ in the semantic index (web/search_utils.py:collect_files). 0 excludes them: ~90MB / 1,710 files leave fw ask, fw recall, /search and the RAG path. Reversible; deletes nothing. T-3024"),
     ("HANDOVER_DIGEST", "1", "Digest the three handover state dumps (Observation Inbox, Work in Progress, Awaiting Your Action) to count + regenerating command + top-N. 0 emits the full dumps as before. Narrative sections are unaffected either way. T-3028"),
     ("HANDOVER_DIGEST_TOP_N", "5", "How many entries each digested handover section retains in full before referring the reader to the regenerating command. T-3028"),
     ("TIER0_APPROVAL_TTL", "300", "Seconds a granted Tier 0 approval admits the command, for BOTH the 'fw tier0 approve' and Watchtower legs (agents/context/check-tier0.sh). Legacy TIER0_WATCHTOWER_TTL still wins when explicitly set. NOT the pending-request staleness window. T-3080"),
+    ("AUDIT_TIMEOUT_WARN_FRACTION", "0.70", "Fraction of AUDIT_TIMEOUT (or FW_AUDIT_FULL_TIMEOUT) at which fw doctor WARNs that the last recorded full-audit run is eating into its timeout headroom (agents/audit/audit.sh, bin/fw do_doctor). T-3127"),
+    ("AUDIT_STRUCTURE_TIMING_STALE_DAYS", "7", "Days after which fw doctor WARNs that the 'structure' section timing backing fw_prepush_lock_wait_default / fw_handover_push_timeout_default (lib/prepush-lock-wait.sh) is stale. T-3451."),
+    ("PROVISION_LOAD_MAX", "0.8", "Per-core normalized 1-minute loadavg threshold for the environmental governor's provisioning admission (lib/aef_governor.py). Under = allow, at/over = defer, at/over 2x = deny; bad values fall back to 0.8, logged. T-3311."),
+    ("REVIEWER_JUDGE_WEEKLY_SPEND_CEILING", "10000", "Weekly USD spend ceiling for independent reviewer judgments via fw reviewer judge (T-3580, IW-7 rung selection). When reached, rung degrades one step and the verdict records the degradation. Per-unit cost depends on rung (same-vendor independent = lower cost, 3-vendor panel = higher cost). T-3580."),
 ]
 
 

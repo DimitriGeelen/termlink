@@ -20,6 +20,10 @@ plus Claude Code-specific integration notes.
 
 <!-- Add any project-specific rules that agents must follow -->
 
+<!-- `fw upgrade` replaces everything below `## Core Principle` with framework governance; anything you wrap in the marker pair below survives, wherever in this file it sits (T-3150). -->
+<!-- project-owned: begin -->
+<!-- project-owned: end -->
+
 ## Core Principle
 
 **Nothing gets done without a task.** This is enforced structurally by the framework, not by agent discipline.
@@ -155,7 +159,7 @@ Captured → Started Work ↔ Issues → Work Completed
 ## Working with Tasks
 
 When starting work (**BEFORE reading code, editing files, or invoking skills**):
-1. Check for existing task or create new one following `zzz-default.md` template
+1. Check for existing task or create new one following `default.md` template
 2. Set status to `started-work`
 3. Set focus: `fw context focus T-XXX`
 4. THEN proceed with implementation (skills, code changes, etc.)
@@ -466,16 +470,20 @@ Each component has a YAML card in `.fabric/components/` with: id, name, type, su
 
 ### Work Proposal Rule
 - **Before proposing the next unit of work, check context budget** (`checkpoint.sh status`)
-- Below 60% (120K tokens): proceed normally
-- 60-75% (120K-150K): propose only small, bounded tasks; commit first
-- Above 75% (150K+): propose only wrap-up actions (commit, learnings, handover)
-- Above 85% (170K+): handover immediately, no new work
+- Below 75% of `FW_CONTEXT_WINDOW`: proceed normally
+- 75-85%: propose only small, bounded tasks; commit first
+- Above 85%: propose only wrap-up actions (commit, learnings, handover)
+- Above 95%: handover immediately, no new work
+- The percentages are the contract. Absolute token counts move with `FW_CONTEXT_WINDOW`
+  (300K default → 225K / 255K / 285K) and must not be written down as if fixed.
 - **This applies especially in autonomous mode** — without a human to catch the mistake, proposing work that can't complete in remaining context risks losing all uncommitted work
 
 ### Automated Monitoring (Claude Code)
 - **Primary enforcement:** A PreToolUse hook runs `budget-gate.sh` which reads **actual token usage** from the session JSONL transcript and **blocks** Write/Edit/Bash at critical level (exit code 2)
 - **Fallback:** A PostToolUse hook runs `checkpoint.sh` for warnings and auto-handover (T-136)
-- Escalation ladder: **120K** ok→warn (note), **150K** warn→urgent (warning), **170K** urgent→critical (**BLOCK**)
+- Escalation ladder, as percentages of `FW_CONTEXT_WINDOW` (source of truth:
+  `agents/context/budget-gate.sh`): **75%** ok→warn (note), **85%** warn→urgent
+  (warning), **95%** urgent→critical (**BLOCK**). At the 300K default: 225K / 255K / 285K.
 - At critical, allowed: git commit/add, fw handover/task, reading files, Write/Edit to `.context/` `.tasks/` `.claude/` (wrap-up paths). Blocked: Write/Edit to source files, general Bash
 - Status cached in `.context/working/.budget-status` (JSON: level, tokens, timestamp)
 - Check current usage: `./agents/context/checkpoint.sh status`
@@ -611,7 +619,24 @@ Human ACs represent real verification steps. Unvalidated deliverables carry down
 ### Commit Cadence and Check-In
 After **every commit**, briefly report what was done and ask if the user wants to continue. Do not chain multiple commits without user interaction.
 
-**Structural enforcement (T-139):** The `budget-gate.sh` PreToolUse hook reads actual token usage from the session transcript and **blocks** Write/Edit/Bash tool calls when context reaches critical level (>=150K tokens, ~75%). At critical, only git commit, fw handover, and read operations are allowed. The hook writes `.context/working/.budget-status` with current level (ok/warn/urgent/critical) for fast caching. PostToolUse `checkpoint.sh` remains as fallback for warnings and auto-handover.
+**Structural enforcement (T-139):** The `budget-gate.sh` PreToolUse hook reads actual token usage from the session transcript and **blocks** Write/Edit/Bash tool calls when context reaches critical level (>=95% of `FW_CONTEXT_WINDOW` — 285K at the 300K default). At critical, only git commit, fw handover, and read operations are allowed. The hook writes `.context/working/.budget-status` with current level (ok/warn/urgent/critical) for fast caching. PostToolUse `checkpoint.sh` remains as fallback for warnings and auto-handover.
+
+### Operator Commands Ship as ONE `runme.sh` Line — standing directive (T-3675)
+
+Whenever the operator has to run something, do NOT paste a block. Wrap it and hand over one line:
+
+```
+.agentic-framework/bin/fw runme new <name> --desc "why" -- '<cmd 1>' '<cmd 2>' …
+# prints:   bash /abs/path/.context/runme/<name>/runme.sh
+.agentic-framework/bin/fw runme watch <name>   # in the background: wait for START, follow to EXIT
+```
+
+The script runs `set -euo pipefail`, echoes each command, timestamps all output into `run.log`
+beside it, and marks `RUNME START` / `RUNME EXIT <code>`. Hand off exactly the printed line (full
+absolute path), then watch the log yourself — never ask the operator to paste output back. No
+`run.log` means it was not started, whatever the chat says. Answer a failed run with a new runme,
+not ad-hoc instructions. Watchtower URL handoffs (reviews, inception decisions) stay URLs. Keep
+`.context/runme/` gitignored.
 
 ### Copy-Pasteable Commands (T-609)
 When giving the human a command to run (Tier 0 approvals, inception decisions, verification steps, Human AC instructions), the command MUST be:

@@ -44,12 +44,34 @@ except ImportError:
     sys.exit(0)
 
 
+# `.continuous-mode.yaml` schema (T-2365 S3, extended by T-3169).
+#
+# TWO ceilings, counted in DIFFERENT units — neither substitutes for the other:
+#
+#   current_iteration / max_iterations  SESSIONS. Advanced here, on SessionStart.
+#                                       Bounds how many context windows a run may
+#                                       consume. One window costs ~285K tokens.
+#   tasks_completed   / max_tasks       TASKS. Advanced by
+#                                       lib/continuous-mode.sh on the
+#                                       work-completed transition. Bounds how much
+#                                       WORK a run may do. Unset = unbounded.
+#
+# Before T-3164 these were the same number by accident: a session could take one
+# turn, so a window was spent per unit of work. With a Stop hook driving turns
+# inside one window, many tasks now fit in one session and the session counter can
+# no longer see any of them. The operator reasons in tasks; the budget is spent in
+# sessions.
+#
+# `completed_task_ids` backs the task counter's per-id idempotency —
+# work-completed is a re-runnable transition (partial-completes return through it).
 CONFIG_DEFAULTS = {
     "enabled": False,
     "max_iterations": 10,
     "tier_ceiling": 1,
     "expires_after_seconds": 86400,
     "current_iteration": 0,
+    "tasks_completed": 0,
+    "max_tasks": None,
 }
 
 
@@ -282,6 +304,17 @@ def evaluate(directive_data, state_data, now_utc, source="resume", blast_lookup=
         new_state["last_terminated_reason"] = terminated_reason or ""
     new_state["last_source"] = source
 
+    # T-3167 (arc-012 F3): a recorded termination must disarm the flag in the SAME
+    # write. Before this, `last_terminated_reason` was written and `enabled` left
+    # alone, so the file asserted `enabled: true` next to a death it had just
+    # recorded — found live in this repo, armed-on-paper for 70 days past expiry.
+    # A flag that says "armed" whether or not anything is armed carries no
+    # information, and is indistinguishable from one that checked.
+    # Only a terminating write disarms; an ordinary iteration leaves `enabled`
+    # untouched, which is what stops this from being a blanket `enabled = False`.
+    if new_state.get("last_terminated_reason"):
+        new_state["enabled"] = False
+
     if ceiling_breach:
         _ref, _br, _ceil = ceiling_breach
         section = (
@@ -296,10 +329,14 @@ def evaluate(directive_data, state_data, now_utc, source="resume", blast_lookup=
             f"- Blast-radius (BVP cost_estimate): {_br}\n"
             f"- Tier ceiling: {_ceil}\n"
             "\n"
-            "The pre-filed directive has NOT been surfaced for auto-pickup. To "
-            "proceed, the operator must either raise `tier_ceiling` in "
+            "The pre-filed directive has NOT been surfaced for auto-pickup, and the "
+            "loop has been **disarmed** (`enabled: false`) — a recorded termination "
+            "no longer leaves the flag claiming armed (T-3167).\n"
+            "\n"
+            "To proceed, the operator must raise `tier_ceiling` in "
             "`.context/working/.continuous-mode.yaml`, narrow the planned task's "
-            "scope, or run the next action manually under direct supervision.\n"
+            "scope, or run the next action manually under direct supervision — and "
+            "then set `enabled: true` again to re-arm.\n"
         )
         return new_state, section
 
@@ -313,10 +350,14 @@ def evaluate(directive_data, state_data, now_utc, source="resume", blast_lookup=
             f"- Max iterations: {max_iter if max_iter is not None else 'unset'}\n"
             f"- Expires at: {format_iso8601(expires_at)}\n"
             "\n"
-            "The pre-filed directive has NOT been surfaced for auto-pickup.\n"
+            "The pre-filed directive has NOT been surfaced for auto-pickup, and the "
+            "loop has been **disarmed** (`enabled: false`) — a recorded termination "
+            "no longer leaves the flag claiming armed (T-3167).\n"
+            "\n"
             "Operator continuation required: edit `.context/working/.continuous-mode.yaml`\n"
-            "(reset `current_iteration` to 0, set `enabled: false`, or extend caps) or\n"
-            "remove `.context/working/.next-directive.yaml` to drop the directive.\n"
+            "(reset `current_iteration` to 0 or extend the caps, then set `enabled: true`\n"
+            "to re-arm), or remove `.context/working/.next-directive.yaml` to drop the\n"
+            "directive.\n"
         )
     else:
         max_label = str(max_iter) if max_iter is not None else "∞"
@@ -382,6 +423,13 @@ def _migrate_legacy_state(project_root, target_path):
         pass
 
 
+# T-3253 AC3: exit code the wrapper reads to mean "a bound was breached; the
+# terminating state has been recorded; do not launch". Distinct from 0 (proceed)
+# and from 1/2 (argparse / unexpected failure) so a crash can never be mistaken
+# for a brake — failing open is correct for a crash and wrong for a breach.
+PREFLIGHT_BREACH_EXIT = 3
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--project-root", required=True, help="absolute path to PROJECT_ROOT")
@@ -395,6 +443,16 @@ def main(argv=None):
         "--now",
         default=None,
         help="ISO-8601 timestamp to use as 'now' (for tests); default = utcnow()",
+    )
+    parser.add_argument(
+        "--preflight",
+        action="store_true",
+        help=(
+            "T-3253 AC3: evaluate the planned next action WITHOUT launching a "
+            "session. Writes nothing and exits 0 when the loop may proceed; on a "
+            "recorded termination (ceiling breach or cap) writes the terminating "
+            "state and exits %d with the reason on stdout." % PREFLIGHT_BREACH_EXIT
+        ),
     )
     args = parser.parse_args(argv)
 
@@ -428,6 +486,39 @@ def main(argv=None):
     )
     if not section:
         return 0
+
+    # T-3253 AC3 — PREFLIGHT: decide BEFORE the session launches.
+    #
+    # E10 measured the hole this closes. The ceiling was evaluated in the
+    # SessionStart hook of a session that had ALREADY been relaunched, so the
+    # breach notice arrived as `additionalContext` competing with that session's
+    # own prompt — the armed directive, which says "do not stop until every task
+    # is closed". The notice lost, and the over-ceiling task was closed 4m26s
+    # after the brake fired. A notice that has to win an argument with a running
+    # session is not a brake. This is the only variant where the notice cannot be
+    # ignored, because there is nothing running to ignore it.
+    #
+    # SINGLE-WRITER (T-3233 W1-F3). `current_iteration` has exactly one writer.
+    # The wrapper must not become a second one, so the preflight lives HERE, on
+    # the injector that already owns the file, and the wrapper only reads its
+    # exit code.
+    #
+    # DO NOT WRITE ON THE CLEAR PATH. `evaluate()` returns an ADVANCED counter,
+    # and SessionStart is about to advance it again for the same restart. Writing
+    # here would double-advance every iteration — invisible until someone counted.
+    # Only the terminating path writes, and it writes a FROZEN counter.
+    #
+    # `--source` is not passed through by the wrapper on purpose: only `compact`
+    # changes the prediction (it resets the counter), and no restart path is a
+    # compact. `resume` and `startup` evaluate identically, so the preflight's
+    # verdict matches what SessionStart will conclude.
+    if args.preflight:
+        reason = (new_state.get("last_terminated_reason") or "").strip()
+        if not reason:
+            return 0
+        write_state(state_file, new_state)
+        sys.stdout.write(reason + "\n")
+        return PREFLIGHT_BREACH_EXIT
 
     write_state(state_file, new_state)
     sys.stdout.write(section)

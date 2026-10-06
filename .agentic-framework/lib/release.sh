@@ -2,7 +2,8 @@
 # lib/release.sh - Release tagging + GitHub Release automation (T-1256)
 #
 # Cuts a new annotated tag based on the latest v* tag (bumping patch by default),
-# pushes to all remotes with --follow-tags, and creates a GitHub Release if gh
+# fast-forwards the release branch, pushes branch + tag to every remote in ONE
+# atomic push per remote (T-3822), and creates a GitHub Release if gh
 # is available. Idempotent: exits cleanly when there are no commits since the
 # latest tag.
 #
@@ -20,7 +21,14 @@
 # ---------------------------------------------------------------------------
 release_latest_tag() {
     local root="${1:-${PROJECT_ROOT:-$(pwd)}}"
-    git -C "$root" describe --tags --match 'v[0-9]*' --abbrev=0 2>/dev/null || true
+    local pattern="${2:-v[0-9]*}"
+    git -C "$root" describe --tags --match "$pattern" --abbrev=0 2>/dev/null || true
+}
+
+# release_tag_pattern  — the configured release-tag glob (FW_RELEASE_TAG_PATTERN,
+# T-3585). Default is this repo's own v* tags.
+release_tag_pattern() {
+    echo "${FW_RELEASE_TAG_PATTERN:-v[0-9]*}"
 }
 
 # ---------------------------------------------------------------------------
@@ -63,11 +71,259 @@ release_bump_version() {
 }
 
 # ---------------------------------------------------------------------------
+# release_version_lt <A> <B>  — numeric semver compare; true (0) when A < B
+#   Component-wise, NOT lexical: 1.6.72 < 1.6.176 (a lexical/sort compare gets
+#   this wrong, and 72-vs-176 is the exact pair the origin incident produced).
+#   Pre-release suffixes are stripped; non-numeric input is "not less" (rc 1).
+# ---------------------------------------------------------------------------
+release_version_lt() {
+    local a="${1%%-*}" b="${2%%-*}"
+    case "$a$b" in ''|*[!0-9.]*) return 1 ;; esac
+    [ "$a" = "$b" ] && return 1
+    local a1 a2 a3 b1 b2 b3
+    IFS=. read -r a1 a2 a3 <<< "$a"
+    IFS=. read -r b1 b2 b3 <<< "$b"
+    a1=${a1:-0}; a2=${a2:-0}; a3=${a3:-0}
+    b1=${b1:-0}; b2=${b2:-0}; b3=${b3:-0}
+    if [ "$a1" -ne "$b1" ]; then [ "$a1" -lt "$b1" ]; return $?; fi
+    if [ "$a2" -ne "$b2" ]; then [ "$a2" -lt "$b2" ]; return $?; fi
+    [ "$a3" -lt "$b3" ]
+}
+
+# ---------------------------------------------------------------------------
+# release_version_tag_parity <root>  — T-3242 doctor predicate
+#   Echoes exactly one of:
+#     no-git             — root has no .git (vendored consumer copy)
+#     no-tags            — no v* tag reachable from HEAD (fresh clone)
+#     no-version         — no VERSION file to disagree with anything
+#     ok <ver> <tagver>      — VERSION equals the newest reachable tag
+#     ahead <ver> <tagver>   — VERSION above the tag (pre-release bump; allowed)
+#     behind <ver> <tagver>  — VERSION BELOW the tag: the non-monotonic state
+#   The tag is canonical (T-3242 ruling); only `behind` is a failure.
+#   Read-only, one `git describe` — cheap enough for every doctor run.
+# ---------------------------------------------------------------------------
+release_version_tag_parity() {
+    local root="${1:-${PROJECT_ROOT:-$(pwd)}}"
+    if [ ! -d "$root/.git" ] && [ ! -f "$root/.git" ]; then
+        echo "no-git"; return 0
+    fi
+    local tag
+    tag="$(release_latest_tag "$root")"
+    if [ -z "$tag" ]; then echo "no-tags"; return 0; fi
+    if [ ! -f "$root/VERSION" ]; then echo "no-version"; return 0; fi
+    local ver tagver="${tag#v}"
+    ver="$(tr -d '[:space:]' < "$root/VERSION")"
+    if [ "$ver" = "$tagver" ]; then
+        echo "ok $ver $tagver"
+    elif release_version_lt "$ver" "$tagver"; then
+        echo "behind $ver $tagver"
+    else
+        echo "ahead $ver $tagver"
+    fi
+}
+
+# ---------------------------------------------------------------------------
+# release_reconcile_version <root> <next_tag>  — T-3242 tag-as-canonical write
+#   Writes ${next#v} into VERSION (and the vendored copy when present) and
+#   commits ONLY those paths, so the commit the tag lands on carries the
+#   version the tag names. Caller has already refused the decreasing case.
+# ---------------------------------------------------------------------------
+release_reconcile_version() {
+    local root="$1" next="$2"
+    local want="${next#v}"
+    local paths=("VERSION")
+    echo "$want" > "$root/VERSION" || return 1
+    if [ -f "$root/.agentic-framework/VERSION" ]; then
+        echo "$want" > "$root/.agentic-framework/VERSION"
+        paths+=(".agentic-framework/VERSION")
+    fi
+    git -C "$root" add -- "${paths[@]}" || return 1
+    # T-3821: already equal to HEAD's committed content is success, not an
+    # empty commit. (A hook-stamped working tree used to send the release down
+    # here with nothing to commit; `git commit` failed and the release refused.)
+    if git -C "$root" diff --cached --quiet HEAD -- "${paths[@]}" 2>/dev/null; then
+        return 0
+    fi
+    # Pathspec commit: other staged/unstaged work in the tree stays out of it.
+    git -C "$root" commit -q -m "$next: reconcile VERSION to $want (tag-as-canonical, T-3242)" -- "${paths[@]}"
+}
+
+# ---------------------------------------------------------------------------
+# release_version_snapshot <root>  /  release_version_restore <root> <snap> <pre_head> <reconciled_sha>
+#   T-3820: v1.8.0 attempt 1's rollback restored master and deleted the tag but
+#   left the VERSION-reconcile commit on the dev branch; the next ordinary push
+#   published "1.8.0" with no release behind it. The reconcile commit cannot
+#   move after publish (the tag must point at it, T-3242), so every refusal
+#   after it reverts it instead.
+#
+#   snapshot: echoes a temp dir holding the exact working-tree bytes and index
+#   entry of VERSION and .agentic-framework/VERSION, as they were pre-release.
+#   restore:  moves HEAD back from <reconciled_sha> to <pre_head> with a
+#   compare-and-swap update-ref (refuses if HEAD moved on since), then puts the
+#   index entries and bytes back. <reconciled_sha> empty = no commit was made
+#   (e.g. the reconcile commit itself failed): only the files are restored.
+# ---------------------------------------------------------------------------
+release_version_snapshot() {
+    local root="$1" snap p key
+    snap="$(mktemp -d -t fw-release-version-XXXXXX)" || return 1
+    for p in VERSION .agentic-framework/VERSION; do
+        key="${p//\//__}"
+        if [ -f "$root/$p" ]; then cp -p "$root/$p" "$snap/$key.bytes"; fi
+        git -C "$root" ls-files -s -- "$p" > "$snap/$key.index" 2>/dev/null
+    done
+    echo "$snap"
+}
+
+release_version_restore() {
+    local root="$1" snap="$2" pre_head="$3" reconciled="$4" p key rc=0
+    if [ -n "$reconciled" ]; then
+        if git -C "$root" update-ref -m "fw release: revert VERSION reconcile (T-3820)" \
+                HEAD "$pre_head" "$reconciled" 2>/dev/null; then
+            echo "  Reverted the VERSION reconcile commit ${reconciled:0:9}; HEAD is back at ${pre_head:0:9}." >&2
+        else
+            echo -e "  ${RED}NOT reverted:${NC} HEAD is no longer the reconcile commit ${reconciled:0:9}," >&2
+            echo "  so moving it could discard someone else's work. Revert it by hand:" >&2
+            echo "    git revert ${reconciled}" >&2
+            rc=1
+        fi
+    fi
+    [ -d "$snap" ] || return $rc
+    for p in VERSION .agentic-framework/VERSION; do
+        key="${p//\//__}"
+        if [ -s "$snap/$key.index" ]; then
+            git -C "$root" update-index --index-info < "$snap/$key.index" 2>/dev/null || rc=1
+        else
+            git -C "$root" rm -q --cached --ignore-unmatch -- "$p" >/dev/null 2>&1
+        fi
+        if [ -f "$snap/$key.bytes" ]; then
+            cp -p "$snap/$key.bytes" "$root/$p" || rc=1
+        fi
+    done
+    rm -rf "$snap"
+    return $rc
+}
+
+# ---------------------------------------------------------------------------
+# release_ff_state <root> <release_branch>
+#   Can <release_branch> fast-forward to HEAD? Echoes exactly one of:
+#     missing      — no such local branch (consumer repo, fresh clone)
+#     uptodate     — already at HEAD; nothing to advance
+#     clean        — strict ancestor of HEAD; a fast-forward is available
+#     branch-ahead — HEAD is an ancestor of it; releasing would MOVE IT BACK
+#     diverged     — neither is an ancestor of the other
+#
+#   Read-only by construction: no checkout, no ref write, no network.
+#
+#   G-096: this is the discrimination the release path never made. Under the
+#   release train (T-3185) `master` is the consumer install surface, and a
+#   release whose whole job is to advance it must be able to say whether that
+#   advance is actually possible BEFORE it publishes anything.
+# ---------------------------------------------------------------------------
+release_ff_state() {
+    local root="$1"
+    local rb="$2"
+    if ! git -C "$root" rev-parse --verify -q "refs/heads/$rb" >/dev/null 2>&1; then
+        echo "missing"; return 0
+    fi
+    local head_sha rb_sha
+    head_sha="$(git -C "$root" rev-parse HEAD 2>/dev/null)"
+    rb_sha="$(git -C "$root" rev-parse "refs/heads/$rb" 2>/dev/null)"
+    if [ -z "$head_sha" ] || [ -z "$rb_sha" ]; then
+        echo "missing"; return 0
+    fi
+    if [ "$head_sha" = "$rb_sha" ]; then
+        echo "uptodate"; return 0
+    fi
+    if git -C "$root" merge-base --is-ancestor "$rb_sha" "$head_sha" 2>/dev/null; then
+        echo "clean"; return 0
+    fi
+    if git -C "$root" merge-base --is-ancestor "$head_sha" "$rb_sha" 2>/dev/null; then
+        echo "branch-ahead"; return 0
+    fi
+    echo "diverged"
+}
+
+# ---------------------------------------------------------------------------
+# release_remote_ff_check <root> <release_branch> <offline:true|false>
+#   T-3819: release_ff_state grades the LOCAL ref only. v1.8.0 attempt 1 was
+#   graded "clean" while origin/master held a commit (eb49ff9) the local ref
+#   did not; the release committed VERSION, tagged, and only learned the truth
+#   when the push was rejected. This asks every push remote BEFORE anything is
+#   written: is your <release_branch> an ancestor of HEAD?
+#
+#   Returns 0 when every remote can fast-forward (or lacks the branch, which the
+#   push will create), 1 when any remote refuses or cannot be reached.
+#
+#   Decided explicitly, and said in the output:
+#     no remotes   -> pass; nothing is published, so there is nothing to grade.
+#     unreachable  -> REFUSE, unless --offline. A check that could not run is
+#                     not a check that passed (the G-096 false-green shape).
+#     --offline    -> pass, with a warning that the remote was NOT inspected.
+#
+#   Writes no ref: ls-remote, plus a FETCH_HEAD-only fetch when the remote tip
+#   is not already in the local object store.
+# ---------------------------------------------------------------------------
+release_remote_ff_check() {
+    local root="$1" rb="$2" offline="${3:-false}"
+    local remotes
+    remotes="$(git -C "$root" remote 2>/dev/null)"
+    if [ -z "$remotes" ]; then
+        echo "No remotes configured — remote fast-forward check skipped (nothing is published)."
+        return 0
+    fi
+    if [ "$offline" = true ]; then
+        echo -e "${YELLOW}--offline: remote fast-forward check SKIPPED${NC} — '$rb' on the remote(s) was not inspected; the push may still be refused." >&2
+        return 0
+    fi
+    local head_sha remote rsha refused=0
+    head_sha="$(git -C "$root" rev-parse HEAD 2>/dev/null)"
+    while IFS= read -r remote; do
+        [ -z "$remote" ] && continue
+        local listing
+        if ! listing="$(git -C "$root" ls-remote --heads "$remote" "refs/heads/$rb" 2>/dev/null)"; then
+            echo -e "${RED}REFUSING to release:${NC} cannot reach remote '$remote' to check '$rb'." >&2
+            echo "  Whether '$remote/$rb' can fast-forward to HEAD is unknown, and an unknown is" >&2
+            echo "  not a pass. Fix the remote, or re-run with --offline to release without" >&2
+            echo "  the remote check. No tag was created." >&2
+            refused=1; continue
+        fi
+        rsha="$(echo "$listing" | awk -v r="refs/heads/$rb" '$2 == r {print $1; exit}')"
+        if [ -z "$rsha" ]; then
+            echo "Remote '$remote' has no '$rb' yet — the push will create it."
+            continue
+        fi
+        if ! git -C "$root" cat-file -e "${rsha}^{commit}" 2>/dev/null; then
+            if ! git -C "$root" fetch -q --no-tags "$remote" "refs/heads/$rb" 2>/dev/null \
+                || ! git -C "$root" cat-file -e "${rsha}^{commit}" 2>/dev/null; then
+                echo -e "${RED}REFUSING to release:${NC} could not fetch '$remote/$rb' ($rsha) to grade it." >&2
+                echo "  Re-run with --offline to release without the remote check. No tag was created." >&2
+                refused=1; continue
+            fi
+        fi
+        if [ "$rsha" = "$head_sha" ] || git -C "$root" merge-base --is-ancestor "$rsha" "$head_sha" 2>/dev/null; then
+            echo "Remote '$remote/$rb' is an ancestor of HEAD — fast-forward available."
+        else
+            echo -e "${RED}REFUSING to release:${NC} '$remote/$rb' has commit(s) HEAD does not contain:" >&2
+            git -C "$root" log --oneline -n 10 "${head_sha}..${rsha}" 2>/dev/null | sed 's/^/    /' >&2
+            echo "  Pushing '$rb' would be rejected as non-fast-forward — after the release had" >&2
+            echo "  already committed VERSION and tagged (v1.8.0 attempt 1, T-3819)." >&2
+            echo "  Fix: merge $remote/$rb into your dev branch first:" >&2
+            echo "    git fetch $remote $rb && git merge $remote/$rb" >&2
+            echo "  No tag was created." >&2
+            refused=1
+        fi
+    done <<< "$remotes"
+    return $refused
+}
+
+# ---------------------------------------------------------------------------
 # release_tag_and_release  — main entrypoint
-#   Flags: --dry-run, --bump {patch|minor|major}, --repo <owner/name>
+#   Flags: --dry-run, --bump {patch|minor|major}, --repo <owner/name>,
+#          --offline (skip the remote fast-forward check, T-3819)
 # ---------------------------------------------------------------------------
 release_tag_and_release() {
     local dry_run=false
+    local offline=false
     local bump=patch
     local gh_repo=""
     local root="${PROJECT_ROOT:-$(pwd)}"
@@ -75,6 +331,7 @@ release_tag_and_release() {
     while [ $# -gt 0 ]; do
         case "$1" in
             --dry-run) dry_run=true ;;
+            --offline) offline=true ;;
             --bump)    bump="$2"; shift ;;
             --repo)    gh_repo="$2"; shift ;;
             *) echo "Unknown flag: $1" >&2; return 2 ;;
@@ -100,31 +357,231 @@ release_tag_and_release() {
     local next
     next="$(release_bump_version "$latest" "$bump")"
 
+    # ── VERSION reconciliation leg (T-3242, tag-as-canonical) ────────────
+    # VERSION was derived from a resetting commit counter and DECREASED across
+    # consecutive releases (1.6.176 → 1.6.72 between v1.6.767 and v1.6.768).
+    # The ruling: the tag is canonical, VERSION mirrors it. A release that
+    # would write a DECREASED version refuses — same refuse-family as the
+    # T-3190 fast-forward gate: better no release than one that tells
+    # consumers they downgraded. Repos without a VERSION file have no second
+    # answer to reconcile and are left alone (keeps consumer repos untouched).
+    # T-3821: graded against HEAD's COMMITTED VERSION, not the working tree.
+    # The tree can carry a pre-push stamp (<major.minor>.<commits>, from hooks
+    # installed before T-3821) that is neither what consumers read nor what the
+    # tag will carry: grading it made the reconcile commit go empty (v1.8.0
+    # attempt 2) and could refuse a patch release as a false DECREASE.
+    # needs_reconcile also covers a stale vendored copy beside a current root.
+    local want_ver="${next#v}" ver_file="$root/VERSION" cur_file_ver="" needs_reconcile=false
+    if [ -f "$ver_file" ]; then
+        if git -C "$root" cat-file -e HEAD:VERSION 2>/dev/null; then
+            cur_file_ver="$(git -C "$root" show HEAD:VERSION 2>/dev/null | tr -d '[:space:]')"
+        else
+            cur_file_ver="$(tr -d '[:space:]' < "$ver_file")"
+        fi
+        [ "$cur_file_ver" != "$want_ver" ] && needs_reconcile=true
+        if [ -f "$root/.agentic-framework/VERSION" ] \
+            && [ "$(git -C "$root" show HEAD:.agentic-framework/VERSION 2>/dev/null | tr -d '[:space:]')" != "$want_ver" ]; then
+            needs_reconcile=true
+        fi
+        if [ -n "$cur_file_ver" ] && release_version_lt "$want_ver" "$cur_file_ver"; then
+            echo -e "${RED}REFUSING to release:${NC} tag $next would DECREASE VERSION ($cur_file_ver → $want_ver)." >&2
+            echo "  VERSION is ahead of the tag line — a consumer reading VERSION would" >&2
+            echo "  conclude it downgraded. The tag is canonical (T-3242); reconcile" >&2
+            echo "  VERSION or bump past it (--bump minor|major), then retry." >&2
+            echo "  No tag was created." >&2
+            return 1
+        fi
+    fi
+
+    # ── Release-train leg (G-096, T-3190) ────────────────────────────────
+    # Under T-3185 a release IS the fast-forward of the install surface; the
+    # tag merely names it. So the advance is decided FIRST, before a tag
+    # exists and long before one is published. A release that cannot move
+    # `master` must fail loudly here rather than tag, push, exit 0, and leave
+    # the operator with every signal saying it worked.
+    local release_branch="${FW_RELEASE_BRANCH:-master}"
+    # Declared here, before the publish loop that sets it (T-3822 merged the
+    # old branch-push and tag-push loops into one atomic push per remote).
+    local failed=0
+    local ff_state ff_count=0
+    ff_state="$(release_ff_state "$root" "$release_branch")"
+    if [ "$ff_state" = "clean" ]; then
+        ff_count="$(git -C "$root" rev-list --count "refs/heads/${release_branch}..HEAD" 2>/dev/null || echo 0)"
+    fi
+
+    case "$ff_state" in
+        branch-ahead)
+            echo -e "${RED}REFUSING to release:${NC} '$release_branch' is AHEAD of HEAD." >&2
+            echo "  Releasing would move the install surface BACKWARD — consumers would" >&2
+            echo "  receive an older tree than they already have." >&2
+            echo "  No tag was created. Merge or rebase '$release_branch' first, then retry." >&2
+            return 1
+            ;;
+        diverged)
+            echo -e "${RED}REFUSING to release:${NC} '$release_branch' has DIVERGED from HEAD." >&2
+            echo "  Neither is an ancestor of the other, so no fast-forward exists and a" >&2
+            echo "  release cannot advance the install surface without a merge decision" >&2
+            echo "  that is not this command's to make." >&2
+            echo "  No tag was created. Reconcile the branches first, then retry." >&2
+            return 1
+            ;;
+    esac
+
+    # T-3819: the local verdict above is only half the question — a remote can
+    # hold a commit the local ref does not. Asked here, before VERSION is
+    # committed or a tag exists, and in --dry-run too.
+    if [ "$ff_state" = "clean" ] || [ "$ff_state" = "uptodate" ]; then
+        if ! release_remote_ff_check "$root" "$release_branch" "$offline"; then
+            return 1
+        fi
+    fi
+
     if $dry_run; then
         echo -e "${CYAN}would tag $next${NC} ($commits commits since $latest, bump=$bump)"
+        if [ -f "$ver_file" ]; then
+            if $needs_reconcile; then
+                echo -e "${CYAN}would reconcile VERSION${NC} $cur_file_ver → $want_ver (tag-as-canonical, T-3242)"
+            else
+                echo "VERSION already $want_ver — no reconciliation needed"
+            fi
+        fi
+        case "$ff_state" in
+            clean)    echo -e "${CYAN}would fast-forward $release_branch${NC} by $ff_count commit(s) to $next" ;;
+            uptodate) echo "$release_branch is already at HEAD — no fast-forward needed" ;;
+            missing)  echo -e "${YELLOW}no local '$release_branch'${NC} — would skip the fast-forward" ;;
+        esac
         return 0
+    fi
+
+    # Reconcile VERSION to the tag BEFORE the tag exists, so the tagged commit
+    # carries the version the tag names (T-3242). HEAD moves by one commit, so
+    # the fast-forward leg is recomputed — the refuse cases (branch-ahead /
+    # diverged) already fired above and cannot newly appear from advancing HEAD.
+    # T-3820: everything below that refuses must leave HEAD and VERSION as they
+    # are now. _undo puts them back (and is a no-op when nothing was reconciled).
+    local pre_head reconciled_sha="" ver_snap=""
+    pre_head="$(git -C "$root" rev-parse HEAD 2>/dev/null)"
+    _release_undo_reconcile() {
+        [ -n "$ver_snap" ] || return 0
+        release_version_restore "$root" "$ver_snap" "$pre_head" "$reconciled_sha"
+        ver_snap=""
+    }
+    if [ -f "$ver_file" ] && $needs_reconcile; then
+        echo -e "${CYAN}Reconciling VERSION $cur_file_ver → $want_ver (tag-as-canonical)...${NC}"
+        ver_snap="$(release_version_snapshot "$root")"
+        if ! release_reconcile_version "$root" "$next"; then
+            echo -e "${RED}REFUSING to release:${NC} VERSION reconciliation commit failed." >&2
+            _release_undo_reconcile
+            echo "  No tag was created; VERSION restored. Check the working tree state of VERSION and retry." >&2
+            return 1
+        fi
+        reconciled_sha="$(git -C "$root" rev-parse HEAD 2>/dev/null)"
+        # Nothing committed (already equal to HEAD, T-3821): nothing to revert.
+        [ "$reconciled_sha" = "$pre_head" ] && reconciled_sha=""
+        ff_state="$(release_ff_state "$root" "$release_branch")"
+        ff_count=0
+        if [ "$ff_state" = "clean" ]; then
+            ff_count="$(git -C "$root" rev-list --count "refs/heads/${release_branch}..HEAD" 2>/dev/null || echo 0)"
+        fi
+        commits="$(release_commits_since "$latest" "$root")"
     fi
 
     # Create annotated tag
     echo -e "${CYAN}Creating annotated tag $next...${NC}"
     if ! git -C "$root" tag -a "$next" -m "$next: auto-release ($commits commits since $latest)"; then
         echo -e "${RED}Failed to create tag${NC}" >&2
+        _release_undo_reconcile
         return 1
     fi
 
-    # Push tag to every remote
-    local failed=0
-    local remote
+    # Advance the local install surface, then publish branch AND tag together.
+    # If the local advance fails, the tag (and reconcile commit) are removed so
+    # a retry is clean.
+    local rb_before="" publish_branch=false
+    if [ "$ff_state" = "clean" ]; then
+        echo -e "${CYAN}Fast-forwarding $release_branch ($ff_count commit(s))...${NC}"
+        rb_before="$(git -C "$root" rev-parse "refs/heads/${release_branch}" 2>/dev/null)"
+        if ! git -C "$root" branch -f "$release_branch" HEAD 2>&1; then
+            echo -e "${RED}Failed to advance local '$release_branch'${NC} — is it checked out in a worktree?" >&2
+            git -C "$root" tag -d "$next" >/dev/null 2>&1
+            echo "  Tag $next was removed; nothing was published." >&2
+            _release_undo_reconcile
+            return 1
+        fi
+        publish_branch=true
+    elif [ "$ff_state" = "missing" ]; then
+        echo -e "${YELLOW}No local '$release_branch' — skipping the fast-forward${NC}" >&2
+    else
+        echo -e "${GREEN}$release_branch already at HEAD — no fast-forward needed${NC}"
+        # Still published: the remote may be behind the local ref (T-3819 has
+        # already proved it is an ancestor), and an equal remote is a no-op.
+        publish_branch=true
+    fi
+
+    # ── Publish: ONE atomic push per remote (T-3822) ─────────────────────
+    # v1.8.0 attempt 3 pushed `master`, then pushed the tag through a second
+    # full pre-push audit minutes later; consumers ran `fw upgrade` from master
+    # in between and installed a "1.8.0" no tag named. `--atomic` makes each
+    # remote take both refs or neither, and one push means the pre-push hook
+    # (and its audit) runs once per remote, not once per ref.
+    #
+    # Atomicity also retires the old T-3193 "hold the release open" state
+    # (branch published, tag refused): on a single remote it can no longer
+    # arise. What remains is per-remote all-or-nothing:
+    #   - no remote took the push -> nothing was published anywhere, so the
+    #     branch, tag and reconcile commit are all rolled back (T-3190/T-3820);
+    #   - some remotes took it    -> the release IS published; the failures are
+    #     reported and the command exits non-zero, nothing is retracted.
+    #
+    # Retry before giving up (T-3193 AC2): the common refusal is our own
+    # pre-push audit lock held by cron, which clears on its own.
+    local refspecs=()
+    $publish_branch && refspecs+=("refs/heads/${release_branch}:refs/heads/${release_branch}")
+    refspecs+=("refs/tags/${next}:refs/tags/${next}")
+    local pub_ok=0 pub_attempted=0 remote
     while IFS= read -r remote; do
         [ -z "$remote" ] && continue
-        echo -e "${CYAN}Pushing $next to $remote...${NC}"
-        if git -C "$root" push "$remote" "$next" 2>&1; then
-            echo -e "  ${GREEN}✓ $remote${NC}"
+        pub_attempted=$((pub_attempted + 1))
+        if $publish_branch; then
+            echo -e "${CYAN}Pushing $release_branch + $next to $remote (atomic)...${NC}"
         else
-            echo -e "  ${YELLOW}WARN: push to $remote failed${NC}" >&2
+            echo -e "${CYAN}Pushing $next to $remote (atomic)...${NC}"
+        fi
+        local _try _ok=0
+        for _try in 1 2 3; do
+            if git -C "$root" push --atomic "$remote" "${refspecs[@]}" 2>&1; then
+                _ok=1
+                break
+            fi
+            if [ "$_try" -lt 3 ]; then
+                echo -e "  ${YELLOW}retry $_try/3 in ${RELEASE_TAG_RETRY_SLEEP:-20}s${NC} (a held audit lock clears on its own)" >&2
+                sleep "${RELEASE_TAG_RETRY_SLEEP:-20}"
+            fi
+        done
+        if [ "$_ok" -eq 1 ]; then
+            echo -e "  ${GREEN}✓ $remote${NC}"
+            pub_ok=$((pub_ok + 1))
+        else
+            echo -e "  ${YELLOW}WARN: atomic push to $remote failed after 3 attempts — neither ref landed there${NC}" >&2
             failed=1
         fi
     done < <(git -C "$root" remote 2>/dev/null)
+
+    if [ "$pub_attempted" -gt 0 ] && [ "$pub_ok" -eq 0 ]; then
+        echo -e "${RED}REFUSING to publish:${NC} the release reached no remote." >&2
+        echo "  Each push was atomic, so no remote has '$release_branch' or $next from" >&2
+        echo "  this release: nothing was published and nothing needs retracting." >&2
+        [ -n "$rb_before" ] && git -C "$root" branch -f "$release_branch" "$rb_before" >/dev/null 2>&1
+        git -C "$root" tag -d "$next" >/dev/null 2>&1
+        echo "  Rolled back: $release_branch restored, tag $next removed; nothing was published." >&2
+        _release_undo_reconcile
+        echo "  No GitHub Release was created. Fix the remote and re-run the release." >&2
+        return 1
+    fi
+    # Published on at least one remote: the reconcile commit is now public and
+    # is never reverted from here on.
+    [ -n "$ver_snap" ] && rm -rf "$ver_snap"
+    ver_snap=""
 
     # Create GitHub Release (best-effort)
     if command -v gh >/dev/null 2>&1; then
@@ -150,13 +607,28 @@ release_tag_and_release() {
 # ---------------------------------------------------------------------------
 release_status() {
     local root="${PROJECT_ROOT:-$(pwd)}"
-    local latest
-    latest="$(release_latest_tag "$root")"
-    local commits=0
-    [ -n "$latest" ] && commits="$(release_commits_since "$latest" "$root")"
-    echo "Latest tag:       ${latest:-<none>}"
-    echo "Commits since:    $commits"
+    local pattern latest commits used
+    pattern="$(release_tag_pattern)"
+    used="$pattern"
+    latest="$(release_latest_tag "$root" "$pattern")"
+    # Prefixed semver (designer-v1.2.3, T-3585): when the configured pattern
+    # matches nothing, recognise <prefix>v<semver> before giving up.
+    if [ -z "$latest" ]; then
+        latest="$(release_latest_tag "$root" '*-v[0-9]*.[0-9]*.[0-9]*')"
+        [ -n "$latest" ] && used='*-v[0-9]*.[0-9]*.[0-9]*'
+    fi
     if [ -n "$latest" ]; then
+        commits="$(release_commits_since "$latest" "$root")"
+        echo "Latest tag:       $latest (pattern $used)"
+        echo "Commits since:    $commits"
+    else
+        # Never print 0 here: with no baseline, "nothing is due" is unknown.
+        local total
+        total="$(git -C "$root" rev-list --count HEAD 2>/dev/null)"
+        echo "Latest tag:       no tag matching $pattern"
+        echo "Commits since:    UNKNOWN (no matching tag; ${total:-unknown} commits since the root)"
+    fi
+    if [ -n "$latest" ] && [[ "$latest" =~ ^v[0-9] ]]; then
         echo "Would bump to:    $(release_bump_version "$latest" patch) (patch)"
     fi
     echo "Remotes:"
@@ -171,7 +643,7 @@ release_main() {
     shift || true
 
     case "$subcmd" in
-        tag-and-release|""|--dry-run|--bump|--repo)
+        tag-and-release|""|--dry-run|--bump|--repo|--offline)
             # If first arg was actually a flag, it belongs to tag-and-release
             if [[ "$subcmd" == --* ]]; then
                 set -- "$subcmd" "$@"
@@ -191,6 +663,8 @@ Subcommands:
 
 Flags (for tag-and-release):
   --dry-run         Show what would happen, change nothing
+  --offline         Skip the remote fast-forward check (an unreachable remote
+                    otherwise refuses the release, T-3819)
   --bump LEVEL      patch (default) | minor | major
   --repo OWNER/NAME Override gh release target repo
 EOF

@@ -77,6 +77,22 @@ except:
             ;;
     esac
 
+    # F-25: a sibling git worktree of THIS repo is the same repository, not
+    # another project. `git worktree list` (run against PROJECT_ROOT) only
+    # enumerates worktrees that share PROJECT_ROOT's own .git — a genuinely
+    # foreign project at another /opt/* path never appears in this list, so
+    # this cannot be used to admit anything outside the current repo. Silent
+    # no-op (empty stdout) when PROJECT_ROOT is not a git repo, which keeps
+    # non-git installs and test fixtures behaving exactly as before.
+    while IFS= read -r _wt_root; do
+        [ -n "$_wt_root" ] || continue
+        case "$RESOLVED" in
+            "$_wt_root"|"$_wt_root"/*)
+                exit 0
+                ;;
+        esac
+    done < <(git -C "$PROJECT_ROOT" worktree list --porcelain 2>/dev/null | sed -n 's/^worktree //p')
+
     # Everything else: BLOCK
     echo "" >&2
     echo "══════════════════════════════════════════════════════════" >&2
@@ -143,8 +159,9 @@ except:
 
     # Detailed analysis: detect cd to another project + write operations
     export _BOUNDARY_CMD="$COMMAND"
+    export _BOUNDARY_FW_LIB="$FRAMEWORK_ROOT/lib"   # T-3766: registered credential files
     MATCH_RESULT=$(python3 << 'PYEOF'
-import re, sys, os
+import re, sys, os, subprocess
 
 command = os.environ.get('_BOUNDARY_CMD', '')
 project_root = os.environ.get('PROJECT_ROOT', '')
@@ -405,9 +422,117 @@ def _drop_termlink_segments(cmd, root):
         return cmd
 
 
+# T-3766: the sanctioned credential path. A segment whose first word is this
+# project's fw BY ABSOLUTE PATH, then `review credential`, may name a credential
+# file the committed backend registry registers (its --source argument); that
+# exact token, in that segment only, is exempt from the read-side Pattern 4.
+# Nothing else is: the write patterns (1-3) run first and still see the path,
+# `cat <file>` in a sibling segment is not exempt, and an unregistered path in
+# the same segment still blocks. Fails closed: any error yields no exemption.
+def _registered_cred_files():
+    try:
+        sys.path.insert(0, os.environ.get('_BOUNDARY_FW_LIB', ''))
+        import review_cost, review_credential
+        return review_credential.registered_files(review_cost.policy_path(),
+                                                  review_cost.load_registry())
+    except Exception:
+        return set()
+
+
+def _cred_exempt_spans(cmd, root):
+    """[(start, end)] of registered-credential-file tokens inside fw-review-credential segments."""
+    try:
+        files = None
+        spans = []
+        mask = _strip_quoted(cmd)
+        for s, e in _split_segments(mask):
+            toks = list(re.finditer(r'\S+', mask[s:e]))
+            words = [t.group(0) for t in toks]
+            # Exactly this project's fw, by ABSOLUTE path, as the segment's first word: a
+            # relative `fw`/`bin/fw` resolves through PATH or the cwd (`PATH=/tmp fw ...`,
+            # `cd /tmp && bin/fw ...`), and an assignment prefix could redirect it.
+            if len(words) < 3:
+                continue
+            exe = words[0]
+            if exe not in (root + '/bin/fw', root + '/.agentic-framework/bin/fw') \
+                    or words[1:3] != ['review', 'credential']:
+                continue
+            # A strict GRAMMAR, not a cutoff (round 3: `'--exec'` and `--ex""ec` are
+            # `--exec` to the shell but not to a text scan, so a child's `--source`
+            # slipped through). The exempt segment must be exactly
+            #     <abs fw> review credential <backend-id> [--check] --source <file> [--check]
+            # with no quote, backslash, `$`, backtick, `<`, `>`, `(` or `)` anywhere in
+            # its RAW text. Anything else (--exec, --task, extra words) gets no exemption.
+            if re.search(r'[\'"\\$`<>()]', cmd[s:e]):
+                continue
+            rest = words[3:]
+            if not rest or not re.match(r'^[a-z0-9][a-z0-9-]*$', rest[0]):
+                continue
+            src_idx = None
+            k, ok = 1, True
+            while k < len(rest):
+                if rest[k] == '--check':
+                    k += 1
+                elif rest[k] == '--source' and src_idx is None and k + 1 < len(rest):
+                    src_idx = 3 + k + 1
+                    k += 2
+                else:
+                    ok = False
+                    break
+            if not ok or src_idx is None:
+                continue
+            if files is None:
+                files = _registered_cred_files()
+            if words[src_idx] in files:
+                spans.append((s + toks[src_idx].start(), s + toks[src_idx].end()))
+        return spans
+    except Exception:
+        return []
+
+
+_CRED_SPANS = _cred_exempt_spans(_strip_heredocs(command), project_root)
+
 command = _strip_heredocs(command)   # T-2920: must precede _strip_quoted
 command = _drop_termlink_segments(command, project_root)   # T-3076
 command = _strip_quoted(command)
+
+# F-25: a sibling git worktree of THIS repo is the same repository, not
+# another project. `git worktree list` run against project_root only
+# enumerates worktrees sharing project_root's own .git — a genuinely foreign
+# project living at another /opt/* (or anywhere else) path is a DIFFERENT
+# repository and never appears in this list, so this cannot be abused to
+# admit an unrelated project. Fails closed: any error (not a git repo, git
+# missing, timeout) yields an empty list and every pattern below behaves
+# exactly as it did before this fix.
+def _worktree_roots(root):
+    try:
+        proc = subprocess.run(
+            ['git', '-C', root, 'worktree', 'list', '--porcelain'],
+            capture_output=True, text=True, timeout=5,
+        )
+    except Exception:
+        return []
+    if proc.returncode != 0:
+        return []
+    roots = []
+    for line in proc.stdout.splitlines():
+        if line.startswith('worktree '):
+            p = line[len('worktree '):].strip().rstrip('/')
+            if p:
+                roots.append(p)
+    return roots
+
+
+_WORKTREE_ROOTS = _worktree_roots(project_root)
+
+
+def _in_sibling_worktree(path):
+    p = path.rstrip('/')
+    for wt in _WORKTREE_ROOTS:
+        if p == wt or p.startswith(wt + '/'):
+            return True
+    return False
+
 
 # Pattern 1: cd to absolute path outside project root
 cd_pattern = re.compile(r'cd\s+(/[^\s;&|]+)')
@@ -419,6 +544,8 @@ for target_dir in matches:
         # Allow cd to safe zones
         if target.startswith('/tmp') or target.startswith('/root/.claude'):
             continue
+        if _in_sibling_worktree(target):   # F-25
+            continue
         print(f'BLOCKED|cd to {target} (outside project root {project_root})')
         sys.exit(0)
 
@@ -427,6 +554,8 @@ fw_pattern = re.compile(r'(/[^\s]+/)\.agentic-framework/bin/fw\b')
 for fw_path in fw_pattern.findall(command):
     fw_dir = fw_path.rstrip('/')
     if not fw_dir.startswith(project_root + '/') and fw_dir != project_root:
+        if _in_sibling_worktree(fw_dir):   # F-25
+            continue
         print(f'BLOCKED|Direct fw invocation on {fw_dir} (outside project root)')
         sys.exit(0)
 
@@ -436,6 +565,8 @@ for target_file in write_ops.findall(command):
     if target_file.startswith(('/tmp/', '/root/.claude/', '/dev/', '/etc/cron.d/')):
         continue
     if not target_file.startswith(project_root + '/'):
+        if _in_sibling_worktree(target_file):   # F-25
+            continue
         print(f'BLOCKED|File write to {target_file} (outside project root)')
         sys.exit(0)
 
@@ -480,6 +611,13 @@ READ_ALLOWED_EXACT = {
 # strip surrounding shell punctuation that can lead it (none expected after
 # whitespace split, but be defensive about trailing commas/semicolons).
 def _tok_iter(cmd):
+    # T-3766: blank the exempt credential-file tokens (length-preserving) first.
+    if _CRED_SPANS:
+        chars = list(cmd)
+        for s_, e_ in _CRED_SPANS:
+            for k in range(s_, e_):
+                chars[k] = ' '
+        cmd = ''.join(chars)
     for raw in re.split(r'[\s;&|()]+', cmd):
         if not raw:
             continue
@@ -494,6 +632,8 @@ for tok in _tok_iter(command):
         continue
     # Strip glob characters off the end so /var/log/* is checked as /var/log/
     cand = tok
+    if _in_sibling_worktree(cand):   # F-25
+        continue
     # Allow paths with leading prefix in the explicit list.
     if any(cand == a.rstrip('/') or cand.startswith(a) for a in READ_ALLOWED_PREFIXES):
         # Special-case /opt/: only allow exactly /opt or /opt/<this-project>.

@@ -200,9 +200,16 @@ _watchtower_url() {
 # output shape:
 #
 #   0 — live and identity-verified (delegates to _watchtower_url verbatim)
-#   2 — no Watchtower reachable. stdout is a WOULD-BE base URL built from the
-#       configured port: correct the moment `fw serve` runs, wrong to treat as
-#       reachable now.
+#   2 — no Watchtower reachable. stdout is a WOULD-BE base URL: the port this
+#       project's Watchtower comes back on, wrong to treat as reachable now.
+#       Candidates are tried in order: the triple-file port (where it last ran,
+#       and where a bare `fw watchtower restart` rebinds, T-2598), then the
+#       configured port. A candidate that something is already listening on is
+#       skipped. We only get here because nothing identified as ours, so any
+#       holder is foreign, and naming its port would hand this project's review
+#       links to another server (T-3379: after a reboot, links pointed at a
+#       neighbour's Watchtower on :3000). If every candidate is held, the answer
+#       is an RFC 2606 `.invalid` host, which can never resolve to anyone.
 #
 # Two distinct non-empty answers rather than "empty means down", because an
 # empty base silently concatenates into "/review/T-XXX" — a broken relative path
@@ -223,12 +230,28 @@ _watchtower_base_or_placeholder() {
         return 0
     fi
 
-    # Not reachable. Build the would-be URL from the same configured port
-    # Layer 2 probes, so the printed link matches where `fw serve` will bind.
-    local _port
-    _port=$(fw_config "PORT" 3000 2>/dev/null || echo 3000)
-    printf 'http://localhost:%s\n' "${_port:-3000}"
+    # Not reachable. Name a port that is ours to come back on (see the exit-2
+    # contract above for the order and why a held port is skipped).
+    local _candidates=() _cand _triple="$PROJECT_ROOT/.context/working/watchtower.port"
+    [ -f "$_triple" ] && _candidates+=("$(tr -d '[:space:]' < "$_triple" 2>/dev/null)")
+    _candidates+=("$(fw_config "PORT" 3000 2>/dev/null || echo 3000)")
+    for _cand in "${_candidates[@]}"; do
+        case "$_cand" in ''|*[!0-9]*) continue ;; esac
+        _watchtower_port_listening "$_cand" && continue
+        printf 'http://localhost:%s\n' "$_cand"
+        return 2
+    done
+    printf 'http://watchtower-not-running.invalid\n'
     return 2
+}
+
+# _watchtower_port_listening PORT
+#
+# Returns 0 iff some process is listening on TCP PORT. Same `ss` idiom as
+# bin/watchtower.sh:port_in_use, which lib/ does not source. It says nothing
+# about WHO holds the port: the identity question is _watchtower_identity_matches.
+_watchtower_port_listening() {
+    ss -tln 2>/dev/null | grep -q ":${1} "
 }
 
 # fw_task_review_url TASK_ID [TASK_FILE]
@@ -307,4 +330,19 @@ _watchtower_open() {
             open "$url" >/dev/null 2>&1 &
         fi
     fi
+}
+
+# T-3627: keep the previous server's log across a restart. The start path used to
+# open watchtower.log with `>`, so every restart truncated it — on 2026-10-01 that
+# destroyed the only record of who sent ~60 concurrent /graduation requests to the
+# wedged server. Shift log -> log.1 -> ... -> log.<keep>; an empty or missing log is
+# left alone so it cannot push a real one out of the window.
+watchtower_rotate_log() {
+    local log="$1" keep="${2:-3}" i
+    [ -s "$log" ] || return 0
+    rm -f "$log.$keep"
+    for ((i = keep - 1; i >= 1; i--)); do
+        [ -e "$log.$i" ] && mv -f "$log.$i" "$log.$((i + 1))"
+    done
+    mv -f "$log" "$log.1"
 }

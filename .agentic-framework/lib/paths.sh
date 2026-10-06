@@ -173,10 +173,18 @@ except Exception:
 # Default (unset/0) returns the shared path verbatim: existing single-session
 # behaviour is unchanged, which is what keeps this safe to land without migration.
 #
+# T-3141: honour a CONTEXT_DIR override instead of re-deriving "$root/.context".
+# Callers always pass PROJECT_ROOT as $1, but tests (create_task.bats, T-2832)
+# sandbox CONTEXT_DIR alone — leaving PROJECT_ROOT pointed at the real repo so
+# template resolution still works — to stop --start's focus write from landing
+# in the live session's .context/working/. Re-deriving from root here defeated
+# that sandbox and clobbered the live focus.yaml. Fall back to "$root/.context"
+# only when CONTEXT_DIR is unset/empty, so non-test callers are unaffected.
+#
 # Usage: focus_file=$(fw_focus_file "$PROJECT_ROOT")
 fw_focus_file() {
     local root="${1:-$PROJECT_ROOT}"
-    local dir="$root/.context/working"
+    local dir="${CONTEXT_DIR:-$root/.context}/working"
 
     if [ "${FW_SESSION_SCOPED_FOCUS:-0}" != "1" ]; then
         printf '%s\n' "$dir/focus.yaml"
@@ -191,6 +199,57 @@ fw_focus_file() {
     # text into a path, even a contained one.
     key=$(printf '%s' "$key" | tr -c 'a-zA-Z0-9_-' '-')
     printf '%s\n' "$dir/focus.$key.yaml"
+}
+
+# T-3422: pre-seed a session-scoped focus file with a known task.
+#
+# check-active-task.sh falls back to the SHARED focus.yaml while a scoped file
+# does not exist yet (T-3038 — "a worker that never calls work-on should
+# inherit the parent's task"). For a dispatched worker that inheritance is a
+# defect, not a courtesy: the SEQ-T3411 value review watched four consecutive
+# fresh workers read a different, unrelated, real active task as their own
+# focus until their first `fw work-on`. Dispatch already knows the worker's
+# task (`--task` is mandatory), so it seeds the scoped file up front and the
+# fallback simply never fires for a dispatched worker.
+#
+# Resolves the path through fw_focus_file — the SAME resolver the gate and
+# `fw context focus` use (L-399 producer/consumer parity) — so the caller sets
+# FW_SESSION_SCOPED_FOCUS=1 and FW_FOCUS_SESSION_KEY=<name> exactly as it does
+# for the worker's env.sh. `focus_session` is left null on purpose: the
+# worker's own `fw work-on` stamps its session id later, and the gate's stamp
+# comparison only fires when both sides are non-empty.
+#
+# Never overwrites: an existing scoped file is a worker's own state (possibly a
+# re-dispatch under a reused name) and is left byte-identical.
+#
+# Usage: FW_SESSION_SCOPED_FOCUS=1 FW_FOCUS_SESSION_KEY="$name" \
+#            fw_focus_seed "$project_root" "$task_id"
+#   rc 0  seeded (prints the path)      rc 1  already existed (prints the path)
+#   rc 2  refused: not in scoped mode, or missing root/task
+fw_focus_seed() {
+    local root="${1:-}" task="${2:-}"
+    [ -n "$root" ] && [ -n "$task" ] || return 2
+    [ "${FW_SESSION_SCOPED_FOCUS:-0}" = "1" ] || return 2
+
+    local f
+    f=$(fw_focus_file "$root")
+    # Refuse to touch the shared file even if the resolver somehow returned it.
+    case "$f" in */focus.yaml) return 2 ;; esac
+
+    if [ -f "$f" ]; then
+        printf '%s\n' "$f"
+        return 1
+    fi
+    mkdir -p "$(dirname "$f")" 2>/dev/null || return 2
+    {
+        printf '# Working Memory - Current Focus\n'
+        printf '# Seeded by dispatch (T-3422) for worker key %s\n\n' "${FW_FOCUS_SESSION_KEY:-?}"
+        printf 'current_task: %s\n' "$task"
+        printf 'priorities: []\nblockers: []\npending_decisions: []\n'
+        printf 'reminders: []\nfocus_session: null\n'
+    } > "$f.tmp" && mv "$f.tmp" "$f" || return 2
+    printf '%s\n' "$f"
+    return 0
 }
 
 # T-2375: Claude Code transcript project-dir-name sanitizer.

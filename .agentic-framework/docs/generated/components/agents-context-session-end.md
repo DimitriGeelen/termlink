@@ -8,16 +8,16 @@
 
 ## What It Does
 
-REFERENCE ONLY — not registered in .claude/settings.json (see T-1459)
+REFERENCE ONLY — deliberately NOT registered in .claude/settings.json.
+T-1459 reached GO on Option D (reference-only) and set a precondition for ever
+re-enabling this: read the G-016 RCA first. G-016 was a handover COMMIT STORM, and
+the last action taken on this script cluster was defensive capping (2199ccba), not
+decommissioning. Registering this hook without working through that RCA re-opens
+the hazard the decision parked. `tests/unit/hook_enable_events.bats` asserts the
+absence, so reversing the decision fails loudly rather than quietly.
 SessionEnd hook — S1 reason logger + S2 handover trigger (T-1212)
 Fires on session termination. Always exits 0.
 S1: appends {ts, session_id, reason} JSON line to
-.context/working/.session-end-log for reason-field telemetry.
-S2: if no handover exists for the current session_id
-(`.context/handovers/LATEST.md` frontmatter session_id mismatch), runs
-`fw handover` in the background. Background so the hook returns fast
-(<2s) regardless of handover duration — some session-end reasons
-(e.g. API 500 kill) give us very little grace period.
 
 ## Dependencies (3)
 
@@ -32,7 +32,7 @@ S2: if no handover exists for the current session_id
 | Component | Relationship | Description |
 |-----------|--------------|-------------|
 | [fw](/docs/generated/bin-fw) | invoked_via_fw_hook | Single entry point for all framework operations. Reads .framework.yaml from the project directory to resolve FRAMEWORK_ROOT, then routes commands to the appropriate agent. Supports both in-repo and shared tooling modes. |
-| `agents/context/tests/session-end-stub-test.sh` | called_by | — |
+| [session-end-stub-test](/docs/generated/agents-context-tests-session-end-stub-test) | called_by | Stub test for agents/context/session-end.sh hook behaviour (T-1212) |
 
 ---
 *Auto-generated from Component Fabric. Card: `agents-context-session-end.yaml`*

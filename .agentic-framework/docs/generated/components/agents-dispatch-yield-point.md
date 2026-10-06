@@ -1,8 +1,8 @@
 # yield-point
 
-> TODO: describe what this component does
+> arc-011 M1 harness yield-point: cooperative-poll safety net that reads .context/working/.dispatch-flag and refuses conflicting writes during parallel dispatch (T-2338).
 
-**Type:** script | **Subsystem:** unknown | **Location:** `agents/dispatch/yield-point.sh`
+**Type:** script | **Subsystem:** framework-core | **Location:** `agents/dispatch/yield-point.sh`
 
 ## What It Does
 
@@ -17,11 +17,12 @@ non-zero exit as "do not write".
 Design properties:
 - Pure file polling, zero IPC dependency. Works on single host without
 
-## Used By (1)
+## Used By (2)
 
 | Component | Relationship | Description |
 |-----------|--------------|-------------|
-| [orchestrator-graph](/docs/generated/agents-orchestrator-orchestrator-graph) | called_by | TODO: describe what this component does |
+| [orchestrator-graph](/docs/generated/agents-orchestrator-orchestrator-graph) | called_by | Orchestrator-graph (arc-011 M1, T-2339): builds a write-set-overlap and dependency graph over active tasks and emits (task_id, parallel\|serial) dispatch decisions; consumes lib.write_set.compare and yield-point.sh. |
+| [enrich](/docs/generated/agents-fabric-lib-enrich) | called_by | Fabric enrichment engine — auto-detect dependency edges from source analysis. |
 
 ---
 *Auto-generated from Component Fabric. Card: `agents-dispatch-yield-point.yaml`*

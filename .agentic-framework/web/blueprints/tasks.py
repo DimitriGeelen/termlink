@@ -1,6 +1,7 @@
 """Tasks blueprint — task list, detail, status API."""
 
 import re as re_mod
+from urllib.parse import urlencode
 from datetime import datetime, timezone
 
 import markdown2
@@ -12,7 +13,9 @@ from web.shared import (
     FRAMEWORK_ROOT, PROJECT_ROOT, render_page, parse_frontmatter,
     get_all_task_metadata, get_episodic_tags, task_id_sort_key,
     extract_recommendation, extract_reviewer_verdict, render_markdown_safe,
+    protect_path_underscores,
     _auto_link_files,
+    count_human_acs,
 )
 from web.subprocess_utils import run_fw_command
 
@@ -373,6 +376,7 @@ def _render_md_inline(text):
     text = _auto_link_task_refs(text)
     text = _auto_link_bare_urls(text)
     text = _normalize_md_relative_links(text)
+    text = protect_path_underscores(text)  # T-3587
     html = markdown2.markdown(text, safe_mode='escape').strip()
     if html.startswith('<p>') and html.endswith('</p>'):
         html = html[3:-4]
@@ -390,10 +394,20 @@ def _render_md_block(text):
     text = _auto_link_task_refs(text)
     text = _auto_link_bare_urls(text)
     text = _normalize_md_relative_links(text)
+    text = protect_path_underscores(text)  # T-3587
     html = markdown2.markdown(text, safe_mode='escape').strip()
     html = _linkify_code_urls(html)
     # T-1722: artefact paths → /file/ anchors (existence-gated, idempotent).
     return _auto_link_files(html)
+
+
+# T-3224: an AC field heading is `**<marker><suffix>:**`, where the optional
+# suffix carries a parenthetical or qualifier (`**Steps (Route A — manual):**`,
+# `**If not visible:**`). The suffix excludes `*` and `:` so inline bold later on
+# the same line can never be mistaken for the closing `:**`. Group 3 is whatever
+# follows the heading ON THE SAME LINE — dropping it was the Class-2 loss.
+_AC_FIELD_MARKER_RE = re_mod.compile(r'^\*\*(Steps|Expected|If not)([^*:]*?)\s*:\*\*\s*(.*)$')
+_AC_FIELD_BY_MARKER = {'Steps': 'steps', 'Expected': 'expected', 'If not': 'if_not'}
 
 
 def _parse_ac_body(body):
@@ -403,6 +417,14 @@ def _parse_ac_body(body):
     so `[label](url)`, inline `code`, and `**emphasis**` work in the
     /review/T-XXX surface (the original T-1548 friction). Templates must
     use `| safe` on these values.
+
+    T-3224: all three markers tolerate a heading suffix and keep same-line
+    content. Previously only Expected/If-not kept the rest of the line, and all
+    three required a byte-exact heading — so `**Steps:** 1. do it` rendered no
+    Steps at all, and `**Steps (Route A):**` was swallowed into the field above.
+    A suffix is kept as a bold label (it is what tells two `Steps` blocks apart),
+    and re-opening a field appends rather than replaces, so an AC offering two
+    routes renders both instead of only the last.
     """
     steps = []
     expected = ''
@@ -411,40 +433,34 @@ def _parse_ac_body(body):
         return steps, expected, if_not
 
     lines = body.split('\n')
+    collected = {'steps': [], 'expected': [], 'if_not': []}
     current_field = None
     current_content = []
 
     for line in lines:
         stripped = line.strip()
-        if stripped.startswith('**Steps:**'):
-            current_field = 'steps'
+        marker = _AC_FIELD_MARKER_RE.match(stripped)
+        if marker:
+            if current_field:
+                collected[current_field].extend(current_content)
+            current_field = _AC_FIELD_BY_MARKER[marker.group(1)]
             current_content = []
-            continue
-        elif stripped.startswith('**Expected:**'):
-            if current_field == 'steps':
-                steps = [s for s in current_content if s.strip()]
-            current_field = 'expected'
-            rest = stripped[len('**Expected:**'):].strip()
-            current_content = [rest] if rest else []
-            continue
-        elif stripped.startswith('**If not:**'):
-            if current_field == 'steps':
-                steps = [s for s in current_content if s.strip()]
-            elif current_field == 'expected':
-                expected = '\n'.join(current_content).strip()
-            current_field = 'if_not'
-            rest = stripped[len('**If not:**'):].strip()
-            current_content = [rest] if rest else []
+            suffix = marker.group(2).strip()
+            if suffix:
+                current_content.append(f'**{suffix}**')
+            rest = marker.group(3).strip()
+            if rest:
+                current_content.append(rest)
             continue
         if current_field:
             current_content.append(stripped)
 
-    if current_field == 'steps':
-        steps = [s for s in current_content if s.strip()]
-    elif current_field == 'expected':
-        expected = '\n'.join(current_content).strip()
-    elif current_field == 'if_not':
-        if_not = '\n'.join(current_content).strip()
+    if current_field:
+        collected[current_field].extend(current_content)
+
+    steps = [s for s in collected['steps'] if s.strip()]
+    expected = '\n'.join(collected['expected']).strip()
+    if_not = '\n'.join(collected['if_not']).strip()
 
     # Strip numbered prefixes from steps (e.g., "1. Do thing" → "Do thing")
     steps = [re_mod.sub(r'^\d+\.\s*', '', s) for s in steps]
@@ -646,6 +662,24 @@ def _build_active_filter_chips(active: dict, view: str) -> list[dict]:
     return chips
 
 
+# T-3575: cards shown per backlog/archive board column before the "+N more" list link.
+BOARD_COLUMN_CAP = 20
+# Only these columns are capped; In Progress / Issues always show every card so the
+# board never hides current work (T-3575 render review).
+BOARD_CAPPED_STATUSES = ("captured", "work-completed")
+
+
+def _board_order_key(t):
+    """Newest-first: last_update, then descending task number."""
+    lu = str(t.get("last_update") or "").replace("T", " ")[:19]
+    return (lu, task_id_sort_key_num(t.get("id", "")))
+
+
+def task_id_sort_key_num(tid):
+    m = re_mod.search(r"(\d+)", str(tid))
+    return int(m.group(1)) if m else -1
+
+
 @bp.route("/tasks")
 def tasks():
     # T-1233: Use cached task metadata (avoids re-reading 1200+ files per request)
@@ -726,6 +760,15 @@ def tasks():
         "specification", "design",
     ]
 
+    # Board columns: newest first, so a cap trims the stalest cards, not the current ones.
+    board_tasks = sorted(all_tasks, key=_board_order_key, reverse=True)
+    # "+N more" must land on the same filtered list the board came from.
+    overflow_qs = urlencode([(k, v) for k, v in (
+        ("owner", owner_filter), ("horizon", horizon_filter), ("tag", tag_filter),
+        ("q", search_query), ("type", type_filter), ("component", component_filter),
+        ("arc", arc_filter), ("sort", sort_by if sort_by != "id" else ""),
+    ) if v])
+
     # T-1982: attach BVP_norm per task so kanban cards + list view can render a chip.
     _attach_bvp_to_tasks(all_tasks)
 
@@ -746,6 +789,10 @@ def tasks():
         active_filter_chips=active_filter_chips,
         page_title="Tasks",
         tasks=all_tasks,
+        board_tasks=board_tasks,
+        board_column_cap=BOARD_COLUMN_CAP,
+        board_capped_statuses=BOARD_CAPPED_STATUSES,
+        overflow_qs=overflow_qs,
         statuses=statuses,
         types=types,
         components=components,
@@ -816,10 +863,15 @@ def task_detail(task_id):
                 artifacts.append({"name": f.name, "path": f"docs/reports/{f.name}"})
 
     # Compute whether "Complete Task" button should show (T-640)
+    # T-3591: Human criteria are counted with count_human_acs, the scoping behind
+    # is_ready_for_batch_completion. _parse_acceptance_criteria stops at an
+    # intervening `## ` heading, so a `### Human` block past one (T-2200/T-2202)
+    # was invisible here and an unticked [REVIEW] criterion still got the button.
     can_complete = False
     if ac_items and task_data.get("status") != "work-completed":
         all_checked = all(ac["checked"] for ac in ac_items)
-        can_complete = all_checked
+        _, human_unchecked = count_human_acs(task_content)
+        can_complete = all_checked and human_unchecked == 0
 
     # T-1584: Surface Recommendation + Reviewer Verdict cards (cross-surface parity
     # with /review T-1575/T-1583 and /approvals T-1531/T-1569). Same drift class as

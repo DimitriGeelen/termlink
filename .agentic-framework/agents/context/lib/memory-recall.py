@@ -201,20 +201,57 @@ def load_open_tasks(exclude: str = None) -> list:
     return items
 
 
+# T-3783: why the semantic path failed on this run, for the degraded banner.
+_HYBRID_ERROR = None
+
+
 def search_hybrid(query: str, limit: int = 5):
     """Search using T-245 hybrid search, filtered to project memory."""
+    global _HYBRID_ERROR
     try:
         os.chdir(str(FRAMEWORK_ROOT))
-        from web.embeddings import hybrid_search
-        results = hybrid_search(query, limit=limit * 3)
+        # T-3783: chdir does not put cwd on sys.path for a script (sys.path[0] is
+        # the script's dir), so `import web` failed on every run and recall fell
+        # back to keyword search silently — semantic recall never ran here.
+        if str(FRAMEWORK_ROOT) not in sys.path:
+            sys.path.insert(0, str(FRAMEWORK_ROOT))
+        from web.embeddings import hybrid_search, is_index_ready
+        # T-3783: never let a recall start a build — _get_db() falls through to a
+        # full build_index() when the index is missing or empty (hours, in the
+        # foreground). No index is a degraded recall, reported by the banner.
+        if not is_index_ready():
+            _HYBRID_ERROR = "no usable vector index"
+            return None
+        # Project Memory is filtered AFTER ranking, and task files / reports usually
+        # outrank learnings.yaml chunks, so a pool of limit*3 often held zero memory
+        # hits and recall silently fell back to keyword (2026-10-04). Ask for a wide
+        # pool; the vector query cost barely changes with the limit.
+        results = hybrid_search(query, limit=max(80, limit * 16))
         # Filter to project memory files
         memory_results = []
         for item in results.get("results", []):
             if item.get("category") == "Project Memory":
                 memory_results.append(item)
         return memory_results[:limit]
-    except Exception:
+    except Exception as exc:
+        _HYBRID_ERROR = f"{type(exc).__name__}: {str(exc)[:120]}"
         return None
+
+
+def _print_degraded_banner():
+    """T-3783: one stderr line when semantic recall is degraded, so an empty or
+    keyword-only answer is never mistaken for "nothing known". Never raises."""
+    try:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "vector_index_health", str(FRAMEWORK_ROOT / "lib" / "vector_index_health.py"))
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        line = mod.degraded_banner(PROJECT_ROOT, FRAMEWORK_ROOT, _HYBRID_ERROR)
+    except Exception as exc:  # noqa: BLE001
+        line = f"semantic recall degraded: health check unavailable ({exc}) — fix: fw doctor"
+    if line:
+        print(f"{YELLOW}{line}{NC}", file=sys.stderr)
 
 
 def search_keyword(query: str, items: list, limit: int = 5):
@@ -376,6 +413,37 @@ def format_item(item: dict, prefix: str = "  ") -> str:
     return f"{prefix}{color}{item['id']}{NC}: {text}{DIM}{suffix}{NC}"
 
 
+def _norm_text(s: str) -> str:
+    """Lowercase, drop search highlight tags and YAML key/quote noise, squeeze spaces."""
+    s = re.sub(r"<[^>]+>", "", s or "")
+    s = re.sub(r"^\s*-?\s*(id:\s*\S+\s*)?(learning|pattern|decision|description|text|name)\s*:\s*", "", s, flags=re.I)
+    return re.sub(r"\s+", " ", s).strip().strip("\"'").lower()
+
+
+def _match_hit_to_item(hit: dict, items: list):
+    """Map one vector hit to the knowledge item it came from — by real text overlap.
+
+    T-3786 follow-up (2026-10-04): the old rule matched ANY item whose first three
+    words (len > 3) appeared anywhere in the snippet, scanning items in file order,
+    so L-001 ("First learning") swallowed every hit on learnings.yaml — semantic
+    recall returned L-001 for every query while the index itself was healthy.
+    Now: a hit maps only when at least 40 characters of normalised text overlap
+    (item prefix in the snippet, or snippet prefix in the item); otherwise no match.
+    """
+    snip = _norm_text(hit.get("snippet", ""))
+    if len(snip) < 20:
+        return None
+    probe = snip[:60].rstrip(". ")
+    for item in items:
+        text = _norm_text(item.get("text", ""))
+        if len(text) < 20:
+            continue
+        head = text[:60]
+        if (len(head) >= 40 and head in snip) or (len(probe) >= 40 and probe in text):
+            return item
+    return None
+
+
 def _recall_knowledge(query: str, limit: int, use_hybrid: bool) -> list:
     """The original three-source recall, unchanged in behaviour."""
     items = load_knowledge_items()
@@ -390,15 +458,9 @@ def _recall_knowledge(query: str, limit: int, use_hybrid: bool) -> list:
             # Map hybrid results back to knowledge items by matching content
             matched = []
             for hr in hybrid_results:
-                snippet = hr.get("snippet", "").lower()
-                title = hr.get("title", "").lower()
-                for item in items:
-                    item_text = item["text"].lower()
-                    if item_text in snippet or item_text in title or \
-                       any(w in snippet for w in item_text.split()[:3] if len(w) > 3):
-                        if item not in matched:
-                            matched.append(item)
-                            break
+                item = _match_hit_to_item(hr, items)
+                if item is not None and item not in matched:
+                    matched.append(item)
             if matched:
                 return [format_item(m) for m in matched[:limit]]
 
@@ -461,6 +523,8 @@ def main():
     # frontmatter, so it must not recall itself.
     lines = recall(query, limit=args.limit, use_hybrid=not args.no_hybrid,
                    exclude_task=args.task)
+    if not args.no_hybrid and os.environ.get("FW_RECALL_NO_BANNER") != "1":
+        _print_degraded_banner()
 
     if lines:
         print(f"{BOLD}Related knowledge:{NC}")

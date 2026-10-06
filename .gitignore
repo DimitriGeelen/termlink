@@ -55,6 +55,18 @@ Thumbs.db
 !.agentic-framework/FRAMEWORK.md
 !.agentic-framework/VERSION
 !.agentic-framework/metrics.sh
+# T-3370 (AEF 1.8.3 re-vendor): `fw vendor` refuses when these are invisible to git
+# (simulated on a copy 2026-10-06). The designer corpus is re-included as a subtree only:
+# .agentic-framework/.context/working/ holds .fw-secret-key (AEF T-3677) and must stay ignored.
+!.agentic-framework/.fw-vendor-stamp.json
+!.agentic-framework/.secret-scan-allowlist
+!.agentic-framework/.secret-scan-patterns
+!.agentic-framework/.upstream
+!.agentic-framework/.context/
+.agentic-framework/.context/*
+!.agentic-framework/.context/designer/
+.agentic-framework/.context/designer/*
+!.agentic-framework/.context/designer/projects/
 
 # ...but never the generated artefacts inside the re-included subtrees.
 .agentic-framework/**/__pycache__/

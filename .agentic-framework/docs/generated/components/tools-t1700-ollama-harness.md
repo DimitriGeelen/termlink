@@ -1,8 +1,8 @@
 # t1700-ollama-harness
 
-> TODO: describe what this component does
+> T-1700 ollama-research harness (v2, T-2408) — exercises the v1 dispatch substrate end-to-end through `fw resolver run` onto litellm/ollama.
 
-**Type:** script | **Subsystem:** unknown | **Location:** `tools/t1700-ollama-harness.sh`
+**Type:** script | **Subsystem:** framework-core | **Location:** `tools/t1700-ollama-harness.sh`
 
 ## What It Does
 
@@ -16,6 +16,12 @@ unique tool-use prompt, reads the JSON outcome (status / events_path), and
 counts real tool_use events from the events stream.
 v2 (T-2408): rerouted from the raw termlink-CLI dispatch path so every run
 lands an envelope row in .context/dispatches.jsonl, and a final
+
+## Dependencies (1)
+
+| Component | Relationship | Description |
+|-----------|--------------|-------------|
+| [fw](/docs/generated/bin-fw) | calls | Single entry point for all framework operations. Reads .framework.yaml from the project directory to resolve FRAMEWORK_ROOT, then routes commands to the appropriate agent. Supports both in-repo and shared tooling modes. |
 
 ---
 *Auto-generated from Component Fabric. Card: `tools-t1700-ollama-harness.yaml`*

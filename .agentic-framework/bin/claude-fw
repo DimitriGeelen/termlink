@@ -32,6 +32,17 @@ CLAUDE_ARGS=()
 # writing a .restart-requested signal nobody consumes (the 300K→350K overrun bug).
 export FW_CLAUDE_FW_SUPERVISED=1
 
+# T-3247: remember whether the ORIGINAL invocation was headless. A restart hands
+# the resumed session no prompt (CLAUDE_ARGS=() below, T-3166), which is right for
+# an interactive terminal — SessionStart seeds it and the operator's session takes
+# it from there. Headless is the opposite: `claude --print` with no prompt has no
+# turn to take, so it prints "Input must be provided either through stdin or as a
+# prompt argument when using --print" and exits 1 before any hook can matter. The
+# loop then re-arms into the same dead session until the restart budget is gone.
+# Observed in every live-fire leg (E5, E7, E8, E9) and read as expected T-3166
+# behaviour each time, because the wrapper's own banner said the restart worked.
+HEADLESS=0
+
 for arg in "$@"; do
     case "$arg" in
         --no-restart)
@@ -39,6 +50,10 @@ for arg in "$@"; do
             ;;
         --termlink)
             TERMLINK_ENABLED=1
+            ;;
+        -p|--print)
+            HEADLESS=1
+            CLAUDE_ARGS+=("$arg")
             ;;
         *)
             CLAUDE_ARGS+=("$arg")
@@ -49,6 +64,25 @@ done
 # TermLink session management
 TERMLINK_SESSION=""
 
+# T-3693: `fw-project=<16 hex of sha256(realpath project root)>`. Project root:
+# PROJECT_ROOT, else the nearest ancestor holding .framework.yaml (or the
+# framework repo itself), else $PWD — the same walk lib/sidecar/receiver.py does.
+_fw_project_tag() {
+    local d="${PROJECT_ROOT:-}"
+    if [ -z "$d" ]; then
+        d="$PWD"
+        while [ "$d" != "/" ]; do
+            if [ -f "$d/.framework.yaml" ] || { [ -f "$d/FRAMEWORK.md" ] && [ -f "$d/bin/fw" ]; }; then
+                break
+            fi
+            d=$(dirname "$d")
+        done
+        [ "$d" = "/" ] && d="$PWD"
+    fi
+    d=$(cd "$d" 2>/dev/null && pwd -P) || return 0
+    printf 'fw-project=%s' "$(printf '%s' "$d" | sha256sum | cut -c1-16)"
+}
+
 termlink_start() {
     if [ "$TERMLINK_ENABLED" != "1" ]; then return; fi
     if ! command -v termlink >/dev/null 2>&1; then
@@ -57,12 +91,36 @@ termlink_start() {
         return
     fi
 
+    # T-3779: a launcher that runs us under `env -i` drops TERMLINK_RUNTIME_DIR,
+    # and the session would register where no hub listens (invisible to peers).
+    local _tlrt _tlrt_lib
+    _tlrt_lib="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../lib/termlink-runtime.sh"
+    if [ -f "$_tlrt_lib" ]; then
+        # shellcheck source=/dev/null
+        . "$_tlrt_lib"
+        _tlrt=$(fw_termlink_runtime_resolve)
+        case "$_tlrt" in
+            supplied\ *)
+                _tlrt=${_tlrt#supplied }
+                export TERMLINK_RUNTIME_DIR="${_tlrt%% *}"
+                echo "claude-fw: WARNING: TERMLINK_RUNTIME_DIR was unset (no hub in the default dir); registering on the canonical hub at $TERMLINK_RUNTIME_DIR (T-3779)" >&2 ;;
+            ambiguous\ *|none\ *)
+                echo "claude-fw: WARNING: TermLink runtime: ${_tlrt#* } (T-3779)" >&2 ;;
+        esac
+    fi
+
     TERMLINK_SESSION="claude-master-$$"
     echo "claude-fw: Registering TermLink session: $TERMLINK_SESSION"
 
+    # T-3693: tag the session with this project, so the arc-011 receiver sidecar
+    # can find the ONE session to inject into (lib/sidecar/inject.py:project_tag
+    # computes the same value — keep the two in step).
+    local _fwp
+    _fwp=$(_fw_project_tag)
+
     # Spawn a persistent shell session that survives claude restarts
     termlink spawn --name "$TERMLINK_SESSION" \
-        --tags "master,claude,framework" \
+        --tags "master,claude,framework${_fwp:+,$_fwp}" \
         --backend auto --shell \
         --wait --wait-timeout 15 2>/dev/null || {
         echo "claude-fw: TermLink spawn failed. Falling back to direct mode."
@@ -81,10 +139,103 @@ termlink_inject() {
     termlink pty inject "$TERMLINK_SESSION" "$cmd" --enter >/dev/null 2>&1
 }
 
+# T-3648 (port of 055 P-011/P-012, framework:pickup offsets 242/244): one ping
+# is a liveness SAMPLE, not a verdict. Under CPU load a single ping fails or
+# times out while the session is fine, and the wait loop used to end the agent
+# on it. The session is declared gone only after CLAUDE_FW_PING_FAILURES
+# consecutive failures (default 3, one per 5 s poll; non-numeric or <1 → 3).
+# A success resets the count. Each tolerated failure goes to stderr.
+# Returns 0 when the session is gone, 1 while it should be treated as alive.
+_TL_PING_FAILS=0
+_tl_session_gone() {
+    local limit="${CLAUDE_FW_PING_FAILURES:-3}"
+    case "$limit" in ''|*[!0-9]*) limit=3 ;; esac
+    [ "$limit" -ge 1 ] 2>/dev/null || limit=3
+    if termlink ping "$TERMLINK_SESSION" >/dev/null 2>&1; then
+        _TL_PING_FAILS=0
+        return 1
+    fi
+    _TL_PING_FAILS=$((_TL_PING_FAILS + 1))
+    if [ "$_TL_PING_FAILS" -ge "$limit" ]; then
+        echo "claude-fw: termlink ping failed ${_TL_PING_FAILS} times in a row — session $TERMLINK_SESSION is gone." >&2
+        return 0
+    fi
+    echo "claude-fw: termlink ping failed (${_TL_PING_FAILS}/${limit}) — tolerating, session $TERMLINK_SESSION may be under load." >&2
+    return 1
+}
+
+# T-3346: parse the explicit exit marker the injected command line prints when
+# claude actually terminates. Prompt-glyph detection is unusable here: `❯` is
+# Claude Code's own TUI input caret, on screen the entire time claude is RUNNING,
+# so the old regex reported "shell prompt returned" ~1 min into every launch and
+# the wrapper's cleanup then injected `exit` into its own live session. The
+# injected line ends with `printf '__CLAUDE_FW_EXIT_%s__\n' "$?"` — its PTY echo
+# carries the literal `%s`, only the real printf output carries digits, so the
+# echo of the injection can never match. Prints claude's exit code and returns 0
+# when the marker is present; returns 1 while claude is still running.
+_tl_claude_exit_code() {
+    local text="$1" m
+    m=$(printf '%s\n' "$text" | grep -oE '__CLAUDE_FW_EXIT_[0-9]+__' | tail -1)
+    [ -n "$m" ] || return 1
+    printf '%s\n' "$m" | sed -E 's/__CLAUDE_FW_EXIT_([0-9]+)__/\1/'
+}
+
+# T-3647 (port of 055 P-009, framework:pickup offset 241): PIDs of the
+# `termlink register --name <name>` process(es) that own a session. That process
+# outlives the session's shell, so injecting `exit` alone leaked one live,
+# heartbeating registration per wrapper exit. Matching is EXACT, never by pattern:
+# a `termlink list --json` entry whose display_name equals <name>, or a process
+# whose argv holds `register` and `--name <name>` as separate words. The /proc leg
+# matters because `termlink clean` drops the registration file while the process
+# lives on, after which `termlink list` cannot see it at all. A list-sourced PID
+# is kept only if /proc (where present) confirms the same argv, so a recycled PID
+# is never signalled. Prints one PID per line.
+_tl_register_pids() {
+    local name="$1" listing
+    [ -n "$name" ] || return 0
+    listing=$(termlink list --all --json 2>/dev/null) || listing=""
+    printf '%s' "$listing" | python3 -c '
+import json, os, sys
+name, me = sys.argv[1], os.getpid()
+
+def argv_matches(pid):
+    try:
+        with open("/proc/%d/cmdline" % pid, "rb") as f:
+            argv = f.read().decode("utf-8", "replace").split("\0")
+    except OSError:
+        return None
+    return "register" in argv and any(
+        argv[i] == "--name" and argv[i + 1] == name for i in range(len(argv) - 1))
+
+have_proc = os.path.isdir("/proc/self")
+pids = set()
+try:
+    for s in json.load(sys.stdin).get("sessions", []):
+        if s.get("display_name") == name and isinstance(s.get("pid"), int):
+            pids.add(s["pid"])
+except Exception:
+    pass
+if have_proc:
+    pids = {p for p in pids if argv_matches(p)}
+    for d in os.listdir("/proc"):
+        if d.isdigit() and argv_matches(int(d)):
+            pids.add(int(d))
+for p in sorted(pids - {me, os.getppid()}):
+    print(p)
+' "$name" 2>/dev/null || true
+}
+
 termlink_cleanup() {
     if [ -n "$TERMLINK_SESSION" ]; then
+        local _reg_pids
+        _reg_pids=$(_tl_register_pids "$TERMLINK_SESSION")
         termlink pty inject "$TERMLINK_SESSION" "exit" --enter >/dev/null 2>&1 || true
         sleep 2
+        # T-3647: SIGTERM removes the registration cleanly; `exit` alone does not.
+        if [ -n "$_reg_pids" ]; then
+            # shellcheck disable=SC2086 # one PID per word, by construction
+            kill -TERM $_reg_pids 2>/dev/null || true
+        fi
         termlink clean >/dev/null 2>&1 || true
     fi
 }
@@ -159,6 +310,51 @@ _terminator_watch() {
     done
 }
 
+# T-3182 (arc-012): record WHY the continuous-run loop stopped.
+#
+# Every exit path out of the main loop below used to `exit` in silence. When the
+# loop stopped, nothing on disk said so — which makes "the loop stopped" and "the
+# loop was never armed" the same observable state. That is the false-green shape:
+# a supervisor that quit reports exactly what a supervisor that had nothing to do
+# reports. Answering "why is the loop not running?" then costs process forensics
+# on PIDs and file mtimes, and only works while the evidence happens to survive.
+#
+# One line per loop event, appended to .context/working/continuous-run.jsonl.
+# ITERATIONS are recorded too, not only exits — "it went round 3 times and then
+# stopped because max-restarts" is a different fact from "it never started", and
+# a log that only records endings cannot tell them apart either.
+#
+# Never fatal: this runs on exit paths, and a broken recorder must not change the
+# wrapper's exit code or block a restart. Whole body is guarded.
+_record_loop_event() {
+    local event="$1" reason="$2" detail="${3:-}" code="${4:-}"
+    {
+        local root logf
+        root=$(git rev-parse --show-toplevel 2>/dev/null) || return 0
+        [ -n "$root" ] || return 0
+        [ -d "$root/.context/working" ] || return 0
+        logf="$root/.context/working/continuous-run.jsonl"
+        python3 - "$logf" "$event" "$reason" "$detail" "${code}" "${restart_count:-0}" "$$" <<'PY' 2>/dev/null || true
+import json, sys, time
+logf, event, reason, detail, code, count, pid = sys.argv[1:8]
+rec = dict(
+    ts=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    event=event,
+    reason=reason,
+    restart_count=int(count) if str(count).isdigit() else 0,
+    wrapper_pid=int(pid) if str(pid).isdigit() else 0,
+)
+if detail:
+    rec["detail"] = detail
+if str(code).lstrip("-").isdigit():
+    rec["exit_code"] = int(code)
+with open(logf, "a", encoding="utf-8") as f:
+    f.write(json.dumps(rec) + "\n")
+PY
+    } 2>/dev/null || true
+    return 0
+}
+
 # Set higher bash timeout for long framework operations (audit, fabric, embeddings)
 # Default is 120s which is too short. T-501/T-435.
 export BASH_DEFAULT_TIMEOUT_MS="${BASH_DEFAULT_TIMEOUT_MS:-300000}"
@@ -204,25 +400,340 @@ _print_startup_banner() {
     echo ""
 }
 
+# ── Restart policy (T-3243) ─────────────────────────────────────────────────
+#
+# `MAX_RESTARTS` used to be a hardcoded lifetime count. It was the wrong shape in
+# three ways at once, all measured from this loop's own JSONL log:
+#
+#   1. LIFETIME, NOT RATE. Its stated purpose is "don't loop forever" — a claim
+#      about RATE — but it counted TOTAL restarts for the wrapper's life, never
+#      decaying. One wrapper performed 4 restarts across 28h52m (one per seven
+#      hours) and was killed as a runaway. The only pathological interval in the
+#      whole corpus is a 1m59s gap, and a lifetime counter is worst at catching
+#      exactly that, because a spin costs it the same one unit as a 20-hour wait.
+#
+#   2. OFF BY ONE. It incremented, then tested `-ge`, so `MAX_RESTARTS=5`
+#      permitted 4 — while the message and the log both reported 5. The number
+#      that happened was not the number the record stated.
+#
+#   3. NOT CONFIGURABLE. `MAX_RESTARTS` has been in FW_CONFIG_REGISTRY
+#      (lib/config.sh) the whole time. This script never read it, so
+#      `fw config set MAX_RESTARTS 20` wrote .framework.yaml and changed nothing.
+#
+# The replacement is a SLIDING WINDOW: at most MAX_RESTARTS restarts in any
+# RESTART_WINDOW seconds. Healthy hours-apart restarts never accumulate; a spin
+# trips it within the window. Both legs are pinned by
+# tests/unit/t3243_supervisor_restart_policy.bats — the cap firing on a spin is
+# tested alongside the cap NOT firing on a healthy run, because "no longer fires"
+# and "cannot fire" are the same observation without the control.
+
+# _fw_cfg KEY DEFAULT — 3-tier read: FW_<KEY> env, .framework.yaml, default.
+# Deliberately dependency-free: this script is vendored into consumer projects as
+# .agentic-framework/bin/claude-fw and must not need lib/config.sh on disk.
+_fw_cfg() {
+    local key="$1" default="$2" val="" root=""
+    eval "val=\"\${FW_${key}:-}\""
+    if [ -n "$val" ]; then printf '%s' "$val"; return 0; fi
+    root=$(git rev-parse --show-toplevel 2>/dev/null) || root=""
+    if [ -n "$root" ] && [ -f "$root/.framework.yaml" ]; then
+        val=$(python3 - "$root/.framework.yaml" "$key" <<'PY' 2>/dev/null || true
+import sys
+try:
+    import yaml
+    d = yaml.safe_load(open(sys.argv[1], encoding="utf-8")) or {}
+except Exception:
+    sys.exit(0)
+cfg = d.get("config") if isinstance(d.get("config"), dict) else d
+v = cfg.get(sys.argv[2]) if isinstance(cfg, dict) else None
+if v is not None:
+    print(v)
+PY
+)
+    fi
+    [ -n "$val" ] || val="$default"
+    printf '%s' "$val"
+}
+
 # Main loop
-restart_count=0
-MAX_RESTARTS=5  # Safety valve — don't loop forever
+restart_count=0                              # cumulative, for the log only
+MAX_RESTARTS=$(_fw_cfg MAX_RESTARTS 5)       # per-window ceiling
+RESTART_WINDOW=$(_fw_cfg RESTART_WINDOW 3600)
+[[ "$MAX_RESTARTS"   =~ ^[0-9]+$ ]] || MAX_RESTARTS=5
+[[ "$RESTART_WINDOW" =~ ^[0-9]+$ ]] || RESTART_WINDOW=3600
+
+restart_times=()   # epoch seconds of restarts still inside the window
+
+# _restart_budget_prune — drop restarts older than the window, set RESTART_SPENT.
+#
+# Sets a global rather than echoing: `spent=$(_restart_budget_prune)` would run
+# the whole body in a command-substitution SUBSHELL, so the pruned array would be
+# discarded and restart_times would grow without bound for the wrapper's life.
+# The returned count would still be right — the prune is recomputed from scratch
+# on every call — which is precisely why the leak would never show up in a test.
+RESTART_SPENT=0
+_restart_budget_prune() {
+    local now kept=() t
+    now=$(date +%s)
+    for t in ${restart_times[@]+"${restart_times[@]}"}; do
+        if [ $(( now - t )) -lt "$RESTART_WINDOW" ]; then kept+=("$t"); fi
+    done
+    restart_times=(${kept[@]+"${kept[@]}"})
+    RESTART_SPENT="${#restart_times[@]}"
+}
+
+# _restart_budget_take — record a restart at now. Call only after a spend check.
+_restart_budget_take() { restart_times+=("$(date +%s)"); }
+
+# _continuous_armed — is a continuous run armed? Reads the same state file the
+# Stop driver and `fw continuous` do. Absent/unreadable/disarmed → 1 (not armed),
+# so this can only ever ADD a restart on an explicit opt-in, never on a default.
+_continuous_armed() {
+    local root state
+    root=$(git rev-parse --show-toplevel 2>/dev/null) || return 1
+    state="${root}/.context/working/.continuous-mode.yaml"
+    [ -f "$state" ] || return 1
+    python3 - "$state" <<'PY' 2>/dev/null
+import sys
+try:
+    import yaml
+    d = yaml.safe_load(open(sys.argv[1], encoding="utf-8")) or {}
+except Exception:
+    sys.exit(1)
+sys.exit(0 if d.get("enabled") is True else 1)
+PY
+}
+
+# _continuous_terminated — has the loop ALREADY recorded a death? (T-3253)
+#
+# Echoes the recorded reason and returns 0 when `.continuous-mode.yaml` carries a
+# non-empty `last_terminated_reason`; returns 1 otherwise.
+#
+# WHY THIS IS NOT `! _continuous_armed`. The obvious spelling — gate the restart
+# branch on `_continuous_armed` — breaks the budget auto-restart for every user who
+# has never armed a continuous run, which is nearly all of them. `_continuous_armed`
+# returns 1 on an ABSENT state file, so gating on it would read "no continuous mode
+# configured" as "do not restart" and silently delete T-179's feature. This predicate
+# is the narrow one: it fires only when a termination was actually WRITTEN, so an
+# absent or never-armed state file leaves the restart path exactly as it was.
+#
+# The distinction matters because the two mean opposite things about intent:
+# `enabled: false` on a fresh file means "never switched on"; a non-empty
+# `last_terminated_reason` means "switched on, then stopped for this reason".
+# Only the second is a brake. T-3167 guarantees a terminating write also disarms,
+# so this predicate is strictly narrower than the flag and never disagrees with it.
+_continuous_terminated() {
+    local root state reason
+    root=$(git rev-parse --show-toplevel 2>/dev/null) || return 1
+    state="${root}/.context/working/.continuous-mode.yaml"
+    [ -f "$state" ] || return 1
+    reason=$(python3 - "$state" <<'PY' 2>/dev/null
+import sys
+try:
+    import yaml
+    d = yaml.safe_load(open(sys.argv[1], encoding="utf-8")) or {}
+except Exception:
+    sys.exit(1)
+r = d.get("last_terminated_reason") or ""
+if not isinstance(r, str) or not r.strip():
+    sys.exit(1)
+print(r.strip())
+PY
+    ) || return 1
+    [ -n "$reason" ] || return 1
+    printf '%s\n' "$reason"
+}
+
+# _continuous_preflight — would the session we are about to launch breach a bound?
+# (T-3253 AC3)
+#
+# `_continuous_terminated` above answers "did the loop ALREADY record a death".
+# This answers the different question that E10 exposed: "will the session we are
+# about to spend a restart on record one the moment it starts?" Those diverge for
+# exactly one restart — the one that matters — because the breach is discovered by
+# the SessionStart hook of a session that has, by then, already launched carrying
+# the armed directive as its prompt. The notice arrives as advisory
+# `additionalContext` and loses the argument with "do not stop until every task is
+# closed". Measured: the over-ceiling task closed 4m26s after the brake fired.
+#
+# So the decision moves BEFORE the launch. There is nothing running to ignore it.
+#
+# SINGLE-WRITER (T-3233 W1-F3). This does NOT read or write `.continuous-mode.yaml`
+# itself. `current_iteration` has exactly one writer and a second one reintroduces
+# the class this arc keeps hitting, so the evaluation runs inside the injector that
+# already owns the file, in `--preflight` mode, and this function reads only its
+# exit code and stdout.
+#
+# FAILS OPEN, deliberately. Any outcome other than the injector's explicit breach
+# code (3) — missing injector, absent python, malformed YAML, crash — returns 1
+# (proceed). A brake that jams on when its own machinery is broken would delete
+# T-179 budget auto-restart for every user who never armed a run. The breach code
+# is distinct from argparse's 1/2 precisely so a crash can never be read as a stop.
+_continuous_preflight() {
+    local root injector reason rc
+    root=$(git rev-parse --show-toplevel 2>/dev/null) || return 1
+    injector="${root}/agents/context/inject-next-directive.py"
+    [ -f "$injector" ] || injector="${root}/.agentic-framework/agents/context/inject-next-directive.py"
+    [ -f "$injector" ] || return 1
+    set +e
+    reason=$(python3 "$injector" --project-root "$root" --preflight 2>/dev/null)
+    rc=$?
+    set -e
+    [ "$rc" -eq 3 ] || return 1
+    [ -n "$reason" ] || reason="a configured bound was breached (reason not reported)"
+    printf '%s\n' "$reason"
+}
+
+# _continuous_halted — Brake 1, the halt file, same path stop-driver.sh:60 uses.
+# It outranks every other vote here exactly as it does there.
+_continuous_halted() {
+    local root halt
+    root=$(git rev-parse --show-toplevel 2>/dev/null) || return 1
+    halt="${FW_CONTINUOUS_HALT:-${root}/.context/working/.continuous-halt}"
+    [ -f "$halt" ]
+}
+
+# _armed_directive — the directive a re-arm must relaunch with (T-3249).
+#
+# The restart path gets its directive folded into the signal file by
+# budget-gate.sh / checkpoint.sh (T-2363). A re-arm has NO signal — the session
+# exited cleanly — so it has to read the same source those two fold from:
+# .context/working/.next-directive.yaml, key `directive:`. Same file, same key,
+# same precedence; only the delivery differs.
+#
+# Echoes the directive on stdout, or nothing when there is none to run.
+_armed_directive() {
+    local root df
+    root=$(git rev-parse --show-toplevel 2>/dev/null) || return 1
+    df="${root}/.context/working/.next-directive.yaml"
+    [ -f "$df" ] || return 1
+    python3 - "$df" <<'PY' 2>/dev/null
+import sys
+try:
+    import yaml
+    d = yaml.safe_load(open(sys.argv[1], encoding="utf-8")) or {}
+except Exception:
+    sys.exit(1)
+v = d.get("directive")
+if isinstance(v, str) and v.strip():
+    print(v.strip())
+    sys.exit(0)
+sys.exit(1)
+PY
+}
 
 # Start TermLink session if requested (before main loop)
 termlink_start
 
+# T-3684/T-3685 (arc-011, R14 "every agent runs a sidecar"): every claude-fw
+# session gets its always-on sidecar — the receiver plus the supervised watcher.
+# In a --termlink session the watcher injects peer messages into THIS session's
+# PTY (urgent at once, the rest when this session's own Stop hook says it is
+# idle). Without TermLink there is no PTY to type into: the sidecar still
+# receives, confirms RECEIVED, takes hub-topic consults and reports liveness,
+# and the message reaches the agent at its next prompt — inert for injection,
+# and the line below says so. Idempotent: a running sidecar is kept. It
+# outlives this wrapper on purpose (R15, always-on); `fw sidecar stop` ends it.
+# CLAUDE_FW_NO_SIDECAR=1 opts out.
+sidecar_start() {
+    [ "${CLAUDE_FW_NO_SIDECAR:-0}" = "1" ] && return 0
+    local _fw
+    _fw="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)/fw"
+    [ -x "$_fw" ] || return 0
+    local _out _tick
+    if _out=$("$_fw" sidecar start --quiet --json 2>&1); then
+        _tick=$(printf '%s' "$_out" | sed -n 's/.*"tick_s": \([0-9.]*\).*/\1/p' | tail -1)
+        if [ "$TERMLINK_ENABLED" = "1" ]; then
+            echo "claude-fw: sidecar watcher running (tick ${_tick:-?}s) — fw sidecar liveness"
+        elif [ "${_TERMLINK_REQUESTED:-0}" = "1" ]; then
+            echo "claude-fw: sidecar watcher running but INERT for injection — TermLink absent, peer messages reach the agent only at its next prompt. Install termlink."
+        else
+            echo "claude-fw: sidecar watcher running (tick ${_tick:-?}s), no --termlink: peer messages reach the agent at its next prompt (inject needs --termlink)"
+        fi
+    else
+        echo "claude-fw: WARNING sidecar start failed — peer messages will not be received here: ${_out: -300}" >&2
+    fi
+}
+_TERMLINK_REQUESTED=0
+for _a in "$@"; do [ "$_a" = "--termlink" ] && _TERMLINK_REQUESTED=1; done
+sidecar_start
+
 # T-2411: one-shot startup overview (before main loop — not re-emitted on restart).
 _print_startup_banner
+
+# T-3206 (arc-012): record that the loop is ARMED, before it can possibly end.
+#
+# T-3182 added six exit reasons and one iterate, which answers "why did it stop?"
+# but leaves "is it running?" exactly where it was: with no start event, the log
+# cannot come into existence until the loop is already over, so a live supervisor
+# and an absent one both present as no file. Measured on a running wrapper — the
+# defect T-3182 was filed to kill, surviving inside its own fix.
+#
+# Recorded here rather than inside the loop: this fires once per wrapper, so the
+# log distinguishes "armed once, went round 3 times" from "armed 3 times", which
+# an in-loop start event would flatten. Non-fatal like every other call site.
+_record_loop_event start armed \
+    "restart=$([ "$AUTO_RESTART" = false ] && echo disabled || echo enabled) max_restarts=${MAX_RESTARTS} window=${RESTART_WINDOW}s armed=$(_continuous_armed && echo yes || echo no) termlink=${TERMLINK_ENABLED:-0}"
+
+# T-3629: a relaunch must never hand claude an empty argv. Claude Code 2.1.28x
+# opens its AGENTS OVERVIEW, not a conversation, when started with no arguments
+# and the user's ~/.claude.json has `defaultToAgentsView: true` — so every fresh
+# restart (CLAUDE_ARGS=(), T-3166) parked the agent in the overview with the
+# injected handover addressed to no session (055 P-016: 9 of 13 fleet agents
+# idle). Any real argument takes the conversation path; `-n <name>` also labels
+# the session. The name is restricted to [A-Za-z0-9._-] because the TermLink
+# path joins CLAUDE_ARGS with spaces into one shell line.
+_name_fresh_relaunch() {
+    [ "$restart_count" -gt 0 ] || return 0
+    [ "${#CLAUDE_ARGS[@]}" -eq 0 ] || return 0
+    local base
+    base=$(printf '%s' "${PWD##*/}" | tr -c 'A-Za-z0-9._-' '-')
+    CLAUDE_ARGS=("-n" "fw-${base}-r${restart_count}")
+}
+
+# T-3890: refuse to open a conversation that another live process already holds
+# (832: a fleet resume-by-id plus a separate `claude-fw -c` ran the same
+# conversation twice for ~2h45, and both executed one runme step).
+_conversation_guard() {
+    local lib _id _holder
+    lib="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../lib/conversation-holder.sh"
+    [ -f "$lib" ] || return 0
+    # shellcheck source=/dev/null
+    . "$lib"
+    _id=$(fw_conversation_target "$PWD" "${CLAUDE_ARGS[@]}")
+    [ -n "$_id" ] || return 0
+    _holder=$(fw_conversation_holder "${PROJECT_ROOT:-$PWD}" "$_id")
+    [ -n "$_holder" ] || return 0
+    if [ "${FW_ALLOW_DUPLICATE_CONVERSATION:-0}" = "1" ]; then
+        echo "claude-fw: WARNING: conversation $_id is already live in pid $_holder; continuing anyway (FW_ALLOW_DUPLICATE_CONVERSATION=1)" >&2
+        return 0
+    fi
+    echo "claude-fw: REFUSED — conversation $_id is already live in pid $_holder." >&2
+    echo "  A second copy would act on the same events twice. Use that session instead" >&2
+    echo "  (termlink list / termlink attach), or stop it first. Override: FW_ALLOW_DUPLICATE_CONVERSATION=1" >&2
+    return 1
+}
 
 while true; do
     # T-2373: record when this run started so the terminator only acts on a
     # signal written DURING the run (edge case a — not a leftover/stale signal).
     run_start_epoch=$(date +%s)
+    _name_fresh_relaunch # T-3629
+    _conversation_guard || exit 3   # T-3890
     # Run claude with user's arguments
     set +e
     if [ "$TERMLINK_ENABLED" = "1" ] && [ -n "$TERMLINK_SESSION" ]; then
-        # Inject claude command into TermLink PTY session
-        termlink_inject "claude ${CLAUDE_ARGS[*]}"
+        # Inject claude command into TermLink PTY session. T-3346: the trailing
+        # printf is the exit signal — see _tl_claude_exit_code. $? and quotes are
+        # escaped so they reach the PTY shell literally.
+        # T-3782: each argument is shell-quoted (printf %q) — the PTY shell
+        # re-parses this line, so a multi-word argument (a first prompt, as
+        # `fw sidecar recover` passes) must arrive as ONE argument, and any
+        # quote, $ or newline in it must stay data. %q of an empty array is
+        # one '' — skipped so a bare relaunch stays `claude`.
+        _tl_args=""
+        [ "${#CLAUDE_ARGS[@]}" -gt 0 ] && _tl_args=$(printf ' %q' "${CLAUDE_ARGS[@]}")
+        termlink_inject "claude${_tl_args}; printf '__CLAUDE_FW_EXIT_%s__\n' \"\$?\""
+        _TL_PING_FAILS=0 # T-3648: each run starts with a clean failure count
         # Wait for claude to exit by polling the PTY for shell prompt
         # We check if claude process is still running inside the session
         while true; do
@@ -243,16 +754,19 @@ while true; do
                     fi
                 fi
             fi
-            # Check if the session is still alive and claude is running
-            if ! termlink ping "$TERMLINK_SESSION" >/dev/null 2>&1; then
+            # Check if the session is still alive and claude is running.
+            # T-3648: tolerant of transient ping failures — see _tl_session_gone.
+            if _tl_session_gone; then
                 exit_code=1
                 break
             fi
-            # Check if claude process has exited (shell prompt returned)
-            # Use a marker file approach: claude sets exit code on completion
-            local_output=$(termlink pty output "$TERMLINK_SESSION" --lines 3 --strip-ansi 2>/dev/null) || true
-            if echo "$local_output" | grep -qE '^\$|^❯|^➜|claude-fw:|^user@'; then
-                exit_code=0
+            # T-3346: claude has exited only when the injected command line's
+            # explicit marker appears — never inferred from prompt glyphs (the
+            # old `^❯` match was Claude's own TUI caret and fired while claude
+            # was alive, so the wrapper tore down its own live session).
+            local_output=$(termlink pty output "$TERMLINK_SESSION" --lines 10 --strip-ansi 2>/dev/null) || true
+            if marker_code=$(_tl_claude_exit_code "$local_output"); then
+                exit_code=$marker_code
                 break
             fi
         done
@@ -281,25 +795,82 @@ while true; do
 
     # Don't auto-restart if disabled
     if [ "$AUTO_RESTART" = false ]; then
+        _record_loop_event exit auto-restart-disabled "--no-restart or FW_NO_RESTART" "$exit_code"
         exit "$exit_code"
     fi
 
     # Check for restart signal
     signal_file=$(find_signal_file 2>/dev/null) || {
         # Not in a git repo — no signal file possible
+        _record_loop_event exit no-git-repo "cwd is not inside a git worktree" "$exit_code"
         exit "$exit_code"
     }
 
     if [ -f "$signal_file" ] && is_signal_fresh "$signal_file"; then
-        restart_count=$((restart_count + 1))
-
-        if [ "$restart_count" -ge "$MAX_RESTARTS" ]; then
+        # T-3253: a recorded termination stops the RESTART path, not just the re-arm.
+        #
+        # Measured in E10 (T-3250): the injector recorded "tier ceiling exceeded" and
+        # disarmed at 22:40:55, and this branch spent two more restarts at 22:42:29 and
+        # 22:43:38 — because `enabled` was consulted ONLY on the clean-exit re-arm branch
+        # below. The over-ceiling task was closed 4m26s after the brake fired. The same
+        # hole swallowed `max_iterations` in the control leg, so this is checked against
+        # the recorded termination generally rather than against a ceiling-specific flag:
+        # every bound the injector can record now stops the loop spending more autonomy.
+        #
+        # Ordered BEFORE the budget spend deliberately. A terminated loop must not
+        # consume restart budget on its way to refusing — otherwise the ledger reports
+        # the rate limit as the cause and the real reason is lost.
+        if term_reason=$(_continuous_terminated); then
             echo ""
-            echo "claude-fw: Max restarts ($MAX_RESTARTS) reached. Stopping."
-            echo "  Remove $signal_file to reset, then run 'claude -c' manually."
+            echo "claude-fw: Continuous run was TERMINATED — refusing to restart."
+            echo "  Reason: ${term_reason}"
+            echo "  This is a BOUND, not a rate limit: the loop recorded why it stopped and disarmed."
+            echo "  Review it with:  fw continuous status"
+            echo "  To resume, clear last_terminated_reason and set enabled: true in"
+            echo "    .context/working/.continuous-mode.yaml   (an operator decision, by design)"
             rm -f "$signal_file"
+            _record_loop_event exit continuous-terminated "$term_reason" 0
             exit 0
         fi
+        # T-3253 AC3: the same question one step earlier — not "did it already
+        # die" but "will it die the instant it starts". Ordered after the
+        # already-recorded check (cheap, no subprocess) and before the budget
+        # spend, for the same reason that one is: a loop stopped by a BOUND must
+        # not have the ledger report a RATE limit as its cause.
+        #
+        # The two refusals carry different reasons on purpose. `continuous-terminated`
+        # means the death was on the books before we looked; `continuous-preflight`
+        # means we found it by evaluating the planned next action and the breaching
+        # session was never launched. Collapsing them would hide which brake fired.
+        if pre_reason=$(_continuous_preflight); then
+            echo ""
+            echo "claude-fw: Planned next action breaches a bound — refusing to launch."
+            echo "  Reason: ${pre_reason}"
+            echo "  Caught BEFORE the session started, so the over-ceiling work cannot be done."
+            echo "  Review it with:  fw continuous status"
+            echo "  To resume, clear last_terminated_reason and set enabled: true in"
+            echo "    .context/working/.continuous-mode.yaml   (an operator decision, by design)"
+            rm -f "$signal_file"
+            _record_loop_event exit continuous-preflight "$pre_reason" 0
+            exit 0
+        fi
+        # T-3243: spend-check BEFORE taking the budget, so MAX_RESTARTS=N permits
+        # exactly N restarts in the window rather than N-1. The old code
+        # incremented first and tested `-ge`, which cost one restart silently.
+        _restart_budget_prune; spent="$RESTART_SPENT"
+        if [ "$spent" -ge "$MAX_RESTARTS" ]; then
+            echo ""
+            echo "claude-fw: Restart budget exhausted — ${spent}/${MAX_RESTARTS} restarts within the last ${RESTART_WINDOW}s."
+            echo "  This is a RATE limit: it means the loop is spinning, not that it ran too long."
+            echo "  Raise it with:  fw config set MAX_RESTARTS <n>   (or FW_RESTART_WINDOW=<seconds>)"
+            echo "  Remove $signal_file to reset, then run 'claude -c' manually."
+            rm -f "$signal_file"
+            _record_loop_event exit max-restarts \
+                "${spent} restarts within ${RESTART_WINDOW}s window >= MAX_RESTARTS=${MAX_RESTARTS}" 0
+            exit 0
+        fi
+        _restart_budget_take
+        restart_count=$((restart_count + 1))
 
         # Read signal metadata for display
         local_session=$(python3 -c "import json,sys; d=json.load(open('$signal_file')); print(d.get('session_id','?'))" 2>/dev/null) || local_session="?"
@@ -311,10 +882,18 @@ while true; do
         local_directive=$(python3 -c "import json,sys; d=json.load(open('$signal_file')); v=d.get('directive',''); print(v if isinstance(v,str) else '')" 2>/dev/null) || local_directive=""
 
         echo ""
+        _record_loop_event iterate restart "session=${local_session} tokens=${local_tokens}"
         echo "claude-fw: Auto-restart #${restart_count} (session: ${local_session}, tokens: ${local_tokens})"
         if [ -n "$local_directive" ]; then
             echo "  Directive: ${local_directive}"
             export FW_NEXT_DIRECTIVE="$local_directive"
+        fi
+        # T-3166: name the mode, so which kind of restart fired is visible in the
+        # operator's terminal without reading the source.
+        if [ "${FW_RESTART_MODE:-fresh}" = "continue" ]; then
+            echo "  Restart mode: continue (claude -c — transcript restored, context NOT freed)"
+        else
+            echo "  Restart mode: fresh (new session, seeded from the handover)"
         fi
         echo "  Handover committed. Continuing in 3 seconds..."
         echo "  Press Ctrl+C to cancel."
@@ -330,13 +909,72 @@ while true; do
         # start. The sentinel sits beside the restart signal in .context/working/
         # and is consumed (rm) by post-compact-resume.sh on the next startup.
         restart_sentinel="$(dirname "$signal_file")/.auto-restart-pending"
-        : > "$restart_sentinel" 2>/dev/null || true
 
         # Brief pause for user to cancel
         sleep 3
 
-        # Continue with -c flag (resume most recent session)
-        CLAUDE_ARGS=("-c")
+        # T-3168 (arc-012 F4): write the sentinel AFTER the cancel window, never
+        # before it. It used to be written above the `sleep`, so pressing Ctrl+C at
+        # the prompt that invites you to press Ctrl+C left it on disk with nothing
+        # coming to consume it — and the operator's next cold `claude` start was then
+        # read as a loop continuation: counter advanced, an old directive injected
+        # into a session that never asked for one. On disk, a cancelled restart is
+        # now indistinguishable from a restart that never fired.
+        : > "$restart_sentinel" 2>/dev/null || true
+
+        # T-3166 (arc-012 S2): start a FRESH session, not `claude -c`.
+        #
+        # The restart fires because context hit critical. `-c` continues the most
+        # recent conversation, which restores the transcript — so the session comes
+        # back holding the very context it restarted to escape, and the next
+        # budget check is critical again. T-3163 measured that a session cannot
+        # free its own context from the inside; the supervisor is the only thing
+        # that can, and `-c` was it handing the context straight back.
+        #
+        # Nothing else has to change for the fresh session to know where it is:
+        # T-2376 already wired SessionStart source "startup" behind the
+        # .auto-restart-pending sentinel written just above, and
+        # post-compact-resume.sh injects the handover, the directive and the
+        # iteration counter on that branch.
+        #
+        # FW_RESTART_MODE=continue restores the pre-T-3166 behaviour for anyone
+        # who wants transcript continuity and accepts that the budget does not drop.
+        # T-3247: a fresh session needs an INSTRUCTION, not just context.
+        #
+        # T-3166's comment above says "nothing else has to change for the fresh
+        # session to know where it is". That is true for KNOWING — post-compact-resume
+        # injects handover, directive and counter — and false for DOING. A headless
+        # `claude --print` with no prompt has no turn to take: it exits 1 on "Input
+        # must be provided…" before the injected context can be acted on. So the
+        # loop restarted into a dead session and burned its whole restart budget
+        # doing it, while the banner above reported a successful auto-restart.
+        #
+        # Passing the directive as the prompt is NOT a return to `-c`: it carries an
+        # instruction, not a transcript, so the context the restart existed to free
+        # stays freed and T-3166's reason for refusing `-c` is untouched.
+        if [ "${FW_RESTART_MODE:-fresh}" = "continue" ]; then
+            CLAUDE_ARGS=("-c")
+        elif [ "$HEADLESS" = "1" ]; then
+            if [ -n "$local_directive" ]; then
+                CLAUDE_ARGS=("-p" "$local_directive")
+                echo "  Headless restart: directive passed as the prompt."
+            else
+                # Nothing to do and no way to be told: relaunching would spin a
+                # promptless session until the budget is exhausted, which is what
+                # E9 measured as "the loop ran". Refusing is the honest outcome and
+                # it is recorded as its own reason, distinct from max-restarts.
+                echo ""
+                echo "claude-fw: Headless restart requested with no directive to run."
+                echo "  A --print session with no prompt cannot take a turn, so relaunching"
+                echo "  would consume the restart budget without doing any work."
+                echo "  Arm a directive:  fw continuous arm --directive '<what to do next>'"
+                _record_loop_event exit no-directive-headless \
+                    "headless restart refused: no directive in signal or .next-directive.yaml" 1
+                exit 1
+            fi
+        else
+            CLAUDE_ARGS=()
+        fi
         # Note: next loop iteration will use termlink_inject if TERMLINK_ENABLED
     elif [ -f "$signal_file" ]; then
         # Stale signal — clean up and exit
@@ -344,9 +982,106 @@ while true; do
         echo ""
         echo "claude-fw: Stale restart signal (${local_age}s old). Ignoring."
         rm -f "$signal_file"
+        _record_loop_event exit stale-signal "signal ${local_age}s old, freshness window 300s" "$exit_code"
         exit "$exit_code"
     else
-        # No signal — normal exit
+        # No signal. Two readings — "the operator quit" and "the loop broke" —
+        # and until T-3243 both produced the same BEHAVIOUR: teardown. The record
+        # separated them; nothing acted on the separation. Two of the three
+        # wrapper deaths in continuous-run.jsonl are this branch, at 6h43m and
+        # 9h01m after a healthy restart, both with exit_code=0.
+        #
+        # An ARMED continuous run is the operator having said, explicitly and in
+        # advance, that this loop should keep going. Honour it here — bounded by
+        # the same three brakes everything else in arc-012 answers to:
+        #   1. the halt file (Brake 1, outranks everything — stop-driver.sh:81)
+        #   2. the sliding restart budget (a claude that exits instantly cannot
+        #      spin: re-arms spend the same budget as budget restarts)
+        #   3. the operator's cancel window below
+        # Not armed → exits exactly as before. The default is unchanged.
+        if [ "$AUTO_RESTART" = true ] && _continuous_armed; then
+            if _continuous_halted; then
+                echo ""
+                echo "claude-fw: Continuous run is armed, but the halt file is present. Stopping."
+                _record_loop_event exit halted "halt file present; re-arm refused (Brake 1)" "$exit_code"
+                exit "$exit_code"
+            fi
+
+            _restart_budget_prune; spent="$RESTART_SPENT"
+            if [ "$spent" -ge "$MAX_RESTARTS" ]; then
+                echo ""
+                echo "claude-fw: Continuous run is armed, but the restart budget is exhausted"
+                echo "  (${spent}/${MAX_RESTARTS} within the last ${RESTART_WINDOW}s). Stopping."
+                # T-3633: own reason, not max-restarts — the ledger must say which
+                # path stopped the loop (precedent: no-directive-headless-rearm).
+                _record_loop_event exit max-restarts-rearm \
+                    "re-arm refused: ${spent} restarts within ${RESTART_WINDOW}s window >= MAX_RESTARTS=${MAX_RESTARTS}" "$exit_code"
+                exit "$exit_code"
+            fi
+            _restart_budget_take
+            restart_count=$((restart_count + 1))
+
+            echo ""
+            _record_loop_event iterate rearm \
+                "clean exit (code=${exit_code}) with no signal; continuous run armed; budget $((spent + 1))/${MAX_RESTARTS} in ${RESTART_WINDOW}s"
+            echo "claude-fw: Re-arm #${restart_count} — claude exited (code ${exit_code}) with no restart signal,"
+            echo "  and a continuous run is armed. Relaunching in 5 seconds."
+            echo "  To stop the run:   touch ${FW_CONTINUOUS_HALT:-$(dirname "$signal_file")/.continuous-halt}"
+            echo "  Or disarm it:      fw continuous disarm"
+            echo "  Or just press Ctrl+C."
+            echo ""
+
+            restart_sentinel="$(dirname "$signal_file")/.auto-restart-pending"
+            sleep 5
+            # Sentinel written AFTER the cancel window, per T-3168: a cancelled
+            # re-arm must be indistinguishable on disk from one that never fired.
+            : > "$restart_sentinel" 2>/dev/null || true
+
+            # T-3249: this branch used to be the two-way form below, which is
+            # verbatim what T-3247 replaced on the RESTART path — and it fails
+            # the same way. Under --print a promptless relaunch dies on "Input
+            # must be provided" without taking a turn, while still spending one
+            # of MAX_RESTARTS. Measured 1:1 in arc-012 E9: run 3 had 4 re-arms
+            # and 4 such errors, run 4 had 1 and 1.
+            #
+            # T-3247 fixed the instance it reproduced and left its sibling. A
+            # supervised run ends each session one of two ways — budget trip, or
+            # clean exit — so leaving this one meant HALF the loop's exit modes
+            # could not continue the run.
+            #
+            # The directive source differs from the restart path only in
+            # delivery: no signal exists here, so read .next-directive.yaml
+            # directly (see _armed_directive).
+            if [ "${FW_RESTART_MODE:-fresh}" = "continue" ]; then
+                CLAUDE_ARGS=("-c")
+            elif [ "$HEADLESS" = "1" ]; then
+                rearm_directive=$(_armed_directive) || rearm_directive=""
+                if [ -n "$rearm_directive" ]; then
+                    CLAUDE_ARGS=("-p" "$rearm_directive")
+                    export FW_NEXT_DIRECTIVE="$rearm_directive"
+                    echo "  Headless re-arm: directive passed as the prompt."
+                else
+                    # Same refusal the restart path makes, for the same reason:
+                    # relaunching would burn the budget on sessions that cannot
+                    # take a turn. Distinct reason code so the ledger tells the
+                    # two paths apart.
+                    echo ""
+                    echo "claude-fw: Headless re-arm requested with no directive to run."
+                    echo "  A --print session with no prompt cannot take a turn, so relaunching"
+                    echo "  would consume the restart budget without doing any work."
+                    echo "  Arm a directive:  fw continuous arm --directive '<what to do next>'"
+                    _record_loop_event exit no-directive-headless-rearm \
+                        "headless re-arm refused: no directive in .next-directive.yaml" 1
+                    exit 1
+                fi
+            else
+                CLAUDE_ARGS=()
+            fi
+            continue
+        fi
+
+        # Not armed — the ORDINARY end of a supervised session, unchanged.
+        _record_loop_event exit no-signal "claude exited without a restart signal" "$exit_code"
         exit "$exit_code"
     fi
 done

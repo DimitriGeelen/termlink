@@ -316,3 +316,7 @@ upgrades:
     from_version: "1.6.145"
     to_version: "1.6.29"
     framework_root: "/tmp/fw-upstream-DVPhxt/fw"
+  - timestamp: 2026-10-06T11:19:43Z
+    from_version: "1.6.29"
+    to_version: "1.8.3"
+    framework_root: "/tmp/claude-0/-opt-termlink/e817a600-b7cc-4402-a9cf-c959eb30f655/scratchpad/aef-full"
