@@ -1183,7 +1183,7 @@ divergences:
     commit: 93297d781
     date: '2026-10-06'
     file: .agentic-framework/lib/sidecar/circuit.py
-    status: local-only
+    status: filed-upstream
     kind: fix
     generality: GENERIC
     symptom: >-
@@ -1191,7 +1191,7 @@ divergences:
     fix: >-
       project_id() honours FW_RAIL_PROJECT_LABEL, then RAIL_PROJECT_LABEL in .framework.yaml, then the basename; normalised like the rail only when set, so the default is unchanged.
     evidence: fw sidecar whoami -> agent 010-termlink, inbox:cacc73ea32b121dd/010-termlink; probe send RECEIVED.
-    upstream_note: To file with AEF (T-3370 upstream filings).
+    upstream_note: Filed framework:pickup 321; AEF tracks it as T-3957 (horizon now, 2026-10-06). Re-check before the next re-vendor; hold upgrades until it ships.
   - task: T-3370
     commit: 91ef587f5
     date: '2026-10-06'
@@ -1371,3 +1371,7 @@ not_divergence:
     found_by: >
       Inbound framework:pickup triage (T-2979) — read as part of clearing the 3
       then-unprocessed inbound filings (framework-pickup-canary, T-2231/T-2816).
+upgrade_hold:
+  held_at: 1.8.3
+  since: '2026-10-06'
+  reason: AEF T-3955 (step 7b overwrites TermLink doorbell+mail toolkit), T-3956 (step 7 replaces customised /resume), T-3957 (sidecar project_id ignores RAIL_PROJECT_LABEL) not yet shipped; do not upgrade to 1.8.4+ until AEF names the release that carries them.
