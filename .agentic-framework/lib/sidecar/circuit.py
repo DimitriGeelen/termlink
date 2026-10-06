@@ -133,6 +133,28 @@ def hub_id(*, runner=subprocess.run, refresh: bool = False) -> str:
     return _hub_cache
 
 
+def _rail_project_label() -> str:
+    """RAIL_PROJECT_LABEL as `lib/rail-identity.sh rail_project_label` resolves and
+    normalises it (env FW_RAIL_PROJECT_LABEL, then .framework.yaml), or '' when
+    unset. Both the upper-case key and the lower-case one `fw config set` writes
+    today (T-3924) are read."""
+    raw = os.environ.get("FW_RAIL_PROJECT_LABEL", "").strip()
+    if not raw:
+        cfg = outbox._root() / ".framework.yaml"
+        try:
+            for line in cfg.read_text(encoding="utf-8").splitlines():
+                m = re.match(r"^(RAIL_PROJECT_LABEL|rail_project_label):\s*(.*?)\s*$", line)
+                if m:
+                    raw = m.group(2).strip().strip("'\"")
+                    break
+        except OSError:
+            raw = ""
+    if not raw:
+        return ""
+    s = raw.lower().replace(" ", "-").replace("_", "-")
+    return re.sub(r"[^a-z0-9.-]", "", s)
+
+
 def project_id() -> str:
     """This project's fleet id.
 
@@ -144,29 +166,15 @@ def project_id() -> str:
 
     Refuses `.agentic-framework` or empty (T-3671): that is the vendored
     framework dir, never a project, and signing as it mis-routes every consult.
+
+    T-3957 (010, finding in pickup 321): RAIL_PROJECT_LABEL, when set, names the
+    project — the same label `lib/rail-identity.sh rail_project_label` emits on
+    the rail, normalised the same way, so the rail and the sidecar cannot name
+    one project two ways. Unset → the basename above, unchanged.
     """
-    # T-3370 (LOCAL DIVERGENCE, registered in .vendor-divergence.yaml; filed upstream):
-    # honour AEF's own canonical project label, RAIL_PROJECT_LABEL (T-2905), before the
-    # directory name — exactly as lib/rail-identity.sh:rail_project_label does. Without
-    # it a project whose directory differs from its fleet name (/opt/termlink vs
-    # 010-termlink) gets a receiver on an inbox no peer writes to. Precedence: env
-    # FW_RAIL_PROJECT_LABEL, then RAIL_PROJECT_LABEL in .framework.yaml, then basename.
-    # Normalised like the rail only when SET, so the basename default is unchanged.
-    label = os.environ.get("FW_RAIL_PROJECT_LABEL", "").strip()
-    if not label:
-        try:
-            fy = outbox._root() / ".framework.yaml"
-            for line in fy.read_text(encoding="utf-8").splitlines():
-                m = re.match(r"^RAIL_PROJECT_LABEL:\s*['\"]?([^'\"#\s]+)", line)
-                if m:
-                    label = m.group(1).strip()
-                    break
-        except OSError:
-            label = ""
+    label = _rail_project_label()
     if label:
-        norm = re.sub(r"[^a-z0-9.-]", "", label.lower().replace(" ", "-").replace("_", "-"))
-        if norm and norm != ".agentic-framework":
-            return norm
+        return label
     name = outbox._root().name
     if not name or name == ".agentic-framework":
         raise CircuitError(

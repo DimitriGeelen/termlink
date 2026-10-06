@@ -5,6 +5,8 @@ description: >
   Design a standard CLI command for repeatable cross-machine prompt injection. Currently requires: hex secret parsing, HMAC token generation, TOFU TLS, hub routing — all manual via tofu_test example. Need: 'termlink inject-remote host:port session-name "message" --secret-file /path'. Should handle auth, TOFU, and split-writes automatically. Also consider 'termlink connect-hub' for persistent hub connections.
 status: work-completed
 workflow_type: inception
+target_blast_radius: 3
+voi_score: 0.5
 owner: human
 horizon: null
 tags: [cli, cross-machine, ux]

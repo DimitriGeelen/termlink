@@ -14,6 +14,8 @@ description: >
 
 status: work-completed
 workflow_type: inception
+target_blast_radius: 3
+voi_score: 0.5
 owner: human
 horizon: null
 tags: [auth, infrastructure, ring20-management, G-011]

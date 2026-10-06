@@ -9,6 +9,8 @@ description: >
   Explore only — no implementation.
 status: work-completed
 workflow_type: inception
+target_blast_radius: 3
+voi_score: 0.5
 owner: human
 horizon: null
 tags: [termlink, output-capture, conversation-logging, exploration]

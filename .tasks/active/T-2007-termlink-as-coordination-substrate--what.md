@@ -7,6 +7,8 @@ description: >
 
 status: captured
 workflow_type: inception
+target_blast_radius: 1  # T-3376: agent estimate replacing the T-3948 default — research only
+voi_score: 0.3  # T-3376: largely covered since by arc-011 (T-3344)
 owner: human
 horizon: later
 tags: []

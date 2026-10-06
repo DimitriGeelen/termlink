@@ -8,6 +8,8 @@ description: >
   and produces implementation tasks for both the termlink project and the framework agent.
 status: work-completed
 workflow_type: inception
+target_blast_radius: 3
+voi_score: 0.5
 owner: human
 horizon: null
 tags: [framework, governance, session-capture, antifragility]

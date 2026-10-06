@@ -11,6 +11,8 @@ description: >
 
 status: work-completed
 workflow_type: inception
+target_blast_radius: 5  # T-3376: agent estimate replacing the T-3948 default — cross-repo seam
+voi_score: 0.2  # T-3376: mostly answered since by arc-011 (T-3344)
 owner: human
 horizon: now
 tags: [inception, cross-repo, arc:peer-consult]

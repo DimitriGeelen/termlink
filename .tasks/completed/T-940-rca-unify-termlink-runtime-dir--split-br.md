@@ -4,6 +4,8 @@ name: "RCA: Unify termlink runtime dir — split-brain blocks cross-host session
 description: "RCA: Unify termlink runtime dir — split-brain blocks cross-host session discovery — see body for context."
 status: work-completed
 workflow_type: inception
+target_blast_radius: 3
+voi_score: 0.5
 owner: human
 horizon: null
 tags: [termlink, systemd, runtime-dir, cross-host, rca]

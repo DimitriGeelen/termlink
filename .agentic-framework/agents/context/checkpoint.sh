@@ -237,6 +237,16 @@ warn_by_tokens() {
         COOLDOWN_SECONDS=$(fw_config_int "HANDOVER_COOLDOWN" 600)
 
         local should_fire=true
+        # T-3917 (G-110): a lock stranded by a kill no longer disables the
+        # auto-handover forever — one predicate, shared with fw doctor.
+        source "$FRAMEWORK_ROOT/lib/handover-lock.sh"
+        local _stale_why
+        if [ -f "$handover_lock" ] && _stale_why=$(fw_handover_lock_stale "$handover_lock"); then
+            rm -f "$handover_lock"
+            echo "[checkpoint] [auto] Cleared stale .handover-in-progress ($_stale_why) at $(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+                >> "$CONTEXT_DIR/working/.compact-log" 2>/dev/null || true
+            echo "AUTO-HANDOVER: cleared a stale handover lock ($_stale_why)." >&2
+        fi
         if [ -f "$handover_lock" ]; then
             should_fire=false
         elif [ -f "$handover_cooldown" ]; then
@@ -251,7 +261,7 @@ warn_by_tokens() {
 
         if [ "$should_fire" = true ]; then
             echo "AUTO-HANDOVER: Triggering handover..." >&2
-            echo "1" > "$handover_lock"
+            fw_handover_lock_write "$handover_lock"   # T-3917: "<epoch> <pid>", not "1"
             date +%s > "$handover_cooldown"
             # T-1277: belt-and-braces — even with handover.sh's per-push timeout,
             # bound the total auto-handover wall time so the PostToolUse hook
@@ -272,9 +282,26 @@ warn_by_tokens() {
             _ah_capture="$CONTEXT_DIR/working/.checkpoint.handover.stderr"
             _ah_log="$CONTEXT_DIR/working/.compact-log"
             _ah_ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-            if timeout "$_ah_total_timeout" bash "$FRAMEWORK_ROOT/agents/handover/handover.sh" --commit >"$_ah_capture" 2>&1; then
+            # T-3917: the handover runs in a subshell whose trap removes the lock on
+            # ANY exit — a SIGTERM from the claude-fw terminator or a hook timeout
+            # used to strand it (the normal-path rm below never ran). SIGKILL cannot
+            # be trapped; the dead-pid test in fw_handover_lock_stale covers it.
+            # T-3942 (832 G-083): judge the run by whether a handover COMMIT landed, not by the
+            # exit of the timed run. handover.sh pushes after committing, under its own longer
+            # push timeout; the 60 s outer timeout used to kill it mid-push, log FAILED and skip
+            # the restart signal below although LATEST.md was already committed.
+            local _ah_start _ah_ok=0 _ah_note=""
+            _ah_start=$(date +%s)
+            if ( trap 'rm -f "$handover_lock"' EXIT INT TERM HUP
+                 timeout "$_ah_total_timeout" bash "$FRAMEWORK_ROOT/agents/handover/handover.sh" --commit >"$_ah_capture" 2>&1 ); then
+                _ah_ok=1
+            elif _ah_sha=$(fw_handover_landed "${PROJECT_ROOT:-$(dirname "$CONTEXT_DIR")}" "$_ah_start"); then
+                _ah_ok=1
+                _ah_note=" (commit $_ah_sha landed; push did not finish within ${_ah_total_timeout}s — run 'fw push')"
+            fi
+            if [ "$_ah_ok" = 1 ]; then
                 tail -5 "$_ah_capture" >&2 2>/dev/null || true
-                echo "[checkpoint] [auto] Handover generated at $_ah_ts" >> "$_ah_log" 2>/dev/null || true
+                echo "[checkpoint] [auto] Handover generated at $_ah_ts$_ah_note" >> "$_ah_log" 2>/dev/null || true
                 echo "AUTO-HANDOVER: Handover committed. Fill [TODO] sections, then re-commit." >&2
                 # T-186: Write restart signal for wrapper script (T-179 auto-restart)
                 local restart_signal="$CONTEXT_DIR/working/.restart-requested"

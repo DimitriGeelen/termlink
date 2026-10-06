@@ -716,6 +716,8 @@ do_vendor() {
             --includes "$_vp_dir/includes" --excludes "$_vp_dir/excludes" --plan "$_vp_dir/plan.json")
         local _vp_rc=0
         if [ "$dry_run" = true ]; then
+            # T-3907: preview the run as it would be invoked, flags included.
+            [ "$allow_delete_locals" = true ] && _vp_args+=(--allow)
             python3 "$_vp_py" pre "${_vp_args[@]}" --dry-run || _vp_rc=$?
             rm -rf "$_vp_dir"; _vp_dir=""
         else
@@ -2029,9 +2031,11 @@ do_doctor() {
     local compact_log="$PROJECT_ROOT/.context/working/.compact-log"
     if [ -f "$compact_log" ]; then
         local last_ho_line last_ho_src
-        last_ho_line=$(grep -E '\[(pre-compact|checkpoint)\].*Handover' "$compact_log" 2>/dev/null | tail -1)
+        # T-3918: the claude-fw terminator's pre-kill handover logs here too.
+        last_ho_line=$(grep -E '\[(pre-compact|checkpoint|terminator)\].*Handover (generated|FAILED)' "$compact_log" 2>/dev/null | tail -1)
         case "$last_ho_line" in
             *"[checkpoint]"*) last_ho_src="budget-critical auto-handover" ;;
+            *"[terminator]"*) last_ho_src="pre-restart handover (claude-fw terminator)" ;;
             *)                last_ho_src="pre-compact handover" ;;
         esac
         if echo "$last_ho_line" | grep -q "FAILED"; then
@@ -2040,6 +2044,19 @@ do_doctor() {
             echo -e "         Recover: fw handover --no-commit   (repoints LATEST.md to a fresh capture)"
         elif [ -n "$last_ho_line" ]; then
             echo -e "  ${GREEN}OK${NC}  Last auto-handover succeeded ($last_ho_src)"
+        fi
+    fi
+
+    # Check 5e (T-3917, G-110): a stranded auto-handover lock silently disables the
+    # budget-critical auto-handover — AEF's sat stale ~4 months, ring20-manager's
+    # ~163 days, and nothing looked. Same predicate checkpoint.sh uses to clear it.
+    local ho_lock="$PROJECT_ROOT/.context/working/.handover-in-progress"
+    if [ -f "$ho_lock" ] && [ -f "$FRAMEWORK_ROOT/lib/handover-lock.sh" ]; then
+        local ho_lock_why
+        # shellcheck source=/dev/null
+        if ho_lock_why=$(source "$FRAMEWORK_ROOT/lib/handover-lock.sh" && fw_handover_lock_stale "$ho_lock"); then
+            _doctor_warn_host "Stale .handover-in-progress ($ho_lock_why) — the budget-critical auto-handover is skipped while it exists"
+            echo -e "         Fix: the next critical checkpoint clears it automatically (T-3917); now: rm $ho_lock"
         fi
     fi
 
@@ -3411,7 +3428,11 @@ else:
     _doctor_phase "Watchtower smoke test"  # T-3452
     # Check: Watchtower smoke test (T-486) — run if server is reachable
     # Use _watchtower_url for port detection (T-1154: no hardcoded 3000)
-    if _doctor_quick_skip "Watchtower smoke test (HTTP probes)"; then :; else
+    # T-3933: tests run full doctor in the real repo; each smoke run swept the LIVE
+    # Watchtower (~225 s under suite load) and timed the doctor test files out.
+    if [ "${FW_DOCTOR_SMOKE:-1}" = "0" ]; then
+        echo -e "  ${CYAN}SKIP${NC}  Watchtower smoke test (HTTP probes) (FW_DOCTOR_SMOKE=0)"
+    elif _doctor_quick_skip "Watchtower smoke test (HTTP probes)"; then :; else
     source "$FRAMEWORK_ROOT/lib/watchtower.sh" 2>/dev/null || true
     local _doctor_wt_url _doctor_wt_port
     # F9 (T-2445): gate the smoke verdict on the identity-verified resolver. A bare
@@ -4098,7 +4119,7 @@ print(sum(1 for e in entries if (e.get('status') or 'pending') == 'pending'))
             warnings=$((warnings + 1))
         fi
         local dl
-        dl=$(fw_config_int "DISPATCH_LIMIT" 2)
+        dl=$(fw_config_int "DISPATCH_LIMIT" 0)
         if [ "$dl" -gt 10 ]; then
             echo -e "  ${YELLOW}WARN${NC}  FW_DISPATCH_LIMIT=$dl — very high, risk of context explosion"
             warnings=$((warnings + 1))

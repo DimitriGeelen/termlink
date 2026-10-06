@@ -17,6 +17,8 @@ description: >
 
 status: captured
 workflow_type: inception
+target_blast_radius: 2  # T-3376: agent estimate replacing the T-3948 default — one gate
+voi_score: 0.2  # T-3376: already filed upstream as a pickup
 owner: human
 horizon: later
 tags: [governance, hook-gates, framework-agent, pickup, G-020]

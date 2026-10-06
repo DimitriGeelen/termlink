@@ -161,6 +161,7 @@
                 Evidence: {{ _cv.passed }}/{{ _cv.total }}{% if _cv.overall == 'CONTRADICTED' %} ⚠{% endif %}
             </span>
             {% endif %}
+            {% include "_origin_badge.html" %}
             <a href="/inception/{{ t.task_id }}"><strong>{{ t.task_id }}</strong></a>:
             {{ t.name }}
         </div>
@@ -221,6 +222,19 @@
         </div>
     </div>
     {% endif %}
+    {% if t.blockers %}
+    {# T-3896 (G-108): the decide gate would refuse this — say so BEFORE the click,
+       and say whose work it is. No decision controls on a not-ready inception. #}
+    <div class="not-ready" data-testid="inception-not-ready"
+         style="margin-top:0.5rem; border:1px dashed var(--wt-warn); border-radius:6px; padding:0.5rem 0.7rem;">
+        <strong>Not ready for your decision — the agent still owes:</strong>
+        <ul style="margin:0.3rem 0 0 1.1rem; font-size:0.85rem;">
+            {% for b in t.blockers %}<li>{{ b.detail }}</li>{% endfor %}
+        </ul>
+        <small class="muted">This is agent work, not yours: each open question needs a recorded answer
+            (answered / deferred / dissolved) with a reason before a GO or NO-GO can be recorded.</small>
+    </div>
+    {% else %}
     <form hx-post="/inception/{{ t.task_id }}/decide" hx-target="closest .go-decision" hx-swap="outerHTML"
           style="margin-top:0.5rem;">
         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
@@ -240,6 +254,7 @@
             </button>
         </div>
     </form>
+    {% endif %}
 </div>
 {% endfor %}
 {% endif %}
@@ -507,7 +522,23 @@
         {% if wm.escalated %} · pushed: {{ wm.escalated|join(', ') }}{% endif %}
         {% if wm.last_recover %} · last recover: {{ wm.last_recover.event }} {{ (wm.last_recover.ts or '')[:16] }}{% endif %}
     </div>
+    {# T-3921: the decision is about CONTENT — show what the message says. Peer text
+       is autoescaped and labelled unverified; it never reaches render()/handover. #}
+    {% if wm.preview %}
+    <div data-testid="waiting-preview" style="margin:0.4rem 0 0.2rem; font-size:0.95rem;">
+        {% if wm.side == 'inbound' %}“{{ wm.preview }}”{% else %}You sent: “{{ wm.preview }}”{% endif %}
+    </div>
+    <details data-testid="waiting-text" style="margin:0 0 0.3rem;">
+        <summary style="cursor:pointer; font-size:0.85rem;">Show the message{% if wm.side == 'inbound' %} <small style="color:var(--pico-muted-color);">— peer text, unverified</small>{% endif %}</summary>
+        <pre style="white-space:pre-wrap; word-break:break-word; font-size:0.82rem; max-height:22rem; overflow:auto; margin:0.3rem 0;">{{ wm.text }}</pre>
+    </details>
+    {% else %}
+    <div style="margin:0.4rem 0; font-size:0.85rem; color:var(--pico-muted-color);">The message text is not kept on this side.</div>
+    {% endif %}
     {% if wm.reason %}<div style="font-size:0.8rem; color:var(--pico-muted-color);">Reason: {{ wm.reason }}</div>{% endif %}
+    <div style="font-size:0.8rem; color:var(--pico-muted-color); margin-top:0.3rem;">
+        {% if 'recover' in wm.actions %}<strong>Recover</strong> starts this project's agent with this message as its first prompt. {% endif %}<strong>Drop</strong> closes it unhandled; {% if wm.side == 'inbound' %}the sender is told it was dropped, with your reason{% else %}it stops being chased{% endif %}.
+    </div>
     <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap; margin-top:0.5rem;">
         {% if 'recover' in wm.actions %}
         <form hx-post="/api/sidecar/recover" hx-target="#waiting-result-{{ loop.index }}" hx-swap="innerHTML" style="margin:0;"
@@ -702,6 +733,7 @@ function filterACs(filter) {
             {{ t.name }}
         </div>
         <div style="display:flex; align-items:center; gap:0.5rem;">
+            {% include "_origin_badge.html" %}
             {# T-1531: agent recommendation verdict badge — green=GO, amber=DEFER, red=NO-GO, grey=?
                T-1576: prefer state so NO-REC ('agent owes a recommendation') reads distinctly from ? ('verdict unparseable'). #}
             {% set _v = t.state if (t.state is defined and t.state == 'NO-REC') else (t.verdict if t.verdict is defined else '?') %}

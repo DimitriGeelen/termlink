@@ -395,6 +395,9 @@ def cmd_status(args) -> int:
           f"termlink={live.get('termlink', 'unknown')}")
     for r in wv["reasons"]:
         print(f"  - {r}")
+    several = inject.several_sessions_warning()  # T-3900
+    if several:
+        print(several)
     return 0
 
 
@@ -418,6 +421,7 @@ def cmd_sweep(args) -> int:
     print(f"swept: {report['considered']} open row(s), {report['due']} due  ->  "
           f"{report['reposted']} reposted, {report['nudged']} nudged, "
           f"{report['operator']} to operator, {report['answered']} answered, "
+          f"{report.get('read', 0)} read, "
           f"{report['deadlettered']} dead-lettered, "
           f"{len(report['direct_escalated'])} direct escalated")
     for cid in report["direct_escalated"]:

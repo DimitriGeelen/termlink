@@ -4,6 +4,8 @@ name: "Migrate termlink cron from hand-written crontab to registry-based install
 description: "Migrate termlink cron from hand-written crontab to registry-based installer — see body for context."
 status: work-completed
 workflow_type: inception
+target_blast_radius: 3
+voi_score: 0.5
 owner: human
 horizon: null
 tags: [cron, migration, registry, T-448]

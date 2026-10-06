@@ -8,6 +8,8 @@ description: >
   pattern detection proactive rather than discipline-dependent. Explore only.
 status: work-completed
 workflow_type: inception
+target_blast_radius: 3
+voi_score: 0.5
 owner: human
 horizon: null
 tags: [antifragility, error-escalation, jsonl, patterns, healing]

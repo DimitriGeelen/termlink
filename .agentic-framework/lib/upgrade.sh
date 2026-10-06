@@ -1699,6 +1699,30 @@ $project_owned"
         echo -e "  ${GREEN}OK${NC}  All templates current"
     fi
 
+    # T-3948: the T-2188 inception schema gate (installed with the hooks) refuses every edit to
+    # an inception without target_blast_radius/voi_score. AEF backfilled its own corpus
+    # (T-2193) but no consumer's: an upgraded project's older inceptions were left without the
+    # fields, and the first agent edit to one was refused. Backfill them here.
+    if [ -d "$target_dir/.tasks" ]; then
+        local _isb_out _isb_n
+        if [ "$dry_run" = true ]; then
+            _isb_out=$(python3 "$FRAMEWORK_ROOT/lib/inception_schema_backfill.py" --dry-run "$target_dir/.tasks" 2>&1 || true)
+        else
+            _isb_out=$(python3 "$FRAMEWORK_ROOT/lib/inception_schema_backfill.py" "$target_dir/.tasks" 2>&1 || true)
+        fi
+        _isb_n=$(printf '%s\n' "$_isb_out" | grep -cE '^(WOULD BACKFILL|BACKFILLED) ' || true)
+        if [ "${_isb_n:-0}" -gt 0 ]; then
+            changes=$((changes + 1))
+            if [ "$dry_run" = true ]; then
+                echo -e "  ${CYAN}WOULD BACKFILL${NC}  inception schema fields on $_isb_n inception(s) (T-3948)"
+            else
+                echo -e "  ${GREEN}BACKFILLED${NC}  inception schema fields (target_blast_radius: 3, voi_score: 0.5) on $_isb_n inception(s) (T-3948)"
+            fi
+        else
+            echo -e "  ${GREEN}OK${NC}  Every inception carries the schema fields"
+        fi
+    fi
+
     # ── 3. Seed files (universal governance items) ──
     echo -e "${YELLOW}[3/10] Seed files (universal governance)${NC}"
 
@@ -1911,7 +1935,8 @@ CRONREGEOF
         # source missing a file produced a silent "Upgrade Complete".
         local _vendor_rc=0
         if [ "$dry_run" = true ]; then
-            do_vendor --target "$target_dir" --source "$FRAMEWORK_ROOT" --dry-run 2>&1 | sed 's/^/  /'
+            # T-3907: forward the flags so the preview predicts THIS run's verdict.
+            do_vendor --target "$target_dir" --source "$FRAMEWORK_ROOT" --dry-run ${_vendor_extra[@]+"${_vendor_extra[@]}"} 2>&1 | sed 's/^/  /'
             _vendor_rc=${PIPESTATUS[0]}
         else
             do_vendor --target "$target_dir" --source "$FRAMEWORK_ROOT" ${_vendor_extra[@]+"${_vendor_extra[@]}"} 2>&1 | sed 's/^/  /'
@@ -2077,16 +2102,23 @@ def check_stale_paths(path):
                         non_framework += 1
     except (json.JSONDecodeError, FileNotFoundError):
         pass
-    return stale + non_framework
+    # T-3906: project hooks are the consumer's own and the regenerator CARRIES
+    # them — counting them as stale made every consumer with its own hooks
+    # regenerate on each upgrade ('N hardcoded paths') and then end PARTIAL
+    # naming nothing (832 on 1.8.3). Reported separately, never a gap.
+    return stale, non_framework
 
 fw_hooks = extract_hooks(os.environ['FW_FILE'])
 consumer_hooks = extract_hooks(os.environ['CONSUMER_FILE'])
-stale = check_stale_paths(os.environ['CONSUMER_FILE'])
+stale, project_hooks = check_stale_paths(os.environ['CONSUMER_FILE'])
 
 missing = fw_hooks - consumer_hooks
 missing_names = '; '.join(f'{e}:{n}' for e, n in sorted(missing)) if missing else ''
-print(f'{len(fw_hooks)}|{len(consumer_hooks)}|{len(missing)}|{stale}|{missing_names}')
-" 2>/dev/null || echo "0|0|0|0|parse-error")
+print(f'{len(fw_hooks)}|{len(consumer_hooks)}|{len(missing)}|{stale}|{missing_names}|{project_hooks}')
+" 2>/dev/null || echo "0|0|0|0|parse-error|0")
+        # Field order out: 1 fw 2 consumer 3 missing 4 stale 5 names 6 nonportable 7 project hooks
+        local project_hooks="${analysis##*|}"
+        analysis="${analysis%|*}"
 
         # T-2709 (T-2704 §5.1 — "this is the trap"): the two predicates above are
         # blind to a hook command carrying the GENERATING host's absolute checkout
@@ -2099,7 +2131,7 @@ print(f'{len(fw_hooks)}|{len(consumer_hooks)}|{len(missing)}|{stale}|{missing_na
         local nonportable
         nonportable=$(python3 "$FRAMEWORK_ROOT/lib/hook_portability.py" "$sfile" 2>/dev/null | cut -d'|' -f2)
         [ -z "$nonportable" ] && nonportable=0
-        echo "${analysis}|${nonportable}"
+        echo "${analysis}|${nonportable}|${project_hooks:-0}"
     }
 
     if [ -f "$settings_file" ]; then
@@ -2193,7 +2225,9 @@ print(f'{len(fw_hooks)}|{len(consumer_hooks)}|{len(missing)}|{stale}|{missing_na
                     rm -f "$_t2912_pre"
                     changes=$((changes + 1))
                     if [ "$gap_remains" = true ]; then
-                        echo -e "  ${YELLOW}PARTIAL${NC}  Hooks regenerated but gap remains: missing $missing_count_after hook(s): $missing_names_after. Backup: settings.json.bak"
+                        # T-3906: name EVERY remaining component — the old line named only
+                        # "missing", so a stale/non-portable remainder read "missing 0 hook(s): .".
+                        echo -e "  ${YELLOW}PARTIAL${NC}  Hooks regenerated but gap remains: missing ${missing_count_after:-0}${missing_names_after:+ ($missing_names_after)}, stale paths ${stale_after:-0}, non-portable paths ${nonportable_after:-0}. Backup: settings.json.bak"
                         failed_steps=$((failed_steps + 1))
                         if [ "$strict" = true ]; then
                             echo -e "  ${RED}STRICT ABORT${NC}  step 5 (hooks) partial convergence"
@@ -2207,6 +2241,12 @@ print(f'{len(fw_hooks)}|{len(consumer_hooks)}|{len(missing)}|{stale}|{missing_na
             fi
         else
             echo -e "  ${GREEN}OK${NC}  $consumer_total/$fw_total hooks present (all types matched)"
+        fi
+        # T-3906: the consumer's own hooks are information, not a gap.
+        local project_hook_count
+        project_hook_count=$(echo "$hook_analysis" | cut -d'|' -f7)
+        if [ "${project_hook_count:-0}" -gt 0 ]; then
+            echo -e "    ${CYAN}↳${NC}  ${project_hook_count} project hook(s) of your own kept as-is (not framework hooks; never a gap)"
         fi
 
         # T-1479: Duplicate framework hook detection.
@@ -2440,113 +2480,59 @@ MCPJSON
     # template changes, so upstream fixes never propagated.
     echo -e "${YELLOW}[7/10] Claude Code commands${NC}"
 
-    local resume_file="$target_dir/.claude/commands/resume.md"
-    local resume_tmpl="$FRAMEWORK_ROOT/lib/templates/resume-md.md"
+    # T-3955/T-3956: one decision per template-owned project file. Any difference from the
+    # template used to mean "drift → replace (.bak)", which overwrote a consumer's customised
+    # /resume and, in 010-termlink (the toolkit's origin), 15 NEWER files with older copies.
+    # lib/upgrade_template_sync.py updates only a stock copy (hash = what the framework last
+    # wrote); a customised, newer or unrecorded file is KEPT and the template is written
+    # beside it as <file>.upstream. Consumers can claim files in .fwvendor-preserve.yaml
+    # (project_files:).
+    local _uts="$FRAMEWORK_ROOT/lib/upgrade_template_sync.py" _uts_dry="" _uts_line
+    [ "$dry_run" = true ] && _uts_dry="--dry-run"
+    _uts_report() {   # one helper line -> colour + change count
+        local line="$1" st="${1%% *}"
+        case "$st" in
+            OK) return 0 ;;
+            KEPT|WOULD-KEPT|PRESERVED|WOULD-PRESERVED) echo -e "  ${YELLOW}${st}${NC}  ${line#* }" ;;
+            ERROR) echo -e "  ${YELLOW}WARN${NC}  template sync skipped — ${line#* } (file left untouched)"; return 0 ;;
+            WOULD-*) echo -e "  ${CYAN}${st}${NC}  ${line#* }" ;;
+            *) echo -e "  ${GREEN}${st}${NC}  ${line#* }" ;;
+        esac
+        changes=$((changes + 1)); _t1867_changes=$((_t1867_changes + 1))
+    }
 
+    local resume_tmpl="$FRAMEWORK_ROOT/lib/templates/resume-md.md"
+    local _t1867_changes=0
     if [ ! -f "$resume_tmpl" ]; then
-        echo -e "  ${YELLOW}WARN${NC}  template missing at lib/templates/resume-md.md — skipping drift check"
-    elif [ -f "$resume_file" ]; then
-        if diff -q "$resume_tmpl" "$resume_file" >/dev/null 2>&1; then
+        echo -e "  ${YELLOW}WARN${NC}  template missing at lib/templates/resume-md.md — skipping"
+    else
+        _uts_line=$(python3 "$_uts" "$target_dir" "$resume_tmpl" ".claude/commands/resume.md" $_uts_dry 2>&1) || _uts_line="ERROR helper failed: ${_uts_line:-no output}"
+        if [ "${_uts_line%% *}" = OK ]; then
             echo -e "  ${GREEN}OK${NC}  resume.md matches template"
         else
-            changes=$((changes + 1))
-            if [ "$dry_run" = true ]; then
-                echo -e "  ${CYAN}WOULD UPDATE${NC}  resume.md (drift from template detected)"
-            else
-                cp "$resume_file" "$resume_file.bak"
-                cp "$resume_tmpl" "$resume_file"
-                echo -e "  ${GREEN}UPDATED${NC}  resume.md refreshed from template. Backup: resume.md.bak"
-            fi
-        fi
-    else
-        changes=$((changes + 1))
-        if [ "$dry_run" = true ]; then
-            echo -e "  ${CYAN}WOULD CREATE${NC}  .claude/commands/resume.md"
-        else
-            mkdir -p "$target_dir/.claude/commands"
-            cp "$resume_tmpl" "$resume_file"
-            echo -e "  ${GREEN}CREATED${NC}  .claude/commands/resume.md from template"
+            _uts_report "$_uts_line"
         fi
     fi
 
     # ── 7b. Doorbell+mail toolkit propagation (T-1867) ──
-    # Propagates skills + supporting scripts from upstream lib/templates/
-    # to project-root .claude/commands/ and scripts/. Mirrors the resume.md
-    # drift-detection pattern: per-file compare, .bak backup on drift, update.
-    # PL-124-safe by construction: only touches files explicitly enumerated
-    # under lib/templates/{skills,scripts}/. Consumer-local files in the same
-    # directories survive untouched.
+    # Skills + supporting scripts from upstream lib/templates/{skills,scripts}/ to the
+    # project's .claude/commands/ and scripts/. Only enumerated files are touched; every
+    # decision goes through the same helper as step 7 (T-3955).
     echo -e "${YELLOW}[7b/10] Doorbell+mail toolkit (T-1867)${NC}"
-
-    local _t1867_skills_src="$FRAMEWORK_ROOT/lib/templates/skills"
-    local _t1867_scripts_src="$FRAMEWORK_ROOT/lib/templates/scripts"
-    local _t1867_changes=0
-
-    if [ -d "$_t1867_skills_src" ]; then
-        mkdir -p "$target_dir/.claude/commands"
-        local _t1867_src _t1867_base _t1867_dst
-        for _t1867_src in "$_t1867_skills_src"/*.md; do
-            [ -f "$_t1867_src" ] || continue
-            _t1867_base=$(basename "$_t1867_src")
-            _t1867_dst="$target_dir/.claude/commands/$_t1867_base"
-            if [ -f "$_t1867_dst" ] && diff -q "$_t1867_src" "$_t1867_dst" >/dev/null 2>&1; then
-                :  # in sync
-            elif [ -f "$_t1867_dst" ]; then
-                _t1867_changes=$((_t1867_changes + 1))
-                if [ "$dry_run" = true ]; then
-                    echo -e "  ${CYAN}WOULD UPDATE${NC}  .claude/commands/$_t1867_base (drift)"
-                else
-                    cp "$_t1867_dst" "$_t1867_dst.bak"
-                    cp "$_t1867_src" "$_t1867_dst"
-                    echo -e "  ${GREEN}UPDATED${NC}  .claude/commands/$_t1867_base (backup: .bak)"
-                fi
-            else
-                _t1867_changes=$((_t1867_changes + 1))
-                if [ "$dry_run" = true ]; then
-                    echo -e "  ${CYAN}WOULD CREATE${NC}  .claude/commands/$_t1867_base"
-                else
-                    cp "$_t1867_src" "$_t1867_dst"
-                    echo -e "  ${GREEN}CREATED${NC}  .claude/commands/$_t1867_base"
-                fi
-            fi
-        done
-    fi
-
-    if [ -d "$_t1867_scripts_src" ]; then
-        mkdir -p "$target_dir/scripts"
-        for _t1867_src in "$_t1867_scripts_src"/*.sh; do
-            [ -f "$_t1867_src" ] || continue
-            _t1867_base=$(basename "$_t1867_src")
-            _t1867_dst="$target_dir/scripts/$_t1867_base"
-            if [ -f "$_t1867_dst" ] && diff -q "$_t1867_src" "$_t1867_dst" >/dev/null 2>&1; then
-                :  # in sync
-            elif [ -f "$_t1867_dst" ]; then
-                _t1867_changes=$((_t1867_changes + 1))
-                if [ "$dry_run" = true ]; then
-                    echo -e "  ${CYAN}WOULD UPDATE${NC}  scripts/$_t1867_base (drift)"
-                else
-                    cp "$_t1867_dst" "$_t1867_dst.bak"
-                    cp "$_t1867_src" "$_t1867_dst"
-                    chmod +x "$_t1867_dst"
-                    echo -e "  ${GREEN}UPDATED${NC}  scripts/$_t1867_base (backup: .bak)"
-                fi
-            else
-                _t1867_changes=$((_t1867_changes + 1))
-                if [ "$dry_run" = true ]; then
-                    echo -e "  ${CYAN}WOULD CREATE${NC}  scripts/$_t1867_base"
-                else
-                    cp "$_t1867_src" "$_t1867_dst"
-                    chmod +x "$_t1867_dst"
-                    echo -e "  ${GREEN}CREATED${NC}  scripts/$_t1867_base"
-                fi
-            fi
-        done
-    fi
-
+    _t1867_changes=0
+    local _t1867_src
+    for _t1867_src in "$FRAMEWORK_ROOT/lib/templates/skills"/*.md; do
+        [ -f "$_t1867_src" ] || continue
+        _uts_line=$(python3 "$_uts" "$target_dir" "$_t1867_src" ".claude/commands/$(basename "$_t1867_src")" $_uts_dry 2>&1) || _uts_line="ERROR helper failed: ${_uts_line:-no output}"
+        _uts_report "$_uts_line"
+    done
+    for _t1867_src in "$FRAMEWORK_ROOT/lib/templates/scripts"/*.sh; do
+        [ -f "$_t1867_src" ] || continue
+        _uts_line=$(python3 "$_uts" "$target_dir" "$_t1867_src" "scripts/$(basename "$_t1867_src")" $_uts_dry --exec 2>&1) || _uts_line="ERROR helper failed: ${_uts_line:-no output}"
+        _uts_report "$_uts_line"
+    done
     if [ "$_t1867_changes" -eq 0 ]; then
         echo -e "  ${GREEN}OK${NC}  doorbell+mail toolkit in sync (0 changes)"
-    else
-        changes=$((changes + _t1867_changes))
     fi
 
     # ── 8. Context subdirectories (create missing) ──

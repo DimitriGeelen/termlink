@@ -8,6 +8,8 @@ description: >
   traceable tool-call sequences. Explore only — understand tradeoffs before deciding.
 status: work-completed
 workflow_type: inception
+target_blast_radius: 3
+voi_score: 0.5
 owner: human
 horizon: null
 tags: [architecture, orchestrator, tool-call, exploration]

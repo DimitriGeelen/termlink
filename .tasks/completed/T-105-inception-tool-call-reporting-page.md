@@ -7,6 +7,8 @@ description: >
   inception until T-104 has a defined schema and data. Horizon: later.
 status: work-completed
 workflow_type: inception
+target_blast_radius: 3
+voi_score: 0.5
 owner: human
 horizon: null
 tags: [observability, reporting, ui, tool-calls]

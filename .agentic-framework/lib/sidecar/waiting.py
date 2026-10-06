@@ -207,9 +207,10 @@ def note_no_recipient(msg_ids: list[str], reason: str) -> list[dict]:
     (receipts.send dedupes on ok rows)."""
     rows = []
     replied = replied_ids()
+    answered = answered_set(replied) if msg_ids else set()   # T-3920: once, not per message
     for mid in msg_ids:
         env = receiver.read_message(mid)
-        if not env or is_closed_inbound(mid, replied):
+        if not env or is_closed_inbound(mid, replied, answered):
             continue
         first = waiting_event(mid)
         if first is None:
@@ -265,9 +266,28 @@ def replied_ids() -> set[str]:
     return out
 
 
-def is_closed_inbound(mid: str, replied: set[str] | None = None) -> bool:
-    return (receiver.is_message_handed_over(mid) or is_dropped(mid)
-            or mid in (replied_ids() if replied is None else replied))
+def answered_set(replied: set[str] | None = None) -> set[str]:
+    """Base ids of every inbound message our agent answered — the inject gate's
+    predicate (seen.answered_ids) plus this module's direct-path replies.
+    T-3920: build it ONCE per listing; it reads the whole sent ledger and every
+    outbox file (~0.5 s), and calling it per message made /approvals take 27 s."""
+    from . import seen
+    out = {seen.base(i) for i in (replied_ids() if replied is None else replied)}
+    return out | seen.answered_ids()
+
+
+def is_closed_inbound(mid: str, replied: set[str] | None = None,
+                      answered: set[str] | None = None) -> bool:
+    if receiver.is_message_handed_over(mid) or is_dropped(mid):
+        return True
+    # T-3909: "answered" under EVERY id the message is known by — a peer's
+    # `<id>-nudge-N` copy of mail we replied to is answered too. The inject gate
+    # (seen.withheld, T-3872) already asked it this way; this path tested the raw
+    # id, so ring20 got operator escalations for nudge copies of answered threads.
+    from . import seen
+    if answered is None:
+        answered = answered_set(replied)
+    return bool(seen.keys_for(mid, receiver.read_message(mid)) & answered)
 
 
 def recovering(mid: str) -> dict | None:
@@ -356,8 +376,11 @@ def inbound_items(now: datetime | None = None) -> list[dict]:
             "state": "store-failed", "escalated": levels.get(f"in:{mid}", []),
             "last_recover": None, "actions": ["drop"],
         })
-    for mid in receiver.list_pending_messages():
-        if is_closed_inbound(mid, replied):
+        out[-1]["preview"], out[-1]["text"] = _message_text(env.get("body"))  # T-3921
+    pending = receiver.list_pending_messages()
+    answered = answered_set(replied) if pending else set()   # T-3920: once, not per message
+    for mid in pending:
+        if is_closed_inbound(mid, replied, answered):
             continue
         msg = receiver.read_message(mid) or {}
         stored = _ts(msg.get("_stored_at")) or now
@@ -383,6 +406,8 @@ def inbound_items(now: datetime | None = None) -> list[dict]:
             "last_recover": last,
             "actions": ["recover", "drop"],
         })
+        # T-3921: what the message SAYS — the operator decides on content.
+        out[-1]["preview"], out[-1]["text"] = _message_text(msg.get("body"))
     return out
 
 
@@ -447,7 +472,9 @@ def outbound_items(now: datetime | None = None) -> list[dict]:
 
 
 def _out_item(cid, to, conv, urgent, path, t0, age, wrow, state, levels) -> dict:
+    preview, text = _message_text(_outbox_body(cid))   # T-3921: what WE sent
     return {
+        "preview": preview, "text": text,
         "side": "outbound", "id": cid, "key": f"out:{cid}", "peer": _safe(to, "unknown"),
         "conversation_id": _safe(conv), "urgent": urgent, "via": path,
         "since": t0.isoformat(), "age_s": round(age),
@@ -460,6 +487,29 @@ def _out_item(cid, to, conv, urgent, path, t0, age, wrow, state, levels) -> dict
         # can do; the sender may still close it.
         "actions": ["drop"],
     }
+
+
+TEXT_CAP = 4000
+PREVIEW_CAP = 160
+
+
+def _message_text(body) -> tuple[str | None, str | None]:
+    """(preview, text) for the operator's Watchtower card (T-3921) — never for
+    render(): the handover and CLI listing are read by agents, and peer text
+    reaches an agent only framed as untrusted data (T-3558)."""
+    if not body:
+        return None, None
+    text = "".join(c if (c.isprintable() or c == "\n") else " " for c in str(body))[:TEXT_CAP]
+    flat = " ".join(text.split())
+    preview = flat if len(flat) <= PREVIEW_CAP else flat[:PREVIEW_CAP - 1].rstrip() + "…"
+    return preview, text
+
+
+def _outbox_body(cid: str):
+    try:
+        return json.loads((outbox._outbox_dir() / f"{cid}.json").read_text(encoding="utf-8")).get("body")
+    except (OSError, ValueError, AttributeError):
+        return None
 
 
 def _safe_note(note) -> str | None:

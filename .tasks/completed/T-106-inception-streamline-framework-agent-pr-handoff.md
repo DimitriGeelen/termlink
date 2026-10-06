@@ -9,6 +9,8 @@ description: >
   making this a skill or agent — structured, repeatable, eventually TermLink-routed.
 status: work-completed
 workflow_type: inception
+target_blast_radius: 3
+voi_score: 0.5
 owner: human
 horizon: null
 tags: [framework, workflow, skill, agent-mesh, pr-handoff]

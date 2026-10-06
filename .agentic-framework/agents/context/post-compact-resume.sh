@@ -34,9 +34,12 @@ except Exception:
 # reboot is a cold start), so this sits before the startup early exits below.
 # Detached: the hook never waits on it and never fails because of it.
 if [ -f "$FRAMEWORK_ROOT/lib/watchtower-ensure.sh" ] && command -v setsid >/dev/null 2>&1; then
+    # T-3915: close fds 3-9 too — a detached server inheriting a caller's extra
+    # descriptor (bats uses fd 3) kept the caller waiting forever after its own
+    # work was done, and each such run leaked a Watchtower (13 found, up to 5 h old).
     ( PROJECT_ROOT="$PROJECT_ROOT" FRAMEWORK_ROOT="$FRAMEWORK_ROOT" setsid bash -c \
         '. "$FRAMEWORK_ROOT/lib/watchtower-ensure.sh" && fw_watchtower_ensure' \
-        </dev/null >/dev/null 2>&1 & ) >/dev/null 2>&1
+        </dev/null >/dev/null 2>&1 3>&- 4>&- 5>&- 6>&- 7>&- 8>&- 9>&- & ) >/dev/null 2>&1
 fi
 
 # T-2376: this hook now also fires on SessionStart source "startup" (added so the
@@ -275,6 +278,11 @@ fi
 # cron's/explicit-call's job). Never blocks the session: on timeout or a
 # non-zero exit, the last-known line is read back from the cache file instead.
 FABRIC_DESCRIBE_TIMEOUT="${FW_FABRIC_DESCRIBE_TIMEOUT:-10}"
+# T-3915: GNU `timeout 0` means NO limit — a 0, empty or non-numeric value
+# would let session start wait unbounded (measured: 15 min). Bound it.
+case "$FABRIC_DESCRIBE_TIMEOUT" in
+    ''|*[!0-9.]*|.|0|0.0|00) FABRIC_DESCRIBE_TIMEOUT=10 ;;
+esac
 FABRIC_CACHE="$PROJECT_ROOT/.context/working/.fabric-describe.last"
 if [ -d "$PROJECT_ROOT/.fabric/components" ]; then
     FABRIC_OUT=$(cd "$PROJECT_ROOT" && PROJECT_ROOT="$PROJECT_ROOT" timeout "$FABRIC_DESCRIBE_TIMEOUT" \

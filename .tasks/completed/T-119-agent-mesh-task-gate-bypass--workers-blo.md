@@ -7,6 +7,8 @@ description: >
   their session. Workers need an ungated write path or task-aware dispatch.
 status: work-completed
 workflow_type: inception
+target_blast_radius: 3
+voi_score: 0.5
 owner: human
 horizon: null
 tags: [agent-mesh, enforcement, bug]

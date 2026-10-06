@@ -1,0 +1,8 @@
+{
+ ".claude/commands/broadcast-chat.md": "c56624ed26662598a244875563592cfa6f8209f4220284a45235e3757a76c362",
+ ".claude/commands/conversations.md": "a38ba5bedd9ec390fab386765d0d83ece77b3afa717f1815a6dccee71a3446b3",
+ ".claude/commands/recent-chat.md": "57ff99873ca5b3429e69f6c14ee112cb1d347d8edf5289b794363b8eb7d98fcd",
+ ".claude/commands/recent-dm.md": "15f28afeb94353018a61ec4d73c3c3e306a15fd3b6579a3ee11a631079d3238e",
+ "scripts/agent-conversation-list.sh": "c7cb0f4745afc623152b0bb9d02d11cac8cb1e01b478830daed64bbad3b024b1",
+ "scripts/agent-identity.sh": "01a5b85dc575b37ace7692e534113f477a897b700b292828f292848c18a764ca"
+}

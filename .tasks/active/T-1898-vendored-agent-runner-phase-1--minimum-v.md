@@ -15,6 +15,8 @@ description: >
 
 status: captured
 workflow_type: inception
+target_blast_radius: 7  # T-3376: agent estimate replacing the T-3948 default — new service, cross-repo
+voi_score: 0.4  # T-3376: bears on the open idle-session wake gap (arc-011)
 owner: human
 horizon: later
 tags: [conversation-arc, presence, agent-runtime]

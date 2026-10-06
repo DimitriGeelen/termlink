@@ -6,6 +6,8 @@ description: >
 
 status: work-completed
 workflow_type: inception
+target_blast_radius: 3
+voi_score: 0.5
 owner: agent
 horizon: null
 tags: [T-1155, bus, migration, T-1163-followup]

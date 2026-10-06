@@ -9,6 +9,8 @@ description: >
   captured via fw bus, but the thinking behind them is not. Explore options.
 status: work-completed
 workflow_type: inception
+target_blast_radius: 3
+voi_score: 0.5
 owner: human
 horizon: null
 tags: [sub-agents, transcript, persistence, ephemeral, sidechain]

@@ -5,6 +5,8 @@ description: >
   Two-path upstream reporting for consumer-to-framework feedback. PRIMARY: TermLink inject-remote — directly inject improvement prompts into framework agent Claude session on another machine (proven in T-184/T-185: 5 prompts, 7.4KB injected). FALLBACK: fw upstream report --title ... --attach-doctor — create a task file with evidence when TermLink not available. Both scenarios need clear docs. Discovered 2026-03-18.
 status: work-completed
 workflow_type: inception
+target_blast_radius: 3
+voi_score: 0.5
 owner: human
 horizon: null
 tags: [framework, cli, upstream]

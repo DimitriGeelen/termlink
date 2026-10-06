@@ -6,6 +6,8 @@ description: >
 
 status: work-completed
 workflow_type: inception
+target_blast_radius: 3
+voi_score: 0.5
 owner: human
 horizon: null
 tags: [pickup, framework, dispatch, multi-agent, worktree, T-789, T-1155]
