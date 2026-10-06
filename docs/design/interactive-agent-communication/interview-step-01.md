@@ -543,3 +543,14 @@ the output in one pass after the last question.
        states, additions justified. Size and counts are growth tripwires only. One sidecar per agent stays.
    3c. Leaves open: diagnosis-time bound and state cap (step 3); applying it to AEF's Python sidecar.
 
+
+### 2026-10-06 — progressive insight: the chase loop is sidecar code, not an LLM turn (operator)
+
+Operator (voice, restated and accepted): the sender-side chase of an unanswered message follows the two
+ladders (OD-3 correction: normal = each rung twice from 1 min; urgent = continuous from 15 s), and it must be
+**an API call on the sidecar, never an LLM turn** — calling the model to poll is very wasteful and slow. The loop
+is **vendor-neutral**: a cron job, or a one-shot script that on each run computes the next rung and reschedules
+itself (self-rescheduling, not a resident model loop). When a reply arrives it reaches the agent by the
+normal path, prompt injection. Ownership: AEF, together with send-and-wait (pickup 319); goes into the 319
+supplement. The interim `scratchpad/ladder-watch.sh` used in this session is the right shape but runs inside
+the agent's harness; the requirement is that it runs without one.
