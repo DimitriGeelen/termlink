@@ -350,6 +350,7 @@ if [ "$CHECKPOINT_MODE" = true ]; then
 ---
 session_id: $SESSION_ID
 timestamp: $TIMESTAMP
+enrichment_status: pending
 type: checkpoint
 tasks_active: [$ACTIVE_TASKS]
 tasks_parked: [$PARKED_TASKS]
@@ -778,6 +779,7 @@ cat > "$HANDOVER_FILE" << EOF
 ---
 session_id: $SESSION_ID
 timestamp: $TIMESTAMP
+enrichment_status: pending
 predecessor: $PREDECESSOR
 tasks_active: [$ACTIVE_TASKS]
 tasks_parked: [$PARKED_TASKS]
@@ -1445,15 +1447,15 @@ fi
 cat >> "$HANDOVER_FILE" << EOF
 ## Decisions Made This Session
 
-None
+[TODO: decisions taken this session, or "None" once a session agent has checked. T-2882: the generator cannot know this — an unfilled section must read as unfilled.]
 
 ## Things Tried That Failed
 
-None
+[TODO: approaches tried and abandoned, or "None" once checked (T-2882).]
 
 ## Open Questions / Blockers
 
-None
+[TODO: open questions and blockers, or "None" once checked (T-2882).]
 
 ## Token Usage
 
@@ -1469,7 +1471,7 @@ fi)
 
 ## Gotchas / Warnings for Next Session
 
-See gaps register above.
+[TODO: traps the next session should know about. The gaps register above is a starting point, not an answer — T-2882.]
 
 ## Suggested First Action
 
@@ -1544,7 +1546,9 @@ for f in sorted(glob.glob(os.path.join(tasks_dir, '*.md'))):
 # T-1719 — a task in no other section except a bare id in tasks_active.
 focus_id = ''
 try:
-    with open(os.path.join('$CONTEXT_DIR', 'working', 'focus.yaml')) as fh:
+    # T-2882/T-3370 (local): fall back to PROJECT_ROOT/.context when CONTEXT_DIR is
+    # unset, so the focus lookup never silently reads '/working/focus.yaml'.
+    with open(os.path.join('${CONTEXT_DIR:-$PROJECT_ROOT/.context}', 'working', 'focus.yaml')) as fh:
         m = re.search(r'^current_task:\s*(\S+)', fh.read(), re.M)
         if m:
             focus_id = m.group(1).strip().strip(chr(39) + chr(34))
@@ -1559,12 +1563,21 @@ except OSError:
 candidates.sort(key=lambda c: c[2], reverse=True)
 candidates.sort(key=lambda c: (c[0], c[1]))
 focused = [c for c in candidates if c[3] == focus_id] if focus_id else []
+_why = ''
 if focused:
     _, _, _, tid, tname = focused[0]
-    print(f'Continue {tid}: {tname}')
+    _why = 'current focus'
 elif candidates:
     _, _, _, tid, tname = candidates[0]
+    _why = 'owner, horizon and last update'
+if _why:
     print(f'Continue {tid}: {tname}')
+    print()
+    # T-2882 (LOCAL DIVERGENCE, re-applied after the 1.8.3 re-vendor, T-3370):
+    # a constant presented as advice reads as a recommendation; say what it is.
+    print(f'_Mechanical fallback, ranked by {_why} — not a reasoned recommendation.'
+          ' This handover is \`enrichment_status: pending\`; the sections above are'
+          ' unfilled. Confirm against the task before acting on it._')
 else:
     print('See active tasks')
 " 2>/dev/null || echo "See active tasks")
