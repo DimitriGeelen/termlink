@@ -47,21 +47,21 @@ sends to us reach RECEIVED / HANDED_OVER. Analysis and step order: `docs/reports
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `.agentic-framework/VERSION` reads 1.8.3 and `fw sidecar` is a known command
-- [ ] `.gitignore` re-includes the vendor stamp, secret-scan files, `.upstream` and the designer corpus, while `.agentic-framework/.context/working/` stays ignored
-- [ ] The 15 TermLink-origin toolkit files overwritten by upgrade step 7b are restored to our versions (no diff against the pre-upgrade commit)
-- [ ] CLAUDE.md differs from the pre-upgrade copy only in the framework-managed region below `## Core Principle`
-- [ ] Every NOT-CARRIED fix in the divergence check is re-applied or explicitly dispositioned, T-3178 (Tier-1 write gate) first, each with its fixture green
-- [ ] `.vendor-divergence.yaml` records the new `last_vendor_event` and the re-applied fixes; `check-vendor-divergence.sh` exits 0
+- [x] `.agentic-framework/VERSION` reads 1.8.3 and `fw sidecar` is a known command
+- [x] `.gitignore` re-includes the vendor stamp, secret-scan files, `.upstream` and the designer corpus, while `.agentic-framework/.context/working/` stays ignored
+- [x] The 15 TermLink-origin toolkit files overwritten by upgrade step 7b are restored to our versions (no diff against the pre-upgrade commit)
+- [x] CLAUDE.md differs from the pre-upgrade copy only in the framework-managed region below `## Core Principle`
+- [x] Every NOT-CARRIED fix in the divergence check is re-applied or explicitly dispositioned, T-3178 (Tier-1 write gate) first, each with its fixture green
+- [x] `.vendor-divergence.yaml` records the new `last_vendor_event` and the re-applied fixes; `check-vendor-divergence.sh` exits 0
 - [ ] `fw doctor` shows no new FAIL; the guard layer has no new FAIL-tier red compared with before the upgrade
 - [ ] `fw cron install` run from /opt/termlink; the sidecar-sweep job is installed
-- [ ] Exactly one receiver consumes `inbox:cacc73ea32b121dd/010-termlink`; a test send from another identity reaches RECEIVED
-- [ ] Upstream filings sent for: step 7b overwriting the origin toolkit, shallow-clone refusal in the default upgrade path, T-3178 still open, hazard H1
+- [x] Exactly one receiver consumes `inbox:cacc73ea32b121dd/010-termlink`; a test send from another identity reaches RECEIVED
+- [x] Upstream filings sent for: step 7b overwriting the origin toolkit, shallow-clone refusal in the default upgrade path, T-3178 still open, hazard H1
 
 ### Human
 - [ ] [RUBBER-STAMP] Restart this session under the new framework
   **Steps:**
-  1. Run `/opt/termlink/runme.sh` (the agent adds the action)
+  1. Run `/opt/termlink/runme.sh` (action 13 installs the sidecar-sweep cron job)
   2. Exit this Claude session and start it again with `claude-fw --termlink` from /opt/termlink, then `/resume`
   **Expected:** session start shows the sidecar mail check (`fw sidecar alerts`) and no HOOK CRASHED line
   **If not:** paste the session-start output to the agent
