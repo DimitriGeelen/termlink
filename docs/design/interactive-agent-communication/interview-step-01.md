@@ -487,3 +487,30 @@ the output in one pass after the last question.
 14. **OD-17 complete** (2026-10-06): 12 candidates walked and ruled; CAND-5, -7, -9, -11, -15 settled by earlier rulings;
     CAND-19 merged into CAND-2.
 
+## OD-18 Several agents per project: who answers, who coordinates (section 9.21) — ruled A revised, after external review
+
+1. Asked 2026-10-06 with options A (deterministic rule at the home hub over a fenced lease held by code; introduce,
+   then step aside), B (a central coordinator agent carrying the traffic), C (no exclusivity, first claim wins),
+   D (the sender names the exact instance). Background: the operator's two options of 2026-10-04 (one central agent,
+   or a coordinator function that another agent takes over), merged by the round-3 reviewers (RV2 items 43-51);
+   ring20-manager's 8 unanswered requests; hub claims with leases exist (T-2019, T-2046) without a generation.
+2. Operator asked for review by the subscription reviewers. Codex and GLM (16 findings each,
+   `docs/reports/T-3344-od18-review/`) agreed: a sidecar-renewed lease proves the process is alive, not that the agent
+   can take a turn (the 32,205-refusal sidecar would hold "main" forever); busy is not dead; fence at role state
+   changes, not per message; generation never reused; accepted work is not moved blindly; operator pin;
+   vacancy goes to the operator; OD-14's last rung is circular when main is the failure; ship "main" first.
+3. **Operator ruling: "A"** (revised): only "main" now; readiness-gated lease (adapter ready plus real hand-over or an
+   idle readiness check); busy keeps main, takeover only after lapse plus quiet period plus cooldown, no automatic
+   take-back; durable generation checked at role state changes, old holder told and releases on clean shutdown,
+   its conversation replies stay valid, unfenceable external effects reconciled; unaccepted role requests move,
+   accepted ones stay, a dead holder's obligations classified with uncertain ones to the operator; selection by
+   operator pin, else healthy incumbent, else priority then reachability then stable id, eligibility attested on
+   the card, first holder appointed at setup; vacancy "unassigned" to the operator, starts only under an OD-15
+   grant; two live copies give "authority unknown"; remote senders resolve via the verified home hub; visible "who
+   holds main", audited override; two standing tests (lapse during an open obligation; stuck holder with a live
+   sidecar) must end in a visible takeover.
+4. **OD-14 amended by this ruling:** the last escalation rung lands in main's list and also goes to the operator or
+   cockpit whenever main is unassigned, failing or being taken over.
+5. Authorises: R-32, R-34 changes; new requirements for "main"; the OD-14 amendment; the two standing tests.
+   Leaves open: lease duration, quiet period, cooldown, idle readiness check, priority configuration format (step 4).
+
