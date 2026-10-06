@@ -28,6 +28,17 @@ open decision in the current queue.
   signal turned out to be unused by the hub. Both were found only by checking.)
 - **If an earlier claim of yours turns out wrong, say so first**, in a short
   "What I got wrong" list, before the new analysis. Correct the record on disk too.
+- **Check the decision is decidable before inviting it (ring20 lesson 5.17, adopted
+  2026-10-06).** Every open question it depends on is disposed, and the recommendation
+  is current after any scope change. If not, say what is missing and keep shaping; while
+  an inception is still being shaped its Recommendation stays DEFER ("shaping in
+  progress"). Never point the operator at a GO button that a gate will refuse.
+- **External review rounds are capped at 2–3 per step (ring20 lesson 5.16).** After the
+  cap every remaining finding is accepted (with a change request), rejected (with a
+  reason) or deferred (with a risk acceptance), never sent round again; final-round
+  points become acceptance criteria in the build task. Subscription-seat reviewers
+  (claude-code, codex, opencode) may be dispatched without asking; a paid route
+  (OpenRouter) needs the operator's go each time; never put secrets in a brief (lesson 5.18).
 
 ## Step 2: Write the brief
 
@@ -125,3 +136,7 @@ the queue and that it waits for "next".
   list item `1`, `2`, `3` → `1a`, `1b` → `1aa`, `1ab`, numbered uniquely across the whole
   brief (continue, do not restart per section). Options keep `A`–`D`. The operator rules
   by reference ("C, and drop 2b"), often by voice.
+- NEVER cite an id the operator must know or decide by (IW-2, GP-11, §5E.2, T-3359, a gap,
+  a finding number) without a one-sentence plain-language restatement next to it
+  (ring20 lesson 5.15, adopted 2026-10-06), e.g. "GP-11 (the operator as a party to agent
+  conversations)". Applies to chat, Watchtower criteria, runme and approval hand-offs.

@@ -5,6 +5,7 @@
 | Version | Date | Change | Task |
 |---|---|---|---|
 | 0.1 | 2026-10-04 | Documentation layer adopted from ring20 T-2222 v0.2 (operator ruling C) | T-3339 |
+| 0.2 | 2026-10-06 | ring20 practice v0.3: lessons 5.15–5.18 adopted (operator ruling A); 5.15–5.17 in `/decision-brief`, 5.18 applied (subscription-seat reviews without asking, paid routes only with the operator's go, no secrets in briefs) | T-3344 |
 
 ## 1 Provenance
 
@@ -26,8 +27,9 @@ document). Hashes: `upstream-ring20/SHA256SUMS` (`sha256sum -c` from this direct
 2.1.a Layer A, unchanged: AEF's inception (one question, research artifact first with a Dialogue Log, IW-n with
 dispositions, GO/NO-GO by the operator only, build tasks after GO).
 2.1.b Layer B, the documents: the 8 roles and their cards, the common rules, the hand-back record, the output
-skeleton (section 4), the two step-task criteria (section 5), required drawings, and ring20's 14 lessons
-(`upstream-ring20/T-2222-inception-protocol.md` section 5).
+skeleton (section 4), the two step-task criteria (section 5), required drawings, and ring20's 18 lessons
+(`upstream-ring20/T-2222-inception-protocol.md` section 5 for 5.1–5.14; v0.3's 5.15–5.18 in
+`upstream-ring20/T-2222-v0.3-lessons-5.15-5.18.md`, extracted from ring20's page until the canonical v0.3 file arrives).
 2.2 Not adopted yet, because vendored AEF 1.6.29 lacks `fw reviewer judge` and `fw reviewer verdict apply`:
 the driver `role-chain.py`, `role-handback-check.py`, `design-render-check.py`, and the rung-5 review panel. They
 come with the re-vendor to bleeding-edge AEF (a separate operator decision). Until then the orchestrator keeps

@@ -469,6 +469,15 @@ exists: `docs/design/roles/README.md` section 3. Operator ruling A recorded in D
 - **Rejected:** B (blocker only — "later" means never in a final round), C (soften blocker — the worker literally cannot reach the hub), D (silence reads as agreement).
 - **Left open:** anything ring20 answers back that needs a ruling.
 
+### 2026-10-06 — adopt ring20's inception practice v0.3, lessons 5.15–5.18 (operator ruling)
+- **Chose:** A — adopt all four: refresh our upstream copy to v0.3 and the roles index; 5.15 (restate ids in one
+  sentence), 5.16 (cap review rounds at 2–3, then disposition), 5.17 (only invite a decidable decision) into the
+  /decision-brief skill; 5.18 applied: subscription-seat reviews (claude-code, codex, opencode) dispatched on the
+  risk ladder without asking, paid routes only with the operator's go each time, no secrets in any brief.
+- **Why:** the operator ruled these for ring20 the same day; one practice across projects. Scored A +39, B +26, C 0, D −5.
+- **Rejected:** B (keep asking before every subscription review — friction without a catch), C (reference only), D (defer).
+- **Left open:** a TermLink route ledger (ring20/AEF territory) until needed.
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
