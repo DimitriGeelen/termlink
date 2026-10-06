@@ -29,25 +29,19 @@ WRITERS=8
 PER=60
 EXPECT=$((WRITERS * PER))
 
-# ---------------------------------------------------------------- fixed impl
-# The proposed upstream fix: serialise the whole read-modify-write on a
-# sidecar lock file. Same file format, same readers, no contract change.
-cat > "$TMP/fixed.sh" <<'IMPL'
-_fw_telemetry_increment_locked() {
-    local file="$1" key="$2" lockfd
-    local lock="${file}.lock"
-    exec {lockfd}>>"$lock" 2>/dev/null || { _fw_telemetry_increment "$file" "$key"; return 0; }
-    flock -w 5 "$lockfd" 2>/dev/null
-    _fw_telemetry_increment "$file" "$key"
-    exec {lockfd}>&-
-}
-IMPL
+# ---------------------------------------------------------------- T-3370
+# AEF 1.8.3 LANDED the fix this harness was evidence for (AEF T-3371: the vendored
+# _fw_telemetry_increment now serialises its read-modify-write with flock). Per this
+# file's header, the harness now becomes the local REGRESSION NET: the vendored
+# function itself must lose nothing. The former leg 2 (our own proposed flock
+# wrapper) is gone: it wrapped a function that now takes the same lock itself, so
+# every call waited out its 5 s timeout and then ran unlocked — slow and lossy,
+# measured 200/480 on 2026-10-06.
 
 WRITER="$TMP/writer.sh"
 cat > "$WRITER" <<EOF
 #!/usr/bin/env bash
 source "$FW_LIB"
-source "$TMP/fixed.sh"
 fn="\$1"; file="\$2"; n="\$3"; key="\$4"
 for i in \$(seq 1 "\$n"); do "\$fn" "\$file" "\$key"; done
 EOF
@@ -65,50 +59,38 @@ run_race() {  # $1=impl-fn $2=file -> prints observed total
 
 count_dupes() { awk -F= '/^[a-z-]+=/ {c[$1]++} END {for (k in c) if (c[k]>1) n++; print n+0}' "$1" 2>/dev/null; }
 
-echo "== leg 1: the unfixed vendored function must LOSE increments =="
-lost_any=0; dupe_any=0
-for run in 1 2 3; do
-    got="$(run_race _fw_telemetry_increment "$TMP/unfixed")"
-    d="$(count_dupes "$TMP/unfixed")"
-    printf '   run %s: expected=%s observed=%s duplicate_keys=%s\n' "$run" "$EXPECT" "$got" "$d"
-    [ "$got" -lt "$EXPECT" ] && lost_any=1
-    [ "${d:-0}" -gt 0 ] && dupe_any=1
-done
-if [ "$lost_any" = "1" ]; then
-    ok "unfixed impl loses increments under $WRITERS concurrent writers (the defect reproduces)"
-else
-    bad "unfixed impl did NOT lose increments — harness cannot go red, so it proves nothing"
-fi
+echo "== leg 0: the vendored function carries the upstream lock (AEF T-3371) =="
+if grep -q 'flock' "$FW_LIB"; then ok "vendored hook-telemetry.sh serialises with flock"
+else bad "vendored hook-telemetry.sh has no flock — the T-3371 fix is gone (re-vendor regression?)"; fi
 
-echo "== leg 2: the flock-serialised fix must lose NOTHING =="
+echo "== leg 1: the vendored function must lose NOTHING under contention =="
 clean=1
 for run in 1 2 3; do
-    got="$(run_race _fw_telemetry_increment_locked "$TMP/fixed")"
-    d="$(count_dupes "$TMP/fixed")"
+    got="$(run_race _fw_telemetry_increment "$TMP/vendored")"
+    d="$(count_dupes "$TMP/vendored")"
     printf '   run %s: expected=%s observed=%s duplicate_keys=%s\n' "$run" "$EXPECT" "$got" "$d"
     [ "$got" != "$EXPECT" ] && clean=0
     [ "${d:-0}" -gt 0 ] && clean=0
 done
 if [ "$clean" = "1" ]; then
-    ok "flock-serialised impl: exact count, zero duplicate keys, 3/3 runs"
+    ok "vendored impl: exact count, zero duplicate keys under $WRITERS writers, 3/3 runs"
 else
-    bad "flock-serialised impl still lost increments or duplicated keys"
+    bad "vendored impl lost increments or duplicated keys — the T-2982 race is back"
 fi
 
-echo "== leg 3: per-call overhead vs the T-1626 5ms budget =="
-source "$FW_LIB"; source "$TMP/fixed.sh"
+echo "== leg 2: per-call overhead vs the T-1626 5ms budget =="
+source "$FW_LIB"
 bench() {  # $1=fn $2=file -> ms per call
     rm -f "$2" "$2.lock"; local n=200 s e
     s=$(date +%s%N); for i in $(seq 1 $n); do "$1" "$2" bench >/dev/null 2>&1; done; e=$(date +%s%N)
     awk -v d="$((e-s))" -v n="$n" 'BEGIN{printf "%.3f", d/n/1000000}'
 }
-u="$(bench _fw_telemetry_increment "$TMP/bu")"
-l="$(bench _fw_telemetry_increment_locked "$TMP/bl")"
-printf '   unfixed=%sms  flock=%sms  budget=5.000ms\n' "$u" "$l"
-if awk -v v="$l" 'BEGIN{exit !(v < 5.0)}'; then
-    ok "flock variant stays inside the 5ms per-fire budget the comment cites"
+v="$(bench _fw_telemetry_increment "$TMP/bv")"
+printf '   vendored(flock)=%sms  budget=5.000ms\n' "$v"
+if awk -v v="$v" 'BEGIN{exit !(v < 5.0)}'; then
+    ok "vendored flock impl stays inside the 5ms per-fire budget"
 else
-    bad "flock variant exceeds the 5ms budget ($l ms) — fix needs a lock-free design"
+    bad "vendored flock impl exceeds the 5ms budget ($v ms)"
 fi
 
 echo
