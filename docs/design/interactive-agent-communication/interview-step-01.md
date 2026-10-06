@@ -446,4 +446,12 @@ the output in one pass after the last question.
        Nothing automatic answers anything automatic; receipts answer nothing; only an agent's decision creates
        content.
    9e. Leaves open: jitter width, adaptive-cap parameters, hop-limit value (step 4); telling AEF.
+10. **CAND-13 clock skew and version skew — ruled A** (2026-10-06).
+    10a. Facts given: urgent accept deadline 15 s and cross-host telemetry make skew matter; .107 NTP-synchronised,
+         nothing checks other hosts; hubs report version and protocol version (T-3345), protocol 1 fleet-wide;
+         the protocol-too-old error is unwired (T-2700, operator's own decision, not taken here).
+    10b. Ruled: P1 every deadline measured on one clock (the observer's own), never across hosts; P2 NTP required
+         and checked, telemetry tagged with the stamping host and a skew estimate, cross-host delays flagged past a
+         bound; P2 versions on the agent card, "old" distinct from "deaf", incompatible protocol refused loudly.
+    10c. Leaves open: skew bound (step 4); T-2700; 055's "one version estate-wide".
 

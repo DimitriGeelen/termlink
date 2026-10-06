@@ -28,7 +28,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-04T14:28:12Z
-last_update: 2026-10-05T23:40:50Z
+last_update: 2026-10-05T23:48:02Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -278,6 +278,12 @@ exists: `docs/design/roles/README.md` section 3. Operator ruling A recorded in D
 -->
 
 ## Decisions
+
+### 2026-10-06 — OD-17 CAND-13 clock skew and version skew (operator ruling)
+- **Chose:** A — P1: every deadline is measured on a single clock (the observer's own monotonic clock, from its own send time to when it sees the result), never by comparing two hosts' clocks, so STUCK is immune to skew. P2 clocks: NTP required and checked on every host (preflight check); each telemetry event records which host stamped it plus a skew estimate from the hub round trip; cross-host delays flagged past a bound. P2 versions: software and protocol versions on the agent card; "old version" shown distinct from "deaf"; an incompatible protocol version refused loudly; patch-number differences do not matter.
+- **Facts:** .107 NTP-synchronised; no skew check exists elsewhere; hubs report version and protocol version (T-3345): .107 0.12.220, .121/.122 0.12.221, all protocol 1; PROTOCOL_VERSION_TOO_OLD exists unwired (T-2700, owner human, not decided here).
+- **Rejected:** B all P1 (same value, more cost); C clocks only (floors say "too old", not "cannot receive X"); D defer (single-clock shapes STUCK's definition).
+- **Left open:** skew bound (step 4); T-2700; 055's "one version estate-wide" (not proposed).
 
 ### 2026-10-06 — OD-17 CAND-12 preventing flooding (operator ruling, refined in dialogue)
 - **Chose:** A — source control. P1: re-sends follow the message's own ladder (corrected OD-3: normal each rung twice, urgent continuous) with random jitter; an early re-send is refused and the sender told why; duplicates never reset it. P1: a cumulative cap on open messages per sending agent, starting at 100 (derived: answer rate ~20/h × 1 h deadline × ~5 peers — a guess until measured), adaptive once telemetry exists (grow while answered on time, halve when STUCK rises); over the cap sends wait at the sender, never dropped, shown in needs-attention. P1 storm prevention: hop limit on forwarded messages; three message classes — (1) protocol receipts (RECEIVED/STORED/HANDED_OVER) always flow, are never answered by anything (no ack of an ack), do not count against the cap; (2) automatic content (auto-responders, notifications, status broadcasts, canary pings, escalations, digests) carries the automatic marker, gets receipts, never triggers an automatic content reply (RFC 3834), counts against the cap, hop-limited; an agent may read it and answer deliberately; (3) deliberate content incl. REPLIED, normal rules; rule: nothing automatic answers anything automatic, receipts answer nothing, only an agent's decision creates content; circuit breaker toward a failing peer; hand-overs coalesced into one bundle at the receiver. P2: expiry, cancellation, receiver-advertised window.
