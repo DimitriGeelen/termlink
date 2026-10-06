@@ -1064,6 +1064,47 @@ head2 "13. Install the cron jobs AEF 1.8.3 added: sidecar ack-ledger sweep (T-33
 schedule_sidecar_sweep
 
 # ---------------------------------------------------------------------------
+# ACTION 14 — record the operator's own Human ticks in the provenance ledger (T-3351)
+#
+# The operator ticked T-3349 Human AC#1 ("Sign off step 1") in Watchtower on 2026-10-07.
+# Watchtower wrote no provenance row (.context/reviews/human-ac-ticks.jsonl did not
+# exist), so the pre-push audit FAILs on an "unprovenanced ### Human tick" and every push
+# is blocked. Only the operator may record that tick: the framework refuses it under
+# agent control. Running it here, from the operator's terminal, is that record.
+# The decision is already made (the operator ticked the box); this only records who did.
+# Idempotent: skipped when the ledger already holds an operator-ack row for the task.
+# Verified on disk. Seams (fixtures only): RUNME_HUMAN_TICKS_LEDGER, RUNME_HUMAN_TICKS_PY.
+# ---------------------------------------------------------------------------
+HUMAN_TICKS_LEDGER="${RUNME_HUMAN_TICKS_LEDGER:-$PROJECT_ROOT/.context/reviews/human-ac-ticks.jsonl}"
+HUMAN_TICKS_PY="${RUNME_HUMAN_TICKS_PY:-$PROJECT_ROOT/.agentic-framework/lib/human_ac_ticks.py}"
+OPERATOR_TICKS="T-3349:1"   # task:Human-AC-number, space-separated; each one the operator ticked themself
+
+has_operator_ack() { grep -F "\"task\": \"$1\"" "$HUMAN_TICKS_LEDGER" 2>/dev/null | grep -qF '"via": "operator-ack"'; }
+
+ack_operator_ticks() {
+    local spec task ac
+    for spec in $OPERATOR_TICKS; do
+        task="${spec%%:*}"; ac="${spec##*:}"
+        if has_operator_ack "$task"; then
+            say "  skip    $task Human AC#$ac: your tick is already recorded in $HUMAN_TICKS_LEDGER"; SKIPPED=$((SKIPPED+1)); continue
+        fi
+        if [ "$DRY_RUN" = "1" ]; then
+            say "  [DRY]   would record that you ticked $task Human AC#$ac (human_ac_ticks ack)"; DONE=$((DONE+1)); continue
+        fi
+        # No env scrubbing: under agent control (CLAUDECODE/AI_AGENT set) the framework refuses, and must.
+        (cd "$PROJECT_ROOT" && python3 "$HUMAN_TICKS_PY" ack "$task" --ac "$ac" >/dev/null 2>&1)
+        if has_operator_ack "$task"; then
+            say "  OK      recorded that you ticked $task Human AC#$ac (verified in $HUMAN_TICKS_LEDGER)"; DONE=$((DONE+1))
+        else
+            say "  FAILED  human_ac_ticks ack $task --ac $ac ran but $HUMAN_TICKS_LEDGER has no operator-ack row for $task"; FAILED=$((FAILED+1))
+        fi
+    done
+}
+
+head2 "14. Record your own tick on T-3349 (step-1 sign-off) so pushes are not blocked (T-3351)"
+ack_operator_ticks
+
+# ---------------------------------------------------------------------------
 # Verification — the project's own drift checker is the arbiter, not this script.
 # Using the repo's existing check rather than a bespoke one means this cannot
 # quietly disagree with what `fw audit` will say five minutes from now.

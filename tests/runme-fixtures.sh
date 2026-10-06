@@ -106,6 +106,20 @@ export RUNME_TASKS_DIR="$TMP/tasks" RUNME_FW="$TMP/fake-fw"
 export RUNME_AUDIT_CRON_FILE="$TMP/agentic-audit-termlink"
 cron_both() { printf '%s\n' '20 * * * * root cd "/x" && "/x/fw" index reindex' '3,8 * * * * root cd "/x" && "/x/fw" sidecar sweep' > "$RUNME_AUDIT_CRON_FILE"; }
 cron_both
+# T-3351 (action 14): temp tick ledger + a fake human_ac_ticks.py that appends an
+# operator-ack row (or nothing, under FAKE_TICK_NOWRITE=1). Default = T-3349 already
+# recorded, so every other case skips the action. The real ledger is never touched.
+export RUNME_HUMAN_TICKS_LEDGER="$TMP/human-ac-ticks.jsonl" RUNME_HUMAN_TICKS_PY="$TMP/fake-ticks.py"
+cat > "$RUNME_HUMAN_TICKS_PY" <<'EOF'
+import json, os, sys
+if os.environ.get("FAKE_TICK_NOWRITE") == "1":
+    sys.exit(0)
+task = sys.argv[2]
+with open(os.environ["RUNME_HUMAN_TICKS_LEDGER"], "a") as f:
+    f.write(json.dumps({"task": task, "via": "operator-ack", "by": "fixture"}, sort_keys=True) + "\n")
+EOF
+ticks_recorded() { echo '{"by": "fixture", "task": "T-3349", "via": "operator-ack"}' > "$RUNME_HUMAN_TICKS_LEDGER"; }
+ticks_recorded
 # T-3343 (action 12): fake stray hub. Default = no pidfile in the stray dir, so every
 # other case skips the action. The fake termlink records a stop and then answers
 # status with the canonical pid; the fake liveness reads a state file; no real
@@ -333,7 +347,7 @@ if [ "$(id -u)" != "0" ] && [ -n "${CI:-}" ]; then
 fi
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|') + 11 ))   # +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
+EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|') + 12 ))   # +1 operator tick record (T-3351); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -893,6 +907,28 @@ if [ "$rc" != "0" ] && echo "$out" | grep -q "still alive 15 s after 'hub stop'"
     ok "stray hub: a hub that will not stop is FAILED, never killed hard"
 else bad "stray nostop" "rc=$rc: $out"; fi
 rm -f "$TMP/stray/hub.pid"; echo alive > "$FAKE_STRAY_STATE"
+
+# 26. T-3351 — record the operator's own Human tick (T-3349), temp ledger only.
+: > "$RUNME_HUMAN_TICKS_LEDGER"
+out=$(run --dry-run); rc=$?
+if echo "$out" | grep -q "would record that you ticked T-3349 Human AC#1" && [ ! -s "$RUNME_HUMAN_TICKS_LEDGER" ]; then
+    ok "operator tick: --dry-run reports and records nothing"
+else bad "tick dry-run" "rc=$rc: $out"; fi
+out=$(run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      recorded that you ticked T-3349 Human AC#1 (verified" \
+   && grep -q '"via": "operator-ack"' "$RUNME_HUMAN_TICKS_LEDGER"; then
+    ok "operator tick: recorded and verified in the ledger"
+else bad "tick record" "rc=$rc: $out"; fi
+out=$(run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "skip    T-3349 Human AC#1: your tick is already recorded"; then
+    ok "operator tick: second run skips (idempotent)"
+else bad "tick idempotent" "rc=$rc: $out"; fi
+: > "$RUNME_HUMAN_TICKS_LEDGER"
+out=$(FAKE_TICK_NOWRITE=1 run); rc=$?
+if [ "$rc" != "0" ] && echo "$out" | grep -q "FAILED  human_ac_ticks ack T-3349 --ac 1 ran but"; then
+    ok "operator tick: an ack that records nothing is FAILED, not OK"
+else bad "tick nowrite" "rc=$rc: $out"; fi
+ticks_recorded
 
 echo ""
 echo "----------------------------------------"
