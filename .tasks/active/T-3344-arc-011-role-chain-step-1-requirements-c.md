@@ -28,7 +28,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-04T14:28:12Z
-last_update: 2026-10-06T22:18:02Z
+last_update: 2026-10-06T22:19:47Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -506,7 +506,12 @@ exists: `docs/design/roles/README.md` section 3. Operator ruling A recorded in D
   set at step 6 (planner). Scored A +22, C +5, B −3, D −10.
 - **J3 ruled A:** CAND-17 (fleet admission, signed advertisements; GLM's "biggest unstated gap") stays deferred to
   step 2, and is now named in section 13's step-2 row; v0.4 had marked it deferred there but the row omitted it.
-- **Pending:** J4–J5 rulings, then the role-chain yaml approval note and T-3349 closure (operator).
+- **J4 ruled A** (after the operator's correction): circuits apply to every established conversation, same host or
+  not (R-46.a "also across hosts"); R-7.d/e rewritten as one host-independent rule; a new conversation needs the
+  hub for set-up and otherwise waits on the ladder; the v0.3 same-host [P] test is superseded. The agent's J4 brief
+  had wrongly presented circuits as cross-host only. Open to step 2: may a same-host new conversation start without
+  the hub, and on what trust (added to section 13's step-2 row).
+- **Pending:** J5 ruling, then the role-chain yaml approval note and T-3349 closure (operator).
 - **Left open:** section 13.2 of v0.4 (GP-11 first).
 
 ## Decision
