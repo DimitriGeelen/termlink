@@ -28,7 +28,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-04T14:28:12Z
-last_update: 2026-10-06T09:13:01Z
+last_update: 2026-10-06T09:47:33Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -278,6 +278,12 @@ exists: `docs/design/roles/README.md` section 3. Operator ruling A recorded in D
 -->
 
 ## Decisions
+
+### 2026-10-06 — Gap review GP-12 a measurable "very simple" (operator ruling, after external review)
+- **Chose:** A revised — "very simple" (R-6) is accepted on verified behaviour; counts are review triggers. Acceptance: (1) a truthful status call with separately verified facts, each with freshness and explicit unknown — receiver alive, right hub (checked continuously), exclusive fenced inbox ownership, signing identity matches the agent, adapter ready, last real hand-over — backed by a bounded end-to-end probe through the real delivery path without an AI turn; (2) the five real failures as standing fault injections (misfiled key, two owners of one inbox, waker exclusion, a broken component, wrong runtime directory), each producing the right outcome and a specific diagnosis within a declared time; (3) automatic recovery after a kill at any delivery point, zero manual steps, no loss, no duplicate; (4) "why didn't my message arrive" answered from the status call alone within a set time, drilled; (5) clean install outside the checkout with tested upgrade, rollback and restart, no settings beyond the declared mail hub. Inventories (published, additions justified): components that must be alive, stores/files, identities/keys with allowed locations per agent; API operations derived from the rulings; message states, capped. Tripwires: growth in code size (within one implementation, all owned code) or any inventory count triggers review, never pass/fail. Shape: one sidecar per agent (R-6 confirmed); per-host only by operator amendment after a comparison under injected failures.
+- **Path:** first recommendation (five structural proxies: process count, one install command, one status call, ~10 API calls, 1,000-line cap); operator asked for external review (`docs/reports/T-3344-gp12-review/`: Codex 16, GLM 16, comparison). Both: the proxies measure packaging while the worst failures (misfiled key, waker exclusion, runtime wrong hub) pass all five; counts are gameable; make verified behaviour the acceptance. The collector's numbers were dropped.
+- **Rejected:** B line budget only; C operator judgement only; D defer to step 3.
+- **Left open:** diagnosis-time bound and message-state cap (step 3); applying the measure to AEF's Python sidecar (with AEF).
 
 ### 2026-10-06 — Gap review GP-0 adversary list (operator ruling)
 - **Chose:** A — ADV-1..ADV-7 confirmed as written; added ADV-8 a flooding or looping peer (CAND-12), ADV-9 a stale or partitioned authority holder (OD-18), ADV-10 estate drift: skewed clocks, mixed versions, a re-vendor deleting local fixes (CAND-13, G-062); ADV-6 widened to a misfiled signing key (T-3346) and two live copies of one project (OD-11). ADV-8..10 are the collector's, derived from this interview's rulings. Step 2 may add more.

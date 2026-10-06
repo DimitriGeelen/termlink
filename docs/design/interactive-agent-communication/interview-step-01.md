@@ -525,4 +525,21 @@ the output in one pass after the last question.
    skewed clocks, mixed versions, a re-vendor that deletes local fixes (CAND-13, G-062). ADV-6 widened to a misfiled
    signing key (T-3346) and two live copies of one project (OD-11). ADV-8..10 are the collector's proposal from this
    interview's rulings. Step 2 may add more.
+2. **GP-11 operator as a party — open** (2026-10-06). Operator corrected the first brief: out-of-band channels already
+   exist (ntfy, Signal, Mattermost, Watchtower, runme). ring20-manager's live inventory received (six channels, three
+   two-way; Mattermost desk = where decisions should go). Questions out to AEF, Penelope (050) and ring20-dashboard on
+   conversation operator-out-of-band-channels. At the operator's request an URGENT standardisation request went to
+   AEF (framework:pickup offset 319) before he asked to wait for all four answers; AEF was told to hold triage until a
+   supplement with the full inventory (inbox offset 561).
+3. **GP-12 a measurable "very simple" — ruled A revised, after external review** (2026-10-06).
+   3a. First recommendation: five structural proxies (one process per agent, one install command, one status call,
+       ~10 API calls, a 1,000-line cap). Operator asked for external review: Codex and GLM (16 findings each,
+       `docs/reports/T-3344-gp12-review/`) agreed the proxies measure packaging — the misfiled key, the waker
+       exclusion and the runtime wrong hub pass all five — and that counts are gameable.
+   3b. Ruled: acceptance by verified behaviour — truthful status call with separately verified, freshness-stamped
+       facts and an end-to-end probe; the five real failures as standing fault injections with a specific diagnosis
+       in a declared time; automatic recovery with zero manual steps; drilled diagnosis time; clean install with
+       upgrade, rollback and restart. Inventories of components, stores, identities/keys, API operations and message
+       states, additions justified. Size and counts are growth tripwires only. One sidecar per agent stays.
+   3c. Leaves open: diagnosis-time bound and state cap (step 3); applying it to AEF's Python sidecar.
 
