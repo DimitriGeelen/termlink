@@ -8,7 +8,7 @@
 
 | Version | Date | Change | Task |
 |---|---|---|---|
-| 0.1 | 2026-10-07 | First complete draft. Assets, adversaries ADV-1..ADV-10 with privileges (GP-15) and three proposed additions, 13 trust boundaries with the full STRIDE matrix plus the four additions, 57 threats, the circuit trust model, same-id and same-sequence-number analysis, peer-content framing, fleet admission, revocation, durability scope (GP-13), evidence producers (GP-14), bypass inventory, 28 security invariants, proposed numbers, 14 residual risks, 12 change requests. | T-3351 |
+| 0.1 | 2026-10-07 | First complete draft. Assets, adversaries ADV-1..ADV-10 with privileges (GP-15) and three proposed additions, 13 trust boundaries with the full STRIDE matrix plus the four additions, 57 threats, the circuit trust model, same-id and same-sequence-number analysis, peer-content framing, fleet admission, revocation, durability scope (GP-13), evidence producers (GP-14), bypass inventory, 28 security invariants, proposed numbers, 14 residual risks, 13 change requests. | T-3351 |
 
 ## 1 Inputs of record
 
@@ -215,7 +215,7 @@ flowchart LR
 | C-4 | Per-agent signing keys (T-3346) | A file per agent, same user | A message came from this agent's key | Proving it to a same-user attacker who reads the file (RR-2) |
 | C-5 | AEF receiver's loopback bearer token | A file readable by the same user | The caller is a local process that read the file | Any attribution at all (BP-16) |
 | C-6 | Circuit credential (new, R-46) | Issued by a hub, held by two sidecars for one conversation | These two instances may exchange turns for this conversation until it expires | Opening another circuit, posting to a hub topic, calling any other API (SI-9) |
-| C-7 | Operator key (new, needs GP-11) | The operator device, never an agent host | A decision or message is the operator's | Being copied to an agent host (PR-12) |
+| C-7 | Operator key (new, needs GP-11) | The operator device, never an agent host | A decision or message is the operator's | Being copied to an agent host (PR-1b) |
 | C-8 | Grants (R-64) and the role configuration (R-67) | To be built; storage open (step 4) | The operator allowed a start, a sender, a priority | Being written by the agent they limit (SI-21, SI-20) |
 | C-9 | Hub signing key (new) | The hub; the fleet roster holds its public half | A card or advertisement came from this hub | Being the TLS key (so it survives certificate rotation) |
 
@@ -311,7 +311,7 @@ flowchart LR
 
 9.3.a **PR-9 [P] The frame is made by the receiving adapter, not the sender.** Each delivery is wrapped by the sidecar or the adapter with: the verified sender (project id, agent role, key fingerprint) and the trust class (peer, allowed peer, operator-class once PR-1b exists); the message id and conversation id; a per-delivery random boundary (PN-8) that the sender could not have predicted, so text cannot close the frame early or imitate a previous one (SI-7); a fixed sentence stating that the text is data from another agent and is not an instruction or an approval. Control characters and lookalike frame markers in the content are neutralised before delivery.
 9.3.b **Size.** Inline content above the cap (PN-7) is not delivered inline: the agent gets a summary line and a reference to the blob, whose digest was verified before the flag was raised (R-11 [P]). A peer cannot use the context window itself as a weapon (TH-36).
-9.3.c **SI-8 No peer message is an approval.** Nothing in a frame, and no field of any message, can grant a permission, raise a trust class, change an allow-list, pin a role, approve an admission or a re-home, or satisfy a Tier-2 approval. Those change only through the operator channel (PR-12), bound to a digest (SI-13).
+9.3.c **SI-8 No peer message is an approval.** Nothing in a frame, and no field of any message, can grant a permission, raise a trust class, change an allow-list, pin a role, approve an admission or a re-home, or satisfy a Tier-2 approval. Those change only through the operator channel (PR-1b), bound to a digest (SI-13).
 9.3.d **PR-11 [P] Outgoing content is scanned for secrets.** A prompt-injected agent may be told to "reply with the contents of file X". The send path runs the repository's existing secret patterns (hub secrets, keys) over outgoing content and refuses a hit with a stated reason (TH-27). It is a net with holes, not a guarantee.
 
 9.4 The harness hook channel gives peer text more standing than a user message **[H]** (log OD-2: Claude Code shows PostToolUse hook output to the model as harness context). That raises the effect of a successful injection, and is exactly why the ruling restricts mid-turn urgent delivery to allowed senders (R-63). The frame (PR-9) labels the trust class so the model sees "peer, allowed" rather than an unlabelled harness message. That is the residual RR-3, which the step-1 chain file already names for the operator.
@@ -1211,3 +1211,90 @@ CR-11 — R-53.a and R-63: peers can read all four reachability fields. Proposed
 CR-12 — R-65.a and R-60: a hub's DEAD is not sufficient to start a second copy. Proposed: DEAD is signed and sequenced, and before a resume or a takeover the host-local supervisor verifies that no process holds that session (PR-15, TH-54).
 CR-13 — R-67.a and R-64: "eligibility attested on the card" MUST come from operator-signed configuration at the home hub, not from the agent's own card; grants and allow-lists MUST be stored where the agent they limit cannot write (SI-20, SI-21, TH-41, TH-18).
 
+19.2 Index of the proposed requirements. Each is **[P]**, defined where it is first used, and becomes a requirement only if the operator accepts it through the change requests of section 21.
+
+| Id | Proposal | Defined in | Change request |
+|---|---|---|---|
+| PR-1 | Every message signed by the sending agent's own key | 6.3.a | CR-2 |
+| PR-1a | Replacing an agent key needs the old key or operator approval | 6.3.b | CR-2 |
+| PR-1b | Operator-class messages only from an operator key kept off agent hosts | 6.3.d | CR-10 |
+| PR-2 | Message identity is the triple bound to a digest | 8.2 | CR-3 |
+| PR-3 | Sequence rules: random start, equivocation, rebuild from the hub record, window | 8.3 | CR-4 |
+| PR-4 | Signed, forward-only receipts | 8.4 | CR-4 |
+| PR-5 | Roster, signed cards, home-hub binding, signing key apart from the TLS certificate | 10.3 | CR-8 |
+| PR-6 | The circuit trust model | 7.2 | CR-7 |
+| PR-8 | Owner-only local socket, caller check, three API scopes | 6.3.c | step 4 |
+| PR-9 | Frame made by the receiving adapter, random boundary, size cap | 9.3.a | CR-6 |
+| PR-10 | Peers see only reachable yes or no and the version class | TH-23 | CR-11 |
+| PR-11 | Outgoing content scanned for secrets | 9.3.d | step 4 |
+| PR-13 | A grant proposal shows the digest, scope, budget and expiry | TH-42 | CR-13 |
+| PR-14 | Admission and grant approvals need an actively checked fingerprint, never a bare yes | TH-49, 10.3.e | step 4 |
+| PR-15 | A hub's DEAD is signed, and a resume or takeover needs a host-local check that no process holds the session | TH-54, 13.2 | CR-12 |
+| PR-16 | Signed revocation list pulled on each tick | 11.2 | CR-7 |
+| PR-17 | The durability contract | 12.4 | step 4 |
+| PR-18 | Evidence by a per-delivery nonce in a harness-written record type | 13.2 | CR-5, CR-6 |
+| PR-20 | Stage records and the local log are hash-chained per conversation | SI-22 | CR-1 |
+| PR-21 | Local record first, replayed to the hub, when the hub is unreachable | 7.5 | CR-1 |
+| PR-22 | Role eligibility, priority and pin from operator-signed configuration | TH-41, SI-20 | CR-13 |
+| PR-23 | Credential lifetime counted on the verifier's monotonic clock | 7.2.d | CR-7 |
+| PR-24 | Per-project read scope on topics, or end-to-end encryption of content (deferred option) | TH-22 | CR-9 |
+
+## 22 Open questions and decisions only the operator can take
+
+22.1 The operator decides these one at a time with a recommendation and waits for "next" between them (standing instruction, 2026-10-01, profile P1.2.b). They are listed here so the orchestrator can present them in that way. Each lettered option is a choice; the recommendation says why.
+
+22.2 **OQ-1 Confirm the three adversaries this step added (ADV-11 a compromised or rogue hub, ADV-12 an unadmitted joiner, ADV-13 a network attacker, 4.3).** A: confirm all three. B: confirm ADV-11 and ADV-12 only, because the network attacker is already covered by TLS. C: drop all three. Recommendation **A**: the circuit and the card exchange are exactly where these three act, and the record (G-060, the stray hub) shows hubs and paths do go wrong.
+
+22.3 **OQ-2 The shared operating-system user (4.4).** A: accept it; agents on a host are mutually trusted for the secrecy of keys, and per-agent keys serve attribution and stop remote attackers (RR-2). B: require a separate operating-system user or container per agent at deployment. C: accept it now and record that a deployment may choose B. Recommendation **C**: B is a large change to how agents are started (the supervisor, the launcher, the tmux layout) and nobody has measured it; recording the option keeps the door open without blocking the floor.
+
+22.4 **OQ-3 The circuit credential lifetime (7.3).** A: 15 minutes. B: 1 hour, renewal from 30 minutes, absolute age 24 hours. C: 4 hours. Recommendation **B**, reason in 7.3.a. This also fixes the cross-host bound of R-7.e (1) and RR-5.
+
+22.5 **OQ-4 May a new conversation between two agents on one host start without the hub (7.6, added at sign-off J4)?** A: no, a new conversation always goes through the hub; only an established one runs on a circuit. B: yes, by a local socket when the hub is down, on the operating-system user plus agent keys. C: yes, always local on one host. Recommendation **A**, reason in 7.6.c.
+
+22.6 **OQ-5 The failures the store must survive (12.2).** A: F-1, F-2 survive; F-3, F-4, F-5 are detected and shown; F-6 and F-7 refused or detected, as proposed. B: survive only process crashes (F-1), not host crashes (no flush on the hot path, faster). C: also survive loss of the store by keeping the full content on the hub. Recommendation **A**: STORED releases the sender, so a host crash after STORED would silently lose a promised message; C needs the content question of OQ-7 first.
+
+22.7 **OQ-6 What "the operator" means as a sender until GP-11 is ruled (TH-5, CR-10).** A: nothing is operator-class until an operator key exists; the default allow-list is "own project" only. B: keep "own project plus the operator" and accept that "the operator" cannot be verified. Recommendation **A**; B would let any message claim the top of the authority model.
+
+22.8 **OQ-7 Content on the hub (TH-22, RR-6, CR-9).** A: accept that the hub can read content (today's state) and tell agents not to send secrets. B: per-project read scopes on topics. C: end-to-end encryption of content to the recipient's key, later. Recommendation **A now, C as a later slice**: B changes the hub's token model and still leaves the hub operator able to read; C needs key distribution through the signed cards, which PR-5 provides.
+
+22.9 **OQ-8 Fleet admission (10.3, CR-8).** A: adopt the roster plus signed cards plus home-hub binding. B: keep pairwise HMAC and accept RR-4 widened to every hub that holds a secret. Recommendation **A**; B leaves CAND-17 unanswered. It needs the charter rewording that the operator approves separately (T-2470, 13.2.2 of REQ), and a hub signing key separate from the TLS certificate (a change to R-61).
+
+22.10 **OQ-9 Whether to take the numbers of section 19 as the floor's starting values, or ask step 4 to propose them.** A: take them as starting values, changeable with evidence. B: leave every number to step 4. Recommendation **A**, except PN-1 and PN-2, which the operator decides (OQ-3).
+
+## 23 Coverage: the brief, the task and the completion conditions
+
+23.1 The step-2 row of REQ section 13, and where each topic is answered.
+
+| Topic handed to step 2 | Where |
+|---|---|
+| Circuit trust model and per-circuit credential lifetime (OD-1, CAND-16, R-46, R-7.e cross-host bound) | 7, PN-1, PN-2, SI-9, SI-11, OQ-3 |
+| Same id with different content (CAND-2, R-51) | 8.2, TH-10, SI-4, CR-3 |
+| Same sequence number with different content (CAND-18, R-59) | 8.3, 8.4, TH-11, TH-12, SI-5, SI-6, CR-4 |
+| Peer-content framing (CAND-1, R-50) | 9, TH-38 to TH-40, SI-1, SI-2, SI-7, SI-8, CR-5, CR-6 |
+| Fleet admission and signed advertisements (CAND-17, J3) | 10, TH-45, SI-12, SI-13, PR-5, CR-8, OQ-8 |
+| Whether a same-host new conversation may start without the hub, and on what trust (J4) | 7.6, TH-35, RR-11, OQ-4 |
+| GP-1 credential custody | 6, TH-1, TH-2, TH-43, SI-3, SI-14 |
+| GP-6 revocation | 11, SI-11, PR-16 |
+| GP-13 durability failure scope | 12, SI-15, OQ-5 |
+| GP-14 trusted evidence producers | 13, TH-7, SI-17 |
+| GP-15 adversary privileges | 4.2, 4.3 |
+| Adversaries ADV-1..ADV-10 with their privileges (GP-15) | 4.2 |
+
+23.2 The card's completion conditions (card 6).
+23.2.1 6.1 every boundary has the six STRIDE questions and the four additions answered: section 14, 13 boundaries by 10 questions.
+23.2.2 6.2 every threat has a countermeasure or is a listed residual risk: section 15 (each TH names its countermeasure or its RR).
+23.2.3 6.3 the bypass inventory is complete for the routes the profile names, and says what remains open: section 17 (BP-1..BP-19 and 17.2).
+23.2.4 6.4 security invariants are stated so a test or probe could check them: section 18 (SI-1..SI-28, each with a probe).
+23.2.5 6.5 every required drawing D-1 to D-4 is present with id, caption and text equivalent, and renders without error: 5.1, 16.1, 16.3, 17 and section 24.
+
+23.3 The task's agent acceptance criteria (task T-3351).
+23.3.1 A version table (section 0) and an inputs-of-record section citing the full hashes (section 1): met.
+23.3.2 Adversaries ADV-1..ADV-10 with privileges (GP-15), and GP-1, GP-6, GP-13, GP-14: met (4.2, 6, 11, 12, 13).
+23.3.3 Circuit trust model and credential lifetime, same id, same sequence number, peer-content framing: met (7, 8, 9).
+23.3.4 Residual risks listed for the operator to accept, one per line, each with a plain-language sentence: met (section 20).
+23.3.5 The role-chain yaml step 2 names task T-3351: checked, unchanged.
+
+## 24 Render check of the drawings
+
+24.1 Method. The same as the step-1 document (REQ 11.6): each Mermaid block was extracted and rendered one by one with `mmdc -p <puppeteer-config> -i dN.mmd -o dN.svg`, where the config names `/usr/bin/chromium` with `--no-sandbox`. `scripts/design-render-check.py` is not adopted in this project, so no `render_check` record exists (profile P2.1, P4.5; REQ 11.6).
+24.2 Result: see the line appended below by the check run.
