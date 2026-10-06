@@ -428,6 +428,10 @@ the output in one pass after the last question.
        sender shows WAITING FOR RECIPIENT; a short blocking wait remains for quick exchanges.
    8c. Bias noted by the orchestrator: second P1-above-document recommendation in a row.
    8d. Leaves open: default deadline (OD-3's 1 h natural); late replies after STUCK still wake, marked late.
+   8e. Ownership (operator, 2026-10-06, during GP-11): the tool belongs to AEF, where messages are formed and agents
+       receive instructions; TermLink supplies primitives (the missing cross-hub stage/reply read is T-3347). It polls
+       on the message's own ladder when push cannot land (R-30/R-31), never a fixed cadence. Proposed to AEF at
+       framework:pickup offset 318 together with the ladder correction of offset 314.
 9. **CAND-12 attention budgets — ruled A (source control), refined in dialogue** (2026-10-06).
    9a. Operator reframed the risk as flooding (re-sending too often, piling up) and asked for ladder adherence, a
        cumulative per-agent cap derived from system capacity, and back-off against storms borrowed from networking
