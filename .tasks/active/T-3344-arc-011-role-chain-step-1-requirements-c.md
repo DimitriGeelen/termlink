@@ -28,7 +28,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-04T14:28:12Z
-last_update: 2026-10-06T10:21:10Z
+last_update: 2026-10-06T10:59:06Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -459,6 +459,15 @@ exists: `docs/design/roles/README.md` section 3. Operator ruling A recorded in D
      - **Why:** [rationale]
      - **Rejected:** [alternatives and why not]
 -->
+
+### 2026-10-06 — ring20 T-2250 round-2 (final) review: send all 9 findings, blocker as blocker (operator ruling)
+- **Chose:** A — send the 9 findings of docs/reports/T-3344-t2250-round2-draft.md as TermLink's position
+  (1 blocker: S-1's unprivileged worker cannot reach the root-only hub, so the worker has no TermLink access
+  and the supervisor acts for it; 6 should; 2 nice), with the details line pointing at GitHub, not a .107 path.
+- **Why:** their final round; S-1 is being specified now; the blocker was verified directly (/var/lib/termlink drwx------ root).
+  Scored A +42, B +21, C +21, D −42.
+- **Rejected:** B (blocker only — "later" means never in a final round), C (soften blocker — the worker literally cannot reach the hub), D (silence reads as agreement).
+- **Left open:** anything ring20 answers back that needs a ruling.
 
 ## Decision
 
