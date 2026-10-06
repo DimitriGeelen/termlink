@@ -1,0 +1,54 @@
+{
+  "schema": "role-handback/1",
+  "chain": "arc-011-design",
+  "step": 1,
+  "role": "requirements-collector",
+  "task": "T-3348",
+  "status": "ready-for-review",
+  "output": {
+    "path": "docs/design/interactive-agent-communication-01-requirements.md",
+    "sha256": "4ec502c8d733b29aec1e7b14447fdf53338235016493a8d04a81ab0fee234f7e"
+  },
+  "inputs": [
+    {"path": "docs/design/interactive-agent-communication/interview-step-01.md", "sha256": "aad8308e1924df293270d628b224dafc4814f675a4a61485dd2c1797a7114edd"},
+    {"path": "docs/reports/T-3344-step1-rulings-summary.md", "sha256": "6381769f3b2a98f3bdc1e1cfe6c6c16c35891b5e5c9fedca55014ceaff13e418"},
+    {"path": "docs/reports/T-3344-aef-upgrade-analysis.md", "sha256": "8a1fee6f5157f4d9fc81b4257d224e097072538caf9dc922655110bc7b2b100c"},
+    {"path": ".context/handovers/S-2026-1006-1455.md", "sha256": "b248534d29595b3e077c94667ec0c6c4aac3b91063246a2eb3a33b44add622e3"},
+    {"path": "docs/design/roles/cards/requirements-collector.md", "sha256": "e80ea2fca7e1c824cf0e35fdc64d929cabb166a0b8f15b94911c796aa21db04d"},
+    {"path": "docs/design/roles/cards/_common.md", "sha256": "cca38806358d7a6c09e64289164977a825f2cf57e914f672076ff77a2bdb5563"},
+    {"path": "docs/design/interactive-agent-communication-01-requirements.md (v0.3, git HEAD before this fold)", "sha256": "bd6786ffe4c292eab6223c3e83d419b32a2a008f22a55e6da8ccc8dc5b89a574"}
+  ],
+  "summary": "v0.4 folds every step-1 ruling into the requirements. OD-1..OD-18 are marked ruled with log links; GP-11 stays open (9.22). R-29.e is corrected (CLEAR needs recent surfacing progress). ADV-8..ADV-10 added, ADV-6 widened. R-6 acceptance is verified behaviour (GP-12), counts are tripwires. R-30/R-31 carry two ladders by priority and the chase as sidecar code, not an LLM turn. R-40..R-43 ruled (merge, keep, promote, drop). New R-44..R-71 each trace to a ruling. D-2 and D-3 use the ruled stage names; all three drawings render. Section 2.4a records the 2026-10-06 incident as evidence. Section 13 hands items to steps 2-8, consistent with the summary section 11. Nothing was invented beyond the rulings; unplaceable items are in 13.2.",
+  "completion": [
+    {"condition": "6.1 Every question answered or recorded as an open gap", "met": true, "evidence": "Sections 4.3, 8.2 and 9.0: QS-15..QS-23 covered by the gap review; every OD ruled; GP-11 open in 9.22"},
+    {"condition": "6.2 Every requirement has a type, source, verification method and at least one acceptance criterion", "met": true, "evidence": "R-1..R-71 in section 6; new R-44..R-71 each carry a-g lines; R-43 is dropped and says so"},
+    {"condition": "6.3 The adversary is a named stakeholder, and every impossible requirement names what it holds against", "met": true, "evidence": "2.3 ADV-1..ADV-10; R-50, R-56, R-57, R-60, R-63, R-67 name their adversary"},
+    {"condition": "6.4 Glossary, conflicts and earlier-requirements sections present", "met": true, "evidence": "Sections 5, 7 (7.4 resolutions) and 10 (10.2 changes)"},
+    {"condition": "6.5 Every required drawing D-1 to D-3 present with id, caption, textual equivalent, and renders", "met": true, "evidence": "Section 3 and 11.6.2: D-1 39840 B, D-2 38459 B, D-3 54198 B, mmdc exit 0 each, no syntax error"},
+    {"condition": "T-3348 AC: v0.4 version row names T-3344/T-3348 and the interview log", "met": true, "evidence": "Section 0, first row"},
+    {"condition": "T-3348 AC: OD-1..OD-18 ruled with ruling and log link; GP-11 open", "met": true, "evidence": "Section 9.0, headings 9.4-9.21, 9.22"},
+    {"condition": "T-3348 AC: R-1..R-43 changed as the rulings authorise", "met": true, "evidence": "Section 10.2 table"},
+    {"condition": "T-3348 AC: R-29.e corrected", "met": true, "evidence": "R-29.e"},
+    {"condition": "T-3348 AC: ADV-8, ADV-9, ADV-10 added and ADV-6 widened", "met": true, "evidence": "Section 2.3"},
+    {"condition": "T-3348 AC: R-6 acceptance per GP-12, counts as tripwires", "met": true, "evidence": "R-6.e, R-70"},
+    {"condition": "T-3348 AC: R-30/R-31 two ladders by priority and chase as sidecar code", "met": true, "evidence": "R-30.a1, a2, a4; R-31.a"},
+    {"condition": "T-3348 AC: handoff section for steps 2-8", "met": true, "evidence": "Section 13"},
+    {"condition": "T-3348 AC: role-handback/1 record returned", "met": true, "evidence": "This file, docs/reports/T-3348-role-handback.json"}
+  ],
+  "open_questions": [
+    "9.22 GP-11 operator as a party: OPEN, not ruled",
+    "13.2.2 hub-to-hub directory/relay principle and the charter rewording (T-2470)",
+    "13.2.3 ownership split of the receive side with AEF; which team supplies each harness adapter",
+    "13.2.4 IAC-72 narrowing of R-9",
+    "13.2.5 whether a REJECTED state exists (no ruling names it)",
+    "13.2.7 whether Claude Code picks up newly registered hooks without a restart (unverified)"
+  ],
+  "change_requests": [],
+  "decisions_needed": [
+    "Operator sign-off of step 1 (T-3349, owner human)",
+    "GP-11: the operator-as-a-party leg, once AEF, Penelope and ring20-dashboard have answered",
+    "T-2470 charter rewording for hub card exchange",
+    "Operator may overturn orchestrator-supplied numbers accepted by ruling: 14 days and 1 year retention (OD-16), cap 100 (CAND-12)"
+  ],
+  "render_check": "docs/design/interactive-agent-communication-01-requirements.md section 11.6.2 (mmdc, no design-render-check/1 record: scripts/design-render-check.py is not adopted in this project)"
+}
