@@ -1,0 +1,89 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3348: arc-011 step 1: fold the operator's rulings into the requirements document
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-06T20:43:38Z
+# ============================================================================
+
+task_id: T-3348
+task_name: "arc-011 step 1: fold the operator's rulings into the requirements document"
+workflow_type: specification
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-06T10:10:38Z
+completed: 2026-10-06T20:43:29Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-06T22:34:05+02:00
+last_commit: 2026-10-06T22:43:12+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  session handover S-2026-1006-2232 (T-3348 running as role worker; T-3349 sign-off next). fold the operator's step-1 rulings into the requirements as v0.4 (OD-1..OD-18 ruled, R-44..R-71 new, ADV-8..10, two ladders, incident evidence) + role-handback/1. agent ACs 9/9 ticked after orchestrator review of a217f5651 (OD-1..18 ruled, 10.2 has 33 change rows, R-29.e, ADV-8..10, R-6.e, two ladders, section 13, handback schema-valid); task stays open for T-3349 sign-off
+
+# Key outcomes
+outcomes:
+  - '`docs/design/interactive-agent-communication-01-requirements.md` carries a v0.4 version row naming T-3344/this task and the interview log'
+  - 'Every section-9 open question OD-1..OD-18 is marked ruled with its ruling and a link to its log section; GP-11 stays marked open'
+  - 'Requirements R-1..R-43 changed as the rulings authorise (each ruling''s ''Authorises'' list in the log is checked off one by one)'
+  - 'R-29.e corrected: CLEAR requires recent surfacing progress, never a fresh heartbeat alone (CAND-3 4d, CAND-6)'
+  - 'Section 2.3 adds ADV-8, ADV-9, ADV-10 and widens ADV-6 (GP-0)'
+  - 'R-6 acceptance rewritten to verified behaviour per GP-12; counts recorded as tripwires only'
+  - 'R-30/R-31 carry the two ladders by priority (OD-3 correction of 2026-10-06), not the single continuous ladder'
+  - 'Section 12 (or a handoff section) lists what goes to steps 2-8, consistent with the summary''s section 11'
+  - 'A role-handback/1 record returned to the orchestrator'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/handovers/S-2026-1006-2232.md'
+  - 'docs/design/interactive-agent-communication-01-requirements.md'
+  - 'docs/reports/T-3348-role-handback.json'
+  - '.tasks/active/T-3348-arc-011-step-1-fold-the-operators-ruling.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-06T22:34:05'
+    action: 'T-3348: session handover S-2026-1006-2232 (T-3348 running as role worker; T-3349 sign-off next)'
+  - time: '2026-10-06T22:42:10'
+    action: 'T-3348: fold the operator''s step-1 rulings into the requirements as v0.4 (OD-1..OD-18 ruled, R-44..R-71 new, ADV-8..10, two ladders, incident evidence) + role-handback/1'
+  - time: '2026-10-06T22:43:12'
+    action: 'T-3348: agent ACs 9/9 ticked after orchestrator review of a217f5651 (OD-1..18 ruled, 10.2 has 33 change rows, R-29.e, ADV-8..10, R-6.e, two ladders, section 13, handback schema-valid); task stays open for T-3349 sign-off'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 632 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 632
+  commits: 3
+  files_changed: 4
+  lines_added: 692
+  lines_removed: 166
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3348-arc-011-step-1-fold-the-operators-ruling.md
+generated_by: context-agent-hybrid

@@ -6,10 +6,10 @@ description: >
   CANDs, GP-0, GP-12, OD-3 correction) into docs/design/interactive-agent-communication-01-requirements.md
   as v0.4, from the interview log and docs/reports/T-3344-step1-rulings-summary.md.
 
-status: started-work
+status: work-completed
 workflow_type: specification
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-011]
 arc_id: arc-011
 components: []
@@ -25,8 +25,8 @@ related_tasks: [T-3344]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:10:38Z
-last_update: 2026-10-06T20:31:43Z
-date_finished:
+last_update: 2026-10-06T20:43:29Z
+date_finished: 2026-10-06T20:43:29Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -189,3 +189,15 @@ grep -q 'ACKNOWLEDGED_NO_ACTION' docs/design/interactive-agent-communication-01-
 
 ### 2026-10-06T20:31:43Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-059e9bb1
+- **Timestamp:** 2026-10-06T20:43:31Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-10-06T20:43:29Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
