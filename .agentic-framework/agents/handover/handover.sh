@@ -1645,6 +1645,18 @@ if [ "$AUTO_COMMIT" = true ]; then
     fi
 
     if [ -n "$GIT_AGENT" ]; then
+        # Pending unattended writes first (termlink T-3269, SQ-22 option C — LOCAL
+        # DIVERGENCE, registered in .vendor-divergence.yaml, filed upstream). Files an
+        # unattended job wrote (canary ledger refresh, WARN filer) are recorded in a
+        # manifest and committed by the next session BY NAME: the helper runs
+        # `git commit -- <exactly those paths>` per recorded task id, so it cannot
+        # sweep the index (T-3090) and needs no focus switch. Never fatal here — a
+        # refused/failed entry stays in the manifest and /resume names it.
+        if [ -x "$PROJECT_ROOT/scripts/commit-pending.sh" ]; then
+            (cd "$PROJECT_ROOT" && ./scripts/commit-pending.sh commit) \
+                || echo "handover: some pending unattended writes were not committed — see 'scripts/commit-pending.sh list'" >&2
+        fi
+
         # Stage handover files
         git -C "$PROJECT_ROOT" add "$HANDOVER_FILE" "$HANDOVER_DIR/LATEST.md"
 
