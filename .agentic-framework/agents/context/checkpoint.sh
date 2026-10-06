@@ -676,7 +676,11 @@ else:
 "
         ;;
     *)
-        echo "Usage: checkpoint.sh {post-tool|reset|status|budget|baseline}"
+        # T-3316 (local, vendor-divergence; residue re-applied after the 1.8.3
+        # re-vendor, T-3370): a wrong verb is a usage error, not a hook malfunction.
+        # Drop the T-821 crash trap so it does not print "HOOK CRASHED" or log a crash.
+        trap - EXIT
+        echo "Usage: checkpoint.sh {post-tool|reset|status|budget|baseline}" >&2
         exit 1
         ;;
 esac

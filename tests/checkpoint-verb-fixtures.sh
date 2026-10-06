@@ -59,7 +59,9 @@ CUR="$(make_tree cur "$FW/agents/context/checkpoint.sh")"
 
 run "$CUR" budget
 [ "$RC" -eq 0 ] && ok "budget exits 0" || bad "budget exits 0 (rc=$RC)"
-grep -q "Tool calls since last commit" <<< "$OUT" && ok "budget prints the status reading" || bad "budget prints the status reading: $OUT"
+# Since the AEF 1.8.3 re-vendor (T-3370) `budget` is upstream's own verb with a structured
+# reading (`level:` / `tokens:` …) instead of our T-3316 alias for `status`; accept either shape.
+{ grep -q "Tool calls since last commit" <<< "$OUT" || grep -q "^level:" <<< "$OUT"; } && ok "budget prints a budget reading" || bad "budget prints a budget reading: $OUT"
 [ "$CRASHES" -eq 0 ] && ok "budget logs no crash" || bad "budget logs no crash ($CRASHES)"
 
 run "$CUR" status
