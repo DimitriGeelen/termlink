@@ -1,13 +1,19 @@
 ---
 id: T-3375
-name: "Re-apply T-2882 handover residue onto AEF 1.8.3 (enrichment_status marker, placeholder text)"
+name: "Re-apply T-2882 handover residue onto AEF 1.8.3 (enrichment_status marker,
+  placeholder text)"
 description: >
-  Divergence-check row #17 (docs/reports/T-3344-aef-upgrade-divergence-check.md): 1.8.3 carries T-2882 part 3 (focus-first, recency ranking, T-3210) but not parts 1-2: no 'enrichment_status: pending' in the handover frontmatter, and literal 'None' and 'See gaps register above.' (handover.sh l.1472) remain in auto-generated handovers. Manual merge, 2 conflicts (patch: scratchpad divcheck/T2882.patch). Dispositioned out of T-3370 because it is cosmetic and independent of the receiver switchover.
+  Divergence-check row #17 (docs/reports/T-3344-aef-upgrade-divergence-check.md):
+  1.8.3 carries T-2882 part 3 (focus-first, recency ranking, T-3210) but not parts
+  1-2: no 'enrichment_status: pending' in the handover frontmatter, and literal 'None'
+  and 'See gaps register above.' (handover.sh l.1472) remain in auto-generated handovers.
+  Manual merge, 2 conflicts (patch: scratchpad divcheck/T2882.patch). Dispositioned
+  out of T-3370 because it is cosmetic and independent of the receiver switchover.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: next
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -38,8 +44,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T11:48:04Z
-last_update: 2026-10-06T11:48:04Z
-date_finished: null
+last_update: 2026-10-06T12:35:10Z
+date_finished: 2026-10-06T12:35:10Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +56,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-06T12:35:09Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3375: Re-apply T-2882 handover residue onto AEF 1.8.3 (enrichment_status marker, placeholder text)
@@ -62,8 +82,8 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] T-2882 parts 1-2 re-applied onto 1.8.3's handover.sh (done inside T-3370, commit 6be27ac96, because its fixture is FAIL tier): enrichment_status: pending in both frontmatter blocks, [TODO] instead of fabricated 'None' / 'See gaps register above.', mechanical-fallback label
+- [x] tests/handover-suggested-action-fixtures.sh passes 9/9
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -98,6 +118,7 @@ date_finished: null
 
 ## Verification
 
+bash tests/handover-suggested-action-fixtures.sh > /tmp/.t3375 2>&1
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
 # The completion gate runs each command — if any exits non-zero, completion is blocked.
@@ -320,3 +341,19 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3375-re-apply-t-2882-handover-residue-onto-ae.md
 - **Context:** Initial task creation
+
+### 2026-10-06T12:35:09Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-0072070e
+- **Timestamp:** 2026-10-06T12:35:13Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-10-06T12:35:10Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -1,0 +1,72 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3375: Re-apply T-2882 handover residue onto AEF 1.8.3 (enrichment_status marker, placeholder text)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-06T12:35:22Z
+# ============================================================================
+
+task_id: T-3375
+task_name: "Re-apply T-2882 handover residue onto AEF 1.8.3 (enrichment_status marker, placeholder text)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-06T11:48:04Z
+completed: 2026-10-06T12:35:10Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Divergence-check row #17 (docs/reports/T-3344-aef-upgrade-divergence-check.md): 1.8.3 carries T-2882 part 3 (focus-first, recency ranking, T-3210) but not parts 1-2: no 'enrichment_status: pending' in the handover frontmatter, and literal 'None' and 'See gaps register above.' (handover.sh l.1472) remain in auto-generated handovers. Manual merge, 2 conflicts (patch: scratchpad divcheck/T2882.patch). Dispositioned out of T-3370 because it is cosmetic and independent of the receiver switchover.
+
+# Key outcomes
+outcomes:
+  - 'T-2882 parts 1-2 re-applied onto 1.8.3''s handover.sh (done inside T-3370, commit 6be27ac96, because its fixture is FAIL tier): enrichment_status: pending in both frontmatter blocks, [TODO] instead of fabricated ''None'' / ''See gaps register above.'', mechanical-fallback label'
+  - 'tests/handover-suggested-action-fixtures.sh passes 9/9'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 47 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 47
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3375-re-apply-t-2882-handover-residue-onto-ae.md
+generated_by: context-agent-hybrid
