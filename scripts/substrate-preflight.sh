@@ -64,6 +64,12 @@
 #              running with no supervision, and flap residue
 #              (NRestarts > TERMLINK_PREFLIGHT_NRESTARTS_MAX, default 5).
 #              Skips silently on non-systemd / watchdog-launched hosts.
+#   Check 7: one hub per user (T-3340, AEF T-3779, 055 M1)
+#            → 2026-10-04: a stray hub at /tmp/termlink-0 (32 sessions) ran beside
+#              the /var/lib/termlink hub and split sessions from inboxes silently;
+#              Check 6 stops at the first pidfile, so it never saw it. WARNs when
+#              more than one live termlink hub runs for this uid, naming each
+#              runtime dir, pid and session count.
 #
 # Read-only, no network, no auth, no state mutation. Safe in any context.
 #

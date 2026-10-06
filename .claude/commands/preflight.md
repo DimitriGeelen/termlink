@@ -27,7 +27,7 @@ before anyone notices (PL-021 / G-058 class).
 
 | Form | Action |
 |------|--------|
-| `/preflight` | Run all six checks (human-format render) |
+| `/preflight` | Run all seven checks (human-format render) |
 | `/preflight --json` | Machine-readable envelope (passes through) |
 
 ## What it checks
@@ -149,7 +149,7 @@ it into `/preflight`" — and until then nothing ran it at all. It is deliberate
 cron canary: a canary that detects uninstalled canaries would itself need installing, and
 the recursion has to stop somewhere. That stop is here.
 
-**It answers a different question from the six checks above, and the distinction matters.**
+**It answers a different question from the seven checks above, and the distinction matters.**
 `substrate-preflight.sh` asks *is this environment able to host a substrate*.
 This asks *are the canaries I committed to `.context/cron/` actually scheduled in
 `/etc/cron.d`* — the shipped≠live class (G-069). A canary committed to git but never
@@ -157,7 +157,7 @@ installed is dark: it never fires, and the heartbeat-based aliveness check (T-17
 structurally cannot see it, because there is no heartbeat to be stale.
 
 Render it as its **own** labelled section with its own exit code. Do not merge its result
-into the six-check table or the `--json` envelope — those come from `substrate-preflight.sh`
+into the seven-check table or the `--json` envelope — those come from `substrate-preflight.sh`
 and callers parse that schema.
 
 Reading its exit code (they are not the same as this skill's):
