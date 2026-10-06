@@ -59,12 +59,12 @@ sends to us reach RECEIVED / HANDED_OVER. Analysis and step order: `docs/reports
 - [x] Upstream filings sent for: step 7b overwriting the origin toolkit, shallow-clone refusal in the default upgrade path, T-3178 still open, hazard H1
 
 ### Human
-- [ ] [RUBBER-STAMP] Restart this session under the new framework
+- [ ] [RUBBER-STAMP] Peer mail reaches this session without nudging (no session restart, no `claude-fw --termlink` — operator rule)
   **Steps:**
-  1. Run `/opt/termlink/runme.sh` (action 13 installs the sidecar-sweep cron job)
-  2. Exit this Claude session and start it again with `claude-fw --termlink` from /opt/termlink, then `/resume`
-  **Expected:** session start shows the sidecar mail check (`fw sidecar alerts`) and no HOOK CRASHED line
-  **If not:** paste the session-start output to the agent
+  1. Run `/opt/termlink/runme.sh` (action 13 installs the sidecar-sweep cron job) — done 2026-10-06, rc=0
+  2. In this session, send any prompt; peer mail sent to 010-termlink appears in the session as a "Sidecar receiver: N message(s)" block
+  **Expected:** peer messages appear at your next prompt; senders report RECEIVED, not HUB_ACCEPTED
+  **If not:** tell the agent which peer is still waiting; the agent checks `fw sidecar status` and the receiver
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
