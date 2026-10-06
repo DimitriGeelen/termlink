@@ -53,6 +53,15 @@ EOF
 
 # The real shape, reduced: a counterfeit heading at column 0 above the genuine one,
 # with an orphaned `-->` and no opening `<!--`.
+# T-3370: the shadow AEF 1.8.3's exact-match extractor still falls for — an EXACT
+# '## Verification' line inside an HTML comment before the real heading. First exact
+# match wins; the comment's prose reaches the gate.
+exact_shadow_task() {
+  printf '%s\n' '---' 'id: T-9002' '---' '# T-9002' '' '## Acceptance Criteria' '- [x] done' '' \
+    '<!-- template guidance' '## Verification' '1. Open https://example.com/dashboard in browser' '-->' '' \
+    '## Verification' '' 'grep -q "real" README.md' '' '## Updates' > "$1"
+}
+
 shadow_task() {
   cat > "$1" <<'EOF'
 ---
@@ -88,15 +97,28 @@ assert_has "clean" "$out" "clean corpus says clean"
 assert_has "SCOPE" "$out" "clean path states its scope (T-2680)"
 assert_has "does NOT verify" "$out" "clean path disclaims adequacy"
 
-# --- 2. the real defect shape ------------------------------------------------
+# --- 2a. the ORIGINAL defect shape is fixed upstream (T-3370 regression pin) --
+# A line that merely STARTS with '## Verification' (the wrapped template comment)
+# shadowed the real heading under the old sed range. AEF 1.8.3 (its T-3134) anchors the
+# heading exactly, so this shape no longer reaches the gate. If it fires again, the
+# extractor regressed to prefix matching.
 mkcorpus; shadow_task "$TMP/t/active/T-9002.md"
+out="$(bash "$CHECK" --tasks-dir "$TMP/t" 2>&1)"; rc=$?
+assert_rc 0 "$rc" "prefix-shadowed heading is clean under the 1.8.3 exact-match extractor"
+
+# --- 2b. the shadow 1.8.3 still falls for: an EXACT heading inside a comment ----
+# First exact match wins and its comment opener sits ABOVE the block, so the block's
+# '-->' is orphaned and the comment's prose reaches the gate.
+mkcorpus; exact_shadow_task "$TMP/t/active/T-9002.md"
 out="$(bash "$CHECK" --tasks-dir "$TMP/t" 2>&1)"; rc=$?
 assert_rc 1 "$rc" "shadowed heading fires"
 assert_has "FIRING" "$out" "firing path says FIRING"
 assert_has "T-9002.md" "$out" "names the offending file"
 assert_has "markdown prose" "$out" "explains what the gate would run"
 assert_has "headings=2" "$out" "diagnosis reports the duplicate heading count"
-assert_has "orphaned '-->' with no opener=yes" "$out" "diagnosis reports the orphan close-comment"
+# The opener of the counterfeit's comment sits above the block, so across the file the
+# comment is balanced: the diagnosis must say so rather than claim an orphan (T-3370).
+assert_has "orphaned '-->' with no opener=no" "$out" "diagnosis reports the comment as balanced for this shape"
 assert_has "Remediation" "$out" "firing path carries remediation"
 assert_has "SCOPE" "$out" "firing path also states scope"
 
@@ -131,7 +153,7 @@ out="$(bash "$CHECK" --tasks-dir "$TMP/t" 2>&1)"; rc=$?
 assert_rc 0 "$rc" "a task with an empty verification block passes (documented scope gap)"
 
 # --- 6. allowlist ------------------------------------------------------------
-mkcorpus; shadow_task "$TMP/t/active/T-9002.md"
+mkcorpus; exact_shadow_task "$TMP/t/active/T-9002.md"
 echo "T-9002.md  # acknowledged for fixture purposes" > "$TMP/allow"
 out="$(bash "$CHECK" --tasks-dir "$TMP/t" --allowlist "$TMP/allow" 2>&1)"; rc=$?
 assert_rc 0 "$rc" "an allowlisted file does not fire"
@@ -159,7 +181,7 @@ out="$(bash "$CHECK" --tasks-dir "$TMP/t" --bogus-flag 2>&1)"; rc=$?
 assert_rc 2 "$rc" "unknown argument is TOOLING"
 
 # --- 8. json -----------------------------------------------------------------
-mkcorpus; shadow_task "$TMP/t/active/T-9002.md"
+mkcorpus; exact_shadow_task "$TMP/t/active/T-9002.md"
 out="$(bash "$CHECK" --tasks-dir "$TMP/t" --json 2>&1)"; rc=$?
 assert_rc 1 "$rc" "--json preserves the exit code"
 assert_has '"ok": false' "$out" "--json reports ok:false when firing"
@@ -183,7 +205,7 @@ mut() { # <sed-expr> <label> <expected-rc-on-shadow-corpus>
   cp "$CHECK" "$TMP/mutant.sh"
   sed -i "$1" "$TMP/mutant.sh"
   if cmp -s "$CHECK" "$TMP/mutant.sh"; then bad "$2 — mutation did not apply"; return; fi
-  mkcorpus; shadow_task "$TMP/t/active/T-9002.md"
+  mkcorpus; exact_shadow_task "$TMP/t/active/T-9002.md"
   env REPO_ROOT="$ROOT" ${MUT_ENV:-} bash "$TMP/mutant.sh" --tasks-dir "$TMP/t" >/dev/null 2>&1; mrc=$?
   if [ "$mrc" = "$3" ]; then ok "mutant caught: $2"; else bad "mutant SURVIVED: $2 (rc=$mrc)"; fi
 }
@@ -199,7 +221,7 @@ MUT_ENV="HEADING_SHADOW_MODE=per-file" mut 's@^    \[ -z "\$blk" \] && continue@
 # A corpus with the awkward shapes: counterfeit heading + orphan comment (shadow),
 # a clean task, no heading at all, a Verification section running to EOF, and two
 # real ## Verification sections (GNU sed ranges repeat).
-mkcorpus; clean_task "$TMP/t/active/T-9001.md"; shadow_task "$TMP/t/active/T-9002.md"
+mkcorpus; clean_task "$TMP/t/active/T-9001.md"; exact_shadow_task "$TMP/t/active/T-9002.md"
 printf -- '---\nid: T-9003\n---\n# T-9003\n\n## Context\nno verification here\n' > "$TMP/t/completed/T-9003.md"
 printf -- '---\nid: T-9004\n---\n## Verification\n\ntest -f x\n1. prose at eof\nlast line\n' > "$TMP/t/completed/T-9004.md"
 printf -- '---\nid: T-9005\n---\n## Verification\ntrue\n## Notes\nx\n## Verification\n**Bold** prose\nfalse\n## End\n' > "$TMP/t/completed/T-9005.md"
@@ -211,9 +233,10 @@ pout="$(bash "$ROOT/tests/verification-block-batch-proof.sh" --tasks-dir "$TMP/t
 if [ "$prc" = "0" ] && echo "$pout" | grep -q "5 file(s) compared.*0 mismatch"; then ok "full proof: all 5 fixture files byte-identical to extract_verification_block"
 else bad "fixture-corpus proof failed (rc=$prc): $pout"; fi
 
-# A DRIFTED batch extractor (drops the sed '$d' step) must be caught by the run-time
-# cross-check as TOOLING (rc 2) — never reported as a verdict.
-sed 's@^    sel = sel\[:-1\]          # sed .\$d.@    pass@' "$ROOT/scripts/lib/verification-block-batch.py" > "$TMP/drift-batch.py"
+# A DRIFTED batch extractor must be caught by the run-time cross-check as TOOLING
+# (rc 2) — never reported as a verdict. T-3370: the mutant re-opens the block on a LATER
+# exact heading (drops 1.8.3's first-match-only `seen` guard); T-9005 above has two.
+sed 's@^            if not seen:@            if True:@' "$ROOT/scripts/lib/verification-block-batch.py" > "$TMP/drift-batch.py"
 if cmp -s "$ROOT/scripts/lib/verification-block-batch.py" "$TMP/drift-batch.py"; then bad "drift mutant did not apply"; else
   dout="$(HEADING_SHADOW_BATCH="$TMP/drift-batch.py" HEADING_SHADOW_XCHECK=100 bash "$CHECK" --tasks-dir "$TMP/t" 2>&1)"; drc=$?
   if [ "$drc" = "2" ] && echo "$dout" | grep -q "diverged from extract_verification_block"; then ok "drifted batch extractor caught by the cross-check (rc 2, no verdict)"

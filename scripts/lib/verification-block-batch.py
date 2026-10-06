@@ -43,6 +43,8 @@ import re
 import sys
 
 START = re.compile(r"^## Verification")
+# awk's /^## Verification[[:space:]]*$/ — [[:space:]] is the ASCII set in C/UTF-8 locales.
+START_EXACT = re.compile(r"^## Verification[ \t\n\r\f\v]*$")
 END = re.compile(r"^## ")
 # grep -E '^\s*$|^\s*#|^\s*```' with GNU \s ([[:space:]]); ASCII set, as in the C/UTF-8
 # locales CI and this host use. The corpus proof pins it.
@@ -71,19 +73,26 @@ def extract(raw: bytes, strip) -> str:
         data = raw.decode("utf-8")
     except UnicodeDecodeError:
         return ""
+    # T-3370: AEF 1.8.3 (its T-3134) replaced the sed range with an anchored,
+    # first-match-only awk selection in lib/verification-port.sh:
+    #     /^## Verification[[:space:]]*$/ { if (!seen) { seen=1; inblk=1 }; next }
+    #     inblk && /^## / { inblk=0 }
+    #     inblk { print }
+    # Re-expressed line for line. Note the `next`: a LATER exact heading is skipped
+    # and does NOT close an open block, and a prefix like `## Verification Notes` no
+    # longer opens one. The old sed-range emulation (repeating ranges, `sed '$d'`,
+    # `tail -n +2`) is gone; the runtime cross-check and the corpus proof pin this.
     sel: list[str] = []
-    in_range = False
+    seen = inblk = False
     for line in sed_lines(data):
-        if not in_range:
-            if START.match(line):
-                sel.append(line)
-                in_range = True
-        else:
+        if START_EXACT.match(line):
+            if not seen:
+                seen = inblk = True
+            continue
+        if inblk and END.match(line):
+            inblk = False
+        if inblk:
             sel.append(line)
-            if END.match(line):
-                in_range = False
-    sel = sel[:-1]          # sed '$d'
-    sel = sel[1:]           # tail -n +2
     if not sel:
         return ""
     stripped = strip("".join(l + "\n" for l in sel))
