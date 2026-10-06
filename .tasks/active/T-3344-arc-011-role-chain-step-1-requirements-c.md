@@ -28,7 +28,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-04T14:28:12Z
-last_update: 2026-10-05T23:48:02Z
+last_update: 2026-10-06T06:59:53Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -278,6 +278,12 @@ exists: `docs/design/roles/README.md` section 3. Operator ruling A recorded in D
 -->
 
 ## Decisions
+
+### 2026-10-06 — OD-17 CAND-14 obligations and the unanswered state (operator ruling)
+- **Chose:** A — the sender-visible unanswered state with escalation is recorded as already covered (R-28/OD-8 reply or no-action; OD-3 STUCK "not answered within 1 h"; OD-14 escalation; CAND-10 awaiting-reply deadline). New P1 (extends R-28): an owed-answers list per agent, computed from the hub record (OD-5), shown at session start/resume and in needs-attention ("you owe N answers, oldest T"). Work requests' accepted/declined, progress deadline and completed/failed go into R-41's later slice, with the CAND-1 task proposal as the "accepted" step.
+- **Source:** RV2 items 50 and 52 — ring20-manager's 8 unanswered requests; "Explicit acceptance establishes who owes an answer" (Codex). Why they stayed unanswered is not in the record.
+- **Rejected:** B full contract on every message (ceremony on simple questions); C already covered (the debtor stays blind); D defer all to R-41.
+- **Left open:** ACKNOWLEDGED_NO_ACTION closes an obligation; escalation to another role holder belongs to OD-18.
 
 ### 2026-10-06 — OD-17 CAND-13 clock skew and version skew (operator ruling)
 - **Chose:** A — P1: every deadline is measured on a single clock (the observer's own monotonic clock, from its own send time to when it sees the result), never by comparing two hosts' clocks, so STUCK is immune to skew. P2 clocks: NTP required and checked on every host (preflight check); each telemetry event records which host stamped it plus a skew estimate from the hub round trip; cross-host delays flagged past a bound. P2 versions: software and protocol versions on the agent card; "old version" shown distinct from "deaf"; an incompatible protocol version refused loudly; patch-number differences do not matter.

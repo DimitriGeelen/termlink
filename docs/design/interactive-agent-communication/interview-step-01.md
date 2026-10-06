@@ -454,4 +454,13 @@ the output in one pass after the last question.
          and checked, telemetry tagged with the stamping host and a skew estimate, cross-host delays flagged past a
          bound; P2 versions on the agent card, "old" distinct from "deaf", incompatible protocol refused loudly.
     10c. Leaves open: skew bound (step 4); T-2700; 055's "one version estate-wide".
+11. **CAND-14 obligation contract and visible unanswered state — ruled A** (2026-10-06).
+    11a. Facts given: ring20-manager's 8 unanswered requests (RV2 items 50, 52; cause not in the record); the sender
+         side is already covered by R-28/OD-8, OD-3 STUCK, OD-14 escalation and CAND-10; the receiver has no list of
+         what it owes.
+    11b. Ruled: sender-side unanswered state recorded as covered; new P1 owed-answers list per agent from the hub
+         record, shown at session start/resume and in needs-attention; work-request obligation states (accepted/
+         declined, progress deadline, completed/failed) into R-41's later slice with the CAND-1 task proposal as
+         "accepted".
+    11c. Leaves open: escalation to another role holder (OD-18).
 
