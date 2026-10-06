@@ -2,19 +2,29 @@ id: arc-010
 slug: arc-011
 name: 'Agent-to-agent message delivery: mailbox to prompt'
 description: >
-  Agents exchange messages that are never silently lost, never typed into a busy prompt and never flood each other.
-  Step 1 of the design role chain (T-3344, operator interview 2026-10-04..06) ruled the whole contract: stage chain
-  SENT -> RECEIVED -> STORED -> HANDED_OVER -> REPLIED | ACKNOWLEDGED_NO_ACTION written to the home-hub record first
-  (OD-4/5/8); five sender-visible states with stuck deadlines and two polling ladders by priority (OD-3 corrected);
-  urgent via the harness hook channel, never typed into a busy prompt (OD-2); hub-set-up circuits with the hub path
-  as fallback (OD-1); stable minted ids for hub, project and instance, a declared mail hub, no silent redirect (OD-10/11/12,
-  CAND-8); one receiver per inbox, termlink sidecar built to the contract (OD-9); a readiness-gated fenced lease
-  for the 'main' role (OD-18); flooding controls (CAND-12); acceptance by verified behaviour (GP-12, CAND-3). Summary
+  Agents exchange messages that are never silently lost, never typed into a busy prompt
+  and never flood each other.
+  Step 1 of the design role chain (T-3344, operator interview 2026-10-04..06) ruled
+  the whole contract: stage chain
+  SENT -> RECEIVED -> STORED -> HANDED_OVER -> REPLIED | ACKNOWLEDGED_NO_ACTION written
+  to the home-hub record first
+  (OD-4/5/8); five sender-visible states with stuck deadlines and two polling ladders
+  by priority (OD-3 corrected);
+  urgent via the harness hook channel, never typed into a busy prompt (OD-2); hub-set-up
+  circuits with the hub path
+  as fallback (OD-1); stable minted ids for hub, project and instance, a declared
+  mail hub, no silent redirect (OD-10/11/12,
+  CAND-8); one receiver per inbox, termlink sidecar built to the contract (OD-9);
+  a readiness-gated fenced lease
+  for the 'main' role (OD-18); flooding controls (CAND-12); acceptance by verified
+  behaviour (GP-12, CAND-3). Summary
   of every ruling: docs/reports/T-3344-step1-rulings-summary.md.
-description_prior: 'The operator''s full spec for the sidecar rail, end to end: sender -> sidecar API -> receiver
-  stores message+blob on local disk -> flag -> RECEIVED back to sender -> sender ledger -> independent cron checks
-  the prompt is free -> queue -> inject -> verify the agent is working -> INJECTED back to sender -> roles swap
-  on reply. Steps 1-6 are partly built on the wrong mechanism (hub RPC, not a sidecar API); steps 7-10 do not exist.'
+description_prior: 'The operator''s full spec for the sidecar rail, end to end: sender
+  -> sidecar API -> receiver stores message+blob on local disk -> flag -> RECEIVED
+  back to sender -> sender ledger -> independent cron checks the prompt is free ->
+  queue -> inject -> verify the agent is working -> INJECTED back to sender -> roles
+  swap on reply. Steps 1-6 are partly built on the wrong mechanism (hub RPC, not a
+  sidecar API); steps 7-10 do not exist.'
 status: in-progress
 anchor_task: T-3069
 # Operator directive 2026-10-04 (T-3335): the requirements-and-design document is the
@@ -25,81 +35,95 @@ headline_doc_prior: docs/design/interactive-agent-communication-requirements.md
 design_doc: docs/design/interactive-agent-communication.md
 traceability_doc: docs/design/interactive-agent-communication-traceability.md
 headline_inputs:
-- doc: docs/reports/T-3344-step1-rulings-summary.md
-  role: summary of every step-1 ruling (OD-1..18, CANDs, GP-0/11/12), what is open, what goes to which step
-- doc: docs/design/interactive-agent-communication/interview-step-01.md
-  role: record of the operator interview (authoritative over the summary)
-- doc: docs/design/interactive-agent-communication-01-requirements.md
-  role: step-1 output v0.3 (R-1..R-43); rulings folded in by T-3348, signed off by T-3349
-- doc: docs/design/interactive-agent-communication-requirements.md
-  role: confirmed requirements R-1.1..R-14.4 (T-3335), input of step 1
-- doc: docs/design/interactive-agent-communication-role-chain.yaml
-  role: 8-step design role chain; steps 2-8 = T-3351..T-3357
-- doc: docs/reports/T-3344-step1-review/
-  role: external review of the step-1 output (Codex, GLM, two rounds)
-- doc: docs/reports/T-3344-cand3-review/comparison.md
-  role: external review of the CAND-3 closing rule
-- doc: docs/reports/T-3344-od18-review/comparison.md
-  role: external review of OD-18 several agents per project
-- doc: docs/reports/T-3344-gp12-review/comparison.md
-  role: external review of GP-12 very simple
-- doc: docs/reports/T-3335-design-review/comparison.md
-  role: design review feeding step 1
-- doc: docs/reports/T-3335-routing-consult/comparison.md
-  role: routing consult feeding step 1
+  - doc: docs/reports/T-3344-step1-rulings-summary.md
+    role: summary of every step-1 ruling (OD-1..18, CANDs, GP-0/11/12), what is 
+      open, what goes to which step
+  - doc: docs/design/interactive-agent-communication/interview-step-01.md
+    role: record of the operator interview (authoritative over the summary)
+  - doc: docs/design/interactive-agent-communication-01-requirements.md
+    role: step-1 output v0.3 (R-1..R-43); rulings folded in by T-3348, signed 
+      off by T-3349
+  - doc: docs/design/interactive-agent-communication-requirements.md
+    role: confirmed requirements R-1.1..R-14.4 (T-3335), input of step 1
+  - doc: docs/design/interactive-agent-communication-role-chain.yaml
+    role: 8-step design role chain; steps 2-8 = T-3351..T-3357
+  - doc: docs/reports/T-3344-step1-review/
+    role: external review of the step-1 output (Codex, GLM, two rounds)
+  - doc: docs/reports/T-3344-cand3-review/comparison.md
+    role: external review of the CAND-3 closing rule
+  - doc: docs/reports/T-3344-od18-review/comparison.md
+    role: external review of OD-18 several agents per project
+  - doc: docs/reports/T-3344-gp12-review/comparison.md
+    role: external review of GP-12 very simple
+  - doc: docs/reports/T-3335-design-review/comparison.md
+    role: design review feeding step 1
+  - doc: docs/reports/T-3335-routing-consult/comparison.md
+    role: routing consult feeding step 1
 step1_status: >
-  2026-10-06: interview complete except GP-11 (open, T-3350). Rulings not yet folded into the step-1 document (T-3348);
+  2026-10-06: interview complete except GP-11 (open, T-3350). Rulings not yet folded
+  into the step-1 document (T-3348);
   operator sign-off pending (T-3349). Step 2 may not start before sign-off.
 horizon_plan:
   now:
-  - T-3344 step 1 requirements (started)
-  - T-3348 fold rulings into step-1 doc v0.4
-  - T-3349 operator sign-off of step 1 (owner human)
-  - 'T-3350 GP-11 operator out-of-band channels: inventories, AEF supplement, ruling'
+    - T-3344 step 1 requirements (started)
+    - T-3348 fold rulings into step-1 doc v0.4
+    - T-3349 operator sign-off of step 1 (owner human)
+    - 'T-3350 GP-11 operator out-of-band channels: inventories, AEF supplement, ruling'
   next:
-  - T-3351 step 2 threat model
-  - T-3352 step 3 security floor and phasing
-  - T-3353 step 4 architect
-  - T-3347 cross-hub read of message stage and reply (primitive for AEF send-and-wait)
+    - T-3351 step 2 threat model
+    - T-3352 step 3 security floor and phasing
+    - T-3353 step 4 architect
+    - T-3347 cross-hub read of message stage and reply (primitive for AEF 
+      send-and-wait)
   later:
-  - T-3354 step 5 evidence
-  - T-3355 step 6 pseudo-code
-  - T-3356 step 7 review panel
-  - T-3357 step 8 planner
-  - T-3358 --priority send option (CAND-4)
-  - T-3359 main role fenced lease (OD-18)
-  - T-3360 standing tests (OD-18, CAND-3)
-  - T-3361 daily two-agent message canary (OD-14)
-  - T-3362 sender sequence numbers (CAND-18)
-  - T-3363 declared mail hub check (CAND-8)
-  - T-3364 NTP preflight check (CAND-13)
-  - T-3365 termlink sidecar in the binary (OD-9)
-  - T-3366 hub canonical id (OD-12)
+    - T-3354 step 5 evidence
+    - T-3355 step 6 pseudo-code
+    - T-3356 step 7 review panel
+    - T-3357 step 8 planner
+    - T-3358 --priority send option (CAND-4)
+    - T-3359 main role fenced lease (OD-18)
+    - T-3360 standing tests (OD-18, CAND-3)
+    - T-3361 daily two-agent message canary (OD-14)
+    - T-3362 sender sequence numbers (CAND-18)
+    - T-3363 declared mail hub check (CAND-8)
+    - T-3364 NTP preflight check (CAND-13)
+    - T-3365 termlink sidecar in the binary (OD-9)
+    - T-3366 hub canonical id (OD-12)
 aef_followups:
-- send-and-wait tool (CAND-10); TermLink supplies T-3347 -- framework:pickup offset 318
-- two polling ladders by priority replace D-600 for agent mail re-sends (OD-3 correction) -- offset 318
-- carry metadata priority (CAND-4) and the HANDED_OVER vocabulary + five states (OD-8, OD-3) -- offset 314
-- project-id minting and a re-mint command for forks (OD-11)
-- amended D-660 text agreeing with D-599 (OD-12)
-- operator out-of-band channel standard (GP-11) -- offset 319, supplement pending (T-3350)
+  - send-and-wait tool (CAND-10); TermLink supplies T-3347 -- framework:pickup 
+    offset 318
+  - two polling ladders by priority replace D-600 for agent mail re-sends (OD-3 
+    correction) -- offset 318
+  - carry metadata priority (CAND-4) and the HANDED_OVER vocabulary + five 
+    states (OD-8, OD-3) -- offset 314
+  - project-id minting and a re-mint command for forks (OD-11)
+  - amended D-660 text agreeing with D-599 (OD-12)
+  - operator out-of-band channel standard (GP-11) -- offset 319, supplement 
+    pending (T-3350)
 headline_mechanic: >
-  An agent sends a message (by project+role, or into an open conversation) and, without either side being continuously
-  attached, sees from the hub record each stage -- RECEIVED, STORED, HANDED_OVER proven from the peer's transcript,
-  then REPLIED or ACKNOWLEDGED_NO_ACTION -- and one truthful state (WAITING, WAITING FOR RECIPIENT, STUCK, UNKNOWN,
-  DEAD) on its priority's polling ladder; a stuck or failed delivery appears in the main agent's needs-attention
+  An agent sends a message (by project+role, or into an open conversation) and, without
+  either side being continuously
+  attached, sees from the hub record each stage -- RECEIVED, STORED, HANDED_OVER proven
+  from the peer's transcript,
+  then REPLIED or ACKNOWLEDGED_NO_ACTION -- and one truthful state (WAITING, WAITING
+  FOR RECIPIENT, STUCK, UNKNOWN,
+  DEAD) on its priority's polling ladder; a stuck or failed delivery appears in the
+  main agent's needs-attention
   list (and the operator's when main is unassigned).
-headline_mechanic_prior: An agent sends a message (with an optional binary blob) to a peer and learns, as two 
-  separate confirmed events, that it was RECEIVED into the peer's local store and later INJECTED into the 
-  peer's prompt with the peer verified as working on it — without either side needing to be continuously 
-  attached.
+headline_mechanic_prior: An agent sends a message (with an optional binary blob)
+  to a peer and learns, as two separate confirmed events, that it was RECEIVED 
+  into the peer's local store and later INJECTED into the peer's prompt with the
+  peer verified as working on it — without either side needing to be 
+  continuously attached.
 demo_evidence:
 created: 2026-09-22 13:10:11+00:00
 closed_at:
 decision:
 bvp_scores: {}
 bvp_scores_proposed:
-  proposed_by: agent (T-3344 wrap-up, 2026-10-06), rubric policy/bvp-scoring-rubric.md; confirmation is 
-    human-only
+  proposed_by: agent (T-3344 wrap-up, 2026-10-06), rubric 
+    policy/bvp-scoring-rubric.md; an agent decision under the operator's T-3184 
+    ruling (2026-09-27), operator override is sticky
   scores:
     D1: 5
     D2: 5
@@ -118,352 +142,500 @@ bvp_scores_proposed:
   max: 175
   norm: 0.75
   rationale: >
-    D1=5: new failure-class mechanisms (record-first truth, STUCK, standing kill-checked controls). D2=5: the core
-    delivery contract with deadlines, idempotence per stage, sequence numbers. D3=4: send-and-wait, owed-answers
-    list, needs-attention landing. D4=2: harness adapter contract, portable respawn already ruled. F-RECALL=1. F-ORCH=4:
-    main role lease and multi-agent coordination. The heuristic estimator rollup (fw bvp arcs --include-proposed)
-    derives only 48 (norm 0.27) because it scores every member D1=4 and little else; this arc-level figure is the
+    D1=5: new failure-class mechanisms (record-first truth, STUCK, standing kill-checked
+    controls). D2=5: the core
+    delivery contract with deadlines, idempotence per stage, sequence numbers. D3=4:
+    send-and-wait, owed-answers
+    list, needs-attention landing. D4=2: harness adapter contract, portable respawn
+    already ruled. F-RECALL=1. F-ORCH=4:
+    main role lease and multi-agent coordination. The heuristic estimator rollup (fw
+    bvp arcs --include-proposed)
+    derives only 48 (norm 0.27) because it scores every member D1=4 and little else;
+    this arc-level figure is the
     agent's rubric reading.
   tool_derived:
     bvp: 48
     norm: 0.27
     source: fw bvp arcs --include-proposed (derived-proposed rollup, 2026-10-06)
-scoped_drivers: []
-proposed_scoped_drivers:
-- ts: '2026-10-06T10:30:00Z'
-  name: AS_DELIVERY_TRUTH
-  weight: 6
-  source: T-3344 wrap-up (agent proposal, NOT approved)
-  rationale: Every stage and state a sender, receiver or cockpit sees is computed from the hub record and 
-    proven (HANDED_OVER from the transcript); nothing reports delivered without it (OD-4/5/8, OD-13 R-42, 
-    CAND-6).
-- ts: '2026-10-06T10:30:00Z'
-  name: AS_FAILURE_SURFACED
-  weight: 5
-  source: T-3344 wrap-up (agent proposal, NOT approved)
-  rationale: A stalled or lost message becomes a visible STUCK/DEAD and a needs-attention entry within the 
-    declared deadline; the three real failures stay standing controls (OD-3, OD-14, CAND-3, OD-18 tests).
-- ts: '2026-10-06T10:30:00Z'
-  name: AS_OPERATOR_SIMPLICITY
-  weight: 4
-  source: T-3344 wrap-up (agent proposal, NOT approved)
-  rationale: 'Acceptance by verified behaviour: truthful status call, automatic recovery with zero manual steps,
-    clean install/upgrade/rollback, one sidecar per agent (GP-12).'
-prover: bash scripts/notify-rail-e2e.sh --stages precond,deliver,receipt,ladder,wake
+scoped_drivers:
+  - name: AS_DELIVERY_TRUTH
+    weight: 6
+    approved_at: '2026-10-06T19:40:18Z'
+    approved_by: reviewer:static-v1
+    reviewer:
+      verdict: pass
+      checks:
+        a:
+          check: scorable
+          verdict: pass
+          reason: 'inline scoring: validates (3 level(s))'
+        b:
+          check: distinct
+          verdict: pass
+          reason: no collision with D1-D4, free_drivers[] or this arc's 
+            scoped_drivers[]
+        c:
+          check: distinguishes
+          verdict: pass
+          reason: 392 chars, distinguishes from D2, Reliability
+      ts: '2026-10-06T19:40:18Z'
+      reviewer_id: static-v1
+  - name: AS_FAILURE_SURFACED
+    weight: 5
+    approved_at: '2026-10-06T19:40:20Z'
+    approved_by: reviewer:static-v1
+    reviewer:
+      verdict: pass
+      checks:
+        a:
+          check: scorable
+          verdict: pass
+          reason: 'inline scoring: validates (3 level(s))'
+        b:
+          check: distinct
+          verdict: pass
+          reason: no collision with D1-D4, free_drivers[] or this arc's 
+            scoped_drivers[]
+        c:
+          check: distinguishes
+          verdict: pass
+          reason: 341 chars, distinguishes from D1, Antifragility
+      ts: '2026-10-06T19:40:20Z'
+      reviewer_id: static-v1
+  - name: AS_OPERATOR_SIMPLICITY
+    weight: 4
+    approved_at: '2026-10-06T19:40:22Z'
+    approved_by: reviewer:static-v1
+    reviewer:
+      verdict: pass
+      checks:
+        a:
+          check: scorable
+          verdict: pass
+          reason: 'inline scoring: validates (3 level(s))'
+        b:
+          check: distinct
+          verdict: pass
+          reason: no collision with D1-D4, free_drivers[] or this arc's 
+            scoped_drivers[]
+        c:
+          check: distinguishes
+          verdict: pass
+          reason: 289 chars, distinguishes from D3, Usability
+      ts: '2026-10-06T19:40:21Z'
+      reviewer_id: static-v1
+proposed_scoped_drivers: []
+prover: bash scripts/notify-rail-e2e.sh --stages 
+  precond,deliver,receipt,ladder,wake
 slices:
-- id: S1
-  spec_step: 1. sender sends via a sidecar API
-  task: T-3135
-  status: built
-  note: 'BUILT 2026-09-29 (T-3211 R1 procAsFit worker, T-3135): scripts/notify-sidecar-api.sh — the LOCAL control
-    surface (status / queue / inject <id|next> / agent-state / ack <offset> --evidence) under the SQ-1 local-control
-    reading; §6 bright line ENFORCED (remote-address args refused exit 2 + static tripwire in tests/notify-sidecar-api-fixtures.sh,
-    93 assertions). SQ-8 portable respawn: notify-sidecar-supervisor.sh --loop (bash-only core) + --emit-unit systemd|launchd|cron|auto.
-    NOTE the spec wording "sender SENDS via a sidecar API" is NOT what was built and NOT what SQ-1 permits: sending
-    to a peer stays channel.post via the hub. The slice is "built" in the sense the operator ruled (a local primitive),
-    not in the sense of a sidecar transport. Prior note kept below.'
-  note_prior: 'RE-POINTED 2026-09-25 (T-3093 R2S3): T-3075 (inception) went GO 2026-09-24 and is now work-completed,
-    which is what made check-arc-slice-drift.sh fire on this slice — the inception decided the analysis, not the
-    build (see T-3075''s own Recommendation: "GO on the ANALYSIS, not a build"). Re-pointed at T-3135, the build
-    task created from that GO, which carries the operator''s SQ-8 ruling forward: systemd-only respawn is REJECTED,
-    a portable fallback is REQUIRED. Sends ride hub RPC today. No sidecar API exists. Operator wants a separate
-    always-respawning process, independent of the hub because the hub goes down, also carrying the startup chain
-    (agent/session/project/hub, re-resolve FQDN/IP on change).'
-- id: S2
-  spec_step: 2. payload may carry a binary blob
-  task: T-3134
-  status: built
-  note: 'BUILT 2026-09-25 (T-3093 R3S3): `termlink artifact put <path> --to <peer>` and `termlink artifact get <sha256>
-    --expected-sha256 <sha256> -o <path>` shipped as thin wrappers over send_artifact_via_client/download_artifact_via_client
-    (crates/termlink-cli/src/commands/artifact.rs). Proven end-to-end against a real (isolated, disposable) local
-    hub: put of a 200KB payload went via the chunked artifact.put path (channel.artifact), get downloaded it byte-identical
-    with sha256 verified. Found and fixed a latent bug live: ArtifactManifest.from must be identity.fingerprint(),
-    not a cli-<pid> label, or the hub rejects the signed channel.post with CHANNEL_IDENTITY_MISMATCH (-32014, T-1427)
-    — the same bug is latent in the 3 pre-existing callers (file.rs/remote.rs/tools.rs), filed separately as T-3140
-    (not fixed here, out of T-3134''s Scope Fence).'
-  note_prior: 'REFINED 2026-09-22 (T-3076). Blob-on-a-topic exists END TO END: `artifact.put` + `channel.post {msg_type:artifact,
-    artifact_ref:<sha256>}` (T-1249/T-1164a), content-addressed. The session-targeted file.init/chunk/complete path
-    is the LEGACY FALLBACK, used only when a peer hub does not advertise artifact.put. THE ACTUAL GAP, measured:
-    there is NO `termlink artifact` subcommand, so a SHELL SCRIPT can post --artifact-ref but cannot move the BYTES.
-    put/get are reachable only from inside file send/receive. Remediation is two thin CLI wrappers over functions
-    that already exist. That is new CLI surface, hence a SOVEREIGN question (T-3076 IW-2). RESOLVED 2026-09-23 (SQ-3):
-    operator decided YES, add the verbs. RE-POINTED 2026-09-25 (T-3093 R2S3): T-3076 (inception) went GO 2026-09-24
-    and is now work-completed, which is what made check-arc-slice-drift.sh fire on this slice. Re-pointed at T-3134,
-    the build task created from that GO — the two thin wrappers described above, scored hv-lc (Q1) by the estimator.'
-- id: S3
-  spec_step: 3. receiver stores it on local disk
-  task: T-2300
-  status: built
-  note: journal.sqlite, 2238 rows measured 2026-09-22.
-- id: S4
-  spec_step: 4. receiver sets a flag
-  task: T-3068
-  status: built
-  note: Plus the arrival record (last_mail_ts/last_mail_topic) that survives the L2 ack, so the flag can 
-    answer 'did anything arrive since I last looked?' rather than only 'is something unread right now'.
-- id: S5
-  spec_step: 5. receiver tells sender RECEIVED
-  task: T-2300
-  status: partial
-  note: L2 stage=delivered is real and durable, but it is a POST TO A HUB TOPIC, not a sidecar API call. Right
-    event, wrong mechanism. Becomes 'built' when S1 lands.
-- id: S6
-  spec_step: 6. sender records it in its own ledger
-  task: T-3070
-  status: built
-  note: 'scripts/notify-ledger.sh — one outbox row per message sent, carrying the rung it reached (sent | delivered
-    | read). Survives a restart, so the sender no longer has to re-poll every topic it has ever used to answer ''what
-    am I still waiting on?''. 15 hermetic fixtures. TWO INTEGRITY RULES carry the whole value: a rung NEVER advances
-    without a receipt actually read back (absence is shown as absence, never assumed to be progress), and a stage=read
-    receipt carrying the WITHDRAWN evidence=wake-consumer is ignored — such receipts exist on live topics today
-    (offset 110 on dm:3bba15e681b3a078:d1993c2c3ec44c94) and honouring them would relaunder a retracted claim as
-    fact. Its first live sync earned its keep immediately: both messages to the AEF agent read ''delivered'' and
-    NEITHER ''read''. ''Delivered but never read'' is now a state the sender can SEE rather than an absence it must
-    notice.'
-- id: S7
-  spec_step: 7. independent process checks the prompt is free
-  task: T-3069
-  status: built
-  note: 'notify-injector.sh checks, in order: is the agent running at all (its own exit 3, never conflated with
-    busy), then is the prompt free. Runs with no LLM online. The classifier it depends on was REBUILT by T-3079,
-    because the one that existed could not recognise an idle REPL: its READY markers did not match the shipped UI,
-    and its BUSY marker was usually pushed out of the read window by streaming text — so marker absence never meant
-    idle. It now decides on two properties of how a terminal REPAINTS rather than on UI prose: quiescence (two byte-identical
-    reads) and composer-row emptiness. 466 paired samples scored against the UI''s own completion marker: FALSE-READY
-    = 0.'
-- id: S8
-  spec_step: 8. read the queue, inject the highest-priority message
-  task: T-3071
-  status: built
-  note: 'The field was never missing from the wire — journal-mirror.sh was DISCARDING it. It parsed every envelope''s
-    metadata and kept exactly two keys (conversation_id, observed_addr); payload holds the decoded BODY, not the
-    envelope, so once dropped nothing downstream could recover it. A sender could have declared a priority for months
-    and it would have vanished silently. Now persisted to messages.priority, CLAMPED to [-9,9] on the way in (T-2527
-    caller-param convention: priority arrives from a PEER, and unclamped `priority: 1e9` pins that sender to the
-    head of every queue forever — a denial of attention needing no exploit, just a large integer). bool is excluded
-    deliberately (bool subclasses int in Python, so `true` would have become band 1); unparseable sorts as NORMAL,
-    never as urgent. Injector now orders COALESCE(priority,0) DESC, ts ASC, offset ASC. Flat stays flat — it stopped
-    being INCIDENTAL. Before this there was no declared notion of priority for the ordering to be flat with respect
-    to, so the guarantee lived only in a comment. BEHAVIOUR-PRESERVING, differentially proven on the real corpus:
-    2241 rows, 143 topics, identical row selected on every topic. That identity is meaningful because the clause
-    was separately shown load-bearing — promoting the NEWEST message on a live topic to band 5 flips selection from
-    offset 0 to 20. 23 injector fixtures (17 pre-existing intact, and they now double as the pre-migration back-compat
-    assertion since their queue has no priority column) + 16 NEW journal-mirror fixtures — the mirror had no coverage
-    at all before it began writing peer-supplied input into a column the injector sorts on. DOES NOT authorise S9:
-    bypassing the prompt-free wait remains blocked on SQ-4.'
-- id: S9
-  spec_step: 9. urgent messages inject directly
-  task: T-3072
-  status: built
-  note: 'Semantics settled by the operator (SQ-4) and built to that answer, NOT to this slice''s own title. The
-    task is named ''bypass the prompt-free wait and inject directly''; the decision inverts it - urgent shortens
-    the WAIT, never the CHECK. There was no wait loop to shorten: the injector is single-shot, and the wait a normal
-    message serves is the CRON INTERVAL, up to five minutes. So urgency means re-probing the prompt within a bounded
-    window (INJECTOR_URGENT_WAIT, default 120s; band >= INJECTOR_URGENT_THRESHOLD, default 5) instead of surrendering
-    the tick. After the window it defers exactly as before, exit 4. Queue POSITION needed nothing: T-3071 already
-    orders by COALESCE(priority,0) DESC. Urgency is bounded by the delivered watermark, or an already-handed-over
-    urgent message would re-arm the wait for ever. Cost: a deferred tick now does one hub read it previously skipped.
-    34 fixtures. The load-bearing one is U2 - making the BUSY arm exempt urgent is caught with ''URGENT INJECTED
-    INTO A BUSY PROMPT - the T-2396 loss''.'
-- id: S10
-  spec_step: 10. inject, verify the agent is working, report INJECTED
-  task: T-3069
-  status: built
-  note: 'PROVEN LIVE 2026-09-22, third attempt (T-3069 + T-3079). Fresh topic proof:t3079-1790111420 — message posted,
-    mirrored (populating the T-3071 priority column), prompt READY, injected, verified by a BUSY transition, L3
-    posted AND READ BACK from the hub: offset 1 = receipt stage=read evidence=idle-gated-inject up_to=0. The first
-    truthful machine-earned L3 on this rail; the only prior ones carried `operator` (a human vouching) and the withdrawn
-    `wake-consumer`. The message is confirmed to have REACHED THE PROMPT on the receiver''s own transcript — a `user`
-    turn in 7b8bcc50-....jsonl — which is the T-2876 DELIVERED verdict rather than a sender-side claim. The run
-    also exposed a false success and fixed it: the injector logged `L3 posted` for a receipt never written, because
-    notify-ack-read returns 0 for BOTH `posted` and `already acked`. It now reads the receipt back and refuses to
-    claim what it cannot see (fixture T24). STILL OPEN: the queue has no watermark tied to the L3 rung, so on a
-    topic with history it re-serves the oldest offset (it served 0 while L3 stood at 145). Own task; not a classifier
-    concern. --- SUPERSEDED HISTORY --- CODE COMPLETE, NOT PROVEN (T-3069). scripts/notify-injector.sh runs the
-    full chain with five distinct outcomes and 17 hermetic fixtures, and it behaves correctly live UP TO the prompt
-    check (rc=4 defer on a real session). The inject->verify->L3 path is UNPROVEN and the AC is unticked. BLOCKER,
-    measured twice: there is no live interactive Claude REPL registered as a TermLink session on this host. All
-    14 sessions classify UNKNOWN because they are shell endpoints or finished dispatch workers at a bash prompt.
-    THE INJECTOR HAS NO AUDIENCE YET — which is a fleet condition, not a code defect, and it also means S12 (role
-    swap) rests on an assumption nothing currently satisfies.'
-- id: S11
-  spec_step: 11. a cron drives the whole loop
-  task: T-3068
-  status: built
-  note: 'INSTALLED 2026-09-22 on operator approval (SQ-5) at /etc/cron.d/termlink-notify-wake-supervisor, byte-identical
-    to the tracked source, and VERIFIED FIRING rather than merely present: journalctl shows `21:20:01 CRON[97550]
-    ... notify-wake-supervisor.sh --quiet` at the first */5 boundary after install, with both log streams present
-    and EMPTY (the healthy state under the one-bit convention, and proof the split redirect works). Independently
-    corroborated 2026-09-23: the supervised consumer PIDs had CHANGED overnight (965559 -> 694874) with fresh 1s
-    heartbeats, so cron is restarting them unattended — the loop runs without anybody driving it. Two guard-layer
-    reds cleared as a result, not silenced: check-cron-install-drift 1 -> 0, cron-drift-firing-fixtures 12/1 ->
-    13/0.'
-- id: S12
-  spec_step: 12. roles swap — the agent replies as sender
-  task: T-3135
-  status: partial
-  note: 'PARTIAL 2026-09-29 (T-3135): the RECEIVING half is built — notify-sidecar-api.sh ack posts L3 stage=read
-    with mandatory evidence, which is the signal that lets the sender ledger (S6) advance and roles swap on a real
-    event. The REPLY half deliberately travels the EXISTING channel.post path (scripts/agent-respond.sh / /reply),
-    NOT this API (§6 bright line). Remaining blocker is EXTERNAL: framework-agent-systemd unit lacks termlink in
-    --allowed-commands (T-559 boundary, another project). Recorded in docs/operations/notify-sidecar-api.md.'
-  note_prior: 'RE-POINTED 2026-09-25 (T-3093 R2S3): re-pointed at T-3135 (the S1 build task) alongside S1 — T-3135''s
-    scope note explains why the two share one task: the reply mechanism is code-complete the moment S1''s sidecar
-    API exists (the agent replies via the same channel.post path already proven end-to-end by T-3069/T-3079), so
-    this slice''s CODE-SIDE blocker is S1 itself, not a separate build. STILL BLOCKED, unchanged, and NOT something
-    T-3135 can close: framework-agent-systemd''s systemd unit does not have `termlink` in its --allowed-commands,
-    so it can receive and cannot reply. That is a different project''s config (T-559 project-boundary — cannot be
-    edited from this repo/session) and remains an operator decision on the other host.'
+  - id: S1
+    spec_step: 1. sender sends via a sidecar API
+    task: T-3135
+    status: built
+    note: 'BUILT 2026-09-29 (T-3211 R1 procAsFit worker, T-3135): scripts/notify-sidecar-api.sh
+      — the LOCAL control surface (status / queue / inject <id|next> / agent-state
+      / ack <offset> --evidence) under the SQ-1 local-control reading; §6 bright line
+      ENFORCED (remote-address args refused exit 2 + static tripwire in tests/notify-sidecar-api-fixtures.sh,
+      93 assertions). SQ-8 portable respawn: notify-sidecar-supervisor.sh --loop (bash-only
+      core) + --emit-unit systemd|launchd|cron|auto. NOTE the spec wording "sender
+      SENDS via a sidecar API" is NOT what was built and NOT what SQ-1 permits: sending
+      to a peer stays channel.post via the hub. The slice is "built" in the sense
+      the operator ruled (a local primitive), not in the sense of a sidecar transport.
+      Prior note kept below.'
+    note_prior: 'RE-POINTED 2026-09-25 (T-3093 R2S3): T-3075 (inception) went GO 2026-09-24
+      and is now work-completed, which is what made check-arc-slice-drift.sh fire
+      on this slice — the inception decided the analysis, not the build (see T-3075''s
+      own Recommendation: "GO on the ANALYSIS, not a build"). Re-pointed at T-3135,
+      the build task created from that GO, which carries the operator''s SQ-8 ruling
+      forward: systemd-only respawn is REJECTED, a portable fallback is REQUIRED.
+      Sends ride hub RPC today. No sidecar API exists. Operator wants a separate always-respawning
+      process, independent of the hub because the hub goes down, also carrying the
+      startup chain (agent/session/project/hub, re-resolve FQDN/IP on change).'
+  - id: S2
+    spec_step: 2. payload may carry a binary blob
+    task: T-3134
+    status: built
+    note: 'BUILT 2026-09-25 (T-3093 R3S3): `termlink artifact put <path> --to <peer>`
+      and `termlink artifact get <sha256> --expected-sha256 <sha256> -o <path>` shipped
+      as thin wrappers over send_artifact_via_client/download_artifact_via_client
+      (crates/termlink-cli/src/commands/artifact.rs). Proven end-to-end against a
+      real (isolated, disposable) local hub: put of a 200KB payload went via the chunked
+      artifact.put path (channel.artifact), get downloaded it byte-identical with
+      sha256 verified. Found and fixed a latent bug live: ArtifactManifest.from must
+      be identity.fingerprint(), not a cli-<pid> label, or the hub rejects the signed
+      channel.post with CHANNEL_IDENTITY_MISMATCH (-32014, T-1427) — the same bug
+      is latent in the 3 pre-existing callers (file.rs/remote.rs/tools.rs), filed
+      separately as T-3140 (not fixed here, out of T-3134''s Scope Fence).'
+    note_prior: 'REFINED 2026-09-22 (T-3076). Blob-on-a-topic exists END TO END: `artifact.put`
+      + `channel.post {msg_type:artifact, artifact_ref:<sha256>}` (T-1249/T-1164a),
+      content-addressed. The session-targeted file.init/chunk/complete path is the
+      LEGACY FALLBACK, used only when a peer hub does not advertise artifact.put.
+      THE ACTUAL GAP, measured: there is NO `termlink artifact` subcommand, so a SHELL
+      SCRIPT can post --artifact-ref but cannot move the BYTES. put/get are reachable
+      only from inside file send/receive. Remediation is two thin CLI wrappers over
+      functions that already exist. That is new CLI surface, hence a SOVEREIGN question
+      (T-3076 IW-2). RESOLVED 2026-09-23 (SQ-3): operator decided YES, add the verbs.
+      RE-POINTED 2026-09-25 (T-3093 R2S3): T-3076 (inception) went GO 2026-09-24 and
+      is now work-completed, which is what made check-arc-slice-drift.sh fire on this
+      slice. Re-pointed at T-3134, the build task created from that GO — the two thin
+      wrappers described above, scored hv-lc (Q1) by the estimator.'
+  - id: S3
+    spec_step: 3. receiver stores it on local disk
+    task: T-2300
+    status: built
+    note: journal.sqlite, 2238 rows measured 2026-09-22.
+  - id: S4
+    spec_step: 4. receiver sets a flag
+    task: T-3068
+    status: built
+    note: Plus the arrival record (last_mail_ts/last_mail_topic) that survives 
+      the L2 ack, so the flag can answer 'did anything arrive since I last 
+      looked?' rather than only 'is something unread right now'.
+  - id: S5
+    spec_step: 5. receiver tells sender RECEIVED
+    task: T-2300
+    status: partial
+    note: L2 stage=delivered is real and durable, but it is a POST TO A HUB 
+      TOPIC, not a sidecar API call. Right event, wrong mechanism. Becomes 
+      'built' when S1 lands.
+  - id: S6
+    spec_step: 6. sender records it in its own ledger
+    task: T-3070
+    status: built
+    note: 'scripts/notify-ledger.sh — one outbox row per message sent, carrying the
+      rung it reached (sent | delivered | read). Survives a restart, so the sender
+      no longer has to re-poll every topic it has ever used to answer ''what am I
+      still waiting on?''. 15 hermetic fixtures. TWO INTEGRITY RULES carry the whole
+      value: a rung NEVER advances without a receipt actually read back (absence is
+      shown as absence, never assumed to be progress), and a stage=read receipt carrying
+      the WITHDRAWN evidence=wake-consumer is ignored — such receipts exist on live
+      topics today (offset 110 on dm:3bba15e681b3a078:d1993c2c3ec44c94) and honouring
+      them would relaunder a retracted claim as fact. Its first live sync earned its
+      keep immediately: both messages to the AEF agent read ''delivered'' and NEITHER
+      ''read''. ''Delivered but never read'' is now a state the sender can SEE rather
+      than an absence it must notice.'
+  - id: S7
+    spec_step: 7. independent process checks the prompt is free
+    task: T-3069
+    status: built
+    note: 'notify-injector.sh checks, in order: is the agent running at all (its own
+      exit 3, never conflated with busy), then is the prompt free. Runs with no LLM
+      online. The classifier it depends on was REBUILT by T-3079, because the one
+      that existed could not recognise an idle REPL: its READY markers did not match
+      the shipped UI, and its BUSY marker was usually pushed out of the read window
+      by streaming text — so marker absence never meant idle. It now decides on two
+      properties of how a terminal REPAINTS rather than on UI prose: quiescence (two
+      byte-identical reads) and composer-row emptiness. 466 paired samples scored
+      against the UI''s own completion marker: FALSE-READY = 0.'
+  - id: S8
+    spec_step: 8. read the queue, inject the highest-priority message
+    task: T-3071
+    status: built
+    note: 'The field was never missing from the wire — journal-mirror.sh was DISCARDING
+      it. It parsed every envelope''s metadata and kept exactly two keys (conversation_id,
+      observed_addr); payload holds the decoded BODY, not the envelope, so once dropped
+      nothing downstream could recover it. A sender could have declared a priority
+      for months and it would have vanished silently. Now persisted to messages.priority,
+      CLAMPED to [-9,9] on the way in (T-2527 caller-param convention: priority arrives
+      from a PEER, and unclamped `priority: 1e9` pins that sender to the head of every
+      queue forever — a denial of attention needing no exploit, just a large integer).
+      bool is excluded deliberately (bool subclasses int in Python, so `true` would
+      have become band 1); unparseable sorts as NORMAL, never as urgent. Injector
+      now orders COALESCE(priority,0) DESC, ts ASC, offset ASC. Flat stays flat —
+      it stopped being INCIDENTAL. Before this there was no declared notion of priority
+      for the ordering to be flat with respect to, so the guarantee lived only in
+      a comment. BEHAVIOUR-PRESERVING, differentially proven on the real corpus: 2241
+      rows, 143 topics, identical row selected on every topic. That identity is meaningful
+      because the clause was separately shown load-bearing — promoting the NEWEST
+      message on a live topic to band 5 flips selection from offset 0 to 20. 23 injector
+      fixtures (17 pre-existing intact, and they now double as the pre-migration back-compat
+      assertion since their queue has no priority column) + 16 NEW journal-mirror
+      fixtures — the mirror had no coverage at all before it began writing peer-supplied
+      input into a column the injector sorts on. DOES NOT authorise S9: bypassing
+      the prompt-free wait remains blocked on SQ-4.'
+  - id: S9
+    spec_step: 9. urgent messages inject directly
+    task: T-3072
+    status: built
+    note: 'Semantics settled by the operator (SQ-4) and built to that answer, NOT
+      to this slice''s own title. The task is named ''bypass the prompt-free wait
+      and inject directly''; the decision inverts it - urgent shortens the WAIT, never
+      the CHECK. There was no wait loop to shorten: the injector is single-shot, and
+      the wait a normal message serves is the CRON INTERVAL, up to five minutes. So
+      urgency means re-probing the prompt within a bounded window (INJECTOR_URGENT_WAIT,
+      default 120s; band >= INJECTOR_URGENT_THRESHOLD, default 5) instead of surrendering
+      the tick. After the window it defers exactly as before, exit 4. Queue POSITION
+      needed nothing: T-3071 already orders by COALESCE(priority,0) DESC. Urgency
+      is bounded by the delivered watermark, or an already-handed-over urgent message
+      would re-arm the wait for ever. Cost: a deferred tick now does one hub read
+      it previously skipped. 34 fixtures. The load-bearing one is U2 - making the
+      BUSY arm exempt urgent is caught with ''URGENT INJECTED INTO A BUSY PROMPT -
+      the T-2396 loss''.'
+  - id: S10
+    spec_step: 10. inject, verify the agent is working, report INJECTED
+    task: T-3069
+    status: built
+    note: 'PROVEN LIVE 2026-09-22, third attempt (T-3069 + T-3079). Fresh topic proof:t3079-1790111420
+      — message posted, mirrored (populating the T-3071 priority column), prompt READY,
+      injected, verified by a BUSY transition, L3 posted AND READ BACK from the hub:
+      offset 1 = receipt stage=read evidence=idle-gated-inject up_to=0. The first
+      truthful machine-earned L3 on this rail; the only prior ones carried `operator`
+      (a human vouching) and the withdrawn `wake-consumer`. The message is confirmed
+      to have REACHED THE PROMPT on the receiver''s own transcript — a `user` turn
+      in 7b8bcc50-....jsonl — which is the T-2876 DELIVERED verdict rather than a
+      sender-side claim. The run also exposed a false success and fixed it: the injector
+      logged `L3 posted` for a receipt never written, because notify-ack-read returns
+      0 for BOTH `posted` and `already acked`. It now reads the receipt back and refuses
+      to claim what it cannot see (fixture T24). STILL OPEN: the queue has no watermark
+      tied to the L3 rung, so on a topic with history it re-serves the oldest offset
+      (it served 0 while L3 stood at 145). Own task; not a classifier concern. ---
+      SUPERSEDED HISTORY --- CODE COMPLETE, NOT PROVEN (T-3069). scripts/notify-injector.sh
+      runs the full chain with five distinct outcomes and 17 hermetic fixtures, and
+      it behaves correctly live UP TO the prompt check (rc=4 defer on a real session).
+      The inject->verify->L3 path is UNPROVEN and the AC is unticked. BLOCKER, measured
+      twice: there is no live interactive Claude REPL registered as a TermLink session
+      on this host. All 14 sessions classify UNKNOWN because they are shell endpoints
+      or finished dispatch workers at a bash prompt. THE INJECTOR HAS NO AUDIENCE
+      YET — which is a fleet condition, not a code defect, and it also means S12 (role
+      swap) rests on an assumption nothing currently satisfies.'
+  - id: S11
+    spec_step: 11. a cron drives the whole loop
+    task: T-3068
+    status: built
+    note: 'INSTALLED 2026-09-22 on operator approval (SQ-5) at /etc/cron.d/termlink-notify-wake-supervisor,
+      byte-identical to the tracked source, and VERIFIED FIRING rather than merely
+      present: journalctl shows `21:20:01 CRON[97550] ... notify-wake-supervisor.sh
+      --quiet` at the first */5 boundary after install, with both log streams present
+      and EMPTY (the healthy state under the one-bit convention, and proof the split
+      redirect works). Independently corroborated 2026-09-23: the supervised consumer
+      PIDs had CHANGED overnight (965559 -> 694874) with fresh 1s heartbeats, so cron
+      is restarting them unattended — the loop runs without anybody driving it. Two
+      guard-layer reds cleared as a result, not silenced: check-cron-install-drift
+      1 -> 0, cron-drift-firing-fixtures 12/1 -> 13/0.'
+  - id: S12
+    spec_step: 12. roles swap — the agent replies as sender
+    task: T-3135
+    status: partial
+    note: 'PARTIAL 2026-09-29 (T-3135): the RECEIVING half is built — notify-sidecar-api.sh
+      ack posts L3 stage=read with mandatory evidence, which is the signal that lets
+      the sender ledger (S6) advance and roles swap on a real event. The REPLY half
+      deliberately travels the EXISTING channel.post path (scripts/agent-respond.sh
+      / /reply), NOT this API (§6 bright line). Remaining blocker is EXTERNAL: framework-agent-systemd
+      unit lacks termlink in --allowed-commands (T-559 boundary, another project).
+      Recorded in docs/operations/notify-sidecar-api.md.'
+    note_prior: 'RE-POINTED 2026-09-25 (T-3093 R2S3): re-pointed at T-3135 (the S1
+      build task) alongside S1 — T-3135''s scope note explains why the two share one
+      task: the reply mechanism is code-complete the moment S1''s sidecar API exists
+      (the agent replies via the same channel.post path already proven end-to-end
+      by T-3069/T-3079), so this slice''s CODE-SIDE blocker is S1 itself, not a separate
+      build. STILL BLOCKED, unchanged, and NOT something T-3135 can close: framework-agent-systemd''s
+      systemd unit does not have `termlink` in its --allowed-commands, so it can receive
+      and cannot reply. That is a different project''s config (T-559 project-boundary
+      — cannot be edited from this repo/session) and remains an operator decision
+      on the other host.'
 sovereign_questions:
-- id: SQ-1
-  status: 'RESOLVED 2026-09-23 - operator decided: the injector belongs to TERMLINK'
-  resolution: 'Operator decision. The injector is a PRIMITIVE built over TermLink''s own session control, not an
-    orchestration engine: charter non-goal 4 disclaims the engine, not the verbs one would be built from. It already
-    lives here, is proven end to end (T-3069), and moving it would put the PTY classifier and the hub read on opposite
-    sides of a project boundary. CONSEQUENCE: T-3075 (sidecar API, slices S1/S12) is unblocked and stays in this
-    repo.'
-  question: Does the injector belong to AEF rather than TermLink?
-  task: T-3075
-  why: Charter non-goal 4 disclaims orchestration; queue -> inject -> verify IS orchestration. Decides which 
-    repo T-3069 lives in. Asked the AEF agent directly; no reply yet.
-- id: SQ-2
-  status: RESOLVED 2026-09-22 — premise disproved, real blocker found and fixed
-  resolution: 'Tested directly on operator approval instead of reasoned about. A REPL spawned with tl-claude.sh
-    proved INJECTABLE immediately (an injected line was answered), so arming is one command and T-2389 was never
-    the blocker. The actual blocker was one layer down: scripts/lib/pty-state.sh could not recognise an idle REPL,
-    so the injector deferred rc=4 forever. Fixed and closed under T-3079, and the rail is now proven end to end
-    (see S10). The question was worth asking and its OBSERVATION was correct; only the inference drawn from it was
-    wrong. Recorded rather than deleted, because a sovereign question that turned out to rest on a bad inference
-    is exactly the kind of thing that gets silently re-derived later.'
-  question: Given NO interactive Claude REPL is registered as a TermLink session, should the arc prioritise 
-    making agents INJECTABLE before building more injection machinery?
-  task: T-3069
-  why: 'Measured 2026-09-22: all 14 registered sessions classify UNKNOWN because they are shell endpoints or finished
-    dispatch workers. S10 and S12 both assume an audience that does not currently exist. T-2389 (arm agents via
-    tl-claude --reachable, owner:human) may be the real blocker for the whole arc, ranking above T-3071/T-3072.
-    SUPERSEDED 2026-09-22, same day, by direct test on operator approval. The premise is WRONG in the half that
-    mattered. A REPL was spawned (tl-claude.sh start --backend tmux) and PROVED INJECTABLE: `termlink inject` of
-    ''Reply with exactly: WAKE-PROOF-OK'' was ANSWERED in the PTY. So the audience exists the moment anyone spawns
-    one, and arming is one command — T-2389 is not the blocker. THE ACTUAL BLOCKER IS THE IDLE CLASSIFIER. After
-    a completed turn, sampled every 10s for 100s, scripts/lib/pty-state.sh finds NO positive marker, so the injector
-    defers (rc=4) forever — which is why T-3069''s live AC failed twice. Cause: the four markers do not match this
-    UI. `?forshortcuts` is ABSENT at every window size on a chat REPL with auto-mode on, whose footer reads ''auto
-    mode on (shift+tab to cycle)'' instead. Widening the window is NOT the fix and the file already says why: at
-    4000 bytes a STALE esctointerrupt reappears and would pin it BUSY forever. The narrow window is right; the marker
-    set is wrong. Also found: pty-state.sh references "$TERMLINK" with NO default, so a caller that has not set
-    it reads nothing and gets UNKNOWN — a broken instrument indistinguishable from a real verdict, and it nearly
-    ''confirmed'' this very question. RE-STATE THE QUESTION AS: make the idle classifier reliable across Claude
-    Code UI versions. That is a TermLink concern, not an AEF one, so it also narrows SQ-1. A candidate signal (tail
-    ends with an empty composer prompt U+276F + U+00A0) is evidenced in T-3069 but deliberately NOT shipped on two
-    data points — its failure mode is a blind inject into a busy prompt, the exact T-2396 loss this arc exists to
-    prevent.'
-- id: SQ-3
-  status: 'RESOLVED 2026-09-23 - operator decided: YES, add the artifact CLI verbs'
-  resolution: 'Operator decision. ''termlink artifact put'' / ''artifact get'' are two thin wrappers over send_artifact_via_client
-    / download_artifact_via_client, functions that already exist and are already exercised by ''file send''. Without
-    them a shell script can post an --artifact-ref but cannot move the BYTES, which is the measured gap (T-3076
-    IW-1). CONSEQUENCE: T-3076 (blob, slice S2) is unblocked. This is new CLI surface on a project that pruned 52
-    tools in P4, justified as a primitive rather than breadth. IW-3 should be answered alongside it: artifact_ref
-    IS a sha256, so --expected-sha256 verification is free and should be mandatory.'
-  question: Add `termlink artifact put` / `artifact get` CLI verbs?
-  task: T-3076
-  why: Two thin wrappers over existing functions, but new CLI surface on a project that pruned 52 tools in P4.
-- id: SQ-6
-  status: 'RESOLVED 2026-09-23 - operator decided: backfill ONCE, recorded AS a backfill'
-  resolution: 'Operator decision. Topics whose only L3s carried the withdrawn evidence=wake-consumer get a one-time
-    delivered watermark, written EXPLICITLY as a backfill declaring that this history predates truthful receipts.
-    Not silent: a silent backfill would relaunder the retracted claim the withdrawal existed to remove, and a future
-    reader could not tell a backfilled watermark from an earned one. CONSEQUENCE: the ~145 messages on dm:3bba15e681b3a078:6738c073bbcc587a
-    are not walked into a live prompt one per cron tick. Needs its own task, and the marker must be distinguishable
-    from one the injector earned.'
-  question: Topics whose only L3 receipts carry the WITHDRAWN evidence=wake-consumer now have NO truthful 
-    delivered watermark. Should those be backfilled, or should the agent receive its whole backlog?
-  task: T-3082
-  why: 'SURFACED 2026-09-22 by T-3082, measured on the live topic dm:3bba15e681b3a078:6738c073bbcc587a. The new
-    watermark correctly excludes disavowed evidence (T-3068), and on that topic EVERY stage=read receipt is wake-consumer
-    — so the honest watermark is -1 and the injector will start from offset 0 and walk ~145 messages, oldest first,
-    one per cron tick. Every one of them is genuinely unconfirmed, so serving them is not a bug; the rail is doing
-    exactly what it should given what it can prove. The question is whether the OPERATOR wants that backlog delivered
-    into a live prompt, or wants a one-time watermark backfill recording that history as water under the bridge.
-    Cheap and wrong: backfilling silently, which would relaunder the retracted claim the withdrawal existed to remove.
-    Also wrong: deciding it here to keep momentum. The withdrawal of wake-consumer had a cost, and this is the bill
-    arriving — it belongs to whoever withdrew it.'
-- id: SQ-7
-  status: 'RESOLVED 2026-09-23 - operator decided: the sixth AC is OBSOLETE'
-  resolution: 'Operator decision. That AC asked the supervised consumer to produce an L3 stage=read receipt. The
-    capability was deliberately removed when evidence=wake-consumer was withdrawn as untruthful, and the truthful
-    L3 now comes from the injector path, which is proven (T-3069, read back from the hub). T-3068''s real deliverable
-    - the flag is actually read and the consumer kept alive - is met and evidenced at 5/6. CONSEQUENCE: the AC is
-    marked OBSOLETE with this reason rather than ticked as though met. T-3068 closes on the remaining five.'
-  question: T-3068's live-proof AC asks the SUPERVISED CONSUMER to produce an L3 stage=read receipt. The arc 
-    has since decided that component must never post one. Is the AC obsolete, or is T-3068 unfinished?
-  task: T-3068
-  why: 'SURFACED 2026-09-23 by T-3068 unit 2. The AC was written when the consumer posted evidence=wake-consumer.
-    That evidence kind was then WITHDRAWN as untruthful and the capability deliberately removed — notify-wake-consumer.sh
-    now reads, verbatim: `NO L3 FROM HERE. This consumer notices a flag; it does not inject anything into a prompt,
-    so it has no standing to claim the message was read.` So the AC now asks for something the arc forbids this
-    component from doing: it is unachievable BY DESIGN, not by omission. Two coherent readings, and they differ
-    in what T-3068 IS FOR. (a) OBSOLETE: the truthful L3 now comes from the injector, and that path is proven (T-3069,
-    evidence=idle-gated-inject, read back from the hub). T-3068''s real deliverable is `the flag is actually read
-    and the consumer is kept alive`, which is met and verified — 5 of 6 ACs now carry cited evidence. (b) UNFINISHED:
-    the wake path (A) is still not proven end to end by any truthful receipt, and retiring the AC would close that
-    gap by editing the question rather than answering it — precisely the arc-003 failure this arc exists to avoid.
-    NOT DECIDED HERE. Rewriting my own acceptance criterion so it passes is producer-as-judge, which the mandate
-    forbids outright. T-3068 is parked at 5/6 with the sixth intact and unticked.'
-- id: SQ-4
-  status: 'RESOLVED 2026-09-23 - operator decided: urgent NEVER injects into a BUSY prompt'
-  resolution: 'Operator decision. Urgent shortens the WAIT; it does not bypass the prompt-free CHECK. Injecting
-    into a busy prompt is the T-2396 failure where text lands unsubmitted and is discarded, so a bypass would silently
-    lose exactly the messages most likely to be marked urgent - the inverse of what urgency is for. CONSEQUENCE:
-    T-3072 (slice S9) is unblocked with its semantics settled: urgent may raise queue position and shorten the poll
-    interval, and must still defer on BUSY/UNKNOWN like every other message.'
-  question: What does an URGENT message do when the prompt is BUSY?
-  task: T-3072
-  why: Injecting into a busy prompt is the T-2396 failure — text lands unsubmitted and is discarded. So 
-    urgent-into-busy can silently lose exactly the messages most likely to be marked urgent. Blocks T-3072.
-- id: SQ-5
-  status: RESOLVED 2026-09-22 — operator answered INSTALL, and it is installed
-  resolution: 'Installed at /etc/cron.d/termlink-notify-wake-supervisor, byte-identical to the tracked source. VERIFIED
-    FIRING, not merely present: journalctl shows `21:20:01 CRON[97550]: (root) CMD (... notify-wake-supervisor.sh
-    --quiet ...)` at the first */5 boundary after install, with both log streams present and EMPTY (the healthy
-    state, and proof the split redirect works). Two guard-layer reds cleared as a result, not silenced: check-cron-install-drift
-    1 -> 0, cron-drift-firing-fixtures 12/1 -> 13/0. notify-rail-e2e WAKE went from NOT-WIRED to PASS. The withdrawn-evidence
-    concern that RAISED this question is separately settled: T-3069/T-3079 have since produced a truthful machine-earned
-    L3 (evidence=idle-gated-inject), so the wake path no longer rests on a retracted claim.'
-  question: Install the wake-supervisor crontab when the only live proof of the wake path has been withdrawn?
-  task: T-3068
-  why: 'RAISED 2026-09-22 during the T-3071 run. The audit has one standing FAIL — cron(notify-wake-supervisor)
-    written but absent from /etc/cron.d — and it has been left deliberately uninstalled across two sessions. The
-    reason got sharper on inspection: T-3068''s live-proof AC was ticked citing offsets 107-110 with `evidence=wake-consumer`,
-    and that evidence kind was withdrawn as untruthful later the same day (a consumer noticing a FLAG has injected
-    nothing, so `stage=read` on that basis asserts a read that never happened). notify-ack-read.sh dropped it from
-    the valid list and notify-ledger.sh refuses to advance a rung on it, naming offset 110 — the very receipt cited
-    — in its fixtures as the case to ignore. The AC has now been UNTICKED. So the question is not merely ''install
-    it?'' but: scheduling a cron to drive a path whose only end-to-end proof has been retracted wires up machinery
-    nothing has shown to work. Against that, leaving it uninstalled keeps a permanent red in the audit, which is
-    its own corrosion (T-2818: a guard that is always red stops being read). Operator call. Two coherent answers:
-    (a) install it and accept that the rail''s proof is pending a valid-evidence receipt, or (b) leave it dark and
-    acknowledge the audit FAIL in writing so the red is explained rather than ignored. Not decided here — deciding
-    it to keep momentum is exactly what the mandate forbids. MEASURED COST OF (b), added 2026-09-22 after T-3078
-    triage: leaving it dark is NOT free and is no longer just one audit line. check-cron-install-drift reports it
-    as the single MISSING crontab (SHIPPED BUT DARK, G-069), and tests/cron-drift-firing-fixtures.sh has an assertion
-    — ''the real tree passes the firing check'' — that FAILS for exactly this reason. That suite is a guard-layer
-    member, and the guard layer runs in CI on every push and PR (doc-lint.yml, T-2686). So option (b) keeps a CI
-    guard permanently red, which is the T-2818 corrosion mechanism operating on the layer whose whole job is to
-    be believed. If (b) is chosen it needs an allowlist entry or an explicit acknowledgement, not silence.'
-- id: SQ-8
-  status: 'RESOLVED 2026-09-24 - operator ruled: solid over quick; a portable respawn fallback is REQUIRED before
-    build'
-  question: 'IW-4: who respawns the sidecar respawner, portably? systemd answers it on .107 and nowhere else.'
-  task: T-3075
-  why: 'The one item on T-3075 with no prior operator ruling anywhere - arc-011''s seven earlier SQs do not touch
-    it. D4 Portability is the lowest-weighted directive, so systemd-only was defensible on weight alone, and that
-    is exactly why it needed a decision rather than a default. It gates a real build: T-3075''s S1/S12 build task
-    must pick one before it can start.'
-  resolution: 'Operator decision, verbatim principle: ''reliability and fragility, so I''m not to save a few tokens
-    just to get a quick solution. I want a solid solution.'' DERIVED DISPOSITION (flagged as derived, not operator
-    wording): systemd-only respawn is REJECTED as the cheap answer; the S1/S12 build must carry a portable respawn
-    fallback. Rationale the operator''s principle implies: README asserts macOS support in five places and release.yml
-    cross-builds two Darwin targets, so a systemd-only respawn would silently narrow what the product claims to
-    be - a fragility, not a weighting trade. CONSEQUENCE: T-3075''s build scope grows by a portable fallback; do
-    not treat D4''s low weight as licence to skip it.'
+  - id: SQ-1
+    status: 'RESOLVED 2026-09-23 - operator decided: the injector belongs to TERMLINK'
+    resolution: 'Operator decision. The injector is a PRIMITIVE built over TermLink''s
+      own session control, not an orchestration engine: charter non-goal 4 disclaims
+      the engine, not the verbs one would be built from. It already lives here, is
+      proven end to end (T-3069), and moving it would put the PTY classifier and the
+      hub read on opposite sides of a project boundary. CONSEQUENCE: T-3075 (sidecar
+      API, slices S1/S12) is unblocked and stays in this repo.'
+    question: Does the injector belong to AEF rather than TermLink?
+    task: T-3075
+    why: Charter non-goal 4 disclaims orchestration; queue -> inject -> verify 
+      IS orchestration. Decides which repo T-3069 lives in. Asked the AEF agent 
+      directly; no reply yet.
+  - id: SQ-2
+    status: RESOLVED 2026-09-22 — premise disproved, real blocker found and 
+      fixed
+    resolution: 'Tested directly on operator approval instead of reasoned about. A
+      REPL spawned with tl-claude.sh proved INJECTABLE immediately (an injected line
+      was answered), so arming is one command and T-2389 was never the blocker. The
+      actual blocker was one layer down: scripts/lib/pty-state.sh could not recognise
+      an idle REPL, so the injector deferred rc=4 forever. Fixed and closed under
+      T-3079, and the rail is now proven end to end (see S10). The question was worth
+      asking and its OBSERVATION was correct; only the inference drawn from it was
+      wrong. Recorded rather than deleted, because a sovereign question that turned
+      out to rest on a bad inference is exactly the kind of thing that gets silently
+      re-derived later.'
+    question: Given NO interactive Claude REPL is registered as a TermLink 
+      session, should the arc prioritise making agents INJECTABLE before 
+      building more injection machinery?
+    task: T-3069
+    why: 'Measured 2026-09-22: all 14 registered sessions classify UNKNOWN because
+      they are shell endpoints or finished dispatch workers. S10 and S12 both assume
+      an audience that does not currently exist. T-2389 (arm agents via tl-claude
+      --reachable, owner:human) may be the real blocker for the whole arc, ranking
+      above T-3071/T-3072. SUPERSEDED 2026-09-22, same day, by direct test on operator
+      approval. The premise is WRONG in the half that mattered. A REPL was spawned
+      (tl-claude.sh start --backend tmux) and PROVED INJECTABLE: `termlink inject`
+      of ''Reply with exactly: WAKE-PROOF-OK'' was ANSWERED in the PTY. So the audience
+      exists the moment anyone spawns one, and arming is one command — T-2389 is not
+      the blocker. THE ACTUAL BLOCKER IS THE IDLE CLASSIFIER. After a completed turn,
+      sampled every 10s for 100s, scripts/lib/pty-state.sh finds NO positive marker,
+      so the injector defers (rc=4) forever — which is why T-3069''s live AC failed
+      twice. Cause: the four markers do not match this UI. `?forshortcuts` is ABSENT
+      at every window size on a chat REPL with auto-mode on, whose footer reads ''auto
+      mode on (shift+tab to cycle)'' instead. Widening the window is NOT the fix and
+      the file already says why: at 4000 bytes a STALE esctointerrupt reappears and
+      would pin it BUSY forever. The narrow window is right; the marker set is wrong.
+      Also found: pty-state.sh references "$TERMLINK" with NO default, so a caller
+      that has not set it reads nothing and gets UNKNOWN — a broken instrument indistinguishable
+      from a real verdict, and it nearly ''confirmed'' this very question. RE-STATE
+      THE QUESTION AS: make the idle classifier reliable across Claude Code UI versions.
+      That is a TermLink concern, not an AEF one, so it also narrows SQ-1. A candidate
+      signal (tail ends with an empty composer prompt U+276F + U+00A0) is evidenced
+      in T-3069 but deliberately NOT shipped on two data points — its failure mode
+      is a blind inject into a busy prompt, the exact T-2396 loss this arc exists
+      to prevent.'
+  - id: SQ-3
+    status: 'RESOLVED 2026-09-23 - operator decided: YES, add the artifact CLI verbs'
+    resolution: 'Operator decision. ''termlink artifact put'' / ''artifact get'' are
+      two thin wrappers over send_artifact_via_client / download_artifact_via_client,
+      functions that already exist and are already exercised by ''file send''. Without
+      them a shell script can post an --artifact-ref but cannot move the BYTES, which
+      is the measured gap (T-3076 IW-1). CONSEQUENCE: T-3076 (blob, slice S2) is unblocked.
+      This is new CLI surface on a project that pruned 52 tools in P4, justified as
+      a primitive rather than breadth. IW-3 should be answered alongside it: artifact_ref
+      IS a sha256, so --expected-sha256 verification is free and should be mandatory.'
+    question: Add `termlink artifact put` / `artifact get` CLI verbs?
+    task: T-3076
+    why: Two thin wrappers over existing functions, but new CLI surface on a 
+      project that pruned 52 tools in P4.
+  - id: SQ-6
+    status: 'RESOLVED 2026-09-23 - operator decided: backfill ONCE, recorded AS a
+      backfill'
+    resolution: 'Operator decision. Topics whose only L3s carried the withdrawn evidence=wake-consumer
+      get a one-time delivered watermark, written EXPLICITLY as a backfill declaring
+      that this history predates truthful receipts. Not silent: a silent backfill
+      would relaunder the retracted claim the withdrawal existed to remove, and a
+      future reader could not tell a backfilled watermark from an earned one. CONSEQUENCE:
+      the ~145 messages on dm:3bba15e681b3a078:6738c073bbcc587a are not walked into
+      a live prompt one per cron tick. Needs its own task, and the marker must be
+      distinguishable from one the injector earned.'
+    question: Topics whose only L3 receipts carry the WITHDRAWN 
+      evidence=wake-consumer now have NO truthful delivered watermark. Should 
+      those be backfilled, or should the agent receive its whole backlog?
+    task: T-3082
+    why: 'SURFACED 2026-09-22 by T-3082, measured on the live topic dm:3bba15e681b3a078:6738c073bbcc587a.
+      The new watermark correctly excludes disavowed evidence (T-3068), and on that
+      topic EVERY stage=read receipt is wake-consumer — so the honest watermark is
+      -1 and the injector will start from offset 0 and walk ~145 messages, oldest
+      first, one per cron tick. Every one of them is genuinely unconfirmed, so serving
+      them is not a bug; the rail is doing exactly what it should given what it can
+      prove. The question is whether the OPERATOR wants that backlog delivered into
+      a live prompt, or wants a one-time watermark backfill recording that history
+      as water under the bridge. Cheap and wrong: backfilling silently, which would
+      relaunder the retracted claim the withdrawal existed to remove. Also wrong:
+      deciding it here to keep momentum. The withdrawal of wake-consumer had a cost,
+      and this is the bill arriving — it belongs to whoever withdrew it.'
+  - id: SQ-7
+    status: 'RESOLVED 2026-09-23 - operator decided: the sixth AC is OBSOLETE'
+    resolution: 'Operator decision. That AC asked the supervised consumer to produce
+      an L3 stage=read receipt. The capability was deliberately removed when evidence=wake-consumer
+      was withdrawn as untruthful, and the truthful L3 now comes from the injector
+      path, which is proven (T-3069, read back from the hub). T-3068''s real deliverable
+      - the flag is actually read and the consumer kept alive - is met and evidenced
+      at 5/6. CONSEQUENCE: the AC is marked OBSOLETE with this reason rather than
+      ticked as though met. T-3068 closes on the remaining five.'
+    question: T-3068's live-proof AC asks the SUPERVISED CONSUMER to produce an 
+      L3 stage=read receipt. The arc has since decided that component must never
+      post one. Is the AC obsolete, or is T-3068 unfinished?
+    task: T-3068
+    why: 'SURFACED 2026-09-23 by T-3068 unit 2. The AC was written when the consumer
+      posted evidence=wake-consumer. That evidence kind was then WITHDRAWN as untruthful
+      and the capability deliberately removed — notify-wake-consumer.sh now reads,
+      verbatim: `NO L3 FROM HERE. This consumer notices a flag; it does not inject
+      anything into a prompt, so it has no standing to claim the message was read.`
+      So the AC now asks for something the arc forbids this component from doing:
+      it is unachievable BY DESIGN, not by omission. Two coherent readings, and they
+      differ in what T-3068 IS FOR. (a) OBSOLETE: the truthful L3 now comes from the
+      injector, and that path is proven (T-3069, evidence=idle-gated-inject, read
+      back from the hub). T-3068''s real deliverable is `the flag is actually read
+      and the consumer is kept alive`, which is met and verified — 5 of 6 ACs now
+      carry cited evidence. (b) UNFINISHED: the wake path (A) is still not proven
+      end to end by any truthful receipt, and retiring the AC would close that gap
+      by editing the question rather than answering it — precisely the arc-003 failure
+      this arc exists to avoid. NOT DECIDED HERE. Rewriting my own acceptance criterion
+      so it passes is producer-as-judge, which the mandate forbids outright. T-3068
+      is parked at 5/6 with the sixth intact and unticked.'
+  - id: SQ-4
+    status: 'RESOLVED 2026-09-23 - operator decided: urgent NEVER injects into a BUSY
+      prompt'
+    resolution: 'Operator decision. Urgent shortens the WAIT; it does not bypass the
+      prompt-free CHECK. Injecting into a busy prompt is the T-2396 failure where
+      text lands unsubmitted and is discarded, so a bypass would silently lose exactly
+      the messages most likely to be marked urgent - the inverse of what urgency is
+      for. CONSEQUENCE: T-3072 (slice S9) is unblocked with its semantics settled:
+      urgent may raise queue position and shorten the poll interval, and must still
+      defer on BUSY/UNKNOWN like every other message.'
+    question: What does an URGENT message do when the prompt is BUSY?
+    task: T-3072
+    why: Injecting into a busy prompt is the T-2396 failure — text lands 
+      unsubmitted and is discarded. So urgent-into-busy can silently lose 
+      exactly the messages most likely to be marked urgent. Blocks T-3072.
+  - id: SQ-5
+    status: RESOLVED 2026-09-22 — operator answered INSTALL, and it is installed
+    resolution: 'Installed at /etc/cron.d/termlink-notify-wake-supervisor, byte-identical
+      to the tracked source. VERIFIED FIRING, not merely present: journalctl shows
+      `21:20:01 CRON[97550]: (root) CMD (... notify-wake-supervisor.sh --quiet ...)`
+      at the first */5 boundary after install, with both log streams present and EMPTY
+      (the healthy state, and proof the split redirect works). Two guard-layer reds
+      cleared as a result, not silenced: check-cron-install-drift 1 -> 0, cron-drift-firing-fixtures
+      12/1 -> 13/0. notify-rail-e2e WAKE went from NOT-WIRED to PASS. The withdrawn-evidence
+      concern that RAISED this question is separately settled: T-3069/T-3079 have
+      since produced a truthful machine-earned L3 (evidence=idle-gated-inject), so
+      the wake path no longer rests on a retracted claim.'
+    question: Install the wake-supervisor crontab when the only live proof of 
+      the wake path has been withdrawn?
+    task: T-3068
+    why: 'RAISED 2026-09-22 during the T-3071 run. The audit has one standing FAIL
+      — cron(notify-wake-supervisor) written but absent from /etc/cron.d — and it
+      has been left deliberately uninstalled across two sessions. The reason got sharper
+      on inspection: T-3068''s live-proof AC was ticked citing offsets 107-110 with
+      `evidence=wake-consumer`, and that evidence kind was withdrawn as untruthful
+      later the same day (a consumer noticing a FLAG has injected nothing, so `stage=read`
+      on that basis asserts a read that never happened). notify-ack-read.sh dropped
+      it from the valid list and notify-ledger.sh refuses to advance a rung on it,
+      naming offset 110 — the very receipt cited — in its fixtures as the case to
+      ignore. The AC has now been UNTICKED. So the question is not merely ''install
+      it?'' but: scheduling a cron to drive a path whose only end-to-end proof has
+      been retracted wires up machinery nothing has shown to work. Against that, leaving
+      it uninstalled keeps a permanent red in the audit, which is its own corrosion
+      (T-2818: a guard that is always red stops being read). Operator call. Two coherent
+      answers: (a) install it and accept that the rail''s proof is pending a valid-evidence
+      receipt, or (b) leave it dark and acknowledge the audit FAIL in writing so the
+      red is explained rather than ignored. Not decided here — deciding it to keep
+      momentum is exactly what the mandate forbids. MEASURED COST OF (b), added 2026-09-22
+      after T-3078 triage: leaving it dark is NOT free and is no longer just one audit
+      line. check-cron-install-drift reports it as the single MISSING crontab (SHIPPED
+      BUT DARK, G-069), and tests/cron-drift-firing-fixtures.sh has an assertion —
+      ''the real tree passes the firing check'' — that FAILS for exactly this reason.
+      That suite is a guard-layer member, and the guard layer runs in CI on every
+      push and PR (doc-lint.yml, T-2686). So option (b) keeps a CI guard permanently
+      red, which is the T-2818 corrosion mechanism operating on the layer whose whole
+      job is to be believed. If (b) is chosen it needs an allowlist entry or an explicit
+      acknowledgement, not silence.'
+  - id: SQ-8
+    status: 'RESOLVED 2026-09-24 - operator ruled: solid over quick; a portable respawn
+      fallback is REQUIRED before build'
+    question: 'IW-4: who respawns the sidecar respawner, portably? systemd answers
+      it on .107 and nowhere else.'
+    task: T-3075
+    why: 'The one item on T-3075 with no prior operator ruling anywhere - arc-011''s
+      seven earlier SQs do not touch it. D4 Portability is the lowest-weighted directive,
+      so systemd-only was defensible on weight alone, and that is exactly why it needed
+      a decision rather than a default. It gates a real build: T-3075''s S1/S12 build
+      task must pick one before it can start.'
+    resolution: 'Operator decision, verbatim principle: ''reliability and fragility,
+      so I''m not to save a few tokens just to get a quick solution. I want a solid
+      solution.'' DERIVED DISPOSITION (flagged as derived, not operator wording):
+      systemd-only respawn is REJECTED as the cheap answer; the S1/S12 build must
+      carry a portable respawn fallback. Rationale the operator''s principle implies:
+      README asserts macOS support in five places and release.yml cross-builds two
+      Darwin targets, so a systemd-only respawn would silently narrow what the product
+      claims to be - a fragility, not a weighting trade. CONSEQUENCE: T-3075''s build
+      scope grows by a portable fallback; do not treat D4''s low weight as licence
+      to skip it.'
