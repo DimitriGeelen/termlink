@@ -460,7 +460,7 @@ flowchart LR
 | T | Same id, different content; forged receipts; hub record altered | TH-10, TH-12, TH-15 |
 | R | Sender or receiver denies; the hub record is mutable | TH-19, TH-15 |
 | I | Content readable by every holder of the hub secret; cards leak who is deaf; secrets in the record | TH-22, TH-23, TH-24 |
-| D | Floods; registration and set-up floods; hub down | TH-28, TH-32, TH-35 |
+| D | Floods and automatic reply loops; registration and set-up floods; hub down | TH-28, TH-29, TH-32, TH-35 |
 | E | A forged registration gains the role "main" | TH-41 |
 | CD | The sidecar's hub token is used by any local caller | TH-2 |
 | AD | None: no approval is carried by a hub post (SI-8) | none (SI-8) |
@@ -490,7 +490,7 @@ flowchart LR
 | T | Same id or sequence number, different content; forged receipts; priority altered | TH-10, TH-11, TH-12 |
 | R | Denial of a turn | TH-19 (signatures, chain) |
 | I | Credential or key theft; content in the clear | TH-26, TH-22 |
-| D | Floods, gap forcing, set-up floods | TH-28, TH-31, TH-32 |
+| D | Floods, reply loops, gap forcing, set-up floods | TH-28, TH-29, TH-31, TH-32 |
 | E | A credential used for more than its conversation | TH-44 |
 | CD | The hub mints a credential for the wrong party | TH-46 |
 | AD | None | none (SI-8) |
@@ -1297,4 +1297,4 @@ CR-13 — R-67.a and R-64: "eligibility attested on the card" MUST come from ope
 ## 24 Render check of the drawings
 
 24.1 Method. The same as the step-1 document (REQ 11.6): each Mermaid block was extracted and rendered one by one with `mmdc -p <puppeteer-config> -i dN.mmd -o dN.svg`, where the config names `/usr/bin/chromium` with `--no-sandbox`. `scripts/design-render-check.py` is not adopted in this project, so no `render_check` record exists (profile P2.1, P4.5; REQ 11.6).
-24.2 Result: see the line appended below by the check run.
+24.2 Result, 2026-10-07: D-1 (4 blocks in the document, in order D-1, D-2, D-3, D-4) exit code 0, 43067-byte SVG; D-2 exit code 0, 36778 bytes; D-3 exit code 0, 80870 bytes (four trees in one block); D-4 exit code 0, 43621 bytes. No "syntax error" or "parse error" text in any log or SVG. A sequence-diagram note carries no semicolon (the failure the step-1 render check found).
