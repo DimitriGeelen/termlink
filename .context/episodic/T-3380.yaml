@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3380: check-canary-aliveness prints HEARTBEAT ABSENT (a finding, exit 1) to stderr, so it reads ERRORING
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-06T23:06:35Z
+# ============================================================================
+
+task_id: T-3380
+task_name: "check-canary-aliveness prints HEARTBEAT ABSENT (a finding, exit 1) to stderr, so it reads ERRORING"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-06T23:01:09Z
+completed: 2026-10-06T23:06:24Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-07T01:06:19+02:00
+last_commit: 2026-10-07T01:06:19+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  canary-aliveness prints HEARTBEAT ABSENT (a finding) to stdout, fixtures 27/27 with mutant; also commits the close-out moves and episodics of T-3378, T-3379, T-3381
+
+# Key outcomes
+outcomes:
+  - 'HEARTBEAT ABSENT (exit 1) prints to stdout; the stat failure (exit 2) stays on stderr'
+  - '`tests/canary-aliveness-sweep-fixtures.sh` pins it: absent heartbeat gives exit 1, the finding on stdout and empty stderr, with a mutant that moves it back to stderr and is caught'
+  - 'The fixtures still pass in full (27/27)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'canary-aliveness prints HEARTBEAT ABSENT (a finding) to stdout, fixtures 27/27 with mutant; also commits the close-out moves and episodics of T-3378, T-3379, T-3381'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/episodic/T-3378.yaml'
+  - '.context/episodic/T-3379.yaml'
+  - '.context/episodic/T-3381.yaml'
+  - 'scripts/check-canary-aliveness.sh'
+  - '.tasks/active/T-3380-check-canary-aliveness-prints-heartbeat-.md'
+  - '.tasks/completed/T-3378-preflight-doc-set-says-6-checks-t-3340-a.md'
+  - '.tasks/completed/T-3379-check-preflight-doc-set-drift-prints-det.md'
+  - '.tasks/completed/T-3381-triage-firing-canaries-2026-10-07-canary.md'
+  - 'tests/canary-aliveness-sweep-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-07T01:06:19'
+    action: 'T-3380: canary-aliveness prints HEARTBEAT ABSENT (a finding) to stdout, fixtures 27/27 with mutant; also commits the close-out moves and episodics of T-3378, T-3379, T-3381'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [bug]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 7
+  lines_added: 370
+  lines_removed: 28
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3380-check-canary-aliveness-prints-heartbeat-.md
+generated_by: context-agent-hybrid

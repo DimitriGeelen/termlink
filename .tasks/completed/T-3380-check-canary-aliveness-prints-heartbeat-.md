@@ -8,12 +8,12 @@ description: >
   route stderr to the .stderr sink, so a never-run canary reads ERRORING (could not
   run) instead of FIRING. Same fix and fixture pattern as T-3379.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [bug]
-components: []
+components: [scripts/check-canary-aliveness.sh, scripts/check-preflight-doc-set-drift.sh, tests/canary-aliveness-sweep-fixtures.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -42,8 +42,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T23:01:09Z
-last_update: 2026-10-06T23:05:00Z
-date_finished:
+last_update: 2026-10-06T23:06:24Z
+date_finished: 2026-10-06T23:06:24Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -385,3 +385,15 @@ as T-3379; both were surveyed across every cron-scheduled script.
 ### 2026-10-06T23:05:00Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-212ccf38
+- **Timestamp:** 2026-10-06T23:06:27Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-10-06T23:06:24Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

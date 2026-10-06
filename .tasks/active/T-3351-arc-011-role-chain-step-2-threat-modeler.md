@@ -6,10 +6,10 @@ description: >
   output docs/design/interactive-agent-communication-02-threat-model.md. Starts only
   after step 1 is approved by the operator.
 
-status: captured
+status: started-work
 workflow_type: specification
 owner: agent
-horizon: next
+horizon: now
 tags: [arc:arc-011]
 arc_id: arc-011
 components: []
@@ -25,7 +25,7 @@ related_tasks: [T-3344]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:12:58Z
-last_update: '2026-10-06T10:17:53Z'
+last_update: 2026-10-06T23:07:28Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -73,13 +73,13 @@ Arc: arc-011. Rulings summary: `docs/reports/T-3344-step1-rulings-summary.md`.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Step 1 is recorded as approved by the operator before this step starts (role-chain yaml / docs/design/roles/README.md section 3)
+- [x] Step 1 is recorded as approved by the operator before this step starts (role-chain yaml / docs/design/roles/README.md section 3)
 - [ ] Role session dispatched with the yaml's order of inputs (rules, common, card, adapter, profile, step facts) and a role-handback/1 record returned
 - [ ] `docs/design/interactive-agent-communication-02-threat-model.md` exists with a version table and an inputs-of-record section citing the input hashes
 - [ ] Threat model covers adversaries ADV-1..ADV-10 with privileges (GP-15), and GP-1, GP-6, GP-13, GP-14
 - [ ] Covers the circuit trust model and per-circuit credential lifetime (OD-1, CAND-16), same-id/different-content (CAND-2) and same-sequence-number/different-content (CAND-18), peer-content framing (CAND-1)
 - [ ] Residual risks listed for the operator to accept, one per line
-- [ ] Role-chain yaml step 2 `task:` set to this task id
+- [x] Role-chain yaml step 2 `task:` set to this task id
 
 ### Human
 - [ ] [REVIEW] Accept the step-2 residual risks
@@ -190,3 +190,7 @@ grep -q 'task: T-3351' docs/design/interactive-agent-communication-role-chain.ya
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3351-arc-011-role-chain-step-2-threat-modeler.md
 - **Context:** Initial task creation
+
+### 2026-10-06T23:07:28Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

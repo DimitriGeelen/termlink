@@ -6,10 +6,10 @@ description: >
   lists corrections. Step 2 may not start before this sign-off (role chain: completion
   alone is never approval).
 
-status: started-work
+status: work-completed
 workflow_type: specification
 owner: human
-horizon: now
+horizon: null
 tags: [arc:arc-011]
 arc_id: arc-011
 components: []
@@ -25,8 +25,8 @@ related_tasks: [T-3344, T-3348]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:12:27Z
-last_update: 2026-10-06T22:39:50Z
-date_finished:
+last_update: 2026-10-06T22:55:30Z
+date_finished: 2026-10-06T22:55:30Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -77,7 +77,7 @@ Arc: arc-011. Rulings summary: `docs/reports/T-3344-step1-rulings-summary.md`.
 - [x] The sign-off (date, version signed, any corrections) is recorded in T-3344's Decisions and as an approval note in the role-chain yaml step 1
 
 ### Human
-- [ ] [REVIEW] Sign off step 1
+- [x] [REVIEW] Sign off step 1
   **Steps:**
   1. Open /opt/termlink/docs/design/interactive-agent-communication-01-requirements.md (v0.4) and /opt/termlink/docs/reports/T-3344-step1-rulings-summary.md
   2. Check each ruling you gave reads as you meant it
@@ -188,3 +188,16 @@ grep -q 'approved' docs/design/interactive-agent-communication-role-chain.yaml
 
 ### 2026-10-06T22:39:50Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-b92e7462
+- **Timestamp:** 2026-10-06T22:55:31Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-10-06T22:55:30Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Completed via Watchtower UI (human action)
