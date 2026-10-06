@@ -98,6 +98,12 @@ Optional:
                        The resolver also tries <identities>/NAME.key, and still
                        signs only if that key's fingerprint equals self-fp. Mirrors
                        notify-wake-consumer.sh --as-identity.
+  --no-project-inbox   T-3370: watch only this agent's dm:<self>:* topics, never the
+                       project mailbox inbox:<circuit>/<project>. Used once the
+                       project inbox has its own receiver (the AEF sidecar, OD-9):
+                       two receivers on one inbox are forbidden, because each one
+                       acks and wakes independently and mail lands in the wrong
+                       session (the 2026-10-06 misrouting).
   --once               Probe once, write flag+heartbeat, exit 0.
   --json               Emit one JSON status line per cycle.
   -h, --help           Print this help and exit 0.
@@ -129,6 +135,7 @@ hub=""
 include_broadcast=0
 auto_confirm=0
 as_identity=""
+no_project_inbox=0
 once=0
 json=0
 
@@ -142,6 +149,7 @@ while [ $# -gt 0 ]; do
         --include-broadcast) include_broadcast=1; shift ;;
         --auto-confirm)     auto_confirm=1; shift ;;
         --as-identity)      as_identity="${2:-}"; shift 2 ;;
+        --no-project-inbox) no_project_inbox=1; shift ;;
         --once)             once=1; shift ;;
         --json)             json=1; shift ;;
         -h|--help)          usage; exit 0 ;;
@@ -473,10 +481,15 @@ probe_mail() {
         # topics on this hub is ours, and 95 of 232 records belong to AEF's ephemeral
         # e2e identities. Probing those would auto-confirm and journal another project's
         # mail and then inject it into our prompt — not noise, someone else's post.
+        # T-3370: --no-project-inbox hands the project mailbox to its own receiver.
+        if [ "$no_project_inbox" -eq 1 ]; then
+            _inbox_topics=""
+        else
         _inbox_topics="$("$TERMLINK" channel list "${hub_args[@]}" --prefix "inbox:" --json 2>/dev/null \
             | jq -r --arg self "$SELF_PROJECT" \
                 '(.topics // .)[]?.name // empty
                  | select(endswith("/" + $self) or contains("/" + $self + "/"))' 2>/dev/null)"
+        fi
 
         topics="$(printf '%s\n%s\n' "$_dm_topics" "$_inbox_topics" | sed '/^$/d')"
     fi

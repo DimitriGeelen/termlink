@@ -142,6 +142,17 @@ seam="$(sort -u "$TMP/probed.txt" 2>/dev/null)"
   && ok "test seam overrides both arms (no live enumeration leaked in)" \
   || bad "seam broken, probed: '$seam'"
 
+echo "case 10: --no-project-inbox drops the project mailbox, keeps own dm (T-3370)"
+got10="$(run_probe --no-project-inbox)"
+grep -qx "dm:aaaabbbbccccdddd:9999" <<<"$got10" \
+  && ok "own dm topic still probed" || bad "own dm topic lost, probed: '$got10'"
+grep -q "^inbox:" <<<"$got10" \
+  && bad "project inbox still probed with --no-project-inbox" || ok "no inbox: topic probed"
+got10b="$(run_probe)"
+grep -qx "inbox:cid/010-termlink" <<<"$got10b" \
+  && ok "without the flag the project inbox is still probed (default unchanged)" \
+  || bad "default changed: project inbox not probed"
+
 echo "case 9: mirror and sidecar read the SAME self-identity variable"
 # If these two ever disagree, one half mirrors mail the other refuses to notice —
 # which is the exact shape of the bug this task closes.
