@@ -26,6 +26,11 @@ NDIR="$TMP/notify"; mkdir -p "$NDIR"
 conf() { printf '%s\n' "$@" > "$TMP/agents.conf"; }
 # beat <agent> <age-secs>
 beat() { echo $(( ($(date +%s) - $2) * 1000 )) > "$NDIR/$1.heartbeat"; }
+# T-3381: every run writes its heartbeat into $TMP, never the real canary heartbeat,
+# so this suite cannot mask a dead cron (the T-3288 lesson).
+export NOTIFY_CANARY_HEARTBEAT_FILE="$TMP/canary.heartbeat"
+REAL_HB="$REPO_ROOT/.context/working/.notify-sidecar-canary.heartbeat"
+REAL_HB_BEFORE=$(stat -c %Y "$REAL_HB" 2>/dev/null || echo absent)
 run()  { bash "$CHECK" --conf "$TMP/agents.conf" --notify-dir "$NDIR" "$@" 2>&1; }
 
 echo "T-3051 notify-sidecar liveness canary fixtures"
@@ -128,6 +133,21 @@ beat a1 900
 out=$(run --quiet --threshold-secs 300)
 if echo "$out" | grep -q "DEAD: a1"; then ok "--quiet still reports a firing agent"
 else bad "--quiet loud when firing" "$out"; fi
+
+# T-3381: heartbeat proves the run finished, on firing runs too.
+rm -f "$NOTIFY_CANARY_HEARTBEAT_FILE"
+run --quiet --threshold-secs 300 >/dev/null
+if [ -f "$NOTIFY_CANARY_HEARTBEAT_FILE" ]; then ok "a run writes the canary heartbeat (also when firing)"
+else bad "heartbeat written on a run" "missing: $NOTIFY_CANARY_HEARTBEAT_FILE"; fi
+
+rm -f "$NOTIFY_CANARY_HEARTBEAT_FILE"
+run --quiet --no-heartbeat --threshold-secs 300 >/dev/null
+if [ ! -e "$NOTIFY_CANARY_HEARTBEAT_FILE" ]; then ok "--no-heartbeat leaves the heartbeat untouched"
+else bad "--no-heartbeat honoured" "heartbeat was written"; fi
+
+REAL_HB_AFTER=$(stat -c %Y "$REAL_HB" 2>/dev/null || echo absent)
+if [ "$REAL_HB_BEFORE" = "$REAL_HB_AFTER" ]; then ok "the suite never touched the real canary heartbeat"
+else bad "real heartbeat untouched" "$REAL_HB_BEFORE -> $REAL_HB_AFTER"; fi
 
 echo ""
 echo "----------------------------------------"

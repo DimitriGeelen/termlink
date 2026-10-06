@@ -37,6 +37,12 @@ NOTIFY_DIR="${TERMLINK_NOTIFY_DIR:-$HOME/.termlink/notify}"
 THRESHOLD="${NOTIFY_CANARY_THRESHOLD_SECS:-300}"
 FORMAT=human
 QUIET=0
+HEARTBEAT=1
+# T-3381: this canary is cron-scheduled but wrote no heartbeat, so the T-1723 meta-canary
+# could not tell a dead cron from a healthy one (canary-aliveness: NO-HEARTBEAT). The
+# heartbeat proves the run FINISHED (T-2843): written on EXIT, so a killed or hung run
+# leaves it stale. The env seam keeps fixtures off the real file.
+HEARTBEAT_FILE="${NOTIFY_CANARY_HEARTBEAT_FILE:-$PROJECT_ROOT/.context/working/.notify-sidecar-canary.heartbeat}"
 
 usage() {
     sed -n '3,30p' "$0" | sed 's/^# \{0,1\}//'
@@ -48,6 +54,7 @@ Usage: check-notify-sidecar-freshness.sh [OPTIONS]
   --notify-dir PATH   Heartbeat directory (default ~/.termlink/notify)
   --json              Emit a JSON envelope
   --quiet             Print only when firing (cron-friendly)
+  --no-heartbeat      Do not touch the canary heartbeat (meta-canary probes, fixtures)
   -h, --help          This help
 
 Default threshold is 300s: the supervisor runs every 5 minutes, so anything it can
@@ -55,7 +62,7 @@ fix is fixed before this fires. What survives 300s is what the supervisor could 
 fix — which is exactly what an operator needs to see.
 
 Test seams (PL-213): NOTIFY_CANARY_CONF, TERMLINK_NOTIFY_DIR,
-NOTIFY_CANARY_THRESHOLD_SECS.
+NOTIFY_CANARY_THRESHOLD_SECS, NOTIFY_CANARY_HEARTBEAT_FILE.
 
 Exit: 0 healthy · 1 firing · 2 tooling error
 EOF
@@ -68,11 +75,18 @@ while [ $# -gt 0 ]; do
         --notify-dir)     shift; [ $# -ge 1 ] || { echo "notify-canary: --notify-dir requires a value" >&2; exit 2; }; NOTIFY_DIR="$1" ;;
         --json)           FORMAT=json ;;
         --quiet)          QUIET=1 ;;
+        --no-heartbeat)   HEARTBEAT=0 ;;
         -h|--help)        usage; exit 0 ;;
         *) echo "notify-canary: unknown arg: $1" >&2; exit 2 ;;
     esac
     shift
 done
+
+_canary_hb() {
+    mkdir -p "$(dirname "$HEARTBEAT_FILE")" 2>/dev/null || true
+    touch -- "$HEARTBEAT_FILE" 2>/dev/null || true
+}
+if [ "$HEARTBEAT" -eq 1 ]; then trap _canary_hb EXIT; fi
 
 case "$THRESHOLD" in ''|*[!0-9]*) echo "notify-canary: --threshold-secs must be an integer" >&2; exit 2 ;; esac
 [ -r "$CONF" ] || { echo "notify-canary: declared-agents conf not readable: $CONF" >&2; exit 2; }
