@@ -79,7 +79,8 @@ cat > "$TMP/fake-fw" <<'EOF'
 [ "$1 $2" = "task review" ] && exit 0      # T-3285: review marker step (a no-op here)
 if [ "$1 $2" = "cron install" ]; then       # T-3336: writes ONLY the fixture's audit cron file
     [ -n "${FAKE_CRON_NOINSTALL:-}" ] && exit 0
-    echo '20 * * * * root cd "/x" && "/x/fw" index reindex' >> "$RUNME_AUDIT_CRON_FILE"; exit 0
+    echo '20 * * * * root cd "/x" && "/x/fw" index reindex' >> "$RUNME_AUDIT_CRON_FILE"
+    echo '3,8 * * * * root cd "/x" && "/x/fw" sidecar sweep' >> "$RUNME_AUDIT_CRON_FILE"; exit 0
 fi
 if [ "$1 $2" = "inception decide" ]; then   # T-3285: record like fw does, on disk
     f=$(ls "$RUNME_TASKS_DIR"/active/"$3"-*.md 2>/dev/null | head -1); [ -n "$f" ] || exit 1
@@ -100,9 +101,11 @@ EOF
 printf '#!/usr/bin/env bash\nexit 0\n' > "$TMP/noop-fw"   # claims success, moves nothing
 chmod +x "$TMP/fake-fw" "$TMP/noop-fw"
 export RUNME_TASKS_DIR="$TMP/tasks" RUNME_FW="$TMP/fake-fw"
-# T-3336 (action 11): default = reindex already scheduled, so every other case skips it.
+# T-3336 (action 11) + T-3370 (action 13): default = reindex AND sidecar sweep already
+# scheduled, so every other case skips both.
 export RUNME_AUDIT_CRON_FILE="$TMP/agentic-audit-termlink"
-echo '20 * * * * root cd "/x" && "/x/fw" index reindex' > "$RUNME_AUDIT_CRON_FILE"
+cron_both() { printf '%s\n' '20 * * * * root cd "/x" && "/x/fw" index reindex' '3,8 * * * * root cd "/x" && "/x/fw" sidecar sweep' > "$RUNME_AUDIT_CRON_FILE"; }
+cron_both
 # T-3343 (action 12): fake stray hub. Default = no pidfile in the stray dir, so every
 # other case skips the action. The fake termlink records a stop and then answers
 # status with the canonical pid; the fake liveness reads a state file; no real
@@ -330,7 +333,7 @@ if [ "$(id -u)" != "0" ] && [ -n "${CI:-}" ]; then
 fi
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|') + 10 ))   # +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
+EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|') + 11 ))   # +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -829,7 +832,28 @@ out=$(FAKE_CRON_NOINSTALL=1 run); rc=$?
 if [ "$rc" != "0" ] && echo "$out" | grep -q "FAILED  fw cron install ran but"; then
     ok "reindex: an install that leaves no line is FAILED, not OK"
 else bad "reindex no-install" "rc=$rc: $out"; fi
+cron_both
+
+# 25. T-3370 — install the cron jobs AEF 1.8.3 added (sidecar sweep), temp file only.
 echo '20 * * * * root cd "/x" && "/x/fw" index reindex' > "$RUNME_AUDIT_CRON_FILE"
+out=$(run --dry-run); rc=$?
+if echo "$out" | grep -q "would run: fw cron install (adds the 5-minute 'fw sidecar sweep'" && ! grep -q 'sidecar sweep' "$RUNME_AUDIT_CRON_FILE"; then
+    ok "sidecar sweep: --dry-run reports and installs nothing"
+else bad "sweep dry-run" "rc=$rc: $out"; fi
+out=$(run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      sidecar ack-ledger sweep installed and verified" && grep -q 'sidecar sweep' "$RUNME_AUDIT_CRON_FILE"; then
+    ok "sidecar sweep: installed and verified on disk"
+else bad "sweep install" "rc=$rc: $out"; fi
+out=$(run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "skip    .* already schedules the sidecar ack-ledger sweep"; then
+    ok "sidecar sweep: second run skips (idempotent)"
+else bad "sweep idempotent" "rc=$rc: $out"; fi
+echo '20 * * * * root cd "/x" && "/x/fw" index reindex' > "$RUNME_AUDIT_CRON_FILE"
+out=$(FAKE_CRON_NOINSTALL=1 run); rc=$?
+if [ "$rc" != "0" ] && echo "$out" | grep -q "FAILED  fw cron install ran but .* has no 'sidecar sweep' line"; then
+    ok "sidecar sweep: an install that leaves no line is FAILED, not OK"
+else bad "sweep no-install" "rc=$rc: $out"; fi
+cron_both
 
 # 24. T-3343 — stop the stray hub (fake termlink, fake liveness, fake /proc only).
 out=$(run); rc=$?

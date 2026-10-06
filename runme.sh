@@ -1036,6 +1036,34 @@ head2 "12. Stop the stray second hub at /tmp/termlink-0 (T-3343, mail rescued fi
 stop_stray_hub
 
 # ---------------------------------------------------------------------------
+# ACTION 13 — install the cron jobs AEF 1.8.3 added (T-3370, operator ruling A)
+#
+# The re-vendor to AEF 1.8.3 added `sidecar-sweep-5m` to .context/cron-registry.yaml:
+# it walks the peer-consult ack ledger and escalates unacknowledged consults along the
+# retry ladder. Without the installed line, consults we send are never re-posted or
+# escalated. `fw cron install` was measured (dry run, 2026-10-06) to add exactly this
+# one line. Idempotent: skipped when the installed file already carries `sidecar sweep`.
+# Verified on disk after installing. Seams (fixtures only): RUNME_AUDIT_CRON_FILE, RUNME_FW.
+# ---------------------------------------------------------------------------
+schedule_sidecar_sweep() {
+    if grep -q 'sidecar sweep' "$AUDIT_CRON_FILE" 2>/dev/null; then
+        say "  skip    $AUDIT_CRON_FILE already schedules the sidecar ack-ledger sweep"; SKIPPED=$((SKIPPED+1)); return
+    fi
+    if [ "$DRY_RUN" = "1" ]; then
+        say "  [DRY]   would run: fw cron install (adds the 5-minute 'fw sidecar sweep' line to $AUDIT_CRON_FILE)"; DONE=$((DONE+1)); return
+    fi
+    (cd "$PROJECT_ROOT" && $FW cron install >/dev/null 2>&1)
+    if grep -q 'sidecar sweep' "$AUDIT_CRON_FILE" 2>/dev/null; then
+        say "  OK      sidecar ack-ledger sweep installed and verified in $AUDIT_CRON_FILE"; DONE=$((DONE+1))
+    else
+        say "  FAILED  fw cron install ran but $AUDIT_CRON_FILE has no 'sidecar sweep' line"; FAILED=$((FAILED+1))
+    fi
+}
+
+head2 "13. Install the cron jobs AEF 1.8.3 added: sidecar ack-ledger sweep (T-3370)"
+schedule_sidecar_sweep
+
+# ---------------------------------------------------------------------------
 # Verification — the project's own drift checker is the arbiter, not this script.
 # Using the repo's existing check rather than a bespoke one means this cannot
 # quietly disagree with what `fw audit` will say five minutes from now.
