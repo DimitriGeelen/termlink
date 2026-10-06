@@ -1538,7 +1538,7 @@ GP-11.c Consequence: R-1's operator leg has no acceptance criterion (R-1.e (3)),
 
 | Step | Role | Items handed to it |
 |---|---|---|
-| 2 | Threat modeler | circuit trust model and credential lifetime (OD-1, CAND-16, R-46); same id with different content (CAND-2, R-51); same sequence number with different content (CAND-18, R-59); framing threats (CAND-1, R-50); GP-1, GP-6, GP-13, GP-14, GP-15; adversaries ADV-1..ADV-10 |
+| 2 | Threat modeler | circuit trust model and credential lifetime (OD-1, CAND-16, R-46); same id with different content (CAND-2, R-51); same sequence number with different content (CAND-18, R-59); framing threats (CAND-1, R-50); fleet admission and signed advertisements: who may join the fleet and how a hub's announcements are authenticated, since pairwise HMAC does not stop a compromised host from poisoning presence; R-60 covers card content, not admission (CAND-17, not walked in step 1; added at sign-off, J3 ruling A); GP-1, GP-6, GP-13, GP-14, GP-15; adversaries ADV-1..ADV-10 |
 | 3 | Security floor and phasing | GP-12 diagnosis-time bound and state cap (R-6.e, R-70); ordering of the P1 and P2 items; CAND-3 staging per dimension (R-69) |
 | 4 | Architect | hub-id minting (OD-12, R-61); grant fields and storage (OD-15, R-63..R-65); retention ceilings (OD-16, R-35); jitter, adaptive cap, hop limit (CAND-12, R-56); skew bound (CAND-13, R-57); gap-wait bound (CAND-18, R-59); mail-hub declaration format (CAND-8, R-54); idle no-surfacing threshold (CAND-6, R-53, R-29.e); "main" lease durations, quiet period, cooldown and priority format (OD-18, R-67); GP-4 offline; GP-11 design once ruled |
 | 5 | Evidence specialist | the test estate and agent pairs for the CAND-3 tiers (R-69) |
