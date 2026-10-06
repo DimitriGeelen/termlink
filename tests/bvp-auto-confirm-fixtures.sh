@@ -96,8 +96,11 @@ source_of() {
 import re,sys,yaml
 raw=open(sys.argv[1]).read(); m=re.match(r'^---\n(.*?)\n---',raw,re.S)
 fm=yaml.safe_load(m.group(1)) or {}
-print(fm.get('bvp_scores_source') or '(absent)')" "$1" 2>/dev/null
+print(fm.get('confirmed_via') or '(absent)')" "$1" 2>/dev/null
 }
+# T-3370: source_of() was adapted to upstream's provenance (T-3487/T-3523): it reads
+# confirmed_via, which replaces our old bvp_scores_source field. Same property (who
+# set these scores), upstream's mechanism.
 
 echo "=== T-3184: BVP scoring is an agent decision, with a sticky human override ==="
 
@@ -182,7 +185,7 @@ human_scores="$(scores_of "$TASK")"
 if grep -qF "'D2': 1" <<< "$human_scores"; then ok "human override recorded (D2=1)"; else
     fail "human override not recorded — got: $human_scores"; fi
 if [ "$(source_of "$TASK")" = "human" ]; then
-    ok "provenance stamped bvp_scores_source: human"
+    ok "provenance stamped confirmed_via: human (upstream T-3523 mechanism)"
 else fail "provenance NOT stamped — got: $(source_of "$TASK")"; fi
 
 # 2. the estimator re-proposes (simulating the next assessment run) with D2 back at 4.
@@ -221,11 +224,16 @@ fi
 
 # 3. the agent tries to confirm — this is the moment the override must hold
 aout="$(run confirm T-9001)"; arc=$?
-if [ "$arc" -ne 0 ]; then ok "agent confirm REFUSED over human-set scores (rc $arc)"; else
+# T-3370: adapted to upstream's mechanism (bvp_sticky.py, "skip and report"): the agent
+# confirm is SKIPPED and REPORTED with rc 0 rather than refused with rc != 0. The property
+# is unchanged — the agent run does not overwrite — and it is asserted on disk below too.
+if grep -qF 'SKIPPED T-9001 bvp_scores: operator-adjusted, not overwritten' <<< "$aout"; then
+    ok "agent confirm SKIPPED over human-set scores and reported it (rc $arc)"
+else
     fail "agent confirm was ALLOWED over human-set scores — the override is not sticky"; fi
-if grep -qF 'Refusing to overwrite human-set scores' <<< "$aout"; then
-    ok "refusal names the reason and the sticky rule"
-else fail "refusal message did not name human-set scores"; fi
+if grep -qF 'skipped as operator-adjusted' <<< "$aout" && grep -qF '[provenance]' <<< "$aout"; then
+    ok "report names the sticky route and carries the skip summary"
+else fail "skip report did not name the sticky route (provenance) / summary"; fi
 
 # 4. the actual property: the human's value is still on disk
 after="$(scores_of "$TASK")"
@@ -247,20 +255,21 @@ else fail "human re-override did not land — got: $(scores_of "$TASK")"; fi
 
 # ================================================================= Case 5
 echo
-echo "Case 5 — two states, never three: the agent path writes NO provenance"
+echo "Case 5 — the agent path is recorded as such: confirmed_via: agent (upstream provenance)"
 PROJ="$SCRATCH/c5"; LEDGER="$SCRATCH/c5.ndjson"; mk_project "$PROJ"; unset APPROVAL
 run confirm T-9001 >/dev/null
+# T-3370: ADAPTED. The T-3184 version asserted bvp_scores_source ABSENT and confirmed_by
+# 'agent:auto' on the agent path. Upstream records the same agent-vs-human distinction in
+# confirmed_via (T-3487), which also drives its sticky rule, so the assertion now checks
+# that field. Upstream keeps $USER in confirmed_by by design; confirmed_via carries it.
 src="$(source_of "$PROJ/.tasks/active/T-9001-fixture.md")"
-if [ "$src" = "(absent)" ]; then
-    ok "agent confirm leaves bvp_scores_source ABSENT (not 'agent')"
-else
-    fail "agent confirm wrote a provenance value '$src' — creates a third state whose"
-    echo "        meaning is indistinguishable from absence (832 offsets 190/191, T-3105)"
-fi
+if [ "$src" = "agent" ]; then
+    ok "agent confirm records confirmed_via: agent"
+else fail "confirmed_via did not record the agent path — got '$src'"; fi
 task5="$PROJ/.tasks/active/T-9001-fixture.md"
-if grep -qF 'confirmed_by: agent:auto' "$task5"; then
-    ok "confirmed_by still names the agent path, never \$USER"
-else fail "confirmed_by did not record the agent path"; fi
+if grep -qF 'bvp_scores_source' "$task5"; then
+    fail "legacy bvp_scores_source written — a second provenance mechanism beside upstream's"
+else ok "no legacy bvp_scores_source field (one provenance mechanism, upstream's)"; fi
 
 # ================================================================= Case 6
 echo
