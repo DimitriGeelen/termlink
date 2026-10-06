@@ -4,10 +4,10 @@ name: "Upgrade vendored AEF v1.8.3 to v1.8.5 with a preserve manifest (operator 
 description: >
   Rehearsed on a disposable copy: 1.8.5 refuses to overwrite our 10 local fixes until told; .fwvendor-preserve.yaml keeps 9, circuit.py takes upstream T-3957. Follow-ups: restore .tasks/templates/default.md (step 2 bare cp), port upstream deltas into preserved checkpoint.sh and bvp.sh, review+delete 16 .upstream template copies, accept the T-3948 inception backfill and give the 4 active inceptions real estimates, guard layer + doctor vs baseline, divergence register.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -38,8 +38,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T19:47:42Z
-last_update: 2026-10-06T19:47:42Z
-date_finished: null
+last_update: 2026-10-06T20:12:44Z
+date_finished: 2026-10-06T20:12:44Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -62,13 +62,13 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `.agentic-framework/VERSION` reads 1.8.5; `.fwvendor-preserve.yaml` lists the 9 kept local fixes
-- [ ] The 9 preserved files still carry our fixes, and upstream's 1.8.3→1.8.5 changes to checkpoint.sh and bvp.sh are ported into them
-- [ ] lib/sidecar/circuit.py is upstream's (T-3957) and `fw sidecar whoami` still resolves agent 010-termlink
-- [ ] .tasks/templates/default.md, .claude/commands/resume.md and the 15 toolkit files are ours (no diff vs pre-upgrade); no `.upstream` copies left in the tree
-- [ ] The 4 active inceptions carry real target_blast_radius / voi_score estimates, not the backfill defaults
-- [ ] Guard layer: no FAIL-tier red beyond the pre-upgrade baseline; `fw doctor` 0 failures; `check-vendor-divergence.sh` exits 0
-- [ ] Receiver still live: a probe send to 010-termlink reaches RECEIVED
+- [x] `.agentic-framework/VERSION` reads 1.8.5; `.fwvendor-preserve.yaml` lists the 9 kept local fixes
+- [x] The 9 preserved files still carry our fixes, and upstream's 1.8.3→1.8.5 changes to checkpoint.sh and bvp.sh are ported into them
+- [x] lib/sidecar/circuit.py is upstream's (T-3957) and `fw sidecar whoami` still resolves agent 010-termlink
+- [x] .tasks/templates/default.md, .claude/commands/resume.md and the 15 toolkit files are ours (no diff vs pre-upgrade); no `.upstream` copies left in the tree
+- [x] The 4 active inceptions carry real target_blast_radius / voi_score estimates, not the backfill defaults
+- [x] Guard layer: no FAIL-tier red beyond the pre-upgrade baseline; `fw doctor` 0 failures; `check-vendor-divergence.sh` exits 0
+- [x] Receiver still live: a probe send to 010-termlink reaches RECEIVED
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -367,3 +367,20 @@ bash scripts/check-task-template-idioms.sh > /tmp/.t3376-ti 2>&1
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3376-upgrade-vendored-aef-v183-to-v185-with-a.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-638f18da
+- **Timestamp:** 2026-10-06T20:12:57Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#3 (Agent)** — lib/sidecar/circuit.py is upstream's (T-3957) and `fw sidecar whoami` still resolves agent 010-termlink
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=lib/sidecar/circuit.py in: lib/sidecar/circuit.py is upstream's (T-3957) and `fw sidecar whoami` still resolves agent 010-termlink`
+
+### 2026-10-06T20:12:44Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

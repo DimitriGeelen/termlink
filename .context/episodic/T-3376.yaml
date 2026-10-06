@@ -1,0 +1,296 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3376: Upgrade vendored AEF v1.8.3 to v1.8.5 with a preserve manifest (operator ruling A, 2026-10-06)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-06T20:13:06Z
+# ============================================================================
+
+task_id: T-3376
+task_name: "Upgrade vendored AEF v1.8.3 to v1.8.5 with a preserve manifest (operator ruling A, 2026-10-06)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-06T19:47:42Z
+completed: 2026-10-06T20:12:44Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-10-06T21:48:57+02:00
+last_commit: 2026-10-06T21:54:26+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  capture AEF 1.8.5 upgrade (operator ruling A) and the preserve manifest for our 9 local fixes. re-vendor AEF 1.8.3 -> 1.8.5 with .fwvendor-preserve.yaml (operator ruling A). register — baseline 4b503e4a2 (AEF 1.8.5); circuit.py landed upstream as T-3957; upgrade hold lifted; preserve manifest noted
+
+# Key outcomes
+outcomes:
+  - '`.agentic-framework/VERSION` reads 1.8.5; `.fwvendor-preserve.yaml` lists the 9 kept local fixes'
+  - 'The 9 preserved files still carry our fixes, and upstream''s 1.8.3→1.8.5 changes to checkpoint.sh and bvp.sh are ported into them'
+  - 'lib/sidecar/circuit.py is upstream''s (T-3957) and `fw sidecar whoami` still resolves agent 010-termlink'
+  - '.tasks/templates/default.md, .claude/commands/resume.md and the 15 toolkit files are ours (no diff vs pre-upgrade); no `.upstream` copies left in the tree'
+  - 'The 4 active inceptions carry real target_blast_radius / voi_score estimates, not the backfill defaults'
+  - 'Guard layer: no FAIL-tier red beyond the pre-upgrade baseline; `fw doctor` 0 failures; `check-vendor-divergence.sh` exits 0'
+  - 'Receiver still live: a probe send to 010-termlink reaches RECEIVED'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'capture AEF 1.8.5 upgrade (operator ruling A) and the preserve manifest for our 9 local fixes'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-10-06 — Upgrade to AEF 1.8.5 with a preserve manifest (operator ruling)'
+    chose: 'A — upgrade now; .fwvendor-preserve.yaml keeps our 9 local fixes, circuit.py takes upstream T-3957; restore the task template, port upstream changes to checkpoint.sh/bvp.sh, delete reviewed .upstream copies, accept the T-3948 backfill and give the 4 active inceptions real estimates.'
+    rationale: 'rehearsed end to end on a disposable copy (rc=0); 1.8.5 fixes our three HIGH findings and refuses to overwrite local fixes without a decision. Scored A +30, B +25, C −5, D −14.'
+    alternatives_rejected: ['B (revert backfill — edit-gate friction for 137 completed tasks nobody ranks), C (stay on 1.8.3), D (no preserve manifest — re-apply all 9 by hand again).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/agents/audit/audit.sh'
+  - '.agentic-framework/agents/audit/unit-suite.sh'
+  - '.agentic-framework/agents/context/budget-gate.sh'
+  - '.agentic-framework/agents/context/check-agent-dispatch.sh'
+  - '.agentic-framework/agents/context/check-inception-schema.py'
+  - '.agentic-framework/agents/context/checkpoint.sh'
+  - '.agentic-framework/agents/context/post-compact-resume.sh'
+  - '.agentic-framework/agents/task-create/create-task.sh'
+  - '.agentic-framework/agents/task-create/update-task.sh'
+  - '.agentic-framework/agents/termlink/termlink.sh'
+  - '.agentic-framework/bin/claude-fw'
+  - '.agentic-framework/bin/fw'
+  - '.agentic-framework/docs/reports/T-2899-designer-stamp-provenance.md'
+  - '.agentic-framework/docs/reports/T-3896-approvals-readiness-rca.md'
+  - '.agentic-framework/docs/reports/T-3922-triage-832-010.md'
+  - '.agentic-framework/docs/reports/T-3922-triage-rest.md'
+  - '.agentic-framework/docs/reports/T-3922-triage-ring20.md'
+  - '.agentic-framework/docs/reports/T-3922-verdicts.json'
+  - '.agentic-framework/docs/reports/T-3922-waiting-items.json'
+  - '.agentic-framework/docs/reports/T-3922-waiting-triage.md'
+  - '.agentic-framework/docs/reports/T-3922-worker-brief.md'
+  - '.agentic-framework/docs/reports/T-3930-ring20-orchestration-review.md'
+  - '.agentic-framework/docs/reports/T-3930-worker-brief.md'
+  - '.agentic-framework/docs/reports/T-3934-task-index.md'
+  - '.agentic-framework/.fw-vendor-stamp.json'
+  - '.agentic-framework/lib/bvp.sh'
+  - '.agentic-framework/lib/config-file.sh'
+  - '.agentic-framework/lib/config.sh'
+  - '.agentic-framework/lib/design_register.py'
+  - '.agentic-framework/lib/handover-lock.sh'
+  - '.agentic-framework/lib/inception_schema_backfill.py'
+  - '.agentic-framework/lib/inception.sh'
+  - '.agentic-framework/lib/render_surface.sh'
+  - '.agentic-framework/lib/reviewer/judge_cli.py'
+  - '.agentic-framework/lib/runme.sh'
+  - '.agentic-framework/lib/sidecar/addressing.py'
+  - '.agentic-framework/lib/sidecar/circuit.py'
+  - '.agentic-framework/lib/sidecar_cli.py'
+  - '.agentic-framework/lib/sidecar/delivery.py'
+  - '.agentic-framework/lib/sidecar/inbox.py'
+  - '.agentic-framework/lib/sidecar/inject.py'
+  - '.agentic-framework/lib/sidecar/receipts.py'
+  - '.agentic-framework/lib/sidecar/retry.py'
+  - '.agentic-framework/lib/sidecar/status.py'
+  - '.agentic-framework/lib/sidecar/termlink_transport.py'
+  - '.agentic-framework/lib/sidecar/waiting.py'
+  - '.agentic-framework/lib/task_origin.py'
+  - '.agentic-framework/lib/upgrade.sh'
+  - '.agentic-framework/lib/upgrade_template_sync.py'
+  - '.agentic-framework/lib/vendor_preserve.py'
+  - '.agentic-framework/lib/verdict_ledger.py'
+  - '.agentic-framework/VERSION'
+  - '.agentic-framework/web/blueprints/approvals.py'
+  - '.agentic-framework/web/blueprints/arcs.py'
+  - '.agentic-framework/web/blueprints/config.py'
+  - '.agentic-framework/web/blueprints/inception.py'
+  - '.agentic-framework/web/shared.py'
+  - '.agentic-framework/web/templates/_approvals_content.html'
+  - '.agentic-framework/web/templates/arc_close.html'
+  - '.agentic-framework/web/templates/inception_detail.html'
+  - '.agentic-framework/web/templates/_origin_badge.html'
+  - '.context/audits/upgrades.yaml'
+  - '.context/upgrade-template-stamp.json'
+  - '.framework.yaml'
+  - '.fwvendor-preserve.yaml'
+  - '.tasks/active/T-1635-v2-peer-consult-seam--termlink-side-resp.md'
+  - '.tasks/active/T-1898-vendored-agent-runner-phase-1--minimum-v.md'
+  - '.tasks/active/T-1899-g-020-task-create-time-gate-failed--rca-.md'
+  - '.tasks/active/T-2007-termlink-as-coordination-substrate--what.md'
+  - '.tasks/active/T-3376-upgrade-vendored-aef-v183-to-v185-with-a.md'
+  - '.tasks/active/T-3377-adopt-aef-t-3286-instance-grain-agentid-.md'
+  - '.tasks/completed/T-002-cross-terminal-session-communication-via.md'
+  - '.tasks/completed/T-003-it-001-paradigm-decision--injection-vs-m.md'
+  - '.tasks/completed/T-004-it-009-protocol-relationships--mcp-lsp-e.md'
+  - '.tasks/completed/T-005-it-003-message-protocol-design.md'
+  - '.tasks/completed/T-006-it-002-session-identity-discovery-and-li.md'
+  - '.tasks/completed/T-007-it-004-output-capture--bidirectional-com.md'
+  - '.tasks/completed/T-008-it-006-security-model--capability-based-.md'
+  - '.tasks/completed/T-009-it-005-concurrency-ordering-and-backpres.md'
+  - '.tasks/completed/T-010-it-007-interactive-program-handling--vim.md'
+  - '.tasks/completed/T-011-it-008-distributed-topology--cross-machi.md'
+  - '.tasks/completed/T-012-it-010-agent-to-agent-communication-patt.md'
+  - '.tasks/completed/T-013-tech-stack-decision--implementation-lang.md'
+  - '.tasks/completed/T-053-end-to-end-cli-integration-test-harness-.md'
+  - '.tasks/completed/T-066-hub-as-persistent-daemon--extract-from-c.md'
+  - '.tasks/completed/T-073-transport-abstraction--trait-based-trans.md'
+  - '.tasks/completed/T-079-capability-token-system--hmac-signed-sco.md'
+  - '.tasks/completed/T-094-volatile-conversation-loss-prevention-and-rem.md'
+  - '.tasks/completed/T-099-pr-to-anthropic-postmessage-sessionend-hooks.md'
+  - '.tasks/completed/T-100-inception-termlink-output-capture-conv-logger.md'
+  - '.tasks/completed/T-1016-termlink-deploy--atomic-binary-deploymen.md'
+  - '.tasks/completed/T-101-inception-jsonl-transcript-reader-conv-capture.md'
+  - '.tasks/completed/T-1025-hub-restart-tcp-detection--server-side-h.md'
+  - '.tasks/completed/T-102-inception-orchestrator-mandatory-tool-call.md'
+  - '.tasks/completed/T-103-inception-error-escalation-ladder-auto-population.md'
+  - '.tasks/completed/T-104-inception-tool-call-capture-store.md'
+  - '.tasks/completed/T-1051-termlink-authconnect-reliability--antifr.md'
+  - '.tasks/completed/T-105-inception-tool-call-reporting-page.md'
+  - '.tasks/completed/T-106-inception-streamline-framework-agent-pr-handoff.md'
+  - '.tasks/completed/T-1070-consumer-installupdate-ux--why-cargo-bui.md'
+  - '.tasks/completed/T-1071-framework-improvements-from-termlink-pro.md'
+  - '.tasks/completed/T-1074-periodic-cross-agent-learning-exchange--.md'
+  - '.tasks/completed/T-107-inception-sub-agent-transcript-persistence.md'
+  - '.tasks/completed/T-1101-deep-value-assessment--what-does-termlin.md'
+  - '.tasks/completed/T-1112-backfill-recommendation-sections-for-51-.md'
+  - '.tasks/completed/T-1122-migrate-watchtower-from-werkzeug-dev-ser.md'
+  - '.tasks/completed/T-114-poc--replace-internal-agent-spawning-wit.md'
+  - '.tasks/completed/T-1155-channel-based-communication-bus-for-term.md'
+  - '.tasks/completed/T-1169-pickup-to-framework-multi-agent-dispatch.md'
+  - '.tasks/completed/T-118-framework-pr--fw-fabric-context-command-.md'
+  - '.tasks/completed/T-1192-dispatched-claude-workers-blocked-as-roo.md'
+  - '.tasks/completed/T-1194-inception-agent-acs-never-auto-tick-when.md'
+  - '.tasks/completed/T-119-agent-mesh-task-gate-bypass--workers-blo.md'
+  - '.tasks/completed/T-1207-stop-hook-design--conversation-governanc.md'
+  - '.tasks/completed/T-1208-sessionend-hook-design--auto-handover-wi.md'
+  - '.tasks/completed/T-1209-subagentstop-hook-design--result-managem.md'
+  - '.tasks/completed/T-1210-fleet-termlink-version-divergence--unifi.md'
+  - '.tasks/completed/T-1220-t-1163-follow-up-climcp-inbox-receiver-m.md'
+  - '.tasks/completed/T-1223-g-016-root-cause-find-dryrun0-bootstrap-.md'
+  - '.tasks/completed/T-1229-t-1220b-follow-up-cmdinboxstatus-migrati.md'
+  - '.tasks/completed/T-1230-t-1220b-follow-up-cmdinboxclear-semantic.md'
+  - '.tasks/completed/T-123-agent-mesh-concurrent-builds--isolation-.md'
+  - '.tasks/completed/T-1253-g-007-mirror-anomaly--github-ahead-of-on.md'
+  - '.tasks/completed/T-1290-investigate-ring20-management-hubsecret-.md'
+  - '.tasks/completed/T-1297-termlink-agent-routing-discipline--preve.md'
+  - '.tasks/completed/T-136-framework-agent-self-testing-via-termlin.md'
+  - '.tasks/completed/T-1384-are-we-ready-to-push-agent-conversation-.md'
+  - '.tasks/completed/T-1425-agent-to-agent-contact-pattern-post-t-11.md'
+  - '.tasks/completed/T-142-termlink-integration-into-engineering-fr.md'
+  - '.tasks/completed/T-1444-g-050-long-term-hub-side-topic-registry-.md'
+  - '.tasks/completed/T-1448-co-resident-agent-identity-disambiguatio.md'
+  - '.tasks/completed/T-1449-date-triggered-revisit-mechanism-for-def.md'
+  - '.tasks/completed/T-144-tcp-hub-listener--cross-machine-session-.md'
+  - '.tasks/completed/T-149-platform-aware-spawn--tmuxheadless-suppo.md'
+  - '.tasks/completed/T-155-claude-code-inside-termlink-session--rem.md'
+  - '.tasks/completed/T-163-cross-machine-agent-communication-via-tc.md'
+  - '.tasks/completed/T-1692-mcp-channelpost-metadata-exposure--close.md'
+  - '.tasks/completed/T-1693-per-agent-ed25519-signing-identity-on-sh.md'
+  - '.tasks/completed/T-1698-auto-heal-infrastructure-dormant--no-boo.md'
+  - '.tasks/completed/T-176-audit-framework-hook-config-against-24-a.md'
+  - '.tasks/completed/T-1791-g-060-agent-chat-arc-federation-gap--rca.md'
+  - '.tasks/completed/T-1793-auto-federated-channel-topics-across-hub.md'
+  - '.tasks/completed/T-179-cross-hub-tls-trust-via-tofu-trust-on-fi.md'
+  - '.tasks/completed/T-1800-interactive-agent-conversation-runtime--.md'
+  - '.tasks/completed/T-180-build-fw-upstream-report-command-for-con.md'
+  - '.tasks/completed/T-1830-doorbellmail-adoption-gap--drive-zero-ac.md'
+  - '.tasks/completed/T-1865-aef-integration-scoping--doorbellmail-pr.md'
+  - '.tasks/completed/T-186-termlink-inject-remote--standard-command.md'
+  - '.tasks/completed/T-1884-consumer-side-review-agent-orchestrator-.md'
+  - '.tasks/completed/T-1904-mcp-client-vs-direct-session-how-does-te.md'
+  - '.tasks/completed/T-1906-watchtower-decide-leaves-staged-work-tre.md'
+  - '.tasks/completed/T-192-simulation-harness-for-human-ac-verifica.md'
+  - '.tasks/completed/T-196-architectural-mitigation-for-macos-bsdgn.md'
+  - '.tasks/completed/T-1991-agent-presence-topic-bloat--discovery-sl.md'
+  - '.tasks/completed/T-1993-hub-side-bisectfix-011473-channel-info-c.md'
+  - '.tasks/completed/T-2012-env-spike-on-122-hub-identify-environmen.md'
+  - '.tasks/completed/T-205-drop-pyyaml-phantom-dependency-from-inst.md'
+  - '.tasks/completed/T-206-remove-sudo-from-installer--path-based-i.md'
+  - '.tasks/completed/T-207-fix-phantom-aef-binary-name-in-installer.md'
+  - '.tasks/completed/T-208-termlink-distribution-via-homebrew-tap--.md'
+  - '.tasks/completed/T-209-implement-fw-dispatch--ssh-based-cross-m.md'
+  - '.tasks/completed/T-2144-substrate-primitive-review--identify-nex.md'
+  - '.tasks/completed/T-2224-substrate-backpressure-demo--hub-loud-re.md'
+  - '.tasks/completed/T-232-terminal-shadow-sessions--read-only-moni.md'
+  - '.tasks/completed/T-233-specialist-agent-orchestration--delegate.md'
+  - '.tasks/completed/T-235-research-clean-terminal-output-rendering.md'
+  - '.tasks/completed/T-243-script-error-yielding--checkpoint-based-.md'
+  - '.tasks/completed/T-245-interactive-session-picker-for-attachmir.md'
+  - '.tasks/completed/T-247-orchestration-real-world-scenarios--stre.md'
+  - '.tasks/completed/T-258-context-amnesia-root-cause--t-233-vision.md'
+  - '.tasks/completed/T-261-inception-mcp-server-for-termlink.md'
+  - '.tasks/completed/T-262-inception-attach-self--register-existing.md'
+  - '.tasks/completed/T-280-dispatch-readiness--structural-completio.md'
+  - '.tasks/completed/T-283-cross-session-failure-blindness--107-rem.md'
+  - '.tasks/completed/T-287-cross-project-framework-upgrade--fw-agen.md'
+  - '.tasks/completed/T-292-audit-health-decay--why-do-warnings-accu.md'
+  - '.tasks/completed/T-534-rca-agent-keeps-suggesting-direct-github.md'
+  - '.tasks/completed/T-690-event-subscription--push-based-event-del.md'
+  - '.tasks/completed/T-789-worktree-isolation-for-termlink-dispatch.md'
+  - '.tasks/completed/T-908-api-relay-governance--local-proxy-for-de.md'
+  - '.tasks/completed/T-909-fix-agentic-framework-symlink--replace-w.md'
+  - '.tasks/completed/T-912-define-vendor-refresh-workflow--fw-upgra.md'
+  - '.tasks/completed/T-921-full-cross-host-parity--every-termlink-c.md'
+  - '.tasks/completed/T-922-codify-mcp-auto-exposure--every-new-cli-.md'
+  - '.tasks/completed/T-930-should-termlink-hub-run-under-a-supervis.md'
+  - '.tasks/completed/T-936-migrate-termlink-cron-from-hand-written-.md'
+  - '.tasks/completed/T-937-pickup-termlink-cleanup-kills-active-dis.md'
+  - '.tasks/completed/T-940-rca-unify-termlink-runtime-dir--split-br.md'
+  - '.tasks/completed/T-941-pickup-include-persistent-agent-session-.md'
+  - '.tasks/completed/T-942-pickup-hub-should-scan-multiple-session-.md'
+  - '.tasks/completed/T-945-pickup-u-001-tls-cert-regenerates-on-eve.md'
+  - '.tasks/completed/T-946-pickup-u-002-hub-level-inbox--store-file.md'
+  - '.tasks/completed/T-947-pickup-canary-30s-pickup-processor-smoke.md'
+  - '.tasks/completed/T-950-pickup-30-second-pickup-processor-cycle-.md'
+  - '.tasks/completed/T-951-pickup-u-003-send-file-reports-ok-on-hub.md'
+  - '.tasks/completed/T-952-pickup-l-004-termlink-inject-vs-push--in.md'
+  - '.tasks/completed/T-953-pickup-l-006-termlink-send-file-oktrue-m.md'
+  - '.tasks/completed/T-954-pickup-partial-migrations-are-a-recurrin.md'
+  - '.tasks/completed/T-955-pickup-dry-run-saved-us-from-silent-data.md'
+  - '.tasks/completed/T-956-pickup-pickup-envelopes--messaging-chann.md'
+  - '.tasks/completed/T-957-pickup-cross-host-agent-access-requires-.md'
+  - '.tasks/completed/T-958-pickup-inception-decide-codepath-has-4-s.md'
+  - '.tasks/completed/T-959-pickup-two-pool-architecture-persistent-.md'
+  - '.tasks/completed/T-967-persistent-agent-sessions--mark-protect-.md'
+  - '.tasks/completed/T-968-pickup-t-1135-persistent-termlink-agent-.md'
+  - '.tasks/completed/T-972-deep-rca-agent-command-amnesia--why-do-a.md'
+  - '.tasks/completed/T-980-tier-0-self-approval-bypass--agent-can-c.md'
+  - '.tasks/completed/T-984-fw-upgrade-silently-reverts-local-patche.md'
+  - '.vendor-divergence.yaml'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-06T21:48:57'
+    action: 'T-3376: capture AEF 1.8.5 upgrade (operator ruling A) and the preserve manifest for our 9 local fixes'
+  - time: '2026-10-06T21:53:54'
+    action: 'T-3376: re-vendor AEF 1.8.3 -> 1.8.5 with .fwvendor-preserve.yaml (operator ruling A)'
+  - time: '2026-10-06T21:54:26'
+    action: 'T-3376: register — baseline 4b503e4a2 (AEF 1.8.5); circuit.py landed upstream as T-3957; upgrade hold lifted; preserve manifest noted'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 25 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 25
+  commits: 3
+  files_changed: 209
+  lines_added: 7798
+  lines_removed: 292
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3376-upgrade-vendored-aef-v183-to-v185-with-a.md
+generated_by: context-agent-hybrid
