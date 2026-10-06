@@ -1,0 +1,21 @@
+# T-3376 (AEF 1.8.5 upgrade): TermLink's local fixes to the vendored AEF (see .vendor-divergence.yaml).
+# Each stays ours until AEF carries it; upstream changes to these files are reported by fw vendor.
+files:
+  - path: agents/context/check-active-task.sh
+    reason: T-3270 commit-pending helper exception
+  - path: agents/context/checkpoint.sh
+    reason: T-3316 unknown verb is a usage error, not HOOK CRASHED
+  - path: agents/context/lib/safe-commands.sh
+    reason: T-3178 Tier-1 write-gate bypass fix; /dev/stdout|stderr strip
+  - path: agents/handover/handover.sh
+    reason: T-3269 commit-pending; T-2882 enrichment marker and TODO sections
+  - path: agents/termlink/bvp-estimator/estimator.py
+    reason: T-3188 target_blast_radius all types; T-3189 body-derived blast radius
+  - path: lib/bvp.sh
+    reason: T-3184 agent decides all five verbs; T-3185 no-signal quadrants; T-3176 telemetry ledger
+  - path: lib/pickup.sh
+    reason: T-2687 pickup fail-open (constant dedup hash)
+  - path: web/blueprints/discovery.py
+    reason: T-3337 never build index from a request; _db_opened_at ImportError fix
+  - path: web/embeddings.py
+    reason: T-3336 parallel embedding (FW_EMBED_WORKERS)
