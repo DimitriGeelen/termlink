@@ -28,7 +28,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-04T14:28:12Z
-last_update: 2026-10-06T07:06:30Z
+last_update: 2026-10-06T07:08:13Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -278,6 +278,10 @@ exists: `docs/design/roles/README.md` section 3. Operator ruling A recorded in D
 -->
 
 ## Decisions
+
+### 2026-10-06 — OD-17 CAND-16 per-circuit credentials and one delivery contract (operator ruling)
+- **Chose:** A — recorded as settled by OD-1 (point 3: "per-circuit short-lived credentials minted by the hubs, one delivery contract and one log per conversation on both paths"; point 4: "the conditions become requirements"). P1 requirements of the circuit slice, after identity, directory and hub-path binding (OD-1 build order). Persist-before-ack = OD-5; dedupe = CAND-2; sequence numbers = CAND-18. Credential lifetime and binding go to step 2.
+- **Rejected:** B re-open (nothing new); C credentials on the hub path now (no circuit to bind; signed senders already authenticate, T-1427); D drop (reverses OD-1).
 
 ### 2026-10-06 — OD-17 CAND-14 obligations and the unanswered state (operator ruling)
 - **Chose:** A — the sender-visible unanswered state with escalation is recorded as already covered (R-28/OD-8 reply or no-action; OD-3 STUCK "not answered within 1 h"; OD-14 escalation; CAND-10 awaiting-reply deadline). New P1 (extends R-28): an owed-answers list per agent, computed from the hub record (OD-5), shown at session start/resume and in needs-attention ("you owe N answers, oldest T"). Work requests' accepted/declined, progress deadline and completed/failed go into R-41's later slice, with the CAND-1 task proposal as the "accepted" step.

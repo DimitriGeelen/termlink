@@ -463,4 +463,9 @@ the output in one pass after the last question.
          declined, progress deadline, completed/failed) into R-41's later slice with the CAND-1 task proposal as
          "accepted".
     11c. Leaves open: escalation to another role holder (OD-18).
+12. **CAND-16 per-circuit credentials, one delivery contract — ruled A: settled by OD-1** (2026-10-06).
+    12a. OD-1 point 3 already made these conditions of the circuit; point 4 made them requirements and sent the
+         trust model to step 2. Recorded as P1 requirements of the circuit slice, after identity, directory and
+         binding. Persist-before-ack is OD-5, dedupe is CAND-2, sequence numbers are CAND-18.
+    12b. Leaves open: credential lifetime and binding (step 2).
 
