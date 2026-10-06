@@ -28,7 +28,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-04T14:28:12Z
-last_update: 2026-10-06T20:44:28Z
+last_update: 2026-10-06T20:51:55Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -499,7 +499,10 @@ exists: `docs/design/roles/README.md` section 3. Operator ruling A recorded in D
   scenarios for new requirements are test shapes with no numbers beyond the log's.
 - **Why:** the five calls are the only content not traceable to an operator ruling. Scored A +26, B +42, C +27, D −26.
 - **Rejected:** A (approves the calls unexamined), C (outside reviewers cannot judge "as meant"), D (stalls the arc).
-- **Pending:** J1–J5 rulings, then the role-chain yaml approval note and T-3349 closure (operator).
+- **J1 ruled B** ("fine with the codification", read as B, overturnable): tag [O] renamed [R] (read as a zero);
+  [R~] added for the orchestrator's details the rulings accepted (14 days, 1 year, cap 100, runtime id never reused,
+  switch-over sequencing), 9 marks; 6.1.h moved after 6.1.f.
+- **Pending:** J2–J5 rulings, then the role-chain yaml approval note and T-3349 closure (operator).
 - **Left open:** section 13.2 of v0.4 (GP-11 first).
 
 ## Decision
