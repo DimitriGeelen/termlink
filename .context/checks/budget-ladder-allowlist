@@ -16,6 +16,5 @@
 # or fires with the residual difference (partially fixed). Do NOT remove a line to quiet the
 # check — the entry IS the record that the docs currently lie about when to stop working.
 
-CLAUDE.md::escalation-ladder-absolutes  # template-owned (T-2015); filed framework:pickup@130. Prose 120K/150K/170K is only self-consistent against a 200,000 window; the gate runs 300,000.
 CLAUDE.md::work-proposal-bands  # template-owned (T-2015); filed framework:pickup@130. Bands 60/75/85% vs the gate's 75/85/95% — wrong on the percentage axis as well as the absolute one.
 CLAUDE.md::structural-enforcement-critical  # template-owned (T-2015); filed framework:pickup@130. Also contradicts the same file's own escalation ladder (150K/75% vs 170K), so the template is internally inconsistent independent of the code.

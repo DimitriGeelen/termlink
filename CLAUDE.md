@@ -2314,8 +2314,13 @@ and overwrite them. Where the template and this section disagree about a
 
 - **Every list item carries a unique label the operator can cite (operator standing instruction, 2026-10-03, T-3329).** Never write a plain `-`/`*` bullet list in text meant for the operator. Label items hierarchically: top level `1`, `2`, `3`; the next level appends a letter, `1a`, `1b`; the level after appends another, `1aa`, `1ab`. Numbering is **unique across the whole message**: do not restart at 1 in each section, continue (a later section starts at 4 if the earlier one ended at 3), so "3" or "2b" names exactly one item. Decision options keep their letters `A`–`D` (already unique). Why: the operator answers by reference ("do 2b, skip 3"), often by voice, and an unlabelled bullet forces them to quote the text back. Tables and code blocks are exempt; a list inside a table cell is not. This applies to replies, decision briefs, handover text written for the operator, and messages to peer agents.
 
-- **The context-budget ladder below `## Core Principle` is STALE — ignore its numbers (T-3192).**
-  The governance section §"Automated Monitoring (Claude Code)" states *"Escalation ladder:
+- **State budget stop conditions by threshold NAME, never by number (T-3192).**
+  *Fixed upstream in AEF 1.8.3 (re-vendored 2026-10-06, T-3370):* the governance section
+  below now states the ladder as percentages of `FW_CONTEXT_WINDOW` (75 / 85 / 95 %) and names
+  `budget-gate.sh` as the source of truth; `scripts/check-budget-ladder-drift.sh` guards that
+  prose against the gate. `checkpoint.sh budget` is now a native verb. The history below is
+  kept because the lesson about literal numbers in mandates still applies.
+  Before 1.8.3 the governance section stated *"Escalation ladder:
   120K ok→warn, 150K warn→urgent, 170K urgent→critical (BLOCK)"*. Those are fixed figures
   from a 200K-window era. **The code has not worked that way for some time**:
   `agents/context/budget-gate.sh:103-108` reads

@@ -165,7 +165,38 @@ if crit:
                    % (c_abs, c_pct, live["critical"], gate_pct["critical"], extra),
         })
 
-if prose_abs is None and not bands and not crit:
+# --- prose PERCENTAGE ladder (AEF 1.8.3 template, T-3370) ---------------------------------
+# The 1.8.3 template states the ladder as percentages of FW_CONTEXT_WINDOW (the fix this
+# check was waiting for) instead of absolutes. Compare those percentages with the gate's.
+pct_lad = re.search(
+    r'Escalation ladder, as percentages.*?\*\*(\d+)%\*\*\s*ok.{0,4}warn.*?\*\*(\d+)%\*\*\s*warn.{0,4}urgent'
+    r'.*?\*\*(\d+)%\*\*\s*urgent.{0,4}critical', doc_src, re.S)
+if pct_lad:
+    stated = {"warn": int(pct_lad.group(1)), "urgent": int(pct_lad.group(2)), "critical": int(pct_lad.group(3))}
+    if stated != gate_pct:
+        findings.append({
+            "signature": "%s::escalation-ladder-percentages" % os.path.basename(claude_md),
+            "why": "prose says warn=%d%% urgent=%d%% critical=%d%%; gate computes %s"
+                   % (stated["warn"], stated["urgent"], stated["critical"], gate_pct),
+        })
+pct_bands = re.findall(r'^-\s*(?:Below|Above)\s+(\d+)%\s+of\s+`?FW_CONTEXT_WINDOW', doc_src, re.M) \
+    + re.findall(r'^-\s*(?:Above)\s+(\d+)%:', doc_src, re.M)
+if pct_bands:
+    stated_b = sorted({int(p) for p in pct_bands})
+    live_b = sorted({gate_pct["warn"], gate_pct["urgent"], gate_pct["critical"]})
+    if not set(stated_b) <= set(live_b):
+        findings.append({
+            "signature": "%s::work-proposal-percent-bands" % os.path.basename(claude_md),
+            "why": "prose bands %s%% vs gate %s%%" % (stated_b, live_b),
+        })
+crit_pct = re.search(r'critical level\s*\(>=\s*(\d+)%\s+of\s+`?FW_CONTEXT_WINDOW', doc_src)
+if crit_pct and int(crit_pct.group(1)) != gate_pct["critical"]:
+    findings.append({
+        "signature": "%s::structural-enforcement-critical-pct" % os.path.basename(claude_md),
+        "why": "prose says the gate blocks at >=%s%%; it blocks at %d%%" % (crit_pct.group(1), gate_pct["critical"]),
+    })
+
+if prose_abs is None and not bands and not crit and not pct_lad and not pct_bands and not crit_pct:
     # Every anchor missing at once means the prose was restructured and this check went blind.
     tooling("found no budget-ladder statement at all in %s — anchors stale, check is blind" % claude_md)
 

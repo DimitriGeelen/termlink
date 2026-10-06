@@ -53,21 +53,17 @@ EOF
 
 echo "budget-ladder-drift fixtures"
 
-# --- 1. the REAL tree: clean, because the three known drifts are acknowledged -------------
-out=$(bash "$CHECK" 2>&1); rc=$?
-is   "real tree exits 0 (known drift acknowledged)" "$rc" "0"
-has  "real tree names its acknowledged entries"     "$out" "ACKNOWLEDGED CLAUDE.md::escalation-ladder-absolutes"
-has  "real tree prints the live gate numbers"       "$out" "window=300000"
-has  "real tree carries a scope disclaimer"         "$out" "Scope:"
-
-# --- 2. the REAL tree with an EMPTY ledger: all three must fire ---------------------------
+# --- 1-2. the REAL tree: clean with NO ledger at all (T-3370) ----------------------------
+# The AEF 1.8.3 re-vendor replaced the stale absolute ladder (120K/150K/170K, acknowledged
+# here since T-2015/pickup@130) with percentages of FW_CONTEXT_WINDOW sourced from the gate,
+# so the three known drifts are gone, not merely acknowledged. The cases that pinned those
+# drifts live on as cases 3-7 (absolute form) and 8 (percentage form) against fixtures.
 : > "$TMP/empty-allow"
 out=$(bash "$CHECK" --allowlist "$TMP/empty-allow" 2>&1); rc=$?
-is   "real tree + empty ledger fires"               "$rc" "1"
-has  "  fires on absolutes"   "$out" "escalation-ladder-absolutes"
-has  "  fires on bands"       "$out" "work-proposal-bands"
-has  "  fires on self-contradiction" "$out" "structural-enforcement-critical"
-has  "  names the internal contradiction" "$out" "contradicts this same file's own escalation ladder"
+is   "real tree is clean with an empty ledger"      "$rc" "0"
+has  "real tree prints the live gate numbers"       "$out" "window=300000"
+has  "real tree carries a scope disclaimer"         "$out" "Scope:"
+hasnt "real tree reports no drift"                  "$out" "DRIFT"
 
 # --- 3. prose that AGREES with the gate is clean with no ledger at all --------------------
 mkgate "$TMP/gate.sh" 300000 75 85 95
@@ -120,16 +116,38 @@ is   "prose with no ladder exits 2 (anchors stale)" "$rc" "2"
 has  "  says the check went blind"                  "$out" "blind"
 
 # --- 10. JSON envelope ------------------------------------------------------------------
-out=$(bash "$CHECK" --json --allowlist "$TMP/empty-allow" 2>&1)
+# T-3370: was the real tree (3 acknowledged drifts); the real tree is clean since 1.8.3, so
+# the same 3-finding shape is produced by the window-moved fixture (absolutes, bands, critical).
+out=$(bash "$CHECK" --json --claude-md "$TMP/ok.md" --gate "$TMP/gate2.sh" --checkpoint "$TMP/ckpt2.sh" --allowlist "$TMP/empty-allow" 2>&1)
 python3 -c "
 import json,sys
 d=json.loads(sys.stdin.read())
 assert d['ok'] is False, 'ok should be false when firing'
 assert d['drift_total']==3, d['drift_total']
-assert d['live']['window']==300000, d['live']
+assert d['live']['window']==200000, d['live']   # T-3370: the moved-window fixture (gate2)
 assert 'scope' in d
 print('json-ok')
 " <<< "$out" >/dev/null 2>&1 && ok "json envelope shape" || bad "json envelope shape"
+
+# --- 8. the PERCENTAGE form (AEF 1.8.3 template, T-3370) ----------------------------------
+cat > "$TMP/pct.md" <<'EOF'
+# Doc
+- Below 75% of `FW_CONTEXT_WINDOW`: proceed normally
+- 75-85%: propose only small, bounded tasks; commit first
+- Above 85%: propose only wrap-up actions
+- Above 95%: handover immediately, no new work
+- Escalation ladder, as percentages of `FW_CONTEXT_WINDOW` (source of truth:
+  `agents/context/budget-gate.sh`): **75%** ok→warn (note), **85%** warn→urgent
+  (warning), **95%** urgent→critical (**BLOCK**). At the 300K default: 225K / 255K / 285K.
+blocks Write/Edit/Bash tool calls when context reaches critical level (>=95% of `FW_CONTEXT_WINDOW` — 285K at the 300K default).
+EOF
+out=$(bash "$CHECK" --claude-md "$TMP/pct.md" --gate "$TMP/gate.sh" --checkpoint "$TMP/ckpt.sh" --allowlist "$TMP/empty-allow" 2>&1); rc=$?
+is   "percentage-form prose matching the gate is clean"     "$rc" "0"
+hasnt "  and is not reported blind"                          "$out" "check is blind"
+out=$(bash "$CHECK" --claude-md "$TMP/pct.md" --gate "$TMP/gate3.sh" --checkpoint "$TMP/ckpt3.sh" --allowlist "$TMP/empty-allow" 2>&1); rc=$?
+is   "MUTANT: gate percentages moved -> percentage prose fires" "$rc" "1"
+has  "  names the percentage-ladder signature"               "$out" "escalation-ladder-percentages"
+has  "  names the critical-percentage sentence"              "$out" "structural-enforcement-critical-pct"
 
 notrun=$(wc -l < "$NOTRUN_LOG" | tr -d ' ')
 [ "$notrun" -gt 0 ] && FAIL=$((FAIL + notrun))
