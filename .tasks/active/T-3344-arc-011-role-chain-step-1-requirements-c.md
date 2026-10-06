@@ -28,7 +28,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-04T14:28:12Z
-last_update: 2026-10-06T09:02:48Z
+last_update: 2026-10-06T09:07:47Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -278,6 +278,10 @@ exists: `docs/design/roles/README.md` section 3. Operator ruling A recorded in D
 -->
 
 ## Decisions
+
+### 2026-10-06 — Gap review GP-0 adversary list (operator ruling)
+- **Chose:** A — ADV-1..ADV-7 confirmed as written; added ADV-8 a flooding or looping peer (CAND-12), ADV-9 a stale or partitioned authority holder (OD-18), ADV-10 estate drift: skewed clocks, mixed versions, a re-vendor deleting local fixes (CAND-13, G-062); ADV-6 widened to a misfiled signing key (T-3346) and two live copies of one project (OD-11). ADV-8..10 are the collector's, derived from this interview's rulings. Step 2 may add more.
+- **Rejected:** B as written (new defences point at no adversary); C additions left to step 2 (loses the link to today's rulings); D defer all (requirements' "holds against" lines without confirmed ids).
 
 ### 2026-10-06 — OD-18 several agents per project: who answers, who coordinates (operator ruling, after external review)
 - **Chose:** A revised — (1) only "main" now; other roles and pools later. (2) The lease is exclusive authority at the project's home hub; the sidecar renews it only while the agent can take a turn (adapter ready per CAND-6, plus a recent real hand-over or, when idle, a successful readiness check); a sidecar that cannot deliver stops renewing, the lease lapses. (3) Busy is not dead: a working holder keeps main (hooks fire during long turns); slow answers are STUCK and escalation, never takeover; takeover only after lapse plus a quiet period with jitter plus a cooldown; a recovered earlier/preferred holder does not automatically take main back. (4) Fencing: a generation minted durably at the home hub, never reused after restart or restore, checked at every role-related state change there (accepting/completing role obligations, picking up escalations, claims); the old holder is told it lost main and releases voluntarily on clean shutdown; its conversation-bound replies stay valid; unfenceable external effects are reconciled before replay. (5) Obligations on failover: unaccepted role requests move to the new holder; accepted ones stay with the accepting instance; if that instance is dead each is classified unstarted/resumable/completed/uncertain, uncertain to the operator. (6) Selection: operator pin first (strict or preferred with fallbacks); else keep the healthy incumbent; else the home hub picks among eligible ready candidates by operator priority, then reachability, then stable id; eligibility attested on the home-hub card, never self-declared; the first holder is appointed at project setup, not raced. (7) Vacancy: no eligible agent shows main "unassigned" and tells the operator; a start needs an OD-15 grant (may be proposed, never automatic). (8) OD-14 amended: the last rung lands in main's list and also goes to the operator/cockpit whenever main is unassigned, failing or being taken over. (9) Two live copies of one project (OD-11): role resolution answers "authority unknown" until the operator resolves it. (10) Senders on other hubs resolve via the verified home hub (CAND-8). (11) Visible "who holds main": holder, instance, host, generation, readiness, owed answers, last takeover reason; operator override audited. (12) Standing tests (CAND-3): a lapse during an open obligation, and a stuck holder with a live sidecar, must each end in a visible takeover, never silence.

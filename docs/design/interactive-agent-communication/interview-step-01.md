@@ -514,3 +514,11 @@ the output in one pass after the last question.
 5. Authorises: R-32, R-34 changes; new requirements for "main"; the OD-14 amendment; the two standing tests.
    Leaves open: lease duration, quiet period, cooldown, idle readiness check, priority configuration format (step 4).
 
+## Gap review (section 8) — walked one item at a time
+
+1. **GP-0 adversary list — ruled A** (2026-10-06). ADV-1..ADV-7 (section 2.3) confirmed as written. Added: ADV-8 a
+   flooding or looping peer (CAND-12); ADV-9 a stale or partitioned authority holder (OD-18); ADV-10 estate drift —
+   skewed clocks, mixed versions, a re-vendor that deletes local fixes (CAND-13, G-062). ADV-6 widened to a misfiled
+   signing key (T-3346) and two live copies of one project (OD-11). ADV-8..10 are the collector's proposal from this
+   interview's rulings. Step 2 may add more.
+
