@@ -31,6 +31,12 @@ steps:
     output: docs/design/interactive-agent-communication-01-requirements.md
     decides: true
     operator: interview, one question at a time with playback and an explicit go (ring20 lesson 5.14); signs the requirements off
+    approval: >-
+      approved by the operator 2026-10-07: v0.4 (fold commit a217f5651) with the five sign-off corrections J1-J5,
+      ruled one at a time (T-3349 ruling B; recorded in T-3344 Decisions). J1 B tag [O]->[R] plus [R~] for the
+      orchestrator's accepted details; J2 A priorities stay proposals; J3 A CAND-17 added to step 2; J4 A R-7 one
+      host-independent rule; J5 B acceptance-number cross-check (13.4), three numbers added to step 4.
+      T-3349 itself is closed by the operator.
   - step: 2
     role: Threat modeler
     task: T-3351

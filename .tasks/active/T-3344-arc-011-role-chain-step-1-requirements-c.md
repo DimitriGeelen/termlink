@@ -28,7 +28,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-04T14:28:12Z
-last_update: 2026-10-06T22:19:47Z
+last_update: 2026-10-06T22:30:33Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -511,7 +511,11 @@ exists: `docs/design/roles/README.md` section 3. Operator ruling A recorded in D
   hub for set-up and otherwise waits on the ladder; the v0.3 same-host [P] test is superseded. The agent's J4 brief
   had wrongly presented circuits as cross-host only. Open to step 2: may a same-host new conversation start without
   the hub, and on what trust (added to section 13's step-2 row).
-- **Pending:** J5 ruling, then the role-chain yaml approval note and T-3349 closure (operator).
+- **J5 ruled B:** acceptance-number cross-check of the 22 shape-only criteria (v0.4.1 section 13.4): 14 need no
+  number, 5 already assigned, 3 unassigned and now added to step 4 (R-49 one-receiver window, R-60 second-copy
+  detection time, R-66 canary staleness).
+- **Signed:** v0.4.1 APPROVED 2026-10-07; approval note in the role-chain yaml step 1. T-3349 closure is the
+  operator's (its Human AC).
 - **Left open:** section 13.2 of v0.4 (GP-11 first).
 
 ## Decision
