@@ -1,0 +1,3399 @@
+You are an independent reviewer, ROUND 2, of one step of a design role chain. Work from the text below only; do not read other files and do not modify anything. Answer in English, under ~1000 words, numbered headings, hierarchical labels (1, 1a), never plain bullets.
+
+## What you review
+Step 2 (threat modeler) of a design chain for TermLink's interactive agent-to-agent communication. In round 1, two reviewers (Codex and GLM) reviewed version 0.1 of the threat model; the role then revised it to version 0.2 and recorded a disposition of every finding. Its input is the step-1 requirements v0.4.1, APPROVED by the operator: [R] = operator ruling, [R~] = ruled principle with an orchestrator detail, [P] = proposal. The threat modeler must never silently change a ruled requirement; a needed change must be a change request (CR) naming the requirement and saying what would change. Below: (1) the round-1 reviews, (2) the disposition of every finding, (3) the role card, (4) threat model v0.2, (5) the approved requirements.
+
+## (1a) Round-1 review: Codex
+## 1. Completion conditions: not yet met
+
+**1a. 6.1 — Structurally complete, substantively incomplete.** Section 14 supplies all ten questions for thirteen boundaries, but several answers rely on controls that do not establish the claimed protection. Examples: approval replay is answered by expiry alone (§15.10.6); transcript forgery by attacker-writable record types (§13.2); credential replay by unspecified channel binding (§7.2). These need correction before declaring coverage complete.
+
+**1b. 6.2 — Traceability met; adequate disposition not met.** Every TH has a countermeasure or residual reference, but several countermeasures overclaim and RR-7 understates undetectable compromise. Some threats also lack the role card’s required likelihood/impact reasons: TH-12, TH-20 and TH-21 are examples.
+
+**1c. 6.3 — Broad inventory, completeness unproven.** Section 17 covers all route categories explicitly named in the supplied role card. However, “monitored” is misleading where the adversary can also alter the monitor, its credentials and evidence. The unavailable profile cannot independently establish completeness.
+
+**1d. 6.4 — Not met.** SI-17 cannot reject a correctly formatted forged harness record merely through nonce and record-type checks. SI-22 cannot detect every deletion through a hash chain alone. SI-21’s unwritable policy storage is unsupported on the stated root-sharing deployment.
+
+**1e. 6.5 — Partially evidenced.** All drawings have identifiers, captions and textual equivalents; §24 reports successful rendering, which this text-only review cannot verify. D-1 omits the receiver-store-to-hook flow and draws TB-6 “same host” between different host zones. D-2 routes the receiver’s reply to the sender’s sidecar, bypassing its own sidecar.
+
+## 2. Coverage and technical defects
+
+**2a. Circuit lifetime is not securely bounded.** Section 7.2.d starts expiry at first acceptance, without bounding the delay between issuance and acceptance. A previously unused credential presented long after revocation can receive a fresh lifetime. Channel binding does not establish issuance freshness. Require authenticated fresh establishment, a non-resettable expiry basis, and tests for delayed presentation, renewal, reconnect and restart. RR-5’s one-hour bound is currently unsupported.
+
+**2b. Revocation needs separate scopes.** Sections 11 and SI-11 conflate role revocation, identity revocation and conversation authority. Allow-list changes can remain stale throughout an outage, while SI-23 promises fleet-wide effect within one tick. State reachable and partitioned bounds separately. Define revocation-list rollback protection and what happens when revocation retrieval fails while other hub operations work.
+
+**2c. Fleet admission leaves authority bootstrapping unresolved.** PR-5 authenticates a hub, but first registration establishes project ownership without clearly proving entitlement to that project id. Model project-id squatting, malicious competing claims, stale roster restoration, hub-key rotation/recovery and trust transfer during re-home. An enrolled rogue hub can cause denial by claiming another project even when nobody believes the claim.
+
+**2d. Ordering and identity need stronger definitions.** PR-4 must acknowledge the highest **contiguous durably stored** number, not merely a number no higher than the maximum stored. Otherwise receipt of 1 and 3 can conceal missing 2. PR-2/PR-3 also need continuity across signing-key rotation, or rotation creates fresh deduplication and sequence namespaces.
+
+**2e. Important paths remain under-modelled.** Add many-to-many membership, per-recipient receipts and confidentiality; explicit conversation hand-over under R-62; readiness-to-injection races; replay of one-off approvals within their validity period; compromised approval-device/session capabilities; and crash recovery between actual hand-over and recording HANDED_OVER. A nonce does not resolve that last duplicate-delivery ambiguity.
+
+## 3. Fidelity to approved requirements
+
+**3a. Interrupt permission becomes delivery permission.** Sections 7.2.a, 7.6.a and SI-10 use the interrupt allow-list as a circuit admission gate. Step 1 R-52.a and R-63.a require disallowed urgency to be downgraded, never dropped. Separate ordinary communication admission from urgent permission; no CR currently authorizes this restriction.
+
+**3b. Revocation becomes death.** Section 11.1 dead-letters mail as DEAD when a key is revoked. Step 1 R-44.a/e and R-60.a reserve DEAD for the home hub’s determination that an instance ended. Revocation does not establish termination. Raise a CR or preserve that distinction.
+
+**3c. Role takeover is narrowed.** PR-15/TH-54 require no process to hold the session before a **takeover**. Step 1 R-67 permits takeover after lease lapse and R-68 requires takeover from a stuck holder with a live sidecar. CR-12 mentions this change but does not disclose the conflict with R-67/R-68. Separate duplicate-session resume prevention from role succession.
+
+**3d. Retention is misstated.** RR-10 says telemetry and stage memory expire after fourteen days. Step 1 R-35.o specifies fourteen days **after final state**, preserves open messages subject to explicit ceiling exceptions, and retains digests for one year. Correct the risk rather than implying routine expiration of open-message memory.
+
+**3e. Other changes need explicit impact mapping.** Section 8.3 fixes participants at creation without accommodating R-62’s explicit hand-over. PR-5’s “both disbelieved” project-wide response exceeds R-60’s second-instance treatment. CR-1 addresses hub-first writes but must also cover R-26’s reply retrieval and R-44’s UNKNOWN semantics during outages.
+
+## 4. Residual risks
+
+**4a. RR-1 and RR-3** identify real model-behaviour risk. Retain them, but distinguish enforced permission boundaries from instructions the model may ignore. Caps do not bound the harm of one malicious message.
+
+**4b. RR-2 and RR-7** require substantial correction. Root can modify binaries, monitors, policy files and all local evidence, not merely steal keys. A forged reply can satisfy the reply deadline; selective honest canary handling can conceal targeted loss indefinitely. Neither detection nor its deadline is guaranteed. Separate users alone do not contain host root, and unspecified containers are not sufficient.
+
+**4c. RR-4, RR-5 and RR-14** are legitimate categories but depend on unresolved bootstrap, lifetime and approval-channel protections. A compromised home hub may substitute the public key used for verification unless an independent binding prevents it; “cannot forge an agent’s signature” understates effective impersonation.
+
+**4d. RR-6** is a genuine confidentiality tradeoff, but “accepted by default today” in TH-22 is unauthorized. Separate exposure to the hub operator from exposure to ordinary token holders; read scopes mitigate the latter.
+
+**4e. RR-8** incorrectly groups induced lapse with duplicate-authority conflict: normal lapse should permit automatic takeover. **RR-9** is honest, subject to trusted display and execution binding. **RR-10** needs the retention correction above. **RR-11** is legitimate, but host availability does not imply hub-process availability. **RR-12** needs aggregate resource reservation and fairness analysis. **RR-13** is candid; preserving injection does not require preserving every current authorization weakness.
+
+**4f. Missing residuals** include undetectable log truncation/forking without independent checkpoints, compromised approval devices, and ambiguous delivery recovery.
+
+## 5. Decision rights and recommendations
+
+**5a.** OQ-1’s “network attacker already covered by TLS” option is misleading: TLS does not prevent delay or denial. OQ-6 falsely reduces interim operator authentication to a new key or unverifiable claims; existing authenticated channels deserve assessment.
+
+**5b.** OQ-3’s outage-duration claims and PN-5/PN-7 sizing lack supplied measurements. Label them hypotheses. OQ-5 mixes independent durability choices; OQ-7 mixes token-reader isolation with hub confidentiality.
+
+**5c.** Remove “RR-2 already accepts” (§7.3.a). Distinguish proposed invariants dependent on CR approval from existing obligations; the blanket DRAFT disclaimer does not resolve contradictory “firm invariant” language.
+
+## 6. Handoff verdict
+
+**6a. Return for revision.** The structure and traceability are useful, but the next role would inherit impossible guarantees and hidden requirement changes. Correct those first, then provide an invariant-to-CR dependency table identifying pending operator decisions, adversary limits and achievable probes.
+
+
+## (1b) Round-1 review: GLM
+
+## 1 Completion conditions 6.1–6.5
+
+1a **6.1 met.** Section 14 answers all ten questions (six STRIDE plus CD/AD/RP/BG) for each of TB-1..TB-13 (14.2–14.14); cells with no threat say why (e.g. TB-2 CD "none while SI-1 holds").
+
+1b **6.2 met.** Every threat in section 15 (TH-1..TH-57, including the out-of-order TH-56/TH-57) names a countermeasure (SI/PR/R) or a residual risk, or both.
+
+1c **6.3 met.** Section 17 covers the routes the profile names — hub secrets and pins (BP-6), the OneDev/GitHub/release pipeline (BP-17), the cron canaries (BP-18) — and 17.2 states in one sentence per route what remains open.
+
+1d **6.4 met.** SI-1..SI-28 each carry a concrete probe, framed as kill-checked negative controls per R-69 (18.1), which is exactly what step 3 needs.
+
+1e **6.5 met.** D-1..D-4 have ids, captions and text equivalents (5.1.1, 16.1.1, 16.3.1, 17.3); the render check is recorded with method and results (section 24).
+
+1f Cosmetic defects that break no condition: the PR index is numbered "19.2" but sits between section 21 and 22; TH-56 and TH-57 appear out of numeric order inside 15.2/15.3; PR-7, PR-12 and PR-19 are referenced nowhere (holes in the PR series).
+
+## 2 Coverage
+
+2a **Fleet admission (CAND-17): adequately analysed.** Section 10 covers roster admission, signed cards with sequence and TTL, home-hub binding, first-contact TOFU, registration caps; the enrolled-but-compromised hub is bounded (10.4) and residualled (RR-4), and the decision is correctly routed to OQ-8/CR-8.
+
+2b **J4 same-host new conversation: analysed, but conditionally.** The option table (7.6) and the honest availability cost are good, and recommendation A is grounded in R-7.e (2). However the TB-6 STRIDE matrix (14.7) is answered *under recommendation A's assumption*; if the operator picks B or C, the S, E and CD rows of TB-6 need re-analysis. The document should say the matrix is conditional on OQ-4 A.
+
+2c **Circuit credential lifetime: well analysed** (7.2–7.4), including the outage-survival versus revocation-window trade-off. One under-analysed case: credential minting is by the *receiver's home hub* (7.2.a step 3), so when the sender's hub is reachable but the minting hub is not, renewal and revocation differ from the symmetric "hub unreachable" treatment of 7.3 and 11.2. One sentence would close it.
+
+2d **Missing or under-analysed items.** The card's example adversary "someone holding the approval device" is not explicitly modelled: ADV-5 is a hurried operator, BP-13/RR-13 cover the terminal, but a compromised operator device — or the future operator key C-7 stolen — has no dedicated scenario, and SI-13's digest binding does not catch it (largely gated on GP-11, but it should be named). Sender-side delivery of replies (roles swap, R-27) relies on TB-1's symmetry without saying so. Wholesale chain rewrite — a same-user attacker holding a hub token rewriting local log and hub record consistently (the TH-15 position) — is only detectable by the canary and reply deadlines; it is folded into RR-2 but deserves explicit mention at 13.3.
+
+## 3 Fidelity
+
+3a **Overall faithful.** Ruled requirements are cited, not edited; every mitigation that would change one is a change request (CR-1 for the R-45/R-7.e conflict, CR-2 for the missing signature requirement, CR-5 upgrading R-23's [P] clauses, CR-10 for the R-63 allow-list), and 1.3.c records the discipline.
+
+3b **Two minor issues.** PR-9 (9.3.a) introduces a trust class "allowed peer" beside peer and operator-class; no ruling defines a second peer tier — R-63 rules own project plus operator only — and this extension rides inside CR-6 without its own sentence. And 15.2.15 (TH-5) states "until GP-11 is ruled, the rule is that nothing is operator-class… the allow-list… is empty in practice" as if settled, though it is CR-10/OQ-6 and undecided; the hedging used elsewhere ("these are proposals", 7.3) should be applied there.
+
+## 4 Residual risks RR-1..RR-14
+
+4a **Each is honest and correctly scoped.** All fourteen state the risk and what accepting it means in plain language; none is cheaply mitigable inside the model's constraints (RR-2 needs OS separation, OQ-2; RR-6 needs encryption or scopes, OQ-7; RR-1/RR-3 are inherent to LLM agents; RR-13 is open by design as the founding verbs).
+
+4b **One residual is missing.** BP-19 (TOFU repair paths: today an agent with a shell can run `fleet reauth`/re-pin a rogue hub) is "open now, gated in the target", but no RR accepts the interim openness and 17.2's closing sentence does not cover it — BP-19's target is *gated*, not monitored or closed, and its present state has no detection. Either an interim control or a fifteenth residual is needed.
+
+4c **Conditionals are handled adequately**: RR-5 names PN-1 and OQ-3; RR-11 names OQ-4; the operator is told what acceptance implies.
+
+## 5 Open questions OQ-1..OQ-9 and the proposed numbers
+
+5a **Options are fairly presented.** Each OQ carries options with costs; recommendations cite evidence rather than taste — 7.3.a ties lifetime B to the operator's own R-7 rationale, 7.6.c ties option A to R-7.e (2) and the single-authority argument, OQ-6 A prevents any message from claiming the top of the authority model, and OQ-2's C is honest about B being unmeasured.
+
+5b **The numbers are properly tagged.** PN-1..PN-11 each state what they buy and what they cost, all [P], with the decision owner named (OQ-3 for PN-1/PN-2, step 4 for the rest, OQ-9 for the bundle).
+
+5c **Nothing operator-only is decided.** Residual acceptance is explicitly withheld (20.1); nothing is "accepted" by this step. The one phrasing that reads as a decision is 15.2.15 (see 3b); D-4's use of target-state classes is explained in its caption and is acceptable.
+
+## 6 Fitness as input for step 3 (security floor and phasing)
+
+6a **Fit overall.** The invariants are probe-backed and phase-scoped ("hold in every phase in which their subject exists"), the L/I ratings give step 3 a ranking basis, and the coverage table (23.1) maps every handed topic to a section — I verified the step-2 row of REQ 13 against it.
+
+6b **Before handing on, fix three presentational items**: the misplaced "19.2" PR index, the unexplained PR holes (PR-7, PR-12, PR-19), and the unstated sender-side symmetry assumption. None blocks step 3, but the PR index is what step 3 will cite, and unexplained holes invite mis-reference. Substantively, add the BP-19 interim residual (4b), the operator-device adversary (2d), and the conditional-labelling of TB-6 (2b); the rest can proceed as written.
+
+
+## (2) Disposition of every round-1 finding
+
+# T-3351 step 2, review round 1: disposition of every finding
+
+**Task:** T-3351 · **Role:** threat modeler (revision round) · **Date:** 2026-10-07
+**Document revised:** `docs/design/interactive-agent-communication-02-threat-model.md`, version 0.1 to 0.2
+**Reviews answered:** `codex.md` (Codex, return for revision) and `glm.md` (GLM-5.3, fit with fixes), stored unedited, with `comparison.md`.
+**Input unchanged:** `docs/design/interactive-agent-communication-01-requirements.md` v0.4.1 was not edited. Where a mitigation needs a ruled requirement changed, it is a change request (CR) that names the requirement and says what would change (section 21 of the threat model).
+
+## 1 How the findings were handled
+
+1.1 Every finding in `codex.md` and `glm.md` was checked against the threat model text and against the requirements text it cites (R-1, R-26, R-35, R-44, R-45, R-51, R-52, R-56, R-59, R-60, R-62, R-63, R-65, R-67, R-68). The four fidelity findings were done first, then GLM 3b.
+1.2 Verdicts: **valid** (fixed), **partly** (the valid part fixed, the rest answered), **not valid** (rebutted with a section).
+1.3 Result, counted per finding row in sections 2 and 3: **36 findings: 31 valid, 5 partly, 0 not valid as a whole.** One sub-claim inside Codex 1e is not valid (the render result "cannot be verified" is not a defect of the document). I looked for rebuttals and found Codex right on every substantive point; the 5 "partly" verdicts are cases where the reviewer's conclusion went further than the three or four examples they gave. Section 4 lists the reviewer *assertions* (not requests) that this revision does not uphold, mostly GLM's "met" and "faithful" statements.
+1.4 Section numbers below are those of threat model v0.2.
+
+## 2 Codex findings
+
+| Id | Verdict | What changed, or the rebuttal |
+|---|---|---|
+| Codex 1a (6.1 not met in substance: approval replay by expiry alone, transcript forgery by writable record types, credential replay by unspecified channel binding) | partly | The matrix does answer all ten questions for 13 boundaries (14.2 to 14.14), so "not met" overstates; the three examples are valid. Approval replay: SI-13 now makes approvals single-use with a consumed id, TH-51 and 15.10.6 say expiry is a bound not the control. Transcript forgery: PR-18 and SI-17 now say the record type filters echo, not forgery, with the limit probe and RR-7 (13.2). Channel binding: 7.2.a (3) and (4) and 7.2.c now name the mechanism (possession proof covering a value exported from the connection) and SI-9 probes it |
+| Codex 1b (6.2: countermeasures overclaim, RR-7 understates, TH-12, 20, 21 lack L/I reasons) | partly | Reasons were missing on 27 threats (not only the three named); all now carry a reason for likelihood and for impact (section 15, sweep of 15.2 to 15.11). RR-7 rewritten (section 20). The "countermeasures overclaim" part is the SI findings (Codex 1d). The claim that traceability is not adequate is answered by 18.2, which separates existing obligations from proposals |
+| Codex 1c (6.3: "monitored" is misleading where the adversary can alter the monitor; completeness unproven) | partly | 17.1.a defines "monitored" as detection of an adversary with only that route's access, and BP-4, BP-5, BP-10 and BP-18 cells are qualified. Completeness: stated as complete for the routes the profile names (P3.2) and for those found in the record, and not provable beyond that. No route was added; the reviewer named none |
+| Codex 1d (6.4 not met: SI-17, SI-22, SI-21 cannot deliver what they promise) | valid | SI-17 now states what it does not do and carries a limit probe (expected result: accepted, recorded as RR-7). SI-22 restated: detects mid-chain change; tail truncation and fork need an independent head, which the signed receipts now carry (8.4.c); one attacker holding every copy is RR-15. SI-21 restated as signature-based and made conditional on CR-14, because with one operating-system user (uid 0 here) a file the agent "cannot write" does not exist. 18.2 gives each SI its standing and its limit |
+| Codex 1e (6.5: render unverifiable; D-1 omits store-to-hook flow and mislabels TB-6; D-2 reply bypasses the receiver's sidecar) | partly | D-1: the hook-reads-store link added; TB-6 drawn dotted and labelled as same-host only, conditional on OQ-4 (5.1, 5.1.1). D-2: step 12 now goes through the receiver's own sidecar, step 13 is the signed reply back (16.1, 16.1.1). Not valid as a defect: "the render result cannot be verified by a text-only review" describes the reviewer's limit; section 24 records the method, and all four drawings were re-rendered with `mmdc` after the changes and D-1 and D-2 were read as images (24.2) |
+| Codex 2a (circuit lifetime not securely bounded: delayed first use gets a fresh lifetime) | valid | 7.2.a (3) and (4): establishment nonce issued by the receiver's own sidecar and a set-up window (PN-12). 7.2.d rewritten into four parts (from establishment, renewal is a new establishment, reconnect keeps the expiry, restart expires all). SI-9 probes delayed presentation, renewal, reconnect, restart. TH-50 and RR-5 updated |
+| Codex 2b (revocation scopes conflated; stale allow-list vs "one tick"; rollback; failed retrieval) | valid | Section 11 rewritten: seven scopes RK-1 to RK-7, each with a reachable and a partitioned bound; 11.2.b rollback protection by rising signed sequence number; 11.2.c a failed pull is not an empty list; 11.2.d the stale rule; 11.2.e testable bounds. SI-11 and SI-23 restated. New TH-58 |
+| Codex 2c (fleet admission: project-id entitlement, competing claims, stale roster, key rotation, re-home) | valid | 10.5 added (PR-26): project root key, first-seen binding, no-guess at first sight, claims are not a denial lever, signed rising roster, old-key-signed rotation, signed "moved to". New TH-59 and TH-60; CR-8 and OQ-8 extended |
+| Codex 2d (PR-4 must be contiguous; PR-2 and PR-3 continuity across key rotation) | valid | 8.4.a: `up_to` is the highest contiguous durably stored number, with selective acknowledgement never counted. 8.2 and 8.3: the namespace is keyed by sender identity, not key fingerprint, and survives rotation. SI-4, SI-5, SI-6, CR-3, CR-4 updated |
+| Codex 2e (many-to-many, R-62 hand-over, readiness races, approval replay, compromised approval device, crash between hand-over and record) | valid | 8.6 (many-to-many, membership, hand-over, per-recipient receipts, confidentiality inside the conversation; PR-30, SI-29, TH-61, CR-15, OQ-12, OQ-13). 9.2.d readiness race (PR-32, TH-62, RR-19). Approval replay: SI-13 single-use. Approval device: ADV-14, PR-27, TH-64, SI-31, RR-16, CR-14, OQ-14. Crash window: 13.4 (PR-31, SI-30, TH-63, RR-17) |
+| Codex 3a (interrupt allow-list used as a delivery gate; R-52.a, R-63.a say downgrade, never drop) | valid | **Fidelity, fixed by withdrawal, no CR needed.** 7.2.a (2): the hub does not look at the allow-list, urgency is decided per message at the receiver (SI-18). 7.6.a, SI-10 (with a negative control that a non-listed sender gets a circuit and its urgent turn is delivered as normal), TH-46, 14.13 and CR-7 corrected. Also: the hub cannot see a turn's priority on a circuit, so the gate could not have worked |
+| Codex 3b (revocation marks mail DEAD; R-44.a and R-60.a reserve DEAD for the home hub's finding that the instance ended) | valid | **Fidelity, fixed without a CR.** 11.1 (a) revocation never makes mail DEAD; RK-1: mail to a revoked agent shows WAITING FOR RECIPIENT (R-44.a "not able to receive") with a reason and a needs-attention entry; DEAD only if the home hub then finds the instance ended (11.3). If the operator wants revoke-then-DEAD, that is a CR; none is raised |
+| Codex 3c (takeover narrowed by PR-15; R-67, R-68 require takeover from a stuck holder with a live sidecar) | valid | **Fidelity, fixed by withdrawal.** PR-15 and CR-12 now apply to **resume** only (R-65); 15.11.6 states that R-67 and R-68 are unchanged and why a "no process holds it" check would forbid R-68 test (2). TH-54 scenario no longer says a false DEAD re-resolves a role. The withdrawal is named in CR-12 |
+| Codex 3d (RR-10 misstates OD-16 and R-35.o retention) | valid | **Fidelity.** RR-10 restated: events kept to 14 days after a final state, never cut while open (ceiling exceptions last, loudly), digests one year. 8.2 last row and TH-19 corrected; a conflicting duplicate is still caught for a year |
+| Codex 3e (other changes: participants fixed at creation vs R-62; PR-5 "both disbelieved" vs R-60; CR-1 must cover R-26 and R-44) | valid | 8.3 last row and 8.6 (membership and hand-over). 10.3.c and SI-12 restated to R-60.a (2e) as ruled; the "both disbelieved" rule is withdrawn (and it handed an enrolled hub a denial lever, TH-59). CR-1 extended to R-26.o (replies) and R-44.a (UNKNOWN versus "unreconciled" state) |
+| Codex 4a (RR-1, RR-3: enforced boundaries vs instructions; caps do not bound one message) | valid | RR-1 and RR-3 rewritten (section 20) |
+| Codex 4b (RR-2, RR-7: root changes monitors and evidence; forged reply satisfies deadline; separate users do not contain root) | valid | RR-2 and RR-7 rewritten; 13.2 REPLIED row, 13.3.a to e; 6.4; OQ-2 states B closes only the user-level part |
+| Codex 4c (RR-4, RR-5, RR-14: home hub may substitute the verification key; "cannot forge an agent's signature" understates) | valid | PR-1a: each conversation pins the other's key and it changes only by an old-key-signed replacement; RR-4 restated (a substituted key for a new conversation is effective impersonation). RR-5 and RR-14 keep their form and now name the dependencies (7.2.d, 7.3.c, TH-59) |
+| Codex 4d (RR-6 / TH-22 "accepted by default" unauthorized; separate hub operator from token holders) | valid | TH-22 split into exposures (a) and (b); RR-6 split; "accepted by default" removed; OQ-7 and OQ-11 separate |
+| Codex 4e (RR-8 groups induced lapse with duplicate authority; RR-9 trusted display; RR-10; RR-11 host vs hub process; RR-12 aggregate fairness; RR-13 authorization weakness) | valid | RR-8 covers the second copy only; an induced lapse is an automatic takeover as ruled (TH-33 (b)). RR-9 adds the trusted-display condition. RR-10 as 3d. RR-11 and 7.6.c: a host being up does not mean the hub process is up (G-070; hypothesis H-2). RR-12: aggregate ceiling and reserved shares (PR-28, SI-19). RR-13 and 17.4: PR-29 tightens authorization without removing the verbs (R-4 unchanged) |
+| Codex 4f (missing residuals: truncation or fork, compromised approval device, ambiguous recovery) | valid | RR-15, RR-16, RR-17 added; with GLM 4b, RR-18; and RR-19 for the doorbell race |
+| Codex 5a (OQ-1 "covered by TLS" misleading; OQ-6 reduces interim authentication to two options) | valid | OQ-1 option B restated (TLS gives confidentiality and integrity, not delivery or timeliness) and ADV-13 row corrected. OQ-6 gets option C: assess the channels the system already authenticates. The recommendation stays A for the floor, with the reason |
+| Codex 5b (unmeasured numbers; OQ-5 and OQ-7 mix two choices) | valid | Section 19: every number marked a hypothesis with how it would be measured (H-1 to H-9); 7.3.a labels H-1. OQ-5 split (OQ-5 and OQ-10); OQ-7 split (OQ-7 and OQ-11); OQ-12, OQ-13, OQ-14 are one choice each |
+| Codex 5c ("RR-2 already accepts"; proposed vs existing invariants; "firm invariant" language) | valid | 7.3.a corrected (the operator has not accepted RR-2); 9.2.a says firm only if CR-5 is accepted; 18.1 and 18.2 distinguish existing obligations from proposals |
+| Codex 6a (handoff: correct impossible guarantees, hidden changes; provide invariant-to-CR table with adversary limits and achievable probes) | valid | 18.2 added: for each SI, standing, dependency (CR, OQ), limit (RR) and whether the probe can run |
+
+## 3 GLM findings that asked for a change
+
+| Id | Verdict | What changed, or the rebuttal |
+|---|---|---|
+| GLM 1f (i) PR index numbered "19.2" sits between sections 21 and 22 | valid | Index moved to 19.2 inside section 19 |
+| GLM 1f (ii) TH-56 and TH-57 out of numeric order | partly | Ids are cited by later steps and were not renumbered (15.1.a says so). A numeric-order index of all 65 threats with section and category was added (15.1.a), which gives the order. Not renumbered on purpose |
+| GLM 1f (iii) PR-7, PR-12, PR-19 are holes | valid | 19.2 states that they are unused, that nothing refers to them (checked by search), and that a gap is not a missing proposal. Not renumbered, for the same reason as above |
+| GLM 2b TB-6 matrix is conditional on OQ-4 A | valid | 14.7 says so; 14.7.1 lists the rows to redo under B or C; OQ-4 points to it |
+| GLM 2c Asymmetric case: minting hub unreachable, sender's hub reachable | valid | 7.3.c added |
+| GLM 2d (i) Operator approval device or key not modelled | valid | As Codex 2e: ADV-14, PR-27, TH-64, SI-31, RR-16, CR-14, OQ-14 |
+| GLM 2d (ii) Sender-side symmetry of TB-1 assumed, not stated | valid | 5.3 added; D-2 step 13 |
+| GLM 2d (iii) Wholesale chain rewrite deserves explicit mention at 13.3 | valid | 13.3.d, TH-65, RR-15 |
+| GLM 3b (i) PR-9 "allowed peer" tier not ruled | valid | **Fidelity.** PR-9 and 9.4: two classes only (peer, operator-class); the allow-list is a fact line, not a class; CR-6 says so |
+| GLM 3b (ii) 15.2.15 states an undecided rule as settled | valid | Reworded as a proposal that depends on OQ-6 A and CR-10 (15.2.15) |
+| GLM 4b BP-19 interim openness has no residual | valid | RR-18 added; the BP-19 cell and 17.2 say it is open now; an interim record of re-pins is proposed, not claimed |
+
+GLM 6b restates three of the above (PR index, PR holes, symmetry) plus BP-19, the operator device and TB-6; covered by the rows above.
+
+## 4 Reviewer assertions that this revision does not uphold, or only partly
+
+| Reviewer, id | Assertion | Why not upheld |
+|---|---|---|
+| GLM 1a | 6.1 met | The matrix is complete in form, but three answers relied on controls that do not deliver the protection (Codex 1a). Upheld for structure, not for those three answers; now corrected |
+| GLM 1c | 6.3 met | Upheld for the routes named; "monitored" needed a definition (17.1.a) |
+| GLM 1d | 6.4 met | Not upheld for SI-17, SI-21 and SI-22 (Codex 1d is right; each restated). 1.3.e says the text bears Codex out |
+| GLM 3a | Overall faithful | Not upheld: four requirement changes were made silently (Codex 3a to 3d), plus the PR-5 rule (Codex 3e); all withdrawn or made explicit |
+| GLM 4a | Each residual honest and correctly scoped | Not upheld for RR-2, RR-4, RR-6, RR-7, RR-8, RR-10, RR-11, RR-12 (Codex 4a to 4e); rewritten |
+| GLM 5a | Options fairly presented | Not upheld for OQ-1 B, OQ-5, OQ-6, OQ-7 (Codex 5a, 5b); reframed or split |
+| GLM 5b | Numbers properly tagged | Partly: tagged [P] but with no evidence status; now labelled hypotheses (19.1) |
+| GLM 6a | Fit overall | Not upheld before this revision; the next role would have inherited impossible guarantees (Codex 6a). 18.2 is the repair |
+
+Reviewer statements that were upheld unchanged: GLM 2a (fleet admission adequately analysed, now extended by 10.5), GLM 2c on the circuit lifetime analysis, GLM 4c (conditionals handled), GLM 5c (nothing operator-only was decided, apart from the wording fixed in 15.2.15).
+
+## 5 What this revision does not claim
+
+5.1 No probe was run: no component exists yet. 18.2 says which probes can run once it does.
+5.2 No number was measured (19.1).
+5.3 Nothing is accepted or decided. The new open questions are OQ-10 to OQ-14; the residual risks to accept now number 19; the change requests number 15.
+5.4 The drawings were re-rendered with `mmdc` (24.2), not by an independent reviewer.
+
+
+## (3) Role card
+
+# Role card: Threat modeler
+
+Read `_common.md` first. New role, added after the external review (5 of 5 reviewers) and the human's
+decision to make threat modelling its own step.
+
+## 1 Purpose
+
+Answer, systematically and before any architecture is drawn: who could misuse this system, how, against
+what, and what stops them. For a security component, the architecture is designed against this list.
+
+## 2 Inputs
+
+2.1 The signed-off requirements, glossary and stakeholder list (including the adversary).
+2.2 Known incidents and recorded weaknesses the profile points to.
+
+## 3 What you do
+
+3.1 **Assets:** what an attacker wants (credentials, approvals, the audit record, the ability to act on
+production).
+3.2 **Adversaries:** for each, its capabilities and starting position (an unprivileged agent, an agent with
+full rights on its own host, a hijacked session, someone holding the approval device, an operator approving
+without reading).
+3.3 **Trust boundaries:** every place where data or control crosses from one trust level to another, as a
+data-flow description.
+3.4 **STRIDE per boundary:** for each boundary ask Spoofing, Tampering, Repudiation, Information disclosure,
+Denial of service, Elevation of privilege. Add what STRIDE misses: confused deputy; "the human approved a
+different action than the one executed"; replay; emergency (break-glass) access.
+3.5 **Abuse cases / attack trees** for the most valuable assets.
+3.6 **Bypass inventory:** every route to a protected operation that does not go through the system (direct
+credentials, inherited tokens, local sockets, remote command execution, backups, administrative access).
+3.7 For each threat: the countermeasure required (as a requirement or a security invariant) or a residual
+risk for the human to accept.
+
+## 4 Output
+
+4.1 Threats TH-1, TH-2, ..., each with: boundary, STRIDE category, adversary, scenario, likelihood and
+impact (low/medium/high with reason), countermeasure (linked R-n or new invariant) or residual risk.
+4.2 The bypass inventory.
+4.3 Security invariants SI-1, SI-2, ...: properties that MUST hold in every phase (these become the
+security floor in the next step).
+4.4 Residual risks listed for the human to accept or reject.
+4.5 Requirements the threats reveal as missing, raised as change requests to the requirements step.
+
+### 4.D Required drawings (see the common rules 3.6)
+
+4.D.1 **D-1** Data-flow view (structure): every component and data flow, with each trust boundary drawn and numbered (TB-n).
+4.D.2 **D-2** Attack sequence (behaviour): the main flow step by step, with each threat id (TH-n) placed at the step where it applies.
+4.D.3 **D-3** Attack trees (structure): one per most valuable asset, from the adversary's goal down to the routes, each leaf naming its countermeasure or residual risk.
+4.D.4 **D-4** Bypass map (structure): the routes around the system to the protected targets, each marked open, monitored or removed.
+
+## 5 Decision rights
+
+You identify and rate threats. The human accepts residual risk; nothing is "accepted" by you.
+
+## 6 Completion conditions
+
+6.1 Every trust boundary has all six STRIDE questions answered, plus the four additions in 3.4.
+6.2 Every threat has a countermeasure or is a listed residual risk.
+6.3 The bypass inventory is complete for the routes the profile names, and says what remains open.
+6.4 Security invariants are stated so a test or probe could check them.
+6.5 Every required drawing (D-1 to D-4) is present with its id, caption and textual equivalent, and renders without error.
+
+
+## (4) Threat model v0.2
+
+# Interactive agent communication: step 2, threat model
+
+**Task:** T-3351 · **Arc:** arc-011 · **Chain:** arc-011-design, step 2 · **Role:** threat modeler
+**Status:** DRAFT v0.2 (review round 1 remediation) for independent re-review, then for the operator's acceptance of the residual risks (section 20). Nothing in this document is approved. Everything tagged **[P]** is a proposal; the operator decides.
+**Review link:** none. This project's Watchtower has no inline design-review page (profile P2.1). The operator reads this file in the repository.
+
+## 0 Version history
+
+| Version | Date | Change | Task |
+|---|---|---|---|
+| 0.1 | 2026-10-07 | First complete draft. Assets, adversaries ADV-1..ADV-10 with privileges (GP-15) and three proposed additions, 13 trust boundaries with the full STRIDE matrix plus the four additions, 57 threats, the circuit trust model, same-id and same-sequence-number analysis, peer-content framing, fleet admission, revocation, durability scope (GP-13), evidence producers (GP-14), bypass inventory, 28 security invariants, proposed numbers, 14 residual risks, 13 change requests. | T-3351 |
+| 0.2 | 2026-10-07 | Review round 1 remediation. Two independent reviewers (Codex: return for revision; GLM: fit with fixes) were checked finding by finding; the disposition of every finding is `docs/reports/T-3351-step2-review/disposition-r1.md`. **Fidelity:** four changes to ruled requirements withdrawn or made explicit change requests (the hub no longer applies the interrupt allow-list at circuit set-up, R-52.a and R-63.a; revocation no longer makes mail DEAD, R-44 and R-60; PR-15 no longer applies to role takeover, R-67 and R-68; RR-10 restated to R-35.o), plus PR-5's "both disbelieved" rule restated to R-60.a (2e) and the extra "allowed peer" trust class removed. **Over-claims corrected:** circuit lifetime counted from establishment and never reset (7.2.d); revocation split into scopes with a reachable and a partitioned bound (11); SI-9, SI-13, SI-17, SI-19, SI-21 and SI-22 restated to what their mechanism can deliver; contiguous receipts and identity-keyed namespaces (8). **Added:** ADV-14 and the operator approval device (PR-27); TH-58 to TH-65; SI-29 to SI-31; RR-15 to RR-19; CR-14 and CR-15; PR-26 to PR-33; fleet-admission continuity (10.5); many-to-many and hand-over (8.6); the crash window (13.4); the readiness race (9.2.d); the asymmetric hub outage (7.3.c); the invariant-to-change-request table (18.2); likelihood and impact reasons on every threat; every number labelled a hypothesis (19); OQ-5 and OQ-7 split, OQ-6 given a fair third option, OQ-1 corrected. **Presentation:** PR index moved to 19.2 with the unused ids explained; threat index added (15.1.a); D-1 and D-2 corrected and all four drawings re-rendered (24). The step-1 requirements document was not changed. | T-3351 |
+
+## 1 Inputs of record
+
+1.1 The four inputs the orchestrator named. The hashes are the full sha256 values I computed myself at the start of this step (`sha256sum`), not copied from the brief. They match the prefixes in the brief.
+
+| Short | Path | sha256 |
+|---|---|---|
+| REQ | `docs/design/interactive-agent-communication-01-requirements.md` (v0.4.1, approved) | `14aa257a0ea399426bcffb7d51b8008df843d9d115b7aea966cb1a776df897f2` |
+| LOG | `docs/design/interactive-agent-communication/interview-step-01.md` | `aad8308e1924df293270d628b224dafc4814f675a4a61485dd2c1797a7114edd` |
+| SUM | `docs/reports/T-3344-step1-rulings-summary.md` | `6381769f3b2a98f3bdc1e1cfe6c6c16c35891b5e5c9fedca55014ceaff13e418` |
+| CHAIN | `docs/design/interactive-agent-communication-role-chain.yaml` | `ea67bf4fc4638f2271d53f05240d11a2c2e50c232d1d6945ac13514ec9e62c26` |
+
+1.2 Also read, in the order the brief gave (hashes computed the same way).
+
+| Short | Path | sha256 |
+|---|---|---|
+| RULES | `CLAUDE.md` (project sections above `## Core Principle`) | `71d6e89d5d1603416a1a7e3a7c896c563ccfd0ead237863a192613a017a569e7` |
+| COMMON | `docs/design/roles/cards/_common.md` | `cca38806358d7a6c09e64289164977a825f2cf57e914f672076ff77a2bdb5563` |
+| CARD | `docs/design/roles/cards/threat-modeler.md` | `69c793b5a7c5128d82e8d956a8454908acdd85d1ceb2263021a70f5188101625` |
+| ADAPTER | `docs/design/roles/adapters/aef.md` | `d840a77649888cdbfd37d1166c15eecd6cd3c8399d497fb6b1b2c52455c6c4a4` |
+| PROFILE | `docs/design/roles/profiles/termlink.md` | `b6bc160242d96ca9a8fc167c6845e292529c162fa23faa2945d4742b676e7b21` |
+| SCHEMA | `docs/design/roles/schemas/role-handback-1.schema.json` | `288a4e312f00bac978a4b2a87e57ee8a05cb14f916d77c397e601e03c703c148` |
+
+1.3 How this step was run.
+1.3.a Mode: batch. No human was present (`_common.md` 5.2). I read the requirements document in full (sections 0 to 13) and the parts of the interview log and summary that bear on trust (OD-1, OD-14, OD-15, CAND-16, GP-0, section 11 of SUM).
+1.3.b Where the AEF adapter names ring20 paths or commands this project lacks (`role-chain.py`, `fw reviewer judge`, `design-render-check.py`, the `docs/designs/agent-authorization-broker/` paths), the profile governs (P2.1, P4.5). The drawings were checked with `mmdc` and the local Chromium, the method the step-1 document used (section 24).
+1.3.c I did not change the step-1 document and did not rule on anything. Where a mitigation would change a ruled requirement, it is a change request in section 21 (CR-n), not an edit.
+1.3.e Review round 1 (2026-10-07). This version answers two independent reviews, `docs/reports/T-3351-step2-review/codex.md` and `glm.md`, which disagreed (Codex: return for revision; GLM: fit with fixes). Every finding was checked against the text of this document and of the requirements and was either fixed or rebutted with a citation; the table is `docs/reports/T-3351-step2-review/disposition-r1.md`. I did not side with either reviewer by default: where GLM found a condition met and Codex found a mechanism over-claimed (6.4: SI-17, SI-21, SI-22), the text bears Codex out and was changed.
+1.3.d Facts about what runs today come from REQ, from `CLAUDE.md` and from the profile. I did **not** re-measure the host. Each such fact carries the tag **[H]** (historical, from the record). A fact the record does not hold is stated as an assumption **[A]**.
+
+## 2 Method, vocabulary and how to read this document
+
+2.1 What this document is. A list of who could misuse the interactive-communication system, how, against what, and what stops them. Step 3 will turn the security invariants (section 18) into the security floor and decide the phasing; step 4 designs against both.
+
+2.2 Identifiers. Each kind is numbered once in the whole document.
+2.2.a `A-n` an asset (section 3). `ADV-n` an adversary (section 4). `TB-n` a trust boundary (section 5). `TH-n` a threat (section 15).
+2.2.b `SI-n` a security invariant: a property that MUST hold in every phase and that a test or probe can check (section 18). `PR-n` a proposed requirement or number, tagged **[P]** (sections 7 to 13 and 19). `PN-n` a proposed number (section 19).
+2.2.c `RR-n` a residual risk the operator may accept or reject (section 20). `CR-n` a change request to the requirements step (section 21). `BP-n` a bypass route (section 17). `OQ-n` an open question or a decision only the operator can take (section 22). `RK-n` a revocation scope (11.1). `H-n` a hypothesis: a number or claim that this step did not measure (7.3.a, 19.1). `PN-12` to `PN-14`, `PR-26` to `PR-33`, `SI-29` to `SI-31`, `TH-58` to `TH-65`, `RR-15` to `RR-19`, `CR-14` and `CR-15`, `OQ-10` to `OQ-14` and `ADV-14` were added in review round 1 and take the next free number; the ids of version 0.1 did not change.
+2.2.d `R-n`, `OD-n`, `CAND-n`, `GP-n`, `ADV-n` (1..10) and `QS-n` are the step-1 identifiers, unchanged. Where a threat or invariant restates a ruled requirement, it cites it and adds nothing.
+
+2.3 Plain-language meaning of the security words used. Each is explained here once.
+2.3.a **STRIDE** is the checklist of six ways to attack a boundary: **S**poofing (pretending to be someone), **T**ampering (changing data), **R**epudiation (denying you did something, and no proof either way), **I**nformation disclosure (reading what you should not), **D**enial of service (making it stop working), **E**levation of privilege (getting rights you were not given).
+2.3.b The four additions the card requires. **Confused deputy**: a component with legitimate rights is tricked into using them for someone who has none. **Approved ≠ executed**: the human approved one action and a different one ran. **Replay**: recording a valid message or credential and sending it again later. **Break-glass**: the emergency path that skips the normal rules; it is a standing weak spot because it exists.
+2.3.c **Credential**: a secret or a signed statement that proves who you are or what you may do. A **bearer** credential works for whoever holds it (steal it, use it). A **sender-constrained** credential also needs proof that you hold a private key, so a stolen copy is useless alone.
+2.3.d **Proof of possession**: showing you hold the private key by signing a fresh challenge. **Channel binding**: tying a credential to one network connection so it cannot be replayed on another. **Nonce**: a random value used once.
+2.3.e **Equivocation**: one sender telling two receivers (or the same receiver twice) different things under the same number or id. **Fencing token**: a number that only goes up, so a stale holder of a role is recognised and refused.
+2.3.f **TOFU** (trust on first use): accepting an identity the first time you see it and pinning it, then refusing any change. The first contact is only as safe as the person who approved it.
+2.3.g **Trust boundary**: a place where data or control passes from something trusted at one level to something trusted at another. **Same-uid**: processes running as the same operating-system user on one host; the operating system gives them no protection from each other.
+2.3.h **Likelihood** and **impact** are rated low, medium or high, each with a reason. Likelihood is what the record suggests (an incident, a documented weakness, or only a possibility). Impact is the damage if it works.
+
+2.4 Evidence used and not re-measured **[H]**.
+2.4.a All agents on one host sign as one TermLink identity today (REQ 2.2.d, `RQ` 11 item 5). Per-agent signing keys exist (T-3346, runme action 8) but they are files under the same operating-system user (LOG OD-15 point 1).
+2.4.b The hub holds a 32-byte HMAC secret and a persistent TLS certificate; clients pin the certificate (TOFU) and cache secrets in `~/.termlink/secrets/` (RULES, "Hub Auth Rotation Protocol"). A token has a scope (Observe is the read-only scope).
+2.4.c The hub dedupe holds `(sender_id, client_msg_id)` for 5 minutes only, and `sender_id` is the host identity fingerprint, not an agent (REQ R-51.c; RULES post-idempotency row).
+2.4.d AEF's receiver uses a bearer token on loopback (REQ GP-1). `termlink pty inject`, `exec`, `remote exec` and `channel post` exist and are reachable to any holder of a session or a hub secret (RULES; REQ R-4).
+2.4.e Incidents the threat model uses as evidence: 2026-10-03 mail stored and never surfaced; 2026-10-04 stray second hub (32 sessions split); 2026-10-06 three identities consumed one inbox, wake-ups to the wrong session, about 94 handled messages replayed after a re-vendor, 21 local fixes at risk after the re-vendor (REQ 2.4a); the 32,205-refusal sidecar (LOG OD-14); T-2396 typed input lost into a busy prompt; G-058, G-060, G-063, G-069.
+
+## 3 Assets (card 3.1)
+
+3.1 What an attacker wants. A-1..A-6 are the step-1 assets (REQ 2.2), restated; A-7..A-12 are what this step adds.
+
+| Id | Asset | Why an attacker wants it | Source |
+|---|---|---|---|
+| A-1 | Message content and its durability | Read it, change it, or make an accepted message vanish | REQ 2.2.a |
+| A-2 | The sender's knowledge of where its message is (the truth of the stage) | A false green hides loss and lets later harm go unseen | REQ 2.2.b, ADV-3 |
+| A-3 | An agent's attention and session (its context, its terminal, its turn) | Whoever gets text into the agent's context borrows the agent's rights on its host | REQ 2.2.c |
+| A-4 | Identity: who sent, who receives, which project, which instance | Impersonate, redirect, or be silently replaced | REQ 2.2.d |
+| A-5 | Credentials: hub secrets, TLS pins, sidecar API tokens, signing keys | Anyone holding them acts as the owner | REQ 2.2.e |
+| A-6 | The truth of the status record and the audit record | A record that lies, or can be rewritten, ends accountability | REQ 2.2.f |
+| A-7 | The ability to act on a host through an agent (run commands, edit files, push, approve) | The real prize: peer text turned into action | profile P3.2; CLAUDE.md |
+| A-8 | The operator's approvals and the sovereignty gates (grants, re-home, admission, pins) | An approval obtained by trickery unlocks everything below it | R-63, R-64, R-65, R-54, R-67 |
+| A-9 | Circuit credentials and the directory (cards, roster, home-hub bindings) | Control of routing: who receives whose mail | R-46, R-60 |
+| A-10 | The role "main" and the lease (who answers a project) | Receive every request addressed to the project | R-67 |
+| A-11 | Availability of delivery and of the agent's turn (attention budget) | Interrupt storms and floods make the agents unusable (Codex, `RV1` point 18) | R-56 |
+| A-12 | The installed artifact and the estate's version state (binary, vendored scripts, clocks) | A poisoned or rolled-back component sits under every other control | ADV-10; REQ 2.4a.6 |
+
+3.2 The most valuable four, for the attack trees (D-3): A-7 (act on a host through an agent), A-4/A-9 (steer or read another agent's mail), A-2/A-6 (make the system lie), A-5/A-8 (steal credentials or approvals).
+
+## 4 Adversaries and their privileges (card 3.2, GP-0, GP-15)
+
+4.1 Privilege vocabulary. For each adversary I state five things, because "what can it do" is the question GP-15 asks.
+4.1.a **Position**: where it starts. **Files and keys**: what it can read and write on disk. **Sockets and APIs**: what it can call. **Hub access**: what a hub lets it do. **Cannot (assumed)**: what I assume it cannot do; if that assumption is false, the threats that rely on it are understated.
+
+4.2 ADV-1..ADV-10 (confirmed by GP-0, REQ 2.3) with their privileges. ADV-2 is split by position because the privileges differ sharply.
+
+| Id | Position | Files and keys | Sockets and APIs | Hub access | Cannot (assumed) |
+|---|---|---|---|---|---|
+| ADV-1 confused or overloaded agent | A legitimate agent, honest, busy, silent or unaware of mail | Its own transcript, its own agent key, its own tasks | Its own sidecar through the normal send path | Posts as itself | Act as another agent; it fails to act, it does not attack |
+| ADV-2a compromised session, same host as victims | A session of any project on the host that was hijacked or prompt-injected; it runs as the same operating-system user as the other agents (uid 0 on this host **[H]**) | Everything that user can read: the shared host key, all per-agent keys (plain files), `~/.termlink/secrets/*.hex`, every sidecar store and flag, sibling transcripts, the runtime directory | Every local socket and PTY of that user: `pty inject`, `exec`, sidecar APIs, AEF loopback bearer token (readable file) | Whatever tokens the user's files hold; posts as the shared host identity | Read another host's secrets (unless stored here); act as the operator on the operator device; break TLS or signatures |
+| ADV-2b compromised session, remote peer | A hijacked agent in a peer project on another host, admitted to the fleet | Only its own host's files; its own project's agent keys | Only what a peer is offered: send to a sidecar or a hub inbox, request a circuit, read topics its token allows | Its own project's identity and registrations | Reach this host's files or sockets; forge another project's signature |
+| ADV-3 component reporting success it did not earn | A sidecar, adapter, hook, canary or status call inside the trust base, buggy or compromised | Its own role's records (stage records, ready flag, the transcript it parses) | The APIs its role has | Writes the stages its role writes | Be detected by the thing it reports on; this is the point |
+| ADV-4 outage | A hub, host or network outage or a blip | none | none | none | It has no intent; its effect is missing messages, missing callbacks, a gap |
+| ADV-5 hurried or mis-heard operator | The operator, by voice transcription or haste ("15" heard as "50") | The operator's authority: approvals, `runme`, pins, grants | The operator terminal, the out-of-band channels | Approves anything the operator may approve | Intend harm; it approves what it did not read |
+| ADV-6 stale or wrong binding | An honest component bound to the wrong hub, the wrong runtime directory, a misfiled signing key, or a second live copy of one project | The legitimate credentials of the thing it is mis-bound to | Calls the wrong endpoint with valid credentials | Valid, but on the wrong hub or as the wrong identity | Know it is wrong; it looks alive |
+| ADV-7 malicious process with privilege on a host | Root or the same user on one host; installed software or a stolen shell | Everything on that host: all keys, all secrets, all stores, transcripts, binaries, the supervisor's unit files | All local APIs and PTYs; can start and kill processes | Acts as that host (and as every agent on it) on every hub whose secret the host holds | Reach other hosts or the operator device; forge signatures of keys it never read |
+| ADV-8 flooding or looping peer | An admitted peer, or two auto-responders, with valid credentials | none on this host | Send, request circuits, post to inboxes | Posts within its token's rate | Read this host's files; it is loud, not stealthy |
+| ADV-9 stale or partitioned authority holder | The holder of the role "main": alive as a process, cannot take a turn, or cut off from its hub | Its own state | Renews or fails to renew its lease | Holds a lease and a generation number | Write other agents' state; it is a failure, not an attack, unless induced (TH-33) |
+| ADV-10 estate drift | Skewed clocks, mixed versions, a re-vendor that deletes local fixes; also whoever performs installs and upgrades | Can overwrite vendored files and binaries (the 2026-10-06 re-vendor did) | The installer, `fw upgrade`, cron | none beyond the installer's | Intend harm; it silently removes protections |
+
+4.3 Adversaries added by this step. The brief and the requirements say "step 2 may add more". These are **[P]** proposals for the operator to confirm (OQ-1). ADV-11 to ADV-13 were in version 0.1; ADV-14 was added in review round 1 because the card names "someone holding the approval device" and version 0.1 modelled only a hurried operator (ADV-5).
+
+| Id | Position | Files and keys | Sockets and APIs | Hub access | Cannot (assumed) |
+|---|---|---|---|---|---|
+| ADV-11 compromised or rogue hub | A hub in the fleet whose secret, certificate, signing key and database an attacker holds, or a hub an attacker runs | All data that hub stores: topics, hub records, cards, credentials it minted | Serves every client that connects to it | Reads, withholds, reorders and forges what it serves; declares DEAD for projects it is home hub of; mints circuit credentials for its own projects | Forge an agent's signature, another hub's signature, or a message another hub never sent |
+| ADV-12 unadmitted joiner | A host or hub nobody in the fleet approved, able to reach hub ports (or approved by mistake at first contact) | none | Connect, register, advertise, request first contact | none until admitted | Hold any fleet secret; it tries to be admitted or to poison what an unauthenticated listener accepts |
+| ADV-13 network attacker | On the path between hosts or hubs, or controlling DNS | none | Observe, delay, drop, modify, replay packets; change what a name resolves to | none | Break TLS or a signature; it can still delay, drop, replay and redirect (TLS gives confidentiality and integrity, not delivery or timeliness) |
+| ADV-14 holder of the operator's approval device or key (added in review round 1) | Someone who holds the operator's laptop, phone or terminal session, or has copied the operator key (once one exists, GP-11), or who can read what the operator reads | The operator's approval key if stored on the device; the operator's terminal and runme scripts; the out-of-band channels the operator uses | Approve, sign and send as the operator; revoke; read the approval prompts | Acts as the operator on every hub and agent | Be told apart from the operator by anything the system checks, unless a second factor or a second channel exists (PR-27) |
+
+4.4 The one structural fact that decides how much is achievable (it sets the limits of every per-agent control below).
+4.4.a **[H]** All agents on a host run as one operating-system user. The operating system therefore does not separate them, and ADV-2a holds the same files and sockets as ADV-7 at user level. A per-agent key stored as a file under that user stops accidents (ADV-6, ADV-1) and remote attackers (ADV-2b, ADV-13). It does **not** stop a malicious same-user process from reading a sibling's key.
+4.4.b Two designs follow, and the operator chooses (OQ-2). (i) Accept it: the floor assumes same-user agents are mutually trusted for confidentiality of keys, and per-agent keys are about attribution and misfiling. (ii) Separate the agents by operating-system user or by container, which makes the per-agent key a real boundary. This document models (i) because it is what exists, and records the cost as RR-2.
+
+## 5 Trust boundaries and data flow (card 3.3)
+
+5.1 Thirteen boundaries. The five flows that matter are: a message from sender agent to receiver agent (arrows 1 to 5 of REQ D-1), the hub record that mirrors every stage, the circuit set up through the hubs, the cards the hubs exchange, and the operator's approvals.
+
+**Drawing D-1 — data flow with the trust boundaries TB-1 to TB-13**
+
+```mermaid
+flowchart LR
+  subgraph OPZ["Operator device and out-of-band channels"]
+    OP["Operator"]
+    OPK["Operator key and approvals (GP-11 open)"]
+  end
+  subgraph HA["Host A, one operating-system user"]
+    SA["Sending agent in harness"]
+    SCA["Sender sidecar"]
+    FA["Files: keys, store, flag, queue, grants"]
+    SUPA["Supervisor and launcher"]
+  end
+  subgraph HUBA["Hub A: topics, hub record, directory, lease"]
+    HRA["Hub record and inbox topics"]
+    DIRA["Cards, roster, role lease"]
+  end
+  subgraph HUBB["Hub B (home hub of the receiver)"]
+    HRB["Hub record and inbox topics"]
+    DIRB["Cards, roster, role lease"]
+  end
+  subgraph HB["Host B, one operating-system user"]
+    SCB["Receiver sidecar"]
+    FB["Files: keys, store, flag, queue, grants"]
+    TR["Transcript and ready flag"]
+    HAR["Harness: hooks"]
+    RA["Receiving agent in PTY"]
+    SUPB["Supervisor and launcher"]
+  end
+  NET["Network and DNS"]
+  SA -->|"TB-3 send call"| SCA
+  SCA ---|"TB-4"| FA
+  SCA -->|"TB-5 post, record, token"| HRA
+  SCA -.->|"TB-6 only if both agents are on one host (A and B drawn apart), new conversation without the hub, OQ-4"| SCB
+  SCA -->|"TB-7 circuit, credential"| NET
+  NET -->|"TB-7"| SCB
+  HRA <-->|"TB-8 cards, advertisements"| NET
+  NET <-->|"TB-8"| DIRB
+  SCB -->|"TB-5 pull, record stages"| HRB
+  SCB ---|"TB-4"| FB
+  FB -->|"TB-4 and TB-1 hook reads the stored message"| HAR
+  SCB -->|"TB-2 one fixed line typed"| RA
+  HAR -->|"TB-1 framed content by hook"| RA
+  RA --- HAR
+  HAR -->|"TB-9 ready flag, evidence"| TR
+  TR -->|"TB-9 read"| SCB
+  DIRA -->|"TB-12 resolve role, lease"| SCA
+  OP <-->|"TB-10 types, approves"| RA
+  OPK -->|"TB-10 signed approvals"| DIRB
+  SUPB -->|"TB-11 start, resume under grant"| RA
+  SUPB ---|"TB-13 installed artifact, versions, clock"| SCB
+```
+
+5.1.1 Text equivalent of D-1.
+5.1.1.a A sending agent calls its own sidecar (TB-3). The sidecar reads and writes its local files: store, flag, queue, keys, grants (TB-4).
+5.1.1.b The sender sidecar posts to a hub and writes the hub record, using a hub token (TB-5). For a new conversation on one host without the hub, it would call the receiver sidecar directly (TB-6, the question J4); that link is dotted because it exists only if the operator rules OQ-4 B or C, and because it applies only when both agents are on one host (hosts A and B are drawn apart for lack of space). For an established conversation it connects to the receiver sidecar by a circuit across the network with a hub-minted credential (TB-7).
+5.1.1.c Hubs exchange cards and advertisements over the network (TB-8). Each hub keeps a directory and the role lease; a sender resolves a role there (TB-12).
+5.1.1.d The receiver sidecar pulls from its home hub and writes each stage to the hub record (TB-5). It types one fixed line into the receiving agent's terminal (TB-2). The harness hook reads the stored message from the receiver's store (TB-4) and delivers it, framed, into the agent's context (TB-1). The harness writes the ready flag and the transcript, and the sidecar reads them as evidence (TB-9).
+5.1.1.e The operator types into the agent's terminal, approves actions and, in the future, signs approvals with an operator key (TB-10). A supervisor starts or resumes an agent under a grant (TB-11). The installed artifact, the versions and the clocks are shared state under all of it (TB-13).
+
+5.2 The thirteen boundaries.
+
+| Id | Boundary | What crosses | Trust change |
+|---|---|---|---|
+| TB-1 | Peer content into the agent's context (hook channel, framed text, blob, reply) | Text written by a peer becomes input to a model that has rights on a host | Untrusted data enters a trusted reader. In Claude Code, hook output is delivered with the harness's own standing, which is more than a user message |
+| TB-2 | Sidecar into the agent's terminal (the typed doorbell) | Keystrokes into a PTY | Sidecar authority becomes the agent's input; if the PTY is at a shell, it is a command |
+| TB-3 | Local callers into the sidecar API (send, status, admin) | A request to send as this agent, or to change sidecar state | Any local process, or the agent, acts through the sidecar's rights (confused-deputy risk) |
+| TB-4 | The sidecar and its local files (store, flag, queue, keys, grants, and the transcript it reads) | Durable state | Same-user processes write what the sidecar trusts |
+| TB-5 | Sidecar and hub (posts, pulls, hub record, directory writes, token) | Messages, stages, registrations over TLS with an HMAC token | Hub operator and every token holder see and shape the record |
+| TB-6 | Sidecar to sidecar on one host without the hub (the J4 question) | A new conversation set up locally | Trust would rest on the operating-system user |
+| TB-7 | Sidecar to sidecar across hosts (the circuit) | Turns, receipts, credentials, over the network | A hub-minted credential replaces per-message hub mediation |
+| TB-8 | Hub to hub (cards, advertisements, admission) | Directory facts about projects and liveness | One hub's statements are believed by another |
+| TB-9 | Harness and transcript to sidecar (readiness and hand-over evidence) | A ready flag and transcript lines | The sidecar believes what files written by same-user processes say |
+| TB-10 | Operator and system (terminal, approvals, out-of-band channels, break-glass) | Decisions, overrides, approvals | The human's authority is exercised through a screen the system draws |
+| TB-11 | Starting and resuming agents (supervisor, launcher, grants) | Authority to run a new process | Inbound mail may cause a process to start (R-64, R-65) |
+| TB-12 | Role resolution and the lease at the home hub | Which agent answers "main"; DEAD declarations | The hub decides who receives, and who is dead |
+| TB-13 | The installed estate (binary, vendored scripts, versions, clocks) | Code and time | Everything else relies on it being the intended code at the right time |
+
+5.3 **Direction (review round 1, GLM 2d).** D-1 and the matrices of section 14 are written for the direction sender to receiver. The roles swap for the reply (R-27): the reply crosses the same boundaries mirrored. The receiving agent calls its own sidecar (TB-3), that sidecar signs with the agent key and sends (TB-5 or TB-7), and the original sender's sidecar receives, stores and hands over (TB-4, TB-2, TB-1, TB-9). Every threat and invariant stated for a boundary therefore applies to both directions, and no boundary is trusted more in one direction than in the other. Where a threat is direction-specific it says so.
+
+## 6 Credential custody and who may call a sidecar (GP-1)
+
+6.1 The question GP-1 leaves open: who holds which credential, who may call a sidecar API, and how a receiver learns who really sent a message. REQ R-63 already relies on "verified signing key" and R-34.e says authentication of the sender "is GP-1 and is not required by R-34". This section answers it, as proposals.
+
+6.2 Credential inventory. "Must not be usable for" is the property each credential needs so that stealing it does not give everything.
+
+| Id | Credential | Held today by **[H]** | Proves | Must not be usable for |
+|---|---|---|---|---|
+| C-1 | Hub HMAC secret and the tokens minted from it (with scope, for example Observe) | The hub, and every client file `~/.termlink/secrets/*.hex` and the runtime directory | The holder may call this hub within the token's scope | Acting as a particular agent; reading content that belongs to another project (today it can: TH-22) |
+| C-2 | Hub TLS certificate and key; the client's pin store | Hub; clients (TOFU) | That the server is the hub first seen | Naming the hub's identity across a rotation (R-61 keeps the id, so the id needs its own key: PR-5) |
+| C-3 | The shared host signing key (T-1427) | One key for every agent on a host | A message came from this host | Telling agents apart (TH-1) |
+| C-4 | Per-agent signing keys (T-3346) | A file per agent, same user | A message came from this agent's key | Proving it to a same-user attacker who reads the file (RR-2) |
+| C-5 | AEF receiver's loopback bearer token | A file readable by the same user | The caller is a local process that read the file | Any attribution at all (BP-16) |
+| C-6 | Circuit credential (new, R-46) | Issued by a hub, held by two sidecars for one conversation | These two instances may exchange turns for this conversation until it expires | Opening another circuit, posting to a hub topic, calling any other API (SI-9) |
+| C-7 | Operator key (new, needs GP-11) | The operator device, never an agent host | A decision or message is the operator's | Being copied to an agent host (PR-1b) |
+| C-8 | Grants (R-64) and the role configuration (R-67) | To be built; storage open (step 4) | The operator allowed a start, a sender, a priority | Being written by the agent they limit (SI-21, SI-20) |
+| C-9 | Hub signing key (new) | The hub; the fleet roster holds its public half | A card or advertisement came from this hub | Being the TLS key (so it survives certificate rotation) |
+
+6.3 Proposals.
+6.3.a **PR-1 [P] Every message is signed by the sending agent's own key.** The sender sidecar signs a canonical form of the message (header fields, conversation id, sequence number, priority, content digest, blob digest). The receiver sidecar and the hub verify the signature against the public key on the sender's card at its home hub. An unsigned or wrongly signed message is refused and is never stored, never flagged, never handed over (SI-3). This is the missing authentication requirement (CR-2).
+6.3.b **PR-1a [P] Key registration.** A new agent key is recorded on the agent's card at registration. Replacing the key of an existing agent is accepted only if signed by the old key, or by operator approval bound to the digest of what was displayed (SI-13). The home hub never accepts a new key for an existing role on the strength of a session claim alone (TH-56). **Key continuity (review round 1, Codex 4c):** each participant of a conversation pins the other's key fingerprint in the hub record when the conversation starts, and a pinned key changes only through the old-key-signed replacement above. A compromised home hub can still serve a substituted key for a *new* conversation (RR-4); it cannot swap the key of a conversation already established without the old key's signature.
+6.3.c **PR-8 [P] Who may call a sidecar.** The send and status API is a local socket whose directory is owned by the agent's operating-system user and not group- or world-accessible, and the sidecar checks the caller's process credentials (user, process id) on every connection. Loopback TCP with a bearer token file is not an acceptable replacement (TH-2). The API is split into three scopes with separate credentials: **send** (the agent), **status** (read only, safe to give to the canary and the cockpit), **admin** (start, stop, rotate keys, change allow-list; the supervisor and operator only). The circuit listener (TB-7) serves circuit operations only, nothing else (SI-14).
+6.3.d **PR-1b [P] The operator is a sender class that only the operator key can produce.** Until GP-11 is ruled, no message is of the operator class; every message from an agent is peer class (SI-8, TH-5). When the operator's channel exists, an operator-class message must verify against the operator key, which is never stored on an agent host (CR-10).
+6.3.e **PR-27 [P] The operator approval device and key (review round 1, Codex 2e and GLM 2d; TH-64).** The card names "someone holding the approval device" as an adversary. Everything in SI-8, SI-13, SI-21 and SI-24 rests on the operator's approvals being the operator's, so a stolen device or key is the most valuable single target in the model. Proposals: (i) the operator key lives only on the operator device and is protected by a second factor (a passphrase or a hardware key) so that a copy of the file alone is useless; (ii) every approval is single-use, bound to a digest and short-lived (SI-13); (iii) the highest-impact approvals (admission of a hub, grant of a start, re-home, key replacement) are also announced on a second channel the operator already reads (ntfy, Signal, Mattermost: GP-11 lists them) and take effect only after a delay of PN-14, during which the operator can cancel; (iv) the operator can revoke the operator key with a pre-registered recovery key kept offline. Until an operator key exists (GP-11 is open), approvals are made at the operator's terminal and through `runme`, and the holder of that terminal is BP-13. Residual: RR-16.
+
+6.4 What this does not give, stated plainly. Under assumption 4.4.a (same user), PR-1 attributes messages and catches misfiling and remote impersonation. A malicious process on the same host as an agent can still read that agent's key and sign as it. That is RR-2. Separating agents by user would close the user-level part of it (OQ-2); it would not stop root on the host, which can read every user's files.
+
+## 7 The circuit trust model and the per-circuit credential lifetime (OD-1, CAND-16, R-46, R-7.e)
+
+7.1 What is ruled. The hubs set up a circuit for an established conversation; the two sidecars then talk directly, also across hosts. Set-up and authorisation go through the hubs; per-circuit short-lived credentials are minted by the hubs; one delivery contract and one log per conversation apply on both paths (R-46.a). Open for this step: the trust model, the credential's lifetime and binding (R-46.g, LOG OD-17 point 12b), and the cross-host bound of R-7.e (1).
+
+7.2 **PR-6 [P] The circuit trust model.** The hub does not carry the turns, so it must give each sidecar everything it needs to decide alone, for the lifetime of the credential, who the other end is and what it may do.
+
+7.2.a Set-up, in order. (1) The sender sidecar asks its own hub for a circuit to a named conversation and a named receiver instance, signing the request with the agent key (PR-1). (2) The hub checks: the sender key is valid and not revoked; the conversation exists and both instances are the ones it is bound to (R-62); both instances are live (R-60); the sender is under its open-message cap (R-56) and its per-key set-up rate (PN-6). **The hub does not look at the allow-list.** The allow-list of R-63 decides only whether an urgent turn is delivered mid-turn or downgraded to normal, per message, at the receiver (SI-18); a sender that is not on it still gets a circuit and its turns are still delivered, downgraded and never dropped (R-52.a, R-63.a). A circuit is therefore never refused, and a turn never dropped, for lack of interrupt permission. (3) The receiver's home hub mints the credential (the hub that can speak for the receiver, R-60), **in answer to a fresh establishment nonce that the receiver's own sidecar issued over its authenticated hub session**; the credential names that nonce. The sender's home hub attests the sender's key. The receiver's sidecar starts a monotonic timer when it issues the nonce; the sender's sidecar starts its timer when it receives the credential over its own hub session. If no valid presentation arrives within the set-up window (PN-12), the credential is dead. (4) The sidecars connect over a mutually authenticated, encrypted channel. Each proves possession of its agent key by signing a transcript that contains a fresh challenge from the other end **and a value exported from this one connection's encryption session** (for example a TLS exporter value; the exact mechanism is step 4's). The credential is accepted only together with such a proof made on this connection (SI-9).
+7.2.b What the credential says. The circuit id; the conversation id; the sender instance (runtime id and key fingerprint); the receiver instance (runtime id and key fingerprint); the receiver's endpoint; the direction rights; the lifetime in seconds (not an absolute time, 7.2.d); a random nonce. It is signed by the minting hub's signing key (C-9).
+7.2.c What makes a stolen credential useless on its own. It is **sender-constrained**: it only works together with proof of possession of the named agent key. It is **channel-bound**: the possession proof of 7.2.a (4) covers a value exported from the connection, so a copy replayed on another connection has no matching proof and fails (TH-50). Binding to a connection does not prove the credential is fresh; freshness comes from the establishment nonce and the set-up window of 7.2.a (3), and from 7.2.d. It is **scoped**: one conversation, these two instances, circuit operations only (TH-44). It is **instance-bound**: runtime ids are never reused (R-62), so a restarted copy cannot use it.
+7.2.d **PR-23 [P] Lifetime is counted on the verifier's own clock, from establishment, and cannot be reset.** Version 0.1 counted from the moment a sidecar first accepted the credential. Review round 1 (Codex 2a) showed the flaw: a credential issued but not used until long after a revocation would receive a fresh full lifetime. The rule now has four parts.
+7.2.d.1 Each sidecar counts the lifetime on its own monotonic clock from its *establishment moment* (7.2.a (3): the receiver from issuing the nonce, the sender from receiving the credential), never from first use and never from a timestamp inside the credential (this follows R-57: one clock per deadline, the observer's own). A credential not presented within the set-up window (PN-12) is dead, so the delay between issue and use is bounded by that window.
+7.2.d.2 **Renewal is a new establishment** through the hubs, with a new nonce; it is refused if the key or the pair is revoked (11.2). Nothing a sidecar does locally extends the expiry.
+7.2.d.3 **Reconnect.** A dropped connection may be resumed within the remaining lifetime by repeating the possession proof on the new connection with a fresh challenge from the receiver. This keeps the original expiry. A hub outage therefore does not end a conversation merely because a connection dropped.
+7.2.d.4 **Restart.** A sidecar that restarts treats all circuits as expired and sets them up again through the hubs. A host whose wall clock is wrong cannot extend or shorten a credential (TH-37).
+7.2.e Every turn on the circuit is signed by the sender's agent key and carries the circuit id and the sequence number (PR-1, PR-3), so the receiver can store it in the same form as a hub-path message and the one delivery contract holds (R-46.a (3)). Each turn is copied to the receiver's home hub as the single log of the conversation (R-45); when the hub is unreachable, see 7.5.
+7.2.f Breaks and fallback. On a broken circuit, or an expired or refused credential, the sender uses the hub path with the same message ids, signatures and sequence numbers (R-46.e). Nothing about the credential is needed on that path.
+
+7.3 **The credential lifetime. [P] numbers, the operator decides (OQ-3).** The lifetime sets two things at once and they pull in opposite directions: the longest a conversation survives a hub outage (R-7.e (1) says the turns continue "until the credential expires"), and the longest a revoked or stolen credential keeps working when the hub cannot be reached. With the hub reachable, the sidecars renew at half the lifetime and revocation takes effect at the next 30-second tick (PN-3).
+
+| Option | Lifetime | Hub outage survived by an established circuit | Window a stolen or revoked credential stays useful with the hub unreachable |
+|---|---|---|---|
+| A | 15 minutes | up to 15 minutes | up to 15 minutes |
+| B (recommended) | 1 hour, renewed from 30 minutes, absolute circuit age at most 24 hours | up to 1 hour | up to 1 hour, and only with the agent key as well |
+| C | 4 hours | up to 4 hours | up to 4 hours |
+
+7.3.a Recommendation: **B**. The reason, with its evidence status stated: the operator's own reason for R-7 is "the hub goes down". **Hypothesis H-1, not measured here:** a typical outage or restart of a hub lasts minutes to an hour (the record names hub blips, G-060, and the 2026-10-04 stray hub, but this step did not measure outage durations; the hub restart history and `fleet history` would). If H-1 holds, 15 minutes (A) would end many conversations during the outage the requirement exists for, and 4 hours (C) gives a thief a working afternoon. Because the credential is useless without the agent key (7.2.c), a one-hour window is a window for an attacker who has already read the key; that is the position RR-2 describes, **which the operator has not yet accepted** (version 0.1 wrongly wrote "already accepts"). The 24-hour absolute age forces a full re-authorisation daily so a long-running circuit cannot outlive a revocation that was missed. These are proposals; any option can be ruled.
+7.3.b The cross-host bound of R-7.e (1), stated as a testable sentence: with both hubs unreachable, turns on an established circuit continue for at most the remaining lifetime of the current credential, counted from its establishment (7.2.d, PN-1), and the first turn after expiry is refused and falls back to the hub path, which waits (WAITING, R-44).
+7.3.c **The asymmetric outage (review round 1, GLM 2c).** The credential is minted by the *receiver's* home hub (7.2.a (3)). Suppose the sender's hub is reachable and the receiver's home hub is not. (i) Renewal fails, so the circuit ends at expiry like a full outage. (ii) New conversations also wait, because the receiver's inbox on the hub path is on the unreachable hub; the sender sees WAITING, not a failure of its own hub. (iii) The sender's sidecar still pulls its own hub's revocation list, but cannot learn of a revocation of the *receiver's* key that was published only at the receiver's home hub; the bound is again the credential's remaining life. (iv) Nothing in 11.1 or 7.3 treats this case as better than a full outage, and none of the proposed numbers depend on the difference. The reverse case (receiver's hub reachable, sender's not) is the same by symmetry, because the sender's hub attests the sender's key and revocation.
+7.4 What the circuit does not fix. The hub that mints the credential is trusted to check the sender and the receiver correctly (TH-46) and to say who is alive (TH-54). A compromised enrolled hub is RR-4. A thief of both an agent key and a live credential can send in that one conversation until expiry (RR-5).
+
+7.5 **PR-21 [P] When the hub is unreachable the local record is the truth, then it is replayed.** R-45 says each stage is written to the hub record first. R-7.e (1) says turns continue with the hub unreachable. These two cannot both hold literally. Proposal: while the hub is unreachable the sidecar writes the stage to its own durable log first (SI-15), keeps the log hash-chained (SI-22), and replays it to the hub in order on return; the sender computes states from the circuit's own receipts meanwhile; the first thing a returning sidecar does is reconcile the chain with the hub record and flag any difference (TH-15). This is change request CR-1: R-45 needs a sentence for the unreachable-hub case.
+
+7.6 **The same-host new conversation without the hub (added at sign-off J4; OQ-4).** The question: may two agents on one host start a *new* conversation with no hub, trusting the operating-system user, as AEF's receiver does today?
+
+7.6.a What a hub gives a new conversation that a local path would have to reproduce: the verified-key check that R-63 relies on (the allow-list itself is applied by the receiver at delivery, SI-18, not at set-up); the directory and liveness binding to a live instance (R-60, R-62); the open-message cap accounting (R-56); revocation (PR-16); the hub record and the audit chain (R-45); and the single source of truth for DEAD (R-60). A local path that does these things is a second authority, which contradicts "exactly one receiver" and "the hub record is the truth" (R-49, R-45).
+7.6.b What the operating system user proves on this host **[H]**: all agents are the same user, so "same user" proves nothing about *which* agent (TH-1, 4.4). Process credentials on a local socket (PR-8) tell the sidecar which process called, not whether that process may talk to this agent.
+
+| Option | What it means | Trust basis | Cost |
+|---|---|---|---|
+| A (recommended) | A new conversation always starts through the hub, on one host or across hosts; only an *established* conversation may run without it, on a circuit | Hub-checked agent keys (PR-1) | A new same-host conversation cannot start while the local hub is down. The local hub is on the same host, but **a host being up does not mean the hub process is up** (G-070: a crash-looping unit; the 2026-10-04 stray hub; a restart between pidfile and socket). The cost is the hub process being down on the very host where both agents run, so it is real and unmeasured (hypothesis H-2: it is small) |
+| B | A new same-host conversation may start by a local socket when the hub is down | The operating-system user plus the agent keys, checked from the sidecar's own copy of the card | The sidecar must hold a copy of cards, allow-lists, revocations and bindings; stale copies make wrong decisions; urgent mid-turn delivery would have to be refused on this path because R-63 cannot be verified |
+| C | Always local for same-host, hub only for cross-host | The operating-system user alone | A same-user attacker, or a misfiled key, starts conversations with any agent on the host; ADV-6 and TH-1 are open by construction |
+
+7.6.c Recommendation: **A**. The reason: it matches what R-7.e (2) already says until step 2 rules ("until step 2 rules, (2) applies on one host too"), it keeps one authority, and the availability cost is the hub process being down on the very host where the agents run (not the same as the host being down). B can be added later once a measurement shows the cost matters; adding trust later is safer than removing it. If the operator chooses A, the residual is RR-11.
+
+## 8 Same id with different content (CAND-2, R-51) and same sequence number with different content (CAND-18, R-59)
+
+8.1 Why the hub's existing protection is not enough **[H]**. The hub dedupe key is `(sender_id, client_msg_id)` kept for 5 minutes, and `sender_id` is the shared host identity. Nothing on the receive side looks at the id. The ladder re-sends for years (R-30). So today two things hold at once: a second session on the same host can reuse an id it saw on a topic, and after 5 minutes nothing remembers the id at all.
+
+8.2 **PR-2 [P] Message identity is the triple (sender identity, conversation id, message id), and it is bound to a digest.** The *sender identity* is the agent identity on the sender's card (minted at registration, PR-1a); it does not change when the agent's signing key is rotated. Each message names the key that signed it, and the receiver checks that the key is in that identity's key history and was current when the message was signed. Keying the namespace by the identity and not by the key fingerprint (review round 1, Codex 2d) means that a key rotation does not create a fresh deduplication or sequence namespace, and a replacement key therefore cannot be used to replay or collide with old numbers and ids. The stage memory (R-51) stores, at RECEIVED, the content digest taken from the signed header, so the receiver knows what the content must be even when the content itself is lost or has not arrived. The id is therefore a name for *one* signed content, not a slot.
+
+| Case | Result (SI-4) |
+|---|---|
+| Same triple, same digest | A duplicate. Handled by R-51: one store, one hand-over, one reply; the sender is told the stage |
+| Same triple, different digest, before STORED | The first signed copy to reach STORED stays. The other is refused, recorded as CONFLICT in the hub record, shown in needs-attention. Neither is handed over twice. A sender that really needs to change content uses a new id |
+| Same id, different sender identity | Not the same triple: no collision. The id space is per sender identity, so another agent cannot poison or pre-empt it (TH-10) |
+| Same triple, no valid signature | Refused as forged; never reaches STORED |
+| Known id, content lost, resend request | The resent content must match the stored digest; otherwise refused as CONFLICT |
+| Id never seen, or a ladder re-send years later | The stage memory follows R-35.o (R-51.a): journey events are kept until 14 days after the message reaches a final state and are never cut while it is open, except at an explicit ceiling as a last resort, loudly, with a needs-attention entry; digests are kept one year. So a re-send of an open message, or of one that became final less than 14 days ago, is a duplicate. After that, the same id with the same content may be stored as new (RR-10), but the same id with different content is still caught as CONFLICT for up to one year by the kept digest |
+
+8.3 **PR-3 [P] Sequence numbers (CAND-18).** The number space is per (sender identity, conversation), and it continues across a signing-key rotation (8.2). In a many-to-many conversation each sender has its own space; there is no global order (8.6). The first number is random, not 1 (the TCP lesson in LOG OD-17 point 13a), so a blind attacker cannot guess the next number. Rules the receiver applies (SI-5, SI-6):
+
+| Case | Result |
+|---|---|
+| Same (sender identity, conversation, number), same digest | A duplicate, ignored with the stage reported |
+| Same number, different digest | **Equivocation.** The first stays; the second is refused; a needs-attention entry names the conversation and both digests; the conversation is marked suspect so that no urgent mid-turn delivery from that sender is made until the operator clears it (TH-11). The sender may be buggy or restored from a backup, or may be an attacker; the entry does not guess |
+| A number at or below the receiver's `up_to` | By PR-4 every such number was stored. Same digest: a duplicate. Different digest: equivocation (the row above) |
+| A gap (1, 3 delivered, 2 missing) | Flagged, resend requested (R-59). Buffering is bounded by the window PN-5; numbers beyond `up_to` plus the window are refused, so a far-future number cannot exhaust memory or poison `up_to` (TH-31) |
+| The sender's counter rolls back (restore from backup, lost file) | On start the sender sets its counter to the larger of its own and one more than the highest number the hub record holds for that conversation (R-45), so it can never silently reuse (TH-11). If the hub is unreachable it waits to send in that conversation |
+| A message claims a conversation the sender never joined | Refused. A conversation's participants are recorded in the hub record. They are set at creation and change only by an explicit, signed, recorded membership event or by the hand-over of R-62 (8.6); a conversation id alone grants nothing (TH-9) |
+
+8.4 **PR-4 [P] Receipts are signed, contiguous and cannot run ahead.**
+8.4.a A receipt (`up_to`) is signed by the receiver's agent key, names the conversation and the sender identity it acknowledges, and only moves forward. In a many-to-many conversation each recipient issues its own receipt per sender (8.6). **`up_to` is the highest number N such that every number from the sender's first number up to N has been durably stored (STORED).** It is the highest *contiguous* durably stored number, not merely a number no higher than the maximum stored (review round 1, Codex 2d). If 1 and 3 are stored and 2 is missing, the receipt says 1; the sender keeps chasing 2 and the receiver reports the gap (R-59.a). A receiver may separately list numbers stored beyond a gap (a selective acknowledgement); the sender uses that list only to avoid re-sending them and never counts it as "delivered up to".
+8.4.b A sender accepts only a valid receipt. Otherwise an attacker who can write receipts makes the sender believe delivery happened and stop its chase: silent loss with a green record (TH-12).
+8.4.c **Every receipt also carries the head of the receiver's stage chain** (the hash of its latest stage record, SI-22). The sender keeps the receipts it receives, so the *other party* holds an independent anchor. If the receiver's local log is later truncated, forked or rewritten, the head in a stored receipt no longer matches the log, and the sender or a reconciling sidecar can see it. This is the independent checkpoint that a hash chain alone does not give (TH-65). Its limit is stated in RR-15.
+
+8.5 The sequence number is not a security control by itself; it is made one by the digest and the signature. Without PR-2 and PR-1, an attacker could pair any number with any content.
+
+8.6 **Many-to-many conversations, membership and hand-over (R-1.e (2), R-62; added in review round 1, Codex 2e and 3e).** Version 0.1 fixed the participants at creation. That was too narrow: R-1 requires many-to-many conversations, and R-62 allows a conversation to move to another copy "by an explicit hand-over with its context".
+8.6.a **Participants.** The hub record lists the participants of a conversation: sender identities and, for each, the exact instance it is bound to (R-62). A conversation id alone grants nothing.
+8.6.b **PR-30 [P] Membership changes only by a recorded, signed event.** The list changes in two ways and no other. (i) A *membership event*: signed by an existing participant, naming the new participant, countersigned by the new participant's own key, recorded in the hub record and chained (SI-22). (ii) The *hand-over* of R-62: the conversation and its context move to another copy. R-62 rules that the hand-over is explicit; it does not say who may start it. Proposal: the current holder's signed statement plus the new copy's acceptance, or the operator; if the holder is dead, only the operator. This last point is a question for step 3 and step 4, not a ruling (OQ-12).
+8.6.c **Many-to-many mechanics.** Each sender has its own number space (PR-3). Each recipient issues its own signed receipt per sender (PR-4). The sender's state is computed per recipient from the hub record (R-44.a); no global order is claimed, and a sender whose number 5 differs between two recipients is caught when the digests are compared in the hub record (TH-11).
+8.6.d **Confidentiality inside the conversation.** Every participant reads every turn; that is what many-to-many means. A new participant could also read earlier turns. Proposal: a participant sees turns from its joining event forward, and earlier turns only if a participant re-sends them as new turns. Whether to allow reading history is a decision for step 3 (OQ-12).
+8.6.e Threat: TH-61. Residual: a compromised participant can add an attacker, and could equally have forwarded the content itself, so the control is visibility and a cap, not prevention (RR-1, RR-3).
+
+## 9 Peer-content framing and the doorbell (CAND-1, R-50, R-23)
+
+9.1 Two different things arrive at the agent, and they need different rules. The **doorbell** is the one line the sidecar types (R-23). The **content** is what the hook channel delivers (R-19, R-48). The doorbell must have no authority at all; the content must be delivered as data, and cannot be made safe, only less dangerous.
+
+9.2 The doorbell (TB-2).
+9.2.a **SI-1** The typed line is built only from fixed text, a decimal count, and message ids that match a fixed pattern (32 lowercase hexadecimal characters). No byte of peer-controlled text reaches the line. REQ R-23.a already says "no peer content" as a **[P]**; this step proposes to make it a firm invariant (it becomes one only if the operator accepts CR-5) and adds the id pattern, because the line also carries ids and the id is chosen by the sender (TH-16). A newline, an escape sequence or a shell metacharacter in an id would otherwise be typed, and if the terminal is at a shell prompt (the harness has exited or crashed while the ready flag was stale), it would run as a command.
+9.2.b **SI-2** Before typing, the sidecar checks that the terminal's foreground process is the registered harness and that the adapter says READY (R-21). If the harness is not the foreground process, nothing is typed and the sender sees NOT RUNNING (R-20). A missing or unreadable flag reads not ready (R-21 [P]).
+9.2.c The doorbell has no authority. A fake doorbell typed by a third party (TH-6) names ids that the store does not hold, so the hook finds nothing and shows nothing. Content comes only from the store, through the hook, authenticated by the signature check (SI-3); never from what was typed.
+
+9.2.d **The readiness-to-injection race (TH-62; review round 1, Codex 2e).** The sidecar reads the ready flag and then types; between the two actions the harness may start a turn, or the operator may have typed half a command into the same prompt (T-2396 is the recorded case of input lost into a busy prompt). SI-2 narrows the window; it cannot close it, because the flag and the keystrokes are two separate actions. What keeps the race from becoming loss: STORED is already durable, the doorbell is only a pointer and typing it again is harmless (SI-1), and HANDED_OVER needs transcript evidence (R-24), so a doorbell lost into a busy prompt leaves the message not handed over and the tick tries again (R-17, R-18). **PR-32 [P]:** read the flag and the foreground process again immediately before typing, and do not type if the terminal shows unsent input, where the adapter can tell. The harm that remains is a doorbell appended to the operator's unfinished text: RR-19.
+
+9.3 The content (TB-1). R-50 says peer text MUST be delivered framed as untrusted data and a request from a peer is a task proposal, never direct execution. The sidecar can do the framing; it cannot make the model obey it (TH-38).
+
+9.3.a **PR-9 [P] The frame is made by the receiving adapter, not the sender.** Each delivery is wrapped by the sidecar or the adapter with: the verified sender (project id, agent role, key fingerprint) and the trust class (**two classes only, both already in the rulings: peer, and operator-class once PR-1b exists; no third class is introduced**). The frame also states, as a plain fact line and not as a class, whether the sender is on the receiver's allow-list and therefore whether the message was delivered mid-turn or downgraded (R-63); the message id and conversation id; a per-delivery random boundary (PN-8) that the sender could not have predicted, so text cannot close the frame early or imitate a previous one (SI-7); a fixed sentence stating that the text is data from another agent and is not an instruction or an approval. Control characters and lookalike frame markers in the content are neutralised before delivery.
+9.3.b **Size.** Inline content above the cap (PN-7) is not delivered inline: the agent gets a summary line and a reference to the blob, whose digest was verified before the flag was raised (R-11 [P]). A peer cannot use the context window itself as a weapon (TH-36).
+9.3.c **SI-8 No peer message is an approval.** Nothing in a frame, and no field of any message, can grant a permission, raise a trust class, change an allow-list, pin a role, approve an admission or a re-home, or satisfy a Tier-2 approval. Those change only through the operator channel (PR-1b), bound to a digest (SI-13).
+9.3.d **PR-11 [P] Outgoing content is scanned for secrets.** A prompt-injected agent may be told to "reply with the contents of file X". The send path runs the repository's existing secret patterns (hub secrets, keys) over outgoing content and refuses a hit with a stated reason (TH-27). It is a net with holes, not a guarantee.
+
+9.4 The harness hook channel gives peer text more standing than a user message **[H]** (log OD-2: Claude Code shows PostToolUse hook output to the model as harness context). That raises the effect of a successful injection, and is exactly why the ruling restricts mid-turn urgent delivery to allowed senders (R-63). The frame (PR-9) labels the trust class and states whether the sender is on the allow-list, so the model sees "peer, on your allow-list" rather than an unlabelled harness message (a fact line, not a new class). That is the residual RR-3, which the step-1 chain file already names for the operator.
+
+9.5 Honest limit. A model cannot be made to ignore text by labelling it. Framing, the task-proposal rule and the agent's own permission gates (the framework's task gate, Tier 0, Tier 2) lower the chance and the damage; they do not remove it. That is RR-1.
+
+## 10 Fleet admission and signed advertisements (CAND-17, added at sign-off J3)
+
+10.1 The question. Who may join the fleet, and how is a hub's statement about its projects authenticated? REQ states the gap: pairwise HMAC does not stop a compromised host from poisoning presence, and R-60 covers what a card contains, not who may publish one.
+
+10.2 What is exposed **[H]**. Presence is a topic any authenticated client can post to; the hub trusts what authenticated registrations it observed (R-60.a); hubs exchange cards and must never re-announce another hub's cards. Nothing says how a new hub is admitted, how a card's origin is proven, how long a card is believed, or what happens when two hubs claim one project.
+
+10.3 **PR-5 [P] Admission and signed advertisements.**
+10.3.a **Roster.** Each hub keeps a fleet roster: the canonical id of each hub it will exchange cards with, with that hub's signing public key (C-9) and its current TLS fingerprint. A hub is added to a roster only by operator approval bound to the digest of what was displayed (SI-13); a hub not on the roster cannot publish a card anyone believes (SI-12).
+10.3.b **Signed cards.** Every card and advertisement is signed by its originating hub's signing key and carries a sequence number and a time-to-live (PN-9). A receiver ignores an unsigned, unknown or expired card and flags it. Sequence numbers only move forward, so an old card cannot be replayed to revive a dead instance (TH-51).
+10.3.c **Home-hub binding.** A hub may publish cards only for projects it is the home hub of. The binding project id to home hub is recorded at the first authenticated registration and is visible to the operator. If a second hub claims a project id that is already bound, **R-60.a (2e) applies as ruled, nothing stronger**: the first-seen binding stays, the claim is flagged to the operator and the cockpit ("same project id seen at X and Y"), and the new claimant is treated as a second instance until the operator declares a fork or a move; the claimant receives no conversation mail meant for the original (R-60.e). Version 0.1 said both hubs would be disbelieved and the project would resolve as unknown; that went beyond R-60.a (2e), and it handed any enrolled hub a way to deny another project's mail just by claiming its id (TH-59). It is withdrawn.
+10.3.d **Agent registration.** A registration must be signed by an agent key already known for that project, or approved by the operator (PR-1a). The hub caps registrations per project (PN-10), so a registration flood cannot fill the directory (TH-32).
+10.3.e **First contact.** The first time a hub is added, the operator confirms the fingerprint out of band, and the approval prompt shows the identity in a form that must be actively checked (PR-14, TH-49). TOFU is only as strong as that moment.
+10.3.f **Hub identity survives certificate rotation.** The hub's canonical id (R-61) is bound to its signing key, not to its TLS certificate. A rotated certificate keeps the id and the signing key, so the client's pin can be updated by verifying the new certificate against the signing key, rather than by a blind re-pin (TH-3).
+
+10.4 What this does not stop. A hub on the roster that has been compromised (ADV-11) can still lie about the projects it is home hub of, and can read what passes through it; it cannot forge another hub's cards or an agent's signature. RR-4.
+
+10.5 **PR-26 [P] Who may claim a project, and how the roster and keys continue (review round 1, Codex 2c).** PR-5 authenticates a hub. It does not by itself prove that a registering agent is entitled to a project id, and it did not say what happens to the roster and the keys over time.
+10.5.a **Entitlement.** A project's first registration records the public key of its first agent (PR-1a) on the card as the project's *root key*; later agent keys of that project must chain to it or be approved by the operator. A claim for an already bound project id that does not chain to the root key is an *unproven claim*: flagged, no role resolution, no conversation mail (R-60.a (2e)). A legitimate move (R-60.a (2c)) is proven by the old home hub's signed "moved to" card or by operator approval (SI-13).
+10.5.b **Squatting at first sight.** If a hub registers a project id that no other hub has bound yet, nothing can be compared; the first-seen binding stands and is visible to the operator. If two hubs present claims for an id for which a sender has no prior binding, **the sender does not guess** (the spirit of R-60.a (2e)): a new conversation waits, the conflict is flagged, and the operator rules. This extends R-60.a (2e) to the no-prior-binding case, which the ruling does not cover; it is part of CR-8 and OQ-8.
+10.5.c **A claim is not a denial lever.** Because the bound hub keeps resolving (10.3.c), a competing claim alone cannot take or block the project's mail. Its cost is flags and operator attention, so flags are de-duplicated per (project, claimant) and counted against the per-project registration cap (PN-10).
+10.5.d **Stale roster restoration.** The roster is signed and carries a strictly increasing sequence number, stored durably by each hub; an older roster is refused as a rollback (the same rule as 11.2.b), so a restore from backup cannot re-admit a removed hub or drop an added one.
+10.5.e **Hub key rotation and loss.** A new hub signing key is accepted by peers only if the old key signs it, or by operator approval bound to the digest (SI-13). A hub that lost its key is re-admitted as a new roster entry by operator approval; its earlier cards expire by their time-to-live (PN-9). The canonical hub id stays (R-61); only the key binding changes, and only through that approval.
+10.5.f **Re-home and trust transfer.** The new home hub is believed for a project only with the old home hub's signed "moved to" statement, or, if the old hub is down, with operator approval. The project's agent keys and root key travel in the signed card; they are not re-learned from the new hub's say-so.
+10.5.g Threats: TH-59 (squatting and competing claims), TH-60 (roster rollback, key rotation, re-home).
+
+## 11 Revocation (GP-6)
+
+11.1 Revocation is not one thing. Review round 1 (Codex 2b) found that version 0.1 mixed several different "take it away" actions into one table. They are kept apart here, because each has a different effect and a different bound. Two rules apply to all of them. **(a) Revocation never makes mail DEAD.** R-44.a and R-60.a reserve DEAD for the home hub's own determination that an instance has ended; a revoked key proves nothing about whether the instance is still running. **(b) Each scope has two bounds.** The *reachable* bound applies when the sidecar can reach its home hub. The *partitioned* bound applies when it cannot. The two are stated separately so that no sentence promises the reachable speed in a partition. All bounds are **[P]**.
+
+| Scope | Who may revoke | Effect | Reachable bound | Partitioned bound |
+|---|---|---|---|---|
+| RK-1 An agent key (stolen, leaked, misfiled): the key stops being believed as a sender | The operator, or the agent's own project by a statement signed with the old key | The home hub marks the key revoked. Messages signed by it are refused by receivers and hubs. Mail **to** that agent is not dead-lettered: the sender sees WAITING FOR RECIPIENT ("recipient not able to receive", R-44.a) with the reason "key revoked, operator action needed", and a needs-attention entry appears. DEAD follows only if the home hub then determines the instance ended (11.3) | The next 30-second tick (PN-3) | The sidecar's last list holds until it is stale (11.2.d); circuits end at credential expiry |
+| RK-2 A circuit credential | Any hub that minted or checked it, on the operator's order | Refused at renewal; the sidecar drops it at its next revocation pull | The next tick | The remaining life of the credential, counted from its establishment (7.2.d), at most PN-1; a hard bound |
+| RK-3 A participant's authority in one conversation (membership, 8.6) | The conversation's participants by a signed, recorded membership event, or the operator | The hub record shows the participant removed; its later turns are refused; its circuit is not renewed | The next tick | As RK-2 for a circuit; on the hub path the hub applies it at once |
+| RK-4 The role holder "main" | The operator override (audited, SI-24) or lease lapse | The generation increases; the old holder is told; its replies inside its own conversations stay valid (R-67) | At once at the hub | A partitioned old holder receives no new role requests, because new requests resolve at the home hub |
+| RK-5 A peer project, or a whole hub (roster removal) | The operator | Its cards are ignored; circuits to it are not renewed | The next tick | Until credential expiry; cards expire by their own time-to-live at the latest (PN-9) |
+| RK-6 An allow-list entry or a grant (decides delivery and starts; it is not identity) | The operator | Applies to new deliveries and starts; a started agent keeps running unless stopped | The next tick, because the receiver holds a copy | The copy may be stale; after PN-13 without contact the stale rule 11.2.d applies |
+| RK-7 An address alias (`sidecar:`) | The operator (end date, R-71) | After the end date, post is refused with a reason | At the date | At the date |
+
+11.2 **PR-16 [P] The revocation list, and what happens when it cannot be read.**
+11.2.a Each hub publishes a signed revocation list. Every sidecar pulls it on its 30-second tick when the hub is reachable, and checks it at every set-up and every renewal.
+11.2.b **Rollback protection.** Each list carries a hub-signed, strictly increasing sequence number. A sidecar stores the highest number it has seen durably and refuses a list with a lower number, an unsigned list, or a list whose signature does not verify against the hub's signing key (C-9). A refused list is flagged (TH-58). A restored backup of a sidecar therefore cannot "forget" a revocation it already saw, because the stored highest number is part of what reconciliation checks (SI-15).
+11.2.c **A failed pull is a failure, not an empty list.** If a hub answers posts and pulls but the revocation list cannot be fetched or verified, the sidecar treats the list as not refreshed. It never reads "no list" as "no revocations".
+11.2.d **The stale rule.** When a sidecar has had no successful, verified revocation pull for longer than PN-13 (proposed equal to the credential lifetime, PN-1), it (i) refuses to set up or renew circuits, (ii) downgrades urgent mid-turn deliveries to normal, never dropping them (R-63.a), and (iii) shows "revocation list stale since T" in its status call and in needs-attention. Established circuits continue until their credential expires (R-7.e (1)). The rule fails closed for new trust and stays open for ordinary delivery. Its cost, stated honestly: during a long outage, urgency is lost and no new circuit can start.
+11.2.e The bounds as sentences a test can check. With the hub reachable, a revoked key's next turn is refused no later than one tick plus one pull. With the hub unreachable, a revoked circuit works for at most the remaining life of its credential, counted from establishment, and never longer than PN-1. SI-23's "within one tick" applies only to sidecars that can reach the hub; on a partitioned host the operator uses the local admin scope of the sidecar (PR-8), which acts at once on that host.
+
+11.3 A revoked agent that keeps running still holds its terminal and its files. Revocation stops it from *receiving mail and being believed*; it does not stop the process. Stopping it is a supervisor and operator action (TB-11). If the operator stops it and the home hub then determines that the instance ended, the state becomes DEAD by the ordinary rule, not by revocation.
+
+## 12 Durability failure scope (GP-13)
+
+12.1 The question. R-15 requires a durable store before STORED. What failures must "durable" survive?
+
+12.2 Failure classes and the proposed answer **[P]**. The operator may narrow it (OQ-5).
+
+| Id | Failure | Must the store survive it? | Proposed behaviour |
+|---|---|---|---|
+| F-1 | The sidecar process is killed at any instruction | Yes | The record is written to a temporary name, flushed to stable storage, then renamed and the directory flushed; a half-written record is never visible. R-15.e already tests kill and restart |
+| F-2 | The host loses power or crashes | Yes (STORED is a promise to the sender, who is then released) | The flush above reaches stable storage before STORED is reported (SI-15). A store that cannot flush reports failure, not STORED |
+| F-3 | The disk is full | The message must not be reported STORED | STORED is refused with a visible reason; the message remains with the sender, which keeps chasing; a needs-attention entry appears. A full disk is a refusal, not silence (TH-30) |
+| F-4 | A record is corrupted (torn write, bit rot, tampering) | Detected, not necessarily survived | Every record carries a checksum and the chain link of SI-22. On read, a bad record is quarantined, the message returns to RECEIVED, and a resend is requested by digest (R-51) |
+| F-5 | The store is lost or an older copy restored | Detected, with the hub copy as the recovery | On start the sidecar reconciles its store against the hub record. A message the record says is STORED but the store lacks is flagged as lost-after-STORED in needs-attention (SI-15); on the hub path the hub inbox copy is kept until HANDED_OVER so it can be re-pulled |
+| F-6 | Two sidecars write the same store | No | A store lock with the owner's identity; a second sidecar is refused and shown (SI-16, R-49) |
+| F-7 | An attacker writes the store | Not prevented under 4.4.a | Detected through checksums and reconciliation; prevention is RR-2 |
+
+12.3 One consequence the requirements do not yet state. On a circuit the sender is released at STORED, and the only copy of the message is then the receiver's store, unless the turn is also copied to the receiver's home hub (R-45). Whether that copy includes the content or only stage metadata is not said (R-35 speaks of "events"). If it is metadata only, a lost receiver store (F-5) loses content with no way back. Raised as CR-9 together with the content-confidentiality question (TH-22).
+
+12.4 **PR-17 [P] The durability contract.** STORED is reported only after the record and its directory entry are on stable storage and carry a checksum; a failed or partial write never produces STORED; on start the store is reconciled with the hub record.
+
+## 13 Trusted evidence producers (GP-14)
+
+13.1 The question. HANDED_OVER needs transcript evidence (R-24), READY needs a harness report (R-21). Which component produces each, and what can a compromised producer fake?
+
+13.2 Producers and what a compromised one can fake.
+
+| Evidence | Produced by | Where it lives **[H]** | A compromised producer can fake | Proposed rule |
+|---|---|---|---|---|
+| READY and BUSY | The harness hooks (Stop clears busy, prompt-submit sets busy) writing a flag | A file under the same user | READY while busy (the sidecar then types into a busy prompt, T-2396) or BUSY while ready (the message waits) | A missing, unreadable or old flag reads not ready (R-21). The harness is the only trusted producer; the sidecar never infers readiness (R-22) |
+| Transcript line showing the content arrived | The harness writes the transcript; the sidecar reads it | A JSONL file under the same user | Any same-user process can append a line, and the agent itself can echo text into its own output | **PR-18 [P]** The sidecar puts a random per-delivery nonce (PN-8) in the delivered content. Evidence is a record of the type the *harness* writes for hook context or a user turn that contains the nonce. A nonce in an assistant record or a tool result is not evidence (SI-17). **This filters echo and model-made text; it does not stop a same-user process that writes a well-formed harness record (RR-7)** |
+| ATTEMPTED (typed, no evidence) | The sidecar | Its own log | Nothing useful: ATTEMPTED never counts as delivery (R-24) | Unchanged |
+| REPLIED | The agent's own turn posting a reply linked to the conversation | The hub record | A forged reply by a same-user process | The reply is signed by the agent key (PR-1). A faked hand-over is caught by the owed-answer deadline (R-28, R-44) only if the attacker does not also supply the reply: a same-user attacker who holds the agent key can sign one, and a forged reply satisfies the deadline (RR-7) |
+| Stage records in the hub record | The receiver sidecar | The hub | A sidecar that reports a stage it did not reach (ADV-3) | Stage records are signed by the recorder and hash-chained (SI-22); the daily canary with a fresh nonce proves end to end (R-66) |
+| DEAD | The home hub only (R-60) | The hub | A compromised home hub declares a live copy DEAD (TH-54) | DEAD is signed. Before a resume (R-65) the host-local supervisor also checks that no process holds that session (PR-15) |
+
+13.3 What this means for the trust base. The harness, the sidecar and the hub are the trusted producers; they sit in the trust base and a compromise of any of them defeats its own evidence. The defence is not to trust one alone, but each cross-check has a stated limit (review round 1, Codex 4b, GLM 2d):
+13.3.a The reply deadline catches a fake hand-over only when no reply is forged. A forged reply, signed with a key the attacker read, satisfies it.
+13.3.b The daily canary (a fresh nonce, a real agent pair, R-66) tests the path with the canary's own messages. An attacker that handles canary messages honestly and drops or fakes others is not seen by it, and so targeted loss can go undetected indefinitely.
+13.3.c The hash chain catches a record removed or altered in the middle, and with the signed receipts of 8.4.c a truncated or forked chain, but only if some copy of the head is out of the attacker's reach (RR-15).
+13.3.d **A wholesale rewrite.** A same-user attacker holding a hub token (the position of TH-15) can rewrite the local log and the hub record consistently. Only the other party's stored receipts and the canary can show it, and neither is guaranteed. That is TH-65 and RR-15.
+13.3.e So the remaining gap is RR-7: a process that controls both the harness files and the sidecar, or root on the host, can fake a whole delivery, and neither detection nor its deadline is guaranteed.
+
+13.4 **The crash between the actual hand-over and its record (TH-63; review round 1, Codex 2e).** The sidecar delivers content through the hook and then writes HANDED_OVER. If it dies between the two, a restart sees STORED and no hand-over record, and cannot tell "never delivered" from "delivered, not recorded". A nonce does not resolve this, because the nonce was minted for the delivery that may or may not have happened.
+13.4.a **PR-31 [P] Write-ahead intent.** Before handing a message over, the sidecar durably records an attempt (message id, the delivery nonce, time). On restart, an attempt with no outcome makes the sidecar first look for that nonce in the transcript (13.2). Found: record HANDED_OVER. Not found and the transcript was read in full: deliver again with a **new** nonce. Transcript unreadable or not yet flushed: do not guess; show the message in needs-attention as "hand-over uncertain" and wait.
+13.4.b The delivery frame always carries the message id (PR-9), so a repeated delivery is visible to the receiving agent as "message X, delivered again". R-51 says a message is never handed over twice; with a crash in this window the achievable guarantee is **at least once with the repeat visibly marked**, not exactly once. RR-17 says so.
+13.4.c Invariant SI-30.
+
+## 14 STRIDE per boundary, with the four additions (card 3.4, completion condition 6.1)
+
+14.1 Ten questions per boundary: the six STRIDE letters plus confused deputy (CD), approved ≠ executed (AD), replay (RP) and break-glass (BG). Every cell names the threats that answer it (section 15), or says why the question has no threat at this boundary. A threat is listed under the boundary where it is first exploited; section 15 lists all boundaries it touches.
+
+14.2 TB-1 Peer content into the agent's context.
+
+| Q | Answer at this boundary | Threat |
+|---|---|---|
+| S | The frame names a sender that was never verified (shared host key, claimed operator) | TH-1, TH-5 |
+| T | The content delivered is not the content stored (same id, different content) | TH-10 |
+| R | Neither side can show what was delivered and when | TH-19 |
+| I | A prompted agent copies secrets into a reply | TH-27 |
+| D | Large or many frames exhaust the agent's context budget | TH-36 |
+| E | Injection; hook-level standing; a compromised allowed sender | TH-38, TH-39, TH-40 |
+| CD | The hook channel presents peer text with the harness's authority | TH-39 |
+| AD | The agent takes peer text for the operator's approval and acts on it | TH-38 (SI-8) |
+| RP | The same content handed over twice, including after a crash between hand-over and record | TH-52 (R-51), TH-63 |
+| BG | The emergency stop of mid-turn delivery, and its abuse | TH-53, TH-34 |
+
+14.3 TB-2 Sidecar into the agent's terminal.
+
+| Q | Answer | Threat |
+|---|---|---|
+| S | A third party types a line that looks like the doorbell | TH-6 |
+| T | An id carries control characters into the typed line | TH-16 |
+| R | The sidecar cannot show later what it typed | TH-19 (ATTEMPTED is logged) |
+| I | The line shows ids and a count to anyone viewing the terminal; no secret by SI-25 | TH-24 |
+| D | Repeated typing interrupts the agent's prompt; the doorbell lands in a busy or half-typed prompt | TH-28, TH-62 |
+| E | Typed into a shell prompt, it runs as a command | TH-16 |
+| CD | None while SI-1 holds: the sidecar types nothing a sender chose | none (SI-1) |
+| AD | None: no approval crosses this boundary (SI-8) | none (SI-8) |
+| RP | The same line retyped for the same message | TH-28 (coalescing, R-56) |
+| BG | The operator types into the same prompt directly (BP-1) | TH-53 |
+
+14.4 TB-3 Local callers into the sidecar API.
+
+| Q | Answer | Threat |
+|---|---|---|
+| S | A local process, not the agent, speaks to the sidecar as the agent | TH-2 |
+| T | An admin call changes the sidecar's state | TH-43 |
+| R | A send cannot be attributed to a caller | TH-19 (the sidecar logs the caller's process credentials) |
+| I | The status call returns secrets or other agents' cards | TH-24 |
+| D | A caller floods send | TH-28 |
+| E | The agent, or a process, reaches an admin operation | TH-43 |
+| CD | The sidecar sends with the agent's key for any local caller | TH-2 |
+| AD | An admin call differs from what the operator was shown | TH-48 |
+| RP | A call repeated | TH-52 (sends are idempotent by id, R-51) |
+| BG | The admin override path | TH-53 |
+
+14.5 TB-4 The sidecar and its local files.
+
+| Q | Answer | Threat |
+|---|---|---|
+| S | A forged flag or record claims to be the sidecar's | TH-14 |
+| T | A same-user process edits the store, queue, flag or grants | TH-14, TH-13, TH-18 |
+| R | Nobody can tell who edited | TH-15, TH-19 (hash chain, SI-22) |
+| I | Keys, store and transcripts are readable by other processes | TH-25 |
+| D | The disk fills; a transcript the sidecar reads is huge | TH-30 |
+| E | The agent edits its own grants or allow-list | TH-18 |
+| CD | A peer-supplied blob path makes the sidecar read or write an arbitrary file | TH-57 |
+| AD | None: no approval is stored here without a digest (SI-13, SI-21) | none (SI-21) |
+| RP | Restoring an old snapshot replays old state and counters | TH-11, TH-52 |
+| BG | The operator edits the store by hand to unstick it | TH-53 |
+
+14.6 TB-5 Sidecar and hub.
+
+| Q | Answer | Threat |
+|---|---|---|
+| S | A rogue hub with a known id; a forged registration; a stolen conversation id; a new key registered for an existing agent; a squatted project id | TH-3, TH-8, TH-9, TH-56, TH-59 |
+| T | Same id, different content; forged receipts; hub record altered or truncated; a stale revocation list | TH-10, TH-12, TH-15, TH-58, TH-65 |
+| R | Sender or receiver denies; the hub record is mutable | TH-19, TH-15 |
+| I | Content readable by every holder of the hub secret; cards leak who is deaf; secrets in the record | TH-22, TH-23, TH-24 |
+| D | Floods and automatic reply loops; registration and set-up floods; hub down | TH-28, TH-29, TH-32, TH-35 |
+| E | A forged registration gains the role "main"; a participant is added to a conversation | TH-41, TH-61 |
+| CD | The sidecar's hub token is used by any local caller | TH-2 |
+| AD | None: no approval is carried by a hub post (SI-8) | none (SI-8) |
+| RP | A stage write or post replayed | TH-52 |
+| BG | The operator re-homes a project or starts a second hub | TH-53 |
+
+14.7 TB-6 Sidecar to sidecar on one host, no hub. **This matrix is conditional on OQ-4 A** (only an established conversation may run on one host without the hub; a new one goes through the hub). 14.7.1 says what changes under B or C.
+
+| Q | Answer | Threat |
+|---|---|---|
+| S | A same-user process speaks as another agent | TH-1, TH-2 |
+| T | The local store or the local call is altered | TH-14, TH-10 |
+| R | No hub record while the hub is down | TH-19 (PR-21: local log, replayed) |
+| I | Local files readable | TH-25 |
+| D | Unavailable hub blocks new conversations (the availability cost of A) | TH-35 |
+| E | A same-user sender gets urgent delivery it is not allowed | TH-40 |
+| CD | The local sidecar delivers for any caller | TH-46 |
+| AD | None | none (SI-8) |
+| RP | A turn replayed on the local socket | TH-50 |
+| BG | Operator forces the local path while the hub is down | TH-53 |
+
+14.7.1 If the operator rules OQ-4 B or C, the matrix above is not valid as written (review round 1, GLM 2b). The rows that must be redone, and why:
+14.7.1.a **S** and **E**: under B a new conversation starts on the operating-system user plus agent keys checked from the sidecar's own copy of the card, so a stale or edited copy decides who may start one; under C there is no hub check at all, and a same-user attacker or a misfiled key can start conversations with any agent on the host (TH-1, ADV-6 open by construction).
+14.7.1.b **CD**: the local sidecar would apply the allow-list, revocation and caps from its own copies, so it becomes a second authority (7.6.a) and the confused-deputy question moves from the hub to every sidecar.
+14.7.1.c **RP** and **BG**: a turn or a set-up can be replayed on the local socket without a hub nonce, and forcing the local path becomes a normal operation that needs its own audit.
+14.7.1.d **D**: the availability cost of A disappears, and the integrity cost moves to S, E and CD.
+
+14.8 TB-7 Sidecar to sidecar across hosts: the circuit.
+
+| Q | Answer | Threat |
+|---|---|---|
+| S | An impersonating sender; redirected endpoint; a forged conversation | TH-1, TH-4, TH-9 |
+| T | Same id or sequence number, different content; forged receipts; priority altered | TH-10, TH-11, TH-12 |
+| R | Denial of a turn | TH-19 (signatures, chain) |
+| I | Credential or key theft; content in the clear | TH-26, TH-22 |
+| D | Floods, reply loops, gap forcing, set-up floods | TH-28, TH-29, TH-31, TH-32 |
+| E | A credential used for more than its conversation | TH-44 |
+| CD | The hub mints a credential for the wrong party | TH-46 |
+| AD | None | none (SI-8) |
+| RP | A captured set-up, credential or turn replayed | TH-50 |
+| BG | The operator revokes a circuit, and the abuse of it | TH-34 |
+
+14.9 TB-8 Hub to hub.
+
+| Q | Answer | Threat |
+|---|---|---|
+| S | A rogue hub claims an id or a project; an unadmitted joiner; a squatted project id | TH-3, TH-45, TH-59 |
+| T | A forged or altered card or advertisement; a rolled-back roster | TH-45, TH-55, TH-60 |
+| R | A hub denies publishing a card | TH-19 (signed cards) |
+| I | Cards leak versions and reachability | TH-23 |
+| D | Directory spam | TH-32 |
+| E | An unadmitted host poisons presence | TH-45 |
+| CD | A hub relays another hub's statements as its own | TH-46 |
+| AD | The operator approves a different hub than the one displayed | TH-48, TH-49 |
+| RP | An old card revives a dead instance; an old roster re-admits a removed hub | TH-51, TH-60 |
+| BG | Emergency removal of a hub from the roster | TH-53 |
+
+14.10 TB-9 Harness and transcript to the sidecar.
+
+| Q | Answer | Threat |
+|---|---|---|
+| S | A forged ready flag or transcript line | TH-7 |
+| T | Same: the file is writable by the same user | TH-7, TH-14 |
+| R | No proof of what the harness saw | TH-19 (nonce, reply deadline, PR-18) |
+| I | The sidecar copies transcript text into the record or status | TH-24 |
+| D | A huge transcript stalls the sidecar | TH-30 |
+| E | None: the sidecar only reads and never executes transcript content (SI-17) | none (SI-17) |
+| CD | The sidecar parses text partly controlled by an attacker (tool results) | TH-7 |
+| AD | None | none (SI-8) |
+| RP | An old line with an old nonce | TH-52 (nonce is per delivery) |
+| BG | The operator marks a message delivered by hand | TH-53 |
+
+14.11 TB-10 Operator and system.
+
+| Q | Answer | Threat |
+|---|---|---|
+| S | Someone claims to be the operator; someone holds the operator's device or key | TH-5, TH-64 |
+| T | The approval prompt shows different content than will run | TH-48 |
+| R | An approval cannot be attributed | TH-20 |
+| I | The operator's channel leaks content or secrets | TH-24, TH-23 |
+| D | Approval fatigue from too many prompts | TH-28 (R-37 escalation) |
+| E | Operator-class standing is borrowed or stolen | TH-5, TH-64 |
+| CD | A misleading prompt uses the operator's authority | TH-48 |
+| AD | Approved one action, a different one runs; approved without reading; an approval by a stolen device | TH-48, TH-49, TH-64 |
+| RP | A replayed approval, including within its validity | TH-51 (SI-13 single-use) |
+| BG | The overrides the operator holds | TH-53 |
+
+14.12 TB-11 Starting and resuming agents.
+
+| Q | Answer | Threat |
+|---|---|---|
+| S | A forged role request that starts an agent | TH-47 |
+| T | A grant is edited | TH-18 |
+| R | A start cannot be attributed to a grant | TH-20, TH-21 (SI-21) |
+| I | None beyond logs | TH-24 |
+| D | A start storm | TH-28 (budget, restart limit) |
+| E | Grant escalation; resume of the wrong transcript | TH-42 |
+| CD | The supervisor starts an agent with its own rights on a peer's say-so | TH-47 |
+| AD | The grant shown differs from the grant stored | TH-48 |
+| RP | A resume replays an old state | TH-52 |
+| BG | The operator starts an agent by hand | TH-53 |
+
+14.13 TB-12 Role resolution and the lease.
+
+| Q | Answer | Threat |
+|---|---|---|
+| S | A forged card or registration claims the role | TH-8, TH-41 |
+| T | The role configuration or the lease is edited | TH-18, TH-15 |
+| R | A takeover cannot be attributed | TH-21 |
+| I | The lease holder's state is visible to peers | TH-23 |
+| D | A second copy forces "authority unknown"; an induced lapse | TH-33 |
+| E | Role hijack; a false DEAD unlocks a resume | TH-41, TH-54 |
+| CD | The hub resolves a role to a copy bound to another conversation, or for a revoked sender | TH-46 |
+| AD | The operator pin differs from the one shown | TH-48 |
+| RP | An old generation or lease replayed | TH-51 |
+| BG | The operator override of main | TH-53 |
+
+14.14 TB-13 The installed estate.
+
+| Q | Answer | Threat |
+|---|---|---|
+| S | A binary claims a version it is not | TH-17 |
+| T | A poisoned or rolled-back binary; vendored fixes deleted | TH-17 |
+| R | Nothing records which version ran | TH-17 (version on the card, R-57) |
+| I | Version and build details leak | TH-23 |
+| D | Skewed clocks cause false STUCK or early expiry | TH-37 |
+| E | A tampered binary runs with the sidecar's rights | TH-17 |
+| CD | The installer or re-vendor tool overwrites local protections | TH-17 |
+| AD | The operator approves an upgrade whose content differs | TH-48 |
+| RP | A downgrade to an older version | TH-17 |
+| BG | The operator's `--force` and rollback | TH-53 |
+
+## 15 The threat register (card 4.1)
+
+15.1 Format. Each threat has: boundary, STRIDE letter (CD, AD, RP, BG for the additions), adversary, scenario, **L** likelihood and **I** impact with reasons, and the countermeasure (an invariant `SI-n`, a proposal `PR-n`, a ruled requirement `R-n`) or the residual risk `RR-n` that the operator must accept. "Evidence" cites the record where one exists. Likelihood is low where only the design allows it, medium where the record shows the class, high where it has already happened or happens on any ordinary day.
+
+15.1.a **Order and index.** Threat ids are stable and are not renumbered, because the next steps cite them. Threats added in review round 1 (TH-58 to TH-65) therefore sit in the section of their STRIDE category and are not in numeric order inside it, and TH-56 and TH-57 (added late in version 0.1) likewise. The index below lists every threat in numeric order with its section and category, so any threat can be found by its number.
+
+| Threat | Title | Section | Category |
+|---|---|---|---|
+| TH-1 | Sender impersonation by the shared host key | 15.2 | Spoofing |
+| TH-2 | A local process impersonates the agent to its own sidecar | 15.2 | Spoofing |
+| TH-3 | A rogue hub presents a known hub id | 15.2 | Spoofing |
+| TH-4 | Redirection by DNS or by a forged "moved to" card | 15.2 | Spoofing |
+| TH-5 | Operator impersonation | 15.2 | Spoofing |
+| TH-6 | A fake doorbell typed by a third party | 15.2 | Spoofing |
+| TH-7 | Forged evidence | 15.2 | Spoofing |
+| TH-8 | Forged registration or presence card | 15.2 | Spoofing |
+| TH-9 | Conversation hijack through a guessed or reused conversation id | 15.2 | Spoofing |
+| TH-10 | Same id, different content | 15.3 | Tampering |
+| TH-11 | Same sequence number, different content; counter rollback | 15.3 | Tampering |
+| TH-12 | Receipt and cumulative `up_to` forgery | 15.3 | Tampering |
+| TH-13 | Priority or urgency tampering | 15.3 | Tampering |
+| TH-14 | Store, flag and queue tampering by a same-user process | 15.3 | Tampering |
+| TH-15 | Tampering with the hub record | 15.3 | Tampering |
+| TH-16 | Control characters or a newline in the typed line | 15.3 | Tampering |
+| TH-17 | A poisoned or rolled-back binary or vendored script | 15.3 | Tampering |
+| TH-18 | Grant, allow-list, pin or roster tampering by an agent | 15.3 | Tampering |
+| TH-19 | Sender or receiver denies; no per-agent attribution | 15.4 | Repudiation |
+| TH-20 | An approval cannot be attributed | 15.4 | Repudiation |
+| TH-21 | Break-glass and takeover actions without a record | 15.4 | Repudiation |
+| TH-22 | Content readable on the hub | 15.5 | Information disclosure |
+| TH-23 | Cards, digests and escalations leak who is deaf, busy or old | 15.5 | Information disclosure |
+| TH-24 | Secrets in logs, status, frames, doorbell or the hub record | 15.5 | Information disclosure |
+| TH-25 | Local store, keys and transcripts readable by other processes or users | 15.5 | Information disclosure |
+| TH-26 | Circuit credential or agent key theft | 15.5 | Information disclosure |
+| TH-27 | Exfiltration through a prompt-injected agent's own messages | 15.5 | Information disclosure |
+| TH-28 | Flooding and interrupt storms | 15.6 | Denial of service |
+| TH-29 | Automatic reply loops | 15.6 | Denial of service |
+| TH-30 | Disk and queue exhaustion | 15.6 | Denial of service |
+| TH-31 | Gap forcing and unbounded buffering | 15.6 | Denial of service |
+| TH-32 | Set-up floods and directory spam | 15.6 | Denial of service |
+| TH-33 | Role denial by a second live copy; and the effect of an induced lapse | 15.6 | Denial of service |
+| TH-34 | Abuse of the kill switch, revocation or DEAD | 15.6 | Denial of service |
+| TH-35 | The hub is unavailable and no new conversation can start | 15.6 | Denial of service |
+| TH-36 | Context-budget exhaustion by large framed content | 15.6 | Denial of service |
+| TH-37 | Clock skew: false STUCK, early or late expiry | 15.6 | Denial of service |
+| TH-38 | Prompt injection through peer content | 15.7 | Elevation of privilege |
+| TH-39 | The hook channel gives peer text harness-level standing | 15.7 | Elevation of privilege |
+| TH-40 | A compromised allowed sender steers a working agent | 15.7 | Elevation of privilege |
+| TH-41 | Role hijack | 15.7 | Elevation of privilege |
+| TH-42 | Grant escalation and resume abuse | 15.7 | Elevation of privilege |
+| TH-43 | An admin operation reached by an agent | 15.7 | Elevation of privilege |
+| TH-44 | A circuit credential used beyond its conversation | 15.7 | Elevation of privilege |
+| TH-45 | An unadmitted host or hub poisons presence | 15.7 | Elevation of privilege |
+| TH-46 | The hub as a deputy | 15.8 | Confused deputy |
+| TH-47 | The supervisor as a deputy | 15.8 | Confused deputy |
+| TH-48 | The human approved one action and a different one ran | 15.9 | Approved ≠ executed |
+| TH-49 | The operator approves without reading, or mis-hears | 15.9 | Approved ≠ executed |
+| TH-50 | Replay of circuit set-up, credential or turns | 15.10 | Replay |
+| TH-51 | Replay of old cards, advertisements, approvals, grants, leases | 15.10 | Replay |
+| TH-52 | Replay of stage writes, hand-overs and resumes | 15.10 | Replay |
+| TH-53 | The emergency overrides are a standing weak path | 15.11 | Break-glass |
+| TH-54 | A false DEAD from a compromised or mistaken home hub | 15.11 | Break-glass |
+| TH-55 | A compromised hub withholds, reorders or reads | 15.11 | Break-glass |
+| TH-56 | Key registration or rotation takeover | 15.2 | Spoofing |
+| TH-57 | A peer-supplied path or blob reference reaches the file system | 15.3 | Tampering |
+| TH-58 | Revocation rollback, suppression or a stale list | 15.3 | Tampering |
+| TH-59 | Project-id squatting and competing claims | 15.2 | Spoofing |
+| TH-60 | Roster rollback, hub key rotation or loss, and re-home trust transfer | 15.3 | Tampering |
+| TH-61 | Conversation membership change, many-to-many conversations and hand-over | 15.7 | Elevation of privilege |
+| TH-62 | The readiness-to-injection race | 15.3 | Tampering |
+| TH-63 | A crash between the hand-over and its record | 15.10 | Replay |
+| TH-64 | The operator's approval device or key is compromised | 15.9 | Approved ≠ executed |
+| TH-65 | Log truncation, fork or wholesale rewrite without an independent checkpoint | 15.3 | Tampering |
+
+### 15.2 Spoofing
+
+TH-1 **Sender impersonation by the shared host key.** TB-3, TB-5, TB-6, TB-7 · S · ADV-2a, ADV-6
+15.2.1 Scenario: every agent on the host signs with one host key (`RQ` 11 item 5), so a session of project Q sends as project P, or an agent as its manager; the receiver cannot tell. R-34.e (2) deliberately does not cover this.
+15.2.2 L high, it is the documented state and the reviewers named it (`RV1` point 17). I high, every allow-list and urgent decision rests on "verified sender".
+15.2.3 Countermeasure: PR-1 and SI-3 (per-agent key, every message signed and verified). Residual against a same-user attacker who reads the key: RR-2.
+
+TH-2 **A local process impersonates the agent to its own sidecar.** TB-3 · S, E, CD · ADV-2a, ADV-7
+15.2.4 Scenario: the sidecar API is a loopback TCP port with a bearer token in a file, or a local socket with loose permissions; any local process calls "send as this agent", using the agent's key and the sidecar's hub token (the sidecar is the confused deputy).
+15.2.5 L medium (AEF's receiver does exactly this today, C-5). I high (sends as the agent).
+15.2.6 Countermeasure: PR-8 and SI-14 (owner-only socket, caller process credentials, split scopes). Residual for same-user: RR-2.
+
+TH-3 **A rogue hub presents a known hub id.** TB-5, TB-8 · S · ADV-11, ADV-12, ADV-13
+15.2.7 Scenario: the canonical hub id (R-61) is a string kept across certificate rotation. An attacker's hub states the same id, or an attacker diverts first contact; a client that checks only the id (R-54) accepts it.
+15.2.8 L low once pinned (the TLS pin catches it), medium at first contact and at every rotation (the pin changes legitimately). I high (the attacker becomes the mail path).
+15.2.9 Countermeasure: PR-5 (id bound to a hub signing key that survives certificate rotation; roster; clients verify id and key, not id alone). Residual at the first approval: RR-14.
+
+TH-4 **Redirection by DNS or by a forged "moved to" card.** TB-7, TB-8 · S, T · ADV-13, ADV-12
+15.2.10 Scenario: R-10 re-resolves a peer when its name stops resolving; R-60 lets a project "move to hub X". An attacker controlling DNS or publishing a "moved" card sends senders to a host it controls.
+15.2.11 L medium (R-10 invites exactly this lookup). I high (senders deliver to a host the attacker controls, so the attacker reads and shapes the mail).
+15.2.12 Countermeasure: a "moved to" card is valid only if signed by the old home hub or approved by the operator (SI-12); the sender follows a new address only to a hub whose key is on its roster; the circuit handshake proves possession of the agent key, so a diverted connection cannot complete (SI-9). "No silent redirect" is already R-60.2c.
+
+TH-5 **Operator impersonation.** TB-1, TB-10 · S, E · ADV-2a, ADV-2b
+15.2.13 Scenario: R-63's default allow-list is "own project plus the operator". A message claiming to be the operator gets urgent delivery, grants a start, or is read as an approval. No authenticated operator channel exists yet (GP-11 is open).
+15.2.14 L medium (the claim costs one line of text). I high (the operator is the top of the authority model).
+15.2.15 Countermeasure: SI-8 and PR-1b (no message is operator-class until it verifies against the operator key held off the agent host). **Proposal, not a settled rule:** if the operator rules OQ-6 A and accepts CR-10, nothing is operator-class until GP-11 is ruled and the allow-list "plus the operator" is then empty in practice; until the operator rules, R-63.a stands as written and the claim in 15.2.13 stays open.
+
+TH-6 **A fake doorbell typed by a third party.** TB-2 · S · ADV-2a, ADV-7
+15.2.16 Scenario: anyone with access to the terminal (BP-1, BP-13) types a line that looks like the doorbell and names ids.
+15.2.17 L medium (the founding verb exists for exactly that). I low (the line has no authority, 9.2.c).
+15.2.18 Countermeasure: SI-1: the doorbell is a pointer, content comes only from the store through the hook after signature verification; a made-up id finds nothing.
+
+TH-7 **Forged evidence.** TB-9, TB-4 · S, T · ADV-3, ADV-7, ADV-2a
+15.2.19 Scenario: a same-user process writes the ready flag as READY while the agent is busy (the sidecar types into a busy prompt), or appends a transcript line with the message id (false HANDED_OVER), or the agent echoes the nonce itself.
+15.2.20 L medium (same-user write access is the assumed position, 4.4.a). I high: a false HANDED_OVER hides a lost message (A-2), a false READY loses typed input (T-2396).
+15.2.21 Countermeasure: SI-17 and PR-18 (nonce, harness-written record types only, a missing or old flag reads not ready); cross-checks by the reply deadline (R-28), the daily canary (R-66) and the hash chain (SI-22). Residual: RR-7.
+
+TH-8 **Forged registration or presence card.** TB-5, TB-12 · S · ADV-2a, ADV-2b, ADV-11
+15.2.22 Scenario: a session registers as project P role "main", or posts a presence heartbeat for an agent that is not running, to receive P's requests or to make a dead agent look alive.
+15.2.23 L medium (presence is a topic; registration is by session claim today). I high (receive another's mail).
+15.2.24 Countermeasure: PR-1, PR-1a, PR-5 (registrations signed by a known agent key, cards signed by the hub with sequence and time-to-live), SI-12, SI-20.
+
+TH-9 **Conversation hijack through a guessed or reused conversation id.** TB-5, TB-7 · S, T · ADV-2a, ADV-2b
+15.2.25 Scenario: the conversation id is chosen by the sender; an attacker posts a message into somebody else's conversation to inject a turn, or reuse an id to merge threads.
+15.2.26 L medium (ids are visible on topics). I medium (a turn arrives in a conversation the receiver trusts).
+15.2.27 Countermeasure: 8.3 last row: participants are fixed at creation and recorded; a message from a key that is not a participant is refused (SI-4). The triple of PR-2 includes the conversation id.
+
+TH-56 **Key registration or rotation takeover.** TB-5, TB-12 · S, E · ADV-2a, ADV-11
+15.2.28 Scenario: an attacker registers a new key for an existing agent (claiming a lost key), and from then on messages signed by the new key are accepted as that agent.
+15.2.29 L low if rotation needs the old key, medium if a session claim suffices. I high (full identity takeover).
+15.2.30 Countermeasure: PR-1a: replacing an existing agent's key needs a signature by the old key or operator approval bound to a digest (SI-13).
+
+TH-59 **Project-id squatting and competing claims.** TB-5, TB-8, TB-12 · S, D · ADV-11, ADV-12, ADV-2b
+15.2.31 Scenario: a hub or an agent registers a project id that belongs to another project, or an enrolled hub claims an id already bound elsewhere, either to receive that project's mail or to make it unresolvable.
+15.2.32 L medium (the id is written in `.framework.yaml`, which anyone with the repository can read, and first registration is by session claim today). I high if it works (mail to the project goes to the attacker); medium as a lever (flags and operator attention).
+15.2.33 Countermeasure: PR-5 and PR-26 (root key, the first-seen binding stands, an unproven claim gets no mail, no guessing at first sight, flags de-duplicated), SI-12, and R-60.a (2e). Residual: RR-4 and RR-14.
+
+### 15.3 Tampering
+
+TH-10 **Same id, different content.** TB-5, TB-6, TB-7 · T · ADV-2a, ADV-2b, ADV-13
+15.3.1 Scenario: an attacker who sees an id on a topic (re-sends can last years) sends the same id with other content first, or a sender restoring from backup reuses an id; the receiver stores one and drops the other, or hands over content the sender never wrote.
+15.3.2 L medium (the record shows the dedupe window is 5 minutes and per host, 8.1). I high (A-1, and R-51 would drop the legitimate message as a duplicate).
+15.3.3 Countermeasure: PR-2 and SI-4 (identity is the triple bound to a signed digest; same triple with a different digest is CONFLICT; the first signed copy stays). Residual after stage memory is trimmed: RR-10.
+
+TH-11 **Same sequence number, different content; counter rollback.** TB-5, TB-7 · T · ADV-2a, ADV-3, ADV-10
+15.3.4 Scenario: a sender (buggy, restored from backup, or hostile) sends number 5 twice with different content, to the same receiver or to two receivers (equivocation), or its counter rolls back after a restore and silently reuses numbers.
+15.3.5 L medium (restores and re-vendors happen, REQ 2.4a.5, .6). I high (the conversation forks and nobody can say which branch is true).
+15.3.6 Countermeasure: PR-3 and SI-5 (digest per number; equivocation is flagged and the conversation marked suspect; the sender rebuilds its counter from the hub record on start; random start).
+
+TH-12 **Receipt and cumulative `up_to` forgery.** TB-5, TB-7 · T · ADV-2a, ADV-11, ADV-13
+15.3.7 Scenario: a forged receipt claims `up_to = 1000`, the sender stops re-sending, and the messages in between were never stored. A green record, a silent loss: the exact failure G-063 names.
+15.3.8 L medium (receipts are plain hub posts today and nothing authenticates them; G-063 shows the write-only-sink class occurs). I high (silent loss with a green record is the exact failure the operator reported on 2026-10-03).
+15.3.9 Countermeasure: PR-4 and SI-6 (signed receipts, forward-only, never beyond what the receiver stored).
+
+TH-13 **Priority or urgency tampering.** TB-4, TB-5 · T, E · ADV-2a, ADV-2b
+15.3.10 Scenario: the priority field is edited in the local queue, or set higher on the wire than the sender is allowed, so a normal message is delivered mid-turn.
+15.3.11 L medium (the receiver clamps to [-9,9] but nothing authenticates the field today). I medium (interrupt standing, TH-39).
+15.3.12 Countermeasure: SI-18 (priority is a signed field; urgency is decided at the receiver from the verified sender and the allow-list, never from an unsigned file); R-52, R-63.
+
+TH-14 **Store, flag and queue tampering by a same-user process.** TB-4, TB-6 · T, D · ADV-2a, ADV-7
+15.3.13 Scenario: the process deletes a stored message, raises a flag with no message, reorders the queue, or alters a record.
+15.3.14 L medium (assumed position). I high for deletion (a message accepted and then gone).
+15.3.15 Countermeasure: checksums per record, the hash chain, and start-up reconciliation with the hub record (SI-15, SI-22, PR-20), so loss is detected and shown (a removed tail needs an independent head: SI-22, TH-65). Prevention is not claimed: RR-2.
+
+TH-15 **Tampering with the hub record.** TB-5 · T, R · ADV-11, ADV-2a with a hub token
+15.3.16 Scenario: a holder of hub write access (or the hub operator) deletes STORED so a sender re-sends, or inserts a STORED that never happened, or rewrites history.
+15.3.17 L low to medium (it needs a hub token or hub access; a token holder can post to topics today, so the access is not exotic). I high (the hub record is the single truth, R-45).
+15.3.18 Countermeasure: stage records signed by the recorder and chained per conversation (SI-22, PR-20) so insertion, removal in the middle and alteration are detectable by the next reader; a removed tail, a fork or a consistent rewrite is detectable only against an independent copy of the chain head (the other party's signed receipts, 8.4.c), which is TH-65 and RR-15; sidecars compare their local log with the hub record on start. A hub that simply withholds is TH-55.
+
+TH-16 **Control characters or a newline in the typed line.** TB-2 · T, E · ADV-2b, ADV-1
+15.3.19 Scenario: the doorbell carries ids chosen by the sender. An id containing a newline or escape sequence is typed. If the terminal is at a shell (the harness exited while the ready flag was stale), the next line runs as a command.
+15.3.20 L medium (ids are free text in the present tooling). I high (command execution on the host).
+15.3.21 Countermeasure: SI-1 (fixed text, decimal count, ids matching 32 lowercase hexadecimal characters) and SI-2 (foreground process is the harness, adapter says READY).
+
+TH-17 **A poisoned or rolled-back binary or vendored script.** TB-13 · T, E, CD, RP · ADV-10, ADV-7
+15.3.22 Scenario: a re-vendor overwrote 15 toolkit files with older copies and put 21 local fixes at risk (REQ 2.4a.6); a release artifact is replaced; the estate is downgraded. The sidecar then runs code without the protections in this document.
+15.3.23 L high (it happened on 2026-10-06). I high (everything above relies on the code).
+15.3.24 Countermeasure: SI-27 (the artifact is verified against release checksums at install and in the status call; a protocol version too old is refused loudly, R-57), the vendor-divergence register, and the standing controls of R-69. Residual after install: RR-2 (a same-user attacker replacing the binary).
+
+TH-18 **Grant, allow-list, pin or roster tampering by an agent.** TB-4, TB-11, TB-12 · T, E · ADV-2a, ADV-1
+15.3.25 Scenario: the grants (R-64), the allow-list (R-63), the role priority and operator pin (R-67) and the roster (PR-5) live where the agent can write them; an agent widens its own rights.
+15.3.26 L medium (storage is not yet designed, step 4). I high (A-8).
+15.3.27 Countermeasure: SI-21 and SI-20: these live where the agent they limit cannot write them (operator-signed, held by the hub or a root-owned location), carry a budget, an expiry and a digest, and every use is logged with the grant id.
+
+TH-57 **A peer-supplied path or blob reference reaches the file system.** TB-4 · T, E, I · ADV-2b
+15.3.28 Scenario: a message names a blob by path or by a name containing `../`; the sidecar reads or writes an arbitrary file when it fetches or stores the blob.
+15.3.29 L medium (blob handling is not built; path handling is a common first bug). I high (write anywhere the sidecar's user can).
+15.3.30 Countermeasure: SI-28 (a blob is stored only under its own digest in a private directory; no peer-supplied name or path is ever used as a file name; the digest is verified before the flag is raised, R-11).
+
+TH-58 **Revocation rollback, suppression or a stale list.** TB-4, TB-5 · T, D, E · ADV-2a, ADV-11, ADV-13
+15.3.31 Scenario: an attacker replays an older signed revocation list, blocks only the list fetch, or restores a sidecar from a backup, so that a revoked key or credential keeps working.
+15.3.32 L medium (restores and re-vendors happen, REQ 2.4a; blocking one fetch needs only a network position). I high (a key known to be stolen keeps working).
+15.3.33 Countermeasure: PR-16 and SI-11 (strictly rising sequence numbers kept durably, a failed pull is not an empty list, the stale rule after PN-13).
+
+TH-60 **Roster rollback, hub key rotation or loss, and re-home trust transfer.** TB-8, TB-12 · T, S, RP · ADV-11, ADV-2a, ADV-10
+15.3.34 Scenario: a restored roster re-admits a removed hub; a hub's new signing key is accepted without proof that it belongs to the same hub; a project is "moved" to a hub that the old home hub never authorised.
+15.3.35 L low to medium (restores happen; moves are operator-led). I high (a rogue hub regains standing, or takes a project).
+15.3.36 Countermeasure: PR-26 (signed, rising roster sequence; old-key-signed rotation or digest-bound operator approval; signed "moved to"), SI-12, SI-13.
+
+TH-62 **The readiness-to-injection race.** TB-2, TB-9 · T, D · ADV-1, ADV-3 (and plain timing)
+15.3.37 Scenario: as 9.2.d. The harness becomes busy, or the operator is mid-sentence, between the readiness check and the keystrokes.
+15.3.38 L medium (T-2396 is a recorded loss of input into a busy prompt, and the window exists on every doorbell). I medium (a lost doorbell is retried; a doorbell appended to the operator's draft is a nuisance with a small risk of a wrong submission).
+15.3.39 Countermeasure: SI-2 and PR-32 (re-check just before typing), SI-1 (the doorbell is harmless text), SI-17 (no HANDED_OVER without evidence), the tick's retry. Residual: RR-19.
+
+TH-65 **Log truncation, fork or wholesale rewrite without an independent checkpoint.** TB-4, TB-5 · T, R · ADV-2a, ADV-7, ADV-11
+15.3.40 Scenario: an attacker removes the tail of a stage chain or of the local log, forks it, or rewrites the local log and the hub record consistently. A hash chain alone then verifies.
+15.3.41 L low to medium (it needs same-user access plus a hub token, the position of TH-14 and TH-15). I high (it hides a lost message and ends accountability).
+15.3.42 Countermeasure: SI-22 with 8.4.c (the chain head in signed receipts held by the other party, compared with the hub copy), and reconciliation at start (SI-15). Residual where one attacker controls every copy: RR-15.
+
+### 15.4 Repudiation
+
+TH-19 **Sender or receiver denies; no per-agent attribution.** TB-5, TB-7 · R · ADV-2a, ADV-3
+15.4.1 Scenario: a message is sent or a stage is claimed, and later the owner says it did not happen; with one host key, nothing distinguishes the agents on a host, and with a mutable hub record nothing proves the sequence.
+15.4.2 L medium (one host key signs for every agent today, so a denial cannot be disproved). I medium (accountability and the audit record, A-6; no direct harm to a message).
+15.4.3 Countermeasure: PR-1 (signed messages), SI-6 (signed stage records), SI-22 (chain). Residual: journey events are trimmed 14 days after a message reaches a final state (R-35.o; open messages are kept, ceilings aside), so a denial about a final message after that has no journey record, only the digest kept for a year: RR-10.
+
+TH-20 **An approval cannot be attributed.** TB-10, TB-11 · R · ADV-5
+15.4.4 Scenario: an agent started or a grant applied and nobody can show who approved what.
+15.4.5 L medium (approvals are given by voice and by runme with no stored digest today, REQ 10 item 5). I medium (a later dispute or a rollback cannot be settled; nothing is lost at once).
+15.4.6 Countermeasure: SI-13 and SI-21: every approval is bound to the digest of what was displayed, who approved, when, and the grant id each use cites.
+
+TH-21 **Break-glass and takeover actions without a record.** TB-10, TB-12 · R · ADV-5, ADV-2a
+15.4.7 Scenario: the operator override of "main", a forced re-home, or a manual edit changes who receives mail and leaves no trace.
+15.4.8 L medium (overrides exist today: --force, --allow-second-hub, claim force-release). I high (who receives the project's mail changes and no record shows it).
+15.4.9 Countermeasure: SI-24 (every break-glass action is logged with who, when, why, appears in needs-attention). R-67 already requires the override be audited.
+
+### 15.5 Information disclosure
+
+TH-22 **Content readable on the hub.** TB-5, TB-7 · I · ADV-11, ADV-2a, ADV-7 with a hub token
+15.5.1 Scenario: anyone holding a hub secret that reads the topic (or runs the hub) reads every direct message stored there, including content for other projects; stage copies of circuit turns on the home hub (R-45) are the same.
+15.5.2 L high (this is how the hub works today, a token has no per-project read limit **[H]**). I medium to high depending on content (agents exchange task content and sometimes secrets by mistake).
+15.5.3 Countermeasure: none in the ruled requirements. Options: per-project topic read scopes (PR-24, deferred); end-to-end encryption of content to the recipient key (deferred, needs key distribution through the card). Until one is ruled: RR-6 (accepted by default today).
+
+TH-23 **Cards, digests and escalations leak who is deaf, busy or old.** TB-8, TB-12 · I · ADV-2b, ADV-11
+15.5.4 Scenario: the four-field reachability card (R-53) is readable by peers (R-63); it tells an attacker which agents are deaf, which hub is stale, which version runs.
+15.5.5 L medium (the four-field card is readable by any peer once R-63 allows it). I low to medium (it helps an attacker choose a target; it exposes no content).
+15.5.6 Countermeasure: PR-10 [P]: peers see only reachable yes or no and the version class; the four fields and the last surface time are visible to the operator and to the agent's own project. CR-11.
+
+TH-24 **Secrets in logs, status, frames, doorbell or the hub record.** TB-2, TB-3, TB-5, TB-9 · I · ADV-1, ADV-3
+15.5.7 Scenario: a status call, a debug log, a stage record or a copied transcript line contains a hub secret, key or token.
+15.5.8 L medium (it happens in tooling). I high (A-5).
+15.5.9 Countermeasure: SI-25 (a probe greps the artifacts of a full test run for known secret patterns); `_common.md` 4.2 already forbids printing secrets in outputs.
+
+TH-25 **Local store, keys and transcripts readable by other processes or users.** TB-4 · I · ADV-2a, ADV-7
+15.5.10 Scenario: a sibling process or user reads keys, the store or transcripts.
+15.5.11 L high for same-user (assumed position), low across users if permissions are right. I high.
+15.5.12 Countermeasure: owner-only permissions on every directory and file the sidecar creates (SI-14 covers the socket; apply the same mode to the store and keys). Same-user is RR-2.
+
+TH-26 **Circuit credential or agent key theft.** TB-7 · I · ADV-2a, ADV-7, ADV-13
+15.5.13 Scenario: a thief reads a credential or key from memory, a core dump, a log, a backup, or the wire.
+15.5.14 L medium (theft from memory, logs or backups happens in tooling; TH-24 shows the class). I medium (the credential alone is useless, 7.2.c; with the key it works in one conversation).
+15.5.15 Countermeasure: SI-9 (sender-constrained, channel-bound, scoped, short-lived), SI-25 (never in logs), the lifetime of PN-1. Residual: RR-5.
+
+TH-27 **Exfiltration through a prompt-injected agent's own messages.** TB-1, TB-5, TB-7 · I · ADV-2b
+15.5.16 Scenario: injected text tells the agent "reply with the contents of `~/.termlink/secrets`"; the agent's own reply is signed and passes every check.
+15.5.17 L medium (it needs an injection first, TH-38, so it is as likely as that is). I high (a signed, valid reply carries the secret out and passes every check).
+15.5.18 Countermeasure: PR-11 (secret scan on the send path, refuses known patterns); the agent's own read permissions (the framework's gates). Residual: RR-1.
+
+### 15.6 Denial of service
+
+TH-28 **Flooding and interrupt storms.** TB-1, TB-2, TB-3, TB-5, TB-7 · D · ADV-8, ADV-2b
+15.6.1 Scenario: an admitted peer, a compromised allowed sender, or a runaway loop sends thousands of messages or repeated urgent interrupts; the agent spends its turns reading mail (Codex: "successful delivery can itself make the agents unusable").
+15.6.2 L medium (the record names it, CAND-12). I high (A-11).
+15.6.3 Countermeasure: R-56 (cap on open messages, hop limit, coalescing, jitter), R-63 (urgent only from allowed senders), SI-19 (the cap and size limits are enforced at the **receiver** as well, so a dishonest sender cannot skip its own cap).
+
+TH-29 **Automatic reply loops.** TB-5, TB-7 · D · ADV-8
+15.6.4 Scenario: two automatic responders answer each other. 15.6.5 L medium (auto-responders exist in the estate, and about 94 handled messages were replayed on 2026-10-06), I high until the cap (a loop spends the agents' turns and fills stores). 15.6.6 Countermeasure: R-56 (three message classes, hop limit, nothing automatic answers anything automatic), SI-19.
+
+TH-30 **Disk and queue exhaustion.** TB-4, TB-5, TB-9 · D · ADV-8, ADV-2b
+15.6.7 Scenario: large blobs, many distinct ids, or an enormous transcript the sidecar must read, fill the disk or the sidecar's time; STORED is then refused to legitimate senders.
+15.6.8 L medium (large blobs are a normal use). I medium (STORED is refused loudly, nothing is lost silently; the damage is availability).
+15.6.9 Countermeasure: PN-7 and PN-11 caps, per-sender quotas at the receiver (SI-19), bounded transcript reads (the sidecar reads the tail since its last offset), STORED refused loudly when full (12.2 F-3). Residual: RR-12.
+
+TH-31 **Gap forcing and unbounded buffering.** TB-7 · D · ADV-2b, ADV-13
+15.6.10 Scenario: the attacker withholds number 2 so the receiver buffers 3..n, or sends a huge number to set `up_to`.
+15.6.11 L medium (it needs only a peer that withholds one number). I medium (it holds memory up to the window PN-5 and delays delivery; it cannot corrupt state).
+15.6.12 Countermeasure: PR-3, PN-5 (a bounded window), PR-4 (`up_to` never beyond what is stored).
+
+TH-32 **Set-up floods and directory spam.** TB-5, TB-8 · D · ADV-8, ADV-12
+15.6.13 Scenario: thousands of circuit set-ups (each makes the hub verify and mint) or thousands of registrations fill the hub.
+15.6.14 L medium (registration is open to any admitted peer today). I medium (the governor protects capacity, but not the directory).
+15.6.15 Countermeasure: PN-6 (per-key set-up rate at the hub), PN-10 (registrations per project), the hub governor (T-2048).
+
+TH-33 **Role denial by a second live copy; and the effect of an induced lapse.** TB-12 · D · ADV-9, ADV-2a
+15.6.16 Two different things, kept apart (review round 1, Codex 4e). (a) *A second live copy of the project.* The attacker starts one, so the hub says "authority unknown" and every role message waits; the ruling chose never to guess (R-67). (b) *An induced lapse.* The attacker stops main's sidecar renewals. This is **not** a denial: a normal lapse followed by the quiet period and cooldown lets the next eligible agent take over automatically, which is the ruled behaviour (R-67, R-68). What an attacker can gain from it is only a *role move*, and who may become eligible is decided by SI-20 (TH-41), not by this threat.
+15.6.17 L medium for (a) (cheap, same-user, and it has already happened as the 2026-10-06 duplicate sessions). I medium (requests stall, they are not lost). For (b): L medium (stopping a process is easy), I low as a denial because the takeover is automatic and visible in "who holds main".
+15.6.18 Countermeasure: for (a) the operator pin ends it, and the visible state "authority unknown" with an entry for the operator (R-67); residual RR-8, which now covers (a) only. For (b) the takeover generation, the entry for the operator, and SI-20.
+
+TH-34 **Abuse of the kill switch, revocation or DEAD.** TB-10, TB-12 · D · ADV-2a, ADV-5
+15.6.19 Scenario: someone causes the kill switch (SI-23) or a revocation to fire, silencing an agent or the fleet.
+15.6.20 L low (the kill switch and revocation are operator-only, SI-24). I medium (silencing an agent or the fleet stops mail, but visibly).
+15.6.21 Countermeasure: the switch and the revocation need the operator key or the operator terminal (SI-24); an agent cannot call them (SI-14).
+
+TH-35 **The hub is unavailable and no new conversation can start.** TB-5, TB-6 · D · ADV-4
+15.6.22 Scenario: R-7.e (2): with no established circuit, a new conversation waits for the hub; a hub that is down for a day blocks all new conversations, on one host too under 7.6.c A.
+15.6.23 L medium (hub blips are common, G-060). I medium (the ladder waits and the sender sees WAITING).
+15.6.24 Countermeasure: the ladder (R-30), visible states (R-44), the established circuit keeps working until expiry (7.3). Residual: RR-11.
+
+TH-36 **Context-budget exhaustion by large framed content.** TB-1 · D, E · ADV-2b, ADV-8
+15.6.25 Scenario: a peer sends content so large that the agent's context is spent reading it.
+15.6.26 L medium (a peer can send a large message at once; the inline cap is only proposed). I medium (the agent's turn budget is spent; the agent is not otherwise harmed).
+15.6.27 Countermeasure: PN-7 (inline cap; larger content by blob reference with a one-line summary), SI-19.
+
+TH-37 **Clock skew: false STUCK, early or late expiry.** TB-13 · D, T · ADV-10, ADV-4
+15.6.28 Scenario: a host clock 10 minutes fast makes remote timestamps look late (false STUCK, an urgent deadline of 15 s judged on a foreign clock) or a credential look expired or valid.
+15.6.29 L medium (nothing checks clocks on other hosts, CAND-13). I low to medium (a false STUCK is noise; an early expiry ends a circuit and falls back to the hub path).
+15.6.30 Countermeasure: R-57 (one clock per deadline, the observer's own), PR-23 (credential lifetime counted from first acceptance on the verifier's monotonic clock).
+
+### 15.7 Elevation of privilege
+
+TH-38 **Prompt injection through peer content.** TB-1 · E · ADV-2a, ADV-2b, ADV-1
+15.7.1 Scenario: peer text contains an instruction; the agent, which has rights on a host (A-7), carries it out: runs commands, edits files, pushes, approves, sends data out.
+15.7.2 L high (a documented property of language models, not a TermLink flaw). I high.
+15.7.3 Countermeasure: R-50, PR-9 and SI-7 (frame, nonce boundary, trust class), SI-8 (no peer message is an approval), the agent's own gates (tasks, Tier 0 and Tier 2), the task-proposal rule. Residual: RR-1.
+
+TH-39 **The hook channel gives peer text harness-level standing.** TB-1 · E, CD · ADV-2a, ADV-2b
+15.7.4 Scenario: urgent mid-turn delivery (OD-2) places peer text in the agent's context through the same channel the harness uses for its own context, so the model weighs it as more authoritative than a normal message.
+15.7.5 L medium (the standing is documented for the hook channel, OD-2, and urgent mid-turn delivery is the ruled feature). I high (the model may weigh the text as harness context and obey it).
+15.7.6 Countermeasure: mid-turn delivery only from allowed senders by verified key (R-63) and the labelled frame of PR-9; other senders are downgraded, not dropped. Residual: RR-3, which the chain file already names.
+
+TH-40 **A compromised allowed sender steers a working agent.** TB-1, TB-5 · E · ADV-2a
+15.7.7 Scenario: the default allow-list is the receiver's own project plus the operator; one hijacked session in the same project gets mid-turn delivery to every other agent of the project.
+15.7.8 L medium. I high (it is the intended trust, and it is wide).
+15.7.9 Countermeasure: per-sender rate and the open-message cap (R-56), a visible record of every mid-turn delivery (R-45), the kill switch (SI-23). Residual: RR-3.
+
+TH-41 **Role hijack.** TB-12 · E, S · ADV-2a, ADV-9, ADV-11
+15.7.10 Scenario: R-67 selects by priority and "eligibility attested on the card". If an agent attests its own eligibility and priority, a hostile agent takes "main"; a hostile agent also induces a lapse (TH-33) and takes over after the quiet period.
+15.7.11 L medium. I high (receives every request addressed to the project).
+15.7.12 Countermeasure: PR-22 and SI-20 (eligibility, priority and pin come from operator-signed configuration at the home hub; an agent's self-report may lower its eligibility, never raise it); the takeover rules of R-67 (quiet period, cooldown, fencing generation).
+
+TH-42 **Grant escalation and resume abuse.** TB-11 · E · ADV-2a, ADV-5
+15.7.13 Scenario: an agent engineers three recurring Tier-2 approvals to propose a Tier-3 grant (R-64), or mail resumes a transcript that is not the one the conversation used (R-65).
+15.7.14 L medium. I high (processes start without an operator).
+15.7.15 Countermeasure: PR-13 (a grant proposal shows the digest and the exact scope, budget and expiry), SI-21, and the resume conditions of R-65 plus PR-15 (the supervisor checks that no live process holds the session).
+
+TH-43 **An admin operation reached by an agent.** TB-3 · E · ADV-2a
+15.7.16 Scenario: the agent calls an operation that rotates keys, changes the allow-list or stops the sidecar.
+15.7.17 L medium (admin operations exist today in the shell scripts and any same-user process reaches them). I high (rotating keys or changing the allow-list changes who is trusted).
+15.7.18 Countermeasure: SI-14 and PR-8 (admin is a separate scope and credential, held by the supervisor and operator only).
+
+TH-44 **A circuit credential used beyond its conversation.** TB-7 · E · ADV-2b
+15.7.19 Scenario: a credential for one conversation is used to open another circuit, post to a hub topic, or call another operation.
+15.7.20 L low if scoped as SI-9 requires, high if the credential were a general token (it would then work everywhere). I medium (one more conversation or topic, bounded by the lifetime).
+15.7.21 Countermeasure: SI-9 (scope: one conversation, these two instances, circuit operations only).
+
+TH-45 **An unadmitted host or hub poisons presence.** TB-8 · E, S, T · ADV-12, ADV-11
+15.7.22 Scenario: pairwise HMAC does not stop a compromised or unadmitted host from posting presence or cards that other hubs then pass on (CAND-17).
+15.7.23 L medium (presence is an open topic and pairwise HMAC does not separate hosts, CAND-17). I high (a poisoned directory steers mail and role resolution).
+15.7.24 Countermeasure: PR-5, SI-12, SI-13 (roster, signed cards, home-hub binding, no re-announcing, time-to-live). Residual for an enrolled but compromised hub: RR-4.
+
+TH-61 **Conversation membership change, many-to-many conversations and hand-over.** TB-5, TB-7, TB-1 · S, E, I · ADV-2a, ADV-2b
+15.7.25 Scenario: a compromised participant adds an attacker to a many-to-many conversation, who then reads every turn; a conversation is handed over to a copy the holder did not choose (R-62); a recipient's receipt is taken for another recipient's.
+15.7.26 L medium (membership change is a normal operation and R-62 allows an explicit hand-over). I medium to high (every turn of a conversation is read, and its context steers an agent).
+15.7.27 Countermeasure: PR-30 and SI-29 (a signed, countersigned and recorded membership event; hand-over by the stated rule; per-recipient receipts), SI-4. Residual: RR-1 and RR-3 (the participant who adds the attacker could have forwarded the content itself).
+
+### 15.8 Confused deputy
+
+TH-46 **The hub as a deputy.** TB-6, TB-7, TB-8, TB-12 · CD · ADV-11, ADV-2a
+15.8.1 Scenario: the hub mints a circuit credential for a sender whose key is revoked or that is not a participant, for an instance other than the one the conversation is bound to, or resolves a role to a copy bound to another conversation, because it checks the request against the wrong thing. (The hub does not apply the interrupt allow-list, 7.2.a; that is the receiver's per-message decision and never a reason to refuse a circuit.)
+15.8.2 L low to medium (the hub is one component with several checks, and a missed check is a common bug class). I high (a credential for the wrong party gives that party a direct path to an agent).
+15.8.3 Countermeasure: SI-10 (set-up refused unless sender key, bound instances, liveness and caps all check out) and the exact-instance rule of R-62.
+
+TH-47 **The supervisor as a deputy.** TB-11 · CD, S · ADV-2b
+15.8.4 Scenario: mail addressed to a role with nothing live makes the supervisor start an agent with the supervisor's rights on a peer's say-so (R-64 grants allow it).
+15.8.5 L medium (R-64 allows starts by mail under a grant, so the path exists once built). I high (a process starts with the supervisor's rights because a peer asked).
+15.8.6 Countermeasure: R-64 (start only under a grant for role or project addressing with nothing live, budget, restart limit, allowed senders), SI-21 (a start cites the grant), PR-13.
+
+### 15.9 Approved ≠ executed
+
+TH-48 **The human approved one action and a different one ran.** TB-10, TB-11, TB-12, TB-13 · AD · ADV-2a, ADV-5, ADV-11
+15.9.1 Scenario: the operator sees "start agent X once" or "re-home P to hub B"; the stored grant, the runme script or the roster entry differs (an edit between display and run, or a prompt generated by a compromised component).
+15.9.2 L medium (the display and the stored action come from different code paths today, so they can drift, and the digest rule does not exist yet). I high (the operator's yes covers something they did not see).
+15.9.3 Countermeasure: SI-13: the approval binds to the digest of the full action as displayed, the executor recomputes the digest and refuses on mismatch, and records both. The existing runme contract (one script by full path, logged run) already gives a place to do this for operator-run actions.
+
+TH-49 **The operator approves without reading, or mis-hears.** TB-10, TB-8 · AD · ADV-5, ADV-12
+15.9.4 Scenario: a hurried "yes" or a voice transcription error enrols a rogue hub or grants a start (`RQ` 10 item 5, 11 item 11).
+15.9.5 L medium (documented twice). I high.
+15.9.6 Countermeasure: PR-14 [P]: admission and grant approvals show the identity in a form that must be actively checked (the last 8 characters of the key fingerprint typed back), never a bare yes. Residual: RR-9, RR-14.
+
+TH-64 **The operator's approval device or key is compromised.** TB-10 · S, E, AD · ADV-14
+15.9.7 Scenario: someone who holds the operator's device, terminal session or (later) key approves a hub admission, a grant, a re-home, a key replacement or an upgrade, or sends operator-class messages.
+15.9.8 L low to medium (the operator device is a normal workstation; the key does not exist yet). I high (the operator is the top of the authority model, and every approval gate falls at once).
+15.9.9 Countermeasure: PR-27 (second factor, single-use and short-lived approvals, a second-channel notice with a delay, an offline recovery key), SI-13, SI-24, SI-31. SI-8 does not help here: it limits peer messages, not the real operator's device. Residual: RR-16.
+
+### 15.10 Replay
+
+TH-50 **Replay of circuit set-up, credential or turns.** TB-6, TB-7 · RP · ADV-13, ADV-2b
+15.10.1 Scenario: a captured set-up request, credential or turn is sent again; or a credential that was issued but never used is presented long after a revocation, hoping to receive a fresh lifetime (Codex 2a).
+15.10.2 L medium (a network attacker or a stolen capture is realistic, ADV-13). I medium (a replayed credential alone fails, SI-9; a replayed turn is a duplicate).
+15.10.3 Countermeasure: SI-9 (a possession proof covering a value exported from the connection, so a replay on another connection fails; an establishment nonce and a set-up window, so a delayed first use is refused; expiry counted from establishment and never reset, 7.2.d) and PR-3 (a turn replayed on the same connection carries an old number and is a duplicate).
+
+TH-51 **Replay of old cards, advertisements, approvals, grants, leases.** TB-8, TB-10, TB-11, TB-12 · RP · ADV-11, ADV-13
+15.10.4 Scenario: an old card says an instance is alive, an old lease generation is presented, or an operator approval that was already used is presented again **within its validity** (so expiry alone does not stop it; Codex 1a).
+15.10.5 L medium (cards and leases are re-sent routinely, so old copies exist). I medium (an old card briefly shows a dead instance alive; a re-shown approval matters only without SI-13).
+15.10.6 Countermeasure: sequence numbers and time-to-live on cards (PR-5, PN-9), the fencing generation of R-67, and for approvals SI-13: each approval carries a unique id, an expiry and a digest and is **single-use**; the executor records the id as consumed and refuses a second use. Expiry is a bound, not the replay control.
+
+TH-52 **Replay of stage writes, hand-overs and resumes.** TB-1, TB-4, TB-5, TB-9, TB-11 · RP · ADV-4, ADV-10
+15.10.7 Scenario: after a restore or a re-vendor, handled messages are replayed (about 94 on 2026-10-06, REQ 2.4a.5), or a resume replays an old transcript state.
+15.10.8 L high (it happened). I medium (about 94 handled messages were answered twice: costly noise, not loss).
+15.10.9 Countermeasure: R-51 (idempotence per stage), PR-2 (stage memory bound to the digest), the retention of R-35.o. A duplicate beyond retention: RR-10.
+
+TH-63 **A crash between the hand-over and its record.** TB-1, TB-4, TB-9 · RP, R · ADV-4, ADV-3
+15.10.10 Scenario: as 13.4. The sidecar delivers through the hook and dies before writing HANDED_OVER.
+15.10.11 L medium (a sidecar can be killed at any instruction, and R-8 and R-15.e test exactly kill and restart). I medium (the agent sees the same message twice, or a message is held while the sidecar waits; nothing is lost).
+15.10.12 Countermeasure: PR-31 and SI-30 (a write-ahead intent, a transcript check before any redelivery, no guessing, a visibly marked repeat). Residual: RR-17.
+
+### 15.11 Break-glass
+
+TH-53 **The emergency overrides are a standing weak path.** TB-10, TB-12, TB-11, TB-13 · BG · ADV-5, ADV-2a
+15.11.1 Scenario: the overrides that exist or are specified (the audited override of "main", an operator-approved re-home, `--allow-second-hub`, `--force`, claim force-release, a manual edit of the store, switching off mid-turn delivery) skip the normal checks. They are used by an attacker holding the operator terminal, or become routine and stop being exceptional.
+15.11.2 L medium (overrides are used for real, --force and --allow-second-hub, and they drift into routine). I high (an override skips the checks that protect everything else).
+15.11.3 Countermeasure: SI-24 (every break-glass action is operator-initiated, logged with who, when and why, and appears in needs-attention); SI-23 (a kill switch exists and is itself audited); the standing instruction that Tier-0 and sovereignty gates are never bypassed by an agent.
+
+TH-54 **A false DEAD from a compromised or mistaken home hub.** TB-5, TB-12 · E, T · ADV-11, ADV-6
+15.11.4 Scenario: only the home hub may say DEAD (R-60). A compromised or confused home hub declares a live copy DEAD; senders get dead letters, and a **resume** of that instance becomes allowed (R-65), so two processes now hold the same transcript.
+15.11.5 L low to medium (a hub is a single component and the 2026-10-04 stray hub shows hubs go wrong). I high (a duplicate session of one conversation answers twice and splits its context; this is the 2026-10-06 wrong-session class).
+15.11.6 Countermeasure: DEAD is signed and sequenced; PR-15: before a **resume** the host-local supervisor verifies that no process holds that session (a hub's word alone never starts a copy). **PR-15 does not apply to role succession.** The takeover of "main" follows R-67 and R-68 unchanged: lease lapse, quiet period, cooldown, fencing generation, old holder told. R-68 test (2) requires a visible takeover from a stuck holder whose process is alive, so a "no process holds it" check on a takeover would forbid the ruled behaviour. Protection for succession is the fencing generation, the old holder being told, and the operator-visible entry (R-67), plus SI-20 (who may become eligible). Residual: RR-4.
+
+TH-55 **A compromised hub withholds, reorders or reads.** TB-5, TB-8 · D, I · ADV-11
+15.11.7 Scenario: the hub the message transits keeps it, delays it, reads it, or delivers in another order.
+15.11.8 L low to medium (it needs a compromised or misconfigured hub, ADV-11, ADV-6). I medium (delay and disclosure; signed numbered messages make alteration visible).
+15.11.9 Countermeasure: signed numbered messages (PR-1, PR-3) make reordering and alteration visible to the receiver; withholding is seen by the sender's chase on the ladder (R-30, R-44 STUCK vs UNKNOWN); content disclosure is TH-22. Residual: RR-4, RR-6.
+
+## 16 Abuse cases and attack trees (card 3.5)
+
+16.1 The main flow with the threats placed where they apply.
+
+**Drawing D-2 — attack sequence: the main flow of REQ D-2 with each threat at the step where it applies**
+
+```mermaid
+sequenceDiagram
+  participant ATK as Adversary
+  participant SND as Sending agent
+  participant SS as Sender sidecar
+  participant HUB as Hub (home hub of the receiver)
+  participant RS as Receiver sidecar
+  participant HRN as Harness
+  participant RCV as Receiving agent
+  SND->>SS: 1 send call with message and priority
+  Note over ATK,SS: TH-1 TH-2 TH-43 TH-57 impersonate the sender or call the sidecar
+  SS->>HUB: 2 resolve the role, request a circuit, signed request
+  Note over SS,RS: TH-8 TH-9 TH-41 TH-46 TH-54 TH-56 TH-59 TH-61 forged registration, role hijack, false DEAD, squatting, membership
+  HUB-->>SS: 3 credential, or the hub path as fallback
+  Note over SS,RS: TH-3 TH-4 TH-45 TH-50 TH-58 TH-60 rogue hub, redirection, replay, unadmitted joiner, stale revocation list, roster rollback
+  SS->>RS: 4 signed turn with number and digest
+  Note over SS,RS: TH-10 TH-11 TH-12 TH-26 TH-28 TH-31 TH-44 TH-55 swap, equivocation, forged receipt, flood
+  RS->>RS: 5 store durably then raise the flag
+  Note over RS: TH-13 TH-14 TH-30 store tampering, exhaustion, priority edit
+  RS->>HUB: 6 write the stage to the hub record
+  Note over SS,RS: TH-15 TH-22 TH-23 TH-52 TH-65 record tampering, disclosure, replay, truncation
+  loop every 30 seconds
+    RS->>HRN: 7 read the ready flag
+    Note over RS,HRN: TH-7 forged readiness
+  end
+  RS->>RCV: 8 type the one fixed line
+  Note over RS,RCV: TH-6 TH-16 TH-62 fake doorbell, control characters, readiness race
+  HRN->>RCV: 9 framed content by the hook
+  Note over HRN,RCV: TH-36 TH-38 TH-39 TH-40 injection, standing, allowed sender
+  HRN-->>RS: 10 transcript with the nonce
+  Note over HRN,RS: TH-7 TH-24 forged evidence, secrets copied
+  RS->>HUB: 11 HANDED_OVER recorded and signed
+  Note over RS,HUB: TH-63 crash between hand-over and record
+  RCV->>RS: 12 reply send call to its own sidecar
+  Note over RCV,RS: TH-2 TH-27 TH-29 impersonating the agent, exfiltration, reply loop
+  RS->>SS: 13 reply signed by the agent key, on the circuit or the hub path
+  Note over RS,SS: TH-10 TH-12 TH-26 TH-55 the same threats mirrored on the way back
+  Note over SND,RCV: TH-17 TH-20 TH-21 TH-34 TH-37 TH-42 TH-47 TH-48 TH-49 TH-51 TH-53 TH-64 apply around every step
+```
+
+16.1.1 Text equivalent of D-2.
+16.1.1.a Step 1: the sending agent calls its sidecar. A local process or a hostile session may impersonate it (TH-1, TH-2), reach an admin call (TH-43), or hand it a blob path (TH-57).
+16.1.1.b Step 2: the sidecar resolves the role and asks the hub for a circuit with a signed request. Forged registrations, role hijack, a conversation hijack, the hub as deputy, a false DEAD and a key takeover apply here (TH-8, TH-9, TH-41, TH-46, TH-54, TH-56), as do squatting of a project id and a membership change (TH-59, TH-61).
+16.1.1.c Step 3: the hub returns a credential or sends the sender to the hub path. A rogue hub, a redirection, a replay, an unadmitted joiner, a stale revocation list and a roster rollback apply (TH-3, TH-4, TH-45, TH-50, TH-58, TH-60).
+16.1.1.d Step 4: the sender sidecar sends a signed numbered turn. Content swap, equivocation, forged receipts, credential theft, floods, gap forcing, credential misuse and a withholding hub apply (TH-10, TH-11, TH-12, TH-26, TH-28, TH-31, TH-44, TH-55).
+16.1.1.e Step 5: the receiver stores the message and raises the flag. Priority edits, store tampering and exhaustion apply (TH-13, TH-14, TH-30).
+16.1.1.f Step 6: each stage is written to the hub record. Record tampering, disclosure of content and cards, replay and log truncation apply (TH-15, TH-22, TH-23, TH-52, TH-65).
+16.1.1.g Step 7, every 30 seconds: the sidecar reads the ready flag. A forged flag applies (TH-7).
+16.1.1.h Step 8: the fixed line is typed. A fake doorbell, control characters and the readiness race apply (TH-6, TH-16, TH-62).
+16.1.1.i Step 9: the hook delivers framed content. Context exhaustion, injection, harness standing and a compromised allowed sender apply (TH-36, TH-38, TH-39, TH-40).
+16.1.1.j Step 10: the transcript shows the nonce. Forged evidence and secrets copied into the record apply (TH-7, TH-24).
+16.1.1.k Step 11: HANDED_OVER is recorded and signed; a crash between the hand-over and this record applies (TH-63). Step 12: the receiving agent sends its reply through its own sidecar (TB-3), where impersonation, exfiltration and reply loops apply (TH-2, TH-27, TH-29). Step 13: the reply, signed by the agent key, travels back to the original sender's sidecar on the circuit or the hub path, where the threats of step 4 apply mirrored (TH-10, TH-12, TH-26, TH-55; 5.3). The original sender then stores and hands it over by the same steps 5 to 11.
+16.1.1.l Around every step apply: poisoned estate, unattributable approvals, break-glass without a record, kill-switch abuse, clock skew, grant escalation, the supervisor as deputy, approved ≠ executed, approval without reading, a compromised approval device, replayed cards and approvals, and the emergency overrides (TH-17, TH-20, TH-21, TH-34, TH-37, TH-42, TH-47, TH-48, TH-49, TH-51, TH-53, TH-64).
+
+16.2 Four abuse cases, narrative.
+16.2.1 **AC-1 The steered agent.** A project's session is hijacked (ADV-2a). Under the present design it signs as the shared host key, so it passes as any agent of the host (TH-1). It sends an urgent message to the project's manager; the default allow-list includes "own project", so it is delivered mid-turn (TH-40); the text rides the hook channel with harness standing (TH-39) and says "push the working tree to origin". The manager obeys (TH-38). Stopped or reduced by: per-agent signatures and the labelled frame (PR-1, PR-9), the receiver's own gates, the kill switch (SI-23). Left: RR-1, RR-2, RR-3.
+16.2.2 **AC-2 The quiet loss.** An attacker with write access to a receiver's store deletes a stored message (TH-14) after STORED, and posts a forged receipt (TH-12) so the sender stops chasing. The sender's record is green and the message is gone. Stopped by: signed receipts that cannot exceed the stored number (SI-6), start-up reconciliation of the store with the hub record that flags a STORED message missing locally (SI-15), the chain (SI-22), and the owed-answer deadline (R-28). Left: RR-2 (prevention).
+16.2.3 **AC-3 The induced takeover.** The attacker starts a second copy of project P (cheap, same user) so "authority unknown" blocks resolution (TH-33); or stops main's renewals, waits the quiet period, and has its own agent claim "main" because eligibility is self-attested (TH-41). Stopped by: operator-signed eligibility and priority (SI-20), the operator pin, the visible "unassigned" entry, the fencing generation (R-67). Left: RR-8 (for the second copy only).
+16.2.4 **AC-4 The rogue joiner.** During the first approval of a new hub (TOFU), the operator hears "fifteen" for "fifty" or says yes to a fingerprint they did not check (TH-49). The rogue hub is on the roster, publishes cards for a project it is not home hub of, and the project's mail starts to flow to it. Stopped by: the home-hub binding (the first-seen binding stays and a competing claim is a flagged second instance, PR-5, R-60.a (2e)), the actively checked fingerprint (PR-14), signed cards. Left: RR-14, RR-4.
+
+16.3 Attack trees. One per most valuable asset (3.2).
+
+**Drawing D-3 — attack trees: goal at the top, routes below, each leaf naming its countermeasure or residual risk**
+
+```mermaid
+flowchart TB
+  subgraph T1["Tree 1: make a victim agent act on the attacker's instruction (A-7)"]
+    G1["Goal: the agent runs the attacker's instruction"]
+    G1 --> R1a["Peer text the agent obeys"]
+    G1 --> R1b["Gain allowed-sender standing"]
+    G1 --> R1c["Type into the terminal"]
+    G1 --> R1d["Forge or mislead an approval"]
+    G1 --> R1e["Start an agent under the attacker"]
+    R1a --> L1a["Injection through content, TH-38: frame and gates, residual RR-1"]
+    R1b --> L1b1["Impersonate a sender, TH-1: per-agent signature SI-3, residual RR-2"]
+    R1b --> L1b2["Compromise an own-project agent, TH-40: cap, kill switch, residual RR-3"]
+    R1b --> L1b3["Claim to be the operator, TH-5: SI-8 and PR-1b"]
+    R1c --> L1c1["Fake doorbell, TH-6: SI-1"]
+    R1c --> L1c2["Control characters or shell, TH-16: SI-1 and SI-2"]
+    R1c --> L1c3["Direct inject, BP-1: open by design, RR-13"]
+    R1d --> L1d1["Peer text as approval: SI-8"]
+    R1d --> L1d2["Approved is not executed, TH-48: SI-13"]
+    R1e --> L1e1["Forged role request, TH-47: grants, SI-21"]
+    R1e --> L1e2["Grant escalation, TH-42: PR-13 and PR-15"]
+  end
+  subgraph T2["Tree 2: read or redirect another agent's mail (A-4, A-9, A-10)"]
+    G2["Goal: receive mail meant for someone else"]
+    G2 --> R2a["Become the receiver"]
+    G2 --> R2b["Become the hub"]
+    G2 --> R2c["Read on the hub or the host"]
+    R2a --> L2a1["Role hijack, TH-41: SI-20"]
+    R2a --> L2a2["Forged registration or key takeover, TH-8 and TH-56: PR-1a and PR-5"]
+    R2a --> L2a3["False DEAD, TH-54: PR-15, residual RR-4"]
+    R2a --> L2a4["Squat a project id, TH-59: PR-26 and R-60.a (2e), residual RR-14"]
+    R2b --> L2b1["Rogue hub id, TH-3: signing key and roster, residual RR-14"]
+    R2b --> L2b2["DNS or moved card, TH-4: SI-12 and SI-9"]
+    R2b --> L2b3["Unadmitted joiner, TH-45: SI-12 and SI-13"]
+    R2c --> L2c1["Hub secret holder reads topics, TH-22: residual RR-6"]
+    R2c --> L2c2["Compromised hub, TH-55: residual RR-4"]
+    R2c --> L2c3["Same-user reads store and keys, TH-25: residual RR-2"]
+  end
+  subgraph T3["Tree 3: make the sender believe it was delivered, or hide a loss (A-2, A-6)"]
+    G3["Goal: a green record over a lost message"]
+    G3 --> R3a["Forge the evidence"]
+    G3 --> R3b["Forge the sender's view"]
+    G3 --> R3c["Alter the stored truth"]
+    R3a --> L3a["Ready flag or transcript line, TH-7: SI-17 and the reply deadline, residual RR-7"]
+    R3b --> L3b["Forged receipt, TH-12: SI-6"]
+    R3c --> L3c1["Swap content under one id or number, TH-10 and TH-11: SI-4 and SI-5"]
+    R3c --> L3c2["Delete after STORED, TH-14: SI-15 and SI-22, prevention is RR-2"]
+    R3c --> L3c3["Edit the hub record, TH-15: signed chained records SI-22"]
+    R3c --> L3c5["Truncate or rewrite the log, TH-65: chain head in receipts, residual RR-15"]
+    R3c --> L3c4["Wait for retention to trim, TH-19: residual RR-10"]
+  end
+  subgraph T4["Tree 4: obtain credentials or approvals (A-5, A-8)"]
+    G4["Goal: act with someone else's credential or approval"]
+    G4 --> R4a["Steal a credential"]
+    G4 --> R4b["Trick the operator"]
+    G4 --> R4c["Edit the rules"]
+    R4a --> L4a1["Read key files, TH-25: residual RR-2"]
+    R4a --> L4a2["Logs and status, TH-24: SI-25"]
+    R4a --> L4a3["Circuit credential, TH-26: SI-9, residual RR-5"]
+    R4b --> L4b1["Mis-heard or hurried approval, TH-49: PR-14, residual RR-9"]
+    R4b --> L4b2["Display differs from execution, TH-48: SI-13"]
+    R4b --> L4b3["Compromise the operator device or key, TH-64: PR-27 and SI-31, residual RR-16"]
+    R4c --> L4c1["Edit grants or allow-list, TH-18: SI-21"]
+    R4c --> L4c2["Abuse the overrides, TH-53: SI-24"]
+  end
+```
+
+16.3.1 Text equivalent of D-3.
+16.3.1.a Tree 1, goal: the victim agent runs the attacker's instruction. Five routes. Peer text the agent obeys (TH-38, residual RR-1). Gain allowed-sender standing: impersonate a sender (TH-1, stopped by per-agent signatures SI-3, residual RR-2), compromise an agent of the same project (TH-40, residual RR-3), claim to be the operator (TH-5, SI-8 and PR-1b). Type into the terminal: a fake doorbell (TH-6, SI-1), control characters or a shell (TH-16, SI-1 and SI-2), a direct inject that bypasses the sidecar (BP-1, open by design, RR-13). Forge or mislead an approval: peer text as approval (SI-8), approved is not executed (TH-48, SI-13). Start an agent under the attacker: a forged role request (TH-47, SI-21) or grant escalation (TH-42, PR-13 and PR-15).
+16.3.1.b Tree 2, goal: receive mail meant for someone else. Become the receiver: role hijack (TH-41, SI-20), forged registration or key takeover (TH-8, TH-56, PR-1a and PR-5), a false DEAD (TH-54, PR-15, RR-4), squat a project id (TH-59, PR-26, RR-14). Become the hub: a rogue hub id (TH-3, residual RR-14), DNS or a moved card (TH-4, SI-12, SI-9), an unadmitted joiner (TH-45, SI-12, SI-13). Read on the hub or the host: a hub secret holder (TH-22, RR-6), a compromised hub (TH-55, RR-4), a same-user process (TH-25, RR-2).
+16.3.1.c Tree 3, goal: a green record over a lost message. Forge evidence (TH-7, SI-17, RR-7). Forge a receipt (TH-12, SI-6). Alter the stored truth: swap content (TH-10, TH-11, SI-4, SI-5), delete after STORED (TH-14, detection SI-15 and SI-22, prevention RR-2), edit the hub record (TH-15, SI-22), truncate or rewrite the log (TH-65, chain head in receipts, RR-15), or wait for retention to trim it (TH-19, RR-10).
+16.3.1.d Tree 4, goal: act with someone else's credential or approval. Steal a credential: read key files (TH-25, RR-2), logs and status (TH-24, SI-25), a circuit credential (TH-26, SI-9, RR-5). Trick the operator: a mis-heard or hurried approval (TH-49, PR-14, RR-9), a display that differs from the execution (TH-48, SI-13), or a compromised operator device or key (TH-64, PR-27, SI-31, RR-16). Edit the rules: grants or allow-list (TH-18, SI-21), or abuse the overrides (TH-53, SI-24).
+
+## 17 The bypass inventory (card 3.6, completion condition 6.3)
+
+17.1 Every route to a protected operation that does not go through the sidecar, the framing, the signature check or the consent rules. The profile names the protected systems (P3.2): the TermLink hubs of the fleet and their secrets and TLS pins; the OneDev repository, its GitHub mirror and the release pipeline; the cron canaries in `/etc/cron.d`. Routes to all three are included. **Status now** is what the record shows **[H]**; **Target** is what this threat model proposes.
+
+| Id | Route | Reaches | What stops it today **[H]** | Now | Target |
+|---|---|---|---|---|---|
+| BP-1 | `termlink pty inject` and `inject` to any session by a local user or a hub-token holder (R-4 requires the verb to stay) | A-3, A-7: typed text with no framing, no consent | Hub scope on the RPC; nothing at the sidecar | open | open by design (RR-13); injections are logged and shown in the audit; authorization tightened without removing the verb (PR-29) |
+| BP-2 | `termlink exec`, `remote exec`, `termlink_remote_exec` and the `exec` hub RPC | A-7: run commands in a session | Hub scope; session ownership | open | open for scoped token holders; logged; authorization tightened (PR-29) (RR-13) |
+| BP-3 | Direct `channel post` and `subscribe` to inbox topics with the hub secret | A-1: post as the host identity, read content | The T-1427 host signature only | open | posting is closed in effect by SI-3 (unsigned or wrongly signed is refused); reading stays open (RR-6) |
+| BP-4 | Writing the receiver's store, flag and queue files directly | A-1, A-2 | File permissions only | open | monitored (detects only an attacker who cannot also alter the monitor, 17.1.a): checksums, the chain and reconciliation (SI-15, SI-22); prevention stays RR-2 |
+| BP-5 | Writing the transcript or the ready flag | A-2, A-3 | none | open | monitored against echo and accident only (17.1.a): nonce, record types, missing flag reads not ready (SI-17); a well-formed forgery is RR-7 |
+| BP-6 | Secrets at rest: `~/.termlink/secrets/*.hex`, the runtime directory `hub.secret`, the IP-keyed secret cache (the R3 note), per-agent key files | A-5 | Owner-only modes where set | open | permissions checked in the status call; same-user stays RR-2 |
+| BP-7 | Hub administration: token creation, `set-retention`, `sweep` (can trim the very record that proves delivery), `claim-force-release`, `hub restart`, `--allow-second-hub` | A-1, A-6, A-10 | Hub scope; preflight check 7 flags a second hub; Tier-0 for destructive verbs | monitored for the second hub, open for the rest | monitored: every admin RPC is logged and a sweep of a conversation topic below its open messages is refused |
+| BP-8 | A stray second hub, or a different `TERMLINK_RUNTIME_DIR` (the 2026-10-04 incident) | A-4: messages to the wrong hub | Preflight check 7; `hub start` refuses a second hub (T-3340) | monitored | removed by the mail-hub declaration and `hub_id` check (R-54) |
+| BP-9 | Legacy and shared topics: the `sidecar:` alias, `agent-chat-arc` broadcast, other open topics | A-1, A-4: unsigned per-agent traffic | The alias is forwarded with a warning (R-71) | open | alias removed at its end date (R-71); broadcast topics labelled as untrusted class by the framing rule |
+| BP-10 | Backups and snapshots of stores, keys, secrets and hub databases | A-1, A-5; restore rolls counters and ids back (TH-11, TH-52) | none stated | open | monitored (17.1.a): reconciliation with the hub record on start (SI-15), and the receipts' chain head (8.4.c); copies protected like the originals (RR-2) |
+| BP-11 | Administrative access: root on the host, systemd unit files, the supervisor, other cron writers | Everything on the host (ADV-7) | Operating-system permissions | open | open (RR-2); changes to units and cron are detected by the install-drift check |
+| BP-12 | Other inbound rails that deliver peer text into a session: `framework:pickup` filings, handovers, filings by peer projects | A-3, A-7: peer text with no frame | The pickup rule: proposals, not instructions (G-020, T-469) | open | the framing rule of SI-7 applies to every rail that puts peer text in a model's context (CR-6) |
+| BP-13 | The operator's terminal: anyone who can attach to the session (`termlink attach`, tmux, screen share) | A-3, A-8 | Terminal access control | open | open (RR-13) |
+| BP-14 | Claude Code's own session-to-session rail (`SendMessage`, `claude agents`, T-2876) | A-3: reaches a session with no sidecar at all | Outside TermLink's control | open | outside the system: named so it is not mistaken for covered (RR-13) |
+| BP-15 | Another identity consuming or acking the same inbox (the 2026-10-06 incident, three identities) | A-1, A-4: wakes the wrong session | "One receiver per inbox" reached by hand on this host (R-49.g: not enforced by any check) | open | monitored: the status call lists consumers and refuses a second (R-49, SI-16) |
+| BP-16 | AEF's receiver API on loopback with a bearer token, until retired on a host (R-49) | A-3, A-4 | The bearer token file | open | removed per host after the switch (R-49); until then PR-8 is the target for any API |
+| BP-17 | The OneDev repository, its GitHub mirror and the release pipeline: an agent with repository write access can commit, tag and push; the release becomes the binary every host runs (the sidecar included) | A-12, then everything | Never push to GitHub (only OneDev); pre-commit gates (secret scan, large file); mirror and release-publication canaries | monitored | monitored; a peer message is never the authority to push (SI-8) |
+| BP-18 | The cron canaries in `/etc/cron.d`: an agent or process that can write those files silences the detectors that would report the attack, or adds persistence | A-6, A-12 | Root ownership; the cron-install-drift check; the canary-aliveness meta-check | monitored | monitored (17.1.a); a canary that stops reporting is itself detected, but root can silence both the canary and its heartbeat (RR-2) |
+| BP-19 | The TOFU repair paths: `fleet reauth`, `tofu clear`, `hub probe` with re-pin: an agent with a shell can re-pin a rogue hub | A-4, A-5 | Operator-run in the intended flow; no gate for an agent | open | gated: re-pinning needs the operator and an actively checked fingerprint (PR-14, SI-13). Until then open, with an interim record of every re-pin proposed (RR-18) |
+
+17.1.a **What "monitored" means here (review round 1, Codex 1c).** A route is *monitored* when a check exists that would notice a change made by an adversary who has only that route's access. It is **not** a claim that the change cannot be hidden: an adversary who can also alter the monitor, its credentials, its heartbeat or the evidence it reads (the same user, or root) hides the change from it. Each "monitored" cell above is read with that limit, and the routes where it matters are BP-4, BP-5, BP-10, BP-11 and BP-18; D-4 draws them as monitored for the same reason. The profile was not available to this step as a list of routes beyond P3.2, so this inventory is complete for the routes the profile names and for the routes found in the record; completeness beyond that cannot be proved.
+
+17.2 What remains open, in one sentence each. BP-1, BP-2, BP-13 and BP-14 are open by design: they are the founding verbs and the operator's own terminal, and the sidecar was never meant to be the only way in. BP-3 reading, BP-6, BP-10 and BP-11 stay open as long as agents share an operating-system user (RR-2, RR-6). BP-9, BP-12 and BP-16 are open until the alias ends, the framing rule covers other rails, and AEF's receiver is retired. BP-19 is open now: until the re-pin paths are gated an agent with a shell can re-pin a rogue hub, and the interim record proposed for it is after-the-fact only (RR-18). The rest are monitored (in the limited sense of 17.1.a) or closed in effect once the invariants of section 18 exist.
+
+**Drawing D-4 — bypass map: the routes around the system to the protected targets, marked open, monitored or removed (target state in brackets)**
+
+```mermaid
+flowchart LR
+  classDef open fill:#fdd,stroke:#a00
+  classDef mon fill:#ffd,stroke:#a80
+  classDef rem fill:#dfd,stroke:#080
+  subgraph TARGETS["Protected targets"]
+    PA["A-3 and A-7: the agent and its actions"]
+    PB["A-1 and A-2: message content and the record"]
+    PC["A-4, A-9 and A-10: routing, directory, role"]
+    PD["A-5: secrets, keys and TLS pins"]
+    PE["A-12: the repository, release pipeline and cron canaries"]
+  end
+  BP1["BP-1 pty inject: open"]:::open
+  BP2["BP-2 exec and remote exec: open"]:::open
+  BP13["BP-13 operator terminal: open"]:::open
+  BP14["BP-14 Claude Code SendMessage rail: open"]:::open
+  BP12["BP-12 other inbound rails: open, target framed"]:::open
+  BP16["BP-16 AEF loopback API: open, target removed"]:::open
+  BP3["BP-3 direct post with hub secret: open, target closed by signatures"]:::open
+  BP4["BP-4 store and flag files: open, target monitored"]:::mon
+  BP5["BP-5 transcript and ready flag: open, target monitored"]:::mon
+  BP7["BP-7 hub admin RPCs: monitored"]:::mon
+  BP8["BP-8 stray second hub: monitored, target removed"]:::mon
+  BP9["BP-9 legacy alias and broadcast topics: open, target removed"]:::open
+  BP10["BP-10 backups and snapshots: open, target monitored"]:::mon
+  BP15["BP-15 second consumer of an inbox: open, target monitored"]:::mon
+  BP6["BP-6 secrets at rest: open"]:::open
+  BP11["BP-11 root and administrative access: open"]:::open
+  BP19["BP-19 TOFU repair paths: open, target gated"]:::mon
+  BP17["BP-17 OneDev and the release pipeline: monitored"]:::mon
+  BP18["BP-18 cron canary files: monitored"]:::mon
+  BP1 --> PA
+  BP2 --> PA
+  BP13 --> PA
+  BP14 --> PA
+  BP12 --> PA
+  BP16 --> PA
+  BP3 --> PB
+  BP4 --> PB
+  BP5 --> PB
+  BP7 --> PB
+  BP10 --> PB
+  BP9 --> PC
+  BP8 --> PC
+  BP15 --> PC
+  BP19 --> PC
+  BP6 --> PD
+  BP11 --> PD
+  BP19 --> PD
+  BP17 --> PE
+  BP18 --> PE
+  BP11 --> PE
+```
+
+17.3 Text equivalent of D-4.
+17.3.1 Routes to the agent and its actions (A-3, A-7): BP-1, BP-2, BP-13 and BP-14 are open by design; BP-12 (other inbound rails) and BP-16 (AEF's loopback API) are open now and framed or removed in the target.
+17.3.2 Routes to message content and the record (A-1, A-2): BP-3 is open and closed in effect by signatures (reading stays open); BP-4, BP-5 and BP-10 are open now and monitored in the target; BP-7 is monitored.
+17.3.3 Routes to routing, directory and role (A-4, A-9, A-10): BP-9 is open until the alias ends; BP-8 is monitored and removed by the mail-hub declaration; BP-15 is open now and monitored in the target; BP-19 is open now and gated in the target (it also reaches credentials).
+17.3.4 Routes to secrets, keys and pins (A-5): BP-6 and BP-11 are open under the same-user assumption; BP-19 is the repair path that can re-pin.
+17.3.5 Routes to the repository, release pipeline and cron canaries (A-12, profile P3.2): BP-17 and BP-18 are monitored; BP-11 (root) reaches them as well.
+
+17.4 **PR-29 [P] Tighten authorization on the founding verbs without removing them (review round 1, Codex 4e).** R-4 requires that the ability to inject keystrokes and read output back is kept. It does not require that today's authorization on `pty inject`, `exec` and `remote exec` stays as weak as it is. Proposal: these verbs need an explicit scope separate from the read scope that the Observe token has; every use is logged with the caller's identity; and a session can refuse them from callers that are not its owner. This does not change R-4 and so is a question for step 3 or step 4, not a change request. It lowers the exposure RR-13 describes; it does not remove it.
+
+
+## 18 Security invariants (card 4.3, completion condition 6.4)
+
+18.1 **Proposed** properties that MUST hold in every phase in which their subject exists (an invariant about circuits holds from the circuit slice on; the rest hold from the first slice that ships the subject). An invariant that restates a ruled requirement is an existing obligation; one that adds to a requirement is a proposal that binds only if the operator accepts the change request it depends on. 18.2 says which is which. A blanket "draft" status does not make an invariant firm; the words "firm invariant" in this document mean "firm if the named change request is accepted". Each has a probe a test can run. **The probe is the acceptance:** a named negative control must fail when the control is removed (R-69, kill-checked). Step 3 turns this list into the security floor.
+
+| Id | Invariant (MUST) | Probe | Covers |
+|---|---|---|---|
+| SI-1 | The typed line is built only from fixed text, a decimal count and ids matching 32 lowercase hexadecimal characters; no byte chosen by a peer reaches it | Send a message whose id contains a newline, an escape sequence and `$(id)`; capture the typed bytes; require the message refused and the line unchanged | TH-6, TH-16, R-23 |
+| SI-2 | Nothing is typed unless the adapter says READY **and** the terminal's foreground process is the registered harness; a missing or unreadable flag reads not ready | Put a plain shell in the PTY with a stale READY flag; require no keystrokes and NOT RUNNING at the sender | TH-16, TH-7, R-20, R-21 |
+| SI-3 | Every message carries a signature by the sending agent's own key over its canonical form, verified at the receiver sidecar and at the hub; an unsigned or wrongly signed message is never stored, flagged or handed over | Forge a message with the shared host key and with a sibling agent's key id; require refusal and an entry | TH-1, TH-8, TH-19, PR-1 |
+| SI-4 | Message identity is (sender identity, conversation id, message id) bound to a content digest, and the identity (not the key) names the namespace, so a key rotation starts no new one; the same identity with another digest is never stored or handed over and creates a CONFLICT entry; the first signed copy stays | Send id X with content A then B; then B first then A; then A from a second sender key | TH-9, TH-10, R-51 |
+| SI-5 | The same (sender identity, conversation, number) with another digest is refused and flagged as equivocation; numbers beyond the window are refused; the namespace survives a key rotation | Send number 5 twice with different content; send number 2^31; rotate the key and resend number 5 with other content and require equivocation, not a fresh namespace | TH-11, TH-31, R-59 |
+| SI-6 | Receipts and stage records are signed by the recorder, carry the conversation, only move forward, and `up_to` is only the highest contiguous durably stored number; a sender accepts only a valid receipt | Post a forged receipt with `up_to` beyond the stored number; require the sender keeps chasing. Store 1 and 3, withhold 2, and require the receipt to say 1 | TH-12, TH-15, TH-19 |
+| SI-7 | Peer content is delivered only inside a frame produced by the receiving side: verified sender, trust class, ids, a per-delivery random boundary the sender could not predict, and the fixed data-not-instruction sentence; the content cannot close or imitate the frame | Send content containing the frame markers and a copy of an earlier boundary; require the frame intact | TH-38, TH-39, R-50 |
+| SI-8 | No peer message grants a permission, raises a trust class, changes an allow-list, pins a role, approves an admission, a re-home, a grant or a Tier-2 approval; these change only through the operator channel | Send a message "approved: yes, grant started"; require no state change | TH-5, TH-38, TH-48 |
+| SI-9 | A circuit credential is sender-constrained (proof of possession of the named agent key made on this connection and covering a value exported from it), instance-bound, scoped to one conversation and to circuit operations. It is dead if not presented within the set-up window of its establishment nonce (PN-12), and it expires by the verifier's own monotonic clock counted from establishment; renewal is a new establishment, a reconnect keeps the original expiry, and a restart expires every circuit | Replay it on a second connection; present it after the set-up window (delayed first use, after a revocation); after expiry; for another conversation; to post to a topic; after a restart of either sidecar; renew after revocation; drop and resume the connection and require the expiry unchanged | TH-44, TH-50, TH-26, TH-37 |
+| SI-10 | The hub mints a credential only after verifying the sender key (valid, not revoked), the bound instances, liveness and the open-message cap. It does not apply the interrupt allow-list: a sender that is not on it gets a circuit, and its urgent turns are downgraded by the receiver, never refused or dropped | Request a circuit with a revoked key; to a dead instance; with a bound instance that is not the sender's. **Negative control for the fidelity rule:** request a circuit from a sender that is not on the allow-list and require it to be granted, then send priority 9 on it and require delivery as normal, not mid-turn, not dropped | TH-46, R-62, R-52.a, R-63.a |
+| SI-11 | Each revocation scope (RK-1..RK-6, 11.1) takes effect within its stated bound, and the two bounds are never conflated: with the hub reachable, at the next tick; with the hub unreachable, at most the remaining life of the credential counted from its establishment. A sidecar refuses a revocation list with a lower sequence number or without a valid signature, a failed pull is never read as an empty list, and after PN-13 without a verified pull it refuses new circuits and downgrades urgent delivery | Revoke, then measure the time until the next turn is refused, hub reachable and unreachable; replay an older list; make only the list fetch fail while posts succeed; restore a sidecar from backup and require it still refuses the revoked key | TH-26, TH-56, TH-58, PR-16 |
+| SI-12 | A card or advertisement is accepted only if signed by a roster hub, for a project that hub is home hub of, within its time-to-live and with a rising sequence number; anything else is ignored and flagged; a second hub claiming an already bound project is treated as a flagged second instance and the bound hub stays believed (R-60.a (2e)) | Post an unsigned card, a card from an unadmitted hub, an old card, and a second claim for one project id; require the original binding to keep resolving and the claimant to receive no conversation mail | TH-3, TH-8, TH-45, TH-51 |
+| SI-13 | An approval for admission, grant, pin, re-home, key replacement or upgrade is bound to the digest of the full action as displayed, carries a unique approval id and an expiry, and is **single-use**: the executor recomputes the digest, refuses on mismatch, records the approval id as consumed, and refuses the same approval id a second time | Change the stored action between display and execute; require refusal. Execute once, then replay the same signed approval within its validity and require refusal | TH-48, TH-51, TH-56, TH-20 |
+| SI-14 | The send and status API is reachable only through an owner-only local socket with a caller check; admin operations need a separate credential; the circuit listener serves circuit operations only | Connect as another user; call admin from the agent's credential; call admin on the circuit listener | TH-2, TH-43 |
+| SI-15 | STORED is reported only after the record and its directory entry are on stable storage with a checksum; on start the store is reconciled with the hub record and any message the record says is stored but the store lacks is flagged | Kill the sidecar at every step of a store; fill the disk; delete a stored message; restore an old snapshot | TH-14, TH-30, R-15, PR-17 |
+| SI-16 | Exactly one sidecar holds the store lock of an agent; a second is refused and shown; exactly one identity consumes an inbox | Start a second sidecar and a second consumer; require refusal | R-49, BP-15 |
+| SI-17 | HANDED_OVER evidence is the delivery's random nonce inside a record type that the harness writes for hook context or a user turn; the nonce found in an assistant record or a tool result is never evidence; the sidecar never executes transcript content. **What this does not do:** it stops accidental or model-made echo, not a same-user process that writes a well-formed harness record (RR-7) | (1) Echo the nonce from the agent's own output; require no HANDED_OVER. (2) Limit probe, expected result **accepted**: append a well-formed harness-type record carrying the nonce as a same-user process, and require that the result is recorded as the known limit RR-7 and not read as a pass of the control | TH-7, R-24 |
+| SI-18 | Priority, urgency and trust class are decided at the receiver from the verified sender, the signed fields and the allow-list; unsigned local files and the typed line cannot raise them; a downgrade is recorded, never a drop | Edit the priority in the queue file; send priority 9 from a sender not on the allow-list | TH-13, R-52, R-63 |
+| SI-19 | The open-message cap, size limits, per-sender quota and an **aggregate ceiling** are enforced at the receiver as well as the sender; a share of the ceiling is reserved for receipts and for the receiver's own project, so that many admitted senders each within quota cannot starve them; receipts always flow and never count | Send as a dishonest sender that ignores its own cap; send from many admitted senders each within quota until the aggregate ceiling and require receipts and own-project mail still stored | TH-28, TH-29, TH-30, TH-36, R-56 |
+| SI-20 | Role eligibility, priority and pin come from operator-signed configuration at the home hub; an agent's self-report can lower its eligibility and never raise it | Self-attest a higher priority; start a second copy; stop main's renewals | TH-41, TH-33, R-67 |
+| SI-21 | A grant, allow-list or roster entry takes effect only if it carries a valid operator signature (or is a record held by the hub or an operator-owned store that the sidecar verifies), a budget, an expiry and a digest; an agent can delete or withhold one but cannot create or widen one; every start or resume cites the grant id and is logged. **Condition:** this needs an operator key (GP-11, CR-14). On a host where all agents and the operator share one operating-system user and no operator key exists, a file the agent "cannot write" does not exist, so before CR-14 this invariant holds only against remote adversaries and honest mistakes, not against ADV-2a or ADV-7 | Write a grant file as the agent and present it unsigned: require it ignored. Forge a signature with an agent key: require refusal. Start beyond budget; replay an expired grant | TH-18, TH-42, TH-47, R-64 |
+| SI-22 | Stage records and the local log are hash-chained per conversation, and each signed receipt carries the chain head (8.4.c). A record that is altered, inserted or removed in the middle is detected on the next read. **Truncation of the tail, or a rewrite or fork of the whole chain, is detected only if some independent copy of the head exists:** the other party's stored receipts, or the hub's copy. It is not detected if one attacker controls every copy (RR-15) | Remove a record in the middle; alter a digest; truncate the tail and require the mismatch against the sender's stored receipt head; rewrite the whole chain on the receiver only and require the mismatch; then rewrite chain, hub copy and receipt copy together and record that this is undetected | TH-14, TH-15, TH-19, TH-65 |
+| SI-23 | An operator can switch off mid-turn delivery for one agent and for the fleet; it takes effect within one tick on every sidecar that can reach its hub, and at once on a partitioned host through that host's local admin scope; it is audited | Switch off, send an urgent message from an allowed sender, require downgrade within one tick; repeat on a host cut off from the hub through its local admin scope | TH-40, TH-53 |
+| SI-24 | Every break-glass action (override of main, forced re-home, kill switch, revocation, manual store edit, re-pin) is operator-initiated, logged with who, when and why, and appears in needs-attention | Run each; require an entry | TH-21, TH-34, TH-53, TH-19 |
+| SI-25 | No secret (hub secret, token, private key, circuit credential) appears in logs, status output, the doorbell, a frame, a stage record or the hub record | Run the full test suite with a known canary secret and search every artifact for it | TH-24, TH-26, `_common.md` 4.2 |
+| SI-26 | A message addressed to an exact instance reaches only that instance and fails loudly if it has ended | The existing standing test of R-62 | TH-54, R-34, R-62 |
+| SI-27 | The installed sidecar and adapters are verified against the release checksums at install and in every status call; an incompatible protocol version is refused with a reason | Replace the binary; run a mixed-version pair | TH-17, R-57, R-69 |
+| SI-28 | A blob is stored only under its own digest in a private directory; no peer-supplied name or path is ever used as a file name; the digest is verified before the flag is raised | Send a blob reference containing `../` and an absolute path | TH-57, R-11 |
+| SI-29 | Conversation membership changes only by a membership event signed by an existing participant and countersigned by the new one, or by an R-62 hand-over under the stated rule; each is recorded in the hub record and chained; a message from a key that is not a current participant is refused | Send as a non-participant; add a member with an unsigned event; with an event signed only by a non-participant; hand over as a non-holder; require refusal and an entry each time | TH-9, TH-61, R-62 |
+| SI-30 | Before a hand-over the sidecar durably records an attempt (message id and nonce). After a restart an attempt with no outcome is resolved by looking for its nonce, never by guessing; an unreadable transcript produces "hand-over uncertain" in needs-attention and no redelivery; every delivery carries the message id so a repeat is visible | Kill the sidecar after delivery and before the record, at every step of that window; require the record found or the entry shown, and no second delivery without the repeat marking | TH-63, R-51 |
+| SI-31 | A high-impact approval (hub admission, grant, re-home, key replacement) takes effect only after the notice period PN-14 and a notice on a second channel, and can be cancelled within it; the operator key can be revoked with the recovery key. **Conditional on CR-14** | Approve and cancel within the period and require no effect; approve and require the second-channel notice; revoke the operator key and require approvals signed with it refused | TH-64, TH-49 |
+
+18.2 **Each invariant: its standing, what it depends on, what it does not stop, and whether its probe can run (review round 1, Codex 6a).** "Existing" means the invariant restates a ruled requirement. "Proposal" means it binds only if the named change request or open question is decided by the operator. "Limit" names the adversary the invariant does not stop, as a residual risk. "Probe" says whether the stated probe can be run with what exists or will exist in the slice that ships the subject; none of these probes was run by this step, because no component exists yet.
+
+| Id | Standing | Depends on | Limit (what it does not stop) | Probe |
+|---|---|---|---|---|
+| SI-1 | Proposal (R-23.a is only [P]) | CR-5 | A direct `pty inject` (RR-13) | Can run: capture the typed bytes |
+| SI-2 | Existing in part (R-20, R-21); proposal for the foreground check | CR-5 | A forged flag (RR-7); the race (RR-19) | Can run: a shell in the PTY with a stale flag |
+| SI-3 | Proposal | CR-2 | A same-user process that read the key (RR-2) | Can run: forge with the host key and a sibling key |
+| SI-4 | Existing for dedupe (R-51.a); proposal for the digest binding | CR-3 | A duplicate after retention (RR-10) | Can run |
+| SI-5 | Existing for gaps and duplicates (R-59.a); proposal for equivocation | CR-4 | A sender whose key is stolen (RR-2) | Can run |
+| SI-6 | Existing in part; proposal for signed, contiguous receipts | CR-4 | RR-2, RR-15 | Can run |
+| SI-7 | Existing in part (R-50); proposal for the boundary and classes | CR-6 | The model ignoring the frame (RR-1) | Can run for the frame; the model's obedience is not testable by a probe |
+| SI-8 | Existing (R-50: never direct execution); proposal for the full list | CR-6 | The operator's own device (RR-16) | Can run |
+| SI-9 | Proposal on an existing requirement (R-46) | CR-7, OQ-3 | A thief with the key and a live credential (RR-5) | Can run with two sidecars; delayed-use and reconnect cases need a controllable clock |
+| SI-10 | Existing in part (R-62); the allow-list is not applied (R-52.a, R-63.a) | CR-7 | A compromised hub (RR-4) | Can run |
+| SI-11 | Proposal | CR-7, OQ-3 | The partitioned bound (RR-5) | Can run with a stopped hub |
+| SI-12 | Proposal on R-60.a | CR-8, OQ-8 | A compromised enrolled hub (RR-4); the first approval (RR-14) | Can run |
+| SI-13 | Proposal; the runme contract gives a place for it | CR-14 | RR-9, RR-16 | Can run |
+| SI-14 | Proposal | step 4 (PR-8) | Same-user processes (RR-2) | Can run |
+| SI-15 | Existing (R-15, R-16.a); reconciliation is a proposal | step 4 (PR-17) | A store attacker beyond detection (RR-2) | Can run |
+| SI-16 | Existing (R-49) | none | none beyond RR-2 | Can run |
+| SI-17 | Proposal | CR-5, CR-6 | A well-formed forgery (RR-7) | Probe 1 can run; probe 2 documents the limit |
+| SI-18 | Existing (R-52.a, R-63.a); signed priority is a proposal | CR-2 | A compromised allowed sender (RR-3) | Can run |
+| SI-19 | Existing for cap (R-56); aggregate ceiling is a proposal | step 4 (PR-28) | A coordinated group of admitted senders (RR-12) | Can run |
+| SI-20 | Proposal on R-67.a | CR-13, CR-14 | Before an operator key: same-user attackers (RR-2) | Can run once an operator key exists |
+| SI-21 | Proposal on R-64 and R-63 | CR-13, CR-14 | Before an operator key: same-user attackers (RR-2) | Can run once an operator key exists |
+| SI-22 | Proposal | CR-1 | One attacker controlling every head (RR-15) | Can run |
+| SI-23 | Proposal; this step did not find the kill switch in a ruled requirement | step 3 | A compromised operator device (RR-16) | Can run |
+| SI-24 | Existing for the override of main (R-67.a); proposal for the rest | step 3 | RR-16, RR-2 | Can run |
+| SI-25 | Existing in part (`_common.md` 4.2) | none | A secret the scan patterns do not know | Can run |
+| SI-26 | Existing (R-62) | none | none beyond RR-4 | Can run (the standing test of R-62) |
+| SI-27 | Existing in part (R-57, R-69); checksum verification is a proposal | step 4 | Root replacing the binary and the checker (RR-2) | Can run |
+| SI-28 | Existing in part (R-11); path rule is a proposal | step 4 | none beyond RR-2 | Can run |
+| SI-29 | Proposal | CR-15, OQ-12 | A participant who adds an attacker (RR-1, RR-3) | Can run |
+| SI-30 | Proposal; R-51 says never handed over twice, this states the achievable form | CR-1 | The crash window (RR-17) | Can run with fault injection |
+| SI-31 | Proposal | CR-14, OQ-14 | RR-16 | Can run once an operator key exists |
+
+18.3 What a passing probe means. A probe passes when the stated violation is refused or detected. It says nothing about an adversary listed in the "Limit" column; for those the residual risk in section 20 is the statement. The probe is the acceptance (R-69): the named negative control must fail when the control is removed.
+
+## 19 Proposed numbers (all [P]; the operator decides)
+
+19.1 Every number below is a proposal marked as such. None comes from a ruling, and **none was measured by this step**: each is a hypothesis (review round 1, Codex 5b) until a measurement or a test confirms it. The table says what the number buys, what it costs, and what would measure it, so the operator can overturn it with evidence (the same convention as the [R~] numbers of step 1). Where a number is a convention rather than a measurement (a key length, a random range), the status says so.
+
+| Id | Number | Proposed | Why | Status and how it would be measured | Decided in |
+|---|---|---|---|---|---|
+| PN-1 | Circuit credential lifetime | 1 hour | 7.3: the aim is to survive a typical hub restart; a thief's window with the hub unreachable is one hour and needs the key too | Hypothesis H-1 (typical hub outages last minutes to an hour). Measure hub outage and restart durations from the hub logs and `fleet history` over 30 days | OQ-3 |
+| PN-2 | Renewal point and absolute circuit age | Renew from 30 minutes; at most 24 hours in total | A long circuit is re-authorised daily so a missed revocation cannot outlive a day | Judgement, not measurable; revisit when circuit-break telemetry exists (R-46.e) | OQ-3 |
+| PN-3 | Revocation pull | Every existing 30-second tick | Reuses the tick of R-17; no new timer | A ruled number reused, not new | step 4 |
+| PN-4 | First sequence number | Random 32-bit value | The TCP lesson: a blind attacker cannot guess the next number | A convention, not a measurement | step 4 |
+| PN-5 | Reorder window beyond `up_to` | 256 numbers | Bounds the buffer and the effect of a far-future number | Hypothesis H-3 (larger than any realistic burst under a cap of 100 open messages). Measure the peak count of messages in flight per conversation once telemetry runs | step 4 (the gap-wait bound is already step 4's) |
+| PN-6 | Circuit set-up rate | 10 per minute per agent key per hub, burst 20 | One agent opens few circuits; a flood stands out | Hypothesis H-4. Measure circuits opened per agent per minute in the first build | step 4 |
+| PN-7 | Inline content cap | 8 KiB | A page of text; larger goes by blob reference with a summary line | Hypothesis H-5. Measure the size distribution of the messages already on the hub topics | step 4 |
+| PN-8 | Nonce and frame boundary | 128 bits of randomness per delivery | Cannot be guessed or precomputed | A cryptographic convention, not a measurement | step 4 |
+| PN-9 | Time-to-live of a liveness card | 600 seconds | 20 missed 30-second beats; matches the frozen-husk canary's default | A documented existing default, not new | step 4 |
+| PN-10 | Registrations per project | 64 | A project has a few agents; the cap stops a registration flood | Hypothesis H-6. Count agents per project in the directory | step 4 |
+| PN-11 | Blob cap | 16 MiB | Covers a log or a patch; larger needs a deliberate path | Hypothesis H-7. Measure the largest legitimate blobs sent today | step 4 |
+| PN-12 | Set-up window: time between issuing a circuit's establishment nonce and the first valid presentation (7.2.a (3)) | 60 seconds | Long enough for a set-up across two hubs, short enough that a delayed credential is dead | Hypothesis H-8. Measure set-up latency across two hubs in the first build | step 4 |
+| PN-13 | Stale-list limit: time without a verified revocation pull after which new circuits stop and urgent delivery is downgraded (11.2.d) | Equal to PN-1 | A sidecar cut off for longer than a credential lives has nothing it can verify | Follows PN-1; same status | OQ-3 |
+| PN-14 | Notice period before a high-impact approval takes effect (PR-27, SI-31) | 15 minutes | Time for the operator to see the second-channel notice and cancel | Hypothesis H-9, a trade between the operator's waiting and the time to notice. Ask the operator | OQ-1, OQ-9 |
+
+19.2 Index of the proposed requirements. Each is **[P]**, defined where it is first used, and becomes a requirement only if the operator accepts it through the change requests of section 21 (or, where the last column says so, decides it in step 3 or step 4). The ids PR-7, PR-12 and PR-19 are **not used**: they were skipped while the document was drafted, no text in it refers to them, and nothing was removed that they named. A gap in this series is not a missing proposal. (This index sat after section 21 under the number 19.2 in version 0.1; it now follows the numbers it belongs with.)
+
+| Id | Proposal | Defined in | Change request |
+|---|---|---|---|
+| PR-1 | Every message signed by the sending agent's own key | 6.3.a | CR-2 |
+| PR-1a | Replacing an agent key needs the old key or operator approval; each conversation pins the other's key | 6.3.b | CR-2 |
+| PR-1b | Operator-class messages only from an operator key kept off agent hosts | 6.3.d | CR-10 |
+| PR-2 | Message identity is the triple (sender identity, conversation, message id) bound to a digest | 8.2 | CR-3 |
+| PR-3 | Sequence rules: identity-keyed namespace, random start, equivocation, rebuild from the hub record, window | 8.3 | CR-4 |
+| PR-4 | Signed, forward-only, contiguous receipts carrying the chain head | 8.4 | CR-4 |
+| PR-5 | Roster, signed cards, home-hub binding as R-60.a (2e) rules, signing key apart from the TLS certificate | 10.3 | CR-8 |
+| PR-6 | The circuit trust model | 7.2 | CR-7 |
+| PR-8 | Owner-only local socket, caller check, three API scopes | 6.3.c | step 4 |
+| PR-9 | Frame made by the receiving adapter, random boundary, size cap, two trust classes and an allow-list fact line | 9.3.a | CR-6 |
+| PR-10 | Peers see only reachable yes or no and the version class | TH-23 | CR-11 |
+| PR-11 | Outgoing content scanned for secrets | 9.3.d | step 4 |
+| PR-13 | A grant proposal shows the digest, scope, budget and expiry | TH-42 | CR-13 |
+| PR-14 | Admission and grant approvals need an actively checked fingerprint, never a bare yes | TH-49, 10.3.e | step 4 |
+| PR-15 | A hub's DEAD is signed, and a **resume** (not a role takeover) needs a host-local check that no process holds the session | TH-54, 13.2 | CR-12 |
+| PR-16 | Signed revocation list with rollback protection, stale rule | 11.2 | CR-7 |
+| PR-17 | The durability contract | 12.4 | step 4 |
+| PR-18 | Evidence by a per-delivery nonce in a harness-written record type (filters echo, not forgery) | 13.2 | CR-5, CR-6 |
+| PR-20 | Stage records and the local log are hash-chained per conversation, with an independent head in receipts | SI-22, 8.4.c | CR-1 |
+| PR-21 | Local record first, replayed to the hub, when the hub is unreachable | 7.5 | CR-1 |
+| PR-22 | Role eligibility, priority and pin from operator-signed configuration | TH-41, SI-20 | CR-13 |
+| PR-23 | Credential lifetime counted on the verifier's monotonic clock from establishment, never reset | 7.2.d | CR-7 |
+| PR-24 | Per-project read scope on topics | TH-22, 15.5.3 | CR-9 |
+| PR-26 | Who may claim a project; roster, hub key and re-home continuity | 10.5 | CR-8 |
+| PR-27 | The operator approval device and key: second factor, single-use approvals, second-channel notice with a delay, recovery key | 6.3.e | CR-14 |
+| PR-28 | Aggregate receiver ceiling with reserved shares for receipts and the own project | TH-30, SI-19 | step 4 |
+| PR-29 | Authorization on `pty inject`, `exec` and `remote exec` tightened without removing the verbs | 17.4 | step 3 or step 4 (not a change to R-4) |
+| PR-30 | Conversation membership changes only by a recorded, signed event or an R-62 hand-over | 8.6 | CR-15 |
+| PR-31 | Write-ahead intent before hand-over | 13.4 | CR-1 |
+| PR-32 | Re-check readiness immediately before typing | 9.2.d | CR-5 |
+| PR-33 | End-to-end encryption of content to the recipient's key (later option) | TH-22, 15.5.3 | CR-9 |
+
+## 20 Residual risks for the operator to accept (card 4.4, completion condition 6.2)
+
+20.1 **One per line.** Each line states the risk and, in plain words, what accepting it means. Nothing is accepted by this step and nothing is accepted by default: the operator accepts or sends each one back for a mitigation (task T-3351, Human AC). The three the chain file names (injection into a busy session, hub-to-hub trust, per-circuit credentials) are RR-3, RR-4 and RR-5. RR-15 to RR-19 were added in review round 1; RR-1 to RR-14 were corrected where the reviewers showed they understated the risk. The list is also in 18.2 so each residual is next to the invariant that stops short of it.
+
+RR-1 — Prompt injection through peer content can still succeed. Accepting means: framing and the agent's own gates lower the odds and the damage, but a peer, or someone who gets into a peer, can still talk an agent into doing something harmful, and the damage is whatever that agent is allowed to do on its host. Two kinds of protection are different in kind. The permission gates the framework enforces (task gate, Tier 0, Tier 2) are boundaries that a hook can refuse. The frame, the "data, not instruction" sentence and the task-proposal rule are instructions to a model, which it may ignore. The caps of R-56 bound volume, not harm: one malicious message from an allowed sender can do all of the damage. (TH-27, TH-38)
+RR-2 — Agents on one host share one operating-system user, and the host has a root. A malicious process running as that user can read any agent's keys, edit its store, forge its signature, and change the local evidence and the local monitors. Root can also replace the binary, the supervisor's unit files, the cron canaries and every policy file. Accepting means: per-agent keys catch mistakes, misfiling and attackers on other hosts, but not an attacker already running on the agents' host. A separate operating-system user per agent would close the user-level part and not root. A container closes it only if the host's root is outside the container and no key, store or monitor is mounted into it, which this document does not specify. Nothing in the design stops host root. (TH-1, TH-2, TH-14, TH-17, TH-25; BP-11; OQ-2)
+RR-3 — Injection into a busy session: an allowed sender can interrupt a working agent mid-turn and its text arrives with harness-level standing. Accepting means: a hijacked agent of the same project can steer its colleagues. The open-message cap limits volume only; one well-chosen message is enough. The labelled frame, the downgrade for other senders and the kill switch reduce the chance and the duration, not the possibility. (TH-39, TH-40)
+RR-4 — Hub-to-hub trust: an enrolled hub is believed about its own projects and about who is dead. Accepting means: a compromised enrolled hub can lie about its own projects, read and withhold what passes through it, declare its own instances dead, and **serve a substituted public key for an agent of its own projects, which in effect lets it speak as that agent to any peer that has not already pinned the real key in an established conversation (PR-1a)**. It cannot forge another hub's cards, and it cannot sign for an agent whose key a peer has already pinned. (TH-54, TH-55, TH-45, TH-59, TH-60; PR-15 limits the damage of a false DEAD to a resume)
+RR-5 — Per-circuit credentials: a stolen credential together with the agent key works in that one conversation until it expires; the expiry is counted from establishment and cannot be reset (7.2.d), and a revoked circuit stays usable for up to the credential lifetime while the hub is unreachable, including when only the receiver's home hub is down (7.3.c). Accepting means: a window of one hour at the proposed number (PN-1, itself a hypothesis, H-1), and no revocation can reach a circuit while the hubs it depends on are down. (TH-26, TH-50; OQ-3)
+RR-6 — Message content on the hub is not protected from the people who can read the hub. Two exposures, decided separately: **(a)** every holder of a hub token that can read a topic reads direct messages, until a per-project read scope exists (OQ-7); **(b)** the hub operator, or whoever holds the hub's database, reads everything stored, until content is encrypted to the recipient (OQ-11). Accepting means: agents must not send secrets in messages, and a stolen hub secret or a compromised hub exposes every conversation on that hub. This is today's state; nothing has accepted it. (TH-22)
+RR-7 — Hand-over evidence and the checks around it are only as honest as the host. A process that controls the harness files and the sidecar, or that holds the agent key, can fake a delivery and sign a reply that satisfies the reply deadline. Root can also change the monitor. A canary that handles its own messages honestly says nothing about the others, so targeted loss can go undetected. Accepting means: a false HANDED_OVER is **not guaranteed to be detected, and no time to detection is guaranteed**; the reply deadline, the canary and the chain catch careless or partial attackers only. (TH-7, TH-65; 13.3)
+RR-8 — A second live copy of a project makes the role "main" unresolvable until the operator pins it. Accepting means: requests to that role wait and show "authority unknown" rather than being delivered to a guess; availability is traded for never delivering to the wrong copy. An induced lapse is not this risk: it ends in an automatic takeover as ruled (TH-33 (b)). (TH-33 (a))
+RR-9 — The operator can still approve a bad action without reading it. Accepting means: digests, single-use approvals, budgets, expiry and typed-back fingerprints reduce hurried or mis-heard approvals, but cannot stop a human who decides to approve. It also assumes that the screen the operator reads is true to what will execute, which only the digest check (SI-13) and a trusted display can give. (TH-49)
+RR-10 — Stage memory and journey events are trimmed on the schedule of R-35.o. Accepting means: journey events are kept until 14 days after a message reaches a final state and are never cut while it is open, except at an explicit ceiling as a last resort with a needs-attention entry; digests are kept one year. So a duplicate of a message that became final more than 14 days ago may be stored again if its content is identical, a conflicting duplicate is still caught for a year, and a dispute about a final message older than 14 days has a digest and no journey. (TH-10, TH-19, TH-52)
+RR-11 — A new conversation cannot start while the hub is unreachable, on one host or across hosts (recommendation 7.6.c A). Accepting means: new conversations wait on the ladder and the sender sees WAITING; only conversations already on a circuit keep going. A host being up does not mean its hub process is up, so this can happen on a healthy host. (TH-35; OQ-4)
+RR-12 — A sender that is within its rights can still fill a receiver's disk or queue up to the caps, and several admitted senders together can reach the aggregate ceiling. Accepting means: the caps (PN-7, PN-11, R-56), the aggregate ceiling and the reserved share for receipts and the own project (PR-28) bound the damage and keep the essential flows alive, but a full disk still refuses ordinary mail, loudly. (TH-30)
+RR-13 — The founding verbs and the operator's terminal bypass the sidecar: `pty inject`, `exec`, `remote exec`, an attached terminal, and Claude Code's own session rail. Accepting means: anyone who holds a session, a hub token with the right scope, or the operator's terminal can still type into or run commands in an agent without any framing or consent rule. What is accepted is that the verbs exist (R-4); it is **not** accepted that today's authorization on them stays as weak as it is. PR-29 proposes tightening it without removing them. (BP-1, BP-2, BP-13, BP-14)
+RR-14 — The first approval of a hub or agent key is trust on first use. Accepting means: if the operator approves the wrong fingerprint at that moment, a rogue hub or key is in the roster until someone notices; the fingerprint check (PR-14) lowers this, it does not remove it. (TH-3, TH-49, TH-59)
+RR-15 — A log can be truncated, forked or rewritten without detection if one attacker controls every copy of the chain head: the local log, the other party's stored receipts and the hub copy (for example a same-user attacker on one host who also holds a hub token, or a compromised hub together with a compromised peer host). Accepting means: the chain and the receipts catch a partial attacker and an honest accident, not a complete one. (TH-65, TH-15)
+RR-16 — The operator's approval device or key can be compromised. Accepting means: whoever holds it can approve anything the operator can. The second factor, single-use approvals, the delay with a second-channel notice and the recovery key make this slower and noisier; they do not make it impossible. Until an operator key exists, the operator's terminal is the weak point (BP-13). (TH-64; OQ-1)
+RR-17 — After a crash between a hand-over and its record, delivery is at least once with the repeat visibly marked, not exactly once. Accepting means: an agent may see "message X, delivered again", and if the transcript cannot be read the message waits visibly as "hand-over uncertain" instead of being delivered a second time. (TH-63)
+RR-18 — Until the TOFU repair paths are gated, an agent with a shell can re-pin a rogue hub (`fleet reauth`, `tofu clear`, a probe with re-pin). Accepting means: the target in which re-pinning needs the operator and a checked fingerprint (PR-14, SI-13) is not yet in force, and today nothing detects a hand re-pin. An interim control is proposed, not claimed: every re-pin and `tofu clear` is recorded in the audit trail and shown in needs-attention (an early form of SI-24), which is after-the-fact and can itself be edited by a same-user attacker. (BP-19, TH-3)
+RR-19 — The doorbell can still land on a prompt that holds the operator's unfinished text, or be lost into a busy prompt, in the small window between the last readiness check and the keystrokes. Accepting means: the message itself is never lost (it is stored and retried), but the operator may find a stray line in their prompt. (TH-62)
+
+## 21 Requirements the threats reveal as missing: change requests to step 1 (card 4.5)
+
+21.1 These are change requests, not edits. I did not change the step-1 document. Each names the requirement concerned, what is wrong or missing, **what would change if it is accepted, and which ruled requirement it touches**, and the proposed text **[P]**. The operator rules; the orchestrator reopens step 1 if any is accepted. Version 0.1 used some of these to change ruled requirements without saying so; review round 1 (Codex section 3) found four such changes, and each is now either withdrawn or a change request that names the conflict. 18.2 maps each invariant to the change requests it depends on.
+
+CR-1 — R-45.a with R-7.e (1), R-26.o and R-44.a: "write each step to the hub record first" cannot hold when the hub is unreachable and turns continue on a circuit. What would change, in three places. (a) **Stages (R-45.a):** when the hub is unreachable the receiver writes the stage to its own hash-chained durable log first, replays the log to the hub in order on return, and on start reconciles the log with the hub record (7.5, PR-21). (b) **Replies (R-26.o):** "the reply is written to the hub record first and the sender pulls it from the record" cannot hold either; while the hub is unreachable the reply travels as a turn on the circuit and is recorded locally, and the sender reads it from the circuit and reconciles with the record on return. (c) **States (R-44.a):** R-44.a gives UNKNOWN when the destination hub is unreachable. With an established circuit the sender does hold information (its receipts), so a state computed from circuit receipts is shown labelled "unreconciled" and not UNKNOWN; UNKNOWN stays when neither the hub record nor circuit receipts can be read. Also: write-ahead intent before hand-over (PR-31, SI-30) and chain heads in receipts (PR-20, 8.4.c).
+CR-2 — New requirement (GP-1, R-34.e (2), R-63): every message MUST be signed by the sending agent's own key and verified at the receiver and at the hub. Today R-34 says authentication "is not required", and R-63 relies on "verified key" with no requirement that messages carry one (PR-1, SI-3). Touches R-34.e (2): its "not required" would be replaced.
+CR-3 — R-51.a: message identity MUST be the triple (sender identity, conversation id, message id) bound to a content digest; the same identity with another digest MUST be refused and recorded as a conflict (PR-2, SI-4). Resolves the "same id with different content" item R-51.g left to step 2.
+CR-4 — R-59.a: receipts MUST be signed, forward-only, **contiguous** (the highest number up to which every number is durably stored) and never beyond what the receiver stored; the first number SHOULD be random; a sender MUST rebuild its counter from the hub record on start; a number reused with different content MUST be refused as equivocation; the namespace is per sender identity and survives a key rotation (PR-3, PR-4, SI-5, SI-6). Resolves the "same number with different content" item R-59.g left to step 2.
+CR-5 — R-23.a and R-23.e: the [P] "the line MUST NOT carry peer content" becomes firm, the ids MUST match a fixed pattern, the sidecar MUST check that the foreground process of the target terminal is the registered harness before typing, and it SHOULD re-check just before typing (SI-1, SI-2, PR-32).
+CR-6 — R-50 and R-47: the frame MUST be produced by the receiving adapter with a per-delivery random boundary, the verified sender, **one of the two trust classes already in the rulings (peer, operator-class) and a plain fact line saying whether the sender is on the receiver's allow-list; no third class is created**; inline content MUST be size-capped; the frame rule MUST apply to every rail that puts peer text in an agent's context, not only the sidecar's; and no peer message may act as an approval (SI-7, SI-8, BP-12).
+CR-7 — R-46: add the circuit's trust properties: a sender-constrained credential with proof of possession covering a value exported from the connection, an establishment nonce and set-up window, a scope of one conversation and two instances, a lifetime counted on the verifier's own monotonic clock **from establishment and never reset**, a signed revocation list with rollback protection pulled each tick and a stale rule, and a stated lifetime (PN-1, PN-2, PN-12, PN-13) (PR-6, PR-23, PR-16, SI-9, SI-11). **It does not add an allow-list check at set-up**: R-52.a and R-63.a say a disallowed urgent turn is downgraded, never dropped, and the hub therefore never refuses a circuit for lack of interrupt permission (7.2.a). Version 0.1 let the hub apply the allow-list at set-up; that is withdrawn.
+CR-8 — R-60 and R-61: add admission and authenticated advertisements: a fleet roster approved by the operator and carrying a rising sequence number, cards signed by the originating hub's signing key with a sequence and a time-to-live, home-hub binding **as R-60.a (2e) rules it (the bound hub stays believed; a competing claim is a flagged second instance)**, a project root key, signed hub-key rotation and "moved to" statements, a no-guess rule where no prior binding exists, and a hub signing key separate from the TLS certificate (PR-5, PR-26, SI-12, SI-13). Version 0.1's "both hubs disbelieved" is withdrawn because it went beyond R-60.a (2e).
+CR-9 — R-35, R-45 and R-15: say whether the hub's copy of a circuit turn carries the content or only stage metadata, and whether content on the hub is protected from the token holders (a read scope, PR-24) and from the hub operator (end-to-end encryption, PR-33); without the content the loss of a receiver store after STORED is unrecoverable (12.3, TH-22, RR-6).
+CR-10 — R-63.a: the default allow-list "own project plus the operator" has no authenticated operator identity until GP-11 is ruled. Proposed: until then the allow-list is "own project" only, and a message is operator-class only if it verifies against an operator key kept off agent hosts (PR-1b, SI-8; blocked by GP-11; OQ-6). What would change: the "plus the operator" part of R-63.a is empty in practice until then.
+CR-11 — R-53.a and R-63: peers can read all four reachability fields. Proposed: peers see only reachable yes or no and the version class; the four fields and the last surface time go to the operator and the agent's own project (PR-10, TH-23).
+CR-12 — R-65.a and R-60: a hub's DEAD is not sufficient to **resume** an instance. Proposed: DEAD is signed and sequenced, and before a resume the host-local supervisor verifies that no process holds that session (PR-15, TH-54). **No change to R-67 or R-68:** the takeover of "main" after a lease lapse, and the takeover from a stuck holder with a live sidecar, stay exactly as ruled. (Version 0.1 also required the check before a takeover; that would have conflicted with R-67.a and R-68.a (2) and is withdrawn.)
+CR-13 — R-67.a and R-64: "eligibility attested on the card" MUST come from operator-signed configuration at the home hub, not from the agent's own card; grants, allow-lists and the roster MUST take effect only with a valid operator signature or from a record that the hub or an operator-owned store holds and the sidecar verifies, so that an agent can withhold one but never create or widen one (SI-20, SI-21, TH-41, TH-18). **Depends on CR-14**: without an operator key, a file that the agent "cannot write" does not exist on a host with one operating-system user.
+CR-14 — New (review round 1; GP-11): an operator approval key and approval device. Requirements: the key is held only on the operator device with a second factor; approvals are single-use, digest-bound and short-lived; high-impact approvals are announced on a second channel and take effect after a notice period; an offline recovery key can revoke the operator key (PR-27, SI-13, SI-31, TH-64). It touches GP-11 (the operator leg, still open) and R-63.a. It does not decide GP-11; it states what any answer to GP-11 must provide for the security floor.
+CR-15 — New (review round 1): conversation membership. R-1.e (2) requires many-to-many conversations and R-62 allows an explicit hand-over, but no requirement says who may join or hand over a conversation. Proposed: membership changes only by a signed, countersigned, recorded event or an R-62 hand-over under a stated rule (PR-30, SI-29, TH-61, OQ-12). It touches R-62.a ("an explicit hand-over") by saying who may start one.
+
+## 22 Open questions and decisions only the operator can take
+
+22.1 The operator decides these one at a time with a recommendation and waits for "next" between them (standing instruction, 2026-10-01, profile P1.2.b). They are listed here so the orchestrator can present them in that way. Each lettered option is a choice; the recommendation says why. In review round 1 three questions that mixed two choices were split (OQ-5 into OQ-5 and OQ-10, OQ-7 into OQ-7 and OQ-11, and the membership question was added as OQ-12 and OQ-13), and OQ-14 was added for the operator's approval device. No question presumes an answer: a recommendation is a recommendation.
+
+22.2 **OQ-1 Which of the four adversaries this step added to confirm (ADV-11 a compromised or rogue hub, ADV-12 an unadmitted joiner, ADV-13 a network attacker, ADV-14 the holder of the operator's approval device or key; 4.3).** A: confirm all four. B: confirm ADV-11, ADV-12 and ADV-14 and leave ADV-13 out. The cost of B: delay, dropping, replay and redirection on the network path are then not modelled as an actor. TLS gives confidentiality and integrity, not delivery or timeliness, so only the ladder, the signatures and the circuit proofs would stand against them. C: drop all four. Recommendation **A**: the circuit and the card exchange are where ADV-11 to ADV-13 act, the record (G-060, the stray hub) shows hubs and paths do go wrong, and the card names the approval-device holder as an adversary.
+
+22.3 **OQ-2 The shared operating-system user (4.4).** A: accept it; agents on a host are mutually trusted for the secrecy of keys, and per-agent keys serve attribution and stop remote attackers (RR-2). B: require a separate operating-system user or container per agent at deployment. Note that B closes the user-level part of RR-2 and not host root. C: accept it now and record that a deployment may choose B. Recommendation **C**: B is a large change to how agents are started (the supervisor, the launcher, the tmux layout) and nobody has measured it; recording the option keeps the door open without blocking the floor.
+
+22.4 **OQ-3 The circuit credential lifetime (7.3).** A: 15 minutes. B: 1 hour, renewal from 30 minutes, absolute age 24 hours. C: 4 hours. Recommendation **B**, reason in 7.3.a, which depends on hypothesis H-1 (typical outage length) that this step did not measure; a measurement of hub outage durations would settle it. This also fixes the cross-host bound of R-7.e (1), RR-5, and the stale-list limit PN-13.
+
+22.5 **OQ-4 May a new conversation between two agents on one host start without the hub (7.6, added at sign-off J4)?** A: no, a new conversation always goes through the hub; only an established one runs on a circuit. B: yes, by a local socket when the hub is down, on the operating-system user plus agent keys. C: yes, always local on one host. Recommendation **A**, reason in 7.6.c. The TB-6 matrix in 14.7 is written for A; if B or C is ruled the rows named in 14.7.1 must be redone.
+
+22.6 **OQ-5 The failures the store must survive (12.2).** A: F-1 and F-2 survive (a killed sidecar and a host crash); F-3, F-4 and F-5 are detected and shown; F-6 and F-7 are refused or detected, as proposed. B: survive only process crashes (F-1), not host crashes (no flush on the hot path, faster). Recommendation **A**: STORED releases the sender, so a host crash after STORED would silently lose a promised message; B trades that for speed that nobody has measured as needed.
+
+22.7 **OQ-6 What "the operator" means as a sender until GP-11 is ruled (TH-5, CR-10).** A: nothing is operator-class until an operator key exists; the default allow-list is "own project" only. B: keep "own project plus the operator" as R-63.a rules, and accept that "the operator" cannot be verified until GP-11, so a message may claim the top of the authority model. C: assess the channels the system already authenticates (the operator's own terminal session, the Watchtower login, the out-of-band channels GP-11 lists) as an interim source of operator-class, and rule on the result; until then nothing is operator-class. Recommendation **A for the security floor**, with C assessed as part of GP-11: A is the only option that needs no new mechanism, and C may later replace it with something better.
+
+22.8 **OQ-7 Who may read content on the hub: token holders (TH-22 (a), RR-6 (a), CR-9).** A: accept today's state, in which a token that can read a topic reads every direct message on it, and tell agents not to send secrets. B: per-project read scopes on topics. Recommendation **A now**: B changes the hub's token model and is a step-4 sizing question; revisit it when step 4 has sized it.
+
+22.9 **OQ-8 Fleet admission (10.3, 10.5, CR-8).** A: adopt the roster plus signed cards plus home-hub binding as R-60.a (2e) rules it, with the continuity rules of 10.5. B: keep pairwise HMAC and accept RR-4 widened to every hub that holds a secret. Recommendation **A**; B leaves CAND-17 unanswered. It needs the charter rewording that the operator approves separately (T-2470, 13.2.2 of REQ), and a hub signing key separate from the TLS certificate (a change to R-61).
+
+22.10 **OQ-9 Whether to take the numbers of section 19 as the floor's starting values, or ask step 4 to propose them.** A: take them as starting values, changeable with evidence; every one is a hypothesis until measured (19.1). B: leave every number to step 4. Recommendation **A**, except PN-1, PN-2 and PN-13, which the operator decides (OQ-3), and PN-14, which is decided with OQ-14.
+
+22.11 **OQ-10 Does the hub keep the content of circuit turns, or only stage metadata (12.3, CR-9)?** A: stage metadata only; if the receiver's store is lost after STORED, the content is gone. B: a full content copy on the hub, so a lost store can be recovered. The cost of B: the hub then holds more readable content, which interacts with OQ-7 and OQ-11. Recommendation **A until OQ-11 is ruled**: a content copy is only as private as the hub, and OQ-11 decides how private that is.
+
+22.12 **OQ-11 Who may read content on the hub: the hub operator (TH-22 (b), RR-6 (b), PR-33).** A: accept that the hub operator can read content (today's state). B: end-to-end encryption of content to the recipient's key, as a later slice; it needs key distribution through the signed cards that PR-5 provides. Recommendation **B as a later slice**: it is the only option that protects against the hub operator, and PR-5 already supplies the key distribution; **A until then**.
+
+22.13 **OQ-12 Who may add a participant to a conversation or hand a conversation over (8.6, CR-15).** A: an existing participant by a signed, countersigned, recorded event; a hand-over by the current holder with the new copy's acceptance; the operator alone when the holder is dead. B: only the operator, for every change. C: any participant adds anyone without the new participant's countersignature. Recommendation **A**: B makes ordinary many-to-many use depend on the operator for each join, and C lets a participant bind a third party into a conversation it never agreed to.
+
+22.14 **OQ-13 What a new participant may read (8.6.d).** A: from its joining event forward; earlier turns only if a participant re-sends them as new turns. B: the whole history. Recommendation **A**: B hands a compromised participant every earlier turn when it adds an attacker.
+
+22.15 **OQ-14 Protections for the operator's approval device and key (6.3.e, CR-14, PN-14).** A: all four of PR-27: a second factor, single-use short-lived approvals, a second-channel notice with a delay before high-impact approvals take effect, and an offline recovery key. B: the first two only. C: leave all of it to the answer to GP-11. Recommendation **A**: the card names the approval device as an adversary, and B leaves a stolen device able to approve at once and unnoticed. The cost of A is a delay of PN-14 (a hypothesis, H-9) on admissions, grants, re-homes and key replacements.
+
+## 23 Coverage: the brief, the task and the completion conditions
+
+23.1 The step-2 row of REQ section 13, and where each topic is answered.
+
+| Topic handed to step 2 | Where |
+|---|---|
+| Circuit trust model and per-circuit credential lifetime (OD-1, CAND-16, R-46, R-7.e cross-host bound) | 7 (7.2.d lifetime from establishment, 7.3.c asymmetric outage), PN-1, PN-2, PN-12, PN-13, SI-9, SI-11, OQ-3 |
+| Same id with different content (CAND-2, R-51) | 8.2, TH-10, SI-4, CR-3 |
+| Same sequence number with different content (CAND-18, R-59) | 8.3, 8.4, TH-11, TH-12, SI-5, SI-6, CR-4 |
+| Peer-content framing (CAND-1, R-50) | 9, TH-38 to TH-40, SI-1, SI-2, SI-7, SI-8, CR-5, CR-6 |
+| Fleet admission and signed advertisements (CAND-17, J3) | 10 (10.5 continuity), TH-45, TH-59, TH-60, SI-12, SI-13, PR-5, PR-26, CR-8, OQ-8 |
+| Whether a same-host new conversation may start without the hub, and on what trust (J4) | 7.6, TH-35, RR-11, OQ-4 |
+| GP-1 credential custody | 6, TH-1, TH-2, TH-43, SI-3, SI-14 |
+| GP-6 revocation | 11 (scopes RK-1..RK-7), TH-58, SI-11, PR-16 |
+| GP-13 durability failure scope | 12, SI-15, OQ-5 |
+| GP-14 trusted evidence producers | 13 (13.4 crash window), TH-7, TH-63, SI-17, SI-30 |
+| GP-15 adversary privileges | 4.2, 4.3 (ADV-11 to ADV-14) |
+| Adversaries ADV-1..ADV-10 with their privileges (GP-15) | 4.2 |
+
+23.2 The card's completion conditions (card 6).
+23.2.1 6.1 every boundary has the six STRIDE questions and the four additions answered: section 14, 13 boundaries by 10 questions; the TB-6 matrix is marked conditional on OQ-4 A (14.7.1); approval replay, transcript forgery and credential replay are answered by mechanisms that now state their limits (SI-13, SI-17, SI-9).
+23.2.2 6.2 every threat has a countermeasure or is a listed residual risk: section 15, TH-1 to TH-65 (each TH names its countermeasure or its RR, with likelihood and impact reasons).
+23.2.3 6.3 the bypass inventory is complete for the routes the profile names, and says what remains open: section 17 (BP-1..BP-19, 17.1.a for what "monitored" means, and 17.2).
+23.2.4 6.4 security invariants are stated so a test or probe could check them: section 18 (SI-1..SI-31, each with a probe; 18.2 gives each one's standing, dependencies and limit).
+23.2.5 6.5 every required drawing D-1 to D-4 is present with id, caption and text equivalent, and renders without error: 5.1, 16.1, 16.3, 17 and section 24 (re-rendered after the round 1 corrections).
+
+23.3 The task's agent acceptance criteria (task T-3351).
+23.3.1 A version table (section 0) and an inputs-of-record section citing the full hashes (section 1): met.
+23.3.2 Adversaries ADV-1..ADV-10 with privileges (GP-15), and GP-1, GP-6, GP-13, GP-14: met (4.2, 6, 11, 12, 13).
+23.3.3 Circuit trust model and credential lifetime, same id, same sequence number, peer-content framing: met (7, 8, 9).
+23.3.4 Residual risks listed for the operator to accept, one per line, each with a plain-language sentence: met (section 20).
+23.3.5 The role-chain yaml step 2 names task T-3351: checked, unchanged.
+
+## 24 Render check of the drawings
+
+24.1 Method. The same as the step-1 document (REQ 11.6): each Mermaid block was extracted and rendered one by one with `mmdc -p <puppeteer-config> -i dN.mmd -o dN.svg`, where the config names `/usr/bin/chromium` with `--no-sandbox`. `scripts/design-render-check.py` is not adopted in this project, so no `render_check` record exists (profile P2.1, P4.5; REQ 11.6).
+24.2 Result, version 0.2, 2026-10-07 (the check was run again after every drawing change of review round 1; the version 0.1 result is superseded): D-1 exit code 0, 44751-byte SVG; D-2 exit code 0, 38210 bytes; D-3 exit code 0, 85298 bytes (four trees in one block); D-4 exit code 0, 43621 bytes. No "error" text in any log and no "syntax error" or "parse error" text in any SVG. D-1 and D-2 were also rendered to PNG and read: D-1 shows the dotted TB-6 link and the store-to-hook flow; D-2 shows steps 12 and 13 with the reply passing through the receiving agent's own sidecar. A sequence-diagram note carries no semicolon (the failure the step-1 render check found). The block order in the document is D-1, D-2, D-3, D-4.
+
+
+## (5) Approved requirements v0.4.1
+
+# Interactive agent communication: step 1, requirements
+
+**Task:** T-3344 · **Arc:** arc-011 · **Chain:** arc-011-design, step 1 · **Role:** requirements collector
+**Status:** APPROVED v0.4.1 (operator sign-off 2026-10-07, T-3349 ruling B, with corrections J1-J5; the sign-off sentence below is historical). v0.4: the operator's step-1 rulings (OD-1..OD-18, the OD-17 candidates, GP-0, GP-12, the OD-3 correction of 2026-10-06 and the progressive insight of 2026-10-06) are folded in. GP-11 (operator as a party) stays OPEN. Condition 6.1 of the card is met in form. The operator's sign-off (T-3349, owner human) is pending and is the separate approval criterion. Where this document and the interview log differ, the log wins. Log: [`interactive-agent-communication/interview-step-01.md`](interactive-agent-communication/interview-step-01.md); summary: `docs/reports/T-3344-step1-rulings-summary.md`.
+**Review link:** none yet. This project's Watchtower has no inline design-review page (profile P2.1). The operator reads this file in the repository.
+
+## 0 Version history
+
+| Version | Date | Change | Task |
+|---|---|---|---|
+| 0.4 | 2026-10-06 | Fold of the operator's step-1 rulings, from the interview log ([`interactive-agent-communication/interview-step-01.md`](interactive-agent-communication/interview-step-01.md)) and its summary (`docs/reports/T-3344-step1-rulings-summary.md`). (1) Section 9: OD-1..OD-18 marked ruled, each with its ruling and a link to its log section; GP-11 stays open (9.22). (2) Requirements R-2, R-3, R-6, R-7, R-8, R-9, R-12, R-13, R-14, R-15, R-19, R-21, R-22, R-23, R-24, R-26, R-27, R-28, R-29, R-30, R-31, R-32, R-33, R-34, R-35, R-36, R-37, R-39, R-40..R-43 changed as each ruling authorises (10.2 lists each, with its ruling). (3) R-29.e corrected: CLEAR needs recent surfacing progress, never a fresh heartbeat alone. (4) New requirements R-44..R-71 (6.16), each traced to its ruling. (5) Section 2.3: ADV-8, ADV-9, ADV-10 added, ADV-6 widened (GP-0); new 2.4a, evidence from the production incident of 2026-10-06. (6) R-6 acceptance rewritten to verified behaviour (GP-12), counts are tripwires only. (7) R-30/R-31: two polling ladders by priority; the chase runs as sidecar code, never an LLM turn. (8) Drawings D-2 and D-3 updated to the ruled stage names and states. (9) Authority level [R] added (6.1.h); after sign-off (J1, ruling B) renamed from [O] and [R~] added for the orchestrator's details the rulings accepted (14 days, 1 year, cap 100, runtime id never reused, switch-over sequencing). (10) Section 13: what goes to steps 2-8. Nothing beyond what a ruling authorises was added; what could not be placed is in 13.2. | T-3344, T-3348 |
+| 0.4.1 | 2026-10-07 | Operator sign-off (T-3349, ruling B) with five corrections, ruled one at a time: J1 B, tag [O] renamed [R] and [R~] added (6.1.h); J2 A, priorities stay collector proposals (6.1.c); J3 A, CAND-17 named in the step-2 row (13); J4 A, R-7.d/e one host-independent rule, same-host trust question to step 2; J5 B, acceptance-number cross-check (13.4), three numbers added to step 4. APPROVED. | T-3344, T-3349 |
+| 0.1 | 2026-10-04 | First draft, batch mode. The operator's confirmed requirements R-1.1..R-14.4 are re-cast into the role-card skeleton. The 18 open decisions are written as interview questions. | T-3344 |
+| 0.3 | 2026-10-04 | Small fixes after review round 2 (`docs/reports/T-3344-step1-review/codex-r2.md` and `glm-r2.md`): authority labels aligned (3.3.1.g with the glossary Stage entry); [P]/[A] tags added to R-12.d, R-14.e, R-30.e, R-36.e, R-38.e and listed in section 10; R-38.d verification names the test reader; D-2 no longer continues after an explicit rejection, "no fallback after rejection" marked [P], render check re-run (11.6); R-19.e counts only demonstrated delivery and keeps escalation separate; R-28.e requires the woken agent itself to reply or say no action; OD-7 ownership allocations marked collector-synthesized; OD-2.d no longer treats the R-23 exclusion as established; dedupe stated as at-most-once acceptance per message id (GP-5, CAND-2); GP-13..GP-15 added (durability failure scope, trusted evidence producers, adversary privileges), routed to step 2. No requirement added, nothing decided. | T-3344 |
+| 0.2 | 2026-10-04 | Remediation of review round 1 (`docs/reports/T-3344-step1-review/codex.md` and `glm.md`). (1) Fidelity: R-7, R-29, R-34, R-38 and R-3 restored to the operator's wording; the clauses the collector had added (R-2, R-14, R-16, R-18, R-21, R-23, R-39 and several acceptance criteria) are now marked [P] collector proposal pending the operator, and section 10 lists them as changed with reason and source. (2) Authority levels [C] [H] [A] [P] added to requirements and glossary. (3) "Holds against" added to R-16, R-20, R-23; R-34 acceptance now exercises the impersonation case or states what it does not test. (4) Section 9 neutrality fixes in OD-3, 6, 7, 9, 10, 14, 15, 17, 18; OD-3.c.D and OD-4.c.D marked collector-synthesized. (5) Drawings: provisional states marked, refusal distinguished from unavailability, sender sidecar, operator terminal and credential custody added to D-1. (6) Weak acceptance criteria fixed (R-1, R-4, R-10, R-19, R-28, R-30, R-36, R-38) and unconfirmed bounds marked open (R-3, R-14, R-17, R-37). (7) Priorities labelled collector proposals; R-9 no longer P3. (8) Condition 6.1 stated honestly. (9) Render check re-run, result in 11.6. | T-3344 |
+
+## 1 Inputs of record
+
+1.1 Short names used in this document. Line numbers are those of the file as hashed in 1.2.
+1.1.a `RQ` = the headline requirements document.
+1.1.b `IAC` = the full design.
+1.1.c `RV1` = the external design review comparison.
+1.1.d `RV2` = the routing consultation comparison.
+1.1.e `T3330R`, `ARC11`, `HT`, `HA` and the other short names are as defined in the header of `RQ`.
+
+1.2 Inputs, with the hash read at the start of this step.
+
+| Short | Path | sha256 |
+|---|---|---|
+| RQ | `docs/design/interactive-agent-communication-requirements.md` | `1382ffcc0c028cb60a84e45cc9530c1958e0c06811a1cab6859af06078a6f8a1` |
+| IAC | `docs/design/interactive-agent-communication.md` | `266fea47b5916d7b0181cf0f32968d408fb76a203d4b8da19d55f6f3a7e92196` |
+| RV1 | `docs/reports/T-3335-design-review/comparison.md` | `a725852f9097511a9d2c2c67253ada3a3939b7483a9dbea36f1d512edfb6c887` |
+| RV2 | `docs/reports/T-3335-routing-consult/comparison.md` | `7d40ef362096073b11628df256ea843d51788fc2f67fc14ca4bb5dd6aa7c7500` |
+
+1.3 Also read: `docs/design/roles/cards/_common.md`, the requirements-collector card, the AEF adapter, the TermLink profile, `docs/design/roles/README.md`, the chain file and the hand-back schema.
+
+1.4 How this step was run.
+1.4.a Mode: batch. No human was present (`_common.md` 5.2).
+1.4.b The operator's answers are the confirmed requirements R-1.1..R-13.1 of `RQ` (the operator said "Yes, that's fine", `RQ` header and decision log 2026-10-04). Section 14 of `RQ` (R-14.1..R-14.4) is labelled unconfirmed and is treated as unconfirmed here.
+1.4.c Nothing in section 9 is decided. Section 9 is the list of questions the operator has not answered.
+1.4.d Reviewer findings that the operator has not ruled on are in section 7 (Conflicts) and section 9 (Open questions). They are not in section 6 (Requirements).
+
+## 2 Stakeholders, protected assets and adversaries
+
+2.1 Stakeholders (the humans and agents that approve, use or are affected).
+2.1.a **S-1 The operator.** The only human approver (profile P1.3). Talks to agents through each agent's own terminal. Wants 1:1, many-to-many and operator-to-agent conversation (`RQ` 1.1, 1 item 3).
+2.1.b **S-2 Agents of this project.** Sessions of 010-termlink. Several may run at once (profile P3.1). They send, receive, get woken, reply.
+2.1.c **S-3 Peer agents of other projects.** The framework agent (AEF, 999-Agentic-Engineering-Framework), 055-agentic-fleet-cockpit, 832-Workflow-designer, ring20-manager (hub .122), ring20-dashboard (hub .121), Penelope (profile P3.1). AEF built a parallel receiver (`RQ` 3 item 2).
+2.1.d **S-4 Sidecars.** One process per agent. They hold the store, the flag and the queue, and they inject.
+2.1.e **S-5 Hubs.** Carry topics, receipts, presence, artifacts and the fallback path.
+2.1.f **S-6 Harnesses.** The programs that run an agent (Claude Code today, opencode at 055). They own the hooks and the transcript (`RQ` 7, `RV1` 13).
+2.1.g **S-7 Maintainers of the estate.** Whoever deploys the sidecars (`RQ` 13).
+
+2.2 Protected assets (what an attack or a failure would damage).
+2.2.a **A-1 Message content and its durability.** A message that was accepted must not be lost.
+2.2.b **A-2 The sender's knowledge of where its message is.** (`RQ` R-1.2.)
+2.2.c **A-3 An agent's attention and session.** A typed line into a busy prompt can be discarded (T-2396, `RQ` 8 item 6).
+2.2.d **A-4 Identity.** Project, agent and instance identity. All agents on one host sign as one TermLink identity today (`RQ` 11 item 5).
+2.2.e **A-5 Credentials.** Hub secrets and TLS pins, sidecar API tokens (profile P3.2).
+2.2.f **A-6 The truth of the status record.** The register and the docs must say what actually operates (`RQ` 15).
+
+2.3 Adversaries. The operator has not named an adversary list. This list is the agent's proposal, built from failures that the record documents. **Ruled (GP-0, A, 2026-10-06, [log](interactive-agent-communication/interview-step-01.md#gap-review-section-8--walked-one-item-at-a-time)):** ADV-1..ADV-7 are confirmed as written; ADV-8, ADV-9 and ADV-10 are added and ADV-6 is widened. ADV-8..ADV-10 are the collector's proposal from the interview's rulings; step 2 may add more.
+
+| Id | Adversary | Documented evidence |
+|---|---|---|
+| ADV-1 | A confused or overloaded agent: busy when typed into, silent when woken, unaware of mail | T-2396; the 2026-10-03 incident, mail stored and receipted and never surfaced (`RQ` 5 item 2) |
+| ADV-2 | A compromised or misbehaving session that injects, impersonates or force-interrupts | `RV1` point 17: any project can impersonate another with the one host key |
+| ADV-3 | A component that reports success it did not earn (a dark guard that reads green) | `RQ` 15 item 2: arc-003, arc-004, S10: recorded as built and not operating |
+| ADV-4 | A hub, host or network outage, or a blip | `RQ` R-3.2 "the hub goes down"; offline queue (`RQ` 4 item 1) |
+| ADV-5 | A hurried or mis-heard operator: voice transcription turned "15" into "50" and "C" into "Cozzyte" | `RQ` 10 item 5; `RQ` 11 item 11 |
+| ADV-6 | A stale or wrong binding: a second local hub, a wrong runtime directory, a deaf agent that looks alive. Widened by GP-0 to a misfiled signing key and two live copies of one project | `RV2` items 36 and 65: two hubs on .107, an agent on the wrong one is deaf. Misfiled signing key: T-3346. Two live copies of one project: OD-11 (2d, 2e); the incident of 2.4a |
+| ADV-7 | A malicious process with privilege on a host (reads secrets, calls the local sidecar API, edits the store) | Not documented as an incident. Named because the card requires it. The threat modeler (step 2) assesses it. |
+| ADV-8 | A flooding or looping peer: re-sends too often, piles up messages, or answers automatic messages with automatic messages | CAND-12 (log, OD-17 item 9). Collector's proposal from the rulings; step 2 may refine |
+| ADV-9 | A stale or partitioned authority holder: a holder of the role "main" that is alive as a process but cannot take a turn, or is cut off from its hub | OD-18; the 32,205-refusal sidecar of OD-14 (healthy heartbeat, no surfacing). Collector's proposal from the rulings |
+| ADV-10 | Estate drift: skewed clocks, mixed versions, a re-vendor that deletes local fixes | CAND-13; G-062; the 2026-10-06 re-vendor (2.4a). Collector's proposal from the rulings |
+
+2.4a Evidence: the production incident of 2026-10-06.
+2.4a.1 It is the failure class these requirements exist for, so it is recorded here as evidence. Facts: `docs/reports/T-3344-aef-upgrade-analysis.md` and handover `S-2026-1006-1455` (in `.context/handovers/`). Nothing below was re-measured in this step.
+2.4a.2 2026-10-06, wake-ups went to the wrong session. A fleet agent, `framework-agent-systemd` (working directory `/opt/termlink`), consumed and acked 010-termlink's inbox `inbox:cacc73ea32b121dd/010-termlink`, so wake-ups went to its PTY and not to the working session. The inbox was consumed by three identities at once: TermLink's notify-sidecar, the host default, and that fleet agent. This is ADV-6 (a stale or wrong binding) and the reason for "one receiver per inbox" (R-49) and the exact-instance rules (R-62).
+2.4a.3 2026-10-06, the mirror case at AEF. AEF's duplicate session (a fleet pane resuming the same session id) took AEF's wake-ups. AEF recorded it as G-111 and fixed its side (T-3936). Two live copies of one identity is ADV-6 and the OD-10 / OD-11 rules (R-62, R-60).
+2.4a.4 Until the 2026-10-06 re-vendor, vendored AEF 1.6.29 had no receiver. Peers' senders therefore saw HUB_ACCEPTED and never RECEIVED, so a message that arrived could not be told from one that was lost. This is ADV-3 (success not earned) and ADV-1 (a silent agent), and it is why R-14, R-15, R-42 and R-45 exist.
+2.4a.5 2026-10-06, the first receiver start replayed about 94 already-handled messages from 2026-09-22..10-03 (the legacy `sidecar:010-termlink` plus an old inbox cursor). All had been handled; this was checked thread by thread. This is the failure that CAND-2 (one hand-over per message id, R-51) and the sender sequence numbers of CAND-18 (R-59) address, and an instance of ADV-10 (estate drift after a re-vendor).
+2.4a.6 The same re-vendor overwrote 15 TermLink-origin toolkit files with older template copies, and 21 local fixes were at risk (CARRIED 6, PARTIAL 4, NOT-CARRIED 10, RESTRUCTURED 1). This is ADV-10 and G-062; it motivates the standing controls of R-69.
+
+2.4 What each stakeholder sees: the sender (S-2) sees the stages of section 4; the operator (S-1) sees escalations and, later, the digest; peers (S-3) see presence and receipts.
+
+## 3 Drawings
+
+### 3.1 Drawing D-1: context view (structure)
+
+**Drawing D-1 — context: the system, its stakeholders, the adversaries and the neighbours**
+
+```mermaid
+flowchart LR
+  OP["S-1 Operator"]
+  OPT["Operator terminal: the operator types into the agent terminal [A]"]
+  CRED["Credential custody: hub secret and TLS pin, sidecar API token, shared host key (GP-1)"]
+  PEER["S-3 Peer projects: AEF, 055, 832, ring20"]
+  subgraph SENDHOST["Sender host"]
+    SA["S-2 Sending agent"]
+    SCA["S-4 Sender sidecar (its own API and store)"]
+  end
+  subgraph HUBS["S-5 Hub: topics, receipts, presence, artifacts"]
+    TOP["Durable topics and inbox"]
+    PRES["Presence directory"]
+  end
+  subgraph RECVHOST["Receiver host"]
+    SCB["S-4 Receiver sidecar: store, flag, queue"]
+    HAR["S-6 Harness: hooks and transcript"]
+    RA["S-2 Receiving agent in a TermLink PTY"]
+  end
+  ADV["Adversaries ADV-1 to ADV-10"]
+  SA -->|"1 message and optional blob"| SCA
+  SCA -->|"2 push by API: established conversations run on a hub-set-up circuit (OD-1 C)"| SCB
+  SCA -->|"2b fallback post"| TOP
+  TOP -->|"2c pull"| SCB
+  SCB -->|"3 RECEIVED, STORED, HANDED_OVER, ANSWER READY (fast notice; hub record is the truth)"| SCA
+  SCB -->|"4 one fixed line, typed, only when the prompt is free"| RA
+  RA --- HAR
+  HAR -->|"5 ready flag and transcript evidence"| SCB
+  OP <--> OPT
+  OPT <-->|"types and reads, no component designed (GP-11)"| RA
+  CRED -.->|"holds secrets for"| SCA
+  CRED -.->|"holds secrets for"| SCB
+  CRED -.->|"holds hub secret for"| TOP
+  ADV -.->|"steals or misuses credentials, ADV-7"| CRED
+  ADV -.->|"mis-heard or hurried approval, ADV-5"| OPT
+  PEER --- TOP
+  PEER --- PRES
+  ADV -.->|"busy or silent agent, outage, impersonation, false green"| RA
+  ADV -.-> SCB
+  ADV -.-> TOP
+```
+
+3.1.1 Text equivalent of D-1.
+3.1.1.a The sending agent hands a message and an optional blob to its own sidecar (arrow 1).
+3.1.1.b The sender sidecar delivers it to the receiver sidecar by API (arrow 2). [R] Ruled (OD-1 C): the hubs set up a circuit and an established conversation runs sidecar to sidecar, also across hosts; the hub path is the fallback and carries new conversations (R-46). The fallback is a post to a hub topic that the receiver sidecar pulls (arrows 2b and 2c).
+3.1.1.c The receiver sidecar reports the stages RECEIVED, STORED, HANDED_OVER and ANSWER READY to the sender sidecar (arrow 3) as a fast notice; each stage is first written to the hub record, which is the truth (R-45).
+3.1.1.d The receiver sidecar types one fixed line into the receiving agent's session when the prompt is free (arrow 4); urgent content for a busy agent goes by the harness's hook channel instead (R-19). The receiving agent runs under a harness. The harness reports readiness and transcript evidence to the sidecar (arrow 5).
+3.1.1.e The operator talks to an agent through the operator terminal, which is that agent's own terminal [A]. No component for this leg is built (`RQ` 1 item 3). The sender sidecar (arrow 1 and 2) holds the sender's API and store, like the receiver sidecar.
+3.1.1.e2 Credential custody (hub secret and TLS pin, sidecar API token, the shared host key) is a touchpoint of both sidecars and the hub. Who holds what is an open gap (GP-1). The adversaries reach the credentials (ADV-7) and the operator terminal (ADV-5).
+3.1.1.f Peer projects reach the same hub topics and the presence directory.
+3.1.1.g The adversaries act on the receiving agent, the receiver sidecar and the hub topics.
+
+### 3.2 Drawing D-2: main flow (behaviour)
+
+**Drawing D-2 — main flow from send to answer, including the refusal paths**
+
+```mermaid
+sequenceDiagram
+  participant SND as Sending agent
+  participant SS as Sender sidecar
+  participant RS as Receiver sidecar
+  participant HUB as Hub
+  participant HRN as Harness
+  participant RCV as Receiving agent
+  SND->>SS: give message (priority, optional blob)
+  SS->>RS: push by API
+  alt receiver explicitly refuses
+    RS-->>SS: REJECTED with a reason
+    Note over SS,RS: PROPOSAL - no fallback after rejection, the flow ends here
+  else receiver accepts, now or after fallback
+    opt receiver sidecar temporarily unavailable
+      SS->>HUB: fallback post to inbox topic
+      HUB-->>RS: pull when the sidecar is back
+      Note over SS,RS: re-send and polling ladder of the message's priority class (R-30), run as sidecar code, the sender sees WAITING, WAITING FOR RECIPIENT, STUCK, UNKNOWN or DEAD (R-44)
+    end
+    RS-->>SS: RECEIVED with timestamp
+    RS->>RS: store durably, raise flag
+    RS->>HUB: write each stage to the hub record, the truth (R-45)
+    RS-->>SS: STORED with timestamp (fast notice, record is the truth)
+    loop every 30 seconds
+      RS->>RS: flag up? read queue, highest priority first
+      alt urgent and agent busy
+        RS->>HRN: urgent content through the hook channel, next tool call or turn end, never typed (R-19)
+      else prompt free (adapter says READY)
+        RS->>RCV: type one fixed line
+      else not free or agent not running
+        RS->>RS: wait for next tick, report NOT RUNNING if so
+      end
+    end
+    HRN->>RCV: hook surfaces the stored message
+    HRN-->>RS: transcript shows the message
+    RS-->>SS: HANDED_OVER with transcript evidence (a typed line with none is ATTEMPTED)
+    RS->>RS: flag down only when queue empty
+    RCV->>RS: answer, or explicit no action
+    RS-->>SS: ANSWER READY, the reply is in the hub record (REPLIED or ACKNOWLEDGED_NO_ACTION)
+    SS->>RS: sender pulls the answer, roles swap
+  end
+```
+
+3.2.1 Text equivalent of D-2.
+3.2.1.a The sender gives a message to its sidecar. The sidecar pushes it to the receiver sidecar by API.
+3.2.1.b Unavailability path, no receiver sidecar answering: the sender sidecar posts to the hub inbox topic. The receiver sidecar pulls it when it is back. The re-send and polling ladder of the message's priority class runs (R-30, R-31); the sender sees one of five states (R-44). The chase is sidecar code, never an LLM turn. [R] Ruled: OD-3. Temporary unavailability is not a refusal. For an established conversation the hubs have set up a circuit and the push is sidecar to sidecar, with this hub path as the fallback (R-46).
+3.2.1.b2 Explicit refusal path: the receiver sidecar answers REJECTED with a reason. The sender sees REJECTED and the flow ends: it does not continue into RECEIVED or STORED. [P] "No fallback post after rejection" is a collector proposal, not a confirmed rule. REJECTED is a collector state in D-3 (provisional); no ruling says which refusals exist, so this is open (13.2).
+3.2.1.c On the accepting branch (including after fallback and pull), the receiver sidecar answers RECEIVED, stores the message durably, raises the flag, then answers STORED (R-14, R-15, R-16). Each stage is written to the hub record first; the call to the sender is a fast notice (R-45).
+3.2.1.d Every 30 seconds the receiver sidecar checks the flag and reads the queue, highest priority first (R-17, R-18).
+3.2.1.e Urgent and the agent is busy: the content reaches the agent through the harness's hook channel, at the next tool call or at turn end. Nothing is typed into a busy prompt (R-19). [R] Ruled: OD-2.
+3.2.1.f Prompt free (the harness adapter says READY): the sidecar types the one-line doorbell (R-20, R-21, R-47).
+3.2.1.g Wait path, not ready or the agent is not running: the message waits for the next tick. NOT RUNNING is reported, never treated as busy (`IAC` 20a). A session with no typable terminal shows WAITING FOR RECIPIENT (R-48).
+3.2.1.h The hook surfaces the stored message. The transcript shows it. Only then is HANDED_OVER reported to the sender (R-24); a typed line with no evidence is ATTEMPTED. The flag comes down only when the queue is empty (R-25).
+3.2.1.i The agent replies or says "no action" (R-28). The receiver sidecar tells the sender sidecar ANSWER READY. The sender pulls it from the hub record. Roles swap (R-26, R-27).
+
+### 3.3 Drawing D-3: lifecycle of a message (behaviour)
+
+**Drawing D-3 — states of a message and the transitions the requirements allow**
+
+```mermaid
+stateDiagram-v2
+  [*] --> SENT
+  SENT --> RECEIVED : receiver notice, arrived and not yet safe
+  SENT --> REJECTED : receiver refuses (provisional)
+  RECEIVED --> STORED : durable store done, recorded at the hub
+  STORED --> QUEUED : flag raised
+  QUEUED --> QUEUED : not free or not running, wait for next tick
+  QUEUED --> ATTEMPTED : prompt free, one line typed
+  ATTEMPTED --> HANDED_OVER : transcript evidence seen
+  ATTEMPTED --> QUEUED : no evidence in the window, eligible again (window length provisional)
+  QUEUED --> HANDED_OVER : urgent content by hook channel, transcript evidence
+  HANDED_OVER --> REPLIED : agent replied
+  HANDED_OVER --> ACKNOWLEDGED_NO_ACTION : agent said no action
+  SENT --> DEAD : home hub declares the instance ended
+  RECEIVED --> DEAD : same
+  QUEUED --> DEAD : same
+  HANDED_OVER --> DEAD : same
+  REPLIED --> [*]
+  ACKNOWLEDGED_NO_ACTION --> [*]
+  DEAD --> [*] : dead letter to the sender
+  REJECTED --> [*]
+```
+
+3.3.1 Text equivalent of D-3.
+3.3.1.a [R] Ruled (OD-8): the chain is SENT, RECEIVED, STORED, HANDED_OVER, then REPLIED or ACKNOWLEDGED_NO_ACTION. A message starts as SENT. It becomes RECEIVED, then STORED, then QUEUED when the flag is raised.
+3.3.1.b Provisional: a SENT message ends as REJECTED if the receiver refuses. REJECTED is a collector proposal; no ruling names it. UNDELIVERABLE and ESCALATED of v0.3 no longer exist: the failure ending is DEAD (below) and "stuck" is a sender-visible label, not a state of the chain (3.3.1.g).
+3.3.1.c A QUEUED message stays QUEUED each tick while the prompt is not free or the agent is not running. It becomes ATTEMPTED when the prompt is free and one line is typed.
+3.3.1.d ATTEMPTED is a non-terminal marker: a typed line with no transcript evidence. The sender is told HANDED_OVER only on transcript evidence (R-24), whether the content arrived by typing or by the hook channel. With no evidence in the window the message goes back to QUEUED.
+3.3.1.e An urgent message to a busy agent goes QUEUED to HANDED_OVER through the hook channel (R-19). The evidence window (AEF uses 90 s) is provisional.
+3.3.1.f A HANDED_OVER message ends as REPLIED or as ACKNOWLEDGED_NO_ACTION, both terminal (R-28).
+3.3.1.g DEAD is reached from any non-final state when the recipient's home hub declares that instance ended: polling stops and the sender gets a dead letter (R-44, R-62). Beside the chain the sender sees one label at each poll: WAITING, WAITING FOR RECIPIENT, STUCK, UNKNOWN or DEAD (R-44); they are computed from the hub record (R-45), appear and clear, and do not change the chain.
+3.3.1.h Authority: the chain and the names are [R] (OD-8); REJECTED is [P]; the evidence window is provisional. The transitions between RECEIVED, STORED, HANDED_OVER and the reply follow the operator's confirmed requirements (R-14, R-15, R-24, R-27).
+
+## 4 Answers
+
+4.0 v0.4 note: section 4 records the answers as of v0.3, the confirmed requirements of `RQ`. Where an interview ruling changed one (for example the polling ladder in QS-10, the urgent route in QS-6.2, the stage name in QS-8), section 6 and 9 carry the ruled form and the ruling wins over the text of this section.
+
+4.1 The question set is drafted here, one question per topic of `RQ`, because the profile supplies none (card 2.2). Each answer is the operator's confirmed requirement, with the operator's own words where `RQ` records them. A question for which `RQ` holds no confirmed answer is listed in 4.3 as an open gap.
+
+4.2 Answers from the confirmed requirements.
+
+**QS-1 What does interactive communication mean, and who talks?**
+4.2.1 Answer: agents hold interactive, two-way conversations while they work, 1:1, many-to-many and with the operator (R-1.1 of `RQ`). The sender always knows where its message is (R-1.2). No agent has to be attached or polling by hand for delivery to proceed (R-1.3). Source: operator read-back, `RQ` 1.
+4.2.2 Operator's words: "I am absolutely very clear that I want to have this … after 20 times me telling you this is a really important part of this design, you don't have this quite essential part of bi-directional interactive communication." (`RQ` 1 item 11, CONSULT:13).
+4.2.3 Follow-up QS-1.1, how does the operator talk to an agent? Answer on record: through the agent's own terminal. No component is built (`RQ` 1 item 3). Open as a design question, see GP-11.
+
+**QS-2 What original capability must stay?**
+4.2.4 Answer: keystroke injection and output read-back into a terminal (R-2.1), and conversation over the hub instead of fire-and-forget dispatch (R-2.2). Operator's words: "i wanted a means to simulate keyboard input and capture console output" (`RQ` 2 item 9, T243R:96).
+
+**QS-3 What is a sidecar?**
+4.2.5 Answer: one per agent; a separate, very simple process with an API (`RQ` R-3.1). Independent of the hub "because the hub goes down" (`RQ` R-3.2). It always respawns, portably, not only under systemd (`RQ` R-3.3). It carries the startup chain: start agent, session, project, hub (`RQ` R-3.4). It re-resolves when an FQDN or IP stops resolving (`RQ` R-3.5). Operator wording, "verbatim in intent": "a separate process exposing an API, deliberately independent of the hub because the hub goes down. Very simple. Always respawns. It also carries the startup chain — start agent, start session, start project, start hub — and re-resolves when an FQDN or IP stops resolving." (`RQ` 3 item 10, RAIL:111-117).
+4.2.6 Operator's principle for respawn: "reliability and fragility, so I'm not to save a few tokens just to get a quick solution. I want a solid solution." (`RQ` 3 item 12, ARC11:360-361).
+4.2.7 Follow-up QS-3.1, is the sidecar API local only or does it send across hosts? The record holds two answers that conflict, see conflict C-2 and OD-1.
+
+**QS-4 How is a message sent?**
+4.2.8 Answer: the sender gives the message, optionally with a blob, to its own sidecar's API (`RQ` R-4.1). The sender's sidecar delivers it to the receiver's sidecar API, push first (`RQ` R-4.2). The hub is the fallback, plus discovery and blob storage (`RQ` R-4.3). Operator's words: "Send: sender agent -> its own sidecar (API) -> the receiver's sidecar (API)." (T3330R:252). And "We have multiple hosts, so that's not a question." (`RQ` 4 item 6, T-3397:270-273).
+
+**QS-5 How is a message received?**
+4.2.9 Answer: RECEIVED, the receiver's sidecar calls the sender's sidecar immediately (`RQ` R-5.1). STORED, the message is stored durably and a second call goes back (`RQ` R-5.2). A new-message flag is raised (`RQ` R-5.3). Operator's words: "We store it and immediately go back to the sidecar receiver … an API call that's received." (`RQ` 5 item 10, T3330R:229). The read-back has four calls: RECEIVED, STORED, INJECTED, ANSWER READY (T3330R:252-259).
+
+**QS-6 How often, and what does the tick do?**
+4.2.10 Answer: a cron-style job checks the flag every 30 seconds (`RQ` R-6.1). With the flag up it reads the queue, highest priority first (`RQ` R-6.2). Urgent is injected immediately even when the agent is busy, by a route that cannot silently lose the message (`RQ` R-6.3). Not urgent: injected if the prompt is free, otherwise it waits for the next tick (`RQ` R-6.4). Operator's words: "Every 30 seconds … when the flag is up, the message queue gets read … urgent gets injected immediately. Non-urgent, we check again if the prompt is free. If the prompt is not free, we wait again until the next 30 seconds." (CONSULT:17).
+4.2.11 Follow-up QS-6.1, what is urgent and how is it marked? Answer on record: the queue has a `priority` clamped to [-9,9], and urgent is band 5 or more by default in the built injector (`RQ` 6 item 3, ARC11 S8 and S9). No confirmed requirement fixes the marking. See candidate CAND-4 in OD-17.
+4.2.12 Follow-up QS-6.2, urgent into a busy prompt. Answer: confirmed as a bypass (R-6.3). The operator's earlier ruling SQ-4 said the opposite and has not been recorded as superseded. Open: OD-2.
+
+**QS-7 Who says the prompt is free?**
+4.2.13 Answer: the agent's own harness. The Stop hook marks ready at the end of a turn, and the prompt-submit hook clears it before the next turn (`RQ` R-7.1). It is not inferred from the screen: a long tool call looks idle but is not safe to type into (`RQ` R-7.2).
+
+**QS-8 What is typed, and when is it reported?**
+4.2.14 Answer: one short line is typed into the session with `termlink pty inject` (`RQ` R-8.1). INJECTED (AEF: HANDED_OVER) is reported only with evidence from the agent's transcript that it saw the message (`RQ` R-8.2). The flag comes down only when the queue is empty (`RQ` R-8.3). Operator's words: "INJECTED: called back to the sender's sidecar once the message is in the prompt. … The flag is cleared only when the queue is empty." (T3330R:257-258).
+
+**QS-9 How does the answer come back?**
+4.2.15 Answer: ANSWER READY, the receiver's sidecar tells the sender's sidecar and the sender pulls the answer (`RQ` R-9.1). Roles swap for the reply (`RQ` R-9.2). A woken agent always replies or explicitly says "no action", never silence (`RQ` R-9.3). If an agent's ears are dead it halts instead of assuming there is no mail (`RQ` R-9.4).
+
+**QS-10 What happens when a push cannot land?**
+4.2.16 Answer: the other side polls: 15 s, 1 min, 5 min, 15 min, 1 h, 4 h, 1 day, 3 days, 1 week, 1 month, 1 quarter, 1 year, each rung twice (`RQ` R-10.1). This ladder is the framework default for all polling, changeable per situation (`RQ` R-10.2). Operator's words: "that should be the standard fallback mechanism for the framework for any polling activities. It can be changed situationally, but that should be the standard." (IN-AEF@180).
+4.2.17 Follow-up QS-10.1, was the first rung 15 s or 50 s? Dictation said "50". It was read as 15 and "pending operator correction" (T3330R:261). The operator confirmed the read-back, but no explicit correction is recorded. Open: OD-3.
+
+**QS-11 How is an agent addressed?**
+4.2.18 Answer: five levels, host, hub, project, session, agent (`RQ` R-11.1). Each level has a canonical name and an instance identity: FQDN for the host, a hub name, the `pid` for the project, a role for the agent (`RQ` R-11.2). Messages carry `to_circuit` and never fall back across projects (`RQ` R-11.3). Operator's decision on the key: T-3325 Q1 = C, recorded from a voice reading, overturnable (`RQ` 11 item 11).
+
+**QS-12 What is recorded, reported and alarmed?**
+4.2.19 Answer: every step is a timestamped event, copied to the hub, pullable from any agent (`RQ` R-12.1). Each agent posts a daily digest and reflects on it (`RQ` R-12.2). Alarms only for urgent messages. Everything else escalates when it piles up, like audit warnings (`RQ` R-12.3). Later: an observability database and learning from it, possibly a hub-steward agent (`RQ` R-12.4). Operator's words: "Liveness alarm only for urgent messages. Everything else accumulates and escalates when it piles up, like audit warnings (design to be decided)." (T3330R:265).
+
+**QS-13 How does it ship?**
+4.2.20 Answer: every sidecar ships with every TermLink deployment (`RQ` R-13.1). Operator's words: "are all the sidecars we develop … part of our [TermLink] package? When the deployment is done we should deploy all the sidecars with it." (T3330R:230).
+
+**QS-14 Which earlier items were discussed once and lost? (UNCONFIRMED)**
+4.2.21 `RQ` section 14 lists four candidates: R-14.1 native consumer, R-14.2 typed assignment and result messages, R-14.3 the hub refuses to call a message delivered without a receipt, R-14.4 the startup chain. The operator has not confirmed or dropped them. They are carried as R-40..R-43 with status "unconfirmed". Open: OD-13.
+
+4.3 Open gaps: questions for which no answer is on record. Each is also a finding of the gap review (section 8).
+
+| Id | Question | Status |
+|---|---|---|
+| QS-15 | Who may call a sidecar API, and with what credential? | Open gap GP-1 |
+| QS-16 | What if a session in the conversation is compromised or hostile? | Open gap GP-2 |
+| QS-17 | How many messages may one peer push, and how many may be outstanding? | Open gap GP-3 |
+| QS-18 | What must keep working when the hub, the sender host or the receiver host is offline? | Open gap GP-4 |
+| QS-19 | What is the recovery after a sidecar restarts in the middle of a delivery? | Open gap GP-5 |
+| QS-20 | How is an agent, a peer, a credential or a role revoked? | Open gap GP-6 |
+| QS-21 | Which identifiers are stable, who mints them, and what is the unit of "read"? | Open gap GP-7 |
+| QS-22 | What does the sender see when the target cannot be reached by design (no hooks, no PTY, other OS)? | Open gap GP-8 |
+| QS-23 | Who are the adversaries? | Open gap GP-0, list proposed in 2.3 |
+
+## 5 Glossary
+
+5.1 Each term is defined once, with its authority level (6.1.h) in the last column. Later roles MUST use these meanings and MUST NOT treat a [P] or [A] part as confirmed. A term marked (contested) has a definition the operator has not settled.
+
+| Term | Meaning | Authority |
+|---|---|---|
+| Agent | A running AI session that does work. It has a role and an instance. | [A] |
+| Circuit | The five-level address of an agent: host, hub, project, session, agent. Carried in `to_circuit`. | [C] |
+| Conversation | A series of messages with one `conversation_id`. | [H] |
+| Doorbell | The one fixed line typed into a session to make it look at its stored mail. It carries a count and ids, no peer content. | [C] one line typed (R-23); [P] no peer content, count and ids |
+| Flag | The new-message marker the sidecar raises when a message is stored and lowers only when the queue is empty. | [C] raised; [C] lowered only when queue empty |
+| Hub | The server that carries durable topics, receipts, presence and artifacts. Per host or per fleet. State is per hub (G-060). | [H] |
+| Harness | The program that runs an agent and owns its hooks and its transcript. | [A] |
+| Home hub | The hub that holds a project's identity card and is the only one that may declare an instance DEAD; what it cannot confirm is UNKNOWN (OD-11, OD-18). | [R] |
+| Hub record | The per-message record at the receiver's home hub of each stage with its timestamp. It is the single source of truth for a message's state; the call to the sender is a fast notice (OD-5, R-45). | [R] |
+| Project id | The id minted once by the project's framework (AEF's pid) and written in the project's own `.framework.yaml`. Names, folder and host are display or observed attributes, never identity (OD-11). | [R] |
+| Main | The one role the home hub resolves now for a project with several agents, held under a readiness-gated fenced lease (OD-18, R-67). | [R] |
+| Grant | A recorded permission under which mail may start or resume an agent: Tier 2 one-off, Tier 3 pre-approved category, with budget, restart limit and allowed senders (OD-15, R-64). | [R] |
+| Injection | Typing the doorbell into the agent's session. Typing is not the same as the agent seeing the message. | [C] |
+| HANDED_OVER | The one name for "the agent's session received the content", proven from its transcript, by hook or by typing. "Inject" names the action, not the stage (OD-8). Replaces INJECTED of v0.3. | [R] |
+| ATTEMPTED | A typed line with no transcript evidence. A non-terminal marker, never reported as HANDED_OVER (OD-8). | [R] |
+| INJECTED | Retired as a stage name in v0.4; the stage is HANDED_OVER. Kept here because earlier records use it. | [R] |
+| Message states | The sender-visible labels computed at each poll from the hub record: WAITING, WAITING FOR RECIPIENT, STUCK, UNKNOWN, DEAD (OD-3, R-44). Not the delivery chain. | [R] |
+| Instance | One running copy at a level, for example one session. It has a runtime id. | [C] |
+| Message | One post carrying content, a priority, an id and a conversation id, with an optional blob. | [A] |
+| Polling ladder | Two ladders by priority (R-30): normal (priority below 5) each rung twice from 1 min to 1 year, 22 polls; urgent (priority 5 or higher) continuous from 15 s to 2 years, 43 polls. A message's ladder also governs its re-sends before STORED (OD-3 correction, 2026-10-06). | [R] |
+| Priority | A number in [-9,9], default 0, clamped at the receiver. Urgent is 5 or more by default; the receiver may change its own threshold (CAND-4, R-52). | [R] |
+| Queue | The sidecar's store of messages not yet handed over, ordered by priority then arrival. | [C] priority order; [P] tie-break by arrival |
+| RECEIVED | The receiver's sidecar tells the sender's sidecar immediately that the message arrived. Informational: arrived, not yet safe (OD-4). | [R] |
+| Retry ladder | AEF's schedule for re-sending a post, 2×1 min to 2×1 month, then dead-letter (D-600). For agent mail the normal polling ladder replaces it (OD-3 correction); it is D-600 extended to years instead of dead-lettering at a month. | [H] AEF D-600; [R] replaced for agent mail |
+| Role | The function an agent serves in a project, such as manager. A role is not an instance. | [C] (R-11.2) |
+| Sidecar | The separate, simple process per agent that stores, flags, queues, injects and reports. | [C] |
+| STORED | The message is durably saved on the receiver side. The only call that releases the sender (OD-4). | [R] |
+| Stage | One named step of delivery reported to the sender: SENT, RECEIVED, STORED, HANDED_OVER, then REPLIED or ACKNOWLEDGED_NO_ACTION (OD-8). | [R] |
+| ACKNOWLEDGED_NO_ACTION | The terminal stage beside REPLIED: the woken agent explicitly says no action is needed (OD-8, R-28). | [R] |
+| Startup chain | Start agent, start session, start project, start hub (R-9, never built). | [C] never built |
+| Tick | The 30-second check of the flag. | [C] |
+| Transcript evidence | A record in the receiver's own session transcript that shows the agent saw the message. | [C] |
+| Urgent | A message with priority 5 or higher (default threshold). It bypasses the wait, never the prompt-free check: a busy agent gets it by the hook channel, an idle one by the normal one-line inject (R-19, R-52). | [R] |
+| Unreachable | An agent that cannot be woken now. Not the same as dead. | [A] |
+
+## 6 Requirements
+
+6.1 How to read this section.
+6.1.a R-1..R-39 are the operator's confirmed requirements (`RQ` R-1.1..R-13.1), carried over one for one, as amended by the step-1 rulings. R-40..R-43 were unconfirmed (`RQ` section 14) and were ruled in OD-13 (6.15). R-44..R-71 are new, each from a ruling (6.16). A clause tagged [R] is the operator's ruling in the step-1 interview, with its log reference; section 10.2 lists every requirement the rulings changed.
+6.1.b Each requirement has: **a** statement, **b** type, priority and source, **c** rationale, **d** verification method, **e** acceptance criteria, **f** what it holds against (only where it says something MUST be impossible), **g** status note.
+6.1.c Types: functional, security invariant, interface, operational, quality. Priority is a **collector proposal**, never an operator ruling: P1 needed for the goal, P2 needed for a solid system, P3 can come later in the build order, U unconfirmed requirement (R-40..R-43). A priority says nothing about whether the operator confirmed the requirement.
+6.1.d The closing rule applies to every verification below. [R] Ruled (CAND-3, A revised and staged, R-69): tests are selected per failure mode in four tiers, with kill-checked negative controls; nothing is called working until the tier its failure mode needs has passed. This replaces the v0.3 reading "two real running agents for every requirement" (profile P1.2.e, `IAC` item 58), which the operator found too heavy.
+6.1.e Where a requirement is contested by a reviewer, the statement stays as the operator confirmed it. Clauses that the collector added are tagged [P] and are not part of the confirmed statement. The contest is named in **g** and decided in section 9.
+6.1.f "Status" facts come from `RQ` section 15 (2026-10-03) and were not re-measured in this step.
+6.1.h Authority levels. Every sentence that is not plain description carries one of these, or inherits the one of its requirement. **[C]** confirmed: the operator's wording, from `RQ` R-1.1..R-13.1. **[H]** historical fact: what the record or a build shows, not re-measured. **[A]** collector assumption: an inference the operator did not state. **[P]** proposed safeguard or change: a collector proposal pending the operator, which the operator may drop. **[R]** operator ruling: given in the step-1 interview and recorded in the interview log (the log section is cited). **[R~]** ruled principle, orchestrator's detail: the operator ruled the principle, and the log marks this detail (usually a number) as the orchestrator's addition accepted by the ruling; it may be changed with evidence without a new ruling, and the change is recorded. (J1, operator ruling B, 2026-10-06: the tag was [O] until then; renamed to [R] because [O] reads as a zero.) A requirement statement without a tag is [C]. Section 10 lists every place where [P] or [A] text sits inside a requirement.
+
+### 6.2 Goal (`RQ` section 1)
+
+R-1 **Interactive conversation.**
+R-1.a Agents MUST hold interactive, two-way conversations with each other while they are working: 1:1, many-to-many, and agents with the operator.
+R-1.b Functional · P1 · source `RQ` R-1.1; operator, 2026-10-03: "I am absolutely very clear that I want to have this …".
+R-1.c Rationale: this is the goal the other requirements serve.
+R-1.d Verification: live test with two real agents (1:1), then three (many-to-many); a demonstration for the operator leg.
+R-1.e Acceptance. (1) Given agents A and B both running, when A sends a turn with a `conversation_id`, then the turn is in B's transcript and B's reply, with the same id, reaches A. (2) Given agents A, B and C on one broadcast topic, when A posts and B replies with the same `conversation_id`, then C receives both A's post and B's reply, and A receives B's reply (many-to-many, not receipt only). (3) The operator leg has no acceptance criterion yet, because no component is designed for it (GP-11).
+R-1.g Status: 1:1 and broadcast carry on the hub. The live leg into a running agent does not operate on this host. The operator leg is designed only.
+
+R-2 **The sender always knows where its message is.**
+R-2.a [C] The sender MUST always know where its message is. [P] Collector expansion: the sender MUST be able to see, for every message it sent, the stage the message has reached, with a timestamp, and no message may be in transit with its stage invisible (the new impossibility clause is the collector's reading of R-1.2). [R] The stage and the sender-visible state (R-44) are computed from the hub record, so sender, receiver and cockpit see the same state (OD-5, R-45).
+R-2.b Functional, security invariant · P1 · source `RQ` R-1.2.
+R-2.c Rationale: the operator's failure was "you've been telling me it works" while mail sat stored and unseen (`RQ` 1 item 11).
+R-2.d Verification: negative-control test. Stop the receiver's injector, then read the sender's record.
+R-2.e Acceptance. Given a message was sent and the receiver's sidecar is stopped, when the sender reads its record, then the stage is SENT or waiting or overdue and is never HANDED_OVER or delivered. Given the receiver is healthy, when the message passes each stage, then the sender's record carries one timestamped row per stage. [R] Given the sender was down while the stages passed, when it returns and reads the hub record, then it sees the same stages and states, and it does not re-send a message whose STORED is already recorded.
+R-2.f Holds against: ADV-3 (false success), ADV-4 (outage), ADV-1 (silent agent).
+R-2.g Status: built in pieces (sender ledger, ack tracker). The per-message timeline is designed, not built (`RQ` 1 item 4d).
+
+R-3 **No one has to be attached.**
+R-3.a No agent MUST have to be attached or polling by hand for delivery to proceed.
+R-3.b Operational · P1 · source `RQ` R-1.3.
+R-3.c Rationale: an agent in the middle of work cannot also watch a mailbox.
+R-3.d Verification: live test with a receiver left idle at its prompt that runs no polling.
+R-3.e Acceptance. [R] Ruled (OD-6 B, [log](interactive-agent-communication/interview-step-01.md#od-6-already-running-sessions-section-99--ruled-b)): there is no forced relaunch. (1) Given a working session, running or not under a TermLink PTY, with the mail check in its existing hooks (R-48), when a message is sent, then the message appears in its transcript at its next hook call, with transcript evidence. (2) Given an idle session with no typable terminal, then the sender sees WAITING FOR RECIPIENT (R-44), never delivered, until the session next starts through the reachable launcher or acts. (3) Given the receiving agent is idle at its prompt in a typable terminal and runs no polling, when a message is sent, then the message appears in its transcript within a bound. The bound for (3) is still open: the OD-3 stuck deadline "not handed over within about 1 min of the agent being ready" is the only number the rulings give, and two ticks plus margin stays a placeholder to make the test runnable.
+R-3.g Status: NOT met for idle sessions without a typable terminal on this host (`RQ` 1 item 5). A running session cannot be made injectable afterwards (PL-237). [R] Conflict C-3 is resolved by OD-6 B: working sessions are reached by hooks, idle ones become pushable over time through the launcher on each natural restart, never forced.
+
+### 6.3 Origins (`RQ` section 2)
+
+R-4 **Keep keystroke injection and output read-back.**
+R-4.a The system MUST keep the ability to inject keystrokes into a terminal session and read its output back.
+R-4.b Interface · P1 · source `RQ` R-2.1; operator: "i wanted a means to simulate keyboard input and capture console output".
+R-4.c Rationale: the founding verb of TermLink and the base of the injector.
+R-4.d Verification: `scripts/session-selftest.sh` (spawn, exec a sentinel, cleanup).
+R-4.e Acceptance. (1) Given a spawned session at a shell prompt, when `termlink pty inject <s> "echo <sentinel>" --enter` runs, then `termlink output <s>` shows the sentinel after the command ran (keystroke injection and read-back). (2) The prover `scripts/session-selftest.sh` checks the neighbouring `exec` round trip (ok, exit code 0, sentinel in stdout); it is evidence for R-4 only together with (1).
+R-4.g Status: built and operating.
+
+R-5 **Conversation over the hub, not fire-and-forget.**
+R-5.a Agents MUST be able to exchange conversation turns as durable hub messages that carry a `conversation_id`, in place of fire-and-forget dispatch.
+R-5.b Functional · P1 · source `RQ` R-2.2.
+R-5.c Rationale: T-256 replaced one-shot dispatch with a conversation.
+R-5.d Verification: fixture and live test over `channel post` and `channel subscribe`.
+R-5.e Acceptance. Given a topic and two agents, when A posts a turn with a `conversation_id` and B subscribes, then B reads the turn with the same id.
+R-5.g Status: built on the hub.
+
+### 6.4 The sidecar (`RQ` section 3)
+
+R-6 **One sidecar per agent, simple, with an API.**
+R-6.a Each agent MUST have one sidecar: a separate, very simple process with an API.
+R-6.b Functional, quality · P1 · source `RQ` R-3.1; operator wording "a separate process exposing an API … Very simple."
+R-6.c Rationale: carrying delivery must not depend on any LLM turn.
+R-6.a1 [R] Ruled (OD-9 C, sequenced; GP-12 A revised): the receive side ships as `termlink sidecar` in the binary, with AEF supplying harness adapters, to the same contract as the OD-3, 4, 5, 7 and 8 rulings; there is exactly one receiver per inbox at every moment (R-49). One sidecar per agent stays.
+R-6.d Verification: by verified behaviour, not counts (GP-12): the status call, the end-to-end probe, the standing fault injections and the drilled diagnosis time of R-70; process inspection and an API call for adjacency.
+R-6.e Acceptance. [R] "Very simple" is accepted by verified behaviour (GP-12, [log](interactive-agent-communication/interview-step-01.md#gap-review-section-8--walked-one-item-at-a-time) item 3): (1) a status call answers truthfully, with separately verified, freshness-stamped facts and an end-to-end probe; (2) each of the five real failures is a standing fault injection and the status call names its specific diagnosis within a declared time (the time is open, step 3); (3) recovery is automatic with zero manual steps; (4) the diagnosis time is drilled; (5) a clean install works, with upgrade, rollback and restart. Inventories of components, stores, identities and keys, API operations and message states are kept, and every addition is justified (R-70). Line counts and component counts are growth tripwires only and are never an acceptance criterion. Adjacency stays as a check: given agent X is registered, when the agent's own process is killed, then X's sidecar is still running and its status call answers; given two agents, then there are two sidecar processes.
+R-6.g Status: built as shell scripts for three agents; the API that exists is local control only (`RQ` 3 item 1). The v0.3 note "very simple has no measure (GP-12)" is closed by the ruling. Applying the rule to AEF's Python sidecar is open (step 3).
+
+R-7 **Independent of the hub.**
+R-7.a A sidecar MUST be independent of the hub, because the hub goes down.
+R-7.b Operational · P1 · source `RQ` R-3.2; operator: "deliberately independent of the hub because the hub goes down".
+R-7.c Rationale: a hub outage must not stop local delivery.
+R-7.d Verification: stop the hub(s), then run the live test twice, with both agents on one host and with the agents on two hosts; the same criteria apply to both.
+R-7.e Acceptance. [R] Ruled (OD-1 C, [log](interactive-agent-communication/interview-step-01.md#od-1-cross-host-send-path-section-94--ruled-c); one rule regardless of host, J4 ruling A at sign-off, 2026-10-07): circuits apply to every established conversation, whether both agents are on one host or not; the host makes no difference. (1) Given an established circuit and its hub(s) unreachable, when A sends to B, then turns continue to be delivered sidecar to sidecar under the one delivery contract and the flow of R-17..R-25 completes, until the hub-minted per-circuit credential expires; the lifetime is open (step 2, R-46). (2) Given no established conversation and the hub unreachable, when A starts a new conversation with B, then set-up waits for the hub: the message is stored at the sender and the ladder of its priority class runs (R-30, R-31), and the sender sees WAITING, never a silent loss. (3) Negative control: a circuit whose credential has expired is refused and re-set-up through the hubs (R-46.e). Whether a same-host new conversation may start without the hub, and on what trust, is a step-2 question (section 13); until step 2 rules, (2) applies on one host too. The v0.3 same-host test ("hub stopped, A to B on host H, B gets it") is superseded.
+R-7.g Status: partial. TermLink's sidecar reads hub topics to learn of mail. AEF's receiver takes loopback mail with no hub (`RQ` 3 item 3). `RV1` section 2 says GLM and 055 call this requirement untestable or without a stated benefit. [R] OD-1 is ruled C: the circuit gives the requirement its stated benefit for established conversations; new conversations and fallback use the hub path.
+
+R-8 **Always respawns, portably.**
+R-8.a A sidecar that dies MUST be restarted by a supervisor on hosts with systemd and on hosts without it.
+R-8.b Operational · P1 · source `RQ` R-3.3; operator: "I want a solid solution." (SQ-8).
+R-8.c Rationale: a sidecar that stays dead is a silent deaf agent.
+R-8.d Verification: kill the sidecar with SIGKILL and watch for the new process, on a systemd host and on a cron or launchd host.
+R-8.e Acceptance. Given a running sidecar, when it is killed with SIGKILL, then a new sidecar for the same agent runs within the supervision interval (today 5 min) and its heartbeat is fresh.
+R-8.f1 [R] Scope (OD-15 A, consent rules beside R-8): this requirement restarts the sidecar. Starting or resuming an AGENT is not covered by it; that needs a grant and follows R-64 and R-65.
+R-8.g Status: built and operating on this host. Not verified on macOS.
+
+R-9 **Carries the startup chain.**
+R-9.a The sidecar MUST carry the startup chain: start the agent, the session, the project and the hub.
+R-9.b Functional · P2 · source `RQ` R-3.4 (confirmed; the priority is a collector proposal); operator spec wording (RAIL:111-117).
+R-9.c Rationale: the operator wants one component that brings the whole chain up.
+R-9.d Verification: start from a fully stopped state, in a test estate.
+R-9.e Acceptance. Given the project, session, agent and hub are all stopped, when the startup chain runs, then the agent, the session, the project and the hub are each started and each is live. [P] Collector addition: they start in the listed order and each is verified live before the next starts (the order and the serial check are not confirmed).
+R-9.f1 [R] Ruled (OD-15 A refined, 3f): R-9 stays as confirmed; its "start the agent" step follows R-64 (mail may start an agent only for role or project addressing with nothing live, under a Tier-2 approval or a Tier-3 grant) and R-65 (an exact instance that died mid-conversation is resumed only under the stated conditions). The operator's tiers: Tier 2 one-off approval, Tier 3 pre-approved category. The IAC-72 narrowing of R-9 is not ruled and stays open (13.2).
+R-9.g Status: not built, not designed beyond one sentence. [R] The scope conflict C-12 is resolved by OD-15: no agent is started by inbound mail without a grant, and this requirement's "start the agent" step is subject to it.
+
+R-10 **Re-resolves a moved peer.**
+R-10.a A sidecar MUST re-resolve a peer's address when the FQDN or IP stops resolving.
+R-10.b Functional · P2 · source `RQ` R-3.5.
+R-10.c Rationale: hosts change address.
+R-10.d Verification: fixture that changes name resolution between two sends.
+R-10.e Acceptance. Given a peer's FQDN now resolves to a new IP, when the sender's sidecar sends, then it re-resolves and the message reaches the peer at the new address. Negative control: given the name no longer resolves at all, then the failure is reported and nothing is sent to the old address silently.
+R-10.g Status: partial. It notices a change and does not reconnect (`RQ` 3 item 6).
+
+### 6.5 Sending (`RQ` section 4)
+
+R-11 **Hand the message to the own sidecar.**
+R-11.a The sender MUST give the message, optionally with a blob, to its own sidecar's API.
+R-11.b Interface · P1 · source `RQ` R-4.1.
+R-11.c Rationale: one local send point where durability and identity are applied.
+R-11.d Verification: API fixture and live test.
+R-11.e Acceptance. Given a sender and its sidecar, when the sender calls send with a message and a blob, then the call returns a message id. [P] Collector addition: the receiver verifies the blob's sha256 before the message is flagged.
+R-11.g Status: there is no send API on the TermLink sidecar. Senders use `agent-send.sh` and `channel post` (`RQ` 4 item 1). AEF has `fw sidecar send` on one host.
+
+R-12 **Sidecar to sidecar, push first.**
+R-12.a The sender's sidecar MUST deliver the message to the receiver's sidecar API, trying push first.
+R-12.b Functional · P1 · source `RQ` R-4.2; operator: "Send: sender agent -> its own sidecar (API) -> the receiver's sidecar (API)."
+R-12.c Rationale: delivery without the hub as the first path.
+R-12.d Verification: [P] live test with a hub-side counter that stays unchanged on the push path (collector test instrument, see R-12.e).
+R-12.e Acceptance. Given both sidecars are up, when a message is sent, then it reaches the receiver sidecar by a direct API call. [P] Collector addition, as a test instrument for "push first": no message post to a hub topic is observed on that path.
+R-12.f1 [R] Ruled (OD-1 C): "push first" applies to an established conversation on a circuit, also across hosts. A new conversation, and any case where the circuit is not up, goes by the hub path (R-13). The circuit's conditions (set-up and authorisation through the hubs, per-circuit short-lived credentials minted by the hubs, one delivery contract and one log per conversation on both paths) are R-46. The R-12.e instrument "no hub post on the push path" holds for turns on an established circuit; each turn is still copied to the receiver's home hub as telemetry (R-45), which is not a message post.
+R-12.g Status: same host in AEF only. Cross-host circuits are designed only. [R] Conflict C-2 is resolved by OD-1 C, built in the order identity hygiene and hub directory with liveness, then conversations bound to an instance on the hub path, then the direct circuit; the hub-to-hub directory/relay principle and the charter rewording are not ruled (13.2).
+
+R-13 **The hub is the fallback.**
+R-13.a The hub MUST serve as the fallback path, and as discovery and blob storage.
+R-13.b Functional · P1 · source `RQ` R-4.3.
+R-13.c Rationale: a message must still arrive when no receiver sidecar answers.
+R-13.d Verification: stop the receiver sidecar, send, restart it.
+R-13.e Acceptance. Given the receiver's sidecar is down, when a message is sent, then it is on the receiver's hub inbox topic, and when the sidecar returns it is pulled, stored and flagged, and the sender's record shows each stage reached.
+R-13.f1 [R] Ruled (OD-1 C): the hub is the path for new conversations and the fallback for established ones, and it sets up the circuits. It carries the directory and the liveness of the home hubs (R-60). Hubs never sync messages (R-60).
+R-13.g Status: built and operating.
+
+### 6.6 Receiving (`RQ` section 5)
+
+R-14 **RECEIVED, immediately.**
+R-14.a On accepting a message the receiver's sidecar MUST call the sender's sidecar with RECEIVED, immediately. [P] The call carries a timestamp (collector addition; R-35 needs it).
+R-14.b Interface · P1 · source `RQ` R-5.1; operator: "an API call that's received".
+R-14.c Rationale: the sender learns at once that the message arrived.
+R-14.d Verification: live test with timestamps on both sides.
+R-14.e Acceptance. [P] Given the receiver sidecar is up, when it accepts a message, then the sender's record gains a RECEIVED row, with the receiver's timestamp, within a bound (the timestamp and the row are the collector proposal of R-14.a; the confirmed part is only that the call is made immediately). "Immediately" is the operator's word and has no number; the only number the rulings give is the OD-3 stuck deadline: no acceptance within 1 min while the destination hub is reachable shows the message as STUCK.
+R-14.o [R] Ruled (OD-4 A, [log](interactive-agent-communication/interview-step-01.md#od-4-received-and-stored-section-97--ruled-a); OD-5): RECEIVED means arrived and not yet safe, and is informational; STORED (R-15) is the only call that releases the sender. On the hub path, where the store is instant, both stages may travel in one message carrying both, with two timestamps. The receiver writes RECEIVED to the hub record first; the call to the sender is a fast notice of one or two quick attempts, never a retry storm (R-45). OD-3's "not accepted" splits into "not received" (transport) and "received, not stored" (receiver).
+R-14.g Status: TermLink posts a hub receipt on a 15 s poll, per topic, with no per-message id (`RQ` 5 item 1). AEF answers synchronously, same host. [R] Conflicts C-7 (part) resolved by OD-4 A and OD-5.
+
+R-15 **STORED, durably, then a second call.**
+R-15.a The receiver MUST store the message durably, and then call the sender again with STORED. STORED MUST NOT be reported before the store is durable.
+R-15.b Functional, security invariant · P1 · source `RQ` R-5.2; operator read-back "STORED: called again once stored."
+R-15.c Rationale: a message that survives a sidecar restart is the base of "no silent loss".
+R-15.d Verification: kill the receiver sidecar after STORED and restart it.
+R-15.e Acceptance. Given STORED was reported, when the receiver sidecar is killed and restarted, then the message is still in the store with the same id. Given a store that fails, then STORED is not reported.
+R-15.f Holds against: ADV-3, ADV-4.
+R-15.o [R] Ruled (OD-4 A, OD-5): STORED is the only call that releases the sender and the second step of the message states (R-44). It is written to the hub record before the call to the sender (R-45). Idempotence per stage is R-51.
+R-15.g Status: no distinct STORED call exists in either build. AEF's RECEIVED already means stored. [R] The two-call form is ruled (OD-4 A).
+
+R-16 **A new-message flag is raised.**
+R-16.a [C] A new-message flag MUST be raised. [A] The flag is raised after the message is durably stored and MUST NOT be raised before the store (ordering is the collector's reading of R-5.2 then R-5.3).
+R-16.b Functional · P1 · source `RQ` R-5.3.
+R-16.c Rationale: the tick reads the flag, so the flag is the trigger for injection.
+R-16.d Verification: fixture and live inspection of the flag file.
+R-16.e Acceptance. Given a message is stored, then the flag exists with a timestamp and a pending count, and the message is already readable from the store at that moment.
+R-16.f Holds against: ADV-3 (a flag up for a message that is not yet durable makes the tick type a doorbell for mail that a crash then loses), ADV-4 (an outage between flag and store).
+R-16.g Status: built and operating for three agents. Its pending count is shared with the sidecar's own auto-ack, so 0 can mean "receipted", not "seen" (`RQ` 5 item 2).
+
+### 6.7 The 30-second tick (`RQ` section 6)
+
+R-17 **Check the flag every 30 seconds.**
+R-17.a A job MUST check the new-message flag every 30 seconds.
+R-17.b Functional · P1 · source `RQ` R-6.1; operator: "Every 30 seconds …".
+R-17.c Rationale: bounds pickup latency when the agent is idle. System cron cannot do 30 s, so it is a supervised loop (`IAC` 17a).
+R-17.d Verification: tick log over 100 consecutive ticks.
+R-17.e Acceptance. Given a running sidecar, then consecutive ticks are at most 30 s plus a tolerance apart (the tolerance is open: operator), and a tick that finds the flag up proceeds to R-18.
+R-17.g Status: TermLink: not built (installed driver is `*/5`, checks no prompt). AEF: built (`SIDECAR_TICK`, default 30) for armed agents only.
+
+R-18 **Read the queue, highest priority first.**
+R-18.a With the flag up, the job MUST read the queue in order of priority, highest first. [P] Within one priority, oldest first (collector addition from the built injector, `RQ` 6 item 3).
+R-18.b Functional · P1 · source `RQ` R-6.2.
+R-18.c Rationale: urgent mail must not wait behind routine mail.
+R-18.d Verification: fixture with three queued messages.
+R-18.e Acceptance. Given queued messages P=5 (arrived second), P=0 (first) and P=-1 (third), when the tick reads the queue, then the order is P=5, P=0, P=-1. [P] Two messages with equal priority are read oldest first.
+R-18.g Status: built inside the injector, which nothing schedules (`RQ` 6 item 1).
+
+R-19 **Urgent: injected immediately, by a route that cannot silently lose it.**
+R-19.a An urgent message MUST be injected immediately, even when the agent is busy, by a route that cannot silently lose the message.
+R-19.b Security invariant · P1 · source `RQ` R-6.3; operator, 2026-10-03: "inject when it's free and with urgent bypass" and "urgent gets injected immediately".
+R-19.c Rationale: the operator wants an interruption that is not waited out. The qualifier is the operator's own: "Reliability is important at all times but can also be out of band." (SCAPI:207-208).
+R-19.d Verification: live test with the receiver inside a long tool call, plus a negative control in which the typed line is discarded.
+R-19.r [R] Ruled (OD-2 B, [log](interactive-agent-communication/interview-step-01.md#od-2-urgent-into-a-busy-prompt-section-95--ruled-b)): the route is the harness's hook channel. Urgent content reaches a busy agent at its next tool call, or at turn end through the Stop hook; nothing is ever typed into a busy prompt; an idle agent gets the normal one-line inject. SQ-4 is reconciled, not superseded: urgent bypasses the wait, never the prompt-free check, so the words "injected immediately" in R-19.a are read as "delivered without waiting for a free prompt". Mid-turn urgent delivery only from senders the receiver allows by verified key (R-63); other senders are downgraded to normal, never dropped. Urgent deadlines (OD-3, 3g): accepted within 15 s, handed over at the next tool call or turn end, answered within 5 min (R-44).
+R-19.e Acceptance. [R] Given an urgent message and a receiver in the middle of a long tool call, when the message is handled, then (1) it is already durable in the store, (2) nothing is typed into the busy prompt, (3) the content reaches the agent at its next tool call or turn end through the hook channel, with transcript evidence (a mid-turn hook-context entry in the receiver's transcript), and HANDED_OVER is reported, (4) the message count in the store is the same before and after, and (5) negative control: with the hook channel disabled, no HANDED_OVER is reported, the message stays eligible and the sender sees STUCK within the deadline. Only demonstrated delivery (transcript evidence and HANDED_OVER, R-24) counts as delivery. An escalation is a separate outcome and is never counted as delivery.
+R-19.f Holds against: ADV-1 (a busy agent discards the typed line, T-2396), ADV-4.
+R-19.g Status: ruled. The v0.3 conflict C-1 is resolved by OD-2 B. Not built: the hook delivery of R-48 and the adapter of R-47 are the route. Claude Code delivers PostToolUse hook output into a running turn after each tool call (verified in the orchestrator's session, log OD-2 point 2); other harnesses' routes are open (R-47).
+
+R-20 **Not urgent: only when the prompt is free.**
+R-20.a A non-urgent message MUST be injected only if the prompt is free. Otherwise it MUST wait for the next tick.
+R-20.b Functional · P1 · source `RQ` R-6.4; operator: "If the prompt is not free, we wait again until the next 30 seconds."
+R-20.c Rationale: typing into a busy prompt loses the text.
+R-20.d Verification: live test with a busy receiver and a negative control.
+R-20.e Acceptance. Given a non-urgent message and a receiver that is not ready, when a tick runs, then nothing is typed and the message stays queued with the flag up. Given the receiver becomes ready, when the next tick runs, then the line is typed. If the agent is not running, then NOT RUNNING is reported and not treated as busy.
+R-20.f Holds against: ADV-1 (a busy agent discards typed text, T-2396).
+R-20.g Status: TermLink built it behind the screen classifier, not scheduled. AEF built it behind the ready flag, armed agents only.
+
+### 6.8 Readiness (`RQ` section 7)
+
+R-21 **Readiness is reported by the harness.**
+R-21.a The harness's own hooks MUST report readiness: the Stop hook marks the session ready at the end of a turn and the prompt-submit hook clears it before the next turn. [R] Ruled (OD-7 C, [log](interactive-agent-communication/interview-step-01.md#od-7-readiness-hooks-or-screen-and-who-owns-it-section-910--ruled-c)): the wording is harness-neutral. Readiness is reported through the harness adapter contract of R-47 (READY, BUSY, NOT RUNNING, plus evidence of hand-over); the hooks named here are the Claude Code adapter's implementation. [P] A missing or unreadable flag MUST read as not ready (collector addition from AEF's build, `RQ` 7 item 1: `adapter.py`).
+R-21.b Interface · P1 · source `RQ` R-7.1.
+R-21.c Rationale: only the harness knows a turn is open.
+R-21.d Verification: hook fixture and live test.
+R-21.e Acceptance. Given the Stop hook fired for session S, then S's record says ready. Given a prompt is submitted, then S's record says not ready before the new turn starts. [P] Given S's record is missing, then S reads not ready.
+R-21.g Status: AEF built it for `claude-fw --termlink` sessions. TermLink has none. [R] The harness-neutral adapter is ruled (OD-7 C, R-47); conflict C-5 is resolved. TermLink owns the contract; each harness's adapter comes from the team that runs that harness (the orchestrator's proposal; the log marks it to be confirmed with OD-9, which ruled C, and it is open for step 4, 13.2).
+
+R-22 **Readiness is not inferred from the screen.**
+R-22.a The system MUST NOT decide that a prompt is free from what the screen shows.
+R-22.b Security invariant · P1 · source `RQ` R-7.2.
+R-22.c Rationale: a long tool call looks idle and is unsafe to type into.
+R-22.d Verification: live test with a long silent tool call.
+R-22.e Acceptance. Given a receiver inside a 60-second silent tool call with a quiet screen, when a tick runs, then no non-urgent line is typed.
+R-22.f Holds against: ADV-1.
+R-22.o [R] Ruled (OD-7 C): the screen classifier is kept only as a diagnostic. It never gates a hand-over and never decides that a prompt is free.
+R-22.g Status: the built TermLink classifier infers from the screen. `IAC` still says so. The operator once said "use PTY inject when the cursor is silent". [R] Conflict C-5 is resolved by OD-7 C; the classifier must be demoted to diagnostic use.
+
+### 6.9 Injection (`RQ` section 8)
+
+R-23 **One short line is typed.**
+R-23.a The sidecar MUST type one short line into the agent's session with `termlink pty inject`. [P] The line MUST NOT carry peer content (collector addition from the AEF build, `RQ` 8 item 1; see CAND-1).
+R-23.b Interface · P1 · source `RQ` R-8.1.
+R-23.c Rationale: the content arrives by the prompt hook, so a lost keystroke cannot lose content.
+R-23.d Verification: fixture that records the typed text.
+R-23.e Acceptance. Given a queued message, when the sidecar injects, then the typed text is one line. [P] Collector additions: it holds a count and message ids and no message body, and the target is the session named in a claim written before typing.
+R-23.f Holds against: ADV-2 (a hostile or compromised sender whose text would otherwise be typed into another agent's prompt as input), ADV-1 (a lost keystroke would lose content typed inline).
+R-23.o [R] Ruled (OD-2 B): the line is typed only when the agent is idle; a busy agent is never typed into (R-19). Peer content in any form is untrusted data, framed as such (R-50).
+R-23.g Status: built in AEF and in the TermLink injector. Operating for armed sessions only.
+
+R-24 **HANDED_OVER only with evidence.**
+R-24.a HANDED_OVER (v0.3 and the operator's wording: INJECTED) MUST be reported only when the agent's transcript shows the agent's session received the content, whether it arrived by a hook or by typing. A typed line alone MUST NOT be reported as HANDED_OVER; a typed line with no transcript evidence is ATTEMPTED, a non-terminal marker. [R] Ruled (OD-8 B, [log](interactive-agent-communication/interview-step-01.md#od-8-stage-names-and-acknowledged-no-action-section-911--ruled-b)): HANDED_OVER is the one name; "inject" names the action. After OD-2 and OD-6 many hand-overs arrive through the hook channel, where "injected" would be inaccurate.
+R-24.b Security invariant · P1 · source `RQ` R-8.2; operator: "INJECTED: called back to the sender's sidecar once the message is in the prompt." (renamed by OD-8)
+R-24.c Rationale: "a rung is not a read" (PL-253).
+R-24.d Verification: the receiver-side prover `scripts/session-message-selftest.sh`, plus a discard negative control.
+R-24.e Acceptance. Given a line typed into a prompt that discards it, when the evidence window passes (AEF: 90 s), then HANDED_OVER is not reported, ATTEMPTED is recorded and the message is eligible again. Given the transcript carries the message, by hook or by typing, then HANDED_OVER is reported with its timestamp. The chain is SENT, RECEIVED, STORED, HANDED_OVER, then REPLIED or ACKNOWLEDGED_NO_ACTION (R-28).
+R-24.f Holds against: ADV-3 (a sidecar that claims success), ADV-1.
+R-24.g Status: AEF built it under the name HANDED_OVER. The TermLink injector posts a weaker stage on a BUSY transition and must be mapped to ATTEMPTED. [R] Conflict C-10 is resolved by OD-8 B. The vocabulary is proposed to AEF together with the five states (framework:pickup offset 314).
+
+R-25 **The flag comes down only when the queue is empty.**
+R-25.a The sidecar MUST lower the flag only when the queue is empty.
+R-25.b Functional · P2 · source `RQ` R-8.3.
+R-25.c Rationale: a lowered flag with queued mail hides that mail from the tick.
+R-25.d Verification: fixture with two queued messages.
+R-25.e Acceptance. Given two queued messages, when one is handed over, then the flag stays up. When the second is handed over, then the flag is down.
+R-25.g Status: designed. Not verified as built. The injector has an open gap that re-serves the oldest offset (`RQ` 8 item 5).
+
+### 6.10 Answering (`RQ` section 9)
+
+R-26 **ANSWER READY.**
+R-26.a When an answer is ready, the receiver's sidecar MUST tell the sender's sidecar, and the sender MUST be able to pull the answer.
+R-26.b Interface · P1 · source `RQ` R-9.1; operator read-back "ANSWER READY: … the sender pulls it."
+R-26.c Rationale: the sender learns of the answer without polling.
+R-26.d Verification: live test.
+R-26.e Acceptance. Given the receiver stored a reply, when it calls ANSWER READY, then the sender's record shows it with a timestamp, and the pulled answer equals the reply.
+R-26.o [R] Ruled (OD-5): the reply is written to the hub record first; the sender pulls the answer from the record, and the ANSWER READY call is a fast notice (one or two quick attempts). A sender that was down reads the record when it returns. The cross-hub read of a message's stage and reply by id is the primitive TermLink supplies (T-3347).
+R-26.g Status: not built in TermLink. AEF delivers a reply as a new send. [R] Resolved by OD-5: record first, callback a fast notice.
+
+R-27 **Roles swap for the reply.**
+R-27.a The reply MUST use the same path and the same stages with sender and receiver swapped.
+R-27.b Functional · P2 · source `RQ` R-9.2.
+R-27.c Rationale: one path, one set of guarantees.
+R-27.d Verification: live test of both directions.
+R-27.e Acceptance. Given a reply from B to A, then A's sidecar shows RECEIVED, STORED and HANDED_OVER for it, with timestamps, as B's did for the first message.
+R-27.g Status: partial. TermLink's reply goes through `channel.post` (`RQ` 9 item 3).
+
+R-28 **A woken agent replies or says "no action".**
+R-28.a A woken agent MUST reply, or explicitly say "no action". It MUST NOT stay silent. [R] Ruled (OD-8 B; OD-13 2a): the two outcomes are the terminal stages REPLIED and ACKNOWLEDGED_NO_ACTION. R-40 (the native consumer) is merged here: a receipt cannot exist unless the agent's own turn took place, which OD-2, OD-6 and OD-8 satisfy.
+R-28.b Security invariant · P1 · source `RQ` R-9.3.
+R-28.c Rationale: "silence always means a bug" (T-2402).
+R-28.d Verification: live test with a negative control in which the agent posts nothing.
+R-28.e Acceptance. Given an injected message, then the woken agent itself produces either a reply or an explicit "no action"; forwarding a reply that someone else wrote does not satisfy this. When the agent replies, the sender sees the reply. Given the agent explicitly says "no action", then the sender sees the terminal stage ACKNOWLEDGED_NO_ACTION. Negative control: given the turn ends with neither, then the message shows as unanswered to the sender: STUCK, "not answered", when no reply or no-action comes within 1 h of HANDED_OVER while the agent is alive (a sender may set another deadline per message; urgent: 5 min) [R] (R-44), and the unanswered message appears in the receiver's owed-answers list (R-58) and, past the escalation rung, in needs-attention (R-37).
+R-28.f Holds against: ADV-1.
+R-28.g Status: skill text only, no hook enforces it. Neither sender state set has a no-action state (`RQ` 9 item 4). [R] The terminal state is ruled (OD-8 B); the deadline is ruled (OD-3 3d).
+
+R-29 **Deaf means halt.**
+R-29.a If an agent's ears are dead it MUST halt instead of assuming there is no mail, and it MUST say so.
+R-29.b Security invariant · P1 · source `RQ` R-9.4 (June, confirmed).
+R-29.c Rationale: "no flag" only means "no mail" if the listener is alive.
+R-29.d Verification: stale-heartbeat fixture and live test.
+R-29.e Acceptance. [R] Corrected (CAND-3 4d, CAND-6, [log](interactive-agent-communication/interview-step-01.md#od-17-proposed-requirement-changes-section-920--walked-one-candidate-at-a-time)): CLEAR requires recent surfacing progress, never a fresh heartbeat alone. Given the sidecar heartbeat is stale, when the agent checks for mail, then the verdict is DEAF and the agent reports the halt. Given a fresh heartbeat and no flag but no recent surfacing progress (no real HANDED_OVER or confirmation within the no-surfacing threshold), then the verdict is NOT CLEAR, shown as UNKNOWN or DEAF by R-53, never CLEAR. Given a fresh heartbeat, no flag and recent surfacing progress, then the verdict is CLEAR. Negative control: a sidecar with a seconds-old heartbeat that refuses every confirmation (the 32,205-refusal failure of OD-14) must read NOT CLEAR. The no-surfacing threshold for an idle agent is open (step 4).
+R-29.f Holds against: ADV-3, ADV-4, ADV-6 (a deaf agent that looks alive).
+R-29.g Status: what "halts" stops is not defined in the June wording (all work, or only work that depends on mail); open for steps 2 and 4. `notify-check.sh` exists. Nothing runs it at a yield point, so no owner (`RQ` 9 item 5).
+
+### 6.11 Fallback polling (`RQ` section 10)
+
+R-30 **Two polling ladders, by priority.**
+R-30.a Where a push cannot land, the sender side MUST poll on the ladder of the message's priority class. [R] Ruled (OD-3 A modified, then corrected 2026-10-06 point 6, [log](interactive-agent-communication/interview-step-01.md#od-3-polling-ladder-section-96--ruled-a-modified-continuous-ladder-plus-defined-message-states)):
+R-30.a1 Normal messages (priority below 5): each rung twice, at 1 min, 5 min, 15 min, 1 h, 4 h, 1 day, 3 days, 1 week, 1 month, 1 quarter, 1 year: 22 polls over a little more than two years. The rungs are those of the operator's 2026-10-03 ladder (R-10.1 of `RQ`); its 15 s rung is dropped because the operator began the normal ladder at 1 min.
+R-30.a2 Urgent messages (priority 5 or higher): the continuous ladder, poll moments after the send: 15 s, 30 s, 45 s; 1, 2, 3, 4, 5, 10, 15, 30, 45 min; 1, 2, 3, 4, 8, 12, 16, 20, 24 h; 2, 3, 4, 5, 6, 7 days; 2, 3, 4 weeks; 1, 2, 3 months; 2, 3, 4 quarters; 2 years (the last poll): 43 polls over two years.
+R-30.a3 The states of R-44 and their stuck deadlines are unchanged by the ladder choice. The ladder decides when the sender looks; the state is a label, and polling continues behind it.
+R-30.a4 The chase is code, never an LLM turn. [R] Progressive insight of 2026-10-06 ([log](interactive-agent-communication/interview-step-01.md), final section): the sender-side chase of an unanswered message MUST run as an API call on the sidecar, as vendor-neutral code: a cron job, or a one-shot script that on each run computes the next rung and reschedules itself. It MUST NOT be a resident model loop and MUST NOT call the model to poll. When a reply arrives it reaches the agent by the normal path (prompt injection or hook, R-19). Ownership: AEF, together with send-and-wait (R-55, framework:pickup offset 319). It runs without a harness: the interim `scratchpad/ladder-watch.sh` used in the interview session is the right shape and runs inside the agent's harness, which is the part the requirement removes.
+R-30.b Functional · P2 · source `RQ` R-10.1 as corrected by OD-3; operator: "that should be the standard fallback mechanism for the framework for any polling activities."
+R-30.c Rationale: a standard cadence instead of ad-hoc retries; an LLM turn per poll is slow and wasteful.
+R-30.d Verification: simulated-clock test of the rung times for both classes; a process check that the chase runs without a model call and without a harness.
+R-30.e Acceptance. Given a failed push of a normal message and a simulated clock, then the intervals between successive polls are 1 min, 1 min, 5 min, 5 min, 15 min, 15 min and so on through 1 year, 1 year (22 polls), each interval counted from the previous poll. Given an urgent message, then the polls fall at 15 s, 30 s, 45 s, then 1, 2, 3, 4, 5, 10, 15, 30, 45 min and so on to 2 years (43 polls). Given a chase running, then no model call is made to poll and the schedule survives a restart of the agent's harness. "Each rung twice" read as two consecutive polls at the same interval is [A] the collector's reading, confirmed by the 22-poll count the operator's correction states.
+R-30.g Status: designed only. The first-rung and fourth-rung dictation questions ("50") are closed by the ruling (15 s and 15 min, then the correction). The reviewers' objection that year-long polling is wrong (`RV1` point 4) is answered by the states of R-44: polling continues, but "stuck" becomes visible. [R] Conflict C-6 is resolved by OD-3. The superseded form is at framework:pickup offset 314; offset 318 carries the correction to AEF.
+
+R-31 **The ladders are the framework default, and govern re-sends.**
+R-31.a The two ladders of R-30 MUST be the framework default for all polling, one per priority class, and MUST be changeable per situation. [R] A message's ladder also governs its re-sends before STORED: there is one schedule per priority class for re-sending and polling. For agent mail this replaces AEF's D-600 (the normal ladder is D-600 extended to years instead of dead-lettering at a month); AEF's retry ladder for re-sending otherwise stays AEF's, and AEF is to be told (offset 318). Re-sends are also governed by R-56 (ladder-governed with jitter, early re-sends refused).
+R-31.b Functional · P2 · source `RQ` R-10.2; OD-3 point 6d.
+R-31.c Rationale: one default, no per-script cadence.
+R-31.d Verification: config fixture.
+R-31.e Acceptance. Given a poll or a re-send with no explicit schedule, then it uses the default ladder of its priority class. Given a per-situation override, then it uses the override and the default is unchanged. Given a re-send before STORED, then it follows the same schedule as the polls.
+R-31.g Status: designed only. AEF filed T-3770 to reconcile it with its retry ladder; the correction replaces its premise.
+
+### 6.12 Addressing and identity (`RQ` section 11)
+
+R-32 **Five-level circuit.**
+R-32.a An agent MUST be addressed by a five-level circuit: host, hub, project, session, agent.
+R-32.b Interface · P1 · source `RQ` R-11.1.
+R-32.c Rationale: a message must name its target exactly.
+R-32.d Verification: parser fixture on both grammars.
+R-32.e Acceptance. Given a circuit in path form and in the V9 form, then both parse to the same five levels, and writing emits path form.
+R-32.o [R] Ruled (OD-10 C, OD-12 D, OD-18 A revised): the address carries both ids, canonical plus runtime. A NEW request goes to project plus role and the project's home hub resolves it to one live copy (role "main" only, R-67). Mail INSIDE a conversation goes to the exact copy the conversation is bound to; the exact-instance rules are R-62. Inbox names use each hub's canonical id (R-61).
+R-32.g Status: built as `to_circuit` (T-3325). It decides which sidecar wakes. Nothing wakes an agent on this host. [R] D-599's circuit form stands (OD-12 3a); AEF is asked for the amended D-660 text so both records agree; conflict C-8 is resolved by OD-12 D.
+
+R-33 **Two identities per level.**
+R-33.a Each level MUST have a canonical name and an instance identity: FQDN for the host, a hub name, the `pid` for the project, a role for the agent.
+R-33.b Interface · P2 · source `RQ` R-11.2.
+R-33.c Rationale: names survive restarts, instance ids tell copies apart.
+R-33.d Verification: identity fixture.
+R-33.o [R] Ruled (OD-11 A with location rules; OD-12 D): at the project level the canonical id is the project id minted once by the project's framework (AEF's pid) and written in the project's own `.framework.yaml`; names are display only. At the hub level each hub has a canonical id minted once and stored with its runtime state, used in inbox names; the TLS fingerprint is the hub's instance id, observed on its card. Today's fingerprint-based ids become the existing hubs' canonical ids, so nothing is renamed now. Runtime ids belong to the running copy and are never reused (R-62). The directory, card exchange and location rules are R-60; the hub identity rule is R-61.
+R-33.e1 Acceptance, added: given a project folder is renamed or moved on the same host, then the project id is unchanged. Given the hub's certificate is regenerated, then no inbox is renamed.
+R-33.e Acceptance. Given an address, then each of the five levels yields both a name and an instance id. Given the hub's TLS fingerprint rotates, then the hub's canonical id is unchanged.
+R-33.g Status: partial. The hub id used today is the rotating TLS fingerprint and a canonical hub id is not built (T-3345, done 2026-10-06, exposes `hub_id` in `hub.version`). The project slot still uses the folder name (`RQ` 11 item 3). Where and how the hub id is minted is open (step 4). [R] OD-11 and OD-12 are ruled.
+
+R-34 **Never fall back across projects.**
+R-34.a Messages MUST be addressed with `to_circuit`, and MUST NOT fall back across projects: a message addressed with `to_circuit` MUST NOT be delivered to an agent of a different project.
+R-34.b Security invariant · P1 · source `RQ` R-11.3; agreed by both sides (IN-AEF@129, IN-010@141).
+R-34.c Rationale: a wrong delivery is worse than a visible failure.
+R-34.d Verification: fixture with only a wrong-project sidecar present.
+R-34.e Acceptance. (1) Routing: given `to_circuit` names project P and only project Q's sidecar is present, then nothing is delivered or woken at Q and the sender sees the target as unreachable. (2) Hostile session: given a session of project Q that signs with the shared host key and asserts it is P, when a message to P arrives, then Q's sidecar and agents are not woken for it and the sender does not see it as delivered. (2) tests the routing decision under that assertion. It does not test authentication of the sender, which is GP-1 and is not required by R-34.
+R-34.f Holds against: ADV-6 (wrong binding) in full. ADV-2 (impersonation, shared host key) only for the routing decision in (2): detecting that a session lies about its project needs sender authentication (GP-1, step 2), which R-34 does not provide.
+R-34.o [R] Ruled (OD-10 C): the principle extends below the project. A message addressed to an exact instance MUST fail loudly if that instance has ended and MUST NEVER be silently redirected to another copy, in the same project or any other; a role message re-resolves at the home hub (R-62, R-67). OD-18: two live copies of one authority give "authority unknown", never a guess. Acceptance, added (3): given an exact-instance message and the instance has ended (home hub says DEAD), then the sender gets a dead letter and no other copy of that project is woken for it.
+R-34.g Status: built for the wake decision. A message with no address still wakes everyone (`IAC` 11a). [R] The session level is ruled (OD-10 C).
+
+### 6.13 Telemetry (`RQ` section 12)
+
+R-35 **Every step is a timestamped event, copied to the hub.**
+R-35.a Every step MUST be recorded as a timestamped event, copied to the hub, and pullable from any agent.
+R-35.b Operational · P2 · source `RQ` R-12.1; operator: "to collect the telemetry of our communications … the different steps, how much time it takes and how much delay".
+R-35.c Rationale: the operator wants to learn from delivery delays.
+R-35.d Verification: fixture that sends a message through all stages, then a pull from a second agent.
+R-35.e Acceptance. Given a message that passed four stages, when a different agent pulls its journey, then it receives events carrying message id, step, time, from and to, in order, and the copy to the hub did not sit in the message's own path.
+R-35.o [R] Ruled (OD-5): the hub record is the single source of truth for a message's state (R-45); for circuits each turn is copied to the receiver's home hub, the single log per conversation. Ruled (OD-16 C refined, [log](interactive-agent-communication/interview-step-01.md#od-16-telemetry-retention-window-section-919--ruled-c-refined)), retention by class: (1) journey events are kept until [R~] 14 days after the message reaches a final state (REPLIED, ACKNOWLEDGED_NO_ACTION or DEAD), and never cut while the message is open; (2) digests are kept [R~] 1 year, as an explicit forever-class exception with owner and reason (IW-2 rule); (3) the IW-2 ceilings apply: past a count or size ceiling the oldest final events are trimmed first, loudly, and open messages only as a last resort, with a needs-attention entry. The numbers 14 days and 1 year are the orchestrator's, accepted by the ruling, and can be overturned. Telemetry is tagged with the stamping host and a skew estimate (R-57).
+R-35.e1 Acceptance, added: given a message that reached REPLIED, then its journey events are still present on day 13 and trimmed after day 14 [R~]; given an open message older than 14 days, then its events are still present.
+R-35.g Status: designed only. The ceiling values are open (step 4).
+
+R-36 **Daily digest and reflection.**
+R-36.a Each agent MUST post a daily digest and reflect on it.
+R-36.b Operational · P3 · source `RQ` R-12.2; operator: "one times per day".
+R-36.c Rationale: traffic data is only useful if someone reads it.
+R-36.d Verification: scheduled-job fixture.
+R-36.e Acceptance. Given 24 hours of traffic, then each agent has posted one digest with counts per step, delays, stuck messages and unanswered messages. [P] Reflection: the digest carries a record that the agent reflected on it (collector proposal; what counts as reflection is open: operator). [P] A missing digest appears as an entry on the pile-up escalation surface of R-37 (collector proposal for the destination; the surface is open: OD-14).
+R-36.o [R] Ruled (OD-16 C): digests are kept [R~] 1 year, a declared forever-class exception (R-35.o). The destination of a missing-digest entry is the needs-attention list of OD-14 (R-37.o); that a missing digest is such an entry remains the collector's [P] proposal.
+R-36.g Status: not built.
+
+R-37 **Alarms only for urgent.**
+R-37.a The system MUST raise an immediate alarm only for urgent messages. All other problems MUST escalate when they pile up, like audit warnings.
+R-37.b Operational · P2 · source `RQ` R-12.3; operator: "Liveness alarm only for urgent messages. Everything else accumulates and escalates …".
+R-37.c Rationale: alarm fatigue.
+R-37.d Verification: fixture with an overdue urgent message and a pile of routine ones.
+R-37.e Acceptance. Given an urgent message unhandled past its deadline, then an alarm is raised at once. Given many routine messages unhandled, then no immediate alarm is raised and an escalation entry appears when the pile crosses a threshold. The threshold is open (operator, "design to be decided"), so the pile-up half of this criterion cannot fail a test yet.
+R-37.o [R] Ruled (OD-14 B, [log](interactive-agent-communication/interview-step-01.md#od-14-alarms-escalation-and-the-last-rung-section-917--ruled-b); amended by OD-18 point 4): the urgent-only alarm rule stands. (1) A daily end-to-end canary between two real agents checks RECEIVED, STORED, HANDED_OVER in the receiver's transcript, and REPLIED, against the OD-3 stuck deadlines (R-66). (2) A canary failure is an escalation entry, never an alarm. (3) The last escalation rung lands in the main agent's session-start "needs attention" list (the role holder per OD-18), plus `/canaries`, the daily digest and the 055 cockpit view when it exists. (4) By OD-18 the last rung also goes to the operator or the cockpit whenever main is unassigned, failing or being taken over, because main's own list is circular when main is the failure. (5) The build proves the landing with a negative control: stop the injector, and the entry appears by the next session. The pile-up threshold stays open ("design to be decided").
+R-37.g Status: designed only. The channel by which the urgent alarm reaches the operator is open (GP-11, 9.22). The hub steward (T-3333) stays parked.
+
+R-38 **Later: observability database, learning, hub steward.**
+R-38.a [C] Later: an observability database and the learning from it; possibly a hub-steward agent (a hub-steward agent MAY be added). [P] Until then, the telemetry MUST stay readable by such a later consumer.
+R-38.b Quality · P3 · source `RQ` R-12.4.
+R-38.c Rationale: the operator wants learning from traffic later.
+R-38.d Verification: a test reader reads the telemetry events through the pull of R-35 only (see R-38.e).
+R-38.e Acceptance. [P] Given telemetry events on the hub, a test reader that uses only the pull of R-35 and the event fields of R-35.e reads all of them with no change to the message path. The compatibility contract is those fields; a real database consumer and the learning step are later and have no criterion yet.
+R-38.g Status: later. The steward is T-3333, captured.
+
+### 6.14 Deployment (`RQ` section 13)
+
+R-39 **Every sidecar ships with every deployment.**
+R-39.a Every sidecar MUST ship with every TermLink deployment. [P] It MUST start from the deployment and not from a source checkout (collector inference from `RQ` section 13, not the operator's words).
+R-39.b Operational · P1 · source `RQ` R-13.1; operator: "When the deployment is done we should deploy all the sidecars with it."
+R-39.c Rationale: today about 13 scripts run only from `/opt/termlink`.
+R-39.d Verification: install on a clean host or container from the release artifact, then start a sidecar.
+R-39.e Acceptance. [P] (the criterion tests the collector's inference) Given a clean host with the release artifact installed and no `/opt/termlink` checkout, when an agent is registered, then its sidecar can be started and passes the live test.
+R-39.o [R] Ruled (OD-9 C, sequenced, [log](interactive-agent-communication/interview-step-01.md#od-9-who-owns-the-receive-side-and-how-sidecars-ship-section-912--ruled-c-sequenced)): the receive side ships inside the binary as `termlink sidecar`, which is what the [P] inference "start from the deployment, not from a checkout" asks for. [R~] The switch from AEF's receiver to `termlink sidecar` is per host and only after the two-agent acceptance test with a negative control; AEF's receiver is then retired on that host (R-49). The ownership split with AEF is open: it is to be proposed to AEF (13.2).
+R-39.g Status: NOT met. Releases publish the binary only (`RQ` 13 item 1). Conflict C-11 is resolved by OD-9 C.
+
+### 6.15 Discussed once and lost (`RQ` section 14), ruled in OD-13
+
+6.15.1 R-40..R-43 were not confirmed by the operator in v0.3. [R] Ruled (OD-13 A refined, [log](interactive-agent-communication/interview-step-01.md#od-13-section-14-items-section-916--ruled-a-refined)): R-40 is merged into R-28; R-41 is kept as a later slice with extra fields; R-42 is promoted to a requirement now; R-43 is dropped as a duplicate of R-9. Each block below carries its disposition.
+
+R-40 **Native consumer. MERGED into R-28 (OD-13 2a).** The text below is kept for traceability; it is satisfied by OD-2, OD-6 and OD-8 and is no longer a separate requirement.
+R-40.a For agents the project launches, the agent SHOULD confirm receipt from inside its own turn.
+R-40.b Functional · U · source `RQ` R-14.1 (T-2838, GO 2026-08-25).
+R-40.c Rationale: "A receipt cannot exist unless a turn happened." (T2838R:175-208).
+R-40.d Verification: spike S2 re-run.
+R-40.e Acceptance. Given an agent launched by the project, then no receipt exists for a message unless a turn of that agent took place.
+R-40.g Status: partly met by AEF's prompt hook plus transcript evidence (`RQ` 14 item 1).
+
+R-41 **Typed assignment and result messages. KEPT, later slice (OD-13 2c; planner, step 8).**
+R-41.o [R] For messages that hand over work, the slice carries Codex's fields: an expiry, authorisation checked at execution time, and a fencing token. It also carries the work-request obligation states of CAND-14: accepted or declined, a progress deadline, completed or failed, with the CAND-1 task proposal counting as "accepted" (R-58).
+R-41.a Assignments and results SHOULD be typed messages (`assignment.v0`, `result_manifest.v0`).
+R-41.b Interface · U · source `RQ` R-14.2.
+R-41.c Rationale: an orchestrator needs machine-readable hand-offs.
+R-41.d Verification: schema fixture.
+R-41.e Acceptance. Given an `assignment.v0` message, then a consumer validates it against the schema and a malformed one is refused with a stated reason.
+R-41.g Status: helpers only, no verb uses them.
+
+R-42 **Nothing reports "delivered" without a recorded HANDED_OVER. PROMOTED to a requirement now (OD-13 2b, as part of OD-5).**
+R-42.a [R] Neither the hub nor any tool MUST report "delivered" without a recorded HANDED_OVER; until then it says "accepted" or "stored". (Originally: the hub SHOULD refuse to call a message delivered without a receipt.)
+R-42.b Security invariant · U · source `RQ` R-14.3.
+R-42.c Rationale: "delivered" equal to "hub accepted" was the original failure.
+R-42.d Verification: hub fixture.
+R-42.e Acceptance. Given a post with no recorded HANDED_OVER, then the hub and every sender tool report it as accepted or stored (delivered-unconfirmed) and never as delivered. Priority: P1 [P] (a promoted requirement; step 3 phases it).
+R-42.f Holds against: ADV-3.
+R-42.g Status: not built. The CLI already says delivered-unconfirmed versus consumed (`RQ` 14 item 1).
+
+R-43 **The startup chain. DROPPED as a duplicate of R-9 (OD-13 2d).** Nothing in this block is a requirement; the text is kept so the drop is traceable.
+R-43.a Same sentence as R-9.
+R-43.b Functional · U · source `RQ` R-14.4.
+R-43.c Rationale: see R-9.
+R-43.d Verification: see R-9.
+R-43.e Acceptance: see R-9.
+R-43.g Status: `RQ` itself says it duplicates R-3.4. [R] Dropped as a duplicate of R-9 (OD-13 2d).
+
+### 6.16 Requirements added by the step-1 rulings (new in v0.4)
+
+6.16.1 Every requirement below comes from an operator ruling, cited as OD-n or CAND-n with its section of the interview log (`interactive-agent-communication/interview-step-01.md`, log). Each statement is [R] unless tagged. Priorities are the ruling's where it gave one (P1, P2) and otherwise a collector proposal; phasing is step 3's. "Open" lists what the ruling leaves to a later step; nothing is decided here beyond the ruling.
+
+R-44 **Message states and "stuck".**
+R-44.a The sender MUST see, at each poll, one of five states for every message it sent, computed from the hub record (R-45): WAITING (the next step is not yet due); WAITING FOR RECIPIENT (the recipient is known not to be running or not able to receive: keep polling, show it, deliver when it returns); STUCK (the next step is overdue AND the responsible party is reachable and alive); UNKNOWN (the sender cannot get information: destination hub unreachable or liveness unknown; keep polling, show "unknown since T", never treat as dead); DEAD (the recipient's home hub declares that instance ended: stop polling, dead letter to the sender). STUCK, UNKNOWN and WAITING FOR RECIPIENT MUST be visible to the sender and in the cockpit, and STUCK MUST name the stalled step.
+R-44.b Functional · P1 [P] · source OD-3 point 3 (log).
+R-44.c Rationale: "stuck" means someone can fix something now; "unknown" and "waiting for recipient" mean nothing to fix yet. Nothing turned "waiting" into a visible "stuck" before (the 2026-10-03 failure).
+R-44.d Verification: simulated-clock fixture over the hub record; live canary (R-66).
+R-44.e Acceptance. The stuck deadlines are: not accepted (SENT, no STORED within 1 min while the destination hub is reachable); not handed over (STORED, no HANDED_OVER within 2 ticks of the agent becoming ready, about 1 min, while alive and ready); not answered (HANDED_OVER, no reply or no-action within 1 h while alive; a sender may set another deadline per message). Urgent: accepted within 15 s; handed over at the next tool call or turn end (R-19); answered within 5 min. Given each deadline is missed while the responsible party is reachable, then the state is STUCK naming that step. Given the destination hub is unreachable, then the state is UNKNOWN and polling continues. Given the home hub declares the instance ended, then DEAD and polling stops. Given a dead or absent recipient that may return, then WAITING FOR RECIPIENT, never STUCK. Only the home hub may say DEAD (R-60).
+R-44.g Status: designed only. AEF's WAITING_NO_RECIPIENT is the existing form of one state. Where escalation of STUCK lands: R-37.o. The state vocabulary is proposed to AEF (offset 314).
+
+R-45 **The hub record is the truth; the callback is a fast notice.**
+R-45.a The receiver MUST write each step (RECEIVED, STORED, HANDED_OVER, REPLIED or ACKNOWLEDGED_NO_ACTION) to the hub record first. The hub record is the single source of truth for a message's state. The call back to the sender MUST be a fast notice only: one or two quick attempts, never a retry storm. A sender that was down MUST read the hub record for its open messages when it returns and MUST NOT re-send a message whose STORED is already recorded. Nudgers and watchers MUST compute from the record (the AEF T-3804 class). For circuits, each turn is copied to the receiver's home hub: one log per conversation.
+R-45.b Functional, security invariant · P1 [P] · source OD-5 (log); OD-4 point 4.
+R-45.c Rationale: a callback "fails exactly when the sender is down" (GLM); a nudger that kept nudging after a reply by the other path (055 M3).
+R-45.d Verification: fixture with the sender down during all stages, then up.
+R-45.e Acceptance. Given the sender is down while a message passes RECEIVED to HANDED_OVER, when it returns, then its read of the hub record shows each stage with its timestamp and it sends nothing again. Given a reply arrived by another path, then no nudge is sent after it.
+R-45.g Status: designed only. Telemetry retention: R-35.o; alarm surface: R-37.o.
+
+R-46 **The direct circuit and its conditions.**
+R-46.a [R] Ruled (OD-1 C): the hubs MUST set up a circuit for an established conversation, and the sidecars then talk directly, also across hosts; the hub path is the fallback. The circuit MUST satisfy: (1) set-up and authorisation go through the hubs; (2) per-circuit short-lived credentials are minted by the hubs; (3) one delivery contract (stages, idempotence, order, receipts) and one log per conversation apply on both paths, so a message behaves the same on the circuit and on the hub path (CAND-16, settled by OD-1). Build order: identity hygiene and the hub directory with liveness first (R-60, R-61, R-54); conversations bound to an instance on the hub path (R-62); then the direct circuit.
+R-46.b Interface, security invariant · P1 [CAND-16 ruled P1 as a requirement of the circuit slice] · source OD-1, CAND-16 (log).
+R-46.c Rationale: all four reviewers accept a hub-set-up circuit under these conditions; "a conversation is not merely N letters" (GLM).
+R-46.d Verification: two-hub fixture; circuit-break and fallback test; credential-expiry test.
+R-46.e Acceptance. Given an established circuit, when it breaks, then the conversation continues on the hub path with the same message ids, stages and order, and nothing is lost or delivered twice. Given a circuit credential past its lifetime, then the circuit is refused and re-set-up through the hubs. AEF's measurement (circuit-break rate, hub-path share of turn time) is part of the circuit's first build.
+R-46.g Status: designed only. Open: the circuit's trust model and credential lifetime and binding (step 2); the hub-to-hub directory/relay principle and the charter rewording (13.2); transport details (step 4).
+
+R-47 **The harness adapter contract.**
+R-47.a [R] Ruled (OD-7 C; OD-2): a harness adapter contract MUST define READY, BUSY and NOT RUNNING plus evidence of hand-over. The Claude Code adapter is the hooks of R-21 and R-48; 055's opencode adapter is the second. A harness without hooks needs a delivery adapter that can still carry urgent content to a busy agent without typing into it (055's adapter point), or its urgent messages are downgraded and the sender sees why. A parity test runs per release. The screen classifier is a diagnostic only and never gates a hand-over (R-22). Framing markers for peer content are the adapter's (R-50).
+R-47.b Interface · P1 [P] · source OD-7, OD-2 (log).
+R-47.c Rationale: all three reviewers want hooks; 055 runs opencode, so a Claude-only wording is not enough.
+R-47.d Verification: the parity test, run for both adapters against the same fixtures.
+R-47.e Acceptance. Given the same scenario for both adapters, then READY, BUSY, NOT RUNNING and hand-over evidence are reported with the same meaning. Given a harness with no adapter, then the sender sees it as unreachable by design, never as delivered (GP-8).
+R-47.g Status: designed only. TermLink owns the contract; each harness's adapter comes from the team that runs that harness (orchestrator's proposal, to be confirmed). Open: other harnesses' routes; framing markers.
+
+R-48 **Hook delivery to running sessions; the launcher.**
+R-48.a [R] Ruled (OD-6 B): a mail check in the harness's existing PostToolUse and Stop hooks MUST deliver to every working session with transcript evidence. Nothing forces a relaunch. Each session's next natural start MUST go through the reachable launcher, so idle sessions become pushable over time. Until then an idle session without a typable terminal shows WAITING FOR RECIPIENT (R-44).
+R-48.b Functional · P1 [P] · source OD-6 (log).
+R-48.c Rationale: PL-237, a running headless session cannot be retrofitted; every session of this project already runs `fw hook checkpoint post-tool` after every tool call.
+R-48.d Verification: live test with a working session that was started before the hook; transcript evidence.
+R-48.e Acceptance. Given a working session with the mail check in its hooks, when a message is stored, then the content is in its transcript at the next tool call, and HANDED_OVER is reported. Given an idle session with no typable terminal, then WAITING FOR RECIPIENT is shown and nothing is claimed as delivered.
+R-48.g Status: not built. Open (unverified): whether Claude Code picks up newly registered hooks without a restart. Idle sessions fire no hook. Other projects need their own vendored hook (AEF 1.7.424 ships sidecar hooks).
+
+R-49 **One receiver per inbox, at every moment.**
+R-49.a [R] Ruled (OD-9 C, sequenced): exactly ONE receiver MUST serve an inbox at every moment. [R~] The sequencing (1)-(3) is the orchestrator's, accepted by the ruling. (1) Now: AEF's receiver is the running receiver wherever AEF is installed; TermLink's notify-sidecar scripts are retired from those inboxes. (2) Build: `termlink sidecar` in the binary, to the same contract. (3) Switch per host only after it passes the two-agent acceptance test with a negative control; AEF's receiver is then retired on that host. No other identity MAY consume or ack the inbox (the 2026-10-06 incident, 2.4a).
+R-49.b Operational, security invariant · P1 [P] · source OD-9 (log); 2.4a.
+R-49.c Rationale: the T-3341 rehearsal showed a re-vendor would start AEF's receiver beside ours on the same inbox; on 2026-10-06 three identities consumed one inbox.
+R-49.d Verification: list the consumers of the inbox; negative control: start a second consumer and require a visible refusal or alarm.
+R-49.e Acceptance. Given an inbox, then exactly one identity has consumed or acked it in the last window, and a second consumer is refused or flagged within the status call (R-70).
+R-49.g Status: reached on this host after the T-3370 re-vendor (handover S-2026-1006-1455); not enforced by any check. Open: the ownership split with AEF, to be proposed to AEF.
+
+R-50 **Peer content is untrusted.**
+R-50.a [R] Ruled (CAND-1 A, P1 security invariant): peer text MUST be delivered framed as untrusted data. A request from a peer is a task proposal, never direct execution (AEF D-695; extends the pickup rule G-020/T-469 to all agent mail). A reply to something the receiver itself asked for is still data but MAY be acted on within the receiver's own task.
+R-50.b Security invariant · P1 · source CAND-1 (log, OD-17 item 2).
+R-50.c Rationale: a compromised or confused peer must not be able to make the receiver execute (ADV-2).
+R-50.d Verification: fixture with a hostile instruction in peer text.
+R-50.e Acceptance. Given a peer message containing an instruction, then the receiver's session shows it framed as untrusted data and no action is taken without the receiver's own task; given a reply to the receiver's own request, then it may be used within that task. Holds against ADV-2.
+R-50.g Status: AEF D-695 exists; not required of TermLink senders. Open: framing markers (adapter, R-47); threat coverage (step 2).
+
+R-51 **Idempotence per stage.**
+R-51.a [R] Ruled (CAND-2 A refined; CAND-19 merged): the hub record (R-45) keeps a stage memory per message id, giving one stored copy, one hand-over and one reply. A duplicate before STORED is stored (retransmit works); a known id with lost content triggers a resend request; STORED but not handed over: not stored twice, the hand-over continues and the sender is told the stage; HANDED_OVER without reply: never handed over twice, the sender is told when; REPLIED: the reply is returned again. A duplicate MUST NOT reset the chase of R-30. Retention follows R-35.o.
+R-51.b Functional, security invariant · P1 · source CAND-2, CAND-19 (log, OD-17 item 3).
+R-51.c Rationale: the hub dedupe holds (sender, id) for 5 minutes only, nothing receiver-side looks at `client_msg_id`, and the ladder re-sends for years; the 2026-10-06 replay of about 94 handled messages (2.4a.5).
+R-51.d Verification: duplicate-send fixture per stage.
+R-51.e Acceptance. Given the same message id sent twice at each stage, then there is one store, one hand-over and one reply, and the sender is told the stage.
+R-51.g Status: not built. Open: same id with different content (step 2).
+
+R-52 **How urgent is marked.**
+R-52.a [R] Ruled (CAND-4 A): the sender sets a priority from -9 to 9, default 0, clamped at the receiver; urgent is 5 or more by default (confirmed), the receiver may change its own threshold; urgency is honoured only from allowed senders (R-63), others downgraded and never dropped.
+R-52.b Interface · P1 · source CAND-4 (log, OD-17 item 5).
+R-52.c Rationale: the built injector already works this way; the send tooling has no `--priority`, and AEF does not carry the field.
+R-52.d Verification: fixture with priorities -20, 0, 5, 20.
+R-52.e Acceptance. Given priority 20, then it is clamped to 9; given 5 from an allowed sender, then urgent; given 5 from a sender not allowed, then handled as normal and still delivered.
+R-52.g Status: partly built (receiver clamp `journal-mirror.sh:164`, threshold `notify-injector.sh:98`). Follow-ups: a `--priority` option in the send tooling; ask AEF to carry the field. Revisit the threshold after the canary has run.
+
+R-53 **Reachability as a visible per-agent state.**
+R-53.a [R] Ruled (CAND-6 A with 16e, P1): the home-hub card of each agent MUST carry four fields: receiver up; right hub (a binding check, R-54); adapter present; last surface time (the latest real HANDED_OVER or confirmation, never a heartbeat). Peers can read them under R-63 and the operator can read them; a field going bad creates a needs-attention entry. They are computed from the existing back channel of R-45, no new channel. A silent back channel shows UNKNOWN, never DEAD.
+R-53.b Functional · P1 · source CAND-6 (log, OD-17 item 6).
+R-53.c Rationale: every existing signal proves a process is alive, not that mail reaches the agent (the 32,205-refusal sidecar).
+R-53.d Verification: standing fault injection of the 32,205-refusal failure (R-69).
+R-53.e Acceptance. Given a sidecar with a fresh heartbeat that refuses every confirmation, then last surface time ages and the card shows the field bad. Given the back channel is silent, then UNKNOWN. This is the card of R-29.e.
+R-53.g Status: not built. Open: the no-surfacing threshold for an idle agent (step 4).
+
+R-54 **Explicit mail-hub declaration.**
+R-54.a [R] Ruled (CAND-8 A with 14e-14h, P1): projects MUST declare their mail hub by canonical id plus address. Clients verify `hub_id` and refuse on mismatch. The runtime directory is for local files only. A restart or certificate rotation keeps the id; a new hub has a new id, clients refuse, and recovery is a restore or an operator-approved re-home via runme with mail rescue; the same id in two places is flagged, never guessed; agents on any host reach the declared home hub over authenticated TLS, never a local fallback; a project move includes re-homing ("moved to X").
+R-54.b Operational, security invariant · P1 · source CAND-8 (log, OD-17 item 7).
+R-54.c Rationale: `TERMLINK_RUNTIME_DIR` does two jobs; the stray hub of 2026-10-04 split 32 sessions; a wrong delivery is worse than a visible failure (R-34).
+R-54.d Verification: stray-hub fixture as a standing control (R-69).
+R-54.e Acceptance. Given a client declared for hub A and the address answering with hub B's id, then the client refuses and the status call says so. Given a hub restarted with a rotated certificate, then the id is unchanged and clients continue.
+R-54.g Status: T-3345 exposes `hub_id` in `hub.version` (done 2026-10-06). Open: declaration file and format (step 4).
+
+R-55 **Sender-side send-and-wait (yield and wake).**
+R-55.a [R] Ruled (CAND-10 A, P1): a send MAY carry "awaiting reply by <deadline>". The sender yields. The reply is handed over into its session linked to the conversation. Past the deadline the sender is woken with STUCK. An unwakeable idle sender shows WAITING FOR RECIPIENT. A short blocking wait remains for quick exchanges. Late replies after STUCK still wake the sender, marked late. The default deadline follows OD-3 (1 h natural; open).
+R-55.b Functional · P1 · source CAND-10 (log, OD-17 item 8); asked for on 2026-04-26 (T-243) and 2026-05-25 (T-1800).
+R-55.c Rationale: the operator asked for "send and wait instead of immediate response".
+R-55.d Verification: live two-agent test with a late reply.
+R-55.e Acceptance. Given a send with a deadline, when the reply arrives in time, then it is handed over into the sender's session linked to the conversation; when it does not, the sender is woken with STUCK; when it arrives late, it wakes the sender marked late.
+R-55.g Status: ownership (operator, 2026-10-06): the tool belongs to AEF, where messages are formed and agents receive instructions; TermLink supplies primitives, the missing one being the cross-hub read of a message's stage and reply by id (T-3347). It polls on the message's own ladder when push cannot land (R-30), run as sidecar code (R-30.a4). Proposed to AEF at framework:pickup offset 318 and 319.
+
+R-56 **Flooding and storm control.**
+R-56.a [R] Ruled (CAND-12 A refined): (1) re-sends are ladder-governed with jitter and early re-sends are refused [P1]; (2) a cumulative per-agent cap on open messages starts at [R~] 100 and is adaptive, like a congestion window; overflow waits at the sender and shows in needs-attention [P1]; (3) storm prevention: hop limit, circuit breaker, coalesced hand-overs, and the three message classes below [P1]; (4) expiry, cancellation and a receiver-advertised window [P2]. The three classes: protocol receipts always flow, are never answered and do not count against the cap; automatic content carries a marker, gets receipts, never triggers an automatic content reply, counts against the cap, is hop-limited and may be answered deliberately; deliberate content follows the normal rules. Nothing automatic answers anything automatic; receipts answer nothing; only an agent's decision creates content.
+R-56.b Security invariant, quality · P1 and P2 as listed · source CAND-12 (log, OD-17 item 9).
+R-56.c Rationale: the risk is flooding; the hub is not the bottleneck (1,000 open messages at the 15 s rung is about 67 per second against the governor's 1,000 per second), receiver attention is. The cap 100 is a guess until telemetry (about 20 answers/h x 1 h x 5 peers).
+R-56.d Verification: loop fixture of two automatic responders; cap fixture.
+R-56.e Acceptance. Given two agents that auto-reply to each other, then the exchange stops at the hop limit. Given 101 open messages, then the 101st waits at the sender and a needs-attention entry appears; receipts still flow. Holds against ADV-8.
+R-56.g Status: not built. Open: jitter width, adaptive-cap parameters, hop-limit value (step 4); telling AEF.
+
+R-57 **One clock per deadline; versions on the card.**
+R-57.a [R] Ruled (CAND-13 A): every deadline MUST be measured on one clock, the observer's own, never across hosts [P1]. NTP SHOULD be required and checked; telemetry is tagged with the stamping host and a skew estimate; cross-host delays are flagged past a bound [P2]. Versions are on the agent card, "old" is distinct from "deaf", and an incompatible protocol is refused loudly [P2].
+R-57.b Operational, interface · P1 and P2 as listed · source CAND-13 (log, OD-17 item 10).
+R-57.c Rationale: the urgent 15 s deadline and cross-host telemetry make skew matter; nothing checks clocks on other hosts.
+R-57.d Verification: skewed-clock fixture; version-mismatch fixture.
+R-57.e Acceptance. Given a sender host whose clock is 10 min fast, then no deadline is judged from the remote timestamp. Given a peer on an incompatible protocol version, then the send is refused with a reason, not silently dropped. Holds against ADV-10.
+R-57.g Status: not built; the protocol-too-old error is unwired (T-2700, the operator's own decision, not taken here). Open: the skew bound (step 4); 055's "one version estate-wide".
+
+R-58 **The owed-answers list.**
+R-58.a [R] Ruled (CAND-14 A, P1): each agent MUST have a list of what it owes, computed from the hub record, shown at session start and resume and in needs-attention. The sender-side unanswered state is covered by R-28, R-44 and R-37.
+R-58.b Functional · P1 · source CAND-14 (log, OD-17 item 11).
+R-58.c Rationale: ring20-manager's 8 unanswered requests; the receiver had no list of what it owes.
+R-58.d Verification: fixture with three open obligations.
+R-58.e Acceptance. Given a message in HANDED_OVER with no reply, then it appears in the receiver's list at the next session start and resume, and in needs-attention past its deadline.
+R-58.g Status: not built. Open: escalation to another role holder (R-67). Work-request obligation states are in R-41.o.
+
+R-59 **Sender-assigned sequence numbers.**
+R-59.a [R] Ruled (CAND-18 A refined): each sender MUST assign a per-conversation number, durable and never reused; it is the truth about the conversation. Hub offsets are local to a hub and are mapped to the number in the hub record. Receipts carry a cumulative `up_to` per conversation; the receiver flags gaps, duplicates and reused numbers. With the circuit slice: bounded buffering, gap reports with resend, and resume from the last acknowledged number. Order is per conversation only; messages outside a conversation are ordered by hub arrival.
+R-59.b Functional · P1 for numbers, mapping and `up_to`; the circuit part belongs to the circuit slice · source CAND-18 (log, OD-17 item 13).
+R-59.c Rationale: two paths plus retries break per-conversation order (GLM); the model is TCP, SCTP and Kafka's idempotent producer.
+R-59.d Verification: out-of-order and duplicate fixture.
+R-59.e Acceptance. Given numbers 1, 3 delivered, then a gap at 2 is flagged and a resend requested; given 2 delivered twice, then the second is a duplicate; given a number reused for different content, then it is flagged.
+R-59.g Status: not built. Open: gap-wait bound (step 4); same number with different content (step 2).
+
+R-60 **The directory, project identity and location rules.**
+R-60.a [R] Ruled (OD-11 A with location rules 2a-2f): each home hub keeps a card per project, filled only from authenticated registrations it observed (project id, roles, live copies, liveness, version). Hubs exchange cards, never messages, and never re-announce another hub's cards. Only the home hub MAY say dead; anything it cannot confirm is unknown. Identity is the project id minted once by the project's framework and written in `.framework.yaml`; folder path and host are observed attributes (cf. T-2815). (2b) A folder renamed or moved on the same host keeps its project id; the card updates. (2c) A move to another host: the same id registers at the new host's hub, which becomes the home hub; the old hub marks the project "moved to hub X" and stops answering for it; senders follow the new card; no silent redirect. (2d) A copy with both running is by default a SECOND INSTANCE of the same project; a copy meant as a new project (a fork) MUST re-mint its own id. (2e) The first time a hub sees an id in a new place while the old one is alive, it does not guess: it flags "same project id seen at X and Y" to the operator and the cockpit, and treats the copy as a second instance until declared a fork. (2f) Runtime ids are never reused.
+R-60.b Interface, security invariant · P1 [P] · source OD-11 (log).
+R-60.c Rationale: names change; a fork must not receive the original's mail.
+R-60.d Verification: rename, move, copy and fork fixtures on two hubs.
+R-60.e Acceptance. Given a copy of a project started on a second host while the first runs, then both hubs flag "same project id seen at X and Y" and the copy receives no conversation mail meant for the original. Holds against ADV-6.
+R-60.g Status: not built. Needs a charter rewording ("hubs never sync messages; hubs may exchange a directory of whom they serve"), which the operator approves separately via T-2470. Open: relay of addressed mail between hubs as a fallback; the re-mint command for a fork (AEF owns id minting, to be proposed to AEF).
+
+R-61 **Hub identity.**
+R-61.a [R] Ruled (OD-12 D): each hub MUST have a canonical id minted once and stored with its runtime state, used in inbox names; the TLS fingerprint is the hub's instance id, observed on its card. Today's fingerprint-based ids become the canonical ids of the existing hubs, so nothing is renamed now; only a future rotation stops renaming inboxes.
+R-61.b Interface · P1 [P] · source OD-12 (log).
+R-61.c Rationale: a certificate regeneration (PL-021 class) would silently rename every inbox on that hub.
+R-61.d Verification: fixture that regenerates the certificate.
+R-61.e Acceptance. Given a hub whose certificate is regenerated, then its canonical id and every inbox name are unchanged and the card shows the new instance id.
+R-61.g Status: T-3345 exposes `hub_id`. Open: where and how the id is minted (step 4).
+
+R-62 **Exact instance: fail loudly, never redirect.**
+R-62.a [R] Ruled (OD-10 C): a new request goes to project plus role, and the home hub resolves it to one live copy. Mail INSIDE a conversation goes to the exact copy the conversation is bound to; if that copy has ended the sender gets a dead letter (state DEAD), never a silent redirect. A conversation moves to another copy only by an explicit hand-over with its context. A fresh copy never answers conversation mail. [R~] A copy's runtime id is never reused.
+R-62.b Security invariant · P1 [P] · source OD-10 (log).
+R-62.c Rationale: a wrong delivery is worse than a visible failure; the 2026-10-06 wrong-session wake-ups (2.4a).
+R-62.d Verification: fixture that ends the bound copy while another copy is live.
+R-62.e Acceptance. Given a conversation bound to copy X and X ended, then a message of that conversation yields a dead letter and the live copy Y is not woken for it. Given a new request to the role, then it reaches one live copy.
+R-62.g Status: not built. Open: how a role is resolved (R-67).
+
+R-63 **Interrupt consent.**
+R-63.a [R] Ruled (OD-15 A refined, 3a): mid-turn urgent delivery MUST be accepted only from senders the receiver allows by verified key; the default allow-list is its own project plus the operator. Others are downgraded to normal and never dropped. Senders are verified by signing key (T-1427); per-agent keys exist (T-3346).
+R-63.b Security invariant · P1 [P] · source OD-15 (log).
+R-63.c Rationale: with urgent delivery by hook, a peer could otherwise force-interrupt a working session; one host key lets a project impersonate another (GP-1).
+R-63.d Verification: fixture with an allowed and a disallowed sender at priority 9.
+R-63.e Acceptance. Given priority 9 from a sender not on the allow-list, then it is delivered as normal and not mid-turn. Holds against ADV-2.
+R-63.g Status: not built (R-9 consent unbuilt). Open: grant fields and storage (step 4); the authentication model (step 2, GP-1).
+
+R-64 **Mail may start an agent only under a grant.**
+R-64.a [R] Ruled (OD-15 A refined, 3b, 3e): mail MAY start an agent only for role or project addressing with nothing live, under a Tier-2 approval or a Tier-3 grant (budget, restart limit, allowed senders). The agent MAY propose a Tier-3 grant after 3 recurring Tier-2 approvals; the operator approves. Addressing something that is not running (role, project, dead session) MAY be started; an exact agent that existed and is gone is not a valid start (R-65 governs it).
+R-64.b Security invariant, operational · P1 [P] · source OD-15 (log).
+R-64.c Rationale: the 7-vendor result: no agent is respawned by inbound mail without an explicit grant.
+R-64.d Verification: fixture with and without a grant; third-approval fixture.
+R-64.e Acceptance. Given mail to a role with nothing live and no grant or approval, then nothing starts and the sender sees WAITING FOR RECIPIENT. Given the grant, then one start occurs within its budget.
+R-64.g Status: not built. Open: grant fields and storage (step 4).
+
+R-65 **Resume of an exact instance that died mid-conversation.**
+R-65.a [R] Ruled (OD-15 A refined, 3c, 3d): an exact instance that died mid-conversation MUST be resumed (same transcript, `--resume <session-id>` in Claude Code) only if the home hub says DEAD (never UNKNOWN), the conversation is open, the transcript is resumable, and a grant covers it. A resume counts against the restart limit; a second death on the same message flags it to the operator while the sender sees STUCK. An instance that ended cleanly or cannot be resumed produces a dead letter, the sender sees DEAD, re-addressing to the role is the sender's choice, and a fresh copy never answers conversation mail.
+R-65.b Functional, security invariant · P1 [P] · source OD-15 (log).
+R-65.c Rationale: the line is "resume the same conversation, never substitute a fresh copy".
+R-65.d Verification: resume-allowed and resume-refused fixtures (CAND-3 tier 4).
+R-65.e Acceptance. Given the bound instance died, the home hub says DEAD, the transcript resumes and a grant covers it, then it resumes once. Given the hub says UNKNOWN, then it does not. Given a second death on the same message, then the operator is flagged.
+R-65.g Status: not built.
+
+R-66 **The daily end-to-end canary.**
+R-66.a [R] Ruled (OD-14 B): a daily canary between two real agents MUST check RECEIVED, STORED, HANDED_OVER in the receiver's transcript, and REPLIED, against the R-44 stuck deadlines. A canary failure is an escalation entry, never an alarm (R-37.o). It runs continuously from the installed artifact, is rotated across agent pairs, is checked for staleness, and re-runs after a rotation, a re-vendor and a reboot (CAND-3).
+R-66.b Operational · P2 [P] · source OD-14, CAND-3 (log).
+R-66.c Rationale: three failures fired nothing (2026-10-03 unsurfaced mail, the stray hub, the 32,205-refusal sidecar).
+R-66.d Verification: stop the injector; the entry must appear by the next session.
+R-66.e Acceptance. Given the injector is stopped, then the canary fails and a needs-attention entry appears by the next session start; given the canary itself stops, then its staleness is detected.
+R-66.g Status: not built. The on-demand provers `comms-selftest.sh` and `session-message-selftest.sh` exist. Open: the channel for the urgent alarm to the operator (GP-11).
+
+R-67 **The role "main".**
+R-67.a [R] Ruled (OD-18 A revised): only "main" is resolved now. It is held under a readiness-gated lease at the project's home hub: adapter ready plus a real hand-over or an idle readiness check, not a heartbeat. Busy keeps main; takeover only after lapse plus a quiet period plus a cooldown, never an automatic take-back. A durable generation, never reused, is checked at role state changes (not per message); the old holder is told and releases on a clean shutdown; its replies inside its conversations stay valid; unfenceable external effects are reconciled. Unaccepted role requests move to the new holder, accepted ones stay; a dead holder's obligations are classified and the uncertain ones go to the operator. Selection: operator pin, else healthy incumbent, else priority then reachability then stable id, with eligibility attested on the card; the first holder is appointed at setup. A vacancy is shown "unassigned" to the operator and starts an agent only under an OD-15 grant (R-64). Two live copies give "authority unknown". Remote senders resolve via the verified home hub. "Who holds main" is visible and an override is audited.
+R-67.b Functional, security invariant · P1 [P] · source OD-18 (log; review `docs/reports/T-3344-od18-review/`).
+R-67.c Rationale: a sidecar-renewed lease proves the process is alive, not that the agent can take a turn (the 32,205-refusal sidecar would hold "main" forever); busy is not dead; ring20-manager's 8 unanswered requests.
+R-67.d Verification: the two standing tests of R-68.
+R-67.e Acceptance. Given main is busy, then it keeps main. Given main lapses past the quiet period and cooldown, then the next eligible agent takes over, the generation increases and the old holder is told. Given two live copies, then "authority unknown" is shown. Holds against ADV-9.
+R-67.g Status: not built. Open: lease duration, quiet period, cooldown, idle readiness check, priority configuration format (step 4).
+
+R-68 **Two standing tests for "main".**
+R-68.a [R] Ruled (OD-18): two tests MUST stand and each MUST end in a visible takeover: (1) a lease lapse during an open obligation; (2) a stuck holder with a live sidecar.
+R-68.b Quality · P1 [P] · source OD-18 (log).
+R-68.c Rationale: the two failures the external review named.
+R-68.d Verification: the tests themselves, run per release and by the canary of R-66.
+R-68.e Acceptance. Each test ends with a takeover visible in "who holds main" and an entry for the operator.
+R-68.g Status: not built.
+
+R-69 **The closing rule: tests by failure mode, in four tiers.**
+R-69.a [R] Ruled (CAND-3 A revised, with staging, [log](interactive-agent-communication/interview-step-01.md#od-17-proposed-requirement-changes-section-920--walked-one-candidate-at-a-time) item 4): verification MUST be selected per failure mode, in four tiers: (1) fixture; (2) a live hub; (3) one real agent plus a scripted peer, through the installed scheduler and hooks, per harness; (4) real agents for round trips, including three-agent many-to-many, no-action and resume-refused. Dimensions: two hubs, crash and reboot, the installed system. Negative controls MUST be kill-checked, and the three real failures (2026-10-03 unsurfaced mail, the stray hub, the 32,205-refusal sidecar) are standing controls. The canary of R-66 runs from the installed artifact. Mutants run per push only for invariants. Staging: each dimension is required once its subject exists, and all of them before arc-011 closes.
+R-69.b Quality · P1 · source CAND-3 (log).
+R-69.c Rationale: Codex and GLM: select per failure mode, "tier 1 overclaims", check binding not identity; GLM: the first draft "would have passed all three cited failures". Usability here is value to the user, not test effort.
+R-69.d Verification: the test plan of step 5.
+R-69.e Acceptance. Each requirement names the tier its failure mode needs; reverting the fix for a standing control makes that control fail.
+R-69.g Status: standing rule. Open: the test estate and agent pairs (step 5).
+
+R-70 **Simplicity inventories and tripwires.**
+R-70.a [R] Ruled (GP-12 A revised): inventories of components, stores, identities and keys, API operations and message states MUST be kept, and every addition justified. Size and counts are growth tripwires only, never acceptance. The status call of R-6.e is truthful, with separately verified, freshness-stamped facts and an end-to-end probe.
+R-70.b Quality · P1 [P] · source GP-12 (log, gap review item 3); reviews `docs/reports/T-3344-gp12-review/`.
+R-70.c Rationale: five structural proxies "measure packaging": the misfiled key, the waker exclusion and the runtime wrong hub pass all five (Codex, GLM).
+R-70.d Verification: the five real failures as standing fault injections, each with a specific diagnosis in a declared time; recovery with zero manual steps; a drilled diagnosis time; clean install with upgrade, rollback and restart.
+R-70.e Acceptance. See R-6.e. A tripwire crossing opens a review; it does not fail acceptance.
+R-70.g Status: not built. Open: the diagnosis-time bound and the state cap (step 3); applying it to AEF's Python sidecar.
+
+R-71 **The `sidecar:` alias ends.**
+R-71.a [R] Ruled (OD-12 3d): the `sidecar:` alias ends one release after the T-3342 re-vendor. Until then mail posted there is forwarded and the sender is warned. D-599's circuit form stands.
+R-71.b Operational · P2 [P] · source OD-12 (log).
+R-71.c Rationale: `sidecar:` topics are still posted to (sidecar:999 holds 30 messages on the canonical hub); an open-ended alias is a second address.
+R-71.d Verification: post to the alias before and after the end date.
+R-71.e Acceptance. Before the end date, a post to `sidecar:` is forwarded and the sender is warned; after it, the post is refused with a reason.
+R-71.g Status: not built. The request to AEF for the amended D-660 text is open (R-32.o).
+
+## 7 Conflicts
+
+7.1 How to read this section. A conflict is a place where two sources say different things about the same requirement. "Left open" means the operator has not ruled. Reviewer findings that the operator has not ruled on are here and in section 9, not in section 6.
+
+7.2 Conflicts as recorded in v0.3. The "Disposition" column is the v0.3 text, kept as history; the resolution after the interview is in 7.4.
+
+| Id | Conflict | Sources | Affects | Disposition |
+|---|---|---|---|---|
+| C-1 | Urgent into a busy prompt. The operator's 2026-10-03 words say bypass. The operator's SQ-4 (2026-09-23) says "urgent NEVER injects into a BUSY prompt". Codex and GLM say never type into a busy prompt. 055 agrees with the bypass on conditions. | `RQ` 6 item 16a; `RV1` section 2 and point 10 | R-19, R-23, R-24 | Left open: OD-2. R-19 stands as confirmed. SQ-4 is still recorded RESOLVED with no supersession. |
+| C-2 | Cross-host send. The operator's read-back sends sidecar to sidecar. SQ-1 keeps sending on the hub, and the charter forbids a second bus. Codex, GLM and 055 all say the hub carries cross-host mail. In `RV2` round 2 Codex, GLM and 055 accept a hub-set-up circuit for established conversations, and AEF wants a hub-path binding and a socket only after a measurement. | `RQ` O1; `RV1` points 2 and 11; `RV2` items 22-33, 61-62, 72 | R-7, R-12, R-13 | Left open: OD-1. R-12 stands as confirmed. |
+| C-3 | "No agent has to be attached" against the fact that a running session cannot be given a PTY afterwards (PL-237). Today R-3 is false for running agents on this host. | `RQ` O16 item 1, O3, section 15 | R-3 | Left open: OD-6. |
+| C-4 | Independence from the hub against the hub fallback and discovery. The design's own paths use the hub. `RV1` calls the independence "untestable" (GLM) and "has no stated failure it buys" (055). | `RQ` 3 item 3; `RV1` section 2 | R-7, R-13 | Left open: OD-1. The acceptance criterion of R-7 is proposed with a same-host test scope [P]. The statement of R-7 is the operator's unqualified wording, and the scope of "independent" across hosts is part of OD-1. |
+| C-5 | Screen against harness for readiness. The operator said once "use PTY inject when the cursor is silent". R-22 forbids inferring from the screen. `IAC` section 3a text still describes the screen classifier. | `RQ` 7 item 12a | R-21, R-22 | Left open: OD-7. R-22 stands as confirmed. |
+| C-6 | The polling ladder against the retry ladder, and against the reviewers. R-30 runs to a year. D-600 stops at about 76 days and dead-letters. All three weighted reviewers call the year-long polling wrong. The first rung "15" was a reading of "50". | `RQ` 10 item 7; `RV1` point 4 | R-30, R-31 | Left open: OD-3. |
+| C-7 | Callbacks against record-and-pull. The operator's read-back has synchronous calls back to the sender. Codex and GLM call the call back "wrong as written". All three reviewers say the durable record is the truth and the callback is an optimisation. RECEIVED and STORED are two calls in the read-back and one in AEF. | `RQ` 5 items 12 and 13, 9 item 12; `RV1` points 5 and section 2 | R-14, R-15, R-26 | Left open: OD-4, OD-5. |
+| C-8 | Address rulings. D-599 says `inbox:<circuit-id>`. D-660 says `inbox:<agent-id>` and "does NOT keep sidecar:". AEF says D-660's wording is being amended, and the amended text was not found. R-33 wants a hub name, and the id in use is a rotating fingerprint. | `RQ` 11 item 13 | R-32, R-33 | Left open: OD-12. |
+| C-9 | Alarms only for urgent against GLM's liveness invariant, canary mail with deadlines. All three reviewers say an end-to-end canary is what detects drift. | `RQ` 12 item 12b; `RV1` point 9 | R-37 | Left open: OD-14, CAND-5. R-37 stands as confirmed. |
+| C-10 | INJECTED needs transcript evidence (R-24). The built TermLink injector reports a weaker stage on a BUSY transition. The mapping to AEF's HANDED_OVER is "not decided anywhere". | `RQ` 8 items 3, 4 and 13 | R-24 | Left open: OD-8. |
+| C-11 | Two parallel receivers. TermLink has shell sidecars that run from a checkout. AEF has a receiver, watcher and hooks, for wrapper-started agents. All three reviewers say one owner. | `RQ` 3 and 13; `RV1` point 7 | R-6, R-39 | Left open: OD-9. |
+| C-12 | "Always respawns" and the startup chain against the 7-vendor result that no agent is respawned by inbound mail without an explicit grant. | `RQ` O15 item 2 | R-8, R-9 | Left open: OD-15. |
+| C-13 | Several agents under one project address. A project or role address has no rule for which agent answers. | operator, 2026-10-04; `RV2` sections 9-14 | R-32, R-34 | Left open: OD-18. |
+
+7.3 Conflicts resolved by the record.
+7.3.a **Tick interval.** TermLink built `*/5`. AEF proposed 15 s, "never validated". The operator said 30 s on 2026-10-02 and 2026-10-03. Resolved: 30 s (`RQ` 6 item 16b). R-17 carries it.
+7.3.b **Three calls or four.** The T-3330 brief had three calls. The read-back has four. Resolved: four, because it is later and the operator confirmed it (`RQ` 5 item 13a).
+7.3.c **Receiver-to-sender direction of the answer.** R-26 says the sender pulls. AEF delivers the reply as a pushed new message. Not a conflict in the requirement, which the operator confirmed. It is a design difference for step 4. It is raised in OD-5.
+
+7.4 Resolution of C-1..C-13 by the step-1 rulings (v0.4).
+
+| Id | Resolved by | How |
+|---|---|---|
+| C-1 | OD-2 B | Urgent never types into a busy prompt; content goes by the hook channel. SQ-4 is reconciled: urgent bypasses the wait, never the prompt-free check (R-19) |
+| C-2 | OD-1 C | Hubs set up a circuit; established conversations run sidecar to sidecar; the hub path is the fallback and carries new conversations (R-12, R-13, R-46). Charter rewording and hub-to-hub relay stay open (13.2) |
+| C-3 | OD-6 B | Hooks reach working sessions; no forced relaunch; idle sessions show WAITING FOR RECIPIENT and become pushable through the launcher over time (R-3, R-48) |
+| C-4 | OD-1 C | Independence holds for an established circuit; the hub carries discovery, fallback and circuit set-up (R-7, R-13) |
+| C-5 | OD-7 C | Harness adapter contract; the screen classifier is diagnostic only (R-21, R-22, R-47) |
+| C-6 | OD-3 (A modified, corrected 2026-10-06) | Two ladders by priority; polling continues behind visible states (R-30, R-31, R-44) |
+| C-7 | OD-4 A, OD-5 | Two stages; the hub record is the truth and the callback a fast notice (R-14, R-15, R-26, R-45) |
+| C-8 | OD-12 D | D-599's circuit form stands; hub canonical id plus fingerprint as instance id; `sidecar:` alias ends (R-32, R-33, R-61, R-71) |
+| C-9 | OD-14 B | An end-to-end canary exists; its failure is an escalation entry, never an alarm (R-37, R-66) |
+| C-10 | OD-8 B | HANDED_OVER is the one name; ATTEMPTED for a typed line without evidence (R-24) |
+| C-11 | OD-9 C, sequenced | One receiver per inbox at every moment; `termlink sidecar` in the binary after the acceptance test (R-39, R-49) |
+| C-12 | OD-15 A refined | Mail starts an agent only under a grant; resume only under stated conditions (R-9, R-64, R-65) |
+| C-13 | OD-18 A revised | Only "main" now, under a readiness-gated fenced lease (R-67, R-68) |
+
+7.5 Conflicts found while folding. None that the rulings do not settle. One residual tension is recorded for step 3: R-37 keeps "alarms only for urgent" while R-44 makes STUCK sender-visible; the rulings reconcile them (STUCK is a visible state and an escalation entry, not an alarm, OD-14 3b), and step 3 phases it.
+
+## 8 Gap review
+
+8.1 Method. Card 3.4 asks what the questions did not cover. Eight classes are checked, plus the adversary list and four more that the reviewers raised. For each: what the record says, and what is missing. A gap is not a requirement. Each gap goes to the operator, or to the threat modeler at step 2, in the column "Goes to".
+
+| Id | Class | What the record shows | What is missing | Goes to |
+|---|---|---|---|---|
+| GP-0 | Adversary list | The operator named failures, not adversaries. | An operator-confirmed adversary list. 2.3 is the agent's proposal. | Operator, step 2 |
+| GP-1 | Credential custody | One host key signs for every agent. AEF's receiver uses a bearer token on loopback. Hub secrets live in the runtime directory (`RQ` 11 item 5; profile P3.2). | Who holds which credential, who may call a sidecar API, how the sidecar proves who sent a message. GLM: sidecar-to-sidecar calls "have no trust model" (`RV1` point 17). | Step 2, OD-15 |
+| GP-2 | Compromised sessions | AEF frames peer text as untrusted data (D-695, `RQ` O16 item 2). | No requirement says peer content is untrusted. No requirement limits what a compromised session can inject or claim. | CAND-1, step 2 |
+| GP-3 | Approval fatigue and attention | The operator wants alarms only for urgent mail (R-37). Codex: "successful delivery can itself make the agents unusable" (`RV1` point 18). | Rate limits, a bound on outstanding requests, expiry and cancellation. No limit on how often an urgent message may interrupt. | CAND-12, OD-15 |
+| GP-4 | Offline operation | R-7 and R-13 cover a hub outage. The offline queue covers hub blips (`RQ` 4 item 1). | What the sender sees when the receiver's host is offline for days. What a sidecar does when its own host has no network. Same-host delivery with the hub down is only partly built. | Step 4 |
+| GP-5 | Recovery | R-15 covers restart after STORED. The injector has an open gap that re-serves the oldest offset (`RQ` 8 item 5). | The recovery rule after a sidecar dies mid-delivery. Retry safety: receiver-side dedupe on `client_msg_id` gives at-most-once acceptance per message id; effects are exactly-once only if the receiver's actions are idempotent. It is proposed as needed because the ladder outlives the hub's 5-minute dedupe window (`RQ` O16 item 3). | CAND-2 |
+| GP-6 | Revocation | The `sidecar:` alias has "no end date". | How a credential, a peer, a role holder or an address is revoked. How a revoked agent stops receiving. | Step 2, OD-12 |
+| GP-7 | Resource identity | The hub id is a rotating TLS fingerprint. The project slot is the folder name. All agents on a host share one key. 055 measured a read marker per inbox instead of per instance (`RV2` item 70). | Which identifiers are stable, who mints them, and the unit of "read" (inbox, instance or message). | OD-10, OD-11, OD-12 |
+| GP-8 | Unsupported targets | Injection needs a TermLink-owned PTY and a hook-capable harness. 055 runs opencode too. README promises macOS. Local models fail design review but that is not a target. | What the sender sees when the target has no hooks, no PTY, a headless session or another OS. Reachability must be a visible state, not an inference. | OD-6, OD-7, CAND-6 |
+| GP-9 | Time and order | GLM: clock skew across hosts corrupts the timestamped timeline (`RV1` point 19). GLM: two paths plus retries break per-conversation order (`RV2` item 16). | A rule for which clock a timestamp uses. Sequence numbers per conversation. | CAND-13, CAND-18 |
+| GP-10 | Version skew | 055: version skew makes a deaf agent look like an old one. AEF: refuse cross-version sends unless declared compatible (`RV2` item 66). | A version rule between sidecars. | CAND-13 |
+| GP-11 | Operator leg | R-1 includes agents with the operator. No component is built or designed for it (`RQ` 1 item 3). | A design for how the operator is a party to a conversation. | Operator, step 4 |
+| GP-12 | "Very simple" | R-6 says "very simple". The receive chain is about 2,460 shell lines (`RQ` 3 item 1d). | A measurable proxy for "simple". | Operator, step 3 |
+| GP-13 | Durability failure scope | R-15 requires a durable store before STORED. | What failures the store must survive (process crash, host crash, disk full, corruption). | Step 2 |
+| GP-14 | Trusted evidence producers | R-24 needs transcript evidence; the harness and the sidecar produce it. | Which component is trusted to produce evidence, and what a compromised producer can fake. | Step 2 |
+| GP-15 | Adversary privileges | 2.3 lists adversaries by name. | The exact privileges each adversary holds (files, sockets, keys, hub access). | Step 2 |
+
+8.2 Status of the gap review after the interview (v0.4).
+
+| Id | Status | Ruling or destination |
+|---|---|---|
+| GP-0 | RULED A (2026-10-06) | ADV-1..ADV-7 confirmed; ADV-8, ADV-9, ADV-10 added; ADV-6 widened (2.3) |
+| GP-1 | Step 2 | Partly answered by OD-15 (allow-list, R-63) and OD-1 (per-circuit credentials, R-46); the authentication model is step 2's |
+| GP-2 | Answered | CAND-1 (R-50); step 2 for threat coverage |
+| GP-3 | Answered | CAND-12 (R-56), OD-15 (R-63) |
+| GP-4 | Step 4 | Offline operation; the ladder (R-30) and UNKNOWN (R-44) cover the sender's view |
+| GP-5 | Answered | CAND-2 (R-51) |
+| GP-6 | Step 2 | Revocation; OD-12 gives the alias end (R-71) |
+| GP-7 | Answered | OD-10, OD-11, OD-12 (R-60, R-61, R-62) |
+| GP-8 | Answered | OD-6, OD-7, CAND-6 (R-47, R-48, R-53) |
+| GP-9 | Answered | CAND-13, CAND-18 (R-57, R-59) |
+| GP-10 | Answered | CAND-13 (R-57) |
+| GP-11 | **OPEN** | Operator as a party. Out-of-band channels exist (ntfy, Signal, Mattermost, Watchtower, runme). Answers pending; see 9.22 |
+| GP-12 | RULED A revised (2026-10-06) | Acceptance by verified behaviour; counts are tripwires only (R-6.e, R-70). Diagnosis-time bound and state cap: step 3 |
+| GP-13 | Step 2 | Durability failure scope |
+| GP-14 | Step 2 | Trusted evidence producers |
+| GP-15 | Step 2 | Adversary privileges |
+
+8.3 What the gap review did not check: whether any of the status facts in section 15 of `RQ` changed after 2026-10-03; T-3770, T-3688 and T-3751 were not looked up.
+
+## 9 Open questions
+
+9.0 Status in v0.4: **all of OD-1..OD-18 are ruled** by the operator (2026-10-04 to 2026-10-06), one at a time as the standing instruction of 2026-10-01 requires. Each heading below carries its ruling (line "R", with a link to its section of the interview log, `interactive-agent-communication/interview-step-01.md`). The question text, the options and the "recommendation" lines are kept as the question record of v0.3: where a ruling differs from a recommendation, the ruling wins. The only item still open is GP-11 (9.22).
+
+9.1 These were the questions the operator had not answered at v0.3. They are `RQ` and `IAC` OD-1..OD-18. The orchestrator put them to the operator one at a time, in this order, and waited for "next" before the following one (standing instruction, 2026-10-01).
+9.2 For each question: **a** the question in one sentence; **b** why it matters; **c** options A to D, each with the strongest reviewer position, quoted from `RV1` or `RV2`; **d** the recommendation and its reason; **e** the requirements it changes; **f** sources. Nothing here is decided.
+9.3 Reviewer positions are quoted from the two comparison files. "Codex", "GLM" and "055" are the three weighted reviewers of `RV1`. In `RV2` the reviewers are Codex, GLM, 055 and AEF.
+
+### 9.4 OD-1 Cross-host send path: RULED C
+
+OD-1.R **Ruled C, 2026-10-04** ([log § OD-1](interactive-agent-communication/interview-step-01.md#od-1-cross-host-send-path-section-94--ruled-c)). The hubs set up a circuit; established conversations run sidecar to sidecar; the hub path is the fallback. Built in order: identity hygiene and hub directory with liveness; conversations bound to an instance on the hub path; then the direct circuit under the reviewers' conditions. Changes R-7, R-12, R-13; new R-46. Open: hub-to-hub directory/relay principle, charter rewording, transport details.
+
+OD-1.a Question: may a sidecar push a message directly to a sidecar on another host, or does the hub carry every cross-host message?
+OD-1.b Why: R-12 says push first. The charter forbids a second bus. The 2026-10-03 ruling hands the cross-host leg to AEF, and the charter objection then applies to AEF's plan.
+OD-1.c Options.
+OD-1.c.A The hub carries cross-host mail. Sidecar-to-sidecar push is for one host. Codex: "retain hub-mediated transport … If cross-host delivery while hubs are down is mandatory, explicitly amend the charter: assigning the second transport to AEF does not remove it from the architecture." 055: "Keep the hub as the cross-host carrier; sidecar-to-sidecar calls on one host only … A second bus adds a path, and E4 shows two paths diverge." GLM: "Cross-host sidecar-to-sidecar push *is* a second bus … The T-3330 ruling handing cross-host to AEF should be reopened." (`RV1` point 2).
+OD-1.c.B Sidecar to sidecar across hosts, and amend the charter openly. The operator's read-back: "Send: sender agent -> its own sidecar (API) -> the receiver's sidecar (API)." and "We have multiple hosts, so that's not a question." (`RQ` O1). `RV1` section 2: "Your read-back says sender sidecar to receiver sidecar first, with the hub as fallback. All three say the hub should be the carrier, and that the alternative is a charter change that must be decided openly, not inherited through the T-3330 ruling."
+OD-1.c.C The hubs set up a circuit and the sidecars then talk directly for an established conversation. Codex (`RV2` item 22): "direct circuits are a reasonable preferred transport for established conversations, provided their delivery contract survives reconnection and fallback." GLM: "A conversation is not merely N letters." Both attach conditions: set-up through the hubs, per-circuit short-lived credentials, one delivery contract on both paths (`RV2` items 25-27).
+OD-1.c.D The conversation is a binding on the hub path, and a socket circuit comes only after a measurement. AEF (`RV2` item 62): "Build a socket circuit only when a measurement shows either: the hub path costs more than ~10 % of median turn time; hub outages break more than a few conversations a week."
+OD-1.d Recommendation: A for the first build, with C or D decided later on measurements. Reason: A is what Codex, GLM and 055 said in the first review. It is consistent with AEF's measured position (D). It needs no charter change. It contradicts the operator's confirmed read-back, so only the operator can choose it.
+OD-1.e Changes: R-7, R-12, R-13.
+OD-1.f Sources: `RQ` O1; `RV1` points 2 and 11; `RV2` items 22-33, 61-62, 72.
+
+### 9.5 OD-2 Urgent into a busy prompt, and the safe route: RULED B
+
+OD-2.R **Ruled B, 2026-10-04** ([log § OD-2](interactive-agent-communication/interview-step-01.md#od-2-urgent-into-a-busy-prompt-section-95--ruled-b)). Urgent content reaches a busy agent through the harness's hook channel (next tool call, or turn end); nothing is ever typed into a busy prompt; an idle agent gets the normal one-line inject. SQ-4 is reconciled, not superseded. Changes R-19, R-23, R-24; new R-47. Open: interrupt consent (OD-15, ruled); other harnesses' routes.
+
+OD-2.a Question: when a message is urgent and the agent is busy, may the sidecar type into the prompt, and by what route is it kept from being lost?
+OD-2.b Why: this is the T-2396 loss mode. R-19 confirms the bypass. SQ-4 says never, and is not recorded as superseded.
+OD-2.c Options.
+OD-2.c.A Confirm the bypass, type only the fixed doorbell line, content stored first. 055 (`RV1` section 2): "**For** the bypass: record SQ-4 superseded; type only the fixed one-line doorbell, never content, message durable first; measure re-injects".
+OD-2.c.B Never type into a busy prompt. Deliver urgent content through the harness's own hook channel. GLM: "Typing into a busy PTY should remain forbidden, full stop." Deliver urgent via the Stop-hook context channel. `RV1` point 10: "GLM offers a route none of the documents considered: deliver urgent content through the harness's own hook-context channel, which cannot be lost as unsubmitted input."
+OD-2.c.C Use an authenticated harness interrupt, and if none exists report the limit and escalate. Codex (`RV1` section 2): "Against typing into a busy terminal; prefer an authenticated harness interrupt, else report the limit and escalate. Keeping busy-PTY typing must be 'an explicit risk acceptance'".
+OD-2.c.D Keep SQ-4. Urgent only shortens the wait for a free prompt. SQ-4 text: "Urgent shortens the WAIT; it does not bypass the prompt-free CHECK." (`RQ` 6 item 13).
+OD-2.d Recommendation: A, with the content also delivered by the hook route of B, and SQ-4 recorded as superseded. Reason: it is the operator's confirmed rule. The reviewers' loss concern is about content, and the [P] clause of R-23 (not yet confirmed by the operator) would keep content out of the typed line. A discarded doorbell then costs a delay, not a message. Re-injects are measured so the choice can be reversed on evidence.
+OD-2.e Changes: R-19, R-23, R-24.
+OD-2.f Sources: `RQ` O4; `RV1` point 10.
+
+### 9.6 OD-3 Polling ladder against retry ladder: RULED A, modified, then corrected
+
+OD-3.R **Ruled A modified, 2026-10-04; corrected 2026-10-06** ([log § OD-3](interactive-agent-communication/interview-step-01.md#od-3-polling-ladder-section-96--ruled-a-modified-continuous-ladder-plus-defined-message-states)). A continuous ladder plus five defined message states; the 2026-10-06 correction made it two ladders by priority (normal: each rung twice from 1 min, 22 polls; urgent: continuous from 15 s, 43 polls). The ladder governs re-sends before STORED and replaces D-600 for agent mail. Changes R-30, R-31; new R-44. Open: where escalation of "stuck" lands (OD-14, ruled).
+
+OD-3.a Question: is R-10.1 (15 s to one year, each rung twice) the right polling ladder, and how does it relate to AEF's retry ladder?
+OD-3.b Why: topics are retention-bounded, so late rungs poll for mail that no longer exists. The dictation said "50 seconds" and "50 minutes" for the first and fourth rungs, read as 15 s and 15 min, "pending operator correction" (`RQ` 10 item 5). Urgent compression of the ladder is also undesigned (D-600: "designed in a separate conversation"; AEF's `retry_ladder.py` raises `NotImplementedError`), and `RQ` O11 lists it as a question to decide.
+OD-3.c Options.
+OD-3.c.A Keep R-10.1 as the operator confirmed, and confirm the first rung as 15 s. The operator, relayed to AEF: "that should be the standard fallback mechanism for the framework for any polling activities. It can be changed situationally, but that should be the standard." (`RQ` 10 item 5).
+OD-3.c.B Two mechanisms. `RV1` point 4: "The year-long polling ladder (R-10.1) is wrong. Topics are retention-bounded, so late rungs poll for messages that no longer exist. All three want two separate mechanisms: bounded retry for re-sending, and a short wait that ends in a visible 'stuck' escalation." The 12-rung ladder stays the default for other polling.
+OD-3.c.C Use AEF's retry ladder only: 2×1 min to 2×1 month, then dead-letter, about 76 days (D-600, `RQ` 10 item 4).
+OD-3.c.D Keep R-10.1 and cap its rungs by the retention of the topic being polled. (Collector-synthesized: no reviewer proposed this option.)
+OD-3.d Recommendation: B. Reason: all three reviewers say it, it does not drop the operator's ladder (it stays the framework default for other polling), and it gives the operator a visible "stuck". The operator also has to rule on the first rung (15 s or 50 s), the fourth rung (15 min or 50 min) and how urgent mail compresses the ladder; none of these is covered by A to D.
+OD-3.e Changes: R-30, R-31.
+OD-3.f Sources: `RQ` O11; `RV1` point 4.
+
+### 9.7 OD-4 RECEIVED and STORED: one call or two: RULED A
+
+OD-4.R **Ruled A, 2026-10-04** ([log § OD-4](interactive-agent-communication/interview-step-01.md#od-4-received-and-stored-section-97--ruled-a)). Two calls, defined precisely: RECEIVED = arrived, not yet safe, informational; STORED = durably saved, the only call that releases the sender. On the hub path both may travel in one message with two timestamps. Changes R-14, R-15.
+
+OD-4.a Question: does the receiver call the sender once (after the durable write) or twice (RECEIVED, then STORED)?
+OD-4.b Why: the operator's read-back has two calls. AEF answers once, after the store.
+OD-4.c Options.
+OD-4.c.A Two calls, defined precisely. Codex (`RV1` section 2): "Keep both, defined precisely: RECEIVED = volatile, STORED = durable, only STORED releases the sender".
+OD-4.c.B One call after the durable write. GLM: "answer once, after fsync-and-rename". 055: "RECEIVED after the durable write".
+OD-4.c.C Two events on the wire only if a sender can act on the gap, otherwise one (`IAC` item 61).
+OD-4.c.D Two calls, and RECEIVED may be merged into STORED when the store is faster than a set bound. (Collector-synthesized: no reviewer proposed this option.)
+OD-4.d Recommendation: A. Reason: it keeps the confirmed requirement and gives each call a different meaning, so the sender can tell "arrived" from "safe".
+OD-4.e Changes: R-14, R-15.
+OD-4.f Sources: `RQ` O2; `RV1` section 2.
+
+### 9.8 OD-5 Callback to the sender, or record and pull: RULED, hub record is the truth
+
+OD-5.R **Ruled "yes", 2026-10-04** ([log § OD-5](interactive-agent-communication/interview-step-01.md#od-5-callback-to-the-sender-or-record-and-pull-section-98--ruled-hub-record-is-the-truth-callback-a-fast-notice)). The receiver writes each step to the hub record first; the hub record is the single source of truth; the callback is a fast notice of one or two attempts; a returning sender reads the record and never re-sends a message already STORED. Changes R-14, R-15, R-26, R-35; new R-45. Open: alarm surface (OD-14), telemetry retention (OD-16), both ruled.
+
+OD-5.a Question: is delivery settled by callbacks to the sender's sidecar, or by a durable record that the sender pulls?
+OD-5.b Why: a callback fails when the sender's sidecar is down. The operator's read-back is push by API with pull as the fallback.
+OD-5.c Options.
+OD-5.c.A Callbacks are the live path and are authoritative. The operator's design (`RQ` 5 item 12).
+OD-5.c.B The durable record is the truth and callbacks are an optimisation. `RV1` point 5: GLM, "nothing may depend on [the callback] — it fails exactly when the sender is down." 055, "Settlement must come from the durable record", keyed by message id. Codex, "Receiver progress must not depend on sender availability. Pull repairs missed notifications."
+OD-5.c.C Record and pull only, no callbacks. Codex and GLM: the call back is "wrong as written" and record-and-pull meets the need (T3330R:242).
+OD-5.c.D Callbacks for the live path, and the hub record as the durable copy (`IAC` item 70).
+OD-5.d Recommendation: B, which includes the callbacks of D. Reason: it keeps the operator's push and makes it safe when the sender is down.
+OD-5.e Changes: R-14, R-15, R-26.
+OD-5.f Sources: `RQ` O10; `RV1` point 5.
+
+### 9.9 OD-6 How an already-running session becomes reachable: RULED B
+
+OD-6.R **Ruled B, 2026-10-05** ([log § OD-6](interactive-agent-communication/interview-step-01.md#od-6-already-running-sessions-section-99--ruled-b)). No forced relaunch: a mail check in the existing PostToolUse and Stop hooks delivers to working sessions with transcript evidence; each natural restart goes through the reachable launcher; an idle session without a typable terminal shows WAITING FOR RECIPIENT. Changes R-3; new R-48.
+
+OD-6.a Question: how does a session that is already running, without a TermLink PTY, become something a sidecar can reach?
+OD-6.b Why: PL-237: a running headless session cannot be retrofitted. R-3 is false for such sessions today.
+OD-6.c Options.
+OD-6.c.A Relaunch every agent through the reachable launcher. Codex: "Inventory capabilities; relaunch through the reachable launcher; UNREACHABLE until an end-to-end challenge succeeds". GLM: "Hooks-first; relaunch through one wrapper; an unwrapped session is 'pull-only — stated, not papered over'".
+OD-6.c.B No relaunch. 055: "**No relaunch** ('not realistic for a mixed fleet'); a harness-side pull channel at the harness's yield points, marked pull-only".
+OD-6.c.C Accept that running sessions are reached only by pull and the session-start listing, and show the state (`RQ` O3).
+OD-6.c.D Relaunch through the launcher, and add a harness-side pull channel for the mixed fleet later.
+OD-6.d Recommendation: A, with every unlaunched agent shown as not reachable. Reason: Codex and GLM say it. B and C also label such sessions pull-only (they do not claim delivery), so the difference is cost and reach: A makes the session pushable and costs a relaunch of every agent, B and C leave it pull-only at no relaunch cost. The operator weighs that cost.
+OD-6.e Changes: R-3 (its acceptance and status).
+OD-6.f Sources: `RQ` O3; `RV1` section 2.
+
+### 9.10 OD-7 Readiness: hooks or screen, and who owns it: RULED C
+
+OD-7.R **Ruled C, 2026-10-05** ([log § OD-7](interactive-agent-communication/interview-step-01.md#od-7-readiness-hooks-or-screen-and-who-owns-it-section-910--ruled-c)). A harness adapter contract (READY, BUSY, NOT RUNNING plus hand-over evidence); Claude Code's adapter is the hooks, opencode (055) the second; a parity test per release; the screen classifier is a diagnostic only. TermLink owns the contract, each harness team its adapter (proposed, to be confirmed). Changes R-21, R-22, R-24; new R-47.
+
+OD-7.a Question: is readiness taken only from harness hooks, and who builds the hook for agents that are not AEF's?
+OD-7.b Why: R-22 forbids the screen. The built TermLink classifier uses the screen. TermLink has no hook readiness, and its own T-3250 is captured with no ruling.
+OD-7.c Options.
+OD-7.c.A Hooks are primary and the screen classifier stays only as a labelled degraded fallback (`IAC` item 63). Ownership: not stated in the source.
+OD-7.c.B Hooks only. Retire the screen classifier. Ownership: [collector-synthesized allocation, no reviewer source] each harness owner builds its own hook; TermLink owns none. `RV1` point 3: "Readiness comes from harness hooks, never from screen inspection, and a ready flag is only an observation."
+OD-7.c.C Hooks through a harness adapter contract. `RV1` point 13: 055 "Wants an adapter contract with READY/BUSY/NOT RUNNING plus evidence, two adapters from day one, and a per-release parity test." Ownership in this option: [collector-synthesized allocation, no reviewer source: TermLink owns the adapter contract, AEF supplies the Claude adapter, 055 supplies or tests the opencode adapter]. The only sourced parts are 055's wish for an adapter contract and Codex's "AEF should supply harness readiness/context adapters".
+OD-7.c.D Keep the screen classifier as the main signal (the operator's 2026-09-20 words "use PTY inject when the cursor is silent"). Ownership: TermLink.
+OD-7.d Recommendation: C. Reason: all three reviewers want hooks, and 055 runs opencode, so a Claude-only wording is not enough.
+OD-7.e Changes: R-21 (harness-neutral wording), R-22, R-24.
+OD-7.f Sources: `RQ` O8; `RV1` points 3 and 13.
+
+### 9.11 OD-8 Stage names, and "acknowledged, no action": RULED B
+
+OD-8.R **Ruled B, 2026-10-05** ([log § OD-8](interactive-agent-communication/interview-step-01.md#od-8-stage-names-and-acknowledged-no-action-section-911--ruled-b)). HANDED_OVER is the one name for "the agent's session received the content", proven from its transcript; a typed line with no evidence is ATTEMPTED; ACKNOWLEDGED_NO_ACTION is terminal beside REPLIED. Chain: SENT, RECEIVED, STORED, HANDED_OVER, REPLIED or ACKNOWLEDGED_NO_ACTION. Changes R-24, R-28. (The recommendation line below said A, INJECTED; the ruling is B.)
+
+OD-8.a Question: which one name means "the agent saw it", and is "acknowledged, no action" a terminal state?
+OD-8.b Why: TermLink's INJECTED needs a BUSY transition. AEF's HANDED_OVER needs transcript evidence. "This is not decided anywhere." (T3330R:223).
+OD-8.c Options.
+OD-8.c.A One name, INJECTED (the operator's word), defined as transcript evidence. A typed line with no evidence is ATTEMPTED. Add a terminal ACKNOWLEDGED_NO_ACTION. `RV1` point 6: "Nothing may be called INJECTED/HANDED_OVER without transcript evidence (GLM: otherwise 'ATTEMPTED'). All three add a terminal 'no action' state."
+OD-8.c.B One name, HANDED_OVER (AEF's word, `IAC` item 74), with the same additions.
+OD-8.c.C Two names: INJECTED for the typed line with a BUSY transition, HANDED_OVER for transcript evidence (today's split).
+OD-8.c.D Keep the names and add only the no-action state.
+OD-8.d Recommendation: A. Reason: it is the operator's own word, it meets R-24, and "ATTEMPTED" keeps the weaker TermLink evidence visible without calling it more than it is.
+OD-8.e Changes: R-24, R-28.
+OD-8.f Sources: `RQ` O13; `RV1` point 6.
+
+### 9.12 OD-9 Who owns the receive side, and how sidecars ship: RULED C, sequenced
+
+OD-9.R **Ruled C, sequenced, 2026-10-05** ([log § OD-9](interactive-agent-communication/interview-step-01.md#od-9-who-owns-the-receive-side-and-how-sidecars-ship-section-912--ruled-c-sequenced)). `termlink sidecar` in the binary, with AEF supplying harness adapters; exactly one receiver per inbox at every moment: AEF's receiver now where AEF is installed, the binary's after the two-agent acceptance test with a negative control. Changes R-6, R-39; new R-49. Open: the ownership split with AEF.
+
+OD-9.a Question: whose receive side is the one that ships: AEF's receiver, TermLink's scripts, or a new `termlink sidecar` in the binary?
+OD-9.b Why: R-39 says every sidecar ships with every deployment. Releases ship the binary only. Two receivers exist.
+OD-9.c Options.
+OD-9.c.A Adopt AEF's receiver (T-3330 option A). It reaches only AEF-governed projects.
+OD-9.c.B Extend TermLink's scripts (option B). No package ships them.
+OD-9.c.C Move the receive side into the binary as `termlink sidecar` (option C), with AEF supplying the harness adapters. Codex (`RV1` point 7): "TermLink should own the transport-neutral message lifecycle … AEF should supply harness readiness/context adapters." Section 2: "One versioned runtime, ideally `termlink sidecar`".
+OD-9.c.D Defer (option D).
+OD-9.d Recommendation: C. Reason: it gives one owner, which all three reviewers asked for, and it puts the receive side in the artifact that releases already publish. Packaging by A or B is not shown impossible: the record shows only that releases publish the binary alone today, so A or B would need a new packaging step. GLM: "one owner, either TermLink's supervisor or AEF's watcher, not both." The port is about 2.5-3.9k shell lines.
+OD-9.e Changes: R-6, R-39.
+OD-9.f Sources: `RQ` O9; `RV1` points 7 and section 2 packaging row.
+
+### 9.13 OD-10 Session level of the address: RULED C
+
+OD-10.R **Ruled C, 2026-10-05** ([log § OD-10](interactive-agent-communication/interview-step-01.md#od-10-session-level-of-the-address-section-913--ruled-c)). The address carries both ids; a new request goes to project plus role and the home hub resolves it; mail inside a conversation goes to the exact bound copy and a dead copy gives a dead letter, never a silent redirect; runtime ids are never reused. Changes R-32, R-33, R-34; new R-62.
+
+OD-10.a Question: does a message address a role and a project, or an exact session?
+OD-10.b Why: the operator's wording is "a canonical id plus a runtime id". Six of seven vendors said routing does not stop at a session label. Codex raised the incarnation problem.
+OD-10.c Options.
+OD-10.c.A Route to project and agent role. The session id is metadata (`IAC` item 64).
+OD-10.c.B Route to the exact session, fenced by incarnation. `RV1` point 15 (Codex): "readiness generation, exclusive injection ownership, invalidation on restart; never silently redirect an exact-session message to another instance."
+OD-10.c.C Both. `RV2` item 6: "Exact-instance messages fail loudly; role messages re-resolve. Never silently redirect."
+OD-10.c.D Canonical id plus runtime id exactly as the operator worded it, no further rule.
+OD-10.d Recommendation: C. Reason: it keeps role mail working when an instance restarts, and it never delivers an exact-session message to the wrong copy (Codex, `RV1` point 15; `RV2` item 6). R-34 concerns different projects and does not decide the session level; it is not the basis of this recommendation.
+OD-10.e Changes: R-32, R-33, R-34.
+OD-10.f Sources: `RQ` O6; `RV1` section 2 and point 15; `RV2` items 6, 47, 49.
+
+### 9.14 OD-11 Name-to-id directory: RULED A, with location rules
+
+OD-11.R **Ruled A with the operator's location insight (2a-2f), 2026-10-05** ([log § OD-11](interactive-agent-communication/interview-step-01.md#od-11-name-to-id-directory-section-914--ruled-a-with-the-operators-location-insight)). The hub keeps a card per project; the project id is minted once by the framework and travels in `.framework.yaml`; path and host are observed attributes; hubs exchange cards, never messages; only the home hub says dead. Moves, renames, copies and forks have explicit rules. Changes R-33; new R-60. Needs a charter rewording (operator, T-2470).
+
+OD-11.a Question: who keeps the directory that maps a project name to its id?
+OD-11.b Why: R-33 needs stable ids. The decision in AEF T-3751 is open.
+OD-11.c Options.
+OD-11.c.A The hub keeps project identity cards (`IAC` item 65).
+OD-11.c.B No directory. Ids ride inside names (7/7 vendor option B).
+OD-11.c.C AEF keeps it.
+OD-11.c.D Each project keeps its own.
+OD-11.d Recommendation: A, with this rule from the routing consultation: "the directory may carry only identities the home hub minted and observed" (055, `RV2` item 37), and `RV2` item 71 ("hubs exchange a directory of who is present and able to receive, never messages; only the home hub may say dead and unknown is never dead"). Reason: the reviewers did not address ownership, but they agree on this rule and A is the option that applies it.
+OD-11.e Changes: R-33.
+OD-11.f Sources: `RQ` O5; `RV2` items 37, 71.
+
+### 9.15 OD-12 Address rulings D-599 and D-660, and stable ids: RULED D
+
+OD-12.R **Ruled D, 2026-10-05** ([log § OD-12](interactive-agent-communication/interview-step-01.md#od-12-address-rulings-d-599d-660-and-stable-ids-section-915--ruled-d)). D-599's circuit form stands and AEF is asked for the amended D-660 text; each hub gets a canonical id minted once, the TLS fingerprint becomes its instance id, today's ids become the canonical ones; the `sidecar:` alias ends one release after the T-3342 re-vendor. Changes R-32, R-33; new R-61, R-71.
+
+OD-12.a Question: which address ruling stands, and does the `sidecar:` alias get an end date?
+OD-12.b Why: D-599 says `inbox:<circuit-id>`. D-660 says `inbox:<agent-id>` and "does NOT keep sidecar:". AEF says D-660's wording is being amended. The hub id used is a rotating fingerprint.
+OD-12.c Options.
+OD-12.c.A D-599 stands. Ask AEF for the amended D-660 text. Give the alias an end date.
+OD-12.c.B D-660 stands.
+OD-12.c.C Both stay, indefinitely. D-660 says "Option 3 (support both) was explicitly refused".
+OD-12.c.D D-599, plus a hub name as canonical and the fingerprint as instance id (R-33).
+OD-12.d Recommendation: A. Reason: it needs no new decision of ours beyond asking AEF, and it ends the open-ended alias. The hub name of D is a separate build question.
+OD-12.e Changes: R-32, R-33.
+OD-12.f Sources: `RQ` O12.
+
+### 9.16 OD-13 Section 14 items: keep or drop: RULED A, refined
+
+OD-13.R **Ruled A refined, 2026-10-05** ([log § OD-13](interactive-agent-communication/interview-step-01.md#od-13-section-14-items-section-916--ruled-a-refined)). R-40 merged into R-28; R-42 promoted now (nothing reports "delivered" without a recorded HANDED_OVER); R-41 kept as a later slice with expiry, execution-time authorisation and a fencing token; R-43 dropped as a duplicate of R-9. Changes R-40..R-43.
+
+OD-13.a Question: of R-40..R-43, which does the operator want kept?
+OD-13.b Why: they were discussed once and lost. Nothing confirms them.
+OD-13.c Options.
+OD-13.c.A Keep R-41 and R-42 as later slices. Drop R-43 as a duplicate of R-9. Keep R-40 only if TermLink wants a consumer that is not AEF's.
+OD-13.c.B Keep all four.
+OD-13.c.C Drop all four and record them as dropped by decision.
+OD-13.c.D Keep only R-40, since the by-construction receipt is its own safeguard.
+OD-13.d Recommendation: A. Reason: it is the disposition that `RQ` O7 already suggests, and R-42 helps R-2's honest "delivered".
+OD-13.e Changes: R-40..R-43.
+OD-13.f Sources: `RQ` O7.
+
+### 9.17 OD-14 Alarms, escalation and the hub steward: RULED B
+
+OD-14.R **Ruled B, 2026-10-05; amended by OD-18 on 2026-10-06** ([log § OD-14](interactive-agent-communication/interview-step-01.md#od-14-alarms-escalation-and-the-last-rung-section-917--ruled-b)). A daily end-to-end canary between two real agents; a canary failure is an escalation entry, never an alarm; the last rung lands in main's session-start needs-attention list plus `/canaries`, the digest and the cockpit, and also goes to the operator whenever main is unassigned, failing or being taken over; a negative control proves the landing. The hub steward (T-3333) stays parked. Changes R-37; new R-66.
+
+OD-14.a Question: besides urgent alarms and pile-up escalation, is there an end-to-end canary, and where does the last escalation land?
+OD-14.b Why: the operator's rule is alarms only for urgent. All three reviewers say drift is caught only by a canary that sends a real message.
+OD-14.c Options.
+OD-14.c.A Urgent alarm, pile-up escalation like audit warnings, daily digest (`IAC` item 73). Nothing else. The last rung of the escalation lands: not stated in the source.
+OD-14.c.B A plus an end-to-end canary. Whether a canary failure raises an immediate alarm or an escalation entry is for the operator (it is not a per-message alarm, but it is not a pile-up either). `RV1` point 9: "What breaks first is deployment drift: healthy-looking sidecars with no scheduler, wrong hub, missing hooks. Detected only by an end-to-end canary that sends a real message, not by process heartbeats." GLM's R6: "canary mail with deadlines, INJECTED within T1, REPLIED within T2" (`RQ` O16).
+OD-14.c.C Add a hub-steward agent (T-3333). The last rung lands with the steward agent, which then reports to the operator (collector reading; T-3333 has no recommendation).
+OD-14.c.D Defer. The last rung stays unspecified until decided.
+OD-14.d Recommendation: B. Reason: all three reviewers say drift is caught only by a canary. Whether a canary alarm fits the operator's "alarms only for urgent" rule is the operator's call and is not assumed here. Where the last rung lands is not answered by A to D: the operator names the place (one place the operator reads), and the build proves it with a negative control (T-3461 found an unread queue).
+OD-14.e Changes: R-37.
+OD-14.f Sources: `RQ` O14; `RV1` point 9; `IAC` item 73.
+
+### 9.18 OD-15 Interrupt consent, respawn and the startup chain: RULED A, refined in dialogue
+
+OD-15.R **Ruled A refined, 2026-10-05** ([log § OD-15](interactive-agent-communication/interview-step-01.md#od-15-interrupt-consent-respawn-and-the-startup-chain-section-918--ruled-a-refined-in-dialogue)). Mid-turn urgent delivery only from allowed verified senders (default own project plus operator); mail may start an agent only for role or project addressing with nothing live, under a Tier-2 approval or a Tier-3 grant; a dead exact instance is resumed (same transcript) only if the home hub says DEAD, the conversation is open and a grant covers it; a fresh copy never answers conversation mail; a Tier-3 grant is proposed after 3 recurring Tier-2 approvals. Changes R-8, R-9, R-19; new R-63, R-64, R-65.
+
+OD-15.a Question: may a peer interrupt a working session, may inbound mail start an agent, and what is the startup chain?
+OD-15.b Why: with the urgent bypass, a peer can force-interrupt a session, and one host key lets any project impersonate another.
+OD-15.c Options.
+OD-15.c.A Interrupts only from an authenticated sender and only for agents that allow it. Respawn only with an explicit operator grant, a budget and restart limits. `RV1` point 17: "sidecar-to-sidecar calls have no trust model; one host key serves every agent, so any project can impersonate another; urgent bypass lets a peer force-interrupt a working session." The 7-vendor result: no agent is respawned by inbound mail "without an explicit operator grant, budget, restart limits and an authenticated sender" (`RQ` O15).
+OD-15.c.B No consent layer. Trust the host, as today.
+OD-15.c.C The operator approves each interrupt.
+OD-15.c.D Never interrupt. Urgent waits for a free prompt.
+OD-15.d Recommendation: A. Reason: C would cause approval fatigue, B leaves impersonation open, and D drops the confirmed urgent rule. The startup chain stays as confirmed in R-9 (agent, session, project and hub). `IAC` item 72 proposes to scope it to the sidecar and its host services; that would narrow R-9 and is a separate question for the operator, not part of this recommendation.
+OD-15.e Changes: R-8, R-9, R-19.
+OD-15.f Sources: `RQ` O15; `RV1` point 17.
+
+### 9.19 OD-16 Telemetry retention window: RULED C, refined
+
+OD-16.R **Ruled C refined, 2026-10-05** ([log § OD-16](interactive-agent-communication/interview-step-01.md#od-16-telemetry-retention-window-section-919--ruled-c-refined)). Journey events are kept until 14 days after the message reaches a final state, never cut while open; digests 1 year as a declared forever-class exception; IW-2 ceilings trim the oldest final events first, loudly. The numbers are the orchestrator's, accepted, and can be overturned. Changes R-35, R-36.
+
+OD-16.a Question: how long does the hub keep the telemetry events?
+OD-16.b Why: the design says "for example 30 days". The mail ruling (T-3304 IW-2) says 14 days.
+OD-16.c Options.
+OD-16.c.A 14 days, with count, age and size ceilings (the T-3304 ruling).
+OD-16.c.B 30 days.
+OD-16.c.C Per class: delivery events short, digests long.
+OD-16.c.D Keep until the digest has consumed them.
+OD-16.d Recommendation: A. Reason: it is an existing operator ruling, and 30 days was only an example. The reviewers did not address this question.
+OD-16.d.1 Correction (2026-10-05, interview): the 14 days is NOT an operator ruling. T-3304 IW-2 records it as "agent recommendation, assumed accepted (operator did not name a window)", and it set the default for channel topics, not telemetry. The operator ruled C in the interview; see interview-step-01.md OD-16.
+OD-16.e Changes: R-35.
+OD-16.f Sources: `IAC` item 71.
+
+### 9.20 OD-17 Proposed requirement changes: WALKED, all candidates ruled
+
+OD-17.R **Walked one candidate at a time, 2026-10-05 and 2026-10-06; complete** ([log § OD-17](interactive-agent-communication/interview-step-01.md#od-17-proposed-requirement-changes-section-920--walked-one-candidate-at-a-time)). 12 candidates were walked and ruled; CAND-5, -7, -9, -11, -15 were settled by earlier rulings; CAND-19 was merged into CAND-2. The dispositions are in the table after the candidate table below (OD-17.T).
+
+OD-17.a Question: which of the candidate additions below become requirements?
+OD-17.b Why: none was made. `RQ` O16 and the reviewers each proposed some. Per the standing instruction the orchestrator walks them one at a time, and each is a separate yes or no.
+OD-17.c Options.
+OD-17.c.A Accept every candidate marked "accept".
+OD-17.c.B Accept only the ones the operator names.
+OD-17.c.C Reject all candidates.
+OD-17.c.D Defer the list to step 3 (security floor and phasing).
+OD-17.d Recommendation: B, walking the table below one item at a time. Each item needs the operator's explicit disposition (accept, reject or defer); no item is accepted by default or by silence. The "recommended disposition" column is the collector's recommendation only.
+
+| Id | Candidate | Source | Recommended disposition |
+|---|---|---|---|
+| CAND-1 | Peer content is untrusted: "a request for action becomes a task proposal … never direct execution" (D-695) | `RQ` O16 item 2 | Accept, security invariant, P1 |
+| CAND-2 | At-most-once acceptance per message id: receiver-side dedupe on `client_msg_id` (effects exactly-once only if the receiver's actions are idempotent) | `RQ` O16 item 3; D-600 | Accept, P1 |
+| CAND-3 | Closing rule: nothing is working until two real running agents pass a live test with a negative control | `RQ` O16 item 6; profile P1.2.e | Accept as the verification rule (it is already a standing operator rule) |
+| CAND-4 | How urgent is marked: `priority` in [-9,9], urgent at 5 or more by default | `RQ` O16 item 4 | Accept, and confirm the threshold |
+| CAND-5 | Liveness invariant: canary mail with deadlines (GLM R6) | `RQ` O16 item 5 | Decided in OD-14 |
+| CAND-6 | Reachability as a visible per-agent state: receiver up, right hub, adapter present, last surface time | `RV1` point 12 (055) | Accept, P1 |
+| CAND-7 | Harness neutrality: an adapter contract | `RV1` point 13 (055) | Decided in OD-7 |
+| CAND-8 | An explicit mail-hub setting, separate from `TERMLINK_RUNTIME_DIR` | `RV1` point 14 (055, E2) | Accept, P2 |
+| CAND-9 | Session incarnation and fencing | `RV1` point 15 (Codex) | Decided in OD-10 |
+| CAND-10 | Sender-side send-and-wait: the sender can yield and wait for the answer | `RV1` point 16 (GLM) | Accept, P2 (asked for in April) |
+| CAND-11 | Security and consent | `RV1` point 17 | Decided in OD-15 |
+| CAND-12 | Attention budgets: rate limits, bounded outstanding requests, expiry, cancellation | `RV1` point 18 (Codex, 055) | Accept, P2 |
+| CAND-13 | Clock skew and version skew rules | `RV1` point 19; `RV2` item 66 | Accept, P2 |
+| CAND-14 | Obligation contract and a visible "unanswered" state with escalation | `RV2` item 52 | Accept, P1. It extends R-28 and is the ring20-manager failure. |
+| CAND-15 | Directory and liveness: only the home hub may say dead, and unknown is never dead | `RV2` item 71 | Decide with OD-11 and OD-18 |
+| CAND-16 | Per-circuit short-lived credentials, one delivery contract on both paths | `RV2` items 26-27 | Only if OD-1 chooses circuits |
+| CAND-17 | Fleet admission and signed advertisements | `RV2` item 15 (GLM) | Defer to the threat model |
+| CAND-18 | Ordering: a sequence number per sender and conversation | `RV2` items 16, 27 | Accept, P2 |
+| CAND-19 | One settlement record per `client_msg_id` at the destination | `RV2` items 39, 56 (055) | Accept, P1. It supports OD-5 option B. |
+
+OD-17.d.1 Also pending, as consequences of other questions: the wording of R-14, R-15 and R-26 follows OD-4 and OD-5. R-33 follows OD-12. R-43 follows OD-13. The two lists of open decisions were merged in `RQ` and `IAC` (Codex's drift point, `RV1` point 20), so that item needs no decision.
+OD-17.T Dispositions (v0.4). The "Recommended disposition" column above is v0.3 history; this table is what the operator ruled (log § OD-17 items 2-14).
+
+| Id | Ruling | Date | Requirement |
+|---|---|---|---|
+| CAND-1 | A: peer content untrusted, P1 security invariant | 2026-10-05 | R-50 |
+| CAND-2 | A refined: idempotence per stage; CAND-19 merged | 2026-10-05 | R-51 |
+| CAND-3 | A revised, with staging: per-failure-mode tiers, four tiers, kill-checked controls | 2026-10-05 | R-69 (and R-29.e) |
+| CAND-4 | A: priority -9..9, urgent 5 or more, receiver clamp | 2026-10-05 | R-52 |
+| CAND-5 | Settled by OD-14 | 2026-10-05 | R-37, R-66 |
+| CAND-6 | A with 16e: four-field reachability card, P1 | 2026-10-06 | R-53, R-29.e |
+| CAND-7 | Settled by OD-7 | 2026-10-05 | R-47 |
+| CAND-8 | A with 14e-14h: explicit mail-hub declaration, P1 | 2026-10-06 | R-54 |
+| CAND-9 | Settled by OD-10 | 2026-10-05 | R-62 |
+| CAND-10 | A: yield-and-wake, P1; the tool belongs to AEF | 2026-10-06 | R-55 |
+| CAND-11 | Settled by OD-15 | 2026-10-05 | R-63, R-64, R-65 |
+| CAND-12 | A refined: source control, three message classes | 2026-10-06 | R-56 |
+| CAND-13 | A: one clock per deadline, versions on the card | 2026-10-06 | R-57 |
+| CAND-14 | A: owed-answers list, P1; work-request states to R-41 | 2026-10-06 | R-58, R-41.o |
+| CAND-15 | Settled by OD-11 and OD-3 | 2026-10-05 | R-60, R-44 |
+| CAND-16 | A: settled by OD-1; P1 requirements of the circuit slice | 2026-10-06 | R-46 |
+| CAND-17 | Not walked; stays deferred to the threat model (step 2) | n/a | none |
+| CAND-18 | A refined: sender-assigned numbers, hub offsets local | 2026-10-06 | R-59 |
+| CAND-19 | Merged into CAND-2 | 2026-10-05 | R-51 |
+
+OD-17.e Changes: new requirements, numbered after R-43 (R-44..R-71, 6.16).
+OD-17.f Sources: `RQ` O16; `RV1` section 3; `RV2` sections 3, 6, 9, 12, 13.
+
+### 9.21 OD-18 Several agents per project: who answers: RULED A, revised after external review
+
+OD-18.R **Ruled A revised, 2026-10-06** ([log § OD-18](interactive-agent-communication/interview-step-01.md#od-18-several-agents-per-project-who-answers-who-coordinates-section-921--ruled-a-revised-after-external-review); review `docs/reports/T-3344-od18-review/`). Only "main" now, under a readiness-gated fenced lease at the home hub; busy keeps main; takeover after lapse plus quiet period plus cooldown; selection by operator pin, else healthy incumbent, else priority; vacancy goes to the operator; two standing tests. Amends OD-14. Changes R-32, R-34; new R-67, R-68.
+
+OD-18.a Question: when a project has several agents, who answers a message addressed to the project or to a role, and who coordinates?
+OD-18.b Why: the operator raised it on 2026-10-04. `RV2` names ring20-manager's 8 unanswered requests as the real failure.
+OD-18.c Options.
+OD-18.c.A A deterministic rule at the project's home hub, over a fenced lease held by code. Introduce, then step aside. No AI agent on the path. `RV2` item 44: "Introduce, then step aside (6c semantics), resolved at the project's home hub." Item 45: "Neither ordinary resolution nor lease renewal should await an AI turn." (Codex).
+OD-18.c.B A central coordinator agent that carries the traffic. `RV2` item 43: "Not a coordinator that carries all traffic (6b). Both reject it as the default; Codex allows it only where work must be triaged or aggregated."
+OD-18.c.C No exclusivity by rule. Codex (`RV2` section 10): "Rejected for exclusivity: observers with different views pick different winners". GLM adds fork-with-claim for pools: deliver to all holders, first to claim wins.
+OD-18.c.D The sender names the exact instance, and no role resolution exists.
+OD-18.d Recommendation: A for singleton roles, with fork-with-claim for pools later, eligibility rules (workers, reviewer seats and sub-agents may not hold a role, 055), and an obligation record with a visible "unanswered" state. Reason: Codex and GLM propose this shape for the resolution (`RV2` items 43-45); `RV2` item 71 covers directory and liveness, not the lease shape. And "Resolution chooses whom to ask. Explicit acceptance establishes who owes an answer." (Codex, item 50).
+OD-18.e Changes: R-32, R-34, new requirements after OD-17.
+OD-18.f Sources: `RV2` sections 9-14.
+
+### 9.22 GP-11 The operator as a party to a conversation: OPEN
+
+GP-11.a Question: how is the operator a party to a conversation, and by which channel does an urgent alarm or a decision request reach the operator?
+GP-11.b Status: **OPEN**, not ruled (log, gap review item 2, 2026-10-06). The operator corrected the first brief: out-of-band channels already exist (ntfy, Signal, Mattermost, Watchtower, runme). ring20-manager's live inventory arrived (six channels, three two-way; the Mattermost desk is where decisions should go). Questions are out to AEF, Penelope (050) and ring20-dashboard on conversation `operator-out-of-band-channels`. At the operator's request an URGENT standardisation request went to AEF (framework:pickup offset 319); AEF was told to hold triage until a supplement carrying all four inventories.
+GP-11.c Consequence: R-1's operator leg has no acceptance criterion (R-1.e (3)), and the urgent-alarm channel of R-37 is undefined. Both wait for the ruling. The architect (step 4) designs it once ruled.
+
+## 10 Earlier requirements
+
+10.1 The earlier list is `RQ` R-1.1..R-14.4. None is dropped. Every item is kept in its confirmed wording, except where the table says "changed". A "changed" row means the new R-n text carries a collector clause tagged [P] (6.1.h) in addition to the operator's wording. The operator's wording stays in the R-n statement as [C], and the [P] clause is a proposal pending the operator, who may strike it. Only the operator may change a confirmed requirement. The R-n numbering is new.
+
+| Earlier | Now | Disposition | Reason |
+|---|---|---|---|
+| R-1.1 | R-1 | kept | confirmed |
+| R-1.2 | R-2 | changed [P] | The new clause "no message in transit with its stage invisible" and "stage with a timestamp" are collector expansions of "the sender always knows where its message is". Source: `RQ` 1 item 4 and R-5.1 (timestamp). Strike the [P] clause to return to the confirmed wording |
+| R-1.3 | R-3 | kept | confirmed. Not met for running agents, OD-6 |
+| R-2.1 | R-4 | kept | confirmed |
+| R-2.2 | R-5 | kept | confirmed |
+| R-3.1 | R-6 | kept | confirmed. Ownership OD-9 |
+| R-3.2 | R-7 | kept | confirmed, restored unqualified in v0.2 (v0.1 had added "same host" to the statement, which pre-decided OD-1). The acceptance criterion has a [P] same-host test scope, and the cross-host scope is OD-1 |
+| R-3.3 | R-8 | kept | confirmed |
+| R-3.4 | R-9 | kept | confirmed. Scope OD-15. The criterion adds a [P] serial start order. Priority is a collector proposal (P2), not "unconfirmed" |
+| R-3.5 | R-10 | kept | confirmed |
+| R-4.1 | R-11 | kept | confirmed. The criterion adds a [P] blob sha256 check |
+| R-4.2 | R-12 | kept | confirmed. Contested, OD-1. The criterion adds a [P] "no hub post on the push path" test instrument |
+| R-4.3 | R-13 | kept | confirmed |
+| R-5.1 | R-14 | changed [P] | the call "carries a timestamp" is a collector addition (R-35 needs it). Source: `RQ` 5 item 3 (AEF returns a timestamp). Contested, OD-4, OD-5 |
+| R-5.2 | R-15 | kept | confirmed. Contested, OD-4 |
+| R-5.3 | R-16 | kept | confirmed. The ordering "after the durable store" is an [A] collector reading |
+| R-6.1 | R-17 | kept | confirmed |
+| R-6.2 | R-18 | changed [P] | "oldest first within one priority" is a collector addition from the built injector (`RQ` 6 item 3). Strike it to return to the confirmed wording |
+| R-6.3 | R-19 | kept | confirmed. Contested, OD-2 |
+| R-6.4 | R-20 | kept | confirmed |
+| R-7.1 | R-21 | changed [P] | "a missing or unreadable flag reads as not ready" comes from AEF's build (`RQ` 7 item 1), not from the operator's sentence. Wording may be made harness-neutral, OD-7 |
+| R-7.2 | R-22 | kept | confirmed |
+| R-8.1 | R-23 | changed [P] | "no peer content" and "claim written before typing" come from the AEF build and the design record (`RQ` 8 item 1, CAND-1), not from the operator's sentence |
+| R-8.2 | R-24 | kept | confirmed. Name OD-8 |
+| R-8.3 | R-25 | kept | confirmed |
+| R-9.1 | R-26 | kept | confirmed. Contested, OD-5 |
+| R-9.2 | R-27 | kept | confirmed |
+| R-9.3 | R-28 | kept | confirmed |
+| R-9.4 | R-29 | kept | confirmed, restored to "halts" in v0.2 (v0.1 had narrowed it to "halts message-dependent work"). What "halts" stops is open. No built owner |
+| R-10.1 | R-30 | kept | confirmed. Contested, OD-3 |
+| R-10.2 | R-31 | kept | confirmed |
+| R-11.1 | R-32 | kept | confirmed |
+| R-11.2 | R-33 | kept | confirmed. "Hub name" not built, OD-12 |
+| R-11.3 | R-34 | kept | confirmed, restored in v0.2 to include the affirmative "messages are addressed with `to_circuit`" |
+| R-12.1 | R-35 | kept | confirmed. Retention OD-16 |
+| R-12.2 | R-36 | kept | confirmed |
+| R-12.3 | R-37 | kept | confirmed. Surfacing OD-14 |
+| R-12.4 | R-38 | kept | confirmed, restored in v0.2 to "an observability database and the learning from it". The "stay readable until then" clause is [P] |
+| R-12.d, R-14.e, R-36.e, R-30.e, R-38.e, R-19.e, R-28.e (criteria and verification, v0.3) | those items | [P] / [A] tagged | v0.3 tags the collector additions that sit inside criteria: R-12.d (hub counter test instrument), R-14.e (timestamp and RECEIVED row, bound open), R-36.e (reflection record; destination of a missing-digest entry), R-30.e ([A] reading of "each rung twice"), R-38.e (test reader and field contract), R-19.e (escalation after no evidence), R-28.e (escalation after neither reply nor no-action). Source: `codex-r2.md` and `glm-r2.md`. Strike the tagged clause to return to the confirmed wording |
+| R-13.1 | R-39 | changed [P] | "start from the deployment and not from a source checkout" is a collector inference from `RQ` section 13. Not met, OD-9 |
+| R-14.1 | R-40 | merged into R-28 (OD-13 2a, v0.4) | satisfied by OD-2, OD-6 and OD-8 |
+| R-14.2 | R-41 | kept, later slice (OD-13 2c, v0.4) | with expiry, execution-time authorisation, fencing token |
+| R-14.3 | R-42 | promoted to a requirement now (OD-13 2b, v0.4) | nothing reports "delivered" without a recorded HANDED_OVER |
+| R-14.4 | R-43 | dropped (OD-13 2d, v0.4) | duplicate of R-9 |
+
+10.2 Requirements changed by the step-1 rulings (v0.4). Each row: the requirement, what changed, the ruling. "New" requirements are in 6.16.
+
+| Requirement | What changed | Ruling |
+|---|---|---|
+| R-2 | States and stages computed from the hub record; returning sender reads it | OD-3, OD-5 |
+| R-3 | Acceptance in three cases (hook, idle without terminal, idle with terminal); status | OD-6 B |
+| R-6 | R-6.a1 ownership (`termlink sidecar`, one receiver); acceptance rewritten to verified behaviour, counts are tripwires | OD-9 C, GP-12 |
+| R-7 | Cross-host criterion for an established circuit; status | OD-1 C |
+| R-8 | Scope note: restarts the sidecar, not the agent | OD-15 A |
+| R-9 | "Start the agent" step follows R-64, R-65; conflict C-12 resolved | OD-15 A |
+| R-12 | Push first applies to established circuits; hub path for new conversations and fallback | OD-1 C |
+| R-13 | Hub path for new conversations; circuit set-up; directory | OD-1 C |
+| R-14 | RECEIVED informational; hub record first; fast notice; stuck deadline 1 min | OD-4 A, OD-5, OD-3 |
+| R-15 | STORED is the only call that releases the sender; written to the hub record first | OD-4 A, OD-5 |
+| R-19 | Route is the hook channel; nothing typed into a busy prompt; acceptance rewritten with negative control; allowed senders; urgent deadlines | OD-2 B, OD-15, OD-3 |
+| R-21 | Harness-neutral wording; adapter contract | OD-7 C |
+| R-22 | Screen classifier is diagnostic only | OD-7 C |
+| R-23 | Typed only when idle; peer content untrusted | OD-2 B, CAND-1 |
+| R-24 | INJECTED renamed HANDED_OVER; ATTEMPTED; hook or typing | OD-8 B |
+| R-26 | Reply recorded first; sender pulls from the record | OD-5 |
+| R-27 | Stage names | OD-8 B |
+| R-28 | REPLIED or ACKNOWLEDGED_NO_ACTION terminal; R-40 merged; deadline and escalation | OD-8 B, OD-13, OD-3 |
+| R-29 | R-29.e corrected: CLEAR needs recent surfacing progress, never a fresh heartbeat alone | CAND-3 4d, CAND-6 |
+| R-30 | Two ladders by priority; the chase runs as sidecar code, never an LLM turn | OD-3 correction, progressive insight |
+| R-31 | Default per priority class; governs re-sends before STORED; replaces D-600 for agent mail | OD-3 point 6 |
+| R-32 | Both ids; new request to project plus role; hub canonical id | OD-10 C, OD-12 D, OD-18 |
+| R-33 | Project id in `.framework.yaml`; hub canonical id plus fingerprint as instance id | OD-11 A, OD-12 D |
+| R-34 | Exact instance fails loudly, never redirected; authority unknown | OD-10 C, OD-18 |
+| R-35 | Hub record is the truth; retention by class (14 days after final state, digests 1 year) | OD-5, OD-16 C |
+| R-36 | Digest retention 1 year; destination of missing-digest entry | OD-16 C, OD-14 |
+| R-37 | Canary, escalation entry never alarm, last rung landing, OD-18 amendment, negative control | OD-14 B, OD-18 |
+| R-39 | Ships as `termlink sidecar` in the binary; switch per host after acceptance test | OD-9 C |
+| R-40 | Merged into R-28 | OD-13 2a |
+| R-41 | Kept, later slice, with expiry, execution-time authorisation, fencing token, obligation states | OD-13 2c, CAND-14 |
+| R-42 | Promoted to a requirement now | OD-13 2b |
+| R-43 | Dropped, duplicate of R-9 | OD-13 2d |
+| R-1..R-5, R-10, R-11, R-16..R-18, R-20, R-25, R-38 | Unchanged by the rulings (R-1 and R-4 verification follow R-69) | none |
+
+## 11 Residual risks and notes for the operator
+
+11.1 This draft is v0.4. Completion condition 6.1 of the card (every question answered or recorded as an open gap) is met: QS-1..QS-14 are answered from the confirmed requirements, QS-15..QS-23 are covered by the gap review (8.2, now answered by rulings or routed to steps 2 to 4), and every section-9 question is ruled except GP-11. The operator's sign-off (T-3349) is the separate approval criterion and is pending.
+11.2 Section 6 states what the operator confirmed ([C]), what the operator ruled in the interview ([R]), and marks collector additions ([P], [A]). The v0.3 conflicts (7.2) are resolved by the rulings (7.4).
+11.3 Several requirements describe a state that does not operate today: R-3, R-12, R-17, R-19, R-24, R-39, and the new R-44..R-71 (none is built, except parts of R-52). The status lines say so. The closing rule (R-69, CAND-3) is the test before any of them may be called working.
+11.4 The adversary list in 2.3 is ruled (GP-0, A): ADV-1..ADV-7 confirmed, ADV-8..ADV-10 added. Step 2 may add more.
+11.5 Facts about what runs on the host come from `RQ` section 15, dated 2026-10-03. They were not re-measured.
+11.6.2 Render check re-run for v0.4 (D-1, D-2 and D-3 changed to the ruled stage names and states). Same method as 11.6, with `mmdc -p <puppeteer-config>` and `/usr/bin/chromium --no-sandbox`. A first run failed on D-2 (a semicolon inside a note is a Mermaid statement separator); fixed and re-run. Result: D-1 exit code 0, 39840-byte SVG; D-2 exit code 0, 38459-byte SVG; D-3 exit code 0, 54198-byte SVG; no "syntax error" text in any output or SVG.
+
+11.6.1 Render check re-run for v0.3 (D-2 changed: rejection branch ends the flow). Same method as below. Result: D-1 exit code 0, 39735-byte SVG; D-2 exit code 0, 37719-byte SVG; D-3 exit code 0, 52593-byte SVG; no error text in any output or SVG.
+
+11.6 Render check, re-run for v0.2. The three Mermaid blocks (D-1, D-2, D-3) were extracted from this file and rendered one by one with `mmdc -p <puppeteer-config> -i dN.mmd -o dN.svg`, where the config names `/usr/bin/chromium` with `--no-sandbox` (the default Chrome for mmdc is not installed on this host; a first run without the config failed with "Could not find Chrome", which is a tooling fault and not a drawing fault). Result: D-1 exit code 0, 39735-byte SVG; D-2 exit code 0, 36971-byte SVG; D-3 exit code 0, 52593-byte SVG; no "error" text in any output; no "Syntax error" text in any SVG. `scripts/design-render-check.py` is not adopted in this project, so no `render_check` record exists. The project's review surface has no design page yet (profile P2.1).
+
+## 12 Change requests to earlier steps
+
+12.1 None. This is step 1.
+
+## 13 Handoff: what goes to steps 2-8 (v0.4)
+
+13.1 Items handed to each later step. This is consistent with section 11 of the rulings summary (`docs/reports/T-3344-step1-rulings-summary.md`).
+
+| Step | Role | Items handed to it |
+|---|---|---|
+| 2 | Threat modeler | circuit trust model and credential lifetime (OD-1, CAND-16, R-46); same id with different content (CAND-2, R-51); same sequence number with different content (CAND-18, R-59); framing threats (CAND-1, R-50); fleet admission and signed advertisements: who may join the fleet and how a hub's announcements are authenticated, since pairwise HMAC does not stop a compromised host from poisoning presence; R-60 covers card content, not admission (CAND-17, not walked in step 1; added at sign-off, J3 ruling A); whether a new conversation between two agents on one host may start without the hub, and on what trust (for example the operating-system user, as AEF's receiver does today), or always needs the hub (R-7.e; added at sign-off, J4 ruling A); GP-1, GP-6, GP-13, GP-14, GP-15; adversaries ADV-1..ADV-10 |
+| 3 | Security floor and phasing | GP-12 diagnosis-time bound and state cap (R-6.e, R-70); ordering of the P1 and P2 items; CAND-3 staging per dimension (R-69) |
+| 4 | Architect | hub-id minting (OD-12, R-61); grant fields and storage (OD-15, R-63..R-65); retention ceilings (OD-16, R-35); jitter, adaptive cap, hop limit (CAND-12, R-56); skew bound (CAND-13, R-57); gap-wait bound (CAND-18, R-59); mail-hub declaration format (CAND-8, R-54); idle no-surfacing threshold (CAND-6, R-53, R-29.e); "main" lease durations, quiet period, cooldown and priority format (OD-18, R-67); GP-4 offline; GP-11 design once ruled; added at sign-off by the J5 cross-check (13.4): the one-receiver observation window (R-49.e), the detection time for a second live copy of a project (R-60.e), the staleness threshold of the daily delivery canary (R-66.e) |
+| 5 | Evidence specialist | the test estate and agent pairs for the CAND-3 tiers (R-69) |
+| 6 | Pseudo-coder | none |
+| 7 | Review panel | none |
+| 8 | Planner | the R-41 typed work-message slice (OD-13); the `termlink sidecar` build (OD-9, R-39, R-49) and the build tasks of arc-011 |
+
+13.2 Open questions the rulings leave, and what could not be placed.
+13.2.1 GP-11 operator as a party: OPEN (9.22). Blocks R-1.e (3) and the urgent-alarm channel of R-37.
+13.2.2 The hub-to-hub directory/relay principle, and the charter rewording the card exchange needs ("hubs never sync messages; hubs may exchange a directory of whom they serve"): the operator approves separately via T-2470 (OD-1, OD-11).
+13.2.3 Ownership split of the receive side with AEF, and which team supplies each harness adapter: proposed to AEF, not ruled (OD-9, OD-7).
+13.2.4 The IAC-72 narrowing of R-9 (scope to the sidecar and its host services): not ruled (OD-15).
+13.2.5 Whether a REJECTED state exists and which refusals it covers: no ruling names it; it stays a [P] collector proposal in D-2 and D-3.
+13.2.6 The OD-3 stuck deadlines and the numbers in OD-16 (14 days, 1 year) and CAND-12 (cap 100) are as ruled; the log marks the orchestrator-supplied numbers as overturnable.
+13.2.7 Whether Claude Code picks up newly registered hooks without a restart: unverified (R-48).
+13.2.8 The protocol-too-old error (T-2700), the hub steward (T-3333) and 055's "one version estate-wide": separate operator decisions, not taken here.
+13.2.9 Operator sign-off of step 1 (T-3349): given 2026-10-07 on v0.4 with corrections J1-J5 (ruling B; see the role-chain yaml step 1 and T-3344 Decisions). Step 2 may start.
+
+13.3 What belongs to AEF, not TermLink: the send-and-wait tool (R-55; TermLink supplies T-3347); the two priority ladders for re-sends replacing D-600 for agent mail, and the chase loop as sidecar code (R-30, R-31; offsets 318, 319); carrying the `priority` field (R-52) and the HANDED_OVER vocabulary and five states (R-24, R-44; offset 314); project-id minting and a re-mint command for forks (R-60); the amended D-660 text (R-32); the operator out-of-band channel standard (GP-11; offset 319).
+
+13.4 Acceptance-number cross-check (J5 ruling B at sign-off, 2026-10-07). Of the 28 new acceptance criteria, 6 carry numbers from the interview log (R-44, R-52, R-56, R-57, R-59, R-63; borrowed ones marked [R~]). The other 22 are shapes; each was checked for whether it can fail without a number, and if not, which step sets the number:
+13.4.1 Pass or fail on behaviour, no number needed (14): R-45, R-47, R-48 (at the next tool call), R-50, R-51, R-54, R-55 (the deadline is the sender's), R-61, R-62, R-65, R-68, R-69, R-70 (tripwires open a review, never fail acceptance), R-71 (end date defined as one release after the T-3342 re-vendor).
+13.4.2 Number needed, already assigned (5): R-46 credential lifetime (step 2); R-53 idle no-surfacing threshold (step 4); R-58 deadline from R-44; R-64 grant budget (grant fields, step 4); R-67 quiet period and cooldown (step 4).
+13.4.3 Number needed, not assigned before the check, now added to step 4's row (3): R-49 the window in which exactly one identity consumed or acked an inbox; R-60 how soon both hubs must flag a second live copy of a project; R-66 when the daily canary counts as stale.
+
+## Questions
+1. Disposition: for each round-1 finding, is the recorded disposition true of the v0.2 text? Name every finding whose fix is missing, partial, or claimed but not present, with section references.
+2. Fidelity: does v0.2 contradict, weaken or silently re-scope any ruled requirement ([R] or [R~]), including through the round-1 fixes themselves? Is every change request explicit about which requirement it changes and how?
+3. New defects introduced by the revision (over-claims, contradictions between sections, numbering or cross-reference errors).
+4. Residual risks RR-1..RR-19 and open questions OQ-1..OQ-14: can an operator accept or decide each one knowingly from its text alone? Name any that cannot.
+5. Verdict: fit as input for step 3 (security floor and phasing), or not; if not, the smallest set of changes that would make it fit.

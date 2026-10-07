@@ -45,3 +45,15 @@ of order; the sender-side symmetry of TB-1 is assumed, not stated.
 
 One revision round (round 2 of at most 3, lesson 5.16): the threat-modeler worker checks every finding against
 the text and fixes it or rebuts it with a citation; the four fidelity findings first. Then the operator decides.
+
+## 6 Round 2 (threat model v0.2, brief-r2.md)
+
+| Question | Codex (codex-r2.md) | GLM (glm-r2.md) |
+|---|---|---|
+| Dispositions true? | Several partial or false: 4d (TH-22 "accepted by default today"), 1b (L/I reasons missing on TH-25, TH-40..42), 1d/2b/2c, 2e/3e, 3d, remnants in TH-37/TH-18/AC-2, OQ-12 | 35 of 36 true; only 4d (the same TH-22 remnant) |
+| Fidelity | Blocking: at-least-once after a crash (13.4.b, SI-30, RR-17) weakens R-51 and R-46.e with no explicit CR; readiness race weakens R-19/R-23 ("nothing typed into a busy prompt"); per-message digest retention not ruled; CR-13 omits R-63, CR-1 mapping incomplete | Round-1 fixes real; every extension is an explicit CR; no silent re-scoping; SI-19 receiver-side cap is new, not "Existing (R-56)" |
+| New defects | Rollback via restorable counters; checkpoints cover only the anchored prefix; operator key cannot contain host root; approval consumption not atomic; RK-3 vs SI-29 membership conflict | SI-11 says RK-1..6 of 7 scopes; PR-25 unexplained hole; 1.3.d/1.3.e order |
+| Verdict | Not fit yet; minimum repair listed (4d) | Fit after three small text fixes |
+
+Agreement: the TH-22 remnant. Disposition: final revision round (r2 remediation); no third review round
+(lesson 5.16 cap); remaining disagreement is stated to the operator with the decisions.

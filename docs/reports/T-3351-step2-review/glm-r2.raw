@@ -1,0 +1,47 @@
+[0m
+> build · glm-5.3
+[0m
+[0m→ [0mRead docs/reports/T-3351-step2-review/brief-r2.md[90m [offset=380, limit=400][0m
+[0m→ [0mRead docs/reports/T-3351-step2-review/brief-r2.md[90m [limit=400, offset=640][0m
+[0m→ [0mRead docs/reports/T-3351-step2-review/brief-r2.md[90m [limit=400, offset=1040][0m
+[0m→ [0mRead docs/reports/T-3351-step2-review/brief-r2.md[90m [limit=400, offset=1440][0m
+[0m→ [0mRead docs/reports/T-3351-step2-review/brief-r2.md[90m [limit=400, offset=1727][0m
+[0m→ [0mRead docs/reports/T-3351-step2-review/brief-r2.md[90m [limit=400, offset=2090][0m
+[0m→ [0mRead docs/reports/T-3351-step2-review/brief-r2.md[90m [limit=400, offset=2458][0m
+[0m→ [0mRead docs/reports/T-3351-step2-review/brief-r2.md[90m [limit=400, offset=2783][0m
+[0m→ [0mRead docs/reports/T-3351-step2-review/brief-r2.md[90m [limit=250, offset=3152][0m
+# Round-2 review: T-3351 step 2, threat model v0.2
+
+## 1 Disposition of the round-1 findings
+
+1a I checked every disposition row against the v0.2 text. 35 of 36 are true: the circuit-lifetime rewrite (7.2.a(3)–(4), 7.2.d.1–.4, SI-9, TH-50, RR-5), the revocation scopes (11.1 RK-1..7, 11.2.b–.e, TH-58), fleet-admission continuity (10.5, TH-59/60, CR-8), contiguous receipts and rotation-surviving namespaces (8.2, 8.4.a, CR-3/4), many-to-many and hand-over (8.6, SI-29, CR-15), the readiness race (9.2.d, PR-32, RR-19), the crash window (13.4, PR-31, SI-30, RR-17), ADV-14 (4.3, PR-27, TH-64, CR-14), the four fidelity withdrawals (7.2.a(2), 11.1(a), CR-12/15.11.6, RR-10), the "both disbelieved" withdrawal (10.3.c), L/I reasons on the threats I sampled (TH-12, TH-20, TH-21 all carry them), 17.1.a's "monitored" definition, 18.2's standing/dependency/limit/probe table, the hypothesis labels (19.1), the OQ splits, 15.2.15's rewording, RR-15..19, and the drawing corrections with re-render (24.2) are all present as claimed.
+
+1b One disposition is claimed but not fully present: **Codex 4d** ("'accepted by default' removed"). TH-22's countermeasure cell still ends "Until one is ruled: RR-6 **(accepted by default today)**" (15.5.3), which contradicts RR-6's own closing sentence "This is today's state; **nothing has accepted it**" (section 20). The removal happened in RR-6 but not in TH-22.
+
+## 2 Fidelity to the approved requirements
+
+2a The four round-1 fidelity fixes are real and now match the rulings: the hub does not apply the allow-list at set-up and downgrade-never-drop is restored (7.2.a(2), SI-10's negative control, CR-7's explicit disclaimer, matching R-52.a/R-63.a); revocation yields WAITING FOR RECIPIENT, not DEAD (11.1(a), RK-1, consistent with R-44.a/R-60.a); PR-15 is resume-only and 15.11.6 explains why a "no process holds it" check would forbid R-68 test (2); RR-10 restates R-35.o exactly (14 days after final state, never cut while open, ceilings last, digests one year).
+
+2b The extensions the revision itself adds are all explicit change requests: 10.5.b declares its no-prior-binding rule an extension of R-60.a(2e) inside CR-8/OQ-8; CR-4 makes contiguousness explicit against R-59.a; CR-2 names the R-34.e(2) clause it replaces; CR-1 now covers R-26.o and the R-44.a "unreconciled" state. I found no silent re-scoping of any [R] or [R~] text.
+
+2c One mild over-claim, not a fidelity breach: 18.2 lists SI-19's cap enforcement as "Existing (R-56)" while SI-19's text also enforces the cap *at the receiver* against dishonest senders — R-56.a binds the sender; receiver-side enforcement is new and should sit on the proposal side of that row.
+
+## 3 New defects introduced by the revision
+
+3a The TH-22 "(accepted by default today)" remnant (1b) is also an internal contradiction between 15.5.3 and section 20, and it is exactly the unauthorized-acceptance language Codex 4d prohibited.
+
+3b **SI-11 says "RK-1..RK-6"** while 11.1 and the coverage table (23.1) define seven scopes. Either RK-7 (the alias end date) is deliberately outside the invariant — R-71 already covers it and its bound is a date, so the exclusion is defensible — or it is a cross-reference slip; the document does not say which.
+
+3c **PR-25 is an unexplained hole.** The 19.2 index runs PR-24 to PR-26 and explains only PR-7, PR-12 and PR-19 as unused; PR-25 is defined and referenced nowhere. This reintroduces, at a new id, the exact defect GLM 1f(iii) fixed (an unexplained gap the next step could mis-cite).
+
+3d Cosmetic: 1.3.e precedes 1.3.d in the text. Numbering of TH/RR/SI/CR/OQ/PN/BP series is otherwise hole-free against the indexes (15.1.a, 19.1, 19.2).
+
+## 4 Residual risks and open questions
+
+4a RR-1..RR-19 can each be accepted or rejected from their own text: each states the risk, what acceptance means, and the dependency where one exists (RR-5 names PN-1/H-1; RR-11 names OQ-4; RR-16 names BP-13). The only obstacle is the TH-22 wording (3a), which could lead an operator cross-reading 15.5.3 to believe RR-6(a) is already accepted; RR-6 itself is unambiguous.
+
+4b OQ-1..OQ-14 are each one decision with fairly presented options, a costed recommendation, and no operator-only choice pre-decided. The conditional interlocks are stated where they exist (OQ-10 recommends "A until OQ-11 is ruled"; OQ-3 fixes PN-1/PN-2/PN-13; OQ-14 owns PN-14). OQ-1's option B honestly prices leaving ADV-13 out. None requires information the document fails to carry.
+
+## 5 Verdict
+
+5a **Fit as input for step 3**, conditional on three small textual fixes, none of which touches the invariant table step 3 will consume: (i) delete "(accepted by default today)" from TH-22 15.5.3 so it agrees with RR-6; (ii) reconcile SI-11's scope reference with the seven scopes of 11.1, stating RK-7's exclusion if intended; (iii) add PR-25 to the unused-ids sentence in 19.2. Optionally move SI-19's receiver-side enforcement to the proposal column in 18.2 and reorder 1.3.d/1.3.e. With those corrections the document hands step 3 a probe-backed, honestly limited floor; without them it hands it one misleading acceptance claim and two reference defects that later steps will cite as they stand.
