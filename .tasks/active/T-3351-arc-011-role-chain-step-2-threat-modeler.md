@@ -25,7 +25,7 @@ related_tasks: [T-3344]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:12:58Z
-last_update: 2026-10-07T05:51:03Z
+last_update: 2026-10-07T06:33:48Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -183,6 +183,16 @@ grep -q 'task: T-3351' docs/design/interactive-agent-communication-role-chain.ya
 - **Why:** keeps one decision per message while cutting ~54 rulings to ~17 plus a tail. Scored B +42, C +31, A +1, D −8.
 - **Rejected:** A (54 rounds, many restating earlier answers), C (batches risk acceptance, against the standing rule),
   D (risk acceptance is reserved to the operator by the role card).
+
+### 2026-10-07 — OQ-1 which added adversaries to confirm (operator ruling)
+- **Chose:** A — confirm ADV-11 (compromised or rogue hub), ADV-12 (unadmitted joiner), ADV-13 (network attacker:
+  delay, drop, replay, redirect; TLS gives secrecy and integrity, not delivery), ADV-14 (holder of the operator's
+  approval device or key). Steps 3-4 defend against ADV-1..ADV-14.
+- **Why:** each acts where the new parts sit (circuits, card exchange, approvals); the record shows hubs going wrong
+  (stray hub 2026-10-04, G-060); both reviewers asked for ADV-14. Scored A +37, B +26, D −21, C −32.
+- **Rejected:** B (drops ADV-13; "covered by TLS" misreads TLS, Codex r1), C (leaves CAND-17 and the approval device
+  undefended), D (step 3 would not know whom the floor stops).
+- **Settles directly:** no RR or CR; scopes RR-4, RR-14, RR-16, RR-18 and CR-14.
 
 ## Decision
 
