@@ -25,7 +25,7 @@ related_tasks: [T-3344]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:12:58Z
-last_update: 2026-10-06T23:15:42Z
+last_update: 2026-10-07T05:51:03Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -173,6 +173,16 @@ grep -q 'task: T-3351' docs/design/interactive-agent-communication-role-chain.ya
      - **Why:** [rationale]
      - **Rejected:** [alternatives and why not]
 -->
+
+### 2026-10-07 — How to take step 2's 54 operator items (operator ruling)
+- **Context:** threat model v0.3 (after review rounds 1 and 2 and two revisions; GLM r2 "fit", Codex r2 "not fit yet",
+  every r2 finding then disposed in disposition-r2.md; neither reviewer has seen v0.3) carries OQ-1..17, RR-1..20,
+  CR-1..17.
+- **Chose:** B — the 17 open questions one at a time; each brief names the change requests and residual risks its
+  ruling settles; the unlinked remainder afterwards, one at a time.
+- **Why:** keeps one decision per message while cutting ~54 rulings to ~17 plus a tail. Scored B +42, C +31, A +1, D −8.
+- **Rejected:** A (54 rounds, many restating earlier answers), C (batches risk acceptance, against the standing rule),
+  D (risk acceptance is reserved to the operator by the role card).
 
 ## Decision
 
