@@ -25,7 +25,7 @@ related_tasks: [T-3344]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:12:58Z
-last_update: 2026-10-07T08:54:08Z
+last_update: 2026-10-07T16:19:56Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -209,6 +209,22 @@ grep -q 'task: T-3351' docs/design/interactive-agent-communication-role-chain.ya
   requirement) +5, D −12.
 - **Rejected:** A (closes the door on separation), B now (unmeasured change blocking the floor), D (step 3 needs it).
 - **Settles:** RR-2 accepted for now (with the target); RR-7 bounded by it.
+
+### 2026-10-07 — OQ-3 the circuit credential lifetime (operator ruling)
+- **Evidence added at the brief:** the .107 hub journal (from 2026-10-04 only) shows 2 restarts in 3 days, down
+  4m35s and ~1s; consistent with H-1 but thin.
+- **Operator question answered first:** how is a sender authenticated if a credential can be stolen? Answer recorded:
+  identity is the agent key pair (public key on the home hub's card, PR-1a); set-up is signed (7.2.a); the credential
+  is sender-constrained and channel-bound (fresh proof of possession, 7.2.c); every message is signed (PR-1, CR-2).
+  A stolen credential alone is useless; the remaining exposures are key theft (RR-2, OQ-2 target), a lying hub at
+  first contact (RR-14, ADV-11, OQ-8), and no operator key yet (GP-11, OQ-6).
+- **Chose:** D — PN-1 1 hour, PN-2 renewal from 30 minutes and 24 hours absolute, PN-13 1 hour, and the R-7.e (1)
+  cross-host bound of 1 hour, as STARTING values; re-checked against 30 days of hub outage data (follow-up T-3383).
+- **Why:** survives the measured outages with margin; a thief also needs the agent key; numbers stay open to evidence.
+  Scored D +42, B +26, C +12, A −21.
+- **Rejected:** A (a measured 4.5-minute restart takes a third of it), C (a working afternoon for a key thief),
+  B without a dated re-check (rests on 3 days of one hub).
+- **Settles:** PN-1, PN-2, PN-13, the R-7.e (1) bound; RR-5 accepted at a one-hour window.
 
 ## Decision
 
