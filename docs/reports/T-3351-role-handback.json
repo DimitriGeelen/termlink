@@ -7,7 +7,7 @@
   "status": "ready-for-review",
   "output": {
     "path": "docs/design/interactive-agent-communication-02-threat-model.md",
-    "sha256": "8b3433e2ffeafeabe71b0ae1dd20a80a137fa0023d0915e95690c51f986ba6b8"
+    "sha256": "4b3924931a828036b06c7ca9ca8c13a4877a22404ea7d759a9b14a0d4ac9e57d"
   },
   "inputs": [
     {
@@ -27,7 +27,7 @@
       "sha256": "ea67bf4fc4638f2271d53f05240d11a2c2e50c232d1d6945ac13514ec9e62c26"
     }
   ],
-  "summary": "Revision round 1 (v0.2) of the arc-011 threat model, answering Codex (return for revision) and GLM (fit with fixes): 36 findings checked, 31 valid, 5 partly, 0 not valid (disposition-r1.md). Four fidelity changes withdrawn or made explicit: no interrupt allow-list at circuit set-up (R-52.a, R-63.a); revocation never makes mail DEAD (R-44, R-60); PR-15 limited to resume, takeover unchanged (R-67, R-68); retention per R-35.o; PR-5 binding as R-60.a (2e); no 'allowed peer' class. Over-claims fixed: circuit lifetime from establishment and never reset; revocation split into 7 scopes with reachable and partitioned bounds; SI-9, 13, 17, 19, 21, 22 restated; contiguous receipts; identity-keyed namespaces. Added: ADV-14 and the operator approval device; TH-58..65 (65 threats); SI-29..31 (31 invariants); RR-15..19 (19 residuals); CR-14, CR-15 (15 change requests); OQ-10..14; PR-26..33; invariant-to-CR table (18.2); numbers labelled hypotheses. Drawings D-1 and D-2 corrected and all four re-rendered. Step-1 requirements not changed.",
+  "summary": "Final revision round (v0.3) of the arc-011 threat model, answering the second review round (Codex: not fit yet; GLM: fit after three text fixes): 25 findings checked, 23 valid, 2 partly, 0 not valid (disposition-r2.md). Fidelity (21.2): the crash after hand-over keeps R-51.a and R-46.e by a mechanism (option a: atomic claim, close by evidence, redeliver only on proof of absence, else wait; CR-17); the readiness race is an explicit change request naming R-19, R-20, R-23 (option b: CR-5, OQ-16); the one-year per-message digest claim is withdrawn and offered as optional PR-34 (CR-16, OQ-15). Mechanisms made honest: rollback needs the hub's live head (RR-20); checkpoints cover only the anchored prefix (RR-15); an operator key does not contain host root (RR-2); atomic approval consumption bound to executor and target; membership removal, epochs and fencing (OQ-12, OQ-17); first-claim squatting separated in RR-14. Remnants removed (TH-22, TH-37, TH-18, TH-9, AC-2). Now 65 threats, 31 invariants, 20 residuals, 17 change requests, 17 open questions. Step-1 requirements not changed. Drawings unchanged, re-rendered, exit 0 each.",
   "completion": [
     {
       "condition": "6.1 Every trust boundary has all six STRIDE questions answered, plus confused deputy, approved-not-executed, replay and break-glass",
@@ -37,7 +37,7 @@
     {
       "condition": "6.2 Every threat has a countermeasure or is a listed residual risk",
       "met": true,
-      "evidence": "Section 15 (TH-1..TH-65, index in 15.1.a, likelihood and impact reasons on every threat) and section 20 (RR-1..RR-19)"
+      "evidence": "Section 15 (TH-1..TH-65, index in 15.1.a, likelihood and impact reasons on every threat, checked by a scan in round 2) and section 20 (RR-1..RR-20)"
     },
     {
       "condition": "6.3 The bypass inventory is complete for the routes the profile names, and says what remains open",
@@ -47,26 +47,28 @@
     {
       "condition": "6.4 Security invariants are stated so a test or probe could check them",
       "met": true,
-      "evidence": "Section 18: SI-1..SI-31 each with a probe; 18.2 gives each invariant's standing, dependency on change requests, limit and whether its probe can run; SI-17, SI-21 and SI-22 restated to what their mechanism delivers"
+      "evidence": "Section 18: SI-1..SI-31 each with a probe; 18.2 gives each invariant's standing, dependency on change requests, limit and whether its probe can run; round 2 restated SI-1, SI-2, SI-11, SI-13, SI-20, SI-21, SI-22, SI-29, SI-30 to what their mechanism delivers, with limit probes that document what they cannot stop"
     },
     {
       "condition": "6.5 Every required drawing D-1 to D-4 is present with id, caption and textual equivalent, and renders without error",
       "met": true,
-      "evidence": "D-1 5.1, D-2 and D-3 in 16, D-4 in 17; D-1 and D-2 corrected; mmdc render check re-run on all four after the changes, exit 0 each, no error (24.2)"
+      "evidence": "D-1 5.1, D-2 and D-3 in 16, D-4 in 17; all four re-rendered with mmdc after the round 2 edits, exit 0 each, sizes unchanged because no drawing changed (24.2.0)"
     }
   ],
   "open_questions": [
-    "22 OQ-1..OQ-14 (OQ-10 to OQ-14 are new; OQ-5 and OQ-7 split)",
-    "8.6.b who may start a conversation hand-over, and 8.6.d what a joiner reads (OQ-12, OQ-13)",
-    "12.3 whether the hub copy of a circuit turn carries content (OQ-10, CR-9)",
-    "4.4 shared operating-system user (OQ-2); closes only the user-level part of RR-2, not host root",
-    "19 every proposed number is an unmeasured hypothesis (H-1..H-9)",
+    "22 OQ-1..OQ-17 (OQ-15 to OQ-17 new in round 2; OQ-12 now covers adding and removing participants only)",
+    "8.2.a, 22.16 per-message content digest retention beyond 14 days is an optional proposal, not baseline (OQ-15, CR-16)",
+    "9.2.d, 22.17 the 'never typed into a busy prompt' wording cannot hold literally (OQ-16, CR-5)",
+    "8.6.b.3, 22.13a who may start a conversation hand-over (OQ-17); 8.6.d what a joiner reads (OQ-13)",
+    "12.3 whether the hub copy of a circuit turn carries content (OQ-10, CR-9), with the STORED-during-outage exposure",
+    "4.4 shared operating-system user (OQ-2); closes only the user-level part of RR-2, not host root, with or without an operator key",
+    "19 every proposed number is an unmeasured hypothesis (H-1..H-13)",
     "1.3.b this project has no design-render-check.py or role-handback-check.py: render check done with mmdc"
   ],
   "change_requests": [
     {
       "step": 1,
-      "what": "CR-1 R-45.a, R-26.o and R-44.a conflict with R-7.e (1): with the hub unreachable on a circuit, stages, replies and sender-visible states cannot be hub-first. Local hash-chained log first, replayed on return; reply carried on the circuit; state computed from circuit receipts and labelled unreconciled, UNKNOWN only when nothing can be read; write-ahead intent before hand-over."
+      "what": "CR-1 R-45.a with R-7.e (1), mapped to every requirement that says 'hub record first': R-2.a, R-2.e, R-14.o, R-15.o, R-26.o, R-44.a, R-58.a. With the hub unreachable on a circuit, stages, replies, sender-visible states and the owed list cannot be hub-first: local hash-chained log first, replayed on return; reply on the circuit; states from circuit receipts labelled unreconciled; chain heads in receipts."
     },
     {
       "step": 1,
@@ -82,7 +84,7 @@
     },
     {
       "step": 1,
-      "what": "CR-5 R-23.a and R-23.e: make 'no peer content in the typed line' firm, constrain ids to 32 hex characters, require a foreground-process check before typing and a re-check just before."
+      "what": "CR-5 R-23.a and R-23.e, and an explicit change to the ruled 'never' of R-19.r, R-19.e (2), R-20.a, R-20.e, R-23.o (fidelity decision b): the line is firm no-peer-content, ids 32 hex, inert in a shell; foreground and readiness re-checked immediately before typing, unsent input only from an adapter field, never the screen (R-22). New guarantee: nothing typed unless READY at the last re-check; a line landing in a prompt that became busy carries no content, is not evidence, and the message is not lost. Alternative: an atomic inject-if-ready in every adapter (none exists today)."
     },
     {
       "step": 1,
@@ -90,11 +92,11 @@
     },
     {
       "step": 1,
-      "what": "CR-7 R-46: add the sender-constrained, connection-bound, scoped credential, establishment nonce and set-up window, lifetime from establishment never reset, signed revocation list with rollback protection and a stale rule, and a stated lifetime. No allow-list check at set-up (R-52.a, R-63.a)."
+      "what": "CR-7 R-46: add the sender-constrained, connection-bound, scoped credential, establishment nonce and set-up window, lifetime from establishment never reset, signed revocation list pulled each tick with the hub's current head compared on every contact, an unreconciled state after start or restore, a stale rule, and a stated lifetime. No allow-list check at set-up (R-52.a, R-63.a)."
     },
     {
       "step": 1,
-      "what": "CR-8 R-60 and R-61: fleet admission roster, signed cards, home-hub binding as R-60.a (2e) rules it, project root key, signed hub-key rotation and moved-to statements, no-guess rule at first sight, hub signing key apart from the TLS certificate."
+      "what": "CR-8 R-60 and R-61: fleet admission roster with a sequence number carried in every hub exchange, signed cards, home-hub binding as R-60.a (2e) rules it, project root key, signed hub-key rotation and moved-to statements, no-guess rule at first sight, optional per-hub project-id list, hub signing key apart from the TLS certificate."
     },
     {
       "step": 1,
@@ -114,15 +116,23 @@
     },
     {
       "step": 1,
-      "what": "CR-13 R-67.a and R-64: role eligibility from operator-signed configuration; grants, allow-lists and roster take effect only with an operator signature or a hub-held verified record. Depends on CR-14."
+      "what": "CR-13 R-67.a, R-64 and R-63.a: role eligibility from operator-signed configuration; grants, allow-lists and roster take effect only with an operator signature or a hub-held verified record, each with an epoch checked against the hub's policy head. Depends on CR-14; does not stop host root."
     },
     {
       "step": 1,
-      "what": "CR-14 New, touches GP-11 and R-63.a: an operator approval key and device with second factor, single-use short-lived digest-bound approvals, second-channel notice with a delay, offline recovery key."
+      "what": "CR-14 New, touches GP-11 and R-63.a: an operator approval key and device with second factor, single-use (atomic consumption) short-lived digest-bound approvals including executor and target, second-channel notice with a delay, offline recovery key."
     },
     {
       "step": 1,
-      "what": "CR-15 New, touches R-62.a: conversation membership (R-1.e (2) many-to-many, R-62 hand-over) changes only by a signed, countersigned, recorded event or a hand-over under a stated rule."
+      "what": "CR-15 New, touches R-62.a and R-1.e (2): conversation membership changes only by a signed, countersigned, recorded join, a leave signed by the leaver, a removal under a stated rule, or a hand-over under a stated rule; every change increments a membership epoch carried on turns and receipts; the old instance is fenced."
+    },
+    {
+      "step": 1,
+      "what": "CR-16 New, optional: R-35.o (2), R-36.o, R-51.a. Clarify that the one-year 'digests' are the daily telemetry digests, not per-message content digests; optionally add a per-message record kept one year after the final state (PR-34, PN-16) as a declared long-retention exception."
+    },
+    {
+      "step": 1,
+      "what": "CR-17 New: R-24.a and R-47.a. Evidence rule (a nonce in a record type the harness itself writes) and an adapter evidence-complete point (transcript complete to turn boundary N, or harness exited). Supplies the mechanism that keeps R-51.a and R-46.e after a crash; changes neither."
     }
   ],
   "decisions_needed": [
@@ -137,10 +147,13 @@
     "OQ-9 take the numbers of section 19 as starting values, all hypotheses (recommend A, except PN-1, PN-2, PN-13 and PN-14)",
     "OQ-10 hub keeps circuit-turn content or metadata only (recommend A until OQ-11 is ruled)",
     "OQ-11 hub operator reading content: accept, or end-to-end encryption later (recommend B as a later slice)",
-    "OQ-12 who may add a participant or hand a conversation over (recommend A)",
+    "OQ-12 who may add a participant and who may remove one (recommend A: countersigned join, self-removal, operator removes others)",
     "OQ-13 what a new participant may read (recommend A: from joining forward)",
     "OQ-14 protections for the operator's approval device and key (recommend A: all four)",
-    "Accept or reject residual risks RR-1..RR-19 (section 20), one per line (the task's Human AC)",
-    "Accept or reject change requests CR-1..CR-15 to the requirements (section 21)"
+    "OQ-15 keep a per-message content digest beyond 14 days (recommend A: no, accept RR-10)",
+    "OQ-16 the 'never typed into a busy prompt' wording (recommend A: change as CR-5 states)",
+    "OQ-17 who may start the hand-over of a conversation (recommend A: holder plus acceptance, or the operator)",
+    "Accept or reject residual risks RR-1..RR-20 (section 20), one per line (the task's Human AC)",
+    "Accept or reject change requests CR-1..CR-17 to the requirements (section 21 and 21.2); CR-5 and CR-16 are the two that change or add to a ruled guarantee"
   ]
 }
