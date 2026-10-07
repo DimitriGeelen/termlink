@@ -25,7 +25,7 @@ related_tasks: [T-3344]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:12:58Z
-last_update: 2026-10-07T06:33:48Z
+last_update: 2026-10-07T08:54:08Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -193,6 +193,22 @@ grep -q 'task: T-3351' docs/design/interactive-agent-communication-role-chain.ya
 - **Rejected:** B (drops ADV-13; "covered by TLS" misreads TLS, Codex r1), C (leaves CAND-17 and the approval device
   undefended), D (step 3 would not know whom the floor stops).
 - **Settles directly:** no RR or CR; scopes RR-4, RR-14, RR-16, RR-18 and CR-14.
+
+### 2026-10-07 — OQ-2 the shared operating-system user (operator ruling)
+- **Fact added at the brief:** all 19 Claude agents on .107 run as root (ps, 2026-10-07), so today the shared user is
+  root and same-user equals host root in practice.
+- **Chose:** C now, B as the committed target (operator's words: "we accept it for now, but we definitely want to move
+  to a more isolated per-agent account, which can be created by the orchestrator … always via Tier 0"). (1) RR-2 is
+  accepted for the present, with the root fact. (2) Target: one isolated OS account per agent, created by the
+  orchestrator through a narrow privileged helper (least privilege: one helper with fixed settings, e.g. a single
+  sudoers entry; never general root for the orchestrator); every creation is a Tier 0 action (human-approved, logged).
+  (3) Step 3 phases and prices the move, including group-based access to shared checkouts; step 4 designs the helper.
+  (4) Host root stays residual for the lifetime (RR-2).
+- **Why:** one account per workload is the standard pattern (service users, systemd DynamicUser, k8s service accounts);
+  it makes per-agent keys a real boundary and ends agents running as root. Scored C +29, A +10, B (as an immediate
+  requirement) +5, D −12.
+- **Rejected:** A (closes the door on separation), B now (unmeasured change blocking the floor), D (step 3 needs it).
+- **Settles:** RR-2 accepted for now (with the target); RR-7 bounded by it.
 
 ## Decision
 
