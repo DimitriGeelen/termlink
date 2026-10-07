@@ -968,7 +968,7 @@ TH-37 **Clock skew: false STUCK, early or late expiry.** TB-13 · D, T · ADV-10
 
 TH-38 **Prompt injection through peer content.** TB-1 · E · ADV-2a, ADV-2b, ADV-1
 15.7.1 Scenario: peer text contains an instruction; the agent, which has rights on a host (A-7), carries it out: runs commands, edits files, pushes, approves, sends data out.
-15.7.2 L high (a documented property of language models, not a TermLink flaw). I high.
+15.7.2 L high (a documented property of language models, not a TermLink flaw). I high (the agent holds the rights of its host, A-7, and acts on the text with them).
 15.7.3 Countermeasure: R-50, PR-9 and SI-7 (frame, nonce boundary, trust class), SI-8 (no peer message is an approval), the agent's own gates (tasks, Tier 0 and Tier 2), the task-proposal rule. Residual: RR-1.
 
 TH-39 **The hook channel gives peer text harness-level standing.** TB-1 · E, CD · ADV-2a, ADV-2b
@@ -1032,7 +1032,7 @@ TH-48 **The human approved one action and a different one ran.** TB-10, TB-11, T
 
 TH-49 **The operator approves without reading, or mis-hears.** TB-10, TB-8 · AD · ADV-5, ADV-12
 15.9.4 Scenario: a hurried "yes" or a voice transcription error enrols a rogue hub or grants a start (`RQ` 10 item 5, 11 item 11).
-15.9.5 L medium (documented twice). I high.
+15.9.5 L medium (documented twice). I high (an approved hub or grant is trusted by every later check, so one mistaken yes opens the whole chain).
 15.9.6 Countermeasure: PR-14 [P]: admission and grant approvals show the identity in a form that must be actively checked (the last 8 characters of the key fingerprint typed back), never a bare yes. Residual: RR-9, RR-14.
 
 TH-64 **The operator's approval device or key is compromised.** TB-10 · S, E, AD · ADV-14
