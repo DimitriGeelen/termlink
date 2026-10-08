@@ -25,7 +25,7 @@ related_tasks: [T-3344]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:12:58Z
-last_update: 2026-10-08T08:25:29Z
+last_update: 2026-10-08T08:29:19Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -261,6 +261,18 @@ grep -q 'task: T-3351' docs/design/interactive-agent-communication-role-chain.ya
   A +23, C +21, B −27.
 - **Rejected:** B (top of the authority model forgeable), C now (GP-11's design work), A without the C assessment.
 - **Settles:** CR-10 accepted; TH-5 countermeasure SI-8/PR-1b.
+
+### 2026-10-08 — OQ-7 held: the operator proposed a principle (not a ruling)
+- **Operator's idea (restated, not ruled):** read access follows the five identity levels: an agent reads its own
+  mail, a project reads all its agents' mail, no project reads another's; the hub is a mailman that reads the address
+  to route and forward but not the letter; the fallback never crosses into another project; exceptions only by an
+  explicit approved act (Tier 0 named). Operator asked for reflection and suggested external review.
+- **Orchestrator's formalisation:** P1 need-to-know by identity level; P2 hub reads envelope only; P3 end-to-end
+  encryption to the agent key or a project key, the hub may keep an encrypted copy (recovers a lost store, OQ-5 F-5);
+  P4 break-glass by an off-host operator recovery key (today's Tier 0 hook does not bind root; depends on GP-11).
+  It would answer OQ-7, OQ-10 and OQ-11 together.
+- **Action:** external review by Codex and GLM (lesson 5.18), `docs/reports/T-3351-principle-review/`; then the
+  principle comes to the operator as ONE decision; OQ-7/10/11 follow from it.
 
 ## Decision
 
