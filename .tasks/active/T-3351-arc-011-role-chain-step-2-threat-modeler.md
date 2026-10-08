@@ -25,7 +25,7 @@ related_tasks: [T-3344]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:12:58Z
-last_update: 2026-10-08T08:29:19Z
+last_update: 2026-10-08T08:39:52Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -273,6 +273,38 @@ grep -q 'task: T-3351' docs/design/interactive-agent-communication-role-chain.ya
   It would answer OQ-7, OQ-10 and OQ-11 together.
 - **Action:** external review by Codex and GLM (lesson 5.18), `docs/reports/T-3351-principle-review/`; then the
   principle comes to the operator as ONE decision; OQ-7/10/11 follow from it.
+
+### 2026-10-08 — Confidentiality principle B′, replacing OQ-7, OQ-10, OQ-11 (operator ruling)
+- **Review:** Codex and GLM both "adopt with changes" (comparison.md): P1/P3 conflict, pin keys first, envelope
+  metadata is a residual, fan-out per-message keys, bounded ciphertext retention, break-glass waits on GP-11.
+- **Guiding rule (operator):** purpose and intent over form: the right party gets the right information to do the
+  right thing, and the wrong party gets nothing that enables misuse.
+- **Chose:** B′ (operator: "B plus the custodial rule plus purpose-intent-over-form … yes to all as suggested"):
+  1. Private channels are private by default; public channels are public.
+  2. The hub is a mailman: it reads the envelope (routing, ladder, stuck detection, canaries), not the content; the
+     envelope's who-talks-to-whom-and-when stays visible (accepted residual).
+  3. Content is encrypted per message (random content key) and wrapped to each authorised reader's key (fan-out);
+     separate encryption and signing keys; no shared project private key for readers.
+  4. A project reads mail addressed to the project and mail that fell back or dead-lettered to it; nothing crosses
+     into another project.
+  5. Custody rule: each agent's private mail is also wrapped to a project custody key held by the project's
+     supervisor, never by sibling agents. The custodian releases an agent's mail to a successor only when the home hub
+     has declared the agent DEAD (R-44/R-60) AND the successor has taken over that agent's role in the same project
+     under the R-67 lease by the explicit hand-over of R-62. While the original is alive, nothing is released (no
+     duplicate work, continuity of the chain). Every release is logged (what, to whom). A resumed agent (R-65, same
+     identity) reads its own mail with its own key.
+  6. The hub keeps an encrypted copy with BOUNDED retention, so a lost receiver store can be recovered (OQ-5 F-5).
+  7. Break-glass: an off-host operator key to which message keys are wrapped in advance, scoped and logged unlock;
+     NOT real until GP-11 (today's Tier 0 hook does not bind root).
+  8. Build order for step 4 to size: pin hub card-signing keys out of band first; then agent-to-agent DM encryption;
+     then project mail; break-glass after GP-11. Receiver-side "show my own mail" tooling for debugging.
+- **Settles:** OQ-7 (token holders see envelopes only), OQ-10 (hub keeps an encrypted copy), OQ-11 (hub operator
+  sees envelopes only); RR-6 (a)(b) narrowed to "envelope metadata visible"; CR-9 answered.
+- **Residual named:** custody key and local keys reachable by host root until OQ-2's per-agent accounts plus a
+  separate supervisor account exist (RR-2).
+- **Rejected:** A (siblings read each other's mail; undoes OQ-2), C (every sender picks readers), D (keeps
+  "everyone with a token reads everything").
+- **Open:** OQ-13 (what a new participant may read), GP-11.
 
 ## Decision
 
