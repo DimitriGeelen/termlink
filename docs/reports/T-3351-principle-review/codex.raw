@@ -1,0 +1,147 @@
+OpenAI Codex v0.153.4
+--------
+workdir: /opt/termlink
+model: gpt-6-astra
+provider: openai
+approval: never
+sandbox: read-only
+reasoning effort: none
+reasoning summaries: none
+session id: 01a11aa9-42dd-7ab0-9ff3-30da68b93c01
+--------
+user
+You are an independent reviewer of one proposed design principle. Work from the text below only; do not read other files and do not modify anything. Answer in English, under ~900 words, numbered headings, hierarchical labels (1, 1a), never plain bullets.
+
+## Context
+
+TermLink is a message rail for AI coding agents on a home lab: hubs (one per host or group of hosts) route messages; each agent has a sidecar that receives, stores and hands messages to the agent; conversations may run directly sidecar-to-sidecar on short-lived "circuits" set up through the hubs. Addressing has five identity levels: host, hub, project, session, agent (canonical name plus a runtime instance id at each level). A delivery that cannot reach the exact instance falls back up the levels (agent, then session, then project) within the same project; it never crosses into another project.
+
+Current state of confidentiality (from the step-2 threat model): every holder of a hub token that can read a topic reads every direct message on it (all agents on a host share the hub secret; peer hosts hold it too), and the hub operator or anyone holding the hub database reads all stored content. All agents on a host currently run as root; the operator has ruled a target of one isolated OS account per agent, created by the orchestrator through a narrow privileged helper, each creation a human-approved ("Tier 0") act. Agents have per-agent signing keys whose public keys are published on signed "cards" served by their home hub; fleet admission and first-contact trust are still open. There is no operator key yet (an open question, GP-11). Already ruled: every message is signed by the sending agent's key (proposed), a stolen circuit credential is useless without the agent key, urgent mail from outside the interrupt allow-list is downgraded not dropped, the receiver's store survives a host crash and detects loss.
+
+Three open operator questions this principle would answer together:
+1. OQ-7: who may read content on the hub, token holders (today: everyone with a token).
+2. OQ-10: does the hub keep a copy of message content (needed to recover a receiver store lost after STORED) or only stage metadata.
+3. OQ-11: who may read content on the hub, the hub operator (today: yes).
+
+## The proposed principle (the operator's idea, formalised by the orchestrator)
+
+P1. Need-to-know follows the identity levels. An agent reads mail addressed to it. A project can read the mail of all its own agents (mail addressed to the project, and mail to any agent of that project). No project reads another project's mail.
+P2. The hub is a mailman: it reads the envelope (sender, recipient, conversation id, sequence, priority, stage, sizes, timestamps) to route, chase, detect stuck messages and run canaries; it does not read the content.
+P3. Mechanism (orchestrator's proposal): content is encrypted end-to-end to the recipient's level, to the agent's key for agent-addressed mail and to a project key held by that project's agents for project-addressed mail. The hub may keep an encrypted copy, so a lost receiver store can be recovered by the recipient without the hub being able to read it. The fallback up the identity levels never crosses a project boundary; mail that cannot be delivered within its project waits or dead-letters, it is not re-addressed to another project.
+P4. Exceptions are break-glass: a recovery key held off-host by the operator, usable only through an explicit, approved, logged act. (Caveat already noted: today's "Tier 0" gate is a hook inside the agent harness and does not bind a root process; a real break-glass needs a key the hosts do not hold, which depends on GP-11.)
+
+Costs already identified: envelopes still reveal who talks to whom and when; key management (project keys, rotation, joining, a new participant's access to history); recipient public keys come from hub-served cards, so a hostile hub at first contact can substitute a key unless the fingerprint is confirmed out of band; on today's root-shared hosts root reads local keys.
+
+## Questions
+1. Is the principle sound as a design direction for this system? Name any flaw in P1-P4, including in the analogy (a mailman reads only the envelope).
+2. P1: should a project be able to read all its agents' mail, or does that undermine agent-level confidentiality in a way the operator should know? Is there a better grouping?
+3. P3: is end-to-end encryption to an agent key or a project key the right mechanism here, and what is the smallest workable version (key distribution, rotation, membership change, recovery of a lost store) for a home lab? What would you do first?
+4. P4: is an off-host operator recovery key the right break-glass, and what must it guarantee (approval, logging, scope, single use)?
+5. What does this principle cost or break: hub functions that need content (search, digests, telemetry, canaries), debugging, and the ruled requirements described above?
+6. Recommendation: adopt, adopt with changes (which), or reject, with the main reason.
+
+codex
+## 1. Sound direction, inconsistent access rules
+
+1a. **Adopt with changes.** Encrypting content while leaving routing metadata visible is a sound direction. It would stop ordinary topic-token holders and hub-database readers from reading content, provided they cannot obtain endpoint keys or substitute trusted recipient keys.
+
+1b. P1 and P3 conflict. P1 grants the project access to every agent’s mail; P3 encrypts agent-addressed mail only to that agent. Implementing P1 requires an additional project decryption path. Conversely, agent-only encryption means the project cannot necessarily read or recover that mail.
+
+1c. Delivery fallback does not imply decryption fallback. A session or project can accept custody of agent-encrypted ciphertext without understanding it. If another agent must *act on* the message, that requires prior authorization and a suitable decryption path. P3 also omits session-addressed mail and leaves unclear how canonical identities, runtime instances, and key lifetimes relate.
+
+1d. “Mailman” describes normal hub operation, not an absolute security boundary. A hub can observe metadata, withhold or replay traffic, and substitute unverified first-contact keys. An operator controlling an endpoint can obtain plaintext there. Off-host escrow does not prevent that.
+
+## 2. Project access is a policy choice
+
+2a. A project-wide reading entitlement makes the project the confidentiality boundary. Agent identity still supports attribution and delivery, but agent-addressed mail is not private from the project’s authorized readers. If every project agent holds the project key, compromising one exposes everything encrypted to that key.
+
+2b. Prefer **explicit reader sets**, with the project as a default collaboration group. Distinguish agent-private mail from project-shared mail. Session groups can be added when useful; five addressing levels need not produce five cryptographic hierarchies.
+
+2c. If universal project access is intentional, state it plainly: “Agent addressing selects the worker; project membership grants reading access.” Define whether new members inherit history and whether departing members retain access to previously received content. Previously learned plaintext cannot be revoked.
+
+## 3. Smallest workable encryption scheme
+
+3a. Use established authenticated encryption and envelope encryption: generate a content key per message, encrypt the payload once, and wrap that key for each authorized recipient and, if enabled, recovery. Keep signing and encryption keys separate. Bind relevant immutable envelope fields to the authenticated message; mutable delivery-stage metadata needs separate treatment.
+
+3b. For a small lab, individual recipient key wraps avoid distributing one shared project private key. Project-shared messages target a recorded membership snapshot. This costs more header space but simplifies exclusion of departing members from future mail. A shared project key remains possible, with greater rotation and compromise costs.
+
+3c. Bootstrap with manually approved, pinned identity-to-key bindings through an independent trusted channel. Hub-served signed cards alone do not establish first-contact trust. Record key identifiers and versions. Accept routine replacement through an authenticated transition; compromised-key replacement needs independent approval.
+
+3d. Rotate keys for future messages and retain old decryption keys securely for the promised recovery period. Membership removal affects future recipient sets; addition grants future access by default. Historical access requires an explicit grant.
+
+3e. An encrypted hub copy recovers a lost store only if decryption keys survive elsewhere. Define retention, replay authentication, deduplication, and how missing messages are detected. If STORED promises recoverability after receiver-store loss, acknowledge that promise only after the required ciphertext copy is durably committed.
+
+3f. First settle reader policy and fallback semantics, then establish OS isolation and trusted key enrollment. Prototype encrypted send, durable storage, and restore before adding sophisticated group management.
+
+## 4. Break-glass recovery
+
+4a. An off-host recovery key is reasonable if operator recovery is an explicit confidentiality exception. Messages need recovery key wraps created in advance; possessing a recovery key alone cannot decrypt arbitrary ciphertext.
+
+4b. Approval must control actual key use outside agent-controlled hosts. The tool should display the project, messages, purpose, and destination before approval. Prefer project-scoped recovery keys or constrained recovery tooling over unrestricted fleet-wide decryption.
+
+4c. Log authorization and the attempted operation durably outside the affected host, followed by its outcome. Logs provide accountability, not proof that plaintext was never copied. “Single use” can describe an authorization or short-lived recovery capability; it cannot make disclosed plaintext or an exported private key single-use. Keep the private recovery key off recovered hosts.
+
+## 5. Costs and compatibility
+
+5a. Hub search, content digests, semantic telemetry, and content-based canaries move to authorized endpoints or a deliberately trusted reader. Metadata-based routing, timeout detection, and synthetic transport canaries remain possible. End-to-end canaries need recipient confirmation of successful decryption.
+
+5b. Debugging becomes more dependent on message identifiers, authenticated receipts, error codes, and deliberate plaintext disclosure. Envelope fields and logs still need minimization: identifiers can themselves reveal sensitive information.
+
+5c. Encryption complements mandatory signatures and circuit authentication. Urgent-mail downgrade can operate on authenticated sender identity and visible priority. Crash survival remains a storage requirement; encryption supplies neither durability nor loss detection. Project-contained fallback remains compatible as custody transfer, but requires extra authorization for substitute readers.
+
+## 6. Recommendation
+
+6a. **Adopt with changes:** separate routing from reading authority, resolve P1/P3, specify fallback decryption, and define recovery durability and key retention. The main benefit is removing routine plaintext access from hubs and token holders; the main unresolved choice is whether confidentiality belongs to each agent or to its entire project.
+tokens used
+4,730
+## 1. Sound direction, inconsistent access rules
+
+1a. **Adopt with changes.** Encrypting content while leaving routing metadata visible is a sound direction. It would stop ordinary topic-token holders and hub-database readers from reading content, provided they cannot obtain endpoint keys or substitute trusted recipient keys.
+
+1b. P1 and P3 conflict. P1 grants the project access to every agent’s mail; P3 encrypts agent-addressed mail only to that agent. Implementing P1 requires an additional project decryption path. Conversely, agent-only encryption means the project cannot necessarily read or recover that mail.
+
+1c. Delivery fallback does not imply decryption fallback. A session or project can accept custody of agent-encrypted ciphertext without understanding it. If another agent must *act on* the message, that requires prior authorization and a suitable decryption path. P3 also omits session-addressed mail and leaves unclear how canonical identities, runtime instances, and key lifetimes relate.
+
+1d. “Mailman” describes normal hub operation, not an absolute security boundary. A hub can observe metadata, withhold or replay traffic, and substitute unverified first-contact keys. An operator controlling an endpoint can obtain plaintext there. Off-host escrow does not prevent that.
+
+## 2. Project access is a policy choice
+
+2a. A project-wide reading entitlement makes the project the confidentiality boundary. Agent identity still supports attribution and delivery, but agent-addressed mail is not private from the project’s authorized readers. If every project agent holds the project key, compromising one exposes everything encrypted to that key.
+
+2b. Prefer **explicit reader sets**, with the project as a default collaboration group. Distinguish agent-private mail from project-shared mail. Session groups can be added when useful; five addressing levels need not produce five cryptographic hierarchies.
+
+2c. If universal project access is intentional, state it plainly: “Agent addressing selects the worker; project membership grants reading access.” Define whether new members inherit history and whether departing members retain access to previously received content. Previously learned plaintext cannot be revoked.
+
+## 3. Smallest workable encryption scheme
+
+3a. Use established authenticated encryption and envelope encryption: generate a content key per message, encrypt the payload once, and wrap that key for each authorized recipient and, if enabled, recovery. Keep signing and encryption keys separate. Bind relevant immutable envelope fields to the authenticated message; mutable delivery-stage metadata needs separate treatment.
+
+3b. For a small lab, individual recipient key wraps avoid distributing one shared project private key. Project-shared messages target a recorded membership snapshot. This costs more header space but simplifies exclusion of departing members from future mail. A shared project key remains possible, with greater rotation and compromise costs.
+
+3c. Bootstrap with manually approved, pinned identity-to-key bindings through an independent trusted channel. Hub-served signed cards alone do not establish first-contact trust. Record key identifiers and versions. Accept routine replacement through an authenticated transition; compromised-key replacement needs independent approval.
+
+3d. Rotate keys for future messages and retain old decryption keys securely for the promised recovery period. Membership removal affects future recipient sets; addition grants future access by default. Historical access requires an explicit grant.
+
+3e. An encrypted hub copy recovers a lost store only if decryption keys survive elsewhere. Define retention, replay authentication, deduplication, and how missing messages are detected. If STORED promises recoverability after receiver-store loss, acknowledge that promise only after the required ciphertext copy is durably committed.
+
+3f. First settle reader policy and fallback semantics, then establish OS isolation and trusted key enrollment. Prototype encrypted send, durable storage, and restore before adding sophisticated group management.
+
+## 4. Break-glass recovery
+
+4a. An off-host recovery key is reasonable if operator recovery is an explicit confidentiality exception. Messages need recovery key wraps created in advance; possessing a recovery key alone cannot decrypt arbitrary ciphertext.
+
+4b. Approval must control actual key use outside agent-controlled hosts. The tool should display the project, messages, purpose, and destination before approval. Prefer project-scoped recovery keys or constrained recovery tooling over unrestricted fleet-wide decryption.
+
+4c. Log authorization and the attempted operation durably outside the affected host, followed by its outcome. Logs provide accountability, not proof that plaintext was never copied. “Single use” can describe an authorization or short-lived recovery capability; it cannot make disclosed plaintext or an exported private key single-use. Keep the private recovery key off recovered hosts.
+
+## 5. Costs and compatibility
+
+5a. Hub search, content digests, semantic telemetry, and content-based canaries move to authorized endpoints or a deliberately trusted reader. Metadata-based routing, timeout detection, and synthetic transport canaries remain possible. End-to-end canaries need recipient confirmation of successful decryption.
+
+5b. Debugging becomes more dependent on message identifiers, authenticated receipts, error codes, and deliberate plaintext disclosure. Envelope fields and logs still need minimization: identifiers can themselves reveal sensitive information.
+
+5c. Encryption complements mandatory signatures and circuit authentication. Urgent-mail downgrade can operate on authenticated sender identity and visible priority. Crash survival remains a storage requirement; encryption supplies neither durability nor loss detection. Project-contained fallback remains compatible as custody transfer, but requires extra authorization for substitute readers.
+
+## 6. Recommendation
+
+6a. **Adopt with changes:** separate routing from reading authority, resolve P1/P3, specify fallback decryption, and define recovery durability and key retention. The main benefit is removing routine plaintext access from hubs and token holders; the main unresolved choice is whether confidentiality belongs to each agent or to its entire project.
