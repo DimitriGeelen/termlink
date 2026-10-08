@@ -56,7 +56,12 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Two operator rulings in T-3351 (arc-011 step 2) wait on this measurement:
+1. OQ-3 = D (2026-10-07): circuit credential lifetime 1 h, renewal from 30 min, 24 h absolute, stale-list 1 h are
+   STARTING values; re-check that 1 h covers the measured hub outages (hypothesis H-1).
+2. OQ-4 = D (2026-10-08): a new conversation always goes through the hub, on one host too; REVISIT option B (local
+   start while the hub is down) once per-agent OS accounts exist (OQ-2 target) and this task has measured hub-down
+   time. Bring that revisit to the operator as its own decision.
 
 ## Acceptance Criteria
 

@@ -25,7 +25,7 @@ related_tasks: [T-3344]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:12:58Z
-last_update: 2026-10-07T16:19:56Z
+last_update: 2026-10-07T16:33:50Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -225,6 +225,16 @@ grep -q 'task: T-3351' docs/design/interactive-agent-communication-role-chain.ya
 - **Rejected:** A (a measured 4.5-minute restart takes a third of it), C (a working afternoon for a key thief),
   B without a dated re-check (rests on 3 days of one hub).
 - **Settles:** PN-1, PN-2, PN-13, the R-7.e (1) bound; RR-5 accepted at a one-hour window.
+
+### 2026-10-08 — OQ-4 same-host new conversation without the hub (J4 question; operator ruling)
+- **Chose:** D — A now: a new conversation always goes through the hub, on one host too (R-7.e (2) unchanged); only
+  established conversations run on a circuit. Revisit B (local start while the hub is down) once per-agent OS
+  accounts exist (OQ-2 target) and T-3383 has measured hub-down time.
+- **Why:** a local start would be a second authority (R-45, R-49); with every agent running as root, "same user"
+  cannot tell agents apart (7.6.b); the OQ-2 target removes that obstacle, so B gets a second look then. Scored
+  D +42, A +33, B +9, C −17.
+- **Rejected:** B now (trusts anyone on the host), C (bypasses the hub's checks permanently), A with no revisit.
+- **Settles:** RR-11 accepted for now; TB-6 analysis (14.7, written for A) stands.
 
 ## Decision
 
