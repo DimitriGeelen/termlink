@@ -25,7 +25,7 @@ related_tasks: [T-3344]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:12:58Z
-last_update: 2026-10-08T08:15:46Z
+last_update: 2026-10-08T08:25:29Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -246,6 +246,21 @@ grep -q 'task: T-3351' docs/design/interactive-agent-communication-role-chain.ya
 - **Rejected:** B (no flush; breaks the STORED promise in a crash for unmeasured speed), C (duplicate writes for a
   failure the resend path already recovers).
 - **Settles:** PR-17, SI-15, SI-16 to step 3 as the durability floor. Leaves recovery after F-5 to OQ-10 / CR-9.
+
+### 2026-10-08 — OQ-6 what "the operator" means as a sender until GP-11 (operator ruling)
+- **Operator question answered first:** does this cut the operator off (runme, approvals)? No: terminal input (incl.
+  voice), runme.sh, Watchtower ticks, inception decisions and Tier 0 approvals are local actions, not rail messages,
+  and are untouched; peer mail keeps flowing (urgent from outside the allow-list is downgraded, never dropped). Only a
+  rail message CLAIMING to be from the operator loses automatic top authority (mid-turn interrupt) until it can be
+  verified.
+- **Chose:** D — A for the security floor now: CR-10 accepted; until GP-11 is ruled the default allow-list is "own
+  project" only and no message is operator-class unless it verifies against an operator key kept off agent hosts
+  (PR-1b, SI-8). GP-11 must assess the already-authenticated channels (operator terminal, Watchtower login, the
+  out-of-band channels) as operator channels (C folded into GP-11).
+- **Why:** closes operator impersonation (TH-5; ADV-14, prompt injection) at no practical cost today. Scored D +37,
+  A +23, C +21, B −27.
+- **Rejected:** B (top of the authority model forgeable), C now (GP-11's design work), A without the C assessment.
+- **Settles:** CR-10 accepted; TH-5 countermeasure SI-8/PR-1b.
 
 ## Decision
 
