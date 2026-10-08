@@ -25,7 +25,7 @@ related_tasks: [T-3344]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:12:58Z
-last_update: 2026-10-07T16:33:50Z
+last_update: 2026-10-08T08:15:46Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -235,6 +235,17 @@ grep -q 'task: T-3351' docs/design/interactive-agent-communication-role-chain.ya
   D +42, A +33, B +9, C −17.
 - **Rejected:** B now (trusts anyone on the host), C (bypasses the hub's checks permanently), A with no revisit.
 - **Settles:** RR-11 accepted for now; TB-6 analysis (14.7, written for A) stands.
+
+### 2026-10-08 — OQ-5 failures the store must survive (GP-13; operator ruling)
+- **Chose:** A — survive F-1 (sidecar killed mid-write) and F-2 (host crash: flush before STORED); detect and show
+  F-3 (disk full: refuse STORED visibly), F-4 (corrupt record: checksum, quarantine, resend by digest), F-5 (store lost
+  or old copy restored: reconcile with the hub record, flag lost-after-STORED); refuse or detect F-6 (second writer,
+  lock) and F-7 (attacker writes; prevention is RR-2).
+- **Why:** STORED releases the sender, so it must hold through a power cut; every other failure is loud, never
+  silent. Scored A +42, C +32, B −18.
+- **Rejected:** B (no flush; breaks the STORED promise in a crash for unmeasured speed), C (duplicate writes for a
+  failure the resend path already recovers).
+- **Settles:** PR-17, SI-15, SI-16 to step 3 as the durability floor. Leaves recovery after F-5 to OQ-10 / CR-9.
 
 ## Decision
 
