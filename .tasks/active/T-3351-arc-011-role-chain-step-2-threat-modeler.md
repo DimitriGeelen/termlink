@@ -25,7 +25,7 @@ related_tasks: [T-3344]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:12:58Z
-last_update: 2026-10-08T08:39:52Z
+last_update: 2026-10-08T09:49:10Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -305,6 +305,36 @@ grep -q 'task: T-3351' docs/design/interactive-agent-communication-role-chain.ya
 - **Rejected:** A (siblings read each other's mail; undoes OQ-2), C (every sender picks readers), D (keeps
   "everyone with a token reads everything").
 - **Open:** OQ-13 (what a new participant may read), GP-11.
+
+### 2026-10-09 — OQ-8 fleet admission (CAND-17, CR-8; operator ruling)
+- **Dialogue:** recommendation D re-presented after the reboot. The operator raised the initial handshake: today's
+  first-contact trust has no good closure (seen with Greenfield and Workflow Designer: flagged, not closed), and
+  everything cannot rest on Tier 0 alone. The orchestrator first answered with three trust layers (D′); the operator
+  corrected the reading: authentication and authorisation requests ("a hub requests this and this") should become a
+  Tier 0 EVENT that then has the available approval routes, not a single fixed gate. Orchestrator mistake recorded:
+  D′ treated Tier 0 as a gate only the operator opens and designed around it. (No record of the Greenfield/832 case
+  was found in tasks or registers; the ruling rests on the principle.)
+- **Chose:** D″ (operator: "I follow your recommendation"; "proceed as suggested"):
+  1. D: roster, hub-signed cards (sequence + TTL), home-hub binding as R-60.a (2e) rules, project root key,
+     continuity (signed key rotation, "moved to", restored-roster detection); CR-8 incl. a hub signing key separate
+     from the TLS certificate (R-61 change).
+  2. Every admission and authorisation request is a Tier 0 event carrying the request (who, which anchor, what it
+     asks), its evidence and a digest; an approval is bound to that digest (SI-13).
+  3. Approval routes chosen by risk class: (a) policy route for anchored low-risk cases (e.g. a new project on an
+     admitted hub, a hub enrolling over SSH the operator already set up), auto-approved and recorded; (b) human routes
+     (cockpit, Watchtower, terminal) for anything new; (c) exceptions always human (unsigned hub-key change,
+     competing claim, re-pin, restored roster); (d) operator-key signature after GP-11. Not the rail until an
+     operator key exists (OQ-6).
+  4. Every decision, automatic or human, lands in one audit trail; RR-18 tripwire now: every re-pin and
+     `tofu clear` recorded and shown in needs-attention.
+- **Settles:** CR-8 accepted; new CR-18 (Tier 0 event + route registry) added; RR-4, RR-14 (a)/(b) accepted;
+  RR-18 interim control authorised (build task T-3384).
+- **Residual named:** until per-agent accounts (OQ-2) and the operator key (GP-11), routes live on hosts where agents
+  run as root, so a Tier 0 event is detection plus discipline, not a lock (RR-2, RR-18).
+- **Rejected:** A (leaves RR-18 silent), B (operator approval of every project id: friction), C (keeps HMAC, CAND-17
+  unanswered), D′ (Tier 0 as one operator-only gate with workarounds).
+- **Open:** which cases are low-risk for the policy route (operator decision at step 3/4); charter rewording
+  T-2470; enrollment codes wait on GP-11.
 
 ## Decision
 
