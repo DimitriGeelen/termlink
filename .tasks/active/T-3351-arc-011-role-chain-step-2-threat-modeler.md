@@ -395,6 +395,34 @@ grep -q 'task: T-3351' docs/design/interactive-agent-communication-role-chain.ya
 - **Rejected:** A (context pasted by hand, signatures lost), B (whole history on join, silent), C (range-based grant).
 - **Open:** cost of re-wrapping message keys for long histories (step 4).
 
+### 2026-10-10 — OQ-14 protections for the operator approval device and key (operator ruling)
+- **Dialogue:** recommendation D (PR-27's four protections, notice + 15 min delay by risk class). The operator
+  rejected the delay mechanism: a high-impact approval must not continue automatically, because the operator may not
+  be watching the channel (silence must not count as consent). The operator wants OTP-style out-of-band
+  confirmation, at high priority, in a separate inception, in close cooperation with (not delegated to)
+  ring20-manager, which manages the Cloudron estate: ring20-manager builds the facility, TermLink caters for it with
+  a way to configure which OTP engine is used and how to connect to it, because different framework users have
+  different OTP engines. "next" was not taken as a ruling; the operator then confirmed: "Yes, that's the ruling".
+- **Chose:** D‴:
+  1. The operator key needs a second factor; approvals are single-use, digest-bound and short-lived (PN-15 10 min);
+     an offline recovery key can revoke the operator key.
+  2. High-impact classes (in the CR-18 route registry) need an active second, out-of-band confirmation; never take
+     effect on a timeout; unconfirmed within PN-15 they expire visibly. Moving a class out of high-impact is itself
+     high-impact.
+  3. Target: OTP-style confirmation through a pluggable confirmation-provider contract (ask with digest and human
+     summary; verify once against that digest; configured per installation as a signed policy record; changing the
+     provider is high-impact; fail closed when the provider is unreachable; prefer remote verification so secrets
+     stay off agent hosts).
+  4. Interim, where no provider is configured (shown as such): explicit double approval at the terminal (approve,
+     then confirm after a summary of exactly what happens) plus a notice to the operator's channel.
+  5. PN-14 (15-minute notice delay) retired. RR-16 accepted (device plus second factor compromised can still
+     approve; much harder, not impossible).
+- **Inception filed:** T-3385 (high priority; owned by 010; ring20-manager builds the OTP facility for the
+  Cloudron estate to the contract; feeds GP-11).
+- **Rejected:** A (fixed list, delay proceeds on silence), B (no second confirmation), C (leave to GP-11), D (delay
+  proceeds on silence).
+- **Open:** the OTP engine choice and contract (inception); GP-11; initial high-impact class list (step 3).
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
