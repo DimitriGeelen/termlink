@@ -423,6 +423,12 @@ grep -q 'task: T-3351' docs/design/interactive-agent-communication-role-chain.ya
   proceeds on silence).
 - **Open:** the OTP engine choice and contract (inception); GP-11; initial high-impact class list (step 3).
 
+### 2026-10-10 — OQ-15 per-message digest beyond 14 days (operator ruling)
+- **Chose:** A (operator: "a and next"): no per-message digest beyond the 14-day stage memory; RR-10 accepted;
+  PR-34, CR-16 and PN-16 dropped. Revisit trigger: if the OQ-9 first-build measurements show re-sends older than
+  14 days, the question comes back.
+- **Rejected:** B (one-year per-message record as a declared retention exception; unmeasured volume, no incident).
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
