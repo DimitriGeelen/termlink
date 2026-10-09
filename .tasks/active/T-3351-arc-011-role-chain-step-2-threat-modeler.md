@@ -336,6 +336,15 @@ grep -q 'task: T-3351' docs/design/interactive-agent-communication-role-chain.ya
 - **Open:** which cases are low-risk for the policy route (operator decision at step 3/4); charter rewording
   T-2470; enrollment codes wait on GP-11.
 
+### 2026-10-09 — OQ-9 the proposed numbers of section 19 (operator ruling)
+- **Chose:** D (operator: "D"): PN-3 to PN-12, PN-15 and PN-17 become [R~] starting values, changeable with
+  evidence; every hypothesis among them (H-3 PN-5, H-4 PN-6, H-5 PN-7, H-6 PN-10, H-7 PN-11, H-8 PN-12, H-12 PN-15,
+  H-13 PN-17) carries its measurement as an acceptance item of the first build, which step 4 writes into its plan.
+- **Assumption recorded:** PN-15 = 10 minutes, now also the expiry of a Tier 0 event on a human route (OQ-8 D″).
+  The operator was asked whether 10 minutes fits and did not answer; overturnable at any time.
+- **Rejected:** A (no obligation to measure), B (step 3 without anchors), C (leaves caps and rates open).
+- **Open:** PN-14 (OQ-14), PN-16 (OQ-15); PN-1, PN-2, PN-13 were ruled in OQ-3.
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
