@@ -376,6 +376,25 @@ grep -q 'task: T-3351' docs/design/interactive-agent-communication-role-chain.ya
 - **Open:** step 3 designs the rule format and defaults, together with OQ-8's low-risk classes; OQ-13 (what a
   newcomer may read); OQ-17 (who starts a hand-over).
 
+### 2026-10-10 — OQ-13 what a new participant may read (operator ruling)
+- **Dialogue:** recommendation C (forward only, inviter may grant a history range at invitation, recorded). The
+  operator proposed a simpler form: the newcomer asks for the latest relevant messages and the inviter decides what
+  is relevant, because there is an intent to invite the agent. Orchestrator agreed it is better than C (relevance,
+  not a range).
+- **Chose:** C′ (operator: "Yes, C′ is the ruling"):
+  1. Forward only by default.
+  2. The invitation carries its intent (one field in the join event, visible to all).
+  3. The newcomer may ask for relevant context, or the inviter attaches it with the invitation.
+  4. The inviter chooses the relevant turns; they are shared as the original messages (message keys re-wrapped to
+     the newcomer, B′), keeping signatures and order; only what the inviter itself can read; if the inviter is gone,
+     another participant may answer.
+  5. Every share is recorded and visible to all participants.
+  6. CR-19 rules may forbid sharing or make it automatic for configured cases.
+- **Settles:** 8.6.d; CR-15 gains the intent field and the share event; CR-19 gains "may share history".
+- **Residual named:** a compromised inviter may share too much; visible, not prevented (8.6.e, RR-1, RR-3).
+- **Rejected:** A (context pasted by hand, signatures lost), B (whole history on join, silent), C (range-based grant).
+- **Open:** cost of re-wrapping message keys for long histories (step 4).
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
