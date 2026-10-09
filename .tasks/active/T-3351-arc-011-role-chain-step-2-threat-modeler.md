@@ -345,6 +345,37 @@ grep -q 'task: T-3351' docs/design/interactive-agent-communication-role-chain.ya
 - **Rejected:** A (no obligation to measure), B (step 3 without anchors), C (leaves caps and rates open).
 - **Open:** PN-14 (OQ-14), PN-16 (OQ-15); PN-1, PN-2, PN-13 were ruled in OQ-3.
 
+### 2026-10-10 — OQ-12 who may add and remove participants (operator ruling)
+- **Dialogue:** operator chose A but made it situational: predefined agents with predefined routes (pointed at the
+  ring20-manager orchestration pickup; not found locally) should configure whether they may pull in others, may be
+  invited, and how they respond to invitations; asked whether "can be invited" equals "responds to invitations"
+  (answer: no, a gate versus a behaviour). Operator asked why removal should be a Tier 0 event; orchestrator
+  conceded it need not be per removal (authority can be granted in advance in a profile). Operator generalised:
+  configure which agents/agent types may join which, per scope (e.g. auto-join within a hub), "boundaries where
+  certain freedom exists".
+- **Chose:** A as the default when no rule says otherwise, plus a boundary model (operator: "Yes, that's the ruling,
+  with your recommended default"):
+  1. Join: an existing participant's signed event, countersigned by the newcomer; leave: self; epochs and fencing
+     as PR-30.
+  2. Agent profile settings: may invite; may be invited (a gate, refusals visible to the inviter); responds to
+     invitations (accept automatically / ask = Tier 0 event / decline; unanswered invitations expire visibly);
+     may remove (nobody by default / those it invited / anyone in conversations it started).
+  3. Rules = who (agent, agent type, identity level) may do what (invite, be invited, auto-accept, remove) towards
+     whom, where (conversation, project, hub, fleet). Rules nest fleet > hub > project > agent profile; a lower
+     level may only narrow. Outside the boundaries: a Tier 0 event (OQ-8 routes), never a silent refusal; a
+     recurring approval can be turned into a rule.
+  4. Rules are signed policy records (SI-21); only the operator or an approved route changes them; an agent never
+     edits its own boundaries. Every decision names the rule that allowed it. Small fixed vocabulary, no free-form
+     expressions. Same engine as OQ-8's policy route.
+  5. Default when nothing is configured: may invite yes; may be invited yes; respond = accept automatically from
+     its own project, ask for anyone else; may remove = nobody. Removal outside a profile = Tier 0 event.
+- **Settles:** PR-30 join/removal; CR-15 extended (profile fields, invitation expiry); new CR-19 (the boundary
+  policy model; R-63 allow-list and R-64 grants become instances of it).
+- **Rejected:** B (operator approves every join and removal), C (anyone adds or removes anyone), D (adder removes,
+  unbounded); per-removal Tier 0 events (orchestrator's first proposal, withdrawn).
+- **Open:** step 3 designs the rule format and defaults, together with OQ-8's low-risk classes; OQ-13 (what a
+  newcomer may read); OQ-17 (who starts a hand-over).
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
