@@ -2823,8 +2823,11 @@ if [ -f "$FRAMEWORK_ROOT/lib/verdict_ledger.py" ]; then
     if [ "$_vl_rc" -eq 0 ]; then
         pass "Reviewer-verdict ledger: $(echo "$_vl_out" | tail -1)"
     elif [ "$_vl_rc" -eq 2 ]; then
-        fail "Reviewer-verdict ledger: rows that do not verify" \
-             "$(echo "$_vl_out" | grep '^FAIL' | head -3 | tr '\n' ';')" \
+        # T-3962: name the total and say when the evidence is truncated — ring20 read "3"
+        # from a head -3 sample when 10 rows failed.
+        _vl_nfail=$(echo "$_vl_out" | grep -c '^FAIL' || true)
+        fail "Reviewer-verdict ledger: ${_vl_nfail} row(s) do not verify" \
+             "$([ "${_vl_nfail:-0}" -gt 3 ] && printf 'first 3 of %s: ' "$_vl_nfail")$(echo "$_vl_out" | grep '^FAIL' | head -3 | tr '\n' ';')" \
              "Inspect: python3 lib/verdict_ledger.py audit — a row with no signed review dispatch, an introducing commit by a producer, or a torn line must be removed or re-recorded by a real review dispatch; a refusal caused by a FIXED framework defect: fw reviewer verdict acknowledge <row> --fixed-by T-XXXX --reason '...'"
     elif [ "$_vl_rc" -eq 3 ]; then
         # T-3657: every failing row carries a committed acknowledgement naming the completed task
@@ -4508,7 +4511,13 @@ SECRET_SCANNER="$FRAMEWORK_ROOT/agents/git/lib/secret-scan.sh"
 if [ -x "$SECRET_SCANNER" ]; then
     _ss_out=$(PROJECT_ROOT="$PROJECT_ROOT" "$SECRET_SCANNER" scan-tree 2>&1)
     _ss_rc=$?
-    if [ "$_ss_rc" -ne 0 ]; then
+    if [ "$_ss_rc" -eq 3 ]; then
+        # T-3971: no catalogue = content not scanned. Never a PASS (ring20 measured a
+        # planted AWS key reported as "tracked tree clean").
+        fail "Secret scan NOT CHECKED — tracked content was not scanned (T-3971, T-3983)" \
+             "$(echo "$_ss_out" | tail -3)" \
+             "The evidence names the cause. No catalogue: .agentic-framework/bin/fw upgrade (consumer) or bin/fw vendor self (framework repo). No tracked files: the project root is not a git work tree or its index is empty"
+    elif [ "$_ss_rc" -ne 0 ]; then
         _ss_count=$(echo "$_ss_out" | grep -c "^  \[" || true)
         fail "Secret scan: $_ss_count finding(s) in tracked tree (T-1844)" \
              "$(echo "$_ss_out" | head -5)" \

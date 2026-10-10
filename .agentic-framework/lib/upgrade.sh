@@ -331,6 +331,20 @@ _self_vendor_templates() {
             _svt_updated=$((_svt_updated + 1))
         fi
     done
+    # T-3974: the WM-001..003 workflow tasks ride along, so a vendored FRAMEWORK_ROOT
+    # can seed them into a consumer (init and upgrade read them from here).
+    for _svt_src in "$FRAMEWORK_ROOT/.tasks/workflow/"WM-*.md; do
+        [ -f "$_svt_src" ] || continue
+        [ "$dry_run" = true ] || ! _sv_is_withheld "$_svt_src" || continue
+        _svt_dst="$_self_vendor/.tasks/workflow/$(basename "$_svt_src")"
+        if [ ! -f "$_svt_dst" ] || ! diff -q "$_svt_src" "$_svt_dst" > /dev/null 2>&1; then
+            if [ "$dry_run" != true ]; then
+                mkdir -p "$_self_vendor/.tasks/workflow"
+                cp "$_svt_src" "$_svt_dst"
+            fi
+            _svt_updated=$((_svt_updated + 1))
+        fi
+    done
     if [ "$_svt_updated" -gt 0 ]; then
         if [ "$dry_run" = true ]; then
             echo -e "  ${GREEN}Self-vendor:${NC} would sync $_svt_updated template(s) to .agentic-framework/.tasks/templates/"
@@ -1669,33 +1683,51 @@ $project_owned"
         skipped=$((skipped + 1))
     fi
 
+    # T-3955/T-3956: one decision per template-owned project file. Any difference from the
+    # template used to mean "drift → replace (.bak)", which overwrote a consumer's customised
+    # /resume and, in 010-termlink (the toolkit's origin), 15 NEWER files with older copies.
+    # lib/upgrade_template_sync.py updates only a stock copy (hash = what the framework last
+    # wrote); a customised, newer or unrecorded file is KEPT and the template is written
+    # beside it as <file>.upstream. Consumers can claim files in .fwvendor-preserve.yaml
+    # (project_files:). Used by steps 2, 7 and 7b.
+    local _uts="$FRAMEWORK_ROOT/lib/upgrade_template_sync.py" _uts_dry="" _uts_line
+    local _t1867_changes=0
+    [ "$dry_run" = true ] && _uts_dry="--dry-run"
+    _uts_report() {   # one helper line -> colour + change count
+        local line="$1" st="${1%% *}"
+        case "$st" in
+            OK) return 0 ;;
+            KEPT|WOULD-KEPT|PRESERVED|WOULD-PRESERVED) echo -e "  ${YELLOW}${st}${NC}  ${line#* }" ;;
+            ERROR) echo -e "  ${YELLOW}WARN${NC}  template sync skipped — ${line#* } (file left untouched)"; return 0 ;;
+            WOULD-*) echo -e "  ${CYAN}${st}${NC}  ${line#* }" ;;
+            *) echo -e "  ${GREEN}${st}${NC}  ${line#* }" ;;
+        esac
+        changes=$((changes + 1)); _t1867_changes=$((_t1867_changes + 1))
+    }
+
     # ── 2. Task templates ──
+    # T-3965 (010 finding 17): this step was a bare cp on any difference, so a consumer's
+    # customised default.md was lost on every upgrade. Same helper as steps 7/7b. The
+    # shipped-hash list makes an UNSTAMPED stale stock copy (every consumer, the first time)
+    # an update rather than a KEPT, so schema fields still arrive through the templates.
     echo -e "${YELLOW}[2/10] Task templates${NC}"
 
-    local tmpl_updated=0
+    local _tmpl_known="$FRAMEWORK_ROOT/lib/upgrade_template_shipped.py"
+    _t1867_changes=0
     for tmpl in "$FRAMEWORK_ROOT/.tasks/templates/"*.md; do
         [ -f "$tmpl" ] || continue
-        local tmpl_name
-        tmpl_name=$(basename "$tmpl")
-        local target_tmpl="$target_dir/.tasks/templates/$tmpl_name"
-
-        if [ ! -f "$target_tmpl" ] || ! diff -q "$tmpl" "$target_tmpl" > /dev/null 2>&1; then
-            tmpl_updated=$((tmpl_updated + 1))
-            if [ "$dry_run" != true ]; then
-                mkdir -p "$target_dir/.tasks/templates"
-                cp "$tmpl" "$target_tmpl"
-            fi
-        fi
+        _uts_line=$(python3 "$_uts" "$target_dir" "$tmpl" ".tasks/templates/$(basename "$tmpl")" $_uts_dry "--known=$_tmpl_known" 2>&1) || _uts_line="ERROR helper failed: ${_uts_line:-no output}"
+        _uts_report "$_uts_line"
     done
-
-    if [ "$tmpl_updated" -gt 0 ]; then
-        changes=$((changes + 1))
-        if [ "$dry_run" = true ]; then
-            echo -e "  ${CYAN}WOULD UPDATE${NC}  $tmpl_updated template(s)"
-        else
-            echo -e "  ${GREEN}UPDATED${NC}  $tmpl_updated template(s)"
-        fi
-    else
+    # T-3974 (ring20): the workflow-management tasks WM-001..003 that the active-task
+    # gate tells agents to focus. Never seeded before, so the advice failed on every
+    # consumer. Missing → CREATED; stock → UPDATED; edited → KEPT + .upstream.
+    for tmpl in "$FRAMEWORK_ROOT/.tasks/workflow/"WM-*.md; do
+        [ -f "$tmpl" ] || continue
+        _uts_line=$(python3 "$_uts" "$target_dir" "$tmpl" ".tasks/workflow/$(basename "$tmpl")" $_uts_dry 2>&1) || _uts_line="ERROR helper failed: ${_uts_line:-no output}"
+        _uts_report "$_uts_line"
+    done
+    if [ "$_t1867_changes" -eq 0 ]; then
         echo -e "  ${GREEN}OK${NC}  All templates current"
     fi
 
@@ -2480,27 +2512,7 @@ MCPJSON
     # template changes, so upstream fixes never propagated.
     echo -e "${YELLOW}[7/10] Claude Code commands${NC}"
 
-    # T-3955/T-3956: one decision per template-owned project file. Any difference from the
-    # template used to mean "drift → replace (.bak)", which overwrote a consumer's customised
-    # /resume and, in 010-termlink (the toolkit's origin), 15 NEWER files with older copies.
-    # lib/upgrade_template_sync.py updates only a stock copy (hash = what the framework last
-    # wrote); a customised, newer or unrecorded file is KEPT and the template is written
-    # beside it as <file>.upstream. Consumers can claim files in .fwvendor-preserve.yaml
-    # (project_files:).
-    local _uts="$FRAMEWORK_ROOT/lib/upgrade_template_sync.py" _uts_dry="" _uts_line
-    [ "$dry_run" = true ] && _uts_dry="--dry-run"
-    _uts_report() {   # one helper line -> colour + change count
-        local line="$1" st="${1%% *}"
-        case "$st" in
-            OK) return 0 ;;
-            KEPT|WOULD-KEPT|PRESERVED|WOULD-PRESERVED) echo -e "  ${YELLOW}${st}${NC}  ${line#* }" ;;
-            ERROR) echo -e "  ${YELLOW}WARN${NC}  template sync skipped — ${line#* } (file left untouched)"; return 0 ;;
-            WOULD-*) echo -e "  ${CYAN}${st}${NC}  ${line#* }" ;;
-            *) echo -e "  ${GREEN}${st}${NC}  ${line#* }" ;;
-        esac
-        changes=$((changes + 1)); _t1867_changes=$((_t1867_changes + 1))
-    }
-
+    # Template decisions go through lib/upgrade_template_sync.py (set up before step 2).
     local resume_tmpl="$FRAMEWORK_ROOT/lib/templates/resume-md.md"
     local _t1867_changes=0
     if [ ! -f "$resume_tmpl" ]; then

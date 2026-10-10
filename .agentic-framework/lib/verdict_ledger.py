@@ -172,10 +172,21 @@ _clock = time.time      # tests move time by patching this
 REVIEW_TASK_TYPE = "review"
 
 GREEN, AMBER, RED, ESCALATE = "green", "amber", "red", "escalate"
-OUTCOMES = (GREEN, AMBER, RED, ESCALATE)
+#: T-3986 (operator ruling 2026-10-07): a seat that could not evaluate a criterion — its sandbox
+#: could not run the harness, it never saw the page — says so. It is NOT a verdict: it never
+#: ticks, never blocks, never withdraws a tick, and never goes to the operator on its own. The
+#: criterion is decided by the seats that DID evaluate it; too few of them means reassign the
+#: criterion to another seat kind, and only then the operator. Its guidance (the reason) is
+#: mandatory, like every non-green.
+NOT_EVALUATED = "not-evaluated"
+OUTCOMES = (GREEN, AMBER, RED, ESCALATE, NOT_EVALUATED)
+#: Fewest seats that must have EVALUATED a criterion for a multi-seat (rung-5) panel to close it
+#: when any of its seats did not.
+MIN_EVALUATING_SEATS = 2
 #: outcome → judge_verdict contract state. Escalate = "could not conclude".
 _STATE = {GREEN: judge_verdict.GREEN, AMBER: judge_verdict.AMBER,
-          RED: judge_verdict.RED, ESCALATE: judge_verdict.UNKNOWN}
+          RED: judge_verdict.RED, ESCALATE: judge_verdict.UNKNOWN,
+          NOT_EVALUATED: judge_verdict.UNKNOWN}
 
 GATE = "reviewer-verdict"
 
@@ -229,7 +240,10 @@ def _commit_rows(root: Path, paths: list[str], identity: str, message: str,
     env.pop(_WORKER_ENV, None)
     err = ""
     for attempt in range(5):        # another git process may hold .git/index.lock briefly
-        add = subprocess.run(["git", "add", "--", *paths], cwd=str(root), env=env,
+        # T-4008: -f — every path here is named explicitly by the ledger. Without it a cited
+        # screenshot (`*.png` is ignored repo-wide) made `git add` refuse the WHOLE call, the
+        # commit never ran, and a reviewer's green stayed uncommitted, never to count.
+        add = subprocess.run(["git", "add", "-f", "--", *paths], cwd=str(root), env=env,
                              capture_output=True, text=True)
         com = subprocess.run(["git", "commit", "-q", "-m", message, "--", *paths],
                              cwd=str(root), env=env, capture_output=True, text=True)
@@ -396,6 +410,7 @@ def _sign(key: bytes, row: dict) -> str:
 REVIEW_ENV_ALLOW: tuple[str, ...] = ()
 #: Keys the dispatcher itself writes into a review worker's env.json.
 _RUNTIME_ENV_KEYS = ("FW_SIDECAR_AGENT_ID", "FW_REVIEW_REVISION", "FW_REVIEW_WORKER",
+                     "FW_DISPATCHED_WORKER",   # T-3959: written by the dispatcher for every worker
                      "FW_SESSION_SCOPED_FOCUS", "FW_FOCUS_SESSION_KEY",
                      "GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL")
 
@@ -2508,12 +2523,25 @@ def satisfying_verdict(ctx: _Ctx, crit) -> tuple[dict | None, str]:
         mine.append(row)
     if not mine:
         return None, "no verdict for the current criterion text"
-    last = mine[-1]
+    # T-3986: a not-evaluated row is no verdict, so the LATEST EVALUATED row decides. Every row
+    # from that one to the end is still validated first: an invalid trailing not-evaluated row
+    # is `unknown` like any invalid latest row, and cannot be skipped to reach an older green.
+    k = len(mine) - 1
+    while k > 0 and mine[k].get("outcome") == NOT_EVALUATED:
+        k -= 1
+    for row in mine[k + 1:]:
+        f = _fault(ctx, row, crit, led.intro(row["id"]))
+        if f:
+            return None, f"unknown: the latest verdict {row.get('id')} is invalid — {f[0]}: {f[1]}"
+    last = mine[k]
     # Validate BEFORE reading the outcome (T-3580 round 3): an invalid latest row is `unknown`,
     # whatever colour it claims, for every consumer (apply, check-render, judge, audit).
     f = _fault(ctx, last, crit, led.intro(last["id"]))
     if f:
         return None, f"unknown: the latest verdict {last.get('id')} is invalid — {f[0]}: {f[1]}"
+    if last.get("outcome") == NOT_EVALUATED:
+        return None, (f"not-evaluated: no reviewer has evaluated this criterion ({last.get('id')}: "
+                      f"{last.get('guidance', '')}) — reassign it to a seat kind that can")
     if last.get("outcome") != GREEN:
         return None, f"latest verdict is {last.get('outcome')!r}"
     why = _panel_fault(ctx, crit, last, mine)
@@ -2546,6 +2574,7 @@ def _panel_fault(ctx: _Ctx, crit, last: dict, mine: list[dict]) -> str:
                 f"{run_rev[:9]} no longer hashes to the blob the run pinned ({pin.get('where')})")
     table = verified_kind_vendors(root, run_rev)
     vendors: set[str] = set()
+    evaluating, not_evaluated = 0, []
     for s in run["seats"]:
         seat_rows = []
         for r in mine:
@@ -2559,6 +2588,11 @@ def _panel_fault(ctx: _Ctx, crit, last: dict, mine: list[dict]) -> str:
         if f:
             return (f"panel-incomplete: seat {s['seat']!r} of run {run['run_id']} is unknown (its "
                     f"latest verdict is invalid) — {f[0]}: {f[1]}")
+        if r.get("outcome") == NOT_EVALUATED:
+            # T-3986: the seat could not evaluate. It neither blocks nor counts; the seats that
+            # did evaluate decide, and there must be enough of them (checked below).
+            not_evaluated.append(s["seat"])
+            continue
         if r.get("outcome") != GREEN:
             return f"panel-incomplete: seat {s['seat']!r} of run {run['run_id']} is {r.get('outcome')!r}"
         drec, _ = dispatch_record(root, str(r["dispatch_id"]))
@@ -2576,6 +2610,18 @@ def _panel_fault(ctx: _Ctx, crit, last: dict, mine: list[dict]) -> str:
                     f"{BACKENDS} as committed (for a launchable kind) maps it to {v or 'nothing'!r} "
                     f"— a vendor is derived from the worker kind, never taken from free text")
         vendors.add(v)
+        evaluating += 1
+    if not_evaluated:
+        if len(run["seats"]) < 2:
+            return (f"not-evaluated: the only seat of run {run['run_id']} did not evaluate this "
+                    f"criterion — reassign it to a seat kind that can")
+        if evaluating < MIN_EVALUATING_SEATS or len(vendors) < MIN_EVALUATING_SEATS:
+            return (f"not-evaluated: seat(s) {', '.join(not_evaluated)} of run {run['run_id']} did "
+                    f"not evaluate this criterion; {evaluating} seat(s) across {len(vendors)} "
+                    f"vendor(s) did, and a panel closes only on at least {MIN_EVALUATING_SEATS} "
+                    f"evaluating seats of distinct vendors — reassign the criterion to another "
+                    f"seat kind, then the operator")
+        return ""
     if len(vendors) < int(run.get("required_vendors") or 1):
         return (f"degraded: run {run['run_id']} demands {run.get('required_vendors')} vendor(s), "
                 f"its seats span {len(vendors)} ({', '.join(sorted(vendors))}) — a single-vendor "
