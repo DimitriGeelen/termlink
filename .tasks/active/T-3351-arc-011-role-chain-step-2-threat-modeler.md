@@ -534,6 +534,14 @@ grep -q 'task: T-3351' docs/design/interactive-agent-communication-role-chain.ya
   before a resume; R-67/R-68 takeover unchanged) accepted; RR-20 accepted.
 - **Touches when step 1 is reopened:** R-46, R-65.a, R-60.
 
+### 2026-10-10 — Bundle D6 peer content (operator ruling)
+- **Chose:** A (operator: "A"): CR-6 accepted (frame built by the receiving adapter with a per-delivery random
+  boundary, verified sender, trust class peer or operator-class only, allow-list fact line, inline size cap, applies
+  to every rail that puts peer text in an agent's context, no peer message acts as an approval); RR-1, RR-3, RR-7
+  accepted.
+- **Touches when step 1 is reopened:** R-50, R-47.
+- **Open:** RR-7 shrinks when OQ-2's per-agent accounts exist.
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
