@@ -506,6 +506,23 @@ grep -q 'task: T-3351' docs/design/interactive-agent-communication-role-chain.ya
 - **Rejected:** A without tightening (B: today's weak authorization), C (route founding verbs through the sidecar;
   changes what R-4 keeps), keeping in-process sub-agents (orchestrator's first proposal).
 
+### 2026-10-10 — Bundle D4 message integrity (operator ruling)
+- **Dialogue:** the operator recalled that the sender always sets the sequence number, as in TCP/IP, and the hub's
+  ledger is not authoritative (internal accounting only), and asked to check consistency. Checked: R-59.a (CAND-18)
+  says exactly that. Inconsistency found and corrected: CR-4's "a sender MUST rebuild its counter from the hub
+  record on start" made the hub the source after a restart.
+- **Chose:** A with CR-4 corrected (operator: "yes"): CR-2 (every message signed by the sending agent's key,
+  verified at receiver and hub; replaces R-34.e (2) "not required"), CR-3 (identity triple bound to a content
+  digest, conflicts refused and recorded, within the 14-day stage memory per OQ-15), CR-4 corrected (signed,
+  forward-only, contiguous receipts; random first number; the sender's own durable counter is the source; on start
+  the sender also asks the hub for the highest number it has seen from it and, if higher (restore), continues above
+  it: the hub's view can only raise the counter to prevent reuse, never sets or lowers it, never decides order; hub
+  offsets stay internal accounting), CR-17 (hand-over evidence by nonce in a harness-written record, adapter
+  "transcript complete" point). RR-17 and RR-15 accepted.
+- **Touches when step 1 is reopened:** R-34.e (2), R-51.a, R-59.a (consistent; adds the restore guard), R-24.a,
+  R-47.a.
+- **Open:** the "transcript complete" signal per harness; harnesses without it wait for the operator (RR-17).
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
