@@ -440,6 +440,15 @@ grep -q 'task: T-3351' docs/design/interactive-agent-communication-role-chain.ya
 - **Rejected:** A (every crash waits for the operator), B (operator always), C (new copy alone; forbidden by R-62.a).
 - **Still open after OQ-17:** OQ-16 (A+ proposed; waits on 055's telemetry answer), then the unlinked RRs and CRs.
 
+### 2026-10-10 — How to take the 20 unlinked RRs and CRs (operator ruling)
+- **Counted against register 22.18:** RR-1, RR-3, RR-7, RR-8, RR-9, RR-12, RR-13, RR-15, RR-17, RR-20; CR-1, CR-2,
+  CR-3, CR-4, CR-6, CR-7, CR-11, CR-12, CR-13, CR-17 (OQ-16 with RR-19 and CR-5 held for 055).
+- **Chose:** D (operator: "D"): three single decisions first (CR-1 outage exception to "hub record first"; RR-8
+  second live copy and role "main", tied to 055's F10 consult; RR-13 founding verbs bypass the sidecar), then four
+  bundles, any item pullable: D4 message integrity (CR-2, CR-3, CR-4, CR-17, RR-17, RR-15); D5 circuits and restore
+  (CR-7, CR-12, RR-20); D6 peer content (CR-6, RR-1, RR-3, RR-7); D7 authority and limits (CR-11, CR-13, RR-9, RR-12).
+- **Rejected:** A (20 rounds), B (bundles without the three singles first), C (acceptance by silence).
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
