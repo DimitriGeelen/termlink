@@ -484,6 +484,28 @@ grep -q 'task: T-3351' docs/design/interactive-agent-communication-role-chain.ya
   without notice), D (unexpected case waits for the operator).
 - **Also authorised:** reply to 055's F10 consult on these terms (sent 2026-10-10).
 
+### 2026-10-10 — RR-13 the founding verbs and vendor channels bypass the sidecar (operator ruling)
+- **Dialogue:** the operator asked for context and examples, confirmed the design is vendor-agnostic, and said vendor
+  peer channels (Claude Code SendMessage, BP-14) bypass all governance: should we kill or prevent them, and certainly
+  not build on them. Orchestrator proposed blocking peer channels but keeping in-process sub-agents; the operator
+  said sub-agents should be blocked too ("it should always be TermLink") and corrected the orchestrator's framing:
+  TermLink is not only messaging; dispatching workers, parallel fleet work and bringing results back are its core
+  use. Orchestrator then recommended the operator's option.
+- **Chose (operator: "Yes, record it"):**
+  1. BP-1/BP-2 (inject, pty inject, exec, remote exec): PR-29 under the CR-19 boundary model: a separate scope,
+     owner refusal, "own project" default rule, cross-project = Tier 0 event (CR-18), every use logged.
+  2. All delegation and agent-to-agent work goes through TermLink (dispatch, claims, messages). Vendor peer channels
+     AND vendor sub-agents are not used and never built on.
+  3. Each harness adapter disables them where the harness allows (operator configuration action via runme; the
+     agent does not change permission settings itself) and logs and shows any use where it cannot (CR-21, R-47).
+  4. BP-13 (the operator's terminal) unchanged by design. RR-13 accepted for what remains.
+- **Follow-ups:** lightweight TermLink dispatch for short jobs (task filed); upstream filing to AEF: the framework's
+  sub-agent dispatch protocol (CLAUDE.md, vendored) is built on vendor sub-agents (sent).
+- **Standing effect:** the orchestrator stops using vendor sub-agents for its own work and dispatches through
+  TermLink.
+- **Rejected:** A without tightening (B: today's weak authorization), C (route founding verbs through the sidecar;
+  changes what R-4 keeps), keeping in-process sub-agents (orchestrator's first proposal).
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
