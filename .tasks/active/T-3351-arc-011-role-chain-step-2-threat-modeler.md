@@ -523,6 +523,17 @@ grep -q 'task: T-3351' docs/design/interactive-agent-communication-role-chain.ya
   R-47.a.
 - **Open:** the "transcript complete" signal per harness; harnesses without it wait for the operator (RR-17).
 
+### 2026-10-10 — Bundle D5 circuits and restore (operator ruling)
+- **Dialogue:** operator accepted A and asked for 1c (the set-up window) to be explained first: a pass must be used
+  within 60 s of issue (PN-12) or it expires, so an unused leaked pass cannot later earn a fresh full lifetime; two
+  clocks (60 s to start, 1 h life from establishment, OQ-3); a missed window just requests a new pass.
+- **Chose:** A (operator: "Yeah, I'm fine with A" … "Yeah, good idea"): CR-7 (circuit pass bound to the connection
+  by proof of possession, one conversation and two instances, set-up window PN-12, life from establishment never
+  reset, revocation head checked every tick, unreconciled after a restart or restore, stale rule, no allow-list
+  check at set-up) and CR-12 (DEAD signed and sequenced; the host supervisor checks no process holds the session
+  before a resume; R-67/R-68 takeover unchanged) accepted; RR-20 accepted.
+- **Touches when step 1 is reopened:** R-46, R-65.a, R-60.
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
