@@ -370,6 +370,16 @@ accepted. Operator ruled A on 2026-10-10.
 - **Rejected:** B (wait for the step-2 sign-off; waits for nothing), C (no reopen; step 3 would read two disagreeing
   documents), D (only the CRs that change [R] requirements; new requirements left in the wrong document).
 
+### 2026-10-10 — R-67 precedence: named incumbent vs duplicate resolution (operator ruling)
+- **Source:** Codex check of v0.5 (codex-confirm.md 4a); fold-report 3.6.
+- **Chose:** D (operator: "D"): if the hub record names a valid lease holder it keeps main, busy or ready (R-67.a:
+  busy keeps main, no automatic take-back); other copies become instances, are told, stray role mail is forwarded.
+  The duplicate order (pin, then longest uninterrupted lease holding busy or ready, the operator's "longest
+  running", then stable id) applies only when the hub cannot name one valid holder (partition, restore, moved home
+  hub). Applied to R-67.a1 (3), 14.4.7 (closed) in requirements v0.5.2 and to CR-20 (3) in the threat model.
+- **Rejected:** A (same precedence, tie-break counted on ready time only), B (duplicate rule beats a busy incumbent;
+  main flaps), C (every duplicate waits for the operator; mail stuck, against RR-8).
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
