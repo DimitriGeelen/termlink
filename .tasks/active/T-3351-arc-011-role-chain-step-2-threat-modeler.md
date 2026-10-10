@@ -429,6 +429,17 @@ grep -q 'task: T-3351' docs/design/interactive-agent-communication-role-chain.ya
   14 days, the question comes back.
 - **Rejected:** B (one-year per-message record as a declared retention exception; unmeasured volume, no incident).
 
+### 2026-10-10 — OQ-17 who may start a hand-over to another copy (operator ruling)
+- **Chose:** D (operator: "D and next"): a live holder's signed statement plus the new copy's acceptance, or the
+  operator; if the holder is dead the hand-over is a Tier 0 event (CR-18), approved by a policy route when B′'s
+  conditions hold (home hub declared the holder DEAD AND the successor holds the R-67 lease for the same role in the
+  same project), otherwise a human route; CR-19 rules may tighten it per project.
+- **Settles:** 8.6.b.3; CR-15 extended; first low-risk policy class "DEAD + same-role lease successor" for step 3.
+- **Residual named:** a compromised home hub declaring a live copy DEAD (TH-54), partly covered by PR-15's
+  supervisor check before a resume.
+- **Rejected:** A (every crash waits for the operator), B (operator always), C (new copy alone; forbidden by R-62.a).
+- **Still open after OQ-17:** OQ-16 (A+ proposed; waits on 055's telemetry answer), then the unlinked RRs and CRs.
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
