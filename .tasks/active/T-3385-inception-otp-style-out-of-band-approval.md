@@ -1,10 +1,17 @@
 ---
 id: T-3385
-name: "Inception: OTP-style out-of-band approval confirmation (pluggable provider, ring20-manager facility)"
+name: "Inception: OTP-style out-of-band approval confirmation (pluggable provider,
+  ring20-manager facility)"
 description: >
-  Explore and decide: (1) the confirmation-provider contract (ask with digest and human summary; verify once against that digest; per-installation configuration as a signed policy record, CR-19; changing the provider is high-impact; fail closed; prefer remote verification so secrets stay off agent hosts, RR-2); (2) which OTP engines to support (TOTP app, push approval, hardware key); (3) the facility ring20-manager builds in the Cloudron estate, designed together with ring20-manager. Source: T-3351 OQ-14 ruling.
+  Explore and decide: (1) the confirmation-provider contract (ask with digest and
+  human summary; verify once against that digest; per-installation configuration as
+  a signed policy record, CR-19; changing the provider is high-impact; fail closed;
+  prefer remote verification so secrets stay off agent hosts, RR-2); (2) which OTP
+  engines to support (TOTP app, push approval, hardware key); (3) the facility ring20-manager
+  builds in the Cloudron estate, designed together with ring20-manager. Source: T-3351
+  OQ-14 ruling.
 
-status: captured
+status: started-work
 workflow_type: inception
 owner: human
 horizon: now
@@ -12,8 +19,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-10-09T23:47:58Z
-last_update: 2026-10-09T23:47:58Z
-date_finished: null
+last_update: 2026-10-10T18:17:33Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -22,17 +29,35 @@ target_blast_radius: 3            # int 0..9. Anticipated component count of the
                                   # Guide: 0=docs only, 1=single file, 3=small subsystem (S), 5=cross-subsystem (M), 7=multi-arc (L), 9=framework-wide (XL).
 voi_score: 0.5                    # float 0..1. Value of Information — expected value of resolving this question,
                                   # independent of build cost. Higher when answer affects many tasks or unblocks a strategic decision. Required.
+bvp_scores_proposed:
+  - ts: '2026-10-10T18:17:33Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3385: Inception: OTP-style out-of-band approval confirmation (pluggable provider, ring20-manager facility)
 
 ## Problem Statement
 
-<!-- What problem are we exploring? For whom? Why now? -->
+High-impact approvals (OQ-14 D‴, R-76) need an active out-of-band confirmation bound to the approval, never
+silence. Today only the interim exists (double approval at the terminal, which is BP-13, the weak point). Research
+artifact: `docs/reports/T-3385-otp-confirmation.md` (ruled constraints, contract draft, candidate engines,
+questions for ring20-manager and the operator, dialogue log).
 
 ## Assumptions
 
-<!-- Key assumptions to test. Register with: fw assumption add "Statement" --task T-XXX -->
+1. A remote verifier on the Cloudron estate can keep the confirmation secret off agent hosts (to confirm with
+   ring20-manager).
+2. A push or WebAuthn engine binds to the approval digest more naturally than plain TOTP (to research).
 
 ## Open Questions
 
@@ -52,9 +77,33 @@ voi_score: 0.5                    # float 0..1. Value of Information — expecte
      FW_SKIP_DISPOSITION_GATE=1 (env-var, T-1890 producer/consumer parity).
 -->
 
+- **IW-1: Which engine(s) bind the confirmation to the approval digest well enough (TOTP, push with summary,
+  WebAuthn/FIDO2, an estate IdP step-up)?**
+  confidence: 1
+  disposition:
+  rationale:
+- **IW-2: What can ring20-manager build on the Cloudron estate, with remote verification so no secret sits on
+  agent hosts, and on what timescale?**
+  confidence: 0
+  disposition:
+  rationale:
+- **IW-3: What is the confirmation-provider contract (ask, verify once, status, configuration as a signed policy
+  record, audit), and does it stay vendor- and engine-agnostic?**
+  confidence: 1
+  disposition:
+  rationale:
+- **IW-4: Which device(s) does the operator want to confirm on, and must the channel be independent of the estate
+  login?** (operator question, asked one at a time later)
+  confidence: 0
+  disposition:
+  rationale:
+
 ## Exploration Plan
 
-<!-- How will we validate assumptions? Spikes, prototypes, research? Time-box each. -->
+1. Consult ring20-manager (sent 2026-10-10 to proxmox-ring20-management, conversation t3385-otp-confirmation).
+2. Survey candidate engines against the contract and the ruled constraints (artifact sections 2-4).
+3. Draft the confirmation-provider contract; one spike only if binding cannot be settled on paper.
+4. Present go/no-go to the operator with a recommendation.
 
 ## Technical Constraints
 
@@ -135,3 +184,6 @@ voi_score: 0.5                    # float 0..1. Value of Information — expecte
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-10-10T18:17:33Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

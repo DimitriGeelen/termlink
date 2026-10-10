@@ -56,7 +56,16 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Operator ruling OQ-16 D (T-3351); measurements from 055 (conversation agent-activity-telemetry).
+
+**Measurement root (055 T-491, docs/reports/T-491-session-hops.md in 055, 2026-10-10):** Claude Code 2.1.296 can
+host a conversation as a background job: `claude daemon` (shared, possibly started by ANOTHER project) ->
+`claude bg-pty-host` -> `claude bg-spare` (the conversation, own hidden pty). For such sessions the AEF session
+record names the DAEMON pid as claude_pid. A process-tree/network measurement rooted at the recorded pid would
+measure every background session of every project (wrong busy bit, possibly for the wrong project). Root the
+measurement at the process whose fd/0 is the conversation's pty (the bg-spare). Such sessions have no tty of their
+own, so they are not typed into at all (no doorbell; hook/mail-watch delivery), which limits the veto to PTY
+sessions anyway.
 
 ## Acceptance Criteria
 
