@@ -51,7 +51,7 @@ Numbers: PN-1 1 h, PN-2 30 min / 24 h, PN-13 1 h as [R]; PN-3..PN-12, PN-15, PN-
 ## 4 Not folded
 
 1. CR-16: dropped (OQ-15 A). It appears only as "dropped" (12.2, 14.2). The clarification that the one-year "digests" are daily telemetry digests sits in R-51.a.
-2. Step-2 rulings that are not CRs (OQ-1 adversaries ADV-11..14, OQ-2, OQ-5 store survival, OQ-15): left in the threat model for steps 3 and 4. Section 2.3 was not extended with ADV-11..14; the operator may want that.
+2. Step-2 rulings that are not CRs (OQ-1 adversaries ADV-11..14, OQ-2, OQ-5 store survival, OQ-15): left in the threat model for steps 3 and 4. Section 2.3 was not extended with ADV-11..14; the operator may want that. **Corrected in v0.5.1:** this statement was wrong for OQ-15 (R-51.a and 14.2 already carried it; the revisit trigger was missing and is now added) and was incomplete for the others: OQ-1 is now in section 2.3 and D-1, OQ-2 is R-82, OQ-5 is in R-15 (see `fixes-confirm.md`).
 
 ## 5 Self-check
 

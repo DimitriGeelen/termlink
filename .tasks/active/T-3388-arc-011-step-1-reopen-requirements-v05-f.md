@@ -84,11 +84,11 @@ accepted. Operator ruled A on 2026-10-10.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Requirements v0.5 drafted: every accepted CR (20) is folded in, each changed or new requirement cites its CR
+- [x] Requirements v0.5 drafted: every accepted CR (20) is folded in, each changed or new requirement cites its CR
       and ruling; R-ids of touched requirements kept, new requirements take new ids; nothing deleted silently.
-- [ ] Traceability table CR -> requirement ids (in the requirements document or a report) covers all 20.
-- [ ] Codex consistency check of v0.5 stored unedited; real findings fixed and verified by the orchestrator.
-- [ ] v0.5 status reads DRAFT for operator sign-off; role-chain yaml approval for step 1 is not changed by the agent.
+- [x] Traceability table CR -> requirement ids (in the requirements document or a report) covers all 20.
+- [x] Codex consistency check of v0.5 stored unedited; real findings fixed and verified by the orchestrator.
+- [x] v0.5 status reads DRAFT for operator sign-off; role-chain yaml approval for step 1 is not changed by the agent.
 
 ### Human
 - [ ] [REVIEW] Sign off requirements v0.5
