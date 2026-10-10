@@ -1,0 +1,139 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3389: Upgrade vendored AEF 1.8.5 to 1.8.8 (operator ruling A, T-3376 procedure)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-10T18:25:00Z
+# ============================================================================
+
+task_id: T-3389
+task_name: "Upgrade vendored AEF 1.8.5 to 1.8.8 (operator ruling A, T-3376 procedure)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-10T17:40:27Z
+completed: 2026-10-10T18:24:49Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-10T20:23:17+02:00
+last_commit: 2026-10-10T20:24:43+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  re-vendor AEF 1.8.5 -> 1.8.8 from tag v1.8.8 (operator ruling A). upgrade report (rehearsal, merges, before/after checks, H1 still present upstream in 1.8.8), task file with ACs, register baseline -> 5bf63128a
+
+# Key outcomes
+outcomes:
+  - 'Rehearsal on a disposable clone of this repo completes; its report lists every file the upgrade would'
+  - '`.agentic-framework/VERSION` reads 1.8.8; the files in `.fwvendor-preserve.yaml` still carry our fixes'
+  - 'CLAUDE.md project section (above `## Core Principle`) is unchanged against the copy taken before the upgrade'
+  - 'Guard layer: no FAIL-tier red beyond the pre-upgrade baseline; `fw doctor` 0 failures;'
+  - 'Receiver still live: a probe send to 010-termlink reaches RECEIVED'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/agents/audit/audit.sh'
+  - '.agentic-framework/agents/context/budget-gate.sh'
+  - '.agentic-framework/agents/context/check-inception-schema.py'
+  - '.agentic-framework/agents/context/checkpoint.sh'
+  - '.agentic-framework/agents/designer/designer.sh'
+  - '.agentic-framework/agents/git/lib/hooks.sh'
+  - '.agentic-framework/agents/git/lib/secret-scan.sh'
+  - '.agentic-framework/agents/observe/observe.sh'
+  - '.agentic-framework/agents/termlink/termlink.sh'
+  - '.agentic-framework/agents/ux-review/ux-review.py'
+  - '.agentic-framework/bin/claude-fw'
+  - '.agentic-framework/bin/fw'
+  - '.agentic-framework/docs/context-compaction.md'
+  - '.agentic-framework/docs/reports/T-3960-ring20-s1-contract-check.md'
+  - '.agentic-framework/docs/reports/T-3960-worker-brief.md'
+  - '.agentic-framework/docs/reports/T-3977-arc009-map-review.md'
+  - '.agentic-framework/docs/reports/T-3977-worker-brief.md'
+  - '.agentic-framework/docs/reports/T-3980-git-in-worker-trees.md'
+  - '.agentic-framework/docs/reports/T-4008-discarded/recorded.lines.jsonl'
+  - '.agentic-framework/docs/reports/T-4008-discarded/refusals-interim.lines.jsonl'
+  - '.agentic-framework/docs/reports/T-4008-discarded/verdicts.lines.jsonl'
+  - '.agentic-framework/.fw-vendor-stamp.json'
+  - '.agentic-framework/lib/arc.sh'
+  - '.agentic-framework/lib/delegation_cli.py'
+  - '.agentic-framework/lib/inception.sh'
+  - '.agentic-framework/lib/init.sh'
+  - '.agentic-framework/lib/peer.py'
+  - '.agentic-framework/lib/reviewer/judge_cli.py'
+  - '.agentic-framework/lib/runme.sh'
+  - '.agentic-framework/lib/seeds/decisions.yaml'
+  - '.agentic-framework/lib/sidecar_cli.py'
+  - '.agentic-framework/lib/sidecar/http_server.py'
+  - '.agentic-framework/lib/templates/claude-project.md'
+  - '.agentic-framework/lib/upgrade.sh'
+  - '.agentic-framework/lib/upgrade_template_shipped.py'
+  - '.agentic-framework/lib/upgrade_template_sync.py'
+  - '.agentic-framework/lib/vendor-visibility.sh'
+  - '.agentic-framework/lib/verdict_ledger.py'
+  - '.agentic-framework/lib/watchtower-ensure.sh'
+  - '.agentic-framework/lib/wm_tasks.sh'
+  - '.agentic-framework/lib/worktree.sh'
+  - '.agentic-framework/.tasks/workflow/WM-001-selection-and-discovery.md'
+  - '.agentic-framework/.tasks/workflow/WM-002-close-out-and-trailing-work.md'
+  - '.agentic-framework/.tasks/workflow/WM-003-session-lifecycle.md'
+  - '.agentic-framework/VERSION'
+  - '.agentic-framework/web/blueprints/arcs.py'
+  - '.agentic-framework/web/blueprints/bvp.py'
+  - '.agentic-framework/web/embeddings.py'
+  - '.agentic-framework/web/templates/arc_detail.html'
+  - '.agentic-framework/web/templates/arcs_index.html'
+  - 'CLAUDE.md'
+  - 'docs/reports/T-3389-aef-1.8.8-upgrade/rehearsal-dry-run.txt'
+  - 'docs/reports/T-3389-aef-1.8.8-upgrade/report.md'
+  - 'docs/reports/T-3389-aef-1.8.8-upgrade/upgrade-run.txt'
+  - '.framework.yaml'
+  - '.tasks/active/T-3389-upgrade-vendored-aef-185-to-188-operator.md'
+  - '.tasks/workflow/WM-001-selection-and-discovery.md'
+  - '.tasks/workflow/WM-002-close-out-and-trailing-work.md'
+  - '.tasks/workflow/WM-003-session-lifecycle.md'
+  - '.vendor-divergence.yaml'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-10T20:23:17'
+    action: 'T-3389: re-vendor AEF 1.8.5 -> 1.8.8 from tag v1.8.8 (operator ruling A)'
+  - time: '2026-10-10T20:24:43'
+    action: 'T-3389: upgrade report (rehearsal, merges, before/after checks, H1 still present upstream in 1.8.8), task file with ACs, register baseline -> 5bf63128a'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 44 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 44
+  commits: 2
+  files_changed: 60
+  lines_added: 2543
+  lines_removed: 350
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3389-upgrade-vendored-aef-185-to-188-operator.md
+generated_by: context-agent-hybrid
