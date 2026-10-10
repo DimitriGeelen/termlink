@@ -551,6 +551,29 @@ grep -q 'task: T-3351' docs/design/interactive-agent-communication-role-chain.ya
 - **Touches when step 1 is reopened:** R-53.a, R-63, R-64, R-67.a.
 - **Open:** CR-13 fully real only with the operator key (T-3385, GP-11); does not stop host root (RR-2).
 
+### 2026-10-10 — OQ-16 the "never typed into a busy prompt" wording (operator ruling)
+- **Dialogue:** the operator raised activity signals (CPU, memory, disk I/O, network) and asked whether the hub
+  should collect agent telemetry; orchestrator found AEF's earlier rejection of CPU/PID heuristics as a readiness
+  source ("a long Bash tool call looks idle but is unsafe") and proposed an activity veto; the operator asked to
+  consult 055. 055 answered from code and live samples: per-pid-tree CPU, RSS, disk I/O, network per socket (ss by
+  inode); a model request sends megabytes vs <= 2.8 KB keep-alive per 30 s, so network marks a turn start;
+  lastrcv is fooled by keep-alive; long waits look idle; sampled every 30 s; raw telemetry belongs on the host,
+  the hub presence should carry only a derived busy bit with its sample time.
+- **Chose:** D (operator: "D"):
+  1. CR-5 wording: typed only if READY at a re-check immediately before the keystrokes; only the inert fixed line;
+     a line landing in a prompt that became busy carries no content and is not evidence.
+  2. Local activity veto measured by the sidecar immediately before typing (network send over the last 1-2 s
+     primary, CPU and disk secondary, 055's method); clear activity blocks the doorbell (retried); never means
+     ready; thresholds start from 055's numbers and are measured in the first build (H-11).
+  3. Where the host cannot measure (e.g. no /proc), no veto, shown; A still holds.
+  4. Telemetry home: raw data stays on the host (cockpit, 055's sampler); the hub presence carries only a derived
+     busy bit with its sample time so senders may choose not to ring; no telemetry store on the hub (charter
+     non-goal #2). No separate telemetry inception.
+- **Settles:** CR-5 accepted (R-19.r, R-19.e (2), R-20.a, R-20.e, R-23.o, R-23.a/e); RR-19 accepted (smaller with
+  the veto). Build item filed for the veto and the presence bit.
+- **Rejected:** A (ignores a measured strong signal), B (no doorbell anywhere), C (requirement known false).
+- **Step 2 status:** every open question, residual risk and change request is now ruled.
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
