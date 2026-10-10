@@ -542,6 +542,15 @@ grep -q 'task: T-3351' docs/design/interactive-agent-communication-role-chain.ya
 - **Touches when step 1 is reopened:** R-50, R-47.
 - **Open:** RR-7 shrinks when OQ-2's per-agent accounts exist.
 
+### 2026-10-10 — Bundle D7 authority and limits (operator ruling)
+- **Chose:** A (operator: "A"): CR-11 (peers see only reachable yes/no and the version class; the four R-53.a fields
+  and the last surface time go to the operator and the agent's own project) and CR-13 (eligibility, grants,
+  allow-lists and the roster come only from operator-signed configuration held at the home hub or an operator-owned
+  store, with a policy epoch; an agent can withhold but never create or widen authority) accepted; RR-9 and RR-12
+  accepted.
+- **Touches when step 1 is reopened:** R-53.a, R-63, R-64, R-67.a.
+- **Open:** CR-13 fully real only with the operator key (T-3385, GP-11); does not stop host root (RR-2).
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
