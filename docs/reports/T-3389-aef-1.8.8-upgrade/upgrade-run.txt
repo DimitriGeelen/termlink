@@ -1,0 +1,139 @@
+fw upgrade - Syncing framework improvements
+
+  Project:   /opt/termlink (termlink)
+  Framework: <scratch>/aef-v1.8.8 (v1.8.8)
+  Pinned:    v1.8.5 (behind v1.8.8)
+
+[1/10] CLAUDE.md governance sections
+  UPDATED  Governance sections refreshed from framework template. Backup: CLAUDE.md.bak
+[2/10] Task templates
+  KEPT  .tasks/templates/default.md — customised or newer (no record of what the framework wrote); template at default.md.upstream — compare, then copy it over to accept
+  CREATED  .tasks/workflow/WM-001-selection-and-discovery.md — from template
+  CREATED  .tasks/workflow/WM-002-close-out-and-trailing-work.md — from template
+  CREATED  .tasks/workflow/WM-003-session-lifecycle.md — from template
+  OK  Every inception carries the schema fields
+[3/10] Seed files (universal governance)
+  SKIP  practices.yaml (has project-specific items — manual merge recommended)
+  SKIP  decisions.yaml (has project-specific items — manual merge recommended)
+  OK  cron job sidecar-sweep-5m already present
+  OK  cron job index-reindex-hourly already present
+[4/10] Git hooks
+  UPDATED  Git hooks reinstalled
+[4b/9] Vendored framework scripts
+    PRESERVE  agents/context/check-active-task.sh  (kept local over upstream; .fwvendor-preserve.yaml)
+    PRESERVE  agents/context/checkpoint.sh  (kept local over upstream; .fwvendor-preserve.yaml)
+    PRESERVE  agents/context/lib/safe-commands.sh  (kept local over upstream; .fwvendor-preserve.yaml)
+    PRESERVE  agents/handover/handover.sh  (kept local over upstream; .fwvendor-preserve.yaml)
+    PRESERVE  agents/termlink/bvp-estimator/estimator.py  (kept local over upstream; .fwvendor-preserve.yaml)
+    PRESERVE  lib/bvp.sh  (kept local over upstream; .fwvendor-preserve.yaml)
+    PRESERVE  lib/pickup.sh  (kept local over upstream; .fwvendor-preserve.yaml)
+    PRESERVE  web/blueprints/discovery.py  (kept local over upstream; .fwvendor-preserve.yaml)
+    PRESERVE  web/embeddings.py  (kept local over upstream; .fwvendor-preserve.yaml)
+  fw vendor — vendoring framework into project
+  Source:  <scratch>/aef-v1.8.8
+  Target:  /opt/termlink/.agentic-framework
+  
+    ✓ bin
+    ✓ lib
+    ✓ agents
+    ✓ web
+    ✓ docs
+    ✓ policy
+    ✓ .tasks/templates
+    ✓ .tasks/workflow
+    ✓ metrics.sh
+    ✓ .secret-scan-patterns
+    ✓ .secret-scan-allowlist
+    ✓ status-transitions.yaml
+    ✓ tools
+    ✓ .context/designer/projects
+    ✓ vendor/designer/aef-workflow-designer-0.14.0.html (pinned designer build)
+    ✓ VERSION (1.8.8)
+    ✓ .fw-not-a-project (T-1841 sentinel)
+    ✓ .gitignore
+    ✓ .upstream (sentinel: https://github.com/DimitriGeelen/agentic-engineering-framework.git)
+    ✓ FRAMEWORK.md (written last — completeness sentinel)
+    KEPT-LOCAL  agents/context/check-active-task.sh  — differs from upstream; local copy kept. Compare: diff .context/working/vendor-backup/20261010T180344Z/agents/context/check-active-task.sh <framework>/agents/context/check-active-task.sh
+    KEPT-LOCAL  agents/context/checkpoint.sh  — UPSTREAM CHANGED it; local copy kept. Compare: diff .context/working/vendor-backup/20261010T180344Z/agents/context/checkpoint.sh <framework>/agents/context/checkpoint.sh
+    KEPT-LOCAL  agents/context/lib/safe-commands.sh  — differs from upstream; local copy kept. Compare: diff .context/working/vendor-backup/20261010T180344Z/agents/context/lib/safe-commands.sh <framework>/agents/context/lib/safe-commands.sh
+    KEPT-LOCAL  agents/handover/handover.sh  — differs from upstream; local copy kept. Compare: diff .context/working/vendor-backup/20261010T180344Z/agents/handover/handover.sh <framework>/agents/handover/handover.sh
+    KEPT-LOCAL  agents/termlink/bvp-estimator/estimator.py  — differs from upstream; local copy kept. Compare: diff .context/working/vendor-backup/20261010T180344Z/agents/termlink/bvp-estimator/estimator.py <framework>/agents/termlink/bvp-estimator/estimator.py
+    KEPT-LOCAL  lib/bvp.sh  — differs from upstream; local copy kept. Compare: diff .context/working/vendor-backup/20261010T180344Z/lib/bvp.sh <framework>/lib/bvp.sh
+    KEPT-LOCAL  lib/pickup.sh  — differs from upstream; local copy kept. Compare: diff .context/working/vendor-backup/20261010T180344Z/lib/pickup.sh <framework>/lib/pickup.sh
+    KEPT-LOCAL  web/blueprints/discovery.py  — differs from upstream; local copy kept. Compare: diff .context/working/vendor-backup/20261010T180344Z/web/blueprints/discovery.py <framework>/web/blueprints/discovery.py
+    KEPT-LOCAL  web/embeddings.py  — UPSTREAM CHANGED it; local copy kept. Compare: diff .context/working/vendor-backup/20261010T180344Z/web/embeddings.py <framework>/web/embeddings.py
+    ✓ .fw-vendor-stamp.json (3513 files)
+  
+  Vendored successfully (43M)
+  
+  The project now contains its own framework at .agentic-framework/
+  Hooks should reference: .agentic-framework/bin/fw hook <name>
+[4c/9] Shim migration + global install sync
+  SKIP  /root/.local/bin/fw exists but is not a symlink or shim
+[5/10] Claude Code hooks (.claude/settings.json)
+  OK  32/32 hooks present (all types matched)
+[6/10] MCP server configuration (.mcp.json)
+  OK  4 MCP server(s) configured (all recommended present)
+[7/10] Claude Code commands
+  KEPT  .claude/commands/resume.md — customised or newer (no record of what the framework wrote); template at resume.md.upstream — compare, then copy it over to accept
+[7b/10] Doorbell+mail toolkit (T-1867)
+  KEPT  .claude/commands/agent-handoff.md — customised or newer (no record of what the framework wrote); template at agent-handoff.md.upstream — compare, then copy it over to accept
+  KEPT  .claude/commands/be-reachable.md — customised or newer (no record of what the framework wrote); template at be-reachable.md.upstream — compare, then copy it over to accept
+  KEPT  .claude/commands/check-arc.md — customised or newer (no record of what the framework wrote); template at check-arc.md.upstream — compare, then copy it over to accept
+  KEPT  .claude/commands/peers.md — customised or newer (no record of what the framework wrote); template at peers.md.upstream — compare, then copy it over to accept
+  KEPT  .claude/commands/pulse.md — customised or newer (no record of what the framework wrote); template at pulse.md.upstream — compare, then copy it over to accept
+  KEPT  scripts/agent-chat-arc-recent.sh — customised or newer (no record of what the framework wrote); template at agent-chat-arc-recent.sh.upstream — compare, then copy it over to accept
+  KEPT  scripts/agent-conversation-status.sh — customised or newer (no record of what the framework wrote); template at agent-conversation-status.sh.upstream — compare, then copy it over to accept
+  KEPT  scripts/agent-listeners-fleet.sh — customised or newer (no record of what the framework wrote); template at agent-listeners-fleet.sh.upstream — compare, then copy it over to accept
+  KEPT  scripts/agent-listeners.sh — customised or newer (no record of what the framework wrote); template at agent-listeners.sh.upstream — compare, then copy it over to accept
+  KEPT  scripts/agent-respond.sh — customised or newer (no record of what the framework wrote); template at agent-respond.sh.upstream — compare, then copy it over to accept
+  KEPT  scripts/agent-send.sh — customised or newer (no record of what the framework wrote); template at agent-send.sh.upstream — compare, then copy it over to accept
+  KEPT  scripts/be-reachable.sh — customised or newer (no record of what the framework wrote); template at be-reachable.sh.upstream — compare, then copy it over to accept
+  KEPT  scripts/chat-arc-broadcast.sh — customised or newer (no record of what the framework wrote); template at chat-arc-broadcast.sh.upstream — compare, then copy it over to accept
+  KEPT  scripts/listener-heartbeat.sh — customised or newer (no record of what the framework wrote); template at listener-heartbeat.sh.upstream — compare, then copy it over to accept
+  KEPT  scripts/recent-dm.sh — customised or newer (no record of what the framework wrote); template at recent-dm.sh.upstream — compare, then copy it over to accept
+[8/10] Context subdirectories
+  OK  All context subdirectories present
+[9/10] Version tracking
+  UPDATED  version: 1.8.5 → 1.8.8
+  OK  Project identity pid-4c0095875ce41e2f
+  LOGGED  Upgrade trail → .context/audits/upgrades.yaml
+[10/10] Enforcement baseline
+  OK  Enforcement baseline matches settings.json
+
+=== Upgrade Complete ===
+
+  24 change(s) applied
+  2 item(s) skipped
+
+Next steps:
+  1. Review changes: cd /opt/termlink && git diff
+  2. Commit: fw git commit -m 'T-012: fw upgrade — sync framework improvements'
+  3. Run: fw doctor  # Verify health
+
+  Post-upgrade health check (advisory):
+    fw doctor - Framework Health Check
+    
+      OK  Framework installation
+      OK  Active mode: vendored (/opt/termlink/.agentic-framework)
+      OK  .framework.yaml found
+      OK  Task directories
+      OK  Context directory
+      OK  Git commit-msg hook
+      OK  Git pre-push hook
+      OK  Exec-bit parity: all 451 indexed-100755 script(s) executable on disk
+      WARN  Large-file gate: 1 tracked file(s) above block threshold
+             Run: bin/fw doctor large-files   (or untrack + .gitignore)
+      OK  Repo root: no untracked binary files
+      OK  Handover LATEST.md resolves to S-2026-1010-1452.md
+      OK  Last auto-handover succeeded (pre-compact handover)
+      OK  Hook path validation: 36 hooks, all portable
+      OK  Hook exercise from /tmp: 26 PreToolUse/PostToolUse hook(s) resolve from foreign CWD
+      OK  All agent scripts executable
+      OK  Plugin task-awareness
+      SKIP  Test infrastructure (consumer project — tests live in framework repo)
+
+  Advisory: doctor PASS (exit 0).
+
+  Linked worktrees (advisory):
+  SKIP  examined 0 linked worktree(s) — none exist

@@ -1,0 +1,95 @@
+fw upgrade - Syncing framework improvements
+
+  Project:   <scratch>/rehearse (rehearse)
+  Framework: <scratch>/aef-v1.8.8 (v1.8.8)
+  Pinned:    v1.8.5 (behind v1.8.8)
+  Mode:      DRY RUN (no changes will be made)
+
+[1/10] CLAUDE.md governance sections
+  WOULD UPDATE  Governance sections (844 → 865 lines)
+[2/10] Task templates
+  WOULD-KEPT  .tasks/templates/default.md — customised or newer (no record of what the framework wrote); template at default.md.upstream — compare, then copy it over to accept
+  WOULD-CREATED  .tasks/workflow/WM-001-selection-and-discovery.md — from template
+  WOULD-CREATED  .tasks/workflow/WM-002-close-out-and-trailing-work.md — from template
+  WOULD-CREATED  .tasks/workflow/WM-003-session-lifecycle.md — from template
+  OK  Every inception carries the schema fields
+[3/10] Seed files (universal governance)
+  SKIP  practices.yaml (has project-specific items — manual merge recommended)
+  SKIP  decisions.yaml (has project-specific items — manual merge recommended)
+  OK  cron job sidecar-sweep-5m already present
+  OK  cron job index-reindex-hourly already present
+[4/10] Git hooks
+  WOULD REINSTALL  Git hooks
+[4b/9] Vendored framework scripts
+    PRESERVE  agents/context/check-active-task.sh  (kept local over upstream; .fwvendor-preserve.yaml)
+    PRESERVE  agents/context/checkpoint.sh  (kept local over upstream; .fwvendor-preserve.yaml)
+    PRESERVE  agents/context/lib/safe-commands.sh  (kept local over upstream; .fwvendor-preserve.yaml)
+    PRESERVE  agents/handover/handover.sh  (kept local over upstream; .fwvendor-preserve.yaml)
+    PRESERVE  agents/termlink/bvp-estimator/estimator.py  (kept local over upstream; .fwvendor-preserve.yaml)
+    PRESERVE  lib/bvp.sh  (kept local over upstream; .fwvendor-preserve.yaml)
+    PRESERVE  lib/pickup.sh  (kept local over upstream; .fwvendor-preserve.yaml)
+    PRESERVE  web/blueprints/discovery.py  (kept local over upstream; .fwvendor-preserve.yaml)
+    PRESERVE  web/embeddings.py  (kept local over upstream; .fwvendor-preserve.yaml)
+  fw vendor --dry-run
+  Source:  <scratch>/aef-v1.8.8
+  Target:  <scratch>/rehearse/.agentic-framework
+  
+  Would copy:
+    + bin (680K)
+    + lib (4,2M)
+    + agents (2,8M)
+    + web (3,3M)
+    + docs (29M)
+    + policy (288K)
+    + .tasks/templates (36K)
+    + .tasks/workflow (12K)
+    + metrics.sh (8,0K)
+    + .secret-scan-patterns (4,0K)
+    + .secret-scan-allowlist (8,0K)
+    + status-transitions.yaml (4,0K)
+    + tools (660K)
+    + .context/designer/projects (900K)
+    + FRAMEWORK.md (last — completeness sentinel)
+    + vendor/designer/aef-workflow-designer-0.14.0.html (pinned designer build)
+  
+  Would exclude: .git, .context, .tasks/{active,completed}, .fabric, install.sh
+  
+  Version: 1.8.8
+[4c/9] Shim migration + global install sync
+  SKIP  /root/.local/bin/fw exists but is not a symlink or shim
+[5/10] Claude Code hooks (.claude/settings.json)
+  OK  32/32 hooks present (all types matched)
+[6/10] MCP server configuration (.mcp.json)
+  OK  4 MCP server(s) configured (all recommended present)
+[7/10] Claude Code commands
+  WOULD-KEPT  .claude/commands/resume.md — customised or newer (no record of what the framework wrote); template at resume.md.upstream — compare, then copy it over to accept
+[7b/10] Doorbell+mail toolkit (T-1867)
+  WOULD-KEPT  .claude/commands/agent-handoff.md — customised or newer (no record of what the framework wrote); template at agent-handoff.md.upstream — compare, then copy it over to accept
+  WOULD-KEPT  .claude/commands/be-reachable.md — customised or newer (no record of what the framework wrote); template at be-reachable.md.upstream — compare, then copy it over to accept
+  WOULD-KEPT  .claude/commands/check-arc.md — customised or newer (no record of what the framework wrote); template at check-arc.md.upstream — compare, then copy it over to accept
+  WOULD-KEPT  .claude/commands/peers.md — customised or newer (no record of what the framework wrote); template at peers.md.upstream — compare, then copy it over to accept
+  WOULD-KEPT  .claude/commands/pulse.md — customised or newer (no record of what the framework wrote); template at pulse.md.upstream — compare, then copy it over to accept
+  WOULD-KEPT  scripts/agent-chat-arc-recent.sh — customised or newer (no record of what the framework wrote); template at agent-chat-arc-recent.sh.upstream — compare, then copy it over to accept
+  WOULD-KEPT  scripts/agent-conversation-status.sh — customised or newer (no record of what the framework wrote); template at agent-conversation-status.sh.upstream — compare, then copy it over to accept
+  WOULD-KEPT  scripts/agent-listeners-fleet.sh — customised or newer (no record of what the framework wrote); template at agent-listeners-fleet.sh.upstream — compare, then copy it over to accept
+  WOULD-KEPT  scripts/agent-listeners.sh — customised or newer (no record of what the framework wrote); template at agent-listeners.sh.upstream — compare, then copy it over to accept
+  WOULD-KEPT  scripts/agent-respond.sh — customised or newer (no record of what the framework wrote); template at agent-respond.sh.upstream — compare, then copy it over to accept
+  WOULD-KEPT  scripts/agent-send.sh — customised or newer (no record of what the framework wrote); template at agent-send.sh.upstream — compare, then copy it over to accept
+  WOULD-KEPT  scripts/be-reachable.sh — customised or newer (no record of what the framework wrote); template at be-reachable.sh.upstream — compare, then copy it over to accept
+  WOULD-KEPT  scripts/chat-arc-broadcast.sh — customised or newer (no record of what the framework wrote); template at chat-arc-broadcast.sh.upstream — compare, then copy it over to accept
+  WOULD-KEPT  scripts/listener-heartbeat.sh — customised or newer (no record of what the framework wrote); template at listener-heartbeat.sh.upstream — compare, then copy it over to accept
+  WOULD-KEPT  scripts/recent-dm.sh — customised or newer (no record of what the framework wrote); template at recent-dm.sh.upstream — compare, then copy it over to accept
+[8/10] Context subdirectories
+  WOULD CREATE  2 missing subdirectory(ies)
+[9/10] Version tracking
+  WOULD UPDATE  version: 1.8.5 → 1.8.8
+  OK  Project identity pid-4c0095875ce41e2f
+[10/10] Enforcement baseline
+  OK  Enforcement baseline matches settings.json
+
+=== Dry Run Complete ===
+
+  25 change(s) would be made
+  2 item(s) skipped (manual review needed)
+
+Run without --dry-run to apply changes.
