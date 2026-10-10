@@ -460,6 +460,30 @@ grep -q 'task: T-3351' docs/design/interactive-agent-communication-role-chain.ya
 - **Rejected:** B (circuits pause, reverses R-7.e (1)), C (contradictory requirements).
 - **Open:** reconciliation details (step 3); RR-15 names what the log cannot catch.
 
+### 2026-10-10 — RR-8 second live copy and the role "main" (operator ruling)
+- **Dialogue:** recommendation D (deliberate extras declare "not eligible for main"; healthy incumbent keeps main;
+  only an unexpected copy gives "authority unknown", raised as a Tier 0 event). The operator put effective
+  information flow first (nothing misrouted or stuck) and added detection: whoever sees two mains informs; to avoid
+  an authority problem the hub decides; fallback "the longest running". Then added forwarding: once main is
+  established, any other copy that receives mail for the role forwards it to main and tells the sender to send to
+  main. Orchestrator added guards (readiness on "longest running"; role-addressed mail only; loud; once; no loops).
+- **Chose:** D′ with forwarding (operator: "Yes, record it"):
+  1. A deliberate extra declares "not eligible for main" in its operator-signed profile (CR-13, CR-19).
+  2. Any agent or sidecar that notices duplicate mains reports to the home hub (a report, not authority).
+  3. The home hub resolves at once: operator pin, else the longest continuously READY holder, else stable id. Both
+     copies are told ("main, generation N" / "instance, main is X"); the operator and cockpit get a notice; the
+     operator may override (audited). The loser's replies inside its own conversations stay valid (R-67).
+  4. Afterwards any non-main copy receiving ROLE-addressed mail forwards it once to the main the hub currently names
+     (checked by generation), keeping the original signature, recorded in the hub record, and tells the sender
+     "delivered via Y; main is Z (generation N); resolve via the home hub". Conversation mail bound to an exact copy
+     is never forwarded (R-62). If the target is no longer main, the message returns to normal resolution, never
+     bounces. CR-3 identity dedupes a double arrival.
+  5. CR-20 amends R-67.a ("two live copies give authority unknown" replaced by automatic resolution plus notice).
+- **Residual named:** RR-8 narrowed to "the hub may keep the wrong copy until the operator overrides" (accepted).
+- **Rejected:** A (any duplicate freezes main), B (hidden incumbent keeps everything, the 999 incident), C (guess
+  without notice), D (unexpected case waits for the operator).
+- **Also authorised:** reply to 055's F10 consult on these terms (sent 2026-10-10).
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
