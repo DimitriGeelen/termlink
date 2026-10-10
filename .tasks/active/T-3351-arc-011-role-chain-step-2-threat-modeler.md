@@ -573,6 +573,16 @@ grep -q 'task: T-3351' docs/design/interactive-agent-communication-role-chain.ya
   the veto). Build item filed for the veto and the presence bit.
 - **Rejected:** A (ignores a measured strong signal), B (no doorbell anywhere), C (requirement known false).
 - **Step 2 status:** every open question, residual risk and change request is now ruled.
+- **Correction (orchestrator, 2026-10-10, within the rulings; told to the operator):** the brief said the busy bit
+  lets senders choose not to ring. Wrong: the receiver's own sidecar types the doorbell, so senders never need it.
+  The busy bit is visible to the operator, the agent's own project and the cockpit, not to peers, so CR-11 (D7)
+  stands. Found by the Codex confirmation check (docs/reports/T-3351-step2-review/codex-confirm.md, 2d).
+
+### 2026-10-10 — Confirmation check and consistency fixes (orchestrator, under "proceed as you see fit")
+- Codex read-only check of v0.3.6: "consistent after listed fixes", no new decisions (codex-confirm.md).
+- Fixes applied by a TermLink worker (step2-fixes, dispatched per CR-21, not a vendor sub-agent) as v0.3.7;
+  report fixes-confirm.md; orchestrator verified the diff touched only the threat model, the register kept all
+  rows, and spot-checked CR-20 (R-34.o, R-67.e added), CR-5 busy-bit audience, SI-31 probe, BP-14.
 
 ## Decision
 
