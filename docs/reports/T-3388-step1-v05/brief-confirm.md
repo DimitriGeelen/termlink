@@ -1,0 +1,12 @@
+You are an independent reviewer doing ONE bounded consistency check. Read only; modify nothing. Answer in English, under ~1200 words, numbered headings, hierarchical labels (1, 1a), never plain bullets. Cite requirement ids / section numbers for every finding.
+
+Document under check: docs/design/interactive-agent-communication-01-requirements.md, DRAFT v0.5. It was v0.4.1 (operator-approved) and has just been revised to fold in 20 change requests the operator accepted in step 2. Sources of truth for what was accepted: docs/design/interactive-agent-communication-02-threat-model.md v0.3.7 (section 21 CR-1..CR-21, rulings register 22.18) and the "## Decisions" section of .tasks/active/T-3351-arc-011-role-chain-step-2-threat-modeler.md (full ruling records; where it differs in detail from 22.18 it wins). The worker's own report: docs/reports/T-3388-step1-v05/fold-report.md. Mapping table: section 14 of the requirements.
+
+Check, and report only real problems:
+1. Fidelity: does each folded requirement say what the ruling says, no more and no less? Flag any change that goes beyond or falls short of a ruling, and any [R] tag on content no ruling states (it should be [P] or [R~]).
+2. Completeness: every accepted CR folded (CR-16 dropped, must not be folded); every requirement a CR names as touched actually changed.
+3. Internal consistency of v0.5: contradictions between changed/new requirements and untouched ones (e.g. old wording elsewhere that still says "authority unknown", "not required" authentication, "nothing ever typed into a busy prompt", hub-record-first without the outage exception, peers reading all four reachability fields).
+4. Step-2 rulings that are not change requests but arguably belong in the requirements: OQ-1 (adversaries ADV-11..ADV-14), OQ-2 (shared OS user accepted for now, per-agent accounts as committed target), OQ-5 (store must survive process kill and host crash; detect disk-full, corruption, loss), OQ-15 (no per-message digest beyond 14 days). Say for each whether leaving it only in the threat model would mislead step 3.
+5. The open point in fold-report 3.6 (vacancy selection in R-67.a vs duplicate resolution in CR-20): state the precise question the operator must answer, without answering it.
+
+End with: a verdict (consistent / consistent after listed fixes / not consistent) and a numbered fix list, smallest first, marking any item that needs an operator decision rather than an editorial fix.
