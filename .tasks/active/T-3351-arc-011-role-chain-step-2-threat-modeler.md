@@ -449,6 +449,17 @@ grep -q 'task: T-3351' docs/design/interactive-agent-communication-role-chain.ya
   (CR-7, CR-12, RR-20); D6 peer content (CR-6, RR-1, RR-3, RR-7); D7 authority and limits (CR-11, CR-13, RR-9, RR-12).
 - **Rejected:** A (20 rounds), B (bundles without the three singles first), C (acceptance by silence).
 
+### 2026-10-10 — CR-1 outage exception to "the hub record first" (operator ruling)
+- **Chose:** A (operator: "A"): CR-1 as written. While the hub is unreachable and an established conversation runs
+  on its circuit (R-7.e (1)): stages go to the receiver's hash-chained local log first and are replayed and
+  reconciled on return; replies travel on the circuit and are recorded locally; the sender's state is computed
+  from circuit receipts and labelled "unreconciled" (UNKNOWN only when neither hub record nor receipts can be read);
+  the owed list is computed from the local log, labelled unreconciled. On return the hub record is the source of
+  truth again (R-2.e unchanged).
+- **Touches when step 1 is reopened:** R-2.a, R-2.e, R-14.o, R-15.o, R-26.o, R-44.a, R-58.a.
+- **Rejected:** B (circuits pause, reverses R-7.e (1)), C (contradictory requirements).
+- **Open:** reconciliation details (step 3); RR-15 names what the log cannot catch.
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
