@@ -726,4 +726,145 @@ flowchart LR
 10.2.7 Options for the policy-route list (OP-2): **A** the four classes above. **B** only C-10, the ruled one. **C** A plus C-3 and the SSH-anchored hub enrolment now. **D** none beyond C-10 and no growth path (not recommended: it repeats the approval fatigue the operator ruled against). Recommendation **A**: it follows one principle, each of its classes is a continuation of trust that something has already signed, and C-3 and the enrolment join it by the three-approvals rule.
 10.2.8 Options for the high-impact list (OP-3): **A** the ten classes above. **B** only the four ruled exception classes. **C** A plus C-14 and C-15 (cross-project execution and account creation): more confirmations, more friction. **D** A minus C-5 (re-home) because it is rare and already needs a runme action. Recommendation **A**: ten rare events, each of which creates trust or widens authority; C-14 and C-15 would be frequent during migration and teach the operator to confirm without reading (RR-9).
 
+10.3 **The boundary policy record: format, defaults and where the operator's signature goes (R-73, CR-19; 055 is waiting for this).**
+10.3.1 What it must do, from the ruling (R-73.a, OQ-12): one model for invitations, removals, history sharing, the interrupt allow-list (R-63), grants (R-64), eligibility for main (R-67, R-78), and the policy route of R-72. Rules state who may do what towards whom, where. Rules nest fleet, hub, project, agent profile, and a lower level may only narrow what the level above allows. Anything no rule allows is a Tier 0 event, never a silent refusal. Records are signed, carry epochs, and only the operator or an approved route changes them. The vocabulary is small and fixed: no free-form expressions. Every decision names the rule that allowed it.
+10.3.2 **One envelope, three kinds [P].** A record is a JSON object in canonical form (RFC 8785), closed: an unknown field, verb or schema version is refused, not ignored.
+10.3.2.a Envelope fields. `schema` the string `termlink.policy/1`. `kind` one of `profile`, `rules`, `provider`. `record_id` a unique id (26-character ULID). `level` one of `fleet`, `hub`, `project`, `agent`. `scope` the thing it speaks for: `{"fleet": id}`, `{"hub": canonical hub id}`, `{"project": project id}` or `{"project": id, "role": role}`. `epoch` a strictly increasing integer per scope, checked against the home hub's current policy head (SI-21, TM 11.2.f). `not_before` and `expires_at` RFC 3339 times in UTC; **every record expires** (at most one year; renewal of an unchanged record is class C-9c). `body` the content of the kind. `approvals` the decision receipts that authorised the record (10.3.5). `digest` the sha-256 of the canonical form without `signature`. `signature` (10.3.6).
+10.3.2.b Limits [P]: at most 64 rules in a record and 64 KiB per record, so a record cannot become an allocation sink (the same care as the alloc-sink check).
+10.3.3 **The body of a `profile`** (level `agent`). Six settings, the four of OQ-12, plus history sharing (OQ-13) and eligibility (R-67). Values are closed lists.
+
+| Setting | Values | Default when no record exists | Source |
+|---|---|---|---|
+| `may_invite` | `no`, `own_project`, `any` | `any` | ruled (OQ-12) |
+| `may_be_invited` | `no`, `own_project`, `any` (a gate; a refusal is shown to the inviter) | `any` | ruled |
+| `responds_to_invitations` | for `own_project` and for `other`: `accept`, `ask` (a Tier 0 event, class C-12), `decline`; an unanswered invitation expires visibly | `own_project: accept`, `other: ask` | ruled |
+| `may_remove` | `nobody`, `those_it_invited`, `anyone_in_its_conversations` | `nobody` (removal outside a profile is class C-13) | ruled |
+| `may_share_history` | `never`, `on_request` (on request or with the invitation, recorded and visible), `automatic` (for configured cases) | `on_request` | ruled (OQ-13 C′) |
+| `eligible_for_main` | `no`, `yes` | **`no`** | **[P]**, see 10.3.7 |
+
+10.3.4 **The body of `rules`.** A list of rules, each `{id, effect, who, may, toward, where, limits}`.
+10.3.4.a `effect`: `allow` or `deny`. `may`, a closed list of ten verbs: `invite`, `be_invited`, `auto_accept`, `remove`, `share_history` (OQ-12, OQ-13); `interrupt` (mid-turn urgent delivery, the allow-list of R-63); `start` and `resume` (grants, R-64, R-65); `hand_over` (class C-10); `inject` and `exec` (the founding verbs across projects, R-4.o, FX-4).
+10.3.4.b `who` and `toward`, one selector each: `{"kind":"agent","project":id,"role":role}`, `{"kind":"agent_type","type":name}`, or `{"kind":"relation","value":v}` with `v` one of `self`, `same_project`, `same_hub`, `same_fleet`, `other_project`, `any`, read relative to the owner of the record's scope (the identity level of OQ-12). `where`: `{"kind":"conversation"|"project"|"hub"|"fleet","id":id}`. `limits`, only for `start` and `resume`: `budget`, `restarts`, `per` (the fields of a grant, R-64).
+10.3.5 `approvals` is a list of receipts, each `{event, route, digest, confirmed_by, at}`: the Tier 0 event that authorised the record, the route that decided it (`policy`, `human`, later `operator_key`), the event's digest, how it was confirmed (`interim_terminal`, `provider:<name>`, `operator_key`) and when. This is the audit link: a record cannot exist without the decision that made it.
+10.3.6 **Where the operator's signature goes.** In `signature`: `{"signer": s, "alg": a, "value": v}`.
+10.3.6.a Target (needs K): `signer` is `operator:<key fingerprint>`, and the sidecar verifies against an operator public key kept off agent hosts (R-63.a, R-76).
+10.3.6.b Interim (no operator key, IC-3): `signer` is `hub:<canonical hub id>#<signing-key fingerprint>`; the hub signs a record only after the Tier 0 event that authorises it is decided, and the sidecar verifies the hub signature, the epoch and the expiry. The status call shows "no operator key; policy records are hub-signed" (3.1.e).
+10.3.6.c The cut-over: when an operator key exists, the home hub's policy head records `require_operator_signature_from_epoch: N`; from that epoch a hub-signed record is refused. Records are never edited to change their signer: they are re-issued through the same Tier 0 route.
+10.3.6.d Algorithm: whatever the project's agent keys use today (T-1427, T-3346), presumed ed25519 **[A]**; `alg` is in the record so it can change.
+10.3.7 **The evaluation procedure (normative; 055 can build its display and editor on the data alone).**
+10.3.7.a Collect, for a request (actor, verb, target, place), the records in force at each level: signature valid, `epoch` not below the head, not expired, `not_before` reached. A record outside these is ignored and flagged.
+10.3.7.b **The ceiling.** The most senior level that has a rule matching the request sets the ceiling: its `effect` and its `limits`. If no level has a matching rule, the built-in default of the verb sets it (10.3.8).
+10.3.7.c **Narrowing.** Each more junior level that has a matching rule may only reduce the ceiling: a `deny` denies; `limits` take the smaller value; an `allow` broader than the ceiling is clamped to it and recorded in the audit trail as a widening attempt. A junior `allow` under a senior `deny` is ignored and flagged.
+10.3.7.d **Result:** allow with the effective limits; deny, shown to the requester and not a Tier 0 event; or "no rule allows", which is a Tier 0 event (class table 10.2.2) and never a silent refusal. The audit row names the record ids, the rule ids, the epochs and the level that set the ceiling.
+10.3.7.e **Why "the most senior that speaks".** The operator writes widening records (a grant, a raised ceiling) at the level where the authority belongs, signed or approved as 10.3.6 says. A project cannot grant more than the fleet or hub ceiling allows, so the operator keeps a boundary no lower level can pass. This is the literal reading of "a lower level may only narrow what the level above allows". An agent never signs: the signature, not the nesting, is what stops an agent widening itself (R-78).
+10.3.8 **Built-in defaults of each verb** (the top of every ceiling).
+
+| Verb | Built-in default | Source |
+|---|---|---|
+| `invite`, `be_invited` | allowed | ruled |
+| `auto_accept` | from the actor's own project; from others it is `ask`, a Tier 0 event | ruled |
+| `remove` | nobody; outside a profile a Tier 0 event | ruled |
+| `share_history` | on request or with the invitation only, never automatic | ruled |
+| `interrupt` | own project only; others are downgraded, never dropped (R-52.a) | ruled (R-63.a, with CR-10) |
+| `start`, `resume` | nothing, without a Tier 2 approval or a Tier 3 grant | ruled (R-64, R-65) |
+| `hand_over` | a live holder's signed statement plus the new copy's acceptance, or the operator; a dead holder's is a Tier 0 event | ruled (OQ-17 D) |
+| `inject`, `exec` across projects | nothing; a Tier 0 event | ruled (RR-13) |
+| `be_main` (eligibility) | **no** | **[P]** |
+
+10.3.9 An illustrative `rules` record (placeholders, not real ids or keys) and a `profile`.
+
+```json
+{
+  "schema": "termlink.policy/1",
+  "kind": "rules",
+  "record_id": "01J0EXAMPLE00000000000001",
+  "level": "project",
+  "scope": {"project": "PID-EXAMPLE-1"},
+  "epoch": 17,
+  "not_before": "2026-10-12T00:00:00Z",
+  "expires_at": "2027-10-12T00:00:00Z",
+  "body": {
+    "rules": [
+      {"id": "r1", "effect": "allow",
+       "who": {"kind": "relation", "value": "same_project"},
+       "may": "interrupt",
+       "toward": {"kind": "relation", "value": "self"},
+       "where": {"kind": "project", "id": "PID-EXAMPLE-1"}},
+      {"id": "r2", "effect": "allow",
+       "who": {"kind": "agent", "project": "PID-EXAMPLE-1", "role": "manager"},
+       "may": "start",
+       "toward": {"kind": "agent", "project": "PID-EXAMPLE-1", "role": "worker"},
+       "where": {"kind": "project", "id": "PID-EXAMPLE-1"},
+       "limits": {"budget": 5, "restarts": 2, "per": "day"}},
+      {"id": "r3", "effect": "deny",
+       "who": {"kind": "relation", "value": "any"},
+       "may": "exec",
+       "toward": {"kind": "relation", "value": "other_project"},
+       "where": {"kind": "project", "id": "PID-EXAMPLE-1"}}
+    ]
+  },
+  "approvals": [
+    {"event": "01J0EXAMPLE00000000000002", "route": "human",
+     "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+     "confirmed_by": "interim_terminal", "at": "2026-10-11T18:00:00Z"}
+  ],
+  "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "signature": {"signer": "hub:HUB-EXAMPLE#0000000000000000", "alg": "ed25519", "value": "AAAA"}
+}
+```
+
+```json
+{
+  "schema": "termlink.policy/1",
+  "kind": "profile",
+  "record_id": "01J0EXAMPLE00000000000003",
+  "level": "agent",
+  "scope": {"project": "PID-EXAMPLE-1", "role": "worker"},
+  "epoch": 4,
+  "not_before": "2026-10-12T00:00:00Z",
+  "expires_at": "2027-10-12T00:00:00Z",
+  "body": {
+    "may_invite": "own_project",
+    "may_be_invited": "any",
+    "responds_to_invitations": {"own_project": "accept", "other": "ask"},
+    "may_remove": "nobody",
+    "may_share_history": "on_request",
+    "eligible_for_main": "no"
+  },
+  "approvals": [],
+  "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "signature": {"signer": "hub:HUB-EXAMPLE#0000000000000000", "alg": "ed25519", "value": "AAAA"}
+}
+```
+
+10.3.10 The `provider` kind carries the confirmation-provider configuration of R-76.a (5): an engine name, an endpoint, `verify: "remote"`, a timeout and `on_unreachable: "fail_closed"` (the only value). Changing it is class C-16, high-impact. Its exact fields wait for the T-3385 inception; this step fixes only that it is a signed policy record of this envelope and that it fails closed.
+10.3.11 Where the record lives and how a sidecar fetches it is step 4's; the floor binds the result: the sidecar verifies signature, epoch and expiry before using a record; a failed fetch is a failure, not an empty policy (the rule of TM 11.2.c); after PN-13 without a verified policy head, starts under a grant stop and the allow-list narrows to the agent's own project (TM 11.2.d, 11.2.f).
+10.3.12 **The one decision this format needs from the operator beyond its shape** (OP-4): the default of `eligible_for_main`. R-67 and CR-20 say a deliberate extra declares "not eligible for main", which reads as eligible by default. A random worker taking over "main" after a lease lapse would receive every role request, so I propose **no** by default and an explicit operator-signed `yes`. That departs from the reading of CR-20 (1); the rulings do not state the default; the operator rules.
+10.3.13 Options for the format (OP-4): **A** this envelope, the ceiling procedure and the defaults of 10.3.8, with `eligible_for_main` defaulting to `no`. **B** the same, with `eligible_for_main` defaulting to `yes` (the CR-20 reading; duplicates then resolve by the hub's rule). **C** a profile-only first version (the six settings), the `rules` kind later: the smallest thing 055 can use now, at the cost of no allow-list or grant in the model until PH-4. **D** adopt an existing policy language. I rule D out because the ruling asks for no free-form expressions, and the established languages are expression languages; the shape here does follow the common pattern of default deny, explicit allow, and deny overriding allow. Recommendation **A**.
+10.3.14 Sending the format to 055 is a separate act that waits for the operator (1.4.e).
+10.4 **Where the interim controls sit until their targets exist (R-76.a (6), R-72.g, OQ-14, OQ-2, OQ-8).** The targets are the operator key with its confirmation provider (K), and one account per agent (A). Until then these controls stand in. Each says where it sits, what it does, what it does not do, and what ends it.
+
+| Id | Stands in for | Where it sits | What it does | What it does not do | Ends when |
+|---|---|---|---|---|---|
+| IC-1 | The operator key | The receive classifier of the sidecar, and the allow-list | Nothing is operator-class; every rail message is peer class; a message claiming to be the operator's is treated as a peer's; the default allow-list is "own project" (R-63.a, CR-10) | It does not touch the operator's terminal, `runme.sh`, Watchtower ticks or Tier 0 approvals, which are local acts and not rail messages (OQ-6) | An operator key is registered |
+| IC-2 | The out-of-band confirmation | The one `approve` verb of the hub's admin scope, which every human-route Tier 0 event passes through | A summary of exactly what will happen, the last characters of the key fingerprint typed back (PR-14), a second confirmation, and a notice to the operator's channel (ntfy, Signal, Mattermost) as information; the event expires after 10 minutes (PN-15). The status shows "no confirmation provider" | It is not a lock. An agent on this host that is `root` can run the verb (BP-13, RR-2, RR-16) | A provider is configured |
+| IC-3 | Operator-signed records | The hub's policy store | A record is signed by the hub's signing key after the authorising event is decided; the sidecar verifies signature, epoch and expiry (10.3.6.b) | It does not stop host root on the hub's host or a compromised hub (RR-4) | `require_operator_signature_from_epoch` is set |
+| IC-4 | Per-agent accounts | The status call, and the text of every floor claim | States "per-agent accounts: no" and what that means (3.7); no claim against ADV-2a | It prevents nothing | Stage A3 |
+| IC-5 | The gated re-pin | The client's store write path (T-3384, PH-0) | Every TOFU re-pin and `tofu clear` is recorded and shown in needs-attention | It is after the fact and the record can be edited by a same-user process (RR-18) | PH-3: re-pin becomes a Tier 0 event |
+| IC-6 | The real confirmation provider, for tests | The test estate only | A deterministic stub that lets the probes of R-76.d run (replay, expiry, provider unreachable fails closed) before a real provider exists | It MUST be impossible to enable on a production hub **[P]**: it refuses to start unless the hub is a throwaway estate | The real provider exists |
+
+10.4.1 Where the confirmation secret sits when the provider exists. R-76.a (5) says to prefer remote verification so that secrets stay off agent hosts. The hub (the executor) asks the provider, which holds the secret and verifies once against the digest; an agent host holds at most a client credential for asking. The hand-over names ring20's "C-5 broker service" as the planned provider. I could not find that service in this repository, and T-3385's own question IW-2 still asks what ring20-manager can build **[A]**; I treat the provider as unnamed and the contract as the interface.
+10.4.2 Options (OP-8): **A** the placement above: the decision verb in the hub's admin scope run from the operator's terminal first, the other surfaces later. **B** the interim approval inside `runme.sh` only (the operator's established, logged ritual): reuses the habit, but a runme action is a script and not an event with a digest. **C** the interim approval in Watchtower (the operator already ticks there): a good display, a web session as a new weak point. **D** wait for the provider before PH-3 (nothing is approved until K exists): safest, and it blocks the fleet phase on an inception that has no date. Recommendation **A**: it is what R-76.a (6) says, the verb is one place to guard and to log, and other surfaces can call it later. IC-1 to IC-6 are not options: they are the floor of the interim.
+10.5 **The reconciliation rules for the outage log (R-45.a, CR-1: "reconciliation details are step 3's").** While the hub is unreachable and an established conversation runs on its circuit, the receiver writes each stage to its own hash-chained log first (SI-22) and replays it on return. These rules say what the replay does. They are [P] and testable (T-18). The limit that stays is RR-15: the unanchored suffix, and an attacker who controls every copy of a head.
+10.5.1 **RC-1 Replay order.** The log is replayed to the hub in chain order, one stage at a time, each stage idempotent by (message identity, stage). A crash in the middle resumes from the last stage the hub acknowledged.
+10.5.2 **RC-2 Three-way comparison.** On start and on the hub's return, for each conversation compare the local log, the hub record and the newest signed receipts held for the peer, including the chain heads (SI-22).
+10.5.3 **RC-3 In the log, not in the hub record.** Replay it (RC-1).
+10.5.4 **RC-4 In the hub record, not in the log.** If it is a stage of a message this receiver owns that is STORED or later, flag "lost-after-STORED" in needs-attention and request the bounded encrypted copy (F-5, R-80). If another party wrote it (a DEAD statement, a membership event), verify its signature and sequence and accept it into the log.
+10.5.5 **RC-5 Both, but different.** A different content digest or a different chain link is a conflict: both are kept, neither overwrites the other, the conversation stays "unreconciled", a needs-attention entry is raised and the operator decides. A log that does not match the hub record is flagged, never merged silently (R-45.e).
+10.5.6 **RC-6 The label clears per conversation.** "Unreconciled" is removed only after RC-2 has completed with no open conflict. Until then the sender's states and the owed list (R-44.a, R-58.a) carry the label.
+10.5.7 **RC-7 Time.** A replayed stage is never written to the hub with a time earlier than the newest stage the hub already holds for that message without a flag. Times are the observer's own (R-57); a difference between hosts is shown, not corrected.
+10.5.8 **RC-8 A bounded log.** When the local log reaches its ceiling during a long outage, the receiver refuses new STORED visibly (the F-3 behaviour). The log is never trimmed while it is unreconciled.
+10.5.9 **RC-9 The sender's side.** On return the sender computes its states from the hub record and its own receipts, labels any difference, and never re-sends a message whose STORED is recorded (R-45.a).
+10.5.10 Options (OP-12): **A** RC-1 to RC-9. **B** on any difference, stop and ask the operator (safe, noisy; every ordinary replay would need a decision). **C** the hub record always wins (loses the stages acknowledged during the outage, which breaks the promise STORED made). **D** the local log always wins (a compromised receiver then overwrites the record). Recommendation **A**.
+
 <!-- CONTINUE -->
