@@ -206,6 +206,27 @@ grep -q 'task: T-3352' docs/design/interactive-agent-communication-role-chain.ya
 - **Process change (operator-approved):** PH-0 building starts now in parallel with the remaining decisions;
   compressing chain steps 4-6 is a later process decision.
 
+### 2026-10-11 — OP-1 additions from the Codex review, and a per-project security level (operator ruling + direction)
+- **Dialogue:** Codex's OP-1 review (docs/reports/T-3352-op1-review/codex.md, after its usage limit lifted) agreed with
+  B and proposed four tightenings; the orchestrator explained them in plain terms; operator: "yes, go", adding: "With
+  the new ones we always need to have tier 0 override and we really have to look at the risk of the project. Not every
+  project needs this [stringency] so maybe it should also be a configurable security level."
+- **Chose (added to OP-1):**
+  1. A3 (every agent on its own account) before PH-4 configurable authority becomes OPERATIONAL (not merely before
+     PH-4 exits); PH-4 development may run alongside the migration.
+  2. Before A3 counts as done, no root process (the orchestrator included) executes anything an agent can write;
+     the security-critical part of A4 moves forward; routine A4 cleanup stays in PH-6.
+  3. A minimal compliant account-creation helper and its approval path come WITH the A0 pilot; never manual creation.
+  4. The price gate decides implementation, budget and schedule, not whether isolation happens; if the price is
+     unacceptable, authority-dependent deployment waits while the plan is revised.
+- **Operator direction (new, for the design steps to work out):**
+  5. A Tier 0 override always remains available to the operator for these controls (audited, as SI-24).
+  6. A configurable SECURITY LEVEL per project, set by the operator (signed policy record, CR-19/R-73, project scope;
+     a change is a Tier 0 event): not every project carries the same risk. Orchestrator note recorded with the
+     operator: some floor items stay on at every level (e.g. no silent loss, signatures); the costly ones (per-agent
+     accounts, confirmation strength) are level-dependent; step 4 proposes the levels and which item belongs where,
+     for the operator to rule.
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
