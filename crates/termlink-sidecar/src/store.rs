@@ -315,6 +315,25 @@ impl Store {
             .unwrap_or_default()
     }
 
+    /// Conversation ids that have a chain log (read-only view for `status`).
+    pub fn conversations(&self) -> Vec<String> {
+        let mut v: Vec<String> = fs::read_dir(self.dir.join("log"))
+            .map(|d| {
+                d.flatten()
+                    .filter_map(|e| e.file_name().to_string_lossy().strip_suffix(".jsonl").map(str::to_string))
+                    .collect()
+            })
+            .unwrap_or_default();
+        v.sort();
+        v
+    }
+
+    /// Complete chain lines of a conversation (read-only view for `status`).
+    pub fn chain_lines(&self, conv: &str) -> Result<Vec<ChainLine>> {
+        check_name(conv)?;
+        Ok(self.read_chain(conv)?.0)
+    }
+
     /// Complete lines of the chain plus whether a torn tail was present.
     fn read_chain(&self, conv: &str) -> Result<(Vec<ChainLine>, bool)> {
         let bytes = match fs::read(self.log_path(conv)) {
