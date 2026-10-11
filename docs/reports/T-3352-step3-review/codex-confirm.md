@@ -1,0 +1,161 @@
+I’ll check the 17 dispositions against v0.2, verify consistency with the operator rulings, and examine section 10.3 for remaining signing or evaluation ambiguity. I’ll keep this read-only and within the requested scope.
+
+exec
+/bin/bash -lc "pwd; rg --files -g 'AGENTS.md' -g '*disposition-r1*' -g '*fixes-r1*' -g '*T-3351*' -g '*T-3388*' -g '*threat*' -g 'codex.md' -g 'glm.md' -g 'interactive-agent-communication-03-floor-and-phasing.md'" in /opt/termlink
+ succeeded in 0ms:
+/opt/termlink
+codex.md
+docs/design/interactive-agent-communication-03-floor-and-phasing.md
+docs/design/interactive-agent-communication-02-threat-model.md
+docs/design/roles/cards/threat-modeler.md
+docs/reports/T-3352-step3-review/fixes-r1.md
+docs/reports/T-3352-step3-review/disposition-r1.md
+docs/reports/T-3352-step3-review/glm.md
+docs/reports/T-3352-step3-review/codex.md
+docs/reports/T-3344-od18-review/codex.md
+docs/reports/T-3344-od18-review/glm.md
+docs/reports/T-3351-principle-review/glm.md
+docs/reports/T-3319-consult/glm.md
+docs/reports/T-3319-consult/codex.md
+docs/reports/T-3351-principle-review/codex.md
+docs/reports/T-3351-role-handback.json
+docs/reports/T-3344-step1-review/codex.md
+docs/reports/T-3344-step1-review/glm.md
+docs/reports/T-3335-routing-consult/codex.md
+docs/reports/T-3335-routing-consult/glm.md
+docs/reports/T-3344-gp12-review/glm.md
+docs/reports/T-3344-gp12-review/codex.md
+docs/reports/T-3304-consult/codex.md
+docs/reports/T-3304-consult/glm.md
+docs/reports/T-3330-consult/glm.md
+docs/reports/T-3330-consult/codex.md
+docs/reports/T-3344-cand3-review/codex.md
+docs/reports/T-3344-cand3-review/glm.md
+docs/reports/T-3351-step2-review/codex.md
+docs/reports/T-3335-design-review/codex.md
+docs/reports/T-3351-step2-review/glm.md
+docs/reports/T-3335-design-review/glm.md
+docs/reports/T-3351-step2-review/disposition-r1.md
+/bin/bash -lc "ls -la /AGENTS.md /opt/AGENTS.md /opt/termlink/AGENTS.md 2>/dev/null; rg --files --hidden .tasks/completed | rg '3351|3388'; cat docs/reports/T-3352-step3-review/{disposition-r1,fixes-r1,codex,glm}.md" in /opt/termlink
+.tasks/completed/T-3388-arc-011-step-1-reopen-requirements-v05-f.md
+.tasks/completed/T-3351-arc-011-role-chain-step-2-threat-modeler.md
+# T-3352 step 3 review round 1: comparison and disposition (orchestrator, 2026-10-11)
+Reviews stored unedited: `codex.md` (Codex, read-only, rc 0) and `glm.md` (GLM-5.3 via opencode, rc 0). Both verdicts:
+**fit after listed fixes.** Orchestrator spot-checked the consequential findings in the text (lines cited) before
+disposing them.
+## 1 Where they agree
+1. PH-3's exit test needs the C-10 policy route, whose subject (lease successor, hand-over) only exists in PH-4
+   (Codex 3a, GLM 4a). Verified at 6.2.4.c (2).
+## 2 Disposition (E = editorial fix by the role session; O = becomes an operator question)
+| # | Finding | Source | Verified | Disposition |
+|---|---|---|---|---|
+| 1 | `may_remove` value `anyone_in_its_conversations` marked ruled; OQ-12 ruled "anyone in conversations it started" | Codex 1a | line 742 | E: restore the ruled value |
+| 2 | C-17 human release of custody mail outside C-10 conditions contradicts B′ (R-80.a (5)) | Codex 1b | line 721 | E: remove C-17 as a route; break-glass stays R-80.a (7). Note in OP-3 that wider release would need a ruling change |
+| 3 | C-9c renewal silently widened to every policy record; budget reset unaddressed | Codex 1c | 10.3.2.a | E: constrain to grants as defined; state budget behaviour on renewal as [P] |
+| 4 | C-15 batch digest relaxes "every account creation is a Tier 0 act" (R-82.a (3)) | GLM 3b | line 719 | E: one event per creation per the ruling; mention in OP-1 that a batch form would need a ruling change |
+| 5 | Digest includes itself; profile example has empty approvals | Codex 2a | 10.3.2.a, 10.3.9 | E |
+| 6 | Vocabulary lacks verbs for C-2a, C-6a, C-9c; no event-rule representation; epochs per scope and same-level conflict resolution undefined | Codex 2b, 2c | 10.3.2–10.3.7 | E: complete the format (055 waits for it) |
+| 7 | PH-3 exit test uses C-10 | both | 6.2.4.c (2) | E: test C-2a/C-6a in PH-3; C-10 by fixture until PH-4 |
+| 8 | Account pilot (PH-2) precedes its Tier 0 machinery (PH-3) | Codex 3b | 6.2.3.a (7) | E: move the pilot to PH-3 (no new risk acceptance) |
+| 9 | Existing subjects deferred without risk acceptance: SI-7 framing of other rails until PH-4; SI-15 reconciliation after PH-1 storage | Codex 3c | 3.3 | E where an early minimal control is cheap; otherwise an explicit RA plus an OP question (O) |
+| 10 | BV-5 (delivery at next tool call) vs CX-2 (normal mail waits for turn end) | Codex 3d | 5.5.5, 12.3 | O: new OP question on CX-2 delivery semantics; BV aligned to the recommendation, marked pending |
+| 11 | Receive-side ownership fallback (6.6) "proposed, not ruled" but no OP | Codex 5a | 6.6 | O: new OP question |
+| 12 | PH-0 rollback turns off the mandated re-pin record (R-72.a (6), OQ-8) | Codex 4a | line 428 | E: rollback keeps the recorder |
+| 13 | PH-6 rollback "per item"; D-1 omits it | Codex 4b | 6.2.7.b | E: per-item rollback procedures; update D-1 and its text equivalent; re-render |
+| 14 | RA-4 ends on provider OR key; distinct protections | Codex 4c | 11.3.4.d | E: separate completion conditions |
+| 15 | Floor binding rules 3.1.b–3.1.f not put to the operator | GLM 3c | OP-10 | O-light: extend OP-10 A to name them |
+| 16 | FX-5 probe needs a PH-0 baseline of plaintext content on the hub | GLM 4b | 6.2.1.a (2) | E |
+| 17 | "R-7 independence arrives last of the P1 items" overstates | GLM 4c | 4.4.c, 11.2 | E |
+## 3 Round plan
+One fix pass by the role session, verified by the orchestrator (diff, renders, grep of the fixed ids), then one short
+Codex confirmation. No third full round (lesson 5.16).
+# T-3352 step 3, review round 1: fixes (role session `step3-fix-r1`, 2026-10-11)
+Document: `docs/design/interactive-agent-communication-03-floor-and-phasing.md`, now DRAFT v0.2. Disposition followed: `disposition-r1.md` (binding). Only that document and `docs/reports/T-3352-role-handback.json` were edited. All 17 rows are fixed; none is left open.
+## 1 One line per disposition row
+1. Row 1 (E): `may_remove` third value is now `anyone_in_conversations_it_started`, with the ruled wording and a v0.1 note. 10.3.3.
+2. Row 2 (E): C-17 deleted from the class table, new 10.2.2.a explains there is no custody-release route outside C-10 and that break-glass stays R-80.a (7); high-impact list is nine classes (10.2.4, 10.2.8); OP-3 notes that a wider release needs a ruling change. 10.2.2, 10.2.2.a, 10.2.4, 10.2.8, 13.2.3.
+3. Row 3 (E): C-9c limited to grant records (every rule `start` or `resume`), identical body, unexpired; mixed or other records are never renewed that way; budget never reset or raised on renewal, counters keyed by scope, rule id and window (marked [P]). New 10.3.2.e, class table C-9c, 10.2.3, OP-2.
+4. Row 4 (E): C-15 is one event and one digest per account; the batch form is withdrawn; 10.1.5 price table follows; OP-1 notes a batch form would need a ruling change. 10.2.2 (C-15), 10.1.5, 13.2.1.
+5. Row 5 (E): `digest` is over the record with both `digest` and `signature` removed; the authorising event's digest is over the unapproved form (no circularity); profile example now carries an approval and `approvals` MUST NOT be empty. 10.3.2.a, 10.3.2.c, 10.3.5, 10.3.9.
+6. Row 6 (E): format completed. 10.3.2.c signing payload (domain-separated), 10.3.4.a verbs (fourteen: ten action, four event; v0.1's "ten" was a miscount of eleven names) with `rotate_hub_key`, `replace_agent_key`, `renew_grant`, `hand_over` defined in 10.3.4.c with built-in preconditions and routes; event-rule representation (rules with event verbs only narrow the built-in route; receipts name `policy:<record>#<rule>` or `policy:builtin:<verb>`); 10.3.2.d epoch per (scope, kind), one current record per pair, replace not merge; 10.3.7.f same-level resolution (deny overrides allow stated normatively, smallest limit among allows, order irrelevant); 10.3.7.g events; 10.3.8 defaults table extended.
+7. Row 7 (E): PH-3 exit tests C-2a and C-6a by the built-in route; C-10 by fixture only in PH-3 and live at PH-4 exit (new 6.2.5.c (9)); PH-3 scope states the route table is fixed, no configurable rule yet. 6.2.4.a (2), 6.2.4.c (2), 6.2.5.c (4) and (9).
+8. Row 8 (E): account pilot (A0) moved from PH-2 to PH-3 after the C-15 Tier 0 route; H-28 measured at PH-3; 4.2 R-82 row, 6.2.3.a, 6.2.3.d (7), 6.2.4.a (12), 6.2.4.c (5), 6.5.2, 9.2 H-28, 9.3, 10.1.8.e. No new risk acceptance.
+9. Row 9 (E plus O): SI-15 start reconciliation in PH-1 closed by an estate guard (refuse to start outside a throwaway tree, checksum before STORED), with a probe in X4; no RA needed because PH-1 stores no real mail (3.3.1.d, 5.9.4). SI-7 on the existing rails cannot be fixed by an early local control (vendored code, G-062), so it is RA-9 (11.3.9) and OP-23 (13.2.16), cited in 3.3.1.e and the SI-7 row.
+10. Row 10 (O): OP-21 (13.2.14) on the CX-2 hook delivery point, options A to D, recommendation A; BV-5 aligned to the recommendation (turn end) and marked pending, with the consequences if the operator rules B; CX-2 text points at OP-21. 5.5.5, 12.3, 13.2.14.
+11. Row 11 (O): OP-22 (13.2.15) on who writes the receive side; 6.6 row and 15.5.5 point at it.
+12. Row 12 (E): PH-0 rollback keeps the re-pin recorder and the off switch is removed. 6.2.1.d.
+13. Row 13 (E): PH-6 rollback written item by item (six procedures, none turns a control off, nothing decrypted); D-1 has a PH-6 rollback note; text equivalent 6.8.3 updated; render check updated. 6.2.7.b, 6.2.7.c, 6.7, 6.8.3, section 16.
+14. Row 14 (E): RA-4 ends in two separately stated parts: confirmation part ends at K5 with the R-76.d probes passed, signed-policy part ends at K4 with `require_operator_signature_from_epoch` set; status call names which part is open. 11.3.4.d.1 to d.3.
+15. Row 15 (O-light): OP-10 option A now names the five binding rules 3.1.b to 3.1.f. 13.2.10.
+16. Row 16 (E): PH-0 baselines now include the count of plaintext content fields a topic read token returns on the hub, per topic family; written to `docs/reports/`. 6.2.1.a (2), 6.2.1.c (4).
+17. Row 17 (E): R-7 wording corrected: after every other P1 delivery item, with R-76's real provider and R-1's operator leg later. 4.4.c, 11.2.
+Also done: status line DRAFT v0.2; version row 0.2; coverage (15.1, 15.5.6) and counts updated: 23 operator questions (was 20), 9 risk-acceptance requests (was 8), 9 high-impact classes (was 10), 14 policy verbs, Tier 0 classes C-1 to C-16; floor (39) and hypotheses (28) unchanged. Handback `docs/reports/T-3352-role-handback.json`: status `ready-for-review`, new output sha256 `9b78a1392a4d1c37ce893670a4d05a018d6cdf7aafe5e004a4cc4cbeb9c3b8ba`, summary, open questions and decisions updated; validates against `role-handback-1.schema.json`.
+## 2 Renders (section 16 of the document)
+`mmdc -p {"executablePath":"/usr/bin/chromium","args":["--no-sandbox"]}` on both Mermaid blocks of the final v0.2 text: D-2 rc 0, 60351-byte SVG (unchanged drawing, re-rendered); D-1 rc 0, 44707-byte SVG. No "syntax error" or "parse error" in any log or SVG. D-1 was rendered to PNG and read: order PH-0 to PH-6 intact, PH-6 rollback note present, no semicolons in labels.
+## 3 Rows not fixed
+None.
+## 4 Things the orchestrator should check
+1. Row 6 contains two points beyond the disposition text that I chose and the reviewer should look at: a `deny` event rule only turns a policy route into a human route (no rule can widen a route), and a `profile` is treated as shorthand for agent-level rules in the same-level resolution (10.3.7.f.1).
+2. The row 10 recommendation (A) is what BV-5 now follows; if the operator rules B, 12.3 lists the phasing changes.
+3. The expired-record rule of 10.3.7.a (an expired record is ignored, so an expired deny falls back to the built-in default) was not in the disposition and is unchanged; it may deserve a look in step 4.
+## 1. Policy format changes binding rules
+**1a. Removal authority is widened.** Draft §10.3.3 labels `anyone_in_its_conversations` as ruled. OQ-12 and REQ R-73.a(1) allow “anyone in conversations it started.” Participating in a conversation does not confer the ruled removal authority.
+**1b. C-17 creates an unapproved custody exception.** Draft §10.2.2 allows human-approved release of a dead agent’s custody mail outside C-10’s conditions. B′ and REQ R-80.a(5) require DEAD, same-project role succession and explicit hand-over. OQ-17’s human route for other **hand-overs** does not independently waive those custody conditions. Break-glass is a separate mechanism under R-80.a(7). OP-3 currently presents C-17 as a classification choice rather than a change to the disclosure rule.
+**1c. Automatic renewal silently expands beyond grants.** Draft §10.3.2.a assigns renewal of **every unchanged policy record** to C-9c, although §10.2.2 defines C-9c narrowly as renewal of an unexpired grant with unchanged scope, budget and senders. This would also cover profiles and provider records without explicitly deciding their renewal routes. Moreover, extending a grant’s duration needs explicit treatment of whether consumed budgets reset. OP-2 does not expose this broader authorization.
+## 2. The policy artifact is not yet implementable as specified
+**2a. The digest includes itself.** Section 10.3.2.a defines `digest` as the hash of the canonical object “without `signature`,” leaving `digest` inside its own hash input. Step 4 and 055 need an unambiguous signing payload. The profile example in §10.3.9 also has empty `approvals`, contradicting §10.3.5’s requirement that every record have an authorizing decision.
+**2b. The vocabulary cannot express the proposed policy routes.** Section 10.3.4.a’s closed verbs omit hub-key rotation, agent-key replacement and grant renewal—the proposed C-2a, C-6a and C-9c routes in §10.2.3. No separate event-rule representation is defined. This leaves the “one model” promise of §10.3.1 and REQ R-73.a(6) incomplete.
+**2c. Record precedence is underdefined.** Section 10.3.2.a assigns epochs **per scope**, but several record kinds can occupy a scope; §10.3.7 neither specifies how their epochs coexist nor how multiple matching rules at the same level resolve. Section 10.3.13 mentions deny overriding allow, while the normative procedure only specifies narrowing between levels. Different implementations could grant different authority from identical records.
+## 3. Phase dependencies and uncovered floor gaps
+**3a. PH-3 requires PH-4 capabilities.** PH-3’s exit requires a policy-route decision for “the ruled class” (§6.2.4.c(2)). That class is C-10, requiring a same-role R-67 lease successor and hand-over (§10.2.2). Leases, hand-over and the shared policy engine arrive in PH-4 (§6.2.5.a). Specify an earlier minimal implementation or change the PH-3 acceptance case without pretending C-10 is operational.
+**3b. The account pilot precedes its mandatory authorization mechanism.** Track A creates a pilot account in PH-2 (§6.2.3.a(7)); Tier 0 events and their approval machinery arrive in PH-3 (§6.2.4.a(2)). REQ R-82.a(3), R-82.e and OQ-2 require an approved, logged event **before** creation. The draft needs an explicit earlier authorization path; RA-1 accepts shared-user exposure, not unauthorized account creation.
+**3c. Existing subjects are treated as though they arrive later.** SI-7’s protection of other rails, including pickup, waits until PH-4 (§3.3; §6.2.5.a(9)), but those rails already exist. No RA explicitly covers that framing deferral. Likewise, PH-1 stores durable messages while SI-15 startup reconciliation completes only in PH-2 (§3.3), without an explicit acceptance request or a defined PH-1 recovery restriction. These gaps contradict §3.1.f and card §6.1; listing every SI identifier is insufficient.
+**3d. The BV contradicts its own unresolved delivery assumption.** BV-5 delivers at the next tool call (§5.5.5), but CX-2 assumes normal mail waits until turn end (§12.3). If BV-5 is urgent mid-turn delivery, SI-18/SI-23 and interrupt authorization already have subjects in PH-1, contrary to §§3.3 and 5.7.
+## 4. Rollback and risk-expiry claims are unsafe or incomplete
+**4a. PH-0 rollback removes a mandatory control while retaining its subject.** Section 6.2.1.d permits switching off the re-pin recorder and returning to today’s behavior. Re-pins remain available. This directly contradicts §3.1.d and the mandatory interim recording requirement in REQ R-72.a(6), ruled by OQ-8.
+**4b. PH-6 has no actionable rollback.** “Rollback: per item” (§6.2.7.b) supplies no procedure for provider integration, custody, account migration or receiver retirement. Card §§3.4 and 6.3 require rollback for every phase. D-1 and its textual equivalent (§§6.7–6.8) also omit PH-6 rollback.
+**4c. RA-4 can expire before its deferred protections exist.** Section 11.3.4.d ends RA-4 when a provider connects **or** an operator key is registered. K4 and K5 are distinct stages (§6.5.3): registering a key does not supply out-of-band confirmation, and connecting a provider does not establish operator-signed policy records. Each deferred protection needs its own completion condition.
+## 5. Missing operator questions
+**5a. Section 13 omits two explicitly unresolved choices.** CX-2’s delivery semantics (§12.3) require an operator interpretation but have no OP entry, options or recommendation. The receive-side ownership fallback in §6.6 is expressly “proposed, not ruled,” and §15.5.5 confirms the operator has not approved it, yet section 13 does not ask. These omissions contradict §1.4.a and leave step 4 dependent on unresolved assumptions.
+## 6. Verdict and fixes, smallest first
+**Verdict: fit after listed fixes.** The defects affect authority, phase feasibility and floor continuity; the present completion claims in §15.1 are premature.
+**6a. Editorial:** Correct the removal scope (§10.3.3), digest payload and approval example (§§10.3.2.a, 10.3.9), and separate RA-4’s completion conditions (§11.3.4.d).
+**6b. Editorial:** Preserve mandatory re-pin logging on rollback and specify PH-6 rollback, updating D-1 and its equivalent (§§6.2.1.d, 6.2.7.b, 6.7–6.8).
+**6c. Operator decision:** Add explicit questions for CX-2 and receive-side ownership (§13); align the BV with the resulting delivery decision.
+**6d. Editorial, or operator decision if expansion is retained:** Remove C-17’s custody exception and constrain C-9c to its stated class. Any broader disclosure or renewal authority needs a clearly identified ruling change (§§10.2.2, 10.3.2.a).
+**6e. Design clarification:** Complete event-rule representation, epoch semantics and same-level conflict resolution before approving the format (§§10.3.2–10.3.7).
+**6f. Editorial, with operator decision for any deferral:** Repair PH-2/PH-3 prerequisites and provide the missing early floor controls, or explicit risk-acceptance requests; then revise coverage claims (§§3.3, 6.2, 11, 15.1).
+93,169
+# Review: `interactive-agent-communication-03-floor-and-phasing.md` (DRAFT v0.1, T-3352)
+## 1 Verification performed (basis of the findings)
+1a Input hashes in 1.1 and 1.3 recomputed: all match, including REQ, TM, the two task decision records, `_common.md`, card, adapter, profile, chain yaml, schema, interview log, and `CLAUDE.md` lines 1–2820. The GP-12 folder (1.3, "GP12") exists with both files.
+1b The host readings of 1.4.d reproduce now: `testdev` uid 1001 exists; `/opt/termlink`, `.git`, `.tasks`, `.context` are `root:root` 775; `core.sharedRepository` unset; `useradd`/`sudo`/`setfacl` installed; claude-mentioning process lines split ~80 root / 16 other at review time — consistent within the "one moment" caveat of 15.5.3.
+1c Counts recomputed by hand: 33 security-typed requirements (3.5) matches REQ line "b" typings; 4.3's 35/34/6/1/3/2/1 = 82 matches table 4.2 row by row; floor = 39 (31 SI + 8 FX); 13 state values + 7 markers; 17 FC rows; 28 hypotheses (11 TM + 17 new); 24 rows / 21 dimensions (section 8); 20 operator questions. Enters/Complete columns of 3.3–3.4 agree with 6.2.3.c–6.2.6.b and with drawing D-2's edges and 3.8. D-1 and D-2 carry id, caption, numbered text equivalent (3.8, 6.8) and a render check (section 16).
+1d The dependency statuses of 6.6 match the task files (T-3383 captured/later; T-3384, T-3386, T-3387, T-3347 captured/next; T-3385 started-work, owner human; T-3370 started-work).
+## 2 Role-card fidelity (brief item 1)
+2a Met. Card 6.1: every SI-n is a floor row (3.3); all 33 security-typed requirements are floor or listed with a reason (3.5, 3.6); the six P-standing items are named for confirmation (OP-10); deferrals are risk-acceptance requests RA-1..RA-8. Card 6.2: every row of 4.2 has a class, a phase and a reason. Card 6.3: all seven phases have scope, exit criteria and rollback; H-14 and H-21 are marked REFUTES THE APPROACH (9.1.b). Card 6.4: both drawings present and checked.
+2b One defect, a probe whose prerequisite its own PH-0 does not produce — see 4b.
+## 3 Ruling fidelity (brief item 2)
+3a The eight named rulings are handled faithfully: OQ-2 (10.1.1 restates the target, helper, Tier-0-per-creation and permanent root residual; placement is OP-1); OQ-3 (PN values and the H-1 re-rule path, 6.2.6.c); OQ-8 D″ (exception classes C-2b/C-4/C-7/C-8 always human; first ruled policy class C-10 kept "ruled"; re-pin record T-3384 in PH-0); OQ-12 (the five ruled profile settings verbatim in 10.3.3; the sixth, `eligible_for_main`, is a loud [P] with CX-3 and OP-4); OQ-14 D‴ (SI-31; IC-2 double approval, 10-minute expiry, no silence); OQ-16 (SI-2 veto; W2 gated on T-3387; busy bit not shown to peers); RR-8/R-67 precedence (6.2.5.a (3) follows CR-20 and ruling D, no contradiction); RR-13/CR-21 (FX-1; the "disable" half is deferred to PH-4 not silently but through RA-5/OP-19, which is the card-sanctioned route for deferring floor work).
+3b **Finding (C-15 batch).** 10.2.2 C-15 proposes "one event per migration wave, digest over the named set", while the ruling says "every account creation is a Tier 0 act: human-approved and logged" (R-82.a (3), OQ-2 in T-3351 Decisions). A batch digest is a relaxation of "every", it carries no [P] tag, and it is in neither OP-2 (policy-route list) nor OP-3 (high-impact list — C-15 is HI "no"), so no operator question rules on it. **Needs an operator decision.**
+3c **Finding (SG and NK unconfirmed).** The ship gate (2.3.c/3.1.b), no-knob-before-its-lock (2.3.d/3.1.c), rollback-keeps-the-floor (3.1.d), status honesty (3.1.e) and the deferral rule (3.1.f) are new normative mechanisms that bind every phase and drive real sequencing (e.g. SI-20/SI-21's fixed-default form in PH-2). OP-10 asks confirmation of "the 31 invariants and the 8 extra items"; OP-11 of "the seven phases, the BV and the CAND-3 staging". Neither names the five floor rules. **Needs an operator decision** (smallest form: add "and the binding rules 3.1.b–3.1.f" to OP-10 A).
+## 4 Internal consistency (brief item 3)
+4a **Finding (PH-3 exit uses a PH-4 capability).** 6.2.4.c (2) requires "the policy route for the ruled class, recorded" as a PH-3 exit test. The only ruled policy class is C-10 (10.2.3), whose subject — a dead holder's hand-over with a same-role R-67 lease successor — cannot exist before PH-4 (FX-3, SI-29 and the lease itself are PH-4 scope, 6.2.5). At PH-3 the exercisable policy classes are C-2a and C-6a (the signing key arrives PH-2, 4.2 R-61). As written the exit criterion is untestable in its phase. Editorial fix: point the test at C-2a/C-6a, or say C-10's route is exercised by fixture.
+4b **Finding (FX-5 probe depends on a baseline PH-0 does not take).** FX-5's probe (3.4) and RA-3.b's stand-in rest on "never above the PH-0 baseline" of plaintext content fields on the hub, but the PH-0 baseline list (6.2.1.a (2), exit (4)) covers message sizes, agents per project, blob sizes, transcript share and re-send age — not hub plaintext exposure. The probe is un-runnable as written from PH-2. Editorial fix: add that baseline to PH-0.
+4c **Finding (minor, "last of the P1 items").** 4.4.c and 11.2 say R-7's independence "arrives last of the P1 items". R-76 (P1) completes only at PH-6 (real provider) and R-1's operator leg (P1) is deferred to GP-11, both later than PH-5. The substantive point (the cost of the ruled OD-1 C order) stands; the sentence overstates. Editorial fix.
+4d Otherwise clean: I traced every floor item's Enters/Complete against the phase sections and D-2 (no mismatch), every phase's scope against 4.2's phase column (no capability used before delivery apart from 4a), and the numbers (FP-2's 13+7, the PN-n values, deadlines, H-3/H-4/H-6/H-7/H-12 thresholds against FP-4's headroom rule) against REQ 14.3 and TM 19 — no disagreement.
+## 5 Open questions (brief item 4)
+5a Genuinely the operator's, one at a time (13.1), each with options A–D and a recommendation; OP-13..OP-20 correctly split the eight risk acceptances into single questions. The four items the hand-over named are OP-1..OP-5.
+5b Missing from the list: the two decisions behind 3b and 3c (the C-15 batch digest; explicit confirmation of the floor rules). Nothing else I could find: FP-1..FP-4 are OP-6/7/8/12; the six P-standing SIs are OP-10; E-7 rides OP-11; RR-21 is OP-19 plus CX-1; the T-3383 horizon change is correctly routed to step 8, not the operator.
+## 6 Would step 4 be misled? (brief item 5)
+6a Nothing material beyond 4a and 4b: the C-10 seam could make step 4 design a PH-3 route test that cannot run, and the missing baseline silently weakens the only FX-5 probe. Positively: 14.1.b is a complete and accurate hand-over list, CX-2 correctly surfaces the real R-48.e vs R-63.a ambiguity rather than resolving it silently, and 14.1.a states the floor's status as constraint, which is the right frame.
+## 7 Verdict
+**Fit after listed fixes.** The floor is complete and traceable, the phasing is internally consistent except at one seam, the rulings are respected with two exceptions that need the operator's eye, and the coverage machinery (counts, drawings, probes) checks out against both inputs of record.
+## 8 Fix list, smallest first
+8a Editorial (4c): reword 4.4.c and 11.2 ("last of the P1 delivery items; R-76's provider and R-1's operator leg arrive later").
+8b Editorial (4a): in 6.2.4.c (2), name C-2a/C-6a as the PH-3 policy-route test, or mark the C-10 route as fixture-tested.
+8c Editorial (4b): add "plaintext content fields readable on the hub" to the PH-0 baselines (6.2.1.a (2), exit (4)).
+8d **Operator decision** (3c): extend OP-10 option A to cover the floor's binding rules 3.1.b–3.1.f (SG, NK, rollback-keeps-floor, status honesty, deferral rule).
+8e **Operator decision** (3b): either one Tier 0 event per account creation per R-82.a (3), or add the batch-digest form to OP-1's options so the operator rules on it explicitly.
+ERROR: You've hit your usage limit. Upgrade to Pro (https://chatgpt.com/explore/pro), visit https://chatgpt.com/codex/settings/usage to purchase more credits or try again at 7:47 PM.
+3,970

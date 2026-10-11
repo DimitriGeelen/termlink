@@ -1,0 +1,323 @@
+[0m
+> build · glm-5.3
+[0m
+[0m→ [0mRead docs/design/interactive-agent-communication-03-floor-and-phasing.md
+[0m→ [0mRead docs/reports/T-3352-step3-review/disposition-r1.md
+[0m→ [0mRead docs/reports/T-3352-step3-review/fixes-r1.md
+[0m→ [0mRead docs/design/interactive-agent-communication-03-floor-and-phasing.md[90m [limit=400, offset=378][0m
+[0m→ [0mRead docs/reports/T-3352-step3-review/codex.md
+[0m→ [0mRead docs/reports/T-3352-step3-review/glm.md
+[0m→ [0mRead docs/design/interactive-agent-communication-03-floor-and-phasing.md[90m [limit=400, offset=602][0m
+[0m→ [0mRead docs/design/interactive-agent-communication-03-floor-and-phasing.md[90m [limit=400, offset=894][0m
+[0m
+[0m$ [0mgrep -n "22.18" /opt/termlink/docs/design/interactive-agent-communication-02-threat-model.md | head -5
+4:**Status:** DRAFT v0.3.7, all operator items ruled (review round 2 remediation, the final revision; there is no third review round; operator rulings so far recorded in 22.18) for the operator's acceptance of the residual risks (section 20) and the change requests (section 21). Nothing in this document is approved. Everything tagged **[P]** is a proposal; the operator decides.
+14:| 0.3.1 | 2026-10-09 | Operator rulings recorded, no new review. Rulings register 22.18 (process, OQ-1 to OQ-9, principle B′). OQ-8 ruled D″: 10.3.g (PR-35) replaces "added only by operator approval" in 10.3.a and 10.3.e; CR-18 added (admission and authorisation requests as Tier 0 events with approval routes by risk class). The step-1 requirements document was not changed. | T-3351 |
+15:| 0.3.2 | 2026-10-10 | Operator rulings OQ-9 (section 19 numbers as starting values with first-build measurements), OQ-12 (A as default plus the boundary policy model) and OQ-13 (C′, intent-based relevant history) recorded in 22.18; CR-19 added; 8.6.b.2 and 8.6.d updated. The step-1 requirements document was not changed. | T-3351 |
+16:| 0.3.3 | 2026-10-10 | Operator ruling OQ-14 (D‴) recorded in 22.18: 6.3.e, CR-14, SI-31 and PN-14 restated (no approval takes effect on silence; configurable out-of-band confirmation provider; inception T-3385). The step-1 requirements document was not changed. | T-3351 |
+17:| 0.3.4 | 2026-10-10 | Operator rulings OQ-15, OQ-17, the process for the unlinked items, CR-1, RR-8 and RR-13 recorded in 22.18; CR-16 dropped; CR-20 added (duplicate mains resolved by the home hub, stray role mail forwarded); CR-21 added (all delegation through TermLink, vendor channels and sub-agents not used). The step-1 requirements document was not changed. | T-3351 |
+[0m
+[0m$ [0mgrep -n "## Decisions" /opt/termlink/.tasks/completed/T-3351-arc-011-role-chain-step-2-threat-modeler.md /opt/termlink/.tasks/completed/T-3388-arc-011-step-1-reopen-requirements-v05-f.md
+/opt/termlink/.tasks/completed/T-3351-arc-011-role-chain-step-2-threat-modeler.md:178:- Full ruling records: this task's ## Decisions.
+/opt/termlink/.tasks/completed/T-3351-arc-011-role-chain-step-2-threat-modeler.md:181:## Decisions
+/opt/termlink/.tasks/completed/T-3388-arc-011-step-1-reopen-requirements-v05-f.md:368:- Ruling records: T-3351 and this task's ## Decisions.
+/opt/termlink/.tasks/completed/T-3388-arc-011-step-1-reopen-requirements-v05-f.md:370:## Decisions
+[0m
+[0m$ [0mgrep -n "^## 22\|^### 22.18\|^#### " /opt/termlink/docs/design/interactive-agent-communication-02-threat-model.md | grep -i "22\." | head -20
+(no output)
+[0m
+[0m$ [0mgrep -n "rulings register\|Rulings register" /opt/termlink/docs/design/interactive-agent-communication-02-threat-model.md | head -10
+14:| 0.3.1 | 2026-10-09 | Operator rulings recorded, no new review. Rulings register 22.18 (process, OQ-1 to OQ-9, principle B′). OQ-8 ruled D″: 10.3.g (PR-35) replaces "added only by operator approval" in 10.3.a and 10.3.e; CR-18 added (admission and authorisation requests as Tier 0 events with approval routes by risk class). The step-1 requirements document was not changed. | T-3351 |
+1561:22.18 **Rulings register (added 2026-10-09).** The operator's rulings on this step so far. The full record of each (dialogue, chosen, rejected, left open) is in T-3351 § Decisions; where a ruling and the text above disagree, the ruling wins and this register says where.
+[0m
+[0m$ [0msed -n '1561,1700p' /opt/termlink/docs/design/interactive-agent-communication-02-threat-model.md
+22.18 **Rulings register (added 2026-10-09).** The operator's rulings on this step so far. The full record of each (dialogue, chosen, rejected, left open) is in T-3351 § Decisions; where a ruling and the text above disagree, the ruling wins and this register says where.
+
+| Question | Ruled | Ruling | Effect on this document |
+|---|---|---|---|
+| Process | 2026-10-07 | B: the 17 open questions one at a time, each naming the change requests and residual risks it settles; unlinked ones afterwards | 22.1 |
+| OQ-1 | 2026-10-07 | A: ADV-11, ADV-12, ADV-13 and ADV-14 confirmed | 4.3 stands |
+| OQ-2 | 2026-10-07 | C now, B as the committed target: RR-2 accepted for now; one OS account per agent, created by the orchestrator through a narrow privileged helper, each creation a Tier 0 act | 22.3's recommendation C plus a committed target |
+| OQ-3 | 2026-10-07 | D: PN-1 1 h, PN-2 renewal from 30 min and 24 h absolute, PN-13 1 h, as starting values; RR-5 accepted at 1 h; T-3383 measures 30 days of hub outages (H-1) | 7.3, 19 |
+| OQ-4 | 2026-10-08 | D: a new conversation always goes through the hub, on one host too; RR-11 accepted for now; local start revisited once per-agent accounts exist and T-3383 has measured | 7.6, 14.7 as written for A |
+| OQ-5 | 2026-10-08 | A: the store survives F-1 and F-2; F-3 to F-5 detected and shown; F-6 and F-7 refused or detected | 12.2 |
+| OQ-6 | 2026-10-08 | D: A for the security floor now (CR-10 accepted; nothing is operator-class until an operator key exists), with C assessed as part of GP-11 | 6.3.d, 22.7 |
+| OQ-7, OQ-10, OQ-11 | 2026-10-08 | Replaced by principle B′: the hub reads the envelope only; content encrypted per message and wrapped to each authorised reader; a project custody key releases an agent's mail to a rightful successor only after DEAD and a role takeover; a bounded encrypted hub copy; break-glass after GP-11; guiding rule "purpose and intent over form". Review: `docs/reports/T-3351-principle-review/` | 22.8, 22.11 and 22.12 superseded; CR-9 answered; RR-6 narrowed to envelope metadata |
+| OQ-8 | 2026-10-09 | D″: PR-5 and PR-26 as proposed (CR-8, including a hub signing key separate from the TLS certificate), RR-4 and RR-14 (a)/(b) accepted, an interim record of every re-pin and `tofu clear` shown in needs-attention (RR-18), and admission and authorisation decided as Tier 0 events through approval routes by risk class (PR-35, CR-18) | 10.3.a and 10.3.e replaced by 10.3.g; CR-18 added |
+| OQ-9 | 2026-10-09 | D: PN-3 to PN-12, PN-15 and PN-17 are [R~] starting values, changeable with evidence; each hypothesis (H-3 to H-8, H-12, H-13) carries its measurement as an acceptance item of the first build. Assumption recorded, not answered: PN-15 = 10 minutes, also the expiry of a Tier 0 event on a human route | 19 |
+| OQ-12 | 2026-10-10 | A as the default, plus the boundary model: agent profiles (may invite, may be invited, responds to invitations, may remove), rules by agent, agent type and identity level per scope, nesting and narrowing only, Tier 0 event outside the boundaries; default respond = automatic from own project, ask for others; may remove = nobody | 8.6.b.2; CR-15 extended; CR-19 added |
+| OQ-13 | 2026-10-10 | C′: forward only; the invitation states its intent; the inviter shares the relevant original turns on request or with the invitation, limited to what it can read, recorded and visible; CR-19 may forbid or automate | 8.6.d; CR-15 gains the intent field and the share event; CR-19 gains "may share history" |
+| OQ-14 | 2026-10-10 | D‴: key with a second factor, single-use digest-bound approvals, offline recovery key; high-impact approvals need an active out-of-band confirmation and never proceed on silence; a pluggable confirmation provider (OTP-style), with ring20-manager building the facility (inception T-3385, high priority); interim double approval at the terminal plus a channel notice; PN-14 retired; RR-16 accepted | 6.3.e; CR-14 amended; SI-31 and PN-14 restated |
+| OQ-15 | 2026-10-10 | A: no per-message digest beyond 14 days; RR-10 accepted; PR-34, CR-16 and PN-16 dropped; revisit if the OQ-9 measurements show re-sends older than 14 days | CR-16 dropped |
+| OQ-17 | 2026-10-10 | D: a live holder's signed statement plus acceptance, or the operator; a dead holder's hand-over is a Tier 0 event, policy-approved when DEAD plus a same-role R-67 lease successor (B′ conditions), otherwise human | 8.6.b.3; CR-15 extended |
+| CR-1 | 2026-10-10 | A: accepted as written; outage exception to "the hub record first" (local hash-chained log, replay and reconcile, states labelled unreconciled) | 21 CR-1; touches R-2.a, R-2.e, R-14.o, R-15.o, R-26.o, R-44.a, R-58.a when step 1 is reopened |
+| RR-8 | 2026-10-10 | D′ with forwarding: deliberate extras not eligible for main; duplicates reported to the home hub, resolved at once (pin, longest continuously ready, stable id), both copies and the operator told, override audited; stray role-addressed mail forwarded once to main with a notice to the sender; conversation mail never forwarded | RR-8 narrowed; CR-20 added (amends R-67.a) |
+| RR-13 | 2026-10-10 | PR-29 under CR-19 for inject and exec (own project by default, cross-project a Tier 0 event, logged); all delegation through TermLink; vendor peer channels and vendor sub-agents not used, disabled by the adapter where possible, logged where not; operator terminal unchanged | RR-13 narrowed; CR-21 added |
+| D4 (CR-2, CR-3, CR-4, CR-17, RR-17, RR-15) | 2026-10-10 | A: all four change requests accepted, CR-4 corrected so the sender's own counter is the source and the hub's highest-seen number only raises it after a restore (R-59.a); RR-17 and RR-15 accepted | 21 CR-2, CR-3, CR-4, CR-17 |
+| D5 (CR-7, CR-12, RR-20) | 2026-10-10 | A: circuit trust properties and the resume check accepted; RR-20 accepted | 21 CR-7, CR-12 |
+| D6 (CR-6, RR-1, RR-3, RR-7) | 2026-10-10 | A: the unforgeable frame on every rail accepted; RR-1, RR-3 and RR-7 accepted | 21 CR-6 |
+| D7 (CR-11, CR-13, RR-9, RR-12) | 2026-10-10 | A: peers see reachable yes/no only; authority only from operator-signed configuration, never created or widened by an agent; RR-9 and RR-12 accepted | 21 CR-11, CR-13 |
+| OQ-16 | 2026-10-10 | D: CR-5 wording plus a local activity veto before typing (network send primary, never means ready, none where unmeasurable, shown); a derived busy bit on presence, visible to the operator, the agent's own project and the cockpit, not to peers (CR-11 stands; the receiver's own sidecar types the doorbell, so senders never need it); raw telemetry on the host; 055's measurements; build T-3387 | 9.2.d; CR-5 accepted; RR-19 accepted |
+
+Nothing remains open: every question, residual risk and change request of this step has been ruled (2026-10-10). Accepted change requests go to step 1 when the orchestrator reopens it.
+
+## 23 Coverage: the brief, the task and the completion conditions
+
+23.1 The step-2 row of REQ section 13, and where each topic is answered.
+
+| Topic handed to step 2 | Where |
+|---|---|
+| Circuit trust model and per-circuit credential lifetime (OD-1, CAND-16, R-46, R-7.e cross-host bound) | 7 (7.2.d lifetime from establishment, 7.3.c asymmetric outage), PN-1, PN-2, PN-12, PN-13, SI-9, SI-11, OQ-3 |
+| Same id with different content (CAND-2, R-51) | 8.2, TH-10, SI-4, CR-3 |
+| Same sequence number with different content (CAND-18, R-59) | 8.3, 8.4, TH-11, TH-12, SI-5, SI-6, CR-4 |
+| Peer-content framing (CAND-1, R-50) | 9, TH-38 to TH-40, SI-1, SI-2, SI-7, SI-8, CR-5, CR-6 |
+| Fleet admission and signed advertisements (CAND-17, J3) | 10 (10.5 continuity), TH-45, TH-59, TH-60, SI-12, SI-13, PR-5, PR-26, CR-8, OQ-8 |
+| Whether a same-host new conversation may start without the hub, and on what trust (J4) | 7.6, TH-35, RR-11, OQ-4 |
+| GP-1 credential custody | 6, TH-1, TH-2, TH-43, SI-3, SI-14 |
+| GP-6 revocation | 11 (scopes RK-1..RK-7), TH-58, SI-11, PR-16 |
+| GP-13 durability failure scope | 12, SI-15, OQ-5 |
+| GP-14 trusted evidence producers | 13 (13.4 crash window), TH-7, TH-63, SI-17, SI-30 |
+| GP-15 adversary privileges | 4.2, 4.3 (ADV-11 to ADV-14) |
+| Adversaries ADV-1..ADV-10 with their privileges (GP-15) | 4.2 |
+
+23.2 The card's completion conditions (card 6).
+23.2.1 6.1 every boundary has the six STRIDE questions and the four additions answered: section 14, 13 boundaries by 10 questions; the TB-6 matrix is marked conditional on OQ-4 A (14.7.1); approval replay, transcript forgery and credential replay are answered by mechanisms that now state their limits (SI-13, SI-17, SI-9).
+23.2.2 6.2 every threat has a countermeasure or is a listed residual risk: section 15, TH-1 to TH-65 (each TH names its countermeasure or its RR, with likelihood and impact reasons).
+23.2.3 6.3 the bypass inventory is complete for the routes the profile names, and says what remains open: section 17 (BP-1..BP-19, 17.1.a for what "monitored" means, and 17.2).
+23.2.4 6.4 security invariants are stated so a test or probe could check them: section 18 (SI-1..SI-31, each with a probe; 18.2 gives each one's standing, dependencies and limit; version 0.3 states for every invariant what its mechanism cannot do: SI-1, SI-2, SI-9, SI-11, SI-13, SI-17, SI-20, SI-21, SI-22, SI-29, SI-30). Every residual risk (RR-1..RR-20) and every open question (OQ-1..OQ-17) can be decided from its own text.
+23.2.5 6.5 every required drawing D-1 to D-4 is present with id, caption and text equivalent, and renders without error: 5.1, 16.1, 16.3, 17 and section 24 (re-rendered after the round 1 corrections).
+
+23.3 The task's agent acceptance criteria (task T-3351).
+23.3.1 A version table (section 0) and an inputs-of-record section citing the full hashes (section 1): met.
+23.3.2 Adversaries ADV-1..ADV-10 with privileges (GP-15), and GP-1, GP-6, GP-13, GP-14: met (4.2, 6, 11, 12, 13).
+23.3.3 Circuit trust model and credential lifetime, same id, same sequence number, peer-content framing: met (7, 8, 9).
+23.3.4 Residual risks listed for the operator to accept, one per line, each with a plain-language sentence: met (section 20).
+23.3.5 The role-chain yaml step 2 names task T-3351: checked, unchanged.
+
+## 24 Render check of the drawings
+
+24.1 Method. The same as the step-1 document (REQ 11.6): each Mermaid block was extracted and rendered one by one with `mmdc -p <puppeteer-config> -i dN.mmd -o dN.svg`, where the config names `/usr/bin/chromium` with `--no-sandbox`. `scripts/design-render-check.py` is not adopted in this project, so no `render_check` record exists (profile P2.1, P4.5; REQ 11.6).
+24.2.0 Result, version 0.3, 2026-10-07 (review round 2): the four blocks were extracted from this version and rendered again with the same method. D-1 exit code 0, 44751 bytes; D-2 exit code 0, 38210 bytes; D-3 exit code 0, 85298 bytes; D-4 exit code 0, 43621 bytes. The sizes equal the version 0.2 sizes because no drawing changed in round 2 (the new material is in text, tables and lists; the threat and invariant ids the drawings cite are unchanged). The only "error" strings in the SVGs are the CSS class names `error-icon` and `error-text` that mermaid always emits; no "syntax error" or "parse error" text appears in any SVG or log.
+24.2 Result, version 0.2, 2026-10-07 (the check was run again after every drawing change of review round 1; the version 0.1 result is superseded): D-1 exit code 0, 44751-byte SVG; D-2 exit code 0, 38210 bytes; D-3 exit code 0, 85298 bytes (four trees in one block); D-4 exit code 0, 43621 bytes. No "error" text in any log and no "syntax error" or "parse error" text in any SVG. D-1 and D-2 were also rendered to PNG and read: D-1 shows the dotted TB-6 link and the store-to-hook flow; D-2 shows steps 12 and 13 with the reply passing through the receiving agent's own sidecar. A sequence-diagram note carries no semicolon (the failure the step-1 render check found). The block order in the document is D-1, D-2, D-3, D-4.
+[0m
+[0m$ [0msed -n '181,320p' /opt/termlink/.tasks/completed/T-3351-arc-011-role-chain-step-2-threat-modeler.md
+## Decisions
+
+<!-- Record decisions ONLY when choosing between alternatives.
+     Skip for tasks with no meaningful choices.
+     Format:
+     ### [date] — [topic]
+     - **Chose:** [what was decided]
+     - **Why:** [rationale]
+     - **Rejected:** [alternatives and why not]
+-->
+
+### 2026-10-07 — How to take step 2's 54 operator items (operator ruling)
+- **Context:** threat model v0.3 (after review rounds 1 and 2 and two revisions; GLM r2 "fit", Codex r2 "not fit yet",
+  every r2 finding then disposed in disposition-r2.md; neither reviewer has seen v0.3) carries OQ-1..17, RR-1..20,
+  CR-1..17.
+- **Chose:** B — the 17 open questions one at a time; each brief names the change requests and residual risks its
+  ruling settles; the unlinked remainder afterwards, one at a time.
+- **Why:** keeps one decision per message while cutting ~54 rulings to ~17 plus a tail. Scored B +42, C +31, A +1, D −8.
+- **Rejected:** A (54 rounds, many restating earlier answers), C (batches risk acceptance, against the standing rule),
+  D (risk acceptance is reserved to the operator by the role card).
+
+### 2026-10-07 — OQ-1 which added adversaries to confirm (operator ruling)
+- **Chose:** A — confirm ADV-11 (compromised or rogue hub), ADV-12 (unadmitted joiner), ADV-13 (network attacker:
+  delay, drop, replay, redirect; TLS gives secrecy and integrity, not delivery), ADV-14 (holder of the operator's
+  approval device or key). Steps 3-4 defend against ADV-1..ADV-14.
+- **Why:** each acts where the new parts sit (circuits, card exchange, approvals); the record shows hubs going wrong
+  (stray hub 2026-10-04, G-060); both reviewers asked for ADV-14. Scored A +37, B +26, D −21, C −32.
+- **Rejected:** B (drops ADV-13; "covered by TLS" misreads TLS, Codex r1), C (leaves CAND-17 and the approval device
+  undefended), D (step 3 would not know whom the floor stops).
+- **Settles directly:** no RR or CR; scopes RR-4, RR-14, RR-16, RR-18 and CR-14.
+
+### 2026-10-07 — OQ-2 the shared operating-system user (operator ruling)
+- **Fact added at the brief:** all 19 Claude agents on .107 run as root (ps, 2026-10-07), so today the shared user is
+  root and same-user equals host root in practice.
+- **Chose:** C now, B as the committed target (operator's words: "we accept it for now, but we definitely want to move
+  to a more isolated per-agent account, which can be created by the orchestrator … always via Tier 0"). (1) RR-2 is
+  accepted for the present, with the root fact. (2) Target: one isolated OS account per agent, created by the
+  orchestrator through a narrow privileged helper (least privilege: one helper with fixed settings, e.g. a single
+  sudoers entry; never general root for the orchestrator); every creation is a Tier 0 action (human-approved, logged).
+  (3) Step 3 phases and prices the move, including group-based access to shared checkouts; step 4 designs the helper.
+  (4) Host root stays residual for the lifetime (RR-2).
+- **Why:** one account per workload is the standard pattern (service users, systemd DynamicUser, k8s service accounts);
+  it makes per-agent keys a real boundary and ends agents running as root. Scored C +29, A +10, B (as an immediate
+  requirement) +5, D −12.
+- **Rejected:** A (closes the door on separation), B now (unmeasured change blocking the floor), D (step 3 needs it).
+- **Settles:** RR-2 accepted for now (with the target); RR-7 bounded by it.
+
+### 2026-10-07 — OQ-3 the circuit credential lifetime (operator ruling)
+- **Evidence added at the brief:** the .107 hub journal (from 2026-10-04 only) shows 2 restarts in 3 days, down
+  4m35s and ~1s; consistent with H-1 but thin.
+- **Operator question answered first:** how is a sender authenticated if a credential can be stolen? Answer recorded:
+  identity is the agent key pair (public key on the home hub's card, PR-1a); set-up is signed (7.2.a); the credential
+  is sender-constrained and channel-bound (fresh proof of possession, 7.2.c); every message is signed (PR-1, CR-2).
+  A stolen credential alone is useless; the remaining exposures are key theft (RR-2, OQ-2 target), a lying hub at
+  first contact (RR-14, ADV-11, OQ-8), and no operator key yet (GP-11, OQ-6).
+- **Chose:** D — PN-1 1 hour, PN-2 renewal from 30 minutes and 24 hours absolute, PN-13 1 hour, and the R-7.e (1)
+  cross-host bound of 1 hour, as STARTING values; re-checked against 30 days of hub outage data (follow-up T-3383).
+- **Why:** survives the measured outages with margin; a thief also needs the agent key; numbers stay open to evidence.
+  Scored D +42, B +26, C +12, A −21.
+- **Rejected:** A (a measured 4.5-minute restart takes a third of it), C (a working afternoon for a key thief),
+  B without a dated re-check (rests on 3 days of one hub).
+- **Settles:** PN-1, PN-2, PN-13, the R-7.e (1) bound; RR-5 accepted at a one-hour window.
+
+### 2026-10-08 — OQ-4 same-host new conversation without the hub (J4 question; operator ruling)
+- **Chose:** D — A now: a new conversation always goes through the hub, on one host too (R-7.e (2) unchanged); only
+  established conversations run on a circuit. Revisit B (local start while the hub is down) once per-agent OS
+  accounts exist (OQ-2 target) and T-3383 has measured hub-down time.
+- **Why:** a local start would be a second authority (R-45, R-49); with every agent running as root, "same user"
+  cannot tell agents apart (7.6.b); the OQ-2 target removes that obstacle, so B gets a second look then. Scored
+  D +42, A +33, B +9, C −17.
+- **Rejected:** B now (trusts anyone on the host), C (bypasses the hub's checks permanently), A with no revisit.
+- **Settles:** RR-11 accepted for now; TB-6 analysis (14.7, written for A) stands.
+
+### 2026-10-08 — OQ-5 failures the store must survive (GP-13; operator ruling)
+- **Chose:** A — survive F-1 (sidecar killed mid-write) and F-2 (host crash: flush before STORED); detect and show
+  F-3 (disk full: refuse STORED visibly), F-4 (corrupt record: checksum, quarantine, resend by digest), F-5 (store lost
+  or old copy restored: reconcile with the hub record, flag lost-after-STORED); refuse or detect F-6 (second writer,
+  lock) and F-7 (attacker writes; prevention is RR-2).
+- **Why:** STORED releases the sender, so it must hold through a power cut; every other failure is loud, never
+  silent. Scored A +42, C +32, B −18.
+- **Rejected:** B (no flush; breaks the STORED promise in a crash for unmeasured speed), C (duplicate writes for a
+  failure the resend path already recovers).
+- **Settles:** PR-17, SI-15, SI-16 to step 3 as the durability floor. Leaves recovery after F-5 to OQ-10 / CR-9.
+
+### 2026-10-08 — OQ-6 what "the operator" means as a sender until GP-11 (operator ruling)
+- **Operator question answered first:** does this cut the operator off (runme, approvals)? No: terminal input (incl.
+  voice), runme.sh, Watchtower ticks, inception decisions and Tier 0 approvals are local actions, not rail messages,
+  and are untouched; peer mail keeps flowing (urgent from outside the allow-list is downgraded, never dropped). Only a
+  rail message CLAIMING to be from the operator loses automatic top authority (mid-turn interrupt) until it can be
+  verified.
+- **Chose:** D — A for the security floor now: CR-10 accepted; until GP-11 is ruled the default allow-list is "own
+  project" only and no message is operator-class unless it verifies against an operator key kept off agent hosts
+  (PR-1b, SI-8). GP-11 must assess the already-authenticated channels (operator terminal, Watchtower login, the
+  out-of-band channels) as operator channels (C folded into GP-11).
+- **Why:** closes operator impersonation (TH-5; ADV-14, prompt injection) at no practical cost today. Scored D +37,
+  A +23, C +21, B −27.
+- **Rejected:** B (top of the authority model forgeable), C now (GP-11's design work), A without the C assessment.
+- **Settles:** CR-10 accepted; TH-5 countermeasure SI-8/PR-1b.
+
+### 2026-10-08 — OQ-7 held: the operator proposed a principle (not a ruling)
+- **Operator's idea (restated, not ruled):** read access follows the five identity levels: an agent reads its own
+  mail, a project reads all its agents' mail, no project reads another's; the hub is a mailman that reads the address
+  to route and forward but not the letter; the fallback never crosses into another project; exceptions only by an
+  explicit approved act (Tier 0 named). Operator asked for reflection and suggested external review.
+- **Orchestrator's formalisation:** P1 need-to-know by identity level; P2 hub reads envelope only; P3 end-to-end
+  encryption to the agent key or a project key, the hub may keep an encrypted copy (recovers a lost store, OQ-5 F-5);
+  P4 break-glass by an off-host operator recovery key (today's Tier 0 hook does not bind root; depends on GP-11).
+  It would answer OQ-7, OQ-10 and OQ-11 together.
+- **Action:** external review by Codex and GLM (lesson 5.18), `docs/reports/T-3351-principle-review/`; then the
+  principle comes to the operator as ONE decision; OQ-7/10/11 follow from it.
+
+### 2026-10-08 — Confidentiality principle B′, replacing OQ-7, OQ-10, OQ-11 (operator ruling)
+- **Review:** Codex and GLM both "adopt with changes" (comparison.md): P1/P3 conflict, pin keys first, envelope
+  metadata is a residual, fan-out per-message keys, bounded ciphertext retention, break-glass waits on GP-11.
+- **Guiding rule (operator):** purpose and intent over form: the right party gets the right information to do the
+  right thing, and the wrong party gets nothing that enables misuse.
+- **Chose:** B′ (operator: "B plus the custodial rule plus purpose-intent-over-form … yes to all as suggested"):
+  1. Private channels are private by default; public channels are public.
+  2. The hub is a mailman: it reads the envelope (routing, ladder, stuck detection, canaries), not the content; the
+     envelope's who-talks-to-whom-and-when stays visible (accepted residual).
+  3. Content is encrypted per message (random content key) and wrapped to each authorised reader's key (fan-out);
+     separate encryption and signing keys; no shared project private key for readers.
+  4. A project reads mail addressed to the project and mail that fell back or dead-lettered to it; nothing crosses
+     into another project.
+  5. Custody rule: each agent's private mail is also wrapped to a project custody key held by the project's
+     supervisor, never by sibling agents. The custodian releases an agent's mail to a successor only when the home hub
+     has declared the agent DEAD (R-44/R-60) AND the successor has taken over that agent's role in the same project
+     under the R-67 lease by the explicit hand-over of R-62. While the original is alive, nothing is released (no
+     duplicate work, continuity of the chain). Every release is logged (what, to whom). A resumed agent (R-65, same
+     identity) reads its own mail with its own key.
+  6. The hub keeps an encrypted copy with BOUNDED retention, so a lost receiver store can be recovered (OQ-5 F-5).
+  7. Break-glass: an off-host operator key to which message keys are wrapped in advance, scoped and logged unlock;
+     NOT real until GP-11 (today's Tier 0 hook does not bind root).
+  8. Build order for step 4 to size: pin hub card-signing keys out of band first; then agent-to-agent DM encryption;
+     then project mail; break-glass after GP-11. Receiver-side "show my own mail" tooling for debugging.
+- **Settles:** OQ-7 (token holders see envelopes only), OQ-10 (hub keeps an encrypted copy), OQ-11 (hub operator
+  sees envelopes only); RR-6 (a)(b) narrowed to "envelope metadata visible"; CR-9 answered.
+- **Residual named:** custody key and local keys reachable by host root until OQ-2's per-agent accounts plus a
+  separate supervisor account exist (RR-2).
+- **Rejected:** A (siblings read each other's mail; undoes OQ-2), C (every sender picks readers), D (keeps
+[0m
+[0m$ [0msed -n '370,470p' /opt/termlink/.tasks/completed/T-3388-arc-011-step-1-reopen-requirements-v05-f.md
+## Decisions
+
+<!-- Record decisions ONLY when choosing between alternatives.
+     Skip for tasks with no meaningful choices.
+     Format:
+     ### [date] — [topic]
+     - **Chose:** [what was decided]
+     - **Why:** [rationale]
+     - **Rejected:** [alternatives and why not]
+-->
+
+### 2026-10-10 — When and how to reopen step 1 (operator ruling)
+- **Chose:** A (operator: "A"): reopen now; a TermLink worker drafts v0.5 from the 20 accepted change requests with
+  traceability; Codex consistency check; operator sign-off of v0.5. Step-2 sign-off may run in parallel because
+  every change request was ruled individually.
+- **Rejected:** B (wait for the step-2 sign-off; waits for nothing), C (no reopen; step 3 would read two disagreeing
+  documents), D (only the CRs that change [R] requirements; new requirements left in the wrong document).
+
+### 2026-10-10 — R-67 precedence: named incumbent vs duplicate resolution (operator ruling)
+- **Source:** Codex check of v0.5 (codex-confirm.md 4a); fold-report 3.6.
+- **Chose:** D (operator: "D"): if the hub record names a valid lease holder it keeps main, busy or ready (R-67.a:
+  busy keeps main, no automatic take-back); other copies become instances, are told, stray role mail is forwarded.
+  The duplicate order (pin, then longest uninterrupted lease holding busy or ready, the operator's "longest
+  running", then stable id) applies only when the hub cannot name one valid holder (partition, restore, moved home
+  hub). Applied to R-67.a1 (3), 14.4.7 (closed) in requirements v0.5.2 and to CR-20 (3) in the threat model.
+- **Rejected:** A (same precedence, tie-break counted on ready time only), B (duplicate rule beats a busy incumbent;
+  main flaps), C (every duplicate waits for the operator; mail stuck, against RR-8).
+
+## Decision
+
+<!-- Filled at completion of inception tasks via:
+     fw inception decide T-XXX go|no-go|defer --rationale "..."
+
+     For non-inception tasks this section is ignored. Kept in template
+     so `fw inception decide` (lib/inception.sh) finds the anchor heading
+     without auto-creating; T-1832 added auto-create as fallback for
+     legacy tasks lacking this section. -->
+
+## Updates
+
+### 2026-10-10T15:48:26Z — task-created [task-create-agent]
+- **Action:** Created task via task-create agent
+- **Output:** /opt/termlink/.tasks/active/T-3388-arc-011-step-1-reopen-requirements-v05-f.md
+- **Context:** Initial task creation
+
+### 2026-10-10T15:49:00Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-24247c74
+- **Timestamp:** 2026-10-11T10:59:51Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-10-11T10:59:50Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Completed via Watchtower UI (human action)
+[0m
+Read-only confirmation check performed against: the DRAFT v0.2 document (all 1068 lines), both round-1 reviews, `disposition-r1.md`, `fixes-r1.md`, TM §22.18, and the Decisions sections of T-3351 and T-3388.
+
+## 1 The 17 disposition rows
+
+1a Row 1 (may_remove): fixed. 10.3.3 now reads `anyone_in_conversations_it_started` with the ruled wording and a v0.1 note. 1b Row 2 (C-17): fixed. Class table ends at C-16; new 10.2.2.a keeps custody release inside C-10 / break-glass (R-80.a (7)); OP-3 carries the ruling-change note. 1c Row 3 (C-9c): fixed. 10.3.2.e constrains renewal to grant records (every rule `start`/`resume`, identical body, unexpired); 10.3.2.e.3 states budget never resets [P]. 1d Row 4 (C-15): fixed. One event and one digest per account; batch form withdrawn with the ruling cited in C-15 and OP-1. 1e Row 5 (digest): fixed. 10.3.2.c removes both `digest` and `signature`; 10.3.2.c.5 binds the authorising event to the unapproved form; the profile example carries an approval; 10.3.5 refuses empty `approvals`. 1f Row 6 (format): fixed per 2c below. 1g Row 7 (PH-3 exit): fixed. 6.2.4.c (2) tests C-2a/C-6a live and C-10 by fixture, live at PH-4 exit (6.2.5.c (9)). 1h Row 8 (pilot): fixed. A0 moved to PH-3 behind the C-15 route, consistently in 6.2.3.a, 6.2.4.a (12)/c (5), 6.5.2, 4.2, 9.2/9.3; no new RA needed. 1i Row 9: fixed as disposed — SI-15 closed in PH-1 by the estate guard (3.3.1.d, X4); SI-7 on old rails is RA-9 (11.3.9) + OP-23 (13.2.16), cited in 3.3.1.e and the SI-7 row. 1j Row 10: OP-21 (13.2.14), options A–D, recommendation A; BV-5 aligned and marked pending; CX-2 points at it — not decided. 1k Row 11: OP-22 (13.2.15); 6.6 and 15.5.5 point at it — not decided. 1l Row 12: fixed. 6.2.1.d keeps the recorder, off switch removed with a v0.1 note. 1m Row 13: fixed. Six item-by-item PH-6 procedures (6.2.7.c), D-1 note, 6.8.3, re-render in 16.2/16.4. 1n Row 14: fixed. RA-4 ends in two separately stated parts (11.3.4.d.1–d.3). 1o Row 15: fixed. OP-10 A names the five rules 3.1.b–3.1.f. 1p Row 16: fixed. The plaintext-content-field baseline is in 6.2.1.a (2) and exit (4). 1q Row 17: fixed. 4.4.c and 11.2 now say "every other P1 delivery item" with the two later exceptions named. No row unfixed or fixed wrongly.
+
+## 2 New contradictions
+
+2a Against rulings: none found. C-10's conditions match B′/OQ-17 D verbatim; C-15 matches R-82.a (3); the may_remove default `nobody` matches OQ-12; IC-2 matches OQ-14 D‴; the FX-1 "disable" deferral remains behind RA-5/OP-19, the card-sanctioned route; R-67 handling matches the T-3388 ruling. 2b Internal: two minor seams introduced or left by the row-6 fix — see 3a and 3b.
+
+## 3 Policy format (10.3) implementability
+
+3a Signing is now deterministic: canonical RFC 8785 payload, domain-separated signature, recomputation mandated, epochs per (scope, kind), replace-not-merge, and same-level resolution (deny overrides allow, smallest limit, order-independent) are all normative. Two implementations would sign identically. 3b Remaining ambiguity (evaluation): "a rule matching the request" (10.3.7.b) is never defined normatively — whether a broader `where` (e.g. fleet) matches a narrower place, and how relation selectors compare to a concrete target, is implied only. 3c Minor inconsistency: 10.3.4.c says only the four event-verb classes can have a policy route, but the C-3 cell ("policy only if that hub's list … names it"), the 10.2.6 growth path and OP-2 option C all suppose policy routes for classes with no verb; the format cannot express them without a schema change the text does not state. 3d Minor inconsistency: the 10.3.8 defaults table carries `be_main`, which is not one of the fourteen closed verbs (10.3.4.a); a `may: "be_main"` rule would be refused by 10.3.2 yet defaults-table readers may treat it as valid.
+
+## 4 Verdict
+
+**Confirmed after listed fixes.** Fix list: 4a1 define the rule-matching predicate for `who`/`toward`/`where` normatively (3b); 4a2 state that policy routes for classes without an event verb require a schema extension, and align the C-3 cell, 10.2.6 and OP-2 C with it (3c); 4a3 remove the `be_main` row from 10.3.8 or make it explicitly the profile default, not a verb (3d).
