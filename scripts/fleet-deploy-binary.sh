@@ -53,6 +53,7 @@ else
 fi
 DST=""
 SESSION=""
+SESSION_EXPLICIT=0   # 1 when --session was given: never swap it for a discovered one
 CHUNK=$((45 * 1024))
 SWAP=0
 PROBE=0
@@ -62,7 +63,7 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --binary)        BINARY="$2"; shift 2;;
     --dst)           DST="$2"; shift 2;;
-    --session)       SESSION="$2"; shift 2;;
+    --session)       SESSION="$2"; SESSION_EXPLICIT=1; shift 2;;
     --chunk-bytes)   CHUNK="$2"; shift 2;;
     --swap-restart)  SWAP=1; shift;;
     --force-detached) FORCE_DETACHED=1; shift;;
@@ -82,10 +83,42 @@ done
 [ -z "$DST" ] && DST="/tmp/$(basename "$BINARY").new"
 
 # --- Discover session if needed ---------------------------------------------
+discover_session() { timeout 30 termlink remote list "$HUB" 2>/dev/null | awk 'NR==3 {print $1}' || true; }
 if [ -z "$SESSION" ]; then
-  SESSION=$(timeout 30 termlink remote list "$HUB" 2>/dev/null | awk 'NR==3 {print $1}')
+  SESSION=$(discover_session)
   [ -z "$SESSION" ] && { echo "ERROR: no session found on $HUB; pass --session" >&2; exit 1; }
 fi
+
+# T-3399: the borrowed remote session can vanish mid-run (ring20-dashboard, 2026-10-11:
+# 'Session ... not found' x3 at chunk 426 of a re-stream). Every remote step goes through
+# rexec, which re-discovers a live session and retries the SAME step. The current session
+# lives in a file because rexec is mostly called inside $(...) subshells.
+# fd 9 is the real stdout, so the switch is logged even when the caller captures output.
+exec 9>&1
+WORK=$(mktemp -d -t fleet-deploy-XXXXXX)
+trap 'rm -rf "$WORK"' EXIT
+printf '%s' "$SESSION" > "$WORK/.session"
+rexec() {  # $1 = remote timeout secs, $2 = command; stdout/stderr pass through, rc preserved
+  local t="$1" cmd="$2" sess out rc errf switches=0 new
+  errf=$(mktemp "$WORK/.err.XXXXXX")
+  while :; do
+    sess=$(cat "$WORK/.session"); rc=0
+    out=$(timeout $((t+5)) termlink remote exec --timeout "$t" "$HUB" "$sess" "$cmd" 2>"$errf") || rc=$?
+    if [ "$rc" -ne 0 ] && [ "$SESSION_EXPLICIT" = 0 ] && [ "$switches" -lt 3 ] \
+       && { cat "$errf"; printf '%s' "$out"; } | grep -qE "Session .* not found"; then
+      new=$(discover_session)
+      if [ -n "$new" ] && [ "$new" != "$sess" ]; then
+        printf '%s' "$new" > "$WORK/.session"; SESSION="$new"; switches=$((switches+1))
+        echo "  session $sess vanished; re-discovered $new, retrying the same step" >&9
+        continue
+      fi
+    fi
+    break
+  done
+  [ -n "$out" ] && printf '%s\n' "$out"
+  cat "$errf" >&2; rm -f "$errf"
+  return "$rc"
+}
 
 EXPECTED_SHA=$(sha256sum "$BINARY" | awk '{print $1}')
 SIZE=$(stat -c%s "$BINARY")
@@ -100,24 +133,33 @@ echo "  chunk:     $CHUNK bytes"
 # --- Idempotency pre-check --------------------------------------------------
 # If the running hub binary on the remote already matches our sha, skip.
 echo ">>> idempotency check: query running hub binary sha"
-RUNNING_SHA=$(timeout 30 termlink remote exec --timeout 25 "$HUB" "$SESSION" \
-  "PID=\$(pgrep -f '[t]ermlink hub start' | head -1); [ -n \"\$PID\" ] && sha256sum \"/proc/\$PID/exe\" 2>/dev/null | awk '{print \$1}'" 2>/dev/null | tr -d '[:space:]')
+RUNNING_SHA=$(rexec 25 \
+  "PID=\$(pgrep -f '[t]ermlink hub start' | head -1); [ -n \"\$PID\" ] && sha256sum \"/proc/\$PID/exe\" 2>/dev/null | awk '{print \$1}'" 2>/dev/null | tr -d '[:space:]') || true
 if [ "$RUNNING_SHA" = "$EXPECTED_SHA" ]; then
   echo "✓ remote hub already running this exact binary (sha matches) — nothing to do"
   exit 0
 fi
 echo "  running sha=${RUNNING_SHA:-<none>} ≠ expected; proceeding with stream"
 
+# --- Pre-staged? ------------------------------------------------------------
+# T-3399: a previous call (stage-only, then --swap-restart) leaves a verified binary at
+# $DST; re-streaming ~40MB over exec is slow and exposes the run to the same session loss.
+SKIP_STREAM=0
+PRE_SHA=$(rexec 25 "sha256sum '$DST' 2>/dev/null | awk '{print \$1}'" 2>/dev/null | tr -d '[:space:]') || true
+if [ "$PRE_SHA" = "$EXPECTED_SHA" ]; then
+  echo "✓ $DST on remote already has the expected sha — skipping stream"
+  SKIP_STREAM=1  # T-3399:skip-stream
+fi
+
+if [ "$SKIP_STREAM" != "1" ]; then
 # --- Stage chunks -----------------------------------------------------------
-WORK=$(mktemp -d -t fleet-deploy-XXXXXX)
-trap 'rm -rf "$WORK"' EXIT
 split -b "$CHUNK" -d -a 4 "$BINARY" "$WORK/c."
 N=$(ls "$WORK" | wc -l)
 echo "  chunks:    $N"
 
 REMOTE_DIR="/tmp/.fleet-deploy.$$"
 echo ">>> preparing remote staging dir $REMOTE_DIR"
-timeout 30 termlink remote exec --timeout 25 "$HUB" "$SESSION" \
+rexec 25 \
   "mkdir -p '$REMOTE_DIR' && rm -f '$REMOTE_DIR'/* && echo OK" >/dev/null \
   || { echo "ERROR: prep remote dir failed" >&2; exit 3; }
 
@@ -130,7 +172,7 @@ MAX_ATTEMPTS=$(( ${#BACKOFF[@]} + 1 ))
 abort_stream() {
   echo "ERROR: $1" >&2
   # Best effort: do not leave megabytes of staged chunks on the remote.
-  if timeout 30 termlink remote exec --timeout 25 "$HUB" "$SESSION" "rm -rf '$REMOTE_DIR' && echo CLEANED" 2>/dev/null | grep -q CLEANED; then
+  if rexec 25 "rm -rf '$REMOTE_DIR' && echo CLEANED" 2>/dev/null | grep -q CLEANED; then
     echo "  removed remote staging dir $REMOTE_DIR" >&2
   else
     echo "  WARNING: could not remove remote staging dir $REMOTE_DIR" >&2
@@ -146,7 +188,7 @@ for f in "$WORK"/c.*; do
   while :; do
     # `|| rc=$?` keeps a failed send from tripping `set -e` before the retry.
     rc=0
-    err=$(timeout 60 termlink remote exec --timeout 50 "$HUB" "$SESSION" \
+    err=$(rexec 50 \
          "printf '%s' '$b64' | base64 -d > '$REMOTE_DIR/$name'" 2>&1 >/dev/null) || rc=$?
     if [ "$rc" -eq 0 ]; then
       SENT=$((SENT+1))
@@ -164,13 +206,14 @@ echo ">>> sent $SENT/$N (retries=$RETRIES)"
 
 # --- Assemble + verify -------------------------------------------------------
 echo ">>> assembling on remote and verifying sha"
-ASSEMBLE_OUT=$(timeout 60 termlink remote exec --timeout 50 "$HUB" "$SESSION" \
+ASSEMBLE_OUT=$(rexec 50 \
   "cd '$REMOTE_DIR' && cat \$(ls | sort) > '$DST' && rm -rf '$REMOTE_DIR' && sha256sum '$DST' | awk '{print \$1}'" 2>&1 | tr -d '[:space:]')
 
 if [ "$ASSEMBLE_OUT" != "$EXPECTED_SHA" ]; then
   echo "ERROR: sha mismatch on remote (expected=$EXPECTED_SHA got=$ASSEMBLE_OUT)" >&2
   exit 2
 fi
+fi  # SKIP_STREAM
 echo "✓ binary staged at $DST (sha verified)"
 
 # --- Optional: probe (foreign-binary exec test) -----------------------------
@@ -178,7 +221,7 @@ echo "✓ binary staged at $DST (sha verified)"
 # `<NEW> --version` on the remote with a tight timeout; abort if non-zero.
 if [ "$PROBE" = "1" ]; then
   echo ">>> probe: running '$DST --version' on remote"
-  PROBE_OUT=$(timeout 30 termlink remote exec --timeout 25 "$HUB" "$SESSION" \
+  PROBE_OUT=$(rexec 25 \
     "chmod +x '$DST' && '$DST' --version 2>&1; echo __EXIT_\$?__" 2>&1)
   PROBE_EXIT=$(echo "$PROBE_OUT" | grep -oE '__EXIT_[0-9]+__' | head -1 | grep -oE '[0-9]+')
   if [ "${PROBE_EXIT:-1}" != "0" ]; then
@@ -201,7 +244,7 @@ if [ "$SWAP" = "1" ]; then
   # --force-detached. Probe failure (no systemctl, exec error) fails OPEN —
   # unit-less hosts are this script's original audience.
   echo ">>> G-070 guard: checking target for termlink-hub.service"
-  UNIT_PRESENT=$({ timeout 30 termlink remote exec --timeout 25 "$HUB" "$SESSION" \
+  UNIT_PRESENT=$({ rexec 25 \
     "if command -v systemctl >/dev/null 2>&1; then systemctl list-unit-files termlink-hub.service 2>/dev/null | grep -q '^termlink-hub.service' && echo 1 || echo 0; else echo no-systemd; fi" 2>/dev/null || true; } | tr -d '[:space:]')
   case "$UNIT_PRESENT" in
     1)
@@ -297,13 +340,13 @@ EOF
 
   REMOTE_DEPLOY="/tmp/fleet-deploy-runner.sh"
   echo ">>> pushing deploy script to remote"
-  timeout 30 termlink remote exec --timeout 25 "$HUB" "$SESSION" \
+  rexec 25 \
     "printf '%s' '$B64' | base64 -d > '$REMOTE_DEPLOY' && chmod +x '$REMOTE_DEPLOY' && echo OK" >/dev/null \
     || { echo "ERROR: push deploy script failed" >&2; exit 4; }
 
   echo ">>> launching swap+restart detached"
   PRE_TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-  timeout 30 termlink remote exec --timeout 25 "$HUB" "$SESSION" \
+  rexec 25 \
     "nohup setsid '$REMOTE_DEPLOY' > /dev/null 2>&1 < /dev/null & echo launched=\$!" \
     || { echo "ERROR: launch failed" >&2; exit 4; }
 
