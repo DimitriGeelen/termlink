@@ -18,6 +18,14 @@ const B: &str = "agent-b";
 const INST_A: &str = "inst-a";
 const INST_B: &str = "inst-b";
 
+/// Each test starts its own hub. On a loaded host, eight hubs starting at once
+/// miss the 5 s `hub.version` bound, so the hub tests here run one at a time.
+static HUB_SERIAL: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+fn serial() -> std::sync::MutexGuard<'static, ()> {
+    HUB_SERIAL.lock().unwrap_or_else(|p| p.into_inner())
+}
+
 struct Agent {
     store: Arc<Store>,
     sender: Arc<Sender>,
@@ -158,6 +166,7 @@ fn post_signed(e: &Estate, key: &Identity, m: &Msg) {
 
 #[test]
 fn receive_hub_message_is_received_then_stored_and_sender_shows_both_with_receiver_times() {
+    let _serial = serial();
     let (_e, a, b) = pair();
     let s = a.sender.send(B, INST_B, Some("conv-1"), "hello", None).unwrap();
     assert_eq!(caught_up(b.rx.pass()), 1);
@@ -189,6 +198,7 @@ fn receive_hub_message_is_received_then_stored_and_sender_shows_both_with_receiv
 
 #[test]
 fn receive_hub_forged_or_misaddressed_messages_are_refused_never_stored() {
+    let _serial = serial();
     let (e, a, b) = pair();
     let ka = e.identity("a").unwrap();
     let host = e.identity("host").unwrap();
@@ -234,6 +244,7 @@ fn receive_hub_forged_or_misaddressed_messages_are_refused_never_stored() {
 
 #[test]
 fn receive_hub_store_failure_at_every_step_reports_nothing_then_restart_stores_once() {
+    let _serial = serial();
     let e = Estate::create().unwrap();
     let id = e.hub_id().unwrap();
     let a = agent(&e, "a", A, INST_A, &id);
@@ -272,6 +283,7 @@ fn receive_hub_store_failure_at_every_step_reports_nothing_then_restart_stores_o
 
 #[test]
 fn receive_hub_restart_after_processing_without_cursor_adds_no_second_stage() {
+    let _serial = serial();
     let (e, a, b) = pair();
     let s = a.sender.send(B, INST_B, Some("r-1"), "once", None).unwrap();
     caught_up(b.rx.pass());
@@ -287,6 +299,7 @@ fn receive_hub_restart_after_processing_without_cursor_adds_no_second_stage() {
 
 #[test]
 fn receive_hub_same_id_with_another_body_is_a_conflict_and_never_stored() {
+    let _serial = serial();
     let (e, _a, b) = pair();
     let ka = e.identity("a").unwrap();
     post_signed(&e, &ka, &msg(&ka, A, INST_B, "c-1", "dup", "first body"));
@@ -301,6 +314,7 @@ fn receive_hub_same_id_with_another_body_is_a_conflict_and_never_stored() {
 
 #[test]
 fn receive_hub_second_sidecar_on_the_same_store_is_refused() {
+    let _serial = serial();
     let (e, _a, _b) = pair();
     match Store::open(&e.store_root(), B) {
         Err(StoreError::Locked) => {}
@@ -311,6 +325,7 @@ fn receive_hub_second_sidecar_on_the_same_store_is_refused() {
 
 #[test]
 fn receive_hub_wrong_hub_id_reads_nothing_and_says_so() {
+    let _serial = serial();
     let (e, a, _b) = pair();
     a.sender.send(B, INST_B, Some("p-1"), "pinned", None).unwrap();
     // A receiver for B declared against another hub id, on a fresh store.
@@ -356,6 +371,7 @@ fn receive_hub_wrong_hub_id_reads_nothing_and_says_so() {
 
 #[test]
 fn receive_hub_forged_or_stray_stage_records_are_ignored_and_shown() {
+    let _serial = serial();
     let (e, a, b) = pair();
     let s = a.sender.send(B, INST_B, Some("s-1"), "staged", None).unwrap();
     let topic_a = inbox_topic(&e.hub_id().unwrap(), A);
