@@ -7,10 +7,10 @@ description: >
   B2 (ACs and verification there): new crate crates/termlink-sidecar, C-1 estate guard
   (refuse outside a marked throwaway tree), C-12 testkit for E-1..E-5.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -41,8 +41,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-11T18:09:17Z
-last_update: 2026-10-11T18:10:34Z
-date_finished:
+last_update: 2026-10-11T18:13:07Z
+date_finished: 2026-10-11T18:13:07Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -121,7 +121,7 @@ bvp_scores_proposed:
 ## Verification
 
 cargo test -p termlink-sidecar estate_ > /tmp/.t3402.out 2>&1 && grep -q "test result: ok" /tmp/.t3402.out
-cargo clippy -p termlink-sidecar --all-targets > /tmp/.t3402c.out 2>&1 && ! grep -q "crates/termlink-sidecar" /tmp/.t3402c.out
+cargo clippy -p termlink-sidecar --all-targets > /tmp/.t3402c.out 2>&1 && ! grep -q -- "--> crates/termlink-sidecar" /tmp/.t3402c.out
 cargo fmt -p termlink-sidecar -- --check
 
 # Shell commands that MUST pass before work-completed. One per line.
@@ -373,3 +373,15 @@ cargo fmt -p termlink-sidecar -- --check
 
 ### 2026-10-11T18:10:34Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-47ac1e31
+- **Timestamp:** 2026-10-11T18:13:12Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-10-11T18:13:07Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
