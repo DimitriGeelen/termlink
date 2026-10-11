@@ -436,4 +436,102 @@ flowchart LR
 6.2.3.e Rollback, per wave. Stop `termlink sidecar` for the agent. Before the old receiver starts, the sidecar refuses new mail (senders keep chasing) and every STORED message not yet handed over is re-posted to the agent's old inbox with its original id and signature, or kept; the count is compared. Only then does the old receiver start, so exactly one receiver serves the inbox. The store is kept for 14 days. For W4 the AEF receiver stays installed, switched off, until PH-3 exits.
 6.2.3.f Must not: run both receivers; drop a STORED message; leave the doorbell on while the kill switch is the only way to stop it and that switch has not been tested.
 
+6.2.4 **PH-3 Identity, directory and admission.** More than one hub: the fleet over the hub path. OD-1 C, steps 1 and 2 of its build order (identity hygiene and the directory with liveness; conversations bound to an instance).
+6.2.4.a Scope. (1) The directory and project identity (R-60); the hub signing key apart from the TLS certificate (R-61); the roster, signed cards with a sequence number and time-to-live, home-hub binding as R-60.a (2e) rules it, the project root key, signed key rotation and "moved to", the no-guess rule, the optional per-hub list of project ids, the registration cap (R-77). (2) Tier 0 events and the route registry (R-72, 10.2): who asks, what, evidence, digest; one audit trail; a human-route event expires visibly after 10 minutes (PN-15); approvals digest-bound and single-use (SI-13); the confirmation-provider contract with a **stub provider for tests** and the interim controls of 10.4 (R-76.a (6)). (3) Every client verifies the declared hub id (R-54, FX-2 complete). (4) DEAD is signed and sequenced (R-60.a, R-65.a). (5) Versions on the card, the NTP check, the skew flag, cross-host refusal of an incompatible version (R-57 second part). (6) T-3347, the cross-hub read of a message's stage and reply by id, so a sender on one hub reads the record on another. (7) Cross-project and cross-hub conversations with admitted peers over the hub path. (8) Principle B′, stage 1: pin hub card-signing keys out of band (R-80). (9) The TOFU repair paths gated by a Tier 0 event (BP-19, PR-14). (10) The end of the `sidecar:` alias (R-71). (11) Peers see only reachable yes or no and the version class (R-53, CR-11).
+6.2.4.b Floor entering: SI-12, SI-13, SI-31; completing: SI-8, FX-2.
+6.2.4.c Exit. (1) A forged card, a replayed old card, a restored roster, an unsigned hub-key change and a competing project claim are each refused or flagged, and the original binding still resolves (fixtures, then a two-hub live test with a negative control). (2) A Tier 0 event is decided on each route: the policy route for the ruled class, recorded; a human-route event unanswered for 10 minutes expires visibly and nothing takes effect; an approval whose digest differs, or whose executor or target differs, is refused; a replayed approval is refused; with no provider, the interim double approval is required and the status shows "no confirmation provider"; with the stub provider unreachable, a high-impact approval fails closed. (3) A mixed-version pair is refused loudly; a sender host 10 minutes fast makes no deadline judged from its timestamps. (4) A cross-hub message from an admitted peer reaches HANDED_OVER with the same five rows as a local one. (5) H-2, H-12, H-21, H-22 and H-23 are measured. (6) T-2470, the charter rewording, is approved by the operator (6.6).
+6.2.4.d Rollback. Stop exchanging cards: single-hub operation of PH-2 resumes; cross-hub mail waits and the sender sees WAITING (fail closed). The roster and keys are kept. Pending Tier 0 events expire and no state change takes effect.
+6.2.5 **PH-4 Authority, roles and many to many.** OD-1 C step 2 completed, and the consent rules.
+6.2.5.a Scope. (1) The rule engine and the policy record of 10.3 (R-73); the allow-list (R-63) and grants (R-64) as instances of it, so the NK configuration surface and its lock arrive together. (2) Grants and the Tier 2 and Tier 3 starts (R-64); resume of an exact instance (R-65, FX-3). (3) The role "main": the readiness-gated lease, takeover after lapse plus quiet period plus cooldown, duplicate mains resolved by the home hub, stray role mail forwarded once (R-67 with R-67.a1, R-68). (4) Conversation membership: join, leave, removal, hand-over, intent, history share, epochs, fencing; the three-agent conversation (R-74, R-1). (5) Authority only from operator-signed configuration (R-78). (6) The founding verbs under the boundary model, cross-project use a Tier 0 event (FX-4 complete); vendor channels disabled where the harness allows, once T-3386 exists (FX-1 complete). (7) Principle B′, stage 2: encryption of direct messages to each authorised reader (R-80). (8) The outgoing secret scan (PR-11). (9) Peer text framed on every other rail, the pickup rail first (SI-7 complete, BP-12). (10) The second harness adapter and the parity test, when 055 supplies it (R-47). (11) Expiry, cancellation and the receiver-advertised window (R-56 second part).
+6.2.5.b Floor entering: SI-20, SI-21, SI-29, FX-3; completing: SI-7, SI-24, SI-26, FX-1, FX-4, FX-5 (first stage).
+6.2.5.c Exit. (1) The two standing tests of R-68 each end in a visible takeover. (2) A duplicate main is resolved within one tick plus one pull and no forwarded message is processed twice (H-24). (3) A three-agent conversation runs live; a resume-refused case runs live; a hand-over fences the old copy, whether it sends under its old epoch or a claimed newer one. (4) Rule-engine fixtures: nesting, narrowing, an attempt to widen is flagged, the default profile, and every decision names its rule. (5) An agent that writes its own grant, allow-list entry or eligibility has no effect, and at base strength the write is detected within one tick and shown (H-25). (6) A token holder reads the envelope of an encrypted message and not its content; the custodian releases nothing of a live agent's mail. (7) The bypass inventory is re-run and no route is newly open (H-26). (8) T-3386 is done before FX-1 is switched to "disable".
+6.2.5.d Rollback. Grants off: nothing starts, which is the fail-closed state. Main returns to the operator-pinned form of PH-2. Membership events are disabled: conversations are two-party. The rule engine is off: the fixed defaults apply. Encryption is not rolled back below its floor: no new encrypted conversation is created, existing ones keep working (3.1.d).
+6.2.6 **PH-5 The direct circuit.** OD-1 C step 3. Established conversations run sidecar to sidecar and survive a hub outage.
+6.2.6.a Scope. (1) The circuit and its conditions: hub set-up, sender-constrained credential, set-up window, scope of one conversation, lifetime counted from establishment, revocation pulled each tick, the stale rule, the set-up rate (R-46, PN-1 to PN-3, PN-6, PN-12, PN-13). (2) Push first for established conversations; hub independence for them (R-12, R-7.e (1)); re-resolution of a moved peer (R-10). (3) The circuit part of the sender numbers: bounded buffering, gap reports with resend, resume from the last acknowledged number (R-59). (4) The outage exception: stages in the receiver's local hash-chained log, replayed and reconciled on return by the rules of 10.5; replies on the circuit; the sender's state computed from receipts and labelled "unreconciled" (R-45.a, R-44.a, CR-1). (5) The bounded encrypted copy of circuit turns on the hub, the recovery path for F-5 (R-80, FX-5). (6) Revocation scopes RK-2, RK-3, RK-5 complete (SI-11).
+6.2.6.b Floor entering: SI-9, SI-10; completing: SI-5, SI-11, FX-5.
+6.2.6.c Entry gates beyond 6.1.a. The T-3383 data is complete and H-1 passes, or the operator re-rules PN-1; direct-message encryption (PH-4) is done, because a circuit turn is content on the hub (FX-5); the operator has seen the H-27 baseline (6.2.6.f).
+6.2.6.d Exit. (1) A broken circuit falls back to the hub path with the same ids, stages and order, nothing lost and nothing delivered twice (R-46.e). (2) With both hubs stopped, turns continue until the credential expires and the first turn after it waits (R-7.e). (3) Each of these is refused: a credential presented from another connection, an establishment nonce older than 60 seconds, a circuit older than its lifetime even if renewed in place, a revocation list restored to an older state (detected against the home hub's head), an urgent turn from a sender not on the allow-list is downgraded and not dropped. (4) The restore-from-backup case is recorded as the known limit RR-20, not read as a pass. (5) The reconciliation fixtures RC-1 to RC-9 pass. (6) H-1, H-4, H-8 and H-27 are measured.
+6.2.6.e Rollback. The hubs stop minting credentials. Established circuits end at expiry, at most PN-1, and the conversations continue on the hub path with the same ids. This is the cleanest rollback of the arc because R-46.e requires it. The encrypted hub copy stays.
+6.2.6.f The value check on the ruling. The operator ruled the circuit (OD-1 C). AEF's condition for building a socket was a measurement: the hub path costs more than about 10% of the median turn time, or hub outages break more than a few conversations a week. That measurement is part of the circuit's first build (R-46.e). H-27 states it as a hypothesis with a threshold. It does not reopen OD-1; if the circuit turns out not worth its upkeep the operator is told and decides (6.2.6.g).
+6.2.6.g If H-27 is refuted the operator gets a decision brief (stop at PH-4 and keep hub-path delivery, or build for hub independence regardless). I do not decide it.
+6.2.7 **PH-6 Completion.** What is left, and the arc's closing conditions.
+6.2.7.a Scope. (1) Principle B′, stage 3: project mail and the custody key with its release rules; break-glass once K exists (R-80). (2) Track A, stage A4: the orchestrator no longer runs as `root` (10.1). (3) Track K: the real confirmation provider connected (T-3385 outcome); GP-11, the operator as a party to a conversation (R-1.e (3)). (4) R-36 digests; R-9 the startup chain, now that grants exist; R-41 typed work messages (planner); R-55 the send-and-wait tool (AEF). (5) Retire the shell sidecars. (6) Arc closing: every dimension of R-69 has run (section 8); every tripwire reviewed; the bypass inventory re-run; `scripts/arc-live-probe.sh` passes on every hub that needs the capability, so "shipped" means "live" (G-069).
+6.2.7.b Exit: the closing conditions of 6.2.7.a (6), and the register says what actually operates (A-6). Rollback: per item; none is a security control that can be turned off to roll back.
+6.3 Placement check. Every requirement of REQ has a row in 4.2 with a phase or a reason it has none. The CAND-n and OD-n items of the step-1 rulings became requirements (REQ OD-17.T) and are placed through them. The items outside the R-n numbering that REQ 13.1 and 13.5.1 handed to this step are placed as follows: the GP-12 numbers (section 7); CAND-3 staging (section 8); the ordering of the P1 and P2 items (4.2, section 6); the policy format, the risk classes, accounts and the interim controls (section 10); the reconciliation details of the outage log (10.5); the durability floor (SI-15 in 3.3, with F-1 to F-7 in the proof of FC-2, FC-3 and in 6.2.3.d); the defence against ADV-1 to ADV-14 (3.7).
+6.4 What the operator can rely on after each phase, and what is still not true. This is the answer to "what do I get, when".
+
+| After | The operator can rely on | Still not true |
+|---|---|---|
+| PH-0 | Numbers about today's chain; every re-pin leaves a record | Nothing is delivered any differently |
+| PH-1 | A sealed-room proof that a message reaches a working agent's transcript, the reply comes back, and every listed failure ends visibly | Nothing runs for real; idle agents are not reached |
+| PH-2 | On this host, between this project's agents: honest stages, delivery to working sessions and to idle sessions with a typable terminal, a status call that tells the truth, a daily canary, supervision, a kill switch for interruptions | A hub outage stops delivery between agents (visibly); no cross-host trust; no roles, grants or many-to-many; hub content readable as today; agents still share one user (RR-2) |
+| PH-3 | Cross-host conversations with admitted peers; forged cards ignored; admissions and key changes are Tier 0 events with an audit trail | Still a hub-path system; the operator key and OTP not real (interim approval); roles and grants not configurable |
+| PH-4 | Roles, grants, resume, many-to-many, the boundary rules, encrypted direct messages | Hub independence for established conversations; project mail encryption; break-glass |
+| PH-5 | Established conversations survive a hub outage until the credential expires; the outage log reconciles on return | The operator as a party to a conversation (GP-11); the real confirmation provider if T-3385 has not delivered |
+| PH-6 | The arc is closed against its own tests; the register matches what operates | Host root remains (RR-2) |
+
+6.5 The three tracks. They are not phases: they have their own stages and they gate phases at stated points.
+6.5.1 **Track M, measurement.** M1 T-3383 collects 30 days of hub outage durations from PH-0 (H-1); it gates PH-5. M2 the PH-0 baselines. M3 each hypothesis of section 9 is measured as an acceptance item of the first build of its subject (OQ-9 D). M4 the circuit value check (H-27).
+6.5.2 **Track A, per-agent accounts.** Stages A0 to A4 are in 10.1. A0 starts in PH-1 or PH-2; A3 is recommended before PH-4 exits; A4 is in PH-6.
+6.5.3 **Track K, the operator key and the confirmation provider.** K1 T-3385 decides the engine and the contract (owner human, `started-work`). K2 the contract and the stub provider arrive with PH-3. K3 ring20-manager builds the facility (its schedule is theirs). K4 the operator key is created and registered, with its recovery key. K5 the real provider connects (PH-6). K6 break-glass (PH-6). The tracks do not block PH-3 or PH-4: the interim controls of 10.4 are ruled to carry them (R-76.a (6)).
+6.6 External gates and dependencies. "Status" is what the record shows **[H]**.
+
+| Dependency | Needed by | Status | If it slips |
+|---|---|---|---|
+| T-3383 outage measurement | start PH-0; gates PH-5 | captured, horizon later | PH-5 waits; PN-1 stays a starting value |
+| T-3384 re-pin record | PH-0 | captured, horizon next | RR-18 stays unmitigated; BP-19 open |
+| T-3387 activity veto, busy bit | PH-2 wave W2 | captured, horizon next | The doorbell stays off; W1 hook delivery still works |
+| T-3347 cross-hub read of stage and reply | PH-3 | captured, horizon next | Cross-hub senders cannot read the hub record; cross-host stays unsupported |
+| T-2470 charter rewording (card exchange) | PH-3 | an operator decision, pending (REQ 13.2.2) | PH-3 cannot ship the card exchange; cross-hub trust stays pairwise HMAC as today |
+| T-3386 lightweight TermLink dispatch | PH-4 (FX-1 disable) | captured, horizon next | Vendor channels stay logged, not disabled (RA-5) |
+| T-3385 OTP inception; ring20-manager's facility | Track K; PH-6 | started-work, owner human | Interim approvals continue (RA-4) |
+| AEF: split of the receive side and who supplies the Claude adapter (REQ 13.2.3); offsets 314, 318, 319 (vocabulary, ladders, priority field) | PH-2 | proposed, not ruled | I assume TermLink writes the Claude adapter and the hook if AEF does not **[A]**; the AEF receiver stays until W4 |
+| T-3342, T-3370 re-vendor of AEF | PH-2 install on AEF-governed projects; R-71 date | T-3370 `started-work` | The `sidecar:` alias date moves with it |
+| 055: the opencode adapter | PH-4 parity test; the policy format (10.3) | 055 waits for the format | The parity test is Deferred and the sender sees "unreachable by design" for that harness (R-47.e) |
+
+6.7 Drawing D-1.
+
+**Drawing D-1 — phase timeline: the phases in order, their exit criteria and rollback points, and the three tracks that cross them**
+
+```mermaid
+flowchart LR
+  classDef ph fill:#eef,stroke:#446
+  classDef gate fill:#ffd,stroke:#a80
+  classDef trk fill:#eee,stroke:#888,stroke-dasharray: 4 3
+  subgraph TRACKS["Tracks that cross the phases"]
+    TM["Track M: T-3383 hub outage measurement, 30 days"]:::trk
+    TA["Track A: per-agent accounts, A0 pilot to A4"]:::trk
+    TK["Track K: T-3385 operator key and confirmation provider"]:::trk
+  end
+  P0["PH-0 Preparation and measurement"]:::ph
+  X0{"Exit 0: collector running, 5 standing controls red, re-pin record live"}:::gate
+  P1["PH-1 Basic version on a disposable estate"]:::ph
+  X1{"Exit 1: demo seen, 17 fail-closed rows, 15 floor probes green"}:::gate
+  P2["PH-2 First operational release, waves W1 to W4"]:::ph
+  X2{"Exit 2: canary clean 14 days, 5 faults diagnosed in 60 s, kill switch tested"}:::gate
+  P3["PH-3 Identity, directory and admission"]:::ph
+  X3{"Exit 3: forged cards refused, Tier 0 routes decided, T-2470 approved"}:::gate
+  P4["PH-4 Authority, roles and many to many"]:::ph
+  X4{"Exit 4: takeover tests, 3-agent run, rule engine, DM encryption"}:::gate
+  P5["PH-5 The direct circuit"]:::ph
+  X5{"Exit 5: fallback live, both hubs down, restore limits recorded"}:::gate
+  P6["PH-6 Completion"]:::ph
+  X6{"Arc closing: all test dimensions run, register matches reality"}:::gate
+  P0 --> X0 --> P1 --> X1 --> P2 --> X2 --> P3 --> X3 --> P4 --> X4 --> P5 --> X5 --> P6 --> X6
+  P1 -. "rollback: tear down the estate" .-> P0
+  P2 -. "rollback per wave: drain to the old receiver" .-> P1
+  P3 -. "rollback: stop card exchange" .-> P2
+  P4 -. "rollback: grants off, pin only" .-> P3
+  P5 -. "rollback: stop minting, fall back to the hub path" .-> P4
+  TM -. "30 days of data gate the entry" .-> P5
+  TA -. "A3 recommended before exit 4" .-> X4
+  TK -. "interim approvals carry PH-3 and PH-4, real provider by PH-6" .-> P6
+```
+
+6.8 Text equivalent of D-1.
+6.8.1 The seven phases run in a line from PH-0 to PH-6. Between each phase and the next sits a gate drawn as a diamond: the phase's exit criteria. A phase does not start until the gate before it is met and the operator has confirmed the move.
+6.8.2 The exit criteria drawn, in order. Exit 0: the outage collector running, the five standing controls red on today's system, the re-pin record live. Exit 1: the demonstration seen by the operator, the 17 fail-closed rows passing, the 15 floor probes green. Exit 2: the daily canary clean for 14 days, the five faults of GP-12 each diagnosed within 60 seconds, the kill switch tested. Exit 3: forged cards refused, Tier 0 events decided on each route, T-2470 approved. Exit 4: the two takeover tests, the three-agent run, the rule engine and encrypted direct messages. Exit 5: fallback to the hub path live, both hubs stopped, restore limits recorded. The last gate is the arc's closing: every test dimension run and the register matching what operates.
+6.8.3 The dotted arrows going backward are the rollback points. PH-1 rolls back to PH-0 by tearing down the estate. PH-2 rolls back one wave at a time by draining to the old receiver. PH-3 rolls back by stopping card exchange. PH-4 rolls back by turning grants off and leaving only the pinned main. PH-5 rolls back by stopping the minting of credentials, which returns conversations to the hub path.
+6.8.4 The three tracks sit above the line. Track M's 30 days of outage data gate the entry to PH-5. Track A's third stage is recommended before the gate of PH-4. Track K does not gate PH-3 or PH-4, because interim approvals are ruled to carry them; the real provider is expected by PH-6.
+
 <!-- CONTINUE -->
