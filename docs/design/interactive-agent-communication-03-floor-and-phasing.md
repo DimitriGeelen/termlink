@@ -134,4 +134,132 @@
 
 3.4.1 Why FX-7 and FX-8 are in. They do not meet the strict test of the card. I put them in because they close the one failure class the record proves, the false green: three real failures fired nothing (R-66.c), and both cost nothing in time because they ship in PH-1 and PH-2 anyway. The operator can move either out (RA-8).
 
+3.5 Every requirement that REQ types as a security invariant, and where it stands. 33 requirements carry that type (REQ 6, line "b" of each). None is silently outside the floor: each is in it through an invariant or an extra, or is listed with its reason.
+
+| R-n | Floor status | Through | Note |
+|---|---|---|---|
+| R-2 | Floor (parent) | SI-6, SI-17, SI-22, FX-7 | The truth of the stage is floor. Showing the stage to the sender is a Must feature (4.2) |
+| R-15 | Floor | SI-15 | |
+| R-19 | Floor in part | SI-1, SI-2 | "Nothing typed into a busy prompt" in the wording CR-5 gave it. The urgent route (hook channel) is a Must feature, gated by SI-23 and SI-18 |
+| R-22 | Floor | SI-2 | |
+| R-24 | Floor | SI-17, SI-30 | |
+| R-28 | **Not floor** | RA-8 | A reply or a "no action" is an obligation whose breach is made visible (STUCK, owed list). It prevents no irreversible action. Must, PH-1 and PH-2 |
+| R-29 | Floor in part | FX-8 | The CLEAR rule is floor. The agent's halting behaviour is a Must feature |
+| R-34 | Floor | SI-26 | |
+| R-42 | Floor | FX-7 | |
+| R-45 | Floor in part | SI-22, SI-6 | The integrity of the record is floor. "Record first" behaviour is Must |
+| R-46 | Floor | SI-9, SI-10, SI-11 | PH-5 |
+| R-49 | Floor | SI-16 | |
+| R-50 | Floor | SI-7, SI-8 | |
+| R-51 | Floor | SI-4, SI-30 | |
+| R-54 | Floor | FX-2 | |
+| R-56 | Floor in part | SI-19 | Receiver-side caps are floor. Re-send jitter, hop limit, coalescing are Must |
+| R-60 | Floor | SI-12 | |
+| R-62 | Floor | SI-26, SI-29 | |
+| R-63 | Floor | SI-18, SI-21 | |
+| R-64 | Floor | SI-21 | |
+| R-65 | Floor | FX-3, SI-21 | |
+| R-67 | Floor | SI-20, SI-24 | |
+| R-72 | Floor | SI-13, SI-8, SI-24 | |
+| R-73 | Floor in part | SI-21 | The integrity of rule records is floor. The rule engine is a Must feature |
+| R-74 | Floor | SI-29 | |
+| R-75 | Floor | SI-3 | |
+| R-76 | Floor | SI-13, SI-31 | Needs K for the full form (RA-4) |
+| R-77 | Floor | SI-12 | |
+| R-78 | Floor | SI-20, SI-21 | Needs A and K (RA-1, RA-4) |
+| R-79 | Floor | FX-1 | RA-5 |
+| R-80 | Floor in part | FX-5 | "Disclosure does not grow" is floor in every phase. The encryption stages are phased (RA-3) |
+| R-81 | Floor | SI-2 | |
+| R-82 | Committed target | RA-1 | The ruling commits the target and fixes no phase. Not a first-release item |
+
+3.6 What is outside the floor, and why. The card asks that nothing leave the floor silently. These do not meet the test of 3.2, and each is placed, with its reason, in section 4 or here. The operator can move any of them in (RA-8).
+3.6.a **R-28** reply or "no action" (above). 3.6.b **PR-11** a scan of outgoing content for known secret patterns on the send path (TH-27). It would reduce exfiltration through a prompt-injected agent (RR-1, accepted). It is a proposal of TM that no change request carried, so it is a requirement of no ruling; I place it as Should in PH-4 (4.2, row PR-11). 3.6.c **R-71** the end of the `sidecar:` alias (BP-9 open until then): Should, tied to a calendar event. 3.6.d **R-37, R-66** alarms and the canary: they detect, they do not prevent, so they are Must and not floor. 3.6.e **R-53** the reachability card: Must. 3.6.f **R-9** the startup chain: Deferred; a feature that starts agents is not shipped before its grants exist, so nothing starts without a lock.
+3.7 What the floor stops, by adversary and by strength. "Base" is the strength with neither flag: it holds against honest failures, outages, drift and attackers that are not on the agents' host. "A" adds one account per agent. "K" adds the operator key with its confirmation provider. "Residual" is the risk TM lists and the operator accepted on 2026-10-11.
+
+| Adversary | Stopped by | Base | With A | With K | Residual |
+|---|---|---|---|---|---|
+| ADV-1 confused or overloaded agent | SI-2, SI-7, SI-15, SI-17, SI-30, FX-7, FX-8 | holds | | | none: a failure, not an attack |
+| ADV-2a compromised session on the same host | SI-3, SI-14, SI-15, SI-20, SI-21, SI-22 | attribution and detection only | holds for keys, stores, sockets and policy files | policy records unforgeable | RR-2, RR-7, and the new lateral path RA-7 |
+| ADV-2b compromised remote peer | SI-3, SI-7, SI-8, SI-18, SI-19, SI-26 | holds | | | RR-1, RR-3 |
+| ADV-3 component reporting success it did not earn | SI-6, SI-17, SI-22, FX-7, FX-8, the canary | holds against defects | narrows RR-7 | | RR-7 |
+| ADV-4 outage | SI-15, SI-22; ladders and states | delivery stops visibly while a hub is down (PH-2 to PH-4); circuits from PH-5 | | | RR-5, RR-11, RR-20 |
+| ADV-5 hurried or mis-heard operator | SI-13, SI-31, typed-back fingerprint (PR-14) | digest binding and interim double approval from PH-3 | | out-of-band confirmation | RR-9 |
+| ADV-6 stale or wrong binding | FX-2, SI-16, SI-26, SI-12 | holds | | | RR-14 |
+| ADV-7 privileged process on the host | nothing stops it | detection only | does not stop root | does not stop root | RR-2, for the lifetime of the design |
+| ADV-8 flooding or looping peer | SI-19, SI-18, R-56 | holds | | | RR-12 |
+| ADV-9 stale or partitioned authority holder | SI-20, the tests of R-68 | from PH-4 | | | RR-8 |
+| ADV-10 estate drift | SI-27, R-57, canaries | holds | | | RR-2 (root replaces the checker) |
+| ADV-11 compromised or rogue hub | SI-12, SI-10, SI-3, SI-22, FX-2 | from PH-3 | | | RR-4 |
+| ADV-12 unadmitted joiner | SI-12, SI-13, R-72 | from PH-3 | | enrolment codes | RR-14 |
+| ADV-13 network attacker | SI-9, SI-5, SI-6; TLS | TLS on the hub path now; circuit proofs from PH-5 | | | none beyond what TLS cannot give |
+| ADV-14 holder of the operator's approval device | SI-13, SI-31 | **not defended** before K | | second factor and out-of-band confirmation | RR-16 |
+
+3.7.1 The honest summary of 3.7. Before accounts, the floor does not stop a hijacked agent from reading a sibling's keys, because on this host the agents are `root` **[H]** (1.4.d). That is RR-2, accepted "for now" (OQ-2). It means that RR-1 and RR-3 (prompt injection, accepted) end in a root shell on this host until A exists. This is the strongest argument for starting Track A early (10.1).
+
+**Drawing D-2 — floor map: each group of floor items and the phase in which it enters (every item holds in every later phase)**
+
+```mermaid
+flowchart LR
+  classDef grp fill:#eef,stroke:#446
+  classDef ph fill:#efe,stroke:#363
+  subgraph FLOOR["Security floor: ten groups"]
+    G1["G1 Identity and content: SI-3 SI-4 SI-5 SI-6"]:::grp
+    G2["G2 No loss, no double: SI-15 SI-16 SI-22 SI-30 FX-6"]:::grp
+    G3["G3 Truth of the record: SI-17 SI-26 FX-7 FX-8"]:::grp
+    G4["G4 Nothing hostile typed or run: SI-1 SI-2 SI-7 SI-8 SI-18 SI-23 FX-1 FX-4"]:::grp
+    G5["G5 Access and secrets: SI-14 SI-25 SI-27 SI-28"]:::grp
+    G6["G6 Flow limits: SI-19"]:::grp
+    G7["G7 Directory and admission: SI-12 SI-13 SI-31 FX-2"]:::grp
+    G8["G8 Authority: SI-20 SI-21 SI-24 SI-29 FX-3"]:::grp
+    G9["G9 Circuits and revocation: SI-9 SI-10 SI-11"]:::grp
+    G10["G10 Disclosure: FX-5"]:::grp
+  end
+  subgraph PHASES["Phases in order"]
+    P0["PH-0 Preparation"]:::ph
+    P1["PH-1 Basic version"]:::ph
+    P2["PH-2 First operational release"]:::ph
+    P3["PH-3 Identity and admission"]:::ph
+    P4["PH-4 Authority and roles"]:::ph
+    P5["PH-5 Direct circuit"]:::ph
+    P6["PH-6 Completion"]:::ph
+    P0 -->|"every item that has entered keeps holding"| P1
+    P1 --> P2
+    P2 --> P3
+    P3 --> P4
+    P4 --> P5
+    P5 --> P6
+  end
+  G5 -->|"SI-25"| P0
+  G8 -->|"SI-24 re-pin record"| P0
+  G1 -->|"SI-3 SI-4 SI-6"| P1
+  G2 -->|"SI-15 SI-16 SI-22 SI-30"| P1
+  G3 -->|"SI-17 SI-26 FX-7"| P1
+  G4 -->|"SI-7 SI-8"| P1
+  G5 -->|"SI-14"| P1
+  G1 -->|"SI-5"| P2
+  G2 -->|"FX-6"| P2
+  G3 -->|"FX-8"| P2
+  G4 -->|"SI-1 SI-2 SI-18 SI-23 FX-1 log FX-4 scope"| P2
+  G5 -->|"SI-27 SI-28"| P2
+  G6 -->|"SI-19"| P2
+  G7 -->|"FX-2"| P2
+  G8 -->|"SI-20 SI-21 fixed default only"| P2
+  G9 -->|"SI-11 for RK-1"| P2
+  G10 -->|"FX-5 no growth"| P2
+  G7 -->|"SI-12 SI-13 SI-31"| P3
+  G8 -->|"SI-20 SI-21 SI-29 FX-3"| P4
+  G4 -->|"FX-1 disable, FX-4 boundary model"| P4
+  G10 -->|"DM encryption"| P4
+  G9 -->|"SI-9 SI-10 SI-11 complete"| P5
+  G10 -->|"circuit copies encrypted"| P5
+  G10 -->|"project mail, custody"| P6
+```
+
+3.8 Text equivalent of D-2.
+3.8.1 The floor has ten groups of items, G1 to G10, each listed in the drawing with its item ids. The seven phases run in order from PH-0 to PH-6. Every arrow from a group to a phase means: the named items enter in that phase.
+3.8.2 The rule drawn along the phase chain: an item that has entered keeps holding in every later phase. That is the meaning of "the floor holds in every phase", read with the fact that an item cannot hold where its subject does not exist (3.1.a).
+3.8.3 PH-0: SI-25 (secrets in artifacts) and the early form of SI-24 (the re-pin record). PH-1: SI-3, SI-4, SI-6 (stage records), SI-15, SI-16, SI-22 (the chain), SI-30, SI-17, SI-26, FX-7, SI-7, SI-8, SI-14. PH-2: SI-5, FX-6, FX-8, SI-1, SI-2, SI-18, SI-23, FX-1 (log and show), FX-4 (scope and log), SI-27, SI-28, SI-19, FX-2, SI-20 and SI-21 in their fixed-default form, SI-11 for agent keys, FX-5 (no growth of what the hub exposes).
+3.8.4 PH-3: SI-12, SI-13, SI-31. PH-4: SI-20 and SI-21 with their configuration surface, SI-29, FX-3, FX-1 (disable), FX-4 (boundary model), and the first encryption stage. PH-5: SI-9, SI-10, SI-11 complete, and encrypted circuit copies. PH-6: project mail and custody.
+3.8.5 Items that depend on a strength flag (A or K) are marked in the table of 3.3 and 3.4; the drawing shows when they enter, the table shows when they are fully strong.
+
 <!-- CONTINUE -->
