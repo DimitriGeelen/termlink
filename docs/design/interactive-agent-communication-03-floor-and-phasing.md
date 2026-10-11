@@ -534,4 +534,74 @@ flowchart LR
 6.8.3 The dotted arrows going backward are the rollback points. PH-1 rolls back to PH-0 by tearing down the estate. PH-2 rolls back one wave at a time by draining to the old receiver. PH-3 rolls back by stopping card exchange. PH-4 rolls back by turning grants off and leaving only the pinned main. PH-5 rolls back by stopping the minting of credentials, which returns conversations to the hub path.
 6.8.4 The three tracks sit above the line. Track M's 30 days of outage data gate the entry to PH-5. Track A's third stage is recommended before the gate of PH-4. Track K does not gate PH-3 or PH-4, because interim approvals are ruled to carry them; the real provider is expected by PH-6.
 
+## 7 GP-12: the diagnosis-time bound and the message-state cap (set here as [P] values)
+
+7.1 What the ruling handed over. The operator ruled "very simple" (R-6) is accepted by verified behaviour, not by counts (GP-12 A revised, 2026-10-06; R-6.e, R-70). Two numbers were left to this step: the declared time within which the status call names the specific diagnosis of each real failure (R-6.e (2)), and a cap on the number of message states (GLM's finding 16, the "state cap" of the interview log 3c). A third item was left open: applying the rule to AEF's Python sidecar (R-6.g). The five real failures are those of the GP-12 brief: (1) a signing key filed under another agent's name, 32,205 refusals with a fresh heartbeat; (2) two receivers on one inbox; (3) one agent excluded from the waker by a receipt-identity defect; (4) several cooperating processes per agent; (5) a second hub that split sessions from inboxes.
+7.2 **FP-1 [P] The diagnosis-time bound.** Three clocks, because "time to diagnose" hides three different times.
+7.2.a **Detection to diagnosis: 60 seconds.** From the onset of any of the five failures, within two ticks (2 × 30 s, R-17), the status call and a needs-attention entry name the specific cause and the thing to fix. For the checks that run at start-up or on every tick the bound is 30 seconds.
+7.2.b **Query time: 5 seconds.** The status call returns within 5 seconds (95th percentile), also while a fault is injected. Every field carries its freshness stamp; a field older than its freshness limit reads "unknown", never green.
+7.2.c **Drilled human time: 5 minutes.** A person (or an agent) who has not seen the system, given only the status output, names the cause and the remedy of a reported "my message did not arrive" within 5 minutes.
+7.2.d The five failures, how each is seen, and its bound.
+
+| # | Failure | What the status call must say | Seen by | Bound |
+|---|---|---|---|---|
+| 1 | A key under another agent's name | "signing key found under `<other agent>`; none under this agent's name" | the start-up check, and the first refused confirmation | 30 s from start; 60 s from the first refusal |
+| 2 | Two receivers on one inbox | "inbox consumed by two identities: `<A>`, `<B>`" | the store lock for a second sidecar; the hub's list of consumers each tick for an outside consumer (PH-2 hub-side visibility) | refusal at once; 60 s after an outside consumer's first act |
+| 3 | An agent outside the waker, receipts under a different identity | "receipts are signed as `<X>`; this agent is `<Y>`" | the adapter and identity check each tick | 60 s |
+| 4 | One of several cooperating processes dead | "`<component>` last seen `<n>` s ago: dead", listing every component and its freshness | the 30-second component heartbeat; two missed beats | 60 s, even if supervision restarts it only within its 5-minute interval (R-8.e) |
+| 5 | A second hub, a wrong runtime directory | "answering hub id `<X>`; declared `<Y>`" | the hub-id check each tick (FX-2) | 30 s |
+| (INC-a) | Mail stored and never surfaced | "STORED `<n>` min ago, not handed over: hook absent" naming the stalled step | the R-44 deadline | one tick after the deadline of about 1 minute |
+
+7.2.e What the bound buys. The record shows these failures lasting until the operator noticed: the key failure ran 32,205 refusals; the unsurfaced mail of INC-a was found by the operator asking. With a 60-second bound, a person reads the cause about a minute after it starts, and the "empty log = healthy" canaries stop being the only line of defence. What it costs: a 30-second heartbeat per component, hub-side visibility of an inbox's consumers, and a risk of false alarms on a slow host (measured in H-18, H-20).
+7.2.f How it is measured. The five failures are standing fault injections (R-69, R-70): tier 1 on a simulated clock, then tier 3 on the installed artifact, 20 injections each, 100 of 100 inside the bound (H-18). The drilled time is measured with three first-time readers, median at most 5 minutes, all three correct. The daily canary (R-66) is the backstop for anything the checks above miss.
+7.2.g Options for the operator (OP-5): A, the bound above. B, tighter: 30 seconds everywhere (one tick; costs a faster heartbeat and more false alarms). C, looser: 5 minutes, the supervision interval (the cheapest; a person learns of the cause as late as the supervisor restarts it). D, a per-failure table only, no single number. Recommendation **A**: it equals two ticks, the same unit the ruled stuck deadline uses (R-44.e), so one rhythm explains both.
+7.3 **FP-2 [P] The message-state cap.** The inventory at requirements v0.5.2.
+7.3.a **States of the chain (9, ruled or derived):** SENT, RECEIVED, STORED, QUEUED, ATTEMPTED, HANDED_OVER, REPLIED, ACKNOWLEDGED_NO_ACTION, DEAD (REQ 3.3, D-3).
+7.3.b **Labels the sender sees beside the chain (4 more; DEAD is shared):** WAITING, WAITING FOR RECIPIENT, STUCK, UNKNOWN (R-44). That is **13 distinct state values.** REJECTED is a collector proposal that no ruling names (REQ 13.2.5); it would be the 14th.
+7.3.c **Markers (7), which qualify a state and are not states:** "hand-over uncertain" (R-51.a), "unreconciled" (CR-1), "late" (R-55), "downgraded" (R-52), "conflict" (SI-4), "suspect" (equivocation, TH-11), "lost-after-STORED" (F-5).
+7.3.d **The cap:** at most **14 state values** and **8 markers**. Today's count is 13 and 7, so the cap leaves exactly one slot for each, and the state slot is the one REJECTED needs if the operator adopts it. The headroom is small on purpose: the second addition of either kind trips the cap.
+7.3.e A tripwire, not an acceptance criterion (R-70.e): crossing it opens a review and does not fail a build. A new state or marker MUST answer three questions in the review: which failure does it tell apart that no existing value does; what does a sender do differently because of it; which test fails without it.
+7.3.f What it buys. The sender and the operator read one chain of stages and one label per message; the operator's burden at diagnosis time is bounded. GLM's observation was that the ruled states already approach a dozen. What it costs: a review per addition. How measured: the inventory file of PH-0 holds the lists; a check counts them against the cap; the drill of 7.2.c includes a case for each label.
+7.3.g Options for the operator (OP-6): A, the cap above (14 and 8). B, a cap on states only, markers uncapped (cheaper, and markers are where complexity hides). C, no cap, inventory only (R-70 already requires the inventory). D, the cap equal to today's exactly (13 and 7), so REJECTED is the first review. Recommendation **A**.
+7.4 **FP-3 [P] Applying the rule to AEF's receiver.** While AEF's receiver is the running receiver on a host (R-49.a (1), until wave W4 of PH-2), the same behavioural acceptance applies to it: the five fault injections, a truthful status call, and the inventory of its message vocabulary. The size and count tripwires apply only to code this project owns. The fixtures are given to AEF through `framework:pickup`; this project does not patch AEF's code (G-062). The same fixtures are the acceptance test of the W3 to W4 switch, so both receivers are held to one standard. If AEF's receiver fails an injection, it stays in service until W4 under RA-6, with the failure shown in the status call.
+7.5 **FP-4 [P] One rule for judging the starting numbers.** TM section 19 and the OQ-9 ruling left every [R~] number to be measured in the first build. Without a rule each measurement would be argued afresh. Proposal: for a number V that bounds something and an observed maximum M over the measurement window.
+7.5.a **Keep V** if M is at most V/2 and nothing legitimate was refused by V (a headroom of 2).
+7.5.b **Raise V** if a legitimate event was refused or M exceeds V/2: propose V' = 2 × M, rounded up, and tell the operator.
+7.5.c For an abuse limit only (PN-5, PN-6, PN-7, PN-10, PN-11): if V exceeds 16 × M it protects little; propose V' = 4 × M and tell the operator.
+7.5.d For a time window (PN-1, PN-12, PN-15) use the 95th percentile in place of M, with the same headroom.
+7.5.e Every change is recorded in the inventory, as REQ 6.1.h allows for an [R~] number, and needs no new ruling. The thresholds of section 9 apply this rule.
+
+## 8 CAND-3 staging: each test dimension, the phase of its subject, and the phase from which its test is required
+
+8.1 The rule (R-69.a, ruled): each dimension is required once its subject exists, and all of them before arc-011 closes. "Required" means the test exists, passes, has a kill-checked negative control, and runs in the guard layer or the canary. A dimension whose subject does not exist yet is not tested early by a stand-in; that is the false assurance R-69 was ruled against.
+
+| # | Dimension | Subject | Subject exists from | Test required from | What passes |
+|---|---|---|---|---|---|
+| T-1 | Tier 1 fixtures | any new code | PH-0 | PH-0 | the fixture passes and its negative control fails when the control is removed |
+| T-2 | Tier 2 live hub | the hub path | PH-1 | PH-1 | the same, against a throwaway hub |
+| T-3 | Tier 3: one real agent plus a scripted peer, through the scheduler and hooks, per harness | adapter, hooks, scheduler | PH-1 (hook, driven by the test); PH-2 (installed scheduler) | PH-1; PH-2 for the installed scheduler; each further harness from the release that first includes it | delivery with transcript evidence, per harness |
+| T-4a | Tier 4: two real agents, one round trip | the chain | PH-1 | PH-1 | five stage rows with times |
+| T-4b | Tier 4: a round trip ending in "no action" | R-28 | PH-1 | PH-1 | ACKNOWLEDGED_NO_ACTION visible to the sender |
+| T-4c | Tier 4: three-agent many to many | membership | PH-4 | PH-4 | A's post and B's reply reach C |
+| T-4d | Tier 4: resume refused | R-65 | PH-4 | PH-4 | no resume on UNKNOWN or when a process holds the session |
+| T-5 | Two hubs | the directory, cross-hub mail | PH-3 | PH-3 (hub path); PH-5 (circuit) | the five rows across two hubs; a competing claim flagged |
+| T-6 | Crash of a process | the store, the claim | PH-1 | PH-1 | H-16: 0 lost, 0 doubled in 1000 kill points |
+| T-7 | Host crash or power loss (F-2) | the durable store | PH-1 (fixture with simulated flush failure) | PH-1 fixture; PH-2 on a real host (virtual machine killed mid-write) | STORED survives |
+| T-8 | Reboot | the installed supervisor | PH-2 | PH-2 | sidecar back, runtime directory persisted (PL-021), canary clean |
+| T-9 | The installed system: release artifact on a clean host, upgrade, rollback, restart | the artifact | PH-2 | PH-2 | R-39.e |
+| T-10 | Negative controls kill-checked | every control | PH-1 | PH-1 and after | reverting the fix reddens the control |
+| T-11 | The standing controls: the three real failures | INC-a, INC-b, INC-d | PH-0 (fixtures, red on today's system) | PH-0; green from PH-2; run per release | red before, green after, red again on revert |
+| T-12 | The daily canary from the installed artifact; staleness; re-run after a rotation, a re-vendor and a reboot | R-66 | PH-2 | PH-2 | a stopped injector gives an entry by the next session; a stopped canary is detected |
+| T-13 | Mutants per push, for invariants only | the probes of the floor items | PH-1 | from each item's "Enters" phase | the mutant that removes the control fails the probe |
+| T-14 | A second operating system | the activity veto, the supervisor | PH-2 | PH-2: the macOS CI job (T-3271) stays green; start, status and supervision on macOS are claimed only once tested (R-8.g) | no `/proc` read without an entry in the platform-lock check |
+| T-15 | A mixed-version pair | upgrade | PH-2 | PH-2 for upgrade; PH-3 across hosts | refused loudly, not dropped |
+| T-16 | Clock skew | deadlines | PH-2 (single observer) | PH-2 for the observer's own clock; PH-3 for cross-host | no deadline from a remote timestamp |
+| T-17 | Restore from backup | the store (F-5); counters, lists, consumed approvals | PH-2 (store); PH-5 (credentials, lists) | PH-2 for F-5; PH-5 for RR-20 | detected and flagged; the RR-20 limit recorded, not read as a pass |
+| T-18 | Reconciliation after an outage | the local log | PH-5 | PH-5 | RC-1 to RC-9 |
+| T-19 | A second harness adapter: parity | the adapter contract | when 055's adapter exists (PH-4 or later) | the release that includes it | the same four reports, the same meaning |
+| T-20 | Account isolation: agent A cannot read agent B's key | accounts | Track A stage A1 onward | each Track A stage (R-82.d) | the read fails; host root still can, and the status says so |
+| T-21 | A 14-day soak | the whole chain, real agents | PH-2 | PH-2 | H-14 |
+
+8.2 Dimensions that will not exist until late stay untested and are listed as such in each phase's exit criteria; none is dropped. The count at the close of PH-6 is the 21 rows above (some run in several phases).
+
 <!-- CONTINUE -->
