@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3407: arc-011 PH-1 B6: send path — outbox, hub post, hub_id pin
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-11T18:43:00Z
+# ============================================================================
+
+task_id: T-3407
+task_name: "arc-011 PH-1 B6: send path — outbox, hub post, hub_id pin"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-11T18:35:43Z
+completed: 2026-10-11T18:42:41Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  PH-1 architecture note docs/design/arc-011-ph1-architecture.md section 13, task B6 (ACs and verification there): C-5 send.rs — accept from the API, sign (wire.rs), enqueue (offline queue reuse), post to the recipient inbox on the hub, pin the declared hub_id (FX-2), track SENT. Note from B5: stage rows currently carry no timestamps, but BV-7 requires each of the five rows WITH its time; every stage record this task writes must carry its time (extend the record/chain line format compatibly, with a test).
+
+# Key outcomes
+outcomes:
+  - 'send.rs (C-5): `Sender::send` signs (wire.rs), enqueues in the offline queue (durable outbox), records SENT in the chain, and returns `{msg_id, stage: "SENT"}` only after both; it never returns "delivered" (FX-7)'
+  - 'The post goes to the recipient inbox topic on a throwaway hub (testkit estate), is accepted by the hub''s own signature check, and a POSTED chain event is recorded'
+  - 'Hub down: the message stays in the outbox, `status` shows WAITING, and after the hub returns the pump posts it with no loss and no duplicate (FC-8 send half)'
+  - 'hub_id pin (FX-2): the declared hub id is compared with `hub.version` before every post; a mismatch or unknown id refuses (send errors `hub-id-mismatch` and enqueues nothing; the pump posts nothing and writes a needs-attention entry) (FC-14 send half)'
+  - 'The API `send` op is served through the Sender (replaces `not-implemented` for `send` only)'
+  - 'Every chain line carries `ts_ms`; the format is compatible (old lines without it still verify, new lines hash it, `status` rows print it); one test covers old and new lines in one chain'
+  - 'Plain `cargo test -p termlink-sidecar` passes, the send_hub tests use the throwaway hub, and no production path is touched'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 6
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3407-arc-011-ph-1-b6-send-path--outbox-hub-po.md
+generated_by: context-agent-hybrid

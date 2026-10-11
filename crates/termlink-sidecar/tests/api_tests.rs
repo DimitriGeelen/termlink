@@ -156,7 +156,6 @@ fn api_no_verb_takes_a_path_or_command() {
 fn api_unserved_verbs_are_loud_not_faked() {
     let r = rig();
     for req in [
-        json!({"op": "send", "to": "b", "conv": "c1", "body": "x"}),
         json!({"op": "reply", "conv": "c1", "in_reply_to": "m1", "body": "x"}),
         json!({"op": "pull", "session": "s1", "hook": "stop"}),
         json!({"op": "claim", "msg_id": "m1"}),
@@ -166,6 +165,10 @@ fn api_unserved_verbs_are_loud_not_faked() {
         assert_eq!(v["code"], "not-implemented", "{v}");
         assert!(v.get("msg_id").is_none() && v.get("stage").is_none(), "{v}");
     }
+    // B6: `send` is served, but a sidecar with no send path says so; it never fakes SENT.
+    let v = call(&r, Scope::Send, json!({"op": "send", "to": "b", "to_instance": "i", "conv": "c1", "body": "x"}));
+    assert_eq!(v["code"], "not-configured", "{v}");
+    assert!(v.get("msg_id").is_none() && v.get("stage").is_none(), "{v}");
 }
 
 #[test]

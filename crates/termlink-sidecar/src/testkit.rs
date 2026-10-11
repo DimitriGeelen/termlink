@@ -171,13 +171,63 @@ impl Estate {
         c
     }
 
+    /// Where the throwaway hub listens.
+    pub fn hub_addr(&self) -> termlink_protocol::TransportAddr {
+        termlink_protocol::TransportAddr::unix(self.runtime_dir().join("hub.sock"))
+    }
+
+    /// The throwaway hub's own id, as `hub.version` states it.
+    pub fn hub_id(&self) -> std::io::Result<String> {
+        let rt = tokio::runtime::Builder::new_current_thread().enable_all().build()?;
+        let resp = rt
+            .block_on(termlink_session::client::rpc_call_addr_with_timeout(
+                &self.hub_addr(),
+                "hub.version",
+                serde_json::json!({}),
+                Duration::from_secs(5),
+            ))
+            .map_err(|e| std::io::Error::other(e.to_string()))?;
+        let v = termlink_session::client::unwrap_result(resp).map_err(std::io::Error::other)?;
+        v["hub_id"]
+            .as_str()
+            .map(str::to_owned)
+            .ok_or_else(|| std::io::Error::other("hub states no hub_id"))
+    }
+
+    /// Stop the hub (a hub outage for FC-8); the tree and keys stay.
+    pub fn stop_hub(&mut self) {
+        if let Some(mut c) = self.hub.take() {
+            let _ = c.kill();
+            let _ = c.wait();
+        }
+        let _ = fs::remove_file(self.runtime_dir().join("hub.sock"));
+    }
+
+    /// Start the hub again on the same runtime dir (same certificate, same id).
+    pub fn restart_hub(&mut self) -> std::io::Result<()> {
+        self.stop_hub();
+        self.start_hub()
+    }
+
+    /// The estate's key for `who` ("a" or "b").
+    pub fn identity(&self, who: &str) -> std::io::Result<termlink_session::agent_identity::Identity> {
+        termlink_session::agent_identity::Identity::load_or_create_from_file(
+            &self.root.join("keys").join(format!("{who}.key")),
+        )
+        .map_err(|e| std::io::Error::other(e.to_string()))
+    }
+
     fn start_hub(&mut self) -> std::io::Result<()> {
         let bin = termlink_bin()
             .ok_or_else(|| std::io::Error::other("termlink binary not found (set TERMLINK_BIN)"))?;
         let log = fs::File::create(self.root.join("hub.log"))?;
+        // A loopback TCP listener makes the hub create its certificate, and with it
+        // the hub id (FX-2): a hub with no TCP listener states no id. Random port.
+        let port = std::net::TcpListener::bind("127.0.0.1:0")?.local_addr()?.port();
+        let tcp = format!("127.0.0.1:{port}");
         let child = self
             .command(bin)
-            .args(["hub", "start"])
+            .args(["hub", "start", "--tcp", &tcp])
             .stdin(Stdio::null())
             .stdout(log.try_clone()?)
             .stderr(log)

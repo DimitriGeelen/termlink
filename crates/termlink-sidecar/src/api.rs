@@ -6,14 +6,16 @@
 //! is refused (SI-14). Framing is one JSON object per line. An op is served only
 //! on the socket of its own scope, so the agent sockets cannot reach `delivery`.
 //!
-//! B5 serves `status` and the admin `delivery` flag. The remaining verbs are
-//! known, scope-checked and refused with `code: "not-implemented"`: they belong
-//! to B6 (send, reply), B7/B9 (pull, claim, handed-over). They are never faked.
+//! B5 serves `status` and the admin `delivery` flag; B6 adds `send` (through
+//! `send::Sender`, `not-configured` when none is attached). The remaining verbs
+//! are known, scope-checked and refused with `code: "not-implemented"`: they
+//! belong to B11 (reply) and B7/B9 (pull, claim, handed-over). Never faked.
 //!
 //! No verb takes a path: every field is on a per-op allow-list and every name is
 //! checked against the store's name charset, so a path or command cannot arrive.
 
 use crate::estate;
+use crate::send::Sender;
 use crate::store::{ChainStatus, Store, TAIL_NOTE};
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
@@ -74,6 +76,8 @@ pub struct ApiConfig {
     pub owner_uid: u32,
     /// Declared hub id (FX-2); `status` names it, or says none is configured.
     pub hub_id: Option<String>,
+    /// The send path (B6). Without it `send` is refused as not configured.
+    pub sender: Option<Arc<Sender>>,
 }
 
 impl ApiConfig {
@@ -84,6 +88,7 @@ impl ApiConfig {
             // SAFETY: geteuid has no preconditions.
             owner_uid: unsafe { libc::geteuid() },
             hub_id: None,
+            sender: None,
         }
     }
 }
@@ -247,11 +252,23 @@ fn serve(s: UnixStream, scope: Scope, sh: &Shared) -> io::Result<()> {
 }
 
 fn handle(req: &Value, scope: Scope, sh: &Shared) -> Value {
-    dispatch(req, scope, &sh.store, &sh.cfg.agent, sh.cfg.hub_id.as_deref())
+    dispatch_with(req, scope, &sh.store, &sh.cfg.agent, sh.cfg.hub_id.as_deref(), sh.cfg.sender.as_deref())
 }
 
 /// Parse and dispatch one request; independent of any socket.
 pub fn dispatch(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id: Option<&str>) -> Value {
+    dispatch_with(req, scope, store, agent, hub_id, None)
+}
+
+/// [`dispatch`] with the send path attached.
+pub fn dispatch_with(
+    req: &Value,
+    scope: Scope,
+    store: &Store,
+    agent: &str,
+    hub_id: Option<&str>,
+    sender: Option<&Sender>,
+) -> Value {
     let Some(obj) = req.as_object() else {
         return err("bad-request", "request must be a JSON object", "send {\"op\": ...}");
     };
@@ -283,12 +300,38 @@ pub fn dispatch(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id: O
         }
     }
     match op {
-        "status" => status(obj, store, agent, hub_id),
+        "status" => status(obj, store, agent, hub_id, sender),
+        "send" => send(obj, sender),
         "delivery" => delivery(obj, store),
         _ => err(
             "not-implemented",
             &format!("op {op:?} is not served yet"),
             "arrives with the send path (B6) and the receive and deliver paths (B7, B9)",
+        ),
+    }
+}
+
+fn send(obj: &serde_json::Map<String, Value>, sender: Option<&Sender>) -> Value {
+    let Some(sender) = sender else {
+        return err("not-configured", "this sidecar has no send path configured", "start it with a hub address and a hub id");
+    };
+    let text = |k: &str| obj.get(k).and_then(Value::as_str);
+    let (Some(to), Some(to_instance), Some(body)) = (text("to"), text("to_instance"), text("body")) else {
+        return err("bad-request", "send needs to, to_instance and body", "{\"op\":\"send\",\"to\":...,\"to_instance\":...,\"body\":...}");
+    };
+    let priority = match obj.get("priority") {
+        None | Some(Value::Null) => None,
+        Some(Value::String(s)) => Some(s.clone()),
+        Some(Value::Number(n)) => Some(n.to_string()),
+        Some(_) => return err("bad-request", "priority must be an integer", "-9 to 9"),
+    };
+    match sender.send(to, to_instance, text("conv"), body, priority.as_deref()) {
+        // Only the outbox stage is ever claimed here (FX-7).
+        Ok(s) => json!({"msg_id": s.msg_id, "conv": s.conv, "seq": s.seq, "ts_ms": s.ts_ms, "stage": "SENT"}),
+        Err(e) => err(
+            e.code(),
+            &e.to_string(),
+            "nothing was queued; fix the cause and send again",
         ),
     }
 }
@@ -322,7 +365,7 @@ fn delivery(obj: &serde_json::Map<String, Value>, store: &Store) -> Value {
     }
 }
 
-fn status(obj: &serde_json::Map<String, Value>, store: &Store, agent: &str, hub_id: Option<&str>) -> Value {
+fn status(obj: &serde_json::Map<String, Value>, store: &Store, agent: &str, hub_id: Option<&str>, sender: Option<&Sender>) -> Value {
     let want_msg = obj.get("msg_id").and_then(Value::as_str);
     let want_conv = obj.get("conv").and_then(Value::as_str);
     let convs: Vec<String> = match want_conv {
@@ -343,7 +386,7 @@ fn status(obj: &serde_json::Map<String, Value>, store: &Store, agent: &str, hub_
                         let e = by_msg.entry(l.msg_id.clone()).or_insert(0);
                         *e = (*e).max(i + 1);
                     }
-                    rows.push(json!({"conv": l.conv, "seq": l.seq, "msg_id": l.msg_id, "stage": l.event, "sender": l.sender}));
+                    rows.push(json!({"conv": l.conv, "seq": l.seq, "msg_id": l.msg_id, "stage": l.event, "sender": l.sender, "ts_ms": l.ts_ms}));
                 }
             }
             Err(e) => {
@@ -366,6 +409,17 @@ fn status(obj: &serde_json::Map<String, Value>, store: &Store, agent: &str, hub_
             let reached = STAGES[top - 1];
             let handed = rows.iter().any(|r| r["msg_id"] == *m && r["stage"] == "HANDED_OVER");
             let mut v = json!({"msg_id": m, "stage": reached});
+            // Sender-side labels for a message that has not been seen by anyone yet:
+            // WAITING when a post attempt found the hub unreachable, until it is posted.
+            if *top == 1 {
+                let has = |ev: &str| rows.iter().any(|r| r["msg_id"] == *m && r["stage"] == ev);
+                if has(crate::send::WAITING) && !has(crate::send::POSTED) {
+                    v["label"] = json!("WAITING");
+                }
+                if has(crate::send::DEAD_LETTER) {
+                    v["label"] = json!("REJECTED BY HUB");
+                }
+            }
             if handed {
                 v["delivered"] = json!(true);
             }
@@ -388,6 +442,7 @@ fn status(obj: &serde_json::Map<String, Value>, store: &Store, agent: &str, hub_
         "strength": strength,
         "missing_strength": missing,
         "notes": [TAIL_NOTE],
+        "outbox": sender.map(|s| json!({"pending": s.outbox_len(), "held": s.held()})),
     })
 }
 

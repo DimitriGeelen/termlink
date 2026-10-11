@@ -132,6 +132,11 @@ pub struct ChainLine {
     pub digest: String,
     pub prev: String,
     pub hash: String,
+    /// When the line was written, ms since the unix epoch (B6). Absent on lines
+    /// written before B6: such lines still verify, because the field is hashed
+    /// only when present.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ts_ms: Option<u64>,
 }
 
 #[derive(Serialize)]
@@ -143,6 +148,16 @@ struct Body<'a> {
     sender: &'a str,
     digest: &'a str,
     prev: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    ts_ms: Option<u64>,
+}
+
+/// Wall-clock now in ms since the epoch.
+pub fn now_ms() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
 }
 
 fn hex(b: &[u8]) -> String {
@@ -162,6 +177,7 @@ fn line_hash(l: &ChainLine) -> String {
         sender: &l.sender,
         digest: &l.digest,
         prev: &l.prev,
+        ts_ms: l.ts_ms,
     })
     .expect("serialize body");
     let mut h = Sha256::new();
@@ -412,6 +428,7 @@ impl Store {
             digest: digest.into(),
             prev,
             hash: String::new(),
+            ts_ms: Some(now_ms()),
         };
         l.hash = line_hash(&l);
         let mut bytes = serde_json::to_vec(&l).expect("serialize line");

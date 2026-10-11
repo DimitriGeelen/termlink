@@ -270,3 +270,54 @@ fn store_claim_exactly_one_winner_and_survives_restart() {
     let body = fs::read_to_string(s.dir().join("claims/m1.1")).unwrap();
     assert!(body.starts_with("nonce-"), "{body}");
 }
+
+// ---- B6: chain lines carry their time, compatibly --------------------------
+
+/// A pre-B6 chain line (no `ts_ms`), hashed the way the format always did.
+fn old_format_line(conv: &str, seq: u64, prev: &str, msg_id: &str) -> String {
+    use sha2::{Digest, Sha256};
+    let body = format!(
+        r#"{{"conv":"{conv}","seq":{seq},"event":"STORED","msg_id":"{msg_id}","sender":"{S}","digest":"d","prev":"{prev}"}}"#
+    );
+    let mut h = Sha256::new();
+    h.update(prev.as_bytes());
+    h.update(body.as_bytes());
+    let hash: String = h.finalize().iter().map(|b| format!("{b:02x}")).collect();
+    format!(
+        r#"{{"conv":"{conv}","seq":{seq},"event":"STORED","msg_id":"{msg_id}","sender":"{S}","digest":"d","prev":"{prev}","hash":"{hash}"}}"#
+    )
+}
+
+#[test]
+fn store_chain_lines_carry_ts_and_old_lines_still_verify() {
+    let (_e, s) = fresh();
+    // Old line first, written by hand with no ts_ms.
+    let l0 = old_format_line(C, 0, GENESIS, "old1");
+    let h0 = l0.rsplit_once("\"hash\":\"").unwrap().1.trim_end_matches("\"}").to_string();
+    fs::create_dir_all(s.dir().join("log")).unwrap();
+    fs::write(s.dir().join("log/conv-1.jsonl"), format!("{l0}\n")).unwrap();
+    assert!(matches!(s.verify_chain(C).unwrap(), ChainStatus::Intact { len: 1, .. }));
+    // New lines append after it, carry a time, and the mixed chain verifies.
+    let before = now_ms();
+    s.append_event(C, "SENT", "new1", S, "d2").unwrap();
+    let after = now_ms();
+    let lines = s.chain_lines(C).unwrap();
+    assert_eq!(lines[0].ts_ms, None);
+    assert_eq!(lines[0].hash, h0);
+    let t = lines[1].ts_ms.expect("new line has a time");
+    assert!((before..=after).contains(&t), "{before} <= {t} <= {after}");
+    assert!(matches!(s.verify_chain(C).unwrap(), ChainStatus::Intact { len: 2, .. }));
+    // The time is covered by the hash: editing it breaks the chain.
+    let raw = fs::read_to_string(s.dir().join("log/conv-1.jsonl")).unwrap();
+    let edited = raw.replace(&format!("\"ts_ms\":{t}"), &format!("\"ts_ms\":{}", t + 1));
+    assert_ne!(raw, edited);
+    fs::write(s.dir().join("log/conv-1.jsonl"), edited).unwrap();
+    assert!(matches!(s.verify_chain(C).unwrap(), ChainStatus::Broken { seq: 1, .. }));
+}
+
+#[test]
+fn store_put_stamps_stored_lines() {
+    let (_e, s) = fresh();
+    s.put(S, C, "m1", b"hello").unwrap();
+    assert!(s.chain_lines(C).unwrap()[0].ts_ms.is_some());
+}
