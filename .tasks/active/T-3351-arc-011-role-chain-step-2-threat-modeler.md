@@ -168,6 +168,16 @@ grep -q 'task: T-3351' docs/design/interactive-agent-communication-role-chain.ya
      commit, that is a calibration failure — recommend GO or NO-GO.
 -->
 
+**Recommendation:** GO
+**Rationale:** Every open question, residual risk and change request of step 2 was ruled by the operator one at a
+time (2026-10-07 to 2026-10-10); the threat model v0.3.7 states those rulings and an independent consistency
+check found no contradiction left after its listed fixes were applied and verified. Ticking the box accepts the
+residual risks as the set you already ruled; nothing new is decided.
+**Evidence:**
+- Rulings register: threat model `docs/design/interactive-agent-communication-02-threat-model.md` section 22.18.
+- Full ruling records: this task's ## Decisions.
+- Codex consistency check: `docs/reports/T-3351-step2-review/codex-confirm.md`; fixes `fixes-confirm.md`.
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.

@@ -357,6 +357,16 @@ accepted. Operator ruled A on 2026-10-10.
      commit, that is a calibration failure — recommend GO or NO-GO.
 -->
 
+**Recommendation:** GO
+**Rationale:** Requirements v0.5.2 contain only changes the operator already ruled: the 20 change requests
+accepted in step 2, the three rulings that were not change requests (adversaries, per-agent accounts, store
+survival), and the R-67 precedence ruling of 2026-10-10. An independent consistency check's findings were fixed
+and verified, and the drawings re-render cleanly. Ticking the box makes v0.5.2 the signed input for step 3.
+**Evidence:**
+- Mapping of each change request to requirement ids: requirements section 14.1; markers in each requirement.
+- Codex consistency check: `docs/reports/T-3388-step1-v05/codex-confirm.md`; fixes `fixes-confirm.md`.
+- Ruling records: T-3351 and this task's ## Decisions.
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.
