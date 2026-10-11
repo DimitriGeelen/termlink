@@ -294,6 +294,53 @@ pub fn verify(s: &Signed, roster: &Roster, my_instance: &str) -> Result<Msg, Ref
     Ok(msg)
 }
 
+/// Who signed a verified message, relative to the roster (B8).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Signer {
+    /// The signer is the roster key held for `from`.
+    Rostered,
+    /// The signer is a well-formed key that is honest about itself (its
+    /// fingerprint is `from` and the signature verifies under it), but `from` is
+    /// not in the roster. Its identity is proven; its admission is the policy's.
+    Unrostered,
+}
+
+/// Verify like [`verify`], except that a sender outside the roster is not an
+/// error: the signature is then checked under the signer's own key, which must
+/// hash to `from`. Every forgery still fails: a key claiming another identity
+/// (`FromMismatch`), a roster entry whose key differs (`KeyMismatch`), an altered
+/// payload (`BadSignature`), another instance (`WrongInstance`).
+pub fn verify_open(s: &Signed, roster: &Roster, my_instance: &str) -> Result<(Msg, Signer), Refusal> {
+    match verify(s, roster, my_instance) {
+        Ok(m) => return Ok((m, Signer::Rostered)),
+        Err(Refusal::NotInRoster) => {}
+        Err(e) => return Err(e),
+    }
+    // NotInRoster is only reached after the signer key was shown to hash to
+    // `from`, so checking under that key alone is checking the claimed identity.
+    let pk_bytes: [u8; 32] = unhex(&s.signer_pk)
+        .and_then(|b| b.try_into().ok())
+        .ok_or(Refusal::Malformed("signer key"))?;
+    let pk = VerifyingKey::from_bytes(&pk_bytes).map_err(|_| Refusal::Malformed("signer key"))?;
+    let mut own = Roster::new();
+    own.add(pk);
+    let msg = verify(s, &own, my_instance)?;
+    Ok((msg, Signer::Unrostered))
+}
+
+/// A short, stable reason code for a refusal (B8): goes on the REFUSED chain line.
+pub fn refusal_code(r: &Refusal) -> &'static str {
+    match r {
+        Refusal::Malformed(_) => "malformed",
+        Refusal::NotCanonical => "not-canonical",
+        Refusal::FromMismatch => "from-mismatch",
+        Refusal::NotInRoster => "not-in-roster",
+        Refusal::KeyMismatch => "key-mismatch",
+        Refusal::BadSignature => "bad-signature",
+        Refusal::WrongInstance { .. } => "wrong-instance",
+    }
+}
+
 // ---- stage records (section 5.3) ------------------------------------------
 
 /// A receiver's signed report that one of the sender's messages reached a stage.

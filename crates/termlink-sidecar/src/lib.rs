@@ -9,3 +9,4 @@ pub mod store;
 pub mod api;
 pub mod send;
 pub mod pull;
+pub mod policy;

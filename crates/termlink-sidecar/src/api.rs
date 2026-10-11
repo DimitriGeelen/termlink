@@ -35,7 +35,9 @@ pub const MAX_REQUEST: u64 = 64 * 1024;
 /// The PH-1 stage vocabulary, in order. `status` uses nothing else for stages.
 pub const STAGES: [&str; 5] = ["SENT", "RECEIVED", "STORED", "HANDED_OVER", "REPLIED"];
 /// Flag file in the store dir; present means delivery is off (SI-23).
-pub const DELIVERY_OFF_FLAG: &str = "delivery.off";
+pub use crate::policy::DELIVERY_OFF_FLAG;
+/// Conversation that holds the delivery switch's log lines (SI-23).
+pub const ADMIN_CONV: &str = "_admin";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Scope {
@@ -252,7 +254,9 @@ fn serve(s: UnixStream, scope: Scope, sh: &Shared) -> io::Result<()> {
 }
 
 fn handle(req: &Value, scope: Scope, sh: &Shared) -> Value {
-    dispatch_with(req, scope, &sh.store, &sh.cfg.agent, sh.cfg.hub_id.as_deref(), sh.cfg.sender.as_deref())
+    // The peer passed the owner check, so its uid is the owner's.
+    let who = format!("admin-uid-{}", sh.cfg.owner_uid);
+    dispatch_inner(req, scope, &sh.store, &sh.cfg.agent, sh.cfg.hub_id.as_deref(), sh.cfg.sender.as_deref(), &who)
 }
 
 /// Parse and dispatch one request; independent of any socket.
@@ -268,6 +272,18 @@ pub fn dispatch_with(
     agent: &str,
     hub_id: Option<&str>,
     sender: Option<&Sender>,
+) -> Value {
+    dispatch_inner(req, scope, store, agent, hub_id, sender, "admin-direct")
+}
+
+fn dispatch_inner(
+    req: &Value,
+    scope: Scope,
+    store: &Store,
+    agent: &str,
+    hub_id: Option<&str>,
+    sender: Option<&Sender>,
+    who: &str,
 ) -> Value {
     let Some(obj) = req.as_object() else {
         return err("bad-request", "request must be a JSON object", "send {\"op\": ...}");
@@ -302,7 +318,7 @@ pub fn dispatch_with(
     match op {
         "status" => status(obj, store, agent, hub_id, sender),
         "send" => send(obj, sender),
-        "delivery" => delivery(obj, store),
+        "delivery" => delivery(obj, store, who),
         _ => err(
             "not-implemented",
             &format!("op {op:?} is not served yet"),
@@ -336,11 +352,40 @@ fn send(obj: &serde_json::Map<String, Value>, sender: Option<&Sender>) -> Value 
     }
 }
 
-fn delivery(obj: &serde_json::Map<String, Value>, store: &Store) -> Value {
+/// Log a switch flip on the chain: who (the admin socket's uid), when (the
+/// line's time), why (the reason field) (SI-23).
+fn log_switch(store: &Store, event: &str, who: &str, why: &str) -> Result<(), String> {
+    use sha2::{Digest, Sha256};
+    let digest: String = Sha256::digest(why.as_bytes()).iter().map(|b| format!("{b:02x}")).collect();
+    let id = format!("switch-{}", crate::store::now_ms());
+    let reason = if why.is_empty() { "no reason given".to_owned() } else { why.to_owned() };
+    store
+        .append_event_unless(
+            ADMIN_CONV,
+            event,
+            &id,
+            who,
+            &digest,
+            crate::store::LineExtra { reason: Some(reason), ..Default::default() },
+            |_| false,
+        )
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}
+
+fn delivery(obj: &serde_json::Map<String, Value>, store: &Store, who: &str) -> Value {
     let flag = store.dir().join(DELIVERY_OFF_FLAG);
+    let why = obj.get("why").and_then(Value::as_str).unwrap_or("");
+    let logged = |state: &str, event: &str| match log_switch(store, event, who, why) {
+        Ok(()) => json!({"ok": true, "delivery": state}),
+        Err(e) => err(
+            "log",
+            &format!("delivery is {state} but the switch could not be logged: {e}"),
+            "the flag is set; check the store",
+        ),
+    };
     match obj.get("state").and_then(Value::as_str) {
         Some("off") => {
-            let why = obj.get("why").and_then(Value::as_str).unwrap_or("");
             let r = fs::OpenOptions::new()
                 .write(true)
                 .create(true)
@@ -352,13 +397,13 @@ fn delivery(obj: &serde_json::Map<String, Value>, store: &Store) -> Value {
                     f.sync_all()
                 });
             match r {
-                Ok(()) => json!({"ok": true, "delivery": "off"}),
+                Ok(()) => logged("off", "DELIVERY_OFF"),
                 Err(e) => err("io", &format!("cannot write the flag: {e}"), "delivery state is unchanged"),
             }
         }
         Some("on") => match fs::remove_file(&flag) {
-            Ok(()) => json!({"ok": true, "delivery": "on"}),
-            Err(e) if e.kind() == io::ErrorKind::NotFound => json!({"ok": true, "delivery": "on"}),
+            Ok(()) => logged("on", "DELIVERY_ON"),
+            Err(e) if e.kind() == io::ErrorKind::NotFound => logged("on", "DELIVERY_ON"),
             Err(e) => err("io", &format!("cannot clear the flag: {e}"), "delivery state is unchanged"),
         },
         _ => err("bad-request", "state must be \"on\" or \"off\"", "{\"op\":\"delivery\",\"state\":\"off\"}"),
@@ -386,7 +431,7 @@ fn status(obj: &serde_json::Map<String, Value>, store: &Store, agent: &str, hub_
                         let e = by_msg.entry(l.msg_id.clone()).or_insert(0);
                         *e = (*e).max(i + 1);
                     }
-                    rows.push(json!({"conv": l.conv, "seq": l.seq, "msg_id": l.msg_id, "stage": l.event, "sender": l.sender, "ts_ms": l.ts_ms, "peer_ts_ms": l.peer_ts_ms}));
+                    rows.push(json!({"conv": l.conv, "seq": l.seq, "msg_id": l.msg_id, "stage": l.event, "sender": l.sender, "ts_ms": l.ts_ms, "peer_ts_ms": l.peer_ts_ms, "reason": l.reason}));
                 }
             }
             Err(e) => {
@@ -423,10 +468,14 @@ fn status(obj: &serde_json::Map<String, Value>, store: &Store, agent: &str, hub_
             if handed {
                 v["delivered"] = json!(true);
             }
+            // Stored but withheld (e.g. not-allowed), or refused outright: say why.
+            if let Some(r) = rows.iter().find(|r| r["msg_id"] == *m && r["stage"] == "REFUSED") {
+                v["refused"] = r["reason"].clone();
+            }
             v
         })
         .collect();
-    let delivery_on = !store.dir().join(DELIVERY_OFF_FLAG).exists();
+    let delivery_on = crate::policy::delivery_enabled(store);
     let flags = strength_flags(hub_id);
     let missing: Vec<&str> = flags.iter().filter(|(_, present, _)| !present).map(|(_, _, why)| *why).collect();
     let strength: BTreeMap<&str, bool> = flags.iter().map(|(n, p, _)| (*n, *p)).collect();

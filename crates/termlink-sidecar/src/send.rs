@@ -412,7 +412,7 @@ impl Inner {
             return Ok(());
         }
         self.store
-            .append_event_unless(conv, WAITING, msg_id, self.cfg.identity.fingerprint(), digest, None, |ls| {
+            .append_event_unless(conv, WAITING, msg_id, self.cfg.identity.fingerprint(), digest, Default::default(), |ls| {
                 ls.iter().any(|l| l.msg_id == msg_id && (l.event == WAITING || l.event == POSTED))
             })
             .map(|_| ())

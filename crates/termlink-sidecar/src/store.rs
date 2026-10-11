@@ -141,6 +141,18 @@ pub struct ChainLine {
     /// its signed stage record. Hashed only when present, like `ts_ms`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub peer_ts_ms: Option<u64>,
+    /// Why, for a REFUSED, DOWNGRADED or switch line (B8). Hashed only when present.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+}
+
+/// Optional fields of a chain line beyond the fixed ones.
+#[derive(Debug, Clone, Default)]
+pub struct LineExtra {
+    /// The peer's time on a stage it reported (B7).
+    pub peer_ts_ms: Option<u64>,
+    /// A short reason (B8). At most 200 bytes; longer is cut.
+    pub reason: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -156,6 +168,8 @@ struct Body<'a> {
     ts_ms: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     peer_ts_ms: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reason: Option<&'a str>,
 }
 
 /// Wall-clock now in ms since the epoch.
@@ -185,6 +199,7 @@ fn line_hash(l: &ChainLine) -> String {
         prev: &l.prev,
         ts_ms: l.ts_ms,
         peer_ts_ms: l.peer_ts_ms,
+        reason: l.reason.as_deref(),
     })
     .expect("serialize body");
     let mut h = Sha256::new();
@@ -430,7 +445,7 @@ impl Store {
     }
 
     fn append_line(&self, conv: &str, event: &str, msg_id: &str, sender: &str, digest: &str) -> Result<u64> {
-        self.append_line_at(conv, event, msg_id, sender, digest, None)
+        self.append_line_at(conv, event, msg_id, sender, digest, LineExtra::default())
     }
 
     fn append_line_at(
@@ -440,7 +455,7 @@ impl Store {
         msg_id: &str,
         sender: &str,
         digest: &str,
-        peer_ts_ms: Option<u64>,
+        extra: LineExtra,
     ) -> Result<u64> {
         let (lines, _) = self.read_chain(conv)?;
         let seq = lines.len() as u64;
@@ -455,7 +470,18 @@ impl Store {
             prev,
             hash: String::new(),
             ts_ms: Some(now_ms()),
-            peer_ts_ms,
+            peer_ts_ms: extra.peer_ts_ms,
+            reason: extra.reason.map(|r| {
+                let mut r = r;
+                if r.len() > 200 {
+                    let mut cut = 200;
+                    while !r.is_char_boundary(cut) {
+                        cut -= 1;
+                    }
+                    r.truncate(cut);
+                }
+                r
+            }),
         };
         l.hash = line_hash(&l);
         let mut bytes = serde_json::to_vec(&l).expect("serialize line");
@@ -493,8 +519,7 @@ impl Store {
 
     /// Append `event` unless `pred` already holds over the conversation's lines.
     /// Check and append happen under one lock, so two callers cannot both append.
-    /// `peer_ts_ms` is the peer's time for a stage it reported. Returns the new
-    /// seq, or `None` when `pred` held.
+    /// Returns the new seq, or `None` when `pred` held.
     #[allow(clippy::too_many_arguments)]
     pub fn append_event_unless(
         &self,
@@ -503,7 +528,7 @@ impl Store {
         msg_id: &str,
         sender: &str,
         digest: &str,
-        peer_ts_ms: Option<u64>,
+        extra: LineExtra,
         pred: impl Fn(&[ChainLine]) -> bool,
     ) -> Result<Option<u64>> {
         for n in [conv, msg_id, sender] {
@@ -514,7 +539,7 @@ impl Store {
         if pred(&lines) {
             return Ok(None);
         }
-        self.append_line_at(conv, event, msg_id, sender, digest, peer_ts_ms).map(Some)
+        self.append_line_at(conv, event, msg_id, sender, digest, extra).map(Some)
     }
 
     /// The hash of the conversation's last line (GENESIS when empty).

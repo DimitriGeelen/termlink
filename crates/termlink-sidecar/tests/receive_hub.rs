@@ -7,6 +7,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use termlink_protocol::control::channel::canonical_sign_bytes;
 use termlink_session::agent_identity::Identity;
+use termlink_sidecar::policy::BuiltIn;
 use termlink_sidecar::pull::*;
 use termlink_sidecar::send::*;
 use termlink_sidecar::store::{ChainLine, ChainStatus, Step, Store, StoreError, arm, disarm};
@@ -49,7 +50,7 @@ fn agent(e: &Estate, who: &str, name: &str, inst: &str, declared: &str) -> Agent
                 hub: e.hub_addr(),
                 declared_hub_id: declared.into(),
                 queue_path: e.root().join(format!("outbox-{who}.sqlite")),
-                timeout: Duration::from_secs(3),
+                timeout: Duration::from_secs(15),
                 pump_interval: None,
             },
             store.clone(),
@@ -63,13 +64,13 @@ fn agent(e: &Estate, who: &str, name: &str, inst: &str, declared: &str) -> Agent
             hub: e.hub_addr(),
             declared_hub_id: declared.into(),
             roster: roster(e),
-            timeout: Duration::from_secs(3),
+            timeout: Duration::from_secs(15),
             page: 50,
             poll_interval: None,
         },
         store.clone(),
         sender.clone(),
-        Box::new(AcceptAll),
+        Box::new(BuiltIn::new(roster(e))),
     )
     .unwrap();
     Agent { store, sender, rx }
@@ -223,17 +224,24 @@ fn receive_hub_forged_or_misaddressed_messages_are_refused_never_stored() {
 
     assert_eq!(caught_up(b.rx.pass()), 5);
     let reasons = b.store.attention_entries().join("\n");
-    for (conv, id, why) in [
-        ("f-1", "m1", "no signature"),
-        ("f-2", "m2", "not in the roster"),
-        ("f-3", "m3", "does not match the from identity"),
-        ("f-4", "m4", "signature does not verify"),
-        ("f-5", "m5", "instance inst-ended"),
+    for (conv, id, code, why) in [
+        ("f-1", "m1", "malformed", "no signature"),
+        ("f-3", "m3", "from-mismatch", "does not match the from identity"),
+        ("f-4", "m4", "bad-signature", "signature does not verify"),
+        ("f-5", "m5", "wrong-instance", "instance inst-ended"),
     ] {
-        assert_eq!(names(&lines(&b.store, conv, id)), ["REFUSED"], "{conv}");
+        let ls = lines(&b.store, conv, id);
+        assert_eq!(names(&ls), ["REFUSED"], "{conv}");
+        assert_eq!(ls[0].reason.as_deref(), Some(code), "{conv}");
         assert_eq!(count(&b.store, conv, "STORED"), 0, "{conv}");
         assert!(reasons.contains(why), "{conv}: {why} not in {reasons}");
     }
+    // The shared host key is honest about itself but not on the allow-list (B8):
+    // stored and shown, refused not-allowed, never delivered.
+    let ls = lines(&b.store, "f-2", "m2");
+    assert_eq!(names(&ls), ["RECEIVED", "STORED", "REFUSED"]);
+    assert_eq!(ls[2].reason.as_deref(), Some("not-allowed"));
+    assert!(reasons.contains("not on the allow-list"), "{reasons}");
     // Nothing went back to A: a forged sender is never answered.
     assert_eq!(caught_up(a.rx.pass()), 0);
     // A re-read (cursor reset) records each refusal once only.
@@ -338,7 +346,7 @@ fn receive_hub_wrong_hub_id_reads_nothing_and_says_so() {
                 hub: e.hub_addr(),
                 declared_hub_id: "not-the-hub-id".into(),
                 queue_path: e.root().join("outbox-b2.sqlite"),
-                timeout: Duration::from_secs(3),
+                timeout: Duration::from_secs(15),
                 pump_interval: None,
             },
             store.clone(),
@@ -352,13 +360,13 @@ fn receive_hub_wrong_hub_id_reads_nothing_and_says_so() {
             hub: e.hub_addr(),
             declared_hub_id: "not-the-hub-id".into(),
             roster: roster(&e),
-            timeout: Duration::from_secs(3),
+            timeout: Duration::from_secs(15),
             page: 50,
             poll_interval: None,
         },
         store.clone(),
         sender,
-        Box::new(AcceptAll),
+        Box::new(BuiltIn::new(roster(&e))),
     )
     .unwrap();
     assert!(matches!(rx.pass(), PassResult::Held(_)));

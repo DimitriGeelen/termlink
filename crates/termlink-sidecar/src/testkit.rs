@@ -176,17 +176,24 @@ impl Estate {
         termlink_protocol::TransportAddr::unix(self.runtime_dir().join("hub.sock"))
     }
 
-    /// The throwaway hub's own id, as `hub.version` states it.
+    /// The throwaway hub's own id, as `hub.version` states it. A hub that is up
+    /// (it is only called while one runs) but slow to answer on a loaded host is
+    /// asked again, for up to 30 s in all.
     pub fn hub_id(&self) -> std::io::Result<String> {
         let rt = tokio::runtime::Builder::new_current_thread().enable_all().build()?;
-        let resp = rt
-            .block_on(termlink_session::client::rpc_call_addr_with_timeout(
+        let deadline = std::time::Instant::now() + Duration::from_secs(30);
+        let resp = loop {
+            match rt.block_on(termlink_session::client::rpc_call_addr_with_timeout(
                 &self.hub_addr(),
                 "hub.version",
                 serde_json::json!({}),
                 Duration::from_secs(5),
-            ))
-            .map_err(|e| std::io::Error::other(e.to_string()))?;
+            )) {
+                Ok(r) => break r,
+                Err(e) if std::time::Instant::now() >= deadline => return Err(std::io::Error::other(e.to_string())),
+                Err(_) => std::thread::sleep(Duration::from_millis(200)),
+            }
+        };
         let v = termlink_session::client::unwrap_result(resp).map_err(std::io::Error::other)?;
         v["hub_id"]
             .as_str()

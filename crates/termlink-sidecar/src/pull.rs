@@ -22,8 +22,9 @@
 //! no second RECEIVED or STORED line, and a re-sent stage record is absorbed by
 //! the sender's forward-only check.
 
+use crate::policy::{self, Policy};
 use crate::send::{PinError, Sender, inbox_topic};
-use crate::store::{ChainLine, PutOutcome, Store};
+use crate::store::{ChainLine, LineExtra, PutOutcome, Store};
 use crate::wire::{self, Msg, Refusal, Roster, Signed, Stage};
 use base64::Engine as _;
 use serde_json::{Value, json};
@@ -43,28 +44,6 @@ pub const REFUSED: &str = "REFUSED";
 pub const CURSOR_STATE: &str = "inbox-cursor";
 /// Conversation name used for a refused message whose own conv is unusable.
 pub const UNPARSED_CONV: &str = "_refused";
-
-/// What the policy hook (C-7, filled by B8) decides for a verified message.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Admit {
-    Accept,
-    Refuse(String),
-}
-
-/// The receiver-check hook point. Its only inputs are the verified message
-/// (whose identity and numeric fields are signed); B8 supplies the real checks.
-pub trait Policy: Send + Sync {
-    fn admit(&self, msg: &Msg) -> Admit;
-}
-
-/// B7 default: every verified, rostered message is admitted.
-pub struct AcceptAll;
-
-impl Policy for AcceptAll {
-    fn admit(&self, _msg: &Msg) -> Admit {
-        Admit::Accept
-    }
-}
 
 pub struct ReceiveConfig {
     /// This agent's name: its inbox is `inbox:<hub_id>/<agent>`.
@@ -356,33 +335,72 @@ impl Inner {
     fn handle_msg(&self, env: &Envelope) -> Outcome {
         let verified = match &env.signed {
             None => Err(Refusal::Malformed("no signature in the post metadata")),
-            Some(s) => wire::verify(s, &self.cfg.roster, &self.cfg.instance),
+            Some(s) => wire::verify_open(s, &self.cfg.roster, &self.cfg.instance),
         };
         let msg = match verified {
-            Ok(m) => m,
-            Err(r) => return self.refuse(env, None, &r.to_string()),
+            Ok((m, _signer)) => m,
+            Err(r) => return self.refuse(env, None, wire::refusal_code(&r), &r.to_string()),
         };
         if !name_ok(&msg.conv) || !name_ok(&msg.msg_id) {
-            return self.refuse(env, None, "conv or msg_id is not a valid name");
+            return self.refuse(env, None, "bad-name", "conv or msg_id is not a valid name");
         }
-        if let Admit::Refuse(why) = self.policy.admit(&msg) {
-            return self.refuse(env, Some(&msg), &why);
-        }
+        // Receiver checks (C-7). Their inputs are the verified sender and the
+        // signed priority only.
+        let a = self.policy.assess(&msg);
         let digest = msg.digest();
         let (conv, id, from) = (msg.conv.as_str(), msg.msg_id.as_str(), msg.from.as_str());
-        if let Err(e) = self.store.append_event_unless(conv, RECEIVED, id, from, &digest, None, |ls| {
-            ls.iter().any(|l| l.event == RECEIVED && l.msg_id == id && l.sender == from && l.digest == digest)
-        }) {
+        let once = |event: &'static str, reason: Option<&str>| {
+            let d = digest.clone();
+            self.store.append_event_unless(
+                conv,
+                event,
+                id,
+                from,
+                &digest,
+                LineExtra { reason: reason.map(str::to_owned), ..Default::default() },
+                move |ls| ls.iter().any(|l| l.event == event && l.msg_id == id && l.sender == from && l.digest == d),
+            )
+        };
+        if let Err(e) = once(RECEIVED, None) {
             return Outcome::Retry(format!("RECEIVED not recorded: {e}"));
         }
-        if let Err(e) = self.report(&msg, RECEIVED) {
+        if a.downgraded {
+            // Asked for urgent without the allow-list: normal, and said so (SI-18).
+            let why = format!("priority {} from a {} sender: urgent needs the allow-list", a.priority, a.trust.as_str());
+            if let Err(e) = once(policy::DOWNGRADED, Some(&why)) {
+                return Outcome::Retry(format!("DOWNGRADED not recorded: {e}"));
+            }
+        }
+        // A sender outside the allow-list is never answered: its name for itself
+        // (`from_agent`) is not bound to a key we know.
+        let answer = a.withheld.is_none();
+        if answer && let Err(e) = self.report(&msg, RECEIVED) {
             return Outcome::Retry(e);
         }
         match self.store.put(from, conv, id, &env.payload) {
-            Ok(PutOutcome::Stored { .. }) | Ok(PutOutcome::Duplicate { .. }) => match self.report(&msg, STORED) {
-                Ok(()) => Outcome::Done,
-                Err(e) => Outcome::Retry(e),
-            },
+            Ok(PutOutcome::Stored { .. }) | Ok(PutOutcome::Duplicate { .. }) => {
+                if let Some(code) = a.withheld {
+                    // Stored and shown, never delivered (7.2).
+                    match once(REFUSED, Some(code)) {
+                        Ok(Some(_)) => {
+                            let _ = self.store.attention(
+                                code,
+                                &format!(
+                                    "{conv}/{id} from {from} ({}): stored, not delivered: sender is not on the allow-list",
+                                    a.trust.as_str()
+                                ),
+                            );
+                        }
+                        Ok(None) => {}
+                        Err(e) => return Outcome::Retry(format!("REFUSED not recorded: {e}")),
+                    }
+                    return Outcome::Done;
+                }
+                match self.report(&msg, STORED) {
+                    Ok(()) => Outcome::Done,
+                    Err(e) => Outcome::Retry(e),
+                }
+            }
             Ok(PutOutcome::Conflict { first_seq, conflict_seq }) => {
                 let _ = self.store.attention(
                     "conflict",
@@ -431,9 +449,10 @@ impl Inner {
             .unwrap_or_else(|| crate::store::now_ms() as i64)
     }
 
-    /// Record a refusal on the chain (once per digest) and in needs-attention.
-    /// Nothing is stored and nothing is reported to the claimed sender.
-    fn refuse(&self, env: &Envelope, msg: Option<&Msg>, why: &str) -> Outcome {
+    /// Record a refusal on the chain (once per digest, with its reason code) and
+    /// in needs-attention. Nothing is stored and nothing is reported to the
+    /// claimed sender.
+    fn refuse(&self, env: &Envelope, msg: Option<&Msg>, code: &str, why: &str) -> Outcome {
         let digest = wire::digest_hex(&env.payload);
         let parsed: Option<(String, String)> = msg
             .map(|m| (m.conv.clone(), m.msg_id.clone()))
@@ -446,7 +465,8 @@ impl Inner {
             _ => (UNPARSED_CONV.to_owned(), digest[..32].to_owned()),
         };
         let sender = if name_ok(&env.sender_id) { env.sender_id.clone() } else { "unknown".to_owned() };
-        let first = match self.store.append_event_unless(&conv, REFUSED, &id, &sender, &digest, None, |ls| {
+        let extra = LineExtra { reason: Some(code.to_owned()), ..Default::default() };
+        let first = match self.store.append_event_unless(&conv, REFUSED, &id, &sender, &digest, extra, |ls| {
             ls.iter().any(|l| l.event == REFUSED && l.msg_id == id && l.digest == digest)
         }) {
             Ok(r) => r.is_some(),
@@ -492,7 +512,7 @@ impl Inner {
         let ts = st.ts_ms.max(0) as u64;
         // Forward-only: a stage at or behind one already recorded from this peer
         // is a repeat (or arrived out of order) and changes nothing.
-        match self.store.append_event_unless(&st.conv, &st.stage, &id, &from, &sent.digest, Some(ts), |ls| {
+        match self.store.append_event_unless(&st.conv, &st.stage, &id, &from, &sent.digest, LineExtra { peer_ts_ms: Some(ts), ..Default::default() }, |ls| {
             ls.iter()
                 .filter(|l| l.msg_id == id && l.sender == from)
                 .filter_map(|l| rank(&l.event))
