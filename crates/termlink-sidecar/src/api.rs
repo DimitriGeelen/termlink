@@ -386,7 +386,7 @@ fn status(obj: &serde_json::Map<String, Value>, store: &Store, agent: &str, hub_
                         let e = by_msg.entry(l.msg_id.clone()).or_insert(0);
                         *e = (*e).max(i + 1);
                     }
-                    rows.push(json!({"conv": l.conv, "seq": l.seq, "msg_id": l.msg_id, "stage": l.event, "sender": l.sender, "ts_ms": l.ts_ms}));
+                    rows.push(json!({"conv": l.conv, "seq": l.seq, "msg_id": l.msg_id, "stage": l.event, "sender": l.sender, "ts_ms": l.ts_ms, "peer_ts_ms": l.peer_ts_ms}));
                 }
             }
             Err(e) => {

@@ -16,6 +16,16 @@ use termlink_session::agent_identity::{fingerprint_of, Identity};
 /// Hub-visible message type of a sidecar message.
 pub const MSG_TYPE: &str = "sidecar.msg.v1";
 pub const WIRE_VERSION: i64 = 1;
+/// Hub-visible message type of a stage record (section 5.3).
+pub const STAGE_TYPE: &str = "sidecar.stage.v1";
+/// Post metadata keys that carry the transport signature to the receiver. The
+/// hub verifies the signature on post but does not return it on subscribe, and
+/// metadata is outside the signed bytes, so carrying it there changes nothing
+/// the signature covers: an altered key or signature simply fails `verify`.
+pub const META_PK: &str = "sidecar_pk";
+pub const META_SIG: &str = "sidecar_sig";
+/// Stages a receiver reports back, in their only allowed order (forward-only).
+pub const STAGE_ORDER: [&str; 2] = ["RECEIVED", "STORED"];
 
 /// The signed message body (section 5.1).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -242,6 +252,30 @@ impl Roster {
     }
 }
 
+/// Signer key -> `from`, roster, signature: the checks shared by messages and stages.
+fn check_signer(s: &Signed, roster: &Roster, from: &str, msg_type: &str) -> Result<(), Refusal> {
+    let pk_bytes: [u8; 32] = unhex(&s.signer_pk)
+        .and_then(|b| b.try_into().ok())
+        .ok_or(Refusal::Malformed("signer key"))?;
+    let pk = VerifyingKey::from_bytes(&pk_bytes).map_err(|_| Refusal::Malformed("signer key"))?;
+    if fingerprint_of(&pk) != from {
+        return Err(Refusal::FromMismatch);
+    }
+    let rostered = roster.get(from).ok_or(Refusal::NotInRoster)?;
+    if rostered.as_bytes() != pk.as_bytes() {
+        return Err(Refusal::KeyMismatch);
+    }
+    let sig_bytes: [u8; 64] = unhex(&s.sig)
+        .and_then(|b| b.try_into().ok())
+        .ok_or(Refusal::Malformed("signature"))?;
+    let sig = Signature::from_bytes(&sig_bytes);
+    let signed = canonical_sign_bytes(&s.topic, msg_type, &s.payload, None, s.ts_ms);
+    if !Identity::verify(rostered, &signed, &sig) {
+        return Err(Refusal::BadSignature);
+    }
+    Ok(())
+}
+
 /// Verify a posted message as the receiving instance `my_instance`.
 pub fn verify(s: &Signed, roster: &Roster, my_instance: &str) -> Result<Msg, Refusal> {
     let value: Value = serde_json::from_slice(&s.payload)
@@ -250,25 +284,7 @@ pub fn verify(s: &Signed, roster: &Roster, my_instance: &str) -> Result<Msg, Ref
     if msg.payload_bytes() != s.payload {
         return Err(Refusal::NotCanonical);
     }
-    let pk_bytes: [u8; 32] = unhex(&s.signer_pk)
-        .and_then(|b| b.try_into().ok())
-        .ok_or(Refusal::Malformed("signer key"))?;
-    let pk = VerifyingKey::from_bytes(&pk_bytes).map_err(|_| Refusal::Malformed("signer key"))?;
-    if fingerprint_of(&pk) != msg.from {
-        return Err(Refusal::FromMismatch);
-    }
-    let rostered = roster.get(&msg.from).ok_or(Refusal::NotInRoster)?;
-    if rostered.as_bytes() != pk.as_bytes() {
-        return Err(Refusal::KeyMismatch);
-    }
-    let sig_bytes: [u8; 64] = unhex(&s.sig)
-        .and_then(|b| b.try_into().ok())
-        .ok_or(Refusal::Malformed("signature"))?;
-    let sig = Signature::from_bytes(&sig_bytes);
-    let signed = canonical_sign_bytes(&s.topic, MSG_TYPE, &s.payload, None, s.ts_ms);
-    if !Identity::verify(rostered, &signed, &sig) {
-        return Err(Refusal::BadSignature);
-    }
+    check_signer(s, roster, &msg.from, MSG_TYPE)?;
     if msg.to_instance != my_instance {
         return Err(Refusal::WrongInstance {
             want: my_instance.to_owned(),
@@ -276,6 +292,107 @@ pub fn verify(s: &Signed, roster: &Roster, my_instance: &str) -> Result<Msg, Ref
         });
     }
     Ok(msg)
+}
+
+// ---- stage records (section 5.3) ------------------------------------------
+
+/// A receiver's signed report that one of the sender's messages reached a stage.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Stage {
+    /// The reporting (receiving) agent's fingerprint.
+    pub from: String,
+    pub from_agent: String,
+    /// The agent whose message this is about (the original sender).
+    pub to_agent: String,
+    pub conv: String,
+    pub msg_id: String,
+    pub stage: String,
+    pub ts_ms: i64,
+    /// The receiver's conversation chain head right after the stage line.
+    pub chain_head: String,
+}
+
+impl Stage {
+    fn to_value(&self) -> Value {
+        let mut m = serde_json::Map::new();
+        m.insert("v".into(), Value::from(WIRE_VERSION));
+        m.insert("kind".into(), "stage".into());
+        m.insert("from".into(), self.from.clone().into());
+        m.insert("from_agent".into(), self.from_agent.clone().into());
+        m.insert("to_agent".into(), self.to_agent.clone().into());
+        m.insert("conv".into(), self.conv.clone().into());
+        m.insert("msg_id".into(), self.msg_id.clone().into());
+        m.insert("stage".into(), self.stage.clone().into());
+        m.insert("ts_ms".into(), Value::from(self.ts_ms));
+        m.insert("chain_head".into(), self.chain_head.clone().into());
+        Value::Object(m)
+    }
+
+    fn from_value(v: &Value) -> Result<Self, Refusal> {
+        let o = v.as_object().ok_or(Refusal::Malformed("not an object"))?;
+        if o.len() != 10 {
+            return Err(Refusal::Malformed("unexpected field set"));
+        }
+        if o.get("v").and_then(Value::as_i64) != Some(WIRE_VERSION) {
+            return Err(Refusal::Malformed("unsupported version"));
+        }
+        if o.get("kind").and_then(Value::as_str) != Some("stage") {
+            return Err(Refusal::Malformed("kind is not stage"));
+        }
+        let s = |k: &'static str| {
+            o.get(k)
+                .and_then(Value::as_str)
+                .map(str::to_owned)
+                .ok_or(Refusal::Malformed(k))
+        };
+        let stage = s("stage")?;
+        if !STAGE_ORDER.contains(&stage.as_str()) {
+            return Err(Refusal::Malformed("unknown stage"));
+        }
+        Ok(Stage {
+            from: s("from")?,
+            from_agent: s("from_agent")?,
+            to_agent: s("to_agent")?,
+            conv: s("conv")?,
+            msg_id: s("msg_id")?,
+            stage,
+            ts_ms: o
+                .get("ts_ms")
+                .and_then(Value::as_i64)
+                .ok_or(Refusal::Malformed("ts_ms"))?,
+            chain_head: s("chain_head")?,
+        })
+    }
+
+    pub fn payload_bytes(&self) -> Vec<u8> {
+        canonical_json(&self.to_value()).into_bytes()
+    }
+}
+
+/// Sign a stage record for `topic` (the original sender's inbox) with the receiver's key.
+pub fn sign_stage(id: &Identity, topic: &str, ts_ms: i64, st: &Stage) -> Signed {
+    let payload = st.payload_bytes();
+    let bytes = canonical_sign_bytes(topic, STAGE_TYPE, &payload, None, ts_ms);
+    let sig = id.sign(&bytes);
+    Signed {
+        topic: topic.to_owned(),
+        ts_ms,
+        payload,
+        signer_pk: id.public_key_hex(),
+        sig: hex(&sig.to_bytes()),
+    }
+}
+
+/// Verify a stage record: canonical, signed by the roster key of its `from`.
+pub fn verify_stage(s: &Signed, roster: &Roster) -> Result<Stage, Refusal> {
+    let value: Value = serde_json::from_slice(&s.payload)
+        .map_err(|_| Refusal::Malformed("payload is not JSON"))?;
+    let st = Stage::from_value(&value)?;
+    if st.payload_bytes() != s.payload {
+        return Err(Refusal::NotCanonical);
+    }
+    check_signer(s, roster, &st.from, STAGE_TYPE)?;
+    Ok(st)
 }
 
 // ---- address parser (R-32) -------------------------------------------------

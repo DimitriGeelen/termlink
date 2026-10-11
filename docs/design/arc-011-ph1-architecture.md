@@ -5,6 +5,7 @@
 | Version | Date | Change | Task |
 |---|---|---|---|
 | 0.1 DRAFT | 2026-10-11 | First draft. PH-1 only (not the full step 4). Inputs: REQ v0.5.2, TM v0.3.7, step 3 v0.2.1 with its rulings (OP-21 B). | T-3400 |
+| 0.2 DRAFT | 2026-10-11 | 5.2 and 5.3: the hub verifies a post's signature but does not return it on `channel.subscribe`, so the sender also carries signer key and signature in the post metadata (`sidecar_pk`, `sidecar_sig`) for the receiver to re-verify. Metadata is outside the signed bytes, so this changes nothing the signature covers and needs no hub change. 4.5: a chain line may carry `peer_ts_ms`, the peer's time on a stage it reported. | T-3408 |
 
 Inputs of record: `interactive-agent-communication-01-requirements.md`, `-02-threat-model.md`, `-03-floor-and-phasing.md` (sections 3.3, 5, 5.6, 6.2.2, 13.2.14). Marks: **[A]** assumption to be verified by a build task; **OQ-n** a choice for the operator, with a recommendation. Scope limit: this note composes PH-1 and names where PH-2 grows from it; the full step-4 design (circuits, roles, cards, many-to-many) is not here.
 
@@ -118,6 +119,8 @@ A failure at any step stops before STORED is reported (FC-2). After a kill, star
 `{v, kind:"msg", from:<agent fp>, from_agent, to_agent, to_instance, conv, msg_id, seq, priority, ts_ms, body}`. `msg_id` is a random 128-bit hex (reuses `mint_client_msg_id`). The digest is `sha256(payload bytes)`.
 
 5.2 Two signatures, one key. (1) The transport signature: the sender's own key signs `canonical_sign_bytes(topic, msg_type="sidecar.msg.v1", payload, None, ts)`, exactly what the hub already verifies, so the hub refuses a forged or altered post (FC-1, hub half) with no hub change. (2) The receiver re-verifies the same signature **and** checks that `from` equals the fingerprint of the key in the roster for that sender, and that `to_instance` equals its own instance id (SI-26: a message for another or ended instance is refused loudly, never redirected). The shared host key and a sibling's key fail the roster check (FC-1, receiver half). Because identity is inside the signed payload, a message that is altered after signing fails; because `to_instance` is signed, it cannot be replayed to another instance.
+
+5.2.a Carrying the signature (B7, T-3408): `channel.subscribe` returns payload, topic, timestamp and metadata but not the post's key and signature, so the sender repeats them in metadata (`sidecar_pk`, `sidecar_sig`) and the receiver verifies them against the payload it read. A post with no such metadata is REFUSED.
 
 5.3 Stage records and receipts (SI-6): the receiver's sidecar signs `{kind:"stage", conv, msg_id, stage, ts_ms, chain_head}` with its own key and posts it to the sender's inbox; the sender verifies and appends it to its own chain. Forward-only: a stage row never moves backward; an unsigned or wrongly signed stage is ignored and shown. `up_to` receipts are PH-2.
 

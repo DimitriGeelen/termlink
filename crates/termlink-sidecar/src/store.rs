@@ -137,6 +137,10 @@ pub struct ChainLine {
     /// only when present.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ts_ms: Option<u64>,
+    /// For a stage reported by the other side (B7): the time the peer stamped on
+    /// its signed stage record. Hashed only when present, like `ts_ms`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub peer_ts_ms: Option<u64>,
 }
 
 #[derive(Serialize)]
@@ -150,6 +154,8 @@ struct Body<'a> {
     prev: &'a str,
     #[serde(skip_serializing_if = "Option::is_none")]
     ts_ms: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    peer_ts_ms: Option<u64>,
 }
 
 /// Wall-clock now in ms since the epoch.
@@ -178,6 +184,7 @@ fn line_hash(l: &ChainLine) -> String {
         digest: &l.digest,
         prev: &l.prev,
         ts_ms: l.ts_ms,
+        peer_ts_ms: l.peer_ts_ms,
     })
     .expect("serialize body");
     let mut h = Sha256::new();
@@ -228,6 +235,9 @@ pub struct Store {
     dir: PathBuf,
     _lock: File,
     recovery: RecoveryReport,
+    /// Serialises chain writes inside this process: read-then-append must not
+    /// interleave between the send pump and the receiver (B7).
+    write: std::sync::Mutex<()>,
 }
 
 static TMP_COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -290,7 +300,7 @@ impl Store {
                 StoreError::Io(e)
             });
         }
-        let mut s = Store { dir, _lock: lock, recovery: RecoveryReport::default() };
+        let mut s = Store { dir, _lock: lock, recovery: RecoveryReport::default(), write: std::sync::Mutex::new(()) };
         s.recovery = s.recover()?;
         Ok(s)
     }
@@ -415,7 +425,23 @@ impl Store {
         Ok(ChainStatus::Intact { len: n, head: prev })
     }
 
+    fn guard(&self) -> std::sync::MutexGuard<'_, ()> {
+        self.write.lock().unwrap_or_else(|p| p.into_inner())
+    }
+
     fn append_line(&self, conv: &str, event: &str, msg_id: &str, sender: &str, digest: &str) -> Result<u64> {
+        self.append_line_at(conv, event, msg_id, sender, digest, None)
+    }
+
+    fn append_line_at(
+        &self,
+        conv: &str,
+        event: &str,
+        msg_id: &str,
+        sender: &str,
+        digest: &str,
+        peer_ts_ms: Option<u64>,
+    ) -> Result<u64> {
         let (lines, _) = self.read_chain(conv)?;
         let seq = lines.len() as u64;
         let prev = lines.last().map(|l| l.hash.clone()).unwrap_or_else(|| GENESIS.into());
@@ -429,6 +455,7 @@ impl Store {
             prev,
             hash: String::new(),
             ts_ms: Some(now_ms()),
+            peer_ts_ms,
         };
         l.hash = line_hash(&l);
         let mut bytes = serde_json::to_vec(&l).expect("serialize line");
@@ -460,7 +487,68 @@ impl Store {
         for n in [conv, msg_id, sender] {
             check_name(n)?;
         }
+        let _g = self.guard();
         self.append_line(conv, event, msg_id, sender, digest)
+    }
+
+    /// Append `event` unless `pred` already holds over the conversation's lines.
+    /// Check and append happen under one lock, so two callers cannot both append.
+    /// `peer_ts_ms` is the peer's time for a stage it reported. Returns the new
+    /// seq, or `None` when `pred` held.
+    #[allow(clippy::too_many_arguments)]
+    pub fn append_event_unless(
+        &self,
+        conv: &str,
+        event: &str,
+        msg_id: &str,
+        sender: &str,
+        digest: &str,
+        peer_ts_ms: Option<u64>,
+        pred: impl Fn(&[ChainLine]) -> bool,
+    ) -> Result<Option<u64>> {
+        for n in [conv, msg_id, sender] {
+            check_name(n)?;
+        }
+        let _g = self.guard();
+        let (lines, _) = self.read_chain(conv)?;
+        if pred(&lines) {
+            return Ok(None);
+        }
+        self.append_line_at(conv, event, msg_id, sender, digest, peer_ts_ms).map(Some)
+    }
+
+    /// The hash of the conversation's last line (GENESIS when empty).
+    pub fn chain_head(&self, conv: &str) -> Result<String> {
+        check_name(conv)?;
+        let (lines, _) = self.read_chain(conv)?;
+        Ok(lines.last().map(|l| l.hash.clone()).unwrap_or_else(|| GENESIS.into()))
+    }
+
+    /// A small named state file in the store (e.g. the receiver's inbox cursor).
+    /// Written atomically: tmp, fsync, rename, fsync dir.
+    pub fn write_state(&self, name: &str, value: &str) -> Result<()> {
+        check_name(name)?;
+        let tmp = self.dir.join("tmp").join(format!(
+            "state-{}-{}",
+            std::process::id(),
+            TMP_COUNTER.fetch_add(1, Ordering::Relaxed)
+        ));
+        let mut f = create0600(&tmp, true)?;
+        f.write_all(value.as_bytes())?;
+        f.sync_all()?;
+        drop(f);
+        fs::rename(&tmp, self.dir.join(format!("state.{name}")))?;
+        fsync_dir(&self.dir)?;
+        Ok(())
+    }
+
+    pub fn read_state(&self, name: &str) -> Result<Option<String>> {
+        check_name(name)?;
+        match fs::read_to_string(self.dir.join(format!("state.{name}"))) {
+            Ok(s) => Ok(Some(s)),
+            Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(None),
+            Err(e) => Err(e.into()),
+        }
     }
 
     /// Store a message (steps 2 to 7 of 4.3; step 1, signature check, is the caller's).
@@ -469,6 +557,7 @@ impl Store {
         for n in [sender, conv, msg_id] {
             check_name(n)?;
         }
+        let _g = self.guard();
         let digest = sha_hex(payload);
         let (lines, _) = self.read_chain(conv)?;
         if let Some(first) = lines

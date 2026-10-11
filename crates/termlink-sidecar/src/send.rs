@@ -227,6 +227,18 @@ impl Sender {
         self.inner.send(to, to_instance, conv, body, priority)
     }
 
+    /// Queue a signed stage record (B7) for the original sender's inbox. It rides
+    /// the same durable outbox and pump as messages, but writes no chain events
+    /// of its own: the stage line is already in this agent's chain.
+    pub fn post_stage(&self, to_agent: &str, st: &wire::Stage) -> Result<(), SendError> {
+        self.inner.post_stage(to_agent, st)
+    }
+
+    /// The agent's own fingerprint.
+    pub fn fingerprint(&self) -> &str {
+        self.inner.cfg.identity.fingerprint()
+    }
+
     /// One pump pass (the background thread runs the same thing).
     pub fn pump(&self) -> PumpResult {
         self.inner.run_pump()
@@ -328,12 +340,14 @@ impl Inner {
             artifact_ref: None,
             ts_unix_ms: signed.ts_ms,
             sender_id: me.fingerprint().to_owned(),
-            sender_pubkey_hex: signed.signer_pk,
-            signature_hex: signed.sig,
+            sender_pubkey_hex: signed.signer_pk.clone(),
+            signature_hex: signed.sig.clone(),
             metadata: BTreeMap::from([
                 ("conversation_id".to_owned(), conv.clone()),
                 ("sidecar_msg_id".to_owned(), msg.msg_id.clone()),
                 ("sidecar_digest".to_owned(), digest.clone()),
+                (wire::META_PK.to_owned(), signed.signer_pk),
+                (wire::META_SIG.to_owned(), signed.sig),
             ]),
             client_msg_id: Some(msg.msg_id.clone()),
         };
@@ -356,6 +370,34 @@ impl Inner {
         Ok(sent)
     }
 
+    fn post_stage(&self, to_agent: &str, st: &wire::Stage) -> Result<(), SendError> {
+        let me = &self.cfg.identity;
+        let topic = inbox_topic(&self.cfg.declared_hub_id, to_agent);
+        let signed = wire::sign_stage(me, &topic, st.ts_ms, st);
+        let post = PendingPost {
+            topic,
+            msg_type: wire::STAGE_TYPE.to_owned(),
+            payload: signed.payload,
+            artifact_ref: None,
+            ts_unix_ms: signed.ts_ms,
+            sender_id: me.fingerprint().to_owned(),
+            sender_pubkey_hex: signed.signer_pk.clone(),
+            signature_hex: signed.sig.clone(),
+            metadata: BTreeMap::from([
+                ("conversation_id".to_owned(), st.conv.clone()),
+                (wire::META_PK.to_owned(), signed.signer_pk),
+                (wire::META_SIG.to_owned(), signed.sig),
+            ]),
+            client_msg_id: Some(wire::mint_msg_id()),
+        };
+        self.queue.enqueue(&post).map_err(|e| match e {
+            QueueError::QueueFull { cap } => SendError::Outbox(format!("outbox full (cap {cap})")),
+            other => SendError::Outbox(other.to_string()),
+        })?;
+        let _ = self.run_pump();
+        Ok(())
+    }
+
     fn events_for(&self, conv: &str, msg_id: &str) -> Vec<String> {
         self.store
             .chain_lines(conv)
@@ -365,12 +407,14 @@ impl Inner {
 
     /// Once per message, and never after it was posted.
     fn mark_waiting(&self, conv: &str, msg_id: &str, digest: &str) -> Result<(), StoreError> {
-        let ev = self.events_for(conv, msg_id);
-        if ev.iter().any(|e| e == WAITING || e == POSTED) {
+        if msg_id.is_empty() {
+            // A stage record: it has no chain events of its own.
             return Ok(());
         }
         self.store
-            .append_event(conv, WAITING, msg_id, self.cfg.identity.fingerprint(), digest)
+            .append_event_unless(conv, WAITING, msg_id, self.cfg.identity.fingerprint(), digest, None, |ls| {
+                ls.iter().any(|l| l.msg_id == msg_id && (l.event == WAITING || l.event == POSTED))
+            })
             .map(|_| ())
     }
 
@@ -444,7 +488,8 @@ impl Inner {
                 Ok(RpcResponse::Success(_)) => {
                     // POSTED before the row is removed: a crash in between re-posts
                     // with the same client_msg_id, which the hub absorbs.
-                    if !self.events_for(&conv, &msg_id).iter().any(|e| e == POSTED)
+                    if !msg_id.is_empty()
+                        && !self.events_for(&conv, &msg_id).iter().any(|e| e == POSTED)
                         && let Err(e) = self.store.append_event(&conv, POSTED, &msg_id, self.cfg.identity.fingerprint(), &digest)
                     {
                         let _ = self.store.attention("posted-not-recorded", &format!("{msg_id}: {e}"));
@@ -461,6 +506,10 @@ impl Inner {
                     let reason = format!("hub rejected the post (code {}): {}", e.error.code, e.error.message);
                     if attempts + 1 >= POISON_THRESHOLD {
                         if self.queue.dead_letter(qid, &reason).is_ok() {
+                            if msg_id.is_empty() {
+                                let _ = self.store.attention("dead-letter", &format!("stage record for {conv}: {reason}"));
+                                return PumpResult::Rejected(reason);
+                            }
                             let _ = self.store.append_event(&conv, DEAD_LETTER, &msg_id, self.cfg.identity.fingerprint(), &digest);
                             let _ = self.store.attention("dead-letter", &format!("{msg_id}: {reason}"));
                         }
