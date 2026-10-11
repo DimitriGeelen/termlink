@@ -123,8 +123,8 @@ bvp_scores_proposed:
 
 ## Verification
 
-cargo build -p termlink-cli -p termlink-mcp > /tmp/.t3391b 2>&1
-cargo test -p termlink-cli fleet_verify > /tmp/.t3391t 2>&1 && grep -q "test result: ok" /tmp/.t3391t
+cargo build -p termlink -p termlink-mcp > /tmp/.t3391b 2>&1
+cargo test -p termlink fleet_verify > /tmp/.t3391t 2>&1 && grep -q "test result: ok" /tmp/.t3391t
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
