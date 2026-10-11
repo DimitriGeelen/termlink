@@ -7,7 +7,7 @@
   "status": "ready-for-review",
   "output": {
     "path": "docs/design/interactive-agent-communication-03-floor-and-phasing.md",
-    "sha256": "7e914a97482a607106ddc5bb7a270a8453768e2098dcd18a28dd38d1503eeb32"
+    "sha256": "9b78a1392a4d1c37ce893670a4d05a018d6cdf7aafe5e004a4cc4cbeb9c3b8ba"
   },
   "inputs": [
     {
@@ -19,12 +19,12 @@
       "sha256": "88961693384966502f4ca4eb515ed4b0590a29c3d61ac0c619e17ea4562693f3"
     }
   ],
-  "summary": "Proposes the security floor (31 invariants SI-1..31 plus 8 extras FX-1..8, each with the phase it enters and completes, and a note where it needs per-agent accounts or the operator key), the prioritisation of all 82 requirements, a basic version on a disposable estate with 17 fail-closed rows, seven phases PH-0..PH-6 with exit criteria and rollback, 28 hypotheses (H-14 and H-21 can refute the approach), the GP-12 numbers (60 s diagnosis, 14 states and 8 markers), CAND-3 staging in 21 dimensions, and the four items left to this step: account phasing and price, Tier 0 risk classes, the policy record format, the interim controls, plus outage-log reconciliation rules. Eight risk-acceptance requests and 20 one-at-a-time operator questions. Nothing is approved.",
+  "summary": "Proposes the security floor (31 invariants SI-1..31 plus 8 extras FX-1..8, each with the phase it enters and completes, and a note where it needs per-agent accounts or the operator key), the prioritisation of all 82 requirements, a basic version on a disposable estate with 17 fail-closed rows, seven phases PH-0..PH-6 with exit criteria and rollback, 28 hypotheses (H-14 and H-21 can refute the approach), the GP-12 numbers (60 s diagnosis, 14 states and 8 markers), CAND-3 staging in 21 dimensions, and the four items left to this step: account phasing and price, Tier 0 risk classes, the policy record format, the interim controls, plus outage-log reconciliation rules. Nine risk-acceptance requests and 23 one-at-a-time operator questions. Nothing is approved. v0.2: review round 1 fixes applied per docs/reports/T-3352-step3-review/disposition-r1.md (17 rows, see fixes-r1.md); policy record format completed (signing payload, event verbs, epochs, same-level resolution).",
   "completion": [
     {
       "condition": "6.1 Every SI-n and every irreversible-action requirement is in the floor or has a recorded risk-acceptance request",
       "met": true,
-      "evidence": "Section 3 (3.3 SI-1..31, 3.4 FX-1..8, 3.5 all 33 security-typed requirements, 3.6 outside with reasons); section 11 RA-1..RA-8"
+      "evidence": "Section 3 (3.3 SI-1..31, 3.4 FX-1..8, 3.5, 3.6); section 11 RA-1..RA-9 (RA-9 added in v0.2 for SI-7 on existing rails)"
     },
     {
       "condition": "6.2 Every other requirement has a priority and a reason",
@@ -34,12 +34,12 @@
     {
       "condition": "6.3 Every phase has exit criteria and rollback; at least one hypothesis can refute the approach",
       "met": true,
-      "evidence": "Section 6.2.1 to 6.2.7 (PH-1 via 5.9 and 6.2.2); H-14 and H-21 in section 9"
+      "evidence": "Section 6.2.1 to 6.2.7 (PH-1 via 5.9 and 6.2.2; PH-6 rollback item by item in 6.2.7.c); H-14 and H-21 in section 9"
     },
     {
       "condition": "6.4 Every required drawing (D-1 to D-2) is present with id, caption and textual equivalent, and renders without error",
       "met": true,
-      "evidence": "D-2 in 3.7 with 3.8; D-1 in 6.7 with 6.8; mmdc exit 0 for both, section 16"
+      "evidence": "D-2 in 3.7 with 3.8; D-1 in 6.7 with 6.8 (redrawn in v0.2 with the PH-6 rollback); mmdc exit 0 for both on the v0.2 text, section 16"
     }
   ],
   "open_questions": [
@@ -55,7 +55,10 @@
     "13.2.10 OP-10 confirm the floor",
     "13.2.11 OP-11 confirm phasing, basic version, staging",
     "13.2.12 OP-12 hypothesis thresholds",
-    "13.2.13 OP-13..OP-20 risk-acceptance requests RA-1..RA-8"
+    "13.2.13 OP-13..OP-20 risk-acceptance requests RA-1..RA-8",
+    "13.2.14 OP-21 hook delivery point (CX-2)",
+    "13.2.15 OP-22 who writes the receive side",
+    "13.2.16 OP-23 RA-9 SI-7 on existing rails"
   ],
   "change_requests": [
     {
@@ -76,8 +79,8 @@
     }
   ],
   "decisions_needed": [
-    "Confirm the floor (39 items) and the phasing; take OP-1..OP-12 one at a time.",
-    "Rule RA-1..RA-8 (risk acceptance), each its own question.",
+    "Confirm the floor (39 items, with the binding rules 3.1.b to 3.1.f) and the phasing; take OP-1..OP-12 one at a time.",
+    "Rule RA-1..RA-9 (risk acceptance, OP-13..OP-20 and OP-23), each its own question; rule OP-21 and OP-22.",
     "Decide T-2470 (charter rewording) before PH-3.",
     "Approve sending the policy record format to 055 after OP-4 (not sent by this role)."
   ]
