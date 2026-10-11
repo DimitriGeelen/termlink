@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3400: arc-011 PH-1 architecture note: how the basic version (termlink sidecar slice) is composed
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-11T18:07:35Z
+# ============================================================================
+
+task_id: T-3400
+task_name: "arc-011 PH-1 architecture note: how the basic version (termlink sidecar slice) is composed"
+workflow_type: specification
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-11T18:03:06Z
+completed: 2026-10-11T18:07:25Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-11T20:07:25+02:00
+last_commit: 2026-10-11T20:07:25+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  arc-011 PH-1 architecture note v0.1 (components, API, store, signing, hooks, estate, FC tests, build tasks B1-B14)
+
+# Key outcomes
+outcomes:
+  - 'docs/design/arc-011-ph1-architecture.md covers components, local API, store and durability, signing, Claude adapter and OP-21 B hooks, SI-18/SI-23/allow-list, estate E-1..E-5, and a test per FC-1..FC-17'
+  - 'Section 13 holds a numbered build-task list (B1..B14) with acceptance criteria and verification commands in dependency order'
+  - 'Assumptions are marked [A] and operator choices are open questions with a recommendation (section 12)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/design/arc-011-ph1-architecture.md'
+  - '.tasks/active/T-3400-arc-011-ph-1-architecture-note-how-the-b.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-11T20:07:25'
+    action: 'T-3400: arc-011 PH-1 architecture note v0.1 (components, API, store, signing, hooks, estate, FC tests, build tasks B1-B14)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 2
+  lines_added: 663
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3400-arc-011-ph-1-architecture-note-how-the-b.md
+generated_by: context-agent-hybrid
