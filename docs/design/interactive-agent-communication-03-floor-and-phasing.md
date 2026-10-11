@@ -379,7 +379,7 @@ flowchart LR
 5.5.8 **BV-8** The fail-closed matrix of 5.6 is run, each row with its negative control removed to show it goes red.
 5.6 Fail closed on every error and crash. The rule behind the table: **default deny.** Any error that has no row below leaves the message where it is, advances no stage, and creates a needs-attention entry with the reason. The BV never guesses. Each row has a negative control that is kill-checked: the control is removed (the implementation mutated) and the test must fail (R-69).
 
-| Id | Error or crash | What the BV does | Floor | Proof |
+| Id | Error or crash | What the BV does | Floor item or requirement | Proof |
 |---|---|---|---|---|
 | FC-1 | Signature missing, wrong key (the shared host key, a sibling's key) or altered after signing | Refused at the hub and at the receiver; never stored, never flagged, never handed over; the refusal is recorded | SI-3 | Remove the check: the forged message reaches HANDED_OVER |
 | FC-2 | Store write fails, or the disk is full | STORED is not reported; the message stays with the sender, which keeps chasing; a needs-attention entry | SI-15 (F-3) | Remove the check: STORED is reported for a message that is not on disk |
@@ -429,10 +429,10 @@ flowchart LR
 6.2.1.e Gates: none outside this project. The operator sees: the re-pin record in needs-attention, and the numbers.
 6.2.2 **PH-1 Basic version.** Section 5 is the scope; 5.9 is the exit. Rollback: tear down the disposable estate and delete its keys. Nothing in production changed, and `termlink sidecar` is not started by any supervisor. The operator sees the demonstration (5.9.6).
 6.2.3 **PH-2 First operational release.** One host (the host where this project's agents run), one project, the hub path, real agents and real credentials. The first phase where the floor protects something that matters.
-6.2.3.a Scope. (1) `termlink sidecar` in the binary (R-6, R-39; OD-9 C) with the Claude Code adapter (R-47, R-21), supervised (R-8), reaching working sessions by their hooks (R-48) and idle sessions with a typable terminal by the doorbell (R-19 to R-23, R-81, T-3387). (2) The whole delivery chain for one host: R-11 with blobs (SI-28), R-14 to R-18, R-24 to R-26, R-30 and R-31 with the chase as sidecar code, R-44, R-45, R-51, R-52, R-56, R-58, R-59. (3) Visibility: the reachability card (R-53), the CLEAR rule (R-29, FX-8), the needs-attention surface (R-37), the daily canary (R-66), the status call and the five standing fault injections (R-6.e, R-70). (4) Identity and consent in their NK form: per-agent keys registered (PR-1a), revocation of an agent key by a signed revocation list pulled each tick (RK-1, SI-11), signed with the hub signing key that R-61 requires apart from the TLS certificate, the hub declared and verified (FX-2, already in the BV), exact-instance conversations (R-62), the fixed default allow-list "own project", an operator-pinned main and nothing else (SI-20, SI-21). (5) FX-1 (log and show every vendor channel use), FX-4 (own scope, logged), FX-5 (no growth), FX-6, SI-23 (kill switch). (6) Install and upgrade from the release artifact, clean host, rollback and restart (R-39.e, SI-27). (7) Track A, stage A0: a pilot agent under its own account (10.1).
+6.2.3.a Scope. (1) `termlink sidecar` in the binary (R-6, R-39; OD-9 C) with the Claude Code adapter (R-47, R-21), supervised (R-8), reaching working sessions by their hooks (R-48) and idle sessions with a typable terminal by the doorbell (R-19 to R-23, R-81, T-3387). (2) The whole delivery chain for one host: R-11 with blobs (SI-28), R-14 to R-18, R-24 to R-26, R-30 and R-31 with the chase as sidecar code, R-44, R-45, R-51, R-52, R-56, R-58, R-59. (3) Visibility: the reachability card (R-53), the CLEAR rule (R-29, FX-8), the needs-attention surface (R-37), the daily canary (R-66), the status call and the standing fault injections: the five of GP-12 and the unsurfaced mail (R-6.e, R-70). (4) Identity and consent in their NK form: per-agent keys registered (PR-1a), revocation of an agent key by a signed revocation list pulled each tick (RK-1, SI-11), signed with the hub signing key that R-61 requires apart from the TLS certificate, the hub declared and verified (FX-2, already in the BV), exact-instance conversations (R-62), the fixed default allow-list "own project", an operator-pinned main and nothing else (SI-20, SI-21). (5) FX-1 (log and show every vendor channel use), FX-4 (own scope, logged), FX-5 (no growth), FX-6, SI-23 (kill switch). (6) Install and upgrade from the release artifact, clean host, rollback and restart (R-39.e, SI-27). (7) Track A, stage A0: a pilot agent under its own account (10.1).
 6.2.3.b Waves. **W1** one pair of this project's agents on this host, hook delivery only, doorbell off; the kill switch is exercised. **W2** the same pair, doorbell on; the activity veto is live; H-11 is measured for 7 days. **W3** every agent of this project on this host that starts through the reachable launcher. **W4** AEF's receiver and the legacy notify-sidecar are switched off on this host, only after the W3 two-agent acceptance test with a negative control passes (R-49.a (3)). Exactly one receiver serves an inbox at every moment of every wave.
 6.2.3.c Floor entering: SI-1, SI-2, SI-5, SI-18, SI-19, SI-23, SI-27, SI-28, SI-11 (RK-1), SI-20 and SI-21 (fixed default), FX-1 (log), FX-4 (scope), FX-5, FX-6, FX-8; completing: SI-6, SI-14, SI-15, SI-16, SI-22.
-6.2.3.d Exit. (1) The probes of 6.2.3.c are green, with kill-checked negative controls. (2) The two-agent live test and negative control pass on the installed artifact on this host, then run daily as the canary (R-66) for 14 days with no silent failure (H-14). (3) The five fault injections of GP-12 are each diagnosed by the status call within the bound of FP-1, and recovery needs zero manual steps (H-18, H-19). (4) The kill switch turns mid-turn delivery off within one tick. (5) A clean host installs from the release artifact, upgrades, rolls back and restarts; the macOS CI job stays green (T-3271) and the platform-lock check (T-2693) has an entry saying how the activity veto behaves where `/proc` is absent (R-81.a (3)). (6) The status call names the absent strength flags. (7) H-3, H-7, H-11, H-13, H-20, H-28 and H-30 are measured (section 9). (8) The inventories are updated.
+6.2.3.d Exit. (1) The probes of 6.2.3.c are green, with kill-checked negative controls. (2) The two-agent live test and negative control pass on the installed artifact on this host, then run daily as the canary (R-66) for 14 days with no silent failure (H-14). (3) The five fault injections of GP-12 and the unsurfaced-mail case are each diagnosed by the status call within the bound of FP-1, and recovery needs zero manual steps (H-18, H-19). (4) The kill switch turns mid-turn delivery off within one tick. (5) A clean host installs from the release artifact, upgrades, rolls back and restarts; the macOS CI job stays green (T-3271) and the platform-lock check (T-2693) has an entry saying how the activity veto behaves where `/proc` is absent (R-81.a (3)). (6) The status call names the absent strength flags. (7) H-3, H-7, H-11, H-13, H-20, H-28 and H-30 are measured (section 9). (8) The inventories are updated.
 6.2.3.e Rollback, per wave. Stop `termlink sidecar` for the agent. Before the old receiver starts, the sidecar refuses new mail (senders keep chasing) and every STORED message not yet handed over is re-posted to the agent's old inbox with its original id and signature, or kept; the count is compared. Only then does the old receiver start, so exactly one receiver serves the inbox. The store is kept for 14 days. For W4 the AEF receiver stays installed, switched off, until PH-3 exits.
 6.2.3.f Must not: run both receivers; drop a STORED message; leave the doorbell on while the kill switch is the only way to stop it and that switch has not been tested.
 
@@ -494,10 +494,11 @@ flowchart LR
 **Drawing D-1 — phase timeline: the phases in order, their exit criteria and rollback points, and the three tracks that cross them**
 
 ```mermaid
-flowchart LR
+flowchart TB
   classDef ph fill:#eef,stroke:#446
   classDef gate fill:#ffd,stroke:#a80
   classDef trk fill:#eee,stroke:#888,stroke-dasharray: 4 3
+  classDef rb fill:#fee,stroke:#a44,stroke-dasharray: 2 2
   subgraph TRACKS["Tracks that cross the phases"]
     TM["Track M: T-3383 hub outage measurement, 30 days"]:::trk
     TA["Track A: per-agent accounts, A0 pilot to A4"]:::trk
@@ -518,20 +519,20 @@ flowchart LR
   P6["PH-6 Completion"]:::ph
   X6{"Arc closing: all test dimensions run, register matches reality"}:::gate
   P0 --> X0 --> P1 --> X1 --> P2 --> X2 --> P3 --> X3 --> P4 --> X4 --> P5 --> X5 --> P6 --> X6
-  P1 -. "rollback: tear down the estate" .-> P0
-  P2 -. "rollback per wave: drain to the old receiver" .-> P1
-  P3 -. "rollback: stop card exchange" .-> P2
-  P4 -. "rollback: grants off, pin only" .-> P3
-  P5 -. "rollback: stop minting, fall back to the hub path" .-> P4
+  P1 -.-> R1["Rollback to PH-0: tear down the estate"]:::rb
+  P2 -.-> R2["Rollback to PH-1, per wave: drain to the old receiver"]:::rb
+  P3 -.-> R3["Rollback to PH-2: stop card exchange"]:::rb
+  P4 -.-> R4["Rollback to PH-3: grants off, pinned main only"]:::rb
+  P5 -.-> R5["Rollback to PH-4: stop minting, fall back to the hub path"]:::rb
   TM -. "30 days of data gate the entry" .-> P5
   TA -. "A3 recommended before exit 4" .-> X4
   TK -. "interim approvals carry PH-3 and PH-4, real provider by PH-6" .-> P6
 ```
 
 6.8 Text equivalent of D-1.
-6.8.1 The seven phases run in a line from PH-0 to PH-6. Between each phase and the next sits a gate drawn as a diamond: the phase's exit criteria. A phase does not start until the gate before it is met and the operator has confirmed the move.
+6.8.1 The seven phases run in a line from the top (PH-0) to the bottom (PH-6). Between each phase and the next sits a gate drawn as a diamond: the phase's exit criteria. A phase does not start until the gate before it is met and the operator has confirmed the move.
 6.8.2 The exit criteria drawn, in order. Exit 0: the outage collector running, the six standing controls red on today's system, the re-pin record live. Exit 1: the demonstration seen by the operator, the 17 fail-closed rows passing, the 15 floor probes green. Exit 2: the daily canary clean for 14 days, the five faults of GP-12 each diagnosed within 60 seconds, the kill switch tested. Exit 3: forged cards refused, Tier 0 events decided on each route, T-2470 approved. Exit 4: the two takeover tests, the three-agent run, the rule engine and encrypted direct messages. Exit 5: fallback to the hub path live, both hubs stopped, restore limits recorded. The last gate is the arc's closing: every test dimension run and the register matching what operates.
-6.8.3 The dotted arrows going backward are the rollback points. PH-1 rolls back to PH-0 by tearing down the estate. PH-2 rolls back one wave at a time by draining to the old receiver. PH-3 rolls back by stopping card exchange. PH-4 rolls back by turning grants off and leaving only the pinned main. PH-5 rolls back by stopping the minting of credentials, which returns conversations to the hub path.
+6.8.3 A red dotted note hangs beside each of PH-1 to PH-5: its rollback point, and the phase it returns to. PH-1 rolls back to PH-0 by tearing down the estate. PH-2 rolls back to PH-1 one wave at a time by draining to the old receiver. PH-3 rolls back to PH-2 by stopping card exchange. PH-4 rolls back to PH-3 by turning grants off and leaving only the pinned main. PH-5 rolls back to PH-4 by stopping the minting of credentials, which returns conversations to the hub path. (An earlier draft drew the rollbacks as arrows going backward; that made the layout engine reverse the chain, so they are notes.)
 6.8.4 The three tracks sit above the line. Track M's 30 days of outage data gate the entry to PH-5. Track A's third stage is recommended before the gate of PH-4. Track K does not gate PH-3 or PH-4, because interim approvals are ruled to carry them; the real provider is expected by PH-6.
 
 ## 7 GP-12: the diagnosis-time bound and the message-state cap (set here as [P] values)
@@ -1000,4 +1001,8 @@ flowchart LR
 15.5.5 The phasing assumes the split of the receive side with AEF resolves with TermLink writing the Claude adapter if AEF does not (6.6). That is an assumption and the operator has not ruled it.
 15.5.6 No external consultation was run on this output. Under the README (3.5) the orchestrator runs it and stores the answers; that is evidence for the operator, not a verdict.
 
-<!-- CONTINUE -->
+## 16 Render check of the drawings
+
+16.1 Method, the same as the step-2 document (TM section 24) and the step-1 document (REQ 11.6): each Mermaid block was extracted from this file and rendered one by one with `mmdc -p <puppeteer-config> -i bN.mmd -o bN.svg`, where the config is `{"executablePath":"/usr/bin/chromium","args":["--no-sandbox"]}`. `scripts/design-render-check.py` is not adopted in this project, so no `render_check` record exists and the hand-back omits that field (profile P2.1, P4.5).
+16.2 Result, 2026-10-11, on the final text of this version. Block order in the file: D-2 (section 3), then D-1 (section 6), because the floor precedes the phases. D-2: exit code 0, 60351-byte SVG. D-1: exit code 0, 43160-byte SVG. No "syntax error" or "parse error" text in any log or SVG. The string `error-icon` appears in the SVGs as a CSS class name that Mermaid always emits.
+16.3 Both drawings were also rendered to PNG and read. D-2 shows ten floor groups with labelled arrows to the phase where each item enters. D-1 first rendered with the phases in reverse order, because the rollback arrows pointed backward and the layout engine reversed the chain; the rollbacks were redrawn as notes beside each phase, the drawing was rendered and read again, and it now runs PH-0 at the top to PH-6 at the bottom. No semicolon appears in any label.
