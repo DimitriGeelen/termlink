@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3391: fleet verify --profile <name> with a per-profile exit code
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-11T14:28:51Z
+# ============================================================================
+
+task_id: T-3391
+task_name: "fleet verify --profile <name> with a per-profile exit code"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-11T09:53:23Z
+completed: 2026-10-11T14:26:55Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-11T16:26:43+02:00
+last_commit: 2026-10-11T16:26:54+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fleet verify --profile (per-profile exit code), duplicate-address warning, MCP profile param. fix verification package names
+
+# Key outcomes
+outcomes:
+  - '`termlink fleet verify --profile <name>` probes only that profile; exit code 0/1/2/3 reflects only it; `--json` keeps the same shape (one profile)'
+  - 'Unknown profile name prints a clear error naming known profiles and exits 2'
+  - 'Profiles sharing an address produce a one-line warning naming them (stderr; verdict logic unchanged); pure helper with unit tests'
+  - 'MCP `termlink_fleet_verify` accepts optional `profile` with the same semantics'
+  - 'CLAUDE.md `termlink fleet verify` row mentions `--profile`; cargo build and unit tests pass'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fix verification package names'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/remote.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - 'crates/termlink-mcp/src/tools.rs'
+  - '.tasks/active/T-3391-fleet-verify---profile-name-with-a-per-p.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-11T16:26:43'
+    action: 'T-3391: fleet verify --profile (per-profile exit code), duplicate-address warning, MCP profile param'
+  - time: '2026-10-11T16:26:54'
+    action: 'T-3391: fix verification package names'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 273 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 273
+  commits: 2
+  files_changed: 6
+  lines_added: 155
+  lines_removed: 15
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3391-fleet-verify---profile-name-with-a-per-p.md
+generated_by: context-agent-hybrid

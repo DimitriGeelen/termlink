@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3384: Record every TOFU re-pin and tofu clear, show in needs-attention (RR-18 interim, OQ-8 D″)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-11T14:20:00Z
+# ============================================================================
+
+task_id: T-3384
+task_name: "Record every TOFU re-pin and tofu clear, show in needs-attention (RR-18 interim, OQ-8 D″)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-09T18:48:06Z
+completed: 2026-10-11T14:19:13Z
+duration_days: 2
+updates_count: 2
+first_commit: 2026-10-11T16:19:12+02:00
+last_commit: 2026-10-11T16:19:12+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  record every TOFU pin change (tofu clear/clear-all/re-pin) in pin-events.jsonl; check-pin-events.sh + needs-attention (RR-18 interim)
+
+# Key outcomes
+outcomes:
+  - 'A recorder appends one JSON line per pin event (ts, verb, address, old/new fingerprint, pid, argv0, TERMLINK_AGENT_ID) to ~/.termlink/pin-events.jsonl (overridable by env), append-only; write failure warns on stderr and never blocks the operation'
+  - '`termlink tofu clear`, `fleet reauth` re-pin, and every other KnownHubStore pin-changing path call the recorder (recorder lives inside KnownHubStore remove/clear_all/accept, so CLI, MCP and the TLS verifier are all covered; fleet reauth does not write known_hubs)'
+  - 'scripts/check-pin-events.sh exits 0 none new / 1 new since acknowledged offset / 2 tooling; supports --ack and --json'
+  - 'scripts/session-start-alerts.sh surfaces new pin events in needs-attention'
+  - 'Rust unit tests for the recorder pass (fields, append-only, failure does not block)'
+  - 'tests/pin-events-fixtures.sh passes hermetically, including a mutant that goes red when the recorder call is removed from tofu clear'
+  - 'Docs state this is after-the-fact detection and a same-user attacker can edit the record (RR-18) (script header, recorder doc comment, --json scope field)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-session/src/tofu.rs'
+  - 'scripts/check-pin-events.sh'
+  - 'scripts/session-start-alerts.sh'
+  - '.tasks/active/T-3384-record-every-tofu-re-pin-and-tofu-clear-.md'
+  - '.tasks/completed/T-3390-fleet-reauth-prints-the-first-12-hex-cha.md'
+  - 'tests/pin-events-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-11T16:19:12'
+    action: 'T-3384: record every TOFU pin change (tofu clear/clear-all/re-pin) in pin-events.jsonl; check-pin-events.sh + needs-attention (RR-18 interim)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2611 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 2611
+  commits: 1
+  files_changed: 6
+  lines_added: 337
+  lines_removed: 21
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3384-record-every-tofu-re-pin-and-tofu-clear-.md
+generated_by: context-agent-hybrid

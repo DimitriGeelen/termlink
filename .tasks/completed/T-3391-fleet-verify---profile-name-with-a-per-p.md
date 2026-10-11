@@ -1,20 +1,21 @@
 ---
-id: T-3384
-name: "Record every TOFU re-pin and tofu clear, show in needs-attention (RR-18 interim,
-  OQ-8 D″)"
+id: T-3391
+name: "fleet verify --profile <name> with a per-profile exit code"
 description: >
-  Operator ruling OQ-8 D″ (T-3351, 2026-10-09) authorised the RR-18 interim control:
-  every fleet reauth re-pin, tofu clear and probe re-pin is recorded in an audit trail
-  and shown in needs-attention until re-pinning itself goes through a Tier 0 event
-  (CR-18). After-the-fact detection; a same-user attacker can edit the record (stated
-  in RR-18). Write real ACs before editing source (G-020).
+  Field finding F1 from dimitri-mint-dev (2026-10-10): fleet verify exits 1 when ANY
+  profile drifts, so a script checking one hub fails under set -o pipefail (the AEF
+  verification gate) although that hub matches. Add --profile <name> (exit code for
+  that profile only). Also F3: duplicate local profiles (local-hub, local-test, both
+  127.0.0.1:9100) keep the fleet verdict permanently 'drift' on .107, masking real
+  drift; consider a duplicate-address warning. Write real ACs before editing source
+  (G-020).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-cli/src/main.rs, crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -42,9 +43,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-10-09T18:48:06Z
-last_update: 2026-10-11T14:19:12Z
-date_finished:
+created: 2026-10-11T09:53:23Z
+last_update: 2026-10-11T14:26:55Z
+date_finished: 2026-10-11T14:26:55Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -56,7 +57,7 @@ date_finished:
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 bvp_scores_proposed:
-  - ts: '2026-10-11T14:13:44Z'
+  - ts: '2026-10-11T14:13:50Z'
     estimator: bvp-estimator-v1-heuristic
     scores:
       D1: 4
@@ -71,7 +72,7 @@ bvp_scores_proposed:
     rubric_sha: e4a00f38e801
 ---
 
-# T-3384: Record every TOFU re-pin and tofu clear, show in needs-attention (RR-18 interim, OQ-8 D″)
+# T-3391: fleet verify --profile <name> with a per-profile exit code
 
 ## Context
 
@@ -81,13 +82,11 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] A recorder appends one JSON line per pin event (ts, verb, address, old/new fingerprint, pid, argv0, TERMLINK_AGENT_ID) to ~/.termlink/pin-events.jsonl (overridable by env), append-only; write failure warns on stderr and never blocks the operation
-- [x] `termlink tofu clear`, `fleet reauth` re-pin, and every other KnownHubStore pin-changing path call the recorder (recorder lives inside KnownHubStore remove/clear_all/accept, so CLI, MCP and the TLS verifier are all covered; fleet reauth does not write known_hubs)
-- [x] scripts/check-pin-events.sh exits 0 none new / 1 new since acknowledged offset / 2 tooling; supports --ack and --json
-- [x] scripts/session-start-alerts.sh surfaces new pin events in needs-attention
-- [x] Rust unit tests for the recorder pass (fields, append-only, failure does not block)
-- [x] tests/pin-events-fixtures.sh passes hermetically, including a mutant that goes red when the recorder call is removed from tofu clear
-- [x] Docs state this is after-the-fact detection and a same-user attacker can edit the record (RR-18) (script header, recorder doc comment, --json scope field)
+- [x] `termlink fleet verify --profile <name>` probes only that profile; exit code 0/1/2/3 reflects only it; `--json` keeps the same shape (one profile)
+- [x] Unknown profile name prints a clear error naming known profiles and exits 2
+- [x] Profiles sharing an address produce a one-line warning naming them (stderr; verdict logic unchanged); pure helper with unit tests
+- [x] MCP `termlink_fleet_verify` accepts optional `profile` with the same semantics
+- [x] CLAUDE.md `termlink fleet verify` row mentions `--profile`; cargo build and unit tests pass
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -124,9 +123,8 @@ bvp_scores_proposed:
 
 ## Verification
 
-cargo build -p termlink > /tmp/.t3384-build.out 2>&1
-bash tests/pin-events-fixtures.sh > /tmp/.t3384-fx.out 2>&1
-test -x scripts/check-pin-events.sh
+cargo build -p termlink -p termlink-mcp > /tmp/.t3391b 2>&1
+cargo test -p termlink fleet_verify > /tmp/.t3391t 2>&1 && grep -q "test result: ok" /tmp/.t3391t
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -370,11 +368,23 @@ test -x scripts/check-pin-events.sh
 
 ## Updates
 
-### 2026-10-09T18:48:06Z — task-created [task-create-agent]
+### 2026-10-11T09:53:23Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3384-record-every-tofu-re-pin-and-tofu-clear-.md
+- **Output:** /opt/termlink/.tasks/active/T-3391-fleet-verify---profile-name-with-a-per-p.md
 - **Context:** Initial task creation
 
-### 2026-10-11T14:13:43Z — status-update [task-update-agent]
+### 2026-10-11T14:13:49Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-80fcad67
+- **Timestamp:** 2026-10-11T14:28:34Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-10-11T14:26:55Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
