@@ -1,0 +1,412 @@
+OpenAI Codex v0.153.4
+--------
+workdir: /opt/termlink
+model: gpt-6-astra
+provider: openai
+approval: never
+sandbox: read-only
+reasoning effort: none
+reasoning summaries: none
+session id: 01a12c15-fe92-7473-9b7a-34b30e993a46
+--------
+user
+You are an independent reviewer of ONE operator decision. Read only; modify nothing. Answer in English, under ~900 words, numbered headings, hierarchical labels (1, 1a), never plain bullets. Give your own recommendation; you are not asked to agree with anyone.
+
+## Context
+TermLink is a message rail for AI coding agents on a home lab (hubs route messages, each agent has a sidecar). Today every agent on a host runs as `root` (about 86 process lines on the main host). The operator ruled (step 2, OQ-2): the shared root user is accepted for now; the committed target is one isolated operating-system account per agent, created by the orchestrator through a narrow privileged helper, each creation a human-approved, logged Tier 0 act (every creation, one event each). Host root remains a permanent residual.
+
+The design (docs/design/interactive-agent-communication-03-floor-and-phasing.md, step 3 v0.2.1) phases the work: PH-0 preparation/measurement, PH-1 basic version (disposable estate), PH-2 first operational release (one host, one project, hub path, real agents), PH-3 identity, directory and admission (multi-hub fleet; Tier 0 event machinery live), PH-4 authority, roles and many-to-many (grants, allow-lists, eligibility, membership: configurable authority held in policy records "an agent cannot write"), PH-5 direct sidecar-to-sidecar circuits, PH-6 completion. Read section 10.1 (what accounts buy, price table, stages A0-A4, options) and section 3.7 (base strength) of that document; the requirements are in docs/design/interactive-agent-communication-01-requirements.md (R-82).
+
+Stages: A0 pilot (inventory, one non-critical agent under its own account; measures the real price; a price gate follows where the operator confirms with the measured price), A1 template/helper/installed code/launcher, A2 migrate in waves with one-command return, A3 all agents migrated, A4 orchestrator, runme.sh, cron and hub restarts without general root.
+
+## The question (OP-1): when does each agent get its own account, and when is the price decided?
+A. Accounts first: A3 before the first operational release (PH-2).
+B. Pilot early (A0 in PH-3, once the Tier 0 route for account creation exists) with a price gate; A3 before PH-4 exits; A4 in PH-6. PH-2 and PH-3 ship at base strength with a stated risk acceptance (RA-1).
+C. Accounts after PH-5, as the last security step.
+D. The pilot only inside this arc; the migration becomes its own arc, decided after the pilot.
+
+## Please answer
+1. Which option would you choose, and why? Is there a better option not listed (e.g. a different placement, or splitting differently)?
+2. What does the recommended option risk in practice, concretely, for a home lab of AI agents running as root (prompt injection, a misbehaving agent, a compromised peer)? Is shipping PH-2/PH-3 at base strength defensible?
+3. Are the price estimates and the stage cut plausible? What is most likely to be underestimated (e.g. the harness needing a login per account, the operator's attach workflow, shared git checkout permissions)?
+4. Anything in the plan that is unsafe or would make the migration fail (helper becoming general root, half-migrated state, rollback)?
+5. One-line verdict: the option you recommend and the single strongest reason.
+
+codex
+I’ll read the specified design sections and R-82, then assess the sequencing, costs, and migration risks independently.
+exec
+/bin/bash -lc "rg --files -g AGENTS.md -g 'interactive-agent-communication-03-floor-and-phasing.md' -g 'interactive-agent-communication-01-requirements.md'" in /opt/termlink
+ succeeded in 0ms:
+docs/design/interactive-agent-communication-03-floor-and-phasing.md
+docs/design/interactive-agent-communication-01-requirements.md
+
+exec
+/bin/bash -lc "rg -n '"'^#{1,5} |R-82|RA-1|A0|A1|A2|A3|A4'"' docs/design/interactive-agent-communication-03-floor-and-phasing.md docs/design/interactive-agent-communication-01-requirements.md" in /opt/termlink
+ succeeded in 0ms:
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:1:# Interactive agent communication: step 3, security floor and phasing
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:7:## 0 Version history
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:15:## 1 Inputs of record
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:52:1.4.d Facts about what runs today come from REQ, TM, `CLAUDE.md` and the profile, tagged **[H]**. Three read-only host facts I did read myself on 2026-10-11, used only for the price of per-agent accounts (10.1): `ps` shows 86 process lines that mention `claude` run as `root` (PH-0 measured the whole host on 2026-10-11: 1,454 of 1,734 processes and all 115 TermLink sessions run as root, `docs/reports/T-3395-root-inventory.md`) and 16 as the operator's own login; `stat` shows `/opt/termlink`, `.git`, `.tasks` and `.context` are `root:root` mode 775 and `git config core.sharedRepository` is unset; `useradd`, `sudo` and `setfacl` are installed. The 86 lines are processes, not agents (one agent has several), so they do not replace the "19 Claude agents" of R-82.a (1).
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:56:## 2 How to read this document
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:67:2.3.e **Strength flags A and K.** Some floor items cannot fully hold against a process on the same host until two things exist: **A**, one operating-system account per agent (R-82); **K**, the operator key with its confirmation provider (R-76). A floor item that needs a flag holds in a weaker form until the flag exists, and the status call says which flags are absent (3.1.e). The weaker form is what TM already accepted as RR-2 (host root, always), RR-16 and RR-18; this step only says for how long (RA-1, RA-4).
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:71:## 3 The security floor (card 3.1)
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:78:3.1.e **Status honesty.** The status call of R-6.e MUST name each strength flag that is absent ("no per-agent accounts", "no operator key", "no confirmation provider") and MUST NOT claim a defence against an adversary the present strength does not stop. This restates R-76.e and R-82.e as one floor rule; it is cheap and it is the control against ADV-3 applied to the floor itself.
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:173:| R-78 | Floor | SI-20, SI-21 | Needs A and K (RA-1, RA-4) |
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:177:| R-82 | Committed target | RA-1 | The ruling commits the target and fixes no phase. Not a first-release item |
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:269:## 4 Prioritisation of the requirements (card 3.2)
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:361:| R-82 | Per-agent operating-system accounts | Committed target | Track A: pilot in PH-3, after the Tier 0 route of C-15 is live; A3 before PH-4 exit (recommended) | RA-1, OP-1 |
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:364:4.3 Counts, over the 82 requirements, counted from the table by a script (the row class decides): **Floor** (alone, "Floor + Must" or "Floor in part"): 35. **Must**: 34 (R-57 also has a Should part). **Should**: 6. **Could**: 1. **Deferred**: 3 (R-9, R-38, R-41), plus the operator leg of R-1, which waits for GP-11. **Excluded**: 2 (R-40, R-43). **Committed target**: 1 (R-82). 35 + 34 + 6 + 1 + 3 + 2 + 1 = 82.
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:368:## 5 The basic version (card 3.3)
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:419:## 6 Phases (card 3.4)
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:444:6.2.4.a Scope. (1) The directory and project identity (R-60); the roster, cards signed with the hub signing key that PH-2 introduced (R-61) with a sequence number and time-to-live, home-hub binding as R-60.a (2e) rules it, the project root key, signed key rotation and "moved to", the no-guess rule, the optional per-hub list of project ids, the registration cap (R-77). (2) Tier 0 events and the route registry (R-72, 10.2): who asks, what, evidence, digest; one audit trail; a human-route event expires visibly after 10 minutes (PN-15); approvals digest-bound and single-use (SI-13); the built-in route and preconditions of each class (10.3.4.c) as a fixed table, with no configurable rule yet (NK; the rule engine arrives in PH-4); the confirmation-provider contract with a **stub provider for tests** and the interim controls of 10.4 (R-76.a (6)). (3) Every client verifies the declared hub id (R-54, FX-2 complete). (4) DEAD is signed and sequenced (R-60.a, R-65.a). (5) Versions on the card, the NTP check, the skew flag, cross-host refusal of an incompatible version (R-57 second part). (6) T-3347, the cross-hub read of a message's stage and reply by id, so a sender on one hub reads the record on another. (7) Cross-project and cross-hub conversations with admitted peers over the hub path. (8) Principle B′, stage 1: pin hub card-signing keys out of band (R-80). (9) The TOFU repair paths gated by a Tier 0 event (BP-19, PR-14). (10) The end of the `sidecar:` alias (R-71). (11) Peers see only reachable yes or no and the version class (R-53, CR-11). (12) Track A, stage A0, moved here from PH-2 in v0.2: the pilot account is created by a Tier 0 event of class C-15 (one event, one digest, human route, the interim approval of IC-2), so the machinery that R-82.a (3) and R-82.e require before an account exists is already live (6.2.4.a (2)).
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:446:6.2.4.c Exit. (1) A forged card, a replayed old card, a restored roster, an unsigned hub-key change and a competing project claim are each refused or flagged, and the original binding still resolves (fixtures, then a two-hub live test with a negative control). (2) A Tier 0 event is decided on each route that has a subject in PH-3: the policy route for C-2a (a hub-key rotation signed by the old key) and C-6a (an agent-key replacement signed by the old key), by the built-in route of 10.3.4.c and recorded as `policy:builtin:<verb>`, while a hub-key change not signed by the old key (C-2b) is refused the policy route and goes to a human; the route of C-10 (a dead holder's hand-over) has no subject before PH-4, because it needs the R-67 lease successor and the hand-over, so in PH-3 it is exercised **by fixture only** and is tested live at the exit of PH-4 (6.2.5.c (9)); a human-route event unanswered for 10 minutes expires visibly and nothing takes effect; an approval whose digest differs, or whose executor or target differs, is refused; a replayed approval is refused; with no provider, the interim double approval is required and the status shows "no confirmation provider"; with the stub provider unreachable, a high-impact approval fails closed. (3) A mixed-version pair is refused loudly; a sender host 10 minutes fast makes no deadline judged from its timestamps. (4) A cross-hub message from an admitted peer reaches HANDED_OVER with the same five rows as a local one. (5) H-2, H-12, H-21, H-22, H-23 and H-28 are measured; the pilot account of A0 was created through its own Tier 0 event, and the plan with the measured price waits at the price gate for the operator (10.1.7). (6) T-2470, the charter rewording, is approved by the operator (6.6).
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:462:6.2.7.a Scope. (1) Principle B′, stage 3: project mail and the custody key with its release rules; break-glass once K exists (R-80). (2) Track A, stage A4: the orchestrator no longer runs as `root` (10.1). (3) Track K: the real confirmation provider connected (T-3385 outcome); GP-11, the operator as a party to a conversation (R-1.e (3)). (4) R-36 digests; R-9 the startup chain, now that grants exist; R-41 typed work messages (planner); R-55 the send-and-wait tool (AEF). (5) Retire the shell sidecars. (6) Arc closing: every dimension of R-69 has run (section 8); every tripwire reviewed; the bypass inventory re-run; `scripts/arc-live-probe.sh` passes on every hub that needs the capability, so "shipped" means "live" (G-069).
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:466:6.2.7.c.2 *Orchestrator without `root` (item 2, A4).* Each component returns to its previous service account by the one-command return of A2, one component at a time. The return is itself a Tier 0 act and the status call says "orchestrator runs as root" again (3.1.e). Accounts already created are kept; the helper stays fixed-purpose.
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:486:6.5.2 **Track A, per-agent accounts.** Stages A0 to A4 are in 10.1. A0 starts in PH-3, once the Tier 0 route of C-15 is live (an account creation is a Tier 0 act, so it cannot precede that machinery); the read-only inventory of A0 may start earlier. A3 is recommended before PH-4 exits; A4 is in PH-6.
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:515:    TA["Track A: per-agent accounts, A0 pilot to A4"]:::trk
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:540:  TA -. "A3 recommended before exit 4" .-> X4
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:550:## 7 GP-12: the diagnosis-time bound and the message-state cap (set here as [P] values)
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:587:## 8 CAND-3 staging: each test dimension, the phase of its subject, and the phase from which its test is required
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:615:| T-20 | Account isolation: agent A cannot read agent B's key | accounts | Track A stage A1 onward | each Track A stage (R-82.d) | the read fails; host root still can, and the status says so |
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:620:## 9 Hypotheses and their measurements (card 3.5)
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:656:| H-28 | Track A, stage A0 (PH-3) | An agent can do its ordinary work under its own account | One pilot agent runs a normal task cycle: read and edit in the shared checkout, commit with `fw git commit`, run tests, use TermLink, send and receive through the sidecar | At most 5 distinct permission fixes and no use of `root` | More than 15 distinct failures: the group-shared checkout of 10.1 needs another design before the migration is priced |
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:662:## 10 The items the rulings left to this step
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:664:10.1 **Per-agent operating-system accounts: order, price, group access to shared checkouts (R-82, OQ-2).**
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:665:10.1.1 What is ruled. The shared user is accepted for now. The committed target is one isolated account per agent, created by the orchestrator through one narrow privileged helper with fixed settings (never general root for the orchestrator); every creation is a Tier 0 act, human-approved and logged. Host root stays a residual for the lifetime of the design (R-82.a, RR-2). Step 3 phases and prices the move, including group-based access to shared checkouts. Step 4 designs the helper.
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:666:10.1.2 What I found on the host on 2026-10-11 (1.4.d). 86 process lines that mention `claude` run as `root`, 16 as the operator's own login. `/opt/termlink` and its `.git`, `.tasks` and `.context` are `root:root` mode 775 with no shared group and `core.sharedRepository` unset. `useradd`, `sudo` and `setfacl` exist. Besides `root` there are two login accounts (the operator's, and `testdev`). The orchestrator is itself `root` **[H]**, so "never general root for the orchestrator" means changing the orchestrator too (stage A4).
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:680:10.1.5 The price, by part. Sizes are my estimates **[A]** (S a day or two, M a week, L several weeks); the pilot (A0, H-28) replaces them with measurements.
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:685:| Account template and helper | One template (home mode 0700, no login shell, no `sudo`, a group), one helper with fixed settings behind a single `sudoers` entry, one Tier 0 event per account created (R-82.a (3)) | M | A helper that does more than its fixed action becomes general root (R-82.d tests this) |
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:691:| Orchestrator and framework | The orchestrator, `runme.sh`, cron installation and hub restarts without general root (stage A4) | L | The project's operational scripts assume root |
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:693:| Verification | The tests of R-82.d: a helper asked for anything else refuses; no agent runs as `root`; agent A cannot read agent B's key; every creation has a Tier 0 event | M | |
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:700:10.1.7 The stages. A0 pilot: an inventory, then one non-critical agent under its own account, running a normal task cycle; the output is H-28 and a list of what needed root. **A price gate follows: the operator confirms the plan with the measured price.** A1 build the template, the group model, the helper, and the installed code; launcher starts sessions under accounts. A2 migrate in waves, the orchestrator last; one-command return per agent. A3 every agent on the host migrated; `ps` shows none as `root`; T-20 passes; the status call says "per-agent accounts: yes, host root: still a residual". A4 the orchestrator and the framework's scripts no longer need general root.
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:702:10.1.8.a **A** Accounts first: A3 before the first operational release (PH-2). The biggest unknown (a re-platforming of how every agent starts) then blocks a demonstration that does not need it.
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:703:10.1.8.b **B** Pilot early with a price gate; A3 before PH-4 exits; A4 in PH-6. PH-2 and PH-3 ship at the base strength of 3.7 with RA-1 stating it; the claim against same-host attackers is made only when A3 is done.
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:706:10.1.8.e Recommendation **B**. Reason: until PH-4 the controls protect against honest failure, outages, drift and remote attackers, and they are worth having at the base strength. At PH-4 the system starts to hold configurable authority (grants, allow-lists, eligibility, membership), which is exactly the class of file "an agent cannot write" (SI-20, SI-21); from there the base strength is not enough. Starting the pilot in PH-3, as soon as the Tier 0 route that an account creation needs is live, prices the move with data before PH-4, and the gate lets the operator stop before committing. (v0.1 put the pilot in PH-2, ahead of that route; an account creation without its event would have broken R-82.a (3).) A is rejected because it makes the largest unknown the first thing built. C is rejected because it leaves the hijack-to-root path open through every phase that adds capability. D delays a target the operator has committed to.
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:732:| C-15 | Create an agent operating-system account (R-82) | human | no | A Tier 0 act, ruled: **every** account creation is human-approved and logged, one event and one digest per account (R-82.a (3)). (v0.1 proposed one event per migration wave; that relaxed "every" and is withdrawn. A batch form would need a ruling change, see OP-1.) |
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:903:| IC-4 | Per-agent accounts | The status call, and the text of every floor claim | States "per-agent accounts: no" and what that means (3.7); no claim against ADV-2a | It prevents nothing | Stage A3 |
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:921:## 11 Residual risks for the operator, and the risk-acceptance requests
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:925:11.3 The requests, RA-1 to RA-9. Each is taken as its own question (13).
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:926:11.3.1 **RA-1 The base strength against same-host adversaries lasts until accounts are done.**
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:927:11.3.1.a Deferred: the part of SI-3, SI-14, SI-15 (F-7), SI-17, SI-20, SI-21, SI-22 and FX-5 (custody) that stops a process on the same host. PH-1 to PH-4 and until stage A3.
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:929:11.3.1.c Accepting means: until the agents have their own accounts, a hijacked agent on this host can read a sibling's keys and stores and sign as it, and a successful prompt injection (RR-1, accepted) ends in a root shell. This gives RR-2 ("accepted for now") an end: stage A3, which I recommend before PH-4 exits. If A3 slips past that, PH-4 ships at base strength and this request is asked again.
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:975:## 12 Change requests to earlier steps
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:978:12.2 **CX-1** (step 2, threat model). Add a bypass route **BP-20**: "a shared writable checkout (and the harness's hook configuration inside it) as a lateral path between agent accounts" and the residual risk **RR-21** of RA-7. Consider an invariant **SI-32** [P]: the code that implements the floor, and the hook wiring, are not writable by any agent account and are verified against their installed hashes at session start (conditional on stage A1). Why: the route appears only once accounts exist (R-82) and no entry names it. Evidence: 10.1.4, 11.3.7.
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:981:12.5 **CX-4** (step 1, requirements), bookkeeping, no requirement changes. Close the open items that point at this step once the operator rules: R-6.e (2) and R-70.g (the diagnosis-time bound and the state cap: section 7); R-45.a (reconciliation: 10.5); R-72.g and R-76.g (the initial classes: 10.2); R-73.g (the rule format: 10.3); R-82.g (phasing and price: 10.1); R-6.g (applying the rule to AEF's receiver: 7.4); and R-3.e (3), whose open bound can be set to the R-44.e "not handed over" deadline, the only number the rulings give (H-14 uses it).
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:983:## 13 Open questions and decisions only the operator can take
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:985:13.1 The standing instruction (2026-10-01, profile P1.2.b) applies: **one question at a time**, each with its background, its options and a recommendation, and the next only after the operator says "next". The list below is the order I recommend: 23 questions. OP-1 to OP-5 are the items the hand-over named (8a, 8b twice, 8c, 8d). 055 is waiting for OP-4. OP-13 to OP-20 are the risk-acceptance requests RA-1 to RA-8 of section 11, each its own question. OP-21 to OP-23 were added in v0.2 after review (the hook delivery point, who writes the receive side, and RA-9); take them after OP-20, or earlier if the operator wishes, since OP-21 changes the entry phase of SI-18 and SI-23. Each question below is a header: the orchestrator turns it into a brief with `/decision-brief`; the full options and reasons are in the section named.
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:987:13.2.1 **OP-1 Accounts: the order and the price (10.1.8).** **Ruled 2026-10-11: B with two amendments** (T-3352 Decisions): the read-only root inventory is a PH-0 exit item, and after the price gate no new agent is started as root. When does each agent get its own operating-system account, and when is the price decided? A, accounts complete before the first operational release. B, a pilot early with a price gate; A3 before PH-4 exits; A4 in PH-6. C, after PH-5. D, a pilot only; the migration becomes its own arc. Recommendation **B**. Settles: the end of RA-1, the shape of Track A. Note for this question: the ruling says every account creation is a Tier 0 act (R-82.a (3)), so the pilot and every later account is one event with its own digest; an event per migration wave (a batch digest) was in v0.1 and is withdrawn, and offering it would need a change to the ruling.
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:999:13.2.13 **OP-13 to OP-20** **Ruled 2026-10-11: each as recommended in section 11** (confirmation list, T-3352 Decisions): are RA-1 to RA-8 in that order (RA-9 is OP-23, 13.2.16). For each: accept as written, accept with a change, or send back for a mitigation. Recommendation for each is in section 11 (RA-1 accept; RA-2 accept; RA-3 accept; RA-4 accept with a review point at the exit of PH-4; RA-5 accept; RA-6 accept; RA-7 accept as RR-21; RA-8 accept).
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:1005:## 14 Handoff: what goes to steps 4 to 8
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:1009:14.1.b Open items the earlier steps and this step hand to step 4: the composition of the BV (5.1); where policy records live, how a sidecar fetches them and the stale rule (10.3.11); the hook wiring and the installed-code boundary (10.1.6, RA-7, CX-1); the design of the narrow privileged helper and the account template (R-82, 10.1.5); hub-side visibility of an inbox's consumers (SI-16, FP-1 failure 2); the 30-second component heartbeats (FP-1); the claim mechanism and the "transcript complete" signal per harness (R-51.a, R-47.a); the hub id minting and the mail-hub declaration format (R-61, R-54); grant fields (they are the `limits` of 10.3.4); the lease durations, quiet period and cooldown of "main" (R-67); the one-receiver observation window, the detection time for a second live copy of a project and the canary's staleness threshold (REQ 13.4.3); the skew bound, the gap-wait bound, the jitter, the adaptive cap and the hop limit (R-57, R-59, R-56); retention ceilings (R-35); roster format and enrolment (R-77); key pinning and rotation (R-75); the cost of re-wrapping message keys for long histories (R-74, R-80); the confirmation-provider interface after T-3385 (10.3.10); GP-11.
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:1012:14.2 To step 5 (evidence specialist). The staging table (section 8); the 17 fail-closed rows with their kill-checked controls (5.6); the six standing controls (6.2.1.a); the 28 hypotheses with their measurement designs (section 9); the five GP-12 fault injections (7.2.d); the reconciliation fixtures (10.5, T-18); the account tests (T-20, R-82.d). The test estate and agent pairs stay open for you (REQ 13.1).
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:1015:14.5 To step 8 (planner). Horizon changes and slices: T-3383 to `now` (6.2.1.a); one set of tasks per phase with the exit criteria of section 6 as acceptance criteria; the waves W1 to W4 of PH-2; Track A stages A0 to A4 as their own tasks with the price gate after A0; Track K as T-3385's outcome; the gates of 6.6; the dependency T-3387 before wave W2 and T-3386 before FX-1 is switched to "disable". "No knob before its lock" is a planning rule: a task that adds a configuration surface for authority must contain its lock.
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:1018:## 15 Coverage: the card, the task and the hand-over
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:1024:| 6.1 Every SI-n and every irreversible-action requirement is in the floor or has a recorded risk-acceptance request | Section 3: 3.3 (SI-1 to SI-31), 3.4 (FX-1 to FX-8), 3.5 (all 33 security-typed requirements, each in the floor or listed), 3.6 (what is outside and why); section 11 (RA-1 to RA-9; RA-9 added in v0.2 for SI-7 on the existing rails) | Met. The floor is 39 items |
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:1056:15.4 What REQ 13.1 and 13.5.1 handed to this step, beyond the ten: the ordering of the P1 and P2 items (4.2, section 6); the reconciliation details of the outage log (10.5); the phasing of R-72 to R-82 against the existing P1 items (4.2); the durability floor of the store (SI-15 in 3.3, FC-2 and FC-3 in 5.6, T-7 in section 8); the defence against ADV-1 to ADV-14 (3.7); the GP-12 application to AEF's receiver (7.4).
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:1060:15.5.3 The host readings (1.4.d) are one moment. They do not replace the count of agents in R-82.a.
+docs/design/interactive-agent-communication-03-floor-and-phasing.md:1065:## 16 Render check of the drawings
+docs/design/interactive-agent-communication-01-requirements.md:1:# Interactive agent communication: step 1, requirements
+docs/design/interactive-agent-communication-01-requirements.md:7:## 0 Version history
+docs/design/interactive-agent-communication-01-requirements.md:20:## 1 Inputs of record
+docs/design/interactive-agent-communication-01-requirements.md:46:## 2 Stakeholders, protected assets and adversaries
+docs/design/interactive-agent-communication-01-requirements.md:94:## 3 Drawings
+docs/design/interactive-agent-communication-01-requirements.md:96:### 3.1 Drawing D-1: context view (structure)
+docs/design/interactive-agent-communication-01-requirements.md:152:### 3.2 Drawing D-2: main flow (behaviour)
+docs/design/interactive-agent-communication-01-requirements.md:211:### 3.3 Drawing D-3: lifecycle of a message (behaviour)
+docs/design/interactive-agent-communication-01-requirements.md:250:## 4 Answers
+docs/design/interactive-agent-communication-01-requirements.md:321:## 5 Glossary
+docs/design/interactive-agent-communication-01-requirements.md:362:## 6 Requirements
+docs/design/interactive-agent-communication-01-requirements.md:374:### 6.2 Goal (`RQ` section 1)
+docs/design/interactive-agent-communication-01-requirements.md:402:### 6.3 Origins (`RQ` section 2)
+docs/design/interactive-agent-communication-01-requirements.md:421:### 6.4 The sidecar (`RQ` section 3)
+docs/design/interactive-agent-communication-01-requirements.md:466:### 6.5 Sending (`RQ` section 4)
+docs/design/interactive-agent-communication-01-requirements.md:494:### 6.6 Receiving (`RQ` section 5)
+docs/design/interactive-agent-communication-01-requirements.md:512:R-15.o [R] Ruled (OD-4 A, OD-5): STORED is the only call that releases the sender and the second step of the message states (R-44). It is written to the hub record before the call to the sender (R-45). Idempotence per stage is R-51. [R] (changed in v0.5 by CR-1, ruling 2026-10-10 A) The same outage exception applies to STORED: v0.4.1 text "It is written to the hub record before the call to the sender" holds while the hub is reachable; during an outage it is written to the receiver's hash-chained local log first and replayed on return. [R] (changed in v0.5 by CR-9, B′ ruling 2026-10-08) STORED means durable in the receiver's own store; the hub additionally keeps a bounded encrypted copy of the content (R-80). Until a stage acknowledged during an outage has been replayed, the receiver's disk holds the only copy (RR-15, accepted). [R] (v0.5.1, OQ-5 ruling A, 2026-10-08; GP-13; threat model 12.2) Durability floor of the store. It survives F-1 (the sidecar killed at any instruction) and F-2 (host crash or power loss): the record is written to a temporary name, flushed to stable storage, renamed, and the directory flushed, and STORED MUST NOT be reported before that flush reaches stable storage; a store that cannot flush reports failure, not STORED. It detects and shows, never silently: F-3 disk full (STORED refused visibly), F-4 a corrupt record (checksum and chain link, quarantine, resend by digest), F-5 store lost or an older copy restored (reconciled with the hub record, lost-after-STORED flagged; the hub's bounded encrypted copy is the recovery, R-80). It refuses or detects F-6 a second writer (store lock with the owner's identity) and F-7 an attacker writing the store (detected; prevention is RR-2, R-82). The failure classes are the ruling's; the mechanisms are the threat model's (SI-15, SI-16, SI-22) and step 3 takes them as the durability floor.
+docs/design/interactive-agent-communication-01-requirements.md:524:### 6.7 The 30-second tick (`RQ` section 6)
+docs/design/interactive-agent-communication-01-requirements.md:561:### 6.8 Readiness (`RQ` section 7)
+docs/design/interactive-agent-communication-01-requirements.md:581:### 6.9 Injection (`RQ` section 8)
+docs/design/interactive-agent-communication-01-requirements.md:610:### 6.10 Answering (`RQ` section 9)
+docs/design/interactive-agent-communication-01-requirements.md:647:### 6.11 Fallback polling (`RQ` section 10)
+docs/design/interactive-agent-communication-01-requirements.md:669:### 6.12 Addressing and identity (`RQ` section 11)
+docs/design/interactive-agent-communication-01-requirements.md:700:### 6.13 Telemetry (`RQ` section 12)
+docs/design/interactive-agent-communication-01-requirements.md:738:### 6.14 Deployment (`RQ` section 13)
+docs/design/interactive-agent-communication-01-requirements.md:749:### 6.15 Discussed once and lost (`RQ` section 14), ruled in OD-13
+docs/design/interactive-agent-communication-01-requirements.md:787:### 6.16 Requirements added by the step-1 rulings (new in v0.4)
+docs/design/interactive-agent-communication-01-requirements.md:1016:### 6.17 Requirements added by the step-2 change requests (new in v0.5)
+docs/design/interactive-agent-communication-01-requirements.md:1018:6.17.1 Every requirement below comes from a change request of the threat model (step 2, T-3351, section 21) that the operator accepted, and from the operator's rulings recorded in the rulings register (22.18) and in the decision record of the T-3351 task file. Each statement is [R] unless tagged; [R~] marks a number or detail that the ruling accepted from the orchestrator and that may be changed with evidence; [P] marks a clause that no ruling states. Priorities are collector proposals (6.1.c). "Open" lists what the ruling leaves to a later step. R-82 (added in v0.5.1) comes from a step-2 ruling that is not a change request (OQ-2); it is listed in 14.1 beside the change requests.
+docs/design/interactive-agent-communication-01-requirements.md:1029:R-72.g Status: not built; the re-pin record is T-3384. Until per-agent accounts (OQ-2, R-82) and an operator key (R-76) exist, the routes run on hosts where agents are root, so the event is detection and discipline, not a lock (RR-2, RR-18). Open: the list of low-risk classes (step 3 or 4); the charter rewording the card exchange needs (T-2470, 13.2.2).
+docs/design/interactive-agent-communication-01-requirements.md:1077:R-78.g Status: not built. Depends on R-76 (and, against same-user processes, on R-82): without an operator key, a file the agent "cannot write" does not exist on a host with one operating-system user. It does not stop host root, with or without an operator key (RR-2, RR-9 and RR-12, accepted).
+docs/design/interactive-agent-communication-01-requirements.md:1103:R-82 **Per-agent operating-system accounts: the committed target.**
+docs/design/interactive-agent-communication-01-requirements.md:1104:R-82.a [R] Ruled (OQ-2 C now, B as the committed target, 2026-10-07; added to this document in v0.5.1; operator: "we accept it for now, but we definitely want to move to a more isolated per-agent account, which can be created by the orchestrator ... always via Tier 0"): (1) Now: the shared operating-system user is accepted (RR-2 accepted). On .107 all 19 Claude agents run as root (ps, 2026-10-07), so the shared user is root and same-user equals host root in practice. (2) Target: one isolated operating-system account per agent, created by the orchestrator through a narrow privileged helper: one helper with fixed settings (for example a single sudoers entry), never general root for the orchestrator. (3) Every account creation is a Tier 0 act: human-approved and logged (R-72). (4) Step 3 phases and prices the move, including group-based access to shared checkouts; step 4 designs the helper. (5) Host root stays a permanent residual for the lifetime of the system (RR-2): account separation does not remove it.
+docs/design/interactive-agent-communication-01-requirements.md:1105:R-82.b Security invariant, operational · P1 [P] (the ruling commits the target and fixes no phase; the priority is a collector proposal) · source OQ-2 (T-3351 decision 2026-10-07).
+docs/design/interactive-agent-communication-01-requirements.md:1106:R-82.c Rationale: one account per workload is the standard pattern (service users, systemd DynamicUser, Kubernetes service accounts); it makes per-agent keys (R-75) and operator-signed files (R-78) a real boundary, and it ends agents running as root. Until then a malicious process of the same user reads a sibling's key.
+docs/design/interactive-agent-communication-01-requirements.md:1107:R-82.d Verification: per phase of step 3: a fixture where the helper is asked for anything but its fixed action and refuses; a check that no agent process runs as root; a fixture where agent A's process reads agent B's key file and fails; an audit-trail check that each creation has a Tier 0 event.
+docs/design/interactive-agent-communication-01-requirements.md:1108:R-82.e Acceptance. Given a request to create an agent account, then a Tier 0 event is raised and approved before the helper acts, and the audit trail holds the decision. Given the helper receives a request outside its fixed settings, then it refuses. Given per-agent accounts exist, then one agent cannot read another agent's key files; host root still can, and the status says so rather than claiming otherwise.
+docs/design/interactive-agent-communication-01-requirements.md:1109:R-82.f Holds against: ADV-2, ADV-7 (the same-user cases); not against host root.
+docs/design/interactive-agent-communication-01-requirements.md:1110:R-82.g Status: not built; accepted for now. Open: phasing, price and group-based access to shared checkouts (step 3); helper design (step 4). R-72.g, R-78.g and R-80.g state their residuals "until per-agent accounts exist" and depend on this requirement.
+docs/design/interactive-agent-communication-01-requirements.md:1112:## 7 Conflicts
+docs/design/interactive-agent-communication-01-requirements.md:1159:## 8 Gap review
+docs/design/interactive-agent-communication-01-requirements.md:1205:## 9 Open questions
+docs/design/interactive-agent-communication-01-requirements.md:1213:### 9.4 OD-1 Cross-host send path: RULED C
+docs/design/interactive-agent-communication-01-requirements.md:1228:### 9.5 OD-2 Urgent into a busy prompt, and the safe route: RULED B
+docs/design/interactive-agent-communication-01-requirements.md:1243:### 9.6 OD-3 Polling ladder against retry ladder: RULED A, modified, then corrected
+docs/design/interactive-agent-communication-01-requirements.md:1258:### 9.7 OD-4 RECEIVED and STORED: one call or two: RULED A
+docs/design/interactive-agent-communication-01-requirements.md:1273:### 9.8 OD-5 Callback to the sender, or record and pull: RULED, hub record is the truth
+docs/design/interactive-agent-communication-01-requirements.md:1288:### 9.9 OD-6 How an already-running session becomes reachable: RULED B
+docs/design/interactive-agent-communication-01-requirements.md:1303:### 9.10 OD-7 Readiness: hooks or screen, and who owns it: RULED C
+docs/design/interactive-agent-communication-01-requirements.md:1318:### 9.11 OD-8 Stage names, and "acknowledged, no action": RULED B
+docs/design/interactive-agent-communication-01-requirements.md:1333:### 9.12 OD-9 Who owns the receive side, and how sidecars ship: RULED C, sequenced
+docs/design/interactive-agent-communication-01-requirements.md:1348:### 9.13 OD-10 Session level of the address: RULED C
+docs/design/interactive-agent-communication-01-requirements.md:1363:### 9.14 OD-11 Name-to-id directory: RULED A, with location rules
+docs/design/interactive-agent-communication-01-requirements.md:1378:### 9.15 OD-12 Address rulings D-599 and D-660, and stable ids: RULED D
+docs/design/interactive-agent-communication-01-requirements.md:1393:### 9.16 OD-13 Section 14 items: keep or drop: RULED A, refined
+docs/design/interactive-agent-communication-01-requirements.md:1408:### 9.17 OD-14 Alarms, escalation and the hub steward: RULED B
+docs/design/interactive-agent-communication-01-requirements.md:1423:### 9.18 OD-15 Interrupt consent, respawn and the startup chain: RULED A, refined in dialogue
+docs/design/interactive-agent-communication-01-requirements.md:1438:### 9.19 OD-16 Telemetry retention window: RULED C, refined
+docs/design/interactive-agent-communication-01-requirements.md:1454:### 9.20 OD-17 Proposed requirement changes: WALKED, all candidates ruled
+docs/design/interactive-agent-communication-01-requirements.md:1517:### 9.21 OD-18 Several agents per project: who answers: RULED A, revised after external review
+docs/design/interactive-agent-communication-01-requirements.md:1532:### 9.22 GP-11 The operator as a party to a conversation: OPEN
+docs/design/interactive-agent-communication-01-requirements.md:1539:## 10 Earlier requirements
+docs/design/interactive-agent-communication-01-requirements.md:1628:## 11 Residual risks and notes for the operator
+docs/design/interactive-agent-communication-01-requirements.md:1633:11.7 v0.5 (2026-10-10). The 20 step-2 change requests that the operator accepted are folded in (section 14); R-72..R-81 are new (6.17) and none of them is built; v0.5.1 adds R-82 (OQ-2) and folds in ADV-11..ADV-14 (OQ-1), the store durability floor (OQ-5, R-15) and the consistency fixes of `docs/reports/T-3388-step1-v05/codex-confirm.md` (14.6). The sign-off of v0.4.1 does not carry over to v0.5; the operator signs the new version (T-3388). GP-11 stays open (9.22, R-76).
+docs/design/interactive-agent-communication-01-requirements.md:1642:## 12 Change requests to earlier steps
+docs/design/interactive-agent-communication-01-requirements.md:1647:## 13 Handoff: what goes to steps 2-8 (v0.5)
+docs/design/interactive-agent-communication-01-requirements.md:1675:13.5.1 Step 3 (security floor and phasing): the rule format and the defaults of the policy model (R-73, CR-19); the list of low-risk classes for the policy route (R-72, CR-18), the first being a dead holder's hand-over with a same-role lease successor (R-74); the initial list of high-impact approval classes (R-76, OQ-14); the reconciliation details of the outage log (R-45.a, CR-1); the phasing of the eleven new requirements R-72..R-82 against the existing P1 items. [R] (v0.5.1) Also from the non-CR rulings: the phasing and price of the move to one isolated operating-system account per agent, including group-based access to shared checkouts (OQ-2, R-82: committed target; the shared user is accepted for now; host root stays a permanent residual); the durability floor of the store (OQ-5, R-15.o: F-1 and F-2 survived with a flush before STORED, F-3 to F-5 detected and shown, F-6 and F-7 refused or detected); and the defence against all fourteen adversaries ADV-1..ADV-14 (OQ-1, 2.3).
+docs/design/interactive-agent-communication-01-requirements.md:1676:13.5.2 Step 4 (architect): the build order for confidentiality, pin hub card-signing keys out of band first, then agent-to-agent DM encryption, then project mail, break-glass after the operator key (R-80); the cost of re-wrapping message keys for long histories (R-74); the first-build measurement of each [R~] starting number (14.3), each as an acceptance item of the first build (OQ-9); the hub outage measurement over 30 days that re-checks the credential lifetime (hypothesis H-1; build T-3383); the thresholds of the activity veto and the window H-11 (R-81); the "transcript complete" signal per harness (R-47.a); roster format and enrolment (R-77); the claim mechanism that keeps "never handed over twice" across a crash (R-51.a); key pinning and rotation (R-75); (v0.5.1) the design of the narrow privileged helper that creates per-agent accounts, each creation a human-approved logged Tier 0 act (OQ-2, R-82); the store mechanisms behind the durability floor (OQ-5, SI-15, SI-16, SI-22, R-15.o).
+docs/design/interactive-agent-communication-01-requirements.md:1689:## 14 Step-2 change requests folded in (v0.5)
+docs/design/interactive-agent-communication-01-requirements.md:1716:| (OQ-2) | Not a change request. v0.5.1: added R-82; pointers in 13.5.1 and 13.5.2 | OQ-2 C now, B target, 2026-10-07 |
+docs/design/interactive-agent-communication-01-requirements.md:1757:14.5.6 The step-2 rulings that are not change requests are placed as follows (corrected in v0.5.1; v0.5 said they were left in the threat model). OQ-1 (adversaries ADV-11..ADV-14): section 2.3 and D-1. OQ-2 (per-agent accounts as the committed target): R-82 and the step 3 and 4 handoff in 13.5. OQ-5 (the failures the store survives): R-15.o, R-15.d, R-15.e. OQ-15 (retention): folded by dropping CR-16 (14.2) and by R-51.a, which already forbids a per-message digest beyond the 14-day stage memory and separates it from the daily telemetry digests; v0.5.1 added the revisit trigger. OQ-9 beyond the numbers (each starting value measured in the first build) is 14.3 and 13.5.2.
+docs/design/interactive-agent-communication-01-requirements.md:1758:14.5.7 [P] (v0.5.1) R-74.a (1): that joining needs the hub, so a join waits during an outage, is the collector's reading, not a ruling. [P] R-65.e: the handling of a DEAD statement with an equal sequence number is not ruled. [P] R-82.b: the priority. [R~] R-51.e: the crash-after-typed-delivery case follows the mechanism of R-51.a.
+docs/design/interactive-agent-communication-01-requirements.md:1764:14.6.4 Non-CR rulings placed: OQ-1 (2.3, D-1), OQ-2 (R-82), OQ-5 (R-15), OQ-15 (R-51.a, 14.2, 14.5.6).
+
+exec
+/bin/bash -lc "sed -n '213,268p' docs/design/interactive-agent-communication-03-floor-and-phasing.md
+sed -n '664,706p' docs/design/interactive-agent-communication-03-floor-and-phasing.md
+sed -n '926,931p' docs/design/interactive-agent-communication-03-floor-and-phasing.md" in /opt/termlink
+ succeeded in 0ms:
+    G4["G4 Nothing hostile typed or run: SI-1 SI-2 SI-7 SI-8 SI-18 SI-23 FX-1 FX-4"]:::grp
+    G5["G5 Access and secrets: SI-14 SI-25 SI-27 SI-28"]:::grp
+    G6["G6 Flow limits: SI-19"]:::grp
+    G7["G7 Directory and admission: SI-12 SI-13 SI-31 FX-2"]:::grp
+    G8["G8 Authority: SI-20 SI-21 SI-24 SI-29 FX-3"]:::grp
+    G9["G9 Circuits and revocation: SI-9 SI-10 SI-11"]:::grp
+    G10["G10 Disclosure: FX-5"]:::grp
+  end
+  subgraph PHASES["Phases in order"]
+    P0["PH-0 Preparation"]:::ph
+    P1["PH-1 Basic version"]:::ph
+    P2["PH-2 First operational release"]:::ph
+    P3["PH-3 Identity and admission"]:::ph
+    P4["PH-4 Authority and roles"]:::ph
+    P5["PH-5 Direct circuit"]:::ph
+    P6["PH-6 Completion"]:::ph
+    P0 -->|"every item that has entered keeps holding"| P1
+    P1 --> P2
+    P2 --> P3
+    P3 --> P4
+    P4 --> P5
+    P5 --> P6
+  end
+  G5 -->|"SI-25"| P0
+  G8 -->|"SI-24 re-pin record"| P0
+  G1 -->|"SI-3 SI-4 SI-6"| P1
+  G2 -->|"SI-15 SI-16 SI-22 SI-30"| P1
+  G3 -->|"SI-17 SI-26 FX-7"| P1
+  G4 -->|"SI-7 SI-8"| P1
+  G5 -->|"SI-14"| P1
+  G1 -->|"SI-5"| P2
+  G2 -->|"FX-6"| P2
+  G3 -->|"FX-8"| P2
+  G4 -->|"SI-1 SI-2 SI-18 SI-23 FX-1 log FX-4 scope"| P2
+  G5 -->|"SI-27 SI-28"| P2
+  G6 -->|"SI-19"| P2
+  G7 -->|"FX-2"| P1
+  G8 -->|"SI-20 SI-21 fixed default only"| P2
+  G9 -->|"SI-11 for RK-1"| P2
+  G10 -->|"FX-5 no growth"| P2
+  G7 -->|"SI-12 SI-13 SI-31"| P3
+  G8 -->|"SI-20 SI-21 SI-29 FX-3"| P4
+  G4 -->|"FX-1 disable, FX-4 boundary model"| P4
+  G10 -->|"DM encryption"| P4
+  G9 -->|"SI-9 SI-10 SI-11 complete"| P5
+  G10 -->|"circuit copies encrypted"| P5
+  G10 -->|"project mail, custody"| P6
+```
+
+3.8 Text equivalent of D-2.
+3.8.1 The floor has ten groups of items, G1 to G10, each listed in the drawing with its item ids. The seven phases run in order from PH-0 to PH-6. Every arrow from a group to a phase means: the named items enter in that phase.
+3.8.2 The rule drawn along the phase chain: an item that has entered keeps holding in every later phase. That is the meaning of "the floor holds in every phase", read with the fact that an item cannot hold where its subject does not exist (3.1.a).
+3.8.3 PH-0: SI-25 (secrets in artifacts) and the early form of SI-24 (the re-pin record). PH-1: SI-3, SI-4, SI-6 (stage records), SI-15, SI-16, SI-22 (the chain), SI-30, SI-17, SI-26, FX-7, SI-7, SI-8, SI-14, FX-2. PH-2: SI-5, FX-6, FX-8, SI-1, SI-2, SI-18, SI-23, FX-1 (log and show), FX-4 (scope and log), SI-27, SI-28, SI-19, SI-20 and SI-21 in their fixed-default form, SI-11 for agent keys, FX-5 (no growth of what the hub exposes).
+3.8.4 PH-3: SI-12, SI-13, SI-31. PH-4: SI-20 and SI-21 with their configuration surface, SI-29, FX-3, FX-1 (disable), FX-4 (boundary model), and the first encryption stage. PH-5: SI-9, SI-10, SI-11 complete, and encrypted circuit copies. PH-6: project mail and custody.
+3.8.5 Items that depend on a strength flag (A or K) are marked in the table of 3.3 and 3.4; the drawing shows when they enter, the table shows when they are fully strong.
+
+10.1 **Per-agent operating-system accounts: order, price, group access to shared checkouts (R-82, OQ-2).**
+10.1.1 What is ruled. The shared user is accepted for now. The committed target is one isolated account per agent, created by the orchestrator through one narrow privileged helper with fixed settings (never general root for the orchestrator); every creation is a Tier 0 act, human-approved and logged. Host root stays a residual for the lifetime of the design (R-82.a, RR-2). Step 3 phases and prices the move, including group-based access to shared checkouts. Step 4 designs the helper.
+10.1.2 What I found on the host on 2026-10-11 (1.4.d). 86 process lines that mention `claude` run as `root`, 16 as the operator's own login. `/opt/termlink` and its `.git`, `.tasks` and `.context` are `root:root` mode 775 with no shared group and `core.sharedRepository` unset. `useradd`, `sudo` and `setfacl` exist. Besides `root` there are two login accounts (the operator's, and `testdev`). The orchestrator is itself `root` **[H]**, so "never general root for the orchestrator" means changing the orchestrator too (stage A4).
+10.1.3 What the move buys, floor item by floor item (this is the answer to "why not last").
+
+| Floor item | Without accounts | With accounts (A) |
+|---|---|---|
+| SI-3 signatures | A process of any agent reads a sibling's key and signs as it | A key is readable only by its own account |
+| SI-14 owner-only socket | "Owner-only" means "root-only", so it separates nobody | It separates agents |
+| SI-15 (F-7), SI-22 | A same-user process edits another agent's store and rewrites its chain | It cannot |
+| SI-20, SI-21 policy records | A file "the agent cannot write" does not exist | Policy records live in a supervisor-owned directory the agents cannot write |
+| SI-17 evidence | A same-user process can append a well-formed forged record (RR-7) | Narrowed to the agent's own account |
+| FX-5 custody key | Reachable by every sibling | Held by a supervisor account |
+| RR-1 and RR-3, accepted | A successful prompt injection ends in a root shell | It ends in one agent's account |
+
+10.1.4 What it does not buy. Host root (RR-2, always). The shared checkout: if agents share a writable checkout, any agent can edit a script or hook that another agent runs (the lateral path, new here, RA-7). The credentials the harness needs per account.
+10.1.5 The price, by part. Sizes are my estimates **[A]** (S a day or two, M a week, L several weeks); the pilot (A0, H-28) replaces them with measurements.
+
+| Part | What it involves | Size | Main risk |
+|---|---|---|---|
+| Inventory | Which processes run as `root`, and why: the hub and its unit, cron jobs, `runme.sh`, the orchestrator, the 86 process lines | S | Surprises: things that quietly depend on root |
+| Account template and helper | One template (home mode 0700, no login shell, no `sudo`, a group), one helper with fixed settings behind a single `sudoers` entry, one Tier 0 event per account created (R-82.a (3)) | M | A helper that does more than its fixed action becomes general root (R-82.d tests this) |
+| Shared checkout by group | A group for agents, setgid directories, `core.sharedRepository=group`, `umask 0002`, default ACLs on `.git`, `.tasks`, `.context` and the build directory, `safe.directory`, and a one-time change of ownership of today's root-owned files | M | Permission drift; file-mode noise in git; the shared git index contention the project already has (T-3090, T-3231) |
+| Code outside the checkout | The sidecar, adapters and hook entry points installed root-owned and read-only to agents; hooks reference the installed binary, not a checkout script | M | The harness's hook configuration lives in the writable checkout; I do not know whether a root-owned managed policy file can pin it **[A]** (step 4) |
+| Per-account state | `~/.termlink` per account: per-agent key, secrets cache, TOFU pins (every account pins every hub again), the harness's own credentials and transcripts | M to L | The harness needs a login per account; copying one credential into N accounts spreads it, the opposite of the aim |
+| Launcher, supervisor, tmux | Sessions started under the right account; PTY and tmux sockets per account; the operator attaching to sessions owned by others (`termlink attach`, inject) | L | The operator's own workflow breaks if attach needs `sudo` each time |
+| Hub access | The hub as its own non-root account with a 0700 runtime directory; agents hold only scoped tokens | M | A hub move touches PL-021 persistence of secret and certificate |
+| Orchestrator and framework | The orchestrator, `runme.sh`, cron installation and hub restarts without general root (stage A4) | L | The project's operational scripts assume root |
+| Waves and rollback | Agents migrate in waves, each with a one-command return to the old form | S | A half-migrated state nobody can reason about |
+| Verification | The tests of R-82.d: a helper asked for anything else refuses; no agent runs as `root`; agent A cannot read agent B's key; every creation has a Tier 0 event | M | |
+
+10.1.6 The design cut I recommend **[P]**: separate by what must be shared.
+10.1.6.a **Shared by group, because the work needs it:** the checkout (source, `.git`, `.tasks`, `.context`). The group model above. This is the price of keeping one checkout with one shared task and context state, which the whole framework assumes. Per-agent clones would remove the lateral path and the shared-index problem, but they change how every agent shares task, focus and handover state, which the framework keeps in the one checkout; I do not recommend them now. (They are clones, not git worktrees, which the project forbids as a standing rule.)
+10.1.6.b **Private per account:** the signing key, the secrets cache, the pins, the sidecar's store, flag and queue, the harness credential and transcripts.
+10.1.6.c **Owned by a supervisor account, not by any agent:** the custody key (R-80), the policy records (R-78), the hub's admin credential. Not readable by agent accounts.
+10.1.6.d **Installed, not checked out:** the floor code. This is also why R-39 ("start from the deployment, not from a source checkout") is a security property once accounts exist.
+10.1.7 The stages. A0 pilot: an inventory, then one non-critical agent under its own account, running a normal task cycle; the output is H-28 and a list of what needed root. **A price gate follows: the operator confirms the plan with the measured price.** A1 build the template, the group model, the helper, and the installed code; launcher starts sessions under accounts. A2 migrate in waves, the orchestrator last; one-command return per agent. A3 every agent on the host migrated; `ps` shows none as `root`; T-20 passes; the status call says "per-agent accounts: yes, host root: still a residual". A4 the orchestrator and the framework's scripts no longer need general root.
+10.1.8 Where it sits against the phases. Options for the operator (OP-1).
+10.1.8.a **A** Accounts first: A3 before the first operational release (PH-2). The biggest unknown (a re-platforming of how every agent starts) then blocks a demonstration that does not need it.
+10.1.8.b **B** Pilot early with a price gate; A3 before PH-4 exits; A4 in PH-6. PH-2 and PH-3 ship at the base strength of 3.7 with RA-1 stating it; the claim against same-host attackers is made only when A3 is done.
+10.1.8.c **C** Accounts after PH-5, as the last security step. Every capability phase then adds power to agents that can all become `root` (3.7.1).
+10.1.8.d **D** The pilot only inside this arc; the migration becomes its own arc, decided after H-28.
+10.1.8.e Recommendation **B**. Reason: until PH-4 the controls protect against honest failure, outages, drift and remote attackers, and they are worth having at the base strength. At PH-4 the system starts to hold configurable authority (grants, allow-lists, eligibility, membership), which is exactly the class of file "an agent cannot write" (SI-20, SI-21); from there the base strength is not enough. Starting the pilot in PH-3, as soon as the Tier 0 route that an account creation needs is live, prices the move with data before PH-4, and the gate lets the operator stop before committing. (v0.1 put the pilot in PH-2, ahead of that route; an account creation without its event would have broken R-82.a (3).) A is rejected because it makes the largest unknown the first thing built. C is rejected because it leaves the hijack-to-root path open through every phase that adds capability. D delays a target the operator has committed to.
+11.3.1 **RA-1 The base strength against same-host adversaries lasts until accounts are done.**
+11.3.1.a Deferred: the part of SI-3, SI-14, SI-15 (F-7), SI-17, SI-20, SI-21, SI-22 and FX-5 (custody) that stops a process on the same host. PH-1 to PH-4 and until stage A3.
+11.3.1.b Stands in: detection (checksums, the chain, reconciliation, the re-pin record), the strength labelling of IC-4, and no claim against ADV-2a or ADV-7.
+11.3.1.c Accepting means: until the agents have their own accounts, a hijacked agent on this host can read a sibling's keys and stores and sign as it, and a successful prompt injection (RR-1, accepted) ends in a root shell. This gives RR-2 ("accepted for now") an end: stage A3, which I recommend before PH-4 exits. If A3 slips past that, PH-4 ships at base strength and this request is asked again.
+11.3.1.d Recommendation: accept, together with OP-1 B.
+11.3.2 **RA-2 The founding verbs' authorization lands in two steps.**
+
+exec
+/bin/bash -lc "rg -n '"'^3'"\\.7' docs/design/interactive-agent-communication-03-floor-and-phasing.md" in /opt/termlink
+ succeeded in 0ms:
+181:3.7 What the floor stops, by adversary and by strength. "Base" is the strength with neither flag: it holds against honest failures, outages, drift and attackers that are not on the agents' host. "A" adds one account per agent. "K" adds the operator key with its confirmation provider. "Residual" is the risk TM lists and the operator accepted on 2026-10-11.
+201:3.7.1 The honest summary of 3.7. Before accounts, the floor does not stop a hijacked agent from reading a sibling's keys, because on this host the agents are `root` **[H]** (1.4.d). That is RR-2, accepted "for now" (OQ-2). It means that RR-1 and RR-3 (prompt injection, accepted) end in a root shell on this host until A exists. This is the strongest argument for starting Track A early (10.1).
+
+exec
+/bin/bash -lc "sed -n '181,201p' docs/design/interactive-agent-communication-03-floor-and-phasing.md" in /opt/termlink
+ succeeded in 0ms:
+3.7 What the floor stops, by adversary and by strength. "Base" is the strength with neither flag: it holds against honest failures, outages, drift and attackers that are not on the agents' host. "A" adds one account per agent. "K" adds the operator key with its confirmation provider. "Residual" is the risk TM lists and the operator accepted on 2026-10-11.
+
+| Adversary | Stopped by | Base | With A | With K | Residual |
+|---|---|---|---|---|---|
+| ADV-1 confused or overloaded agent | SI-2, SI-7, SI-15, SI-17, SI-30, FX-7, FX-8 | holds | | | none: a failure, not an attack |
+| ADV-2a compromised session on the same host | SI-3, SI-14, SI-15, SI-20, SI-21, SI-22 | attribution and detection only | holds for keys, stores, sockets and policy files | policy records unforgeable | RR-2, RR-7, and the new lateral path RA-7 |
+| ADV-2b compromised remote peer | SI-3, SI-7, SI-8, SI-18, SI-19, SI-26 | holds | | | RR-1, RR-3 |
+| ADV-3 component reporting success it did not earn | SI-6, SI-17, SI-22, FX-7, FX-8, the canary | holds against defects | narrows RR-7 | | RR-7 |
+| ADV-4 outage | SI-15, SI-22; ladders and states | delivery stops visibly while a hub is down (PH-2 to PH-4); circuits from PH-5 | | | RR-5, RR-11, RR-20 |
+| ADV-5 hurried or mis-heard operator | SI-13, SI-31, typed-back fingerprint (PR-14) | digest binding and interim double approval from PH-3 | | out-of-band confirmation | RR-9 |
+| ADV-6 stale or wrong binding | FX-2, SI-16, SI-26, SI-12 | holds | | | RR-14 |
+| ADV-7 privileged process on the host | nothing stops it | detection only | does not stop root | does not stop root | RR-2, for the lifetime of the design |
+| ADV-8 flooding or looping peer | SI-19, SI-18, R-56 | holds | | | RR-12 |
+| ADV-9 stale or partitioned authority holder | SI-20, the tests of R-68 | from PH-4 | | | RR-8 |
+| ADV-10 estate drift | SI-27, R-57, canaries | holds | | | RR-2 (root replaces the checker) |
+| ADV-11 compromised or rogue hub | SI-12, SI-10, SI-3, SI-22, FX-2 | from PH-3 | | | RR-4 |
+| ADV-12 unadmitted joiner | SI-12, SI-13, R-72 | from PH-3 | | enrolment codes | RR-14 |
+| ADV-13 network attacker | SI-9, SI-5, SI-6; TLS | TLS on the hub path now; circuit proofs from PH-5 | | | none beyond what TLS cannot give |
+| ADV-14 holder of the operator's approval device | SI-13, SI-31 | **not defended** before K | | second factor and out-of-band confirmation | RR-16 |
+
+3.7.1 The honest summary of 3.7. Before accounts, the floor does not stop a hijacked agent from reading a sibling's keys, because on this host the agents are `root` **[H]** (1.4.d). That is RR-2, accepted "for now" (OQ-2). It means that RR-1 and RR-3 (prompt injection, accepted) end in a root shell on this host until A exists. This is the strongest argument for starting Track A early (10.1).
+
+codex
+### 1. Recommendation: B, with tighter gates
+
+**1a.** Choose **modified B**: inventory in PH-0; A0 immediately after the PH-3 account-creation route exists; the measured-price decision before broader migration; A3 **before configurable PH-4 authority becomes operational**, rather than merely before PH-4 exits. PH-4 development can proceed alongside migration.
+
+**1b.** Pull forward the security-critical portion of A4: any agentic orchestrator, or root process that executes agent-writable scripts, must lose that privilege before declaring A3 complete. Routine operational cleanup can remain in PH-6. A root orchestrator handling agent-controlled inputs is an active escalation path; describing host root as a permanent residual does not make that path harmless.
+
+**1c.** A imposes the entire migration before operational learning. C extends routine root exposure while adding capability. D risks turning a committed target into an indefinite follow-up. B best balances learning and delivery, provided its deadline is enforceable.
+
+**1d.** The post-A0 gate should decide the implementation, budget and schedule—not reopen whether isolation is wanted. If the measured price is unacceptable, hold authority-dependent deployment while revising the migration.
+
+### 2. Practical risk and base-strength releases
+
+**2a.** A prompt injection that induces shell execution already executes with root privileges; no privilege-escalation exploit is required. It can steal sibling credentials, impersonate agents, alter stores and policy, replace launch scripts, or establish persistence. A merely buggy agent can damage unrelated workloads through an incorrect cleanup or ownership command.
+
+**2b.** A compromised remote peer need not defeat TLS or message signatures. It can send authenticated malicious instructions that persuade a receiving agent to execute commands. Section 3.7’s protection against remote attackers therefore needs that qualification: protocol authenticity does not make message content safe.
+
+**2c.** PH-2 at base strength is defensible as a bounded home-lab release if the operator accepts possible loss of the host and its reachable credentials, maintains recoverable backups, and limits access to more valuable systems. PH-3 is harder to justify because fleet admission enlarges exposure. Keep it restricted to explicitly trusted peers until migration completes, with a dated RA-1 review and a deployment gate.
+
+**2d.** Checksums, chains and local logs help diagnose failures; root can rewrite both evidence and its checker. They are not dependable detection against an attacker controlling the host. Account separation materially reduces direct access, but shared executable source remains a lateral-compromise route.
+
+### 3. Price estimates and stage boundaries
+
+**3a.** The S/M/L estimates in section 10.1 are plausible planning placeholders, not a dependable total. Several weeks of work is credible; elapsed time could be substantially longer. **Waves and rollback at S is the least convincing estimate**, given credentials, state ownership, session continuity and partial failures.
+
+**3b.** Likely underestimates are harness authentication and refresh under separate homes; unattended restart; operator attach/inject permissions; and permission drift from editors, builds and Git. A common group fixes many writes but preserves shared-index contention and cross-agent modification of code. Copying one broad credential into every account also preserves a common external compromise domain.
+
+**3c.** A0 should exercise login, credential refresh, attach, restart, commit, tests, messaging and rollback. One successful task cycle and a count of permission fixes cannot price those lifecycle costs. Measure operator time and repeated failures; use a second representative harness or workflow if the estate varies materially.
+
+**3d.** There is a bootstrap gap: A0 requires orchestrator-created accounts through the narrow helper, but A1 nominally builds that helper. Put a minimal compliant template/helper and approval path in A0; A1 generalizes and hardens it. Do not quietly substitute manual account creation.
+
+### 4. Migration failure modes
+
+**4a. Helper.** Fixed settings must constrain names, UID/GID allocation, groups, home paths and templates. Reject arbitrary commands, caller-selected executables and agent-writable hooks. Bind each human approval to one exact creation, with replay protection and defined recovery after partial failure. A single sudoers entry can still expose general root if its target accepts powerful arguments.
+
+**4b. Installed code.** Root-owned binaries are insufficient if agents can redirect hook configuration, modify parent directories, or influence privileged imports and startup scripts. Resolve the documented hook-pinning uncertainty before claiming isolation.
+
+**4c. Mixed estate.** Remaining root agents can access migrated agents’ secrets. Publish migration status per agent and retain the weaker host-wide claim until the last relevant root workload is removed. Test effective identities, supplementary groups and privileged sockets—not just process-name matches.
+
+**4d. Rollback.** “One command” should stop and fence the current instance before restarting its predecessor, preserve state ownership and prevent duplicate identities. Returning to root is an explicit security downgrade requiring the applicable approval and visible status. After suspected compromise, rollback alone is insufficient: rotate exposed credentials and restore trusted code.
+
+### 5. One-line verdict
+
+**Modified B: measure early, then require effective isolation before operational configurable authority—the strongest reason is that agent-unwritable policy cannot exist while those agents retain root or a writable route back to it.**
+tokens used
+22,240
+### 1. Recommendation: B, with tighter gates
+
+**1a.** Choose **modified B**: inventory in PH-0; A0 immediately after the PH-3 account-creation route exists; the measured-price decision before broader migration; A3 **before configurable PH-4 authority becomes operational**, rather than merely before PH-4 exits. PH-4 development can proceed alongside migration.
+
+**1b.** Pull forward the security-critical portion of A4: any agentic orchestrator, or root process that executes agent-writable scripts, must lose that privilege before declaring A3 complete. Routine operational cleanup can remain in PH-6. A root orchestrator handling agent-controlled inputs is an active escalation path; describing host root as a permanent residual does not make that path harmless.
+
+**1c.** A imposes the entire migration before operational learning. C extends routine root exposure while adding capability. D risks turning a committed target into an indefinite follow-up. B best balances learning and delivery, provided its deadline is enforceable.
+
+**1d.** The post-A0 gate should decide the implementation, budget and schedule—not reopen whether isolation is wanted. If the measured price is unacceptable, hold authority-dependent deployment while revising the migration.
+
+### 2. Practical risk and base-strength releases
+
+**2a.** A prompt injection that induces shell execution already executes with root privileges; no privilege-escalation exploit is required. It can steal sibling credentials, impersonate agents, alter stores and policy, replace launch scripts, or establish persistence. A merely buggy agent can damage unrelated workloads through an incorrect cleanup or ownership command.
+
+**2b.** A compromised remote peer need not defeat TLS or message signatures. It can send authenticated malicious instructions that persuade a receiving agent to execute commands. Section 3.7’s protection against remote attackers therefore needs that qualification: protocol authenticity does not make message content safe.
+
+**2c.** PH-2 at base strength is defensible as a bounded home-lab release if the operator accepts possible loss of the host and its reachable credentials, maintains recoverable backups, and limits access to more valuable systems. PH-3 is harder to justify because fleet admission enlarges exposure. Keep it restricted to explicitly trusted peers until migration completes, with a dated RA-1 review and a deployment gate.
+
+**2d.** Checksums, chains and local logs help diagnose failures; root can rewrite both evidence and its checker. They are not dependable detection against an attacker controlling the host. Account separation materially reduces direct access, but shared executable source remains a lateral-compromise route.
+
+### 3. Price estimates and stage boundaries
+
+**3a.** The S/M/L estimates in section 10.1 are plausible planning placeholders, not a dependable total. Several weeks of work is credible; elapsed time could be substantially longer. **Waves and rollback at S is the least convincing estimate**, given credentials, state ownership, session continuity and partial failures.
+
+**3b.** Likely underestimates are harness authentication and refresh under separate homes; unattended restart; operator attach/inject permissions; and permission drift from editors, builds and Git. A common group fixes many writes but preserves shared-index contention and cross-agent modification of code. Copying one broad credential into every account also preserves a common external compromise domain.
+
+**3c.** A0 should exercise login, credential refresh, attach, restart, commit, tests, messaging and rollback. One successful task cycle and a count of permission fixes cannot price those lifecycle costs. Measure operator time and repeated failures; use a second representative harness or workflow if the estate varies materially.
+
+**3d.** There is a bootstrap gap: A0 requires orchestrator-created accounts through the narrow helper, but A1 nominally builds that helper. Put a minimal compliant template/helper and approval path in A0; A1 generalizes and hardens it. Do not quietly substitute manual account creation.
+
+### 4. Migration failure modes
+
+**4a. Helper.** Fixed settings must constrain names, UID/GID allocation, groups, home paths and templates. Reject arbitrary commands, caller-selected executables and agent-writable hooks. Bind each human approval to one exact creation, with replay protection and defined recovery after partial failure. A single sudoers entry can still expose general root if its target accepts powerful arguments.
+
+**4b. Installed code.** Root-owned binaries are insufficient if agents can redirect hook configuration, modify parent directories, or influence privileged imports and startup scripts. Resolve the documented hook-pinning uncertainty before claiming isolation.
+
+**4c. Mixed estate.** Remaining root agents can access migrated agents’ secrets. Publish migration status per agent and retain the weaker host-wide claim until the last relevant root workload is removed. Test effective identities, supplementary groups and privileged sockets—not just process-name matches.
+
+**4d. Rollback.** “One command” should stop and fence the current instance before restarting its predecessor, preserve state ownership and prevent duplicate identities. Returning to root is an explicit security downgrade requiring the applicable approval and visible status. After suspected compromise, rollback alone is insufficient: rotate exposed credentials and restore trusted code.
+
+### 5. One-line verdict
+
+**Modified B: measure early, then require effective isolation before operational configurable authority—the strongest reason is that agent-unwritable policy cannot exist while those agents retain root or a writable route back to it.**
