@@ -8,7 +8,7 @@
 
 | Version | Date | Change | Task |
 |---|---|---|---|
-| 0.1 | 2026-10-11 | First complete draft, batch mode. Security floor (31 invariants plus 8 extra items), prioritisation of the 82 requirements, the basic version, seven phases with exit criteria and rollback, 30 hypotheses, the GP-12 numbers, CAND-3 staging, the four items the operator's rulings left to this step (accounts, risk classes, policy format, interim controls) and the outage-log reconciliation rules, 8 risk-acceptance requests, 16 operator questions, drawings D-1 and D-2. | T-3352 |
+| 0.1 | 2026-10-11 | First complete draft, batch mode. Security floor (31 invariants plus 8 extra items), prioritisation of the 82 requirements, the basic version, seven phases with exit criteria and rollback, 28 hypotheses, the GP-12 numbers, CAND-3 staging, the four items the operator's rulings left to this step (accounts, risk classes, policy format, interim controls) and the outage-log reconciliation rules, 8 risk-acceptance requests, 20 operator questions, drawings D-1 and D-2. | T-3352 |
 
 ## 1 Inputs of record
 
@@ -82,7 +82,7 @@
 3.2.d **IR-d** A grant of authority that outlives the mistake: admission of a hub, a key replacement, a re-home, a re-pin, a grant, a role takeover, an account. It can be revoked, but what happened before the revocation stays.
 3.2.e **IR-e** Destroying the evidence that proves what happened (a sweep or trim of the record before delivery is proven).
 3.2.f **IR-f** One instruction acted on twice (a double hand-over, a replay).
-3.3 The 31 invariants as floor items. Statements are shortened; the full wording and the probe of each are in TM 18.1 and 18.2 and are binding. Columns: **Parents** the requirements the invariant restates or depends on. **Enters** the first phase in which the subject exists and the item must hold. **Complete** the phase in which all of it holds. **Needs** a strength flag (2.3.e) for the part that stops a process on the same host or the operator's impersonator. **Standing** E existing in a ruled requirement; R proposal now ruled by the named accepted change request; P proposal that no change request carried, so the operator confirms it by confirming the floor (OP-6).
+3.3 The 31 invariants as floor items. Statements are shortened; the full wording and the probe of each are in TM 18.1 and 18.2 and are binding. Columns: **Parents** the requirements the invariant restates or depends on. **Enters** the first phase in which the subject exists and the item must hold. **Complete** the phase in which all of it holds. **Needs** a strength flag (2.3.e) for the part that stops a process on the same host or the operator's impersonator. **Standing** E existing in a ruled requirement; R proposal now ruled by the named accepted change request; P proposal that no change request carried, so the operator confirms it by confirming the floor (OP-10).
 
 | Id | Statement (short) | Parents | Enters | Complete | Needs | Standing |
 |---|---|---|---|---|---|---|
@@ -456,7 +456,7 @@ flowchart LR
 6.2.6.g If H-27 is refuted the operator gets a decision brief (stop at PH-4 and keep hub-path delivery, or build for hub independence regardless). I do not decide it.
 6.2.7 **PH-6 Completion.** What is left, and the arc's closing conditions.
 6.2.7.a Scope. (1) Principle B′, stage 3: project mail and the custody key with its release rules; break-glass once K exists (R-80). (2) Track A, stage A4: the orchestrator no longer runs as `root` (10.1). (3) Track K: the real confirmation provider connected (T-3385 outcome); GP-11, the operator as a party to a conversation (R-1.e (3)). (4) R-36 digests; R-9 the startup chain, now that grants exist; R-41 typed work messages (planner); R-55 the send-and-wait tool (AEF). (5) Retire the shell sidecars. (6) Arc closing: every dimension of R-69 has run (section 8); every tripwire reviewed; the bypass inventory re-run; `scripts/arc-live-probe.sh` passes on every hub that needs the capability, so "shipped" means "live" (G-069).
-6.2.7.b Exit: the closing conditions of 6.2.7.a (6), and the register says what actually operates (A-6). Rollback: per item; none is a security control that can be turned off to roll back.
+6.2.7.b Exit: the closing conditions of 6.2.7.a (6), H-29 met, and the register says what actually operates (A-6). Rollback: per item; none is a security control that can be turned off to roll back.
 6.3 Placement check. Every requirement of REQ has a row in 4.2 with a phase or a reason it has none. The CAND-n and OD-n items of the step-1 rulings became requirements (REQ OD-17.T) and are placed through them. The items outside the R-n numbering that REQ 13.1 and 13.5.1 handed to this step are placed as follows: the GP-12 numbers (section 7); CAND-3 staging (section 8); the ordering of the P1 and P2 items (4.2, section 6); the policy format, the risk classes, accounts and the interim controls (section 10); the reconciliation details of the outage log (10.5); the durability floor (SI-15 in 3.3, with F-1 to F-7 in the proof of FC-2, FC-3 and in 6.2.3.d); the defence against ADV-1 to ADV-14 (3.7).
 6.4 What the operator can rely on after each phase, and what is still not true. This is the answer to "what do I get, when".
 
@@ -554,7 +554,7 @@ flowchart LR
 
 7.2.e What the bound buys. The record shows these failures lasting until the operator noticed: the key failure ran 32,205 refusals; the unsurfaced mail of INC-a was found by the operator asking. With a 60-second bound, a person reads the cause about a minute after it starts, and the "empty log = healthy" canaries stop being the only line of defence. What it costs: a 30-second heartbeat per component, hub-side visibility of an inbox's consumers, and a risk of false alarms on a slow host (measured in H-18, H-20).
 7.2.f How it is measured. The five failures are standing fault injections (R-69, R-70): tier 1 on a simulated clock, then tier 3 on the installed artifact, 20 injections each, 100 of 100 inside the bound (H-18). The drilled time is measured with three first-time readers, median at most 5 minutes, all three correct. The daily canary (R-66) is the backstop for anything the checks above miss.
-7.2.g Options for the operator (OP-5): A, the bound above. B, tighter: 30 seconds everywhere (one tick; costs a faster heartbeat and more false alarms). C, looser: 5 minutes, the supervision interval (the cheapest; a person learns of the cause as late as the supervisor restarts it). D, a per-failure table only, no single number. Recommendation **A**: it equals two ticks, the same unit the ruled stuck deadline uses (R-44.e), so one rhythm explains both.
+7.2.g Options for the operator (OP-6): A, the bound above. B, tighter: 30 seconds everywhere (one tick; costs a faster heartbeat and more false alarms). C, looser: 5 minutes, the supervision interval (the cheapest; a person learns of the cause as late as the supervisor restarts it). D, a per-failure table only, no single number. Recommendation **A**: it equals two ticks, the same unit the ruled stuck deadline uses (R-44.e), so one rhythm explains both.
 7.3 **FP-2 [P] The message-state cap.** The inventory at requirements v0.5.2.
 7.3.a **States of the chain (9, ruled or derived):** SENT, RECEIVED, STORED, QUEUED, ATTEMPTED, HANDED_OVER, REPLIED, ACKNOWLEDGED_NO_ACTION, DEAD (REQ 3.3, D-3).
 7.3.b **Labels the sender sees beside the chain (4 more; DEAD is shared):** WAITING, WAITING FOR RECIPIENT, STUCK, UNKNOWN (R-44). That is **13 distinct state values.** REJECTED is a collector proposal that no ruling names (REQ 13.2.5); it would be the 14th.
@@ -562,8 +562,8 @@ flowchart LR
 7.3.d **The cap:** at most **14 state values** and **8 markers**. Today's count is 13 and 7, so the cap leaves exactly one slot for each, and the state slot is the one REJECTED needs if the operator adopts it. The headroom is small on purpose: the second addition of either kind trips the cap.
 7.3.e A tripwire, not an acceptance criterion (R-70.e): crossing it opens a review and does not fail a build. A new state or marker MUST answer three questions in the review: which failure does it tell apart that no existing value does; what does a sender do differently because of it; which test fails without it.
 7.3.f What it buys. The sender and the operator read one chain of stages and one label per message; the operator's burden at diagnosis time is bounded. GLM's observation was that the ruled states already approach a dozen. What it costs: a review per addition. How measured: the inventory file of PH-0 holds the lists; a check counts them against the cap; the drill of 7.2.c includes a case for each label.
-7.3.g Options for the operator (OP-6): A, the cap above (14 and 8). B, a cap on states only, markers uncapped (cheaper, and markers are where complexity hides). C, no cap, inventory only (R-70 already requires the inventory). D, the cap equal to today's exactly (13 and 7), so REJECTED is the first review. Recommendation **A**.
-7.4 **FP-3 [P] Applying the rule to AEF's receiver.** While AEF's receiver is the running receiver on a host (R-49.a (1), until wave W4 of PH-2), the same behavioural acceptance applies to it: the five fault injections, a truthful status call, and the inventory of its message vocabulary. The size and count tripwires apply only to code this project owns. The fixtures are given to AEF through `framework:pickup`; this project does not patch AEF's code (G-062). The same fixtures are the acceptance test of the W3 to W4 switch, so both receivers are held to one standard. If AEF's receiver fails an injection, it stays in service until W4 under RA-6, with the failure shown in the status call.
+7.3.g Options for the operator (OP-7): A, the cap above (14 and 8). B, a cap on states only, markers uncapped (cheaper, and markers are where complexity hides). C, no cap, inventory only (R-70 already requires the inventory). D, the cap equal to today's exactly (13 and 7), so REJECTED is the first review. Recommendation **A**.
+7.4 **FP-3 [P] Applying the rule to AEF's receiver.** While AEF's receiver is the running receiver on a host (R-49.a (1), until wave W4 of PH-2), the same behavioural acceptance applies to it: the five fault injections, a truthful status call, and the inventory of its message vocabulary. The size and count tripwires apply only to code this project owns. The fixtures are given to AEF through `framework:pickup`; this project does not patch AEF's code (G-062). The same fixtures are the acceptance test of the W3 to W4 switch, so both receivers are held to one standard. If AEF's receiver fails an injection, it stays in service until W4 under RA-6, with the failure shown in the status call. The operator rules this in OP-8.
 7.5 **FP-4 [P] One rule for judging the starting numbers.** TM section 19 and the OQ-9 ruling left every [R~] number to be measured in the first build. Without a rule each measurement would be argued afresh. Proposal: for a number V that bounds something and an observed maximum M over the measurement window.
 7.5.a **Keep V** if M is at most V/2 and nothing legitimate was refused by V (a headroom of 2).
 7.5.b **Raise V** if a legitimate event was refused or M exceeds V/2: propose V' = 2 × M, rounded up, and tell the operator.
@@ -602,7 +602,7 @@ flowchart LR
 | T-20 | Account isolation: agent A cannot read agent B's key | accounts | Track A stage A1 onward | each Track A stage (R-82.d) | the read fails; host root still can, and the status says so |
 | T-21 | A 14-day soak | the whole chain, real agents | PH-2 | PH-2 | H-14 |
 
-8.2 Dimensions that will not exist until late stay untested and are listed as such in each phase's exit criteria; none is dropped. The count at the close of PH-6 is the 21 rows above (some run in several phases).
+8.2 Dimensions that will not exist until late stay untested and are listed as such in each phase's exit criteria; none is dropped. There are 21 numbered dimensions in 24 rows (T-4 has four cases); several run in more than one phase.
 
 ## 9 Hypotheses and their measurements (card 3.5)
 
@@ -854,7 +854,7 @@ flowchart LR
 | IC-6 | The real confirmation provider, for tests | The test estate only | A deterministic stub that lets the probes of R-76.d run (replay, expiry, provider unreachable fails closed) before a real provider exists | It MUST be impossible to enable on a production hub **[P]**: it refuses to start unless the hub is a throwaway estate | The real provider exists |
 
 10.4.1 Where the confirmation secret sits when the provider exists. R-76.a (5) says to prefer remote verification so that secrets stay off agent hosts. The hub (the executor) asks the provider, which holds the secret and verifies once against the digest; an agent host holds at most a client credential for asking. The hand-over names ring20's "C-5 broker service" as the planned provider. I could not find that service in this repository, and T-3385's own question IW-2 still asks what ring20-manager can build **[A]**; I treat the provider as unnamed and the contract as the interface.
-10.4.2 Options (OP-8): **A** the placement above: the decision verb in the hub's admin scope run from the operator's terminal first, the other surfaces later. **B** the interim approval inside `runme.sh` only (the operator's established, logged ritual): reuses the habit, but a runme action is a script and not an event with a digest. **C** the interim approval in Watchtower (the operator already ticks there): a good display, a web session as a new weak point. **D** wait for the provider before PH-3 (nothing is approved until K exists): safest, and it blocks the fleet phase on an inception that has no date. Recommendation **A**: it is what R-76.a (6) says, the verb is one place to guard and to log, and other surfaces can call it later. IC-1 to IC-6 are not options: they are the floor of the interim.
+10.4.2 Options (OP-5): **A** the placement above: the decision verb in the hub's admin scope run from the operator's terminal first, the other surfaces later. **B** the interim approval inside `runme.sh` only (the operator's established, logged ritual): reuses the habit, but a runme action is a script and not an event with a digest. **C** the interim approval in Watchtower (the operator already ticks there): a good display, a web session as a new weak point. **D** wait for the provider before PH-3 (nothing is approved until K exists): safest, and it blocks the fleet phase on an inception that has no date. Recommendation **A**: it is what R-76.a (6) says, the verb is one place to guard and to log, and other surfaces can call it later. IC-1 to IC-6 are not options: they are the floor of the interim.
 10.5 **The reconciliation rules for the outage log (R-45.a, CR-1: "reconciliation details are step 3's").** While the hub is unreachable and an established conversation runs on its circuit, the receiver writes each stage to its own hash-chained log first (SI-22) and replays it on return. These rules say what the replay does. They are [P] and testable (T-18). The limit that stays is RR-15: the unanchored suffix, and an attacker who controls every copy of a head.
 10.5.1 **RC-1 Replay order.** The log is replayed to the hub in chain order, one stage at a time, each stage idempotent by (message identity, stage). A crash in the middle resumes from the last stage the hub acknowledged.
 10.5.2 **RC-2 Three-way comparison.** On start and on the hub's return, for each conversation compare the local log, the hub record and the newest signed receipts held for the peer, including the chain heads (SI-22).
@@ -865,6 +865,139 @@ flowchart LR
 10.5.7 **RC-7 Time.** A replayed stage is never written to the hub with a time earlier than the newest stage the hub already holds for that message without a flag. Times are the observer's own (R-57); a difference between hosts is shown, not corrected.
 10.5.8 **RC-8 A bounded log.** When the local log reaches its ceiling during a long outage, the receiver refuses new STORED visibly (the F-3 behaviour). The log is never trimmed while it is unreconciled.
 10.5.9 **RC-9 The sender's side.** On return the sender computes its states from the hub record and its own receipts, labels any difference, and never re-sends a message whose STORED is recorded (R-45.a).
-10.5.10 Options (OP-12): **A** RC-1 to RC-9. **B** on any difference, stop and ask the operator (safe, noisy; every ordinary replay would need a decision). **C** the hub record always wins (loses the stages acknowledged during the outage, which breaks the promise STORED made). **D** the local log always wins (a compromised receiver then overwrites the record). Recommendation **A**.
+10.5.10 Options (OP-9): **A** RC-1 to RC-9. **B** on any difference, stop and ask the operator (safe, noisy; every ordinary replay would need a decision). **C** the hub record always wins (loses the stages acknowledged during the outage, which breaks the promise STORED made). **D** the local log always wins (a compromised receiver then overwrites the record). Recommendation **A**.
+
+## 11 Residual risks for the operator, and the risk-acceptance requests
+
+11.1 What is not asked again. The operator accepted the residual risks of TM section 20 as a set on 2026-10-11 (RR-1 to RR-20, with the rulings recorded in 22.18). This step reopens none of them. A request below exists only where this step adds something: a time limit or a phase for a risk that was accepted "for now", or an exposure the earlier steps did not name. The card's rule is that no floor item is deferred without a recorded request, so each request says exactly what is deferred, what stands in meanwhile, what accepting means in plain words, and what ends it.
+11.2 What is not a risk acceptance but the operator should know. R-7 (independence from the hub) is a P1 requirement and arrives in PH-5, the last of the P1 items to arrive. Until then a hub outage stops delivery between agents, visibly (WAITING, then UNKNOWN), with nothing lost. This is the ruled build order (OD-1 C), not a deferral of a floor item (4.4.c, 6.4).
+11.3 The requests. Each is taken as its own question (13).
+11.3.1 **RA-1 The base strength against same-host adversaries lasts until accounts are done.**
+11.3.1.a Deferred: the part of SI-3, SI-14, SI-15 (F-7), SI-17, SI-20, SI-21, SI-22 and FX-5 (custody) that stops a process on the same host. PH-1 to PH-4 and until stage A3.
+11.3.1.b Stands in: detection (checksums, the chain, reconciliation, the re-pin record), the strength labelling of IC-4, and no claim against ADV-2a or ADV-7.
+11.3.1.c Accepting means: until the agents have their own accounts, a hijacked agent on this host can read a sibling's keys and stores and sign as it, and a successful prompt injection (RR-1, accepted) ends in a root shell. This gives RR-2 ("accepted for now") an end: stage A3, which I recommend before PH-4 exits. If A3 slips past that, PH-4 ships at base strength and this request is asked again.
+11.3.1.d Recommendation: accept, together with OP-1 B.
+11.3.2 **RA-2 The founding verbs' authorization lands in two steps.**
+11.3.2.a Deferred: the boundary model for `inject`, `exec` and `remote exec` (FX-4), from PH-2 to PH-4. BP-1, BP-2.
+11.3.2.b Stands in: from PH-2 the verbs have their own scope that an Observe token does not carry, and every use is logged with the caller.
+11.3.2.c Accepting means: between PH-2 and PH-4 a holder of the right scope can still inject or exec across projects without a Tier 0 event, but not without a log row.
+11.3.2.d Ends: PH-4 exit, when the rule engine exists to decide "own project by default, cross-project a Tier 0 event". Recommendation: accept. Moving the full model earlier would pull the rule engine into PH-2.
+11.3.3 **RA-3 Hub-path content stays readable as today until direct-message encryption.**
+11.3.3.a Deferred: principle B′ stage 2 (R-80), FX-5 beyond "no growth". PH-2 to PH-4. TH-22 (likelihood high, impact medium).
+11.3.3.b Stands in: the no-growth rule (nothing becomes readable that is not readable on today's rails); agents told not to send secrets; and no circuit ships before encryption (6.2.6.c), so the one new content copy on the hub is always encrypted.
+11.3.3.c Accepting means: from PH-2 to PH-4 a message between agents is as readable on the hub, by a token holder or the hub operator, as a direct message is today. RR-6 (narrowed, accepted) already said "until the encryption is built"; this gives it a date.
+11.3.3.d Ends: PH-4 exit. Recommendation: accept.
+11.3.4 **RA-4 The operator key and the out-of-band confirmation are absent; the interim controls carry PH-3 to PH-5.**
+11.3.4.a Deferred: the full form of SI-13, SI-31 and the protection of SI-20 and SI-21 against ADV-14. PH-3 until Track K delivers.
+11.3.4.b Stands in: IC-1, IC-2, IC-3, IC-5 and IC-6 (10.4).
+11.3.4.c Accepting means: for as long as T-3385 (owner human) has no provider, a high-impact approval is confirmed at the terminal only, and the holder of the operator's terminal can approve it (RR-9, RR-16, RR-18 in full); policy records are hub-signed. R-76.a (6) already rules the interim; this adds how long it may run.
+11.3.4.d Ends: a real provider connected (K5) or an operator key registered (K4). Recommendation: accept, with a **review point at the exit of PH-4**: if T-3385 has no outcome then, the operator decides whether PH-5 waits for K.
+11.3.5 **RA-5 Vendor channels are logged and shown, not disabled, until the dispatch alternative exists.**
+11.3.5.a Deferred: the "disable" half of FX-1 (R-79, BP-14), from PH-2 to PH-4. The vendored framework's sub-agent dispatch protocol is built on vendor sub-agents (reported upstream), so disabling them before T-3386 would break it.
+11.3.5.b Stands in: the adapter logs and shows every use; the orchestrator already dispatches its own work through TermLink (ruled in RR-13).
+11.3.5.c Accepting means: until PH-4 a vendor sub-agent or peer channel can still be used, visibly, and bypasses the governance rules.
+11.3.5.d Ends: T-3386 done and the operator's configuration action. Recommendation: accept.
+11.3.6 **RA-6 The floor binds the hosts that run `termlink sidecar`; other receivers stand until their host switches.**
+11.3.6.a Deferred: SI-14 and SI-16 for peers on AEF's receiver (BP-16, the loopback bearer token), and for any other vendor's receiver. On this host until wave W4; elsewhere until that host's owner switches.
+11.3.6.b Stands in: the sender sees only what the peer's receiver reports, and anything it cannot prove shows as UNKNOWN or ATTEMPTED (GP-8); the fixtures of FP-3 are given to AEF; an AEF receiver that fails a fault injection stays in service with the failure shown.
+11.3.6.c Accepting means: for a message to a peer on another receiver, the floor protects what we send and how we show it, not what that receiver does with it.
+11.3.6.d Recommendation: accept.
+11.3.7 **RA-7 The shared writable checkout is a lateral path between agent accounts (new; proposed as RR-21).**
+11.3.7.a Not deferred but newly found. After accounts exist, an agent can still edit a script, a hook configuration or a task file in the shared checkout that another agent, or the operator's `runme.sh`, runs. TM names no such route (BP-17 covers pushing and releasing, not executing a sibling's edit). CX-1 asks step 2 to add it.
+11.3.7.b Mitigations I propose **[P]**: the floor code is installed outside the checkout, root-owned and read-only to agent accounts (10.1.6.d); the hook wiring is written at session start from a root-owned template where the harness allows **[A]**; a check at session start compares the hook scripts and wiring with their installed hashes and shows a difference in needs-attention.
+11.3.7.c Accepting means: with one shared checkout, one compromised agent can plant code that another agent runs. The mitigations detect it and narrow it; they do not prevent it. It is the price of one checkout with one shared task and context state.
+11.3.7.d Ends: never in full. Recommendation: accept as RR-21 once step 2 records it.
+11.3.8 **RA-8 Two placement judgments.**
+11.3.8.a Outside the floor: R-28, PR-11, R-71, R-37 and R-66, R-53 (3.5, 3.6). None meets the strict test of 3.2. They ship as Must or Should in the phases of 4.2; accepting means they do not have the floor's non-deferral protection.
+11.3.8.b Inside the floor beyond the strict test: FX-7 and FX-8 (3.4.1), for the false-green class the record proves. Accepting means they are not deferrable.
+11.3.8.c Recommendation: accept both as proposed. The operator can move either list.
+11.4 New residual risk proposed for the register. **RR-21** (from RA-7): the shared writable checkout as a lateral path between agent accounts. Step 2 owns the register; CX-1 asks for it.
+
+## 12 Change requests to earlier steps
+
+12.1 These are requests, not edits (`_common.md` 2.3). Each names the step, what is wrong or missing and the proposed text **[P]**. The orchestrator reopens the step if the operator accepts.
+12.2 **CX-1** (step 2, threat model). Add a bypass route **BP-20**: "a shared writable checkout (and the harness's hook configuration inside it) as a lateral path between agent accounts" and the residual risk **RR-21** of RA-7. Consider an invariant **SI-32** [P]: the code that implements the floor, and the hook wiring, are not writable by any agent account and are verified against their installed hashes at session start (conditional on stage A1). Why: the route appears only once accounts exist (R-82) and no entry names it. Evidence: 10.1.4, 11.3.7.
+12.3 **CX-2** (step 1, requirements). Clarify which hook point delivers which priority. R-48.e says the content is in the transcript "at the next tool call" for any message; R-63.a says mid-turn delivery is for urgent messages from allowed senders and everything else is downgraded to normal. I assumed, for the phasing, that a normal message reaches a working session at its turn end (the Stop hook) and an urgent message from an allowed sender at its next tool call **[A]**. If the operator reads R-48.e as "any message, next tool call", then every message is a mid-turn delivery and SI-23, SI-18 and the interrupt allow-list apply to all mail from PH-2. The choice changes what a working agent experiences.
+12.4 **CX-3** (step 1, requirements), conditional on OP-4. If the default of `eligible_for_main` is `no`, R-67.a1 (1) ("a deliberate extra instance declares 'not eligible for main'") should read "an agent that may hold main is declared eligible in an operator-signed profile", and CR-20 (1) in the threat model follows.
+12.5 **CX-4** (step 1, requirements), bookkeeping, no requirement changes. Close the open items that point at this step once the operator rules: R-6.e (2) and R-70.g (the diagnosis-time bound and the state cap: section 7); R-45.a (reconciliation: 10.5); R-72.g and R-76.g (the initial classes: 10.2); R-73.g (the rule format: 10.3); R-82.g (phasing and price: 10.1); R-6.g (applying the rule to AEF's receiver: 7.4); and R-3.e (3), whose open bound can be set to the R-44.e "not handed over" deadline, the only number the rulings give (H-14 uses it).
+
+## 13 Open questions and decisions only the operator can take
+
+13.1 The standing instruction (2026-10-01, profile P1.2.b) applies: **one question at a time**, each with its background, its options and a recommendation, and the next only after the operator says "next". The list below is the order I recommend. OP-1 to OP-5 are the items the hand-over named (8a, 8b twice, 8c, 8d). 055 is waiting for OP-4. OP-13 to OP-20 are the risk-acceptance requests of section 11, each its own question. Each question below is a header: the orchestrator turns it into a brief with `/decision-brief`; the full options and reasons are in the section named.
+13.2 The questions.
+13.2.1 **OP-1 Accounts: the order and the price (10.1.8).** When does each agent get its own operating-system account, and when is the price decided? A, accounts complete before the first operational release. B, a pilot early with a price gate; A3 before PH-4 exits; A4 in PH-6. C, after PH-5. D, a pilot only; the migration becomes its own arc. Recommendation **B**. Settles: the end of RA-1, the shape of Track A.
+13.2.2 **OP-2 The initial policy-route classes (10.2.7).** A, C-10 (ruled), C-2a, C-6a, C-9c. B, only C-10. C, A plus C-3 and the SSH-anchored enrolment now. D, none beyond C-10 and no growth path. Recommendation **A**. Settles: what the policy route may decide without a person.
+13.2.3 **OP-3 The initial high-impact classes (10.2.8).** A, ten classes (C-1, C-2b, C-4, C-5, C-6b, C-7, C-8, C-9b, C-16, C-17). B, only the four ruled exception classes. C, A plus C-14 and C-15. D, A without C-5. Recommendation **A**. Settles: what needs the out-of-band confirmation once a provider exists.
+13.2.4 **OP-4 The policy record format and defaults (10.3.13).** A, the envelope, the ceiling procedure and the defaults of 10.3.8, with `eligible_for_main` defaulting to `no`. B, the same with the default `yes`. C, a profile-only first version. D, adopt an existing policy language (not recommended). Recommendation **A**. Settles: what 055 builds against; CX-3.
+13.2.5 **OP-5 Where the interim controls sit (10.4.2).** A, the decision verb in the hub's admin scope, run from the operator's terminal first. B, inside `runme.sh`. C, in Watchtower. D, wait for the provider before PH-3. Recommendation **A**. Settles: IC-2, the decision point of every human-route event.
+13.2.6 **OP-6 The diagnosis-time bound (7.2.g).** A, 60 seconds detection to diagnosis, 5 seconds for the status call, 5 minutes drilled. B, 30 seconds. C, 5 minutes. D, a per-failure table only. Recommendation **A**. Settles: R-6.e (2), H-18.
+13.2.7 **OP-7 The message-state cap (7.3.g).** A, 14 state values and 8 markers. B, states only. C, no cap. D, exactly today's count (13 and 7). Recommendation **A**. Settles: R-70.g, the inventory check.
+13.2.8 **OP-8 Applying the rule to AEF's receiver (7.4).** A, the same behavioural tests, no size or count rule, fixtures given to AEF, W4 as the acceptance point. B, hold AEF's receiver to the size and count tripwires too. C, exempt it until it is retired. Recommendation **A**. Settles: R-6.g.
+13.2.9 **OP-9 The reconciliation rules (10.5.10).** A, RC-1 to RC-9. B, stop and ask the operator on any difference. C, the hub record always wins. D, the local log always wins. Recommendation **A**. Settles: R-45.a.
+13.2.10 **OP-10 The floor itself (section 3).** Confirm the 31 invariants and the 8 extra items as the floor, including the six that no change request carried, marked "P" in 3.3 (SI-14, SI-19 receiver side, SI-23, SI-24 beyond the override of main, SI-27 checksums, SI-28 path rule). A, confirm as written. B, confirm without FX-7 and FX-8. C, confirm and add PR-11 (outgoing secret scan) and R-28. D, send back with changes. Recommendation **A**. Settles: card 6.1.
+13.2.11 **OP-11 The phasing, the basic version and the staging (sections 5, 6, 8).** A, confirm the seven phases, the BV of section 5 and the CAND-3 staging. B, confirm with the doorbell moved into the BV. C, merge PH-3 and PH-4. D, send back. Recommendation **A**. Settles: card 6.3.
+13.2.12 **OP-12 The hypothesis thresholds (section 9, FP-4).** In particular the two that can refute the whole approach, H-14 (95% of messages to a reachable agent reach HANDED_OVER in time, 100% of the rest visible) and H-21 (at most 10 approval events a day, median decision at most 5 minutes, at least 90% decided before expiry). A, confirm as written. B, confirm the two refuting ones and leave the rest as starting values under FP-4. C, set stricter numbers for H-14 (99%). D, send back. Recommendation **A**. Settles: when the build stops and asks you.
+13.2.13 **OP-13 to OP-20** are RA-1 to RA-8 in that order. For each: accept as written, accept with a change, or send back for a mitigation. Recommendation for each is in section 11 (RA-1 accept; RA-2 accept; RA-3 accept; RA-4 accept with a review point at the exit of PH-4; RA-5 accept; RA-6 accept; RA-7 accept as RR-21; RA-8 accept).
+13.3 What I did not ask because a ruling answers it: the build order of the circuit (OD-1 C), the credential lifetime (OQ-3), the same-host start (OQ-4), the store's failure scope (OQ-5), the numbers of section 19 as starting values (OQ-9), the nesting wording of the policy model (read literally in 10.3.7.e), and the activity veto (OQ-16).
+
+## 14 Handoff: what goes to steps 4 to 8
+
+14.1 To step 4 (architect).
+14.1.a The floor of section 3 is a constraint on the design, not an input to weigh. Every floor item needs a place in the architecture and a probe; "ship gate" (2.3.c) and "no knob before its lock" (2.3.d) bind the design. The status call MUST carry the fields of 3.1.e and FP-1.
+14.1.b Open items the earlier steps and this step hand to step 4: the composition of the BV (5.1); where policy records live, how a sidecar fetches them and the stale rule (10.3.11); the hook wiring and the installed-code boundary (10.1.6, RA-7, CX-1); the design of the narrow privileged helper and the account template (R-82, 10.1.5); hub-side visibility of an inbox's consumers (SI-16, FP-1 failure 2); the 30-second component heartbeats (FP-1); the claim mechanism and the "transcript complete" signal per harness (R-51.a, R-47.a); the hub id minting and the mail-hub declaration format (R-61, R-54); grant fields (they are the `limits` of 10.3.4); the lease durations, quiet period and cooldown of "main" (R-67); the one-receiver observation window, the detection time for a second live copy of a project and the canary's staleness threshold (REQ 13.4.3); the skew bound, the gap-wait bound, the jitter, the adaptive cap and the hop limit (R-57, R-59, R-56); retention ceilings (R-35); roster format and enrolment (R-77); key pinning and rotation (R-75); the cost of re-wrapping message keys for long histories (R-74, R-80); the confirmation-provider interface after T-3385 (10.3.10); GP-11.
+14.1.c The numbers: each [R~] starting value is an acceptance item of the first build of its subject. The hypotheses table (section 9) states the measurement and the threshold; step 4 writes them into its plan (OQ-9 D).
+14.1.d Rollback is part of the design: each phase's rollback (section 6) is a requirement on the architecture, and the circuit's (stop minting, fall back to the hub path) is already required by R-46.e.
+14.2 To step 5 (evidence specialist). The staging table (section 8); the 17 fail-closed rows with their kill-checked controls (5.6); the five standing controls (6.2.1.a); the 28 hypotheses with their measurement designs (section 9); the five GP-12 fault injections (7.2.d); the reconciliation fixtures (10.5, T-18); the account tests (T-20, R-82.d). The test estate and agent pairs stay open for you (REQ 13.1).
+14.3 To step 6 (pseudo-coder). The BV as a state machine, with the default-deny rule of 5.6 as its error arm; the chain and label states of 7.3 and their cap; the reconciliation rules (10.5); the policy evaluation procedure (10.3.7).
+14.4 To step 7 (review panel). Where an independent judgment is most needed: whether the six classes of 3.2 miss an unauthorised irreversible action; the principle "the policy route continues existing trust, a human creates new trust" (10.2.1); the literal reading of the ceiling (10.3.7.e); the split of the checkout from the keys and policy records (10.1.6); the 95% of H-14; the decision to leave the doorbell out of the BV (5.8.b).
+14.5 To step 8 (planner). Horizon changes and slices: T-3383 to `now` (6.2.1.a); one set of tasks per phase with the exit criteria of section 6 as acceptance criteria; the waves W1 to W4 of PH-2; Track A stages A0 to A4 as their own tasks with the price gate after A0; Track K as T-3385's outcome; the gates of 6.6; the dependency T-3387 before wave W2 and T-3386 before FX-1 is switched to "disable". "No knob before its lock" is a planning rule: a task that adds a configuration surface for authority must contain its lock.
+14.6 For the orchestrator, outside the chain. Send the policy record format to 055 only after OP-4. Give AEF the fixtures of FP-3 through `framework:pickup`. T-2470 (the charter rewording) needs the operator's decision before PH-3. These are acts outside this project's boundary and are not mine to do.
+
+## 15 Coverage: the card, the task and the hand-over
+
+15.1 The role card's completion conditions (card section 6).
+
+| Condition | Where it is met | Result |
+|---|---|---|
+| 6.1 Every SI-n and every irreversible-action requirement is in the floor or has a recorded risk-acceptance request | Section 3: 3.3 (SI-1 to SI-31), 3.4 (FX-1 to FX-8), 3.5 (all 33 security-typed requirements, each in the floor or listed), 3.6 (what is outside and why); section 11 (RA-1 to RA-8) | Met. The floor is 39 items |
+| 6.2 Every other requirement has a priority and a reason | Section 4: 4.2 has a row for each of the 82 requirements and one for PR-11; 4.3 counts them | Met |
+| 6.3 Every phase has exit criteria and rollback; at least one hypothesis can refute the approach | Section 6: PH-0 (6.2.1.c, .d), PH-1 (5.9, 6.2.2), PH-2 (6.2.3.d, .e), PH-3 (6.2.4.c, .d), PH-4 (6.2.5.c, .d), PH-5 (6.2.6.d, .e), PH-6 (6.2.7.b); section 9: H-14 and H-21 | Met |
+| 6.4 Every required drawing (D-1 to D-2) is present with its id, caption and textual equivalent, and renders without error | D-2 in 3.7 with 3.8; D-1 in 6.7 with 6.8; section 16 | Met (render check in section 16) |
+
+15.2 The acceptance criteria of task T-3352 (agent list).
+
+| Criterion | Evidence |
+|---|---|
+| Step 2 recorded as approved by the operator before this step starts | The role-chain file, step 2 `approval`: approved 2026-10-11, threat model v0.3.7 (CHAIN, 1.3) |
+| A role session with the yaml's order of inputs; a role-handback/1 record returned | The inputs reached this session in the order: rules, common, card, adapter, profile, step facts (1.2, 1.3). The record: `docs/reports/T-3352-role-handback.json` |
+| The file exists with a version table and an inputs-of-record section citing the hashes | Sections 0 and 1 |
+| Every P1 and P2 item placed in a phase, with the floor that holds in every phase | 4.2 (phase for every requirement), 3.3 and 3.4 (Enters and Complete for every floor item), D-2 |
+| GP-12 diagnosis-time bound and message-state cap set | Section 7, FP-1 and FP-2, as proposals for OP-6 and OP-7 |
+| CAND-3 staging: for each test dimension the phase of its subject and the phase from which the test is required | Section 8, 21 dimensions in 24 rows |
+| Role-chain yaml step 3 `task:` set to this task id | Checked, not edited: step 3 already reads `task: T-3352` |
+
+15.3 The ten items of the hand-over.
+
+| # | Item | Where |
+|---|---|---|
+| 1 | The security floor, each with its SI-n or R-n; what I think is outside goes to a request | Section 3, 11.3.8 |
+| 2 | Every P1 and P2 item placed in a phase; the prioritisation table | 4.2, section 6 |
+| 3 | GP-12: the diagnosis-time bound and the message-state cap | Section 7 |
+| 4 | CAND-3 staging | Section 8 |
+| 5 | The basic version | Section 5 |
+| 6 | Phases with scope, exit criteria, rollback | Section 6 |
+| 7 | Hypotheses, including the OQ-9 ones, H-11 and T-3383 | Section 9 (H-1 is T-3383; H-3 to H-8, H-12, H-13 are OQ-9; H-11 is T-3387) |
+| 8a to 8d | Accounts; the risk classes; the policy record format; the interim controls | 10.1; 10.2; 10.3; 10.4 |
+| 9 | Drawings D-1 and D-2, each with id, caption, numbered equivalent, rendered | 3.7 and 3.8; 6.7 and 6.8; section 16 |
+| 10 | This coverage section | Section 15 |
+
+15.4 What REQ 13.1 and 13.5.1 handed to this step, beyond the ten: the ordering of the P1 and P2 items (4.2, section 6); the reconciliation details of the outage log (10.5); the phasing of R-72 to R-82 against the existing P1 items (4.2); the durability floor of the store (SI-15 in 3.3, FC-2 and FC-3 in 5.6, T-7 in section 8); the defence against ADV-1 to ADV-14 (3.7); the GP-12 application to AEF's receiver (7.4).
+15.5 The limits of this document, stated so that it is not read as more than it is.
+15.5.1 No component exists yet, so no probe, no fixture and no hypothesis threshold was run. The thresholds are proposals; the sizes in 10.1.5 are my estimates **[A]**.
+15.5.2 I did not measure build effort and I give no dates (6.1.e).
+15.5.3 The host readings (1.4.d) are one moment. They do not replace the count of agents in R-82.a.
+15.5.4 I could not find "ring20's C-5 broker service" in this repository (10.4.1). I did not check ring20's own documents; they are outside this project's boundary.
+15.5.5 The phasing assumes the split of the receive side with AEF resolves with TermLink writing the Claude adapter if AEF does not (6.6). That is an assumption and the operator has not ruled it.
+15.5.6 No external consultation was run on this output. Under the README (3.5) the orchestrator runs it and stores the answers; that is evidence for the operator, not a verdict.
 
 <!-- CONTINUE -->
