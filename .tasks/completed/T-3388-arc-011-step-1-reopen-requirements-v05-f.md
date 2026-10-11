@@ -10,10 +10,10 @@ description: >
   v0.5, each change traceable to its CR and ruling; then a Codex consistency check;
   then operator sign-off of v0.5. Step-2 sign-off may run in parallel.
 
-status: started-work
+status: work-completed
 workflow_type: specification
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -44,8 +44,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-10T15:48:26Z
-last_update: 2026-10-10T15:49:00Z
-date_finished:
+last_update: 2026-10-11T11:13:24Z
+date_finished: 2026-10-11T10:59:50Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -91,7 +91,7 @@ accepted. Operator ruled A on 2026-10-10.
 - [x] v0.5 status reads DRAFT for operator sign-off; role-chain yaml approval for step 1 is not changed by the agent.
 
 ### Human
-- [ ] [RUBBER-STAMP] Sign off requirements v0.5.2 (every change in it is something the operator already ruled)
+- [x] [RUBBER-STAMP] Sign off requirements v0.5.2 (every change in it is something the operator already ruled)
   **Evidence (already on disk):**
   1. Every change cites its change request and ruling: requirements section 14.1 (20 rows) and the CR-n markers
      in each changed requirement; the full rulings in T-3351 and T-3388 § Decisions.
@@ -414,3 +414,16 @@ and verified, and the drawings re-render cleanly. Ticking the box makes v0.5.2 t
 
 ### 2026-10-10T15:49:00Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-24247c74
+- **Timestamp:** 2026-10-11T10:59:51Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-10-11T10:59:50Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Completed via Watchtower UI (human action)

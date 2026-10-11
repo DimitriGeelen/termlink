@@ -1,0 +1,317 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3351: arc-011 role chain step 2: threat modeler
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-11T11:00:34Z
+# ============================================================================
+
+task_id: T-3351
+task_name: "arc-011 role chain step 2: threat modeler"
+workflow_type: specification
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-06T10:12:58Z
+completed: 2026-10-11T11:00:18Z
+duration_days: 5
+updates_count: 2
+first_commit: 2026-10-07T01:08:23+02:00
+last_commit: 2026-10-10T14:54:35+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  step 2 (threat modeler) dispatched as role worker t3351-threatmodeler after the operator's step-1 approval; ACs 1 and 7 ticked; also commits the operator's T-3349 completion and T-3380's close-out. threat model part 1 (inputs of record, assets, adversaries with privileges, trust boundaries, D-1). runme action 14 records the operator's own T-3349 Human tick (Watchtower wrote no provenance row, so pre-push audit blocks every push); fixtures 100/100 (+4 case 26). threat model part 2 (credential custody, circuit trust model and lifetime, same-id and same-sequence, framing, admission, revocation, durability, evidence). threat model part 3 (STRIDE matrix for 13 boundaries, 57 threats). threat model part 4 (abuse cases, D-2, D-3, bypass inventory, D-4, 28 invariants, proposed numbers, 14 residual risks, 13 change requests). threat model part 5 (proposal index, open questions, coverage). threat model render check recorded, TH-29 placed in the matrix. role-handback/1 record for step 2. orchestrator review of the step-2 threat model (1300 lines, 57 threats, RR-1..14, CR-1..13, OQ-1..9; input hash = v0.4.1); agent ACs 7/7. operator's own T-3349 Human tick recorded via runme action 14 (rc=0), provenance ledger committed so the pre-push audit passes. step-2 review round 1 — Codex (return for revision: four silent changes to ruled requirements) and GLM (fit, with fixes), stored unedited with a comparison. threat model round-1 remediation, unit 1: fidelity fixes (interrupt allow-list not a delivery gate, revocation is not DEAD, takeover unchanged, retention per R-35.o, R-60 binding as ruled, membership and hand-over). threat model round-1 remediation, unit 2: circuit lifetime from establishment, revocation scopes, over-claimed invariants restated (SI-9, 13, 17, 19, 21, 22), contiguous receipts, identity continuity, fleet admission continuity, new threats TH-58..65 and invariants SI-29..31. threat model round-1 remediation, unit 3: residual risks RR-1..19, change requests CR-1..15 with what would change, open questions split and reframed, numbers labelled hypotheses, invariant dependency table, TB-6 conditional, BP monitored defined, drawings D-1/D-2 corrected and re-rendered. round-1 disposition of every finding (36 rows) and updated role-handback record for threat model v0.2. step-2 review round 2 — Codex not fit yet (R-51/R-46.e weakened without CR, readiness, rollback/checkpoint over-claims), GLM fit after three text fixes; both flag TH-22. threat model round-2 remediation, unit 1: fidelity cases (crash after hand-over keeps R-51 by mechanism, readiness race as explicit change request CR-5, per-message digest retention as optional proposal PR-34), CR-16, CR-17, OQ-15, OQ-16. threat model round-2 remediation, unit 2: rollback needs the hub's live head, checkpoint coverage, operator key vs host root, atomic approval consumption, membership removal/epochs/fencing, remnants removed (TH-22, TH-37, TH-18, TH-9, AC-2), reasons on TH-25/40/41/42, RR-12/14/15/20, OQ-10/11/12/17, version 0.3. threat model round-2 remediation: reasons on TH-38 and TH-49 impact (found by own scan). round-2 disposition (25 findings: 23 valid, 2 partly, 0 not valid) and updated role hand-back for threat model v0.3. operator ruling B — step-2 decisions taken as OQ-1..17 one at a time, each naming the CRs/RRs it settles, unlinked remainder after. OQ-1 ruled A — ADV-11..14 confirmed (rogue hub, unadmitted joiner, network attacker, approval-device holder). OQ-2 ruled C with committed target — RR-2 accepted for now (all 19 agents run as root), per-agent OS accounts created by the orchestrator via a narrow helper, each a Tier 0 action; step 3 phases and prices. OQ-3 ruled D — circuit credential 1 h (renew from 30 min, 24 h max, stale-list 1 h) as starting values, RR-5 accepted at 1 h; follow-up T-3383 measures 30 days of hub outages. OQ-4 ruled D — new conversations always via the hub (one host too), RR-11 accepted for now; revisit local start once per-agent accounts exist and T-3383 has measured hub-down time. session handover S-2026-1008-1013 (step 1 signed off; step 2 decision round, OQ-1..4 ruled, OQ-5 next). OQ-5 ruled A — store survives a killed sidecar and a host crash, detects disk-full/corruption/loss, refuses a second writer. OQ-6 ruled D — CR-10 accepted (no rail message is operator-class until it verifies against an operator key; allow-list own project until GP-11); GP-11 assesses existing authenticated channels. OQ-7 held — operator's envelope-vs-content principle (need-to-know by identity level, hub as mailman, break-glass) formalised and sent to Codex + GLM review. principle review — Codex and GLM both 'adopt with changes' (P1/P3 conflict, pin keys first, bounded ciphertext retention, P4 waits on GP-11), stored unedited with comparison. confidentiality principle B' ruled (replaces OQ-7/10/11) — hub reads the envelope only, per-message encryption to readers, project custody key released to a rightful successor only after DEAD + role takeover, bounded encrypted hub copy, break-glass after GP-11; guiding rule: purpose and intent over form. handover update before reboot (OQ-5, OQ-6, B' ruled; OQ-8 presented, not ruled; AEF consult owed). OQ-8 ruled D″ — fleet admission per PR-5/PR-26 (CR-8), RR-4/RR-14 accepted, RR-18 tripwire (T-3384); admission and authorisation as Tier 0 events with approval routes by risk class (PR-35, CR-18); threat model v0.3.1 adds rulings register 22.18. OQ-9 ruled D — section 19 numbers PN-3..PN-12, PN-15, PN-17 as [R~] starting values, each hypothesis measured as a first-build acceptance item; PN-15 = 10 min recorded as assumption; register 22.18 updated. OQ-12 ruled — A as default plus boundary policy model (agent profiles: may invite / may be invited / respond / may remove; rules by agent, type, identity level per scope, narrowing only; Tier 0 event outside); CR-19 added; threat model v0.3.2. OQ-13 ruled C′ — forward only; invitation states intent; inviter shares relevant original turns (keys re-wrapped), recorded and visible; CR-19 may forbid or automate. OQ-14 ruled D‴ — high-impact approvals need active out-of-band confirmation, never proceed on silence; pluggable OTP confirmation provider (inception T-3385, high priority, with ring20-manager); interim terminal double approval; PN-14 retired; threat model v0.3.3. OQ-15 ruled A — no per-message digest beyond 14 days, RR-10 accepted, CR-16/PR-34/PN-16 dropped, revisit on measured old re-sends. OQ-17 ruled D — dead holder's hand-over is a Tier 0 event, policy-approved under the B' conditions (DEAD + same-role lease successor). process ruling D for the 20 unlinked RRs/CRs — CR-1, RR-8, RR-13 single, then bundles D4-D7. CR-1 accepted (A) — outage exception to 'hub record first', local log replayed and reconciled, states labelled unreconciled. RR-8 ruled D′ with forwarding — hub resolves duplicate mains (pin, longest ready, stable id), both told, stray role mail forwarded once to main with sender notice; CR-20 amends R-67.a; threat model v0.3.4. RR-13 ruled — PR-29 under CR-19 for inject/exec; all delegation through TermLink, vendor peer channels and sub-agents not used (CR-21); follow-up T-3386 lightweight dispatch; AEF notified. bundle D4 accepted — CR-2 signing, CR-3 identity+digest, CR-4 receipts (corrected: sender's own counter is the source, hub only raises it after a restore, per R-59.a), CR-17 hand-over evidence; RR-17, RR-15 accepted. bundle D5 accepted — CR-7 circuit trust properties, CR-12 resume check beyond DEAD; RR-20 accepted. bundle D6 accepted — CR-6 frame on every rail; RR-1, RR-3, RR-7 accepted. bundle D7 accepted — CR-11 reachability visibility, CR-13 authority only from operator-signed config; RR-9, RR-12 accepted; threat model v0.3.5, only OQ-16 open. OQ-16 ruled D — CR-5 wording plus local activity veto (055 measurements) and derived busy bit on presence; RR-19 accepted; step 2 fully ruled, threat model v0.3.6; build T-3387. confirmation check of threat model v0.3.6 (Codex, read-only) — verdict 'consistent after listed fixes', no new decisions; stored unedited. threat model v0.3.7 — consistency fixes after the Codex confirmation check (B' propagated, delay remnants, dropped items, duplicate mains, counter, vendor channels, CR-20 adds R-34.o/R-67.e, busy bit not for peers); applied by TermLink worker step2-fixes, verified by orchestrator; no ruling changed. handover S-2026-1010-1452 (step 2 fully ruled, v0.3.7, next: operator sign-off, step-1 reopen, AEF 1.8.8 decision)
+
+# Key outcomes
+outcomes:
+  - 'Step 1 is recorded as approved by the operator before this step starts (role-chain yaml / docs/design/roles/README.md section 3)'
+  - 'Role session dispatched with the yaml''s order of inputs (rules, common, card, adapter, profile, step facts) and a role-handback/1 record returned'
+  - '`docs/design/interactive-agent-communication-02-threat-model.md` exists with a version table and an inputs-of-record section citing the input hashes'
+  - 'Threat model covers adversaries ADV-1..ADV-10 with privileges (GP-15), and GP-1, GP-6, GP-13, GP-14'
+  - 'Covers the circuit trust model and per-circuit credential lifetime (OD-1, CAND-16), same-id/different-content (CAND-2) and same-sequence-number/different-content (CAND-18), peer-content framing (CAND-1)'
+  - 'Residual risks listed for the operator to accept, one per line'
+  - 'Role-chain yaml step 2 `task:` set to this task id'
+  - '[RUBBER-STAMP] Accept the step-2 residual risks as a set (each one was already ruled individually)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'threat model v0.3.7 — consistency fixes after the Codex confirmation check (B'' propagated, delay remnants, dropped items, duplicate mains, counter, vendor channels, CR-20 adds R-34.o/R-67.e, busy bit not for peers); applied by TermLink worker step2-fixes, verified by orchestrator; no ruling changed'
+    source: git-mined
+  - description: 'confirmation check of threat model v0.3.6 (Codex, read-only) — verdict ''consistent after listed fixes'', no new decisions; stored unedited'
+    source: git-mined
+  - description: 'step-2 review round 2 — Codex not fit yet (R-51/R-46.e weakened without CR, readiness, rollback/checkpoint over-claims), GLM fit after three text fixes; both flag TH-22'
+    source: git-mined
+  - description: 'threat model round-1 remediation, unit 1: fidelity fixes (interrupt allow-list not a delivery gate, revocation is not DEAD, takeover unchanged, retention per R-35.o, R-60 binding as ruled, membership and hand-over)'
+    source: git-mined
+  - description: 'step-2 review round 1 — Codex (return for revision: four silent changes to ruled requirements) and GLM (fit, with fixes), stored unedited with a comparison'
+    source: git-mined
+  - description: 'runme action 14 records the operator''s own T-3349 Human tick (Watchtower wrote no provenance row, so pre-push audit blocks every push); fixtures 100/100 (+4 case 26)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-10-07 — How to take step 2''s 54 operator items (operator ruling)'
+    chose: 'B — the 17 open questions one at a time; each brief names the change requests and residual risks its ruling settles; the unlinked remainder afterwards, one at a time.'
+    rationale: 'keeps one decision per message while cutting ~54 rulings to ~17 plus a tail. Scored B +42, C +31, A +1, D −8.'
+    alternatives_rejected: ['A (54 rounds, many restating earlier answers), C (batches risk acceptance, against the standing rule), D (risk acceptance is reserved to the operator by the role card).']
+  - decision: '2026-10-07 — OQ-1 which added adversaries to confirm (operator ruling)'
+    chose: 'A — confirm ADV-11 (compromised or rogue hub), ADV-12 (unadmitted joiner), ADV-13 (network attacker: delay, drop, replay, redirect; TLS gives secrecy and integrity, not delivery), ADV-14 (holder of the operator''s approval device or key). Steps 3-4 defend against ADV-1..ADV-14.'
+    rationale: 'each acts where the new parts sit (circuits, card exchange, approvals); the record shows hubs going wrong (stray hub 2026-10-04, G-060); both reviewers asked for ADV-14. Scored A +37, B +26, D −21, C −32.'
+    alternatives_rejected: ['B (drops ADV-13; "covered by TLS" misreads TLS, Codex r1), C (leaves CAND-17 and the approval device undefended), D (step 3 would not know whom the floor stops). - **Settles directly:** no RR or CR; scopes RR-4, RR-14, RR-16, RR-18 and CR-14.']
+  - decision: '2026-10-07 — OQ-2 the shared operating-system user (operator ruling)'
+    chose: 'C now, B as the committed target (operator''s words: "we accept it for now, but we definitely want to move to a more isolated per-agent account, which can be created by the orchestrator … always via Tier 0"). (1) RR-2 is accepted for the present, with the root fact. (2) Target: one isolated OS account per agent, created by the orchestrator through a narrow privileged helper (least privilege: one helper with fixed settings, e.g. a single sudoers entry; never general root for the orchestrator); every creation is a Tier 0 action (human-approved, logged). (3) Step 3 phases and prices the move, including group-based access to shared checkouts; step 4 designs the helper. (4) Host root stays residual for the lifetime (RR-2).'
+    rationale: 'one account per workload is the standard pattern (service users, systemd DynamicUser, k8s service accounts); it makes per-agent keys a real boundary and ends agents running as root. Scored C +29, A +10, B (as an immediate requirement) +5, D −12.'
+    alternatives_rejected: ['A (closes the door on separation), B now (unmeasured change blocking the floor), D (step 3 needs it).']
+  - decision: '2026-10-07 — OQ-3 the circuit credential lifetime (operator ruling)'
+    chose: 'D — PN-1 1 hour, PN-2 renewal from 30 minutes and 24 hours absolute, PN-13 1 hour, and the R-7.e (1) cross-host bound of 1 hour, as STARTING values; re-checked against 30 days of hub outage data (follow-up T-3383).'
+    rationale: 'survives the measured outages with margin; a thief also needs the agent key; numbers stay open to evidence. Scored D +42, B +26, C +12, A −21.'
+    alternatives_rejected: ['A (a measured 4.5-minute restart takes a third of it), C (a working afternoon for a key thief), B without a dated re-check (rests on 3 days of one hub).']
+  - decision: '2026-10-08 — OQ-4 same-host new conversation without the hub (J4 question; operator ruling)'
+    chose: 'D — A now: a new conversation always goes through the hub, on one host too (R-7.e (2) unchanged); only established conversations run on a circuit. Revisit B (local start while the hub is down) once per-agent OS accounts exist (OQ-2 target) and T-3383 has measured hub-down time.'
+    rationale: 'a local start would be a second authority (R-45, R-49); with every agent running as root, "same user" cannot tell agents apart (7.6.b); the OQ-2 target removes that obstacle, so B gets a second look then. Scored D +42, A +33, B +9, C −17.'
+    alternatives_rejected: ['B now (trusts anyone on the host), C (bypasses the hub''s checks permanently), A with no revisit.']
+  - decision: '2026-10-08 — OQ-5 failures the store must survive (GP-13; operator ruling)'
+    chose: 'A — survive F-1 (sidecar killed mid-write) and F-2 (host crash: flush before STORED); detect and show F-3 (disk full: refuse STORED visibly), F-4 (corrupt record: checksum, quarantine, resend by digest), F-5 (store lost or old copy restored: reconcile with the hub record, flag lost-after-STORED); refuse or detect F-6 (second writer, lock) and F-7 (attacker writes; prevention is RR-2).'
+    rationale: 'STORED releases the sender, so it must hold through a power cut; every other failure is loud, never silent. Scored A +42, C +32, B −18.'
+    alternatives_rejected: ['B (no flush; breaks the STORED promise in a crash for unmeasured speed), C (duplicate writes for a failure the resend path already recovers).']
+  - decision: '2026-10-08 — OQ-6 what "the operator" means as a sender until GP-11 (operator ruling)'
+    chose: 'D — A for the security floor now: CR-10 accepted; until GP-11 is ruled the default allow-list is "own project" only and no message is operator-class unless it verifies against an operator key kept off agent hosts (PR-1b, SI-8). GP-11 must assess the already-authenticated channels (operator terminal, Watchtower login, the out-of-band channels) as operator channels (C folded into GP-11).'
+    rationale: 'closes operator impersonation (TH-5; ADV-14, prompt injection) at no practical cost today. Scored D +37, A +23, C +21, B −27.'
+    alternatives_rejected: ['B (top of the authority model forgeable), C now (GP-11''s design work), A without the C assessment.']
+  - decision: '2026-10-08 — OQ-7 held: the operator proposed a principle (not a ruling)'
+  - decision: '2026-10-08 — Confidentiality principle B′, replacing OQ-7, OQ-10, OQ-11 (operator ruling)'
+    chose: 'B′ (operator: "B plus the custodial rule plus purpose-intent-over-form … yes to all as suggested"): 1. Private channels are private by default; public channels are public. 2. The hub is a mailman: it reads the envelope (routing, ladder, stuck detection, canaries), not the content; the envelope''s who-talks-to-whom-and-when stays visible (accepted residual). 3. Content is encrypted per message (random content key) and wrapped to each authorised reader''s key (fan-out); separate encryption and signing keys; no shared project private key for readers. 4. A project reads mail addressed to the project and mail that fell back or dead-lettered to it; nothing crosses into another project. 5. Custody rule: each agent''s private mail is also wrapped to a project custody key held by the project''s supervisor, never by sibling agents. The custodian releases an agent''s mail to a successor only when the home hub has declared the agent DEAD (R-44/R-60) AND the successor has taken over that agent''s role in the same project under the R-67 lease by the explicit hand-over of R-62. While the original is alive, nothing is released (no duplicate work, continuity of the chain). Every release is logged (what, to whom). A resumed agent (R-65, same identity) reads its own mail with its own key. 6. The hub keeps an encrypted copy with BOUNDED retention, so a lost receiver store can be recovered (OQ-5 F-5). 7. Break-glass: an off-host operator key to which message keys are wrapped in advance, scoped and logged unlock; NOT real until GP-11 (today''s Tier 0 hook does not bind root). 8. Build order for step 4 to size: pin hub card-signing keys out of band first; then agent-to-agent DM encryption; then project mail; break-glass after GP-11. Receiver-side "show my own mail" tooling for debugging.'
+    alternatives_rejected: ['A (siblings read each other''s mail; undoes OQ-2), C (every sender picks readers), D (keeps "everyone with a token reads everything").']
+  - decision: '2026-10-09 — OQ-8 fleet admission (CAND-17, CR-8; operator ruling)'
+    chose: 'D″ (operator: "I follow your recommendation"; "proceed as suggested"): 1. D: roster, hub-signed cards (sequence + TTL), home-hub binding as R-60.a (2e) rules, project root key, continuity (signed key rotation, "moved to", restored-roster detection); CR-8 incl. a hub signing key separate from the TLS certificate (R-61 change). 2. Every admission and authorisation request is a Tier 0 event carrying the request (who, which anchor, what it asks), its evidence and a digest; an approval is bound to that digest (SI-13). 3. Approval routes chosen by risk class: (a) policy route for anchored low-risk cases (e.g. a new project on an admitted hub, a hub enrolling over SSH the operator already set up), auto-approved and recorded; (b) human routes (cockpit, Watchtower, terminal) for anything new; (c) exceptions always human (unsigned hub-key change, competing claim, re-pin, restored roster); (d) operator-key signature after GP-11. Not the rail until an operator key exists (OQ-6). 4. Every decision, automatic or human, lands in one audit trail; RR-18 tripwire now: every re-pin and `tofu clear` recorded and shown in needs-attention.'
+    alternatives_rejected: ['A (leaves RR-18 silent), B (operator approval of every project id: friction), C (keeps HMAC, CAND-17 unanswered), D′ (Tier 0 as one operator-only gate with workarounds).']
+  - decision: '2026-10-09 — OQ-9 the proposed numbers of section 19 (operator ruling)'
+    chose: 'D (operator: "D"): PN-3 to PN-12, PN-15 and PN-17 become [R~] starting values, changeable with evidence; every hypothesis among them (H-3 PN-5, H-4 PN-6, H-5 PN-7, H-6 PN-10, H-7 PN-11, H-8 PN-12, H-12 PN-15, H-13 PN-17) carries its measurement as an acceptance item of the first build, which step 4 writes into its plan. - **Assumption recorded:** PN-15 = 10 minutes, now also the expiry of a Tier 0 event on a human route (OQ-8 D″). The operator was asked whether 10 minutes fits and did not answer; overturnable at any time.'
+    alternatives_rejected: ['A (no obligation to measure), B (step 3 without anchors), C (leaves caps and rates open).']
+  - decision: '2026-10-10 — OQ-12 who may add and remove participants (operator ruling)'
+    chose: 'A as the default when no rule says otherwise, plus a boundary model (operator: "Yes, that''s the ruling, with your recommended default"): 1. Join: an existing participant''s signed event, countersigned by the newcomer; leave: self; epochs and fencing as PR-30. 2. Agent profile settings: may invite; may be invited (a gate, refusals visible to the inviter); responds to invitations (accept automatically / ask = Tier 0 event / decline; unanswered invitations expire visibly); may remove (nobody by default / those it invited / anyone in conversations it started). 3. Rules = who (agent, agent type, identity level) may do what (invite, be invited, auto-accept, remove) towards whom, where (conversation, project, hub, fleet). Rules nest fleet > hub > project > agent profile; a lower level may only narrow. Outside the boundaries: a Tier 0 event (OQ-8 routes), never a silent refusal; a recurring approval can be turned into a rule. 4. Rules are signed policy records (SI-21); only the operator or an approved route changes them; an agent never edits its own boundaries. Every decision names the rule that allowed it. Small fixed vocabulary, no free-form expressions. Same engine as OQ-8''s policy route. 5. Default when nothing is configured: may invite yes; may be invited yes; respond = accept automatically from its own project, ask for anyone else; may remove = nobody. Removal outside a profile = Tier 0 event.'
+    alternatives_rejected: ['B (operator approves every join and removal), C (anyone adds or removes anyone), D (adder removes, unbounded); per-removal Tier 0 events (orchestrator''s first proposal, withdrawn).']
+  - decision: '2026-10-10 — OQ-13 what a new participant may read (operator ruling)'
+    chose: 'C′ (operator: "Yes, C′ is the ruling"): 1. Forward only by default. 2. The invitation carries its intent (one field in the join event, visible to all). 3. The newcomer may ask for relevant context, or the inviter attaches it with the invitation. 4. The inviter chooses the relevant turns; they are shared as the original messages (message keys re-wrapped to the newcomer, B′), keeping signatures and order; only what the inviter itself can read; if the inviter is gone, another participant may answer. 5. Every share is recorded and visible to all participants. 6. CR-19 rules may forbid sharing or make it automatic for configured cases.'
+    alternatives_rejected: ['A (context pasted by hand, signatures lost), B (whole history on join, silent), C (range-based grant).']
+  - decision: '2026-10-10 — OQ-14 protections for the operator approval device and key (operator ruling)'
+    chose: 'D‴: 1. The operator key needs a second factor; approvals are single-use, digest-bound and short-lived (PN-15 10 min); an offline recovery key can revoke the operator key. 2. High-impact classes (in the CR-18 route registry) need an active second, out-of-band confirmation; never take effect on a timeout; unconfirmed within PN-15 they expire visibly. Moving a class out of high-impact is itself high-impact. 3. Target: OTP-style confirmation through a pluggable confirmation-provider contract (ask with digest and human summary; verify once against that digest; configured per installation as a signed policy record; changing the provider is high-impact; fail closed when the provider is unreachable; prefer remote verification so secrets stay off agent hosts). 4. Interim, where no provider is configured (shown as such): explicit double approval at the terminal (approve, then confirm after a summary of exactly what happens) plus a notice to the operator''s channel. 5. PN-14 (15-minute notice delay) retired. RR-16 accepted (device plus second factor compromised can still approve; much harder, not impossible). - **Inception filed:** T-3385 (high priority; owned by 010; ring20-manager builds the OTP facility for the Cloudron estate to the contract; feeds GP-11).'
+    alternatives_rejected: ['A (fixed list, delay proceeds on silence), B (no second confirmation), C (leave to GP-11), D (delay proceeds on silence).']
+  - decision: '2026-10-10 — OQ-15 per-message digest beyond 14 days (operator ruling)'
+    chose: 'A (operator: "a and next"): no per-message digest beyond the 14-day stage memory; RR-10 accepted; PR-34, CR-16 and PN-16 dropped. Revisit trigger: if the OQ-9 first-build measurements show re-sends older than 14 days, the question comes back.'
+    alternatives_rejected: ['B (one-year per-message record as a declared retention exception; unmeasured volume, no incident).']
+  - decision: '2026-10-10 — OQ-17 who may start a hand-over to another copy (operator ruling)'
+    chose: 'D (operator: "D and next"): a live holder''s signed statement plus the new copy''s acceptance, or the operator; if the holder is dead the hand-over is a Tier 0 event (CR-18), approved by a policy route when B′''s conditions hold (home hub declared the holder DEAD AND the successor holds the R-67 lease for the same role in the same project), otherwise a human route; CR-19 rules may tighten it per project.'
+    alternatives_rejected: ['A (every crash waits for the operator), B (operator always), C (new copy alone; forbidden by R-62.a). - **Still open after OQ-17:** OQ-16 (A+ proposed; waits on 055''s telemetry answer), then the unlinked RRs and CRs.']
+  - decision: '2026-10-10 — How to take the 20 unlinked RRs and CRs (operator ruling)'
+    chose: 'D (operator: "D"): three single decisions first (CR-1 outage exception to "hub record first"; RR-8 second live copy and role "main", tied to 055''s F10 consult; RR-13 founding verbs bypass the sidecar), then four bundles, any item pullable: D4 message integrity (CR-2, CR-3, CR-4, CR-17, RR-17, RR-15); D5 circuits and restore (CR-7, CR-12, RR-20); D6 peer content (CR-6, RR-1, RR-3, RR-7); D7 authority and limits (CR-11, CR-13, RR-9, RR-12).'
+    alternatives_rejected: ['A (20 rounds), B (bundles without the three singles first), C (acceptance by silence).']
+  - decision: '2026-10-10 — CR-1 outage exception to "the hub record first" (operator ruling)'
+    chose: 'A (operator: "A"): CR-1 as written. While the hub is unreachable and an established conversation runs on its circuit (R-7.e (1)): stages go to the receiver''s hash-chained local log first and are replayed and reconciled on return; replies travel on the circuit and are recorded locally; the sender''s state is computed from circuit receipts and labelled "unreconciled" (UNKNOWN only when neither hub record nor receipts can be read); the owed list is computed from the local log, labelled unreconciled. On return the hub record is the source of truth again (R-2.e unchanged). - **Touches when step 1 is reopened:** R-2.a, R-2.e, R-14.o, R-15.o, R-26.o, R-44.a, R-58.a.'
+    alternatives_rejected: ['B (circuits pause, reverses R-7.e (1)), C (contradictory requirements).']
+  - decision: '2026-10-10 — RR-8 second live copy and the role "main" (operator ruling)'
+    chose: 'D′ with forwarding (operator: "Yes, record it"): 1. A deliberate extra declares "not eligible for main" in its operator-signed profile (CR-13, CR-19). 2. Any agent or sidecar that notices duplicate mains reports to the home hub (a report, not authority). 3. The home hub resolves at once: operator pin, else the longest continuously READY holder, else stable id. Both copies are told ("main, generation N" / "instance, main is X"); the operator and cockpit get a notice; the operator may override (audited). The loser''s replies inside its own conversations stay valid (R-67). 4. Afterwards any non-main copy receiving ROLE-addressed mail forwards it once to the main the hub currently names (checked by generation), keeping the original signature, recorded in the hub record, and tells the sender "delivered via Y; main is Z (generation N); resolve via the home hub". Conversation mail bound to an exact copy is never forwarded (R-62). If the target is no longer main, the message returns to normal resolution, never bounces. CR-3 identity dedupes a double arrival. 5. CR-20 amends R-67.a ("two live copies give authority unknown" replaced by automatic resolution plus notice). - **Residual named:** RR-8 narrowed to "the hub may keep the wrong copy until the operator overrides" (accepted).'
+    alternatives_rejected: ['A (any duplicate freezes main), B (hidden incumbent keeps everything, the 999 incident), C (guess without notice), D (unexpected case waits for the operator). - **Also authorised:** reply to 055''s F10 consult on these terms (sent 2026-10-10).']
+  - decision: '2026-10-10 — RR-13 the founding verbs and vendor channels bypass the sidecar (operator ruling)'
+    alternatives_rejected: ['A without tightening (B: today''s weak authorization), C (route founding verbs through the sidecar; changes what R-4 keeps), keeping in-process sub-agents (orchestrator''s first proposal).']
+  - decision: '2026-10-10 — Bundle D4 message integrity (operator ruling)'
+    chose: 'A with CR-4 corrected (operator: "yes"): CR-2 (every message signed by the sending agent''s key, verified at receiver and hub; replaces R-34.e (2) "not required"), CR-3 (identity triple bound to a content digest, conflicts refused and recorded, within the 14-day stage memory per OQ-15), CR-4 corrected (signed, forward-only, contiguous receipts; random first number; the sender''s own durable counter is the source; on start the sender also asks the hub for the highest number it has seen from it and, if higher (restore), continues above it: the hub''s view can only raise the counter to prevent reuse, never sets or lowers it, never decides order; hub offsets stay internal accounting), CR-17 (hand-over evidence by nonce in a harness-written record, adapter "transcript complete" point). RR-17 and RR-15 accepted. - **Touches when step 1 is reopened:** R-34.e (2), R-51.a, R-59.a (consistent; adds the restore guard), R-24.a, R-47.a.'
+  - decision: '2026-10-10 — Bundle D5 circuits and restore (operator ruling)'
+    chose: 'A (operator: "Yeah, I''m fine with A" … "Yeah, good idea"): CR-7 (circuit pass bound to the connection by proof of possession, one conversation and two instances, set-up window PN-12, life from establishment never reset, revocation head checked every tick, unreconciled after a restart or restore, stale rule, no allow-list check at set-up) and CR-12 (DEAD signed and sequenced; the host supervisor checks no process holds the session before a resume; R-67/R-68 takeover unchanged) accepted; RR-20 accepted. - **Touches when step 1 is reopened:** R-46, R-65.a, R-60.'
+  - decision: '2026-10-10 — Bundle D6 peer content (operator ruling)'
+    chose: 'A (operator: "A"): CR-6 accepted (frame built by the receiving adapter with a per-delivery random boundary, verified sender, trust class peer or operator-class only, allow-list fact line, inline size cap, applies to every rail that puts peer text in an agent''s context, no peer message acts as an approval); RR-1, RR-3, RR-7 accepted. - **Touches when step 1 is reopened:** R-50, R-47.'
+  - decision: '2026-10-10 — Bundle D7 authority and limits (operator ruling)'
+    chose: 'A (operator: "A"): CR-11 (peers see only reachable yes/no and the version class; the four R-53.a fields and the last surface time go to the operator and the agent''s own project) and CR-13 (eligibility, grants, allow-lists and the roster come only from operator-signed configuration held at the home hub or an operator-owned store, with a policy epoch; an agent can withhold but never create or widen authority) accepted; RR-9 and RR-12 accepted. - **Touches when step 1 is reopened:** R-53.a, R-63, R-64, R-67.a.'
+  - decision: '2026-10-10 — OQ-16 the "never typed into a busy prompt" wording (operator ruling)'
+    chose: 'D (operator: "D"): 1. CR-5 wording: typed only if READY at a re-check immediately before the keystrokes; only the inert fixed line; a line landing in a prompt that became busy carries no content and is not evidence. 2. Local activity veto measured by the sidecar immediately before typing (network send over the last 1-2 s primary, CPU and disk secondary, 055''s method); clear activity blocks the doorbell (retried); never means ready; thresholds start from 055''s numbers and are measured in the first build (H-11). 3. Where the host cannot measure (e.g. no /proc), no veto, shown; A still holds. 4. Telemetry home: raw data stays on the host (cockpit, 055''s sampler); the hub presence carries only a derived busy bit with its sample time so senders may choose not to ring; no telemetry store on the hub (charter non-goal #2). No separate telemetry inception.'
+    alternatives_rejected: ['A (ignores a measured strong signal), B (no doorbell anywhere), C (requirement known false). - **Step 2 status:** every open question, residual risk and change request is now ruled. - **Correction (orchestrator, 2026-10-10, within the rulings; told to the operator):** the brief said the busy bit lets senders choose not to ring. Wrong: the receiver''s own sidecar types the doorbell, so senders never need it. The busy bit is visible to the operator, the agent''s own project and the cockpit, not to peers, so CR-11 (D7) stands. Found by the Codex confirmation check (docs/reports/T-3351-step2-review/codex-confirm.md, 2d).']
+  - decision: '2026-10-10 — Confirmation check and consistency fixes (orchestrator, under "proceed as you see fit")'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/episodic/T-3349.yaml'
+  - '.context/episodic/T-3380.yaml'
+  - '.context/handovers/S-2026-1008-1013.md'
+  - '.context/handovers/S-2026-1010-1452.md'
+  - '.context/reviews/human-ac-ticks.jsonl'
+  - 'docs/design/interactive-agent-communication-02-threat-model.md'
+  - 'docs/reports/T-3351-principle-review/brief.md'
+  - 'docs/reports/T-3351-principle-review/codex.md'
+  - 'docs/reports/T-3351-principle-review/codex.raw'
+  - 'docs/reports/T-3351-principle-review/codex.rc'
+  - 'docs/reports/T-3351-principle-review/comparison.md'
+  - 'docs/reports/T-3351-principle-review/glm.md'
+  - 'docs/reports/T-3351-principle-review/glm.raw'
+  - 'docs/reports/T-3351-principle-review/glm.rc'
+  - 'docs/reports/T-3351-role-handback.json'
+  - 'docs/reports/T-3351-step2-review/brief-confirm.md'
+  - 'docs/reports/T-3351-step2-review/brief.md'
+  - 'docs/reports/T-3351-step2-review/brief-r2.md'
+  - 'docs/reports/T-3351-step2-review/codex-confirm.md'
+  - 'docs/reports/T-3351-step2-review/codex-confirm.raw'
+  - 'docs/reports/T-3351-step2-review/codex-confirm.rc'
+  - 'docs/reports/T-3351-step2-review/codex.md'
+  - 'docs/reports/T-3351-step2-review/codex-r2.md'
+  - 'docs/reports/T-3351-step2-review/codex-r2.raw'
+  - 'docs/reports/T-3351-step2-review/codex-r2.rc'
+  - 'docs/reports/T-3351-step2-review/codex.raw'
+  - 'docs/reports/T-3351-step2-review/codex.rc'
+  - 'docs/reports/T-3351-step2-review/comparison.md'
+  - 'docs/reports/T-3351-step2-review/disposition-r1.md'
+  - 'docs/reports/T-3351-step2-review/disposition-r2.md'
+  - 'docs/reports/T-3351-step2-review/fixes-confirm.md'
+  - 'docs/reports/T-3351-step2-review/glm.md'
+  - 'docs/reports/T-3351-step2-review/glm-r2.md'
+  - 'docs/reports/T-3351-step2-review/glm-r2.raw'
+  - 'docs/reports/T-3351-step2-review/glm-r2.rc'
+  - 'docs/reports/T-3351-step2-review/glm.raw'
+  - 'docs/reports/T-3351-step2-review/glm.rc'
+  - 'runme.sh'
+  - '.tasks/active/T-3351-arc-011-role-chain-step-2-threat-modeler.md'
+  - '.tasks/active/T-3383-measure-30-days-of-hub-outage-durations-.md'
+  - '.tasks/active/T-3384-record-every-tofu-re-pin-and-tofu-clear-.md'
+  - '.tasks/active/T-3385-inception-otp-style-out-of-band-approval.md'
+  - '.tasks/active/T-3386-lightweight-termlink-dispatch-for-short-.md'
+  - '.tasks/active/T-3387-sidecar-activity-veto-before-doorbell-ty.md'
+  - '.tasks/completed/T-3349-arc-011-step-1-operator-sign-off-of-the-.md'
+  - '.tasks/completed/T-3380-check-canary-aliveness-prints-heartbeat-.md'
+  - 'tests/runme-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-07T01:08:23'
+    action: 'T-3351: step 2 (threat modeler) dispatched as role worker t3351-threatmodeler after the operator''s step-1 approval; ACs 1 and 7 ticked; also commits the operator''s T-3349 completion and T-3380''s close-out'
+  - time: '2026-10-07T01:15:00'
+    action: 'T-3351: threat model part 1 (inputs of record, assets, adversaries with privileges, trust boundaries, D-1)'
+  - time: '2026-10-07T01:15:41'
+    action: 'T-3351: runme action 14 records the operator''s own T-3349 Human tick (Watchtower wrote no provenance row, so pre-push audit blocks every push); fixtures 100/100 (+4 case 26)'
+  - time: '2026-10-07T01:17:03'
+    action: 'T-3351: threat model part 2 (credential custody, circuit trust model and lifetime, same-id and same-sequence, framing, admission, revocation, durability, evidence)'
+  - time: '2026-10-07T01:19:36'
+    action: 'T-3351: threat model part 3 (STRIDE matrix for 13 boundaries, 57 threats)'
+  - time: '2026-10-07T01:22:15'
+    action: 'T-3351: threat model part 4 (abuse cases, D-2, D-3, bypass inventory, D-4, 28 invariants, proposed numbers, 14 residual risks, 13 change requests)'
+  - time: '2026-10-07T01:22:50'
+    action: 'T-3351: threat model part 5 (proposal index, open questions, coverage)'
+  - time: '2026-10-07T01:23:23'
+    action: 'T-3351: threat model render check recorded, TH-29 placed in the matrix'
+  - time: '2026-10-07T01:24:08'
+    action: 'T-3351: role-handback/1 record for step 2'
+  - time: '2026-10-07T01:25:05'
+    action: 'T-3351: orchestrator review of the step-2 threat model (1300 lines, 57 threats, RR-1..14, CR-1..13, OQ-1..9; input hash = v0.4.1); agent ACs 7/7'
+  - time: '2026-10-07T07:19:13'
+    action: 'T-3351: operator''s own T-3349 Human tick recorded via runme action 14 (rc=0), provenance ledger committed so the pre-push audit passes'
+  - time: '2026-10-07T07:27:28'
+    action: 'T-3351: step-2 review round 1 — Codex (return for revision: four silent changes to ruled requirements) and GLM (fit, with fixes), stored unedited with a comparison'
+  - time: '2026-10-07T07:34:18'
+    action: 'T-3351: threat model round-1 remediation, unit 1: fidelity fixes (interrupt allow-list not a delivery gate, revocation is not DEAD, takeover unchanged, retention per R-35.o, R-60 binding as ruled, membership and hand-over)'
+  - time: '2026-10-07T07:38:20'
+    action: 'T-3351: threat model round-1 remediation, unit 2: circuit lifetime from establishment, revocation scopes, over-claimed invariants restated (SI-9, 13, 17, 19, 21, 22), contiguous receipts, identity continuity, fleet admission continuity, new threats TH-58..65 and invariants SI-29..31'
+  - time: '2026-10-07T07:44:34'
+    action: 'T-3351: threat model round-1 remediation, unit 3: residual risks RR-1..19, change requests CR-1..15 with what would change, open questions split and reframed, numbers labelled hypotheses, invariant dependency table, TB-6 conditional, BP monitored defined, drawings D-1/D-2 corrected and re-rendered'
+  - time: '2026-10-07T07:46:34'
+    action: 'T-3351: round-1 disposition of every finding (36 rows) and updated role-handback record for threat model v0.2'
+  - time: '2026-10-07T07:51:02'
+    action: 'T-3351: step-2 review round 2 — Codex not fit yet (R-51/R-46.e weakened without CR, readiness, rollback/checkpoint over-claims), GLM fit after three text fixes; both flag TH-22'
+  - time: '2026-10-07T07:57:32'
+    action: 'T-3351: threat model round-2 remediation, unit 1: fidelity cases (crash after hand-over keeps R-51 by mechanism, readiness race as explicit change request CR-5, per-message digest retention as optional proposal PR-34), CR-16, CR-17, OQ-15, OQ-16'
+  - time: '2026-10-07T08:01:57'
+    action: 'T-3351: threat model round-2 remediation, unit 2: rollback needs the hub''s live head, checkpoint coverage, operator key vs host root, atomic approval consumption, membership removal/epochs/fencing, remnants removed (TH-22, TH-37, TH-18, TH-9, AC-2), reasons on TH-25/40/41/42, RR-12/14/15/20, OQ-10/11/12/17, version 0.3'
+  - time: '2026-10-07T08:03:45'
+    action: 'T-3351: threat model round-2 remediation: reasons on TH-38 and TH-49 impact (found by own scan)'
+  - time: '2026-10-07T08:03:59'
+    action: 'T-3351: round-2 disposition (25 findings: 23 valid, 2 partly, 0 not valid) and updated role hand-back for threat model v0.3'
+  - time: '2026-10-07T08:33:47'
+    action: 'T-3351: operator ruling B — step-2 decisions taken as OQ-1..17 one at a time, each naming the CRs/RRs it settles, unlinked remainder after'
+  - time: '2026-10-07T10:54:08'
+    action: 'T-3351: OQ-1 ruled A — ADV-11..14 confirmed (rogue hub, unadmitted joiner, network attacker, approval-device holder)'
+  - time: '2026-10-07T18:19:56'
+    action: 'T-3351: OQ-2 ruled C with committed target — RR-2 accepted for now (all 19 agents run as root), per-agent OS accounts created by the orchestrator via a narrow helper, each a Tier 0 action; step 3 phases and prices'
+  - time: '2026-10-07T18:33:49'
+    action: 'T-3351: OQ-3 ruled D — circuit credential 1 h (renew from 30 min, 24 h max, stale-list 1 h) as starting values, RR-5 accepted at 1 h; follow-up T-3383 measures 30 days of hub outages'
+  - time: '2026-10-08T10:07:38'
+    action: 'T-3351: OQ-4 ruled D — new conversations always via the hub (one host too), RR-11 accepted for now; revisit local start once per-agent accounts exist and T-3383 has measured hub-down time'
+  - time: '2026-10-08T10:15:46'
+    action: 'T-3351: session handover S-2026-1008-1013 (step 1 signed off; step 2 decision round, OQ-1..4 ruled, OQ-5 next)'
+  - time: '2026-10-08T10:25:29'
+    action: 'T-3351: OQ-5 ruled A — store survives a killed sidecar and a host crash, detects disk-full/corruption/loss, refuses a second writer'
+  - time: '2026-10-08T10:29:19'
+    action: 'T-3351: OQ-6 ruled D — CR-10 accepted (no rail message is operator-class until it verifies against an operator key; allow-list own project until GP-11); GP-11 assesses existing authenticated channels'
+  - time: '2026-10-08T10:37:51'
+    action: 'T-3351: OQ-7 held — operator''s envelope-vs-content principle (need-to-know by identity level, hub as mailman, break-glass) formalised and sent to Codex + GLM review'
+  - time: '2026-10-08T10:39:51'
+    action: 'T-3351: principle review — Codex and GLM both ''adopt with changes'' (P1/P3 conflict, pin keys first, bounded ciphertext retention, P4 waits on GP-11), stored unedited with comparison'
+  - time: '2026-10-08T10:50:18'
+    action: 'T-3351: confidentiality principle B'' ruled (replaces OQ-7/10/11) — hub reads the envelope only, per-message encryption to readers, project custody key released to a rightful successor only after DEAD + role takeover, bounded encrypted hub copy, break-glass after GP-11; guiding rule: purpose and intent over form'
+  - time: '2026-10-08T11:49:09'
+    action: 'T-3351: handover update before reboot (OQ-5, OQ-6, B'' ruled; OQ-8 presented, not ruled; AEF consult owed)'
+  - time: '2026-10-09T20:48:29'
+    action: 'T-3351: OQ-8 ruled D″ — fleet admission per PR-5/PR-26 (CR-8), RR-4/RR-14 accepted, RR-18 tripwire (T-3384); admission and authorisation as Tier 0 events with approval routes by risk class (PR-35, CR-18); threat model v0.3.1 adds rulings register 22.18'
+  - time: '2026-10-09T21:29:55'
+    action: 'T-3351: OQ-9 ruled D — section 19 numbers PN-3..PN-12, PN-15, PN-17 as [R~] starting values, each hypothesis measured as a first-build acceptance item; PN-15 = 10 min recorded as assumption; register 22.18 updated'
+  - time: '2026-10-10T01:19:24'
+    action: 'T-3351: OQ-12 ruled — A as default plus boundary policy model (agent profiles: may invite / may be invited / respond / may remove; rules by agent, type, identity level per scope, narrowing only; Tier 0 event outside); CR-19 added; threat model v0.3.2'
+  - time: '2026-10-10T01:26:20'
+    action: 'T-3351: OQ-13 ruled C′ — forward only; invitation states intent; inviter shares relevant original turns (keys re-wrapped), recorded and visible; CR-19 may forbid or automate'
+  - time: '2026-10-10T01:48:28'
+    action: 'T-3351: OQ-14 ruled D‴ — high-impact approvals need active out-of-band confirmation, never proceed on silence; pluggable OTP confirmation provider (inception T-3385, high priority, with ring20-manager); interim terminal double approval; PN-14 retired; threat model v0.3.3'
+  - time: '2026-10-10T01:56:38'
+    action: 'T-3351: OQ-15 ruled A — no per-message digest beyond 14 days, RR-10 accepted, CR-16/PR-34/PN-16 dropped, revisit on measured old re-sends'
+  - time: '2026-10-10T02:19:03'
+    action: 'T-3351: OQ-17 ruled D — dead holder''s hand-over is a Tier 0 event, policy-approved under the B'' conditions (DEAD + same-role lease successor)'
+  - time: '2026-10-10T02:24:11'
+    action: 'T-3351: process ruling D for the 20 unlinked RRs/CRs — CR-1, RR-8, RR-13 single, then bundles D4-D7'
+  - time: '2026-10-10T10:16:09'
+    action: 'T-3351: CR-1 accepted (A) — outage exception to ''hub record first'', local log replayed and reconciled, states labelled unreconciled'
+  - time: '2026-10-10T10:30:30'
+    action: 'T-3351: RR-8 ruled D′ with forwarding — hub resolves duplicate mains (pin, longest ready, stable id), both told, stray role mail forwarded once to main with sender notice; CR-20 amends R-67.a; threat model v0.3.4'
+  - time: '2026-10-10T11:01:55'
+    action: 'T-3351: RR-13 ruled — PR-29 under CR-19 for inject/exec; all delegation through TermLink, vendor peer channels and sub-agents not used (CR-21); follow-up T-3386 lightweight dispatch; AEF notified'
+  - time: '2026-10-10T11:23:53'
+    action: 'T-3351: bundle D4 accepted — CR-2 signing, CR-3 identity+digest, CR-4 receipts (corrected: sender''s own counter is the source, hub only raises it after a restore, per R-59.a), CR-17 hand-over evidence; RR-17, RR-15 accepted'
+  - time: '2026-10-10T13:53:31'
+    action: 'T-3351: bundle D5 accepted — CR-7 circuit trust properties, CR-12 resume check beyond DEAD; RR-20 accepted'
+  - time: '2026-10-10T14:19:15'
+    action: 'T-3351: bundle D6 accepted — CR-6 frame on every rail; RR-1, RR-3, RR-7 accepted'
+  - time: '2026-10-10T14:25:16'
+    action: 'T-3351: bundle D7 accepted — CR-11 reachability visibility, CR-13 authority only from operator-signed config; RR-9, RR-12 accepted; threat model v0.3.5, only OQ-16 open'
+  - time: '2026-10-10T14:35:11'
+    action: 'T-3351: OQ-16 ruled D — CR-5 wording plus local activity veto (055 measurements) and derived busy bit on presence; RR-19 accepted; step 2 fully ruled, threat model v0.3.6; build T-3387'
+  - time: '2026-10-10T14:47:13'
+    action: 'T-3351: confirmation check of threat model v0.3.6 (Codex, read-only) — verdict ''consistent after listed fixes'', no new decisions; stored unedited'
+  - time: '2026-10-10T14:51:44'
+    action: 'T-3351: threat model v0.3.7 — consistency fixes after the Codex confirmation check (B'' propagated, delay remnants, dropped items, duplicate mains, counter, vendor channels, CR-20 adds R-34.o/R-67.e, busy bit not for peers); applied by TermLink worker step2-fixes, verified by orchestrator; no ruling changed'
+  - time: '2026-10-10T14:54:35'
+    action: 'T-3351: handover S-2026-1010-1452 (step 2 fully ruled, v0.3.7, next: operator sign-off, step-1 reopen, AEF 1.8.8 decision)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 52 commit(s), 7247 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 7247
+  commits: 52
+  files_changed: 47
+  lines_added: 23256
+  lines_removed: 562
+  footprint_refreshed_at: '2026-10-11T11:25:17Z'
+  footprint_refreshed_by_commit: f25442981
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3351-arc-011-role-chain-step-2-threat-modeler.md
+generated_by: context-agent-hybrid

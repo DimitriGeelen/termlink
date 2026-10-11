@@ -6,13 +6,13 @@ description: >
   output docs/design/interactive-agent-communication-02-threat-model.md. Starts only
   after step 1 is approved by the operator.
 
-status: started-work
+status: work-completed
 workflow_type: specification
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-011]
 arc_id: arc-011
-components: []
+components: [runme.sh, tests/runme-fixtures.sh]
 related_tasks: [T-3344]
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -25,8 +25,8 @@ related_tasks: [T-3344]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:12:58Z
-last_update: 2026-10-08T09:49:10Z
-date_finished:
+last_update: 2026-10-11T11:00:18Z
+date_finished: 2026-10-11T11:00:18Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -82,7 +82,7 @@ Arc: arc-011. Rulings summary: `docs/reports/T-3344-step1-rulings-summary.md`.
 - [x] Role-chain yaml step 2 `task:` set to this task id
 
 ### Human
-- [ ] [RUBBER-STAMP] Accept the step-2 residual risks as a set (each one was already ruled individually)
+- [x] [RUBBER-STAMP] Accept the step-2 residual risks as a set (each one was already ruled individually)
   **Evidence (already on disk):**
   1. Rulings register: threat model v0.3.7 section 22.18 (process, OQ-1..OQ-17, principle B′, CR-1, RR-8, RR-13,
      bundles D4..D7); every residual risk RR-1..RR-20 is marked accepted, narrowed or dropped with its ruling;
@@ -619,3 +619,16 @@ residual risks as the set you already ruled; nothing new is decided.
 ### 2026-10-06T23:07:28Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-3c7aed35
+- **Timestamp:** 2026-10-11T11:00:20Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-10-11T11:00:18Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Completed via Watchtower UI (human action)

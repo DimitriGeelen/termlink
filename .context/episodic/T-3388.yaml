@@ -1,0 +1,125 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3388: arc-011 step 1 reopen: requirements v0.5 folding the 20 accepted step-2 change requests
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-11T10:59:59Z
+# ============================================================================
+
+task_id: T-3388
+task_name: "arc-011 step 1 reopen: requirements v0.5 folding the 20 accepted step-2 change requests"
+workflow_type: specification
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-10T15:48:26Z
+completed: 2026-10-11T10:59:50Z
+duration_days: 1
+updates_count: 2
+first_commit: 2026-10-10T17:49:46+02:00
+last_commit: 2026-10-11T12:20:37+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  step 1 reopened (operator ruling A) — task, ACs and decision; TermLink worker step1-v05 drafting requirements v0.5. requirements v0.5 DRAFT — 20 accepted step-2 change requests folded in (new R-72..R-81, mapping table section 14), by TermLink worker step1-v05; fold report. Codex consistency check of requirements v0.5 — 'consistent after listed fixes', one operator question (R-67 precedence); stored unedited. requirements v0.5.1 — consistency fixes after the Codex check (fidelity tags, R-79 unqualified, forwarding notice, CR-1/CR-5/CR-15/CR-17 aligned in diagrams and glossary, ADV-11..14, OQ-2 as R-82, OQ-5 in R-15, OQ-15 trigger); diagrams re-rendered clean by orchestrator; R-67 precedence left for the operator; agent ACs 4/4. R-67 precedence ruled D — named lease holder keeps main busy or ready; duplicate order only when no valid holder, tie-break = longest uninterrupted lease holding; requirements v0.5.2 (R-67.a1, 14.4.7) and threat model CR-20 aligned. close-out of T-3389 (AEF 1.8.8 upgrade completed, verification 3/3) committed under the open step-1 task (focus-drift rule). step-1 and step-2 sign-offs relabelled [RUBBER-STAMP] with evidence attached (operator: every element was already ruled; sign-off confirms the assembled whole); duplicate Human heading in T-3388 removed. file field findings from dimitri-mint-dev as T-3390 (security: reauth prints a raw secret prefix) and T-3391 (fleet verify --profile; duplicate local profiles). close-out of T-3392 (AEF 1.8.9 hotfix, verification 3/3, RCA from the upstream release note) under the open step-1 task (focus-drift rule). Recommendation blocks (GO, rationale, evidence) on T-3351 and T-3388 so the review pages no longer say NO-REC
+
+# Key outcomes
+outcomes:
+  - 'Requirements v0.5 drafted: every accepted CR (20) is folded in, each changed or new requirement cites its CR'
+  - 'Traceability table CR -> requirement ids (in the requirements document or a report) covers all 20.'
+  - 'Codex consistency check of v0.5 stored unedited; real findings fixed and verified by the orchestrator.'
+  - 'v0.5 status reads DRAFT for operator sign-off; role-chain yaml approval for step 1 is not changed by the agent.'
+  - '[RUBBER-STAMP] Sign off requirements v0.5.2 (every change in it is something the operator already ruled)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'close-out of T-3392 (AEF 1.8.9 hotfix, verification 3/3, RCA from the upstream release note) under the open step-1 task (focus-drift rule)'
+    source: git-mined
+  - description: 'file field findings from dimitri-mint-dev as T-3390 (security: reauth prints a raw secret prefix) and T-3391 (fleet verify --profile; duplicate local profiles)'
+    source: git-mined
+  - description: 'requirements v0.5.1 — consistency fixes after the Codex check (fidelity tags, R-79 unqualified, forwarding notice, CR-1/CR-5/CR-15/CR-17 aligned in diagrams and glossary, ADV-11..14, OQ-2 as R-82, OQ-5 in R-15, OQ-15 trigger); diagrams re-rendered clean by orchestrator; R-67 precedence left for the operator; agent ACs 4/4'
+    source: git-mined
+  - description: 'Codex consistency check of requirements v0.5 — ''consistent after listed fixes'', one operator question (R-67 precedence); stored unedited'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-10-10 — When and how to reopen step 1 (operator ruling)'
+    chose: 'A (operator: "A"): reopen now; a TermLink worker drafts v0.5 from the 20 accepted change requests with traceability; Codex consistency check; operator sign-off of v0.5. Step-2 sign-off may run in parallel because every change request was ruled individually.'
+    alternatives_rejected: ['B (wait for the step-2 sign-off; waits for nothing), C (no reopen; step 3 would read two disagreeing documents), D (only the CRs that change [R] requirements; new requirements left in the wrong document).']
+  - decision: '2026-10-10 — R-67 precedence: named incumbent vs duplicate resolution (operator ruling)'
+    chose: 'D (operator: "D"): if the hub record names a valid lease holder it keeps main, busy or ready (R-67.a: busy keeps main, no automatic take-back); other copies become instances, are told, stray role mail is forwarded. The duplicate order (pin, then longest uninterrupted lease holding busy or ready, the operator''s "longest running", then stable id) applies only when the hub cannot name one valid holder (partition, restore, moved home hub). Applied to R-67.a1 (3), 14.4.7 (closed) in requirements v0.5.2 and to CR-20 (3) in the threat model.'
+    alternatives_rejected: ['A (same precedence, tie-break counted on ready time only), B (duplicate rule beats a busy incumbent; main flaps), C (every duplicate waits for the operator; mail stuck, against RR-8).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/episodic/T-3389.yaml'
+  - '.context/episodic/T-3392.yaml'
+  - 'docs/design/interactive-agent-communication-01-requirements.md'
+  - 'docs/design/interactive-agent-communication-02-threat-model.md'
+  - 'docs/reports/T-3388-step1-v05/brief-confirm.md'
+  - 'docs/reports/T-3388-step1-v05/codex-confirm.md'
+  - 'docs/reports/T-3388-step1-v05/codex-confirm.raw'
+  - 'docs/reports/T-3388-step1-v05/codex-confirm.rc'
+  - 'docs/reports/T-3388-step1-v05/fixes-confirm.md'
+  - 'docs/reports/T-3388-step1-v05/fold-report.md'
+  - '.tasks/active/T-3351-arc-011-role-chain-step-2-threat-modeler.md'
+  - '.tasks/active/T-3388-arc-011-step-1-reopen-requirements-v05-f.md'
+  - '.tasks/active/T-3390-fleet-reauth-prints-the-first-12-hex-cha.md'
+  - '.tasks/active/T-3391-fleet-verify---profile-name-with-a-per-p.md'
+  - '.tasks/completed/T-3389-upgrade-vendored-aef-185-to-188-operator.md'
+  - '.tasks/completed/T-3392-upgrade-vendored-aef-188-to-189-emergenc.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-10T17:49:46'
+    action: 'T-3388: step 1 reopened (operator ruling A) — task, ACs and decision; TermLink worker step1-v05 drafting requirements v0.5'
+  - time: '2026-10-10T18:00:29'
+    action: 'T-3388: requirements v0.5 DRAFT — 20 accepted step-2 change requests folded in (new R-72..R-81, mapping table section 14), by TermLink worker step1-v05; fold report'
+  - time: '2026-10-10T18:04:13'
+    action: 'T-3388: Codex consistency check of requirements v0.5 — ''consistent after listed fixes'', one operator question (R-67 precedence); stored unedited'
+  - time: '2026-10-10T18:09:50'
+    action: 'T-3388: requirements v0.5.1 — consistency fixes after the Codex check (fidelity tags, R-79 unqualified, forwarding notice, CR-1/CR-5/CR-15/CR-17 aligned in diagrams and glossary, ADV-11..14, OQ-2 as R-82, OQ-5 in R-15, OQ-15 trigger); diagrams re-rendered clean by orchestrator; R-67 precedence left for the operator; agent ACs 4/4'
+  - time: '2026-10-10T19:30:32'
+    action: 'T-3388: R-67 precedence ruled D — named lease holder keeps main busy or ready; duplicate order only when no valid holder, tie-break = longest uninterrupted lease holding; requirements v0.5.2 (R-67.a1, 14.4.7) and threat model CR-20 aligned'
+  - time: '2026-10-10T20:26:17'
+    action: 'T-3388: close-out of T-3389 (AEF 1.8.8 upgrade completed, verification 3/3) committed under the open step-1 task (focus-drift rule)'
+  - time: '2026-10-11T11:52:01'
+    action: 'T-3388: step-1 and step-2 sign-offs relabelled [RUBBER-STAMP] with evidence attached (operator: every element was already ruled; sign-off confirms the assembled whole); duplicate Human heading in T-3388 removed'
+  - time: '2026-10-11T11:53:49'
+    action: 'T-3388: file field findings from dimitri-mint-dev as T-3390 (security: reauth prints a raw secret prefix) and T-3391 (fleet verify --profile; duplicate local profiles)'
+  - time: '2026-10-11T12:03:48'
+    action: 'T-3388: close-out of T-3392 (AEF 1.8.9 hotfix, verification 3/3, RCA from the upstream release note) under the open step-1 task (focus-drift rule)'
+  - time: '2026-10-11T12:20:37'
+    action: 'T-3388: Recommendation blocks (GO, rationale, evidence) on T-3351 and T-3388 so the review pages no longer say NO-REC'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 10 commit(s), 1151 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1151
+  commits: 10
+  files_changed: 16
+  lines_added: 8903
+  lines_removed: 149
+  footprint_refreshed_at: '2026-10-11T11:25:17Z'
+  footprint_refreshed_by_commit: f25442981
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3388-arc-011-step-1-reopen-requirements-v05-f.md
+generated_by: context-agent-hybrid
