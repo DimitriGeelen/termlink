@@ -227,6 +227,18 @@ grep -q 'task: T-3352' docs/design/interactive-agent-communication-role-chain.ya
      accounts, confirmation strength) are level-dependent; step 4 proposes the levels and which item belongs where,
      for the operator to rule.
 
+### 2026-10-11 — OP-21 delivery point for normal mail (operator ruling)
+- **Dialogue:** orchestrator recommended B against the document's A (A would slow mail compared with today, where
+  AEF's PostToolUse mail check delivers to a busy agent within seconds). Explained plainly (next tool call vs end of
+  turn). Operator: "Why don't we just [do it] as always?" Read as: keep today's behaviour = B; restated to the
+  operator, open to correction.
+- **Chose:** B: every message (normal and urgent) reaches a working agent at its next tool call. Consequences per
+  12.3/CX-2: SI-18 (priority, urgency and trust decided at the receiver), SI-23 (kill switch) and the interrupt
+  allow-list move from PH-2 into PH-1 and apply to all mail; the basic version delivers mid-turn and its estate
+  needs the kill switch; R-48.e stands as written; R-63.a's "urgent mid-turn" becomes "all mid-turn, urgency sets
+  priority" (a step-1 wording change, CX-2).
+- **Rejected:** A (slower than today), C (needs PH-4; A or B needed anyway until then), D (another round).
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
