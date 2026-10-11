@@ -7,10 +7,10 @@ description: >
   cf. fixture FC-17 secret canary). Reuse existing secret-scan tooling where possible.
   Write real ACs before work (G-020).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -41,8 +41,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-11T17:18:51Z
-last_update: 2026-10-11T17:20:17Z
-date_finished:
+last_update: 2026-10-11T17:22:26Z
+date_finished: 2026-10-11T17:22:26Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -79,10 +79,10 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] scripts/check-test-artifact-secrets.sh DIR scans every file under DIR with the vendored secret-scan pattern catalogue plus FC-17 canary literals and hub-secret values; exit 0 clean / 1 found / 2 tooling (fail-closed: missing dir, empty dir, missing catalogue)
-- [ ] Findings never print the secret value (file:line:pattern only)
-- [ ] tests/test-artifact-secrets-fixtures.sh: planted canary found, clean case passes, planted key and hub secret found, fail-closed cases, mutant (canary matching disabled) turns the canary case red
-- [ ] docs/operations/test-artifact-secret-scan.md documents how test runs feed it (PH-0 6.2.1.a (6), SI-25, FC-17)
+- [x] scripts/check-test-artifact-secrets.sh DIR scans every file under DIR with the vendored secret-scan pattern catalogue plus FC-17 canary literals and hub-secret values; exit 0 clean / 1 found / 2 tooling (fail-closed: missing dir, empty dir, missing catalogue)
+- [x] Findings never print the secret value (file:line:pattern only)
+- [x] tests/test-artifact-secrets-fixtures.sh: planted canary found, clean case passes, planted key and hub secret found, fail-closed cases, mutant (canary matching disabled) turns the canary case red
+- [x] docs/operations/test-artifact-secret-scan.md documents how test runs feed it (PH-0 6.2.1.a (6), SI-25, FC-17)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -372,3 +372,15 @@ test -f docs/operations/test-artifact-secret-scan.md
 
 ### 2026-10-11T17:20:17Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-6f8e66b0
+- **Timestamp:** 2026-10-11T17:22:32Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-10-11T17:22:26Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
