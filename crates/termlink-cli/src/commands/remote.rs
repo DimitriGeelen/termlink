@@ -7364,7 +7364,47 @@ pub(crate) async fn cmd_fleet_reauth_all() -> Result<()> {
 ///
 /// Exit code mapping: match=0, drift=1, no-pin=2, probe-failed=3.
 /// `--exit-on-drift-only` collapses 2/3 to 0 (only page on actual rotation).
-pub(crate) async fn cmd_fleet_verify(json: bool, exit_on_drift_only: bool) -> Result<()> {
+/// T-3391: narrow the profile list to `only` (None = all). Err carries the
+/// operator-facing message for an unknown name.
+pub(crate) fn filter_verify_profiles(
+    mut profiles: Vec<(String, String)>,
+    only: Option<&str>,
+) -> std::result::Result<Vec<(String, String)>, String> {
+    let Some(name) = only else { return Ok(profiles) };
+    if profiles.iter().any(|(n, _)| n == name) {
+        profiles.retain(|(n, _)| n == name);
+        return Ok(profiles);
+    }
+    let known: Vec<&str> = profiles.iter().map(|(n, _)| n.as_str()).collect();
+    Err(format!(
+        "unknown profile '{}' (known: {})",
+        name,
+        if known.is_empty() { "none".to_string() } else { known.join(", ") }
+    ))
+}
+
+/// T-3391 (F3): groups of profile names sharing one address (2+ names), sorted
+/// by address then name. A permanently-drifting duplicate masks real drift.
+pub(crate) fn duplicate_address_groups(profiles: &[(String, String)]) -> Vec<(String, Vec<String>)> {
+    let mut by_addr: std::collections::BTreeMap<&str, Vec<String>> = std::collections::BTreeMap::new();
+    for (n, a) in profiles {
+        by_addr.entry(a.as_str()).or_default().push(n.clone());
+    }
+    by_addr
+        .into_iter()
+        .filter(|(_, v)| v.len() > 1)
+        .map(|(a, mut v)| {
+            v.sort();
+            (a.to_string(), v)
+        })
+        .collect()
+}
+
+pub(crate) async fn cmd_fleet_verify(
+    json: bool,
+    exit_on_drift_only: bool,
+    only_profile: Option<&str>,
+) -> Result<()> {
     let config = crate::config::load_hubs_config();
 
     // Stable ordering — operators rely on `fleet verify` output being
@@ -7375,6 +7415,26 @@ pub(crate) async fn cmd_fleet_verify(json: bool, exit_on_drift_only: bool) -> Re
         .map(|(name, e)| (name.clone(), e.address.clone()))
         .collect();
     profiles.sort_by(|a, b| a.0.cmp(&b.0));
+
+    // T-3391 (F3): warn on shared addresses before narrowing; stderr keeps
+    // --json stdout intact and the verdict logic is untouched.
+    for (addr, names) in duplicate_address_groups(&profiles) {
+        eprintln!(
+            "warning: profiles {} share address {} — a drifting duplicate can mask real drift",
+            names.join(", "),
+            addr
+        );
+    }
+
+    // T-3391 (F1): --profile narrows the sweep; the rollup below then reflects
+    // only that profile, so its exit code is per-profile.
+    profiles = match filter_verify_profiles(profiles, only_profile) {
+        Ok(p) => p,
+        Err(msg) => {
+            eprintln!("fleet verify: {msg}");
+            std::process::exit(2);
+        }
+    };
 
     if profiles.is_empty() {
         if json {
@@ -8567,6 +8627,36 @@ mod tests {
     // T-2647 (load-bearing): a "profile not found" error must name the discovery
     // command, not dead-end. Reverting to the bare "no such hub profile" form
     // fails the `remote profile list` assertion.
+    #[test]
+    fn fleet_verify_filter_selects_one_profile() {
+        let p = vec![("a".to_string(), "h:1".to_string()), ("b".to_string(), "h:2".to_string())];
+        assert_eq!(filter_verify_profiles(p.clone(), None).unwrap().len(), 2);
+        let one = filter_verify_profiles(p, Some("b")).unwrap();
+        assert_eq!(one, vec![("b".to_string(), "h:2".to_string())]);
+    }
+
+    #[test]
+    fn fleet_verify_filter_unknown_profile_is_clear_error() {
+        let p = vec![("a".to_string(), "h:1".to_string())];
+        let e = filter_verify_profiles(p, Some("zz")).unwrap_err();
+        assert!(e.contains("unknown profile 'zz'") && e.contains("known: a"), "{e}");
+        let e = filter_verify_profiles(vec![], Some("zz")).unwrap_err();
+        assert!(e.contains("known: none"), "{e}");
+    }
+
+    #[test]
+    fn fleet_verify_duplicate_addresses_detected() {
+        let p = vec![
+            ("local-test".to_string(), "127.0.0.1:9100".to_string()),
+            ("other".to_string(), "10.0.0.1:9100".to_string()),
+            ("local-hub".to_string(), "127.0.0.1:9100".to_string()),
+        ];
+        let g = duplicate_address_groups(&p);
+        assert_eq!(g, vec![("127.0.0.1:9100".to_string(),
+            vec!["local-hub".to_string(), "local-test".to_string()])]);
+        assert!(duplicate_address_groups(&p[1..2]).is_empty());
+    }
+
     #[test]
     fn profile_not_found_msg_names_discovery_command() {
         let m = profile_not_found_msg("ring20-typo");

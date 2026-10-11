@@ -2,12 +2,18 @@
 id: T-3391
 name: "fleet verify --profile <name> with a per-profile exit code"
 description: >
-  Field finding F1 from dimitri-mint-dev (2026-10-10): fleet verify exits 1 when ANY profile drifts, so a script checking one hub fails under set -o pipefail (the AEF verification gate) although that hub matches. Add --profile <name> (exit code for that profile only). Also F3: duplicate local profiles (local-hub, local-test, both 127.0.0.1:9100) keep the fleet verdict permanently 'drift' on .107, masking real drift; consider a duplicate-address warning. Write real ACs before editing source (G-020).
+  Field finding F1 from dimitri-mint-dev (2026-10-10): fleet verify exits 1 when ANY
+  profile drifts, so a script checking one hub fails under set -o pipefail (the AEF
+  verification gate) although that hub matches. Add --profile <name> (exit code for
+  that profile only). Also F3: duplicate local profiles (local-hub, local-test, both
+  127.0.0.1:9100) keep the fleet verdict permanently 'drift' on .107, masking real
+  drift; consider a duplicate-address warning. Write real ACs before editing source
+  (G-020).
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -38,8 +44,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-11T09:53:23Z
-last_update: 2026-10-11T09:53:23Z
-date_finished: null
+last_update: 2026-10-11T14:13:49Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +56,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-11T14:13:50Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3391: fleet verify --profile <name> with a per-profile exit code
@@ -62,8 +82,11 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `termlink fleet verify --profile <name>` probes only that profile; exit code 0/1/2/3 reflects only it; `--json` keeps the same shape (one profile)
+- [x] Unknown profile name prints a clear error naming known profiles and exits 2
+- [x] Profiles sharing an address produce a one-line warning naming them (stderr; verdict logic unchanged); pure helper with unit tests
+- [x] MCP `termlink_fleet_verify` accepts optional `profile` with the same semantics
+- [x] CLAUDE.md `termlink fleet verify` row mentions `--profile`; cargo build and unit tests pass
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -99,6 +122,9 @@ date_finished: null
 -->
 
 ## Verification
+
+cargo build -p termlink-cli -p termlink-mcp > /tmp/.t3391b 2>&1
+cargo test -p termlink-cli fleet_verify > /tmp/.t3391t 2>&1 && grep -q "test result: ok" /tmp/.t3391t
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -346,3 +372,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3391-fleet-verify---profile-name-with-a-per-p.md
 - **Context:** Initial task creation
+
+### 2026-10-11T14:13:49Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

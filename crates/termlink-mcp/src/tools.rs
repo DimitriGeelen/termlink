@@ -11446,6 +11446,9 @@ pub struct FleetVerifyParams {
     /// `ok` rollup field treats them as non-failures. Use when an agent
     /// only wants to flag actual rotation events.
     pub exit_on_drift_only: Option<bool>,
+    /// T-3391: verify only this profile (verdict/ok reflect it alone).
+    /// Unknown name returns `{ok:false, error}`.
+    pub profile: Option<String>,
 }
 
 // T-1687: Fleet history params (rotation/heal log retrospective).
@@ -17176,7 +17179,18 @@ impl TermLinkTools {
         description = "Probe every hub in ~/.termlink/hubs.toml via TLS handshake and compare wire fingerprint vs the stored TOFU pin. Pure read-only diagnostic: no authentication, no cert/secret mutation. Returns per-profile status (match / drift / no-pin / probe-failed) plus a fleet rollup verdict where drift dominates. Use to detect hub rotation BEFORE auth-bearing workloads fail."
     )]
     async fn termlink_fleet_verify(&self, Parameters(p): Parameters<FleetVerifyParams>) -> String {
-        let profiles = list_all_hub_profiles();
+        let mut profiles = list_all_hub_profiles();
+        if let Some(want) = p.profile.as_deref() {
+            if !profiles.iter().any(|(n, _, _, _)| n == want) {
+                let known: Vec<&str> = profiles.iter().map(|(n, _, _, _)| n.as_str()).collect();
+                return serde_json::to_string_pretty(&serde_json::json!({
+                    "ok": false,
+                    "error": format!("unknown profile '{}' (known: {})", want,
+                        if known.is_empty() { "none".to_string() } else { known.join(", ") }),
+                })).unwrap_or_else(json_err);
+            }
+            profiles.retain(|(n, _, _, _)| n == want);
+        }
         if profiles.is_empty() {
             return serde_json::to_string_pretty(&serde_json::json!({
                 "ok": true,

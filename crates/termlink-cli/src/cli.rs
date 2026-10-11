@@ -4202,6 +4202,12 @@ pub(crate) enum FleetAction {
         /// Useful for cron pages — alert only when a hub has actually rotated.
         #[arg(long)]
         exit_on_drift_only: bool,
+
+        /// T-3391: verify only this profile; the exit code reflects that
+        /// profile alone (0 match, 1 drift, 2 no-pin, 3 probe-failed).
+        /// An unknown profile name exits 2 with an error.
+        #[arg(long)]
+        profile: Option<String>,
     },
 
     /// T-1671: print the rotation history captured by `fleet doctor --watch`.

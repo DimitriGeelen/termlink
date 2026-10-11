@@ -2456,7 +2456,7 @@ heal paths below.
 | `termlink hub fingerprint` | live local `<runtime_dir>/hub.cert.pem` | TLS fingerprint of the local hub for peers to pin. |
 | `termlink hub probe <addr>` | remote leaf cert via TLS handshake | Pre-pin diagnostic — confirm a hub is up and capture its current fingerprint. |
 | `termlink tofu verify <addr>` | wire vs `~/.termlink/known_hubs` | Per-host drift check. Exit 0=match, 1=drift, 2=no-pin, 3=probe-fail. |
-| `termlink fleet verify` | all profiles in `~/.termlink/hubs.toml` | Fleet rollup. Drift dominates. `--exit-on-drift-only` for cron alerting on rotations only. |
+| `termlink fleet verify` | all profiles in `~/.termlink/hubs.toml` | Fleet rollup. Drift dominates. `--exit-on-drift-only` for cron alerting on rotations only. `--profile <name>` (T-3391) checks one profile and exits per that profile alone (unknown name = exit 2); duplicate addresses across profiles print a warning. |
 | `termlink_fleet_verify` (MCP) | same as `fleet verify` | Agent-callable companion. Returns `{verdict, profiles[], actions[]}` JSON with heal hints when drift detected. |
 | `termlink_hub_probe` (MCP) | same as `hub probe` | Agent-callable single-host TLS-probe — returns `{ok, fingerprint, error}`. T-1663. |
 | `termlink_tofu_verify` (MCP) | same as `tofu verify` | Agent-callable single-host pin-check — returns `{status, wire, pinned, actions[]}`. T-1663. |
