@@ -4,10 +4,10 @@ name: "arc-011 PH-1 B10: Claude adapter and hooks (C-11) - sidecar daemon, hook 
 description: >
   arc-011 PH-1 B10: Claude adapter and hooks (C-11) - sidecar daemon, hook post-tool-use/stop/session-start, finalizer, fail-open turn, ready flag, WAITING FOR RECIPIENT/STUCK labels, scripted demo
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -38,8 +38,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-11T22:50:59Z
-last_update: 2026-10-11T23:00:25Z
-date_finished: null
+last_update: 2026-10-11T23:02:07Z
+date_finished: 2026-10-11T23:02:07Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -277,6 +277,16 @@ cargo test -p termlink-sidecar
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
+The gate classed this task as bug-class from its title ("fail-open"). It is a build task, but it did fix one real defect found during it, recorded here.
+
+**Symptom:** the live check could not find agent-b's store at `<estate>/store/sidecar/agent-b`; the running sidecar had opened it at `<estate>/sidecar/agent-b`.
+
+**Root cause:** `termlink-sidecar start` used the return value of `estate::guard_from_env()` as the store root. That function returns the estate root (the marked ancestor it checked HOME, the runtime dir and the store against), not the configured store root.
+
+**Why structurally allowed:** the scripted demo talks to the sidecars only through their sockets, so the store's location was never observed; and both paths lie inside the estate, so the estate guard (correctly) did not object.
+
+**Prevention:** `hooks_scripted_demo` now asserts each sidecar's lock file is under the configured store root and that nothing exists at the estate-root location; a mutant that reintroduces the bug turns it red.
+
 ## Evolution
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
@@ -371,3 +381,15 @@ cargo test -p termlink-sidecar
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3411-arc-011-ph-1-b10-claude-adapter-and-hook.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-54db4dbc
+- **Timestamp:** 2026-10-11T23:02:47Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-10-11T23:02:07Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
