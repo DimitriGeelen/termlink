@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3395: arc-011 PH-0: baselines from existing data + root inventory (step 3 6.2.1.a (2), OP-1 amendment 1)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-11T17:08:01Z
+# ============================================================================
+
+task_id: T-3395
+task_name: "arc-011 PH-0: baselines from existing data + root inventory (step 3 6.2.1.a (2), OP-1 amendment 1)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-11T16:58:57Z
+completed: 2026-10-11T17:07:42Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-11T19:07:26+02:00
+last_commit: 2026-10-11T19:07:26+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  PH-0 baselines (H-5/6/7/15/30, FX-5) and root inventory, read-only
+
+# Key outcomes
+outcomes:
+  - 'docs/reports/T-3395-ph0-baselines.md exists with H-5 (size p50/p95/p99.9/max), H-6, H-7, H-15 (method + limits), H-30 and the FX-5 plaintext-field count per topic family; each number names its source command'
+  - 'Anything not measurable is marked NOT MEASURED with a reason; no number is a guess'
+  - 'docs/reports/T-3395-root-inventory.md lists root processes, cron, systemd units, scripts, hub, orchestrator, agents, grouped, each with why-root / does-not-need-root / unknown plus evidence'
+  - 'Reports contain counts and sizes only: no message content, no secrets'
+  - 'Nothing on the host was changed (read-only measurement)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/reports/T-3395-ph0-baselines.md'
+  - 'docs/reports/T-3395-root-inventory.md'
+  - '.tasks/active/T-3395-arc-011-ph-0-baselines-from-existing-dat.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-11T19:07:26'
+    action: 'T-3395: PH-0 baselines (H-5/6/7/15/30, FX-5) and root inventory, read-only'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 8 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 8
+  commits: 1
+  files_changed: 3
+  lines_added: 570
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3395-arc-011-ph-0-baselines-from-existing-dat.md
+generated_by: context-agent-hybrid
