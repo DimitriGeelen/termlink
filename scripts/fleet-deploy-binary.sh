@@ -121,23 +121,46 @@ timeout 30 termlink remote exec --timeout 25 "$HUB" "$SESSION" \
   "mkdir -p '$REMOTE_DIR' && rm -f '$REMOTE_DIR'/* && echo OK" >/dev/null \
   || { echo "ERROR: prep remote dir failed" >&2; exit 3; }
 
+# T-3394: every chunk is retried in place (same chunk) up to the number of back-off
+# delays + 1 attempts. Before, a failed chunk was skipped and never resent, and the
+# failure counter was never reset, so one transient hiccup doomed the run; the remote
+# error text was discarded, so the cause was invisible (ring20-dashboard, 2026-10-11).
+read -r -a BACKOFF <<< "${FLEET_DEPLOY_BACKOFF:-2 5}"
+MAX_ATTEMPTS=$(( ${#BACKOFF[@]} + 1 ))
+abort_stream() {
+  echo "ERROR: $1" >&2
+  # Best effort: do not leave megabytes of staged chunks on the remote.
+  if timeout 30 termlink remote exec --timeout 25 "$HUB" "$SESSION" "rm -rf '$REMOTE_DIR' && echo CLEANED" 2>/dev/null | grep -q CLEANED; then
+    echo "  removed remote staging dir $REMOTE_DIR" >&2
+  else
+    echo "  WARNING: could not remove remote staging dir $REMOTE_DIR" >&2
+  fi
+  exit 3
+}
 echo ">>> streaming $N chunks ..."
-SENT=0; FAIL=0
+SENT=0; RETRIES=0
 for f in "$WORK"/c.*; do
   name=$(basename "$f")
   b64=$(base64 -w0 "$f")
-  if timeout 60 termlink remote exec --timeout 50 "$HUB" "$SESSION" \
-       "printf '%s' '$b64' | base64 -d > '$REMOTE_DIR/$name'" >/dev/null 2>&1; then
-    SENT=$((SENT+1))
-    [ $((SENT % 50)) -eq 0 ] && echo "  $SENT/$N ..."
-  else
-    FAIL=$((FAIL+1))
-    echo "  $name FAIL ($FAIL)"
-    [ "$FAIL" -ge 3 ] && { echo "ERROR: 3 consecutive failures, aborting" >&2; exit 3; }
-  fi
+  attempt=1
+  while :; do
+    # `|| rc=$?` keeps a failed send from tripping `set -e` before the retry.
+    rc=0
+    err=$(timeout 60 termlink remote exec --timeout 50 "$HUB" "$SESSION" \
+         "printf '%s' '$b64' | base64 -d > '$REMOTE_DIR/$name'" 2>&1 >/dev/null) || rc=$?
+    if [ "$rc" -eq 0 ]; then
+      SENT=$((SENT+1))
+      [ $((SENT % 50)) -eq 0 ] && echo "  $SENT/$N ..."
+      break
+    fi
+    echo "  $name attempt $attempt/$MAX_ATTEMPTS FAILED (rc=$rc): $(printf '%s' "$err" | tail -n 3 | tr '\n' ' ' | cut -c1-300)"
+    [ "$attempt" -ge "$MAX_ATTEMPTS" ] && abort_stream "chunk $name failed $MAX_ATTEMPTS times, aborting"
+    sleep "${BACKOFF[$((attempt-1))]}"
+    attempt=$((attempt+1)); RETRIES=$((RETRIES+1))
+  done
 done
-echo ">>> sent $SENT/$N (failures=$FAIL)"
-[ "$SENT" != "$N" ] && { echo "ERROR: not all chunks sent" >&2; exit 3; }
+echo ">>> sent $SENT/$N (retries=$RETRIES)"
+[ "$SENT" != "$N" ] && abort_stream "not all chunks sent ($SENT/$N)"
 
 # --- Assemble + verify -------------------------------------------------------
 echo ">>> assembling on remote and verifying sha"
