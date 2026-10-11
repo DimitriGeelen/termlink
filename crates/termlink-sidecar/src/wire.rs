@@ -25,13 +25,15 @@ pub const STAGE_TYPE: &str = "sidecar.stage.v1";
 pub const META_PK: &str = "sidecar_pk";
 pub const META_SIG: &str = "sidecar_sig";
 /// Stages a receiver reports back, in their only allowed order (forward-only).
-pub const STAGE_ORDER: [&str; 3] = ["RECEIVED", "STORED", "HANDED_OVER"];
+pub const STAGE_ORDER: [&str; 4] = ["RECEIVED", "STORED", "HANDED_OVER", "REPLIED"];
 
 /// The signed message body (section 5.1).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Msg {
     pub from: String,
     pub from_agent: String,
+    /// The sender's exact instance: a reply is addressed to it (SI-26, B11).
+    pub from_instance: String,
     pub to_agent: String,
     pub to_instance: String,
     pub conv: String,
@@ -49,6 +51,7 @@ impl Msg {
         m.insert("kind".into(), "msg".into());
         m.insert("from".into(), self.from.clone().into());
         m.insert("from_agent".into(), self.from_agent.clone().into());
+        m.insert("from_instance".into(), self.from_instance.clone().into());
         m.insert("to_agent".into(), self.to_agent.clone().into());
         m.insert("to_instance".into(), self.to_instance.clone().into());
         m.insert("conv".into(), self.conv.clone().into());
@@ -62,7 +65,7 @@ impl Msg {
 
     fn from_value(v: &Value) -> Result<Self, Refusal> {
         let o = v.as_object().ok_or(Refusal::Malformed("not an object"))?;
-        if o.len() != 12 {
+        if o.len() != 13 {
             return Err(Refusal::Malformed("unexpected field set"));
         }
         if o.get("v").and_then(Value::as_i64) != Some(WIRE_VERSION) {
@@ -80,6 +83,7 @@ impl Msg {
         Ok(Msg {
             from: s("from")?,
             from_agent: s("from_agent")?,
+            from_instance: s("from_instance")?,
             to_agent: s("to_agent")?,
             to_instance: s("to_instance")?,
             conv: s("conv")?,
@@ -612,6 +616,7 @@ mod wire_tests {
         Msg {
             from: id.fingerprint().to_owned(),
             from_agent: "alice".into(),
+            from_instance: "inst-a".into(),
             to_agent: "bob".into(),
             to_instance: to_instance.into(),
             conv: "conv-1".into(),

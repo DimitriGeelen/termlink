@@ -42,6 +42,8 @@ pub const DEAD_LETTER: &str = "DEAD_LETTER";
 pub struct SendConfig {
     /// This agent's name (`from_agent`).
     pub agent: String,
+    /// This agent's exact instance (`from_instance`): replies come back to it.
+    pub instance: String,
     /// The agent's own signing key (R-75).
     pub identity: Identity,
     /// Where the hub listens.
@@ -239,6 +241,14 @@ impl Sender {
         self.inner.cfg.identity.fingerprint()
     }
 
+    /// Reply to a message this agent stored (R-27, BV-6): the same path as
+    /// `send`, addressed to the original's sender agent and exact instance
+    /// (SI-26). Once the reply is SENT, REPLIED is recorded on the original and
+    /// reported to its sender as a signed stage.
+    pub fn reply(&self, conv: &str, in_reply_to: &str, body: &str) -> Result<Sent, SendError> {
+        self.inner.reply(conv, in_reply_to, body)
+    }
+
     /// One pump pass (the background thread runs the same thing).
     pub fn pump(&self) -> PumpResult {
         self.inner.run_pump()
@@ -321,6 +331,7 @@ impl Inner {
         let msg = Msg {
             from: me.fingerprint().to_owned(),
             from_agent: self.cfg.agent.clone(),
+            from_instance: self.cfg.instance.clone(),
             to_agent: to.to_owned(),
             to_instance: to_instance.to_owned(),
             conv: conv.clone(),
@@ -396,6 +407,52 @@ impl Inner {
         })?;
         let _ = self.run_pump();
         Ok(())
+    }
+
+    fn reply(&self, conv: &str, in_reply_to: &str, body: &str) -> Result<Sent, SendError> {
+        let lines = self.store.chain_lines(conv).map_err(|e| SendError::Store(e.to_string()))?;
+        // The original: stored here (an inbound record, not a peer's report) and not refused.
+        let st = lines
+            .iter()
+            .find(|l| l.event == "STORED" && l.peer_ts_ms.is_none() && l.msg_id == in_reply_to)
+            .ok_or_else(|| SendError::BadRequest(format!("{conv}/{in_reply_to} is not a message stored here")))?;
+        if lines.iter().any(|l| l.event == "REFUSED" && l.peer_ts_ms.is_none() && l.msg_id == in_reply_to) {
+            return Err(SendError::BadRequest(format!("{conv}/{in_reply_to} was refused; it cannot be answered")));
+        }
+        let (_, payload) = self
+            .store
+            .read_record(conv, st.seq, in_reply_to)
+            .map_err(|e| SendError::Store(e.to_string()))?;
+        let orig = wire::parse_payload(&payload).map_err(|e| SendError::Store(format!("stored original: {e}")))?;
+        let sent = self.send(&orig.from_agent, &orig.from_instance, Some(conv), body, None)?;
+        let me = self.cfg.identity.fingerprint().to_owned();
+        let extra = crate::store::LineExtra { reason: Some(format!("reply={}", sent.msg_id)), ..Default::default() };
+        let id = in_reply_to.to_owned();
+        let sender = st.sender.clone();
+        self.store
+            .append_event_unless(conv, "REPLIED", in_reply_to, &st.sender, &st.digest, extra, move |ls| {
+                ls.iter().any(|l| l.event == "REPLIED" && l.peer_ts_ms.is_none() && l.msg_id == id && l.sender == sender)
+            })
+            .map_err(|e| SendError::Store(format!("reply SENT but REPLIED not recorded: {e}")))?;
+        let at = self
+            .store
+            .chain_lines(conv)
+            .ok()
+            .and_then(|ls| ls.into_iter().find(|l| l.event == "REPLIED" && l.peer_ts_ms.is_none() && l.msg_id == in_reply_to))
+            .and_then(|l| l.ts_ms)
+            .unwrap_or_else(crate::store::now_ms);
+        let stage = wire::Stage {
+            from: me,
+            from_agent: self.cfg.agent.clone(),
+            to_agent: orig.from_agent.clone(),
+            conv: conv.to_owned(),
+            msg_id: in_reply_to.to_owned(),
+            stage: "REPLIED".into(),
+            ts_ms: at as i64,
+            chain_head: self.store.chain_head(conv).unwrap_or_default(),
+        };
+        self.post_stage(&orig.from_agent, &stage)?;
+        Ok(sent)
     }
 
     fn events_for(&self, conv: &str, msg_id: &str) -> Vec<String> {

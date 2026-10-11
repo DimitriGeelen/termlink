@@ -41,6 +41,7 @@ fn msg(from: &Identity, priority: &str) -> Msg {
     Msg {
         from: from.fingerprint().to_owned(),
         from_agent: A.into(),
+        from_instance: INST_A.into(),
         to_agent: B.into(),
         to_instance: INST_B.into(),
         conv: "p-1".into(),
@@ -184,6 +185,7 @@ fn agent(e: &Estate, who: &str, name: &str, inst: &str, declared: &str) -> Agent
         Sender::new(
             SendConfig {
                 agent: name.into(),
+                instance: inst.into(),
                 identity: e.identity(who).unwrap(),
                 hub: e.hub_addr(),
                 declared_hub_id: declared.into(),

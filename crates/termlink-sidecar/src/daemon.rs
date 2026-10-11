@@ -80,6 +80,7 @@ pub fn start(cfg: &Config, store_root: &Path, runtime: &Path, home: &Path) -> Re
         Sender::new(
             SendConfig {
                 agent: cfg.agent.clone(),
+                instance: cfg.instance.clone(),
                 identity,
                 hub: cfg.hub.clone(),
                 declared_hub_id: cfg.hub_id.clone(),

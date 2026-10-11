@@ -9,8 +9,8 @@
 //! B5 serves `status` and the admin `delivery` flag; B6 adds `send` (through
 //! `send::Sender`), B9 adds `pull`, `claim` and `handed-over` (through
 //! `deliver::Deliverer`); each answers `not-configured` when its path is not
-//! attached. `reply` is known, scope-checked and refused with
-//! `code: "not-implemented"` until B11. Never faked.
+//! attached. B11 adds `reply` (through the send path). Every op answers with
+//! what actually happened; none is faked.
 //!
 //! No verb takes a path: every field is on a per-op allow-list and every name is
 //! checked against the store's name charset, so a path or command cannot arrive.
@@ -38,6 +38,19 @@ pub const MAX_REQUEST: u64 = 64 * 1024;
 pub const STAGES: [&str; 5] = ["SENT", "RECEIVED", "STORED", "HANDED_OVER", "REPLIED"];
 /// Flag file in the store dir; present means delivery is off (SI-23).
 pub use crate::policy::DELIVERY_OFF_FLAG;
+/// FX-7 / FC-16: the only stage and label words a sender may see for a message
+/// that has no HANDED_OVER. Nothing in it says or implies delivery.
+pub const PRE_HANDOVER_VOCAB: [&str; 9] = [
+    "SENT",
+    "RECEIVED",
+    "STORED",
+    "WAITING",
+    "WAITING FOR RECIPIENT",
+    "STUCK",
+    "UNKNOWN",
+    "REJECTED BY HUB",
+    "REPLIED",
+];
 /// How long a message may sit at STORED on the recipient before the sender's
 /// view calls it STUCK instead of WAITING FOR RECIPIENT (FC-6, FC-7).
 pub const STUCK_AFTER_MS: u64 = 10 * 60 * 1000;
@@ -349,6 +362,7 @@ fn dispatch_inner(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id:
         "claim" => claim(obj, ctx.deliverer),
         "handed-over" => handed_over(obj, ctx.deliverer),
         "ready" => ready(obj, ctx.deliverer),
+        "reply" => reply(obj, sender),
         _ => err(
             "not-implemented",
             &format!("op {op:?} is not served yet"),
@@ -429,6 +443,21 @@ fn ready(obj: &serde_json::Map<String, Value>, d: Option<&Deliverer>) -> Value {
     match d.mark_ready(session, crate::store::now_ms()) {
         Ok(()) => json!({"ok": true, "ready": true}),
         Err(e) => err("io", &format!("cannot record the session: {e}"), "the hook fails open; mail waits for the next tool call"),
+    }
+}
+
+fn reply(obj: &serde_json::Map<String, Value>, sender: Option<&Sender>) -> Value {
+    let Some(sender) = sender else {
+        return err("not-configured", "this sidecar has no send path configured", "start it with a hub address and a hub id");
+    };
+    let text = |k: &str| obj.get(k).and_then(Value::as_str);
+    let (Some(conv), Some(orig), Some(body)) = (text("conv"), text("in_reply_to"), text("body")) else {
+        return err("bad-request", "reply needs conv, in_reply_to and body", "{\"op\":\"reply\",\"conv\":...,\"in_reply_to\":...,\"body\":...}");
+    };
+    match sender.reply(conv, orig, body) {
+        // Only the outbox stage is ever claimed here (FX-7).
+        Ok(s) => json!({"msg_id": s.msg_id, "conv": s.conv, "seq": s.seq, "ts_ms": s.ts_ms, "stage": "SENT", "in_reply_to": orig}),
+        Err(e) => err(e.code(), &e.to_string(), "nothing was queued; reply only to a message stored here"),
     }
 }
 
@@ -585,7 +614,32 @@ fn status_at(
                 if has(crate::send::DEAD_LETTER) {
                     v["label"] = json!("REJECTED BY HUB");
                 }
+                // Posted, and no stage back for longer than the deadline (D-4).
+                let posted = rows
+                    .iter()
+                    .filter(|r| r["msg_id"] == *m && r["stage"] == crate::send::POSTED)
+                    .filter_map(|r| r["ts_ms"].as_u64())
+                    .min();
+                if posted.is_some_and(|t| now_ms.saturating_sub(t) > stuck_after_ms) {
+                    v["label"] = json!("UNKNOWN");
+                }
             }
+            // The record (BV-7): the five stages in order, each with its time
+            // (the reporting side's own time for a stage a peer reported).
+            let record: Vec<Value> = STAGES
+                .iter()
+                .map(|st| {
+                    match rows.iter().find(|r| r["msg_id"] == *m && r["stage"] == *st) {
+                        Some(r) => json!({
+                            "stage": st,
+                            "at_ms": r["peer_ts_ms"].as_u64().or_else(|| r["ts_ms"].as_u64()),
+                            "by": r["sender"],
+                        }),
+                        None => json!({"stage": st, "absent": true}),
+                    }
+                })
+                .collect();
+            v["record"] = json!(record);
             if handed {
                 v["delivered"] = json!(true);
             }

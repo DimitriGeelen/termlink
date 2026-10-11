@@ -155,8 +155,9 @@ fn api_no_verb_takes_a_path_or_command() {
 #[test]
 fn api_unserved_verbs_are_loud_not_faked() {
     let r = rig();
+    // B11: reply is served through the send path; without one it says so.
     let v = call(&r, Scope::Send, json!({"op": "reply", "conv": "c1", "in_reply_to": "m1", "body": "x"}));
-    assert_eq!(v["code"], "not-implemented", "{v}");
+    assert_eq!(v["code"], "not-configured", "{v}");
     assert!(v.get("msg_id").is_none() && v.get("stage").is_none(), "{v}");
     // B9: served, but a sidecar with no deliver path says so; it never fakes a stage.
     for req in [

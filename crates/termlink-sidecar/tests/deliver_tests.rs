@@ -33,6 +33,7 @@ fn msg(from: &Identity, conv: &str, id: &str, priority: &str, body: &str) -> Msg
     Msg {
         from: from.fingerprint().to_owned(),
         from_agent: "agent-a".into(),
+        from_instance: "inst-a".into(),
         to_agent: B.into(),
         to_instance: "inst-b".into(),
         conv: conv.into(),
@@ -484,6 +485,7 @@ fn deliver_handed_over_reaches_the_sender_as_a_signed_stage() {
             Sender::new(
                 SendConfig {
                     agent: name.into(),
+                    instance: inst.into(),
                     identity: e.identity(who).unwrap(),
                     hub: e.hub_addr(),
                     declared_hub_id: id.clone(),

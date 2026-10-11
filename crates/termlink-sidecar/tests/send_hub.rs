@@ -18,6 +18,7 @@ struct Rig {
 fn sender_cfg(e: &Estate, hub_id: &str, hub: termlink_protocol::TransportAddr) -> SendConfig {
     SendConfig {
         agent: "agent-a".into(),
+        instance: "inst-a".into(),
         identity: e.identity("a").unwrap(),
         hub,
         declared_hub_id: hub_id.into(),

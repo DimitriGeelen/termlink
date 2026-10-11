@@ -46,6 +46,7 @@ fn agent(e: &Estate, who: &str, name: &str, inst: &str, declared: &str) -> Agent
         Sender::new(
             SendConfig {
                 agent: name.into(),
+                instance: inst.into(),
                 identity: e.identity(who).unwrap(),
                 hub: e.hub_addr(),
                 declared_hub_id: declared.into(),
@@ -146,6 +147,7 @@ fn msg(from: &Identity, from_agent: &str, to_instance: &str, conv: &str, id: &st
     Msg {
         from: from.fingerprint().to_owned(),
         from_agent: from_agent.into(),
+        from_instance: "inst-a".into(),
         to_agent: B.into(),
         to_instance: to_instance.into(),
         conv: conv.into(),
@@ -342,6 +344,7 @@ fn receive_hub_wrong_hub_id_reads_nothing_and_says_so() {
         Sender::new(
             SendConfig {
                 agent: B.into(),
+                instance: INST_B.into(),
                 identity: e.identity("b").unwrap(),
                 hub: e.hub_addr(),
                 declared_hub_id: "not-the-hub-id".into(),

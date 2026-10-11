@@ -1,7 +1,7 @@
 {
-  "digest": "6bcd3924e40ee28f17f63bb5e7160fe5f6e7ef892572445a68ff5c084cc6d558",
-  "payload": "{\"body\":\"hello \\\"bob\\\"\\nline2 é\",\"conv\":\"conv-1\",\"from\":\"34750f98bd59fcfc\",\"from_agent\":\"alice\",\"kind\":\"msg\",\"msg_id\":\"00112233445566778899aabbccddeeff\",\"priority\":\"normal\",\"seq\":7,\"to_agent\":\"bob\",\"to_instance\":\"inst-b\",\"ts_ms\":1700000000123,\"v\":1}",
-  "sig": "101cca9e6987467f262331e6600da4a5351fdab3709654c044865b68e7d8aa2724d1ebad7d4131e6c9c13e316326db40a302a668f1d22ef56cb136d5c4301401",
+  "digest": "7386474ac335046ee9a66eea2ca9cb8d16e43c69a570a6cea580c45f2560abad",
+  "payload": "{\"body\":\"hello \\\"bob\\\"\\nline2 é\",\"conv\":\"conv-1\",\"from\":\"34750f98bd59fcfc\",\"from_agent\":\"alice\",\"from_instance\":\"inst-a\",\"kind\":\"msg\",\"msg_id\":\"00112233445566778899aabbccddeeff\",\"priority\":\"normal\",\"seq\":7,\"to_agent\":\"bob\",\"to_instance\":\"inst-b\",\"ts_ms\":1700000000123,\"v\":1}",
+  "sig": "72e9c7e6b7775c1996ee38aa962d6874cb76837ee5729a8c703a200ebd20154fca54e52c5161fbb297a61c4e8907472a40ec15111a45a87acd711ba30f04a007",
   "signer_pk": "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
   "topic": "inbox:b",
   "ts_ms": 1700000000999
