@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3401: arc-011 PH-1 B1: spike — PostToolUse hook output lands in the transcript (record shape fixture)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-11T18:12:06Z
+# ============================================================================
+
+task_id: T-3401
+task_name: "arc-011 PH-1 B1: spike — PostToolUse hook output lands in the transcript (record shape fixture)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-11T18:09:04Z
+completed: 2026-10-11T18:11:42Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  PH-1 architecture note docs/design/arc-011-ph1-architecture.md section 13, task B1 (ACs and verification there). Confirms the assumption every later delivery task rests on (OP-21 B: delivery at the next tool call via PostToolUse); commits a transcript fixture.
+
+# Key outcomes
+outcomes:
+  - 'Real Claude Code (version recorded) run in a disposable dir with a PostToolUse hook printing hookSpecificOutput.additionalContext; transcript captured'
+  - 'Fixture tests/fixtures/transcript-posttooluse.jsonl committed (sanitised, non-empty) and contains the hook_additional_context attachment record'
+  - 'Doc docs/reports/arc011-ph1-hook-spike.md states the exact record shape, the Claude Code version, and answers A-1 (or reopens the design)'
+  - 'fixture_shape test asserts the record shape against the fixture (crate termlink-sidecar if it exists by then; otherwise a standalone script test, noted in the doc)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 2
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3401-arc-011-ph-1-b1-spike--posttooluse-hook-.md
+generated_by: context-agent-hybrid
