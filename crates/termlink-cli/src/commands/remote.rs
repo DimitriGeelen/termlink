@@ -8252,8 +8252,10 @@ pub(crate) fn cmd_fleet_reauth_bootstrap(
     // below can never disagree with what was actually persisted (T-2617).
     let persisted = write_secret_file(&target, &hex)?;
 
-    // 12-char preview keeps full secret out of terminal history.
-    let preview: String = persisted.chars().take(12).collect();
+    // T-3390: print a fingerprint of the secret, never characters of it. The
+    // earlier 12-char prefix put 48 of the secret's 256 bits into terminal
+    // history, logs and transcripts.
+    let preview = secret_fingerprint(&persisted);
     Ok(ReauthBootstrapOutcome {
         profile: profile.to_string(),
         address: entry.address.clone(),
@@ -8261,6 +8263,16 @@ pub(crate) fn cmd_fleet_reauth_bootstrap(
         source: source.to_string(),
         fingerprint_preview: preview,
     })
+}
+
+/// First 12 hex chars of sha256 over the secret's hex text (T-3390). Enough to
+/// tell two secrets apart in an operator's output, and reveals nothing of the
+/// secret itself. Compare it with the same function on the other side, never
+/// with the secret's own leading characters.
+pub(crate) fn secret_fingerprint(secret_hex: &str) -> String {
+    use sha2::{Digest, Sha256};
+    let digest = Sha256::digest(secret_hex.trim().as_bytes());
+    digest.iter().take(6).map(|b| format!("{b:02x}")).collect()
 }
 
 /// Render the human-readable success summary for a Tier-2 heal. CLI calls
@@ -8272,7 +8284,7 @@ fn print_reauth_outcome_human(outcome: &ReauthBootstrapOutcome) {
     eprintln!("     secret file:  {}", outcome.secret_file);
     eprintln!("     bootstrap:    {}", outcome.source);
     eprintln!(
-        "     new secret:   {}… (first 12 of 64 hex chars)",
+        "     secret fp:    {} (sha256 fingerprint of the new secret, not part of it)",
         outcome.fingerprint_preview
     );
     eprintln!();
@@ -11984,6 +11996,42 @@ secret_file = "/tmp/other.hex"
         assert_eq!(confirmed, hex, "returned hex must equal the persisted bytes");
         assert_eq!(std::fs::read_to_string(&path).unwrap(), hex, "disk matches");
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// T-3390: the operator-visible "preview" must not leak secret material.
+    /// The old preview was the secret's first 12 chars (48 of 256 bits).
+    #[test]
+    fn secret_fingerprint_is_not_part_of_the_secret() {
+        // A realistic 64-hex secret plus two degenerate ones, where a prefix
+        // leak would be easiest to miss.
+        let secrets = [
+            "3f9a1c7e5b2d4f608192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f8".to_string(),
+            "ab".repeat(32),
+            "0".repeat(64),
+        ];
+        for s in &secrets {
+            let fp = secret_fingerprint(s);
+            assert_eq!(fp.len(), 12, "12 hex chars");
+            assert!(fp.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()));
+            assert!(!s.contains(&fp), "fingerprint {fp} must not be a substring of the secret");
+            assert_ne!(fp, s.chars().take(12).collect::<String>(), "not the old prefix preview");
+        }
+    }
+
+    /// T-3390: deterministic, and exactly the sha256 prefix, so two operators
+    /// can compare fingerprints computed on different hosts.
+    #[test]
+    fn secret_fingerprint_is_the_sha256_prefix() {
+        use sha2::{Digest, Sha256};
+        let s = "cd".repeat(32);
+        let expected: String = Sha256::digest(s.as_bytes())
+            .iter()
+            .take(6)
+            .map(|b| format!("{b:02x}"))
+            .collect();
+        assert_eq!(secret_fingerprint(&s), expected);
+        assert_eq!(secret_fingerprint(&s), secret_fingerprint(&format!("{s}\n")), "trailing newline ignored");
+        assert_ne!(secret_fingerprint(&s), secret_fingerprint(&"ce".repeat(32)), "different secrets differ");
     }
 }
 
