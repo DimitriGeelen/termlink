@@ -1,0 +1,91 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3393: runme action 14: record operator Watchtower ticks for T-3351 and T-3388
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-11T13:37:13Z
+# ============================================================================
+
+task_id: T-3393
+task_name: "runme action 14: record operator Watchtower ticks for T-3351 and T-3388"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-11T11:19:12Z
+completed: 2026-10-11T13:35:05Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-10-11T13:25:15+02:00
+last_commit: 2026-10-11T14:59:17+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  runme action 14 records the operator's Watchtower ticks on T-3351 and T-3388 (2026-10-11) next to T-3349; fixtures 101/101 incl. all-three-ticks case. close-out of T-3351 (step 2 signed: residual risks accepted) and T-3388 (requirements v0.5.2 signed) — both ticked by the operator in Watchtower 2026-10-11; provenance rows follow via runme action 14. close-out of T-3394 (deploy retry fix, verification 2/2); T-3393 ACs 1-2 ticked, AC 3 waits for a runme run ending rc=0
+
+# Key outcomes
+outcomes:
+  - 'runme.sh action 14 lists T-3351:1 and T-3388:1 (the operator''s Watchtower ticks of 2026-10-11) next to T-3349:1'
+  - 'tests/runme-fixtures.sh passes, with case 26 covering more than one listed tick'
+  - 'After the operator runs /opt/termlink/runme.sh, the ledger holds operator-ack rows for T-3351 and T-3388 and'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'close-out of T-3394 (deploy retry fix, verification 2/2); T-3393 ACs 1-2 ticked, AC 3 waits for a runme run ending rc=0'
+    source: git-mined
+  - description: 'runme action 14 records the operator''s Watchtower ticks on T-3351 and T-3388 (2026-10-11) next to T-3349; fixtures 101/101 incl. all-three-ticks case'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/episodic/T-3351.yaml'
+  - '.context/episodic/T-3388.yaml'
+  - '.context/episodic/T-3394.yaml'
+  - 'runme.sh'
+  - '.tasks/active/T-3393-runme-action-14-record-operator-watchtow.md'
+  - '.tasks/completed/T-3351-arc-011-role-chain-step-2-threat-modeler.md'
+  - '.tasks/completed/T-3388-arc-011-step-1-reopen-requirements-v05-f.md'
+  - '.tasks/completed/T-3394-fleet-deploy-binary-a-failed-chunk-is-ne.md'
+  - 'tests/runme-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-11T13:25:15'
+    action: 'T-3393: runme action 14 records the operator''s Watchtower ticks on T-3351 and T-3388 (2026-10-11) next to T-3349; fixtures 101/101 incl. all-three-ticks case'
+  - time: '2026-10-11T13:25:24'
+    action: 'T-3393: close-out of T-3351 (step 2 signed: residual risks accepted) and T-3388 (requirements v0.5.2 signed) — both ticked by the operator in Watchtower 2026-10-11; provenance rows follow via runme action 14'
+  - time: '2026-10-11T14:59:17'
+    action: 'T-3393: close-out of T-3394 (deploy retry fix, verification 2/2); T-3393 ACs 1-2 ticked, AC 3 waits for a runme run ending rc=0'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 135 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 135
+  commits: 3
+  files_changed: 7
+  lines_added: 944
+  lines_removed: 22
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3393-runme-action-14-record-operator-watchtow.md
+generated_by: context-agent-hybrid
