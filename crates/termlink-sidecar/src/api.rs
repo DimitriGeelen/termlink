@@ -38,6 +38,9 @@ pub const MAX_REQUEST: u64 = 64 * 1024;
 pub const STAGES: [&str; 5] = ["SENT", "RECEIVED", "STORED", "HANDED_OVER", "REPLIED"];
 /// Flag file in the store dir; present means delivery is off (SI-23).
 pub use crate::policy::DELIVERY_OFF_FLAG;
+/// How long a message may sit at STORED on the recipient before the sender's
+/// view calls it STUCK instead of WAITING FOR RECIPIENT (FC-6, FC-7).
+pub const STUCK_AFTER_MS: u64 = 10 * 60 * 1000;
 /// Conversation that holds the delivery switch's log lines (SI-23).
 pub const ADMIN_CONV: &str = "_admin";
 
@@ -67,6 +70,7 @@ fn op_spec(op: &str) -> Option<(Scope, &'static [&'static str])> {
         "pull" => (Scope::Send, &["session", "hook", "tool_use_id"]),
         "claim" => (Scope::Send, &["msg_id"]),
         "handed-over" => (Scope::Send, &["msg_id", "nonce", "final"]),
+        "ready" => (Scope::Send, &["session", "hook"]),
         "status" => (Scope::Status, &["msg_id", "conv"]),
         "delivery" => (Scope::Admin, &["state", "why"]),
         _ => return None,
@@ -338,12 +342,13 @@ fn dispatch_inner(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id:
         }
     }
     match op {
-        "status" => status(obj, store, agent, hub_id, sender),
+        "status" => status_at(obj, store, agent, hub_id, sender, crate::store::now_ms(), STUCK_AFTER_MS),
         "send" => send(obj, sender),
         "delivery" => delivery(obj, store, who),
         "pull" => pull(obj, ctx.deliverer),
         "claim" => claim(obj, ctx.deliverer),
         "handed-over" => handed_over(obj, ctx.deliverer),
+        "ready" => ready(obj, ctx.deliverer),
         _ => err(
             "not-implemented",
             &format!("op {op:?} is not served yet"),
@@ -409,6 +414,21 @@ fn handed_over(obj: &serde_json::Map<String, Value>, d: Option<&Deliverer>) -> V
         Ok(Verdict::Uncertain(why)) => json!({"stage": "STORED", "attempt": "open", "label": "UNCERTAIN", "why": why}),
         Ok(Verdict::Pending) => json!({"stage": "STORED", "attempt": "open", "label": "PENDING"}),
         Err(e) => err("bad-request", &e, "use the nonce pull returned"),
+    }
+}
+
+fn ready(obj: &serde_json::Map<String, Value>, d: Option<&Deliverer>) -> Value {
+    let Some(d) = d else { return no_deliverer() };
+    let text = |k: &str| obj.get(k).and_then(Value::as_str);
+    let (Some(session), Some(hook)) = (text("session"), text("hook")) else {
+        return err("bad-request", "ready needs session and hook", "{\"op\":\"ready\",\"session\":...,\"hook\":\"session-start\"}");
+    };
+    if !matches!(hook, "session-start" | "stop") {
+        return err("bad-request", "hook must be session-start or stop", "the hook that is calling");
+    }
+    match d.mark_ready(session, crate::store::now_ms()) {
+        Ok(()) => json!({"ok": true, "ready": true}),
+        Err(e) => err("io", &format!("cannot record the session: {e}"), "the hook fails open; mail waits for the next tool call"),
     }
 }
 
@@ -495,7 +515,23 @@ fn delivery(obj: &serde_json::Map<String, Value>, store: &Store, who: &str) -> V
     }
 }
 
-fn status(obj: &serde_json::Map<String, Value>, store: &Store, agent: &str, hub_id: Option<&str>, sender: Option<&Sender>) -> Value {
+/// The `status` view at a given clock (tests move the clock; the socket uses now).
+pub fn status_view(req: &Value, store: &Store, agent: &str, hub_id: Option<&str>, now_ms: u64, stuck_after_ms: u64) -> Value {
+    match req.as_object() {
+        Some(obj) => status_at(obj, store, agent, hub_id, None, now_ms, stuck_after_ms),
+        None => err("bad-request", "request must be a JSON object", "send {\"op\": \"status\"}"),
+    }
+}
+
+fn status_at(
+    obj: &serde_json::Map<String, Value>,
+    store: &Store,
+    agent: &str,
+    hub_id: Option<&str>,
+    sender: Option<&Sender>,
+    now_ms: u64,
+    stuck_after_ms: u64,
+) -> Value {
     let want_msg = obj.get("msg_id").and_then(Value::as_str);
     let want_conv = obj.get("conv").and_then(Value::as_str);
     let convs: Vec<String> = match want_conv {
@@ -552,6 +588,19 @@ fn status(obj: &serde_json::Map<String, Value>, store: &Store, agent: &str, hub_
             }
             if handed {
                 v["delivered"] = json!(true);
+            }
+            // Sender side: the recipient stored it, nothing handed it over yet.
+            // No hook has fired (the agent is idle or has no hook): waiting; past
+            // the deadline: stuck (FC-6, FC-7). Storage is never called delivery.
+            let sent_here = rows.iter().any(|r| r["msg_id"] == *m && r["stage"] == "SENT");
+            if sent_here && reached == "STORED" {
+                let stored_at = rows
+                    .iter()
+                    .filter(|r| r["msg_id"] == *m && r["stage"] == "STORED")
+                    .filter_map(|r| r["peer_ts_ms"].as_u64().or_else(|| r["ts_ms"].as_u64()))
+                    .min();
+                let stuck = stored_at.is_some_and(|t| now_ms.saturating_sub(t) > stuck_after_ms);
+                v["label"] = json!(if stuck { "STUCK" } else { "WAITING FOR RECIPIENT" });
             }
             // Stored but withheld (e.g. not-allowed), or refused outright: say why.
             if let Some(r) = rows.iter().find(|r| r["msg_id"] == *m && r["stage"] == "REFUSED") {

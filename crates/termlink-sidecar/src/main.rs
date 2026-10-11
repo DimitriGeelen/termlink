@@ -1,24 +1,37 @@
-//! Thin `termlink-sidecar` entry point. B2 only wires the C-1 estate guard:
-//! the sidecar refuses to start outside a marked throwaway tree.
+//! Thin `termlink-sidecar` entry point.
+//!
+//! - `start --config <file>`: the sidecar process (refuses outside a marked estate).
+//! - `hook post-tool-use|session-start|stop`: the Claude Code hook (always exits 0).
+//! - `finalize --nonce <n>`: the detached hand-over finalizer a hook starts.
 
-use termlink_sidecar::estate;
+use termlink_sidecar::{daemon, hook};
+
+fn usage() -> i32 {
+    eprintln!("usage: termlink-sidecar start --config <file>");
+    eprintln!("       termlink-sidecar hook post-tool-use|session-start|stop");
+    eprintln!("       termlink-sidecar finalize --nonce <nonce>");
+    2
+}
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    match args.first().map(String::as_str) {
-        Some("start") => match estate::guard_from_env() {
+    let a: Vec<&str> = args.iter().map(String::as_str).collect();
+    let code = match a.as_slice() {
+        ["start", "--config", f] => daemon::main_start(std::path::Path::new(f)),
+        // B2 form: the estate guard check alone.
+        ["start"] => match termlink_sidecar::estate::guard_from_env() {
             Ok(root) => {
-                println!("estate ok: {}", root.display());
-                // Later PH-1 tasks (B4+) start the store and API here.
+                println!("estate ok: {} (no --config: guard check only)", root.display());
+                0
             }
             Err(e) => {
                 eprintln!("termlink-sidecar: refusing to start: {e}");
-                std::process::exit(2);
+                2
             }
         },
-        _ => {
-            eprintln!("usage: termlink-sidecar start");
-            std::process::exit(2);
-        }
-    }
+        ["hook", event] => hook::main_hook(event),
+        ["finalize", "--nonce", n] => hook::main_finalize(n),
+        _ => usage(),
+    };
+    std::process::exit(code);
 }

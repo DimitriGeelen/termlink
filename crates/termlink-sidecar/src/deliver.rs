@@ -98,7 +98,14 @@ pub struct Deliverer {
     store: Arc<Store>,
     policy: Box<dyn Policy>,
     sender: Option<Arc<Sender>>,
+    /// Where Claude Code keeps transcripts for this sidecar's HOME
+    /// (`$HOME/.claude/projects`). The sidecar finds a session's transcript
+    /// there itself; no caller ever hands it a path.
+    projects_root: Option<PathBuf>,
 }
+
+/// Longest a ready flag counts (FC-5): older reads not ready.
+pub const READY_MAX_AGE_MS: u64 = 24 * 3600 * 1000;
 
 fn attempt_reason(attempt: u32, nonce: &str) -> String {
     format!("attempt={attempt} nonce={nonce}")
@@ -120,7 +127,31 @@ fn own(l: &ChainLine) -> bool {
 
 impl Deliverer {
     pub fn new(agent: &str, store: Arc<Store>, policy: Box<dyn Policy>, sender: Option<Arc<Sender>>) -> Self {
-        Deliverer { agent: agent.to_owned(), store, policy, sender }
+        Deliverer { agent: agent.to_owned(), store, policy, sender, projects_root: None }
+    }
+
+    /// Resolve transcripts under `root` (normally `$HOME/.claude/projects`).
+    pub fn with_projects_root(mut self, root: PathBuf) -> Self {
+        self.projects_root = Some(root);
+        self
+    }
+
+    /// Record that `session` is live and can take mail (SessionStart, Stop).
+    /// PH-1 only records it; the PH-2 doorbell reads it.
+    pub fn mark_ready(&self, session: &str, now_ms: u64) -> Result<(), String> {
+        self.store.write_state(&format!("ready-{session}"), &now_ms.to_string()).map_err(|e| e.to_string())
+    }
+
+    /// FC-5: ready only when the flag exists, parses, and is younger than
+    /// `max_age_ms`. Missing, empty, unreadable or stale all read not ready.
+    pub fn is_ready(&self, session: &str, now_ms: u64, max_age_ms: u64) -> bool {
+        match self.store.read_state(&format!("ready-{session}")) {
+            Ok(Some(s)) => match s.trim().parse::<u64>() {
+                Ok(ts) => ts <= now_ms && now_ms - ts <= max_age_ms,
+                Err(_) => false,
+            },
+            _ => false,
+        }
     }
 
     /// Bind a session id to its transcript (the SessionStart hook does this in B10).
@@ -130,11 +161,17 @@ impl Deliverer {
     }
 
     fn transcript_of(&self, session: &str) -> Option<PathBuf> {
-        self.store
-            .read_state(&format!("session-{session}"))
-            .ok()
-            .flatten()
-            .map(|s| PathBuf::from(s.trim_end()))
+        if let Some(p) = self.store.read_state(&format!("session-{session}")).ok().flatten() {
+            return Some(PathBuf::from(p.trim_end()));
+        }
+        // `<root>/<encoded cwd>/<session>.jsonl`; the session id is a checked name.
+        let root = self.projects_root.as_ref()?;
+        let file = format!("{session}.jsonl");
+        std::fs::read_dir(root)
+            .ok()?
+            .filter_map(|e| e.ok())
+            .map(|e| e.path().join(&file))
+            .find(|p| p.is_file())
     }
 
     /// Everything that may be offered now, in delivery order (urgent first, then
