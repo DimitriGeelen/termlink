@@ -7,14 +7,16 @@
 //! on the socket of its own scope, so the agent sockets cannot reach `delivery`.
 //!
 //! B5 serves `status` and the admin `delivery` flag; B6 adds `send` (through
-//! `send::Sender`, `not-configured` when none is attached). The remaining verbs
-//! are known, scope-checked and refused with `code: "not-implemented"`: they
-//! belong to B11 (reply) and B7/B9 (pull, claim, handed-over). Never faked.
+//! `send::Sender`), B9 adds `pull`, `claim` and `handed-over` (through
+//! `deliver::Deliverer`); each answers `not-configured` when its path is not
+//! attached. `reply` is known, scope-checked and refused with
+//! `code: "not-implemented"` until B11. Never faked.
 //!
 //! No verb takes a path: every field is on a per-op allow-list and every name is
 //! checked against the store's name charset, so a path or command cannot arrive.
 
 use crate::estate;
+use crate::deliver::{Deliverer, Pulled, Verdict};
 use crate::send::Sender;
 use crate::store::{ChainStatus, Store, TAIL_NOTE};
 use serde_json::{Value, json};
@@ -62,9 +64,9 @@ fn op_spec(op: &str) -> Option<(Scope, &'static [&'static str])> {
     Some(match op {
         "send" => (Scope::Send, &["to", "to_instance", "conv", "body", "priority"]),
         "reply" => (Scope::Send, &["conv", "in_reply_to", "body"]),
-        "pull" => (Scope::Send, &["session", "hook"]),
+        "pull" => (Scope::Send, &["session", "hook", "tool_use_id"]),
         "claim" => (Scope::Send, &["msg_id"]),
-        "handed-over" => (Scope::Send, &["msg_id", "nonce"]),
+        "handed-over" => (Scope::Send, &["msg_id", "nonce", "final"]),
         "status" => (Scope::Status, &["msg_id", "conv"]),
         "delivery" => (Scope::Admin, &["state", "why"]),
         _ => return None,
@@ -80,6 +82,8 @@ pub struct ApiConfig {
     pub hub_id: Option<String>,
     /// The send path (B6). Without it `send` is refused as not configured.
     pub sender: Option<Arc<Sender>>,
+    /// The deliver path (B9). Without it `pull`, `claim`, `handed-over` are refused as not configured.
+    pub deliverer: Option<Arc<Deliverer>>,
 }
 
 impl ApiConfig {
@@ -91,6 +95,7 @@ impl ApiConfig {
             owner_uid: unsafe { libc::geteuid() },
             hub_id: None,
             sender: None,
+            deliverer: None,
         }
     }
 }
@@ -256,7 +261,8 @@ fn serve(s: UnixStream, scope: Scope, sh: &Shared) -> io::Result<()> {
 fn handle(req: &Value, scope: Scope, sh: &Shared) -> Value {
     // The peer passed the owner check, so its uid is the owner's.
     let who = format!("admin-uid-{}", sh.cfg.owner_uid);
-    dispatch_inner(req, scope, &sh.store, &sh.cfg.agent, sh.cfg.hub_id.as_deref(), sh.cfg.sender.as_deref(), &who)
+    let ctx = Ctx { sender: sh.cfg.sender.as_deref(), deliverer: sh.cfg.deliverer.as_deref(), who: &who };
+    dispatch_inner(req, scope, &sh.store, &sh.cfg.agent, sh.cfg.hub_id.as_deref(), ctx)
 }
 
 /// Parse and dispatch one request; independent of any socket.
@@ -273,18 +279,31 @@ pub fn dispatch_with(
     hub_id: Option<&str>,
     sender: Option<&Sender>,
 ) -> Value {
-    dispatch_inner(req, scope, store, agent, hub_id, sender, "admin-direct")
+    dispatch_inner(req, scope, store, agent, hub_id, Ctx { sender, deliverer: None, who: "admin-direct" })
 }
 
-fn dispatch_inner(
+/// [`dispatch_with`] with the deliver path attached as well.
+pub fn dispatch_full(
     req: &Value,
     scope: Scope,
     store: &Store,
     agent: &str,
     hub_id: Option<&str>,
     sender: Option<&Sender>,
-    who: &str,
+    deliverer: Option<&Deliverer>,
 ) -> Value {
+    dispatch_inner(req, scope, store, agent, hub_id, Ctx { sender, deliverer, who: "admin-direct" })
+}
+
+#[derive(Clone, Copy)]
+struct Ctx<'a> {
+    sender: Option<&'a Sender>,
+    deliverer: Option<&'a Deliverer>,
+    who: &'a str,
+}
+
+fn dispatch_inner(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id: Option<&str>, ctx: Ctx<'_>) -> Value {
+    let (sender, who) = (ctx.sender, ctx.who);
     let Some(obj) = req.as_object() else {
         return err("bad-request", "request must be a JSON object", "send {\"op\": ...}");
     };
@@ -309,7 +328,10 @@ fn dispatch_inner(
             return err("unknown-field", &format!("field {k:?} is not accepted by {op}"), "no verb takes a path or a command");
         }
         if let Some(s) = v.as_str()
-            && matches!(k.as_str(), "msg_id" | "conv" | "to" | "to_instance" | "in_reply_to" | "session" | "nonce")
+            && matches!(
+                k.as_str(),
+                "msg_id" | "conv" | "to" | "to_instance" | "in_reply_to" | "session" | "nonce" | "tool_use_id" | "hook"
+            )
             && !valid_name(s)
         {
             return err("bad-name", &format!("field {k:?} is not a plain name"), "letters, digits, . _ - : only");
@@ -319,11 +341,74 @@ fn dispatch_inner(
         "status" => status(obj, store, agent, hub_id, sender),
         "send" => send(obj, sender),
         "delivery" => delivery(obj, store, who),
+        "pull" => pull(obj, ctx.deliverer),
+        "claim" => claim(obj, ctx.deliverer),
+        "handed-over" => handed_over(obj, ctx.deliverer),
         _ => err(
             "not-implemented",
             &format!("op {op:?} is not served yet"),
-            "arrives with the send path (B6) and the receive and deliver paths (B7, B9)",
+            "arrives with the reply path (B11)",
         ),
+    }
+}
+
+fn no_deliverer() -> Value {
+    err("not-configured", "this sidecar has no deliver path configured", "start it with a store, a policy and a send path")
+}
+
+fn pull(obj: &serde_json::Map<String, Value>, d: Option<&Deliverer>) -> Value {
+    let Some(d) = d else { return no_deliverer() };
+    let text = |k: &str| obj.get(k).and_then(Value::as_str);
+    let (Some(session), Some(hook)) = (text("session"), text("hook")) else {
+        return err("bad-request", "pull needs session and hook", "{\"op\":\"pull\",\"session\":...,\"hook\":\"post-tool-use\"}");
+    };
+    if !matches!(hook, "post-tool-use" | "stop") {
+        return err("bad-request", "hook must be post-tool-use or stop", "the hook that is calling");
+    }
+    match d.pull(session, hook, text("tool_use_id")) {
+        Ok(Pulled::Nothing { why }) => json!({"none": true, "why": why}),
+        Ok(Pulled::Frame { frame, waiting }) => json!({
+            "frame": frame.text,
+            "nonce": frame.nonce,
+            "msg_ids": frame.msg_ids,
+            "waiting": waiting,
+            "stage": "CLAIMED",
+        }),
+        Err(e) => err("deliver", &e, "nothing was handed out; the claims taken stay open and are named in needs-attention"),
+    }
+}
+
+fn claim(obj: &serde_json::Map<String, Value>, d: Option<&Deliverer>) -> Value {
+    let Some(d) = d else { return no_deliverer() };
+    let Some(id) = obj.get("msg_id").and_then(Value::as_str) else {
+        return err("bad-request", "claim needs msg_id", "{\"op\":\"claim\",\"msg_id\":...}");
+    };
+    match d.claim_one(id) {
+        Ok((attempt, nonce)) => json!({"claimed": true, "attempt": attempt, "nonce": nonce}),
+        Err(code) => err(&code, &format!("not claimed: {code}"), "held: another attempt is open; not-deliverable: not stored, refused, withheld or handed over"),
+    }
+}
+
+fn handed_over(obj: &serde_json::Map<String, Value>, d: Option<&Deliverer>) -> Value {
+    let Some(d) = d else { return no_deliverer() };
+    let Some(nonce) = obj.get("nonce").and_then(Value::as_str) else {
+        return err("bad-request", "handed-over needs nonce", "{\"op\":\"handed-over\",\"nonce\":...}");
+    };
+    if let Some(id) = obj.get("msg_id").and_then(Value::as_str) {
+        match d.attempt(nonce) {
+            Some(rec) if rec.items.iter().any(|i| i.msg_id == id) => {}
+            Some(_) => return err("bad-request", "that message is not in this attempt", "use the nonce pull returned with it"),
+            None => {}
+        }
+    }
+    let final_check = obj.get("final").and_then(Value::as_bool).unwrap_or(false);
+    // A caller cannot assert the hand-over: the verdict comes from the transcript only.
+    match d.finalize(nonce, final_check) {
+        Ok(Verdict::HandedOver) => json!({"stage": "HANDED_OVER"}),
+        Ok(Verdict::Absent) => json!({"stage": "STORED", "attempt": "closed: not in the transcript, offered again"}),
+        Ok(Verdict::Uncertain(why)) => json!({"stage": "STORED", "attempt": "open", "label": "UNCERTAIN", "why": why}),
+        Ok(Verdict::Pending) => json!({"stage": "STORED", "attempt": "open", "label": "PENDING"}),
+        Err(e) => err("bad-request", &e, "use the nonce pull returned"),
     }
 }
 

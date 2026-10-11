@@ -25,7 +25,7 @@ pub const STAGE_TYPE: &str = "sidecar.stage.v1";
 pub const META_PK: &str = "sidecar_pk";
 pub const META_SIG: &str = "sidecar_sig";
 /// Stages a receiver reports back, in their only allowed order (forward-only).
-pub const STAGE_ORDER: [&str; 2] = ["RECEIVED", "STORED"];
+pub const STAGE_ORDER: [&str; 3] = ["RECEIVED", "STORED", "HANDED_OVER"];
 
 /// The signed message body (section 5.1).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -106,6 +106,17 @@ impl Msg {
     pub fn digest(&self) -> String {
         digest_hex(&self.payload_bytes())
     }
+}
+
+/// Parse stored payload bytes back into a message: canonical v1 only. A record
+/// was verified before it was stored; this re-reads it, it does not re-verify.
+pub fn parse_payload(payload: &[u8]) -> Result<Msg, Refusal> {
+    let value: Value = serde_json::from_slice(payload).map_err(|_| Refusal::Malformed("payload is not JSON"))?;
+    let msg = Msg::from_value(&value)?;
+    if msg.payload_bytes() != payload {
+        return Err(Refusal::NotCanonical);
+    }
+    Ok(msg)
 }
 
 /// Mint a random 128-bit hex message id (reuses the offline queue's minter).
