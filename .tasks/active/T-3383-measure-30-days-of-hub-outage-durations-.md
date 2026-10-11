@@ -1,13 +1,21 @@
 ---
 id: T-3383
-name: "Measure 30 days of hub outage durations to re-check the circuit credential lifetime (OQ-3 D, H-1)"
+name: "Measure 30 days of hub outage durations to re-check the circuit credential
+  lifetime (OQ-3 D, H-1)"
 description: >
-  Operator ruled OQ-3 = D on 2026-10-07: circuit credential lifetime PN-1 = 1 h, renewal from 30 min, absolute 24 h (PN-2), stale-list limit PN-13 = 1 h, as STARTING values, re-checked against 30 days of hub outage data. Hypothesis H-1 (outages last minutes to an hour) rests on 3 days of the .107 hub journal (unit installed 2026-10-04): 2 restarts, 4m35s and ~1s down. Collect per-hub outage start/end over 30 days from the hub journals and fleet history (rotation.log / governor.log), plus circuit-break telemetry once R-46.e exists; report the distribution and whether 1 h covers the 95th percentile; bring a change back to the operator only if it does not.
+  Operator ruled OQ-3 = D on 2026-10-07: circuit credential lifetime PN-1 = 1 h, renewal
+  from 30 min, absolute 24 h (PN-2), stale-list limit PN-13 = 1 h, as STARTING values,
+  re-checked against 30 days of hub outage data. Hypothesis H-1 (outages last minutes
+  to an hour) rests on 3 days of the .107 hub journal (unit installed 2026-10-04):
+  2 restarts, 4m35s and ~1s down. Collect per-hub outage start/end over 30 days from
+  the hub journals and fleet history (rotation.log / governor.log), plus circuit-break
+  telemetry once R-46.e exists; report the distribution and whether 1 h covers the
+  95th percentile; bring a change back to the operator only if it does not.
 
-status: captured
+status: started-work
 workflow_type: specification
 owner: agent
-horizon: later
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -38,8 +46,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-07T16:33:27Z
-last_update: 2026-10-07T16:33:27Z
-date_finished: null
+last_update: 2026-10-11T17:05:50Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +58,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-11T17:00:04Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3383: Measure 30 days of hub outage durations to re-check the circuit credential lifetime (OQ-3 D, H-1)
@@ -67,8 +89,18 @@ Two operator rulings in T-3351 (arc-011 step 2) wait on this measurement:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] scripts/collect-hub-outages.sh probes every hub in hubs.toml with a bounded read-only call and appends one NDJSON line per hub per sample (ts, hub, reachable, latency_ms, error class) to a gitignored file under .context/working/; unreachable is data (exit 0), never an alarm (PL-219); per-hub timeout (PL-189)
+- [x] scripts/summarise-hub-outages.sh turns samples into outage intervals (start, end, duration_s, open flag) per hub with --json, plus p50/p95/max and whether 1 h covers p95 (H-1)
+- [x] Heartbeat is written on EXIT (T-2843); --no-heartbeat supported
+- [x] .context/cron/hub-outage-collector.crontab runs the collector every minute with the T-2685 split-stderr idiom and a correct "# Installed to:" header
+- [x] A liveness canary (scripts/check-hub-outage-collector-freshness.sh + crontab) fires when the collector heartbeat/samples go stale, and appears in /canaries (canary-status.sh discovery)
+- [x] runme.sh has an idempotent install action for both crontabs; tests/runme-fixtures.sh EXPECT_N updated and passing
+- [x] Hermetic fixtures cover collector, summariser interval maths, canary, and a mutant check, all green
+- [ ] 7-day run pending: collector installed via runme action; task stays started-work (exit condition of PH-0 6.2.1.a (1) is time-based)
+
+### Human
+<!-- none -->
+
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -104,6 +136,10 @@ Two operator rulings in T-3351 (arc-011 step 2) wait on this measurement:
 -->
 
 ## Verification
+
+bash tests/hub-outage-collector-fixtures.sh > /tmp/.t3383.out 2>&1 && grep -q "FAIL: 0" /tmp/.t3383.out
+bash tests/runme-fixtures.sh > /tmp/.t3383r.out 2>&1
+test -f .context/cron/hub-outage-collector.crontab
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -347,7 +383,16 @@ Two operator rulings in T-3351 (arc-011 step 2) wait on this measurement:
 
 ## Updates
 
+### 2026-10-11 — build [build-t3383]
+- Collector installed via runme action 1 (install_crontab hub-outage-collector.crontab); 7-day run pending. Files: scripts/{collect,summarise}-hub-outages.sh, scripts/check-hub-outage-collector-freshness.sh, .context/cron/hub-outage-collector.crontab, tests/hub-outage-collector-fixtures.sh (25 assertions incl. 3 mutants).
+
 ### 2026-10-07T16:33:27Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3383-measure-30-days-of-hub-outage-durations-.md
 - **Context:** Initial task creation
+
+### 2026-10-11T16:58:57Z — status-update [task-update-agent]
+- **Change:** horizon: later → now
+
+### 2026-10-11T17:00:03Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

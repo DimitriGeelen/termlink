@@ -378,6 +378,10 @@ if echo "$out" | grep -q "installed and verified: $TMP/bin/termlink (termlink 9.
     ok "default run installs the new termlink and verifies version + --no-create on disk"
 else bad "termlink install" "$out"; fi
 
+if cmp -s .context/cron/hub-outage-collector.crontab "$TMP/cron/termlink-hub-outage-collector"; then
+    ok "default run installs the hub-outage collector + canary crontab and verifies it on disk (T-3383)"
+else bad "hub-outage-collector crontab install" "$out"; fi
+
 # ---------------------------------------------------------------------------
 # 5-6. IDEMPOTENCE. Re-running must do nothing and say so — the operator has to
 #      be able to re-run without wondering whether they already did.

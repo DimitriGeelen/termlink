@@ -1,0 +1,12 @@
+# T-3383 — hub outage sampler (PH-0 6.2.1.a (1), hypothesis H-1) + its liveness canary
+# Source of truth: /opt/termlink/.context/cron/hub-outage-collector.crontab (git-tracked)
+# Installed to:    /etc/cron.d/termlink-hub-outage-collector (USER field syntax — do NOT load into a user crontab)
+#
+# Every minute: one bounded TLS probe per hub in ~/.termlink/hubs.toml, appended to
+# .context/working/.hub-outage-samples.ndjson. Unreachable is data, not an alarm (PL-219);
+# findings go to stdout->.log (empty), diagnostics to .stderr (T-2685).
+# Every 15 min: the liveness canary — fires if the collector heartbeat/samples go stale.
+SHELL=/bin/bash
+PATH=/root/.cargo/bin:/usr/local/bin:/usr/bin:/bin
+* * * * * root cd /opt/termlink && bash scripts/collect-hub-outages.sh >> .context/working/.hub-outage-collector.log 2>> .context/working/.hub-outage-collector.log.stderr
+*/15 * * * * root cd /opt/termlink && bash scripts/check-hub-outage-collector-freshness.sh --quiet >> .context/working/.hub-outage-collector-canary.log 2>> .context/working/.hub-outage-collector-canary.log.stderr
