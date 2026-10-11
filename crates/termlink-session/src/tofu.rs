@@ -63,6 +63,65 @@ fn now_utc() -> String {
     format!("{y:04}-{:02}-{:02}T{h:02}:{m:02}:{s:02}Z", mo + 1, remaining + 1)
 }
 
+/// Path of the append-only pin-event trail (T-3384, RR-18 interim control).
+/// `TERMLINK_PIN_EVENTS_FILE` overrides; default `<identity dir>/pin-events.jsonl`.
+pub fn pin_events_path() -> PathBuf {
+    match std::env::var_os("TERMLINK_PIN_EVENTS_FILE") {
+        Some(p) if !p.is_empty() => PathBuf::from(p),
+        // Unit tests must never write the operator's real trail.
+        _ if cfg!(test) => std::env::temp_dir()
+            .join(format!("tl-pin-events-test-{}.jsonl", std::process::id())),
+        _ => crate::identity_dir::resolve_identity_dir().join("pin-events.jsonl"),
+    }
+}
+
+/// Build one pin-event JSON line (no trailing newline).
+fn pin_event_line(verb: &str, address: &str, old: Option<&str>, new: Option<&str>) -> String {
+    serde_json::json!({
+        "ts": now_utc(),
+        "verb": verb,
+        "address": address,
+        "old_fingerprint": old,
+        "new_fingerprint": new,
+        "pid": std::process::id(),
+        "argv0": std::env::args().next(),
+        "agent_id": std::env::var("TERMLINK_AGENT_ID").ok().filter(|v| !v.is_empty()),
+    })
+    .to_string()
+}
+
+/// Fallible core of [`record_pin_event`], split out so tests can assert failure.
+fn record_pin_event_to(
+    path: &std::path::Path,
+    verb: &str,
+    address: &str,
+    old: Option<&str>,
+    new: Option<&str>,
+) -> std::io::Result<()> {
+    use std::io::Write;
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let mut f = std::fs::OpenOptions::new().create(true).append(true).open(path)?;
+    // One write call so concurrent appenders do not interleave a line.
+    f.write_all((pin_event_line(verb, address, old, new) + "\n").as_bytes())
+}
+
+/// Record a pin change (`tofu-clear`, `tofu-clear-all`, `tofu-pin`) in the append-only
+/// trail. This is a tripwire, not a gate: a write failure warns on stderr and the
+/// operation proceeds. After-the-fact detection only; a same-user attacker can edit
+/// the file (RR-18).
+pub fn record_pin_event(verb: &str, address: &str, old: Option<&str>, new: Option<&str>) {
+    let path = pin_events_path();
+    if let Err(e) = record_pin_event_to(&path, verb, address, old, new) {
+        eprintln!(
+            "warning: failed to record TOFU pin event ({verb} {address}) to {} ({e}); \
+             the operation proceeds but this change will not appear in needs-attention",
+            path.display()
+        );
+    }
+}
+
 /// An entry in the known_hubs store.
 #[derive(Clone, Debug)]
 pub struct KnownHub {
@@ -194,8 +253,10 @@ impl KnownHubStore {
     /// Remove a specific host:port entry. Returns true if it existed.
     pub fn remove(&self, host_port: &str) -> bool {
         let mut entries = self.entries.lock().expect("TOFU store lock poisoned");
-        let existed = entries.remove(host_port).is_some();
-        if existed {
+        let removed = entries.remove(host_port);
+        let existed = removed.is_some();
+        if let Some(old) = removed {
+            record_pin_event("tofu-clear", host_port, Some(&old.fingerprint), None);
             drop(entries);
             self.save();
         }
@@ -206,6 +267,9 @@ impl KnownHubStore {
     pub fn clear_all(&self) -> usize {
         let mut entries = self.entries.lock().expect("TOFU store lock poisoned");
         let count = entries.len();
+        for (hp, old) in entries.iter() {
+            record_pin_event("tofu-clear-all", hp, Some(&old.fingerprint), None);
+        }
         entries.clear();
         drop(entries);
         self.save();
@@ -239,7 +303,8 @@ impl KnownHubStore {
             }
         }
 
-        // New hub — trust on first use
+        // New hub — trust on first use (after a `tofu clear` this IS the re-pin)
+        record_pin_event("tofu-pin", host_port, None, Some(fingerprint));
         entries.insert(
             host_port.to_string(),
             KnownHub {
@@ -769,5 +834,40 @@ mod tests {
             assert!(err.contains("1s"), "timeout error should include duration: {err}");
             assert!(err.contains("192.0.2.1"), "timeout error should include addr: {err}");
         }
+    }
+
+    #[test]
+    fn pin_event_has_fields_and_appends() {
+        let dir = std::env::temp_dir().join(format!("tl-pinev-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let f = dir.join("sub").join("pin-events.jsonl");
+        record_pin_event_to(&f, "tofu-clear", "h:9100", Some("sha256:aa"), None).unwrap();
+        record_pin_event_to(&f, "tofu-pin", "h:9100", None, Some("sha256:bb")).unwrap();
+        let text = std::fs::read_to_string(&f).unwrap();
+        let lines: Vec<serde_json::Value> =
+            text.lines().map(|l| serde_json::from_str(l).unwrap()).collect();
+        assert_eq!(lines.len(), 2);
+        assert_eq!(lines[0]["verb"], "tofu-clear");
+        assert_eq!(lines[0]["old_fingerprint"], "sha256:aa");
+        assert!(lines[0]["new_fingerprint"].is_null());
+        assert_eq!(lines[1]["new_fingerprint"], "sha256:bb");
+        for k in ["ts", "address", "pid", "argv0", "agent_id"] {
+            assert!(lines[0].get(k).is_some(), "missing {k}");
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn pin_event_failure_does_not_block_operation() {
+        let dir = std::env::temp_dir().join(format!("tl-pinev-fail-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let blocker = dir.join("blocker");
+        std::fs::write(&blocker, "x").unwrap();
+        // Parent is a regular file => the append fails.
+        assert!(record_pin_event_to(&blocker.join("e.jsonl"), "v", "h", None, None).is_err());
+        // record_pin_event returns () by signature: a failure can only warn, never block.
+        let _: () = record_pin_event("tofu-pin", "h:1", None, Some("sha256:cc"));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

@@ -1,13 +1,18 @@
 ---
 id: T-3384
-name: "Record every TOFU re-pin and tofu clear, show in needs-attention (RR-18 interim, OQ-8 D″)"
+name: "Record every TOFU re-pin and tofu clear, show in needs-attention (RR-18 interim,
+  OQ-8 D″)"
 description: >
-  Operator ruling OQ-8 D″ (T-3351, 2026-10-09) authorised the RR-18 interim control: every fleet reauth re-pin, tofu clear and probe re-pin is recorded in an audit trail and shown in needs-attention until re-pinning itself goes through a Tier 0 event (CR-18). After-the-fact detection; a same-user attacker can edit the record (stated in RR-18). Write real ACs before editing source (G-020).
+  Operator ruling OQ-8 D″ (T-3351, 2026-10-09) authorised the RR-18 interim control:
+  every fleet reauth re-pin, tofu clear and probe re-pin is recorded in an audit trail
+  and shown in needs-attention until re-pinning itself goes through a Tier 0 event
+  (CR-18). After-the-fact detection; a same-user attacker can edit the record (stated
+  in RR-18). Write real ACs before editing source (G-020).
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -38,8 +43,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-09T18:48:06Z
-last_update: 2026-10-09T18:48:06Z
-date_finished: null
+last_update: 2026-10-11T14:19:12Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +55,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-11T14:13:44Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3384: Record every TOFU re-pin and tofu clear, show in needs-attention (RR-18 interim, OQ-8 D″)
@@ -62,8 +81,13 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] A recorder appends one JSON line per pin event (ts, verb, address, old/new fingerprint, pid, argv0, TERMLINK_AGENT_ID) to ~/.termlink/pin-events.jsonl (overridable by env), append-only; write failure warns on stderr and never blocks the operation
+- [x] `termlink tofu clear`, `fleet reauth` re-pin, and every other KnownHubStore pin-changing path call the recorder (recorder lives inside KnownHubStore remove/clear_all/accept, so CLI, MCP and the TLS verifier are all covered; fleet reauth does not write known_hubs)
+- [x] scripts/check-pin-events.sh exits 0 none new / 1 new since acknowledged offset / 2 tooling; supports --ack and --json
+- [x] scripts/session-start-alerts.sh surfaces new pin events in needs-attention
+- [x] Rust unit tests for the recorder pass (fields, append-only, failure does not block)
+- [x] tests/pin-events-fixtures.sh passes hermetically, including a mutant that goes red when the recorder call is removed from tofu clear
+- [x] Docs state this is after-the-fact detection and a same-user attacker can edit the record (RR-18) (script header, recorder doc comment, --json scope field)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -99,6 +123,10 @@ date_finished: null
 -->
 
 ## Verification
+
+cargo build -p termlink > /tmp/.t3384-build.out 2>&1
+bash tests/pin-events-fixtures.sh > /tmp/.t3384-fx.out 2>&1
+test -x scripts/check-pin-events.sh
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -346,3 +374,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3384-record-every-tofu-re-pin-and-tofu-clear-.md
 - **Context:** Initial task creation
+
+### 2026-10-11T14:13:43Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

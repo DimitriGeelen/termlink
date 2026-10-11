@@ -54,6 +54,11 @@ canaries="$(printf '%s' "$canary_json" | jq -c '[.canaries[]?
 canary_err=""
 [ -n "$canaries" ] || { canaries="[]"; canary_err="could not read canary status (canary-status.sh --json gave nothing parseable)"; }
 
+# ---- 1b. TOFU pin events (T-3384, RR-18 interim) -------------------------------
+pins="$(bash "$HERE/check-pin-events.sh" --json 2>/dev/null | jq -c '.events // []' 2>/dev/null)"
+pin_err=""
+[ -n "$pins" ] || { pins="[]"; pin_err="could not read TOFU pin events (check-pin-events.sh --json gave nothing parseable)"; }
+
 # ---- 2. peer mail since this script last showed it ------------------------------
 mail="[]" mail_err=""
 topics="$("$TL" channel list --prefix "inbox:" --json 2>/dev/null \
@@ -92,14 +97,19 @@ fi
 
 # ---- output -------------------------------------------------------------------
 if [ "$json" -eq 1 ]; then
-    jq -cn --argjson c "$canaries" --argjson m "$mail" --arg ce "$canary_err" --arg me "$mail_err" \
-        '{canaries:$c, mail:$m, errors:([$ce,$me] | map(select(. != "")))}'
+    jq -cn --argjson c "$canaries" --argjson m "$mail" --argjson p "$pins" --arg ce "$canary_err" --arg me "$mail_err" --arg pe "$pin_err" \
+        '{canaries:$c, mail:$m, pin_events:$p, errors:([$ce,$me,$pe] | map(select(. != "")))}'
     exit 0
 fi
 nc="$(printf '%s' "$canaries" | jq 'length')"; nm="$(printf '%s' "$mail" | jq 'length')"
 echo "Canaries needing attention: $nc"
 printf '%s' "$canaries" | jq -r '.[] | "  \(.status)  \(.name)\n      ↳ \(.latest)"'
 [ -n "$canary_err" ] && echo "  CHECK FAILED: $canary_err"
+np="$(printf '%s' "$pins" | jq 'length')"
+echo "TOFU pin events not acknowledged: $np"
+printf '%s' "$pins" | jq -r '.[] | "  \(.ts)  \(.verb)  \(.address)  by \(.agent_id // .argv0 // "?")"'
+[ "$np" -gt 0 ] && echo "      review, then: bash scripts/check-pin-events.sh --ack"
+[ -n "$pin_err" ] && echo "  CHECK FAILED: $pin_err"
 echo "Peer mail not yet shown to this agent: $nm"
 printf '%s' "$mail" | jq -r --argjson l "$limit" '.[:$l][] | "  @\(.offset) \(.topic | split("/") | last)  from \(.from)  \(.age_min) min ago  cid=\(.conversation_id)\n      \(.preview)"'
 [ "$nm" -gt "$limit" ] && echo "  … and $((nm - limit)) more"

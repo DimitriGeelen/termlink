@@ -1,10 +1,16 @@
 ---
 id: T-3390
-name: "fleet reauth prints the first 12 hex chars of the new hub secret (48 of 256 bits in logs/transcripts)"
+name: "fleet reauth prints the first 12 hex chars of the new hub secret (48 of 256
+  bits in logs/transcripts)"
 description: >
-  Field finding F2 from dimitri-mint-dev (conversation termlink-findings-dimitri-mint-dev, 2026-10-10). crates/termlink-cli/src/commands/remote.rs:8256 prints persisted.chars().take(12), i.e. raw secret material, as a 'preview'. Replace with a fingerprint of the secret (e.g. first 12 hex of sha256(secret)), keep the operator-visible confirmation; add a test that the printed value is not a prefix of the secret. Write real ACs before editing source (G-020).
+  Field finding F2 from dimitri-mint-dev (conversation termlink-findings-dimitri-mint-dev,
+  2026-10-10). crates/termlink-cli/src/commands/remote.rs:8256 prints persisted.chars().take(12),
+  i.e. raw secret material, as a 'preview'. Replace with a fingerprint of the secret
+  (e.g. first 12 hex of sha256(secret)), keep the operator-visible confirmation; add
+  a test that the printed value is not a prefix of the secret. Write real ACs before
+  editing source (G-020).
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -38,8 +44,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-11T09:53:10Z
-last_update: 2026-10-11T09:53:10Z
-date_finished: null
+last_update: 2026-10-11T11:13:44Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +56,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-11T11:13:44Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3390: fleet reauth prints the first 12 hex chars of the new hub secret (48 of 256 bits in logs/transcripts)
@@ -62,8 +82,12 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `fleet reauth --bootstrap-from` success output (human and `--json` `fingerprint_preview`) shows the first 12
+      hex of sha256(secret), never characters of the secret itself; the JSON field name stays (compatibility)
+- [x] Human text says it is a fingerprint, not part of the secret; help/doc text that described a secret prefix
+      is corrected (none found besides the eprintln; CLAUDE.md already says "fingerprint preview")
+- [x] Unit tests: the fingerprint is 12 lowercase hex, deterministic, equals the sha256 prefix, and is not a
+      substring of the secret; the existing T-2617 preview-vs-disk tests still pass (52/52 `secret` tests)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -99,6 +123,9 @@ date_finished: null
 -->
 
 ## Verification
+
+cargo test -p termlink --bin termlink secret > /tmp/.t3390-secret 2>&1 && grep -q "secret_fingerprint_is_not_part_of_the_secret ... ok" /tmp/.t3390-secret && grep -q "write_secret_file_returns_confirmed_hex ... ok" /tmp/.t3390-secret
+test -z "$(grep -n 'first 12 of 64 hex chars' crates/termlink-cli/src/commands/remote.rs)"
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -346,3 +373,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3390-fleet-reauth-prints-the-first-12-hex-cha.md
 - **Context:** Initial task creation
+
+### 2026-10-11T11:13:44Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
