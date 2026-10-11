@@ -1,0 +1,403 @@
+[0m
+> build · glm-5.3
+[0m
+[0m→ [0mRead docs/design/interactive-agent-communication-03-floor-and-phasing.md
+[0m→ [0mRead docs/design/roles/cards/mvp-specialist.md
+[0m→ [0mRead docs/design/interactive-agent-communication-03-floor-and-phasing.md[90m [offset=386, limit=400][0m
+[0m→ [0mRead docs/design/roles/cards/_common.md
+[0m→ [0mRead docs/design/interactive-agent-communication-03-floor-and-phasing.md[90m [limit=400, offset=631][0m
+[0m→ [0mRead docs/design/interactive-agent-communication-03-floor-and-phasing.md[90m [offset=933][0m
+[0m
+[0m$ [0mwc -l /opt/termlink/docs/design/interactive-agent-communication-01-requirements.md /opt/termlink/docs/design/interactive-agent-communication-02-threat-model.md /opt/termlink/.tasks/completed/T-3351-arc-011-role-chain-step-2-threat-modeler.md /opt/termlink/.tasks/completed/T-3388-arc-011-step-1-reopen-requirements-v05-f.md
+1764 /opt/termlink/docs/design/interactive-agent-communication-01-requirements.md
+  1628 /opt/termlink/docs/design/interactive-agent-communication-02-threat-model.md
+   634 /opt/termlink/.tasks/completed/T-3351-arc-011-role-chain-step-2-threat-modeler.md
+   429 /opt/termlink/.tasks/completed/T-3388-arc-011-step-1-reopen-requirements-v05-f.md
+  4455 total
+[0m
+[0m$ [0msha256sum /opt/termlink/docs/design/interactive-agent-communication-01-requirements.md /opt/termlink/docs/design/interactive-agent-communication-02-threat-model.md /opt/termlink/.tasks/completed/T-3351-arc-011-role-chain-step-2-threat-modeler.md /opt/termlink/.tasks/completed/T-3388-arc-011-step-1-reopen-requirements-v05-f.md
+d2d839fb743eb4c542f337f2b3d244e3df4a47ac40807ebbc5f7dda5ead0a3d4  /opt/termlink/docs/design/interactive-agent-communication-01-requirements.md
+88961693384966502f4ca4eb515ed4b0590a29c3d61ac0c619e17ea4562693f3  /opt/termlink/docs/design/interactive-agent-communication-02-threat-model.md
+d17ce3da1a7798a55a0867bfd3e4ac1d71cb52a7a4491479d0e23cba377a93f5  /opt/termlink/.tasks/completed/T-3351-arc-011-role-chain-step-2-threat-modeler.md
+571d472c2445d8a5f1c7b25dadfa04fa0c0f94027bc2dfb202f5603b0b97140c  /opt/termlink/.tasks/completed/T-3388-arc-011-step-1-reopen-requirements-v05-f.md
+[0m
+The document's claimed input hashes match the actual files. Now reading the two inputs of record.
+[0m→ [0mRead docs/design/interactive-agent-communication-01-requirements.md[90m [limit=900][0m
+[0m→ [0mRead docs/design/interactive-agent-communication-01-requirements.md[90m [limit=520, offset=381][0m
+[0m→ [0mRead docs/design/interactive-agent-communication-01-requirements.md[90m [limit=560, offset=677][0m
+[0m→ [0mRead docs/design/interactive-agent-communication-01-requirements.md[90m [limit=450, offset=920][0m
+[0m→ [0mRead docs/design/interactive-agent-communication-01-requirements.md[90m [limit=660, offset=1107][0m
+[0m→ [0mRead docs/design/interactive-agent-communication-01-requirements.md[90m [offset=1489][0m
+Now reading the threat model (input of record #2).
+[0m→ [0mRead docs/design/interactive-agent-communication-02-threat-model.md[90m [limit=400][0m
+[0m→ [0mRead docs/design/interactive-agent-communication-02-threat-model.md[90m [limit=420, offset=280][0m
+[0m→ [0mRead docs/design/interactive-agent-communication-02-threat-model.md[90m [limit=420, offset=457][0m
+[0m→ [0mRead docs/design/interactive-agent-communication-02-threat-model.md[90m [limit=330, offset=877][0m
+[0m→ [0mRead docs/design/interactive-agent-communication-02-threat-model.md[90m [offset=1207][0m
+[0m→ [0mRead docs/design/interactive-agent-communication-02-threat-model.md[90m [offset=1453][0m
+[0m→ [0mRead docs/design/interactive-agent-communication-02-threat-model.md[90m [offset=1549][0m
+Now checking the two operator-ruling task records cited as binding.
+[0m
+[0m$ [0mgrep -n "## Decisions" -A 60 /opt/termlink/.tasks/completed/T-3388-arc-011-step-1-reopen-requirements-v05-f.md | head -120
+368:- Ruling records: T-3351 and this task's ## Decisions.
+369-
+370:## Decisions
+371-
+372-<!-- Record decisions ONLY when choosing between alternatives.
+373-     Skip for tasks with no meaningful choices.
+374-     Format:
+375-     ### [date] — [topic]
+376-     - **Chose:** [what was decided]
+377-     - **Why:** [rationale]
+378-     - **Rejected:** [alternatives and why not]
+379--->
+380-
+381-### 2026-10-10 — When and how to reopen step 1 (operator ruling)
+382-- **Chose:** A (operator: "A"): reopen now; a TermLink worker drafts v0.5 from the 20 accepted change requests with
+383-  traceability; Codex consistency check; operator sign-off of v0.5. Step-2 sign-off may run in parallel because
+384-  every change request was ruled individually.
+385-- **Rejected:** B (wait for the step-2 sign-off; waits for nothing), C (no reopen; step 3 would read two disagreeing
+386-  documents), D (only the CRs that change [R] requirements; new requirements left in the wrong document).
+387-
+388-### 2026-10-10 — R-67 precedence: named incumbent vs duplicate resolution (operator ruling)
+389-- **Source:** Codex check of v0.5 (codex-confirm.md 4a); fold-report 3.6.
+390-- **Chose:** D (operator: "D"): if the hub record names a valid lease holder it keeps main, busy or ready (R-67.a:
+391-  busy keeps main, no automatic take-back); other copies become instances, are told, stray role mail is forwarded.
+392-  The duplicate order (pin, then longest uninterrupted lease holding busy or ready, the operator's "longest
+393-  running", then stable id) applies only when the hub cannot name one valid holder (partition, restore, moved home
+394-  hub). Applied to R-67.a1 (3), 14.4.7 (closed) in requirements v0.5.2 and to CR-20 (3) in the threat model.
+395-- **Rejected:** A (same precedence, tie-break counted on ready time only), B (duplicate rule beats a busy incumbent;
+396-  main flaps), C (every duplicate waits for the operator; mail stuck, against RR-8).
+397-
+398-## Decision
+399-
+400-<!-- Filled at completion of inception tasks via:
+401-     fw inception decide T-XXX go|no-go|defer --rationale "..."
+402-
+403-     For non-inception tasks this section is ignored. Kept in template
+404-     so `fw inception decide` (lib/inception.sh) finds the anchor heading
+405-     without auto-creating; T-1832 added auto-create as fallback for
+406-     legacy tasks lacking this section. -->
+407-
+408-## Updates
+409-
+410-### 2026-10-10T15:48:26Z — task-created [task-create-agent]
+411-- **Action:** Created task via task-create agent
+412-- **Output:** /opt/termlink/.tasks/active/T-3388-arc-011-step-1-reopen-requirements-v05-f.md
+413-- **Context:** Initial task creation
+414-
+415-### 2026-10-10T15:49:00Z — status-update [task-update-agent]
+416-- **Change:** status: captured → started-work
+417-
+418-## Reviewer Verdict (v1.5)
+419-
+420-- **Scan ID:** R-24247c74
+421-- **Timestamp:** 2026-10-11T10:59:51Z
+422-- **Catalogue:** v1.3-seed
+423-- **Overall:** PASS
+424-- **Needs Human:** no
+425-- **Findings:** none
+426-
+427-### 2026-10-11T10:59:50Z — status-update [task-update-agent]
+428-- **Change:** status: started-work → work-completed
+429-- **Reason:** Completed via Watchtower UI (human action)
+[0m
+[0m$ [0mgrep -n "## Decisions" -A 80 /opt/termlink/.tasks/completed/T-3351-arc-011-role-chain-step-2-threat-modeler.md | head -140
+178:- Full ruling records: this task's ## Decisions.
+179-- Codex consistency check: `docs/reports/T-3351-step2-review/codex-confirm.md`; fixes `fixes-confirm.md`.
+180-
+181:## Decisions
+182-
+183-<!-- Record decisions ONLY when choosing between alternatives.
+184-     Skip for tasks with no meaningful choices.
+185-     Format:
+186-     ### [date] — [topic]
+187-     - **Chose:** [what was decided]
+188-     - **Why:** [rationale]
+189-     - **Rejected:** [alternatives and why not]
+190--->
+191-
+192-### 2026-10-07 — How to take step 2's 54 operator items (operator ruling)
+193-- **Context:** threat model v0.3 (after review rounds 1 and 2 and two revisions; GLM r2 "fit", Codex r2 "not fit yet",
+194-  every r2 finding then disposed in disposition-r2.md; neither reviewer has seen v0.3) carries OQ-1..17, RR-1..20,
+195-  CR-1..17.
+196-- **Chose:** B — the 17 open questions one at a time; each brief names the change requests and residual risks its
+197-  ruling settles; the unlinked remainder afterwards, one at a time.
+198-- **Why:** keeps one decision per message while cutting ~54 rulings to ~17 plus a tail. Scored B +42, C +31, A +1, D −8.
+199-- **Rejected:** A (54 rounds, many restating earlier answers), C (batches risk acceptance, against the standing rule),
+200-  D (risk acceptance is reserved to the operator by the role card).
+201-
+202-### 2026-10-07 — OQ-1 which added adversaries to confirm (operator ruling)
+203-- **Chose:** A — confirm ADV-11 (compromised or rogue hub), ADV-12 (unadmitted joiner), ADV-13 (network attacker:
+204-  delay, drop, replay, redirect; TLS gives secrecy and integrity, not delivery), ADV-14 (holder of the operator's
+205-  approval device or key). Steps 3-4 defend against ADV-1..ADV-14.
+206-- **Why:** each acts where the new parts sit (circuits, card exchange, approvals); the record shows hubs going wrong
+207-  (stray hub 2026-10-04, G-060); both reviewers asked for ADV-14. Scored A +37, B +26, D −21, C −32.
+208-- **Rejected:** B (drops ADV-13; "covered by TLS" misreads TLS, Codex r1), C (leaves CAND-17 and the approval device
+209-  undefended), D (step 3 would not know whom the floor stops).
+210-- **Settles directly:** no RR or CR; scopes RR-4, RR-14, RR-16, RR-18 and CR-14.
+211-
+212-### 2026-10-07 — OQ-2 the shared operating-system user (operator ruling)
+213-- **Fact added at the brief:** all 19 Claude agents on .107 run as root (ps, 2026-10-07), so today the shared user is
+214-  root and same-user equals host root in practice.
+215-- **Chose:** C now, B as the committed target (operator's words: "we accept it for now, but we definitely want to move
+216-  to a more isolated per-agent account, which can be created by the orchestrator … always via Tier 0"). (1) RR-2 is
+217-  accepted for the present, with the root fact. (2) Target: one isolated OS account per agent, created by the
+218-  orchestrator through a narrow privileged helper (least privilege: one helper with fixed settings, e.g. a single
+219-  sudoers entry; never general root for the orchestrator); every creation is a Tier 0 action (human-approved, logged).
+220-  (3) Step 3 phases and prices the move, including group-based access to shared checkouts; step 4 designs the helper.
+221-  (4) Host root stays residual for the lifetime (RR-2).
+222-- **Why:** one account per workload is the standard pattern (service users, systemd DynamicUser, k8s service accounts);
+223-  it makes per-agent keys a real boundary and ends agents running as root. Scored C +29, A +10, B (as an immediate
+224-  requirement) +5, D −12.
+225-- **Rejected:** A (closes the door on separation), B now (unmeasured change blocking the floor), D (step 3 needs it).
+226-- **Settles:** RR-2 accepted for now (with the target); RR-7 bounded by it.
+227-
+228-### 2026-10-07 — OQ-3 the circuit credential lifetime (operator ruling)
+229-- **Evidence added at the brief:** the .107 hub journal (from 2026-10-04 only) shows 2 restarts in 3 days, down
+230-  4m35s and ~1s; consistent with H-1 but thin.
+231-- **Operator question answered first:** how is a sender authenticated if a credential can be stolen? Answer recorded:
+232-  identity is the agent key pair (public key on the home hub's card, PR-1a); set-up is signed (7.2.a); the credential
+233-  is sender-constrained and channel-bound (fresh proof of possession, 7.2.c); every message is signed (PR-1, CR-2).
+234-  A stolen credential alone is useless; the remaining exposures are key theft (RR-2, OQ-2 target), a lying hub at
+235-  first contact (RR-14, ADV-11, OQ-8), and no operator key yet (GP-11, OQ-6).
+236-- **Chose:** D — PN-1 1 hour, PN-2 renewal from 30 minutes and 24 hours absolute, PN-13 1 hour, and the R-7.e (1)
+237-  cross-host bound of 1 hour, as STARTING values; re-checked against 30 days of hub outage data (follow-up T-3383).
+238-- **Why:** survives the measured outages with margin; a thief also needs the agent key; numbers stay open to evidence.
+239-  Scored D +42, B +26, C +12, A −21.
+240-- **Rejected:** A (a measured 4.5-minute restart takes a third of it), C (a working afternoon for a key thief),
+241-  B without a dated re-check (rests on 3 days of one hub).
+242-- **Settles:** PN-1, PN-2, PN-13, the R-7.e (1) bound; RR-5 accepted at a one-hour window.
+243-
+244-### 2026-10-08 — OQ-4 same-host new conversation without the hub (J4 question; operator ruling)
+245-- **Chose:** D — A now: a new conversation always goes through the hub, on one host too (R-7.e (2) unchanged); only
+246-  established conversations run on a circuit. Revisit B (local start while the hub is down) once per-agent OS
+247-  accounts exist (OQ-2 target) and T-3383 has measured hub-down time.
+248-- **Why:** a local start would be a second authority (R-45, R-49); with every agent running as root, "same user"
+249-  cannot tell agents apart (7.6.b); the OQ-2 target removes that obstacle, so B gets a second look then. Scored
+250-  D +42, A +33, B +9, C −17.
+251-- **Rejected:** B now (trusts anyone on the host), C (bypasses the hub's checks permanently), A with no revisit.
+252-- **Settles:** RR-11 accepted for now; TB-6 analysis (14.7, written for A) stands.
+253-
+254-### 2026-10-08 — OQ-5 failures the store must survive (GP-13; operator ruling)
+255-- **Chose:** A — survive F-1 (sidecar killed mid-write) and F-2 (host crash: flush before STORED); detect and show
+256-  F-3 (disk full: refuse STORED visibly), F-4 (corrupt record: checksum, quarantine, resend by digest), F-5 (store lost
+257-  or old copy restored: reconcile with the hub record, flag lost-after-STORED); refuse or detect F-6 (second writer,
+258-  lock) and F-7 (attacker writes; prevention is RR-2).
+259-- **Why:** STORED releases the sender, so it must hold through a power cut; every other failure is loud, never
+260-  silent. Scored A +42, C +32, B −18.
+261-- **Rejected:** B (no flush; breaks the STORED promise in a crash for unmeasured speed), C (duplicate writes for a
+[0m
+The inputs of record and rulings are now mapped. Verifying the document's secondary claims: input hashes, the role-chain hand-over, dependency task statuses, and the host facts of 1.4.d.
+[0m$ [0mcd /opt/termlink && awk '/^### Step 3/,/^### Step 4/' docs/design/interactive-agent-communication-role-chain.yaml | head -80
+(no output)
+[0m
+[0m$ [0mcd /opt/termlink && sha256sum docs/design/roles/cards/_common.md docs/design/roles/cards/mvp-specialist.md docs/design/roles/adapters/aef.md docs/design/roles/profiles/termlink.md docs/design/roles/README.md docs/design/interactive-agent-communication-role-chain.yaml docs/design/roles/schemas/role-handback-1.schema.json docs/design/interactive-agent-communication/interview-step-01.md 2>&1; wc -l CLAUDE.md; sed -n '1,2820p' CLAUDE.md | sha256sum; ls docs/reports/T-3344-gp12-review/ 2>&1
+cca38806358d7a6c09e64289164977a825f2cf57e914f672076ff77a2bdb5563  docs/design/roles/cards/_common.md
+04fa87539950fd1ce74d63ecdacf36bb4d90d53fb3b60d79d23d83d8273be66e  docs/design/roles/cards/mvp-specialist.md
+d840a77649888cdbfd37d1166c15eecd6cd3c8399d497fb6b1b2c52455c6c4a4  docs/design/roles/adapters/aef.md
+b6bc160242d96ca9a8fc167c6845e292529c162fa23faa2945d4742b676e7b21  docs/design/roles/profiles/termlink.md
+3881d5302313a0d0ca4c9ef1b4688dae101b6d693df823be962e9b70946368e0  docs/design/roles/README.md
+91c9c1ab63988e90ab906ab6103825f48a91a72c4220afaf5ee47f004690464d  docs/design/interactive-agent-communication-role-chain.yaml
+288a4e312f00bac978a4b2a87e57ee8a05cb14f916d77c397e601e03c703c148  docs/design/roles/schemas/role-handback-1.schema.json
+aad8308e1924df293270d628b224dafc4814f675a4a61485dd2c1797a7114edd  docs/design/interactive-agent-communication/interview-step-01.md
+3685 CLAUDE.md
+54c2ceb4dc48bcf79c15d40f3668594faa06393f13626a86608f4447e57b451c  -
+brief.md
+codex.md
+codex.raw
+codex.rc
+comparison.md
+glm.md
+glm.raw
+glm.rc
+[0m
+[0m$ [0mcd /opt/termlink && grep -n "step" docs/design/interactive-agent-communication-role-chain.yaml | head -30
+2:# One task per role, run in order; a step starts only when the step before it is approved.
+8:# profile, then the step facts (input hashes). Upstream originals are provenance only.
+11:# document becomes step 1's output (re-cast into the skeleton), or step 1 runs as a fresh interview.
+12:# Step tasks created 2026-10-06 (T-3344 wrap-up): steps 2-8 = T-3351..T-3357, all captured; none may start
+13:# before the step before it is approved by the operator.
+22:steps:
+23:  - step: 1
+27:    signoff_task: T-3349   # operator sign-off (owner human); step 2 starts only after it
+28:    rulings_summary: docs/reports/T-3344-step1-rulings-summary.md
+37:      orchestrator's accepted details; J2 A priorities stay proposals; J3 A CAND-17 added to step 2; J4 A R-7 one
+38:      host-independent rule; J5 B acceptance-number cross-check (13.4), three numbers added to step 4.
+40:      Reopened after step 2 (T-3388, operator ruling A 2026-10-10): v0.5.2 folds the 20 accepted step-2 change
+43:  - step: 2
+54:      records in T-3351 Decisions); Codex consistency check docs/reports/T-3351-step2-review/codex-confirm.md,
+55:      fixes verified (fixes-confirm.md). Accepted change requests folded into step 1 as v0.5.2 (T-3388), also
+57:  - step: 3
+64:  - step: 4
+71:  - step: 5
+79:  - step: 6
+87:  - step: 7
+94:  - step: 8
+[0m
+[0m$ [0mcd /opt/termlink && sed -n '/id:.*3/,/id:.*4/p' docs/design/interactive-agent-communication-role-chain.yaml | head -100
+(no output)
+[0m
+[0m$ [0mcd /opt/termlink && sed -n '57,100p' docs/design/interactive-agent-communication-role-chain.yaml
+- step: 3
+    role: Security floor and phasing
+    task: T-3352
+    prompt: docs/design/roles/cards/mvp-specialist.md
+    inputs: [docs/design/interactive-agent-communication-01-requirements.md, docs/design/interactive-agent-communication-02-threat-model.md]
+    output: docs/design/interactive-agent-communication-03-floor-and-phasing.md
+    decides: true
+  - step: 4
+    role: Architect
+    task: T-3353
+    prompt: docs/design/roles/cards/architect.md
+    inputs: [docs/design/interactive-agent-communication-01-requirements.md, docs/design/interactive-agent-communication-02-threat-model.md, docs/design/interactive-agent-communication-03-floor-and-phasing.md]
+    output: docs/design/interactive-agent-communication-04-architecture.md
+    decides: true
+  - step: 5
+    role: Evidence specialist
+    task: T-3354
+    prompt: docs/design/roles/cards/evidence-specialist.md
+    inputs: [docs/design/interactive-agent-communication-04-architecture.md]
+    output: docs/design/interactive-agent-communication-05-evidence.md
+    decides: false
+    iterates_with: 6
+  - step: 6
+    role: Pseudo-coder
+    task: T-3355
+    prompt: docs/design/roles/cards/pseudo-coder.md
+    inputs: [docs/design/interactive-agent-communication-04-architecture.md, docs/design/interactive-agent-communication-05-evidence.md]
+    output: docs/design/interactive-agent-communication-06-pseudo-code.md
+    decides: false
+    iterates_with: 5
+  - step: 7
+    role: Review panel and disposition
+    task: T-3356
+    prompt: docs/design/roles/cards/review-panel.md
+    inputs: [docs/design/interactive-agent-communication-01-requirements.md, docs/design/interactive-agent-communication-04-architecture.md, docs/design/interactive-agent-communication-06-pseudo-code.md]
+    output: docs/design/interactive-agent-communication-07-review.md
+    decides: true
+  - step: 8
+    role: Planner
+    task: T-3357
+    prompt: docs/design/roles/cards/planner.md
+    inputs: [docs/design/interactive-agent-communication-04-architecture.md, docs/design/interactive-agent-communication-07-review.md]
+    output: docs/design/interactive-agent-communication-08-plan.md
+    decides: true
+[0m
+[0m$ [0mcd /opt/termlink && for t in T-3383 T-3384 T-3385 T-3386 T-3387 T-3347; do f=$(ls .tasks/active/$t-*.md .tasks/completed/$t-*.md 2>/dev/null | head -1); echo "== $f"; [ -n "$f" ] && grep -m1 -E "^(status|horizon):" "$f"; [ -n "$f" ] && grep -m2 -E "^status:|^horizon:" "$f"; done; echo; grep -m1 -E "^status:" .tasks/active/T-3370-*.md .tasks/completed/T-3370-*.md 2>/dev/null; grep -rm1 -E "^status:" .tasks/*/T-2470-*.md 2>/dev/null
+== .tasks/active/T-3383-measure-30-days-of-hub-outage-durations-.md
+status: captured
+status: captured
+horizon: later
+== .tasks/active/T-3384-record-every-tofu-re-pin-and-tofu-clear-.md
+status: captured
+status: captured
+horizon: next
+== .tasks/active/T-3385-inception-otp-style-out-of-band-approval.md
+status: started-work
+status: started-work
+horizon: now
+== .tasks/active/T-3386-lightweight-termlink-dispatch-for-short-.md
+status: captured
+status: captured
+horizon: next
+== .tasks/active/T-3387-sidecar-activity-veto-before-doorbell-ty.md
+status: captured
+status: captured
+horizon: next
+== .tasks/active/T-3347-cross-hub-read-of-a-messages-stage-and-r.md
+status: captured
+status: captured
+horizon: next
+
+.tasks/active/T-3370-upgrade-vendored-aef-v1629-to-v183-opera.md:status: started-work
+status: started-work
+[0m
+[0m$ [0mcd /opt/termlink && ls .tasks/active .tasks/completed 2>/dev/null | grep -iE "T-2470|T-3342" ; grep -rm1 "^owner:" .tasks/active/T-3385-*.md; grep -rm1 "^status:" .tasks/*/T-2470*.md .tasks/*/T-3342*.md 2>/dev/null
+T-2470-reconcile-termlink-purpose-into-one-cano.md
+T-3342-planned-re-vendor-to-aef-bleeding-edge-1.md
+owner: human
+.tasks/active/T-2470-reconcile-termlink-purpose-into-one-cano.md:status: started-work
+.tasks/active/T-3342-planned-re-vendor-to-aef-bleeding-edge-1.md:status: captured
+[0m
+[0m$ [0mps aux 2>/dev/null | grep -i claude | grep -vc grep; echo "---as root:"; ps aux 2>/dev/null | grep -i claude | grep -c "^root"; echo "---non-root:"; ps aux 2>/dev/null | grep -i claude | grep -v "^root" | grep -vc grep; stat -c '%U:%G %a' /opt/termlink /opt/termlink/.git /opt/termlink/.tasks /opt/termlink/.context; git -C /opt/termlink config core.sharedRepository || echo "(unset)"; id testdev 2>&1 | head -1; for b in useradd sudo setfacl; do command -v $b >/dev/null && echo "$b: yes" || echo "$b: NO"; done
+89
+---as root:
+80
+---non-root:
+16
+root:root 775
+root:root 775
+root:root 775
+root:root 775
+(unset)
+uid=1001(testdev) gid=1001(testdev) groups=1001(testdev)
+useradd: yes
+sudo: yes
+setfacl: yes
+[0m
+All verification checks are complete. Writing the review.
+
+---
+
+# Review: `interactive-agent-communication-03-floor-and-phasing.md` (DRAFT v0.1, T-3352)
+
+## 1 Verification performed (basis of the findings)
+
+1a Input hashes in 1.1 and 1.3 recomputed: all match, including REQ, TM, the two task decision records, `_common.md`, card, adapter, profile, chain yaml, schema, interview log, and `CLAUDE.md` lines 1–2820. The GP-12 folder (1.3, "GP12") exists with both files.
+
+1b The host readings of 1.4.d reproduce now: `testdev` uid 1001 exists; `/opt/termlink`, `.git`, `.tasks`, `.context` are `root:root` 775; `core.sharedRepository` unset; `useradd`/`sudo`/`setfacl` installed; claude-mentioning process lines split ~80 root / 16 other at review time — consistent within the "one moment" caveat of 15.5.3.
+
+1c Counts recomputed by hand: 33 security-typed requirements (3.5) matches REQ line "b" typings; 4.3's 35/34/6/1/3/2/1 = 82 matches table 4.2 row by row; floor = 39 (31 SI + 8 FX); 13 state values + 7 markers; 17 FC rows; 28 hypotheses (11 TM + 17 new); 24 rows / 21 dimensions (section 8); 20 operator questions. Enters/Complete columns of 3.3–3.4 agree with 6.2.3.c–6.2.6.b and with drawing D-2's edges and 3.8. D-1 and D-2 carry id, caption, numbered text equivalent (3.8, 6.8) and a render check (section 16).
+
+1d The dependency statuses of 6.6 match the task files (T-3383 captured/later; T-3384, T-3386, T-3387, T-3347 captured/next; T-3385 started-work, owner human; T-3370 started-work).
+
+## 2 Role-card fidelity (brief item 1)
+
+2a Met. Card 6.1: every SI-n is a floor row (3.3); all 33 security-typed requirements are floor or listed with a reason (3.5, 3.6); the six P-standing items are named for confirmation (OP-10); deferrals are risk-acceptance requests RA-1..RA-8. Card 6.2: every row of 4.2 has a class, a phase and a reason. Card 6.3: all seven phases have scope, exit criteria and rollback; H-14 and H-21 are marked REFUTES THE APPROACH (9.1.b). Card 6.4: both drawings present and checked.
+
+2b One defect, a probe whose prerequisite its own PH-0 does not produce — see 4b.
+
+## 3 Ruling fidelity (brief item 2)
+
+3a The eight named rulings are handled faithfully: OQ-2 (10.1.1 restates the target, helper, Tier-0-per-creation and permanent root residual; placement is OP-1); OQ-3 (PN values and the H-1 re-rule path, 6.2.6.c); OQ-8 D″ (exception classes C-2b/C-4/C-7/C-8 always human; first ruled policy class C-10 kept "ruled"; re-pin record T-3384 in PH-0); OQ-12 (the five ruled profile settings verbatim in 10.3.3; the sixth, `eligible_for_main`, is a loud [P] with CX-3 and OP-4); OQ-14 D‴ (SI-31; IC-2 double approval, 10-minute expiry, no silence); OQ-16 (SI-2 veto; W2 gated on T-3387; busy bit not shown to peers); RR-8/R-67 precedence (6.2.5.a (3) follows CR-20 and ruling D, no contradiction); RR-13/CR-21 (FX-1; the "disable" half is deferred to PH-4 not silently but through RA-5/OP-19, which is the card-sanctioned route for deferring floor work).
+
+3b **Finding (C-15 batch).** 10.2.2 C-15 proposes "one event per migration wave, digest over the named set", while the ruling says "every account creation is a Tier 0 act: human-approved and logged" (R-82.a (3), OQ-2 in T-3351 Decisions). A batch digest is a relaxation of "every", it carries no [P] tag, and it is in neither OP-2 (policy-route list) nor OP-3 (high-impact list — C-15 is HI "no"), so no operator question rules on it. **Needs an operator decision.**
+
+3c **Finding (SG and NK unconfirmed).** The ship gate (2.3.c/3.1.b), no-knob-before-its-lock (2.3.d/3.1.c), rollback-keeps-the-floor (3.1.d), status honesty (3.1.e) and the deferral rule (3.1.f) are new normative mechanisms that bind every phase and drive real sequencing (e.g. SI-20/SI-21's fixed-default form in PH-2). OP-10 asks confirmation of "the 31 invariants and the 8 extra items"; OP-11 of "the seven phases, the BV and the CAND-3 staging". Neither names the five floor rules. **Needs an operator decision** (smallest form: add "and the binding rules 3.1.b–3.1.f" to OP-10 A).
+
+## 4 Internal consistency (brief item 3)
+
+4a **Finding (PH-3 exit uses a PH-4 capability).** 6.2.4.c (2) requires "the policy route for the ruled class, recorded" as a PH-3 exit test. The only ruled policy class is C-10 (10.2.3), whose subject — a dead holder's hand-over with a same-role R-67 lease successor — cannot exist before PH-4 (FX-3, SI-29 and the lease itself are PH-4 scope, 6.2.5). At PH-3 the exercisable policy classes are C-2a and C-6a (the signing key arrives PH-2, 4.2 R-61). As written the exit criterion is untestable in its phase. Editorial fix: point the test at C-2a/C-6a, or say C-10's route is exercised by fixture.
+
+4b **Finding (FX-5 probe depends on a baseline PH-0 does not take).** FX-5's probe (3.4) and RA-3.b's stand-in rest on "never above the PH-0 baseline" of plaintext content fields on the hub, but the PH-0 baseline list (6.2.1.a (2), exit (4)) covers message sizes, agents per project, blob sizes, transcript share and re-send age — not hub plaintext exposure. The probe is un-runnable as written from PH-2. Editorial fix: add that baseline to PH-0.
+
+4c **Finding (minor, "last of the P1 items").** 4.4.c and 11.2 say R-7's independence "arrives last of the P1 items". R-76 (P1) completes only at PH-6 (real provider) and R-1's operator leg (P1) is deferred to GP-11, both later than PH-5. The substantive point (the cost of the ruled OD-1 C order) stands; the sentence overstates. Editorial fix.
+
+4d Otherwise clean: I traced every floor item's Enters/Complete against the phase sections and D-2 (no mismatch), every phase's scope against 4.2's phase column (no capability used before delivery apart from 4a), and the numbers (FP-2's 13+7, the PN-n values, deadlines, H-3/H-4/H-6/H-7/H-12 thresholds against FP-4's headroom rule) against REQ 14.3 and TM 19 — no disagreement.
+
+## 5 Open questions (brief item 4)
+
+5a Genuinely the operator's, one at a time (13.1), each with options A–D and a recommendation; OP-13..OP-20 correctly split the eight risk acceptances into single questions. The four items the hand-over named are OP-1..OP-5.
+
+5b Missing from the list: the two decisions behind 3b and 3c (the C-15 batch digest; explicit confirmation of the floor rules). Nothing else I could find: FP-1..FP-4 are OP-6/7/8/12; the six P-standing SIs are OP-10; E-7 rides OP-11; RR-21 is OP-19 plus CX-1; the T-3383 horizon change is correctly routed to step 8, not the operator.
+
+## 6 Would step 4 be misled? (brief item 5)
+
+6a Nothing material beyond 4a and 4b: the C-10 seam could make step 4 design a PH-3 route test that cannot run, and the missing baseline silently weakens the only FX-5 probe. Positively: 14.1.b is a complete and accurate hand-over list, CX-2 correctly surfaces the real R-48.e vs R-63.a ambiguity rather than resolving it silently, and 14.1.a states the floor's status as constraint, which is the right frame.
+
+## 7 Verdict
+
+**Fit after listed fixes.** The floor is complete and traceable, the phasing is internally consistent except at one seam, the rulings are respected with two exceptions that need the operator's eye, and the coverage machinery (counts, drawings, probes) checks out against both inputs of record.
+
+## 8 Fix list, smallest first
+
+8a Editorial (4c): reword 4.4.c and 11.2 ("last of the P1 delivery items; R-76's provider and R-1's operator leg arrive later").
+
+8b Editorial (4a): in 6.2.4.c (2), name C-2a/C-6a as the PH-3 policy-route test, or mark the C-10 route as fixture-tested.
+
+8c Editorial (4b): add "plaintext content fields readable on the hub" to the PH-0 baselines (6.2.1.a (2), exit (4)).
+
+8d **Operator decision** (3c): extend OP-10 option A to cover the floor's binding rules 3.1.b–3.1.f (SG, NK, rollback-keeps-floor, status honesty, deferral rule).
+
+8e **Operator decision** (3b): either one Tier 0 event per account creation per R-82.a (3), or add the batch-digest form to OP-1's options so the operator rules on it explicitly.
