@@ -10,10 +10,10 @@ description: >
   at the next normal session start; never ask the operator to restart with claude-fw
   --termlink.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -44,8 +44,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-11T09:54:44Z
-last_update: 2026-10-11T09:55:03Z
-date_finished:
+last_update: 2026-10-11T10:03:07Z
+date_finished: 2026-10-11T10:03:07Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -82,11 +82,15 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Upgrade from tag v1.8.9 (dry-run first) applies only the hotfix files (budget-gate.sh, stop-driver.sh,
+- [x] Upgrade from tag v1.8.9 (dry-run first) applies only the hotfix files (budget-gate.sh, stop-driver.sh,
       bin/claude-fw, VERSION) to the vendored tree; no preserved file touched; no --force / --allow-delete-locals
-- [ ] `.agentic-framework/VERSION` reads 1.8.9; CLAUDE.md project section unchanged
-- [ ] `fw doctor` 0 failures; `scripts/check-vendor-divergence.sh` exits 0 (register baseline moved to the commit);
+- [x] `.agentic-framework/VERSION` reads 1.8.9; CLAUDE.md project section unchanged
+- [x] `fw doctor` 0 failures; `scripts/check-vendor-divergence.sh` exits 0 (register baseline moved to the commit);
       `tests/checkpoint-verb-fixtures.sh` passes; receiver probe RECEIVED
+
+Evidence: commit cc2e08a02 message (changed files, checks); register baseline cc2e08a02. Doctor's new warning
+"installed claude-fw drifted" is a false positive (on-PATH file is AEF's router, T-2854); its suggested refresh
+would replace the router with a fixed copy and was NOT applied; reported to AEF.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -293,6 +297,18 @@ bash tests/checkpoint-verb-fixtures.sh > /tmp/.t3392-cp 2>&1
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
+**Symptom:** (upstream, AEF T-4032, from the v1.8.9 release note) at a critical budget block, `claude-fw` killed
+the session mid-turn instead of letting the turn finish, so work in the turn was cut off.
+**Root cause:** the restart path acted on the budget-critical signal immediately, not at the end of the
+session's own turn (its own sidecar session record and transcript), and the stop-driver could continue a turn
+while a restart was pending. Fixed upstream: end only at the end of its own turn after a final handover, keep the
+accepted restart signal fresh, 15-minute ceiling against dead-lock.
+**Why structurally allowed:** the kill path had no test that a turn in progress survives a critical block;
+AEF added regression tests failing on the old code (tests/unit/stop_driver.bats, t3918_terminator_handover.bats).
+**Prevention (our side):** we take upstream hotfixes from the release tag with the same rehearsal and before/after
+checks (T-3389 procedure); the vendor register baseline (cc2e08a02) makes any later local change to these files
+visible. Not a defect in this project's code; this task only vendors the fix.
+
 ## Evolution
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
@@ -376,3 +392,15 @@ bash tests/checkpoint-verb-fixtures.sh > /tmp/.t3392-cp 2>&1
 
 ### 2026-10-11T09:55:03Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-6bb4565c
+- **Timestamp:** 2026-10-11T10:03:10Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-10-11T10:03:07Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -1,0 +1,88 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3392: Upgrade vendored AEF 1.8.8 to 1.8.9 (emergency hotfix T-4032, claude-fw mid-turn kill)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-11T10:03:19Z
+# ============================================================================
+
+task_id: T-3392
+task_name: "Upgrade vendored AEF 1.8.8 to 1.8.9 (emergency hotfix T-4032, claude-fw mid-turn kill)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-11T09:54:44Z
+completed: 2026-10-11T10:03:07Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-11T12:01:06+02:00
+last_commit: 2026-10-11T12:01:18+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  re-vendor AEF 1.8.8 -> 1.8.9 from tag v1.8.9 (emergency hotfix T-4032, claude-fw mid-turn kill). vendor register baseline -> cc2e08a02 (AEF 1.8.9); task ACs. task file with ACs and verification
+
+# Key outcomes
+outcomes:
+  - 'Upgrade from tag v1.8.9 (dry-run first) applies only the hotfix files (budget-gate.sh, stop-driver.sh,'
+  - '`.agentic-framework/VERSION` reads 1.8.9; CLAUDE.md project section unchanged'
+  - '`fw doctor` 0 failures; `scripts/check-vendor-divergence.sh` exits 0 (register baseline moved to the commit);'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 're-vendor AEF 1.8.8 -> 1.8.9 from tag v1.8.9 (emergency hotfix T-4032, claude-fw mid-turn kill)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/agents/context/budget-gate.sh'
+  - '.agentic-framework/agents/context/stop-driver.sh'
+  - '.agentic-framework/bin/claude-fw'
+  - '.agentic-framework/.fw-vendor-stamp.json'
+  - '.agentic-framework/VERSION'
+  - '.framework.yaml'
+  - '.tasks/active/T-3392-upgrade-vendored-aef-188-to-189-emergenc.md'
+  - '.vendor-divergence.yaml'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-11T12:01:06'
+    action: 'T-3392: re-vendor AEF 1.8.8 -> 1.8.9 from tag v1.8.9 (emergency hotfix T-4032, claude-fw mid-turn kill)'
+  - time: '2026-10-11T12:01:17'
+    action: 'T-3392: vendor register baseline -> cc2e08a02 (AEF 1.8.9); task ACs'
+  - time: '2026-10-11T12:01:18'
+    action: 'T-3392: task file with ACs and verification'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 8 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 8
+  commits: 3
+  files_changed: 8
+  lines_added: 585
+  lines_removed: 36
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3392-upgrade-vendored-aef-188-to-189-emergenc.md
+generated_by: context-agent-hybrid
