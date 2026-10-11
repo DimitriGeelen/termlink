@@ -646,4 +646,84 @@ flowchart LR
 
 9.3 Coverage. Every phase has at least one hypothesis: PH-0 H-1, H-5, H-6, H-7, H-15, H-30; PH-1 H-16, H-17; PH-2 H-3, H-11, H-13, H-14, H-18, H-19, H-20, H-28; PH-3 H-2, H-12, H-21, H-22, H-23; PH-4 H-24, H-25; PH-5 H-4, H-8, H-27; PH-6 H-29; H-26 at every exit. The two that can refute the whole approach are H-14 and H-21. 28 hypotheses in all: 11 from TM and 17 new.
 
+## 10 The items the rulings left to this step
+
+10.1 **Per-agent operating-system accounts: order, price, group access to shared checkouts (R-82, OQ-2).**
+10.1.1 What is ruled. The shared user is accepted for now. The committed target is one isolated account per agent, created by the orchestrator through one narrow privileged helper with fixed settings (never general root for the orchestrator); every creation is a Tier 0 act, human-approved and logged. Host root stays a residual for the lifetime of the design (R-82.a, RR-2). Step 3 phases and prices the move, including group-based access to shared checkouts. Step 4 designs the helper.
+10.1.2 What I found on the host on 2026-10-11 (1.4.d). 86 process lines that mention `claude` run as `root`, 16 as the operator's own login. `/opt/termlink` and its `.git`, `.tasks` and `.context` are `root:root` mode 775 with no shared group and `core.sharedRepository` unset. `useradd`, `sudo` and `setfacl` exist. Besides `root` there are two login accounts (the operator's, and `testdev`). The orchestrator is itself `root` **[H]**, so "never general root for the orchestrator" means changing the orchestrator too (stage A4).
+10.1.3 What the move buys, floor item by floor item (this is the answer to "why not last").
+
+| Floor item | Without accounts | With accounts (A) |
+|---|---|---|
+| SI-3 signatures | A process of any agent reads a sibling's key and signs as it | A key is readable only by its own account |
+| SI-14 owner-only socket | "Owner-only" means "root-only", so it separates nobody | It separates agents |
+| SI-15 (F-7), SI-22 | A same-user process edits another agent's store and rewrites its chain | It cannot |
+| SI-20, SI-21 policy records | A file "the agent cannot write" does not exist | Policy records live in a supervisor-owned directory the agents cannot write |
+| SI-17 evidence | A same-user process can append a well-formed forged record (RR-7) | Narrowed to the agent's own account |
+| FX-5 custody key | Reachable by every sibling | Held by a supervisor account |
+| RR-1 and RR-3, accepted | A successful prompt injection ends in a root shell | It ends in one agent's account |
+
+10.1.4 What it does not buy. Host root (RR-2, always). The shared checkout: if agents share a writable checkout, any agent can edit a script or hook that another agent runs (the lateral path, new here, RA-7). The credentials the harness needs per account.
+10.1.5 The price, by part. Sizes are my estimates **[A]** (S a day or two, M a week, L several weeks); the pilot (A0, H-28) replaces them with measurements.
+
+| Part | What it involves | Size | Main risk |
+|---|---|---|---|
+| Inventory | Which processes run as `root`, and why: the hub and its unit, cron jobs, `runme.sh`, the orchestrator, the 86 process lines | S | Surprises: things that quietly depend on root |
+| Account template and helper | One template (home mode 0700, no login shell, no `sudo`, a group), one helper with fixed settings behind a single `sudoers` entry, a Tier 0 event per batch of creations | M | A helper that does more than its fixed action becomes general root (R-82.d tests this) |
+| Shared checkout by group | A group for agents, setgid directories, `core.sharedRepository=group`, `umask 0002`, default ACLs on `.git`, `.tasks`, `.context` and the build directory, `safe.directory`, and a one-time change of ownership of today's root-owned files | M | Permission drift; file-mode noise in git; the shared git index contention the project already has (T-3090, T-3231) |
+| Code outside the checkout | The sidecar, adapters and hook entry points installed root-owned and read-only to agents; hooks reference the installed binary, not a checkout script | M | The harness's hook configuration lives in the writable checkout; I do not know whether a root-owned managed policy file can pin it **[A]** (step 4) |
+| Per-account state | `~/.termlink` per account: per-agent key, secrets cache, TOFU pins (every account pins every hub again), the harness's own credentials and transcripts | M to L | The harness needs a login per account; copying one credential into N accounts spreads it, the opposite of the aim |
+| Launcher, supervisor, tmux | Sessions started under the right account; PTY and tmux sockets per account; the operator attaching to sessions owned by others (`termlink attach`, inject) | L | The operator's own workflow breaks if attach needs `sudo` each time |
+| Hub access | The hub as its own non-root account with a 0700 runtime directory; agents hold only scoped tokens | M | A hub move touches PL-021 persistence of secret and certificate |
+| Orchestrator and framework | The orchestrator, `runme.sh`, cron installation and hub restarts without general root (stage A4) | L | The project's operational scripts assume root |
+| Waves and rollback | Agents migrate in waves, each with a one-command return to the old form | S | A half-migrated state nobody can reason about |
+| Verification | The tests of R-82.d: a helper asked for anything else refuses; no agent runs as `root`; agent A cannot read agent B's key; every creation has a Tier 0 event | M | |
+
+10.1.6 The design cut I recommend **[P]**: separate by what must be shared.
+10.1.6.a **Shared by group, because the work needs it:** the checkout (source, `.git`, `.tasks`, `.context`). The group model above. This is the price of keeping one checkout with one shared task and context state, which the whole framework assumes. Per-agent clones would remove the lateral path and the shared-index problem, but they change how every agent shares task, focus and handover state, which the framework keeps in the one checkout; I do not recommend them now. (They are clones, not git worktrees, which the project forbids as a standing rule.)
+10.1.6.b **Private per account:** the signing key, the secrets cache, the pins, the sidecar's store, flag and queue, the harness credential and transcripts.
+10.1.6.c **Owned by a supervisor account, not by any agent:** the custody key (R-80), the policy records (R-78), the hub's admin credential. Not readable by agent accounts.
+10.1.6.d **Installed, not checked out:** the floor code. This is also why R-39 ("start from the deployment, not from a source checkout") is a security property once accounts exist.
+10.1.7 The stages. A0 pilot: an inventory, then one non-critical agent under its own account, running a normal task cycle; the output is H-28 and a list of what needed root. **A price gate follows: the operator confirms the plan with the measured price.** A1 build the template, the group model, the helper, and the installed code; launcher starts sessions under accounts. A2 migrate in waves, the orchestrator last; one-command return per agent. A3 every agent on the host migrated; `ps` shows none as `root`; T-20 passes; the status call says "per-agent accounts: yes, host root: still a residual". A4 the orchestrator and the framework's scripts no longer need general root.
+10.1.8 Where it sits against the phases. Options for the operator (OP-1).
+10.1.8.a **A** Accounts first: A3 before the first operational release (PH-2). The biggest unknown (a re-platforming of how every agent starts) then blocks a demonstration that does not need it.
+10.1.8.b **B** Pilot early with a price gate; A3 before PH-4 exits; A4 in PH-6. PH-2 and PH-3 ship at the base strength of 3.7 with RA-1 stating it; the claim against same-host attackers is made only when A3 is done.
+10.1.8.c **C** Accounts after PH-5, as the last security step. Every capability phase then adds power to agents that can all become `root` (3.7.1).
+10.1.8.d **D** The pilot only inside this arc; the migration becomes its own arc, decided after H-28.
+10.1.8.e Recommendation **B**. Reason: until PH-4 the controls protect against honest failure, outages, drift and remote attackers, and they are worth having at the base strength. At PH-4 the system starts to hold configurable authority (grants, allow-lists, eligibility, membership), which is exactly the class of file "an agent cannot write" (SI-20, SI-21); from there the base strength is not enough. Starting the pilot in PH-2 prices the move with data, and the gate lets the operator stop before committing. A is rejected because it makes the largest unknown the first thing built. C is rejected because it leaves the hijack-to-root path open through every phase that adds capability. D delays a target the operator has committed to.
+10.2 **Tier 0 event classes: the initial high-impact list and the initial policy-route list (R-72, R-76; CR-18, CR-19).**
+10.2.1 The principle I propose **[P]**: **the policy route may decide the continuation of trust that already exists; a human route decides the creation of new trust or a widening of authority.** A class is *high-impact* (it also needs the active out-of-band confirmation of R-76 when a provider exists) if its effect is hard to undo and it widens who can act, read or be believed. Moving a class out of high-impact is itself high-impact, and so is changing the provider (both ruled).
+10.2.2 The classes. HI = high-impact. "Interim" means: no provider is configured, so a human-route event uses the interim double approval of IC-2.
+
+| Class | What | Route | HI | Why |
+|---|---|---|---|---|
+| C-1 | Admit a new hub to the fleet roster (R-77) | human | **yes** | Creates trust in a new hub (ADV-11, ADV-12); the typed-back fingerprint (PR-14) |
+| C-2a | A hub-key rotation signed by the old key | policy | no | Continues existing trust; notice and audit row |
+| C-2b | A hub-key change not signed by the old key | human, always | **yes** | Exception class (ruled) |
+| C-3 | Home a new project on an already admitted hub | human; policy only if that hub's list of allowed project ids names it | no | New trust. RR-14 (b): the first claim is not proven |
+| C-4 | A competing claim on a project id | human, always | **yes** | Exception class (ruled) |
+| C-5 | Re-home a project to another hub or host | human | **yes** | Moves who receives its mail |
+| C-6a | Replace an agent key, signed by the old key | policy | no | Continues existing trust |
+| C-6b | Replace an agent key without the old key's signature | human | **yes** | New trust in a key (TH-56) |
+| C-7 | A TOFU re-pin, or `tofu clear` | human, always | **yes** | Exception class (ruled); BP-19 |
+| C-8 | A restored roster | human, always | **yes** | Exception class (ruled); TH-60 |
+| C-9a | A Tier 2 one-off approval to start an agent | human | no | One start, bounded |
+| C-9b | A Tier 3 grant (mail may start or resume agents; budget, restart limit, allowed senders) | human | **yes** | Widens who can cause an agent to run |
+| C-9c | Renewal of a grant with the same scope, budget and senders, before it expires | policy | no | Continues a granted authority |
+| C-10 | **A dead holder's hand-over, when the home hub declared the holder DEAD and the successor holds the R-67 lease for the same role in the same project (ruled, OQ-17 D)** | **policy** | no | The first ruled class. The same conditions release the dead agent's mail from custody (R-80.a (5)) |
+| C-11 | Any other dead-holder hand-over | human | no | No lease successor to anchor it |
+| C-12 | An invitation to or from another project that the default or a rule makes "ask" | human | no | A recurring approval can become a rule (R-73.a (3)) |
+| C-13 | A removal outside an agent's profile (R-73.a (5)) | human | no | Ruled default |
+| C-14 | Cross-project `inject`, `exec`, `remote exec` (R-4.o, FX-4) | human | no | Frequent by design; making each one high-impact would break dispatch and cause approval fatigue (ADV-5). A recurring approval becomes a rule written by the target project's owner |
+| C-15 | Create an agent operating-system account, or a batch (R-82) | human | no | A Tier 0 act, ruled; one event per migration wave, digest over the named set |
+| C-16 | Change the confirmation provider; move a class out of high-impact; register, rotate or revoke the operator key; use the recovery key | human | **yes** | Ruled high-impact; the keys of the keys |
+| C-17 | Release a dead agent's custody mail outside the C-10 conditions (R-80.a (5)) | human | **yes** | Disclosure (IR-c) |
+
+10.2.3 **The initial policy-route list** (OP-2): C-10 (ruled), and by my principle C-2a, C-6a and C-9c. Four classes.
+10.2.4 **The initial high-impact list** (OP-3): C-1, C-2b, C-4, C-5, C-6b, C-7, C-8, C-9b, C-16, C-17. Ten classes. Four of them (C-2b, C-4, C-7, C-8) are the ruled exception classes that always need a human route; the other six are the ones that create trust or widen authority.
+10.2.5 Expected volume. Most of these are rare: a new hub, a re-home, a re-pin and a restored roster are events the operator would expect to remember. The frequent ones (C-12, C-14) are deliberately not high-impact. H-21 measures whether the load is tolerable.
+10.2.6 Growth path. An approval class that recurs three times is proposed by the agent as a rule, and the operator approves it, mirroring the ruled pattern for Tier 3 grants (OD-15, R-64.a). So the policy-route list grows by evidence, not by guess. C-3 and the "hub enrolling over an SSH anchor the operator already set up" example of the OQ-8 dialogue are the first candidates.
+10.2.7 Options for the policy-route list (OP-2): **A** the four classes above. **B** only C-10, the ruled one. **C** A plus C-3 and the SSH-anchored hub enrolment now. **D** none beyond C-10 and no growth path (not recommended: it repeats the approval fatigue the operator ruled against). Recommendation **A**: it follows one principle, each of its classes is a continuation of trust that something has already signed, and C-3 and the enrolment join it by the three-approvals rule.
+10.2.8 Options for the high-impact list (OP-3): **A** the ten classes above. **B** only the four ruled exception classes. **C** A plus C-14 and C-15 (cross-project execution and account creation): more confirmations, more friction. **D** A minus C-5 (re-home) because it is rare and already needs a runme action. Recommendation **A**: ten rare events, each of which creates trust or widens authority; C-14 and C-15 would be frequent during migration and teach the operator to confirm without reading (RR-9).
+
 <!-- CONTINUE -->
