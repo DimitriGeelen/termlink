@@ -118,7 +118,7 @@ task = sys.argv[2]
 with open(os.environ["RUNME_HUMAN_TICKS_LEDGER"], "a") as f:
     f.write(json.dumps({"task": task, "via": "operator-ack", "by": "fixture"}, sort_keys=True) + "\n")
 EOF
-ticks_recorded() { echo '{"by": "fixture", "task": "T-3349", "via": "operator-ack"}' > "$RUNME_HUMAN_TICKS_LEDGER"; }
+ticks_recorded() { : > "$RUNME_HUMAN_TICKS_LEDGER"; for t in T-3349 T-3351 T-3388; do echo "{\"by\": \"fixture\", \"task\": \"$t\", \"via\": \"operator-ack\"}" >> "$RUNME_HUMAN_TICKS_LEDGER"; done; }   # every tick runme lists (T-3393)
 ticks_recorded
 # T-3343 (action 12): fake stray hub. Default = no pidfile in the stray dir, so every
 # other case skips the action. The fake termlink records a stop and then answers
@@ -347,7 +347,7 @@ if [ "$(id -u)" != "0" ] && [ -n "${CI:-}" ]; then
 fi
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|') + 12 ))   # +1 operator tick record (T-3351); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
+EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|') + 14 ))   # +3 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -919,6 +919,12 @@ if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      recorded that you ticked T-
    && grep -q '"via": "operator-ack"' "$RUNME_HUMAN_TICKS_LEDGER"; then
     ok "operator tick: recorded and verified in the ledger"
 else bad "tick record" "rc=$rc: $out"; fi
+# T-3393: every listed tick is recorded, one row per task, not just the first.
+if echo "$out" | grep -q "OK      recorded that you ticked T-3351 Human AC#1" \
+   && echo "$out" | grep -q "OK      recorded that you ticked T-3388 Human AC#1" \
+   && [ "$(grep -c '"via": "operator-ack"' "$RUNME_HUMAN_TICKS_LEDGER")" = "3" ]; then
+    ok "operator tick: all three listed ticks recorded, one ledger row each"
+else bad "tick record all" "rows=$(grep -c operator-ack "$RUNME_HUMAN_TICKS_LEDGER"): $out"; fi
 out=$(run); rc=$?
 if [ "$rc" = "0" ] && echo "$out" | grep -q "skip    T-3349 Human AC#1: your tick is already recorded"; then
     ok "operator tick: second run skips (idempotent)"

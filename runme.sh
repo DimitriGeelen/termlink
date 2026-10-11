@@ -1077,7 +1077,9 @@ schedule_sidecar_sweep
 # ---------------------------------------------------------------------------
 HUMAN_TICKS_LEDGER="${RUNME_HUMAN_TICKS_LEDGER:-$PROJECT_ROOT/.context/reviews/human-ac-ticks.jsonl}"
 HUMAN_TICKS_PY="${RUNME_HUMAN_TICKS_PY:-$PROJECT_ROOT/.agentic-framework/lib/human_ac_ticks.py}"
-OPERATOR_TICKS="T-3349:1"   # task:Human-AC-number, space-separated; each one the operator ticked themself
+# T-3351:1 (accept step-2 residual risks) and T-3388:1 (sign off requirements v0.5.2): ticked by the operator in
+# Watchtower on 2026-10-11, which again wrote no provenance row (T-3393).
+OPERATOR_TICKS="T-3349:1 T-3351:1 T-3388:1"   # task:Human-AC-number, space-separated; each one the operator ticked themself
 
 has_operator_ack() { grep -F "\"task\": \"$1\"" "$HUMAN_TICKS_LEDGER" 2>/dev/null | grep -qF '"via": "operator-ack"'; }
 
@@ -1101,7 +1103,7 @@ ack_operator_ticks() {
     done
 }
 
-head2 "14. Record your own tick on T-3349 (step-1 sign-off) so pushes are not blocked (T-3351)"
+head2 "14. Record your own Watchtower ticks (T-3349 step 1, T-3351 step 2, T-3388 step 1 v0.5.2) so pushes are not blocked"
 ack_operator_ticks
 
 # ---------------------------------------------------------------------------
