@@ -15,3 +15,8 @@ ed25519-dalek = "2"
 
 [features]
 failpoints = []
+
+# T-3405: test builds always enable `failpoints`, so a plain `cargo test` (CI, `cargo test --workspace`)
+# runs the store tests instead of compiling them away. Release builds do not get the feature.
+[dev-dependencies]
+termlink-sidecar = { path = ".", features = ["failpoints"] }
