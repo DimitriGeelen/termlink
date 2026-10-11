@@ -184,6 +184,28 @@ grep -q 'task: T-3352' docs/design/interactive-agent-communication-role-chain.ya
   account, attach workflow, shared checkout, cron/canaries, re-pinning) and safety points (exact-argv helper,
   rollback keeps the account, half-migrated status never green) go to step 4.
 
+### 2026-10-11 — Triage of the remaining step-3 questions, and 17 confirmations (operator ruling)
+- **Dialogue:** after OP-1 the operator observed that a huge number of questions was being answered with no building
+  work, and asked for reflection. Orchestrator counted ~70 operator decisions in arc-011 so far, 22 more queued in
+  step 3, steps 4/7/8 still to decide, and building only after step 8; named the causes (a role chain built for an
+  approval broker applied unchanged; every open choice presented one at a time at the same weight; the design
+  process itself producing the approval fatigue OQ-14 ruled against). Proposed: triage step 3's questions into real
+  choices (one at a time) and confirmations (one list, one explicit ruling, any item pullable), and start PH-0 building
+  in parallel. Operator: "Okay, proceed as suggesting". PH-0 workers T-3383 and T-3395 ran. Then the confirmation
+  list was presented in one message; operator: "yes, proceed as suggested" (explicit yes to the list).
+- **Chose (confirmations, each as the document recommends):** OP-2 A (policy-route classes C-10, C-2a, C-6a, C-9c
+  limited to grant records, no budget reset); OP-3 A (nine high-impact classes); OP-4 A (policy record format and
+  defaults, `eligible_for_main` default no; 055 builds against it); OP-6 A (60 s detection to diagnosis, 5 s status
+  call, 5 min drilled); OP-7 A (14 state values, 8 markers); OP-8 A (AEF's receiver: same behavioural tests, no
+  size/count rule); OP-9 A (reconciliation rules RC-1..RC-9); OP-10 A (the floor: 31 invariants, 8 extra items, the
+  five binding rules 3.1.b-f); OP-11 A (seven phases, basic version, CAND-3 staging); OP-13..OP-20 = RA-1..RA-8 as
+  recommended in section 11 (RA-4 with a review point at the exit of PH-4; RA-7 accepted as RR-21).
+- **Real choices remaining, one at a time:** OP-21 (delivery point; blocks the PH-1 basic version, first), OP-22
+  (receive side vs AEF), OP-23 (RA-9, old rails unframed until PH-4), OP-12 (hypothesis thresholds incl. H-21's
+  10 approval events a day), OP-5 (where the operator decides interim approvals).
+- **Process change (operator-approved):** PH-0 building starts now in parallel with the remaining decisions;
+  compressing chain steps 4-6 is a later process decision.
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
