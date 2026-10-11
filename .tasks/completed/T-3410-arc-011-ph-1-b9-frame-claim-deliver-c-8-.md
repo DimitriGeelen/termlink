@@ -4,10 +4,10 @@ name: "arc-011 PH-1 B9: frame, claim, deliver (C-8, C-9) - random-boundary frame
 description: >
   arc-011 PH-1 B9: frame, claim, deliver (C-8, C-9) - random-boundary frame, atomic claim, nonce, evidence finalizer, HANDED_OVER only on harness evidence, UNCERTAIN
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -38,8 +38,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-11T22:31:14Z
-last_update: 2026-10-11T22:47:51Z
-date_finished: null
+last_update: 2026-10-11T22:47:52Z
+date_finished: 2026-10-11T22:47:52Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -368,3 +368,15 @@ cargo test -p termlink-sidecar
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3410-arc-011-ph-1-b9-frame-claim-deliver-c-8-.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-5c1d6e44
+- **Timestamp:** 2026-10-11T22:48:30Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-10-11T22:47:52Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
