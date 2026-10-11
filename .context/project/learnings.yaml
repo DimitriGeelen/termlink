@@ -4567,3 +4567,15 @@ learnings:
   task: T-3346
   date: 2026-10-05
   context: Added via context agent
+- id: PL-396
+  learning: "A preview of a secret is a partial secret: derive operator-visible secret ids by hashing (secret_fingerprint), and test that the printed value is not a substring of the secret. T-1055's 12-char prefix 'fingerprint' leaked 48 of 256 bits for months; T-2617's tests pinned its correctness and so locked the leak in."
+  source: P-001
+  task: T-3390
+  date: 2026-10-11
+  context: Added via context agent
+- id: PL-397
+  learning: "A re-vendor that patches bin/claude-fw does not reach a claude-fw process already running: bash keeps the functions it loaded at start. 2026-10-11: 1.8.9 (T-4032 'end at turn end, not mid-turn') was vendored at 12:01, yet the session under wrapper pid 240941 (started 10-08) was cut mid-turn at budget critical at 18:43Z. Tell: no '[terminator] restart signal seen' line in .compact-log. The fix is active only after the wrapper is relaunched. AEF filed detection as T-4069."
+  source: unknown
+  task: WM-002
+  date: 2026-10-11
+  context: Added via context agent
