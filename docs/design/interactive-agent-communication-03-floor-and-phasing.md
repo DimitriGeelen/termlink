@@ -262,4 +262,103 @@ flowchart LR
 3.8.4 PH-3: SI-12, SI-13, SI-31. PH-4: SI-20 and SI-21 with their configuration surface, SI-29, FX-3, FX-1 (disable), FX-4 (boundary model), and the first encryption stage. PH-5: SI-9, SI-10, SI-11 complete, and encrypted circuit copies. PH-6: project mail and custody.
 3.8.5 Items that depend on a strength flag (A or K) are marked in the table of 3.3 and 3.4; the drawing shows when they enter, the table shows when they are fully strong.
 
+## 4 Prioritisation of the requirements (card 3.2)
+
+4.1 Method.
+4.1.a Classes. **Floor**: in the floor (section 3); outside Must, Should and Could. **Must**: the goal (R-1 to R-3) or a floor item cannot be met or kept usable without it. **Should**: needed for a solid system, and the goal is met for a while without it. **Could**: wanted, can wait. **Deferred**: needed, but its prerequisite is later or outside this arc. **Excluded**: dropped or merged by a ruling.
+4.1.b The priorities P1, P2 and P3 of step 1 are collector proposals, never rulings (REQ 6.1.c). I re-derived each class from evidence and say where I differ. A row reading "Floor + Must" has a floor part (3.5) and a feature part; the phase is the feature's.
+4.1.c Evidence, as the card allows (card 3.2): an incident, a recorded weakness, a threat (TH-n), a derived invariant, or a ruling. A control does not need a past incident to be necessary. The incidents, named once here and cited by letter:
+4.1.c.a INC-a 2026-10-03: mail stored, receipted and never surfaced (REQ 2.4a, `RQ` 5). 4.1.c.b INC-b 2026-10-04: a stray second hub split 32 sessions from their inboxes (G-060, T-3340). 4.1.c.c INC-c 2026-10-06: three identities consumed one inbox; wake-ups went to the wrong session (REQ 2.4a.2). 4.1.c.d INC-d: the sidecar whose signing key was filed under another agent's name refused 32,205 confirmations with a fresh heartbeat (T-3346). 4.1.c.e INC-e T-2396: input typed into a busy prompt was lost. 4.1.c.f INC-f 2026-10-06: about 94 already-handled messages replayed at the first receiver start (REQ 2.4a.5). 4.1.c.g INC-g 2026-10-06: a re-vendor overwrote 15 files and put 21 local fixes at risk (G-062). 4.1.c.h INC-h: ring20-manager's 8 unanswered requests (REQ OD-18). 4.1.c.i INC-i: G-058, G-063, G-069, "shipped but not live".
+4.2 The table. The 82 requirements of REQ, then one row for a proposal that has no R-n.
+
+| R-n | Requirement | Class | Phase | Evidence and reason |
+|---|---|---|---|---|
+| R-1 | Interactive conversation | Must | PH-1 one to one; PH-4 many to many; operator leg Deferred | The goal. The operator's "20 times" (REQ QS-1), INC-a. The operator leg waits for GP-11 |
+| R-2 | The sender always knows | Floor + Must | PH-1 | The truth of the stage is floor (3.5). Showing it is the operator's complaint "you've been telling me it works" (INC-a) |
+| R-3 | No one has to be attached | Must | PH-2 | Working sessions by hook, idle sessions with a typable terminal by the doorbell. An idle session without one shows WAITING FOR RECIPIENT until the launcher is adopted (PL-237, OD-6) |
+| R-4 | Keep injection and read-back | Must | exists; FX-4 PH-2 and PH-4 | The founding verb; kept, with tightened authorization (R-4.o) |
+| R-5 | Conversation over the hub | Must | exists | Built; the base of every path |
+| R-6 | One sidecar per agent, simple | Must | PH-1 | Delivery must not depend on an LLM turn. Accepted by behaviour (R-70, section 7), not by counts |
+| R-7 | Independent of the hub | Must | PH-5 | The operator's reason: "the hub goes down". Until PH-5 an outage stops delivery visibly (WAITING, UNKNOWN). The order is ruled (OD-1 C) |
+| R-8 | Always respawns | Must | PH-2 | A sidecar that stays dead is a silent deaf agent; supervision today is 5 minutes and not verified on macOS (R-8.g) |
+| R-9 | Startup chain | Deferred | PH-6 | Starting an agent is irreversible (IR-a) and needs grants (R-64, PH-4). Nothing in PH-1 to PH-4 needs it. P2 in step 1 |
+| R-10 | Re-resolve a moved peer | Should | PH-5 | Matters for direct push across hosts. The hub path uses declared addresses (R-54) |
+| R-11 | Hand the message to the own sidecar | Must | PH-1; blobs PH-2 | The one local point where identity and durability apply. Blobs under SI-28 |
+| R-12 | Sidecar to sidecar, push first | Must | PH-5 | Ruled for established conversations (OD-1 C) |
+| R-13 | The hub is the fallback | Must | exists | Built; the path of every phase before PH-5 |
+| R-14 | RECEIVED | Must | PH-1 | The sender learns of arrival; informational (OD-4) |
+| R-15 | STORED, durable | Floor | PH-1 | SI-15 |
+| R-16 | Flag raised after the store | Must | PH-1 | Ordering protects against a doorbell for mail a crash then loses (ADV-3, ADV-4) |
+| R-17 | 30-second tick | Must | PH-1 loop; PH-2 supervised | INC-a: the installed driver ran every 5 minutes and checked no prompt |
+| R-18 | Highest priority first | Must | PH-2 | A fixture with three messages; the BV carries one message |
+| R-19 | Urgent by a route that cannot lose it | Floor in part + Must | PH-2 | Own-project senders only until PH-4, behind SI-23 and SI-18. INC-e |
+| R-20 | Non-urgent only when the prompt is free | Floor in part + Must | PH-2 | SI-2. INC-e |
+| R-21 | Readiness reported by the harness | Floor + Must | PH-2 | SI-2; the adapter contract (R-47) |
+| R-22 | Not inferred from the screen | Floor | PH-2 | SI-2 |
+| R-23 | One short line | Floor | PH-2 | SI-1 |
+| R-24 | HANDED_OVER only with evidence | Floor | PH-1 | SI-17, SI-30 |
+| R-25 | Flag down only when the queue is empty | Must | PH-2 | A recorded weakness: the injector re-serves the oldest offset (`RQ` 8 item 5). P2 in step 1; I raise it because a lowered flag hides mail |
+| R-26 | ANSWER READY | Must | PH-1 | The reply path; hub record first, the call is a fast notice (OD-5) |
+| R-27 | Roles swap for the reply | Should | PH-1 | The BV reply uses the same path, so it is met by construction |
+| R-28 | A woken agent replies or says no action | Must | PH-1; owed list PH-2 | INC-h. Not floor (3.5) |
+| R-29 | Deaf means halt | Floor (CLEAR) + Must | PH-2 | FX-8; INC-d |
+| R-30 | Two polling ladders | Must | PH-2 | The chase is sidecar code, never an LLM turn (operator, 2026-10-06). A simulated-clock test already in PH-1 |
+| R-31 | Ladders are the default | Should | PH-2 | One schedule per class for polls and re-sends. P2 |
+| R-32 | Five-level circuit address | Must | PH-1 | `to_circuit` is built (T-3325); parser fixture |
+| R-33 | Two identities per level | Must | PH-0 hub and project ids; PH-3 all | A certificate regeneration renames inboxes (PL-021 class); T-3345 is done |
+| R-34 | Never across projects | Floor | PH-1 | SI-26 |
+| R-35 | Timestamped events, copied to the hub | Should | PH-2 | The hub record already carries stage times; retention classes as ruled. P2 |
+| R-36 | Daily digest | Could | PH-6 | P3; nothing depends on it until someone reads telemetry |
+| R-37 | Alarms only for urgent; needs-attention | Must | PH-2 | Every floor item that "shows in needs-attention" needs the surface. G-063, write-only sinks |
+| R-38 | Observability database, learning | Deferred | after arc-011 | "Later" by the operator. The telemetry stays readable by the test reader (R-38.e) |
+| R-39 | Ships with every deployment | Must | PH-2 | About 13 scripts run only from the checkout today. Also a security property once A exists (10.1.c) |
+| R-40 | Native consumer | Excluded | | Merged into R-28 (OD-13) |
+| R-41 | Typed assignment and result messages | Deferred | PH-6 or step 8 | Ruled "later slice" with expiry, execution-time authorisation and a fencing token (OD-13) |
+| R-42 | No "delivered" without HANDED_OVER | Floor | PH-1 | FX-7 |
+| R-43 | Startup chain, duplicate | Excluded | | Dropped as a duplicate of R-9 (OD-13) |
+| R-44 | Message states and "stuck" | Must | PH-1 four labels; PH-2 DEAD as dead letter only; PH-3 signed DEAD | INC-a was a "waiting" nobody could see |
+| R-45 | The hub record is the truth | Floor in part + Must | PH-1; outage exception PH-5 | SI-22, CR-1 |
+| R-46 | The direct circuit | Floor | PH-5 | SI-9, SI-10, SI-11 |
+| R-47 | The harness adapter contract | Must | PH-1 Claude adapter; second adapter when it exists | The parity test per release. Without it GP-8 stays open |
+| R-48 | Hook delivery; the launcher | Must | PH-1 hook; PH-2 launcher by natural restarts | PL-237 |
+| R-49 | One receiver per inbox | Floor | PH-1; hub-side visibility PH-2 | SI-16. INC-c |
+| R-50 | Peer content is untrusted | Floor | PH-1 | SI-7, SI-8 |
+| R-51 | Idempotence per stage | Floor | PH-1 | SI-4, SI-30. INC-f |
+| R-52 | How urgent is marked | Must | PH-2 | Priority field, clamp, downgrade never drop. The send tooling lacks `--priority` |
+| R-53 | Reachability as a visible state | Must | PH-2 | INC-d: nothing showed that mail reaches the agent. Peers see yes or no only (CR-11) |
+| R-54 | Mail-hub declaration | Floor | PH-2 | FX-2. INC-b |
+| R-55 | Send-and-wait | Should | PH-3 primitive (T-3347); tool PH-6 (AEF) | Asked for on 2026-04-26 and 2026-05-25. The tool is AEF's (REQ 13.3) |
+| R-56 | Flooding and storm control | Floor in part + Must | PH-2; expiry, cancellation and advertised window (the P2 part) Should PH-4 | SI-19; ADV-8; jitter, cap 100, hop limit, three message classes |
+| R-57 | One clock; versions | Must (P1 part) PH-2; Should (P2 part) PH-3 | Every deadline on the observer's own clock from the start. The NTP check, the skew flag and cross-host version refusal come with a second host |
+| R-58 | The owed-answers list | Must | PH-2 | INC-h |
+| R-59 | Sender-assigned numbers | Floor | PH-2; circuit part PH-5 | SI-5, SI-6 |
+| R-60 | Directory, project identity | Floor | PH-3 | SI-12 |
+| R-61 | Hub identity | Must | PH-0 canonical id; PH-3 signing key apart from the certificate | A certificate regeneration must not rename inboxes |
+| R-62 | Exact instance, never redirect | Floor | PH-1; PH-4 hand-over | SI-26, SI-29. INC-c |
+| R-63 | Interrupt consent | Floor | PH-2 fixed default; PH-4 configurable | SI-18, SI-21 |
+| R-64 | Mail starts an agent only under a grant | Floor | PH-4 | SI-21 |
+| R-65 | Resume an exact instance | Floor | PH-4 | FX-3 |
+| R-66 | The daily end-to-end canary | Must | PH-2 | Three failures fired nothing (R-66.c); G-063 |
+| R-67 | The role "main" | Floor | PH-2 pin only; PH-4 lease, duplicates, forwarding | SI-20. INC-h |
+| R-68 | Two standing tests for "main" | Must | PH-4 | The two failures the external review named |
+| R-69 | The closing rule, four tiers | Must | from PH-0 | A standing rule. Staging in section 8 |
+| R-70 | Inventories and tripwires | Must | PH-0 | The GP-12 ruling. Numbers in section 7 |
+| R-71 | The `sidecar:` alias ends | Should | PH-3, or one release after the T-3342 re-vendor, whichever is later | BP-9; `sidecar:999` still holds 30 messages |
+| R-72 | Admission as Tier 0 events | Floor | PH-3 | SI-13, SI-8, SI-24 |
+| R-73 | One policy model | Floor in part + Must | format now (10.3); engine PH-4 | 055 needs the format now; the engine needs the configuration lock of PH-4 |
+| R-74 | Conversation membership | Floor | PH-4 | SI-29; many to many waits for it |
+| R-75 | Every message is signed | Floor | PH-1 | SI-3 |
+| R-76 | Operator key and confirmation provider | Floor | contract and stub PH-3; real provider PH-6 | SI-13, SI-31; needs K. T-3385 |
+| R-77 | Fleet admission, signed advertisements | Floor | PH-3 | SI-12. Gate: T-2470 |
+| R-78 | Authority from operator-signed configuration | Floor | PH-4 | SI-20, SI-21; needs A and K |
+| R-79 | Delegation only through TermLink | Floor | PH-2 log; PH-4 disable | FX-1; RA-5 |
+| R-80 | Confidentiality (B′) | Floor in part | PH-3 pin card keys; PH-4 DM encryption; PH-5 circuit copies; PH-6 project mail, custody, break-glass | FX-5; RA-3 |
+| R-81 | Activity veto, busy bit | Floor | PH-2 | SI-2; T-3387 |
+| R-82 | Per-agent operating-system accounts | Committed target | Track A: pilot in PH-2; A3 before PH-4 exit (recommended) | RA-1, OP-1 |
+| PR-11 | Scan outgoing content for secrets (TM, no R-n) | Should | PH-4 | TH-27 (likelihood medium, impact high); RR-1 accepted; cheap; no ruling |
+
+4.3 Counts, over the 82 requirements, counted from the table by a script (the row class decides): **Floor** (alone, "Floor + Must" or "Floor in part"): 35. **Must**: 34 (R-57 also has a Should part). **Should**: 6. **Could**: 1. **Deferred**: 3 (R-9, R-38, R-41), plus the operator leg of R-1, which waits for GP-11. **Excluded**: 2 (R-40, R-43). **Committed target**: 1 (R-82). 35 + 34 + 6 + 1 + 3 + 2 + 1 = 82.
+4.4 Where I differ from step 1's proposed priorities.
+4.4.a R-25 is raised from P2 to Must (recorded weakness). 4.4.b R-9 stays P2 in step 1 and is Deferred here because it cannot ship before its grants. 4.4.c R-7 is P1 and a Must, and its phase is PH-5: priority and phase are different things. The operator should see that the independence they asked for in R-7 arrives last of the P1 items; what they get in the meantime is a hub-path system whose failures are visible (6.4). 4.4.d R-55 is P1 in step 1 (CAND-10 ruled P1) and is Should here, because the tool is AEF's and the TermLink primitive it needs is PH-3; the operator can raise it. 4.4.e No P1 or P2 requirement is left without a phase; the Deferred ones carry the prerequisite that defers them.
+
 <!-- CONTINUE -->
