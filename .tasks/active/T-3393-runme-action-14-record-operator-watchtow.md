@@ -62,8 +62,8 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] runme.sh action 14 lists T-3351:1 and T-3388:1 (the operator's Watchtower ticks of 2026-10-11) next to T-3349:1
-- [ ] tests/runme-fixtures.sh passes, with case 26 covering more than one listed tick
+- [x] runme.sh action 14 lists T-3351:1 and T-3388:1 (the operator's Watchtower ticks of 2026-10-11) next to T-3349:1
+- [x] tests/runme-fixtures.sh passes, with case 26 covering more than one listed tick
 - [ ] After the operator runs /opt/termlink/runme.sh, the ledger holds operator-ack rows for T-3351 and T-3388 and
       the log ends rc=0 (read by the agent from latest.log)
 
