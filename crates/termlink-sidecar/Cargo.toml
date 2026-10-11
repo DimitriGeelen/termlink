@@ -1,0 +1,9 @@
+[package]
+name = "termlink-sidecar"
+description = "arc-011 PH-1 sidecar: estate guard (C-1) and disposable-estate test kit (C-12)"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+termlink-session = { path = "../termlink-session" }
+libc = { workspace = true }

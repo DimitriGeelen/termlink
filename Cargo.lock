@@ -2045,6 +2045,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "termlink-sidecar"
+version = "0.9.0"
+dependencies = [
+ "libc",
+ "termlink-session",
+]
+
+[[package]]
 name = "termlink-test-utils"
 version = "0.9.0"
 dependencies = [

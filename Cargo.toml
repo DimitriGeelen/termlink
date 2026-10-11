@@ -8,6 +8,7 @@ members = [
     "crates/termlink-cli",
     "crates/termlink-test-utils",
     "crates/termlink-bus",
+    "crates/termlink-sidecar",
 ]
 
 [workspace.package]
