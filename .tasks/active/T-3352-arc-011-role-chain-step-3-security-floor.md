@@ -6,10 +6,10 @@ description: >
   output docs/design/interactive-agent-communication-03-floor-and-phasing.md. Starts
   only after step 2 is approved by the operator.
 
-status: captured
+status: started-work
 workflow_type: specification
 owner: agent
-horizon: next
+horizon: now
 tags: [arc:arc-011]
 arc_id: arc-011
 components: []
@@ -25,7 +25,7 @@ related_tasks: [T-3344]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:13:12Z
-last_update: '2026-10-06T10:17:53Z'
+last_update: 2026-10-11T12:01:33Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -166,6 +166,24 @@ grep -q 'task: T-3352' docs/design/interactive-agent-communication-role-chain.ya
      - **Rejected:** [alternatives and why not]
 -->
 
+### 2026-10-11 — OP-1 per-agent accounts: order and price (operator ruling)
+- **Dialogue:** recommendation B; the operator asked for an external review first. GLM (independent, without the
+  orchestrator's recommendation; docs/reports/T-3352-op1-review/glm.md) chose B with two amendments; Codex was
+  blocked by its usage limit (retry scheduled 19:50). The operator asked what was needed; restated in plain terms
+  (pilot in PH-3, price gate, all agents before PH-4, plus the two amendments); operator: "yes".
+- **Chose:** B with GLM's two amendments:
+  1. A0 pilot in PH-3 (once the C-15 Tier 0 route exists); price gate after the pilot, back to the operator with
+     the measured price (H-28); A3 (every agent on its own account) before PH-4 exits; A4 (orchestrator, runme,
+     cron, hub restarts without general root) in PH-6. PH-2/PH-3 run at base strength under RA-1.
+  2. Amendment 1: the read-only inventory of which processes need root, and why, is a PH-0 exit item.
+  3. Amendment 2: after the price gate, no new agent is started as root.
+  Every account creation stays one Tier 0 event with its own digest (R-82.a (3)).
+- **Rejected:** A (accounts before PH-2: the largest unknown blocks a release that does not need it), C (after
+  PH-5: every capability phase adds power to root agents), D (pilot only, migration its own arc: target drifts).
+- **Open:** the price gate itself; account design details (step 4); GLM's notes on underestimated costs (login per
+  account, attach workflow, shared checkout, cron/canaries, re-pinning) and safety points (exact-argv helper,
+  rollback keeps the account, half-migrated status never green) go to step 4.
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
@@ -182,3 +200,7 @@ grep -q 'task: T-3352' docs/design/interactive-agent-communication-role-chain.ya
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3352-arc-011-role-chain-step-3-security-floor.md
 - **Context:** Initial task creation
+
+### 2026-10-11T11:26:17Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
