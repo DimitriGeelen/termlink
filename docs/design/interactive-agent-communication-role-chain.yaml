@@ -37,6 +37,9 @@ steps:
       orchestrator's accepted details; J2 A priorities stay proposals; J3 A CAND-17 added to step 2; J4 A R-7 one
       host-independent rule; J5 B acceptance-number cross-check (13.4), three numbers added to step 4.
       T-3349 itself is closed by the operator.
+      Reopened after step 2 (T-3388, operator ruling A 2026-10-10): v0.5.2 folds the 20 accepted step-2 change
+      requests plus the R-67 precedence ruling; approved by the operator 2026-10-11 (T-3388 Human AC,
+      [RUBBER-STAMP], ticked in Watchtower). Step 3 reads v0.5.2.
   - step: 2
     role: Threat modeler
     task: T-3351
@@ -45,6 +48,12 @@ steps:
     output: docs/design/interactive-agent-communication-02-threat-model.md
     decides: true
     operator: accepts the residual risks (injection into a busy session, hub-to-hub trust, per-circuit credentials)
+    approval: >-
+      approved by the operator 2026-10-11: threat model v0.3.7, residual risks accepted as a set (T-3351 Human AC,
+      [RUBBER-STAMP], ticked in Watchtower). Every item was ruled one at a time 2026-10-07..10 (register 22.18;
+      records in T-3351 Decisions); Codex consistency check docs/reports/T-3351-step2-review/codex-confirm.md,
+      fixes verified (fixes-confirm.md). Accepted change requests folded into step 1 as v0.5.2 (T-3388), also
+      approved 2026-10-11.
   - step: 3
     role: Security floor and phasing
     task: T-3352
