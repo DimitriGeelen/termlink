@@ -53,6 +53,21 @@ pub struct Running {
     pub deliverer: Arc<Deliverer>,
     _receiver: Receiver,
     pub api: Api,
+    sweep_stop: Arc<std::sync::atomic::AtomicBool>,
+    sweeper: Option<std::thread::JoinHandle<()>>,
+}
+
+/// How often open attempts are swept, and how old one must be for the final check.
+pub const SWEEP_EVERY: Duration = Duration::from_secs(2);
+pub const SWEEP_WINDOW_MS: u64 = 60_000;
+
+impl Drop for Running {
+    fn drop(&mut self) {
+        self.sweep_stop.store(true, std::sync::atomic::Ordering::SeqCst);
+        if let Some(t) = self.sweeper.take() {
+            let _ = t.join();
+        }
+    }
 }
 
 fn roster_of(keys: &[String]) -> Result<Roster, String> {
@@ -117,7 +132,23 @@ pub fn start(cfg: &Config, store_root: &Path, runtime: &Path, home: &Path) -> Re
     api_cfg.sender = Some(sender.clone());
     api_cfg.deliverer = Some(deliverer.clone());
     let api = Api::start(api_cfg, store.clone()).map_err(|e| format!("api: {e}"))?;
-    Ok(Running { store, sender, deliverer, _receiver: receiver, api })
+    // Decide attempts whose finalizer never ran or died (B13).
+    let sweep_stop = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let sweeper = {
+        let (d, stop) = (deliverer.clone(), sweep_stop.clone());
+        std::thread::spawn(move || {
+            let mut waited = Duration::ZERO;
+            while !stop.load(std::sync::atomic::Ordering::SeqCst) {
+                std::thread::sleep(Duration::from_millis(100));
+                waited += Duration::from_millis(100);
+                if waited >= SWEEP_EVERY {
+                    waited = Duration::ZERO;
+                    d.sweep(crate::store::now_ms(), SWEEP_WINDOW_MS);
+                }
+            }
+        })
+    };
+    Ok(Running { store, sender, deliverer, _receiver: receiver, api, sweep_stop, sweeper: Some(sweeper) })
 }
 
 /// `termlink-sidecar start --config F`: run until SIGTERM or SIGINT.

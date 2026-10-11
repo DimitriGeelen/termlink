@@ -37,6 +37,62 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 use std::sync::Arc;
 
+/// Kill points of the deliver path (B13, H-16), beside the store's write-sequence
+/// steps. Like those, a kill point stands for a crash: the call stops there with
+/// an error and the test then drops and reopens everything.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum KillPoint {
+    /// After an attempt's claim file, before its attempt record.
+    AfterClaim,
+    /// After the attempt record, before the CLAIMED lines.
+    AfterRecord,
+    /// After the CLAIMED lines, before the frame is returned.
+    AfterClaimed,
+    /// In the finalizer, before the HANDED_OVER line.
+    BeforeHandedOver,
+    /// In the finalizer, before the ABSENT line.
+    BeforeAbsent,
+}
+
+impl KillPoint {
+    pub const ALL: [KillPoint; 5] = [
+        KillPoint::AfterClaim,
+        KillPoint::AfterRecord,
+        KillPoint::AfterClaimed,
+        KillPoint::BeforeHandedOver,
+        KillPoint::BeforeAbsent,
+    ];
+}
+
+#[cfg(feature = "failpoints")]
+thread_local! {
+    static KILL: std::cell::Cell<Option<KillPoint>> = const { std::cell::Cell::new(None) };
+}
+
+/// Arm one deliver kill point on the current thread; it fires once.
+#[cfg(feature = "failpoints")]
+pub fn arm_kill(k: KillPoint) {
+    KILL.with(|c| c.set(Some(k)));
+}
+
+#[cfg(feature = "failpoints")]
+pub fn disarm_kill() {
+    KILL.with(|c| c.set(None));
+}
+
+/// The text of a fired kill point's error (tests match on it).
+pub const KILLED: &str = "killed at a deliver kill point";
+
+#[allow(unused_variables)]
+fn kp(k: KillPoint) -> Result<(), String> {
+    #[cfg(feature = "failpoints")]
+    if KILL.with(|c| c.get()) == Some(k) {
+        KILL.with(|c| c.set(None));
+        return Err(format!("{KILLED} {k:?}"));
+    }
+    Ok(())
+}
+
 pub const CLAIMED: &str = "CLAIMED";
 pub const HANDED_OVER: &str = "HANDED_OVER";
 pub const UNCERTAIN: &str = "UNCERTAIN";
@@ -127,7 +183,82 @@ fn own(l: &ChainLine) -> bool {
 
 impl Deliverer {
     pub fn new(agent: &str, store: Arc<Store>, policy: Box<dyn Policy>, sender: Option<Arc<Sender>>) -> Self {
-        Deliverer { agent: agent.to_owned(), store, policy, sender, projects_root: None }
+        let d = Deliverer { agent: agent.to_owned(), store, policy, sender, projects_root: None };
+        if let Err(e) = d.recover() {
+            let _ = d.store.attention("deliver-recovery", &e);
+        }
+        d
+    }
+
+    /// Start-up recovery (B13): close the attempts whose frame provably never
+    /// left. `pull` writes claim file, attempt record and CLAIMED line, in that
+    /// order, and builds the frame only after all three; a claim with no CLAIMED
+    /// line for its attempt was cut off before that, so nothing was handed out
+    /// and the attempt is closed (ABSENT, reason "orphan"). Run only at start,
+    /// when no pull of this process can be half-way. Returns how many it closed.
+    pub fn recover(&self) -> Result<usize, String> {
+        let claims = self.store.all_claims().map_err(|e| e.to_string())?;
+        if claims.is_empty() {
+            return Ok(0);
+        }
+        // msg_id -> (conv, its lines)
+        let mut by_msg: BTreeMap<String, (String, Vec<ChainLine>)> = BTreeMap::new();
+        for conv in self.store.conversations() {
+            let Ok(lines) = self.store.chain_lines(&conv) else { continue };
+            for l in &lines {
+                by_msg.entry(l.msg_id.clone()).or_insert_with(|| (conv.clone(), vec![])).1.push(l.clone());
+            }
+        }
+        let mut closed = 0;
+        for (msg_id, attempt) in claims {
+            let Some((conv, lines)) = by_msg.get(&msg_id) else {
+                let _ = self.store.attention("orphan-claim", &format!("{msg_id}.{attempt}: no message with that id in any chain"));
+                continue;
+            };
+            let has = |ev: &str| lines.iter().any(|l| l.event == ev && own(l) && attempt_of(l) == Some(attempt));
+            if has(CLAIMED) || has(ABSENT) {
+                continue;
+            }
+            let Some(st) = lines.iter().find(|l| l.event == "STORED" && own(l)) else { continue };
+            let it = Claimed {
+                conv: conv.clone(),
+                msg_id: msg_id.clone(),
+                sender: st.sender.clone(),
+                attempt,
+                digest: st.digest.clone(),
+            };
+            let reason = format!("attempt={attempt} orphan: claimed, but the sidecar stopped before CLAIMED; no frame left");
+            if self.line_once(&it, ABSENT, &reason)? {
+                closed += 1;
+            }
+        }
+        Ok(closed)
+    }
+
+    /// Run the finalizer over every attempt still open (B13): a crash after the
+    /// frame left must not leave an attempt nobody decides. An attempt older than
+    /// `window_ms` gets the final check (UNCERTAIN when still unprovable).
+    /// Returns how many attempts were still open.
+    pub fn sweep(&self, now_ms: u64, window_ms: u64) -> usize {
+        let Ok(names) = self.store.states_with_prefix("delivery-") else { return 0 };
+        let mut open = 0;
+        for name in names {
+            let nonce = &name["delivery-".len()..];
+            let Some(rec) = self.attempt(nonce) else { continue };
+            let still_open = rec.items.iter().any(|it| {
+                !self.handed(it)
+                    && !self
+                        .store
+                        .chain_lines(&it.conv)
+                        .map(|ls| ls.iter().any(|l| l.event == ABSENT && own(l) && l.msg_id == it.msg_id && attempt_of(l) == Some(it.attempt)))
+                        .unwrap_or(false)
+            });
+            if still_open {
+                open += 1;
+                let _ = self.finalize(nonce, now_ms.saturating_sub(rec.ts_ms) >= window_ms);
+            }
+        }
+        open
     }
 
     /// Resolve transcripts under `root` (normally `$HOME/.claude/projects`).
@@ -258,6 +389,7 @@ impl Deliverer {
                 Ok(ClaimOutcome::Won) => {
                     size += add;
                     won.push(c);
+                    kp(KillPoint::AfterClaim)?;
                 }
                 Ok(ClaimOutcome::Held) => {} // another pull has it
                 Err(e) => {
@@ -292,6 +424,7 @@ impl Deliverer {
             let _ = self.store.attention("attempt-unrecorded", &format!("nonce {nonce}: {e}; claims stay open"));
             return Err(format!("attempt record: {e}"));
         }
+        kp(KillPoint::AfterRecord)?;
         for c in &won {
             let extra = LineExtra { reason: Some(attempt_reason(c.next_attempt, &nonce)), ..Default::default() };
             if let Err(e) = self.store.append_event_unless(&c.conv, CLAIMED, &c.msg_id, &c.sender, &c.digest, extra, |_| false) {
@@ -299,6 +432,7 @@ impl Deliverer {
                 return Err(format!("CLAIMED not recorded: {e}"));
             }
         }
+        kp(KillPoint::AfterClaimed)?;
         let items: Vec<Item<'_>> = won.iter().map(|c| Item { msg: &c.msg, assessment: &c.assessment }).collect();
         let frame = frame::build(&items, &nonce, waiting);
         Ok(Pulled::Frame { frame, waiting })
@@ -360,6 +494,7 @@ impl Deliverer {
         };
         match ev {
             Evidence::Found { .. } => {
+                kp(KillPoint::BeforeHandedOver)?;
                 for it in &rec.items {
                     self.line_once(it, HANDED_OVER, &attempt_reason(it.attempt, nonce))?;
                     self.report_handed_over(it);
@@ -367,6 +502,7 @@ impl Deliverer {
                 Ok(Verdict::HandedOver)
             }
             Evidence::Absent { complete: true } => {
+                kp(KillPoint::BeforeAbsent)?;
                 for it in &rec.items {
                     if !self.handed(it) {
                         self.line_once(it, ABSENT, &attempt_reason(it.attempt, nonce))?;

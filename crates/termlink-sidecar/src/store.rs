@@ -719,6 +719,34 @@ impl Store {
         Ok(ClaimOutcome::Won)
     }
 
+    /// Every claim file as (msg_id, attempt).
+    pub fn all_claims(&self) -> Result<Vec<(String, u32)>> {
+        let mut v = vec![];
+        for e in fs::read_dir(self.dir.join("claims"))? {
+            let name = e?.file_name().to_string_lossy().into_owned();
+            if let Some((id, n)) = name.rsplit_once('.')
+                && let Ok(n) = n.parse()
+            {
+                v.push((id.to_owned(), n));
+            }
+        }
+        v.sort();
+        Ok(v)
+    }
+
+    /// Names of the state files starting with `prefix` (without the `state.` part).
+    pub fn states_with_prefix(&self, prefix: &str) -> Result<Vec<String>> {
+        let want = format!("state.{prefix}");
+        let mut v: Vec<String> = fs::read_dir(&self.dir)?
+            .filter_map(|e| e.ok())
+            .filter_map(|e| e.file_name().to_str().map(str::to_owned))
+            .filter(|n| n.starts_with(&want))
+            .map(|n| n["state.".len()..].to_owned())
+            .collect();
+        v.sort();
+        Ok(v)
+    }
+
     /// Attempt numbers already claimed for `msg_id`, ascending.
     pub fn claims_for(&self, msg_id: &str) -> Result<Vec<u32>> {
         check_name(msg_id)?;

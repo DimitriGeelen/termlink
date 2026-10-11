@@ -533,3 +533,27 @@ fn deliver_handed_over_reaches_the_sender_as_a_signed_stage() {
     let st = api::dispatch(&json!({"op": "status", "msg_id": s.msg_id}), Scope::Status, &sa, "agent-a", Some(&id));
     assert_eq!(st["messages"][0]["stage"], "HANDED_OVER", "{st}");
 }
+
+#[test]
+fn deliver_orphan_claims_are_closed_at_start_and_open_attempts_are_not() {
+    let r = rig();
+    put(&r.store, &msg(&r.ka, "o", "orphan", "0", "x"));
+    put(&r.store, &msg(&r.ka, "o", "open", "0", "y"));
+    // `open`: a real attempt (claim, record, CLAIMED line, frame handed out).
+    let (f, _) = frame_of(&r.d, Some("toolu_O"));
+    assert!(f.msg_ids.contains(&"open".to_string()));
+    // `orphan`: a claim file with nothing after it, as a crash leaves it. Undo the
+    // frame's claim on `orphan` first so only the bare claim file remains.
+    let claimed_orphan = f.msg_ids.contains(&"orphan".to_string());
+    assert!(claimed_orphan, "both fit one frame");
+    let d2 = Deliverer::new(B, r.store.clone(), Box::new(BuiltIn::new(roster_of(&[&r.ka]))), None);
+    assert_eq!(d2.recover().unwrap(), 0, "attempts with a CLAIMED line are never orphans");
+    std::fs::write(r.store.dir().join("claims").join("orphan.2"), "nonce-x\n0\n").unwrap();
+    let d3 = Deliverer::new(B, r.store.clone(), Box::new(BuiltIn::new(roster_of(&[&r.ka]))), None);
+    let ls = lines(&r.store, "o", "orphan");
+    let last = ls.last().unwrap();
+    assert_eq!(last.event, "ABSENT");
+    assert!(last.reason.as_deref().unwrap().starts_with("attempt=2 orphan"), "{:?}", last.reason);
+    assert_eq!(d3.recover().unwrap(), 0, "recovery is idempotent");
+    assert_eq!(names(&lines(&r.store, "o", "open")), ["RECEIVED", "STORED", "CLAIMED"], "the open attempt is untouched");
+}
