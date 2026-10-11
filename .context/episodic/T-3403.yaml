@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3403: arc-011 PH-1 B3: wire format, signing, verification, roster and instance checks
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-11T18:21:18Z
+# ============================================================================
+
+task_id: T-3403
+task_name: "arc-011 PH-1 B3: wire format, signing, verification, roster and instance checks"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-11T18:16:25Z
+completed: 2026-10-11T18:21:02Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-11T20:20:57+02:00
+last_commit: 2026-10-11T20:20:57+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  sidecar wire.rs: canonical payload, sign/verify, roster and instance checks, address parser, golden vector
+
+# Key outcomes
+outcomes:
+  - 'crates/termlink-sidecar/src/wire.rs implements the section 5.1 payload (canonical sorted-key JSON, v:1), sha256 digest, and signing over canonical_sign_bytes(topic, "sidecar.msg.v1", payload, None, ts)'
+  - 'Round-trip sign/verify succeeds; roster check and to_instance check implemented (SI-26)'
+  - 'Altered payload, wrong key, shared (non-roster) key, and wrong instance are each refused with a distinct reason variant'
+  - 'Address parser (R-32) reads path form and V9 form to the same five levels and writes path form'
+  - 'Golden vector file committed and asserted by a test'
+  - 'wire_ tests pass: cargo test -p termlink-sidecar wire_'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-sidecar/Cargo.toml'
+  - 'crates/termlink-sidecar/src/lib.rs'
+  - 'crates/termlink-sidecar/src/wire.rs'
+  - 'crates/termlink-sidecar/tests/golden/wire_v1.json'
+  - '.tasks/active/T-3403-arc-011-ph-1-b3-wire-format-signing-veri.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-11T20:20:57'
+    action: 'T-3403: sidecar wire.rs: canonical payload, sign/verify, roster and instance checks, address parser, golden vector'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 4
+  commits: 2
+  files_changed: 7
+  lines_added: 1022
+  lines_removed: 0
+  footprint_refreshed_at: '2026-10-11T18:21:52Z'
+  footprint_refreshed_by_commit: 5b020e5ff
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3403-arc-011-ph-1-b3-wire-format-signing-veri.md
+generated_by: context-agent-hybrid

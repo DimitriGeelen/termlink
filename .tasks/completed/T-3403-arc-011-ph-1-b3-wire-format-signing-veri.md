@@ -8,10 +8,10 @@ description: >
   the sidecar's canonical payload signs conversation id, message id, sender identity
   and the rest.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -42,8 +42,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-11T18:16:25Z
-last_update: 2026-10-11T18:20:57Z
-date_finished:
+last_update: 2026-10-11T18:21:02Z
+date_finished: 2026-10-11T18:21:02Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -374,3 +374,20 @@ test -f crates/termlink-sidecar/tests/golden/wire_v1.json
 
 ### 2026-10-11T18:18:00Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-7a26dad6
+- **Timestamp:** 2026-10-11T18:21:09Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — crates/termlink-sidecar/src/wire.rs implements the section 5.1 payload (canonical sorted-key JSON, v:1), sha256 digest, and signing over canonical_sign_bytes(topic, "sidecar.msg.v1", payload, None, ts
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=crates/termlink-sidecar/src/wire.rs in: crates/termlink-sidecar/src/wire.rs implements the section 5.1 payload (canonical sorted-key JSON, v:1), sha256 digest, and signing over canonical_sig`
+
+### 2026-10-11T18:21:02Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
