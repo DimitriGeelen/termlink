@@ -1,0 +1,43 @@
+# arc-011 inventory (T-3397, PH-0 6.2.1.a (5), R-70).
+# Version-controlled numbers of step-3 section 7 (floor-and-phasing v0.2.1).
+# scripts/check-arc011-inventory.sh counts the same things where they are
+# defined (the doc anchors) and fails when they disagree with this file
+# or exceed the cap. Adding a state or marker means editing BOTH places, and
+# crossing the cap needs the review of 7.3.e (OP-7 ruled A: cap 14 / 8).
+source_doc: docs/design/interactive-agent-communication-03-floor-and-phasing.md
+cap:
+  states: 14
+  markers: 8
+states:
+  chain:            # 7.3.a
+    - SENT
+    - RECEIVED
+    - STORED
+    - QUEUED
+    - ATTEMPTED
+    - HANDED_OVER
+    - REPLIED
+    - ACKNOWLEDGED_NO_ACTION
+    - DEAD
+  sender_labels:    # 7.3.b
+    - WAITING
+    - WAITING FOR RECIPIENT
+    - STUCK
+    - UNKNOWN
+markers:            # 7.3.c
+  - hand-over uncertain
+  - unreconciled
+  - late
+  - downgraded
+  - conflict
+  - suspect
+  - lost-after-STORED
+counts:
+  states: 13
+  markers: 7
+gp12:               # 7.2 diagnosis-time bound (FP-1, OP-6 recommendation A)
+  detection_to_diagnosis_seconds: 60
+  start_or_tick_check_seconds: 30
+  query_seconds: 5
+  drilled_human_minutes: 5
+  real_failures: 5
