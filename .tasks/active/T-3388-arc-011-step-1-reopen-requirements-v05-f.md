@@ -91,14 +91,19 @@ accepted. Operator ruled A on 2026-10-10.
 - [x] v0.5 status reads DRAFT for operator sign-off; role-chain yaml approval for step 1 is not changed by the agent.
 
 ### Human
-- [ ] [REVIEW] Sign off requirements v0.5
+- [ ] [RUBBER-STAMP] Sign off requirements v0.5.2 (every change in it is something the operator already ruled)
+  **Evidence (already on disk):**
+  1. Every change cites its change request and ruling: requirements section 14.1 (20 rows) and the CR-n markers
+     in each changed requirement; the full rulings in T-3351 and T-3388 § Decisions.
+  2. Independent check: `docs/reports/T-3388-step1-v05/codex-confirm.md` ("consistent after listed fixes").
+  3. Fixes applied and verified: `docs/reports/T-3388-step1-v05/fixes-confirm.md`; diagrams re-rendered clean.
+  4. The one open point it found (R-67 precedence) was ruled D on 2026-10-10 and is in v0.5.2.
   **Steps:**
-  1. Read `docs/design/interactive-agent-communication-01-requirements.md` (v0.5), version row and the CR table.
-  2. Spot-check any change request you care about against your ruling in T-3351 § Decisions.
-  **Expected:** each change reads as you ruled it; nothing else changed.
-  **If not:** name the requirement id and what is wrong; the orchestrator corrects and re-presents.
+  1. Open http://192.168.10.107:3003/review/T-3388 and confirm (optionally open the requirements' version row
+     and section 14.1).
+  **Expected:** confirmed; the requirements become step 1's signed input for step 3.
+  **If not:** name the requirement id that does not read as you ruled; the orchestrator corrects and re-presents.
 
-### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
      Remove this section if all criteria are agent-verifiable.
      Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.

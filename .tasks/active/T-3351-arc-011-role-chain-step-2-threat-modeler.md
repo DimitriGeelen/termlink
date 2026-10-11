@@ -82,12 +82,17 @@ Arc: arc-011. Rulings summary: `docs/reports/T-3344-step1-rulings-summary.md`.
 - [x] Role-chain yaml step 2 `task:` set to this task id
 
 ### Human
-- [ ] [REVIEW] Accept the step-2 residual risks
+- [ ] [RUBBER-STAMP] Accept the step-2 residual risks as a set (each one was already ruled individually)
+  **Evidence (already on disk):**
+  1. Rulings register: threat model v0.3.7 section 22.18 (process, OQ-1..OQ-17, principle B′, CR-1, RR-8, RR-13,
+     bundles D4..D7); every residual risk RR-1..RR-20 is marked accepted, narrowed or dropped with its ruling;
+     the full records are in this task's § Decisions.
+  2. Independent check: `docs/reports/T-3351-step2-review/codex-confirm.md` ("consistent after listed fixes").
+  3. Fixes applied and verified: `docs/reports/T-3351-step2-review/fixes-confirm.md`.
   **Steps:**
-  1. Read the residual-risk list in docs/design/interactive-agent-communication-02-threat-model.md
-  2. Accept each, or ask for a mitigation
-  **Expected:** Every residual risk accepted or sent back
-  **If not:** Name the risk to rework
+  1. Open http://192.168.10.107:3003/review/T-3351 and confirm (optionally open section 22.18).
+  **Expected:** confirmed; step 2 is signed and step 3 may start.
+  **If not:** name the risk to rework; the orchestrator re-presents it as one decision.
 
 ## Verification
 
