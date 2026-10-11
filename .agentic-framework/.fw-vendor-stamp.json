@@ -33,7 +33,7 @@
 ".tasks/workflow/WM-003-session-lifecycle.md": "83014f415247566fbb823ff08b12cb759c4e5705a3d85e44dfd9a8fdfbe10ff3",
 ".upstream": "1b0811e3c9cbe1040d9eb2d1fe80ce7094c70fa2bc75be5bdb8d76a4fb755cb4",
 "FRAMEWORK.md": "0dfd095daa44c9f32dfcead24f306eacc59eb84c07b761603b17dcecb4b8f1e0",
-"VERSION": "8a5cf1a45d21627c616df70c6eb4cc774b5b6c050fc272a98c3ce793e5e33b85",
+"VERSION": "f26c3d2f53617cde2e8471318e0a060d125c9f1edbf3a47e1a5271c1538a7ca4",
 "agents/antigravity/subagent_dispatch.py": "e9e1c6cb0e0a06711f30869e3eec4ddc0b7450012b0bc98b8dbd4a53438ca11b",
 "agents/audit/AGENT.md": "a74aecdbd55761ab3c3dfc0d146b4dbe0851c2bc9b3e27911fec7731426c0388",
 "agents/audit/active-task-scan.py": "816760f633b7b4ed867df93b0eb3df711f88b7ff0e94d766cc1384ef9a8dfc80",
@@ -51,7 +51,7 @@
 "agents/context/audit-task-tools.sh": "579f856e6fe755e38b5e10e9c8f31e7511a4fab072a0c6a545df4d5a75b335a8",
 "agents/context/block-plan-mode.sh": "6004d22e766ee3538b8a1a562fc1b56c8166dceb088d9568e9e8825e4c6214d7",
 "agents/context/block-task-tools.sh": "3001c5c17505c6f87693c07edca8e777904afd2b444e019e14f3583635456e88",
-"agents/context/budget-gate.sh": "2d7fa5da1a0e5ea18769229bc666708dbf81fff7b59766bae49523dd17ff24af",
+"agents/context/budget-gate.sh": "0b2bd6a18e02d43fa621f51c9065a19e6db834005396a20c5b72dbec5c5cebaa",
 "agents/context/bus-handler.sh": "7419eef5e7963e0e08daa57a40fc4ca21e965eae9afb5bac990b332ad2fae7c1",
 "agents/context/chat-bare-path-scan.sh": "77750063348f8fc8c0ccd1283b13c59451c20e64384d735dd10fb8d522a96297",
 "agents/context/chat-bare-path-warn.sh": "e4100c8022be8439fb69957927a876f992f74ce0a497dae084105e7b7e5e5ee4",
@@ -114,7 +114,7 @@
 "agents/context/sidecar-inbox.sh": "e632ae5399a7c96dda5187922ac3dd346c7b2f20b4532229f2b4202a62f87c94",
 "agents/context/sidecar-receiver-adapter.sh": "df7f3d1b9fc81ec0fffbab6b9a1299b95b98b74455bfeb75d21ada24f3d880d3",
 "agents/context/sidecar-receiver-ready.sh": "be2cd622722d3daff0c58a86a3c8a88091c4aafaafb0f305fc0aafb6e1e3dd54",
-"agents/context/stop-driver.sh": "d082a22a23761528d39dc14025f122499981ebcda72a032ff428e81911e976e2",
+"agents/context/stop-driver.sh": "112f89151b17276adffc8fd55082594a50834d80f3b702af5c530152d10b31de",
 "agents/context/stop-guard.sh": "411d0e9ece2f740e20e7124c3c4ebf64828504834ae34c7d65337a2809197739",
 "agents/context/subagent-stop.sh": "96c63f29cb4bfed3e7fcbb9e062ef470a51f5cbd1fa6ac1fb4bfc9b3fef0c0f9",
 "agents/context/test-tier0-patterns.py": "9f6508ab1bfea7dd0657943a54ba5290d94a775cec63dfe271b5d7da20a66e80",
@@ -207,7 +207,7 @@
 "agents/termlink/termlink.sh": "39d28f7c7582892c03e166ed34ecde55487d534999f3a3b2de99122ad20e6b2c",
 "agents/ux-review/AGENT.md": "76a08df55f80795fc44c544c61bd3fff5378223e9b88782ea6156e57276eeffa",
 "agents/ux-review/ux-review.py": "6733fff62082e8e80853a6234f92061c5f7f54ff668b8dfcf7d1a2a40d663397",
-"bin/claude-fw": "be32deca19e431eec7fd4ac8a840f2d1bf18e2fd75bf135581c819ffda38dbe2",
+"bin/claude-fw": "a59d9f2eff6d1a7d0981f5dac82fcb8e1562ba2ef63b1045eee3ce63880d9c43",
 "bin/claude-fw-router": "4f7c71b983d67d1843b2f398d2a06f845df345c7137ec8948f607d37add8f18d",
 "bin/fw": "2972c7e523fdd49bfec9df9c2e12b454eef2dfa2eb3fcc43f4b68c106f25e7d0",
 "bin/fw-router": "5f43bebaa3f507deaf36be054259a9827ecedfbe61520e7019fdce31bd70d735",
@@ -3516,5 +3516,5 @@
 },
 "schema": 1,
 "source": "fw vendor (T-3850)",
-"written_at": "2026-10-10T18:03:47Z"
+"written_at": "2026-10-11T09:56:03Z"
 }

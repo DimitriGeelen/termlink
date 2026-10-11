@@ -1,16 +1,16 @@
 # Agentic Engineering Framework - Project Configuration
 # framework_path removed (T-498) — fw resolves from .agentic-framework/bin/fw location
 project_name: 010-termlink
-version: 1.8.8
+version: 1.8.9
 provider: generic
 initialized_at: 2026-03-25T17:34:50Z
 
 upstream_repo: DimitriGeelen/agentic-engineering-framework
-upgraded_from: 1.8.5
-last_upgrade: 2026-10-10T18:03:53Z
+upgraded_from: 1.8.8
+last_upgrade: 2026-10-11T09:56:10Z
 inception_commit_limit: 5
 PORT: 3003
-version_sha: f0fc5839396060b7ea447e7a933e794c4866716d
+version_sha: b822942439fdb9de54c8823d953dc3a2979ff0fe
 RAIL_PROJECT_LABEL: 010-termlink
 CONTEXT_WINDOW: 950000
 project_id: pid-4c0095875ce41e2f
