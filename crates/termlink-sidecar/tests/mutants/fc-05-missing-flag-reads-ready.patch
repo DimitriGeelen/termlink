@@ -1,0 +1,14 @@
+# fc: FC-5
+# mutation: a missing or unreadable ready flag reads ready
+# test: --test hooks_tests hooks_ready_flag_reads_not_ready_unless_present_parseable_and_fresh
+--- a/crates/termlink-sidecar/src/deliver.rs
++++ b/crates/termlink-sidecar/src/deliver.rs
+@@ -150,7 +150,7 @@
+                 Ok(ts) => ts <= now_ms && now_ms - ts <= max_age_ms,
+                 Err(_) => false,
+             },
+-            _ => false,
++            _ => true,
+         }
+     }
+ 

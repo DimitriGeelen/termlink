@@ -1,0 +1,21 @@
+# fc: FC-3
+# mutation: the STORED line is written before the record is durable: a kill leaves a STORED line with no record
+# test: --test store_tests store_kill_at_every_step_never_reported_and_missing
+--- a/crates/termlink-sidecar/src/store.rs
++++ b/crates/termlink-sidecar/src/store.rs
+@@ -621,6 +621,7 @@
+             std::process::id(),
+             TMP_COUNTER.fetch_add(1, Ordering::Relaxed)
+         ));
++        let got = self.append_line(conv, "STORED", msg_id, sender, &digest)?;
+         fp(Step::WriteTmp)?;
+         // A real I/O error (e.g. ENOSPC) removes the partial temp file, so a
+         // retried put does not leak one per attempt and keep the disk full. A
+@@ -649,7 +650,6 @@
+         if new_conv {
+             fsync_dir(&self.dir.join("msgs"))?;
+         }
+-        let got = self.append_line(conv, "STORED", msg_id, sender, &digest)?;
+         debug_assert_eq!(got, seq);
+         fp(Step::Report)?;
+         Ok(PutOutcome::Stored { seq })

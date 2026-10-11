@@ -1,0 +1,14 @@
+# fc: FC-13
+# mutation: an unreadable transcript line is skipped (read as absent)
+# test: --test deliver_tests deliver_unreadable_transcript_is_uncertain_and_keeps_the_attempt_open
+--- a/crates/termlink-sidecar/src/adapter/claude.rs
++++ b/crates/termlink-sidecar/src/adapter/claude.rs
+@@ -95,7 +95,7 @@
+         }
+         let rec: Value = match serde_json::from_str(line) {
+             Ok(v @ Value::Object(_)) => v,
+-            _ => return Evidence::Unreadable(format!("line {} is not a JSON record", n + 1)),
++            _ => continue,
+         };
+         if let Some((texts, tool)) = attachment_texts(&rec)
+             && texts.iter().any(|t| t.starts_with(header_prefix))

@@ -1,0 +1,22 @@
+# fc: FC-15
+# mutation: status does not check the chain links
+# test: --test store_tests store_chain_break_detected_for_edit_insert_delete
+--- a/crates/termlink-sidecar/src/store.rs
++++ b/crates/termlink-sidecar/src/store.rs
+@@ -425,13 +425,13 @@
+                 Ok(l) => l,
+                 Err(e) => return broken(format!("unparseable line: {e}")),
+             };
+-            if l.seq != n {
++            if l.seq != n && false {
+                 return broken(format!("sequence jump: expected {n}, found {}", l.seq));
+             }
+-            if l.prev != prev {
++            if l.prev != prev && false {
+                 return broken("prev does not match the previous line's hash".into());
+             }
+-            if line_hash(&l) != l.hash {
++            if line_hash(&l) != l.hash && false {
+                 return broken("hash does not match line content".into());
+             }
+             prev = l.hash;

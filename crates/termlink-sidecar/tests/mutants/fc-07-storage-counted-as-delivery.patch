@@ -1,0 +1,15 @@
+# fc: FC-7
+# mutation: a stored message is shown to the sender as delivered
+# test: --test hooks_tests hooks_sender_sees_waiting_for_recipient_then_stuck_never_delivered
+--- a/crates/termlink-sidecar/src/api.rs
++++ b/crates/termlink-sidecar/src/api.rs
+@@ -666,7 +666,8 @@
+                     .filter_map(|r| r["peer_ts_ms"].as_u64().or_else(|| r["ts_ms"].as_u64()))
+                     .min();
+                 let stuck = stored_at.is_some_and(|t| now_ms.saturating_sub(t) > stuck_after_ms);
+-                v["label"] = json!(if stuck { "STUCK" } else { "WAITING FOR RECIPIENT" });
++                v["delivered"] = json!(true);
++                let _ = stuck;
+             }
+             // Stored but withheld (e.g. not-allowed), or refused outright: say why.
+             if let Some(r) = rows.iter().find(|r| r["msg_id"] == *m && r["stage"] == "REFUSED") {

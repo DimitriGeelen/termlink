@@ -622,15 +622,28 @@ impl Store {
             TMP_COUNTER.fetch_add(1, Ordering::Relaxed)
         ));
         fp(Step::WriteTmp)?;
-        let mut f = create0600(&tmp, true)?;
-        f.write_all(header.as_bytes())?;
-        f.write_all(b"\n")?;
-        f.write_all(payload)?;
-        fp(Step::FsyncFile)?;
-        f.sync_all()?;
-        drop(f);
-        fp(Step::Rename)?;
-        fs::rename(&tmp, self.rec_path(conv, seq, msg_id))?;
+        // A real I/O error (e.g. ENOSPC) removes the partial temp file, so a
+        // retried put does not leak one per attempt and keep the disk full. A
+        // failpoint stands for a crash, where no cleanup runs: recovery sweeps
+        // `tmp/` at the next start.
+        let staged = (|| -> Result<()> {
+            let mut f = create0600(&tmp, true)?;
+            f.write_all(header.as_bytes())?;
+            f.write_all(b"\n")?;
+            f.write_all(payload)?;
+            fp(Step::FsyncFile)?;
+            f.sync_all()?;
+            drop(f);
+            fp(Step::Rename)?;
+            fs::rename(&tmp, self.rec_path(conv, seq, msg_id))?;
+            Ok(())
+        })();
+        if let Err(e) = staged {
+            if !matches!(e, StoreError::Failpoint(_)) {
+                let _ = fs::remove_file(&tmp);
+            }
+            return Err(e);
+        }
         fp(Step::FsyncDir)?;
         fsync_dir(&convdir)?;
         if new_conv {

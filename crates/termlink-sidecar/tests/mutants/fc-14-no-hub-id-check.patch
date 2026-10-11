@@ -1,0 +1,14 @@
+# fc: FC-14
+# mutation: the receiver does not compare the hub id
+# test: --test receive_hub receive_hub_wrong_hub_id_reads_nothing_and_says_so
+--- a/crates/termlink-sidecar/src/pull.rs
++++ b/crates/termlink-sidecar/src/pull.rs
+@@ -218,7 +218,7 @@
+         let resp = self.rpc("hub.version", json!({})).map_err(PinError::Unreachable)?;
+         let v = unwrap_result(resp).map_err(PinError::Unreachable)?;
+         let found = v.get("hub_id").and_then(Value::as_str).map(str::to_owned);
+-        if found.as_deref() == Some(self.cfg.declared_hub_id.as_str()) {
++        if true || found.as_deref() == Some(self.cfg.declared_hub_id.as_str()) {
+             Ok(())
+         } else {
+             Err(PinError::Mismatch { declared: self.cfg.declared_hub_id.clone(), found })

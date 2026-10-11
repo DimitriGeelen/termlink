@@ -234,6 +234,15 @@ impl Inner {
             .unwrap_or(0)
     }
 
+    /// A needs-attention entry; when even that cannot be written (the store's
+    /// disk is full, say), the entry goes to stderr, i.e. the sidecar's log, so
+    /// the failure is never silent (H-17).
+    fn alert(&self, kind: &str, detail: &str) {
+        if let Err(e) = self.store.attention(kind, detail) {
+            eprintln!("termlink-sidecar: needs attention ({kind}): {detail} [could not record it: {e}]");
+        }
+    }
+
     fn me(&self) -> &str {
         self.sender.fingerprint()
     }
@@ -256,7 +265,7 @@ impl Inner {
                     found.as_deref().unwrap_or("nothing")
                 );
                 if mem.held.as_deref() != Some(why.as_str()) {
-                    let _ = self.store.attention("hub-id-mismatch", &why);
+                    self.alert("hub-id-mismatch", &why);
                 }
                 mem.held = Some(why.clone());
                 return PassResult::Held(why);
@@ -289,7 +298,7 @@ impl Inner {
             }
             for raw in &msgs {
                 let Some(env) = parse_envelope(raw) else {
-                    let _ = self.store.attention("inbox-unreadable", "envelope without an offset");
+                    self.alert("inbox-unreadable", "envelope without an offset");
                     return PassResult::Stalled { handled, reason: "envelope without an offset".into() };
                 };
                 if env.offset < cursor {
@@ -306,7 +315,7 @@ impl Inner {
                     Outcome::Retry(reason) => {
                         let key = format!("{}: {reason}", env.offset);
                         if mem.stalled.as_deref() != Some(key.as_str()) {
-                            let _ = self.store.attention("receive-stalled", &format!("inbox offset {key}"));
+                            self.alert("receive-stalled", &format!("inbox offset {key}"));
                         }
                         mem.stalled = Some(key);
                         return PassResult::Stalled { handled, reason };
@@ -321,7 +330,7 @@ impl Inner {
             wire::MSG_TYPE => self.handle_msg(env),
             wire::STAGE_TYPE => self.handle_stage(env),
             other => {
-                let _ = self.store.attention(
+                self.alert(
                     "inbox-unknown-type",
                     &format!("offset {}: msg_type {other:?} from {} skipped", env.offset, env.sender_id),
                 );
@@ -383,7 +392,7 @@ impl Inner {
                     // Stored and shown, never delivered (7.2).
                     match once(REFUSED, Some(code)) {
                         Ok(Some(_)) => {
-                            let _ = self.store.attention(
+                            self.alert(
                                 code,
                                 &format!(
                                     "{conv}/{id} from {from} ({}): stored, not delivered: sender is not on the allow-list",
@@ -402,7 +411,7 @@ impl Inner {
                 }
             }
             Ok(PutOutcome::Conflict { first_seq, conflict_seq }) => {
-                let _ = self.store.attention(
+                self.alert(
                     "conflict",
                     &format!(
                         "{conv}/{id} from {from}: a second body with another digest (chain seq {conflict_seq}); \
@@ -473,7 +482,7 @@ impl Inner {
             Err(e) => return Outcome::Retry(format!("REFUSED not recorded: {e}")),
         };
         if first {
-            let _ = self.store.attention(
+            self.alert(
                 "refused",
                 &format!("inbox offset {}: {conv}/{id} from {sender}: {why}", env.offset),
             );
@@ -524,7 +533,7 @@ impl Inner {
     }
 
     fn ignore_stage(&self, env: &Envelope, why: &str) -> Outcome {
-        let _ = self.store.attention(
+        self.alert(
             "stage-ignored",
             &format!("inbox offset {} from {}: {why}", env.offset, env.sender_id),
         );

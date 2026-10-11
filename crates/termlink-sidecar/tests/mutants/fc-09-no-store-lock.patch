@@ -1,0 +1,14 @@
+# fc: FC-9
+# mutation: the store lock is not enforced: a second sidecar opens the same store
+# test: --test receive_hub receive_hub_second_sidecar_on_the_same_store_is_refused
+--- a/crates/termlink-sidecar/src/store.rs
++++ b/crates/termlink-sidecar/src/store.rs
+@@ -307,7 +307,7 @@
+             .open(dir.join("lock"))?;
+         // SAFETY: valid fd owned by `lock`.
+         let rc = unsafe { libc::flock(lock.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) };
+-        if rc != 0 {
++        if rc != 0 && false {
+             let e = io::Error::last_os_error();
+             return Err(if e.raw_os_error() == Some(libc::EWOULDBLOCK) {
+                 StoreError::Locked

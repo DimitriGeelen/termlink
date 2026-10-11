@@ -1,0 +1,14 @@
+# fc: FC-4
+# mutation: pull skips the O_EXCL claim: a restarted sidecar frames the message again
+# test: --test deliver_tests deliver_an_open_claim_survives_a_restart_and_blocks_a_second_frame
+--- a/crates/termlink-sidecar/src/deliver.rs
++++ b/crates/termlink-sidecar/src/deliver.rs
+@@ -254,7 +254,7 @@
+                 waiting += 1;
+                 continue;
+             }
+-            match self.store.claim(&c.msg_id, c.next_attempt, &nonce, now_ms / 1000) {
++            match Ok::<_, String>(ClaimOutcome::Won) {
+                 Ok(ClaimOutcome::Won) => {
+                     size += add;
+                     won.push(c);

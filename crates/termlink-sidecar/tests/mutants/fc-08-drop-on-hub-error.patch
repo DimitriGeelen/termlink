@@ -1,0 +1,15 @@
+# fc: FC-8
+# mutation: the outbox drops the message when the hub is unreachable
+# test: --test fc_matrix fc_8_hub_down_shows_waiting_then_unknown_then_goes_on_with_no_loss
+--- a/crates/termlink-sidecar/src/send.rs
++++ b/crates/termlink-sidecar/src/send.rs
+@@ -492,6 +492,9 @@
+             Ok(()) => mem.held = None,
+             Err(PinError::Unreachable(_)) => {
+                 self.wait_head();
++                if let Ok(Some((q, _, _))) = self.queue.peek_oldest_with_attempts() {
++                    let _ = self.queue.pop(q);
++                }
+                 return PumpResult::Waiting;
+             }
+             Err(PinError::Mismatch { declared, found }) => {

@@ -1,0 +1,14 @@
+# fc: FC-10
+# mutation: the same key with another body counts as a duplicate
+# test: --test receive_hub receive_hub_same_id_with_another_body_is_a_conflict_and_never_stored
+--- a/crates/termlink-sidecar/src/store.rs
++++ b/crates/termlink-sidecar/src/store.rs
+@@ -589,7 +589,7 @@
+             .iter()
+             .find(|l| l.event == "STORED" && l.sender == sender && l.msg_id == msg_id)
+         {
+-            if first.digest == digest {
++            if true {
+                 if !self.rec_path(conv, first.seq, msg_id).exists() {
+                     return Err(StoreError::MissingRecord { conv: conv.into(), seq: first.seq, msg_id: msg_id.into() });
+                 }

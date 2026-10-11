@@ -647,6 +647,18 @@ fn status_at(
             // No hook has fired (the agent is idle or has no hook): waiting; past
             // the deadline: stuck (FC-6, FC-7). Storage is never called delivery.
             let sent_here = rows.iter().any(|r| r["msg_id"] == *m && r["stage"] == "SENT");
+            // Received but never stored (the recipient's store is failing): no
+            // label while it may still store, STUCK past the deadline.
+            if sent_here && reached == "RECEIVED" {
+                let received_at = rows
+                    .iter()
+                    .filter(|r| r["msg_id"] == *m && r["stage"] == "RECEIVED")
+                    .filter_map(|r| r["peer_ts_ms"].as_u64().or_else(|| r["ts_ms"].as_u64()))
+                    .min();
+                if received_at.is_some_and(|t| now_ms.saturating_sub(t) > stuck_after_ms) {
+                    v["label"] = json!("STUCK");
+                }
+            }
             if sent_here && reached == "STORED" {
                 let stored_at = rows
                     .iter()

@@ -1,0 +1,14 @@
+# fc: FC-12
+# mutation: the frame is built without the random boundary
+# test: --test deliver_tests frame_hostile_bodies_stay_inside_the_boundary
+--- a/crates/termlink-sidecar/src/frame.rs
++++ b/crates/termlink-sidecar/src/frame.rs
+@@ -126,7 +126,7 @@
+     for (i, it) in items.iter().enumerate() {
+         out.push_str(&item_header(i, n, it));
+         out.push('\n');
+-        out.push_str(&format!("<<<PEER-DATA-{b}>>>\n"));
++        out.push_str("<<<PEER-DATA->>>\n");
+         out.push_str(&it.msg.body);
+         // Always exactly one newline before the closer, so the body is
+         // recovered byte for byte, trailing newlines included.

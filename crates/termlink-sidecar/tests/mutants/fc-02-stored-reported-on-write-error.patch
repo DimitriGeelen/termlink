@@ -1,0 +1,17 @@
+# fc: FC-2
+# mutation: a store error is reported as STORED
+# test: --test fc_matrix fc_2_a_full_disk_never_reports_stored_and_the_message_waits
+--- a/crates/termlink-sidecar/src/pull.rs
++++ b/crates/termlink-sidecar/src/pull.rs
+@@ -420,7 +420,10 @@
+                 );
+                 Outcome::Done
+             }
+-            Err(e) => Outcome::Retry(format!("store: {e}")),
++            Err(_e) => match self.report(&msg, STORED) {
++                Ok(()) => Outcome::Done,
++                Err(x) => Outcome::Retry(x),
++            },
+         }
+     }
+ 

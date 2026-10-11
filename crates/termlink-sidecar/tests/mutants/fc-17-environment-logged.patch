@@ -1,0 +1,13 @@
+# fc: FC-17
+# mutation: the sidecar logs its environment at start
+# test: --test fc_matrix fc_17_the_canary_appears_in_nothing_the_estate_produced
+--- a/crates/termlink-sidecar/src/daemon.rs
++++ b/crates/termlink-sidecar/src/daemon.rs
+@@ -143,6 +143,7 @@
+             return 2;
+         }
+     };
++    eprintln!("environment: {:?}", std::env::vars().collect::<Vec<_>>());
+     let running = match start(&cfg, &store_root, &runtime, &home) {
+         Ok(r) => r,
+         Err(e) => {

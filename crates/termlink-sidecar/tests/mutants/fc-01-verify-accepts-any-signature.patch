@@ -1,0 +1,14 @@
+# fc: FC-1
+# mutation: wire::verify returns the message without checking the signature: a forged message is stored
+# test: --test receive_hub receive_hub_forged_or_misaddressed_messages_are_refused_never_stored
+--- a/crates/termlink-sidecar/src/wire.rs
++++ b/crates/termlink-sidecar/src/wire.rs
+@@ -299,7 +299,7 @@
+     if msg.payload_bytes() != s.payload {
+         return Err(Refusal::NotCanonical);
+     }
+-    check_signer(s, roster, &msg.from, MSG_TYPE)?;
++    let _ = check_signer(s, roster, &msg.from, MSG_TYPE);
+     if msg.to_instance != my_instance {
+         return Err(Refusal::WrongInstance {
+             want: my_instance.to_owned(),

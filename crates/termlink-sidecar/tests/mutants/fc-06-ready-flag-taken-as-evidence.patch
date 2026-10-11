@@ -1,0 +1,18 @@
+# fc: FC-6
+# mutation: a ready session is taken as evidence of hand-over
+# test: --test deliver_tests deliver_no_completeness_point_never_redelivers_on_a_timeout
+--- a/crates/termlink-sidecar/src/deliver.rs
++++ b/crates/termlink-sidecar/src/deliver.rs
+@@ -383,6 +383,12 @@
+                 self.uncertain(&rec, nonce, &why)?;
+                 Ok(Verdict::Uncertain(why))
+             }
++            Evidence::Absent { complete: false } if self.is_ready(&rec.session, crate::store::now_ms(), READY_MAX_AGE_MS) => {
++                for it in &rec.items {
++                    self.line_once(it, HANDED_OVER, &attempt_reason(it.attempt, nonce))?;
++                }
++                Ok(Verdict::HandedOver)
++            }
+             Evidence::Absent { complete: false } => Ok(Verdict::Pending),
+         }
+     }

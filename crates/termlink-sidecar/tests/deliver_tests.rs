@@ -443,6 +443,8 @@ fn deliver_no_completeness_point_never_redelivers_on_a_timeout() {
     std::fs::create_dir_all(&dir).unwrap();
     let t = write_transcript(&dir, "t.jsonl", &[rec_tool_use("toolu_A"), rec_tool_result("toolu_A", "ok"), rec_assistant("done")]);
     r.d.register_session("sess-1", &t).unwrap();
+    // A live, ready session is not evidence either (FC-6: a raised flag proves nothing).
+    r.d.mark_ready("sess-1", termlink_sidecar::store::now_ms()).unwrap();
     assert_eq!(r.d.finalize(&f.nonce, false).unwrap(), Verdict::Pending);
     assert!(matches!(r.d.finalize(&f.nonce, true).unwrap(), Verdict::Uncertain(_)));
     assert_eq!(names(&lines(&r.store, "t", "m1")), ["RECEIVED", "STORED", "CLAIMED", "UNCERTAIN"]);

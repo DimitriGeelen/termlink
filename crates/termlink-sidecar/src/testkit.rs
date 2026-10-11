@@ -178,10 +178,11 @@ impl Estate {
 
     /// The throwaway hub's own id, as `hub.version` states it. A hub that is up
     /// (it is only called while one runs) but slow to answer on a loaded host is
-    /// asked again, for up to 30 s in all.
+    /// asked again, for up to 90 s in all (a fresh debug-build hub on a host at
+    /// load average 40+ has been measured to take over 30 s to answer).
     pub fn hub_id(&self) -> std::io::Result<String> {
         let rt = tokio::runtime::Builder::new_current_thread().enable_all().build()?;
-        let deadline = std::time::Instant::now() + Duration::from_secs(30);
+        let deadline = std::time::Instant::now() + Duration::from_secs(90);
         let resp = loop {
             match rt.block_on(termlink_session::client::rpc_call_addr_with_timeout(
                 &self.hub_addr(),
