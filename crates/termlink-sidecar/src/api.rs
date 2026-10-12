@@ -178,9 +178,9 @@ pub fn peer_uid(s: &UnixStream) -> io::Result<u32> {
 
 impl Api {
     /// Bind the three scope sockets and serve them. Refuses to run outside a
-    /// marked estate.
+    /// marked estate or an operator-marked production root.
     pub fn start(cfg: ApiConfig, store: Arc<Store>) -> io::Result<Api> {
-        estate::guard(&cfg.runtime, &cfg.runtime, store.dir())
+        estate::guard_any(&cfg.runtime, &cfg.runtime, store.dir())
             .map_err(|e| io::Error::new(io::ErrorKind::PermissionDenied, e.to_string()))?;
         if !valid_name(&cfg.agent) {
             return Err(io::Error::new(io::ErrorKind::InvalidInput, "bad agent name"));
@@ -853,6 +853,7 @@ fn status_at(
         "messages": msgs,
         "chains": chains,
         "delivery": if delivery_on { "on" } else { "off" },
+        "mode": store.mode().as_str(),
         "strength": strength,
         "missing_strength": missing,
         "notes": [TAIL_NOTE],

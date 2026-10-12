@@ -164,6 +164,19 @@ message canary" is P23. The other rows get a task each when they start.
 
 Row P3 builds items 5 to 8; row P7 builds items 1, 2 and 4 into the launcher.
 
+### 6.2 K-1 as built (row P1, T-3365)
+
+1. **One entry point.** `termlink_sidecar::cli::run(prefix, args)` serves every verb; the `termlink-sidecar`
+   binary is a thin alias (prefix empty) and `termlink sidecar ...` passes its arguments through unchanged (prefix
+   `sidecar`). The sidecar builds its own tokio runtime, so `termlink` runs it on a plain thread with no runtime
+   context. The hook's detached finalizer re-executes the same binary with the same prefix.
+2. **Production root.** A store under a directory carrying `.termlink-sidecar-root` with the first line
+   `termlink-sidecar-production v1` runs in production mode, with the real HOME and runtime dir. The marker is
+   written only by the operator's `runme.sh` (row P7). It is refused when it sits at `/`, is not a regular file,
+   is owned by another user, or is group- or world-writable; HOME and the runtime dir must not lie inside a test
+   estate (the two modes are never mixed). Without a production root the PH-1 estate rule applies unchanged.
+3. **Visible.** Status carries `"mode": "estate"|"production"`; a refusal names both markers.
+
 ## 7 Out of scope for PH-2
 
 Cross-host and cross-operator delivery, grants and their knobs (T-3423), Tier 0 machinery, the Track A pilot

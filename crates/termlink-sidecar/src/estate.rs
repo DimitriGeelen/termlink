@@ -24,7 +24,7 @@ impl fmt::Display for EstateError {
         match self {
             Self::Unset(v) => write!(f, "{v} is not set"),
             Self::Unresolvable(p) => write!(f, "cannot resolve path {p}"),
-            Self::NotMarked(p) => write!(f, "no valid {MARKER} marker above {p}"),
+            Self::NotMarked(p) => write!(f, "no valid {MARKER} (test estate) or {PRODUCTION_MARKER} (production) marker above {p}"),
             Self::Escapes { what, root } => {
                 write!(f, "{what} is not inside the marked estate {root}")
             }
@@ -62,6 +62,83 @@ pub fn guard(home: &Path, runtime: &Path, store: &Path) -> Result<PathBuf, Estat
         }
     }
     Ok(root)
+}
+
+/// Production root marker (PH-2 row P1). Created only by the operator's
+/// `runme.sh`, never by the test harness.
+pub const PRODUCTION_MARKER: &str = ".termlink-sidecar-root";
+/// First line of a genuine production marker.
+pub const PRODUCTION_MAGIC: &str = "termlink-sidecar-production v1";
+
+/// Where a store may run: inside a throwaway estate (PH-1 rule) or under an
+/// operator-marked production root.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Mode {
+    Estate(PathBuf),
+    Production(PathBuf),
+}
+
+impl Mode {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Mode::Estate(_) => "estate",
+            Mode::Production(_) => "production",
+        }
+    }
+    pub fn root(&self) -> &Path {
+        match self {
+            Mode::Estate(r) | Mode::Production(r) => r,
+        }
+    }
+}
+
+/// Nearest ancestor of `p` carrying a genuine production marker, if any.
+fn find_production_root(p: &Path) -> Option<PathBuf> {
+    use std::os::unix::fs::MetadataExt;
+    let canon = p.canonicalize().ok()?;
+    for anc in canon.ancestors() {
+        let m = anc.join(PRODUCTION_MARKER);
+        let Ok(s) = std::fs::read_to_string(&m) else { continue };
+        if s.lines().next() != Some(PRODUCTION_MAGIC) {
+            continue;
+        }
+        // A marker at `/` would make every path production; a marker another
+        // user wrote, or one others can rewrite, is not the operator's.
+        let Ok(md) = std::fs::symlink_metadata(&m) else { continue };
+        // SAFETY: geteuid has no preconditions and cannot fail.
+        let euid = unsafe { libc::geteuid() };
+        if anc.parent().is_none() || !md.file_type().is_file() || md.uid() != euid || md.mode() & 0o022 != 0 {
+            return None;
+        }
+        return Some(anc.to_path_buf());
+    }
+    None
+}
+
+/// The PH-2 guard. A store under a production root runs in production mode,
+/// provided HOME and the runtime dir are not inside a test estate (the two are
+/// never mixed). Anything else must pass the PH-1 estate rule unchanged.
+pub fn guard_any(home: &Path, runtime: &Path, store: &Path) -> Result<Mode, EstateError> {
+    if let Some(root) = find_production_root(store) {
+        for (what, p) in [("HOME", home), ("runtime dir", runtime)] {
+            if let Ok(est) = find_marked_root(p) {
+                return Err(EstateError::Escapes { what, root: est.display().to_string() });
+            }
+        }
+        return Ok(Mode::Production(root));
+    }
+    guard(home, runtime, store).map(Mode::Estate)
+}
+
+/// Guard using `HOME`, `TERMLINK_RUNTIME_DIR` and `TERMLINK_SIDECAR_STORE`.
+pub fn guard_any_from_env() -> Result<Mode, EstateError> {
+    let get = |k: &'static str| {
+        std::env::var_os(k)
+            .filter(|v| !v.is_empty())
+            .map(PathBuf::from)
+            .ok_or(EstateError::Unset(k))
+    };
+    guard_any(&get("HOME")?, &get("TERMLINK_RUNTIME_DIR")?, &get(STORE_ENV)?)
 }
 
 /// Guard using `HOME`, `TERMLINK_RUNTIME_DIR` and `TERMLINK_SIDECAR_STORE`.

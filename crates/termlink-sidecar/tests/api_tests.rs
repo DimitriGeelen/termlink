@@ -206,6 +206,8 @@ fn api_status_names_missing_strength_flags_and_hub_id() {
     let v = call(&r, Scope::Status, json!({"op": "status"}));
     assert_eq!(v["ok"], true);
     assert_eq!(v["hub_id"], "not configured");
+    // PH-2 row P1: status says where the store runs (the rig is a test estate).
+    assert_eq!(v["mode"], "estate");
     let missing = v["missing_strength"].to_string();
     for needle in ["no per-agent accounts", "no operator key", "tail truncation: not yet detectable", "no hub id configured"] {
         assert!(missing.contains(needle), "missing {needle:?} in {missing}");

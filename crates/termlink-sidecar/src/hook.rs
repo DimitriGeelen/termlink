@@ -143,13 +143,22 @@ pub fn main_hook(event: &str) -> i32 {
     0
 }
 
-/// Start `termlink-sidecar finalize --nonce N` detached (own session, no stdio),
-/// so the hook returns at once and the finalizer outlives it.
+/// The arguments the detached finalizer is started with: the re-exec prefix,
+/// then `finalize --nonce N`.
+pub fn finalizer_args(nonce: &str) -> Vec<String> {
+    let mut v: Vec<String> = crate::cli::reexec_prefix().to_vec();
+    v.extend(["finalize".to_string(), "--nonce".to_string(), nonce.to_string()]);
+    v
+}
+
+/// Start `<this binary> [prefix] finalize --nonce N` detached (own session, no
+/// stdio), so the hook returns at once and the finalizer outlives it. The prefix
+/// is `sidecar` when this runs as `termlink sidecar` (PH-2 row P1).
 pub fn spawn_finalizer(nonce: &str, socket: &Path) -> std::io::Result<()> {
     use std::os::unix::process::CommandExt;
     let exe = std::env::current_exe()?;
     let mut c = std::process::Command::new(exe);
-    c.args(["finalize", "--nonce", nonce])
+    c.args(finalizer_args(nonce))
         .env(SOCKET_ENV, socket)
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())

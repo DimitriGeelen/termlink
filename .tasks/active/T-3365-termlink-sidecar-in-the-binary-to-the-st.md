@@ -6,10 +6,10 @@ description: >
   switch per host after the two-agent acceptance test with a negative control, retiring
   AEF's receiver on that host.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: later
+horizon: now
 tags: [arc:arc-011]
 arc_id: arc-011
 components: []
@@ -25,7 +25,7 @@ related_tasks: [T-3344]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:16:37Z
-last_update: '2026-10-06T10:17:59Z'
+last_update: 2026-10-12T22:11:38Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -73,13 +73,19 @@ Arc: arc-011. Rulings summary: `docs/reports/T-3344-step1-rulings-summary.md`.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `termlink sidecar` implements RECEIVED/STORED/HANDED_OVER stages written to the hub record first
-- [ ] One-receiver-per-inbox enforced (a second receiver refuses)
-- [ ] Two-agent acceptance test with negative control passes before any host switch
+<!-- Scope narrowed 2026-10-12 to PH-2 row P1 (docs/design/arc-011-ph2-architecture.md; OQ-a ruled A).
+     The earlier ACs moved: stages to the hub record (done in PH-1, BV-4); one receiver per inbox (store lock
+     done in PH-1; hub consumer list is row P17); two-agent acceptance with negative control is row P24 / W4. -->
+- [x] `termlink sidecar <verb> ...` runs every verb of the `termlink-sidecar` binary (start, hook, finalize, send, reply, status, admin) through one library entry point; the binary stays as a thin alias
+- [x] The hook's detached finalizer re-executes the same binary with the right prefix (`termlink sidecar finalize` when run as `termlink`)
+- [x] Production start mode: a store under a root carrying the production marker (created only by the operator) starts with the real HOME and runtime dir; the estate rule (all three inside one estate) is unchanged for estate roots; a store under no marker, or a marker of the wrong kind, is refused
+- [x] Status reports the mode (estate or production)
+- [x] Tests: subcommand dispatch, finalizer prefix, production marker accept/refuse cases; a mutant that accepts an unmarked store turns a test red
 
 ## Verification
 
-cargo test -p termlink-cli sidecar
+cargo test -p termlink --test sidecar_subcommand
+cargo test -p termlink-sidecar --test production_mode --test cli_prefix --test estate_kit --test api_tests
 
 ## RCA
 
@@ -177,3 +183,7 @@ cargo test -p termlink-cli sidecar
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3365-termlink-sidecar-in-the-binary-to-the-st.md
 - **Context:** Initial task creation
+
+### 2026-10-12T21:49:03Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)

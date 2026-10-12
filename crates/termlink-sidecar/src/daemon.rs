@@ -161,7 +161,7 @@ pub fn main_start(config: &Path) -> i32 {
     // The guard returns the estate root; it has checked that HOME, the runtime
     // dir and the store root all lie inside it. The store itself is the
     // configured store root, not the estate root.
-    if let Err(e) = crate::estate::guard_from_env() {
+    if let Err(e) = crate::estate::guard_any_from_env() {
         eprintln!("termlink-sidecar: refusing to start: {e}");
         return 2;
     }

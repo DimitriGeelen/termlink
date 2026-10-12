@@ -253,6 +253,8 @@ pub struct Store {
     /// Serialises chain writes inside this process: read-then-append must not
     /// interleave between the send pump and the receiver (B7).
     write: std::sync::Mutex<()>,
+    /// Estate or production (PH-2 row P1).
+    mode: estate::Mode,
 }
 
 static TMP_COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -292,7 +294,7 @@ impl Store {
     /// outside a marked estate and a store already held by another sidecar.
     pub fn open(store_root: &Path, agent: &str) -> Result<Store> {
         check_name(agent)?;
-        estate::guard(store_root, store_root, store_root).map_err(StoreError::Estate)?;
+        let mode = estate::guard_any(store_root, store_root, store_root).map_err(StoreError::Estate)?;
         let dir = store_root.join("sidecar").join(agent);
         mkdir0700(&dir)?;
         for d in ["log", "msgs", "claims", "tmp"] {
@@ -315,9 +317,14 @@ impl Store {
                 StoreError::Io(e)
             });
         }
-        let mut s = Store { dir, _lock: lock, recovery: RecoveryReport::default(), write: std::sync::Mutex::new(()) };
+        let mut s = Store { dir, _lock: lock, recovery: RecoveryReport::default(), write: std::sync::Mutex::new(()), mode };
         s.recovery = s.recover()?;
         Ok(s)
+    }
+
+    /// The mode this store was opened in.
+    pub fn mode(&self) -> &estate::Mode {
+        &self.mode
     }
 
     pub fn dir(&self) -> &Path {

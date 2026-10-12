@@ -942,6 +942,14 @@ pub(crate) enum Command {
         action: Option<HubAction>,
     },
 
+    /// Per-agent message sidecar (arc-011): start, hook, finalize, send, reply, status, admin.
+    /// Every argument after `sidecar` is passed through unchanged; run `termlink sidecar` for usage.
+    #[command(disable_help_flag = true)]
+    Sidecar {
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+
     /// MCP server — expose TermLink as structured tools for AI agents
     Mcp {
         #[command(subcommand)]

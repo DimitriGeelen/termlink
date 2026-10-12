@@ -1931,6 +1931,7 @@ dependencies = [
  "termlink-mcp",
  "termlink-protocol",
  "termlink-session",
+ "termlink-sidecar",
  "termlink-test-utils",
  "tokio",
  "toml",

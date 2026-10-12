@@ -300,6 +300,14 @@ async fn main() -> Result<()> {
             Some(HubAction::Fingerprint { json }) => commands::infrastructure::cmd_hub_fingerprint(json),
             Some(HubAction::Probe { addr, json }) => commands::infrastructure::cmd_hub_probe(&addr, json).await,
         },
+        Command::Sidecar { args } => {
+            // The sidecar builds its own tokio runtime, which must not start inside
+            // this one: run it on a plain thread that carries no runtime context.
+            let code = std::thread::spawn(move || termlink_sidecar::cli::run(&["sidecar"], &args))
+                .join()
+                .unwrap_or(101);
+            std::process::exit(code);
+        }
         Command::Mcp { action } => match action {
             McpAction::Serve => termlink_mcp::server::run_stdio().await,
         },

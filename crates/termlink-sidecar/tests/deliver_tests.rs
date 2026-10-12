@@ -577,7 +577,7 @@ fn deliver_sweep_leaves_an_attempt_without_its_claimed_line_alone() {
     let r = rig();
     put(&r.store, &msg(&r.ka, "s", "mid-pull", "0", "x"));
     arm_kill(KillPoint::AfterRecord);
-    let e = r.d.pull("sess-1", "post-tool-use", Some("toolu_S")).err().expect("stopped at the kill point");
+    let e = r.d.pull("sess-1", "post-tool-use", Some("toolu_S")).expect_err("stopped at the kill point");
     assert!(e.contains(KILLED), "{e}");
     disarm_kill();
     // A sweep with the final check due at once: nothing to decide yet.
