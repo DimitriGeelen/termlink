@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-12T13:54:31Z
-last_update: 2026-10-12T13:57:37Z
+last_update: 2026-10-12T13:58:52Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -64,9 +64,9 @@ ruling 2026-10-12: A, take it into arc-011 (its later cross-hub/grant phases), a
 ## Acceptance Criteria
 
 ### Agent
-- [ ] The four questions are answered from the code, each with file:line evidence, in `docs/reports/T-3422-832-peer-credentials-answer.md`: (1) does a message-only scope exist / can scopes be narrowed, (2) can a client be restricted to a topic prefix, (3) how the hub binds a client key to an identity, (4) can a second hub with its own secret run on the same host
-- [ ] The feature is recorded in arc-011 so it cannot be lost: a captured task (horizon later) carrying the request, the ruling and the link to 832's survey, and a line in the arc-011 inventory or phase plan naming where it lands
-- [ ] The answer is sent to 832 on conversation peer-credentials-t1107
+- [x] The four questions are answered from the code, each with file:line evidence, in `docs/reports/T-3422-832-peer-credentials-answer.md`: (1) does a message-only scope exist / can scopes be narrowed, (2) can a client be restricted to a topic prefix, (3) how the hub binds a client key to an identity, (4) can a second hub with its own secret run on the same host
+- [x] The feature is recorded in arc-011 so it cannot be lost: a captured task (horizon later) carrying the request, the ruling and the link to 832's survey, and a line in the arc-011 inventory or phase plan naming where it lands
+- [x] The answer is sent to 832 on conversation peer-credentials-t1107
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -255,6 +255,11 @@ ruling 2026-10-12: A, take it into arc-011 (its later cross-hub/grant phases), a
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+test -s docs/reports/T-3422-832-peer-credentials-answer.md
+grep -q "T-3423" .context/arcs/arc-011.yaml
+grep -q "^revisit_at: 2026-11-12" .tasks/active/T-3423-arc-011-per-peer-least-privilege-hub-cre.md
+grep -q "fn hub_method_scope" crates/termlink-hub/src/server.rs
 
 ## RCA
 
