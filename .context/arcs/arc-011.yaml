@@ -65,6 +65,7 @@ step1_status: >
   operator sign-off pending (T-3349). Step 2 may not start before sign-off.
 horizon_plan:
   now:
+    - 'T-3426 PH-2 planning: docs/design/arc-011-ph2-architecture.md build table P0-P24, waves W1-W4 (existing rows: T-3365=P1, T-3362=P12, T-3358=P14, T-3361=P23)'
     - T-3344 step 1 requirements (started)
     - T-3348 fold rulings into step-1 doc v0.4
     - T-3349 operator sign-off of step 1 (owner human)

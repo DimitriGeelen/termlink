@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-12T19:17:19Z
-last_update: 2026-10-12T19:18:50Z
+last_update: 2026-10-12T20:01:20Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -62,11 +62,12 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Gap map of PH-2 scope (03 section 6.2.3.a-.f) against what PH-1 built, with file:line evidence (`.context/working/arc011-ph2-gapmap.md`)
-- [ ] `docs/design/arc-011-ph2-architecture.md` written on the PH-1 model: components, waves W1-W4 with rollback, how each floor item of 6.2.3.c and each exit of 6.2.3.d is proven
-- [ ] Build table: each row one deliverable, dependency order, sized to one session, citing the R-n/SI-n it closes
-- [ ] Open operator questions listed in the doc, to be asked one at a time
-- [ ] arc-011 horizon plan updated with the PH-2 build tasks
+- [x] Gap map of PH-2 scope (03 section 6.2.3.a-.f) against what PH-1 built, with file:line evidence (`docs/reports/T-3426-arc011-ph2-gapmap.md`)
+- [x] `docs/design/arc-011-ph2-architecture.md` written on the PH-1 model: components, waves W1-W4 with rollback, how each floor item of 6.2.3.c and each exit of 6.2.3.d is proven
+- [x] Build table: each row one deliverable, dependency order, sized to one session, citing the R-n/SI-n it closes
+- [x] Open operator questions listed in the doc, to be asked one at a time
+- [x] arc-011 horizon plan updated with the PH-2 build tasks
+- [ ] Operator rulings on OQ-a, OQ-f, OQ-b, OQ-c, OQ-d, OQ-e, OQ-h, OQ-i recorded in the doc section 6 and in Decisions
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
