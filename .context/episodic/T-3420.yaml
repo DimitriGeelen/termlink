@@ -1,0 +1,173 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3420: Field-test AEF ed683536a: re-vendor, fw doctor before/after, 19-item report to AEF (field-test-ed683536a)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-12T12:28:00Z
+# ============================================================================
+
+task_id: T-3420
+task_name: "Field-test AEF ed683536a: re-vendor, fw doctor before/after, 19-item report to AEF (field-test-ed683536a)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-12T12:01:00Z
+completed: 2026-10-12T12:27:44Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-10-12T14:12:31+02:00
+last_commit: 2026-10-12T14:27:43+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  re-vendor AEF 1.8.9 -> ed683536a (1.8.9+227, bleeding edge, AEF field test; operator ruling A). vendor register baseline moved to 0570db4e2 (ed683536a). 3-way merge of two preserved files with ed683536a (safe-commands.sh T-3814, discovery.py T-4061); 0 conflicts, local lines kept, fixtures pass. AEF ed683536a field-test report (19 items, doctor before/after, 3 new findings). register the preserved-file merge (merge-of-upstream); verification line matches the fixture's summary
+
+# Key outcomes
+outcomes:
+  - 'Before: vendor-divergence check clean, `CLAUDE.md` backed up, `fw doctor` output saved'
+  - '`.agentic-framework/` re-vendored to ed683536a with `.fwvendor-preserve.yaml` respected; `CLAUDE.md` diffed against the backup and anything project-specific that was dropped re-applied; exec bits checked'
+  - 'After: `fw doctor` saved and compared; `.vendor-divergence.yaml` `last_vendor_event` updated; the sidecar suite and the session-start-alerts fixtures still pass'
+  - 'A per-item report (works / broken / not exercised, with evidence) for AEF''s 19 items is written to `docs/reports/T-3420-aef-ed683536a-field-test.md` and sent on conversation field-test-ed683536a'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'register the preserved-file merge (merge-of-upstream); verification line matches the fixture''s summary'
+    source: git-mined
+  - description: '3-way merge of two preserved files with ed683536a (safe-commands.sh T-3814, discovery.py T-4061); 0 conflicts, local lines kept, fixtures pass'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/agents/audit/audit.sh'
+  - '.agentic-framework/agents/audit/unit-suite.sh'
+  - '.agentic-framework/agents/context/budget-gate.sh'
+  - '.agentic-framework/agents/context/check-inception-schema.py'
+  - '.agentic-framework/agents/context/check-tier0.sh'
+  - '.agentic-framework/agents/context/lib/safe-commands.sh'
+  - '.agentic-framework/agents/designer/designer.sh'
+  - '.agentic-framework/agents/task-create/update-task.sh'
+  - '.agentic-framework/agents/termlink/termlink.sh'
+  - '.agentic-framework/bin/claude-fw'
+  - '.agentic-framework/bin/fw'
+  - '.agentic-framework/bin/watchtower.sh'
+  - '.agentic-framework/docs/reports/T-4010-consult-brief.md'
+  - '.agentic-framework/docs/reports/T-4010-consult-codex.md'
+  - '.agentic-framework/docs/reports/T-4012-urgent-ladder.md'
+  - '.agentic-framework/docs/reports/T-4013-codex-review-2.md'
+  - '.agentic-framework/docs/reports/T-4013-codex-review.md'
+  - '.agentic-framework/docs/reports/T-4017-arc-001-inputs/1-arc-001-03-pickup-proposal.md'
+  - '.agentic-framework/docs/reports/T-4017-arc-001-inputs/2-arc-001-02-design.md'
+  - '.agentic-framework/docs/reports/T-4017-arc-001-inputs/3-arc-001-01-requirements.md'
+  - '.agentic-framework/docs/reports/T-4017-arc-001-inputs/4-arc-001-01-requirements.md'
+  - '.agentic-framework/docs/reports/T-4017-arc-001-retrieval-refresh.md'
+  - '.agentic-framework/docs/reports/T-4017-O5-consult-brief.md'
+  - '.agentic-framework/docs/reports/T-4017-O5-consult-codex.md'
+  - '.agentic-framework/docs/reports/T-4017-O5-consult-gemini.md'
+  - '.agentic-framework/docs/reports/T-4017-O5-consult-opencode.md'
+  - '.agentic-framework/docs/reports/T-4023-codex-review.md'
+  - '.agentic-framework/docs/reports/T-4023-field-evidence-before-release.md'
+  - '.agentic-framework/docs/reports/T-4024-servicing-loop.md'
+  - '.agentic-framework/docs/reports/T-4032-codex-review-2.md'
+  - '.agentic-framework/docs/reports/T-4032-codex-review-3.md'
+  - '.agentic-framework/docs/reports/T-4032-codex-review-4.md'
+  - '.agentic-framework/docs/reports/T-4032-codex-review.md'
+  - '.agentic-framework/docs/reports/T-4035-emergency-fix-lane.md'
+  - '.agentic-framework/docs/reports/T-4039-batch1-classification.md'
+  - '.agentic-framework/docs/reports/T-4039-inbound-github-issues.md'
+  - '.agentic-framework/docs/reports/T-4088-internal-issues-triage.md'
+  - '.agentic-framework/.fw-vendor-stamp.json'
+  - '.agentic-framework/lib/arc.sh'
+  - '.agentic-framework/lib/config.sh'
+  - '.agentic-framework/lib/human_ac_ticks.py'
+  - '.agentic-framework/lib/inception.sh'
+  - '.agentic-framework/lib/issues.py'
+  - '.agentic-framework/lib/release.sh'
+  - '.agentic-framework/lib/resolver.py'
+  - '.agentic-framework/lib/reviewer/judge_cli.py'
+  - '.agentic-framework/lib/seeds/tasks/greenfield/T-002-define-project-goals.md'
+  - '.agentic-framework/lib/sidecar/inject.py'
+  - '.agentic-framework/lib/sidecar/receiver.py'
+  - '.agentic-framework/lib/stale_claude_fw.py'
+  - '.agentic-framework/lib/upgrade.sh'
+  - '.agentic-framework/lib/upgrade_template_shipped.py'
+  - '.agentic-framework/lib/verdict_ledger.py'
+  - '.agentic-framework/lib/verify-acs.sh'
+  - '.agentic-framework/lib/verify_queue.py'
+  - '.agentic-framework/lib/version-relation.sh'
+  - '.agentic-framework/lib/version.sh'
+  - '.agentic-framework/lib/watchtower_decision_revert.py'
+  - '.agentic-framework/lib/watchtower.sh'
+  - '.agentic-framework/.tasks/templates/default.md'
+  - '.agentic-framework/VERSION'
+  - '.agentic-framework/web/app.py'
+  - '.agentic-framework/web/blueprints/api.py'
+  - '.agentic-framework/web/blueprints/approvals.py'
+  - '.agentic-framework/web/blueprints/config.py'
+  - '.agentic-framework/web/blueprints/discovery.py'
+  - '.agentic-framework/web/blueprints/docs.py'
+  - '.agentic-framework/web/blueprints/inception.py'
+  - '.agentic-framework/web/blueprints/tasks.py'
+  - '.agentic-framework/web/shared.py'
+  - '.agentic-framework/web/static/command-palette.js'
+  - '.agentic-framework/web/static/js/search-qa.js'
+  - '.agentic-framework/web/templates/_ac_list.html'
+  - '.agentic-framework/web/templates/_approvals_content.html'
+  - '.agentic-framework/web/templates/base.html'
+  - '.agentic-framework/web/templates/docs_detail.html'
+  - '.agentic-framework/web/templates/inception_detail.html'
+  - '.agentic-framework/web/templates/_partials/search_input.html'
+  - '.agentic-framework/web/templates/_partials/search_results.html'
+  - '.agentic-framework/web/templates/task_detail.html'
+  - '.agentic-framework/web/templates/tasks.html'
+  - 'docs/reports/T-3420-aef-ed683536a-field-test.md'
+  - '.framework.yaml'
+  - '.tasks/active/T-3420-field-test-aef-ed683536a-re-vendor-fw-do.md'
+  - '.tasks/templates/default.md'
+  - '.vendor-divergence.yaml'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-12T14:12:31'
+    action: 'T-3420: re-vendor AEF 1.8.9 -> ed683536a (1.8.9+227, bleeding edge, AEF field test; operator ruling A)'
+  - time: '2026-10-12T14:12:46'
+    action: 'T-3420: vendor register baseline moved to 0570db4e2 (ed683536a)'
+  - time: '2026-10-12T14:15:00'
+    action: 'T-3420: 3-way merge of two preserved files with ed683536a (safe-commands.sh T-3814, discovery.py T-4061); 0 conflicts, local lines kept, fixtures pass'
+  - time: '2026-10-12T14:22:51'
+    action: 'T-3420: AEF ed683536a field-test report (19 items, doctor before/after, 3 new findings)'
+  - time: '2026-10-12T14:27:43'
+    action: 'T-3420: register the preserved-file merge (merge-of-upstream); verification line matches the fixture''s summary'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 5 commit(s), 26 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 26
+  commits: 5
+  files_changed: 86
+  lines_added: 5851
+  lines_removed: 251
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3420-field-test-aef-ed683536a-re-vendor-fw-do.md
+generated_by: context-agent-hybrid
