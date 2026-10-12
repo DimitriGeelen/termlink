@@ -28,9 +28,9 @@
 
 schema_version: 1
 last_vendor_event:
-  commit: cc2e08a02
-  date: '2026-10-11'
-  description: "fw upgrade v1.8.8 -> v1.8.9 from tag v1.8.9 (emergency hotfix T-4032 only; T-3392). Previous baseline: 5bf63128a (2026-10-10): fw upgrade v1.8.5 -> v1.8.8 from tag v1.8.8 with .fwvendor-preserve.yaml (T-3389, operator ruling A); checkpoint.sh and web/embeddings.py 3-way merged with upstream (T-3989, T-4004, T-3953). Previous baseline: 4b503e4a2 (2026-10-06, v1.8.3 -> v1.8.5, T-3376)."
+  commit: 0570db4e2
+  date: '2026-10-12'
+  description: "fw upgrade v1.8.9 -> ed683536a (1.8.9+227.ged683536a, bleeding edge for the AEF v1.8.11 field test; T-3420, operator ruling A), from a full upstream clone after a rehearsal; .fwvendor-preserve.yaml respected (9 PRESERVE), CLAUDE.md unchanged. Previous baseline: cc2e08a02 (2026-10-11): fw upgrade v1.8.8 -> v1.8.9 from tag v1.8.9 (emergency hotfix T-4032 only; T-3392). Previous baseline: 5bf63128a (2026-10-10): fw upgrade v1.8.5 -> v1.8.8 from tag v1.8.8 with .fwvendor-preserve.yaml (T-3389, operator ruling A); checkpoint.sh and web/embeddings.py 3-way merged with upstream (T-3989, T-4004, T-3953). Previous baseline: 4b503e4a2 (2026-10-06, v1.8.3 -> v1.8.5, T-3376)."
   # NOT promoted to the 2026-08-25 event below — see vendor_events[] for why the
   # baseline stays wide on purpose.
   note: >-
