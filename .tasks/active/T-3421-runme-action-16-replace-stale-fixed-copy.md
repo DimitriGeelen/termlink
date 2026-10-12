@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-12T12:32:34Z
-last_update: 2026-10-12T12:37:22Z
+last_update: 2026-10-12T13:00:06Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -65,10 +65,10 @@ is something `fw upgrade` cannot refresh, and only a doctor warning surfaces it)
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `runme.sh` action 16 replaces each existing `claude-fw` on PATH that is not already the router with `.agentic-framework/bin/claude-fw-router` (backup kept, `rm -f` then copy, mode 755); it is idempotent (skips a path that already is the router), never creates a path that does not exist, and verifies on disk (byte-equal to the router, executable, `bash -n`), counting a failed check as FAILED
-- [ ] `tests/runme-fixtures.sh` has a hermetic case for action 16 (replace, skip when already the router, skip an absent path, dry run) through `RUNME_*` seams; the whole fixture suite passes
-- [ ] The structural problem is filed with AEF (`framework:pickup` or the field-test conversation): `fw upgrade` cannot refresh a fixed copy on PATH and does not name it; proposal that upgrade (or doctor's refresh hint) installs the router instead of a fixed copy
-- [ ] The operator has run `/opt/termlink/runme.sh`, `latest.log` shows action 16 OK and `rc=0`, and `fw doctor` no longer shows the claude-fw drift warning
+- [x] `runme.sh` action 16 replaces each existing `claude-fw` on PATH that is not already the router with `.agentic-framework/bin/claude-fw-router` (backup kept, `rm -f` then copy, mode 755); it is idempotent (skips a path that already is the router), never creates a path that does not exist, and verifies on disk (byte-equal to the router, executable, `bash -n`), counting a failed check as FAILED
+- [x] `tests/runme-fixtures.sh` has a hermetic case for action 16 (replace, skip when already the router, skip an absent path, dry run) through `RUNME_*` seams; the whole fixture suite passes
+- [x] The structural problem is filed with AEF (`framework:pickup` or the field-test conversation): `fw upgrade` cannot refresh a fixed copy on PATH and does not name it; proposal that upgrade (or doctor's refresh hint) installs the router instead of a fixed copy
+- [x] The operator has run `/opt/termlink/runme.sh`, `latest.log` shows action 16 OK and `rc=0`, and `fw doctor` no longer shows the claude-fw drift warning (run 2026-10-12T12:43Z, `runme-20261012T124304Z-1189067.log`: both paths OK, rc=0, 10 done / 0 failed; doctor: "Installed claude-fw matches repo source (2 copies on PATH, all current)")
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -257,6 +257,11 @@ is something `fw upgrade` cannot refresh, and only a doctor warning surfaces it)
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+bash -n runme.sh
+timeout 1500 bash tests/runme-fixtures.sh > /tmp/.t3421-fix.out 2>&1 && grep -q "fixtures: [0-9]* passed, 0 failed" /tmp/.t3421-fix.out
+cmp -s /root/.local/bin/claude-fw .agentic-framework/bin/claude-fw-router
+cmp -s /usr/bin/claude-fw .agentic-framework/bin/claude-fw-router
 
 ## RCA
 
