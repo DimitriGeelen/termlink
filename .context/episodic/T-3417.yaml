@@ -1,0 +1,103 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3417: arc-011 PH-1 B14: two-agent acceptance - two real Claude sessions as testdev, BV-1..BV-7, X4 strace path audit, 17 floor probes
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-12T10:41:53Z
+# ============================================================================
+
+task_id: T-3417
+task_name: "arc-011 PH-1 B14: two-agent acceptance - two real Claude sessions as testdev, BV-1..BV-7, X4 strace path audit, 17 floor probes"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-12T10:25:11Z
+completed: 2026-10-12T10:41:36Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-10-12T12:41:31+02:00
+last_commit: 2026-10-12T12:41:31+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  arc-011 PH-1 B14 two-agent acceptance - two real Claude sessions as testdev, BV-1..BV-7, strace X4 audit, 17 floor probes (PASS)
+
+# Key outcomes
+outcomes:
+  - '`termlink-sidecar` gains client verbs `send`, `reply` and `status` over the local API, and `Config.claude_projects` (where the agent''s Claude Code writes its transcripts) so that a sidecar can find a transcript under another HOME'
+  - 'Ignored test `acceptance::acceptance_two_real_agents` runs BV-1..BV-7 with two real `claude -p` sessions: A sends m1 through its Bash tool, B gets it at its next tool call and replies through its Bash tool, A receives the reply, and A''s record shows SENT, RECEIVED, STORED, HANDED_OVER, REPLIED in order with times'
+  - '`scripts/arc011-ph1-demo.sh` (with no flag) builds, runs the acceptance as testdev under strace, runs the 17 floor probes, and writes `docs/reports/arc011-ph1-acceptance.md`'
+  - 'The X4 audit in the report lists every path opened outside the estate and shows no production path opened (root''s HOME, `/var/lib/termlink`, `/tmp/termlink-0`, the repository''s `.context`/`.tasks`)'
+  - 'The report lists the 17 floor items (15 from step 3, section 5.7, plus SI-18, SI-23 and the allow-list), each with its test and a pass'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-10-12 — Which account runs the sidecars in the acceptance (left open by the handover)'
+    chose: 'the whole run is unprivileged. The test binary runs as `testdev` under `strace -f`, so the throwaway hub, both sidecars, both Claude sessions, the hooks and the finalizers all run as testdev. The agents keep testdev''s HOME and own login; only the sidecars'' HOME is in the estate, and `Config.claude_projects` points them at testdev''s transcripts.'
+    rationale: 'the sidecar''s SO_PEERCRED owner check (PR-8) refuses another uid, so sidecars running as root would refuse testdev''s hooks. Running everything unprivileged also means the kernel itself keeps the run away from root''s files (`/var/lib/termlink` came back EACCES), and the strace audit covers every process.'
+    alternatives_rejected: ['sidecars as root with the owner check relaxed. It would weaken the control the run is meant to show, for a test convenience.']
+  - decision: '2026-10-12 — Keeping repository lookups inside the estate'
+    chose: 'run `git init` in each estate project dir, and also set `GIT_CEILING_DIRECTORIES`.'
+    rationale: 'X4 showed Claude Code''s own repository lookup climbing to the host''s `/.git` (a repository at `/` on .107) and reading files under `/`. Claude Code ignores the ceiling variable; a repository in the project dir stops every lookup. After the change, one read is left outside the estate (`/.git/info/exclude`), and the report lists it.'
+    alternatives_rejected: ['counting reads of world-readable files outside the estate as acceptable without fixing them. The audit exists to make the boundary visible, not to explain it away.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-sidecar/src/client.rs'
+  - 'crates/termlink-sidecar/src/daemon.rs'
+  - 'crates/termlink-sidecar/src/lib.rs'
+  - 'crates/termlink-sidecar/src/main.rs'
+  - 'crates/termlink-sidecar/tests/acceptance.rs'
+  - 'crates/termlink-sidecar/tests/fc_matrix.rs'
+  - 'crates/termlink-sidecar/tests/hooks_live.rs'
+  - 'crates/termlink-sidecar/tests/hooks_tests.rs'
+  - 'docs/design/arc-011-ph1-architecture.md'
+  - 'docs/reports/arc011-ph1-acceptance.evidence.json'
+  - 'docs/reports/arc011-ph1-acceptance.md'
+  - '.fabric/components/crates-termlink-sidecar-src-client.yaml'
+  - '.fabric/components/crates-termlink-sidecar-tests-acceptance.yaml'
+  - '.fabric/components/scripts-lib-arc011-acceptance-report.yaml'
+  - 'scripts/arc011-ph1-demo.sh'
+  - 'scripts/lib/arc011-acceptance-report.py'
+  - '.tasks/active/T-3417-arc-011-ph-1-b14-two-agent-acceptance---.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-12T12:41:31'
+    action: 'T-3417: arc-011 PH-1 B14 two-agent acceptance - two real Claude sessions as testdev, BV-1..BV-7, strace X4 audit, 17 floor probes (PASS)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 16 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 16
+  commits: 2
+  files_changed: 18
+  lines_added: 2852
+  lines_removed: 28
+  footprint_refreshed_at: '2026-10-12T10:42:21Z'
+  footprint_refreshed_by_commit: 6a99c291e
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3417-arc-011-ph-1-b14-two-agent-acceptance---.md
+generated_by: context-agent-hybrid
