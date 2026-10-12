@@ -4,12 +4,12 @@ name: "runme action 16: replace stale fixed-copy claude-fw on PATH with the AEF 
 description: >
   runme action 16: replace stale fixed-copy claude-fw on PATH with the AEF claude-fw-router; file the structural fix upstream
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [runme.sh, tests/runme-fixtures.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -38,8 +38,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-12T12:32:34Z
-last_update: 2026-10-12T13:00:06Z
-date_finished: null
+last_update: 2026-10-12T13:05:25Z
+date_finished: 2026-10-12T13:05:25Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -279,6 +279,25 @@ cmp -s /usr/bin/claude-fw .agentic-framework/bin/claude-fw-router
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
+**Symptom:** after the T-3420 re-vendor, `fw doctor` warned "Installed claude-fw (fixed copy) drifted from repo
+source" for `/root/.local/bin/claude-fw` and `/usr/bin/claude-fw`; both were byte-identical to the 1.8.9 launcher, so
+every `claude-fw` session kept running old launcher code (e.g. without later wrapper fixes).
+
+**Root cause:** both were installed as full copies of `bin/claude-fw` (AEF install.sh before T-2854, and later by
+hand from doctor's own refresh hint). A copy on PATH is pinned to the version it was copied from; `fw upgrade` updates
+only the vendored `.agentic-framework/bin/claude-fw` and has no path back to copies outside the project.
+
+**Why structurally allowed:** nothing in the upgrade looks at PATH, and the only detector is a doctor WARN after the
+fact whose suggested fix (`cp bin/claude-fw` onto PATH) installs another fixed copy, so following the hint recreates
+the problem at the next upgrade. In T-3392 the same warning was judged a false positive (it was then the router case),
+which hid that the installs had since become fixed copies.
+
+**Prevention:** the router (`bin/claude-fw-router`) is now what is on PATH, and it resolves the current project's own
+`claude-fw` at every launch, so an upgrade can no longer leave it stale. `runme.sh` action 16 stays idempotent and
+re-checks it on every run (skip when already the router). Structural fix requested upstream (field-test conversation,
+2026-10-12): `fw upgrade` detects non-router `claude-fw`/`fw` on PATH and replaces or names them, and doctor's hint
+points at the router.
+
 ## Evolution
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
@@ -359,3 +378,20 @@ cmp -s /usr/bin/claude-fw .agentic-framework/bin/claude-fw-router
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3421-runme-action-16-replace-stale-fixed-copy.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-4dbc2d20
+- **Timestamp:** 2026-10-12T13:07:59Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#4 (Agent)** — The operator has run `/opt/termlink/runme.sh`, `latest.log` shows action 16 OK and `rc=0`, and `fw doctor` no longer shows the claude-fw drift warning (run 2026-10-12T12:43Z, `runme-20261012T124304Z-1
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=opt/termlink/runme.sh in: The operator has run `/opt/termlink/runme.sh`, `latest.log` shows action 16 OK and `rc=0`, and `fw doctor` no longer shows the claude-fw drift warning`
+
+### 2026-10-12T13:05:25Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

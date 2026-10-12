@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3421: runme action 16: replace stale fixed-copy claude-fw on PATH with the AEF claude-fw-router; file the structural fix upstream
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-12T13:08:09Z
+# ============================================================================
+
+task_id: T-3421
+task_name: "runme action 16: replace stale fixed-copy claude-fw on PATH with the AEF claude-fw-router; file the structural fix upstream"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-12T12:32:34Z
+completed: 2026-10-12T13:05:25Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-10-12T14:37:22+02:00
+last_commit: 2026-10-12T15:00:06+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  runme action 16 - replace the stale fixed-copy claude-fw on PATH with AEF's claude-fw-router (backup, verify on disk, idempotent); fixture case 28 (112/112). operator ran runme (action 16 OK, rc=0); claude-fw on PATH is the router, doctor drift warning gone
+
+# Key outcomes
+outcomes:
+  - '`runme.sh` action 16 replaces each existing `claude-fw` on PATH that is not already the router with `.agentic-framework/bin/claude-fw-router` (backup kept, `rm -f` then copy, mode 755); it is idempotent (skips a path that already is the router), never creates a path that does not exist, and verifies on disk (byte-equal to the router, executable, `bash -n`), counting a failed check as FAILED'
+  - '`tests/runme-fixtures.sh` has a hermetic case for action 16 (replace, skip when already the router, skip an absent path, dry run) through `RUNME_*` seams; the whole fixture suite passes'
+  - 'The structural problem is filed with AEF (`framework:pickup` or the field-test conversation): `fw upgrade` cannot refresh a fixed copy on PATH and does not name it; proposal that upgrade (or doctor''s refresh hint) installs the router instead of a fixed copy'
+  - 'The operator has run `/opt/termlink/runme.sh`, `latest.log` shows action 16 OK and `rc=0`, and `fw doctor` no longer shows the claude-fw drift warning (run 2026-10-12T12:43Z, `runme-20261012T124304Z-1189067.log`: both paths OK, rc=0, 10 done / 0 failed; doctor: "Installed claude-fw matches repo source (2 copies on PATH, all current)")'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'runme action 16 - replace the stale fixed-copy claude-fw on PATH with AEF''s claude-fw-router (backup, verify on disk, idempotent); fixture case 28 (112/112)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'runme.sh'
+  - '.tasks/active/T-3421-runme-action-16-replace-stale-fixed-copy.md'
+  - 'tests/runme-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-12T14:37:22'
+    action: 'T-3421: runme action 16 - replace the stale fixed-copy claude-fw on PATH with AEF''s claude-fw-router (backup, verify on disk, idempotent); fixture case 28 (112/112)'
+  - time: '2026-10-12T15:00:06'
+    action: 'T-3421: operator ran runme (action 16 OK, rc=0); claude-fw on PATH is the router, doctor drift warning gone'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 32 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 32
+  commits: 2
+  files_changed: 3
+  lines_added: 451
+  lines_removed: 6
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3421-runme-action-16-replace-stale-fixed-copy.md
+generated_by: context-agent-hybrid
