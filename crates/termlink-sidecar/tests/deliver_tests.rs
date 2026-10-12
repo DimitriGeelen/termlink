@@ -519,15 +519,25 @@ fn deliver_handed_over_reaches_the_sender_as_a_signed_stage() {
         (store, sender, rx, d)
     };
     let (sa, senda, rxa, _da) = side("a", "agent-a", "inst-a");
-    let (sb, _sendb, rxb, db) = side("b", B, "inst-b");
+    let (sb, sendb, rxb, db) = side("b", B, "inst-b");
     let s = senda.send(B, "inst-b", Some("e2e"), "please look", None).unwrap();
-    rxb.pass();
+    // Under host load a post or a pass can come back Waiting (the hub did not
+    // answer in time); keep pumping and passing until B has stored it (T-3419).
+    let end = std::time::Instant::now() + Duration::from_secs(90);
+    while db.pending().is_empty() && std::time::Instant::now() < end {
+        senda.pump();
+        rxb.pass();
+    }
     let (f, _) = frame_of(&db, Some("toolu_E"));
     let t = write_transcript(e.root(), "b.jsonl", &[rec_tool_result("toolu_E", "ok"), rec_context("toolu_E", &f.text)]);
     db.register_session("sess-1", &t).unwrap();
     assert_eq!(db.finalize(&f.nonce, false).unwrap(), Verdict::HandedOver);
     assert_eq!(names(&lines(&sb, "e2e", &s.msg_id)), ["RECEIVED", "STORED", "CLAIMED", "HANDED_OVER"]);
-    rxa.pass();
+    let end = std::time::Instant::now() + Duration::from_secs(90);
+    while !lines(&sa, "e2e", &s.msg_id).iter().any(|l| l.event == "HANDED_OVER") && std::time::Instant::now() < end {
+        sendb.pump();
+        rxa.pass();
+    }
     let al: Vec<String> = names(&lines(&sa, "e2e", &s.msg_id)).into_iter().filter(|x| x != "WAITING").collect();
     assert_eq!(al, ["SENT", "POSTED", "RECEIVED", "STORED", "HANDED_OVER"]);
     let st = api::dispatch(&json!({"op": "status", "msg_id": s.msg_id}), Scope::Status, &sa, "agent-a", Some(&id));
@@ -556,4 +566,26 @@ fn deliver_orphan_claims_are_closed_at_start_and_open_attempts_are_not() {
     assert!(last.reason.as_deref().unwrap().starts_with("attempt=2 orphan"), "{:?}", last.reason);
     assert_eq!(d3.recover().unwrap(), 0, "recovery is idempotent");
     assert_eq!(names(&lines(&r.store, "o", "open")), ["RECEIVED", "STORED", "CLAIMED"], "the open attempt is untouched");
+}
+
+/// T-3419: the sweeper must not decide an attempt whose CLAIMED line is not on the
+/// chain yet. `pull` writes the attempt record first; a sweep tick between the
+/// record and CLAIMED recorded UNCERTAIN before CLAIMED (seen in
+/// `hooks_scripted_demo` under load). Stop `pull` exactly there and sweep.
+#[test]
+fn deliver_sweep_leaves_an_attempt_without_its_claimed_line_alone() {
+    let r = rig();
+    put(&r.store, &msg(&r.ka, "s", "mid-pull", "0", "x"));
+    arm_kill(KillPoint::AfterRecord);
+    let e = r.d.pull("sess-1", "post-tool-use", Some("toolu_S")).err().expect("stopped at the kill point");
+    assert!(e.contains(KILLED), "{e}");
+    disarm_kill();
+    // A sweep with the final check due at once: nothing to decide yet.
+    assert_eq!(r.d.sweep(termlink_sidecar::store::now_ms() + 120_000, 0), 0);
+    assert_eq!(names(&lines(&r.store, "s", "mid-pull")), ["RECEIVED", "STORED"], "nothing recorded for an unclaimed attempt");
+    // Had the process died there, start-up recovery closes it as an orphan and the
+    // message can be offered again.
+    let d2 = Deliverer::new(B, r.store.clone(), Box::new(BuiltIn::new(roster_of(&[&r.ka]))), None);
+    assert_eq!(names(&lines(&r.store, "s", "mid-pull")), ["RECEIVED", "STORED", "ABSENT"]);
+    assert_eq!(d2.pending(), ["mid-pull"]);
 }

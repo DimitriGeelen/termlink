@@ -245,6 +245,19 @@ impl Deliverer {
         for name in names {
             let nonce = &name["delivery-".len()..];
             let Some(rec) = self.attempt(nonce) else { continue };
+            // `pull` writes the attempt record before the CLAIMED lines (T-3419). An
+            // attempt without them is still inside a `pull` (it writes them next) or
+            // was cut off by a crash (start-up recovery closes it as an orphan);
+            // either way no frame can have left, so there is nothing to decide yet.
+            let claimed = rec.items.iter().all(|it| {
+                self.store
+                    .chain_lines(&it.conv)
+                    .map(|ls| ls.iter().any(|l| l.event == CLAIMED && own(l) && l.msg_id == it.msg_id && attempt_of(l) == Some(it.attempt)))
+                    .unwrap_or(false)
+            });
+            if !claimed {
+                continue;
+            }
             let still_open = rec.items.iter().any(|it| {
                 !self.handed(it)
                     && !self
