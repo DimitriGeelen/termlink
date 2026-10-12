@@ -1,0 +1,99 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3428: arc-011 PH-2 row P2: 30 s tick + R-44.e stuck deadlines
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-12T22:36:50Z
+# ============================================================================
+
+task_id: T-3428
+task_name: "arc-011 PH-2 row P2: 30 s tick + R-44.e stuck deadlines"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-12T22:20:17Z
+completed: 2026-10-12T22:36:16Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-13T00:21:36+02:00
+last_commit: 2026-10-13T00:36:11+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  open PH-2 row P2 with ACs. PH-2 row P2 - 30 s tick and R-44.e stuck deadlines
+
+# Key outcomes
+outcomes:
+  - 'A named tick (`TICK` = 30 s, R-17) and a `Deadlines` table (normal: accept 60 s, handover 2 ticks after ready, answer 1 h; urgent: 15 s, 1 tick, 5 min) replace `STUCK_AFTER_MS`; `status_view` takes the deadlines'
+  - 'Receiver: once per tick, for each own STORED message not handed over while its agent is ready for longer than the handover deadline, and each HANDED_OVER message not replied to past the answer deadline while its agent is ready, post a signed overdue notice to the sender, once per message and step'
+  - 'Sender labels: STUCK only with evidence the responsible side is alive (RECEIVED without STORED past the accept deadline, or an overdue notice), and the view names the step (`stuck_step`: not accepted / not handed over / not answered); posted with no answer past the accept deadline, or past the answer deadline with no notice, reads UNKNOWN; stored and not yet overdue reads WAITING FOR RECIPIENT (no false STUCK on a busy agent)'
+  - '`hook session-end` clears the session''s ready flag, so a closed session is not ready'
+  - 'Simulated-clock tests for every label path, normal and urgent; the existing STUCK/UNKNOWN tests and the fc-07/fc-16 mutants updated and still killed; full sidecar suite green'
+  - 'Deferred and recorded: DEAD (needs the hub to declare an instance ended, R-60) to row P17; per-message answer deadline (wire field) and no-action to row P14; STUCK for "not accepted"/"not answered" without a receiver notice needs liveness, row P3'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-sidecar/src/api.rs'
+  - 'crates/termlink-sidecar/src/cli.rs'
+  - 'crates/termlink-sidecar/src/daemon.rs'
+  - 'crates/termlink-sidecar/src/deadline.rs'
+  - 'crates/termlink-sidecar/src/deliver.rs'
+  - 'crates/termlink-sidecar/src/hook.rs'
+  - 'crates/termlink-sidecar/src/lib.rs'
+  - 'crates/termlink-sidecar/src/send.rs'
+  - 'crates/termlink-sidecar/src/store.rs'
+  - 'crates/termlink-sidecar/src/wire.rs'
+  - 'crates/termlink-sidecar/tests/acceptance.rs'
+  - 'crates/termlink-sidecar/tests/deadline_tests.rs'
+  - 'crates/termlink-sidecar/tests/fc_matrix.rs'
+  - 'crates/termlink-sidecar/tests/hooks_tests.rs'
+  - 'crates/termlink-sidecar/tests/mutants/fc-07-storage-counted-as-delivery.patch'
+  - 'crates/termlink-sidecar/tests/mutants/fc-16-acceptance-called-delivered.patch'
+  - 'crates/termlink-sidecar/tests/record_print.rs'
+  - 'docs/design/arc-011-ph2-architecture.md'
+  - '.tasks/active/T-3428-arc-011-ph-2-row-p2-30-s-tick--r-44e-stu.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-13T00:21:36'
+    action: 'T-3428: open PH-2 row P2 with ACs'
+  - time: '2026-10-13T00:36:11'
+    action: 'T-3428: PH-2 row P2 - 30 s tick and R-44.e stuck deadlines'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 15 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 15
+  commits: 2
+  files_changed: 19
+  lines_added: 929
+  lines_removed: 80
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3428-arc-011-ph-2-row-p2-30-s-tick--r-44e-stu.md
+generated_by: context-agent-hybrid
