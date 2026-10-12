@@ -44,7 +44,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-12T22:16:56Z
-last_update: 2026-10-12T22:18:27Z
+last_update: 2026-10-12T22:21:31Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -82,9 +82,9 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Report `docs/reports/T-3427-fx5-disclosure-baseline.md`: every rail that writes message content to the hub today (channel post, dm, inbox topics, sidecar wire payload, metadata), each content field a hub token holder or the hub operator can read in plaintext, with file:line evidence; the baseline count per rail and in total
-- [ ] Counting script `scripts/count-hub-plaintext-fields.sh` that re-derives the count from the code (or from a canned sample) so a later phase can compare against the baseline; read-only, no live hub needed; exit 0 with the count, 2 on tooling error
-- [ ] Fixtures `tests/count-hub-plaintext-fields-fixtures.sh` pin the count on a canned sample, including one case where an added plaintext field raises the count
+- [x] Report `docs/reports/T-3427-fx5-disclosure-baseline.md`: every rail that writes message content to the hub today (channel post, dm, inbox topics, sidecar wire payload, metadata), each content field a hub token holder or the hub operator can read in plaintext, with file:line evidence; the baseline count per rail and in total
+- [x] Counting script `scripts/count-hub-plaintext-fields.sh` that re-derives the count from the code (or from a canned sample) so a later phase can compare against the baseline; read-only, no live hub needed; exit 0 with the count, 2 on tooling error
+- [x] Fixtures `tests/count-hub-plaintext-fields-fixtures.sh` pin the count on a canned sample, including one case where an added plaintext field raises the count
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
