@@ -9,7 +9,8 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, Stdio};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use termlink_sidecar::api::{self, Scope, STUCK_AFTER_MS};
+use termlink_sidecar::api::{self, Scope};
+use termlink_sidecar::deadline::{Deadlines, OVERDUE_HANDOVER};
 use termlink_sidecar::daemon::Config;
 use termlink_sidecar::deliver::{Deliverer, READY_MAX_AGE_MS};
 use termlink_sidecar::hook;
@@ -69,19 +70,26 @@ fn hooks_sender_sees_waiting_for_recipient_then_stuck_never_delivered() {
         s.append_event_unless("c", st, "m1", peer, "d", extra, |_| false).unwrap();
     }
     let view = |now: u64| {
-        let v = api::status_view(&json!({"op": "status", "msg_id": "m1"}), &s, "agent-a", None, now, STUCK_AFTER_MS);
+        let v = api::status_view(&json!({"op": "status", "msg_id": "m1"}), &s, "agent-a", None, now, &Deadlines::R44E);
         v["messages"][0].clone()
     };
     // B is idle or has no hook: storage is not delivery (FC-7).
     let w = view(stored_at + 60_000);
     assert_eq!((w["stage"].clone(), w["label"].clone()), (json!("STORED"), json!("WAITING FOR RECIPIENT")), "{w}");
     assert!(w.get("delivered").is_none());
-    // Past the deadline on a simulated clock: STUCK (FC-6).
-    assert_eq!(view(stored_at + STUCK_AFTER_MS + 1)["label"], "STUCK");
+    // R-44.e (PH-2 row P2): age alone never makes it STUCK; the recipient may be
+    // busy or away. Hours later, with no overdue notice, it still waits.
+    assert_eq!(view(stored_at + 3_600_000)["label"], "WAITING FOR RECIPIENT");
+    // The recipient's sidecar says its agent was ready and the hand-over is
+    // overdue: STUCK, naming the step (FC-6).
+    let extra = LineExtra { peer_ts_ms: Some(stored_at + 70_000), ..Default::default() };
+    s.append_event_unless("c", OVERDUE_HANDOVER, "m1", peer, "d", extra, |_| false).unwrap();
+    let st = view(stored_at + 80_000);
+    assert_eq!((st["label"].clone(), st["stuck_step"].clone()), (json!("STUCK"), json!("not handed over")), "{st}");
     // Handed over: no waiting label any more.
-    let extra = LineExtra { peer_ts_ms: Some(stored_at + 10), ..Default::default() };
+    let extra = LineExtra { peer_ts_ms: Some(stored_at + 90_000), ..Default::default() };
     s.append_event_unless("c", "HANDED_OVER", "m1", peer, "d", extra, |_| false).unwrap();
-    let h = view(stored_at + STUCK_AFTER_MS + 1);
+    let h = view(stored_at + 100_000);
     assert_eq!((h["stage"].clone(), h["delivered"].clone()), (json!("HANDED_OVER"), json!(true)), "{h}");
     assert!(h.get("label").is_none(), "{h}");
 }
@@ -263,6 +271,15 @@ fn hooks_scripted_demo() {
     // A second tool call hands nothing out again.
     let (rc, out) = run_hook(&e, "post-tool-use", &send_b, &json!({"session_id": session, "tool_use_id": "toolu_demo_2"}), &errlog);
     assert_eq!((rc, out.as_str()), (0, ""));
+    assert!(std::fs::read_to_string(&errlog).unwrap_or_default().is_empty(), "no hook errors expected");
+
+    // 5b PH-2 row P2: the session ends; its ready flag goes, so later mail waits
+    //    for the recipient instead of going overdue (R-44.e).
+    let flag = e.store_root().join("sidecar").join("agent-b").join(format!("state.ready-{session}"));
+    assert!(flag.exists(), "Stop marked the session ready");
+    let (rc, out) = run_hook(&e, "session-end", &send_b, &json!({"session_id": session}), &errlog);
+    assert_eq!((rc, out.as_str()), (0, ""));
+    assert!(!flag.exists(), "session-end cleared the ready flag");
     assert!(std::fs::read_to_string(&errlog).unwrap_or_default().is_empty(), "no hook errors expected");
 
     // 6 Both sidecars stop cleanly on SIGTERM.

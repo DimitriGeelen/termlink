@@ -368,7 +368,10 @@ impl Inner {
             QueueError::QueueFull { cap } => SendError::Outbox(format!("outbox full (cap {cap})")),
             other => SendError::Outbox(other.to_string()),
         })?;
-        if let Err(e) = self.store.append_event(&conv, "SENT", &msg.msg_id, me.fingerprint(), &digest) {
+        // The SENT line carries the priority, so the sender's own view can apply
+        // the urgent deadlines later without keeping the payload (PH-2 row P2).
+        let extra = crate::store::LineExtra { reason: Some(format!("priority={}", msg.priority)), ..Default::default() };
+        if let Err(e) = self.store.append_event_unless(&conv, "SENT", &msg.msg_id, me.fingerprint(), &digest, extra, |_| false) {
             let _ = self.queue.pop(qid);
             return Err(SendError::Store(e.to_string()));
         }

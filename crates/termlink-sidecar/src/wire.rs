@@ -28,8 +28,11 @@ pub const META_SIG: &str = "sidecar_sig";
 pub const STAGE_ORDER: [&str; 4] = ["RECEIVED", "STORED", "HANDED_OVER", "REPLIED"];
 /// Notices a receiver sends about a message from a sender outside its allow-list
 /// (OQ-2 ruling E, B15): held for its operator, then admitted or refused by that
-/// operator. They are not stages of the order above; each is recorded once.
-pub const NOTICES: [&str; 3] = ["HELD", "ADMITTED", "DENIED"];
+/// operator. Since PH-2 row P2 also the receiver's overdue notices (R-44.e): a
+/// stored message not handed over, or a handed-over one not answered, while the
+/// recipient's agent is ready. They are not stages of the order above; each is
+/// recorded once.
+pub const NOTICES: [&str; 5] = ["HELD", "ADMITTED", "DENIED", crate::deadline::OVERDUE_HANDOVER, crate::deadline::OVERDUE_ANSWER];
 
 /// The signed message body (section 5.1).
 #[derive(Debug, Clone, PartialEq, Eq)]

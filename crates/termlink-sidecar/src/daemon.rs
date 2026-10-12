@@ -143,12 +143,21 @@ pub fn start(cfg: &Config, store_root: &Path, runtime: &Path, home: &Path) -> Re
         let (d, stop) = (deliverer.clone(), sweep_stop.clone());
         std::thread::spawn(move || {
             let mut waited = Duration::ZERO;
+            let mut since_tick = Duration::ZERO;
+            let tick = Duration::from_millis(crate::deadline::TICK_MS);
+            let deadlines = crate::deadline::Deadlines::R44E;
             while !stop.load(std::sync::atomic::Ordering::SeqCst) {
                 std::thread::sleep(Duration::from_millis(100));
                 waited += Duration::from_millis(100);
+                since_tick += Duration::from_millis(100);
                 if waited >= SWEEP_EVERY {
                     waited = Duration::ZERO;
                     d.sweep(crate::store::now_ms(), SWEEP_WINDOW_MS);
+                }
+                // Once per tick (R-17): the receiver's overdue notices (R-44.e).
+                if since_tick >= tick {
+                    since_tick = Duration::ZERO;
+                    d.check_overdue(crate::store::now_ms(), &deadlines);
                 }
             }
         })

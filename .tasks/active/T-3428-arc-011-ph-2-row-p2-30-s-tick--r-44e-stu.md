@@ -43,7 +43,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-12T22:20:17Z
-last_update: 2026-10-12T22:21:36Z
+last_update: 2026-10-12T22:36:11Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -81,12 +81,12 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] A named tick (`TICK` = 30 s, R-17) and a `Deadlines` table (normal: accept 60 s, handover 2 ticks after ready, answer 1 h; urgent: 15 s, 1 tick, 5 min) replace `STUCK_AFTER_MS`; `status_view` takes the deadlines
-- [ ] Receiver: once per tick, for each own STORED message not handed over while its agent is ready for longer than the handover deadline, and each HANDED_OVER message not replied to past the answer deadline while its agent is ready, post a signed overdue notice to the sender, once per message and step
-- [ ] Sender labels: STUCK only with evidence the responsible side is alive (RECEIVED without STORED past the accept deadline, or an overdue notice), and the view names the step (`stuck_step`: not accepted / not handed over / not answered); posted with no answer past the accept deadline, or past the answer deadline with no notice, reads UNKNOWN; stored and not yet overdue reads WAITING FOR RECIPIENT (no false STUCK on a busy agent)
-- [ ] `hook session-end` clears the session's ready flag, so a closed session is not ready
-- [ ] Simulated-clock tests for every label path, normal and urgent; the existing STUCK/UNKNOWN tests and the fc-07/fc-16 mutants updated and still killed; full sidecar suite green
-- [ ] Deferred and recorded: DEAD (needs the hub to declare an instance ended, R-60) to row P17; per-message answer deadline (wire field) and no-action to row P14; STUCK for "not accepted"/"not answered" without a receiver notice needs liveness, row P3
+- [x] A named tick (`TICK` = 30 s, R-17) and a `Deadlines` table (normal: accept 60 s, handover 2 ticks after ready, answer 1 h; urgent: 15 s, 1 tick, 5 min) replace `STUCK_AFTER_MS`; `status_view` takes the deadlines
+- [x] Receiver: once per tick, for each own STORED message not handed over while its agent is ready for longer than the handover deadline, and each HANDED_OVER message not replied to past the answer deadline while its agent is ready, post a signed overdue notice to the sender, once per message and step
+- [x] Sender labels: STUCK only with evidence the responsible side is alive (RECEIVED without STORED past the accept deadline, or an overdue notice), and the view names the step (`stuck_step`: not accepted / not handed over / not answered); posted with no answer past the accept deadline, or past the answer deadline with no notice, reads UNKNOWN; stored and not yet overdue reads WAITING FOR RECIPIENT (no false STUCK on a busy agent)
+- [x] `hook session-end` clears the session's ready flag, so a closed session is not ready
+- [x] Simulated-clock tests for every label path, normal and urgent; the existing STUCK/UNKNOWN tests and the fc-07/fc-16 mutants updated and still killed; full sidecar suite green
+- [x] Deferred and recorded: DEAD (needs the hub to declare an instance ended, R-60) to row P17; per-message answer deadline (wire field) and no-action to row P14; STUCK for "not accepted"/"not answered" without a receiver notice needs liveness, row P3
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -275,6 +275,8 @@ bvp_scores_proposed:
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+cargo test -p termlink-sidecar --test deadline_tests --test hooks_tests --test record_print --test fc_matrix
+test -z "$(grep -rn STUCK_AFTER_MS crates/termlink-sidecar)"
 
 ## RCA
 
@@ -315,6 +317,11 @@ bvp_scores_proposed:
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-10-13 — STUCK needs a live responsible side; the plan had glossed that
+- **What changed:** R-44.a allows STUCK only when the responsible party is reachable and alive. The sender has no liveness signal before row P3, and only the receiver knows when its agent became ready. So the build splits: the receiver posts signed overdue notices (new `OVERDUE-HANDOVER`, `OVERDUE-ANSWER` in `wire::NOTICES`) once per tick; the sender says STUCK only on that evidence or on RECEIVED-without-STORED, else WAITING FOR RECIPIENT or UNKNOWN. Two more things the plan did not foresee: the sender kept no payload, so the SENT line now records `priority=N` for the urgent deadlines; and a closed session kept its ready flag, so a `session-end` hook now clears it.
+- **Plan impact:** PH-1 tests that expected STUCK from age alone now expect WAITING FOR RECIPIENT (the false-STUCK case the operator's OQ-c ruling removes). The fc-07 and fc-16 mutant patches were regenerated against the new code; all 18 mutants still killed. Hook settings installed by P7 must include `SessionEnd`.
+- **Triggered:** DEAD moved to P17, per-message answer deadline and no-action to P14, liveness-based STUCK to P3 (recorded in the PH-2 architecture 6.3).
 
 ## Recommendation
 

@@ -60,9 +60,6 @@ pub const HELD_BY_RECIPIENT: &str = "HELD BY RECIPIENT (awaiting their operator)
 pub const REFUSED_BY_RECIPIENTS_OPERATOR: &str = "REFUSED BY RECIPIENT'S OPERATOR";
 /// Receiver-side label: a message from outside the allow-list, awaiting `allow`/`deny`.
 pub const HELD_FOR_OPERATOR: &str = "HELD FOR OPERATOR";
-/// How long a message may sit at STORED on the recipient before the sender's
-/// view calls it STUCK instead of WAITING FOR RECIPIENT (FC-6, FC-7).
-pub const STUCK_AFTER_MS: u64 = 10 * 60 * 1000;
 /// Conversation that holds the delivery switch's log lines (SI-23).
 pub const ADMIN_CONV: &str = "_admin";
 
@@ -367,7 +364,7 @@ fn dispatch_inner(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id:
         }
     }
     match op {
-        "status" => status_at(obj, store, agent, hub_id, sender, crate::store::now_ms(), STUCK_AFTER_MS),
+        "status" => status_at(obj, store, agent, hub_id, sender, crate::store::now_ms(), &crate::deadline::Deadlines::R44E),
         "send" => send(obj, sender),
         "delivery" => delivery(obj, store, who),
         "held" => held(obj, store),
@@ -452,8 +449,16 @@ fn ready(obj: &serde_json::Map<String, Value>, d: Option<&Deliverer>) -> Value {
     let (Some(session), Some(hook)) = (text("session"), text("hook")) else {
         return err("bad-request", "ready needs session and hook", "{\"op\":\"ready\",\"session\":...,\"hook\":\"session-start\"}");
     };
-    if !matches!(hook, "session-start" | "stop") {
-        return err("bad-request", "hook must be session-start or stop", "the hook that is calling");
+    if !matches!(hook, "session-start" | "stop" | "session-end") {
+        return err("bad-request", "hook must be session-start, stop or session-end", "the hook that is calling");
+    }
+    // A session that ended is no longer ready (PH-2 row P2): its stored mail
+    // reads WAITING FOR RECIPIENT, never an overdue hand-over.
+    if hook == "session-end" {
+        return match d.mark_unready(session) {
+            Ok(()) => json!({"ok": true, "ready": false}),
+            Err(e) => err("io", &format!("cannot clear the session: {e}"), "the hook fails open"),
+        };
     }
     match d.mark_ready(session, crate::store::now_ms()) {
         Ok(()) => json!({"ok": true, "ready": true}),
@@ -699,9 +704,9 @@ fn decide(obj: &serde_json::Map<String, Value>, store: &Store, agent: &str, send
 }
 
 /// The `status` view at a given clock (tests move the clock; the socket uses now).
-pub fn status_view(req: &Value, store: &Store, agent: &str, hub_id: Option<&str>, now_ms: u64, stuck_after_ms: u64) -> Value {
+pub fn status_view(req: &Value, store: &Store, agent: &str, hub_id: Option<&str>, now_ms: u64, dl: &crate::deadline::Deadlines) -> Value {
     match req.as_object() {
-        Some(obj) => status_at(obj, store, agent, hub_id, None, now_ms, stuck_after_ms),
+        Some(obj) => status_at(obj, store, agent, hub_id, None, now_ms, dl),
         None => err("bad-request", "request must be a JSON object", "send {\"op\": \"status\"}"),
     }
 }
@@ -713,7 +718,7 @@ fn status_at(
     hub_id: Option<&str>,
     sender: Option<&Sender>,
     now_ms: u64,
-    stuck_after_ms: u64,
+    dl: &crate::deadline::Deadlines,
 ) -> Value {
     let want_msg = obj.get("msg_id").and_then(Value::as_str);
     let want_conv = obj.get("conv").and_then(Value::as_str);
@@ -758,23 +763,39 @@ fn status_at(
             let reached = STAGES[top - 1];
             let handed = rows.iter().any(|r| r["msg_id"] == *m && r["stage"] == "HANDED_OVER");
             let mut v = json!({"msg_id": m, "stage": reached});
+            let has = |ev: &str| rows.iter().any(|r| r["msg_id"] == *m && r["stage"] == ev);
+            let first_ts = |ev: &str| {
+                rows.iter()
+                    .filter(|r| r["msg_id"] == *m && r["stage"] == ev)
+                    .filter_map(|r| r["peer_ts_ms"].as_u64().or_else(|| r["ts_ms"].as_u64()))
+                    .min()
+            };
+            // Urgent per the SENT line's recorded priority (R-44.e urgent deadlines).
+            let urgent = rows
+                .iter()
+                .filter(|r| r["msg_id"] == *m && r["stage"] == "SENT")
+                .filter_map(|r| r["reason"].as_str()?.strip_prefix("priority=")?.parse::<i64>().ok())
+                .any(|p| p >= 5);
+            // When the message left: first post, else the SENT line.
+            let sent_at = first_ts(crate::send::POSTED).or_else(|| first_ts("SENT"));
+            let stuck = |v: &mut Value, step: &str| {
+                v["label"] = json!("STUCK");
+                v["stuck_step"] = json!(step);
+            };
             // Sender-side labels for a message that has not been seen by anyone yet:
             // WAITING when a post attempt found the hub unreachable, until it is posted.
             if *top == 1 {
-                let has = |ev: &str| rows.iter().any(|r| r["msg_id"] == *m && r["stage"] == ev);
                 if has(crate::send::WAITING) && !has(crate::send::POSTED) {
                     v["label"] = json!("WAITING");
                 }
                 if has(crate::send::DEAD_LETTER) {
                     v["label"] = json!("REJECTED BY HUB");
                 }
-                // Posted, and no stage back for longer than the deadline (D-4).
-                let posted = rows
-                    .iter()
-                    .filter(|r| r["msg_id"] == *m && r["stage"] == crate::send::POSTED)
-                    .filter_map(|r| r["ts_ms"].as_u64())
-                    .min();
-                if posted.is_some_and(|t| now_ms.saturating_sub(t) > stuck_after_ms) {
+                // Posted, nothing back past the accept deadline. Without a liveness
+                // signal (row P3) the recipient may simply not be running: UNKNOWN,
+                // never STUCK (R-44.a).
+                let posted = first_ts(crate::send::POSTED);
+                if posted.is_some_and(|t| now_ms.saturating_sub(t) > dl.accept(urgent)) {
                     v["label"] = json!("UNKNOWN");
                 }
             }
@@ -801,26 +822,29 @@ fn status_at(
             // No hook has fired (the agent is idle or has no hook): waiting; past
             // the deadline: stuck (FC-6, FC-7). Storage is never called delivery.
             let sent_here = rows.iter().any(|r| r["msg_id"] == *m && r["stage"] == "SENT");
-            // Received but never stored (the recipient's store is failing): no
-            // label while it may still store, STUCK past the deadline.
-            if sent_here && reached == "RECEIVED" {
-                let received_at = rows
-                    .iter()
-                    .filter(|r| r["msg_id"] == *m && r["stage"] == "RECEIVED")
-                    .filter_map(|r| r["peer_ts_ms"].as_u64().or_else(|| r["ts_ms"].as_u64()))
-                    .min();
-                if received_at.is_some_and(|t| now_ms.saturating_sub(t) > stuck_after_ms) {
-                    v["label"] = json!("STUCK");
+            // R-44.e (PH-2 row P2). Received but never stored: the recipient is
+            // demonstrably alive, so past the accept deadline it is STUCK.
+            if sent_here && reached == "RECEIVED" && sent_at.is_some_and(|t| now_ms.saturating_sub(t) > dl.accept(urgent)) {
+                stuck(&mut v, crate::deadline::STEP_NOT_ACCEPTED);
+            }
+            // Stored, not handed over: only the recipient knows when its agent became
+            // ready, so STUCK only on its overdue notice; otherwise the recipient is
+            // busy or away (no false STUCK on a busy agent).
+            if sent_here && reached == "STORED" {
+                if has(crate::deadline::OVERDUE_HANDOVER) {
+                    stuck(&mut v, crate::deadline::STEP_NOT_HANDED_OVER);
+                } else {
+                    v["label"] = json!("WAITING FOR RECIPIENT");
                 }
             }
-            if sent_here && reached == "STORED" {
-                let stored_at = rows
-                    .iter()
-                    .filter(|r| r["msg_id"] == *m && r["stage"] == "STORED")
-                    .filter_map(|r| r["peer_ts_ms"].as_u64().or_else(|| r["ts_ms"].as_u64()))
-                    .min();
-                let stuck = stored_at.is_some_and(|t| now_ms.saturating_sub(t) > stuck_after_ms);
-                v["label"] = json!(if stuck { "STUCK" } else { "WAITING FOR RECIPIENT" });
+            // Handed over, not answered: STUCK on the recipient's notice; past the
+            // deadline without one, liveness is unknown (row P3).
+            if sent_here && reached == "HANDED_OVER" {
+                if has(crate::deadline::OVERDUE_ANSWER) {
+                    stuck(&mut v, crate::deadline::STEP_NOT_ANSWERED);
+                } else if first_ts("HANDED_OVER").is_some_and(|t| now_ms.saturating_sub(t) > dl.answer(urgent)) {
+                    v["label"] = json!("UNKNOWN");
+                }
             }
             // OQ-2 E: held for an operator, on either side.
             let ev = |e: &str| rows.iter().any(|r| r["msg_id"] == *m && r["stage"] == e);

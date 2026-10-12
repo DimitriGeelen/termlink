@@ -177,6 +177,28 @@ Row P3 builds items 5 to 8; row P7 builds items 1, 2 and 4 into the launcher.
    estate (the two modes are never mixed). Without a production root the PH-1 estate rule applies unchanged.
 3. **Visible.** Status carries `"mode": "estate"|"production"`; a refusal names both markers.
 
+### 6.3 K-2 as built (row P2, T-3428)
+
+1. **Tick and table.** `deadline::TICK_MS` = 30 s; `Deadlines::R44E` holds accept 60 s / 15 s, hand-over 2 ticks / 1
+   tick after the agent became ready, answer 1 h / 5 min (normal / urgent). `STUCK_AFTER_MS` is gone; `status_view`
+   takes the table. The sidecar's sweeper thread runs the receiver check once per tick; the 500 ms loop is unchanged.
+2. **STUCK needs evidence of a live responsible side (R-44.a).** Until liveness exists (row P3), the sender calls
+   STUCK only when the recipient itself proves it: RECEIVED without STORED past the accept deadline ("not accepted"),
+   or the recipient's signed overdue notice ("not handed over", "not answered"). The view names the step in
+   `stuck_step`. Posted with nothing back, or handed over and unanswered past the deadline with no notice, reads
+   UNKNOWN. Stored without a notice reads WAITING FOR RECIPIENT however old: no false STUCK on a busy agent.
+3. **Receiver notices.** `OVERDUE-HANDOVER` and `OVERDUE-ANSWER` join `wire::NOTICES`. Once per tick, while one of
+   its sessions holds a fresh ready flag, the receiver sends a notice for each stored message not handed over within
+   the deadline counted from the later of storing and becoming ready, and each handed-over message it has not
+   replied to past the answer deadline; once per message and step, recorded after it is queued.
+4. **Readiness ends with the session.** A new hook event `session-end` clears the session's ready flag, so a closed
+   session is not ready and its mail waits rather than going overdue. A crashed session keeps its flag until P3/P18.
+5. **Urgency on the sender side.** The SENT line records `priority=N`, so the sender applies the urgent deadlines
+   without keeping the payload.
+6. **Deferred:** DEAD (the home hub must declare an instance ended, R-60) to row P17; the per-message answer deadline
+   (a new wire field) and "no-action" to row P14; STUCK for "not accepted" and "not answered" without a notice needs
+   liveness, row P3.
+
 ## 7 Out of scope for PH-2
 
 Cross-host and cross-operator delivery, grants and their knobs (T-3423), Tier 0 machinery, the Track A pilot

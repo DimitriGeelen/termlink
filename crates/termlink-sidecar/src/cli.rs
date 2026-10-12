@@ -6,7 +6,7 @@
 //! the same verb through the same binary.
 //!
 //! - `start --config <file>`: the sidecar process (estate or production root).
-//! - `hook post-tool-use|session-start|stop`: the Claude Code hook (always exits 0).
+//! - `hook post-tool-use|session-start|stop|session-end`: the Claude Code hook (always exits 0).
 //! - `finalize --nonce <n>`: the detached hand-over finalizer a hook starts.
 //! - `send`, `reply`, `status`: the agent-side client verbs (B14, see `client`).
 //! - `admin held|allow|deny`: the operator's verbs on the admin socket (B15, OQ-2 E).
@@ -25,7 +25,7 @@ pub fn reexec_prefix() -> &'static [String] {
 
 fn usage(cmd: &str) -> i32 {
     eprintln!("usage: {cmd} start --config <file>");
-    eprintln!("       {cmd} hook post-tool-use|session-start|stop");
+    eprintln!("       {cmd} hook post-tool-use|session-start|stop|session-end");
     eprintln!("       {cmd} finalize --nonce <nonce>");
     eprintln!("       {cmd} send|reply|status ... (run with no arguments for their usage)");
     eprintln!("       {cmd} admin held|allow|deny ...");

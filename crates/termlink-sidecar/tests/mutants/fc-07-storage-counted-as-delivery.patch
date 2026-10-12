@@ -3,13 +3,12 @@
 # test: --test hooks_tests hooks_sender_sees_waiting_for_recipient_then_stuck_never_delivered
 --- a/crates/termlink-sidecar/src/api.rs
 +++ b/crates/termlink-sidecar/src/api.rs
-@@ -666,7 +666,8 @@
-                     .filter_map(|r| r["peer_ts_ms"].as_u64().or_else(|| r["ts_ms"].as_u64()))
-                     .min();
-                 let stuck = stored_at.is_some_and(|t| now_ms.saturating_sub(t) > stuck_after_ms);
--                v["label"] = json!(if stuck { "STUCK" } else { "WAITING FOR RECIPIENT" });
-+                v["delivered"] = json!(true);
-+                let _ = stuck;
+@@ -834,7 +834,7 @@
+                 if has(crate::deadline::OVERDUE_HANDOVER) {
+                     stuck(&mut v, crate::deadline::STEP_NOT_HANDED_OVER);
+                 } else {
+-                    v["label"] = json!("WAITING FOR RECIPIENT");
++                    v["delivered"] = json!(true);
+                 }
              }
-             // Stored but withheld (e.g. not-allowed), or refused outright: say why.
-             if let Some(r) = rows.iter().find(|r| r["msg_id"] == *m && r["stage"] == "REFUSED") {
+             // Handed over, not answered: STUCK on the recipient's notice; past the

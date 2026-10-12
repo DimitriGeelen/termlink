@@ -12,7 +12,8 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use termlink_protocol::control::channel::canonical_sign_bytes;
 use termlink_session::agent_identity::Identity;
-use termlink_sidecar::api::{self, STUCK_AFTER_MS, Scope};
+use termlink_sidecar::api::{self, Scope};
+use termlink_sidecar::deadline::Deadlines;
 use termlink_sidecar::daemon::Config;
 use termlink_sidecar::hook;
 use termlink_sidecar::policy::BuiltIn;
@@ -183,10 +184,12 @@ fn fc_2_a_full_disk_never_reports_stored_and_the_message_waits() {
     assert!(!ev.contains(&"STORED".to_string()), "STORED reported on a full disk: {ev:?}");
     // The message is not lost: the cursor did not move past it.
     assert_eq!(rx_b.cursor(), 0);
-    // The sender sees it: received, never stored, STUCK past the deadline.
-    let later = termlink_sidecar::store::now_ms() + STUCK_AFTER_MS + 60_000;
-    let v = api::status_view(&json!({"op": "status", "msg_id": s.msg_id}), &store_a, "agent-a", Some(&id), later, STUCK_AFTER_MS);
+    // The sender sees it: received, never stored, STUCK past the accept deadline
+    // (R-44.e): the recipient is demonstrably alive, so the step is named.
+    let later = termlink_sidecar::store::now_ms() + Deadlines::R44E.accept(false) + 60_000;
+    let v = api::status_view(&json!({"op": "status", "msg_id": s.msg_id}), &store_a, "agent-a", Some(&id), later, &Deadlines::R44E);
     assert_eq!((v["messages"][0]["stage"].clone(), v["messages"][0]["label"].clone()), (json!("RECEIVED"), json!("STUCK")), "{v}");
+    assert_eq!(v["messages"][0]["stuck_step"], "not accepted", "{v}");
 }
 
 // ---- FC-8: hub outage ----------------------------------------------------------------
@@ -201,7 +204,7 @@ fn fc_8_hub_down_shows_waiting_then_unknown_then_goes_on_with_no_loss() {
     let store_a = Arc::new(Store::open(&e.store_root(), "agent-a").unwrap());
     let sa = sender(&e, &store_a, "a", "agent-a", "inst-a", &id);
     let view = |now: u64, msg: &str| {
-        api::status_view(&json!({"op": "status", "msg_id": msg}), &store_a, "agent-a", Some(&id), now, STUCK_AFTER_MS)["messages"][0].clone()
+        api::status_view(&json!({"op": "status", "msg_id": msg}), &store_a, "agent-a", Some(&id), now, &Deadlines::R44E)["messages"][0].clone()
     };
     e.stop_hub();
     let s = sa.send("agent-b", "inst-b", Some("outage"), "while the hub is down", None).unwrap();
@@ -210,7 +213,7 @@ fn fc_8_hub_down_shows_waiting_then_unknown_then_goes_on_with_no_loss() {
     e.restart_hub().unwrap();
     assert!(wait_for(30, || { sa.pump(); sa.outbox_len() == 0 }), "never posted after the hub came back");
     // Posted, but nobody has reported a stage: past the deadline it is UNKNOWN.
-    let later = termlink_sidecar::store::now_ms() + STUCK_AFTER_MS + 60_000;
+    let later = termlink_sidecar::store::now_ms() + Deadlines::R44E.accept(false) + 60_000;
     assert_eq!(view(later, &s.msg_id)["label"], "UNKNOWN");
     // B comes up: the message is received and stored, nothing lost.
     let store_b = Arc::new(Store::open(&e.store_root(), "agent-b").unwrap());

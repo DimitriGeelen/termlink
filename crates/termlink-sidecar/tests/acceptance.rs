@@ -157,6 +157,8 @@ fn agent(e: &Estate, name: &'static str, dir: &str, home: &Path, bin_dir: &Path)
         "PostToolUse": [{"matcher": "*", "hooks": [{"type": "command", "command": hook_cmd("post-tool-use")}]}],
         "SessionStart": [{"hooks": [{"type": "command", "command": hook_cmd("session-start")}]}],
         "Stop": [{"hooks": [{"type": "command", "command": hook_cmd("stop")}]}],
+        // PH-2 row P2: a session that ended is not ready (R-44.e).
+        "SessionEnd": [{"hooks": [{"type": "command", "command": hook_cmd("session-end")}]}],
     }});
     let settings_path = e.root().join(format!("claude-settings-{name}.json"));
     std::fs::write(&settings_path, settings.to_string()).unwrap();

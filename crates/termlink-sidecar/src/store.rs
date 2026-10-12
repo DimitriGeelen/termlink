@@ -574,6 +574,17 @@ impl Store {
         Ok(())
     }
 
+    /// Remove a named state file; absent is not an error. The directory is
+    /// synced so the removal survives a crash.
+    pub fn remove_state(&self, name: &str) -> Result<()> {
+        check_name(name)?;
+        match fs::remove_file(self.dir.join(format!("state.{name}"))) {
+            Ok(()) => Ok(fsync_dir(&self.dir)?),
+            Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
+            Err(e) => Err(e.into()),
+        }
+    }
+
     pub fn read_state(&self, name: &str) -> Result<Option<String>> {
         check_name(name)?;
         match fs::read_to_string(self.dir.join(format!("state.{name}"))) {

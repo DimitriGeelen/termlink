@@ -372,6 +372,94 @@ impl Deliverer {
         out
     }
 
+    /// The latest time any session of this agent marked itself ready, if a flag
+    /// is still fresh (FC-5). A session that ended cleared its flag (`unready`).
+    pub fn ready_since(&self, now_ms: u64) -> Option<u64> {
+        let names = self.store.states_with_prefix("ready-").ok()?;
+        names
+            .iter()
+            .filter_map(|n| self.store.read_state(n).ok().flatten())
+            .filter_map(|s| s.trim().parse::<u64>().ok())
+            .filter(|ts| *ts <= now_ms && now_ms - ts <= READY_MAX_AGE_MS)
+            .max()
+    }
+
+    /// A session ended (SessionEnd hook): it is no longer ready.
+    pub fn mark_unready(&self, session: &str) -> Result<(), String> {
+        self.store.remove_state(&format!("ready-{session}")).map_err(|e| e.to_string())
+    }
+
+    /// R-44.e, receiver side, run once per tick (PH-2 row P2). Only this side
+    /// knows when its agent became ready, so only it can tell the sender that a
+    /// step it owns is overdue while the agent is alive: a stored message not
+    /// handed over within the handover deadline after the agent became ready,
+    /// or a handed-over message not answered within the answer deadline while
+    /// the agent is ready. Each notice is sent once per message and step, and
+    /// recorded on this chain after it is queued (a failed queue retries next
+    /// tick). Returns how many notices were queued.
+    pub fn check_overdue(&self, now_ms: u64, d: &crate::deadline::Deadlines) -> usize {
+        use crate::deadline::{OVERDUE_ANSWER, OVERDUE_HANDOVER};
+        let (Some(sender), Some(ready_at)) = (self.sender.as_ref(), self.ready_since(now_ms)) else {
+            return 0;
+        };
+        let mut sent = 0;
+        let mut notify = |conv: &str, msg: &Msg, digest: &str, step: &str| {
+            let done = self
+                .store
+                .chain_lines(conv)
+                .map(|ls| ls.iter().any(|l| l.event == step && own(l) && l.msg_id == msg.msg_id))
+                .unwrap_or(true);
+            if done {
+                return;
+            }
+            let Ok(st) = crate::pull::build_stage(&self.store, sender.fingerprint(), &self.agent, msg, step) else { return };
+            if sender.post_stage(&msg.from_agent, &st).is_err() {
+                return;
+            }
+            let id = msg.msg_id.clone();
+            let ev = step.to_owned();
+            let _ = self.store.append_event_unless(conv, step, &msg.msg_id, &msg.from, digest, LineExtra::default(), move |ls| {
+                ls.iter().any(|l| l.event == ev && own(l) && l.msg_id == id)
+            });
+            sent += 1;
+        };
+        // Not handed over: counted from the later of storing and becoming ready.
+        for c in self.candidates() {
+            let stored_at = self
+                .store
+                .chain_lines(&c.conv)
+                .ok()
+                .and_then(|ls| ls.into_iter().find(|l| l.event == "STORED" && own(l) && l.msg_id == c.msg_id))
+                .and_then(|l| l.ts_ms)
+                .unwrap_or(now_ms);
+            let start = stored_at.max(ready_at);
+            if now_ms.saturating_sub(start) > d.handover(c.assessment.urgent) {
+                notify(&c.conv, &c.msg, &c.digest, OVERDUE_HANDOVER);
+            }
+        }
+        // Not answered: handed over, no reply from this side, past the deadline.
+        for conv in self.store.conversations() {
+            if NOT_MAIL.contains(&conv.as_str()) {
+                continue;
+            }
+            let Ok(lines) = self.store.chain_lines(&conv) else { continue };
+            for h in lines.iter().filter(|l| l.event == HANDED_OVER && own(l)) {
+                if lines.iter().any(|l| l.event == "REPLIED" && own(l) && l.msg_id == h.msg_id) {
+                    continue;
+                }
+                let Some(st) = lines.iter().find(|l| l.event == "STORED" && own(l) && l.msg_id == h.msg_id) else { continue };
+                let Ok((_, payload)) = self.store.read_record(&conv, st.seq, &h.msg_id) else { continue };
+                let Ok(msg) = wire::parse_payload(&payload) else { continue };
+                let urgent = self.policy.assess(&msg).urgent;
+                let handed_at = h.ts_ms.unwrap_or(now_ms);
+                if now_ms.saturating_sub(handed_at) > d.answer(urgent) {
+                    notify(&conv, &msg, &st.digest, OVERDUE_ANSWER);
+                }
+            }
+        }
+        sent
+    }
+
     /// Messages that would be offered now (for status and tests).
     pub fn pending(&self) -> Vec<String> {
         self.candidates().into_iter().map(|c| c.msg_id).collect()

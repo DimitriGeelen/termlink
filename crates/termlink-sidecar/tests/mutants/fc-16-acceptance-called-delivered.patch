@@ -3,13 +3,13 @@
 # test: --test record_print record_print_every_pre_handover_state_uses_only_accepted_vocabulary
 --- a/crates/termlink-sidecar/src/api.rs
 +++ b/crates/termlink-sidecar/src/api.rs
-@@ -620,6 +620,9 @@
-                     .filter(|r| r["msg_id"] == *m && r["stage"] == crate::send::POSTED)
-                     .filter_map(|r| r["ts_ms"].as_u64())
-                     .min();
+@@ -795,6 +795,9 @@
+                 // signal (row P3) the recipient may simply not be running: UNKNOWN,
+                 // never STUCK (R-44.a).
+                 let posted = first_ts(crate::send::POSTED);
 +                if posted.is_some() {
 +                    v["delivered"] = json!(true);
 +                }
-                 if posted.is_some_and(|t| now_ms.saturating_sub(t) > stuck_after_ms) {
+                 if posted.is_some_and(|t| now_ms.saturating_sub(t) > dl.accept(urgent)) {
                      v["label"] = json!("UNKNOWN");
                  }

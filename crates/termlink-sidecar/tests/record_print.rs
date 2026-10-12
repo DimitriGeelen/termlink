@@ -5,7 +5,8 @@ use serde_json::{Value, json};
 use std::sync::Arc;
 use std::time::Duration;
 use termlink_session::agent_identity::Identity;
-use termlink_sidecar::api::{self, PRE_HANDOVER_VOCAB, STUCK_AFTER_MS, Scope};
+use termlink_sidecar::api::{self, PRE_HANDOVER_VOCAB, Scope};
+use termlink_sidecar::deadline::Deadlines;
 use termlink_sidecar::deliver::{Deliverer, Pulled, Verdict};
 use termlink_sidecar::policy::BuiltIn;
 use termlink_sidecar::pull::{ReceiveConfig, Receiver};
@@ -196,13 +197,14 @@ fn record_print_every_pre_handover_state_uses_only_accepted_vocabulary() {
     s.append_event("c", "POSTED", "f", me, "d").unwrap();
     peer_line("c", "RECEIVED", "f", now_real);
     peer_line("c", "STORED", "f", now_real);
-    // Clock now, then past the deadline: `p` (posted, nothing back) turns
-    // UNKNOWN and `f` (stored) turns STUCK; `s` was stored at t0, long ago.
+    // Clock now, then past the accept deadline: `p` (posted, nothing back) turns
+    // UNKNOWN. Stored messages wait for the recipient however old they are: only
+    // the recipient's overdue notice makes them STUCK (R-44.e, PH-2 row P2).
     for (now, label_p, label_f) in [
         (now_real, None, "WAITING FOR RECIPIENT"),
-        (now_real + STUCK_AFTER_MS + 60_000, Some("UNKNOWN"), "STUCK"),
+        (now_real + Deadlines::R44E.accept(false) + 60_000, Some("UNKNOWN"), "WAITING FOR RECIPIENT"),
     ] {
-        let view = api::status_view(&json!({"op": "status"}), &s, "agent-a", None, now, STUCK_AFTER_MS);
+        let view = api::status_view(&json!({"op": "status"}), &s, "agent-a", None, now, &Deadlines::R44E);
         let msgs = view["messages"].as_array().unwrap();
         assert_eq!(msgs.len(), 6);
         for m in msgs {
@@ -212,7 +214,7 @@ fn record_print_every_pre_handover_state_uses_only_accepted_vocabulary() {
         assert_eq!(get("w")["label"], "WAITING");
         assert_eq!(get("x")["label"], "REJECTED BY HUB");
         assert_eq!(get("p").get("label").and_then(Value::as_str), label_p);
-        assert_eq!(get("s")["label"], "STUCK", "stored at t0, long ago");
+        assert_eq!(get("s")["label"], "WAITING FOR RECIPIENT", "stored at t0, long ago, no overdue notice");
         assert_eq!(get("f")["label"], label_f);
         assert_eq!(get("r")["stage"], "RECEIVED");
     }

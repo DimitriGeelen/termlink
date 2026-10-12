@@ -98,7 +98,7 @@ pub fn run(event: &str, input: &str, socket: Option<&Path>, log: Option<&Path>) 
             }
             r
         }
-        "session-start" | "stop" => json!({"op": "ready", "session": session, "hook": event}),
+        "session-start" | "stop" | "session-end" => json!({"op": "ready", "session": session, "hook": event}),
         other => return none(format!("unknown hook event {other:?}")),
     };
     let resp = match call(socket, &req, HOOK_TIMEOUT) {
