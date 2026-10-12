@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3422: arc-011 intake: 832 per-peer cross-hub credential request (their T-1107) - answer their 4 questions from the code, record the feature in arc-011
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-12T13:59:04Z
+# ============================================================================
+
+task_id: T-3422
+task_name: "arc-011 intake: 832 per-peer cross-hub credential request (their T-1107) - answer their 4 questions from the code, record the feature in arc-011"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-12T13:54:31Z
+completed: 2026-10-12T13:58:53Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-10-12T15:57:37+02:00
+last_commit: 2026-10-12T15:58:52+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  answer to 832's per-peer credential request (4 questions from the code); feature recorded in arc-011 as T-3423 (DEFER, revisit 2026-11-12). ACs, verification; answer delivered to 832
+
+# Key outcomes
+outcomes:
+  - 'The four questions are answered from the code, each with file:line evidence, in `docs/reports/T-3422-832-peer-credentials-answer.md`: (1) does a message-only scope exist / can scopes be narrowed, (2) can a client be restricted to a topic prefix, (3) how the hub binds a client key to an identity, (4) can a second hub with its own secret run on the same host'
+  - 'The feature is recorded in arc-011 so it cannot be lost: a captured task (horizon later) carrying the request, the ruling and the link to 832''s survey, and a line in the arc-011 inventory or phase plan naming where it lands'
+  - 'The answer is sent to 832 on conversation peer-credentials-t1107'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/arcs/arc-011.yaml'
+  - 'docs/reports/T-3422-832-peer-credentials-answer.md'
+  - '.tasks/active/T-3422-arc-011-intake-832-per-peer-cross-hub-cr.md'
+  - '.tasks/active/T-3423-arc-011-per-peer-least-privilege-hub-cre.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-12T15:57:37'
+    action: 'T-3422: answer to 832''s per-peer credential request (4 questions from the code); feature recorded in arc-011 as T-3423 (DEFER, revisit 2026-11-12)'
+  - time: '2026-10-12T15:58:52'
+    action: 'T-3422: ACs, verification; answer delivered to 832'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 4
+  commits: 2
+  files_changed: 4
+  lines_added: 560
+  lines_removed: 4
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3422-arc-011-intake-832-per-peer-cross-hub-cr.md
+generated_by: context-agent-hybrid
