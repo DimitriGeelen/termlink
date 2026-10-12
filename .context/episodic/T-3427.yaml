@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3427: arc-011 PH-2 row P8: FX-5 baseline - count plaintext content fields the hub stores
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-12T22:29:13Z
+# ============================================================================
+
+task_id: T-3427
+task_name: "arc-011 PH-2 row P8: FX-5 baseline - count plaintext content fields the hub stores"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-12T22:16:56Z
+completed: 2026-10-12T22:29:01Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-13T00:18:28+02:00
+last_commit: 2026-10-13T00:21:33+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  open PH-2 row P8 (FX-5 baseline) with ACs. FX-5 PH-0 disclosure baseline (8 plaintext content fields) + counting script + fixtures
+
+# Key outcomes
+outcomes:
+  - 'Report `docs/reports/T-3427-fx5-disclosure-baseline.md`: every rail that writes message content to the hub today (channel post, dm, inbox topics, sidecar wire payload, metadata), each content field a hub token holder or the hub operator can read in plaintext, with file:line evidence; the baseline count per rail and in total'
+  - 'Counting script `scripts/count-hub-plaintext-fields.sh` that re-derives the count from the code (or from a canned sample) so a later phase can compare against the baseline; read-only, no live hub needed; exit 0 with the count, 2 on tooling error'
+  - 'Fixtures `tests/count-hub-plaintext-fields-fixtures.sh` pin the count on a canned sample, including one case where an added plaintext field raises the count'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'FX-5 PH-0 disclosure baseline (8 plaintext content fields) + counting script + fixtures'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/reports/T-3427-fx5-disclosure-baseline.md'
+  - 'scripts/count-hub-plaintext-fields.sh'
+  - '.tasks/active/T-3427-arc-011-ph-2-row-p8-fx-5-baseline---coun.md'
+  - 'tests/count-hub-plaintext-fields-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-13T00:18:28'
+    action: 'T-3427: open PH-2 row P8 (FX-5 baseline) with ACs'
+  - time: '2026-10-13T00:21:33'
+    action: 'T-3427: FX-5 PH-0 disclosure baseline (8 plaintext content fields) + counting script + fixtures'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 12 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 12
+  commits: 2
+  files_changed: 4
+  lines_added: 595
+  lines_removed: 4
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3427-arc-011-ph-2-row-p8-fx-5-baseline---coun.md
+generated_by: context-agent-hybrid

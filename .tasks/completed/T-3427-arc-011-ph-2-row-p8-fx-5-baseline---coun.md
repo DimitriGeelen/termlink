@@ -10,10 +10,10 @@ description: >
   write to the hub in readable form, count the content fields, record the baseline
   and a repeatable counting script.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-011]
 components: []
 related_tasks: []
@@ -44,8 +44,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-12T22:16:56Z
-last_update: 2026-10-12T22:21:31Z
-date_finished:
+last_update: 2026-10-12T22:29:01Z
+date_finished: 2026-10-12T22:29:01Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -273,6 +273,9 @@ bvp_scores_proposed:
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+bash tests/count-hub-plaintext-fields-fixtures.sh
+# FX-5 invariant: never above the PH-0 baseline (a ceiling, not an exact count)
+bash scripts/count-hub-plaintext-fields.sh --max 8
 
 ## RCA
 
@@ -313,6 +316,11 @@ bvp_scores_proposed:
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-10-13 — baseline taken from code, not a live hub
+- **What changed:** no PH-0 count existed (gap map OQ-g), so the baseline was derived from the code paths that write to a hub: 8 plaintext content fields across 7 rails (dm-turn 2; channel.post, chat-arc, inbox-mirror, receipt, sidecar, topic 1 each). AEF-written rails (vendored) are outside this tree and not counted; the artifact blob store is left out pending a ruling (would add 1).
+- **Plan impact:** FX-5 checks in later rows run `count-hub-plaintext-fields.sh --max 8`; a new payload-bearing rail must be added to the script's manifest by hand (it detects new free-text metadata keys automatically).
+- **Triggered:** none; the AEF-rail count and the artifact-store ruling are noted in the report for the PH-2 exit review.
 
 ## Recommendation
 
@@ -373,3 +381,15 @@ bvp_scores_proposed:
 
 ### 2026-10-12T22:18:06Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-adee217d
+- **Timestamp:** 2026-10-12T22:29:05Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-10-12T22:29:01Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
