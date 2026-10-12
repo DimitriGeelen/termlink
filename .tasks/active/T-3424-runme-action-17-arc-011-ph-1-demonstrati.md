@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-12T14:15:48Z
-last_update: 2026-10-12T14:26:15Z
+last_update: 2026-10-12T14:29:36Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -62,9 +62,9 @@ Operator ruling 2026-10-12: A, as a runme action the operator watches in their o
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `runme.sh` action 17 runs `scripts/arc011-ph1-demo.sh` once: it skips when its done-marker exists, and writes the marker only when the demo exits 0 and the report it wrote during this run says `Verdict: PASS`; any other outcome is FAILED and leaves no marker
-- [ ] `tests/runme-fixtures.sh` covers it hermetically (dry run, pass writes the marker, second run skips, a failing demo and a non-PASS report are FAILED) through `RUNME_*` seams; the whole suite passes
-- [ ] The operator has run `/opt/termlink/runme.sh`, `latest.log` shows action 17 OK and `rc=0`, the fresh report is committed, and X6 is recorded in T-3352
+- [x] `runme.sh` action 17 runs `scripts/arc011-ph1-demo.sh` once: it skips when its done-marker exists, and writes the marker only when the demo exits 0 and the report it wrote during this run says `Verdict: PASS`; any other outcome is FAILED and leaves no marker
+- [x] `tests/runme-fixtures.sh` covers it hermetically (dry run, pass writes the marker, second run skips, a failing demo and a non-PASS report are FAILED) through `RUNME_*` seams; the whole suite passes
+- [x] The operator has run `/opt/termlink/runme.sh`, `latest.log` shows action 17 OK and `rc=0`, the fresh report is committed, and X6 is recorded in T-3352 (run 2026-10-12T14:22Z, `runme-20261012T142212Z-2555818.log`, rc=0; report Verdict PASS committed in 703a83fd8; the action and its fixtures were then removed as permanently done, suite 112/112)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -253,6 +253,11 @@ Operator ruling 2026-10-12: A, as a runme action the operator watches in their o
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+bash -n runme.sh
+grep -q "^\*\*Verdict: PASS" docs/reports/arc011-ph1-acceptance.md
+grep -q "PH-1 exit X6: the operator ran the demonstration" .tasks/active/T-3352-arc-011-role-chain-step-3-security-floor.md
+test -s .context/working/arc011-x6-demo.done
 
 ## RCA
 

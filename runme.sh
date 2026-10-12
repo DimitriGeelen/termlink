@@ -1209,49 +1209,6 @@ head2 "16. claude-fw on your PATH becomes the router, so upgrades can never leav
 install_claude_fw_router
 
 # ---------------------------------------------------------------------------
-# ACTION 17 — the arc-011 PH-1 demonstration, for you to watch (X6, T-3424)
-#
-# PH-1's last exit criterion is yours: you have seen the demonstration run. This runs
-# scripts/arc011-ph1-demo.sh in your terminal: three real Claude agents as the
-# unprivileged `testdev` account (agent-a asks a question, agent-b answers it at its
-# next tool call, agent-c is a stranger whose message is held until the operator
-# stand-in allows it), the strace audit of every file the run touched, and the tests of
-# the 17 floor items. It takes roughly 5-15 minutes and writes
-# docs/reports/arc011-ph1-acceptance.md. It runs ONCE: after a run that passes, a
-# marker is written and later runs of this script skip it.
-# OK only when the demo exits 0 AND the report written during this run says
-# "Verdict: PASS"; anything else is FAILED and no marker is written.
-# Seams (fixtures only): RUNME_X6_DEMO, RUNME_X6_MARKER, RUNME_X6_REPORT.
-# ---------------------------------------------------------------------------
-seam X6_DEMO RUNME_X6_DEMO "bash $PROJECT_ROOT/scripts/arc011-ph1-demo.sh"
-seam X6_MARKER RUNME_X6_MARKER "$PROJECT_ROOT/.context/working/arc011-x6-demo.done"
-seam X6_REPORT RUNME_X6_REPORT "$PROJECT_ROOT/docs/reports/arc011-ph1-acceptance.md"
-
-run_x6_demo() {
-    if [ -f "$X6_MARKER" ]; then
-        say "  skip    you watched the demonstration already ($(head -1 "$X6_MARKER" 2>/dev/null))"; SKIPPED=$((SKIPPED+1)); return
-    fi
-    if [ "$DRY_RUN" = "1" ]; then
-        say "  [DRY]   would run the arc-011 PH-1 demonstration (three real agents as testdev, ~5-15 min)"; DONE=$((DONE+1)); return
-    fi
-    say "  ...     running the demonstration now; watch it below (three real agents as testdev, strace audit, 17 floor items)"
-    local before rc
-    before="$(date +%s)"
-    bash -c "$X6_DEMO" 2>&1 | sed 's/^/          /'
-    rc=${PIPESTATUS[0]}
-    if [ "$rc" = "0" ] && [ -f "$X6_REPORT" ] && [ "$(stat -c %Y "$X6_REPORT")" -ge "$before" ] && grep -q '^\*\*Verdict: PASS' "$X6_REPORT"; then
-        mkdir -p "$(dirname "$X6_MARKER")"
-        printf '%s demo passed, report %s\n' "$(date -u +%Y-%m-%dT%H:%MZ)" "$X6_REPORT" > "$X6_MARKER"
-        say "  OK      the demonstration passed (report rewritten during this run: $X6_REPORT says Verdict: PASS)"; DONE=$((DONE+1))
-    else
-        say "  FAILED  the demonstration did not pass (demo rc=$rc; report $( [ -f "$X6_REPORT" ] && grep -m1 '^\*\*Verdict' "$X6_REPORT" || echo missing)); no marker written"; FAILED=$((FAILED+1))
-    fi
-}
-
-head2 "17. Watch the arc-011 PH-1 demonstration: three real agents, the audit and the floor tests (X6, T-3424)"
-run_x6_demo
-
-# ---------------------------------------------------------------------------
 # Verification — the project's own drift checker is the arbiter, not this script.
 # Using the repo's existing check rather than a bespoke one means this cannot
 # quietly disagree with what `fw audit` will say five minutes from now.
