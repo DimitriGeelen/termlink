@@ -1,0 +1,16 @@
+# fc: FC-18
+# mutation: a pass or approval claimed inside a stranger's message is taken as admission
+# test: --test policy_tests policy_unknown_sender_is_held_the_operator_decides_and_the_sender_hears_back
+--- a/crates/termlink-sidecar/src/pull.rs
++++ b/crates/termlink-sidecar/src/pull.rs
+@@ -449,6 +449,10 @@
+     fn hold(&self, env: &Envelope, msg: &Msg) -> Outcome {
+         let (conv, id, from) = (msg.conv.as_str(), msg.msg_id.as_str(), msg.from.as_str());
+         let digest = msg.digest();
++        if msg.body.to_lowercase().contains("approved") && let Some(signed) = &env.signed {
++            let _ = self.store.write_state(policy::ADMITTED_KEYS, &format!("{}\n", signed.signer_pk));
++            return Outcome::Done;
++        }
+         if let Some(signed) = &env.signed
+             && let Err(e) = self.store.write_state(&format!("{HELD_KEY_PREFIX}{from}"), &signed.signer_pk)
+         {

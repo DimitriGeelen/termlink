@@ -125,11 +125,11 @@ pub fn start(cfg: &Config, store_root: &Path, runtime: &Path, home: &Path) -> Re
         },
         store.clone(),
         sender.clone(),
-        Box::new(BuiltIn::new(roster.clone())),
+        Box::new(BuiltIn::new(roster.clone()).with_operator_lists(store.clone())),
     )
     .map_err(|e| e.to_string())?;
     let deliverer = Arc::new(
-        Deliverer::new(&cfg.agent, store.clone(), Box::new(BuiltIn::new(roster)), Some(sender.clone()))
+        Deliverer::new(&cfg.agent, store.clone(), Box::new(BuiltIn::new(roster).with_operator_lists(store.clone())), Some(sender.clone()))
             .with_projects_root(cfg.claude_projects.clone().unwrap_or_else(|| home.join(".claude").join("projects"))),
     );
     let mut api_cfg = ApiConfig::new(&cfg.agent, runtime);

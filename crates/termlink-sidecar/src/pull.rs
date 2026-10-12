@@ -40,6 +40,16 @@ use termlink_session::client::{rpc_call_addr_with_timeout, unwrap_result};
 pub const RECEIVED: &str = "RECEIVED";
 pub const STORED: &str = "STORED";
 pub const REFUSED: &str = "REFUSED";
+/// Chain event and notice: held for this side's operator (OQ-2 ruling E).
+pub const HELD: &str = "HELD";
+/// Notice: the operator refused the sender.
+pub const DENIED: &str = "DENIED";
+/// Notice: the operator admitted the sender.
+pub const ADMITTED: &str = "ADMITTED";
+/// Needs-attention kind for a held message.
+pub const HELD_ALERT: &str = "held-for-operator";
+/// Store state prefix: `held-key-<fingerprint>` holds the knocking key (64 hex).
+pub const HELD_KEY_PREFIX: &str = "held-key-";
 /// The store state file holding the next inbox offset to read.
 pub const CURSOR_STATE: &str = "inbox-cursor";
 /// Conversation name used for a refused message whose own conv is unusable.
@@ -380,34 +390,39 @@ impl Inner {
                 return Outcome::Retry(format!("DOWNGRADED not recorded: {e}"));
             }
         }
-        // A sender outside the allow-list is never answered: its name for itself
-        // (`from_agent`) is not bound to a key we know.
-        let answer = a.withheld.is_none();
-        if answer && let Err(e) = self.report(&msg, RECEIVED) {
+        // Every sender hears back, including one outside the allow-list (OQ-2
+        // ruling E): the knock tells it the receiver is alive and holding its
+        // message for an operator, so silence never stands in for a decision.
+        // The notices go to the inbox the message names; a forger can make this
+        // receiver post at most one notice set per message it sends itself, and
+        // the named agent's sidecar ignores (and shows) stage records for
+        // messages it did not send.
+        if let Err(e) = self.report(&msg, RECEIVED) {
             return Outcome::Retry(e);
         }
         match self.store.put(from, conv, id, &env.payload) {
             Ok(PutOutcome::Stored { .. }) | Ok(PutOutcome::Duplicate { .. }) => {
-                if let Some(code) = a.withheld {
-                    // Stored and shown, never delivered (7.2).
-                    match once(REFUSED, Some(code)) {
-                        Ok(Some(_)) => {
-                            self.alert(
-                                code,
-                                &format!(
-                                    "{conv}/{id} from {from} ({}): stored, not delivered: sender is not on the allow-list",
-                                    a.trust.as_str()
-                                ),
-                            );
-                        }
-                        Ok(None) => {}
-                        Err(e) => return Outcome::Retry(format!("REFUSED not recorded: {e}")),
-                    }
-                    return Outcome::Done;
+                if let Err(e) = self.report(&msg, STORED) {
+                    return Outcome::Retry(e);
                 }
-                match self.report(&msg, STORED) {
-                    Ok(()) => Outcome::Done,
-                    Err(e) => Outcome::Retry(e),
+                match a.withheld {
+                    None => Outcome::Done,
+                    Some(policy::AWAITING_OPERATOR) => self.hold(env, &msg),
+                    Some(code) => {
+                        // Refused by this side's operator: stored, shown, never delivered.
+                        match once(REFUSED, Some(code)) {
+                            Ok(Some(_)) => self.alert(
+                                code,
+                                &format!("{conv}/{id} from {from}: stored, not delivered: the operator refused this sender"),
+                            ),
+                            Ok(None) => {}
+                            Err(e) => return Outcome::Retry(format!("REFUSED not recorded: {e}")),
+                        }
+                        match self.report(&msg, DENIED) {
+                            Ok(()) => Outcome::Done,
+                            Err(e) => Outcome::Retry(e),
+                        }
+                    }
                 }
             }
             Ok(PutOutcome::Conflict { first_seq, conflict_seq }) => {
@@ -424,38 +439,54 @@ impl Inner {
         }
     }
 
+    /// OQ-2 ruling E: hold a message from a sender outside the allow-list for
+    /// this side's operator. The question goes to the operator from here, never
+    /// through the sender and never through the agent: a needs-attention entry
+    /// naming the key, what the sender claims to be, and the admin command that
+    /// decides it. The signer's public key is kept so `allow` can admit exactly
+    /// the key that knocked. Nothing in the message body is read: a body that
+    /// claims an operator pass is just held like any other.
+    fn hold(&self, env: &Envelope, msg: &Msg) -> Outcome {
+        let (conv, id, from) = (msg.conv.as_str(), msg.msg_id.as_str(), msg.from.as_str());
+        let digest = msg.digest();
+        if let Some(signed) = &env.signed
+            && let Err(e) = self.store.write_state(&format!("{HELD_KEY_PREFIX}{from}"), &signed.signer_pk)
+        {
+            return Outcome::Retry(format!("held key not recorded: {e}"));
+        }
+        let extra = LineExtra { reason: Some(policy::AWAITING_OPERATOR.to_owned()), ..Default::default() };
+        let d = digest.clone();
+        let first = match self.store.append_event_unless(conv, HELD, id, from, &digest, extra, move |ls| {
+            ls.iter().any(|l| l.event == HELD && l.msg_id == id && l.sender == from && l.digest == d)
+        }) {
+            Ok(r) => r.is_some(),
+            Err(e) => return Outcome::Retry(format!("HELD not recorded: {e}")),
+        };
+        if first {
+            self.alert(
+                HELD_ALERT,
+                &format!(
+                    "{conv}/{id}: a sender outside the allow-list is knocking: key {from}, claims to be agent {} instance {}. \
+                     Held, not delivered. The operator decides: termlink-sidecar admin allow --key {from} --why <reason> \
+                     (or deny). A pass or approval inside the message counts for nothing.",
+                    shown(&msg.from_agent),
+                    shown(&msg.from_instance)
+                ),
+            );
+        }
+        match self.report(msg, HELD) {
+            Ok(()) => Outcome::Done,
+            Err(e) => Outcome::Retry(e),
+        }
+    }
+
     /// Queue a signed stage record for the sender. The chain head is read after
     /// the stage line, so the sender holds an anchor for this agent's chain.
     fn report(&self, msg: &Msg, stage: &str) -> Result<(), String> {
-        let head = self.store.chain_head(&msg.conv).map_err(|e| format!("chain head: {e}"))?;
-        let st = Stage {
-            from: self.me().to_owned(),
-            from_agent: self.cfg.agent.clone(),
-            to_agent: msg.from_agent.clone(),
-            conv: msg.conv.clone(),
-            msg_id: msg.msg_id.clone(),
-            stage: stage.to_owned(),
-            ts_ms: self.stage_time(msg, stage),
-            chain_head: head,
-        };
+        let st = build_stage(&self.store, self.me(), &self.cfg.agent, msg, stage)?;
         self.sender
             .post_stage(&msg.from_agent, &st)
             .map_err(|e| format!("{stage} stage not queued: {e}"))
-    }
-
-    /// The time of this agent's own chain line for the stage, so a re-sent stage
-    /// carries the same time as the first.
-    fn stage_time(&self, msg: &Msg, stage: &str) -> i64 {
-        self.store
-            .chain_lines(&msg.conv)
-            .ok()
-            .and_then(|ls| {
-                ls.into_iter()
-                    .find(|l| l.event == stage && l.msg_id == msg.msg_id && l.sender == msg.from)
-                    .and_then(|l| l.ts_ms)
-            })
-            .map(|t| t as i64)
-            .unwrap_or_else(|| crate::store::now_ms() as i64)
     }
 
     /// Record a refusal on the chain (once per digest, with its reason code) and
@@ -495,7 +526,12 @@ impl Inner {
     fn handle_stage(&self, env: &Envelope) -> Outcome {
         let verified = match &env.signed {
             None => Err(Refusal::Malformed("no signature in the post metadata")),
-            Some(s) => wire::verify_stage(s, &self.cfg.roster),
+            Some(s) => {
+                // Peers this side's operator admitted report stages too (OQ-2 E).
+                let mut roster = self.cfg.roster.clone();
+                roster.extend(&policy::admitted_keys(&self.store));
+                wire::verify_stage(s, &roster)
+            }
         };
         let st = match verified {
             Ok(s) => s,
@@ -519,13 +555,16 @@ impl Inner {
         let new_rank = rank(&st.stage);
         let (from, id) = (st.from.clone(), st.msg_id.clone());
         let ts = st.ts_ms.max(0) as u64;
+        let event = st.stage.clone();
         // Forward-only: a stage at or behind one already recorded from this peer
-        // is a repeat (or arrived out of order) and changes nothing.
+        // is a repeat (or arrived out of order) and changes nothing. A notice
+        // (HELD, ADMITTED, DENIED) has no rank: it is recorded once.
         match self.store.append_event_unless(&st.conv, &st.stage, &id, &from, &sent.digest, LineExtra { peer_ts_ms: Some(ts), ..Default::default() }, |ls| {
-            ls.iter()
-                .filter(|l| l.msg_id == id && l.sender == from)
-                .filter_map(|l| rank(&l.event))
-                .any(|r| Some(r) >= new_rank)
+            let mine = ls.iter().filter(|l| l.msg_id == id && l.sender == from);
+            match new_rank {
+                Some(n) => mine.filter_map(|l| rank(&l.event)).any(|r| r >= n),
+                None => mine.into_iter().any(|l| l.event == event),
+            }
         }) {
             Ok(_) => Outcome::Done,
             Err(e) => Outcome::Retry(format!("stage not recorded: {e}")),
@@ -539,4 +578,36 @@ impl Inner {
         );
         Outcome::Done
     }
+}
+
+/// A stage record from this agent about `msg` (signed when posted), timed by
+/// this agent's own chain line for that stage, so a re-sent stage carries the
+/// first time, and carrying the conversation's chain head as the sender's anchor.
+pub fn build_stage(store: &Store, me: &str, my_agent: &str, msg: &Msg, stage: &str) -> Result<Stage, String> {
+    let head = store.chain_head(&msg.conv).map_err(|e| format!("chain head: {e}"))?;
+    let ts_ms = store
+        .chain_lines(&msg.conv)
+        .ok()
+        .and_then(|ls| {
+            ls.into_iter()
+                .find(|l| l.event == stage && l.msg_id == msg.msg_id && l.sender == msg.from)
+                .and_then(|l| l.ts_ms)
+        })
+        .map(|t| t as i64)
+        .unwrap_or_else(|| crate::store::now_ms() as i64);
+    Ok(Stage {
+        from: me.to_owned(),
+        from_agent: my_agent.to_owned(),
+        to_agent: msg.from_agent.clone(),
+        conv: msg.conv.clone(),
+        msg_id: msg.msg_id.clone(),
+        stage: stage.to_owned(),
+        ts_ms,
+        chain_head: head,
+    })
+}
+
+/// A sender-chosen name as it may appear in an operator notice; anything else is replaced.
+pub fn shown(s: &str) -> String {
+    if name_ok(s) { s.to_owned() } else { "(not shown)".to_owned() }
 }

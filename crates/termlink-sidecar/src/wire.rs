@@ -26,6 +26,10 @@ pub const META_PK: &str = "sidecar_pk";
 pub const META_SIG: &str = "sidecar_sig";
 /// Stages a receiver reports back, in their only allowed order (forward-only).
 pub const STAGE_ORDER: [&str; 4] = ["RECEIVED", "STORED", "HANDED_OVER", "REPLIED"];
+/// Notices a receiver sends about a message from a sender outside its allow-list
+/// (OQ-2 ruling E, B15): held for its operator, then admitted or refused by that
+/// operator. They are not stages of the order above; each is recorded once.
+pub const NOTICES: [&str; 3] = ["HELD", "ADMITTED", "DENIED"];
 
 /// The signed message body (section 5.1).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -134,6 +138,12 @@ pub fn digest_hex(payload: &[u8]) -> String {
 
 fn hex(b: &[u8]) -> String {
     b.iter().map(|x| format!("{x:02x}")).collect()
+}
+
+/// A 64-hex ed25519 public key, or `None` when it is not one.
+pub fn parse_public_key(hex: &str) -> Option<VerifyingKey> {
+    let b: [u8; 32] = unhex(hex)?.try_into().ok()?;
+    VerifyingKey::from_bytes(&b).ok()
 }
 
 fn unhex(s: &str) -> Option<Vec<u8>> {
@@ -264,6 +274,13 @@ impl Roster {
 
     pub fn get(&self, fp: &str) -> Option<&VerifyingKey> {
         self.0.get(fp)
+    }
+
+    /// Add every key of `other`.
+    pub fn extend(&mut self, other: &Roster) {
+        for (fp, pk) in &other.0 {
+            self.0.insert(fp.clone(), *pk);
+        }
     }
 }
 
@@ -408,7 +425,7 @@ impl Stage {
                 .ok_or(Refusal::Malformed(k))
         };
         let stage = s("stage")?;
-        if !STAGE_ORDER.contains(&stage.as_str()) {
+        if !STAGE_ORDER.contains(&stage.as_str()) && !NOTICES.contains(&stage.as_str()) {
             return Err(Refusal::Malformed("unknown stage"));
         }
         Ok(Stage {

@@ -238,14 +238,19 @@ fn receive_hub_forged_or_misaddressed_messages_are_refused_never_stored() {
         assert_eq!(count(&b.store, conv, "STORED"), 0, "{conv}");
         assert!(reasons.contains(why), "{conv}: {why} not in {reasons}");
     }
-    // The shared host key is honest about itself but not on the allow-list (B8):
-    // stored and shown, refused not-allowed, never delivered.
+    // The shared host key is honest about itself but not on the allow-list
+    // (OQ-2 ruling E): stored, held for the operator, never delivered.
     let ls = lines(&b.store, "f-2", "m2");
-    assert_eq!(names(&ls), ["RECEIVED", "STORED", "REFUSED"]);
-    assert_eq!(ls[2].reason.as_deref(), Some("not-allowed"));
-    assert!(reasons.contains("not on the allow-list"), "{reasons}");
-    // Nothing went back to A: a forged sender is never answered.
-    assert_eq!(caught_up(a.rx.pass()), 0);
+    assert_eq!(names(&ls), ["RECEIVED", "STORED", "HELD"]);
+    assert_eq!(ls[2].reason.as_deref(), Some("awaiting-operator"));
+    assert!(reasons.contains("is knocking"), "{reasons}");
+    // Its notices go to the inbox it names (agent-a, a name it does not own).
+    // A sent no m2, so A ignores all three and shows them: a reflected knock
+    // changes nothing on A's chains.
+    assert_eq!(caught_up(a.rx.pass()), 3);
+    assert!(a.store.chain_lines("f-2").map(|l| l.is_empty()).unwrap_or(true), "A recorded a stage for a message it never sent");
+    assert_eq!(a.store.attention_entries().iter().filter(|l| l.contains("was not sent by this agent")).count(), 3);
+    // The forged and misaddressed ones are still answered with nothing.
     // A re-read (cursor reset) records each refusal once only.
     b.store.write_state(CURSOR_STATE, "0").unwrap();
     assert_eq!(caught_up(b.rx.pass()), 5);

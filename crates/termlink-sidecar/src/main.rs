@@ -4,6 +4,7 @@
 //! - `hook post-tool-use|session-start|stop`: the Claude Code hook (always exits 0).
 //! - `finalize --nonce <n>`: the detached hand-over finalizer a hook starts.
 //! - `send`, `reply`, `status`: the agent-side client verbs (B14, see `client`).
+//! - `admin held|allow|deny`: the operator's verbs on the admin socket (B15, OQ-2 E).
 
 use termlink_sidecar::{client, daemon, hook};
 
@@ -33,7 +34,7 @@ fn main() {
         },
         ["hook", event] => hook::main_hook(event),
         ["finalize", "--nonce", n] => hook::main_finalize(n),
-        [verb @ ("send" | "reply" | "status"), rest @ ..] => client::main_client(verb, rest),
+        [verb @ ("send" | "reply" | "status" | "admin"), rest @ ..] => client::main_client(verb, rest),
         _ => usage(),
     };
     std::process::exit(code);

@@ -1,6 +1,6 @@
 # arc-011 PH-1 fail-closed matrix (FC-1..FC-17)
 
-Task T-3413 (B12, X2). Each row of section 9.1 of `docs/design/arc-011-ph1-architecture.md`
+Task T-3413 (B12, X2); FC-18 added by T-3418 (B15). Each row of section 9.1 of `docs/design/arc-011-ph1-architecture.md`
 has a test that proves the rule holds and a **negative control**: a one-line-class patch
 (`crates/termlink-sidecar/tests/mutants/*.patch`) that breaks the rule. A control only
 counts once it has been seen to turn its test red (R-69); `scripts/arc011-mutants.sh`
@@ -28,6 +28,7 @@ reverts. The run's table is at the end.
 | FC-15 | An edited, inserted or deleted chain line is named by `status` | `store_tests :: store_chain_break_detected_for_edit_insert_delete` | `fc-15-no-chain-check` |
 | FC-16 | Before HANDED_OVER the sender sees only accepted/stored words | `record_print :: record_print_every_pre_handover_state_uses_only_accepted_vocabulary` | `fc-16-acceptance-called-delivered` |
 | FC-17 | The secret canary in the environment appears in no file, log or answer of a real two-sidecar run | `fc_matrix :: fc_17_the_canary_appears_in_nothing_the_estate_produced` | `fc-17-environment-logged` |
+| FC-18 | A message from an unknown key whose body claims an operator pass or approval stays HELD for the operator; only the admin `allow` admits (OQ-2 ruling E, T-3418) | `policy_tests :: policy_unknown_sender_is_held_the_operator_decides_and_the_sender_hears_back` | `fc-18-stranger-pass-taken-as-admission` |
 
 ## Found while building the matrix
 
@@ -67,7 +68,8 @@ load average 44; the test kit now waits up to 90 s for it.
 | FC-15 | `fc-15-no-chain-check` | status does not check the chain links | `store_chain_break_detected_for_edit_insert_delete` | killed |
 | FC-16 | `fc-16-acceptance-called-delivered` | a post the hub accepted is shown as delivered | `record_print_every_pre_handover_state_uses_only_accepted_vocabulary` | killed |
 | FC-17 | `fc-17-environment-logged` | the sidecar logs its environment at start | `fc_17_the_canary_appears_in_nothing_the_estate_produced` | killed |
+| FC-18 | `fc-18-stranger-pass-taken-as-admission` | a pass or approval claimed inside a stranger's message is taken as admission | `policy_unknown_sender_is_held_the_operator_decides_and_the_sender_hears_back` | killed |
 
-PASS: all 17 mutants turned their test red. Run 2026-10-11T23:27Z on 0facf8aac.
+PASS: all 18 mutants turned their test red. Run 2026-10-12T11:47Z on 597600cb2.
 
-The run used the B12 working tree (these patches, the FC-2 fixes and the new tests) on top of commit 0facf8aac; reproduce with `bash scripts/arc011-mutants.sh`.
+The run used the working tree of T-3418 (OQ-2 ruling E, FC-18) and T-3419 (the sweeper fix) on top of commit 597600cb2; reproduce with `bash scripts/arc011-mutants.sh`.

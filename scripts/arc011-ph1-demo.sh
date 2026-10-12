@@ -14,6 +14,9 @@
 #      connected outside the estate, and fails on any production path (root's HOME,
 #      /var/lib/termlink, /tmp/termlink-0, /run/user/0, the repository outside target/,
 #      another account's HOME, the production hub port 9100).
+#      The run also shows the OQ-2 ruling E live: a third agent outside B's roster
+#      knocks, is held, the operator stand-in admits it on the admin socket, and B gets
+#      it at its next tool call (T-3418).
 #   4. X3: runs the tests of the 17 floor items (step 3 section 5.7 plus SI-18 with the
 #      allow-list and SI-23), one by one, as root (two of them need root).
 #   5. Writes the report (default docs/reports/arc011-ph1-acceptance.md) and, beside it,
@@ -125,6 +128,7 @@ SI-7|deliver_tests|frame_a_body_containing_the_boundary_forces_a_new_one
 SI-7|deliver_tests|frame_header_fields_cannot_inject_lines
 SI-8|deliver_tests|frame_hostile_bodies_stay_inside_the_boundary
 SI-8|policy_tests|policy_reads_only_sender_and_priority
+SI-8|policy_tests|policy_unknown_sender_is_held_the_operator_decides_and_the_sender_hears_back
 SI-14|api_tests|api_other_uid_refused_on_every_scope
 SI-14|api_tests|api_real_other_uid_cannot_reach_the_socket
 SI-14|api_tests|api_agent_sockets_cannot_reach_admin
@@ -140,7 +144,7 @@ SI-17|deliver_tests|deliver_evidence_reader_matches_the_real_b1_fixture
 SI-17|deliver_tests|deliver_no_completeness_point_never_redelivers_on_a_timeout
 SI-18|policy_tests|policy_priority_is_clamped_and_trust_is_computed_never_read
 SI-18|policy_tests|policy_urgent_from_an_allow_listed_sender_is_kept_and_answered
-SI-18|policy_tests|policy_untrusted_sender_is_stored_shown_refused_not_allowed_and_never_answered
+SI-18|policy_tests|policy_unknown_sender_is_held_the_operator_decides_and_the_sender_hears_back
 SI-22|store_tests|store_chain_break_detected_for_edit_insert_delete
 SI-22|api_tests|api_status_reports_chain_head_and_first_break
 SI-22|receive_hub|receive_hub_concurrent_writers_never_fork_a_chain

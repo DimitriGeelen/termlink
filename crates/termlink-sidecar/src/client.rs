@@ -10,7 +10,16 @@
 //! The send socket is `$TERMLINK_SIDECAR_SOCKET` (the same variable the hooks
 //! use); the status socket is `$TERMLINK_SIDECAR_STATUS_SOCKET`, else the send
 //! socket's sibling `<agent>.status.sock`. The admin socket is never derived
-//! here: the agent has no verb for it (SI-14, SI-23).
+//! from the agent's: the agent has no verb for it (SI-14, SI-23).
+//!
+//! Operator verbs (OQ-2 ruling E), on the admin socket given explicitly by
+//! `--socket` or `$TERMLINK_SIDECAR_ADMIN_SOCKET`:
+//!
+//! | verb | request |
+//! |---|---|
+//! | `admin held [--body]` | what is held for the operator, by name |
+//! | `admin allow --key FP --why TEXT` | admit a key that knocked; release its held messages |
+//! | `admin deny --key FP --why TEXT` | refuse it |
 //!
 //! Exit codes: 0 the sidecar answered `ok`, 1 it refused (the answer is printed),
 //! 2 usage or the socket could not be reached.
@@ -21,12 +30,14 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 pub const STATUS_SOCKET_ENV: &str = "TERMLINK_SIDECAR_STATUS_SOCKET";
+pub const ADMIN_SOCKET_ENV: &str = "TERMLINK_SIDECAR_ADMIN_SOCKET";
 const TIMEOUT: Duration = Duration::from_secs(20);
 
 fn usage() -> i32 {
     eprintln!("usage: termlink-sidecar send --to <agent> --to-instance <instance> --conv <conv> --body <text> [--priority <n>]");
     eprintln!("       termlink-sidecar reply --conv <conv> --in-reply-to <msg_id> --body <text>");
     eprintln!("       termlink-sidecar status [--msg-id <id>] [--conv <conv>] [--json]");
+    eprintln!("       termlink-sidecar admin held [--body] | allow|deny --key <fingerprint> --why <text>  [--socket <admin socket>]");
     2
 }
 
@@ -116,7 +127,12 @@ pub fn render_status(v: &Value) -> String {
 }
 
 pub fn main_client(verb: &str, args: &[&str]) -> i32 {
-    let Some((pairs, as_json)) = parse(args) else { return usage() };
+    // `admin <sub> ...`: the sub-verb is a bare word; `held --body` is the one
+    // flag without a value (on `send` and `reply`, `--body` takes the text).
+    let admin_body = verb == "admin" && args.contains(&"--body");
+    let admin_rest: Vec<&str> = args.iter().skip(1).copied().filter(|a| *a != "--body").collect();
+    let flags: &[&str] = if verb == "admin" { &admin_rest } else { args };
+    let Some((pairs, as_json)) = parse(flags) else { return usage() };
     let get = |k: &str| pairs.iter().find(|(n, _)| n == k).map(|(_, v)| v.clone());
     let (socket, req) = match verb {
         "send" => {
@@ -145,6 +161,25 @@ pub fn main_client(verb: &str, args: &[&str]) -> i32 {
                 r["conv"] = json!(c);
             }
             (status_socket(), r)
+        }
+        "admin" => {
+            let socket = get("socket")
+                .map(PathBuf::from)
+                .or_else(|| std::env::var_os(ADMIN_SOCKET_ENV).filter(|v| !v.is_empty()).map(PathBuf::from));
+            let Some(socket) = socket else {
+                eprintln!("termlink-sidecar admin: give --socket <admin socket> or set {ADMIN_SOCKET_ENV}");
+                return 2;
+            };
+            let Some(sub) = args.first() else { return usage() };
+            let req = match *sub {
+                "held" => json!({"op": "held", "body": admin_body}),
+                "allow" | "deny" => {
+                    let Some(key) = get("key") else { return usage() };
+                    json!({"op": sub, "key": key, "why": get("why").unwrap_or_default()})
+                }
+                _ => return usage(),
+            };
+            (Some(socket), req)
         }
         _ => return usage(),
     };
@@ -177,6 +212,12 @@ mod tests {
         assert_eq!(utc(0), "1970-01-01T00:00:00.000Z");
         assert_eq!(utc(951_782_400_123), "2000-02-29T00:00:00.123Z");
         assert_eq!(utc(1_791_806_400_000), "2026-10-12T12:00:00.000Z");
+    }
+
+    #[test]
+    fn body_takes_a_value_on_send() {
+        let (p, _) = parse(&["--to", "b", "--body", "hello there"]).unwrap();
+        assert!(p.contains(&("body".to_owned(), "hello there".to_owned())));
     }
 
     #[test]

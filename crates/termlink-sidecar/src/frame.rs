@@ -27,7 +27,7 @@
 //! the agent. `FRAME_CAP` bounds how many messages share a frame; a single
 //! message larger than the cap travels alone.
 
-use crate::policy::{Assessment, Trust};
+use crate::policy::Assessment;
 use crate::wire::Msg;
 
 /// Soft size cap for one frame, in bytes (AEF `FRAME_CAP`).
@@ -79,10 +79,7 @@ fn item_header(i: usize, n: usize, it: &Item<'_>) -> String {
         n,
         shown(&it.msg.from),
         shown(&it.msg.from_agent),
-        match a.trust {
-            Trust::OwnProject => "own-project",
-            Trust::Untrusted => "untrusted",
-        },
+        a.trust.as_str(),
         a.priority,
         if a.urgent { "yes" } else { "no" },
         shown(&it.msg.conv),

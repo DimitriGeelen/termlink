@@ -239,6 +239,29 @@ grep -q 'task: T-3352' docs/design/interactive-agent-communication-role-chain.ya
   priority" (a step-1 wording change, CX-2).
 - **Rejected:** A (slower than today), C (needs PH-4; A or B needed anyway until then), D (another round).
 
+### 2026-10-12 — OQ-2 message from a sender outside the roster (operator ruling)
+- **Dialogue:** recommended A (withhold: store, REFUSED `not-allowed`, show, never answer). The operator objected
+  that A cuts out cross-agent contact with no way to enable it, and that the sender hears nothing, so it cannot tell a
+  refusal from a dead receiver. Two alternatives were played out and dropped: the receiving *agent* relaying the
+  question (many agents are headless or spawned by agents and have no route to the operator), and routing through the
+  orchestrator. Operator: the stranger must not carry the request, or carry a pass back ("with this you can still be
+  falsified"); "the one that receives this request should service it": "I got somebody knocking on my door. It says it
+  has access, but I don't have anything. What can you please decide?" The answer must come "from the source, me
+  operator", and any pass a stranger presents must be validated with the operator anyway.
+- **Chose (E):** (1) the receiving side holds the message (HELD `awaiting-operator`: stored, not delivered, not
+  refused); (2) the receiving side's sidecar itself raises the question to the operator (needs-attention, listed by
+  name at session start), naming the stranger's key and claimed agent and project, independent of whether its agent
+  can talk to the operator; (3) only the operator answers, through the operator's own route (PH-1: admin
+  `allow`/`deny` run via runme, logged with who/when/why; later the operator key / T-3385), never inside a message;
+  `allow` adds the key and releases the held message; (4) a stranger-carried claim of approval counts for nothing (new
+  probe with a kill-checked control); (5) the sender gets a knock back: "held for operator", then "admitted" or
+  "refused by operator".
+- **Rejected:** A (silent to the sender, no way in); B (stranger's text reaches the agent mid-turn); receiving agent or
+  orchestrator as the relay (no route for headless agents, and an agent cannot decide under SI-8).
+- **Limits accepted:** in PH-1 the operator sees the question at the next session start on this host (away-from-host
+  reach is T-3385); "from the operator" means the admin route the operator runs, separated by convention until Track A
+  and an operator key.
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:

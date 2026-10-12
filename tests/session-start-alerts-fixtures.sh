@@ -74,5 +74,35 @@ j="$(FAKE_NO_TOPICS=1 run --json)"
 printf '%s' "$j" | jq -e '.errors | map(select(test("inbox"))) | length == 1' >/dev/null \
     && ok "no inbox found is reported, never silent" || bad "inbox error: $j"
 
+# ---- held for the operator (arc-011 OQ-2 ruling E, T-3418) ---------------------
+cat > "$TMP/sidecar" <<'STUB'
+#!/usr/bin/env bash
+# admin held --socket S
+sock=""; while [ $# -gt 0 ]; do case "$1" in --socket) sock="$2"; shift 2 ;; *) shift ;; esac; done
+case "$sock" in
+  */b.admin.sock) echo '{"ok":true,"held":[{"key":"c0ffee00c0ffee00","conv":"k-1","msg_id":"m9","claims_agent":"agent-c","claims_instance":"inst-c","decide":"termlink-sidecar admin allow|deny --key c0ffee00c0ffee00 --why <reason>"}]}' ;;
+  */quiet.admin.sock) echo '{"ok":true,"held":[]}' ;;
+  *) echo "connect: no such file" >&2; exit 2 ;;
+esac
+STUB
+chmod +x "$TMP/sidecar"
+hrun() { SESSION_ALERTS_SIDECAR_BIN="$TMP/sidecar" SESSION_ALERTS_SIDECAR_LIST="$TMP/socks.list" run "$@"; }
+j="$(hrun --json)"
+[ "$(printf '%s' "$j" | jq -r '.held_note')" = "no sidecar configured ($TMP/socks.list)" ] && [ "$(printf '%s' "$j" | jq '.held | length')" = 0 ] \
+    && ok "held: no sidecar configured is said, not hidden" || bad "held: none configured ($j)"
+printf '# admin sockets\n/x/b.admin.sock\n/x/quiet.admin.sock\n' > "$TMP/socks.list"
+j="$(hrun --json)"
+[ "$(printf '%s' "$j" | jq -r '.held[0] | .key + "|" + .claims_agent + "|" + .socket')" = "c0ffee00c0ffee00|agent-c|/x/b.admin.sock" ] \
+    && [ "$(printf '%s' "$j" | jq '.held | length')" = 1 ] && ok "held: each held message named with key, claimed agent and sidecar" || bad "held rows ($j)"
+t="$(hrun)"
+printf '%s' "$t" | grep -q 'Messages held for your decision: 1' && printf '%s' "$t" | grep -q 'decide: termlink-sidecar admin allow|deny --key c0ffee00c0ffee00' \
+    && ok "held: text names the decision command" || bad "held text: $t"
+printf '/x/b.admin.sock\n/x/gone.admin.sock\n' > "$TMP/socks.list"
+j="$(hrun --json)"
+printf '%s' "$j" | jq -e '(.errors | map(select(test("gone.admin.sock"))) | length == 1) and (.held | length == 1)' >/dev/null \
+    && ok "held: a sidecar that cannot be asked is a failed check, the others still listed" || bad "held error: $j"
+j="$(SESSION_ALERTS_SIDECAR_BIN="" SESSION_ALERTS_SIDECAR_SOCKETS=/x/b.admin.sock run --json)"
+printf '%s' "$j" | jq -e '.held_note == ""' >/dev/null && ok "held: the env list overrides the file" || bad "held env: $j"
+
 echo; echo "  passed: $PASS   failed: $FAIL"
 [ "$FAIL" -eq 0 ]

@@ -40,7 +40,7 @@ pub const STAGES: [&str; 5] = ["SENT", "RECEIVED", "STORED", "HANDED_OVER", "REP
 pub use crate::policy::DELIVERY_OFF_FLAG;
 /// FX-7 / FC-16: the only stage and label words a sender may see for a message
 /// that has no HANDED_OVER. Nothing in it says or implies delivery.
-pub const PRE_HANDOVER_VOCAB: [&str; 9] = [
+pub const PRE_HANDOVER_VOCAB: [&str; 12] = [
     "SENT",
     "RECEIVED",
     "STORED",
@@ -50,7 +50,16 @@ pub const PRE_HANDOVER_VOCAB: [&str; 9] = [
     "UNKNOWN",
     "REJECTED BY HUB",
     "REPLIED",
+    HELD_BY_RECIPIENT,
+    REFUSED_BY_RECIPIENTS_OPERATOR,
+    HELD_FOR_OPERATOR,
 ];
+/// Sender-side label: the recipient holds the message for its operator (OQ-2 E).
+pub const HELD_BY_RECIPIENT: &str = "HELD BY RECIPIENT (awaiting their operator)";
+/// Sender-side label: the recipient's operator refused this sender.
+pub const REFUSED_BY_RECIPIENTS_OPERATOR: &str = "REFUSED BY RECIPIENT'S OPERATOR";
+/// Receiver-side label: a message from outside the allow-list, awaiting `allow`/`deny`.
+pub const HELD_FOR_OPERATOR: &str = "HELD FOR OPERATOR";
 /// How long a message may sit at STORED on the recipient before the sender's
 /// view calls it STUCK instead of WAITING FOR RECIPIENT (FC-6, FC-7).
 pub const STUCK_AFTER_MS: u64 = 10 * 60 * 1000;
@@ -86,6 +95,9 @@ fn op_spec(op: &str) -> Option<(Scope, &'static [&'static str])> {
         "ready" => (Scope::Send, &["session", "hook"]),
         "status" => (Scope::Status, &["msg_id", "conv"]),
         "delivery" => (Scope::Admin, &["state", "why"]),
+        "held" => (Scope::Admin, &["body"]),
+        "allow" => (Scope::Admin, &["key", "why"]),
+        "deny" => (Scope::Admin, &["key", "why"]),
         _ => return None,
     })
 }
@@ -328,7 +340,7 @@ fn dispatch_inner(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id:
         return err("bad-request", "missing op", "send {\"op\": ...}");
     };
     let Some((need, fields)) = op_spec(op) else {
-        return err("unknown-op", &format!("unknown op {op:?}"), "ops: send reply pull claim handed-over status delivery");
+        return err("unknown-op", &format!("unknown op {op:?}"), "ops: send reply pull claim handed-over ready status delivery held allow deny");
     };
     if need != scope {
         return err(
@@ -347,7 +359,7 @@ fn dispatch_inner(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id:
         if let Some(s) = v.as_str()
             && matches!(
                 k.as_str(),
-                "msg_id" | "conv" | "to" | "to_instance" | "in_reply_to" | "session" | "nonce" | "tool_use_id" | "hook"
+                "msg_id" | "conv" | "to" | "to_instance" | "in_reply_to" | "session" | "nonce" | "tool_use_id" | "hook" | "key"
             )
             && !valid_name(s)
         {
@@ -358,6 +370,9 @@ fn dispatch_inner(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id:
         "status" => status_at(obj, store, agent, hub_id, sender, crate::store::now_ms(), STUCK_AFTER_MS),
         "send" => send(obj, sender),
         "delivery" => delivery(obj, store, who),
+        "held" => held(obj, store),
+        "allow" => decide(obj, store, agent, sender, who, true),
+        "deny" => decide(obj, store, agent, sender, who, false),
         "pull" => pull(obj, ctx.deliverer),
         "claim" => claim(obj, ctx.deliverer),
         "handed-over" => handed_over(obj, ctx.deliverer),
@@ -544,6 +559,145 @@ fn delivery(obj: &serde_json::Map<String, Value>, store: &Store, who: &str) -> V
     }
 }
 
+/// Messages held for the operator (OQ-2 E): a HELD line with no ADMITTED and
+/// no REFUSED line after it for the same message and sender.
+fn held_lines(store: &Store) -> Vec<crate::store::ChainLine> {
+    let mut out = vec![];
+    for conv in store.conversations() {
+        let Ok(lines) = store.chain_lines(&conv) else { continue };
+        for h in lines.iter().filter(|l| l.event == crate::pull::HELD) {
+            let decided = lines.iter().any(|l| {
+                l.msg_id == h.msg_id && l.sender == h.sender && (l.event == crate::pull::ADMITTED || l.event == crate::pull::REFUSED)
+            });
+            if !decided {
+                out.push(h.clone());
+            }
+        }
+    }
+    out
+}
+
+/// The stored message behind a chain line, from its STORED record.
+fn stored_msg(store: &Store, line: &crate::store::ChainLine) -> Option<crate::wire::Msg> {
+    let lines = store.chain_lines(&line.conv).ok()?;
+    let st = lines.iter().find(|l| l.event == "STORED" && l.msg_id == line.msg_id && l.sender == line.sender)?;
+    let (_, payload) = store.read_record(&line.conv, st.seq, &line.msg_id).ok()?;
+    crate::wire::parse_payload(&payload).ok()
+}
+
+/// `held`: what is waiting for the operator, by name. `body: true` adds each
+/// message's text, for the operator only (this is the admin socket).
+fn held(obj: &serde_json::Map<String, Value>, store: &Store) -> Value {
+    let with_body = obj.get("body").and_then(Value::as_bool).unwrap_or(false);
+    let items: Vec<Value> = held_lines(store)
+        .iter()
+        .map(|l| {
+            let m = stored_msg(store, l);
+            let mut v = json!({
+                "key": l.sender, "conv": l.conv, "msg_id": l.msg_id, "held_at_ms": l.ts_ms,
+                "claims_agent": m.as_ref().map(|m| crate::pull::shown(&m.from_agent)),
+                "claims_instance": m.as_ref().map(|m| crate::pull::shown(&m.from_instance)),
+                "decide": format!("termlink-sidecar admin allow|deny --key {} --why <reason>", l.sender),
+            });
+            if with_body {
+                v["body"] = json!(m.map(|m| m.body));
+            }
+            v
+        })
+        .collect();
+    json!({"ok": true, "held": items})
+}
+
+/// `allow` / `deny` (OQ-2 E): the operator's decision about a key that knocked.
+/// Only a key with a held message can be decided: this is an answer to a
+/// question this side asked, not a general way to configure the allow-list.
+/// `allow` admits the key (its held messages become deliverable at the agent's
+/// next tool call); `deny` refuses them. Either way the decision is logged in
+/// `_admin` with who, when and why, and the sender gets the notice.
+fn decide(obj: &serde_json::Map<String, Value>, store: &Store, agent: &str, sender: Option<&Sender>, who: &str, admit: bool) -> Value {
+    use crate::policy::{ADMITTED_KEYS, REFUSED_BY_OPERATOR, REFUSED_KEYS};
+    let Some(key) = obj.get("key").and_then(Value::as_str) else {
+        return err("bad-request", "missing key", "{\"op\":\"allow\",\"key\":\"<fingerprint>\",\"why\":\"...\"}");
+    };
+    let why = obj.get("why").and_then(Value::as_str).unwrap_or("");
+    let pk = match store.read_state(&format!("{}{key}", crate::pull::HELD_KEY_PREFIX)) {
+        Ok(Some(pk)) if crate::wire::parse_public_key(pk.trim()).is_some() => pk.trim().to_owned(),
+        Ok(_) => {
+            return err(
+                "no-knock",
+                &format!("no message from key {key} was ever held here"),
+                "only a key that knocked can be decided; `held` lists them",
+            );
+        }
+        Err(e) => return err("io", &format!("cannot read the held key: {e}"), "nothing was changed"),
+    };
+    let read_list = |name: &str| -> Result<Vec<String>, String> {
+        Ok(store
+            .read_state(name)
+            .map_err(|e| e.to_string())?
+            .unwrap_or_default()
+            .lines()
+            .map(|l| l.trim().to_owned())
+            .filter(|l| !l.is_empty())
+            .collect())
+    };
+    let (mut admitted, mut refused) = match (read_list(ADMITTED_KEYS), read_list(REFUSED_KEYS)) {
+        (Ok(a), Ok(r)) => (a, r),
+        (Err(e), _) | (_, Err(e)) => return err("io", &format!("cannot read the operator lists: {e}"), "nothing was changed"),
+    };
+    if admit {
+        refused.retain(|k| k != key);
+        if !admitted.contains(&pk) {
+            admitted.push(pk.clone());
+        }
+    } else {
+        admitted.retain(|k| *k != pk);
+        if !refused.iter().any(|k| k == key) {
+            refused.push(key.to_owned());
+        }
+    }
+    let write = |name: &str, v: &[String]| store.write_state(name, &(v.join("\n") + "\n"));
+    if let Err(e) = write(REFUSED_KEYS, &refused).and_then(|_| write(ADMITTED_KEYS, &admitted)) {
+        return err("io", &format!("cannot write the operator lists: {e}"), "check the store; the decision may be partly applied");
+    }
+    let event = if admit { "ALLOW" } else { "DENY" };
+    if let Err(e) = log_switch(store, event, who, &format!("key {key}: {}", if why.is_empty() { "no reason given" } else { why })) {
+        return err("log", &format!("the decision is applied but could not be logged: {e}"), "check the store");
+    }
+    // The held messages of this key: mark them, and tell the sender.
+    let (line_event, notice, reason) = if admit {
+        (crate::pull::ADMITTED, crate::pull::ADMITTED, format!("by the operator: {why}"))
+    } else {
+        (crate::pull::REFUSED, crate::pull::DENIED, REFUSED_BY_OPERATOR.to_owned())
+    };
+    let mut decided = vec![];
+    let mut notice_errors = vec![];
+    for h in held_lines(store).into_iter().filter(|l| l.sender == key) {
+        let extra = crate::store::LineExtra { reason: Some(reason.clone()), ..Default::default() };
+        let (id, from) = (h.msg_id.clone(), h.sender.clone());
+        if let Err(e) = store.append_event_unless(&h.conv, line_event, &h.msg_id, &h.sender, &h.digest, extra, move |ls| {
+            ls.iter().any(|l| l.msg_id == id && l.sender == from && (l.event == crate::pull::ADMITTED || l.event == crate::pull::REFUSED))
+        }) {
+            notice_errors.push(format!("{}: {line_event} not recorded: {e}", h.msg_id));
+            continue;
+        }
+        decided.push(h.msg_id.clone());
+        match (sender, stored_msg(store, &h)) {
+            (Some(s), Some(m)) => {
+                if let Err(e) = crate::pull::build_stage(store, s.fingerprint(), agent, &m, notice).and_then(|st| s.post_stage(&m.from_agent, &st).map_err(|e| e.to_string())) {
+                    notice_errors.push(format!("{}: {notice} notice not queued: {e}", h.msg_id));
+                }
+            }
+            (None, _) => notice_errors.push(format!("{}: no send path, the sender was not told", h.msg_id)),
+            (_, None) => notice_errors.push(format!("{}: stored record unreadable, the sender was not told", h.msg_id)),
+        }
+    }
+    for e in &notice_errors {
+        let _ = store.attention("decision-notice", e);
+    }
+    json!({"ok": true, "key": key, "decision": if admit { "allowed" } else { "denied" }, "messages": decided, "notice_errors": notice_errors})
+}
+
 /// The `status` view at a given clock (tests move the clock; the socket uses now).
 pub fn status_view(req: &Value, store: &Store, agent: &str, hub_id: Option<&str>, now_ms: u64, stuck_after_ms: u64) -> Value {
     match req.as_object() {
@@ -667,6 +821,17 @@ fn status_at(
                     .min();
                 let stuck = stored_at.is_some_and(|t| now_ms.saturating_sub(t) > stuck_after_ms);
                 v["label"] = json!(if stuck { "STUCK" } else { "WAITING FOR RECIPIENT" });
+            }
+            // OQ-2 E: held for an operator, on either side.
+            let ev = |e: &str| rows.iter().any(|r| r["msg_id"] == *m && r["stage"] == e);
+            if sent_here {
+                if ev(crate::pull::DENIED) {
+                    v["label"] = json!(REFUSED_BY_RECIPIENTS_OPERATOR);
+                } else if ev(crate::pull::HELD) && !ev(crate::pull::ADMITTED) && !handed {
+                    v["label"] = json!(HELD_BY_RECIPIENT);
+                }
+            } else if ev(crate::pull::HELD) && !ev(crate::pull::ADMITTED) && !ev("REFUSED") {
+                v["label"] = json!(HELD_FOR_OPERATOR);
             }
             // Stored but withheld (e.g. not-allowed), or refused outright: say why.
             if let Some(r) = rows.iter().find(|r| r["msg_id"] == *m && r["stage"] == "REFUSED") {

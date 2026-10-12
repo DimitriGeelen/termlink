@@ -20,10 +20,19 @@
 # Exit 0 always: it reports, it never gates. A tooling failure prints a line saying
 # what could not be checked. Silence means checked and clean, never "could not look".
 #
+# Also lists messages a termlink-sidecar holds for the operator (arc-011 OQ-2 ruling
+# E, T-3418): a sender outside a sidecar's allow-list knocked, the sidecar holds the
+# message and asks the operator, who decides with `termlink-sidecar admin allow|deny`.
+# The sidecars asked are the admin sockets listed one per line in
+# .context/working/sidecar-admin-sockets.list (or SESSION_ALERTS_SIDECAR_SOCKETS,
+# colon-separated). None configured is said, not hidden.
+#
 # Usage: session-start-alerts.sh [--json] [--mark-seen] [--limit N]
 # Seams (fixtures): SESSION_ALERTS_TL (termlink CLI), SESSION_ALERTS_CANARY_JSON
 #   (file with canary-status --json output), SESSION_ALERTS_STATE_DIR (marker dir),
-#   FW_SIDECAR_SELF_PROJECT (our project, default 010-termlink).
+#   FW_SIDECAR_SELF_PROJECT (our project, default 010-termlink),
+#   SESSION_ALERTS_SIDECAR_BIN (termlink-sidecar), SESSION_ALERTS_SIDECAR_SOCKETS,
+#   SESSION_ALERTS_SIDECAR_LIST (the socket list file).
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -58,6 +67,36 @@ canary_err=""
 pins="$(bash "$HERE/check-pin-events.sh" --json 2>/dev/null | jq -c '.events // []' 2>/dev/null)"
 pin_err=""
 [ -n "$pins" ] || { pins="[]"; pin_err="could not read TOFU pin events (check-pin-events.sh --json gave nothing parseable)"; }
+
+# ---- 1c. messages held for the operator by a sidecar (arc-011 OQ-2 ruling E) ------
+SIDECAR_BIN="${SESSION_ALERTS_SIDECAR_BIN:-}"
+if [ -z "$SIDECAR_BIN" ]; then
+    for b in "$ROOT/target/release/termlink-sidecar" "$ROOT/target/debug/termlink-sidecar"; do
+        [ -x "$b" ] && { SIDECAR_BIN="$b"; break; }
+    done
+fi
+held_list="${SESSION_ALERTS_SIDECAR_LIST:-$ROOT/.context/working/sidecar-admin-sockets.list}"
+held_socks="${SESSION_ALERTS_SIDECAR_SOCKETS:-}"
+if [ -z "$held_socks" ] && [ -r "$held_list" ]; then
+    held_socks="$(grep -v '^[[:space:]]*#' "$held_list" | grep -v '^[[:space:]]*$' | paste -sd: -)"
+fi
+held="[]" held_err="" held_note=""
+if [ -z "$held_socks" ]; then
+    held_note="no sidecar configured ($held_list)"
+elif [ -z "$SIDECAR_BIN" ]; then
+    held_err="could not ask the sidecars: termlink-sidecar binary not found"
+else
+    IFS=: read -ra held_arr <<< "$held_socks"
+    for sock in "${held_arr[@]}"; do
+        out="$("$SIDECAR_BIN" admin held --socket "$sock" 2>/dev/null)"
+        if ! printf '%s' "$out" | jq -e '.ok == true' >/dev/null 2>&1; then
+            held_err="${held_err:+$held_err; }could not ask the sidecar at $sock"
+            continue
+        fi
+        rows="$(printf '%s' "$out" | jq -c --arg s "$sock" '[.held[]? | . + {socket: $s}]')"
+        held="$(jq -cn --argjson a "$held" --argjson b "$rows" '$a + $b')"
+    done
+fi
 
 # ---- 2. peer mail since this script last showed it ------------------------------
 mail="[]" mail_err=""
@@ -97,8 +136,9 @@ fi
 
 # ---- output -------------------------------------------------------------------
 if [ "$json" -eq 1 ]; then
-    jq -cn --argjson c "$canaries" --argjson m "$mail" --argjson p "$pins" --arg ce "$canary_err" --arg me "$mail_err" --arg pe "$pin_err" \
-        '{canaries:$c, mail:$m, pin_events:$p, errors:([$ce,$me,$pe] | map(select(. != "")))}'
+    jq -cn --argjson c "$canaries" --argjson m "$mail" --argjson p "$pins" --argjson h "$held" --arg hn "$held_note" \
+        --arg ce "$canary_err" --arg me "$mail_err" --arg pe "$pin_err" --arg he "$held_err" \
+        '{canaries:$c, mail:$m, pin_events:$p, held:$h, held_note:$hn, errors:([$ce,$me,$pe,$he] | map(select(. != "")))}'
     exit 0
 fi
 nc="$(printf '%s' "$canaries" | jq 'length')"; nm="$(printf '%s' "$mail" | jq 'length')"
@@ -110,6 +150,14 @@ echo "TOFU pin events not acknowledged: $np"
 printf '%s' "$pins" | jq -r '.[] | "  \(.ts)  \(.verb)  \(.address)  by \(.agent_id // .argv0 // "?")"'
 [ "$np" -gt 0 ] && echo "      review, then: bash scripts/check-pin-events.sh --ack"
 [ -n "$pin_err" ] && echo "  CHECK FAILED: $pin_err"
+nh="$(printf '%s' "$held" | jq 'length')"
+if [ -n "$held_note" ]; then
+    echo "Messages held for your decision: not checked, $held_note"
+else
+    echo "Messages held for your decision: $nh"
+fi
+printf '%s' "$held" | jq -r '.[] | "  key \(.key) claims to be \(.claims_agent // "?") (instance \(.claims_instance // "?"))  \(.conv)/\(.msg_id)\n      decide: \(.decide) --socket \(.socket)"'
+[ -n "$held_err" ] && echo "  CHECK FAILED: $held_err"
 echo "Peer mail not yet shown to this agent: $nm"
 printf '%s' "$mail" | jq -r --argjson l "$limit" '.[:$l][] | "  @\(.offset) \(.topic | split("/") | last)  from \(.from)  \(.age_min) min ago  cid=\(.conversation_id)\n      \(.preview)"'
 [ "$nm" -gt "$limit" ] && echo "  … and $((nm - limit)) more"

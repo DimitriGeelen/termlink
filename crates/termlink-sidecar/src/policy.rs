@@ -1,20 +1,23 @@
 //! C-7 receiver checks (architecture note section 7; SI-18, SI-23, SI-8, allow-list).
 //!
 //! Inputs are deliberately few (SI-8): the verified sender fingerprint, the
-//! built-in allow-list, and the signed priority. Nothing here reads a message
-//! body, a conversation, or any field that could carry a grant, an approval or a
-//! trust change; a static test (`policy_reads_only_sender_and_priority`) holds
-//! this file to that.
+//! built-in allow-list, the operator's own lists, and the signed priority.
+//! Nothing here reads a message body, a conversation, or any field that could
+//! carry a grant, an admission or a trust change; a static test
+//! (`policy_reads_only_sender_and_priority`) holds this file to that.
 //!
 //! SI-18: priority is clamped to [-9, 9]. Trust class is computed, never read:
-//! `own-project` when the sender is on the allow-list, `untrusted` otherwise.
-//! Urgent means priority >= 5 AND allow-listed; a would-be-urgent message from
-//! anyone else is downgraded to normal (a DOWNGRADED chain line, never a drop).
+//! `own-project` when the sender is on the roster, `admitted` when the operator
+//! admitted its key, `untrusted` otherwise. Urgent means priority >= 5 AND on the
+//! roster; a would-be-urgent message from anyone else is downgraded to normal (a
+//! DOWNGRADED chain line, never a drop).
 //!
-//! Allow-list (7.2): PH-1 has a built-in, non-configurable one, the estate
-//! roster. A sender outside it is stored, shown, and not delivered (REFUSED
-//! `not-allowed`). This is the note's recommended answer to OQ-2, built pending
-//! the operator's ruling.
+//! Allow-list (7.2, OQ-2 ruled E on 2026-10-12): the roster is fixed at start. A
+//! sender outside it is held for the operator (`awaiting-operator`): stored,
+//! shown, never framed. Only the operator changes that, through the admin socket
+//! (`allow` / `deny`), which writes the two lists read here on every call. A
+//! message can never change them: nothing in a message reaches this file except
+//! its verified sender and its priority.
 //!
 //! SI-23: delivery can be switched off from the admin socket. The switch is a
 //! flag file read on every call (`delivery_enabled`), so there is no cached copy
@@ -22,19 +25,30 @@
 
 use crate::store::Store;
 use crate::wire::{Msg, Roster};
+use std::sync::Arc;
 
 /// Flag file in the store dir; present means delivery is off (SI-23).
 pub const DELIVERY_OFF_FLAG: &str = "delivery.off";
 /// The lowest priority that counts as urgent.
 pub const URGENT_AT: i64 = 5;
-/// Reason code on the REFUSED line of a sender outside the allow-list.
+/// B8 reason code for a sender outside the allow-list, before ruling E.
 pub const NOT_ALLOWED: &str = "not-allowed";
+/// Reason on the HELD line: the receiver's operator has not decided yet.
+pub const AWAITING_OPERATOR: &str = "awaiting-operator";
+/// Reason on the REFUSED line once the operator has refused the sender.
+pub const REFUSED_BY_OPERATOR: &str = "refused-by-operator";
 /// Chain event recording an urgency downgrade.
 pub const DOWNGRADED: &str = "DOWNGRADED";
+/// Store state: the public keys (64 hex, one per line) the operator admitted.
+pub const ADMITTED_KEYS: &str = "admitted-keys";
+/// Store state: the fingerprints (one per line) the operator refused.
+pub const REFUSED_KEYS: &str = "refused-keys";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Trust {
     OwnProject,
+    /// Outside the roster, admitted by the operator through the admin socket.
+    Admitted,
     Untrusted,
 }
 
@@ -42,6 +56,7 @@ impl Trust {
     pub fn as_str(self) -> &'static str {
         match self {
             Trust::OwnProject => "own-project",
+            Trust::Admitted => "admitted-by-operator",
             Trust::Untrusted => "untrusted",
         }
     }
@@ -56,7 +71,8 @@ pub struct Assessment {
     pub urgent: bool,
     /// It asked for urgent (priority >= 5) and did not get it.
     pub downgraded: bool,
-    /// `None`: may be delivered. `Some(code)`: stored and shown, never delivered.
+    /// `None`: may be delivered. `Some(code)`: stored and shown, never delivered
+    /// ([`AWAITING_OPERATOR`] or [`REFUSED_BY_OPERATOR`]).
     pub withheld: Option<&'static str>,
 }
 
@@ -66,14 +82,21 @@ pub trait Policy: Send + Sync {
     fn assess(&self, msg: &Msg) -> Assessment;
 }
 
-/// The PH-1 policy: the allow-list is the roster, fixed at start.
+/// The PH-1 policy: the roster fixed at start, plus the operator's lists.
 pub struct BuiltIn {
     allow: Roster,
+    store: Option<Arc<Store>>,
 }
 
 impl BuiltIn {
     pub fn new(allow: Roster) -> Self {
-        BuiltIn { allow }
+        BuiltIn { allow, store: None }
+    }
+
+    /// Also read the operator's admitted and refused lists from `store`, on every call.
+    pub fn with_operator_lists(mut self, store: Arc<Store>) -> Self {
+        self.store = Some(store);
+        self
     }
 }
 
@@ -82,11 +105,41 @@ pub fn clamp_priority(p: &str) -> i64 {
     p.trim().parse::<i64>().map(|n| n.clamp(-9, 9)).unwrap_or(0)
 }
 
+/// The keys the operator admitted. A list that cannot be read admits nobody.
+pub fn admitted_keys(store: &Store) -> Roster {
+    let mut r = Roster::new();
+    if let Ok(Some(s)) = store.read_state(ADMITTED_KEYS) {
+        for line in s.lines() {
+            if let Some(pk) = crate::wire::parse_public_key(line.trim()) {
+                r.add(pk);
+            }
+        }
+    }
+    r
+}
+
+/// The fingerprints the operator refused. A list that cannot be read refuses
+/// nobody, which still delivers nothing: an unknown sender stays held.
+pub fn refused_keys(store: &Store) -> Vec<String> {
+    match store.read_state(REFUSED_KEYS) {
+        Ok(Some(s)) => s.lines().map(|l| l.trim().to_owned()).filter(|l| !l.is_empty()).collect(),
+        _ => vec![],
+    }
+}
+
 impl Policy for BuiltIn {
     fn assess(&self, msg: &Msg) -> Assessment {
         let sender = msg.from.as_str();
         let priority = clamp_priority(&msg.priority);
-        let trust = if self.allow.get(sender).is_some() { Trust::OwnProject } else { Trust::Untrusted };
+        let refused = self.store.as_deref().is_some_and(|s| refused_keys(s).iter().any(|k| k == sender));
+        let admitted = self.store.as_deref().is_some_and(|s| admitted_keys(s).get(sender).is_some());
+        let trust = if self.allow.get(sender).is_some() {
+            Trust::OwnProject
+        } else if admitted && !refused {
+            Trust::Admitted
+        } else {
+            Trust::Untrusted
+        };
         let asks_urgent = priority >= URGENT_AT;
         let urgent = asks_urgent && trust == Trust::OwnProject;
         Assessment {
@@ -95,8 +148,9 @@ impl Policy for BuiltIn {
             urgent,
             downgraded: asks_urgent && !urgent,
             withheld: match trust {
-                Trust::OwnProject => None,
-                Trust::Untrusted => Some(NOT_ALLOWED),
+                Trust::OwnProject | Trust::Admitted => None,
+                Trust::Untrusted if refused => Some(REFUSED_BY_OPERATOR),
+                Trust::Untrusted => Some(AWAITING_OPERATOR),
             },
         }
     }
