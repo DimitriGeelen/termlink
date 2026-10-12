@@ -162,6 +162,7 @@ fn start_sidecar(e: &Estate, who: &str, name: &str, inst: &str, hub_id: &str) ->
         queue_path: e.root().join(format!("outbox-{who}.sqlite")),
         poll_ms: 200,
         timeout_ms: 15_000,
+        claude_projects: None,
     };
     let path = e.root().join(format!("sidecar-{who}.json"));
     std::fs::write(&path, serde_json::to_string(&cfg).unwrap()).unwrap();

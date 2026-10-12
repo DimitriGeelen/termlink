@@ -37,6 +37,11 @@ pub struct Config {
     pub poll_ms: u64,
     #[serde(default = "default_timeout_ms")]
     pub timeout_ms: u64,
+    /// Where the agent's Claude Code writes its transcripts. Set when the agent
+    /// runs under another HOME than the sidecar (B14: the agent is `testdev` with
+    /// its own login); default `$HOME/.claude/projects` of the sidecar.
+    #[serde(default)]
+    pub claude_projects: Option<PathBuf>,
 }
 
 fn default_poll_ms() -> u64 {
@@ -125,7 +130,7 @@ pub fn start(cfg: &Config, store_root: &Path, runtime: &Path, home: &Path) -> Re
     .map_err(|e| e.to_string())?;
     let deliverer = Arc::new(
         Deliverer::new(&cfg.agent, store.clone(), Box::new(BuiltIn::new(roster)), Some(sender.clone()))
-            .with_projects_root(home.join(".claude").join("projects")),
+            .with_projects_root(cfg.claude_projects.clone().unwrap_or_else(|| home.join(".claude").join("projects"))),
     );
     let mut api_cfg = ApiConfig::new(&cfg.agent, runtime);
     api_cfg.hub_id = Some(cfg.hub_id.clone());

@@ -15,3 +15,4 @@ pub mod adapter;
 pub mod deliver;
 pub mod hook;
 pub mod daemon;
+pub mod client;

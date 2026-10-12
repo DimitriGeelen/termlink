@@ -3,13 +3,15 @@
 //! - `start --config <file>`: the sidecar process (refuses outside a marked estate).
 //! - `hook post-tool-use|session-start|stop`: the Claude Code hook (always exits 0).
 //! - `finalize --nonce <n>`: the detached hand-over finalizer a hook starts.
+//! - `send`, `reply`, `status`: the agent-side client verbs (B14, see `client`).
 
-use termlink_sidecar::{daemon, hook};
+use termlink_sidecar::{client, daemon, hook};
 
 fn usage() -> i32 {
     eprintln!("usage: termlink-sidecar start --config <file>");
     eprintln!("       termlink-sidecar hook post-tool-use|session-start|stop");
     eprintln!("       termlink-sidecar finalize --nonce <nonce>");
+    eprintln!("       termlink-sidecar send|reply|status ... (run with no arguments for their usage)");
     2
 }
 
@@ -31,6 +33,7 @@ fn main() {
         },
         ["hook", event] => hook::main_hook(event),
         ["finalize", "--nonce", n] => hook::main_finalize(n),
+        [verb @ ("send" | "reply" | "status"), rest @ ..] => client::main_client(verb, rest),
         _ => usage(),
     };
     std::process::exit(code);
