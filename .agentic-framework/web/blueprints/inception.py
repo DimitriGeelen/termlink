@@ -398,11 +398,26 @@ def inception_detail(task_id):
         # the floor. /inception/<id> now mirrors task_detail.html section set
         # so Context/RCA/AC/Verification/Decisions surface when present.
         "context": _md(all_raw_sections.get("Context", "")),
-        "acceptance_criteria": _md(all_raw_sections.get("Acceptance Criteria", "")),
-        "verification": _md(all_raw_sections.get("Verification", "")),
+        "acceptance_criteria": all_raw_sections.get("Acceptance Criteria", ""),
+        # T-4047: shell commands and `#` comments, not Markdown — passed raw so the
+        # template prints it escaped in a <pre> (rendering it through _md turns
+        # comments into <h1> and `*`/`_` into emphasis).
+        "verification": all_raw_sections.get("Verification", ""),
         "decisions": _md(all_raw_sections.get("Decisions", "")),
         "rca": _md(all_raw_sections.get("RCA", "")),
     }
+
+    # T-4046: criteria render as the task page's tickable list (same toggle-ac endpoint),
+    # not as dead _md text. Parsed from the body exactly as /tasks/<id> does, so the
+    # line indices the toggle endpoint expects line up.
+    from web.blueprints.tasks import _link_plain_text, _parse_acceptance_criteria
+    ac_items = _parse_acceptance_criteria(task_body)
+    for ac in ac_items:
+        if ac["section"] == "agent":
+            ac["text_html"] = _link_plain_text(ac["text"])
+    open_human_acs = [
+        ac for ac in ac_items if ac["section"] == "human" and not ac["checked"]
+    ]
 
     # Extra sections not in the known set — rendered generically (G-036 fix)
     # T-1585: also skip "Reviewer Verdict (vX.Y)" — surfaced structurally below.
@@ -496,6 +511,8 @@ def inception_detail(task_id):
         extra_sections=extra_sections,
         decision_state=decision_state,
         decided_unclosed=decided_unclosed,
+        ac_items=ac_items,
+        open_human_acs=open_human_acs,
         linked_assumptions=linked_assumptions,
         episodic=episodic,
         task_id=task_id,
@@ -998,6 +1015,25 @@ def _commit_decision(task_id: str, decision: str, followup: bool = False):
         os.close(fd)
 
 
+def _refresh_real_index(paths):
+    """T-4081: set the real index entries for `paths` to HEAD (`git reset -q -- paths`).
+
+    Called after a commit built against a scratch `GIT_INDEX_FILE` advanced HEAD.
+    Touches only the named paths: the working tree is never written and anything
+    else staged in the real index stays staged. Best-effort and silent — the
+    decision commit already succeeded, and `fw audit` reports a decision that
+    still ends up reverted (G-114).
+    """
+    import subprocess
+    if not paths:
+        return
+    try:
+        subprocess.run(["git", "reset", "-q", "--"] + list(paths),
+                       cwd=PROJECT_ROOT, capture_output=True, text=True, timeout=30)
+    except Exception:
+        pass
+
+
 def _commit_decision_unlocked(task_id: str, decision: str, followup: bool = False):
     """T-2053: commit the recorded inception decision so it is P-002-traceable.
 
@@ -1124,6 +1160,11 @@ def _commit_decision_unlocked(task_id: str, decision: str, followup: bool = Fals
             if commit.returncode != 0:
                 return False, (_operator_facing_stderr(commit.stderr or commit.stdout or "")
                                or "git commit failed").strip()[:200]
+            # T-4081 (G-114): HEAD just moved, but the REAL index still holds the
+            # pre-decision blobs for `wanted`. The next ordinary commit from it would
+            # write them back and silently revert the decision. Point exactly those
+            # entries at the new HEAD; the working tree and every other path stay put.
+            _refresh_real_index(wanted)
             return True, msg
     except Exception as e:  # never let a commit problem break the decision response
         return False, str(e)[:200]

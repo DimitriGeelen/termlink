@@ -11,7 +11,7 @@
 
 set -euo pipefail
 
-# Version: derived from git tags (major.minor = human tag, patch = commits since tag)
+# Version: derived from git tags (X.Y.Z on a tag, X.Y.Z+N.gSHA N commits past it)
 # Falls back to VERSION file for consumer installs without git history
 _derive_version() {
     # T-2450/F3: resolve symlinks before deriving fw_dir. fw is invoked via the
@@ -31,15 +31,12 @@ _derive_version() {
         desc=$(git -C "$fw_dir" describe --tags --match 'v[0-9]*' 2>/dev/null) || true
     fi
     if [ -n "$desc" ]; then
-        # v1.4.0 → 1.4.0 | v1.4.0-5-gabc123 → 1.4.5
+        # v1.8.9 → 1.8.9 | v1.8.9-92-gabc123 → 1.8.9+92.gabc123 (T-4055: the old
+        # X.Y.N form dropped the tag's patch, so v1.8.9-92 read 1.8.92 — "newer"
+        # than 1.8.10. Semver build metadata never reads as a release.)
         desc="${desc#v}"  # strip leading v
-        if [[ "$desc" == *-*-* ]]; then
-            local base commits
-            base="${desc%%-*}"          # 1.4.0
-            local rest="${desc#*-}"     # 5-gabc123
-            commits="${rest%%-*}"       # 5
-            local major_minor="${base%.*}"  # 1.4
-            echo "${major_minor}.${commits}"
+        if [[ "$desc" =~ ^([0-9]+\.[0-9]+\.[0-9]+)-([0-9]+)-(g[0-9a-f]+)$ ]]; then
+            echo "${BASH_REMATCH[1]}+${BASH_REMATCH[2]}.${BASH_REMATCH[3]}"
         else
             echo "$desc"
         fi
@@ -1078,6 +1075,21 @@ UPSTREAM
     echo ""
     echo "The project now contains its own framework at .agentic-framework/"
     echo "Hooks should reference: .agentic-framework/bin/fw hook <name>"
+    _fw_stale_wrapper_notice "$target"
+}
+
+# T-4069/T-4083: best-effort "claude-fw started before this change" notice. Loads
+# lib/upgrade.sh only when it exists (a minimal or partial source tree may lack it)
+# and never changes the caller's exit status.
+_fw_stale_wrapper_notice() {
+    if ! command -v _t4069_stale_wrapper_notice >/dev/null 2>&1; then
+        [ -f "$FRAMEWORK_ROOT/lib/upgrade.sh" ] || return 0
+        # shellcheck source=lib/upgrade.sh
+        source "$FRAMEWORK_ROOT/lib/upgrade.sh" 2>/dev/null || return 0
+    fi
+    command -v _t4069_stale_wrapper_notice >/dev/null 2>&1 || return 0
+    _t4069_stale_wrapper_notice "$1" || true
+    return 0
 }
 
 # --- Auto-init dialogue ---
@@ -1351,6 +1363,7 @@ show_help() {
     echo -e "  ${GREEN}tier0${NC} <cmd>          Tier 0 enforcement (approve, status)"
     echo -e "  ${GREEN}approvals${NC} <cmd>      Approval queue (pending, status, expire)"
     echo -e "  ${GREEN}review-queue${NC}         List tasks awaiting human review (with verdicts)"
+    echo -e "  ${GREEN}issues${NC} <cmd>         Inbound GitHub issues: sync (ingest, T-4078), comment, approve (T-4077)"
     echo -e "  ${GREEN}verify-queue${NC}         Re-run stored Verification for that queue (--all, --task, --json)"
     echo -e "  ${GREEN}work-on${NC} <name|T-XXX> Create task + set focus + start (one-step gate)"
     echo -e "  ${GREEN}bus${NC} <cmd>            Result ledger for sub-agent dispatch (post, read, manifest, clear)"
@@ -2085,7 +2098,7 @@ for event, entries in data.get('hooks', {}).items():
             # (plus contradictory advice: one remedy line says make paths portable,
             # the next says make them absolute). L-399 producer/consumer parity --
             # the generator learned the placeholder, this validator had not.
-            cmd = cmd.replace('\${CLAUDE_PROJECT_DIR}', '$PROJECT_ROOT')
+            cmd = cmd.replace('\${CLAUDE_PROJECT_DIR}', '$PROJECT_ROOT').replace('\$CLAUDE_PROJECT_DIR', '$PROJECT_ROOT')
             parts = cmd.split()
             # Check for portable 'fw hook' format (bare fw in PATH)
             if len(parts) >= 2 and parts[0] == 'fw':
@@ -2103,13 +2116,24 @@ for event, entries in data.get('hooks', {}).items():
                     broken += 1
                     continue
             # Old-style: absolute path — check if executable exists
-            exe = None
-            for p in parts:
-                if '=' not in p:
-                    exe = p
-                    break
-            if exe and not (os.path.isfile(exe) and os.access(exe, os.X_OK)):
-                if not shutil.which(exe or ''):
+            # T-4056: an interpreter-prefixed hook (python3 with a script path, env ...,
+            # bash ...) names its script AFTER the interpreter. The first word is not the
+            # file to check; the script only has to exist, not be executable.
+            # Quotes are stripped with \x27 and \x22 (this block sits in a double-quoted string,
+            # so no literal quote characters or dollar signs may appear in these comments).
+            words = [w.strip('\x27\x22') for w in parts if '=' not in w]
+            interp = False
+            while words and os.path.basename(words[0]) in ('env', 'python3', 'python', 'bash', 'sh', 'node'):
+                interp = True
+                words = words[1:]
+                while words and words[0].startswith('-'):
+                    words = words[1:]
+            exe = words[0] if words else None
+            if exe and interp:
+                if not os.path.isfile(exe):
+                    broken += 1
+            elif exe and not (os.path.isfile(exe) and os.access(exe, os.X_OK)):
+                if not shutil.which(exe):
                     broken += 1
             # Check for hardcoded absolute paths (path isolation violation)
             if '/agents/context/' in cmd or 'PROJECT_ROOT=' in cmd:
@@ -2958,6 +2982,29 @@ PY
         echo -e "  ${CYAN}SKIP${NC}  Watchtower not running (no triple) — start with: fw serve"
     fi
 
+    # Check: Watchtower secret-key file mode (T-4062). Watchtower tightens it on
+    # start, but an agent or operator can widen it afterwards, and the key signs
+    # CSRF/session tokens — group or world read, or a named ACL grant, defeats 0600.
+    local _sk_file="$PROJECT_ROOT/.context/working/.fw-secret-key"
+    if [ -f "$_sk_file" ]; then
+        local _sk_mode _sk_acl=""
+        _sk_mode=$(stat -c %a "$_sk_file" 2>/dev/null || stat -f %Lp "$_sk_file" 2>/dev/null || echo "")
+        # Named entries only (base user::/group::/other:: are mode, not grants), and
+        # only those with effective access — chmod 600 masks a grant to #effective:---.
+        if command -v getfacl >/dev/null 2>&1 && getfacl -cp "$_sk_file" 2>/dev/null \
+            | grep -E '^(user|group):[^:]+:' | grep -vE '#effective:-+$' \
+            | grep -qE '^(user|group):[^:]+:[rwx-]*[rwx]'; then
+            _sk_acl=" + named/other POSIX ACL grant"
+        fi
+        if { [ -n "$_sk_mode" ] && [ $(( 0$_sk_mode & 077 )) -ne 0 ]; } || [ -n "$_sk_acl" ]; then
+            echo -e "  ${YELLOW}WARN${NC}  Watchtower secret key is group/world-accessible (mode ${_sk_mode:-?}$_sk_acl)"
+            echo -e "         Fix: chmod 600 $_sk_file && setfacl -b $_sk_file"
+            warnings=$((warnings + 1))
+        else
+            echo -e "  ${GREEN}OK${NC}  Watchtower secret key is owner-only (mode $_sk_mode)"
+        fi
+    fi
+
     # Check: Session supervision (T-2499) — is the auto-restart loop armed?
     # The arc-012 continuous-run loop (budget-critical → auto-handover →
     # .restart-requested → claude-fw restart → directive re-injection) only fires
@@ -3225,16 +3272,29 @@ PY
     if [ "${#_cfw_hits[@]}" -gt 0 ]; then
         local _cfw_drifted=0 _cfw_hit
         for _cfw_hit in "${_cfw_hits[@]}"; do
-            if ! cmp -s "$_cfw_hit" "$_cfw_src"; then
-                echo -e "  ${YELLOW}WARN${NC}  Installed claude-fw drifted from repo source — supervision export may be stale"
+            # T-4051: since T-2854 install.sh puts the ROUTER (bin/claude-fw-router) on
+            # PATH, not a copy of bin/claude-fw. A router is recognised by its header
+            # and compared to the router; comparing it to bin/claude-fw is a false
+            # positive whose advised refresh would regress T-2854.
+            local _cfw_ref="$_cfw_src" _cfw_kind="fixed copy"
+            if head -n 3 "$_cfw_hit" 2>/dev/null | grep -q 'claude-fw-router' \
+                && [ -f "$FRAMEWORK_ROOT/bin/claude-fw-router" ]; then
+                _cfw_ref="$FRAMEWORK_ROOT/bin/claude-fw-router"
+                _cfw_kind="router"
+            fi
+            if ! cmp -s "$_cfw_hit" "$_cfw_ref"; then
+                echo -e "  ${YELLOW}WARN${NC}  Installed claude-fw ($_cfw_kind) drifted from repo source — supervision export may be stale"
                 echo -e "         on PATH: $_cfw_hit"
-                echo -e "         repo:    $_cfw_src"
+                echo -e "         repo:    $_cfw_ref"
+                if [ "$_cfw_kind" = "fixed copy" ]; then
+                    echo -e "         Note:    install.sh now installs the router (bin/claude-fw-router), which forwards to the project copy"
+                fi
                 # T-2807: this used to say `bash ~/.agentic-framework/install.sh`, which
                 # assumes a git checkout in $HOME. It is already fragile (the global may
                 # be absent or not a checkout) and becomes false under T-2800, which
                 # removes the global entirely. Both lines below work with nothing in
                 # $HOME; the direct copy is the one that needs no network.
-                echo -e "         Refresh: rm -f \"$_cfw_hit\" && cp \"$_cfw_src\" \"$_cfw_hit\" && chmod +x \"$_cfw_hit\""
+                echo -e "         Refresh: rm -f \"$_cfw_hit\" && cp \"$_cfw_ref\" \"$_cfw_hit\" && chmod +x \"$_cfw_hit\""
                 echo -e "                  (rm -f first — a bare cp onto a symlink writes through it)"
                 echo -e "         Or:      curl -fsSL https://raw.githubusercontent.com/DimitriGeelen/agentic-engineering-framework/master/install.sh | bash"
                 warnings=$((warnings + 1))
@@ -3252,6 +3312,28 @@ PY
         fi
     else
         echo -e "  ${CYAN}SKIP${NC}  claude-fw not on PATH (no auto-restart wrapper installed)"
+    fi
+
+    # Check: running claude-fw wrappers older than the script they run (T-4069).
+    # bash keeps the code it loaded, so a wrapper started before a re-vendor never
+    # sees the fix (T-4032) even though upgrade/vendor reported success.
+    # Silent when no wrapper runs for this project.
+    if [ -f "$FRAMEWORK_ROOT/lib/stale_claude_fw.py" ]; then
+        local _sw_out _sw_n=0 _sw_stale=0 _sw_pid _sw_start _sw_script _sw_mtime _sw_flag
+        _sw_out=$(python3 "$FRAMEWORK_ROOT/lib/stale_claude_fw.py" "$PROJECT_ROOT" 2>/dev/null || true)
+        while IFS=$'\t' read -r _sw_pid _sw_start _sw_script _sw_mtime _sw_flag; do
+            [ -n "$_sw_pid" ] || continue
+            _sw_n=$((_sw_n + 1))
+            if [ "$_sw_flag" = "1" ]; then
+                _sw_stale=$((_sw_stale + 1))
+                echo -e "  ${YELLOW}WARN${NC}  claude-fw pid $_sw_pid started $(date -u -d "@$_sw_start" '+%Y-%m-%d %H:%MZ'), before ${_sw_script##*/} changed $(date -u -d "@$_sw_mtime" '+%Y-%m-%d %H:%MZ') — fixes in it (e.g. T-4032) are not active until that session is relaunched"
+                echo -e "         script: $_sw_script"
+                warnings=$((warnings + 1))
+            fi
+        done <<< "$_sw_out"
+        if [ "$_sw_n" -gt 0 ] && [ "$_sw_stale" -eq 0 ]; then
+            echo -e "  ${GREEN}OK${NC}  Running claude-fw wrapper(s) ($_sw_n) newer than their script"
+        fi
     fi
 
     # Check: Claude Code hook configuration (CTL-R023 — T-199)
@@ -3311,6 +3393,19 @@ for event_type, hook_list in hooks.items():
                 if '=' not in p:
                     script_path = p
                     break
+            # T-4056: an interpreter-prefixed hook (python3 with a script path, env ...)
+            # names its script after the interpreter; skip the interpreter and its flags so
+            # the script is the path checked. Quotes stripped with \x27 and \x22.
+            # (No literal quote or dollar characters in this comment: see the note above.)
+            words = [w.strip('\x27\x22') for w in parts if '=' not in w]
+            interp = False
+            while words and os.path.basename(words[0]) in ('env', 'python3', 'python', 'bash', 'sh', 'node'):
+                interp = True
+                words = words[1:]
+                while words and words[0].startswith('-'):
+                    words = words[1:]
+            if words:
+                script_path = words[0]
             # Portable 'fw hook' commands — resolve via PATH or vendored path
             # T-573: Also recognize .agentic-framework/bin/fw and other paths ending in /fw
             is_fw = (script_path == 'fw' or script_path.endswith('/fw'))
@@ -3377,7 +3472,7 @@ for event_type, hook_list in hooks.items():
             # The executable and Cellar checks below were also unreachable for
             # these hooks, since the existence test short-circuits first — a
             # genuinely non-executable hook would have been reported as missing.
-            resolved_path = script_path.replace('\${CLAUDE_PROJECT_DIR}', os.environ.get('PROJECT_ROOT', ''))
+            resolved_path = script_path.replace('\${CLAUDE_PROJECT_DIR}', os.environ.get('PROJECT_ROOT', '')).replace('\$CLAUDE_PROJECT_DIR', os.environ.get('PROJECT_ROOT', ''))
             if not os.path.isabs(resolved_path):
                 resolved_path = os.path.join(os.environ.get('PROJECT_ROOT', ''), resolved_path)
             if not os.path.exists(resolved_path):
@@ -3385,7 +3480,7 @@ for event_type, hook_list in hooks.items():
                     issues.append(f'{event_type}: stale Homebrew Cellar path (run fw init --provider claude --force to fix): {os.path.basename(script_path)}')
                 else:
                     issues.append(f'{event_type}: script not found: {os.path.basename(script_path)}')
-            elif not os.access(resolved_path, os.X_OK):
+            elif not interp and not os.access(resolved_path, os.X_OK):
                 warnings.append(f'{event_type}: script not executable: {os.path.basename(script_path)}')
             elif '/Cellar/' in script_path:
                 warnings.append(f'Hook uses Cellar path (will break on brew upgrade). Run: fw init --provider claude --force')
@@ -8503,6 +8598,7 @@ print('0')
         # T-2405: --arc <id> filters to tasks tagged with that arc.
         rq_arc_filter=""
         rq_ids_only=0
+        rq_include_waiting=0
         while [ $# -gt 0 ]; do
             case "$1" in
                 --help|-h|help)
@@ -8538,11 +8634,20 @@ print('0')
                     echo "                                   one per line, oldest first"
                     echo "                                   (machine-readable; the population"
                     echo "                                   fw verify-queue runs over)"
+                    echo "  fw review-queue --include-waiting  With --ids: also print tasks that are"
+                    echo "                                   waiting on the agent (default: ready only)"
                     echo "  fw review-queue --help           This message"
+                    echo ""
+                    echo "VERDICT lists tasks READY for you (T-4053): every Agent criterion"
+                    echo "ticked and independent review green. WAITING ON THE AGENT lists the"
+                    echo "rest with the reason. Same predicate as /approvals (web.shared)."
                     exit 0
                     ;;
                 --ids)
                     rq_ids_only=1
+                    ;;
+                --include-waiting)
+                    rq_include_waiting=1
                     ;;
                 --arc)
                     shift
@@ -8562,7 +8667,7 @@ print('0')
             esac
             shift
         done
-        PROJECT_ROOT="$PROJECT_ROOT" FW_REVQ_ARC="$rq_arc_filter" FW_REVQ_IDS="$rq_ids_only" FW_LIB_DIR="$FW_LIB_DIR" python3 - <<'PYREVQ'
+        PROJECT_ROOT="$PROJECT_ROOT" FW_REVQ_ARC="$rq_arc_filter" FW_REVQ_IDS="$rq_ids_only" FW_REVQ_WAITING="$rq_include_waiting" FW_LIB_DIR="$FW_LIB_DIR" python3 - <<'PYREVQ'
 import os, re, sys, time
 from pathlib import Path
 from datetime import datetime
@@ -8602,6 +8707,20 @@ except ImportError:
             return 0
         human_text = re.sub(r"<!--.*?-->", "", human_m.group(1), flags=re.DOTALL)
         return len(re.findall(r"^\s*-\s*\[ \]", human_text, re.MULTILINE))
+
+# T-4053: readiness is IMPORTED from web.shared (the /approvals predicate), never
+# re-derived here. Unavailable -> every task is reported as waiting with that reason,
+# not silently ready.
+_review_readiness = None
+for _base in (os.environ.get("PROJECT_ROOT", "."),
+              os.path.dirname(os.environ.get("FW_LIB_DIR", "") or "")):
+    if _review_readiness is not None or not _base:
+        continue
+    try:
+        sys.path.insert(0, _base)
+        from web.shared import review_readiness as _review_readiness
+    except Exception:
+        _review_readiness = None
 
 ROOT = Path(os.environ.get("PROJECT_ROOT", ".")).resolve()
 ACTIVE = ROOT / ".tasks" / "active"
@@ -8693,6 +8812,7 @@ def _task_matches_arc(fm_text, body_text, canonical):
 now = time.time()
 rows = []
 decision_rows = []
+waiting_rows = []  # T-4053: open Human criteria, but the agent is not done
 decided_rows = []  # T-3178: decided but still open — one operator action left
 # T-1571 / F5: precompute pending-inception scan once, reuse below for both passes
 # Pattern matches the canonical block emitted by lib/inception.sh do_inception_decide.
@@ -8799,7 +8919,14 @@ for f in sorted(ACTIVE.glob("*.md")):
             except (ValueError, OSError):
                 pass
     verdict = extract_recommendation_state(text)
-    rows.append((verdict, age_days, tid_v, name, unchecked))
+    if _review_readiness is None:
+        r_state, r_why = "waiting-on-agent", ["readiness predicate unavailable (web.shared not importable)"]
+    else:
+        r_state, r_why = _review_readiness(tid_v, status, text, f)
+    if r_state == "ready":
+        rows.append((verdict, age_days, tid_v, name, unchecked))
+    else:
+        waiting_rows.append((verdict, age_days, tid_v, name, "; ".join(r_why)))
 
 # T-1808: PAUSED section — workers awaiting operator resolution (dispatch-safety slice 4).
 paused_rows = []
@@ -8816,7 +8943,8 @@ except Exception:
 # it from status/owner. A second definition of "awaiting human review" is how the
 # populations drift; L-539 is the cost of a rail measured over the wrong set.
 if os.environ.get("FW_REVQ_IDS") == "1":
-    for _r in sorted(rows, key=lambda r: -r[1]):
+    _id_rows = rows + (waiting_rows if os.environ.get("FW_REVQ_WAITING") == "1" else [])
+    for _r in sorted(_id_rows, key=lambda r: -r[1]):
         print(_r[2])
     sys.exit(0)
 
@@ -8824,7 +8952,7 @@ if os.environ.get("FW_REVQ_IDS") == "1":
 # tasks awaiting human review." over a corpus whose ONLY outstanding item is an
 # inception awaiting closure — a confident false negative, which is the exact
 # failure this section was added to end rather than relocate.
-if not rows and not decision_rows and not paused_rows and not decided_rows and not um_rows:
+if not rows and not waiting_rows and not decision_rows and not paused_rows and not decided_rows and not um_rows:
     print("No tasks awaiting human review.")
     sys.exit(0)
 
@@ -8832,6 +8960,7 @@ if not rows and not decision_rows and not paused_rows and not decided_rows and n
 # T-1576: NO-REC sorts after ? (truly unactionable — agent owes a recommendation).
 order = {"GO": 0, "DEFER": 1, "NO-GO": 2, "?": 3, "NO-REC": 4}
 rows.sort(key=lambda r: (order.get(r[0], 9), -r[1]))
+waiting_rows.sort(key=lambda r: (order.get(r[0], 9), -r[1]))
 decision_rows.sort(key=lambda r: (order.get(r[0], 9), -r[1]))
 # T-3178: no verdict axis here — the decision IS the verdict, and both values are
 # equally closable. Oldest first, so the one that has been waiting longest leads.
@@ -8897,12 +9026,19 @@ if um_rows:
     print()
 
 if rows:
-    print(f"\033[1mVERDICT — Human ACs awaiting verification ({len(rows)})\033[0m")
+    print(f"\033[1mVERDICT — Human ACs awaiting verification, ready for you ({len(rows)})\033[0m")
     print(f"\033[1m{'VERDICT':<7}  {'AGE':>4}  {'ID':<8}  NAME\033[0m")
     for verdict, age_days, tid_v, name, _unchecked in rows:
         truncated = (name[:NAME_W] + "...") if len(name) > NAME_W else name
         col = _verdict_color(verdict)
         print(f"{col}{verdict:<7}\033[0m  {str(age_days)+'d':>4}  {tid_v:<8}  {truncated}")
+if waiting_rows:
+    print()
+    print(f"\033[1mWAITING ON THE AGENT — open Human ACs, not ready for you ({len(waiting_rows)})\033[0m")
+    for verdict, age_days, tid_v, name, why in waiting_rows:
+        truncated = (name[:NAME_W] + "...") if len(name) > NAME_W else name
+        print(f"{tid_v:<8}  {str(age_days)+'d':>4}  {truncated}")
+        print(f"\033[2m    {why}\033[0m")
 go = sum(1 for r in rows if r[0] == "GO")
 defer = sum(1 for r in rows if r[0] == "DEFER")
 nogo = sum(1 for r in rows if r[0] == "NO-GO")
@@ -8915,7 +9051,9 @@ if nogo: parts.append(f"\033[31m{nogo} NO-GO\033[0m")
 if unk: parts.append(f"\033[90m{unk} ?\033[0m")
 if no_rec: parts.append(f"\033[36m{no_rec} NO-REC\033[0m")
 total = len(rows) + len(decision_rows) + len(paused_rows) + len(decided_rows) + len(um_rows)
-verif_only = f"{len(rows)} task(s) awaiting human review" if rows else ""
+verif_only = f"{len(rows)} task(s) ready for human review" if rows else ""
+if waiting_rows:
+    verif_only = (verif_only + " · " if verif_only else "") + f"{len(waiting_rows)} waiting on the agent"
 dec_only = f"{len(decision_rows)} pending decision(s)" if decision_rows else ""
 paused_only = f"{len(paused_rows)} paused dispatch(es)" if paused_rows else ""
 # T-3178: counted in the summary too — a section the operator can see but the
@@ -10244,6 +10382,7 @@ PYSEARCH
                 [ "$_vs_dry" = true ] || _self_vendor_version false
             )
             [ -n "$_vs_out" ] && printf '%s\n' "$_vs_out"
+            [ "$_vs_check" = true ] || _fw_stale_wrapper_notice "$PROJECT_ROOT"
             if [ "$_vs_check" = true ]; then
                 if printf '%s' "$_vs_out" | grep -q "would sync"; then
                     echo "Self-vendor: DRIFT — vendored .agentic-framework/ is out of sync. Run 'fw vendor self' to sync." >&2
@@ -11151,6 +11290,11 @@ YAMLEOF
                 exit 1
                 ;;
         esac
+        ;;
+    issues)
+        # T-4077: GitHub issue intake. `comment` is the one outward verb; `sync` (T-4078) ingests.
+        PROJECT_ROOT="$PROJECT_ROOT" FRAMEWORK_ROOT="$FRAMEWORK_ROOT" python3 "$FW_LIB_DIR/issues.py" "$@"
+        exit $?
         ;;
     review)
         # T-3583/T-3586: review and dispatch cost (registry, ledger, paid proposals).

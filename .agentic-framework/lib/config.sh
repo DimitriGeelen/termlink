@@ -213,7 +213,9 @@ fw_consumer_yamls() {
 FW_CONFIG_REGISTRY=(
     "CONTEXT_WINDOW|300000|Context window size for budget enforcement (tokens)"
     "PORT|3000|Watchtower web UI listen port"
+    "HOST|0.0.0.0|Watchtower bind address (env FW_HOST, read by web/config.py). A specific address makes the shell side probe and advertise that address instead of localhost; 0.0.0.0 or :: means all interfaces (T-4041, GitHub #88)"
     "PORT_SCAN_BASE|3000|First port tried when a project has no PORT set: fw serve scans 100 ports up from here, skips any held by another service, and records the chosen port as PORT in .framework.yaml (T-3662)"
+    "CAPTURE_QUERY_TEXT|0|Keep the rendered prompt of a user query (fw ask) on disk in the dispatch blob. Default 0: the dispatch row keeps only prompt_sha256 and prompt_chars, so the typed query is not stored (arc-001 F-9, T-4061). Set 1 to opt in for debugging."
     "RAIL_IDENTITY_FILE||Project-owned termlink signing identity for outbound rail posts (T-2904). Empty = sign as host key, which is indistinguishable from co-resident agents. Created on first use."
     "RAIL_PROJECT_LABEL||Canonical from_project label attached to outbound rail posts (T-2905). Empty = derived from the project directory name, normalised. Emitted, never typed at a call site."
     "DISPATCH_LIMIT|0|Built-in harness sub-agent (Agent tool) dispatches allowed before the TermLink gate blocks. Default 0 (operator ruling 2026-10-06, T-3910): sub-agents run as TermLink workers, never through a vendor harness's dispatcher"
@@ -232,6 +234,7 @@ FW_CONFIG_REGISTRY=(
     "KEYLOCK_TIMEOUT|300|Per-key lock stale cleanup timeout in seconds"
     "TERMLINK_WORKER_TIMEOUT|600|TermLink worker execution timeout in seconds"
     "TERMLINK_MAX_WORKERS|5|Concurrent fw termlink dispatch workers per project (T-3910). Raise situationally, on the operator's say-so: FW_TERMLINK_MAX_WORKERS=N for one run, fw config set TERMLINK_MAX_WORKERS N to keep it"
+    "MESSAGING_TOOLKIT|0|Install/update the cross-host messaging toolkit (9 slash commands + 12 scripts, TermLink) on fw upgrade. Opt-in; derived once from existing files (T-4042). 1=install, 0=skip"
     "HANDOVER_DEDUP_COOLDOWN|300|Seconds between duplicate handover detection"
     "INCEPTION_COMMIT_LIMIT|2|Max exploration commits before inception decision gate"
     "CONSUMER_SCAN_DIRS|/opt|Colon-separated directories to scan for consumer projects"

@@ -784,8 +784,27 @@ def _committed_blob(root: Path, revision: str, rel: Path) -> tuple[str, str]:
     this framework's committed copy at its HEAD, pinned to that commit's sha in `where`. ('', why)
     when none is committed."""
     rev = (revision or "").strip() or "HEAD"
-    cands = [(root, rev, str(rel))]
     fw = _HERE.parent.resolve()
+    blob, where = _committed_only(root, rev, rel, fw)
+    if blob:
+        return blob, where
+    # T-4013 (T-4010 decision): a consumer that does not track .agentic-framework/ has no
+    # committed copy. Its vendored working copy counts only when its bytes match an exception the
+    # operator approved, recorded in .framework.yaml AS COMMITTED at the same revision — so the
+    # copy still counts only through a commit, as rounds 6/7 require. Only in that layout, and
+    # only when neither path is tracked at all (an emptied tracked file is not "missing").
+    why = _fallback_ineligible(Path(root), rev, rel, fw)
+    if why:
+        return "", f"no committed {rel} at {rev}; {why}"
+    data, why, _sha = _approved_vendored_copy(Path(root), rev, rel)
+    if data is not None:
+        return data.decode("utf-8", errors="replace"), why
+    return "", f"no committed {rel} at {rev}; {why}"
+
+
+def _committed_only(root: Path, rev: str, rel: Path, fw: Path) -> tuple[str, str]:
+    """The three committed candidates of `_committed_blob`, without the T-4013 fallback."""
+    cands = [(root, rev, str(rel))]
     try:
         cands.append((root, rev, str((fw / rel).relative_to(Path(root).resolve()))))
     except ValueError:
@@ -796,7 +815,221 @@ def _committed_blob(root: Path, revision: str, rel: Path) -> tuple[str, str]:
         if rc == 0 and blob.strip():
             rc2, sha = _git_out(repo, "rev-parse", "-q", "--verify", f"{r}^{{commit}}")
             return blob, f"{repo}@{sha.strip() if rc2 == 0 else r}:{rel_s}"
-    return "", f"no committed {rel} at {rev}"
+    return "", ""
+
+
+def _fallback_ineligible(root: Path, rev: str, rel: Path, fw: Path) -> str:
+    """'' when the approved-exception fallback may apply: the ledger runs from the consumer's own
+    vendored tree (<root>/.agentic-framework, the consumer layout), the revision resolves, and
+    git tracks neither <rel> nor .agentic-framework/<rel> there. Otherwise the reason."""
+    if fw != (Path(root).resolve() / VENDOR_DIR):
+        return "not a consumer layout (the framework is not the project's .agentic-framework/)"
+    rc, _ = _git_out(root, "rev-parse", "-q", "--verify", f"{rev}^{{commit}}")
+    if rc != 0:
+        return f"revision {rev} does not resolve"
+    for p in (str(rel), f"{VENDOR_DIR}/{rel}"):
+        rc, out = _git_out(root, "ls-tree", "--name-only", rev, "--", p)
+        if rc != 0:
+            return f"git ls-tree failed at {rev}"
+        if out.strip():
+            return f"{p} is tracked at {rev} but empty"
+    return ""
+
+
+#: T-4013: the framework files the ledger reads "as committed" — the only ones an approved
+#: vendored exception can stand in for.
+JUDGE_RELEVANT = (Path("agents/termlink/termlink.sh"), Path("policy/review-backends.yaml"),
+                  Path("policy/review-worker-settings.json"))
+VENDOR_DIR = ".agentic-framework"
+FRAMEWORK_YAML = ".framework.yaml"
+_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+_EXC_COMMENT = "# T-4013: operator-approved vendored files the reviewer may trust (counts once committed)"
+
+
+def _vendored_path(root: Path, rel: Path) -> Path | None:
+    """<root>/.agentic-framework/<rel>, resolved; None when it is missing or resolves outside the
+    project (a symlinked tree pointing elsewhere is not the consumer's copy)."""
+    p = Path(root) / VENDOR_DIR / rel
+    try:
+        real = p.resolve(strict=True)
+        real.relative_to(Path(root).resolve())
+    except (OSError, ValueError):
+        return None
+    return real if real.is_file() else None
+
+
+def _committed_exceptions(root: Path, rev: str) -> tuple[list[dict] | None, str]:
+    """`vendored_exceptions` from .framework.yaml AS COMMITTED at `rev`: (entries, '') or
+    (None, why). A malformed list is refused whole, never read in part."""
+    rc, text = _git_out(root, "show", f"{rev}:{FRAMEWORK_YAML}")
+    if rc != 0:
+        return None, f"{FRAMEWORK_YAML} is not committed at {rev}"
+    try:
+        doc = _strict_yaml(text)
+    except Exception as e:  # noqa: BLE001 — any parse failure refuses
+        return None, f"{FRAMEWORK_YAML} at {rev} does not parse strictly ({e})"
+    return _valid_exceptions(doc, f"{FRAMEWORK_YAML} at {rev}")
+
+
+#: the exact path strings an exception may name — no normalisation, so `./agents/…` is malformed
+#: rather than a second, older entry for the same file (codex review of 674ce1f63).
+_RELEVANT_STRS = frozenset(str(p) for p in JUDGE_RELEVANT)
+
+
+def _strict_yaml(text: str):
+    """yaml.safe_load that refuses a repeated mapping key anywhere and more than one document: a
+    file that shows one approval and means another is refused, not read."""
+    import yaml
+
+    class _NoDup(yaml.SafeLoader):
+        pass
+
+    def _mapping(loader, node, deep=False):
+        keys = set()
+        for k, _v in node.value:
+            key = loader.construct_object(k, deep=deep)
+            if key in keys:
+                raise ValueError(f"duplicate key {key!r}")
+            keys.add(key)
+        return loader.construct_mapping(node, deep)
+
+    _NoDup.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, _mapping)
+    docs = list(yaml.load_all(text, Loader=_NoDup))  # noqa: S506 — SafeLoader subclass
+    if len(docs) > 1:
+        raise ValueError("more than one YAML document")
+    return (docs[0] if docs else None) or {}
+
+
+def _valid_exceptions(doc, where: str) -> tuple[list[dict] | None, str]:
+    if not isinstance(doc, dict):
+        return None, f"{where} is not a mapping"
+    ents = doc.get("vendored_exceptions")
+    if ents is None:
+        return [], ""
+    if not isinstance(ents, list):
+        return None, f"vendored_exceptions in {where} is not a list"
+    seen = set()
+    for e in ents:
+        ok = (isinstance(e, dict) and isinstance(e.get("path"), str) and e["path"] in _RELEVANT_STRS
+              and e["path"] not in seen and isinstance(e.get("sha256"), str)
+              and _SHA256_RE.match(e["sha256"]) and isinstance(e.get("approved_by"), str)
+              and e["approved_by"].strip())
+        if not ok:
+            return None, f"vendored_exceptions in {where} has a malformed or duplicate entry"
+        seen.add(e["path"])
+    return ents, ""
+
+
+def _approved_vendored_copy(root: Path, rev: str, rel: Path) -> tuple[bytes | None, str, str]:
+    """(bytes, where, sha256) of the vendored working copy of `rel` when an approved exception
+    committed at `rev` pins exactly those bytes — read once, hashed and returned from the same
+    buffer; (None, why, sha256-or-'') otherwise, naming the fix.
+
+    What this does NOT establish: that a human approved it. `approved_by` is text, and an agent
+    that can commit can write and commit an entry itself (codex review of 674ce1f63, finding 1;
+    the limit stated in T-4010's decision). The boundary is the commit: the entry is visible and
+    attributable in history, as for every other "as committed" input of this ledger."""
+    fix = (f"an operator approves the vendored copy (fw reviewer verdict exception-approve {rel} "
+           f"--reason …) and commits {FRAMEWORK_YAML}")
+    p = _vendored_path(root, rel)
+    if p is None:
+        return None, f"no vendored {VENDOR_DIR}/{rel} inside the project", ""
+    data = p.read_bytes()
+    sha = hashlib.sha256(data).hexdigest()
+    ents, why = _committed_exceptions(root, rev)
+    if ents is None:
+        return None, f"{why}; {fix}", sha
+    ent = next((e for e in ents if e["path"] == str(rel)), None)
+    if ent is None:
+        return None, f"{VENDOR_DIR}/{rel} is not tracked and has no approved exception; {fix}", sha
+    if ent["sha256"] != sha:
+        return None, (f"{VENDOR_DIR}/{rel} (sha256 {sha[:12]}) differs from the approved exception "
+                      f"({ent['sha256'][:12]}) committed at {rev}; {fix}"), sha
+    return data, (f"{root}@{rev}:{VENDOR_DIR}/{rel} (approved exception sha256 {sha[:12]}, "
+                  f"by {ent['approved_by']})"), sha
+
+
+def exception_status(root: Path | None = None, revision: str = "") -> list[dict]:
+    """T-4013: how each judge-relevant file is trusted at `revision`: committed | approved-exception
+    | untrusted. The sha256 shown is the one the trust decision hashed, never a second read."""
+    root = root or _root()
+    rev = (revision or "").strip() or "HEAD"
+    fw = _HERE.parent.resolve()
+    out = []
+    for rel in JUDGE_RELEVANT:
+        # One evaluation per file: state, explanation and digest all come from the same read
+        # (codex follow-up review of ab35a4cb9).
+        text, where = _committed_only(root, rev, rel, fw)
+        sha = ""
+        if text:
+            state = "committed"
+        else:
+            why = _fallback_ineligible(Path(root), rev, rel, fw)
+            if why:
+                state, where = "untrusted", f"no committed {rel} at {rev}; {why}"
+            else:
+                data, where, sha = _approved_vendored_copy(Path(root), rev, rel)
+                state = "approved-exception" if data is not None else "untrusted"
+        out.append({"path": str(rel), "state": state, "vendored_sha256": sha, "where": where})
+    return out
+
+
+def approve_exception(root: Path, rel: Path, reason: str, approved_by: str) -> dict:
+    """T-4013 (operator): pin the vendored copy of `rel` as an approved exception in .framework.yaml.
+    Rewrites only the top-level `vendored_exceptions:` block; it counts once committed."""
+    if rel not in JUDGE_RELEVANT:
+        raise VerdictRefused(f"{rel} is not a judge-relevant file ({', '.join(map(str, JUDGE_RELEVANT))})")
+    if not reason.strip():
+        raise VerdictRefused("a reason is required")
+    p = _vendored_path(root, rel)
+    if p is None:
+        raise VerdictRefused(f"no vendored {VENDOR_DIR}/{rel} inside the project")
+    fy = Path(root) / FRAMEWORK_YAML
+    text = fy.read_text() if fy.exists() else ""
+    try:
+        doc = _strict_yaml(text)
+    except Exception as e:  # noqa: BLE001
+        raise VerdictRefused(f"{FRAMEWORK_YAML} does not parse strictly ({e}); fix it first")
+    if not isinstance(doc, dict):
+        raise VerdictRefused(f"{FRAMEWORK_YAML} is not a mapping")
+    old, why = _valid_exceptions(doc, FRAMEWORK_YAML)
+    if old is None:
+        raise VerdictRefused(f"{why}; fix it by hand first")
+    ents = [e for e in old if e["path"] != str(rel)]
+    ent = {"path": str(rel), "sha256": hashlib.sha256(p.read_bytes()).hexdigest(),
+           "approved_by": approved_by, "approved_at": _now(), "reason": reason.strip()}
+    ents.append(ent)
+    # Drop the old top-level block: the key line, then its items whether indented or
+    # indentless (`- …` at column 0), stopping at the next top-level line.
+    kept, skip = [], False
+    for line in text.splitlines():
+        if line == _EXC_COMMENT:
+            continue
+        if re.match(r"^vendored_exceptions\s*:", line):
+            skip = True
+            continue
+        if skip and (not line.strip() or line[0].isspace() or line.startswith("-")):
+            continue
+        skip = False
+        kept.append(line)
+    while kept and not kept[-1].strip():
+        kept.pop()
+    block = ["", _EXC_COMMENT, "vendored_exceptions:"] + [f"  - {json.dumps(e)}" for e in ents]
+    new = "\n".join(kept + block) + "\n"
+    # Prove the rewrite before writing it: everything else unchanged, the block exactly `ents`.
+    try:
+        got = _strict_yaml(new)
+    except Exception as e:  # noqa: BLE001
+        raise VerdictRefused(f"the rewritten {FRAMEWORK_YAML} would not parse ({e}); nothing written")
+    rest_old = {k: v for k, v in doc.items() if k != "vendored_exceptions"}
+    rest_new = {k: v for k, v in got.items() if k != "vendored_exceptions"} if isinstance(got, dict) else None
+    if rest_new != rest_old or got.get("vendored_exceptions") != ents:
+        raise VerdictRefused(f"the rewrite would change {FRAMEWORK_YAML} beyond vendored_exceptions; "
+                             "nothing written — edit it by hand")
+    tmp = fy.with_name(fy.name + ".t4013.tmp")
+    tmp.write_text(new)
+    os.replace(tmp, fy)
+    return ent
 
 
 def _registry_blob(root: Path, revision: str) -> tuple[str, str]:
@@ -3320,7 +3553,37 @@ def _cli(argv: list[str] | None = None) -> int:
     ls = sub.add_parser("list", help="verdicts recorded for a task")
     ls.add_argument("task_id")
 
+    xc = sub.add_parser("exception-check", help="(T-4013) how each judge-relevant framework file is "
+                        "trusted: committed / approved-exception / untrusted")
+    xc.add_argument("--revision", default="")
+    xa = sub.add_parser("exception-approve", help="(operator, T-4013) pin the vendored copy of a "
+                        "judge-relevant file in .framework.yaml; it counts once committed")
+    xa.add_argument("path")
+    xa.add_argument("--reason", required=True)
+    xa.add_argument("--i-am-human", action="store_true")
+
     args = ap.parse_args(argv)
+    if args.cmd == "exception-check":
+        rows = exception_status(_root(), args.revision)
+        for r in rows:
+            print(f"{r['state']:<19} {r['path']}  {r['vendored_sha256'][:12] or '-'}  {r['where']}")
+        return 0 if all(r["state"] != "untrusted" for r in rows) else 1
+    if args.cmd == "exception-approve":
+        if os.environ.get("CLAUDECODE") == "1" and not args.i_am_human:
+            print("REFUSED: approving a vendored exception is an operator action (--i-am-human)",
+                  file=sys.stderr)
+            return 1
+        root = _root()
+        _rc, who = _git_out(root, "config", "user.name")
+        by = f"{'agent-override' if os.environ.get('CLAUDECODE') == '1' else 'operator'}:{who.strip() or 'unknown'}"
+        try:
+            ent = approve_exception(root, Path(args.path), args.reason, by)
+        except VerdictRefused as e:
+            print(f"REFUSED: {e}", file=sys.stderr)
+            return 1
+        print(json.dumps(ent))
+        print(f"commit {FRAMEWORK_YAML} for the exception to count", file=sys.stderr)
+        return 0
     if args.cmd == "record":
         kw = dict(reviewer=args.reviewer, rung=args.rung, guidance=args.guidance,
                   evidence=args.evidence, digest=args.digest, dispatch_id=args.dispatch_id,

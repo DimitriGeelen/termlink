@@ -383,8 +383,10 @@ cmd_spawn() {
 
     termlink spawn "${spawn_args[@]}"
     echo -e "${GREEN}OK${NC}  Session '$name' registered"
-    [ -n "$task" ] && echo "  Tagged: $task"
-    [ -n "$task_type" ] && echo "  Task-type: $task_type"
+    # T-4067: `if`, not `[ ] && echo` — as the function's last statement a false
+    # test became its return status and aborted `fw termlink dispatch` under set -e.
+    if [ -n "$task" ]; then echo "  Tagged: $task"; fi
+    if [ -n "$task_type" ]; then echo "  Task-type: $task_type"; fi
 }
 
 cmd_exec() {
@@ -1424,7 +1426,10 @@ elif [ -n "$HARNESS" ]; then
             opencode)
                 # --agent plan: opencode's built-in no-edit agent; --pure: no external plugins;
                 # --format json: raw events (no ANSI), normalised to result.md below.
-                ( cd "$TREE" && TMPDIR="$SEAT_TMP" exec "$WORKER_BIN" run ${MODEL:+-m "$MODEL"} --agent plan --pure --format json "$PROMPT_TEXT" < /dev/null > "$WDIR/result.jsonl" 2>> "$WDIR/stderr.log" ) &
+                # OPENCODE_DISABLE_PROJECT_CONFIG=1 (T-4050, ring20 T-2303): the reviewed project's own
+                # .opencode/ config and plugins are not loaded; otherwise opencode installs the plugin
+                # SDK into the export (+3,650 files) and the seat is voided. Same isolation as codex.
+                ( cd "$TREE" && TMPDIR="$SEAT_TMP" OPENCODE_DISABLE_PROJECT_CONFIG=1 exec "$WORKER_BIN" run ${MODEL:+-m "$MODEL"} --agent plan --pure --format json "$PROMPT_TEXT" < /dev/null > "$WDIR/result.jsonl" 2>> "$WDIR/stderr.log" ) &
                 ;;
             antigravity)
                 # The operator-approved form (2026-09-30), with the registered absolute binary:

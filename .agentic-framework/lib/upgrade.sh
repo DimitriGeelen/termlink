@@ -1073,6 +1073,7 @@ do_upgrade() {
     # hasn't yet wired `fw vendor self` into pre-push. Operators who have wired
     # pre-push (no inline redundancy needed) opt out via --no-self-vendor.
     local no_self_vendor=false
+    local messaging_flag=""   # T-4042: "" | 1 (--with-messaging) | 0 (--without-messaging)
     # T-3850: passed through to do_vendor, which otherwise refuses when local
     # files under .agentic-framework/ would be deleted or overwritten.
     local -a _vendor_extra=()
@@ -1085,6 +1086,8 @@ do_upgrade() {
             --force-downgrade) force_downgrade=true; shift ;;
             --strict) strict=true; shift ;;
             --no-self-vendor) no_self_vendor=true; shift ;;
+            --with-messaging) messaging_flag=1; shift ;;
+            --without-messaging) messaging_flag=0; shift ;;
             --dedupe-user-hooks) dedupe_user_hooks=true; shift ;;
             --from-upstream)
                 from_upstream="$2"; shift 2 ;;
@@ -1108,6 +1111,8 @@ do_upgrade() {
                 echo "  --allow-delete-locals   Let the vendor step delete/overwrite local files under"
                 echo "                          .agentic-framework/ not listed in .fwvendor-preserve.yaml"
                 echo "                          (T-3850; logged Tier-2, copies kept). Default: refuse."
+                echo "  --with-messaging        Install/update the cross-host messaging toolkit (sets MESSAGING_TOOLKIT=1)"
+                echo "  --without-messaging     Skip the toolkit (sets MESSAGING_TOOLKIT=0); existing files are listed, never deleted"
                 echo "  --no-self-vendor        Skip the inline framework self-vendor refresh"
                 echo "                          (T-2095 V1-D, F2). Default: keep inline (T-1217"
                 echo "                          invariant). Opt-out for operators who fire"
@@ -1132,8 +1137,12 @@ do_upgrade() {
                 echo "  - Git hooks"
                 echo "  - .claude/settings.json (hook config)"
                 echo "  - .claude/commands/resume.md"
-                echo "  - .claude/commands/doorbell+mail toolkit (be-reachable, peers, recent-chat, recent-dm, broadcast-chat, pulse, conversations, check-arc, agent-handoff) — T-1867"
-                echo "  - scripts/doorbell+mail supporting toolkit (11 .sh) — T-1867"
+                local _n_sk _n_sc
+                _n_sk=$(ls "$FRAMEWORK_ROOT/lib/templates/skills"/*.md 2>/dev/null | wc -l)
+                _n_sc=$(ls "$FRAMEWORK_ROOT/lib/templates/scripts"/*.sh 2>/dev/null | wc -l)
+                echo "  - OPT-IN messaging toolkit (cross-host agent messaging over TermLink, T-1867/T-4042):"
+                echo "      $((_n_sk)) slash commands in .claude/commands/, $((_n_sc)) scripts in scripts/."
+                echo "      Controlled by MESSAGING_TOOLKIT in .framework.yaml (--with-messaging / --without-messaging)"
                 echo "  - lib/*.sh (fw subcommands: inception, upgrade, init, etc.)"
                 echo "  - Agent scripts (task-create, handover, git, healing, fabric, etc.)"
                 echo "  - bin/fw (CLI entry point)"
@@ -1310,7 +1319,19 @@ do_upgrade() {
         fi
 
         echo -n "  Cloning... "
-        if ! git clone --depth=1 --quiet "$_upstream_url" "$_tmpd/fw" 2>"$_tmpd/clone.err"; then
+        # T-3886 (GitHub #87): full history, not --depth=1. The origin guard below
+        # must find the consumer's recorded version_sha, and a shallow clone cannot
+        # see it. --filter=blob:none keeps the clone cheap; a server that ignores
+        # filters falls back to a full clone (git warns, does not fail).
+        # Exception: a LOCAL shallow source. Under file:// the filter is ignored and
+        # git 2.43 then never completes the clone of a shallow repo (measured: 60 s
+        # timeout, endless "filtering not recognized" warnings). Plain clone instead;
+        # the guard then refuses with the runnable remedy, which is the right outcome.
+        local _clone_filter=(--filter=blob:none) _clone_src="${_upstream_url#file://}"
+        if [ -d "$_clone_src" ] && [ "$(git -C "$_clone_src" rev-parse --is-shallow-repository 2>/dev/null)" = "true" ]; then
+            _clone_filter=()
+        fi
+        if ! git clone ${_clone_filter[@]+"${_clone_filter[@]}"} --quiet "$_upstream_url" "$_tmpd/fw" 2>"$_tmpd/clone.err"; then
             echo "FAILED"
             echo -e "${RED}ERROR: git clone failed${NC}" >&2
             sed 's/^/    /' "$_tmpd/clone.err" >&2 2>/dev/null || true
@@ -1334,7 +1355,11 @@ do_upgrade() {
         # makes resolve_framework honour a caller-supplied FRAMEWORK_ROOT.
         # Origin: /opt/termlink ran fw upgrade twice in one hour, fork-bombed both
         # times. Forensic evidence + recipe via framework.upgrade.report TermLink topic.
+        # T-3886: FW_AUTOCLONE_SOURCE tells the child's origin guard that its
+        # FRAMEWORK_ROOT is this temp dir (deleted on exit), so any remedy it prints
+        # must not name that path. FW_AUTOCLONE_UPSTREAM is the URL to re-clone from.
         env FRAMEWORK_ROOT="$_tmpd/fw" PROJECT_ROOT="$target_dir" \
+            FW_AUTOCLONE_SOURCE=1 FW_AUTOCLONE_UPSTREAM="$_upstream_url" \
             "$_tmpd/fw/bin/fw" "${_replay_args[@]}"
         local _rc=$?
         # T-2232 self-healing: if the upstream resolved via the vendored
@@ -1464,7 +1489,13 @@ do_upgrade() {
                 # put in front of the reader. Naming the targeted bypass is L-399
                 # discipline — a block message that offers only a mechanism aimed at
                 # another failure is how agents end up routing around the gate.
-                if fw_source_is_shallow "$FRAMEWORK_ROOT"; then
+                if fw_source_is_shallow "$FRAMEWORK_ROOT" && [ "${FW_AUTOCLONE_SOURCE:-0}" = 1 ]; then
+                    # T-3886 (#87): the shallow source is the auto-clone, which is deleted
+                    # on exit, so `fetch --unshallow` on it is not a remedy. Name the
+                    # recorded SHA and a copy the operator can keep and run.
+                    echo -e "          Remedy: clone the framework without --depth, then run that copy against this consumer:" >&2
+                    echo -e "            ${BOLD}git clone ${FW_AUTOCLONE_UPSTREAM:-<upstream-url>} framework-full && framework-full/bin/fw upgrade $target_dir${NC}" >&2
+                elif fw_source_is_shallow "$FRAMEWORK_ROOT"; then
                     # T-3714: truncated history, not a foreign one — one command fixes it.
                     echo -e "          Remedy: ${BOLD}git -C $FRAMEWORK_ROOT fetch --unshallow${NC}, then re-run fw upgrade." >&2
                 else
@@ -2530,21 +2561,69 @@ MCPJSON
     # Skills + supporting scripts from upstream lib/templates/{skills,scripts}/ to the
     # project's .claude/commands/ and scripts/. Only enumerated files are touched; every
     # decision goes through the same helper as step 7 (T-3955).
-    echo -e "${YELLOW}[7b/10] Doorbell+mail toolkit (T-1867)${NC}"
-    _t1867_changes=0
-    local _t1867_src
-    for _t1867_src in "$FRAMEWORK_ROOT/lib/templates/skills"/*.md; do
-        [ -f "$_t1867_src" ] || continue
-        _uts_line=$(python3 "$_uts" "$target_dir" "$_t1867_src" ".claude/commands/$(basename "$_t1867_src")" $_uts_dry 2>&1) || _uts_line="ERROR helper failed: ${_uts_line:-no output}"
-        _uts_report "$_uts_line"
+    local _t4042_nsk _t4042_nsc
+    _t4042_nsk=$(ls "$FRAMEWORK_ROOT/lib/templates/skills"/*.md 2>/dev/null | wc -l)
+    _t4042_nsc=$(ls "$FRAMEWORK_ROOT/lib/templates/scripts"/*.sh 2>/dev/null | wc -l)
+    echo -e "${YELLOW}[7b/10] Messaging toolkit — cross-host agent messaging over TermLink: $((_t4042_nsk)) slash commands, $((_t4042_nsc)) scripts (opt-in, T-4042)${NC}"
+    local _t4042_yaml="$target_dir/.framework.yaml" _t4042_cur="" _t4042_src _t4042_rel
+    local -a _t4042_present=()
+    for _t4042_src in "$FRAMEWORK_ROOT/lib/templates/skills"/*.md; do
+        [ -f "$_t4042_src" ] || continue
+        _t4042_rel=".claude/commands/$(basename "$_t4042_src")"
+        [ -e "$target_dir/$_t4042_rel" ] && _t4042_present+=("$_t4042_rel")
     done
-    for _t1867_src in "$FRAMEWORK_ROOT/lib/templates/scripts"/*.sh; do
-        [ -f "$_t1867_src" ] || continue
-        _uts_line=$(python3 "$_uts" "$target_dir" "$_t1867_src" "scripts/$(basename "$_t1867_src")" $_uts_dry --exec 2>&1) || _uts_line="ERROR helper failed: ${_uts_line:-no output}"
-        _uts_report "$_uts_line"
+    for _t4042_src in "$FRAMEWORK_ROOT/lib/templates/scripts"/*.sh; do
+        [ -f "$_t4042_src" ] || continue
+        _t4042_rel="scripts/$(basename "$_t4042_src")"
+        [ -e "$target_dir/$_t4042_rel" ] && _t4042_present+=("$_t4042_rel")
     done
-    if [ "$_t1867_changes" -eq 0 ]; then
-        echo -e "  ${GREEN}OK${NC}  doorbell+mail toolkit in sync (0 changes)"
+    [ -f "$_t4042_yaml" ] && _t4042_cur=$(grep "^MESSAGING_TOOLKIT:" "$_t4042_yaml" 2>/dev/null | head -1 | sed 's/^MESSAGING_TOOLKIT:[[:space:]]*//; s/["'"'"'[:space:]]//g' || true)
+    local _t4042_new="" _t4042_why=""
+    if [ -n "$messaging_flag" ]; then
+        _t4042_new="$messaging_flag"; _t4042_why="set by flag"
+    elif [ "$_t4042_cur" = "0" ] || [ "$_t4042_cur" = "1" ]; then
+        _t4042_new="$_t4042_cur"
+    elif [ "${#_t4042_present[@]}" -gt 0 ]; then
+        _t4042_new=1; _t4042_why="toolkit files already present (${#_t4042_present[@]})"
+    else
+        _t4042_new=0; _t4042_why="no toolkit files present"
+    fi
+    if [ "$_t4042_new" != "$_t4042_cur" ] && [ -f "$_t4042_yaml" ]; then
+        if [ "$dry_run" = true ]; then
+            echo -e "  ${CYAN}WOULD SET${NC}  MESSAGING_TOOLKIT: $_t4042_new ($_t4042_why)"
+        else
+            if grep -q "^MESSAGING_TOOLKIT:" "$_t4042_yaml" 2>/dev/null; then
+                _sed_i "s/^MESSAGING_TOOLKIT:.*/MESSAGING_TOOLKIT: $_t4042_new/" "$_t4042_yaml"
+            else
+                echo "MESSAGING_TOOLKIT: $_t4042_new" >> "$_t4042_yaml"
+            fi
+            echo -e "  ${GREEN}SET${NC}  MESSAGING_TOOLKIT: $_t4042_new ($_t4042_why)"
+        fi
+    fi
+    if [ "$_t4042_new" = "1" ]; then
+        _t1867_changes=0
+        local _t1867_src
+        for _t1867_src in "$FRAMEWORK_ROOT/lib/templates/skills"/*.md; do
+            [ -f "$_t1867_src" ] || continue
+            _uts_line=$(python3 "$_uts" "$target_dir" "$_t1867_src" ".claude/commands/$(basename "$_t1867_src")" $_uts_dry 2>&1) || _uts_line="ERROR helper failed: ${_uts_line:-no output}"
+            _uts_report "$_uts_line"
+        done
+        for _t1867_src in "$FRAMEWORK_ROOT/lib/templates/scripts"/*.sh; do
+            [ -f "$_t1867_src" ] || continue
+            _uts_line=$(python3 "$_uts" "$target_dir" "$_t1867_src" "scripts/$(basename "$_t1867_src")" $_uts_dry --exec 2>&1) || _uts_line="ERROR helper failed: ${_uts_line:-no output}"
+            _uts_report "$_uts_line"
+        done
+        if [ "$_t1867_changes" -eq 0 ]; then
+            echo -e "  ${GREEN}OK${NC}  messaging toolkit in sync (0 changes)"
+        fi
+        echo "  Disable: fw upgrade --without-messaging  (or: fw config set MESSAGING_TOOLKIT 0)"
+    else
+        echo -e "  ${GREEN}SKIP${NC}  messaging toolkit not installed (MESSAGING_TOOLKIT=0)"
+        if [ "${#_t4042_present[@]}" -gt 0 ]; then
+            echo "  Existing toolkit files are left untouched; remove them yourself if unwanted:"
+            printf '    %s\n' "${_t4042_present[@]}"
+        fi
+        echo "  Enable: fw upgrade --with-messaging  (or: fw config set MESSAGING_TOOLKIT 1)"
     fi
 
     # ── 8. Context subdirectories (create missing) ──
@@ -2813,7 +2892,25 @@ EOF
             # this is the one moment a pull-only propagation model gets to speak.
             _t3113_emit_worktree_advisory "$target_dir"
         fi
+        _t4069_stale_wrapper_notice "$target_dir"
     fi
+}
+
+# T-4069: end-of-run notice. A claude-fw wrapper started before bin/claude-fw
+# changed keeps the code bash loaded, so the fix is dormant until it is relaunched.
+# Advisory only: never changes the caller's exit code. $1 = project root.
+_t4069_stale_wrapper_notice() {
+    local root="${1:-}" helper out line pid start script mtime flag n=0
+    helper="${FRAMEWORK_ROOT:-}/lib/stale_claude_fw.py"
+    [ -n "$root" ] && [ -f "$helper" ] || return 0
+    out=$(python3 "$helper" "$root" --stale-only 2>/dev/null || true)
+    while IFS=$'\t' read -r pid start script mtime flag; do
+        [ -n "$pid" ] || continue
+        if [ "$n" -eq 0 ]; then echo ""; fi
+        n=$((n + 1))
+        echo "  NOTE: claude-fw pid $pid started $(date -u -d "@$start" '+%Y-%m-%d %H:%MZ'), before ${script##*/} changed $(date -u -d "@$mtime" '+%Y-%m-%d %H:%MZ') — fixes in it (e.g. T-4032) are not active until that session is relaunched"
+    done <<< "$out"
+    return 0
 }
 
 # T-2094 F10 (T-2078 V1-C): post-upgrade fw doctor advisory helper.
