@@ -1,0 +1,21 @@
+id: scripts/hooks/check-tmux-socket-path.sh
+name: check-tmux-socket-path
+type: script
+subsystem: unknown
+location: scripts/hooks/check-tmux-socket-path.sh
+tags: []
+
+purpose: "T-3425 — PreToolUse(Bash) guard: refuse `tmux -S <path>` when <path> is not a socket."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-12
+created_by: unknown

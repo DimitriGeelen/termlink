@@ -400,6 +400,9 @@ else bad "termlink install" "$out"; fi
 if cmp -s .context/cron/hub-outage-collector.crontab "$TMP/cron/termlink-hub-outage-collector"; then
     ok "default run installs the hub-outage collector + canary crontab and verifies it on disk (T-3383)"
 else bad "hub-outage-collector crontab install" "$out"; fi
+if cmp -s .context/cron/root-mode-canary.crontab "$TMP/cron/termlink-root-mode-canary"; then
+    ok "default run installs the root-mode canary crontab and verifies it on disk (T-3425)"
+else bad "root-mode-canary crontab install" "$out"; fi
 
 # ---------------------------------------------------------------------------
 # 5-6. IDEMPOTENCE. Re-running must do nothing and say so — the operator has to

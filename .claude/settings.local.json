@@ -553,5 +553,18 @@
     "termlink",
     "fw"
   ],
-  "enableAllProjectMcpServers": true
+  "enableAllProjectMcpServers": true,
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-/opt/termlink}/scripts/hooks/check-tmux-socket-path.sh\""
+          }
+        ]
+      }
+    ]
+  }
 }

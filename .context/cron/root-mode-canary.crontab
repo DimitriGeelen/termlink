@@ -1,0 +1,12 @@
+# T-3425 — Root-directory mode canary
+# Source of truth: /opt/termlink/.context/cron/root-mode-canary.crontab (git-tracked)
+# Installed to:    /etc/cron.d/termlink-root-mode-canary (USER field syntax — do NOT load into a user crontab)
+#
+# On 2026-10-12 `/` went 0755 -> 0644 (an agent's `tmux -S /proc/<pid>/cwd`) and the
+# host could not boot. FIRES when `/` is not a 755 root-owned directory; alerts only,
+# never repairs. Runs at boot and hourly. Empty log = healthy; /canaries
+# auto-discovers it; tooling errors go to the .stderr sink (T-2842).
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+@reboot root cd /opt/termlink && bash scripts/check-root-mode-freshness.sh --quiet >> .context/working/.root-mode-canary.log 2>> .context/working/.root-mode-canary.log.stderr
+17 * * * * root cd /opt/termlink && bash scripts/check-root-mode-freshness.sh --quiet >> .context/working/.root-mode-canary.log 2>> .context/working/.root-mode-canary.log.stderr

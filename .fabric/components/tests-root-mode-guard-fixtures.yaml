@@ -1,0 +1,21 @@
+id: tests/root-mode-guard-fixtures.sh
+name: root-mode-guard-fixtures
+type: script
+subsystem: unknown
+location: tests/root-mode-guard-fixtures.sh
+tags: []
+
+purpose: "T-3425 fixtures: tmux socket-path guard + root-mode canary. Hermetic: never runs tmux, never stats or touches the real `/`."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-12
+created_by: unknown

@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-12T18:10:35Z
-last_update: 2026-10-12T18:12:42Z
+last_update: 2026-10-12T18:32:58Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -62,9 +62,13 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Root cause written up with the reproduction and the timing evidence in `docs/reports/T-3425-root-chmod-incident.md`
-- [ ] Learning recorded so agents never pass an unchecked path (esp. `/proc/<pid>/cwd`) to `tmux -S`
-- [ ] Prevention guard proposed to the operator (hook refusing `tmux -S`/`-L` on a non-socket path; boot check that `/` is 0755)
+- [x] Root cause written up with the reproduction and the timing evidence in `docs/reports/T-3425-root-chmod-incident.md`
+- [x] Learning recorded so agents never pass an unchecked path (esp. `/proc/<pid>/cwd`) to `tmux -S`
+- [x] Prevention guard proposed to the operator (hook refusing `tmux -S`/`-L` on a non-socket path; boot check that `/` is 0755)
+- [x] (ruling A) PreToolUse(Bash) hook `scripts/hooks/check-tmux-socket-path.sh` wired in `.claude/settings.local.json` (survives re-vendor); live-proven blocking `echo tmux -S /proc/1/cwd`
+- [x] (ruling A) root-mode canary `scripts/check-root-mode-freshness.sh` + `.context/cron/root-mode-canary.crontab` (@reboot + hourly, alert only) + runme action 1 install with fixture
+- [x] Fixtures `tests/root-mode-guard-fixtures.sh` 24/24; mutant removing the /proc rule turns G1 red
+- [ ] Crontab installed on the host (operator runs `/opt/termlink/runme.sh`; `check-cron-install-drift.sh` no longer lists root-mode-canary as MISSING)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -253,6 +257,9 @@ date_finished: null
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+bash tests/root-mode-guard-fixtures.sh
+bash scripts/check-root-mode-freshness.sh --no-heartbeat
+test -f /etc/cron.d/termlink-root-mode-canary
 
 ## RCA
 
@@ -324,6 +331,11 @@ date_finished: null
 -->
 
 ## Decisions
+
+### 2026-10-12 — prevention after the `/` chmod incident
+- **Chose:** A (operator ruling): a project PreToolUse hook refusing `tmux -S`/`-L` on /proc or non-socket paths, plus a boot+hourly canary alerting when `/` is not 755 root.
+- **Why:** the hook stops the exact command class; the canary turns a silent pre-reboot state (~10 min here) into a visible alert. Alert only, no self-heal: who changed `/` matters.
+- **Rejected:** B (hook only: no detection if another route changes `/`), C (learning only: discipline, not structure).
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
