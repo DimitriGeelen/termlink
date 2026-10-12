@@ -126,7 +126,7 @@ message canary" is P23. The other rows get a task each when they start.
 
 | id | Question | Options | Recommendation |
 |---|---|---|---|
-| OQ-a | Is a separate `termlink-sidecar` binary acceptable, or must it be `termlink sidecar` in the main binary (OD-9 C)? | A fold it in as a subcommand (the crate is already a library); B keep two binaries | A: OD-9 C ruled "in the binary", and install from one artifact is simpler to verify (SI-27) |
+| OQ-a | Is a separate `termlink-sidecar` binary acceptable, or must it be `termlink sidecar` in the main binary (OD-9 C)? | A fold it in as a subcommand (the crate is already a library); B keep two binaries | **Ruled 2026-10-12: A** (fold into `termlink sidecar`; T-3365 is row P1; T-3426 Decisions) |
 | OQ-f | What supervises the sidecar? | A a systemd template unit `termlink-sidecar@<agent>` (Restart=always); B the reachable launcher starts it beside the agent; C the notify-sidecar cron supervisor pattern | A: survives reboot and crash independently of the agent; launchd is the macOS equivalent later |
 | OQ-b | Agents run as root here, so the socket owner check separates nobody. Accept for PH-2? | A accept, status names "same-user separation absent"; B wait for per-agent accounts (Track A, PH-3) | A: the flag keeps it visible; Track A is already PH-3 |
 | OQ-c | STUCK deadline | A about 1 minute (R-44.e, FP-1); B keep 10 minutes | A: the requirement is explicit; 10 minutes was a PH-1 convenience |

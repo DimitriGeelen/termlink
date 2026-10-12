@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-12T19:17:19Z
-last_update: 2026-10-12T20:01:20Z
+last_update: 2026-10-12T20:06:36Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -327,6 +327,11 @@ date_finished: null
 -->
 
 ## Decisions
+
+### 2026-10-12 — OQ-a: how the sidecar ships (operator ruling)
+- **Chose:** A — fold it into the main binary as `termlink sidecar …` (row P1, T-3365).
+- **Why:** OD-9 C ruled "in the binary"; one artifact, one checksum (SI-27).
+- **Rejected:** B two binaries (packaging and checksums twice; OD-9 C met only by exception).
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
