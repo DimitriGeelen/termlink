@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-12T19:17:19Z
-last_update: 2026-10-12T20:06:36Z
+last_update: 2026-10-12T20:57:52Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -332,6 +332,11 @@ date_finished: null
 - **Chose:** A — fold it into the main binary as `termlink sidecar …` (row P1, T-3365).
 - **Why:** OD-9 C ruled "in the binary"; one artifact, one checksum (SI-27).
 - **Rejected:** B two binaries (packaging and checksums twice; OD-9 C met only by exception).
+
+### 2026-10-12 — OQ-f: what keeps the sidecar running (operator ruling, shaped in dialogue)
+- **Chose:** D+ — per-project `SIDECAR_KEEP_RUNNING` (default off) in `.framework.yaml`, also the key the fleet cockpit sets; project start always starts the sidecar; restarts only when the setting is on; an explicit project stop always kills it and suspends restarts, a session ending does not; systemd template unit where present, else cron as supervisor; plus a 10-minute cron backstop on every host that repairs through systemd and alerts each time it acts. Full text: architecture 6.1.
+- **Why:** operator: not every project needs to keep running, the cockpit is not in every project yet; systemd can stop restarting silently (start-limit-hit, as D-Bus did in T-3425's boot failure), so a slower backstop is worth having.
+- **Rejected:** A alone (every project kept running; silent give-up), B alone (no storing while away, no R-8), C alone (minute-scale gaps on systemd hosts), cron restarting around systemd (two supervisors).
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.

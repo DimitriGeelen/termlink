@@ -127,7 +127,7 @@ message canary" is P23. The other rows get a task each when they start.
 | id | Question | Options | Recommendation |
 |---|---|---|---|
 | OQ-a | Is a separate `termlink-sidecar` binary acceptable, or must it be `termlink sidecar` in the main binary (OD-9 C)? | A fold it in as a subcommand (the crate is already a library); B keep two binaries | **Ruled 2026-10-12: A** (fold into `termlink sidecar`; T-3365 is row P1; T-3426 Decisions) |
-| OQ-f | What supervises the sidecar? | A a systemd template unit `termlink-sidecar@<agent>` (Restart=always); B the reachable launcher starts it beside the agent; C the notify-sidecar cron supervisor pattern | A: survives reboot and crash independently of the agent; launchd is the macOS equivalent later |
+| OQ-f | What supervises the sidecar? | A a systemd template unit `termlink-sidecar@<agent>` (Restart=always); B the reachable launcher starts it beside the agent; C the notify-sidecar cron supervisor pattern | **Ruled 2026-10-12: D+** (see 6.1) |
 | OQ-b | Agents run as root here, so the socket owner check separates nobody. Accept for PH-2? | A accept, status names "same-user separation absent"; B wait for per-agent accounts (Track A, PH-3) | A: the flag keeps it visible; Track A is already PH-3 |
 | OQ-c | STUCK deadline | A about 1 minute (R-44.e, FP-1); B keep 10 minutes | A: the requirement is explicit; 10 minutes was a PH-1 convenience |
 | OQ-d | The tick | A 30 s (R-17) as the unit of every bound, 500 ms poll kept internally; B make the poll the tick | A |
@@ -135,6 +135,34 @@ message canary" is P23. The other rows get a task each when they start.
 | OQ-h | Revocation list: where and who signs | A a hub topic signed by the hub signing key; requested by the agent's own project (signed by the old key) or by the operator through runme; B operator-only | A (TM RK-1 allows the agent's own project) |
 | OQ-i | Does the daily canary run as `testdev`, and is OQ-3 ruled A? | A yes, as `testdev`; B as root | A: same proof as the PH-1 acceptance, no operator credential involved |
 | OQ-g | FX-5 baseline | — | Not a decision: no PH-0 count was found, so P8 takes it before W1 |
+
+### 6.1 OQ-f ruling D+: start with the project, keep running only where configured, cron backstop
+
+1. **Per-project setting** `SIDECAR_KEEP_RUNNING` in the project's `.framework.yaml`, default off. The fleet
+   cockpit (055) reads and writes this same key and keeps no copy, so a project works the same with or without
+   the cockpit, and outside ring20.
+2. **Project start always starts its sidecar**: the launcher starts it beside the agent, whatever the setting.
+3. **Off**: the sidecar lives with the project; no restart after a crash; a project stop kills it. **On**: a
+   supervisor restarts it after a crash or a reboot, and it keeps receiving and storing while the agent session is
+   closed.
+4. **An agent session ending** (auto-restart, compaction, closed terminal) does **not** stop the project. **An
+   explicit project stop** (cockpit stop, or a stop script) always stops the sidecar, even when the setting is on,
+   and switches its restarts off until the project starts again: the supervisor never fights a stop.
+5. **Supervisor**: where systemd exists, the template unit `termlink-sidecar@<project>.service`
+   (`Restart=always`). Where it does not (macOS, containers), the cron check of item 6 is the supervisor. The launcher
+   chooses one at start; never two supervisors for one sidecar.
+6. **Cron backstop on every host, every 10 minutes.** If the setting is on and the sidecar is not running: on a
+   systemd host it repairs **through** systemd (`systemctl reset-failed` then `start`), never around it; without
+   systemd it starts the sidecar. Each time it acts it writes its canary log and a needs-attention entry naming why
+   the primary supervisor did not recover it: a backstop that had to act is a fault. Why on systemd hosts too: a unit
+   can give up silently (`start-limit-hit`, as D-Bus did in the 2026-10-12 boot failure, T-3425), be disabled or
+   masked, or lose its unit file in an upgrade.
+7. **Safety**: the store lock (SI-16) refuses a second sidecar on the same store, so a mistaken second start fails
+   rather than giving an inbox two receivers.
+8. **Visibility**: status reports the setting and the active supervisor; a sidecar that should run and does not is
+   a needs-attention entry. The canary meta-check (T-1723) covers a dead cron.
+
+Row P3 builds items 5 to 8; row P7 builds items 1, 2 and 4 into the launcher.
 
 ## 7 Out of scope for PH-2
 
