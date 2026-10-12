@@ -89,6 +89,7 @@ horizon_plan:
     - T-3364 NTP preflight check (CAND-13)
     - T-3365 termlink sidecar in the binary (OD-9)
     - T-3366 hub canonical id (OD-12)
+    - T-3423 per-peer least-privilege hub credentials across operators (832 request T-1107; operator ruling T-3422 A)
 aef_followups:
   - send-and-wait tool (CAND-10); TermLink supplies T-3347 -- framework:pickup 
     offset 318
