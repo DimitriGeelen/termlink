@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3419: arc-011 PH-1: sweeper decides a delivery attempt before its CLAIMED line (UNCERTAIN recorded before CLAIMED; hooks_scripted_demo flake)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-12T11:49:44Z
+# ============================================================================
+
+task_id: T-3419
+task_name: "arc-011 PH-1: sweeper decides a delivery attempt before its CLAIMED line (UNCERTAIN recorded before CLAIMED; hooks_scripted_demo flake)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-12T11:36:32Z
+completed: 2026-10-12T11:49:19Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-10-12T13:48:40+02:00
+last_commit: 2026-10-12T13:48:40+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  sweeper decides only attempts with a CLAIMED line (UNCERTAIN was recorded before CLAIMED under load); regression test; honest waits in the e2e deliver test
+
+# Key outcomes
+outcomes:
+  - '`Deliverer::sweep` decides only attempts whose CLAIMED line is on the chain; an attempt record without one is left alone (a live `pull` is about to write the line; after a crash, start-up recovery closes it as an orphan)'
+  - 'A deterministic regression test stops `pull` between the attempt record and CLAIMED (`KillPoint::AfterRecord`), runs a sweep, and asserts nothing is recorded for that attempt; it fails on the unfixed code'
+  - 'The sidecar suite passes, and `scripts/arc011-mutants.sh` passes with all 18 mutants killed'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-sidecar/src/deliver.rs'
+  - 'crates/termlink-sidecar/tests/deliver_tests.rs'
+  - '.tasks/active/T-3419-arc-011-ph-1-sweeper-decides-a-delivery-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-12T13:48:40'
+    action: 'T-3419: sweeper decides only attempts with a CLAIMED line (UNCERTAIN was recorded before CLAIMED under load); regression test; honest waits in the e2e deliver test'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 12 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 12
+  commits: 2
+  files_changed: 5
+  lines_added: 432
+  lines_removed: 3
+  footprint_refreshed_at: '2026-10-12T11:50:58Z'
+  footprint_refreshed_by_commit: 25bee2c35
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3419-arc-011-ph-1-sweeper-decides-a-delivery-.md
+generated_by: context-agent-hybrid

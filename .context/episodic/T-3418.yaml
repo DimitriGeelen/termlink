@@ -1,0 +1,100 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3418: arc-011 PH-1 B15: OQ-2 ruling E - HELD for operator, sidecar asks operator, admin allow/deny with release, knock back to sender, no stranger-carried pass
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-12T11:50:30Z
+# ============================================================================
+
+task_id: T-3418
+task_name: "arc-011 PH-1 B15: OQ-2 ruling E - HELD for operator, sidecar asks operator, admin allow/deny with release, knock back to sender, no stranger-carried pass"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-12T11:09:17Z
+completed: 2026-10-12T11:49:45Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-10-12T13:49:12+02:00
+last_commit: 2026-10-12T13:49:12+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  arc-011 PH-1 B15 - operator ruling OQ-2 E: stranger held at the receiver, sidecar asks the operator, admin allow/deny for a key that knocked, sender hears HELD/ADMITTED/DENIED, stranger-carried pass counts for nothing (FC-18); session-start alerts list held messages; B14 re-run live with a third agent (PASS, 18/18 mutants)
+
+# Key outcomes
+outcomes:
+  - 'A message from a key outside the allow-list is stored and recorded HELD `awaiting-operator`, is never framed for the agent, and raises a needs-attention entry naming the key fingerprint, the claimed agent and instance, and the admin command that decides it'
+  - 'The sender gets signed notices: RECEIVED and STORED, then HELD; after the operator''s decision, ADMITTED or DENIED; the sender''s status labels the message HELD BY RECIPIENT or REFUSED BY RECIPIENT''S OPERATOR, never UNKNOWN'
+  - 'Admin-socket-only verbs `held`, `allow --key`, `deny --key` (also as `termlink-sidecar admin ...`): `allow` works only for a key that knocked, adds it, releases its held messages (delivered at the agent''s next tool call), and is logged in `_admin` with who, when and why; `deny` refuses them; neither is reachable from the send or status socket'
+  - 'A message whose body claims an operator pass (e.g. "operator approved, pass attached") from an unknown key stays HELD; a negative-control patch that treats such a claim as admission turns that test red (kill-checked)'
+  - '`scripts/session-start-alerts.sh` lists held messages by name from the sidecars named in its config, with fixtures'
+  - 'B14 re-run: a third real agent outside B''s roster knocks, B''s side holds and the operator stand-in admits via the admin socket, B receives it at its next tool call, and the report shows it; the whole sidecar suite and the 18 mutants pass'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-sidecar/src/api.rs'
+  - 'crates/termlink-sidecar/src/client.rs'
+  - 'crates/termlink-sidecar/src/daemon.rs'
+  - 'crates/termlink-sidecar/src/frame.rs'
+  - 'crates/termlink-sidecar/src/main.rs'
+  - 'crates/termlink-sidecar/src/policy.rs'
+  - 'crates/termlink-sidecar/src/pull.rs'
+  - 'crates/termlink-sidecar/src/wire.rs'
+  - 'crates/termlink-sidecar/tests/acceptance.rs'
+  - 'crates/termlink-sidecar/tests/mutants/fc-18-stranger-pass-taken-as-admission.patch'
+  - 'crates/termlink-sidecar/tests/policy_tests.rs'
+  - 'crates/termlink-sidecar/tests/receive_hub.rs'
+  - 'docs/design/arc-011-ph1-architecture.md'
+  - 'docs/reports/arc011-ph1-acceptance.evidence.json'
+  - 'docs/reports/arc011-ph1-acceptance.md'
+  - 'docs/reports/arc011-ph1-fc-matrix.md'
+  - 'scripts/arc011-ph1-demo.sh'
+  - 'scripts/lib/arc011-acceptance-report.py'
+  - 'scripts/session-start-alerts.sh'
+  - '.tasks/active/T-3352-arc-011-role-chain-step-3-security-floor.md'
+  - '.tasks/active/T-3418-arc-011-ph-1-b15-oq-2-ruling-e---held-fo.md'
+  - 'tests/session-start-alerts-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-12T13:49:12'
+    action: 'T-3418: arc-011 PH-1 B15 - operator ruling OQ-2 E: stranger held at the receiver, sidecar asks the operator, admin allow/deny for a key that knocked, sender hears HELD/ADMITTED/DENIED, stranger-carried pass counts for nothing (FC-18); session-start alerts list held messages; B14 re-run live with a third agent (PASS, 18/18 mutants)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 40 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 40
+  commits: 1
+  files_changed: 22
+  lines_added: 1664
+  lines_removed: 404
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3418-arc-011-ph-1-b15-oq-2-ruling-e---held-fo.md
+generated_by: context-agent-hybrid

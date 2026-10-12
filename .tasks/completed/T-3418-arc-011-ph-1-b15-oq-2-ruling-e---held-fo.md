@@ -4,12 +4,12 @@ name: "arc-011 PH-1 B15: OQ-2 ruling E - HELD for operator, sidecar asks operato
 description: >
   arc-011 PH-1 B15: OQ-2 ruling E - HELD for operator, sidecar asks operator, admin allow/deny with release, knock back to sender, no stranger-carried pass
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-sidecar/src/client.rs, crates/termlink-sidecar/tests/acceptance.rs, scripts/lib/arc011-acceptance-report.py]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -38,8 +38,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-12T11:09:17Z
-last_update: 2026-10-12T11:49:12Z
-date_finished: null
+last_update: 2026-10-12T11:49:45Z
+date_finished: 2026-10-12T11:49:45Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -362,3 +362,20 @@ grep -q "Ruled 2026-10-12: E" docs/design/arc-011-ph1-architecture.md
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3418-arc-011-ph-1-b15-oq-2-ruling-e---held-fo.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-2120b1df
+- **Timestamp:** 2026-10-12T11:50:21Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#5 (Agent)** — `scripts/session-start-alerts.sh` lists held messages by name from the sidecars named in its config, with fixtures
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=scripts/session-start-alerts.sh in: `scripts/session-start-alerts.sh` lists held messages by name from the sidecars named in its config, with fixtures`
+
+### 2026-10-12T11:49:45Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
