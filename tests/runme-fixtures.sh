@@ -120,6 +120,18 @@ with open(os.environ["RUNME_HUMAN_TICKS_LEDGER"], "a") as f:
 EOF
 ticks_recorded() { : > "$RUNME_HUMAN_TICKS_LEDGER"; for t in T-3349 T-3351 T-3388; do echo "{\"by\": \"fixture\", \"task\": \"$t\", \"via\": \"operator-ack\"}" >> "$RUNME_HUMAN_TICKS_LEDGER"; done; }   # every tick runme lists (T-3393)
 ticks_recorded
+# T-3416 (action 15): fake testdev claude + fake installer. FAKE_CLAUDE_NEW is the
+# version the installer leaves (empty = installs nothing). Default = current version
+# already installed, so every other case skips the action. No real user, download or
+# binary is touched.
+export RUNME_TESTDEV_CLAUDE="$TMP/testdev-claude" RUNME_TESTDEV_INSTALL="bash $TMP/fake-claude-install"
+fake_claude() { printf '#!/usr/bin/env bash\necho "%s (Claude Code)"\n' "$1" > "$RUNME_TESTDEV_CLAUDE"; chmod +x "$RUNME_TESTDEV_CLAUDE"; }
+cat > "$TMP/fake-claude-install" <<'EOF'
+#!/usr/bin/env bash
+[ -n "${FAKE_CLAUDE_NEW:-}" ] || exit 0
+printf '#!/usr/bin/env bash\necho "%s (Claude Code)"\n' "$FAKE_CLAUDE_NEW" > "$RUNME_TESTDEV_CLAUDE"; chmod +x "$RUNME_TESTDEV_CLAUDE"
+EOF
+fake_claude 2.1.296
 # T-3343 (action 12): fake stray hub. Default = no pidfile in the stray dir, so every
 # other case skips the action. The fake termlink records a stop and then answers
 # status with the canonical pid; the fake liveness reads a state file; no real
@@ -347,7 +359,7 @@ if [ "$(id -u)" != "0" ] && [ -n "${CI:-}" ]; then
 fi
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|') + 14 ))   # +3 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
+EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 15 ))   # +1 testdev claude (T-3416); +3 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -939,6 +951,33 @@ if [ "$rc" != "0" ] && echo "$out" | grep -q "FAILED  human_ac_ticks ack T-3349 
     ok "operator tick: an ack that records nothing is FAILED, not OK"
 else bad "tick nowrite" "rc=$rc: $out"; fi
 ticks_recorded
+
+# 27. T-3416 — current Claude Code for testdev (fake binary and installer only).
+rm -f "$RUNME_TESTDEV_CLAUDE"
+out=$(run --dry-run); rc=$?
+if echo "$out" | grep -q "would install Claude Code for testdev" && [ ! -e "$RUNME_TESTDEV_CLAUDE" ]; then
+    ok "testdev claude: --dry-run reports and installs nothing"
+else bad "testdev dry-run" "rc=$rc: $out"; fi
+fake_claude 2.1.27
+out=$(FAKE_CLAUDE_NEW=2.1.300 run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      testdev now has Claude Code 2.1.300" && "$RUNME_TESTDEV_CLAUDE" --version | grep -q 2.1.300; then
+    ok "testdev claude: an old version is replaced and verified by running it"
+else bad "testdev install" "rc=$rc: $out"; fi
+out=$(run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "skip    testdev already has Claude Code 2.1.300"; then
+    ok "testdev claude: second run skips (idempotent)"
+else bad "testdev idempotent" "rc=$rc: $out"; fi
+fake_claude 2.1.27
+out=$(FAKE_CLAUDE_NEW= run); rc=$?
+if [ "$rc" != "0" ] && echo "$out" | grep -q "FAILED  the installer ran but .* reports '2.1.27', need >= 2.1.296"; then
+    ok "testdev claude: an installer that leaves the old version is FAILED, not OK"
+else bad "testdev old stays" "rc=$rc: $out"; fi
+rm -f "$RUNME_TESTDEV_CLAUDE"
+out=$(FAKE_CLAUDE_NEW= run); rc=$?
+if [ "$rc" != "0" ] && echo "$out" | grep -q "FAILED  the installer ran but .* reports 'nothing'"; then
+    ok "testdev claude: an installer that leaves no binary is FAILED, not OK"
+else bad "testdev none" "rc=$rc: $out"; fi
+fake_claude 2.1.296
 
 echo ""
 echo "----------------------------------------"

@@ -1111,6 +1111,52 @@ head2 "14. Record your own Watchtower ticks (T-3349 step 1, T-3351 step 2, T-338
 ack_operator_ticks
 
 # ---------------------------------------------------------------------------
+# ACTION 15 — current Claude Code for the test user `testdev` (T-3416, arc-011 B14 prep)
+#
+# B14 runs two real Claude Code sessions as the unprivileged `testdev` user (OQ-3). You
+# logged testdev in on 2026-10-12, but its `claude` is an old npm install (2.1.27) while
+# the transcript evidence the sidecar relies on was measured on 2.1.296. This installs
+# the native Claude Code for testdev with the official installer, run AS testdev, into
+# testdev's own home. Nothing of yours is copied: not the binary, not the login.
+# Idempotent: skipped when testdev's native claude already reports >= the minimum.
+# Verified by running the installed binary's --version after installing.
+# Seams (fixtures only): RUNME_TESTDEV_CLAUDE, RUNME_TESTDEV_INSTALL.
+# ---------------------------------------------------------------------------
+seam TESTDEV_CLAUDE RUNME_TESTDEV_CLAUDE "/home/testdev/.local/bin/claude"
+seam TESTDEV_INSTALL RUNME_TESTDEV_INSTALL "su - testdev -c 'curl -fsSL https://claude.ai/install.sh | bash'"
+TESTDEV_CLAUDE_MIN="2.1.296"
+
+testdev_claude_version() {  # -> version number, or empty when absent/broken
+    [ -x "$TESTDEV_CLAUDE" ] || return 0
+    "$TESTDEV_CLAUDE" --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1
+}
+version_at_least() {  # <have> <want> -> 0 when have >= want
+    [ -n "$1" ] && [ "$(printf '%s\n%s\n' "$2" "$1" | sort -V | head -1)" = "$2" ]
+}
+
+install_testdev_claude() {
+    local have
+    have="$(testdev_claude_version)"
+    if version_at_least "$have" "$TESTDEV_CLAUDE_MIN"; then
+        say "  skip    testdev already has Claude Code $have at $TESTDEV_CLAUDE (>= $TESTDEV_CLAUDE_MIN)"; SKIPPED=$((SKIPPED+1)); return
+    fi
+    if [ "$DRY_RUN" = "1" ]; then
+        say "  [DRY]   would install Claude Code for testdev (official installer, run as testdev) into $TESTDEV_CLAUDE; now: ${have:-none}"; DONE=$((DONE+1)); return
+    fi
+    say "  ...     installing Claude Code for testdev (downloads from claude.ai; ${have:-no native install yet})"
+    bash -c "$TESTDEV_INSTALL" 2>&1 | tail -5 | sed 's/^/          /'
+    have="$(testdev_claude_version)"
+    if version_at_least "$have" "$TESTDEV_CLAUDE_MIN"; then
+        say "  OK      testdev now has Claude Code $have at $TESTDEV_CLAUDE (verified by running it)"; DONE=$((DONE+1))
+    else
+        say "  FAILED  the installer ran but $TESTDEV_CLAUDE reports '${have:-nothing}', need >= $TESTDEV_CLAUDE_MIN"; FAILED=$((FAILED+1))
+    fi
+}
+
+head2 "15. Current Claude Code for the test user testdev (T-3416, needed for the arc-011 two-agent test)"
+install_testdev_claude
+
+# ---------------------------------------------------------------------------
 # Verification — the project's own drift checker is the arbiter, not this script.
 # Using the repo's existing check rather than a bespoke one means this cannot
 # quietly disagree with what `fw audit` will say five minutes from now.
