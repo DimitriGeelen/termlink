@@ -1,0 +1,88 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3424: runme action 17: arc-011 PH-1 demonstration for the operator to watch (X6), runs once, verified by the PASS report
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-12T14:29:47Z
+# ============================================================================
+
+task_id: T-3424
+task_name: "runme action 17: arc-011 PH-1 demonstration for the operator to watch (X6), runs once, verified by the PASS report"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-12T14:15:48Z
+completed: 2026-10-12T14:29:37Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-10-12T16:19:25+02:00
+last_commit: 2026-10-12T16:29:36+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  runme action 17 - the arc-011 PH-1 demonstration for the operator to watch (X6), once, OK only on a PASS report from this run; fixture case 29 (117/117). X6 - the operator ran the arc-011 PH-1 demonstration (runme action 17, PASS); report from that run; recorded in T-3352. action 17 removed as permanently done (X6 recorded); fixtures 112/112
+
+# Key outcomes
+outcomes:
+  - '`runme.sh` action 17 runs `scripts/arc011-ph1-demo.sh` once: it skips when its done-marker exists, and writes the marker only when the demo exits 0 and the report it wrote during this run says `Verdict: PASS`; any other outcome is FAILED and leaves no marker'
+  - '`tests/runme-fixtures.sh` covers it hermetically (dry run, pass writes the marker, second run skips, a failing demo and a non-PASS report are FAILED) through `RUNME_*` seams; the whole suite passes'
+  - 'The operator has run `/opt/termlink/runme.sh`, `latest.log` shows action 17 OK and `rc=0`, the fresh report is committed, and X6 is recorded in T-3352 (run 2026-10-12T14:22Z, `runme-20261012T142212Z-2555818.log`, rc=0; report Verdict PASS committed in 703a83fd8; the action and its fixtures were then removed as permanently done, suite 112/112)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'action 17 removed as permanently done (X6 recorded); fixtures 112/112'
+    source: git-mined
+  - description: 'runme action 17 - the arc-011 PH-1 demonstration for the operator to watch (X6), once, OK only on a PASS report from this run; fixture case 29 (117/117)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/reports/arc011-ph1-acceptance.evidence.json'
+  - 'docs/reports/arc011-ph1-acceptance.md'
+  - 'runme.sh'
+  - '.tasks/active/T-3352-arc-011-role-chain-step-3-security-floor.md'
+  - '.tasks/active/T-3424-runme-action-17-arc-011-ph-1-demonstrati.md'
+  - 'tests/runme-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-12T16:19:25'
+    action: 'T-3424: runme action 17 - the arc-011 PH-1 demonstration for the operator to watch (X6), once, OK only on a PASS report from this run; fixture case 29 (117/117)'
+  - time: '2026-10-12T16:26:15'
+    action: 'T-3424: X6 - the operator ran the arc-011 PH-1 demonstration (runme action 17, PASS); report from that run; recorded in T-3352'
+  - time: '2026-10-12T16:29:36'
+    action: 'T-3424: action 17 removed as permanently done (X6 recorded); fixtures 112/112'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 13 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 13
+  commits: 3
+  files_changed: 6
+  lines_added: 756
+  lines_removed: 386
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3424-runme-action-17-arc-011-ph-1-demonstrati.md
+generated_by: context-agent-hybrid

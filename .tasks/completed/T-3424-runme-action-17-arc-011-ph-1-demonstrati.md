@@ -4,12 +4,12 @@ name: "runme action 17: arc-011 PH-1 demonstration for the operator to watch (X6
 description: >
   runme action 17: arc-011 PH-1 demonstration for the operator to watch (X6), runs once, verified by the PASS report
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [runme.sh, tests/runme-fixtures.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -38,8 +38,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-12T14:15:48Z
-last_update: 2026-10-12T14:29:36Z
-date_finished: null
+last_update: 2026-10-12T14:29:37Z
+date_finished: 2026-10-12T14:29:37Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -355,3 +355,24 @@ test -s .context/working/arc011-x6-demo.done
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3424-runme-action-17-arc-011-ph-1-demonstrati.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-142420c8
+- **Timestamp:** 2026-10-12T14:29:39Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 3
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — `runme.sh` action 17 runs `scripts/arc011-ph1-demo.sh` once: it skips when its done-marker exists, and writes the marker only when the demo exits 0 and the report it wrote during this run says `Verdic
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=scripts/arc011-ph1-demo.sh in: `runme.sh` action 17 runs `scripts/arc011-ph1-demo.sh` once: it skips when its done-marker exists, and writes the marker only when the demo exits 0 an`
+- **AC#2 (Agent)** — `tests/runme-fixtures.sh` covers it hermetically (dry run, pass writes the marker, second run skips, a failing demo and a non-PASS report are FAILED) through `RUNME_*` seams; the whole suite passes
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=tests/runme-fixtures.sh in: `tests/runme-fixtures.sh` covers it hermetically (dry run, pass writes the marker, second run skips, a failing demo and a non-PASS report are FAILED) `
+- **AC#3 (Agent)** — The operator has run `/opt/termlink/runme.sh`, `latest.log` shows action 17 OK and `rc=0`, the fresh report is committed, and X6 is recorded in T-3352 (run 2026-10-12T14:22Z, `runme-20261012T142212Z-2
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=opt/termlink/runme.sh in: The operator has run `/opt/termlink/runme.sh`, `latest.log` shows action 17 OK and `rc=0`, the fresh report is committed, and X6 is recorded in T-3352`
+
+### 2026-10-12T14:29:37Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
