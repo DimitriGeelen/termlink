@@ -268,6 +268,15 @@ grep -q 'task: T-3352' docs/design/interactive-agent-communication-role-chain.ya
   delete it (G-062), and PH-1 was already built, tested and live-proven there (18 kill-checked controls, B14 PASS).
 - **Rejected:** B, Python in the vendored framework tree with a later port (re-vendor loss; a rewrite of what exists).
 
+### 2026-10-12 — PH-1 exit X6: the operator ran the demonstration (record)
+- **What happened:** the operator chose to watch it live (option A) and ran `/opt/termlink/runme.sh` in their own
+  terminal; action 17 (T-3424) ran `scripts/arc011-ph1-demo.sh` at 2026-10-12T14:22Z on commit 640e26231. Log
+  `.context/working/runme-logs/runme-20261012T142212Z-2555818.log`: action 17 OK, runme rc=0.
+- **Result:** `docs/reports/arc011-ph1-acceptance.md` Verdict PASS: X1 pass, OQ-2 E pass (a third agent held, admitted,
+  delivered and answered), X3 17 of 17 floor items, X4 no production path opened, SI-25 clean, teardown clean.
+  X2 (18 of 18 mutants killed) and X5 (soak) were met earlier (`arc011-ph1-fc-matrix.md`, `arc011-ph1-soak.md`).
+- **So:** all PH-1 exit criteria X1..X6 are met. Moving to PH-2 is the operator's decision (5.9.6), not taken here.
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
