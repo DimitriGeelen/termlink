@@ -274,7 +274,7 @@ D-4 text: 1 The sender-visible labels of PH-1 are WAITING, WAITING FOR RECIPIENT
 
 | Id | Decision | Options | Recommendation |
 |---|---|---|---|
-| OQ-1 | Implementation language and home of PH-1 | A Rust crate in the binary; B Python in the vendored tree then port | A (OD-9 C; avoids the G-062 re-vendor loss) |
+| OQ-1 | Implementation language and home of PH-1 | A Rust crate in the binary; B Python in the vendored tree then port | **Ruled 2026-10-12: A** (Rust, in the TermLink workspace as `crates/termlink-sidecar`, as built; T-3352 Decisions) |
 | OQ-2 | Message from a sender outside the roster | A withhold, show to operator; B deliver framed as untrusted | **Ruled 2026-10-12: E** (neither): the receiving side holds it and asks the operator itself; only the operator admits, through the admin route; a stranger-carried pass counts for nothing; the sender gets a knock back (T-3352 Decisions; built in B15) |
 | OQ-3 | Unprivileged `testdev` with its own Claude login for the acceptance run | A operator provisions once; B run as root and defer the E-7 measurement | A (E-7 asks for it; B lowers the proof) |
 

@@ -25,7 +25,7 @@ related_tasks: [T-3344]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:13:12Z
-last_update: 2026-10-11T12:01:33Z
+last_update: 2026-10-12T14:06:45Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -261,6 +261,12 @@ grep -q 'task: T-3352' docs/design/interactive-agent-communication-role-chain.ya
 - **Limits accepted:** in PH-1 the operator sees the question at the next session start on this host (away-from-host
   reach is T-3385); "from the operator" means the admin route the operator runs, separated by convention until Track A
   and an operator key.
+
+### 2026-10-12 — OQ-1 implementation language and home of the sidecar (operator ruling)
+- **Chose:** A: Rust, in the TermLink workspace (`crates/termlink-sidecar`), as built for PH-1 (B1..B15).
+- **Why:** the recommendation (OD-9 C): it lives in the binary's own workspace, so a re-vendor of the framework cannot
+  delete it (G-062), and PH-1 was already built, tested and live-proven there (18 kill-checked controls, B14 PASS).
+- **Rejected:** B, Python in the vendored framework tree with a later port (re-vendor loss; a rewrite of what exists).
 
 ## Decision
 
