@@ -14,6 +14,7 @@
 | 0.8 DRAFT | 2026-10-12 | 4.6/6.4: start-up recovery closes orphan claims (a claim file with no CLAIMED line for its attempt: the frame provably never left) with ABSENT `orphan`; the sidecar sweeps open attempts through the finalizer every 2 s (final check after 60 s), so a crash after the frame left still ends decided. Both found by the B13 soak design: without them a crash between claim and frame blocks a message forever. Soak result in `docs/reports/arc011-ph1-soak.md`. | T-3414 |
 | 0.9 DRAFT | 2026-10-12 | 8.1 E-4/E-7 as built (B14, OQ-3): the whole acceptance run is unprivileged. The test runs as `testdev` under `strace -f`, so the hub, both sidecars and both Claude Code sessions run as that account; the sidecars therefore pass their own owner check (PR-8) when the agents' hooks connect. The agents keep their account's HOME and own Claude login; only the sidecars' HOME is inside the estate, and `Config.claude_projects` tells a sidecar where its agent's transcripts are (a configured path; still no verb takes one, 3.3). 3.2: the agent-side client verbs `send`, `reply` and `status` of the `termlink-sidecar` binary are what an agent runs from its Bash tool; they use the send and status sockets only. 8.3 X4: the path-open audit of the acceptance run is the strace of every process of the run (production paths defined in the report), in addition to the testkit's `/proc/<pid>/fd` and mtime checks. Report: `docs/reports/arc011-ph1-acceptance.md`. | T-3417 |
 | 0.10 DRAFT | 2026-10-12 | 7.2 rewritten for the operator's OQ-2 ruling E (B15, T-3418): hold, the receiving side asks the operator itself, `allow`/`deny` on the admin socket only for a key that knocked, the sender hears HELD then ADMITTED or DENIED, a stranger-carried pass counts for nothing (FC-18). 3.2 gains `held`, `allow`, `deny` (admin). The trust class gains `admitted-by-operator`. | T-3418 |
+| 0.11 | 2026-10-12 | Stale text corrected against the code (PH-2 row P0, gap map D-1 to D-3 and D-5 to D-7): 2.1 separate binary as built; C-10 has no own file; `handed-over` takes no path; 7.3 kill switch as built; 8.3 also strace; `known_peers.rs` unused; 6.2 hook command as built. D-4 (STUCK 10 min) and D-8 (READY 24 h) are code-vs-requirement and are fixed by PH-2 rows P2 and P20 | T-3426 |
 
 Inputs of record: `interactive-agent-communication-01-requirements.md`, `-02-threat-model.md`, `-03-floor-and-phasing.md` (sections 3.3, 5, 5.6, 6.2.2, 13.2.14). Marks: **[A]** assumption to be verified by a build task; **OQ-n** a choice for the operator, with a recommendation. Scope limit: this note composes PH-1 and names where PH-2 grows from it; the full step-4 design (circuits, roles, cards, many-to-many) is not here.
 
@@ -24,7 +25,7 @@ Inputs of record: `interactive-agent-communication-01-requirements.md`, `-02-thr
 | Found | Where | PH-1 verdict |
 |---|---|---|
 | ed25519 identity, 32-byte seed, mode 0600, `Identity::{load_or_create,sign,verify,fingerprint}` | `crates/termlink-session/src/agent_identity.rs` | **Reuse.** The per-agent key of R-75. Keys are created in the estate (E-5), never from `~/.termlink` |
-| TOFU peer keyring | `known_peers.rs` | **Reuse as the PH-1 key roster**, filled by the harness from the two test keys. Cards and rosters (SI-12) are PH-3 |
+| TOFU peer keyring | `known_peers.rs` | Not used after all: the PH-1 roster is `wire::Roster` (filled by the harness; `daemon.rs`, `policy.rs`). Cards and rosters (SI-12) are PH-3 |
 | Hub `channel.post` verifies an ed25519 signature over `canonical_sign_bytes(topic, msg_type, payload, artifact_ref, ts)` and checks `sender_id` against the key fingerprint (T-1427) | `termlink-protocol/src/control.rs`, `termlink-hub/src/channel.rs:827-890` | **Reuse unchanged.** The hub already refuses a bad signature (FC-1, hub half). **Finding:** the signed bytes do **not** cover `metadata`, so conversation id, message id, priority and recipient instance MUST sit inside `payload` (section 5.1). No hub change |
 | Durable client outbox (SQLite, cap, dead letters, `client_msg_id` dedupe) | `offline_queue.rs`, hub dedupe T-2049 | **Reuse** for the send side (FC-8). It is not the receiver store |
 | Hub `hub_id` from the TLS fingerprint; `inbox:<hub-id>/<project>` topic names | `termlink-hub/src/tls.rs:48`, `router.rs:817` | **Reuse** for FX-2: the sidecar pins the declared `hub_id` |
@@ -37,7 +38,7 @@ Inputs of record: `interactive-agent-communication-01-requirements.md`, `-02-thr
 
 ## 2 Components and where the code lives
 
-2.1 One new crate, `crates/termlink-sidecar` (library) plus a thin `termlink sidecar ...` subcommand group in `termlink-cli` (new file `commands/sidecar.rs`). The hub is untouched in PH-1. Dependencies: `termlink-session` (identity, client, offline queue), `termlink-protocol`, `termlink-bus` types, `ed25519-dalek`, `sha2`. No new network surface.
+2.1 One new crate, `crates/termlink-sidecar` (library). As built it ships as a separate binary, `termlink-sidecar` (`src/main.rs`, version 0.5); the `termlink sidecar ...` subcommand group in `termlink-cli` comes in PH-2 row P1 (OQ-a ruled A, `arc-011-ph2-architecture.md`). The hub is untouched in PH-1. Dependencies: `termlink-session` (identity, client, offline queue), `termlink-protocol`, `termlink-bus` types, `ed25519-dalek`, `sha2`. No new network surface.
 
 | Id | Module (in `termlink-sidecar/src`) | Job | Floor items |
 |---|---|---|---|
@@ -50,7 +51,7 @@ Inputs of record: `interactive-agent-communication-01-requirements.md`, `-02-thr
 | C-7 | `policy.rs` | Receiver checks: SI-18 (priority, urgency, trust class), SI-23 kill switch, allow-list (section 7) | SI-18, SI-23 |
 | C-8 | `frame.rs` | Frame peer content with a random boundary; delivery nonce | SI-7, SI-8 |
 | C-9 | `deliver.rs` | Atomic claim, hand-over, evidence finalizer, HANDED_OVER | SI-30, SI-17 |
-| C-10 | `stage.rs` | Stage records (signed, chained), the four labels, the record print | SI-6, R-44 |
+| C-10 | (no own file; as built in `api.rs`, `deliver.rs`, `wire.rs` with `wire::NOTICES`) | Stage records (signed, chained), the four labels, the record print | SI-6, R-44 |
 | C-11 | `adapter/claude.rs` | The Claude adapter: hook entry points `post-tool-use`, `stop`, `session-start`; transcript evidence reader (section 6) | R-47, R-48 |
 | C-12 | `termlink-sidecar/testkit` (dev-dependency crate or `tests/`) | The disposable estate harness and the kill-point and mutation tools (sections 8, 9) | X2, X4, X5 |
 
@@ -89,7 +90,7 @@ D-1 text: 1 Each agent has one sidecar; the sidecar is the only thing that talks
 | `status` | status | `msg_id` or `conv` or none | Stage rows with times and chain head; own strength flags; hub id; absent flags named | The record print of BV-7. Names "no per-agent accounts", "no operator key" (3.1.e) |
 | `pull` | send (hook) | `session`, `hook` (`post-tool-use`/`stop`) | `{frame, nonce, msg_ids}` or `{none:true}` | Does steps 7.3 to 8.2 below in one call: checks, atomic claim, frame. Called by the hook, never by the model |
 | `claim` | send (hook) | `msg_id` | `{claimed:true, attempt}` or refusal | The atomic claim alone, exposed for tests and for the finalizer; `pull` uses it internally |
-| `handed-over` | send (hook/finalizer) | `msg_id`, `nonce`, `transcript_path` | `{stage}` | Records HANDED_OVER only if C-11's reader finds the nonce (SI-17). A caller cannot assert it |
+| `handed-over` | send (hook/finalizer) | `msg_id`, `nonce` (no path: version 0.4; the transcript location is configuration, 3.3) | `{stage}` | Records HANDED_OVER only if C-11's reader finds the nonce (SI-17). A caller cannot assert it |
 | `reply` | send | `conv`, `in_reply_to`, `body` | `{msg_id}` | Same path as `send` with roles swapped (R-27). The reply is REPLIED for the original once the reply is SENT |
 | `held` | admin | `body` (optional, bool) | `{held:[{key, conv, msg_id, held_at_ms, claims_agent, claims_instance, decide}]}` | OQ-2 E (B15): what the receiving side holds for the operator, by name; the text only on request. Not reachable from the agent sockets |
 | `allow` / `deny` | admin | `key` (the knocking fingerprint), `why` | `{decision, messages, notice_errors}` | OQ-2 E: the operator's answer. Only a key that knocked can be decided (`no-knock` otherwise), so this answers a question the sidecar asked; it is not a general allow-list knob. Logged in `_admin` (ALLOW/DENY, who, when, why); the held messages get ADMITTED or REFUSED `refused-by-operator`, and the sender gets the notice |
@@ -142,7 +143,7 @@ A failure at any step stops before STORED is reported (FC-2). After a kill, star
 
 6.1 OP-21 B (ruled 2026-10-11): every message is delivered at the receiving agent's next tool call, as today. So every delivery is mid-turn, which is why SI-18, SI-23 and the allow-list are in PH-1 (section 7).
 
-6.2 Hooks (the Claude adapter, R-47/R-48), installed only in the estate agents' own `settings.json`:
+6.2 Hooks (the Claude adapter, R-47/R-48), installed only in the estate agents' own `settings.json`: (as built the command is `termlink-sidecar hook <event>`; it becomes `termlink sidecar hook <event>` with PH-2 row P1)
 
 | Event | Command | Job |
 |---|---|---|
@@ -219,7 +220,7 @@ D-4 text: 1 The sender-visible labels of PH-1 are WAITING, WAITING FOR RECIPIENT
 7.2.d A stranger-carried pass counts for nothing: nothing in a message reaches `policy.rs` except its verified sender and priority (static test), and a body claiming an approval is held like any other (FC-18, kill-checked).
 7.2.e The sender always hears back: RECEIVED, STORED, then the notice HELD; after the decision, ADMITTED or DENIED (`wire::NOTICES`, recorded once each, outside the forward-only stage order). Its status shows HELD BY RECIPIENT (awaiting their operator) or REFUSED BY RECIPIENT'S OPERATOR, never UNKNOWN. This replaces the B8 rule "a sender outside the allow-list is never answered": the notices go to the inbox the message names, so a forger can make the receiver post at most one notice set per message it sends itself, and the named agent's sidecar ignores and shows stage records for messages it did not send (tested in `receive_hub`).
 
-7.3 SI-23 kill switch: `admin` socket `delivery off [--agent X|--all]`; sets a flag file in the store that `pull` and `deliver` read on every call (so "within one tick" holds: no cached copy), logs who/when/why to the chain, and `status` shows it. Off means no frame is printed; messages keep arriving and storing (nothing lost). Re-enable is `delivery on`. Not callable from the agent socket (SI-14), tested.
+7.3 SI-23 kill switch: as built, a per-agent `delivery` op on that agent's `admin` socket (no `--agent`/`--all`, and no client verb yet; both come in PH-2 row P6); sets a flag file in the store that `pull` and `deliver` read on every call (so "within one tick" holds: no cached copy), logs who/when/why to the chain, and `status` shows it. Off means no frame is printed; messages keep arriving and storing (nothing lost). Re-enable is `delivery on`. Not callable from the agent socket (SI-14), tested.
 7.4 SI-7/SI-8 as in 6.5. SI-8: no code path reads a grant, an approval or a trust change from a message body; the only inputs to `policy.rs` are the verified key, the roster and the signed numeric fields (a static test greps for any other field read).
 
 ## 8 The disposable estate (E-1..E-5) as a reusable harness
@@ -231,7 +232,7 @@ D-4 text: 1 The sender-visible labels of PH-1 are WAITING, WAITING FOR RECIPIENT
 - **E-4** two agents: for unit and integration tests, a scripted fake harness that writes transcript records in the real Claude Code shape (fixtures captured from a real session); for the acceptance run, two real Claude Code sessions (`claude -p`/interactive via TermLink PTY) as unprivileged `testdev` (E-7 **[A]**: its Claude login is provisioned without copying the operator's credential; **OQ-3**, recommended: the operator provisions `testdev` once);
 - **E-5** keys generated per run into `$ESTATE/keys`, deleted by `Estate::drop`; the secret-canary (FC-17) is exported into the environment of every child.
 8.2 Teardown deletes the tree, kills the hub, and asserts no process of the estate survives. Rollback of PH-1 is exactly this (6.2.2).
-8.3 The harness also carries: the **kill-point driver** (a cargo feature `failpoints` compiled only in test builds that aborts the process at a named step of 4.3 or 6.4), the **mutation runner** (section 9.3), the **path-open audit** (strace-free: the harness replaces `HOME`/runtime and lists every path the sidecar opened outside `$ESTATE` through a `tracing` open-wrapper in test builds, plus a post-run scan of `/proc/<pid>/fd` and the production paths' mtimes), and the **secret scan** (SI-25: scans the estate tree, logs, status output, frames and stage records for the canary).
+8.3 (As built, version 0.9: the acceptance run's path-open audit additionally ran every process under `strace -f`; the open-wrapper below is the unit-test form.) The harness also carries: the **kill-point driver** (a cargo feature `failpoints` compiled only in test builds that aborts the process at a named step of 4.3 or 6.4), the **mutation runner** (section 9.3), the **path-open audit** (strace-free: the harness replaces `HOME`/runtime and lists every path the sidecar opened outside `$ESTATE` through a `tracing` open-wrapper in test builds, plus a post-run scan of `/proc/<pid>/fd` and the production paths' mtimes), and the **secret scan** (SI-25: scans the estate tree, logs, status output, frames and stage records for the canary).
 
 ## 9 How each fail-closed row and each FC-n is tested
 
