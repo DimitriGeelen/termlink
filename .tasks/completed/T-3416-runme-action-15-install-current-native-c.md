@@ -4,12 +4,12 @@ name: "runme action 15: install current native Claude Code for testdev (arc-011 
 description: >
   runme action 15: install current native Claude Code for testdev (arc-011 B14 prep, OQ-3)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [runme.sh, tests/runme-fixtures.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -38,8 +38,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-12T08:52:43Z
-last_update: 2026-10-12T09:02:25Z
-date_finished: null
+last_update: 2026-10-12T09:02:28Z
+date_finished: 2026-10-12T09:02:28Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -349,3 +349,15 @@ bash -n runme.sh
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3416-runme-action-15-install-current-native-c.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-f3d5a63b
+- **Timestamp:** 2026-10-12T09:05:05Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-10-12T09:02:28Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
