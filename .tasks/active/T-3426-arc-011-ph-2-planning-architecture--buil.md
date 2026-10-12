@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-12T19:17:19Z
-last_update: 2026-10-12T21:02:27Z
+last_update: 2026-10-12T21:27:45Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -341,7 +341,12 @@ date_finished: null
 ### 2026-10-12 — OQ-b: agents run as root, no local separation (operator ruling)
 - **Chose:** A — accept for PH-2; the status call states "same-user separation absent: agents run as root".
 - **Why:** PH-2 is one host, one project, the operator's own agents; real separation needs per-agent accounts (Track A), which needs PH-3's Tier 0 machinery.
-- **Rejected:** A+ (also surface every admin act and foreign use of a send socket after the fact; offered, not taken), B (wait for Track A: would fold PH-2 into PH-3).
+- **Rejected (OQ-b):** A+ (also surface every admin act and foreign use of a send socket after the fact; offered, not taken), B (wait for Track A: would fold PH-2 into PH-3).
+
+### 2026-10-12 — OQ-d: the tick (operator ruling)
+- **Chose:** A — tick = 30 s (R-17), the unit of every PH-2 bound; the 500 ms loop stays inside it for pulling, hand-over and the kill switch.
+- **Why:** keeps the signed-off requirement and today's delivery speed; one countable unit makes "within one tick" provable; simulated clock keeps tests fast.
+- **Rejected:** B poll = tick (bounds 60x tighter, revocation pull twice a second), C shorter tick (changes R-17).
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
