@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-12T19:17:19Z
-last_update: 2026-10-12T21:27:45Z
+last_update: 2026-10-12T21:45:31Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -347,6 +347,11 @@ date_finished: null
 - **Chose:** A — tick = 30 s (R-17), the unit of every PH-2 bound; the 500 ms loop stays inside it for pulling, hand-over and the kill switch.
 - **Why:** keeps the signed-off requirement and today's delivery speed; one countable unit makes "within one tick" provable; simulated clock keeps tests fast.
 - **Rejected:** B poll = tick (bounds 60x tighter, revocation pull twice a second), C shorter tick (changes R-17).
+
+### 2026-10-12 — OQ-c: when a message is STUCK (operator ruling)
+- **Chose:** A — R-44.e as written: not accepted 1 min; not handed over 2 ticks after the agent becomes ready; not answered 1 h (per-message override); urgent 15 s / next tool call or turn end / 5 min; each only while the responsible side is reachable; STUCK names the step. Replaces PH-1's single `STUCK_AFTER_MS` (10 min from STORED). Row P2.
+- **Why:** the signed-off requirement; counting from readiness removes false STUCK on a busy agent and detects a ready-but-unserved agent in about 1 min.
+- **Rejected:** B keep 10 min (slow and false alarms; GP-12 bounds assume 1 min), C looser numbers (changes R-44.e).
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
