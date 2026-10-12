@@ -132,6 +132,13 @@ cat > "$TMP/fake-claude-install" <<'EOF'
 printf '#!/usr/bin/env bash\necho "%s (Claude Code)"\n' "$FAKE_CLAUDE_NEW" > "$RUNME_TESTDEV_CLAUDE"; chmod +x "$RUNME_TESTDEV_CLAUDE"
 EOF
 fake_claude 2.1.296
+# T-3421 (action 16): a fake router and one fake claude-fw on PATH. Default = that path
+# already IS the router, so every other case skips the action once. No real PATH file.
+export RUNME_CLAUDE_FW_ROUTER="$TMP/claude-fw-router" RUNME_CLAUDE_FW_TARGETS="$TMP/cfw-a" RUNME_CLAUDE_FW_BACKUP_DIR="$TMP/cfw-backups"
+printf '#!/bin/bash\n# claude-fw-router (fixture)\nexec true "$@"\n' > "$RUNME_CLAUDE_FW_ROUTER"; chmod 755 "$RUNME_CLAUDE_FW_ROUTER"
+cfw_router() { cp "$RUNME_CLAUDE_FW_ROUTER" "$1"; chmod 755 "$1"; }
+cfw_old()    { printf '#!/bin/bash\n# old fixed copy of claude-fw\nexit 0\n' > "$1"; chmod 755 "$1"; }
+cfw_router "$TMP/cfw-a"
 # T-3343 (action 12): fake stray hub. Default = no pidfile in the stray dir, so every
 # other case skips the action. The fake termlink records a stop and then answers
 # status with the canonical pid; the fake liveness reads a state file; no real
@@ -359,7 +366,7 @@ if [ "$(id -u)" != "0" ] && [ -n "${CI:-}" ]; then
 fi
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 15 ))   # +1 testdev claude (T-3416); +3 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
+EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 16 ))   # +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +3 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -978,6 +985,31 @@ if [ "$rc" != "0" ] && echo "$out" | grep -q "FAILED  the installer ran but .* r
     ok "testdev claude: an installer that leaves no binary is FAILED, not OK"
 else bad "testdev none" "rc=$rc: $out"; fi
 fake_claude 2.1.296
+
+# 28. T-3421 — claude-fw on PATH becomes the router (fake files only).
+cfw_old "$TMP/cfw-a"; rm -f "$TMP/cfw-b"; rm -rf "$RUNME_CLAUDE_FW_BACKUP_DIR"
+out=$(RUNME_CLAUDE_FW_TARGETS="$TMP/cfw-a $TMP/cfw-b" run --dry-run); rc=$?
+if echo "$out" | grep -q "would replace $TMP/cfw-a" && grep -q "old fixed copy" "$TMP/cfw-a" && [ ! -e "$TMP/cfw-b" ]; then
+    ok "claude-fw router: --dry-run reports and changes nothing"
+else bad "cfw dry-run" "rc=$rc: $out"; fi
+out=$(RUNME_CLAUDE_FW_TARGETS="$TMP/cfw-a $TMP/cfw-b" run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      $TMP/cfw-a is now the claude-fw router" && cmp -s "$TMP/cfw-a" "$RUNME_CLAUDE_FW_ROUTER" \
+   && ls "$RUNME_CLAUDE_FW_BACKUP_DIR" | grep -q cfw-a && grep -q "old fixed copy" "$RUNME_CLAUDE_FW_BACKUP_DIR"/*cfw-a*; then
+    ok "claude-fw router: a fixed copy is replaced, verified on disk, and backed up"
+else bad "cfw replace" "rc=$rc: $out"; fi
+if echo "$out" | grep -q "skip    $TMP/cfw-b does not exist here" && [ ! -e "$TMP/cfw-b" ]; then
+    ok "claude-fw router: an absent path is left alone, never created"
+else bad "cfw absent" "rc=$rc: $out"; fi
+out=$(run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "skip    $TMP/cfw-a is already the claude-fw router"; then
+    ok "claude-fw router: second run skips (idempotent)"
+else bad "cfw idempotent" "rc=$rc: $out"; fi
+cfw_old "$TMP/cfw-a"
+out=$(RUNME_CLAUDE_FW_ROUTER="$TMP/no-such-router" run); rc=$?
+if [ "$rc" != "0" ] && echo "$out" | grep -q "FAILED  the router .* is missing" && grep -q "old fixed copy" "$TMP/cfw-a"; then
+    ok "claude-fw router: a missing router is FAILED and nothing is touched"
+else bad "cfw no router" "rc=$rc: $out"; fi
+cfw_router "$TMP/cfw-a"
 
 echo ""
 echo "----------------------------------------"

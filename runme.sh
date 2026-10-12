@@ -1157,6 +1157,58 @@ head2 "15. Current Claude Code for the test user testdev (T-3416, needed for the
 install_testdev_claude
 
 # ---------------------------------------------------------------------------
+# ACTION 16 — `claude-fw` on PATH becomes AEF's router, not a stale fixed copy (T-3421)
+#
+# After the 2026-10-12 framework upgrade (T-3420), fw doctor warns that the claude-fw
+# on your PATH (/root/.local/bin/claude-fw and /usr/bin/claude-fw) are full copies of
+# the old 1.8.9 launcher: claude-fw sessions run that old launcher until it is
+# replaced, and every future upgrade would leave them behind again. AEF's
+# claude-fw-router is a small file that finds the project you start it in and runs
+# THAT project's own, current claude-fw, so it never goes stale. You ruled A.
+# For each path that exists and is not already the router: a backup copy is kept in
+# .context/working/claude-fw-backups/, then the file is replaced (rm -f first, so a
+# symlink is never written through) and checked on disk. A path that does not exist
+# is left alone. Takes effect the next time a claude-fw session starts.
+# Seams (fixtures only): RUNME_CLAUDE_FW_TARGETS, RUNME_CLAUDE_FW_ROUTER,
+# RUNME_CLAUDE_FW_BACKUP_DIR.
+# ---------------------------------------------------------------------------
+seam CLAUDE_FW_TARGETS RUNME_CLAUDE_FW_TARGETS "/root/.local/bin/claude-fw /usr/bin/claude-fw"
+seam CLAUDE_FW_ROUTER RUNME_CLAUDE_FW_ROUTER "$PROJECT_ROOT/.agentic-framework/bin/claude-fw-router"
+seam CLAUDE_FW_BACKUP_DIR RUNME_CLAUDE_FW_BACKUP_DIR "$PROJECT_ROOT/.context/working/claude-fw-backups"
+
+install_claude_fw_router() {
+    if [ ! -x "$CLAUDE_FW_ROUTER" ]; then
+        say "  FAILED  the router $CLAUDE_FW_ROUTER is missing or not executable (re-vendor incomplete?)"; FAILED=$((FAILED+1)); return
+    fi
+    local t backup
+    for t in $CLAUDE_FW_TARGETS; do
+        if [ ! -e "$t" ] && [ ! -L "$t" ]; then
+            say "  skip    $t does not exist here; nothing to replace"; SKIPPED=$((SKIPPED+1)); continue
+        fi
+        if [ ! -L "$t" ] && cmp -s "$t" "$CLAUDE_FW_ROUTER"; then
+            say "  skip    $t is already the claude-fw router"; SKIPPED=$((SKIPPED+1)); continue
+        fi
+        if [ "$DRY_RUN" = "1" ]; then
+            say "  [DRY]   would replace $t (a fixed copy) with the claude-fw router, keeping a backup"; DONE=$((DONE+1)); continue
+        fi
+        mkdir -p "$CLAUDE_FW_BACKUP_DIR"
+        backup="$CLAUDE_FW_BACKUP_DIR/$(printf '%s' "$t" | tr '/' '_').$(date -u +%Y%m%dT%H%M%SZ)"
+        if ! cp -pL "$t" "$backup" 2>/dev/null; then
+            say "  FAILED  could not back up $t to $backup; left unchanged"; FAILED=$((FAILED+1)); continue
+        fi
+        rm -f "$t" && cp "$CLAUDE_FW_ROUTER" "$t" && chmod 755 "$t"
+        if [ ! -L "$t" ] && cmp -s "$t" "$CLAUDE_FW_ROUTER" && [ -x "$t" ] && bash -n "$t" 2>/dev/null; then
+            say "  OK      $t is now the claude-fw router (checked on disk; old copy kept at $backup)"; DONE=$((DONE+1))
+        else
+            say "  FAILED  $t is not the router after replacing it; the old copy is at $backup"; FAILED=$((FAILED+1))
+        fi
+    done
+}
+
+head2 "16. claude-fw on your PATH becomes the router, so upgrades can never leave it stale again (T-3421)"
+install_claude_fw_router
+
+# ---------------------------------------------------------------------------
 # Verification — the project's own drift checker is the arbiter, not this script.
 # Using the repo's existing check rather than a bespoke one means this cannot
 # quietly disagree with what `fw audit` will say five minutes from now.
