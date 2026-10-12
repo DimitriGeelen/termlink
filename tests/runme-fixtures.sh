@@ -139,6 +139,16 @@ printf '#!/bin/bash\n# claude-fw-router (fixture)\nexec true "$@"\n' > "$RUNME_C
 cfw_router() { cp "$RUNME_CLAUDE_FW_ROUTER" "$1"; chmod 755 "$1"; }
 cfw_old()    { printf '#!/bin/bash\n# old fixed copy of claude-fw\nexit 0\n' > "$1"; chmod 755 "$1"; }
 cfw_router "$TMP/cfw-a"
+# T-3424 (action 17): a fake demo that writes a report with FAKE_X6_VERDICT and exits
+# FAKE_X6_RC. Default = the done-marker exists, so every other case skips the action.
+export RUNME_X6_DEMO="bash $TMP/fake-x6-demo" RUNME_X6_MARKER="$TMP/x6.done" RUNME_X6_REPORT="$TMP/x6-report.md"
+cat > "$TMP/fake-x6-demo" <<'EOF2'
+#!/usr/bin/env bash
+echo "fake demo running"
+printf '# report\n\n**Verdict: %s.** fixture\n' "${FAKE_X6_VERDICT:-PASS}" > "$RUNME_X6_REPORT"
+exit "${FAKE_X6_RC:-0}"
+EOF2
+echo "fixture: watched" > "$RUNME_X6_MARKER"
 # T-3343 (action 12): fake stray hub. Default = no pidfile in the stray dir, so every
 # other case skips the action. The fake termlink records a stop and then answers
 # status with the canonical pid; the fake liveness reads a state file; no real
@@ -366,7 +376,7 @@ if [ "$(id -u)" != "0" ] && [ -n "${CI:-}" ]; then
 fi
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 16 ))   # +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +3 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
+EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 17 ))   # +1 X6 demo (T-3424); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +3 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -1010,6 +1020,30 @@ if [ "$rc" != "0" ] && echo "$out" | grep -q "FAILED  the router .* is missing" 
     ok "claude-fw router: a missing router is FAILED and nothing is touched"
 else bad "cfw no router" "rc=$rc: $out"; fi
 cfw_router "$TMP/cfw-a"
+
+# 29. T-3424 — the X6 demonstration runs once (fake demo only).
+rm -f "$RUNME_X6_MARKER" "$RUNME_X6_REPORT"
+out=$(run --dry-run); rc=$?
+if echo "$out" | grep -q "would run the arc-011 PH-1 demonstration" && [ ! -e "$RUNME_X6_MARKER" ] && [ ! -e "$RUNME_X6_REPORT" ]; then
+    ok "x6 demo: --dry-run reports and runs nothing"
+else bad "x6 dry-run" "rc=$rc: $out"; fi
+out=$(FAKE_X6_RC=1 run); rc=$?
+if [ "$rc" != "0" ] && echo "$out" | grep -q "FAILED  the demonstration did not pass (demo rc=1" && [ ! -e "$RUNME_X6_MARKER" ]; then
+    ok "x6 demo: a failing demo is FAILED and writes no marker"
+else bad "x6 demo fail" "rc=$rc: $out"; fi
+out=$(FAKE_X6_VERDICT=FAIL run); rc=$?
+if [ "$rc" != "0" ] && echo "$out" | grep -q "FAILED  the demonstration did not pass (demo rc=0; report \*\*Verdict: FAIL" && [ ! -e "$RUNME_X6_MARKER" ]; then
+    ok "x6 demo: exit 0 with a non-PASS report is FAILED, not OK"
+else bad "x6 report fail" "rc=$rc: $out"; fi
+out=$(run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      the demonstration passed" && echo "$out" | grep -q "fake demo running" && [ -s "$RUNME_X6_MARKER" ]; then
+    ok "x6 demo: a passing run shows the demo output, is OK and writes the marker"
+else bad "x6 pass" "rc=$rc: $out"; fi
+out=$(run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "skip    you watched the demonstration already" && ! echo "$out" | grep -q "fake demo running"; then
+    ok "x6 demo: second run skips and does not rerun the demo"
+else bad "x6 once" "rc=$rc: $out"; fi
+echo "fixture: watched" > "$RUNME_X6_MARKER"
 
 echo ""
 echo "----------------------------------------"
