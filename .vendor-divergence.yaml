@@ -1292,6 +1292,16 @@ not_divergence:
       should use.
 
   - kind: merge-of-upstream
+    tasks: [T-3420]
+    commit: 8d0848dfe
+    date: 2026-10-12
+    reason: >
+      3-way merge (base upstream v1.8.9, ours, theirs ed683536a) of the two preserved
+      files upstream changed since 1.8.9: agents/context/lib/safe-commands.sh (T-3814)
+      and web/blueprints/discovery.py (T-4061). It adds upstream's lines to our local
+      copies; our local lines were already registered. A re-vendor that carries those
+      upstream lines loses nothing from this commit.
+  - kind: merge-of-upstream
     tasks: [T-2830]
     commit: a25afc4b6
     date: 2026-08-23

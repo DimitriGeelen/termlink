@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-12T12:01:00Z
-last_update: 2026-10-12T12:22:51Z
+last_update: 2026-10-12T12:27:42Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -64,10 +64,10 @@ commit, rehearse, preserve manifest).
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Before: vendor-divergence check clean, `CLAUDE.md` backed up, `fw doctor` output saved
-- [ ] `.agentic-framework/` re-vendored to ed683536a with `.fwvendor-preserve.yaml` respected; `CLAUDE.md` diffed against the backup and anything project-specific that was dropped re-applied; exec bits checked
-- [ ] After: `fw doctor` saved and compared; `.vendor-divergence.yaml` `last_vendor_event` updated; the sidecar suite and the session-start-alerts fixtures still pass
-- [ ] A per-item report (works / broken / not exercised, with evidence) for AEF's 19 items is written to `docs/reports/T-3420-aef-ed683536a-field-test.md` and sent on conversation field-test-ed683536a
+- [x] Before: vendor-divergence check clean, `CLAUDE.md` backed up, `fw doctor` output saved
+- [x] `.agentic-framework/` re-vendored to ed683536a with `.fwvendor-preserve.yaml` respected; `CLAUDE.md` diffed against the backup and anything project-specific that was dropped re-applied; exec bits checked
+- [x] After: `fw doctor` saved and compared; `.vendor-divergence.yaml` `last_vendor_event` updated; the sidecar suite and the session-start-alerts fixtures still pass
+- [x] A per-item report (works / broken / not exercised, with evidence) for AEF's 19 items is written to `docs/reports/T-3420-aef-ed683536a-field-test.md` and sent on conversation field-test-ed683536a
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -253,6 +253,13 @@ commit, rehearse, preserve manifest).
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+grep -q "1.8.9+227.ged683536a" .agentic-framework/VERSION
+bash scripts/check-vendor-divergence.sh > /tmp/.t3420-div.out 2>&1 && grep -q "since 0570db4e2" /tmp/.t3420-div.out
+bash tests/safe-commands-write-pattern-fixtures.sh > /tmp/.t3420-sc.out 2>&1 && grep -q "^Fail: 0" /tmp/.t3420-sc.out
+python3 -m py_compile .agentic-framework/web/blueprints/discovery.py
+bash tests/session-start-alerts-fixtures.sh > /tmp/.t3420-alerts.out 2>&1 && grep -q "failed: 0" /tmp/.t3420-alerts.out
+test -s docs/reports/T-3420-aef-ed683536a-field-test.md
 
 ## RCA
 
