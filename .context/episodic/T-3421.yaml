@@ -72,10 +72,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 32
-  commits: 2
-  files_changed: 3
-  lines_added: 451
-  lines_removed: 6
+  commits: 3
+  files_changed: 5
+  lines_added: 574
+  lines_removed: 11
+  footprint_refreshed_at: '2026-10-12T13:08:33Z'
+  footprint_refreshed_by_commit: 510fc4464
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3421-runme-action-16-replace-stale-fixed-copy.md
