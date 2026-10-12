@@ -4579,3 +4579,9 @@ learnings:
   task: WM-002
   date: 2026-10-11
   context: Added via context agent
+- id: PL-398
+  learning: "Never pass an unchecked path to an option that creates/chmods what it names (tmux -S/-L, --pidfile, --socket). tmux -S /proc/<pid>/cwd resolved to / and stripped its x bits (755->644): host could not boot. Read env via /proc/<pid>/environ instead."
+  source: unknown
+  task: T-3425
+  date: 2026-10-12
+  context: Added via context agent
