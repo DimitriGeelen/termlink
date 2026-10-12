@@ -25,7 +25,7 @@ related_tasks: [T-3344]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:13:12Z
-last_update: 2026-10-12T14:06:45Z
+last_update: 2026-10-12T14:47:05Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -276,6 +276,14 @@ grep -q 'task: T-3352' docs/design/interactive-agent-communication-role-chain.ya
   delivered and answered), X3 17 of 17 floor items, X4 no production path opened, SI-25 clean, teardown clean.
   X2 (18 of 18 mutants killed) and X5 (soak) were met earlier (`arc011-ph1-fc-matrix.md`, `arc011-ph1-soak.md`).
 - **So:** all PH-1 exit criteria X1..X6 are met. Moving to PH-2 is the operator's decision (5.9.6), not taken here.
+
+### 2026-10-12 — Move arc-011 to PH-2 (operator ruling)
+- **Chose:** A: PH-1 is closed, PH-2 starts. The next session plans PH-2 into build tasks the way PH-1 was planned
+  (architecture note, then a build table), from step 3 section 6.2.3 (PH-2 scope and exit) and the items deferred to
+  PH-2 (doorbell wave W2, reconciliation with the hub record SI-15, the daily two-agent canary H-14, install from the
+  release artifact, SI-18/SI-23 completion, T-3423 review on 2026-11-12).
+- **Rejected:** B (hold PH-1 and pick something else first).
+- **Note:** recorded at 75% of the session's context budget; this session only writes the handover.
 
 ## Decision
 

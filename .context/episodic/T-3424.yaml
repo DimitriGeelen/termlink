@@ -78,12 +78,12 @@ metrics:
   #             counters are null (absent measurement), NOT zero (T-3129).
   git_mining: ok
   wall_clock_minutes: 13
-  commits: 4
+  commits: 5
   files_changed: 8
-  lines_added: 870
-  lines_removed: 391
-  footprint_refreshed_at: '2026-10-12T14:30:15Z'
-  footprint_refreshed_by_commit: 823282337
+  lines_added: 876
+  lines_removed: 395
+  footprint_refreshed_at: '2026-10-12T14:30:17Z'
+  footprint_refreshed_by_commit: 81f6da792
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-3424-runme-action-17-arc-011-ph-1-demonstrati.md
