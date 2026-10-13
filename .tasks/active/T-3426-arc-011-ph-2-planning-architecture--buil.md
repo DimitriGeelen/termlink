@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-12T19:17:19Z
-last_update: 2026-10-12T21:47:27Z
+last_update: 2026-10-13T10:48:06Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -342,6 +342,11 @@ date_finished: null
 - **Chose:** A — accept for PH-2; the status call states "same-user separation absent: agents run as root".
 - **Why:** PH-2 is one host, one project, the operator's own agents; real separation needs per-agent accounts (Track A), which needs PH-3's Tier 0 machinery.
 - **Rejected (OQ-b):** A+ (also surface every admin act and foreign use of a send socket after the fact; offered, not taken), B (wait for Track A: would fold PH-2 into PH-3).
+
+### 2026-10-13 — OQ-j: drained mail on rollback (operator ruling)
+- **Chose:** A — kept in the store and listed (sender, conversation, id) in the rollback report; the operator reads or forwards what matters. Revisit before W4.
+- **Why:** re-post with the original signature is impossible (T-3429 finding: the signature binds the topic; AEF's receiver does not read the format); W1-W3 are one pair of own agents and a rollback is a drill.
+- **Rejected:** B forward as new provenance-quoting messages (a second rewrapping path), C read-only sidecar after rollback.
 
 ### 2026-10-12 — OQ-d: the tick (operator ruling)
 - **Chose:** A — tick = 30 s (R-17), the unit of every PH-2 bound; the 500 ms loop stays inside it for pulling, hand-over and the kill switch.
