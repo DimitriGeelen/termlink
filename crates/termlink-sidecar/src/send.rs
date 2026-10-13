@@ -23,7 +23,7 @@ use serde_json::{Value, json};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 use std::time::Duration;
@@ -134,6 +134,9 @@ struct Inner {
     /// Serialises pump passes and holds what they remember.
     pump: Mutex<PumpMemory>,
     stop: AtomicBool,
+    /// Last time the background loop came round (ms since the epoch); the
+    /// component heartbeat (K-3, FP-1 failure 4).
+    beat: AtomicU64,
 }
 
 #[derive(Default)]
@@ -198,12 +201,14 @@ impl Sender {
             rt,
             pump: Mutex::new(PumpMemory::default()),
             stop: AtomicBool::new(false),
+            beat: AtomicU64::new(crate::store::now_ms()),
         });
         let thread = interval.map(|iv| {
             let i = inner.clone();
             std::thread::spawn(move || {
                 let mut waited = Duration::ZERO;
                 while !i.stop.load(Ordering::SeqCst) {
+                    i.beat.store(crate::store::now_ms(), Ordering::SeqCst);
                     std::thread::sleep(Duration::from_millis(50));
                     waited += Duration::from_millis(50);
                     if waited >= iv {
@@ -214,6 +219,11 @@ impl Sender {
             })
         });
         Ok(Sender { inner, thread })
+    }
+
+    /// When the background pump last came round (ms since the epoch).
+    pub fn last_beat_ms(&self) -> u64 {
+        self.inner.beat.load(Ordering::SeqCst)
     }
 
     /// Sign, enqueue durably, record SENT, try one post. Returns after SENT is

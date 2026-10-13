@@ -1,0 +1,62 @@
+# T-3435 — arc-011 PH-2 row P3 (K-3, R-8; OQ-f ruling D+ items 5-7).
+#
+# Template unit: the instance `%i` is the PROJECT name. It supervises that
+# project's arc-011 sidecar on a systemd host, and only while the project wants
+# it kept running:
+#
+#   * ExecCondition asks `sidecar-supervise.sh may-run %i`, which is true only
+#     when the project's `.framework.yaml` sets SIDECAR_KEEP_RUNNING on AND the
+#     project carries no explicit-stop marker. A failed condition leaves the unit
+#     inactive (not failed) and is not restarted, so this unit never fights a
+#     project stop and never starts a sidecar after a reboot for a project that
+#     was stopped or switched off.
+#   * Restart=always: a sidecar that dies, or exits 3 because one of its loops
+#     went silent (component heartbeat, FP-1 failure 4), is back within RestartSec.
+#   * The store lock (SI-16) refuses a second sidecar on the same store, so a
+#     mistaken second start fails instead of giving one inbox two receivers.
+#
+# The cron backstop (.context/cron/sidecar-backstop.crontab) repairs THROUGH this
+# unit (reset-failed, start) when it gives up, e.g. after start-limit-hit.
+#
+# Per-project settings live in /etc/termlink-sidecar/<project>.env (written by the
+# operator's runme.sh in row P7), with:
+#   PROJECT_DIR            the project root (its .framework.yaml holds the setting)
+#   AGENT                  the agent name in the sidecar config
+#   SIDECAR_CONFIG         the sidecar's JSON config file
+#   SIDECAR_BIN            the termlink binary (runs `termlink sidecar start`)
+#   TERMLINK_SIDECAR_STORE the production store root (holds .termlink-sidecar-root)
+#   TERMLINK_RUNTIME_DIR   where the API sockets live
+#   HOME                   the sidecar's HOME
+#
+# Installed by /opt/termlink/runme.sh (row P3 action) to
+#   /etc/systemd/system/termlink-sidecar@.service
+# Inspect: systemctl status termlink-sidecar@<project>
+#          bash /opt/termlink/scripts/sidecar-supervise.sh status <project>
+[Unit]
+Description=TermLink arc-011 sidecar for project %i (K-3)
+Documentation=file:/opt/termlink/docs/design/arc-011-ph2-architecture.md
+After=network-online.target termlink-hub.service
+Wants=network-online.target
+# Give up after 10 failed starts in 10 minutes; the cron backstop repairs it
+# through systemd and records that it had to (OQ-f D+ item 6).
+StartLimitIntervalSec=600
+StartLimitBurst=10
+
+[Service]
+Type=exec
+Environment=SIDECAR_SUPERVISE=/opt/termlink/scripts/sidecar-supervise.sh
+EnvironmentFile=/etc/termlink-sidecar/%i.env
+Environment=TERMLINK_SIDECAR_SUPERVISOR=systemd
+Environment=TERMLINK_SIDECAR_KEEP_RUNNING=on
+ExecCondition=/bin/bash -c 'exec "$${SIDECAR_SUPERVISE}" may-run %i'
+ExecStart=/bin/sh -c 'exec "$${SIDECAR_BIN}" sidecar start --config "$${SIDECAR_CONFIG}"'
+Restart=always
+RestartSec=5s
+KillSignal=SIGTERM
+TimeoutStopSec=20s
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=termlink-sidecar-%i
+
+[Install]
+WantedBy=multi-user.target

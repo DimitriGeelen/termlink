@@ -1,0 +1,24 @@
+# T-3435 — arc-011 PH-2 row P3: cron backstop for project sidecars (OQ-f ruling D+ item 6)
+# Source of truth: /opt/termlink/.context/cron/sidecar-backstop.crontab (git-tracked)
+# Installed to:    /etc/cron.d/termlink-sidecar-backstop (USER field syntax — do NOT load into a user crontab)
+#
+# Every 10 minutes, for each project in /etc/termlink-sidecar/*.env whose
+# .framework.yaml sets SIDECAR_KEEP_RUNNING on and that was not explicitly
+# stopped: if its sidecar is not running, or runs with a heartbeat older than
+# 120 s (hung), repair it — THROUGH systemd where the host has it (enable if
+# disabled, reset-failed, restart), a direct start where it has not (then cron IS
+# the supervisor). A masked unit or a missing unit file is reported, not repaired.
+#
+# A backstop that had to act is a fault of the primary supervisor: every action
+# is a line in the log below (so /canaries shows FIRING) and a needs-attention
+# note inside the sidecar (`admin attention`, session-start-alerts section 1d).
+# Empty log = healthy. The heartbeat is written on completion (T-2843), so the
+# meta-canary (T-1723) notices a dead cron.
+#
+# Operator action on firing: read the line; `bash scripts/sidecar-supervise.sh
+# status <project>` and `journalctl -u termlink-sidecar@<project>` say why the
+# unit gave up. Repeated acting every cycle means the sidecar dies on start.
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+*/10 * * * * root cd /opt/termlink && bash scripts/sidecar-supervise.sh check --quiet >> .context/working/.sidecar-backstop-canary.log 2>> .context/working/.sidecar-backstop-canary.log.stderr

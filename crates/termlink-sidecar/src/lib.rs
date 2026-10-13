@@ -18,3 +18,4 @@ pub mod daemon;
 pub mod client;
 pub mod cli;
 pub mod deadline;
+pub mod beat;

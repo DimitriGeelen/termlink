@@ -191,6 +191,57 @@ install_crontab vector-index-canary.crontab       "$CRON_DIR/termlink-vector-ind
 # plus its 15-min liveness canary (a dead collector would silently shorten the 7-day run).
 install_crontab hub-outage-collector.crontab     "$CRON_DIR/termlink-hub-outage-collector"
 
+# T-3435 (arc-011 PH-2 row P3, OQ-f ruling D+) — supervision for project sidecars:
+# the systemd template unit (Restart=always, starts only while the project's
+# SIDECAR_KEEP_RUNNING is on and it was not explicitly stopped), the settings dir
+# for per-project env files (written in row P7), and the 10-minute cron backstop
+# that repairs THROUGH systemd and records each time it had to act. Installing
+# these starts nothing: no project is configured until row P7.
+# Seams (fixtures only): RUNME_SIDECAR_UNIT_DIR, RUNME_SIDECAR_ENV_DIR,
+# RUNME_SIDECAR_SYSTEMCTL, RUNME_SIDECAR_SYSTEMD_RUN.
+seam SC_UNIT_DIR RUNME_SIDECAR_UNIT_DIR "/etc/systemd/system"
+seam SC_ENV_DIR RUNME_SIDECAR_ENV_DIR "/etc/termlink-sidecar"
+seam SC_SYSTEMCTL RUNME_SIDECAR_SYSTEMCTL "systemctl"
+seam SC_SYSTEMD_RUN RUNME_SIDECAR_SYSTEMD_RUN "/run/systemd/system"
+install_sidecar_supervision() {
+    local src="systemd-templates/termlink-sidecar@.service" dest="$SC_UNIT_DIR/termlink-sidecar@.service"
+    if [ -d "$SC_ENV_DIR" ]; then
+        say "  skip    settings dir exists: $SC_ENV_DIR"; SKIPPED=$((SKIPPED+1))
+    elif [ "$DRY_RUN" = "1" ]; then
+        say "  [DRY]   would create $SC_ENV_DIR (0755)"; DONE=$((DONE+1))
+    elif install -d -m 0755 "$SC_ENV_DIR" && [ -d "$SC_ENV_DIR" ]; then
+        say "  OK      created and verified: $SC_ENV_DIR"; DONE=$((DONE+1))
+    else
+        say "  FAILED  could not create $SC_ENV_DIR"; FAILED=$((FAILED+1))
+    fi
+    if [ ! -d "$SC_SYSTEMD_RUN" ]; then
+        say "  skip    no systemd on this host: the cron backstop is the sidecar supervisor"; SKIPPED=$((SKIPPED+1)); return
+    fi
+    if [ ! -r "$src" ]; then
+        say "  FAILED  source missing: $src"; FAILED=$((FAILED+1)); return
+    fi
+    if [ -f "$dest" ] && cmp -s "$src" "$dest"; then
+        say "  skip    already installed and identical: $dest"; SKIPPED=$((SKIPPED+1)); return
+    fi
+    if [ "$DRY_RUN" = "1" ]; then
+        say "  [DRY]   would install $src -> $dest and daemon-reload"; DONE=$((DONE+1)); return
+    fi
+    if ! cp "$src" "$dest" || ! chmod 644 "$dest" || ! cmp -s "$src" "$dest"; then
+        say "  FAILED  could not install $dest"; FAILED=$((FAILED+1)); return
+    fi
+    if ! "$SC_SYSTEMCTL" daemon-reload; then
+        say "  FAILED  installed $dest but daemon-reload failed"; FAILED=$((FAILED+1)); return
+    fi
+    # Verify systemd itself now knows the template, not only that the file exists.
+    if "$SC_SYSTEMCTL" cat termlink-sidecar@verify.service >/dev/null 2>&1; then
+        say "  OK      installed, reloaded and verified: $dest"; DONE=$((DONE+1))
+    else
+        say "  FAILED  $dest installed but systemd does not resolve termlink-sidecar@<project>"; FAILED=$((FAILED+1))
+    fi
+}
+install_sidecar_supervision
+install_crontab sidecar-backstop.crontab          "$CRON_DIR/termlink-sidecar-backstop"
+
 # close_task <T-ID> <reason>
 # Closes a task the operator has ALREADY approved closing, then VERIFIES it
 # landed in completed/ with status work-completed.

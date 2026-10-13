@@ -191,6 +191,22 @@ cp "$TMP/tl-old" "$TMP/bin/termlink"
 # T-3299: fixture mode — runme ABORTS (exit 2) if any action reaches a REAL
 # host default because its seam is missing, instead of touching the host.
 export RUNME_FIXTURE=1
+# T-3435 (P3): sidecar supervision — scratch unit dir, settings dir, a fake
+# systemd marker dir, and a fake systemctl that logs calls and resolves the
+# template only when the unit file is really in the scratch unit dir.
+SCU="$TMP/sidecar-sup"; mkdir -p "$SCU/units" "$SCU/run-systemd"
+cat > "$SCU/systemctl" <<EOS
+#!/usr/bin/env bash
+echo "\$*" >> "$SCU/calls"
+case "\$1" in
+    daemon-reload) exit 0 ;;
+    cat) [ -f "$SCU/units/termlink-sidecar@.service" ] && [ ! -e "$SCU/broken" ] ;;
+    *) exit 1 ;;
+esac
+EOS
+chmod +x "$SCU/systemctl"
+export RUNME_SIDECAR_UNIT_DIR="$SCU/units" RUNME_SIDECAR_ENV_DIR="$SCU/env" \
+       RUNME_SIDECAR_SYSTEMCTL="$SCU/systemctl" RUNME_SIDECAR_SYSTEMD_RUN="$SCU/run-systemd"
 # T-3303 action 8: a scratch Claude local-settings file, already carrying the
 # env key by default (=> skip); never the real .claude/settings.local.json.
 printf '{"permissions":{"allow":["Bash(ls:*)"]},"env":{"TERMLINK_AGENT_ID":"claude-termlink"}}\n' > "$TMP/claude-local.json"
@@ -366,7 +382,7 @@ if [ "$(id -u)" != "0" ] && [ -n "${CI:-}" ]; then
 fi
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 16 ))   # +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +3 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
+EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 18 ))   # +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +3 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -403,6 +419,14 @@ else bad "hub-outage-collector crontab install" "$out"; fi
 if cmp -s .context/cron/root-mode-canary.crontab "$TMP/cron/termlink-root-mode-canary"; then
     ok "default run installs the root-mode canary crontab and verifies it on disk (T-3425)"
 else bad "root-mode-canary crontab install" "$out"; fi
+if cmp -s systemd-templates/termlink-sidecar@.service "$SCU/units/termlink-sidecar@.service" \
+   && grep -q '^daemon-reload' "$SCU/calls" && [ -d "$SCU/env" ] \
+   && echo "$out" | grep -q "installed, reloaded and verified: $SCU/units/termlink-sidecar@.service"; then
+    ok "default run installs the sidecar unit template, reloads systemd, verifies systemd resolves it, creates the settings dir (T-3435)"
+else bad "sidecar unit template install" "$out"; fi
+if cmp -s .context/cron/sidecar-backstop.crontab "$TMP/cron/termlink-sidecar-backstop"; then
+    ok "default run installs the sidecar cron backstop and verifies it on disk (T-3435)"
+else bad "sidecar-backstop crontab install" "$out"; fi
 
 # ---------------------------------------------------------------------------
 # 5-6. IDEMPOTENCE. Re-running must do nothing and say so — the operator has to
@@ -1013,6 +1037,27 @@ if [ "$rc" != "0" ] && echo "$out" | grep -q "FAILED  the router .* is missing" 
     ok "claude-fw router: a missing router is FAILED and nothing is touched"
 else bad "cfw no router" "rc=$rc: $out"; fi
 cfw_router "$TMP/cfw-a"
+
+# T-3435 (P3): sidecar supervision install — systemd must RESOLVE the template,
+# a host without systemd skips the unit and says cron supervises.
+rm -f "$SCU/units/termlink-sidecar@.service"; touch "$SCU/broken"
+out=$(run); rc=$?
+if [ "$rc" != "0" ] && echo "$out" | grep -q "FAILED  .*termlink-sidecar@.service installed but systemd does not resolve"; then
+    ok "sidecar unit: a template systemd does not resolve is FAILED, not OK"
+else bad "sidecar unit unresolved" "rc=$rc: $out"; fi
+rm -f "$SCU/broken" "$SCU/units/termlink-sidecar@.service"
+printf '#!/usr/bin/env bash\nexit 1\n' > "$SCU/systemctl-fail"; chmod +x "$SCU/systemctl-fail"
+out=$(RUNME_SIDECAR_SYSTEMCTL="$SCU/systemctl-fail" run); rc=$?
+if [ "$rc" != "0" ] && echo "$out" | grep -q "FAILED  installed .* but daemon-reload failed"; then
+    ok "sidecar unit: a failed daemon-reload is FAILED"
+else bad "sidecar unit daemon-reload" "rc=$rc: $out"; fi
+rm -f "$SCU/units/termlink-sidecar@.service"
+out=$(RUNME_SIDECAR_SYSTEMD_RUN="$SCU/no-systemd" run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "no systemd on this host: the cron backstop is the sidecar supervisor" \
+   && [ ! -e "$SCU/units/termlink-sidecar@.service" ]; then
+    ok "sidecar unit: a host without systemd skips the unit and names cron as the supervisor"
+else bad "sidecar no-systemd" "rc=$rc: $out"; fi
+run >/dev/null 2>&1
 
 
 echo ""

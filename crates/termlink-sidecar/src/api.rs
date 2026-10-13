@@ -28,7 +28,7 @@ use std::os::unix::io::AsRawFd;
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::thread::JoinHandle;
 use std::time::Duration;
 
@@ -98,6 +98,7 @@ fn op_spec(op: &str) -> Option<(Scope, &'static [&'static str])> {
         "drain" => (Scope::Admin, &["why"]),
         "attention" => (Scope::Admin, &["since"]),
         "undrain" => (Scope::Admin, &["why"]),
+        "note" => (Scope::Admin, &["kind", "why"]),
         _ => return None,
     })
 }
@@ -138,6 +139,8 @@ pub struct Api {
     stop: Arc<AtomicBool>,
     threads: Vec<JoinHandle<()>>,
     paths: BTreeMap<Scope, PathBuf>,
+    /// Per-scope accept-loop heartbeat (K-3).
+    beats: BTreeMap<Scope, Arc<AtomicU64>>,
 }
 
 pub fn socket_path(runtime: &Path, agent: &str, scope: Scope) -> PathBuf {
@@ -192,6 +195,7 @@ impl Api {
         let stop = Arc::new(AtomicBool::new(false));
         let mut threads = vec![];
         let mut paths = BTreeMap::new();
+        let mut beats = BTreeMap::new();
         for scope in Scope::ALL {
             let path = socket_path(&shared.cfg.runtime, &shared.cfg.agent, scope);
             let _ = fs::remove_file(&path);
@@ -200,13 +204,20 @@ impl Api {
             l.set_nonblocking(true)?;
             paths.insert(scope, path);
             let (sh, st) = (shared.clone(), stop.clone());
-            threads.push(std::thread::spawn(move || accept_loop(l, scope, sh, st)));
+            let beat = Arc::new(AtomicU64::new(crate::store::now_ms()));
+            beats.insert(scope, beat.clone());
+            threads.push(std::thread::spawn(move || accept_loop(l, scope, sh, st, beat)));
         }
-        Ok(Api { stop, threads, paths })
+        Ok(Api { stop, threads, paths, beats })
     }
 
     pub fn path(&self, scope: Scope) -> &Path {
         &self.paths[&scope]
+    }
+
+    /// Last beat of each scope's accept loop, as `("api.<scope>", ms)`.
+    pub fn beats(&self) -> Vec<(String, u64)> {
+        self.beats.iter().map(|(s, b)| (format!("api.{}", s.name()), b.load(Ordering::SeqCst))).collect()
     }
 
     pub fn shutdown(mut self) {
@@ -230,8 +241,9 @@ impl Drop for Api {
     }
 }
 
-fn accept_loop(l: UnixListener, scope: Scope, sh: Arc<Shared>, stop: Arc<AtomicBool>) {
+fn accept_loop(l: UnixListener, scope: Scope, sh: Arc<Shared>, stop: Arc<AtomicBool>, beat: Arc<AtomicU64>) {
     while !stop.load(Ordering::SeqCst) {
+        beat.store(crate::store::now_ms(), Ordering::SeqCst);
         match l.accept() {
             Ok((s, _)) => {
                 let sh = sh.clone();
@@ -359,7 +371,7 @@ fn dispatch_inner(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id:
         if let Some(s) = v.as_str()
             && matches!(
                 k.as_str(),
-                "msg_id" | "conv" | "to" | "to_instance" | "in_reply_to" | "session" | "nonce" | "tool_use_id" | "hook" | "key"
+                "msg_id" | "conv" | "to" | "to_instance" | "in_reply_to" | "session" | "nonce" | "tool_use_id" | "hook" | "key" | "kind"
             )
             && !valid_name(s)
         {
@@ -375,6 +387,7 @@ fn dispatch_inner(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id:
         "deny" => decide(obj, store, agent, sender, who, false),
         "drain" => drain(obj, store, ctx.deliverer, who),
         "attention" => attention(obj, store),
+        "note" => note(obj, store),
         "undrain" => undrain(obj, store, who),
         "pull" => pull(obj, ctx.deliverer),
         "claim" => claim(obj, ctx.deliverer),
@@ -556,6 +569,25 @@ fn attention(obj: &serde_json::Map<String, Value>, store: &Store) -> Value {
         }
     }
     json!({"ok": true, "total": all.len(), "since": since, "entries": entries, "by_kind": by_kind, "urgent": urgent})
+}
+
+/// An operator-side needs-attention entry (PH-2 row P3): the cron backstop
+/// records each time it had to act, because a backstop that acts is a fault of
+/// the primary supervisor (OQ-f D+ item 6). `urgent-` kinds are the sidecar's own
+/// alarms and cannot be written from outside.
+fn note(obj: &serde_json::Map<String, Value>, store: &Store) -> Value {
+    let kind = obj.get("kind").and_then(Value::as_str).unwrap_or("");
+    let why = obj.get("why").and_then(Value::as_str).unwrap_or("").trim();
+    if kind.is_empty() || kind.starts_with("urgent-") {
+        return err("bad-kind", "a note needs a kind that is not urgent-*", "e.g. --kind supervisor-backstop");
+    }
+    if why.is_empty() || why.len() > 1000 {
+        return err("why-required", "a note needs a reason of at most 1000 bytes", "--why \"...\"");
+    }
+    match store.attention(kind, why) {
+        Ok(()) => json!({"ok": true, "noted": kind}),
+        Err(e) => err("store", &e.to_string(), "check the store directory"),
+    }
 }
 
 /// State file holding the last drain's inventory (PH-2 row P4).
@@ -985,6 +1017,7 @@ fn status_at(
         "missing_strength": missing,
         "notes": [TAIL_NOTE],
         "outbox": sender.map(|s| json!({"pending": s.outbox_len(), "held": s.held()})),
+        "supervision": crate::beat::view(store.dir(), now_ms),
     })
 }
 

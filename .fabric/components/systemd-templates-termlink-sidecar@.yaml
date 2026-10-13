@@ -1,0 +1,21 @@
+id: systemd-templates/termlink-sidecar@.service
+name: termlink-sidecar@
+type: script
+subsystem: unknown
+location: systemd-templates/termlink-sidecar@.service
+tags: []
+
+purpose: "T-3435 — arc-011 PH-2 row P3 (K-3, R-8; OQ-f ruling D+ items 5-7)."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-13
+created_by: unknown

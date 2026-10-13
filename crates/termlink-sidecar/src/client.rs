@@ -107,6 +107,18 @@ pub fn render_status(v: &Value) -> String {
         v["hub_id"].as_str().unwrap_or("?"),
         v["delivery"].as_str().unwrap_or("?")
     );
+    // PH-2 row P3: who restarts this sidecar, and how fresh its loops are. Only
+    // once a heartbeat exists, so the record print (BV-7) is unchanged otherwise.
+    let sup = &v["supervision"];
+    if let Some(s) = sup["supervisor"].as_str() {
+        let oldest = sup["component_age_ms"].as_object().and_then(|m| m.values().filter_map(Value::as_u64).max()).unwrap_or(0);
+        out.push_str(&format!(
+            "supervisor {s}  keep_running {}  heartbeat {} s ago  oldest loop {} s\n",
+            sup["keep_running"].as_str().unwrap_or("?"),
+            sup["heartbeat_age_ms"].as_u64().unwrap_or(0) / 1000,
+            oldest / 1000
+        ));
+    }
     for m in v["messages"].as_array().into_iter().flatten() {
         out.push_str(&format!("message {}  stage {}", m["msg_id"].as_str().unwrap_or("?"), m["stage"].as_str().unwrap_or("?")));
         if let Some(l) = m["label"].as_str() {
@@ -265,6 +277,11 @@ pub fn main_client(verb: &str, args: &[&str]) -> i32 {
                 "attention" => {
                     let since = get("since").and_then(|n| n.parse::<u64>().ok()).unwrap_or(0);
                     json!({"op": "attention", "since": since})
+                }
+                // PH-2 row P3: the supervisor's own needs-attention entry (OQ-f D+ item 6).
+                "note" => {
+                    let (Some(kind), Some(why)) = (get("kind"), get("why")) else { return usage() };
+                    json!({"op": "note", "kind": kind, "why": why})
                 }
                 _ => return usage(),
             };

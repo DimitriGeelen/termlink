@@ -28,7 +28,7 @@ use crate::store::{ChainLine, LineExtra, PutOutcome, Store};
 use crate::wire::{self, Msg, Refusal, Roster, Signed, Stage};
 use base64::Engine as _;
 use serde_json::{Value, json};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 use std::time::Duration;
@@ -96,6 +96,9 @@ struct Inner {
     rt: tokio::runtime::Runtime,
     pass: Mutex<PassMemory>,
     stop: AtomicBool,
+    /// Last time the background loop came round (ms since the epoch); the
+    /// component heartbeat (K-3, FP-1 failure 4).
+    beat: AtomicU64,
 }
 
 #[derive(Default)]
@@ -178,12 +181,14 @@ impl Receiver {
             rt,
             pass: Mutex::new(PassMemory::default()),
             stop: AtomicBool::new(false),
+            beat: AtomicU64::new(crate::store::now_ms()),
         });
         let thread = interval.map(|iv| {
             let i = inner.clone();
             std::thread::spawn(move || {
                 let mut waited = Duration::ZERO;
                 while !i.stop.load(Ordering::SeqCst) {
+                    i.beat.store(crate::store::now_ms(), Ordering::SeqCst);
                     std::thread::sleep(Duration::from_millis(50));
                     waited += Duration::from_millis(50);
                     if waited >= iv {
@@ -199,6 +204,11 @@ impl Receiver {
     /// Read and handle everything new on the inbox (the background loop runs the same).
     pub fn pass(&self) -> PassResult {
         self.inner.run_pass()
+    }
+
+    /// When the background receive loop last came round (ms since the epoch).
+    pub fn last_beat_ms(&self) -> u64 {
+        self.inner.beat.load(Ordering::SeqCst)
     }
 
     /// The next inbox offset this receiver will read.

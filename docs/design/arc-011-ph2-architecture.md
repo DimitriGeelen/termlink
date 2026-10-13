@@ -14,6 +14,7 @@ hand (estate guard, STUCK_AFTER_MS, READY_MAX_AGE_MS, client admin verbs).
 | Version | Date | Change | Task |
 |---|---|---|---|
 | 0.1 DRAFT | 2026-10-12 | First draft: what PH-1 leaves, components, waves, build table, operator questions | T-3426 |
+| 0.2 DRAFT | 2026-10-13 | 6.5 K-3 as built (row P3): component heartbeat, systemd template unit, supervise script, 10-minute cron backstop, runme action | T-3435 |
 
 ## 1 Where PH-1 leaves us
 
@@ -219,6 +220,44 @@ Row P3 builds items 5 to 8; row P7 builds items 1, 2 and 4 into the launcher.
    path is an operator decision before W1 (OQ-j).
 5. **Rollback per wave**: drain (count matches) -> stop the sidecar -> start the old receiver: a runme action of each
    wave.
+
+### 6.5 K-3 as built (row P3, T-3435)
+
+1. **Component heartbeat (FP-1 failure 4).** The send pump, the receive loop, the tick thread and the accept loop of
+   each API scope record when they last came round. Once per tick the daemon writes
+   `<store>/sidecar/<agent>/heartbeat.json` (pid, time, each component's last beat, the declared supervisor and
+   setting). A component silent for 3 ticks (90 s) makes the sidecar record a `component-dead` attention entry
+   naming it and exit 3, so its supervisor restarts the whole process; a live pid behind a deaf loop is not
+   accepted as running. Test seams (heartbeat interval, stale bound, a component reported silent) are honoured
+   in a test estate only, never in production mode.
+2. **Visible.** Status carries `supervision`: the supervisor as declared at start (`systemd`, `cron` or `none`;
+   unset reads `none`, never a guess), `keep_running`, the heartbeat's age and each component's age. The text
+   print adds one line once a heartbeat exists.
+3. **systemd template unit** `systemd-templates/termlink-sidecar@.service`, the instance being the project. Its
+   `ExecCondition` is `sidecar-supervise.sh may-run <project>`: true only while the project's
+   `SIDECAR_KEEP_RUNNING` is on and no explicit-stop marker exists, so the unit never fights a stop and never
+   brings back a stopped or switched-off project after a reboot. `Restart=always`, 5 s apart; it gives up after
+   10 failed starts in 10 minutes, which is the backstop's case. Per-project settings come from
+   `/etc/termlink-sidecar/<project>.env`, written in row P7.
+4. **`scripts/sidecar-supervise.sh`** `start | stop | check | status | may-run`. `start` clears the stop marker
+   and picks exactly one supervisor: the unit when the setting is on and the host has systemd; otherwise a
+   detached process, supervised by cron when the setting is on and by nobody when it is off. `stop` writes the
+   marker first and then stops the unit or process. The setting itself (item 1 of 6.1) is read here; the
+   launcher calling `start` and `stop` is row P7.
+5. **Cron backstop** (`.context/cron/sidecar-backstop.crontab`, every 10 minutes). For each project that may
+   run: not running, or running with a heartbeat older than 120 s, is repaired through systemd (enable if
+   disabled, `reset-failed`, `restart`) or by a direct start without systemd. A masked unit and a missing unit
+   file are reported, not repaired. Each action is a line in `.sidecar-backstop-canary.log` (so `/canaries`
+   fires) and an admin `note` (`supervisor-backstop`) in the sidecar's needs-attention list; the new admin verb
+   `note --kind --why` refuses `urgent-*` kinds, which belong to the sidecar's own alarms.
+6. **Installed** by `runme.sh` action 1: the settings directory, the unit template (verified by systemd resolving
+   `termlink-sidecar@<x>` after `daemon-reload`; skipped on a host without systemd) and the crontab. Nothing
+   starts until row P7 configures a project.
+7. **Proven:** `tests/supervision_tests.rs` (6, including a real sidecar exiting 3 on a silent component),
+   `tests/sidecar-supervise-fixtures.sh` (34; mutants removing the stop-marker rule and the `reset-failed`
+   step are caught), `tests/runme-fixtures.sh` (+5). R-8.e (SIGKILL, then a new sidecar with a fresh heartbeat)
+   is proven against a fake sidecar in the fixtures; on the real host it is part of the W1 drill once row P7
+   has configured a project.
 
 ## 7 Out of scope for PH-2
 

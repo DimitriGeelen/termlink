@@ -56,8 +56,10 @@ pub struct Running {
     pub store: Arc<Store>,
     pub sender: Arc<Sender>,
     pub deliverer: Arc<Deliverer>,
-    _receiver: Receiver,
+    _receiver: Arc<Receiver>,
     pub api: Api,
+    receiver_beat: Box<dyn Fn() -> u64 + Send + Sync>,
+    tick_beat: Arc<std::sync::atomic::AtomicU64>,
     sweep_stop: Arc<std::sync::atomic::AtomicBool>,
     sweeper: Option<std::thread::JoinHandle<()>>,
 }
@@ -139,14 +141,16 @@ pub fn start(cfg: &Config, store_root: &Path, runtime: &Path, home: &Path) -> Re
     let api = Api::start(api_cfg, store.clone()).map_err(|e| format!("api: {e}"))?;
     // Decide attempts whose finalizer never ran or died (B13).
     let sweep_stop = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let tick_beat = Arc::new(std::sync::atomic::AtomicU64::new(crate::store::now_ms()));
     let sweeper = {
-        let (d, stop) = (deliverer.clone(), sweep_stop.clone());
+        let (d, stop, beat) = (deliverer.clone(), sweep_stop.clone(), tick_beat.clone());
         std::thread::spawn(move || {
             let mut waited = Duration::ZERO;
             let mut since_tick = Duration::ZERO;
             let tick = Duration::from_millis(crate::deadline::TICK_MS);
             let deadlines = crate::deadline::Deadlines::R44E;
             while !stop.load(std::sync::atomic::Ordering::SeqCst) {
+                beat.store(crate::store::now_ms(), std::sync::atomic::Ordering::SeqCst);
                 std::thread::sleep(Duration::from_millis(100));
                 waited += Duration::from_millis(100);
                 since_tick += Duration::from_millis(100);
@@ -162,7 +166,44 @@ pub fn start(cfg: &Config, store_root: &Path, runtime: &Path, home: &Path) -> Re
             }
         })
     };
-    Ok(Running { store, sender, deliverer, _receiver: receiver, api, sweep_stop, sweeper: Some(sweeper) })
+    let receiver = Arc::new(receiver);
+    let receiver_beat: Box<dyn Fn() -> u64 + Send + Sync> = {
+        let r = receiver.clone();
+        Box::new(move || r.last_beat_ms())
+    };
+    Ok(Running { store, sender, deliverer, _receiver: receiver, api, receiver_beat, tick_beat, sweep_stop, sweeper: Some(sweeper) })
+}
+
+impl Running {
+    /// Last beat of every component (K-3): send pump, receive loop, tick, API scopes.
+    pub fn beats(&self) -> Vec<(String, u64)> {
+        let mut v = vec![
+            ("send".to_string(), self.sender.last_beat_ms()),
+            ("receive".to_string(), (self.receiver_beat)()),
+            ("tick".to_string(), self.tick_beat.load(std::sync::atomic::Ordering::SeqCst)),
+        ];
+        v.extend(self.api.beats());
+        v
+    }
+
+    /// Write `heartbeat.json` for `now`; returns the components silent past `after`.
+    pub fn heartbeat(&self, now: u64, after: u64) -> std::io::Result<Vec<String>> {
+        self.heartbeat_with(now, after, None)
+    }
+
+    /// As [`Running::heartbeat`], reporting `frozen` (a test estate's fault seam)
+    /// as never having beaten.
+    pub fn heartbeat_with(&self, now: u64, after: u64, frozen: Option<&str>) -> std::io::Result<Vec<String>> {
+        let mut beats = self.beats();
+        if let Some(f) = frozen {
+            for (n, t) in beats.iter_mut() {
+                if n == f {
+                    *t = 0;
+                }
+            }
+        }
+        crate::beat::write(self.store.dir(), now, &beats, after)
+    }
 }
 
 /// `termlink-sidecar start --config F`: run until SIGTERM or SIGINT.
@@ -203,16 +244,34 @@ pub fn main_start(config: &Path) -> i32 {
             return 1;
         }
     };
-    rt.block_on(async {
+    // Once per tick: the heartbeat file, and exit when a component went silent
+    // (FP-1 failure 4) so the supervisor restarts the whole sidecar (R-8).
+    let dead: Option<Vec<String>> = rt.block_on(async {
         use tokio::signal::unix::{SignalKind, signal};
         let (Ok(mut term), Ok(mut int)) = (signal(SignalKind::terminate()), signal(SignalKind::interrupt())) else {
-            return;
+            return None;
         };
-        tokio::select! {
-            _ = term.recv() => {}
-            _ = int.recv() => {}
+        let (every, after, frozen) = crate::beat::test_overrides(running.store.mode());
+        let mut tick = tokio::time::interval(Duration::from_millis(every));
+        loop {
+            tokio::select! {
+                _ = term.recv() => return None,
+                _ = int.recv() => return None,
+                _ = tick.tick() => match running.heartbeat_with(crate::store::now_ms(), after, frozen.as_deref()) {
+                    Ok(dead) if !dead.is_empty() => return Some(dead),
+                    Ok(_) => {}
+                    Err(e) => eprintln!("termlink-sidecar: heartbeat not written: {e}"),
+                },
+            }
         }
     });
+    if let Some(dead) = dead {
+        let why = format!("component(s) silent past {} ms: {}", crate::beat::test_overrides(running.store.mode()).1, dead.join(", "));
+        let _ = running.store.attention("component-dead", &why);
+        eprintln!("termlink-sidecar: {} exiting for restart: {why}", cfg.agent);
+        // A hung loop may never join; leave without dropping the parts.
+        std::process::exit(3);
+    }
     drop(running);
     println!("termlink-sidecar: {} stopped", cfg.agent);
     0
