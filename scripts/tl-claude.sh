@@ -34,6 +34,8 @@ CLAUDE_ARGS=()
 # can only ring termlink-owned PTYs; this launcher creates exactly those).
 REACHABLE=0
 AGENT_ID=""
+SIDECAR=0
+SIDECAR_SOCKET=""
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 die() { echo "ERROR: $1" >&2; exit 1; }
@@ -108,7 +110,15 @@ Options:
                     PTY — heartbeat + push-waker (inbox + dm rails), so a DM
                     push-wakes this agent sub-second instead of the poll floor.
                     Per-agent state: ~/.termlink/be-reachable-<agent-id>.state
-  --agent-id ID     Agent identity for --reachable (default: session name)
+  --agent-id ID     Agent identity for --reachable and --sidecar (default: session name)
+  --sidecar         T-3438 (arc-011 P7): start this agent's arc-011 sidecar
+                    (scripts/sidecar-supervise.sh start <project>--<agent-id>;
+                    under systemd when the project keeps it running) and hand
+                    the session TERMLINK_SIDECAR_SOCKET, so its hooks deliver
+                    mail. Needs /etc/termlink-sidecar/<project>--<agent-id>.env
+                    (written by the W1 runme action). If the sidecar cannot be
+                    started, Claude still starts, WITHOUT the socket, loudly.
+                    Ending the session never stops the sidecar.
   --help            Show this help
 
 Subcommand install-boot (T-2388, arc-004 C5):
@@ -170,6 +180,10 @@ build_claude_cmd() {
         [ -z "$env_prefix" ] && env_prefix="env "
         env_prefix="${env_prefix}TERMLINK_AGENT_ID=$(printf '%q' "$AGENT_ID") "
     fi
+    if [ -n "$SIDECAR_SOCKET" ]; then
+        [ -z "$env_prefix" ] && env_prefix="env "
+        env_prefix="${env_prefix}TERMLINK_SIDECAR_SOCKET=$(printf '%q' "$SIDECAR_SOCKET") "
+    fi
     for arg in "${CLAUDE_ARGS[@]}"; do
         [ "$arg" = "--dangerously-skip-permissions" ] && has_skip=1
     done
@@ -183,6 +197,42 @@ build_claude_cmd() {
         cmd="$cmd $(printf '%q' "$arg")"
     done
     echo "${env_prefix}${cmd}"
+}
+
+# T-3438 (arc-011 P7; OQ-f D+ item 2): project start always starts its sidecar.
+# Finds the agent's settings file, starts the sidecar through the supervise
+# script (one supervisor: systemd or a detached process), and only then sets
+# SIDECAR_SOCKET. Any failure leaves SIDECAR_SOCKET empty: the session runs
+# without mail rather than pointing its hooks at a dead socket.
+prepare_sidecar() {
+    [ "$SIDECAR" -eq 1 ] || return 0
+    local agent env_dir name f rt sup
+    agent="$(reachable_agent_id)"
+    env_dir="${SIDECAR_ENV_DIR:-/etc/termlink-sidecar}"
+    sup="${TL_CLAUDE_SIDECAR_SUPERVISE:-$SCRIPT_DIR/sidecar-supervise.sh}"
+    f=""
+    for name in "$env_dir"/*--"$agent".env; do
+        [ -e "$name" ] || continue
+        [ -n "$f" ] && { echo "WARN: sidecar: more than one settings file for agent $agent under $env_dir; not starting it (session runs WITHOUT mail)." >&2; return 1; }
+        f="$name"
+    done
+    if [ -z "$f" ]; then
+        echo "WARN: sidecar: no settings file $env_dir/<project>--$agent.env (the W1 runme action writes it); session runs WITHOUT mail." >&2
+        return 1
+    fi
+    name="$(basename "$f" .env)"
+    if ! bash "$sup" start "$name"; then
+        echo "WARN: sidecar: '$sup start $name' failed; session runs WITHOUT mail. See: bash $sup status $name" >&2
+        return 1
+    fi
+    rt="$(sed -n 's/^TERMLINK_RUNTIME_DIR=//p' "$f" | head -1 | tr -d '"')"
+    SIDECAR_SOCKET="${rt%/}/sidecar/$agent.send.sock"
+    if [ ! -S "$SIDECAR_SOCKET" ]; then
+        echo "WARN: sidecar: started, but $SIDECAR_SOCKET is not a socket; session runs WITHOUT mail." >&2
+        SIDECAR_SOCKET=""
+        return 1
+    fi
+    echo "sidecar: $name running; mail socket $SIDECAR_SOCKET"
 }
 
 # --- Subcommands ---
@@ -201,6 +251,9 @@ cmd_oneshot() {
     # analog of the build_claude_cmd prefix) so the woken REPL resolves its own
     # agent-id fp, not the shared host key. See build_claude_cmd T-2411 note.
     [ "$REACHABLE" -eq 1 ] && [ -n "${AGENT_ID:-}" ] && export TERMLINK_AGENT_ID="$AGENT_ID"
+    # T-3438: start the sidecar first; the socket is exported only when it is live.
+    prepare_sidecar || true
+    if [ -n "$SIDECAR_SOCKET" ]; then export TERMLINK_SIDECAR_SOCKET="$SIDECAR_SOCKET"; else unset TERMLINK_SIDECAR_SOCKET; fi
     # T-2400: same auto-accept guarantee as build_claude_cmd, but this path uses
     # exec (not PTY-string injection), so export IS_SANDBOX into the inherited
     # env and append the flag to the argv rather than prefixing a shell string.
@@ -243,6 +296,9 @@ cmd_start() {
         --wait-timeout 15 \
         || die "Failed to spawn persistent session"
 
+    # T-3438: start the sidecar before building the command, so the socket is set.
+    prepare_sidecar || true
+
     # Inject claude command into the session
     sleep 1
     local claude_cmd
@@ -264,6 +320,8 @@ cmd_restart() {
         die "Session '$SESSION_NAME' not found. Use 'start' to create one."
     fi
 
+    # T-3438: a restarted claude gets the sidecar too (start is idempotent).
+    prepare_sidecar || true
     local claude_cmd
     claude_cmd=$(build_claude_cmd)
 
@@ -380,6 +438,7 @@ while [[ $# -gt 0 ]]; do
         --tags) TAGS="$2"; shift 2 ;;
         --reachable) REACHABLE=1; shift ;;          # T-2388 (C7)
         --agent-id) AGENT_ID="$2"; shift 2 ;;       # T-2388 (C7)
+        --sidecar) SIDECAR=1; shift ;;              # T-3438 (arc-011 P7)
         --help|-h) show_help; exit 0 ;;
         --) shift; CLAUDE_ARGS=("$@"); break ;;
         *) CLAUDE_ARGS=("$@"); break ;;
