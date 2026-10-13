@@ -8,12 +8,12 @@ description: >
   entries per sidecar (urgent ones as alarms, routine ones as counts per kind), and
   the one immediate alarm R-37 allows: an urgent message overdue at the receiver.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-011]
-components: []
+components: [crates/termlink-sidecar/src/client.rs]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -42,8 +42,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-13T10:55:31Z
-last_update: 2026-10-13T10:56:34Z
-date_finished:
+last_update: 2026-10-13T10:56:36Z
+date_finished: 2026-10-13T10:56:36Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -379,3 +379,20 @@ cargo test -p termlink-sidecar --test api_tests --test deadline_tests
 
 ### 2026-10-13T10:55:54Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-f23af4c4
+- **Timestamp:** 2026-10-13T10:56:50Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#3 (Agent)** — `scripts/session-start-alerts.sh` lists each sidecar's new entries (urgent as ALARM lines, routine as counts per kind with the latest detail), in `--json` too; `--mark-seen` advances a per-sidecar mar
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=scripts/session-start-alerts.sh in: `scripts/session-start-alerts.sh` lists each sidecar's new entries (urgent as ALARM lines, routine as counts per kind with the latest detail), in `--j`
+
+### 2026-10-13T10:56:36Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
