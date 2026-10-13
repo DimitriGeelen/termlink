@@ -6,12 +6,12 @@ description: >
   current; .141 excluded, customer machine). Adds greenfield to runme action 6 FLEET_HUBS
   (--swap-restart path, detached hub).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [runme.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -40,8 +40,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-13T18:42:38Z
-last_update: 2026-10-13T19:10:41Z
-date_finished:
+last_update: 2026-10-13T23:01:12Z
+date_finished: 2026-10-13T23:01:12Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -80,7 +80,7 @@ bvp_scores_proposed:
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
 - [x] runme action 6 lists greenfield; .141 (laptop-141) stays excluded; dry run shows .132 staged 0.12.61 -> current and .121/.122 skipped as current
 - [x] runme fixtures pass (118)
-- [ ] Operator run of /opt/termlink/runme.sh shows `OK upgraded and verified: greenfield serves <current>` (secret still authenticates, cert unchanged), log rc=0
+- [x] .132 serves the upgraded binary with its ORIGINAL cert and secret. Not as planned: the runme run of 2026-10-13 18:45Z upgraded it (0.12.61 -> 0.12.540) but FAILED verification, because fleet-deploy-binary relaunched the hub in a fresh runtime dir (new cert e06c21d2, new secret; root cause T-3437). Recovered with `scripts/hub-recover-original-runtime.sh`, run on .132 by the Greenfield agent's operator (routed via 832 and the DM rail); verified from .107 2026-10-13 23:00Z+: probe aef925c6, fleet doctor PASS on 0.12.540. greenfield is out of runme action 6 until T-3437 is fixed.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -116,6 +116,10 @@ bvp_scores_proposed:
 -->
 
 ## Verification
+
+timeout 15 termlink hub probe 192.168.10.132:9100 > /tmp/.t3436-a 2>&1 && grep -q "sha256:aef925c6d2f4ac5417fad0ead003a31ff425d6b4536a65cc9543f5c2c14d0f86" /tmp/.t3436-a
+termlink fleet doctor > /tmp/.t3436-b 2>&1; grep -A1 -- "--- greenfield" /tmp/.t3436-b > /tmp/.t3436-c && grep -q "PASS" /tmp/.t3436-c
+grep -q '^FLEET_HUBS="${RUNME_FLEET_HUBS:-ring20-management ring20-dashboard}"' runme.sh
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -369,3 +373,24 @@ bvp_scores_proposed:
 
 ### 2026-10-13T18:43:26Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-2e3a7e79
+- **Timestamp:** 2026-10-13T23:01:19Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** yes
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#3 (Agent)** — .132 serves the upgraded binary with its ORIGINAL cert and secret. Not as planned: the runme run of 2026-10-13 18:45Z upgraded it (0.12.61 -> 0.12.540) but FAILED verification, because fleet-deploy-bi
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=scripts/hub-recover-original-runtime.sh in: .132 serves the upgraded binary with its ORIGINAL cert and secret. Not as planned: the runme run of 2026-10-13 18:45Z upgraded it (0.12.61 -> 0.12.540`
+
+- **Layer-1 escalations:** 1
+  1. **cross-project-blast** (medium) — Cross-project or cross-repo change
+     - matched: `fleet doctor`
+
+### 2026-10-13T23:01:12Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
