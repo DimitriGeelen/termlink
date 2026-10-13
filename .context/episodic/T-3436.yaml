@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3436: Upgrade greenfield hub (.132) from 0.12.61 via runme action 6
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-13T23:01:31Z
+# ============================================================================
+
+task_id: T-3436
+task_name: "Upgrade greenfield hub (.132) from 0.12.61 via runme action 6"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-13T18:42:38Z
+completed: 2026-10-13T23:01:12Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-13T20:43:47+02:00
+last_commit: 2026-10-13T21:10:41+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  runme action 6 also upgrades greenfield (.132, 0.12.61); .141 stays excluded. hub-recover-original-runtime.sh - put .132's hub back on its original runtime dir (cert-fingerprint located, TERM-only, verified). take greenfield (.132) out of runme action 6 until T-3437 fixes the runtime-dir move
+
+# Key outcomes
+outcomes:
+  - 'runme action 6 lists greenfield; .141 (laptop-141) stays excluded; dry run shows .132 staged 0.12.61 -> current and .121/.122 skipped as current'
+  - 'runme fixtures pass (118)'
+  - '.132 serves the upgraded binary with its ORIGINAL cert and secret. Not as planned: the runme run of 2026-10-13 18:45Z upgraded it (0.12.61 -> 0.12.540) but FAILED verification, because fleet-deploy-binary relaunched the hub in a fresh runtime dir (new cert e06c21d2, new secret; root cause T-3437). Recovered with `scripts/hub-recover-original-runtime.sh`, run on .132 by the Greenfield agent''s operator (routed via 832 and the DM rail); verified from .107 2026-10-13 23:00Z+: probe aef925c6, fleet doctor PASS on 0.12.540. greenfield is out of runme action 6 until T-3437 is fixed.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'take greenfield (.132) out of runme action 6 until T-3437 fixes the runtime-dir move'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'runme.sh'
+  - 'scripts/hub-recover-original-runtime.sh'
+  - '.tasks/active/T-3436-upgrade-greenfield-hub-132-from-01261-vi.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-13T20:43:47'
+    action: 'T-3436: runme action 6 also upgrades greenfield (.132, 0.12.61); .141 stays excluded'
+  - time: '2026-10-13T21:08:56'
+    action: 'T-3436: hub-recover-original-runtime.sh - put .132''s hub back on its original runtime dir (cert-fingerprint located, TERM-only, verified)'
+  - time: '2026-10-13T21:10:41'
+    action: 'T-3436: take greenfield (.132) out of runme action 6 until T-3437 fixes the runtime-dir move'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 258 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 258
+  commits: 3
+  files_changed: 3
+  lines_added: 504
+  lines_removed: 5
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3436-upgrade-greenfield-hub-132-from-01261-vi.md
+generated_by: context-agent-hybrid
