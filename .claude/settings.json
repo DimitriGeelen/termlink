@@ -46,6 +46,14 @@
             "command": "${CLAUDE_PROJECT_DIR}/.agentic-framework/bin/fw hook sidecar-autostart"
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -z \"${TERMLINK_SIDECAR_SOCKET:-}\" ] || exec termlink sidecar hook session-start"
+          }
+        ]
       }
     ],
     "PreToolUse": [
@@ -234,6 +242,15 @@
             "command": "${CLAUDE_PROJECT_DIR}/.agentic-framework/bin/fw hook audit-task-tools"
           }
         ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -z \"${TERMLINK_SIDECAR_SOCKET:-}\" ] || exec termlink sidecar hook post-tool-use"
+          }
+        ]
       }
     ],
     "UserPromptSubmit": [
@@ -263,6 +280,24 @@
           {
             "type": "command",
             "command": "${CLAUDE_PROJECT_DIR}/.agentic-framework/bin/fw hook sidecar-receiver-ready"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -z \"${TERMLINK_SIDECAR_SOCKET:-}\" ] || exec termlink sidecar hook stop"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -z \"${TERMLINK_SIDECAR_SOCKET:-}\" ] || exec termlink sidecar hook session-end"
           }
         ]
       }

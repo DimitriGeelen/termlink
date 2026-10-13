@@ -69,6 +69,13 @@ envfile other-project--claude-termlink claude-termlink; : > "$T/calls"
 out=$(run 1 claude-termlink)
 check "5b two projects claiming the agent: refuses to guess, starts nothing" '! grep -q TERMLINK_SIDECAR_SOCKET <<< "$out" && grep -q "more than one settings file" "$T/err" && [ ! -s "$T/calls" ]'
 
+# 6 the project settings carry the four guarded arc-011 hooks (R-48), so a
+#   framework upgrade that dropped them fails here instead of silently.
+for ev in PostToolUse:post-tool-use SessionStart:session-start Stop:stop SessionEnd:session-end; do
+    check "6 settings.json ${ev%%:*} runs the guarded sidecar hook ${ev#*:}" \
+        "python3 -c 'import json,sys; d=json.load(open(\"$ROOT/.claude/settings.json\")); c=\"[ -z \\\"\${TERMLINK_SIDECAR_SOCKET:-}\\\" ] || exec termlink sidecar hook ${ev#*:}\"; sys.exit(0 if any(h.get(\"command\")==c for g in d[\"hooks\"].get(\"${ev%%:*}\",[]) for h in g.get(\"hooks\",[])) else 1)'"
+done
+
 echo "---"
 echo "tl-claude sidecar fixtures: $PASS passed, $FAIL failed"
 [ "$FAIL" = 0 ]
