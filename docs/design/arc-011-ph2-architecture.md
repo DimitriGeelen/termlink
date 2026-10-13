@@ -134,6 +134,7 @@ message canary" is P23. The other rows get a task each when they start.
 | OQ-e | Fleet kill switch | A `admin delivery off --all` loops over the host's admin sockets and verifies each; B one fleet flag file every sidecar reads | A: no new shared state, and each flip is logged where it happened |
 | OQ-h | Revocation list: where and who signs | A a hub topic signed by the hub signing key; requested by the agent's own project (signed by the old key) or by the operator through runme; B operator-only | A (TM RK-1 allows the agent's own project) |
 | OQ-i | Does the daily canary run as `testdev`, and is OQ-3 ruled A? | A yes, as `testdev`; B as root | A: same proof as the PH-1 acceptance, no operator credential involved |
+| OQ-j | On rollback, how does mail the sidecar stored but never handed over reach the agent? (re-post with the original signature is impossible, 6.4) | A kept in the store and listed to the operator, who reads or forwards it; B the drain also forwards each kept message to the old inbox as a new message from the sidecar quoting the original id and sender (provenance stated, not the original signature); C kept, and the sidecar stays up read-only so the agent can still `status`/read them | A for W1 to W3 (one pair, own agents, rollback is a drill); revisit before W4 |
 | OQ-g | FX-5 baseline | — | Not a decision: no PH-0 count was found, so P8 takes it before W1 |
 
 ### 6.1 OQ-f ruling D+: start with the project, keep running only where configured, cron backstop
