@@ -149,6 +149,32 @@ struct Candidate {
     assessment: Assessment,
 }
 
+/// A message a drain keeps (PH-2 row P4).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct DrainItem {
+    pub conv: String,
+    pub msg_id: String,
+    pub from: String,
+    pub seq: u64,
+    pub digest: String,
+}
+
+/// What a drain found: `listed` stored-and-not-handed-over messages, of which
+/// `kept` re-read intact; `unreadable` names the rest.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct DrainInventory {
+    pub listed: usize,
+    pub kept: Vec<DrainItem>,
+    pub unreadable: Vec<String>,
+}
+
+impl DrainInventory {
+    /// The count compare of FP 6.2.3.e: every listed message is kept intact.
+    pub fn counts_match(&self) -> bool {
+        self.unreadable.is_empty() && self.kept.len() == self.listed
+    }
+}
+
 pub struct Deliverer {
     agent: String,
     store: Arc<Store>,
@@ -460,6 +486,46 @@ impl Deliverer {
         sent
     }
 
+    /// Every message this store holds that was stored and never handed over or
+    /// refused, whatever its state (held, withheld, an open attempt): what a drain
+    /// keeps (PH-2 row P4). Each record is re-read and its digest compared; a
+    /// record that fails is reported, never counted as kept.
+    pub fn drain_inventory(&self) -> DrainInventory {
+        use sha2::{Digest, Sha256};
+        let mut inv = DrainInventory::default();
+        for conv in self.store.conversations() {
+            if NOT_MAIL.contains(&conv.as_str()) {
+                continue;
+            }
+            let Ok(lines) = self.store.chain_lines(&conv) else {
+                inv.unreadable.push(format!("{conv}: chain unreadable"));
+                continue;
+            };
+            for st in lines.iter().filter(|l| l.event == "STORED" && own(l)) {
+                let done = lines.iter().any(|l| {
+                    own(l) && l.msg_id == st.msg_id && l.sender == st.sender && (l.event == HANDED_OVER || l.event == "REFUSED")
+                });
+                if done {
+                    continue;
+                }
+                inv.listed += 1;
+                let ok = match self.store.read_record(&conv, st.seq, &st.msg_id) {
+                    Ok((_, payload)) => {
+                        let d: String = Sha256::digest(&payload).iter().map(|b| format!("{b:02x}")).collect();
+                        d == st.digest
+                    }
+                    Err(_) => false,
+                };
+                if ok {
+                    inv.kept.push(DrainItem { conv: conv.clone(), msg_id: st.msg_id.clone(), from: st.sender.clone(), seq: st.seq, digest: st.digest.clone() });
+                } else {
+                    inv.unreadable.push(format!("{conv}/{}: record missing or digest mismatch", st.msg_id));
+                }
+            }
+        }
+        inv
+    }
+
     /// Messages that would be offered now (for status and tests).
     pub fn pending(&self) -> Vec<String> {
         self.candidates().into_iter().map(|c| c.msg_id).collect()
@@ -470,6 +536,10 @@ impl Deliverer {
         // Read now, never cached (SI-23).
         if !policy::delivery_enabled(&self.store) {
             return Ok(Pulled::Nothing { why: "delivery-off" });
+        }
+        // Drained (PH-2 row P4): the kept messages stay kept; nothing leaves.
+        if !policy::receiving_enabled(&self.store) {
+            return Ok(Pulled::Nothing { why: "drained" });
         }
         let cands = self.candidates();
         if cands.is_empty() {
@@ -543,6 +613,9 @@ impl Deliverer {
     pub fn claim_one(&self, msg_id: &str) -> Result<(u32, String), String> {
         if !policy::delivery_enabled(&self.store) {
             return Err("delivery-off".into());
+        }
+        if !policy::receiving_enabled(&self.store) {
+            return Err("drained".into());
         }
         let c = self
             .candidates()

@@ -83,6 +83,9 @@ pub enum PassResult {
     Held(String),
     /// A message could not be finished (e.g. the store failed); retried next pass.
     Stalled { handled: usize, reason: String },
+    /// Drained by the operator (PH-2 row P4): nothing was read; new mail stays on
+    /// the hub and the cursor does not move.
+    Drained,
 }
 
 struct Inner {
@@ -266,6 +269,9 @@ impl Inner {
     }
 
     fn pass_locked(&self, mem: &mut PassMemory) -> PassResult {
+        if !policy::receiving_enabled(&self.store) {
+            return PassResult::Drained;
+        }
         match self.check_pin() {
             Ok(()) => mem.held = None,
             Err(PinError::Unreachable(_)) => return PassResult::Waiting,
@@ -313,6 +319,11 @@ impl Inner {
                 };
                 if env.offset < cursor {
                     continue;
+                }
+                // A drain set mid-pass stops before the next message: it stays on
+                // the hub and the cursor does not move past it (PH-2 row P4).
+                if !policy::receiving_enabled(&self.store) {
+                    return PassResult::Drained;
                 }
                 match self.handle(&env) {
                     Outcome::Done => {

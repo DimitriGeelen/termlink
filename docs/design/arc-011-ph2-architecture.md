@@ -199,6 +199,24 @@ Row P3 builds items 5 to 8; row P7 builds items 1, 2 and 4 into the launcher.
    (a new wire field) and "no-action" to row P14; STUCK for "not accepted" and "not answered" without a notice needs
    liveness, row P3.
 
+### 6.4 K-4 as built (row P4, T-3429)
+
+1. **Drain** (`termlink sidecar admin drain --why TEXT`, admin socket): sets `receive.drained` in the store. The
+   receiver reads it at the start of every pass and before every message: nothing new is read, the mail stays on the
+   hub and the cursor does not move (senders keep chasing). Nothing is handed over while drained. The kill switch is
+   separate and unchanged.
+2. **Count compare.** After 1.5 s (a pass mid-message finishes), the drain lists every own STORED message with no
+   HANDED_OVER or REFUSED, re-reads each record against its chain digest, writes `state.drain-manifest`, and logs
+   DRAIN with `listed=N kept=K unreadable=U` on the admin chain. It answers `ok` only when K == N; otherwise
+   `count-mismatch` ("do not start the old receiver") and a needs-attention entry. Status shows `receiving`.
+3. **Undrain** reverses it (UNDRAIN logged).
+4. **Finding: re-post is not possible as FP 6.2.3.e words it.** The signature binds the topic it was posted to, the
+   store keeps payloads but not signatures, and AEF's receiver does not read this message format. So "kept" is the
+   built path: the messages stay in the store for the 14 days. Whether they must also reach the agent through the old
+   path is an operator decision before W1 (OQ-j).
+5. **Rollback per wave**: drain (count matches) -> stop the sidecar -> start the old receiver: a runme action of each
+   wave.
+
 ## 7 Out of scope for PH-2
 
 Cross-host and cross-operator delivery, grants and their knobs (T-3423), Tier 0 machinery, the Track A pilot

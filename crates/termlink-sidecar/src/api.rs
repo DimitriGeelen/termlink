@@ -95,6 +95,8 @@ fn op_spec(op: &str) -> Option<(Scope, &'static [&'static str])> {
         "held" => (Scope::Admin, &["body"]),
         "allow" => (Scope::Admin, &["key", "why"]),
         "deny" => (Scope::Admin, &["key", "why"]),
+        "drain" => (Scope::Admin, &["why"]),
+        "undrain" => (Scope::Admin, &["why"]),
         _ => return None,
     })
 }
@@ -370,6 +372,8 @@ fn dispatch_inner(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id:
         "held" => held(obj, store),
         "allow" => decide(obj, store, agent, sender, who, true),
         "deny" => decide(obj, store, agent, sender, who, false),
+        "drain" => drain(obj, store, ctx.deliverer, who),
+        "undrain" => undrain(obj, store, who),
         "pull" => pull(obj, ctx.deliverer),
         "claim" => claim(obj, ctx.deliverer),
         "handed-over" => handed_over(obj, ctx.deliverer),
@@ -525,6 +529,74 @@ fn log_switch(store: &Store, event: &str, who: &str, why: &str) -> Result<(), St
         )
         .map(|_| ())
         .map_err(|e| e.to_string())
+}
+
+/// State file holding the last drain's inventory (PH-2 row P4).
+pub const DRAIN_MANIFEST: &str = "drain-manifest";
+/// How long a drain waits after setting its flag before it counts, so a receive
+/// pass that was mid-message when the flag appeared has finished storing it.
+pub const DRAIN_SETTLE: std::time::Duration = std::time::Duration::from_millis(1500);
+
+/// FP 6.2.3.e: refuse new mail (it stays on the hub; senders keep chasing),
+/// hand nothing over, and keep every stored message not yet handed over; count
+/// what is kept against what is listed. Only a matching count says the old
+/// receiver may start. Idempotent: a second drain counts again.
+fn drain(obj: &serde_json::Map<String, Value>, store: &Store, d: Option<&Deliverer>, who: &str) -> Value {
+    let Some(d) = d else { return no_deliverer() };
+    let why = obj.get("why").and_then(Value::as_str).unwrap_or("");
+    let flag = store.dir().join(crate::policy::DRAINED_FLAG);
+    let set = fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .mode(0o600)
+        .open(&flag)
+        .and_then(|mut f| {
+            writeln!(f, "{why}")?;
+            f.sync_all()
+        });
+    if let Err(e) = set {
+        return err("io", &format!("cannot write the drain flag: {e}"), "nothing changed; the sidecar still receives");
+    }
+    std::thread::sleep(DRAIN_SETTLE);
+    let inv = d.drain_inventory();
+    let at = crate::store::now_ms();
+    let manifest = json!({"at_ms": at, "why": why, "by": who, "listed": inv.listed, "kept": inv.kept, "unreadable": inv.unreadable});
+    if let Err(e) = store.write_state(DRAIN_MANIFEST, &manifest.to_string()) {
+        return err("io", &format!("drained, but the manifest could not be written: {e}"), "the sidecar is drained; run drain again");
+    }
+    let summary = format!("listed={} kept={} unreadable={} {why}", inv.listed, inv.kept.len(), inv.unreadable.len());
+    if let Err(e) = log_switch(store, "DRAIN", who, &summary) {
+        return err("log", &format!("drained, but the drain could not be logged: {e}"), "the flag is set; check the store");
+    }
+    let mut v = json!({
+        "ok": inv.counts_match(),
+        "drained": true,
+        "listed": inv.listed,
+        "kept": inv.kept.len(),
+        "unreadable": inv.unreadable,
+        "manifest": format!("state.{DRAIN_MANIFEST}"),
+    });
+    if !inv.counts_match() {
+        let _ = store.attention("drain-count-mismatch", &summary);
+        v["code"] = json!("count-mismatch");
+        v["error"] = json!(format!("{} listed, {} kept intact: do not start the old receiver", inv.listed, inv.kept.len()));
+    }
+    v
+}
+
+/// Undo a drain: receive and hand over again.
+fn undrain(obj: &serde_json::Map<String, Value>, store: &Store, who: &str) -> Value {
+    let why = obj.get("why").and_then(Value::as_str).unwrap_or("");
+    match fs::remove_file(store.dir().join(crate::policy::DRAINED_FLAG)) {
+        Ok(()) => {}
+        Err(e) if e.kind() == io::ErrorKind::NotFound => {}
+        Err(e) => return err("io", &format!("cannot remove the drain flag: {e}"), "the sidecar is still drained"),
+    }
+    match log_switch(store, "UNDRAIN", who, why) {
+        Ok(()) => json!({"ok": true, "drained": false}),
+        Err(e) => err("log", &format!("receiving again, but the undrain could not be logged: {e}"), "check the store"),
+    }
 }
 
 fn delivery(obj: &serde_json::Map<String, Value>, store: &Store, who: &str) -> Value {
@@ -878,6 +950,7 @@ fn status_at(
         "chains": chains,
         "delivery": if delivery_on { "on" } else { "off" },
         "mode": store.mode().as_str(),
+        "receiving": if crate::policy::receiving_enabled(store) { "on" } else { "drained" },
         "strength": strength,
         "missing_strength": missing,
         "notes": [TAIL_NOTE],

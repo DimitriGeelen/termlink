@@ -158,6 +158,19 @@ impl Policy for BuiltIn {
 
 /// SI-23: read the switch now. Absent flag means on; anything else, including
 /// a flag that cannot be checked, means off (fail closed).
+/// Flag file in the store dir; present means the sidecar is drained (PH-2 row
+/// P4, FP 6.2.3.e): it pulls no new mail and hands nothing over, so an old
+/// receiver can take the inbox back while exactly one receiver serves it.
+pub const DRAINED_FLAG: &str = "receive.drained";
+
+/// False while drained. Read on every pass (no cached copy), like the delivery flag.
+pub fn receiving_enabled(store: &Store) -> bool {
+    match std::fs::symlink_metadata(store.dir().join(DRAINED_FLAG)) {
+        Ok(_) => false,
+        Err(e) => e.kind() == std::io::ErrorKind::NotFound,
+    }
+}
+
 pub fn delivery_enabled(store: &Store) -> bool {
     match std::fs::symlink_metadata(store.dir().join(DELIVERY_OFF_FLAG)) {
         Ok(_) => false,
