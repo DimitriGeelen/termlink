@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3429: arc-011 PH-2 row P4: drain and rollback (FP 6.2.3.e)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-13T10:32:59Z
+# ============================================================================
+
+task_id: T-3429
+task_name: "arc-011 PH-2 row P4: drain and rollback (FP 6.2.3.e)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-13T10:25:52Z
+completed: 2026-10-13T10:32:10Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-13T12:31:56+02:00
+last_commit: 2026-10-13T12:32:09+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  PH-2 row P4 - drain and rollback (FP 6.2.3.e). PH-2 architecture - OQ-j (rollback of kept mail) listed
+
+# Key outcomes
+outcomes:
+  - '`admin drain --why` sets a drained flag read on every receive pass and before each message: no new mail is read (it stays on the hub, the cursor does not move) and nothing is handed over; status shows `receiving: drained`'
+  - 'Drain lists every own stored message not handed over or refused (held, withheld or with an open attempt included), re-reads each record against its chain digest, writes `state.drain-manifest`, logs DRAIN with the counts on the admin chain; `ok` only when kept == listed, else `count-mismatch` with "do not start the old receiver" and a needs-attention entry'
+  - '`admin undrain --why` resumes receiving and hand-over (logged UNDRAIN); the kill switch stays independent of the drain'
+  - 'Tests: end-to-end on a hub (drain, new mail left on the hub, no hand-over, undrain reads it) and a damaged-record count mismatch; mutants (no receiver gate; unreadable counted as kept) both killed; full suite and clippy clean'
+  - 'Finding recorded: re-posting into the old inbox with the original signature is impossible (signature binds the topic; the old receiver does not read this format) - kept path built; the re-post question goes to the operator before W1'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-sidecar/src/api.rs'
+  - 'crates/termlink-sidecar/src/client.rs'
+  - 'crates/termlink-sidecar/src/deliver.rs'
+  - 'crates/termlink-sidecar/src/policy.rs'
+  - 'crates/termlink-sidecar/src/pull.rs'
+  - 'crates/termlink-sidecar/tests/drain_tests.rs'
+  - 'docs/design/arc-011-ph2-architecture.md'
+  - '.tasks/active/T-3429-arc-011-ph-2-row-p4-drain-and-rollback-f.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-13T12:31:56'
+    action: 'T-3429: PH-2 row P4 - drain and rollback (FP 6.2.3.e)'
+  - time: '2026-10-13T12:32:09'
+    action: 'T-3429: PH-2 architecture - OQ-j (rollback of kept mail) listed'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 6
+  commits: 2
+  files_changed: 8
+  lines_added: 738
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3429-arc-011-ph-2-row-p4-drain-and-rollback-f.md
+generated_by: context-agent-hybrid
