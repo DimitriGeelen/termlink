@@ -14,6 +14,7 @@ hand (estate guard, STUCK_AFTER_MS, READY_MAX_AGE_MS, client admin verbs).
 | Version | Date | Change | Task |
 |---|---|---|---|
 | 0.1 DRAFT | 2026-10-12 | First draft: what PH-1 leaves, components, waves, build table, operator questions | T-3426 |
+| 0.3 DRAFT | 2026-10-13 | 6.6 K-7 as built (row P7); P7-1..P7-4 rulings in 6 | T-3438 |
 | 0.2 DRAFT | 2026-10-13 | 6.5 K-3 as built (row P3): component heartbeat, systemd template unit, supervise script, 10-minute cron backstop, runme action | T-3435 |
 
 ## 1 Where PH-1 leaves us
@@ -262,6 +263,39 @@ Row P3 builds items 5 to 8; row P7 builds items 1, 2 and 4 into the launcher.
    step are caught), `tests/runme-fixtures.sh` (+5). R-8.e (SIGKILL, then a new sidecar with a fresh heartbeat)
    is proven against a fake sidecar in the fixtures; on the real host it is part of the W1 drill once row P7
    has configured a project.
+
+### 6.6 K-7 as built (row P7, T-3438)
+
+1. **Key register (P7-2, PR-1a part).** A production sidecar refuses to start when its key file is missing (it
+   never mints one; PH-1's `load_or_create` stays for test estates), when its config names no `key_register`, or
+   when the key differs from the register entry `/etc/termlink-sidecar/keys/<agent>.pub`. The hub-side card and
+   old-key-signed replacement are row P17.
+2. **Address book (SI-20 pin, SI-21 fixed default, R-62).** `Config.book` = `{peers: {agent: instance}, main}`,
+   required in production and validated at start (no self or `main` as a peer, a pinned main that is known, plain
+   names only). `send` resolves `to` (or `main`) through it, fills `to_instance`, refuses an agent outside the book
+   (`not-in-address-book`) and a different instance (`instance-mismatch`, never redirected). Without a book (the
+   PH-1 estate) `to_instance` stays required.
+3. **Instance ids (P7-4).** `<agent>.w1-<yyyymmdd>`, minted once by provisioning and never rewritten. `@` is not a
+   plain name, so the brief's example form was corrected.
+4. **Hooks (R-48).** `.claude/settings.json` runs `termlink sidecar hook post-tool-use|session-start|stop|
+   session-end`, each behind `[ -z "${TERMLINK_SIDECAR_SOCKET:-}" ] ||`: a session started without the socket runs
+   nothing, so only the launched pair is wired. Project hooks survive a framework upgrade (upgrade.sh T-3906); a
+   fixture pins all four.
+5. **Launcher (OQ-f D+ item 2).** `scripts/tl-claude.sh --sidecar --agent-id <a>` starts the agent's sidecar
+   through `sidecar-supervise.sh start <project>--<a>` and hands the session `TERMLINK_SIDECAR_SOCKET` only when
+   the send socket exists; otherwise Claude starts without mail and says so. Session end never stops a sidecar;
+   `sidecar-supervise.sh stop-project <project>` is the explicit project stop (item 4).
+6. **Provisioning** `scripts/arc011-w1-provision.sh --check|--apply` writes the register, instance ids, store roots
+   with the production marker, configs (roster = the partner's key, book, main `claude-termlink`), per-agent settings
+   files, the admin-socket list and `SIDECAR_KEEP_RUNNING: on`, then starts both sidecars and verifies each answers
+   status in production mode with a fresh heartbeat under systemd. A key that differs from the register is refused,
+   never overwritten. `termlink sidecar hub-id --hub-socket <path>` supplies the hub id.
+7. **runme.** Action 17 reports W1 readiness on every run and provisions only when the operator's W1 go is recorded
+   (`ARC011_W1_GO`); `runme.sh --sidecar-delivery off|on --why "<reason>"` is the fleet kill switch for the listed
+   sidecars and runs nothing else.
+8. **Proven:** `p7_wiring_tests` 7 + `book` unit 4, `tl-claude-sidecar-fixtures` 13, `arc011-w1-provision-fixtures`
+   20, `sidecar-supervise-fixtures` 39, `runme-fixtures` 125. Not yet proven: delivery between the two real sessions,
+   which is W1 itself.
 
 ## 7 Out of scope for PH-2
 

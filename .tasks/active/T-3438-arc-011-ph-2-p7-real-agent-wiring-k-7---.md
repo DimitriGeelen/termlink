@@ -42,7 +42,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-13T19:26:35Z
-last_update: 2026-10-13T21:57:21Z
+last_update: 2026-10-13T21:58:10Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -80,9 +80,9 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Gap map `docs/reports/T-3426-p7-gapmap.md`: for keys (PR-1a), roster, hooks (R-48), addressing (SI-20 pin, SI-21 own-project default, R-62 exact instance), production marker + settings, launcher start/stop, admin-socket list and kill switch — what exists (file:line), what is missing, what needs an operator choice
-- [ ] Every operator choice the gap map names is ruled, one at a time, and recorded in T-3426 `## Decisions` and the design doc section 6
-- [ ] Build per the rulings, each piece with tests; the real-host changes ship as idempotent, self-verifying `runme.sh` actions with fixtures; no receiver is switched on by the agent (W1 is the operator's action)
+- [x] Gap map `docs/reports/T-3426-p7-gapmap.md`: for keys (PR-1a), roster, hooks (R-48), addressing (SI-20 pin, SI-21 own-project default, R-62 exact instance), production marker + settings, launcher start/stop, admin-socket list and kill switch — what exists (file:line), what is missing, what needs an operator choice
+- [x] The operator's choices are ruled one at a time and recorded in T-3426 `## Decisions` and the design doc section 6 (P7-1 pair, P7-2 key register, P7-3 keep running, P7-4 instance ids); the gap map's other nine choices follow from earlier rulings or the design and were listed to the operator for override on 2026-10-13 (store path, roster source, inbox naming, hooks location, pinned main, admin list, launcher, kill-switch drill; the instance-source default was corrected and ruled as P7-4)
+- [x] Build per the rulings, each piece with tests; the real-host changes ship as idempotent, self-verifying `runme.sh` actions with fixtures; no receiver is switched on by the agent (W1 is the operator's action: action 17 provisions only on a recorded go)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -118,6 +118,14 @@ bvp_scores_proposed:
 -->
 
 ## Verification
+
+cargo test -p termlink-sidecar --test p7_wiring_tests > /tmp/.t3438-a 2>&1 && grep -q "test result: ok. 7 passed" /tmp/.t3438-a
+cargo test -p termlink-sidecar --lib book > /tmp/.t3438-b 2>&1 && grep -q "test result: ok. 4 passed" /tmp/.t3438-b
+bash tests/tl-claude-sidecar-fixtures.sh > /tmp/.t3438-c 2>&1 && grep -q "13 passed, 0 failed" /tmp/.t3438-c
+bash tests/arc011-w1-provision-fixtures.sh > /tmp/.t3438-d 2>&1 && grep -q "20 passed, 0 failed" /tmp/.t3438-d
+bash tests/sidecar-supervise-fixtures.sh > /tmp/.t3438-e 2>&1 && grep -q "39 passed, 0 failed" /tmp/.t3438-e
+bash tests/runme-fixtures.sh > /tmp/.t3438-f 2>&1 && grep -q ", 0 failed" /tmp/.t3438-f
+touch crates/termlink-sidecar/src/lib.rs && cargo clippy -p termlink-sidecar --all-targets > /tmp/.t3438-g 2>&1 && grep -q "Checking termlink-sidecar" /tmp/.t3438-g && ! grep -q -- "--> crates/termlink-sidecar" /tmp/.t3438-g
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -311,6 +319,11 @@ bvp_scores_proposed:
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-10-13 — P7: what building against the real host corrected
+- **What changed:** (1) the instance cannot be the Claude session id (default 5): the sidecar runs before any session under P7-3 B, and senders must name the instance exactly — ruled P7-4 A, provisioning-scoped ids. (2) The ruled example form `<agent>@w1-<date>` is refused by the API's name rule; the test caught it, the form is `<agent>.w1-<date>`. (3) The silent key re-mint (`load_or_create`) was a real hazard for production: now refused there. (4) One sidecar per agent means one unit instance per agent (`<project>--<agent>`), so the explicit project stop became `stop-project`. (5) The hub's id is not in `hub status`; added `termlink sidecar hub-id`.
+- **Plan impact:** R-67 role resolution and per-copy ids stay later; a second harness adapter (operator question on vendors/models/harnesses) would be its own row. PR-1a's hub card moved into P17.
+- **Triggered:** W1 itself (operator go), and the first live R-8.e check on the real host inside W1.
 
 ## Recommendation
 
