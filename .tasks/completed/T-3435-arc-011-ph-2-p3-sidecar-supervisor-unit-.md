@@ -7,12 +7,12 @@ description: >
   component heartbeat (FP-1 failure 4), 10-min cron backstop repairing through systemd,
   status reports setting + supervisor, installed by a runme action.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-011, sidecar]
-components: []
+components: [crates/termlink-sidecar/src/beat.rs, crates/termlink-sidecar/src/client.rs, runme.sh, scripts/sidecar-supervise.sh, systemd-templates/termlink-sidecar@.service, tests/runme-fixtures.sh, tests/sidecar-supervise-fixtures.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -41,8 +41,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-13T16:51:56Z
-last_update: 2026-10-13T17:10:06Z
-date_finished:
+last_update: 2026-10-13T18:24:48Z
+date_finished: 2026-10-13T18:24:48Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -125,7 +125,7 @@ bvp_scores_proposed:
 cargo test -p termlink-sidecar --test supervision_tests > /tmp/.t3435-a 2>&1 && grep -q "test result: ok. 6 passed" /tmp/.t3435-a
 bash tests/sidecar-supervise-fixtures.sh > /tmp/.t3435-b 2>&1 && grep -q "34 passed, 0 failed" /tmp/.t3435-b
 bash tests/runme-fixtures.sh > /tmp/.t3435-c 2>&1 && grep -q ", 0 failed" /tmp/.t3435-c
-cargo clippy -p termlink-sidecar --all-targets > /tmp/.t3435-d 2>&1 && ! grep -q "crates/termlink-sidecar" /tmp/.t3435-d
+touch crates/termlink-sidecar/src/lib.rs && cargo clippy -p termlink-sidecar --all-targets > /tmp/.t3435-d 2>&1 && grep -q "Checking termlink-sidecar" /tmp/.t3435-d && ! grep -q -- "--> crates/termlink-sidecar" /tmp/.t3435-d
 bash scripts/check-canary-log-hygiene.sh > /tmp/.t3435-e 2>&1
 
 # Shell commands that MUST pass before work-completed. One per line.
@@ -385,3 +385,20 @@ bash scripts/check-canary-log-hygiene.sh > /tmp/.t3435-e 2>&1
 
 ### 2026-10-13T16:52:39Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-be5ea004
+- **Timestamp:** 2026-10-13T18:27:25Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#5 (Agent)** — `scripts/sidecar-supervise.sh start|stop|check|status`: start chooses exactly one supervisor (systemd unit if systemd exists and the setting is on; else a detached process, which cron supervises only 
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=scripts/sidecar-supervise.sh in: `scripts/sidecar-supervise.sh start|stop|check|status`: start chooses exactly one supervisor (systemd unit if systemd exists and the setting is on; el`
+
+### 2026-10-13T18:24:48Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

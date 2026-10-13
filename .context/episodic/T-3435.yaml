@@ -1,0 +1,101 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3435: arc-011 PH-2 P3: sidecar supervisor unit, component heartbeat, cron backstop (K-3, R-8, OQ-f D+ items 5-8)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-13T18:27:33Z
+# ============================================================================
+
+task_id: T-3435
+task_name: "arc-011 PH-2 P3: sidecar supervisor unit, component heartbeat, cron backstop (K-3, R-8, OQ-f D+ items 5-8)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-13T16:51:56Z
+completed: 2026-10-13T18:24:48Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-13T19:10:06+02:00
+last_commit: 2026-10-13T19:10:06+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  arc-011 PH-2 P3 - component heartbeat, sidecar supervisor unit, cron backstop (K-3, R-8, OQ-f D+ 5-8)
+
+# Key outcomes
+outcomes:
+  - 'Component heartbeat (FP-1 failure 4): sender pump, receiver loop, API accept loops and the tick thread each record their last beat; once per tick the daemon writes `<store>/sidecar/<agent>/heartbeat.json` (pid, time, per-component last beat) and exits non-zero naming the component when one is silent past 3 ticks, so a supervisor restarts it'
+  - 'Status reports `supervisor` (systemd / cron / none, as started) and `keep_running`, plus each component''s beat age'
+  - 'Admin verb `note --kind K --why W` records a needs-attention entry (used by the backstop after it acts)'
+  - 'systemd template unit `termlink-sidecar@.service`: per-project env file, `Restart=always`, starts only while the project''s `SIDECAR_KEEP_RUNNING` is on and the project carries no explicit-stop marker (the supervisor never fights a stop)'
+  - '`scripts/sidecar-supervise.sh start|stop|check|status`: start chooses exactly one supervisor (systemd unit if systemd exists and the setting is on; else a detached process, which cron supervises only when the setting is on); stop always stops and writes the stop marker; check (cron backstop) repairs THROUGH systemd (`reset-failed` then `start`) or starts directly without systemd, restarts a sidecar whose heartbeat is stale, and each time it acts writes the canary log and a needs-attention note'
+  - 'Cron backstop crontab every 10 minutes, split-stream logging (T-2685), heartbeat on completion; runme action installs the unit template and the crontab, idempotent and verified on disk; hermetic fixtures for the script and the runme action'
+  - 'cargo test for the sidecar crate passes; clippy clean on the crate'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/cron/sidecar-backstop.crontab'
+  - 'crates/termlink-sidecar/src/api.rs'
+  - 'crates/termlink-sidecar/src/beat.rs'
+  - 'crates/termlink-sidecar/src/client.rs'
+  - 'crates/termlink-sidecar/src/daemon.rs'
+  - 'crates/termlink-sidecar/src/lib.rs'
+  - 'crates/termlink-sidecar/src/pull.rs'
+  - 'crates/termlink-sidecar/src/send.rs'
+  - 'crates/termlink-sidecar/tests/supervision_tests.rs'
+  - 'docs/design/arc-011-ph2-architecture.md'
+  - '.fabric/components/crates-termlink-sidecar-src-beat.yaml'
+  - '.fabric/components/scripts-sidecar-supervise.yaml'
+  - '.fabric/components/systemd-templates-termlink-sidecar@.yaml'
+  - '.fabric/components/tests-sidecar-supervise-fixtures.yaml'
+  - 'runme.sh'
+  - 'scripts/sidecar-supervise.sh'
+  - 'systemd-templates/termlink-sidecar@.service'
+  - '.tasks/active/T-3435-arc-011-ph-2-p3-sidecar-supervisor-unit-.md'
+  - 'tests/runme-fixtures.sh'
+  - 'tests/sidecar-supervise-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-13T19:10:06'
+    action: 'T-3435: arc-011 PH-2 P3 - component heartbeat, sidecar supervisor unit, cron backstop (K-3, R-8, OQ-f D+ 5-8)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 92 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011, sidecar]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 92
+  commits: 2
+  files_changed: 21
+  lines_added: 1602
+  lines_removed: 16
+  footprint_refreshed_at: '2026-10-13T18:27:52Z'
+  footprint_refreshed_by_commit: 4aaecb401
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3435-arc-011-ph-2-p3-sidecar-supervisor-unit-.md
+generated_by: context-agent-hybrid
