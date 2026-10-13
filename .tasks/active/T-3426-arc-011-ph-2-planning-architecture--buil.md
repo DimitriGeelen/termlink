@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-12T19:17:19Z
-last_update: 2026-10-13T10:48:06Z
+last_update: 2026-10-13T11:00:20Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -342,6 +342,11 @@ date_finished: null
 - **Chose:** A — accept for PH-2; the status call states "same-user separation absent: agents run as root".
 - **Why:** PH-2 is one host, one project, the operator's own agents; real separation needs per-agent accounts (Track A), which needs PH-3's Tier 0 machinery.
 - **Rejected (OQ-b):** A+ (also surface every admin act and foreign use of a send socket after the fact; offered, not taken), B (wait for Track A: would fold PH-2 into PH-3).
+
+### 2026-10-13 — OQ-e: fleet kill switch (operator ruling)
+- **Chose:** A — `termlink sidecar admin delivery off|on --why [--all]`; `--all` walks the host's listed admin sockets, flips each, reads the state back, reports per agent, exits non-zero if any failed; a runme action.
+- **Why:** no new shared state; each flip logged in the sidecar where it happened; every flip verified.
+- **Rejected:** B one fleet flag file (new shared state, one log, permissions across users in PH-3).
 
 ### 2026-10-13 — OQ-j: drained mail on rollback (operator ruling)
 - **Chose:** A — kept in the store and listed (sender, conversation, id) in the rollback report; the operator reads or forwards what matters. Revisit before W4.
