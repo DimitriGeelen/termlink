@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-12T19:17:19Z
-last_update: 2026-10-13T11:17:10Z
+last_update: 2026-10-13T11:29:18Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -342,6 +342,13 @@ date_finished: null
 - **Chose:** A — accept for PH-2; the status call states "same-user separation absent: agents run as root".
 - **Why:** PH-2 is one host, one project, the operator's own agents; real separation needs per-agent accounts (Track A), which needs PH-3's Tier 0 machinery.
 - **Rejected (OQ-b):** A+ (also surface every admin act and foreign use of a send socket after the fact; offered, not taken), B (wait for Track A: would fold PH-2 into PH-3).
+
+### 2026-10-13 — OQ-h: revoking an agent key in PH-2 (operator ruling)
+- **Chose:** A — the operator revokes through the hub's root-only local socket on the hub host via a runme action (root on the hub host stands in for the operator key until K, PH-3); the hub signs the revocation list with its signing key (P10) and serves it as signed, numbered hub state (not a topic: topics are retention-bound and sweepable); self-revocation by the agent's project with a statement signed by the old key stays; every revocation is logged and raises a needs-attention entry; sidecars pull each tick with SI-11's refusals.
+- **Why:** the only option closing every RK-1 case (including a misfiled/lost key) in PH-2 without a new key; root-on-host is today's trust anchor for the hub's secret and certificate. Scored A +52, C +18, B −8, D −39 (D1-D4, F-AUTONOMY, arc AS_* drivers).
+- **Rejected:** B self-revocation only (lost key unrevocable until PH-3), C interim operator revocation key (an unrevocable key with no confirmation), D move RK-1 to PH-3 (changes the PH-2 floor).
+- **Correction recorded:** the list signer (hub signing key, FP 6.2.3.a(4)) and who may revoke (TM RK-1) were already decided; only the operator's path before K was open.
+- **Left open:** replace root-on-host by the operator key in PH-3; whether a revocation also requires the operator's confirmation once a confirmation provider exists. Known weakness accepted under OQ-b: root agents could also revoke; visible via log and needs-attention.
 
 ### 2026-10-13 — OQ-e: fleet kill switch (operator ruling)
 - **Chose:** A — `termlink sidecar admin delivery off|on --why [--all]`; `--all` walks the host's listed admin sockets, flips each, reads the state back, reports per agent, exits non-zero if any failed; a runme action.
