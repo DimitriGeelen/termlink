@@ -277,7 +277,7 @@ D-4 text: 1 The sender-visible labels of PH-1 are WAITING, WAITING FOR RECIPIENT
 |---|---|---|---|
 | OQ-1 | Implementation language and home of PH-1 | A Rust crate in the binary; B Python in the vendored tree then port | **Ruled 2026-10-12: A** (Rust, in the TermLink workspace as `crates/termlink-sidecar`, as built; T-3352 Decisions) |
 | OQ-2 | Message from a sender outside the roster | A withhold, show to operator; B deliver framed as untrusted | **Ruled 2026-10-12: E** (neither): the receiving side holds it and asks the operator itself; only the operator admits, through the admin route; a stranger-carried pass counts for nothing; the sender gets a knock back (T-3352 Decisions; built in B15) |
-| OQ-3 | Unprivileged `testdev` with its own Claude login for the acceptance run | A operator provisions once; B run as root and defer the E-7 measurement | A (E-7 asks for it; B lowers the proof) |
+| OQ-3 | Unprivileged `testdev` with its own Claude login for the acceptance run | A operator provisions once; B run as root and defer the E-7 measurement | **Ruled A** (recorded 2026-10-13, T-3426): the operator logged `testdev` in on 2026-10-12 (`runme.sh` action 15) and the acceptance ran as `testdev`, uid 1001; PH-2 OQ-i A extends it to the daily canary |
 
 Assumptions carried: A-1 PostToolUse `additionalContext` lands in the transcript (B1 verifies); A-2 directory fsync semantics (4.3); A-3 `hub_id` survives certificate rotation (5.5); A-4 same-user owner check is weak on this host (3.1); A-5 the estate roster is filled by the harness, no card exchange (1.1).
 

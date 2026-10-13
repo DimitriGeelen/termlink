@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-12T19:17:19Z
-last_update: 2026-10-13T11:29:18Z
+last_update: 2026-10-13T13:43:46Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -342,6 +342,13 @@ date_finished: null
 - **Chose:** A — accept for PH-2; the status call states "same-user separation absent: agents run as root".
 - **Why:** PH-2 is one host, one project, the operator's own agents; real separation needs per-agent accounts (Track A), which needs PH-3's Tier 0 machinery.
 - **Rejected (OQ-b):** A+ (also surface every admin act and foreign use of a send socket after the fact; offered, not taken), B (wait for Track A: would fold PH-2 into PH-3).
+
+### 2026-10-13 — OQ-i: whose account runs the daily canary (operator ruling)
+- **Chose:** A — a dedicated canary pair as the unprivileged `testdev` (own Claude login), on the installed artifact, production-mode sidecars under a testdev-owned root, the real hub; negative control; daily cron installed by runme; staleness checked. The working agents' own path is measured by the H-14 soak on real traffic, not by injected canary messages.
+- **Why:** the set-up that passed the PH-1 acceptance (X4: no production credential, inbox, hub or pin touched), now daily; unprivileged, so a canary bug cannot touch root's state (T-3425 lesson); independent of whether working agents are active. Scored A +61, B +36, C +12.
+- **Rejected:** B canary as root on the operator's login (daily unattended job holding root state and the operator's login), C canary driving the real working agents as root (spends their turns/context, fails on idle agents until the doorbell exists).
+- **Correction recorded:** OQ-3 ("unprivileged testdev with its own login") was never written as ruled though the operator provisioned testdev on 2026-10-12 and the acceptance ran as it; now recorded ruled A in the PH-1 architecture.
+- **Left open:** a light probe rotated through the real pairs once the doorbell exists (W2 or later; R-66 "rotated across agent pairs" is met only within the canary pair until then); which subscription testdev's login is billed to (operator knows).
 
 ### 2026-10-13 — OQ-h: revoking an agent key in PH-2 (operator ruling)
 - **Chose:** A — the operator revokes through the hub's root-only local socket on the hub host via a runme action (root on the hub host stands in for the operator key until K, PH-3); the hub signs the revocation list with its signing key (P10) and serves it as signed, numbered hub state (not a topic: topics are retention-bound and sweepable); self-revocation by the agent's project with a statement signed by the old key stays; every revocation is logged and raises a needs-attention entry; sidecars pull each tick with SI-11's refusals.
