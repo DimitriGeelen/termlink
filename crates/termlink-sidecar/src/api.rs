@@ -659,7 +659,10 @@ fn delivery(obj: &serde_json::Map<String, Value>, store: &Store, who: &str) -> V
             Err(e) if e.kind() == io::ErrorKind::NotFound => logged("on", "DELIVERY_ON"),
             Err(e) => err("io", &format!("cannot clear the flag: {e}"), "delivery state is unchanged"),
         },
-        _ => err("bad-request", "state must be \"on\" or \"off\"", "{\"op\":\"delivery\",\"state\":\"off\"}"),
+        // Read-only, logs nothing: the flag file as it is now (PH-2 row P6: the
+        // fleet switch reads every flip back through this).
+        Some("query") => json!({"ok": true, "delivery": if crate::policy::delivery_enabled(store) { "on" } else { "off" }}),
+        _ => err("bad-request", "state must be \"on\", \"off\" or \"query\"", "{\"op\":\"delivery\",\"state\":\"off\"}"),
     }
 }
 

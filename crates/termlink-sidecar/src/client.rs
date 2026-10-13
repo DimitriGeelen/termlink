@@ -22,6 +22,7 @@
 //! | `admin deny --key FP --why TEXT` | refuse it |
 //! | `admin drain --why TEXT` | stop receiving and handing over; keep and count what is stored (PH-2 P4) |
 //! | `admin undrain --why TEXT` | receive and hand over again |
+//! | `admin delivery off|on --why TEXT [--socket S \| --all [--list FILE]]` | the kill switch for one sidecar or every listed one, each flip read back (SI-23, PH-2 P6) |
 //! | `admin attention [--since N]` | every needs-attention entry (urgent ones are alarms), or those after the first N (PH-2 P5) |
 //!
 //! Exit codes: 0 the sidecar answered `ok`, 1 it refused (the answer is printed),
@@ -40,7 +41,7 @@ fn usage() -> i32 {
     eprintln!("usage: termlink-sidecar send --to <agent> --to-instance <instance> --conv <conv> --body <text> [--priority <n>]");
     eprintln!("       termlink-sidecar reply --conv <conv> --in-reply-to <msg_id> --body <text>");
     eprintln!("       termlink-sidecar status [--msg-id <id>] [--conv <conv>] [--json]");
-    eprintln!("       termlink-sidecar admin held [--body] | allow|deny --key <fingerprint> --why <text> | drain|undrain --why <text> | attention [--since N]  [--socket <admin socket>]");
+    eprintln!("       termlink-sidecar admin held [--body] | allow|deny --key <fingerprint> --why <text> | drain|undrain --why <text> | attention [--since N] | delivery off|on --why <text> [--all [--list FILE]]  [--socket <admin socket>]");
     2
 }
 
@@ -129,7 +130,85 @@ pub fn render_status(v: &Value) -> String {
     out
 }
 
+/// Env: colon-separated admin sockets for `admin delivery --all` (PH-2 row P6).
+pub const ADMIN_SOCKETS_ENV: &str = "TERMLINK_SIDECAR_ADMIN_SOCKETS";
+
+/// `admin delivery off|on --why TEXT [--socket S | --all [--list FILE]] [--json]`
+/// (SI-23, OQ-e ruled A). With `--all` every admin socket listed for the host is
+/// flipped, then read back with a read-only query; each result is reported per
+/// sidecar. Exit 0 only when every flip is verified, 1 when any failed, 2 usage.
+fn delivery_main(args: &[&str]) -> i32 {
+    let Some(state) = args.first().copied().filter(|s| matches!(*s, "on" | "off")) else { return usage() };
+    let all = args.contains(&"--all");
+    let rest: Vec<&str> = args.iter().skip(1).copied().filter(|a| *a != "--all").collect();
+    let Some((pairs, as_json)) = parse(&rest) else { return usage() };
+    let get = |k: &str| pairs.iter().find(|(n, _)| n == k).map(|(_, v)| v.clone());
+    let why = get("why").unwrap_or_default();
+    if why.trim().is_empty() {
+        eprintln!("termlink-sidecar admin delivery: --why is required (it is logged with the flip)");
+        return 2;
+    }
+    let sockets: Vec<PathBuf> = if all {
+        let listed = match get("list") {
+            Some(f) => match std::fs::read_to_string(&f) {
+                Ok(t) => t,
+                Err(e) => {
+                    eprintln!("termlink-sidecar admin delivery: cannot read --list {f}: {e}");
+                    return 2;
+                }
+            },
+            None => std::env::var(ADMIN_SOCKETS_ENV).unwrap_or_default().replace(':', "\n"),
+        };
+        listed
+            .lines()
+            .map(str::trim)
+            .filter(|l| !l.is_empty() && !l.starts_with('#'))
+            .map(PathBuf::from)
+            .collect()
+    } else {
+        get("socket")
+            .map(PathBuf::from)
+            .or_else(|| std::env::var_os(ADMIN_SOCKET_ENV).filter(|v| !v.is_empty()).map(PathBuf::from))
+            .into_iter()
+            .collect()
+    };
+    if sockets.is_empty() {
+        eprintln!("termlink-sidecar admin delivery: no admin socket (give --socket, or --all with --list FILE or {ADMIN_SOCKETS_ENV})");
+        return 2;
+    }
+    let mut results = vec![];
+    let mut failed = 0;
+    for sock in &sockets {
+        let flip = hook::call(sock, &json!({"op": "delivery", "state": state, "why": why}), TIMEOUT);
+        let check = hook::call(sock, &json!({"op": "delivery", "state": "query"}), TIMEOUT);
+        let (ok, detail) = match (&flip, &check) {
+            (Err(e), _) => (false, format!("could not flip: {e}")),
+            (Ok(f), _) if f.get("code").is_some() => (false, format!("refused: {}", f["error"].as_str().unwrap_or("?"))),
+            (_, Err(e)) => (false, format!("flipped, but the read-back failed: {e}")),
+            (_, Ok(c)) if c["delivery"] == state => (true, format!("{state} (verified)")),
+            (_, Ok(c)) => (false, format!("read back {} after asking for {state}", c["delivery"])),
+        };
+        if !ok {
+            failed += 1;
+        }
+        results.push(json!({"socket": sock.display().to_string(), "ok": ok, "detail": detail}));
+    }
+    if as_json {
+        println!("{}", json!({"ok": failed == 0, "state": state, "results": results}));
+    } else {
+        for r in &results {
+            let mark = if r["ok"] == true { "OK    " } else { "FAILED" };
+            println!("{mark} {}  {}", r["socket"].as_str().unwrap_or("?"), r["detail"].as_str().unwrap_or(""));
+        }
+        println!("delivery {state}: {} of {} sidecars verified", results.len() - failed, results.len());
+    }
+    if failed == 0 { 0 } else { 1 }
+}
+
 pub fn main_client(verb: &str, args: &[&str]) -> i32 {
+    if verb == "admin" && args.first() == Some(&"delivery") {
+        return delivery_main(&args[1..]);
+    }
     // `admin <sub> ...`: the sub-verb is a bare word; `held --body` is the one
     // flag without a value (on `send` and `reply`, `--body` takes the text).
     let admin_body = verb == "admin" && args.contains(&"--body");
