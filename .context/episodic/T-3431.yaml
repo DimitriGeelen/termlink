@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3431: arc-011 PH-2 row P6: kill switch client verb and fleet form (SI-23)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-13T11:12:54Z
+# ============================================================================
+
+task_id: T-3431
+task_name: "arc-011 PH-2 row P6: kill switch client verb and fleet form (SI-23)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-13T11:11:33Z
+completed: 2026-10-13T11:12:34Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-13T13:12:33+02:00
+last_commit: 2026-10-13T13:12:33+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  PH-2 row P6 - kill switch client verb and fleet form (SI-23, OQ-e A)
+
+# Key outcomes
+outcomes:
+  - '`admin delivery off|on --why TEXT [--socket S | --all [--list FILE]] [--json]`; `--all` reads the host''s admin socket list (file or `TERMLINK_SIDECAR_ADMIN_SOCKETS`), flips each, reads each back, prints one OK/FAILED line per sidecar and "N of M verified"; exit 0 only when all verified, 1 if any failed, 2 on usage (no reason, no socket, bad state)'
+  - 'The delivery op gains a read-only `state: query` (reads the flag file, logs nothing); each flip is logged in its own sidecar''s admin chain'
+  - 'Tests: query logs nothing; fleet flip of two sidecars verified and logged, back on via env and JSON; an unreachable listed sidecar is named and exit 1 while the others are still switched; refusals flip nothing; mutant (always exit 0) killed; full suite and clippy clean'
+  - 'Recorded: the runme action that drives the fleet switch belongs to the wave actions (P7/W1), when this host lists real admin sockets; nothing runs in production mode yet'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-sidecar/src/api.rs'
+  - 'crates/termlink-sidecar/src/client.rs'
+  - 'crates/termlink-sidecar/tests/killswitch_tests.rs'
+  - '.tasks/active/T-3431-arc-011-ph-2-row-p6-kill-switch-client-v.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-13T13:12:33'
+    action: 'T-3431: PH-2 row P6 - kill switch client verb and fleet form (SI-23, OQ-e A)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 4
+  lines_added: 570
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3431-arc-011-ph-2-row-p6-kill-switch-client-v.md
+generated_by: context-agent-hybrid
