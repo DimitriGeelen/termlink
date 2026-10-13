@@ -8,12 +8,12 @@ description: >
   OQ-f D+ items 1, 2, 4). Starts with a gap map (docs/reports/T-3426-p7-gapmap.md),
   then operator choices one at a time, then build.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-011, sidecar]
-components: []
+components: [crates/termlink-sidecar/src/book.rs, crates/termlink-sidecar/src/client.rs, crates/termlink-sidecar/tests/acceptance.rs, runme.sh, scripts/arc011-w1-provision.sh, scripts/sidecar-supervise.sh, scripts/tl-claude.sh, tests/arc011-w1-provision-fixtures.sh, tests/runme-fixtures.sh, tests/sidecar-supervise-fixtures.sh, tests/tl-claude-sidecar-fixtures.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -42,8 +42,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-13T19:26:35Z
-last_update: 2026-10-13T21:58:10Z
-date_finished:
+last_update: 2026-10-13T22:14:09Z
+date_finished: 2026-10-13T22:14:09Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -384,3 +384,15 @@ touch crates/termlink-sidecar/src/lib.rs && cargo clippy -p termlink-sidecar --a
 
 ### 2026-10-13T19:27:05Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-353352b9
+- **Timestamp:** 2026-10-13T22:17:32Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-10-13T22:14:09Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
