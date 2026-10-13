@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-12T19:17:19Z
-last_update: 2026-10-13T15:18:35Z
+last_update: 2026-10-13T15:20:48Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -342,6 +342,13 @@ date_finished: null
 - **Chose:** A — accept for PH-2; the status call states "same-user separation absent: agents run as root".
 - **Why:** PH-2 is one host, one project, the operator's own agents; real separation needs per-agent accounts (Track A), which needs PH-3's Tier 0 machinery.
 - **Rejected (OQ-b):** A+ (also surface every admin act and foreign use of a send socket after the fact; offered, not taken), B (wait for Track A: would fold PH-2 into PH-3).
+
+### 2026-10-13 — R-37 escalation threshold for routine needs-attention entries (operator ruling, after external consult)
+- **Chose:** A′ — per kind host-wide (sidecar attribution kept); >5 routine/24 h highlight, >15/24 h (3x H-20) escalates; 3 occurrence clusters >=24 h apart within 14 days escalates, never reset by "seen"; oldest-unresolved age shown; own log event type and own `/canaries` line; one task per kind + umbrella when >5 kinds escalate at once, kinds within 1 h linked as one incident; clears after 7 quiet days AND task completed, re-files if closed while firing; all numbers are settings retuned after W1.
+- **Why:** both external reviewers (Codex gpt-6-astra, GLM glm-5.3; `docs/reports/T-3426-r37-consult/`) backed the dual-trigger shape and rejected B (too slow for mail) and C (misses a daily trickle); A′ adopts their corrections (host-wide unit, fire at 3x the 14-day average not at it, cluster counting, weekly-cadence window, clear rule, no canary conflation). Re-scored A′ +51, C +20, B +15, D −5.
+- **Rejected:** original A (per-sidecar, 5/24 h fire line, no clear rule), B, C, D.
+- **Corrections recorded:** per-sidecar unit, treating the 14-day average as a daily cap, scoring D as a dark sink, no clear rule, escalation shown as a canary failure — all from the reviewers, quoted in the brief.
+- **Left open:** Codex's 72 h unresolved-age trigger (needs per-kind recovery signals); how escalations reach the cockpit. Reviewer disagreement resolved toward GLM on the fire line (15) and window (14 d), toward Codex on cluster counting; task granularity per kind (GLM) over per incident (Codex).
 
 ### 2026-10-13 — OQ-i: whose account runs the daily canary (operator ruling)
 - **Chose:** A — a dedicated canary pair as the unprivileged `testdev` (own Claude login), on the installed artifact, production-mode sidecars under a testdev-owned root, the real hub; negative control; daily cron installed by runme; staleness checked. The working agents' own path is measured by the H-14 soak on real traffic, not by injected canary messages.
