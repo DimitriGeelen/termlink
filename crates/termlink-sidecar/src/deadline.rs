@@ -20,6 +20,10 @@ pub const OVERDUE_HANDOVER: &str = "OVERDUE-HANDOVER";
 /// agent is ready.
 pub const OVERDUE_ANSWER: &str = "OVERDUE-ANSWER";
 
+/// Needs-attention kind for an urgent message overdue at the receiver: the one
+/// immediate alarm R-37 allows. Kinds starting with `urgent-` are alarms.
+pub const URGENT_OVERDUE: &str = "urgent-overdue";
+
 /// The step a STUCK label names.
 pub const STEP_NOT_ACCEPTED: &str = "not accepted";
 pub const STEP_NOT_HANDED_OVER: &str = "not handed over";

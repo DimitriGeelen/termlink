@@ -280,3 +280,23 @@ fn api_shutdown_removes_the_sockets() {
         assert!(!p.exists());
     }
 }
+
+#[test]
+fn api_attention_lists_every_entry_numbered_with_urgent_counted_apart() {
+    let r = rig();
+    r.store.attention("receive-stalled", "offset 4").unwrap();
+    r.store.attention("urgent-overdue", "c/m7 urgent").unwrap();
+    r.store.attention("receive-stalled", "offset 5").unwrap();
+    let v = call(&r, Scope::Admin, json!({"op": "attention"}));
+    assert_eq!((v["ok"].clone(), v["total"].clone(), v["urgent"].clone()), (json!(true), json!(3), json!(1)), "{v}");
+    assert_eq!(v["by_kind"]["receive-stalled"], 2, "{v}");
+    assert_eq!(v["entries"][1]["n"], 2);
+    assert_eq!(v["entries"][1]["urgent"], true);
+    assert!(v["entries"][0]["ts_ms"].as_u64().is_some(), "entries are timed: {v}");
+    // `since` skips what a reader already showed.
+    let w = call(&r, Scope::Admin, json!({"op": "attention", "since": 2}));
+    assert_eq!((w["total"].clone(), w["entries"].as_array().unwrap().len()), (json!(3), 1), "{w}");
+    // Not reachable from the agent's own socket.
+    let x = call(&r, Scope::Send, json!({"op": "attention"}));
+    assert!(x.get("code").is_some(), "{x}");
+}

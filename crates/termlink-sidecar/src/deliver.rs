@@ -429,7 +429,7 @@ impl Deliverer {
             return 0;
         };
         let mut sent = 0;
-        let mut notify = |conv: &str, msg: &Msg, digest: &str, step: &str| {
+        let mut notify = |conv: &str, msg: &Msg, digest: &str, step: &str, urgent: bool| {
             let done = self
                 .store
                 .chain_lines(conv)
@@ -447,6 +447,14 @@ impl Deliverer {
             let _ = self.store.append_event_unless(conv, step, &msg.msg_id, &msg.from, digest, LineExtra::default(), move |ls| {
                 ls.iter().any(|l| l.event == ev && own(l) && l.msg_id == id)
             });
+            // R-37: an urgent message unhandled past its deadline is an alarm at
+            // once; a routine one only accumulates (its notice and the list).
+            if urgent {
+                let _ = self.store.attention(
+                    crate::deadline::URGENT_OVERDUE,
+                    &format!("{conv}/{} from {}: urgent, {step}", msg.msg_id, crate::pull::shown(&msg.from_agent)),
+                );
+            }
             sent += 1;
         };
         // Not handed over: counted from the later of storing and becoming ready.
@@ -460,7 +468,7 @@ impl Deliverer {
                 .unwrap_or(now_ms);
             let start = stored_at.max(ready_at);
             if now_ms.saturating_sub(start) > d.handover(c.assessment.urgent) {
-                notify(&c.conv, &c.msg, &c.digest, OVERDUE_HANDOVER);
+                notify(&c.conv, &c.msg, &c.digest, OVERDUE_HANDOVER, c.assessment.urgent);
             }
         }
         // Not answered: handed over, no reply from this side, past the deadline.
@@ -479,7 +487,7 @@ impl Deliverer {
                 let urgent = self.policy.assess(&msg).urgent;
                 let handed_at = h.ts_ms.unwrap_or(now_ms);
                 if now_ms.saturating_sub(handed_at) > d.answer(urgent) {
-                    notify(&conv, &msg, &st.digest, OVERDUE_ANSWER);
+                    notify(&conv, &msg, &st.digest, OVERDUE_ANSWER, urgent);
                 }
             }
         }

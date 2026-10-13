@@ -96,6 +96,7 @@ fn op_spec(op: &str) -> Option<(Scope, &'static [&'static str])> {
         "allow" => (Scope::Admin, &["key", "why"]),
         "deny" => (Scope::Admin, &["key", "why"]),
         "drain" => (Scope::Admin, &["why"]),
+        "attention" => (Scope::Admin, &["since"]),
         "undrain" => (Scope::Admin, &["why"]),
         _ => return None,
     })
@@ -373,6 +374,7 @@ fn dispatch_inner(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id:
         "allow" => decide(obj, store, agent, sender, who, true),
         "deny" => decide(obj, store, agent, sender, who, false),
         "drain" => drain(obj, store, ctx.deliverer, who),
+        "attention" => attention(obj, store),
         "undrain" => undrain(obj, store, who),
         "pull" => pull(obj, ctx.deliverer),
         "claim" => claim(obj, ctx.deliverer),
@@ -529,6 +531,31 @@ fn log_switch(store: &Store, event: &str, who: &str, why: &str) -> Result<(), St
         )
         .map(|_| ())
         .map_err(|e| e.to_string())
+}
+
+/// The needs-attention list, by name (PH-2 row P5, R-37). Every entry, numbered
+/// from 1 in the order written; `since` skips the first N (what a reader has
+/// already shown). Kinds starting with `urgent-` are alarms and are counted apart;
+/// everything else only accumulates, with counts per kind.
+fn attention(obj: &serde_json::Map<String, Value>, store: &Store) -> Value {
+    let since = obj.get("since").and_then(Value::as_u64).unwrap_or(0) as usize;
+    let all = store.attention_entries();
+    let mut entries = vec![];
+    let mut by_kind: BTreeMap<String, u64> = BTreeMap::new();
+    let mut urgent = 0u64;
+    for (i, line) in all.iter().enumerate() {
+        let v: Value = serde_json::from_str(line).unwrap_or_else(|_| json!({"kind": "unreadable", "detail": line}));
+        let kind = v["kind"].as_str().unwrap_or("unknown").to_owned();
+        let is_urgent = kind.starts_with("urgent-");
+        if i >= since {
+            *by_kind.entry(kind.clone()).or_insert(0) += 1;
+            if is_urgent {
+                urgent += 1;
+            }
+            entries.push(json!({"n": i + 1, "kind": kind, "detail": v["detail"], "ts_ms": v["ts_ms"], "urgent": is_urgent}));
+        }
+    }
+    json!({"ok": true, "total": all.len(), "since": since, "entries": entries, "by_kind": by_kind, "urgent": urgent})
 }
 
 /// State file holding the last drain's inventory (PH-2 row P4).

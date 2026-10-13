@@ -91,10 +91,34 @@ else
         out="$("$SIDECAR_BIN" admin held --socket "$sock" 2>/dev/null)"
         if ! printf '%s' "$out" | jq -e '.ok == true' >/dev/null 2>&1; then
             held_err="${held_err:+$held_err; }could not ask the sidecar at $sock"
+            held_bad="${held_bad:-}:$sock:"
             continue
         fi
         rows="$(printf '%s' "$out" | jq -c --arg s "$sock" '[.held[]? | . + {socket: $s}]')"
         held="$(jq -cn --argjson a "$held" --argjson b "$rows" '$a + $b')"
+    done
+fi
+
+# ---- 1d. each sidecar's needs-attention list (arc-011 PH-2 row P5, R-37) --------
+# Every entry a sidecar raised since this script last showed it. Kinds starting
+# with `urgent-` are the one immediate alarm R-37 allows and are listed in full;
+# everything else accumulates and is shown as counts per kind.
+att="[]" att_err="" att_marks=""
+if [ -n "$held_socks" ] && [ -n "$SIDECAR_BIN" ]; then
+    IFS=: read -ra att_arr <<< "$held_socks"
+    for sock in "${att_arr[@]}"; do
+        # Already reported unreachable by 1c: one failure, said once.
+        case "${held_bad:-}" in *":$sock:"*) continue ;; esac
+        akey="att_$(printf '%s' "$sock" | tr -c 'A-Za-z0-9' '_')"
+        aseen="$(cat "$STATE_DIR/$akey.seen" 2>/dev/null | tr -dc '0-9')"; aseen="${aseen:-0}"
+        out="$("$SIDECAR_BIN" admin attention --since "$aseen" --socket "$sock" 2>/dev/null)"
+        if ! printf '%s' "$out" | jq -e '.ok == true' >/dev/null 2>&1; then
+            att_err="${att_err:+$att_err; }could not ask the sidecar at $sock"
+            continue
+        fi
+        rows="$(printf '%s' "$out" | jq -c --arg s "$sock" '[.entries[]? | . + {socket: $s}]')"
+        att="$(jq -cn --argjson a "$att" --argjson b "$rows" '$a + $b')"
+        att_marks="$att_marks$akey $(printf '%s' "$out" | jq -r '.total')"$'\n'
     done
 fi
 
@@ -129,7 +153,7 @@ for t in $topics; do
 done
 
 if [ "$mark" -eq 1 ]; then
-    printf '%s' "$mark_lines" | while read -r k off; do
+    printf '%s%s' "$mark_lines" "$att_marks" | while read -r k off; do
         [ -n "$k" ] && printf '%s\n' "$off" > "$STATE_DIR/$k.seen"
     done
 fi
@@ -137,8 +161,8 @@ fi
 # ---- output -------------------------------------------------------------------
 if [ "$json" -eq 1 ]; then
     jq -cn --argjson c "$canaries" --argjson m "$mail" --argjson p "$pins" --argjson h "$held" --arg hn "$held_note" \
-        --arg ce "$canary_err" --arg me "$mail_err" --arg pe "$pin_err" --arg he "$held_err" \
-        '{canaries:$c, mail:$m, pin_events:$p, held:$h, held_note:$hn, errors:([$ce,$me,$pe,$he] | map(select(. != "")))}'
+        --argjson at "$att" --arg ce "$canary_err" --arg me "$mail_err" --arg pe "$pin_err" --arg he "$held_err" --arg ae "$att_err" \
+        '{canaries:$c, mail:$m, pin_events:$p, held:$h, held_note:$hn, attention:$at, errors:([$ce,$me,$pe,$he,$ae] | map(select(. != "")))}'
     exit 0
 fi
 nc="$(printf '%s' "$canaries" | jq 'length')"; nm="$(printf '%s' "$mail" | jq 'length')"
@@ -158,6 +182,15 @@ else
 fi
 printf '%s' "$held" | jq -r '.[] | "  key \(.key) claims to be \(.claims_agent // "?") (instance \(.claims_instance // "?"))  \(.conv)/\(.msg_id)\n      decide: \(.decide) --socket \(.socket)"'
 [ -n "$held_err" ] && echo "  CHECK FAILED: $held_err"
+na="$(printf '%s' "$att" | jq 'length')"; nu="$(printf '%s' "$att" | jq '[.[] | select(.urgent)] | length')"
+if [ -n "$held_note" ]; then
+    echo "Sidecar needs-attention: not checked, $held_note"
+else
+    echo "Sidecar needs-attention (new): $na ($nu urgent)"
+fi
+printf '%s' "$att" | jq -r '.[] | select(.urgent) | "  ALARM  \(.kind)  \(.detail)  [\(.socket)]"'
+printf '%s' "$att" | jq -r '[.[] | select(.urgent | not)] | group_by(.kind)[] | "  \(length) x \(.[0].kind)  latest: \(.[-1].detail)"'
+[ -n "$att_err" ] && echo "  CHECK FAILED: $att_err"
 echo "Peer mail not yet shown to this agent: $nm"
 printf '%s' "$mail" | jq -r --argjson l "$limit" '.[:$l][] | "  @\(.offset) \(.topic | split("/") | last)  from \(.from)  \(.age_min) min ago  cid=\(.conversation_id)\n      \(.preview)"'
 [ "$nm" -gt "$limit" ] && echo "  … and $((nm - limit)) more"

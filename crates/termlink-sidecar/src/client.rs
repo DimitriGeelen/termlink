@@ -22,6 +22,7 @@
 //! | `admin deny --key FP --why TEXT` | refuse it |
 //! | `admin drain --why TEXT` | stop receiving and handing over; keep and count what is stored (PH-2 P4) |
 //! | `admin undrain --why TEXT` | receive and hand over again |
+//! | `admin attention [--since N]` | every needs-attention entry (urgent ones are alarms), or those after the first N (PH-2 P5) |
 //!
 //! Exit codes: 0 the sidecar answered `ok`, 1 it refused (the answer is printed),
 //! 2 usage or the socket could not be reached.
@@ -39,7 +40,7 @@ fn usage() -> i32 {
     eprintln!("usage: termlink-sidecar send --to <agent> --to-instance <instance> --conv <conv> --body <text> [--priority <n>]");
     eprintln!("       termlink-sidecar reply --conv <conv> --in-reply-to <msg_id> --body <text>");
     eprintln!("       termlink-sidecar status [--msg-id <id>] [--conv <conv>] [--json]");
-    eprintln!("       termlink-sidecar admin held [--body] | allow|deny --key <fingerprint> --why <text> | drain|undrain --why <text>  [--socket <admin socket>]");
+    eprintln!("       termlink-sidecar admin held [--body] | allow|deny --key <fingerprint> --why <text> | drain|undrain --why <text> | attention [--since N]  [--socket <admin socket>]");
     2
 }
 
@@ -181,6 +182,11 @@ pub fn main_client(verb: &str, args: &[&str]) -> i32 {
                 }
                 // PH-2 row P4 (FP 6.2.3.e): exit 0 only when the kept count matches.
                 "drain" | "undrain" => json!({"op": sub, "why": get("why").unwrap_or_default()}),
+                // PH-2 row P5 (R-37): the whole needs-attention list, or what is new since N.
+                "attention" => {
+                    let since = get("since").and_then(|n| n.parse::<u64>().ok()).unwrap_or(0);
+                    json!({"op": "attention", "since": since})
+                }
                 _ => return usage(),
             };
             (Some(socket), req)

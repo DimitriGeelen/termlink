@@ -194,6 +194,20 @@ fn receiver_urgent_handover_is_overdue_after_one_tick() {
     let now = termlink_sidecar::store::now_ms();
     r.d.mark_ready("s1", now).unwrap();
     assert_eq!(r.d.check_overdue(now + TICK_MS + 1_000, &D), 1);
+    // R-37 (PH-2 row P5): an urgent message overdue is an alarm at once.
+    let att = r.store.attention_entries().join("\n");
+    assert!(att.contains(termlink_sidecar::deadline::URGENT_OVERDUE) && att.contains("u1"), "{att}");
+}
+
+#[test]
+fn receiver_routine_overdue_is_no_alarm() {
+    let r = receiver_rig();
+    put(&r.store, &msg(&r.ka, "r1", "0"));
+    let now = termlink_sidecar::store::now_ms();
+    r.d.mark_ready("s1", now).unwrap();
+    assert_eq!(r.d.check_overdue(now + 3 * TICK_MS, &D), 1, "the notice still goes to the sender");
+    let att = r.store.attention_entries().join("\n");
+    assert!(!att.contains(termlink_sidecar::deadline::URGENT_OVERDUE), "routine accumulates, never alarms: {att}");
 }
 
 #[test]

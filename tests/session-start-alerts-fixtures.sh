@@ -78,7 +78,19 @@ printf '%s' "$j" | jq -e '.errors | map(select(test("inbox"))) | length == 1' >/
 cat > "$TMP/sidecar" <<'STUB'
 #!/usr/bin/env bash
 # admin held --socket S
-sock=""; while [ $# -gt 0 ]; do case "$1" in --socket) sock="$2"; shift 2 ;; *) shift ;; esac; done
+sock=""; verb=""; since=0
+for a in "$@"; do case "$a" in attention) verb=attention ;; esac; done
+while [ $# -gt 0 ]; do case "$1" in --socket) sock="$2"; shift 2 ;; --since) since="$2"; shift 2 ;; *) shift ;; esac; done
+if [ "$verb" = attention ]; then
+  case "$sock" in
+    */b.admin.sock)
+      all='[{"n":1,"kind":"receive-stalled","detail":"offset 4: store","urgent":false},{"n":2,"kind":"receive-stalled","detail":"offset 5: store","urgent":false},{"n":3,"kind":"urgent-overdue","detail":"c/m7 from agent-a: urgent, OVERDUE-HANDOVER","urgent":true}]'
+      echo "{\"ok\":true,\"total\":3,\"entries\":$(printf '%s' "$all" | jq -c --argjson s "$since" '[.[] | select(.n > $s)]')}" ;;
+    */quiet.admin.sock) echo '{"ok":true,"total":0,"entries":[]}' ;;
+    *) echo "connect: no such file" >&2; exit 2 ;;
+  esac
+  exit 0
+fi
 case "$sock" in
   */b.admin.sock) echo '{"ok":true,"held":[{"key":"c0ffee00c0ffee00","conv":"k-1","msg_id":"m9","claims_agent":"agent-c","claims_instance":"inst-c","decide":"termlink-sidecar admin allow|deny --key c0ffee00c0ffee00 --why <reason>"}]}' ;;
   */quiet.admin.sock) echo '{"ok":true,"held":[]}' ;;
@@ -103,6 +115,21 @@ printf '%s' "$j" | jq -e '(.errors | map(select(test("gone.admin.sock"))) | leng
     && ok "held: a sidecar that cannot be asked is a failed check, the others still listed" || bad "held error: $j"
 j="$(SESSION_ALERTS_SIDECAR_BIN="" SESSION_ALERTS_SIDECAR_SOCKETS=/x/b.admin.sock run --json)"
 printf '%s' "$j" | jq -e '.held_note == ""' >/dev/null && ok "held: the env list overrides the file" || bad "held env: $j"
+
+# ---- sidecar needs-attention list (arc-011 PH-2 row P5, R-37) -------------------
+printf '/x/b.admin.sock\n' > "$TMP/socks.list"
+j="$(hrun --json)"
+printf '%s' "$j" | jq -e '(.attention | length == 3) and ([.attention[] | select(.urgent)] | length == 1)' >/dev/null \
+    && ok "attention: every new entry listed, the urgent one marked" || bad "attention json: $j"
+t="$(hrun)"
+printf '%s' "$t" | grep -q 'Sidecar needs-attention (new): 3 (1 urgent)' \
+    && printf '%s' "$t" | grep -q 'ALARM  urgent-overdue  c/m7 from agent-a' \
+    && printf '%s' "$t" | grep -q '2 x receive-stalled  latest: offset 5: store' \
+    && ok "attention: urgent as an alarm, routine as counts per kind" || bad "attention text: $t"
+hrun --mark-seen >/dev/null
+t="$(hrun)"
+printf '%s' "$t" | grep -q 'Sidecar needs-attention (new): 0 (0 urgent)' \
+    && ok "attention: --mark-seen hides what was shown" || bad "attention after mark-seen: $t"
 
 echo; echo "  passed: $PASS   failed: $FAIL"
 [ "$FAIL" -eq 0 ]

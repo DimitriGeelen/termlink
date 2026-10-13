@@ -345,7 +345,8 @@ impl Store {
 
     /// Append a needs-attention entry (durable).
     pub fn attention(&self, kind: &str, detail: &str) -> Result<()> {
-        let line = serde_json::json!({ "kind": kind, "detail": detail });
+        // Timed since PH-2 row P5, so the operator's list can say when (R-37).
+        let line = serde_json::json!({ "kind": kind, "detail": detail, "ts_ms": now_ms() });
         let p = self.dir.join("attention.jsonl");
         let new = !p.exists();
         let mut f = OpenOptions::new().create(true).append(true).mode(0o600).open(&p)?;
