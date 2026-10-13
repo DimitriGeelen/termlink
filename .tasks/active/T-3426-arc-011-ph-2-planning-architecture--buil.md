@@ -350,6 +350,12 @@ date_finished: null
 - **Corrections recorded:** sidecar-only check scope; field count is a tripwire, not a disclosure measure; threat boundary missing; scoring framed as a near-loss; the interpretation of FX-5 now settled by this ruling, not by the measurer.
 - **Left open:** inventory check (store x form x readers x retention) as the primary FX-5 check (follow-on task); whether the hub later refuses unencrypted artifacts from new writers; a confidentiality value driver.
 
+### 2026-10-13 — P7-2: how the pair's signing keys are registered, PR-1a (operator ruling)
+- **Chose:** A — an operator-held key register on this host now: `runme.sh` records each pair member's public key under `/etc/termlink-sidecar/keys/` (root-owned) and builds both rosters from it; in production a sidecar refuses to start when its key file is missing or its key differs from the register; a key changes only through a runme action that names the change. The hub-side agent card (PR-1a in full, with old-key-signed replacement) moves into row P17's scope.
+- **Why:** for two agents on one host under one operator the rosters are the real gate, and a register the operator owns is the trusted source PR-1a asks for; it turns today's silent re-mint (`daemon.rs:97` -> `agent_identity.rs:85-88` creates a new key when the file is missing) into a loud refusal, without hub changes and a fleet upgrade in front of W1. Scored A +48, B +37, C −13.
+- **Rejected:** B (hub card now: all of PR-1a, but hub change + fleet upgrade before W1); C (defer: leaves the silent re-mint).
+- **Left open:** hub card and old-key-signed replacement in P17; until then a replacement is an operator runme approval; revocation per OQ-h.
+
 ### 2026-10-13 — P7-1: which two agents form the W1 pair (operator ruling)
 - **Chose:** A — `claude-termlink` (the main session, relaunched through the launcher at W1 start) and `claude-termlink-alt` (a second Claude session the operator opens in /opt/termlink through the launcher).
 - **Why:** W1 must show mail reaching a real working agent; the main session is the realest traffic and a failure surfaces where the operator already looks. The risk is bounded: the hook is a silent no-op in any session started without `TERMLINK_SIDECAR_SOCKET` (`hook.rs:84`) and fails open, and the kill switch stops delivery within one tick. Scored A +33, C +15, B +11. Brief and gap map: `docs/reports/T-3426-p7-gapmap.md`.
