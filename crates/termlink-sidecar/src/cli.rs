@@ -28,8 +28,40 @@ fn usage(cmd: &str) -> i32 {
     eprintln!("       {cmd} hook post-tool-use|session-start|stop|session-end");
     eprintln!("       {cmd} finalize --nonce <nonce>");
     eprintln!("       {cmd} send|reply|status ... (run with no arguments for their usage)");
+    eprintln!("       {cmd} hub-id --hub-socket <path>   (print the hub's own id, read-only)");
     eprintln!("       {cmd} admin held|allow|deny ...");
     2
+}
+
+fn hub_id_main(socket: &std::path::Path) -> i32 {
+    let addr = termlink_protocol::TransportAddr::unix(socket);
+    let Ok(rt) = tokio::runtime::Builder::new_current_thread().enable_all().build() else {
+        eprintln!("hub-id: no runtime");
+        return 2;
+    };
+    let resp = rt.block_on(termlink_session::client::rpc_call_addr_with_timeout(
+        &addr,
+        "hub.version",
+        serde_json::json!({}),
+        std::time::Duration::from_secs(10),
+    ));
+    let v = match resp.map_err(|e| e.to_string()).and_then(|r| termlink_session::client::unwrap_result(r).map_err(|e| e.to_string())) {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("hub-id: {}: {e}", socket.display());
+            return 2;
+        }
+    };
+    match v["hub_id"].as_str() {
+        Some(id) => {
+            println!("{id}");
+            0
+        }
+        None => {
+            eprintln!("hub-id: the hub at {} states no hub_id", socket.display());
+            2
+        }
+    }
 }
 
 /// Run one verb; returns the process exit code. `prefix` is what precedes the
@@ -54,6 +86,9 @@ pub fn run(prefix: &[&str], args: &[String]) -> i32 {
                 2
             }
         },
+        // PH-2 row P7: the hub's own id, for writing a sidecar config (the id the
+        // sidecar then verifies on every exchange, FX-2). Read-only.
+        ["hub-id", "--hub-socket", path] => hub_id_main(std::path::Path::new(path)),
         ["hook", event] => hook::main_hook(event),
         ["finalize", "--nonce", n] => hook::main_finalize(n),
         [verb @ ("send" | "reply" | "status" | "admin"), rest @ ..] => client::main_client(verb, rest),

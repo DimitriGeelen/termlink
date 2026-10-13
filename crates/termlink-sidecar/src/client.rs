@@ -38,7 +38,7 @@ pub const ADMIN_SOCKET_ENV: &str = "TERMLINK_SIDECAR_ADMIN_SOCKET";
 const TIMEOUT: Duration = Duration::from_secs(20);
 
 fn usage() -> i32 {
-    eprintln!("usage: termlink-sidecar send --to <agent> --to-instance <instance> --conv <conv> --body <text> [--priority <n>]");
+    eprintln!("usage: termlink-sidecar send --to <agent|main> [--to-instance <instance>] [--conv <conv>] --body <text> [--priority <n>]");
     eprintln!("       termlink-sidecar reply --conv <conv> --in-reply-to <msg_id> --body <text>");
     eprintln!("       termlink-sidecar status [--msg-id <id>] [--conv <conv>] [--json]");
     eprintln!("       termlink-sidecar admin held [--body] | allow|deny --key <fingerprint> --why <text> | drain|undrain --why <text> | attention [--since N] | delivery off|on --why <text> [--all [--list FILE]]  [--socket <admin socket>]");
@@ -230,10 +230,18 @@ pub fn main_client(verb: &str, args: &[&str]) -> i32 {
     let get = |k: &str| pairs.iter().find(|(n, _)| n == k).map(|(_, v)| v.clone());
     let (socket, req) = match verb {
         "send" => {
-            let (Some(to), Some(inst), Some(conv), Some(body)) = (get("to"), get("to_instance"), get("conv"), get("body")) else {
+            // P7: with an address book the sidecar fills to_instance (and a missing
+            // conv starts a new conversation), so only to and body are required here.
+            let (Some(to), Some(body)) = (get("to"), get("body")) else {
                 return usage();
             };
-            let mut r = json!({"op": "send", "to": to, "to_instance": inst, "conv": conv, "body": body});
+            let mut r = json!({"op": "send", "to": to, "body": body});
+            if let Some(i) = get("to_instance") {
+                r["to_instance"] = json!(i);
+            }
+            if let Some(c) = get("conv") {
+                r["conv"] = json!(c);
+            }
             if let Some(p) = get("priority") {
                 let Ok(n) = p.parse::<i64>() else { return usage() };
                 r["priority"] = json!(n);

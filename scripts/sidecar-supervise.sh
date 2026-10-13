@@ -22,6 +22,10 @@
 #                       supervisor: it is printed (the canary log) and recorded as a
 #                       needs-attention note in the sidecar (admin `note`).
 #   status <project>    the setting, the stop marker, the supervisor and liveness.
+#   stop-project <project>  the explicit project stop (OQ-f D+ item 4): `stop` for
+#                       every settings file of the project, <project>.env and
+#                       <project>--<agent>.env (one sidecar per agent, P7-3). An
+#                       agent session ending never calls this.
 #
 # Per-project settings: $SIDECAR_ENV_DIR/<project>.env (default /etc/termlink-sidecar),
 # see systemd-templates/termlink-sidecar@.service. Run state (stop marker, pid of a
@@ -42,7 +46,7 @@ STALE_MS="${SIDECAR_STALE_MS:-120000}"
 VERIFY_SECS="${SIDECAR_VERIFY_SECS:-20}"
 HB="${SIDECAR_BACKSTOP_HEARTBEAT_FILE:-$ROOT/.context/working/.sidecar-backstop-canary.heartbeat}"
 
-usage() { sed -n '2,36p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
+usage() { sed -n '2,40p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
 say() { printf '%s %s\n' "$(date -u +%FT%TZ)" "$*"; }
 now_ms() { if [ -n "${SIDECAR_NOW_MS:-}" ]; then echo "$SIDECAR_NOW_MS"; else echo $(( $(date +%s) * 1000 )); fi; }
 
@@ -260,6 +264,20 @@ check_one() {
     return 1
 }
 
+cmd_stop_project() {
+    local project="$1" f n rc=0 any=0 r
+    for f in "$ENV_DIR/$project.env" "$ENV_DIR/$project"--*.env; do
+        [ -e "$f" ] || continue
+        n=$(basename "$f" .env)
+        valid_project "$n" || { say "skipping badly named settings file $f"; rc=2; continue; }
+        any=1
+        cmd_stop "$n"; r=$?
+        [ "$r" -gt "$rc" ] && rc=$r
+    done
+    [ "$any" = 1 ] || say "$project: no sidecar settings under $ENV_DIR; nothing to stop"
+    return $rc
+}
+
 cmd_check() {
     local quiet=0 hbeat=1 only="" rc=0 r f p
     while [ $# -gt 0 ]; do
@@ -302,5 +320,6 @@ case "$verb" in
         esac
         exit $? ;;
     check) cmd_check "$@"; exit $? ;;
+    stop-project) [ $# -eq 1 ] && valid_project "$1" || usage; cmd_stop_project "$1"; exit $? ;;
     *) usage ;;
 esac

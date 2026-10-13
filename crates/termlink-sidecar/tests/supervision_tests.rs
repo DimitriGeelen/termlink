@@ -48,6 +48,8 @@ fn start(e: &Estate, env: &[(&str, &str)]) -> (Proc, PathBuf) {
         poll_ms: 200,
         timeout_ms: 15_000,
         claude_projects: None,
+        key_register: None,
+        book: Default::default(),
     };
     let path = e.root().join("sidecar-a.json");
     std::fs::write(&path, serde_json::to_string(&cfg).unwrap()).unwrap();

@@ -42,6 +42,15 @@ pub struct Config {
     /// its own login); default `$HOME/.claude/projects` of the sidecar.
     #[serde(default)]
     pub claude_projects: Option<PathBuf>,
+    /// The operator's key register entry for this agent: a file holding its
+    /// public key (64 hex) (P7-2, PR-1a). Required in production, where a
+    /// missing key file or a different key is a refused start.
+    #[serde(default)]
+    pub key_register: Option<PathBuf>,
+    /// The project's address book and pinned main (P7; SI-20, SI-21, R-62).
+    /// Required in production.
+    #[serde(default)]
+    pub book: crate::book::Book,
 }
 
 fn default_poll_ms() -> u64 {
@@ -91,11 +100,51 @@ fn roster_of(keys: &[String]) -> Result<Roster, String> {
     Ok(r)
 }
 
+/// The agent's signing identity (P7-2). In production the key file must exist
+/// (a missing file is never silently replaced by a fresh key) and its public key
+/// must equal the operator's register entry; in a test estate a register entry,
+/// when given, is checked the same way.
+fn load_identity(cfg: &Config, production: bool) -> Result<Identity, String> {
+    if production && cfg.key_register.is_none() {
+        return Err("production needs key_register (the operator's record of this agent's public key)".into());
+    }
+    let identity = if production {
+        if !cfg.key_file.is_file() {
+            return Err(format!(
+                "key file {} is missing; production never mints a key (re-provision through runme)",
+                cfg.key_file.display()
+            ));
+        }
+        Identity::load_or_create_from_file(&cfg.key_file).map_err(|e| format!("key file: {e}"))?
+    } else {
+        Identity::load_or_create_from_file(&cfg.key_file).map_err(|e| format!("key file: {e}"))?
+    };
+    if let Some(reg) = &cfg.key_register {
+        let want = std::fs::read_to_string(reg).map_err(|e| format!("key register {}: {e}", reg.display()))?;
+        let want = want.trim();
+        if want != identity.public_key_hex() {
+            return Err(format!(
+                "key file {} does not match the key register {} (registered {}, file has {}); a key changes only through a runme action that names the change",
+                cfg.key_file.display(),
+                reg.display(),
+                &want.get(..16).unwrap_or(want),
+                &identity.public_key_hex()[..16]
+            ));
+        }
+    }
+    Ok(identity)
+}
+
 /// Start every part. `store_root`, `runtime` and `home` come from the estate.
 pub fn start(cfg: &Config, store_root: &Path, runtime: &Path, home: &Path) -> Result<Running, String> {
     let roster = roster_of(&cfg.roster)?;
-    let identity = Identity::load_or_create_from_file(&cfg.key_file).map_err(|e| format!("key file: {e}"))?;
     let store = Arc::new(Store::open(store_root, &cfg.agent).map_err(|e| e.to_string())?);
+    let production = matches!(store.mode(), crate::estate::Mode::Production(_));
+    let identity = load_identity(cfg, production)?;
+    if production && cfg.book.is_empty() {
+        return Err("production needs an address book (book.peers) naming this project's agents".into());
+    }
+    cfg.book.validate(&cfg.agent).map_err(|e| format!("address book: {e}"))?;
     let timeout = Duration::from_millis(cfg.timeout_ms);
     let poll = Some(Duration::from_millis(cfg.poll_ms));
     let sender = Arc::new(
@@ -138,6 +187,7 @@ pub fn start(cfg: &Config, store_root: &Path, runtime: &Path, home: &Path) -> Re
     api_cfg.hub_id = Some(cfg.hub_id.clone());
     api_cfg.sender = Some(sender.clone());
     api_cfg.deliverer = Some(deliverer.clone());
+    api_cfg.book = (!cfg.book.is_empty()).then(|| cfg.book.clone());
     let api = Api::start(api_cfg, store.clone()).map_err(|e| format!("api: {e}"))?;
     // Decide attempts whose finalizer never ran or died (B13).
     let sweep_stop = Arc::new(std::sync::atomic::AtomicBool::new(false));

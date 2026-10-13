@@ -178,6 +178,23 @@ nosd start nosuch >/dev/null 2>&1; check "9d a project without a settings file i
 SIDECAR_ENV_DIR="$T/absent" bash "$SUT" check --quiet --no-heartbeat >/dev/null 2>&1
 check "9e no settings dir at all is healthy (nothing configured)" '[ $? = 0 ]'
 
+# 10 project stop with one sidecar per agent (P7-3): <project>--<agent>.env each.
+reset; setting on
+for a in one two; do
+    mkdir -p "$T/store-$a"
+    sed -e "s|^TERMLINK_SIDECAR_STORE=.*|TERMLINK_SIDECAR_STORE=$T/store-$a|" "$T/env/demo.env" > "$T/env/proj--$a.env"
+    nosd start "proj--$a" >/dev/null 2>&1
+done
+p1=$(cat "$T/state/proj--one/sidecar.pid"); p2=$(cat "$T/state/proj--two/sidecar.pid")
+check "10a both agents' sidecars of the project run" 'kill -0 "$p1" && kill -0 "$p2"'
+out=$(nosd stop-project proj 2>&1); rc=$?
+check "10b stop-project stops every agent's sidecar of the project" '[ $rc = 0 ] && ! kill -0 "$p1" 2>/dev/null && ! kill -0 "$p2" 2>/dev/null'
+check "10c and marks each stopped, so the backstop leaves them" '[ -e "$T/state/proj--one/stopped" ] && [ -e "$T/state/proj--two/stopped" ] && [ -z "$(nosd check --quiet --no-heartbeat proj--one 2>&1)$(nosd check --quiet --no-heartbeat proj--two 2>&1)" ]'
+check "10d another project is not touched" 'grep -q "proj--one" <<< "$out" && ! grep -q "demo" <<< "$out"'
+out=$(nosd stop-project nothere 2>&1); rc=$?
+check "10e a project with no settings stops nothing and says so" '[ $rc = 0 ] && grep -q "nothing to stop" <<< "$out"'
+rm -f "$T/env/proj--"*.env
+
 reset
 echo "---"
 echo "sidecar-supervise fixtures: $PASS passed, $FAIL failed"

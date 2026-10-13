@@ -114,6 +114,9 @@ pub struct ApiConfig {
     pub sender: Option<Arc<Sender>>,
     /// The deliver path (B9). Without it `pull`, `claim`, `handed-over` are refused as not configured.
     pub deliverer: Option<Arc<Deliverer>>,
+    /// The address book (P7): when set, `send` resolves `to` through it,
+    /// fills `to_instance`, and refuses anyone outside it.
+    pub book: Option<crate::book::Book>,
 }
 
 impl ApiConfig {
@@ -126,6 +129,7 @@ impl ApiConfig {
             hub_id: None,
             sender: None,
             deliverer: None,
+            book: None,
         }
     }
 }
@@ -302,7 +306,7 @@ fn serve(s: UnixStream, scope: Scope, sh: &Shared) -> io::Result<()> {
 fn handle(req: &Value, scope: Scope, sh: &Shared) -> Value {
     // The peer passed the owner check, so its uid is the owner's.
     let who = format!("admin-uid-{}", sh.cfg.owner_uid);
-    let ctx = Ctx { sender: sh.cfg.sender.as_deref(), deliverer: sh.cfg.deliverer.as_deref(), who: &who };
+    let ctx = Ctx { sender: sh.cfg.sender.as_deref(), deliverer: sh.cfg.deliverer.as_deref(), who: &who, book: sh.cfg.book.as_ref() };
     dispatch_inner(req, scope, &sh.store, &sh.cfg.agent, sh.cfg.hub_id.as_deref(), ctx)
 }
 
@@ -320,7 +324,7 @@ pub fn dispatch_with(
     hub_id: Option<&str>,
     sender: Option<&Sender>,
 ) -> Value {
-    dispatch_inner(req, scope, store, agent, hub_id, Ctx { sender, deliverer: None, who: "admin-direct" })
+    dispatch_inner(req, scope, store, agent, hub_id, Ctx { sender, deliverer: None, who: "admin-direct", book: None })
 }
 
 /// [`dispatch_with`] with the deliver path attached as well.
@@ -333,7 +337,7 @@ pub fn dispatch_full(
     sender: Option<&Sender>,
     deliverer: Option<&Deliverer>,
 ) -> Value {
-    dispatch_inner(req, scope, store, agent, hub_id, Ctx { sender, deliverer, who: "admin-direct" })
+    dispatch_inner(req, scope, store, agent, hub_id, Ctx { sender, deliverer, who: "admin-direct", book: None })
 }
 
 #[derive(Clone, Copy)]
@@ -341,10 +345,11 @@ struct Ctx<'a> {
     sender: Option<&'a Sender>,
     deliverer: Option<&'a Deliverer>,
     who: &'a str,
+    book: Option<&'a crate::book::Book>,
 }
 
 fn dispatch_inner(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id: Option<&str>, ctx: Ctx<'_>) -> Value {
-    let (sender, who) = (ctx.sender, ctx.who);
+    let (sender, who, book) = (ctx.sender, ctx.who, ctx.book);
     let Some(obj) = req.as_object() else {
         return err("bad-request", "request must be a JSON object", "send {\"op\": ...}");
     };
@@ -380,7 +385,7 @@ fn dispatch_inner(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id:
     }
     match op {
         "status" => status_at(obj, store, agent, hub_id, sender, crate::store::now_ms(), &crate::deadline::Deadlines::R44E),
-        "send" => send(obj, sender),
+        "send" => send(obj, sender, book, agent),
         "delivery" => delivery(obj, store, who),
         "held" => held(obj, store),
         "allow" => decide(obj, store, agent, sender, who, true),
@@ -500,13 +505,26 @@ fn reply(obj: &serde_json::Map<String, Value>, sender: Option<&Sender>) -> Value
     }
 }
 
-fn send(obj: &serde_json::Map<String, Value>, sender: Option<&Sender>) -> Value {
+fn send(obj: &serde_json::Map<String, Value>, sender: Option<&Sender>, book: Option<&crate::book::Book>, me: &str) -> Value {
     let Some(sender) = sender else {
         return err("not-configured", "this sidecar has no send path configured", "start it with a hub address and a hub id");
     };
     let text = |k: &str| obj.get(k).and_then(Value::as_str);
-    let (Some(to), Some(to_instance), Some(body)) = (text("to"), text("to_instance"), text("body")) else {
-        return err("bad-request", "send needs to, to_instance and body", "{\"op\":\"send\",\"to\":...,\"to_instance\":...,\"body\":...}");
+    let (to, to_instance) = match (book, text("to")) {
+        (_, None) => return err("bad-request", "send needs to and body", "{\"op\":\"send\",\"to\":...,\"body\":...}"),
+        // P7: the address book resolves the recipient (own project only, pinned main, exact instance).
+        (Some(b), Some(to)) => match b.resolve(me, to, text("to_instance")) {
+            Ok(r) => r,
+            Err(r) => return err(r.code, &r.message, "send only to an agent of this project's address book, or to main"),
+        },
+        (None, Some(to)) => match text("to_instance") {
+            Some(i) => (to.to_owned(), i.to_owned()),
+            None => return err("bad-request", "send needs to, to_instance and body", "{\"op\":\"send\",\"to\":...,\"to_instance\":...,\"body\":...}"),
+        },
+    };
+    let (to, to_instance) = (to.as_str(), to_instance.as_str());
+    let Some(body) = text("body") else {
+        return err("bad-request", "send needs a body", "{\"op\":\"send\",...,\"body\":...}");
     };
     let priority = match obj.get("priority") {
         None | Some(Value::Null) => None,

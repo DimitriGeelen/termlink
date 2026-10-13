@@ -19,3 +19,4 @@ pub mod client;
 pub mod cli;
 pub mod deadline;
 pub mod beat;
+pub mod book;
