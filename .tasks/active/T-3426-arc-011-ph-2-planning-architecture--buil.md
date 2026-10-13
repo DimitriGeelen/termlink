@@ -350,6 +350,12 @@ date_finished: null
 - **Corrections recorded:** sidecar-only check scope; field count is a tripwire, not a disclosure measure; threat boundary missing; scoring framed as a near-loss; the interpretation of FX-5 now settled by this ruling, not by the measurer.
 - **Left open:** inventory check (store x form x readers x retention) as the primary FX-5 check (follow-on task); whether the hub later refuses unencrypted artifacts from new writers; a confidentiality value driver.
 
+### 2026-10-13 — P7-3: SIDECAR_KEEP_RUNNING for the W1 pair (operator ruling)
+- **Chose:** B — on for W1: both sidecars run under the P3 systemd unit (one instance per agent, `termlink-sidecar@010-termlink--<agent>`, sharing the project's one setting), survive crashes and reboots, store mail while their sessions are closed, and stop only on an explicit project stop. The setting is written by the W1 runme action, not before.
+- **Why:** an unnoticed dead sidecar would spoil the 7-day W1 evidence; supervision makes W1 also the first live proof of P3 (R-8.e on the real host) and exercises "mail waits while the session is closed, then arrives". Scored B +47, C −4, A −13.
+- **Rejected:** A (off: a crash leaves the agent deaf until the next launch); C (off one day then on: splits the window into two half-weeks).
+- **Left open:** whether the setting stays on after W1, reviewed with the W1 results.
+
 ### 2026-10-13 — P7-2: how the pair's signing keys are registered, PR-1a (operator ruling)
 - **Chose:** A — an operator-held key register on this host now: `runme.sh` records each pair member's public key under `/etc/termlink-sidecar/keys/` (root-owned) and builds both rosters from it; in production a sidecar refuses to start when its key file is missing or its key differs from the register; a key changes only through a runme action that names the change. The hub-side agent card (PR-1a in full, with old-key-signed replacement) moves into row P17's scope.
 - **Why:** for two agents on one host under one operator the rosters are the real gate, and a register the operator owns is the trusted source PR-1a asks for; it turns today's silent re-mint (`daemon.rs:97` -> `agent_identity.rs:85-88` creates a new key when the file is missing) into a loud refusal, without hub changes and a fleet upgrade in front of W1. Scored A +48, B +37, C −13.
