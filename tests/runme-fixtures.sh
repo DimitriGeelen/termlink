@@ -205,6 +205,24 @@ case "\$1" in
 esac
 EOS
 chmod +x "$SCU/systemctl"
+# T-3438 (P7): W1 provisioning and the kill switch — fakes only.
+cat > "$SCU/w1" <<'EOS'
+#!/usr/bin/env bash
+echo "$*" >> "$FAKE_W1_CALLS"
+case "$1" in
+    --check) echo "  ready      fake"; exit "${FAKE_W1_CHECK_RC:-0}" ;;
+    --apply) echo "  OK      fake key register written and verified: /x"; exit "${FAKE_W1_APPLY_RC:-0}" ;;
+esac
+EOS
+cat > "$SCU/tl" <<'EOS'
+#!/usr/bin/env bash
+echo "$*" >> "$FAKE_W1_CALLS"
+exit "${FAKE_KS_RC:-0}"
+EOS
+chmod +x "$SCU/w1" "$SCU/tl"
+printf '/x/sidecar/claude-termlink.admin.sock\n' > "$SCU/admin.list"
+export RUNME_W1_PROVISION="bash $SCU/w1" FAKE_W1_CALLS="$SCU/w1-calls" \
+       RUNME_SIDECAR_TL="$SCU/tl" RUNME_SIDECAR_ADMIN_LIST="$SCU/admin.list"
 export RUNME_SIDECAR_UNIT_DIR="$SCU/units" RUNME_SIDECAR_ENV_DIR="$SCU/env" \
        RUNME_SIDECAR_SYSTEMCTL="$SCU/systemctl" RUNME_SIDECAR_SYSTEMD_RUN="$SCU/run-systemd"
 # T-3303 action 8: a scratch Claude local-settings file, already carrying the
@@ -382,7 +400,7 @@ if [ "$(id -u)" != "0" ] && [ -n "${CI:-}" ]; then
 fi
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 18 ))   # +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +3 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
+EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 19 ))   # +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +3 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -1058,6 +1076,37 @@ if [ "$rc" = "0" ] && echo "$out" | grep -q "no systemd on this host: the cron b
     ok "sidecar unit: a host without systemd skips the unit and names cron as the supervisor"
 else bad "sidecar no-systemd" "rc=$rc: $out"; fi
 run >/dev/null 2>&1
+
+# T-3438 (P7): W1 — readiness every run, switch-on only on a recorded go.
+: > "$SCU/w1-calls"; out=$(run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "W1 is ready; waiting for the operator's go" && grep -qx -- "--check" "$SCU/w1-calls" && ! grep -q -- "--apply" "$SCU/w1-calls"; then
+    ok "W1: without a recorded go only the read-only check runs"
+else bad "W1 default" "rc=$rc: $out"; fi
+: > "$SCU/w1-calls"; out=$(RUNME_W1_GO="2026-10-13|fixture" run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      W1 pair provisioned and running" && grep -qx -- "--apply" "$SCU/w1-calls"; then
+    ok "W1: with a recorded go it provisions and reports OK"
+else bad "W1 go" "rc=$rc: $out"; fi
+out=$(RUNME_W1_GO="2026-10-13|fixture" FAKE_W1_APPLY_RC=1 run); rc=$?
+if [ "$rc" != "0" ] && echo "$out" | grep -q "FAILED  W1 provisioning"; then
+    ok "W1: a failed provisioning is FAILED, not OK"
+else bad "W1 apply fail" "rc=$rc: $out"; fi
+
+# T-3438: the kill switch runs alone, needs a reason, reads each flip back.
+: > "$SCU/w1-calls"; out=$(run --sidecar-delivery off --why "fixture drill"); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      delivery off on every listed sidecar" \
+   && grep -q "sidecar admin delivery off --why fixture drill --all --list $SCU/admin.list" "$SCU/w1-calls" \
+   && ! echo "$out" | grep -q "1. Cron installs"; then
+    ok "kill switch: flips every listed sidecar and runs no other action"
+else bad "kill switch" "rc=$rc: $out"; fi
+out=$(run --sidecar-delivery off); rc=$?
+if [ "$rc" = "1" ] && echo "$out" | grep -q -- "--why"; then ok "kill switch: refuses without a reason"
+else bad "kill switch no why" "rc=$rc: $out"; fi
+out=$(FAKE_KS_RC=1 run --sidecar-delivery off --why x); rc=$?
+if [ "$rc" = "1" ] && echo "$out" | grep -q "FAILED  at least one sidecar did not confirm"; then ok "kill switch: an unconfirmed flip is FAILED"
+else bad "kill switch unconfirmed" "rc=$rc: $out"; fi
+out=$(RUNME_SIDECAR_ADMIN_LIST="$SCU/none.list" run --sidecar-delivery on --why x); rc=$?
+if [ "$rc" = "1" ] && echo "$out" | grep -q "no sidecars listed"; then ok "kill switch: an empty list switches nothing and says so"
+else bad "kill switch empty list" "rc=$rc: $out"; fi
 
 
 echo ""

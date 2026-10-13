@@ -1,0 +1,21 @@
+id: tests/tl-claude-sidecar-fixtures.sh
+name: tl-claude-sidecar-fixtures
+type: script
+subsystem: unknown
+location: tests/tl-claude-sidecar-fixtures.sh
+tags: []
+
+purpose: "T-3438 (arc-011 P7) — hermetic fixtures for tl-claude.sh --sidecar: the launcher starts the agent's sidecar through the supervise script and hands the session TERMLINK_SIDECAR_SOCKET only when the sidecar is really up."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-13
+created_by: unknown

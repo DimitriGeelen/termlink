@@ -61,11 +61,17 @@ RUNME_ARGS="$*"   # captured before parsing shifts them away (logged, T-3273)
 DRY_RUN=0
 DECIDE=""
 DISABLE_MISMATCH=0
+SIDECAR_DELIVERY=""
+SIDECAR_WHY=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --dry-run) DRY_RUN=1 ;;
         --decide)  shift; [ $# -ge 1 ] || { echo "runme: --decide needs <ID>=<verdict>" >&2; exit 2; }; DECIDE="$1" ;;
         --disable-mismatch-plugins) DISABLE_MISMATCH=1 ;;
+        # T-3438 (arc-011 OQ-e, SI-23): the fleet kill switch for this host's
+        # sidecars. Runs ONLY the switch (no other action), every flip read back.
+        --sidecar-delivery) shift; case "${1:-}" in on|off) SIDECAR_DELIVERY="$1" ;; *) echo "runme: --sidecar-delivery needs on|off" >&2; exit 2 ;; esac ;;
+        --why) shift; [ $# -ge 1 ] || { echo "runme: --why needs a reason" >&2; exit 2; }; SIDECAR_WHY="$1" ;;
         -h|--help) sed -n '2,27p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) echo "runme: unknown arg: $1" >&2; exit 2 ;;
     esac
@@ -111,6 +117,27 @@ INSTALLED_NAMES=()   # basenames this run is responsible for
 
 say()  { printf '%s\n' "$*"; }
 head2() { printf '\n\033[1m%s\033[0m\n' "$*"; }
+
+# ---------------------------------------------------------------------------
+# KILL SWITCH — `runme.sh --sidecar-delivery off|on --why "<reason>"` (T-3438;
+# OQ-e ruled A, SI-23). Flips delivery on EVERY sidecar in the host's admin-socket
+# list, each flip read back by the client (`admin delivery ... --all --list`), and
+# runs nothing else. Off stops new hand-overs within one tick; mail keeps arriving
+# and is stored. Seams (fixtures only): RUNME_SIDECAR_TL, RUNME_SIDECAR_ADMIN_LIST.
+# ---------------------------------------------------------------------------
+if [ -n "$SIDECAR_DELIVERY" ]; then
+    seam SC_TL RUNME_SIDECAR_TL "$(command -v termlink || echo /root/.cargo/bin/termlink)"
+    seam SC_ADMIN_LIST RUNME_SIDECAR_ADMIN_LIST "$PROJECT_ROOT/.context/working/sidecar-admin-sockets.list"
+    head2 "Kill switch: sidecar delivery $SIDECAR_DELIVERY on every listed sidecar (T-3438)"
+    if [ -z "$SIDECAR_WHY" ]; then say "  FAILED  --why \"<reason>\" is required (the reason is logged on each sidecar)"; exit 1; fi
+    if [ ! -s "$SC_ADMIN_LIST" ]; then say "  FAILED  no sidecars listed in $SC_ADMIN_LIST (W1 not provisioned?) — nothing switched"; exit 1; fi
+    if [ "$DRY_RUN" = "1" ]; then say "  [DRY]   would set delivery $SIDECAR_DELIVERY on: $(tr '\n' ' ' < "$SC_ADMIN_LIST")"; exit 0; fi
+    if "$SC_TL" sidecar admin delivery "$SIDECAR_DELIVERY" --why "$SIDECAR_WHY" --all --list "$SC_ADMIN_LIST"; then
+        say "  OK      delivery $SIDECAR_DELIVERY on every listed sidecar, each read back"; exit 0
+    else
+        say "  FAILED  at least one sidecar did not confirm delivery $SIDECAR_DELIVERY (lines above name it)"; exit 1
+    fi
+fi
 
 # install_crontab <source-basename> <installed-path>
 # Installs a git-tracked crontab, then VERIFIES the installed copy matches source.
@@ -1269,6 +1296,51 @@ install_claude_fw_router() {
 
 head2 "16. claude-fw on your PATH becomes the router, so upgrades can never leave it stale again (T-3421)"
 install_claude_fw_router
+
+# ---------------------------------------------------------------------------
+# ACTION 17 — arc-011 wave W1: the pair's sidecars (T-3438, row P7)
+#
+# Every run reports W1 READINESS (read-only: keys present and matching the
+# register, hub answers with its id, the installed termlink has the sidecar
+# verbs). Provisioning and switch-on run ONLY when the operator's W1 go is
+# recorded below (rulings P7-1..P7-4 are made; the go itself is a separate
+# operator decision: "each wave move is a runme.sh action the operator runs; the
+# agent never switches a receiver itself", ARCH 3). Provisioning writes the key
+# register, instance ids, store roots with the production marker, configs,
+# per-agent settings, the admin-socket list and SIDECAR_KEEP_RUNNING: on, then
+# starts both sidecars under systemd and verifies each in production mode with a
+# fresh heartbeat. Idempotent: a second run changes nothing.
+# Seams (fixtures only): RUNME_W1_PROVISION, RUNME_W1_GO.
+# ---------------------------------------------------------------------------
+# The recorded operator go for W1: "<date>|<where it is recorded>". Empty = not given.
+ARC011_W1_GO="${RUNME_W1_GO-}"
+seam W1_PROVISION RUNME_W1_PROVISION "bash $PROJECT_ROOT/scripts/arc011-w1-provision.sh"
+arc011_w1() {
+    local out rc
+    out=$($W1_PROVISION --check 2>&1); rc=$?
+    printf '%s\n' "$out" | sed 's/^/  /'
+    if [ -z "$ARC011_W1_GO" ]; then
+        if [ "$rc" = 0 ]; then say "  skip    W1 is ready; waiting for the operator's go (nothing provisioned or started)"
+        else say "  skip    W1 not ready yet (see above); waiting for the operator's go in any case"; fi
+        SKIPPED=$((SKIPPED+1)); return
+    fi
+    if [ "$DRY_RUN" = "1" ]; then
+        say "  [DRY]   would provision and start the W1 pair (go: $ARC011_W1_GO)"; DONE=$((DONE+1)); return
+    fi
+    out=$($W1_PROVISION --apply 2>&1); rc=$?
+    printf '%s\n' "$out"
+    if [ "$rc" = 0 ]; then
+        if grep -qE "written and verified|SIDECAR_KEEP_RUNNING (set|added)" <<< "$out"; then
+            say "  OK      W1 pair provisioned and running (go: $ARC011_W1_GO)"; DONE=$((DONE+1))
+        else
+            say "  skip    W1 pair already provisioned and running"; SKIPPED=$((SKIPPED+1))
+        fi
+    else
+        say "  FAILED  W1 provisioning (lines above name each failed step)"; FAILED=$((FAILED+1))
+    fi
+}
+head2 "17. arc-011 W1: the pair's sidecars (T-3438; readiness every run, switch-on only on your go)"
+arc011_w1
 
 # ---------------------------------------------------------------------------
 # Verification — the project's own drift checker is the arbiter, not this script.

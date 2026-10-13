@@ -1,0 +1,21 @@
+id: tests/arc011-w1-provision-fixtures.sh
+name: arc011-w1-provision-fixtures
+type: script
+subsystem: unknown
+location: tests/arc011-w1-provision-fixtures.sh
+tags: []
+
+purpose: "T-3438 — hermetic fixtures for scripts/arc011-w1-provision.sh (arc-011 W1). A fake termlink and a fake supervise script in a scratch tree; nothing touches /etc, /var/lib, a hub, systemd or a real key."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-13
+created_by: unknown

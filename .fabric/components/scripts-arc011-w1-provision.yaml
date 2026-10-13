@@ -1,0 +1,21 @@
+id: scripts/arc011-w1-provision.sh
+name: arc011-w1-provision
+type: script
+subsystem: unknown
+location: scripts/arc011-w1-provision.sh
+tags: []
+
+purpose: "T-3438 — arc-011 PH-2 wave W1: provision and start the W1 pair's sidecars (operator rulings P7-1 pair, P7-2 key register, P7-3 keep running, P7-4 provisioned instance ids; OQ-f D+). Called by /opt/termlink/runme.sh."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-13
+created_by: unknown
