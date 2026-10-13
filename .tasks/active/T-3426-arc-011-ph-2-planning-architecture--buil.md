@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-12T19:17:19Z
-last_update: 2026-10-13T15:58:32Z
+last_update: 2026-10-13T16:12:18Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -342,6 +342,13 @@ date_finished: null
 - **Chose:** A — accept for PH-2; the status call states "same-user separation absent: agents run as root".
 - **Why:** PH-2 is one host, one project, the operator's own agents; real separation needs per-agent accounts (Track A), which needs PH-3's Tier 0 machinery.
 - **Rejected (OQ-b):** A+ (also surface every admin act and foreign use of a send socket after the fact; offered, not taken), B (wait for Track A: would fold PH-2 into PH-3).
+
+### 2026-10-13 — FX-5: the artifact store and attachments (operator ruling, after external consult)
+- **Chose:** C′ — count the artifact store (baseline 9, correcting the PH-0 measurement); adopt the "workflow" reading of FX-5 (a new hub-readable copy of a content class the hub does not hold today is growth, whatever the field count); P15 attachments encrypted to the recipient's key or sent sidecar to sidecar; threat boundary stated (protects stored hub data and token holders, not against the host operator inspecting a sidecar); check: today's artifact-store writers allowlisted, new writers fail unless via the encryption wrapper, plus a size cap on plaintext message fields.
+- **Why:** both reviewers (Codex gpt-6-astra, GLM glm-5.3; `docs/reports/T-3426-fx5-consult/`) picked C amended: the store exists at PH-0 so excluding it understates the baseline; routing agent attachments through it is growth under the workflow reading (otherwise the floor is vacuous); a sidecar-only check is one call site from bypass. The weighted scores (A +22, C +17, D −5, B −18) are recorded as inapplicable: the drivers cannot price confidentiality and FX-5 is a floor.
+- **Rejected:** A (capability reading: plumbing taken as exposure), B (partial inventory), D (design would start from the plaintext store). GLM's hub-side refusal of all unencrypted artifacts not adopted as worded: it would break today's `termlink file send`, a baseline rail.
+- **Corrections recorded:** sidecar-only check scope; field count is a tripwire, not a disclosure measure; threat boundary missing; scoring framed as a near-loss; the interpretation of FX-5 now settled by this ruling, not by the measurer.
+- **Left open:** inventory check (store x form x readers x retention) as the primary FX-5 check (follow-on task); whether the hub later refuses unencrypted artifacts from new writers; a confidentiality value driver.
 
 ### 2026-10-13 — R-37 escalation threshold for routine needs-attention entries (operator ruling, after external consult)
 - **Chose:** A′ — per kind host-wide (sidecar attribution kept); >5 routine/24 h highlight, >15/24 h (3x H-20) escalates; 3 occurrence clusters >=24 h apart within 14 days escalates, never reset by "seen"; oldest-unresolved age shown; own log event type and own `/canaries` line; one task per kind + umbrella when >5 kinds escalate at once, kinds within 1 h linked as one incident; clears after 7 quiet days AND task completed, re-files if closed while firing; all numbers are settings retuned after W1.
