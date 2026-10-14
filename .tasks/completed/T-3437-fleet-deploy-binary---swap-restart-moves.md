@@ -11,12 +11,12 @@ description: >
   before reporting success. Fixture for the default-chain case. Until fixed, .132
   stays out of runme action 6.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [bug, fleet]
-components: []
+components: [runme.sh, scripts/fleet-deploy-binary.sh, scripts/lib/fleet-deploy-runner.sh, scripts/lib/hub-runtime-dir.sh, tests/hub-runtime-dir-fixtures.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -45,8 +45,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-13T19:10:17Z
-last_update: 2026-10-14T19:26:50Z
-date_finished:
+last_update: 2026-10-14T19:48:37Z
+date_finished: 2026-10-14T19:48:37Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -87,7 +87,7 @@ bvp_scores_proposed:
 - [x] The swap-restart runner embeds it, ABORTS before stopping anything when the dir cannot be confirmed, never falls back to ~/.termlink/runtime, relaunches with the confirmed dir, and after relaunch fails (non-zero, named) when the cert file changed or the port does not present that dir's cert
 - [x] Static fixture on the generated runner (emitted, never executed against a live hub) pins: library embedded, no fallback dir, abort-before-kill order, post-relaunch cert checks; existing `tests/fleet-deploy-chunk-retry-fixtures.sh` still passes
 - [x] greenfield (.132) re-added to runme action 6 only after the above; `runme.sh --dry-run` shows it staged 0.12.540 -> current through the fixed runner
-- [ ] Live proof: the operator's next `runme.sh` run upgrades .132 and reports `OK upgraded and verified: greenfield ... tofu verify ok (cert unchanged)`; the remote deploy log shows "runtime_dir=... (confirmed by hub.pid)" and "cert unchanged"
+- [x] Live proof (runme 2026-10-14T19:44Z rc=0; .132 deploy log 21:47:35 CEST: "runtime_dir=/run/user/0/termlink (confirmed by hub.pid)", "cert unchanged: port 9100 presents sha256:aef925c6… from /run/user/0/termlink"; the 2026-10-13 run had logged "runtime_dir=<unreadable>"): the operator's next `runme.sh` run upgrades .132 and reports `OK upgraded and verified: greenfield ... tofu verify ok (cert unchanged)`; the remote deploy log shows "runtime_dir=... (confirmed by hub.pid)" and "cert unchanged"
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -389,3 +389,15 @@ timeout 15 termlink hub probe 192.168.10.132:9100 > /tmp/.t3437-c 2>&1 && grep -
 
 ### 2026-10-14T19:23:04Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-c6cd0c0b
+- **Timestamp:** 2026-10-14T19:48:45Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-10-14T19:48:37Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
