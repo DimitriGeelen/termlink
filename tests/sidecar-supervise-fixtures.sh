@@ -140,6 +140,7 @@ check "5b the hung process is gone and a fresh one runs" '! kill -0 "$hung" 2>/d
 # 6 systemd host: start goes through the unit; the backstop repairs THROUGH it.
 reset; setting on; touch "$T/sysd/unitfile"; echo enabled > "$T/sysd/enabled"
 out=$(sd start demo 2>&1); rc=$?
+check "6a2 start also enables the unit, so it survives a reboot (W1 finding)" 'grep -q "^enable termlink-sidecar@demo.service" "$T/sysd/calls"'
 check "6a start uses the systemd unit, not a detached process" '[ $rc = 0 ] && grep -q "under systemd" <<< "$out" && [ -z "$(dpid)" ] && grep -q "^start termlink-sidecar@demo.service" "$T/sysd/calls"'
 kill -KILL "$(cat "$T/sysd/unit.pid")"; sleep 0.3; : > "$T/sysd/calls"
 out=$(sd check --quiet --no-heartbeat 2>&1); rc=$?

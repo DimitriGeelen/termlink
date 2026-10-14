@@ -70,11 +70,18 @@ pin_err=""
 
 # ---- 1c. messages held for the operator by a sidecar (arc-011 OQ-2 ruling E) ------
 SIDECAR_BIN="${SESSION_ALERTS_SIDECAR_BIN:-}"
+# T-3438: prefer the INSTALLED `termlink sidecar` (what runme keeps current); a
+# stale local build in target/ answered nothing and read as "could not ask".
+sc_usage="$(command -v termlink >/dev/null 2>&1 && termlink sidecar 2>&1)"   # usage exits 2: captured, never piped (pipefail)
+if [ -z "$SIDECAR_BIN" ] && grep -q 'admin held' <<< "$sc_usage"; then
+    SIDECAR_BIN="__installed__"
+fi
 if [ -z "$SIDECAR_BIN" ]; then
     for b in "$ROOT/target/release/termlink-sidecar" "$ROOT/target/debug/termlink-sidecar"; do
         [ -x "$b" ] && { SIDECAR_BIN="$b"; break; }
     done
 fi
+sidecar_cli() { if [ "$SIDECAR_BIN" = "__installed__" ]; then termlink sidecar "$@"; else "$SIDECAR_BIN" "$@"; fi; }
 held_list="${SESSION_ALERTS_SIDECAR_LIST:-$ROOT/.context/working/sidecar-admin-sockets.list}"
 held_socks="${SESSION_ALERTS_SIDECAR_SOCKETS:-}"
 if [ -z "$held_socks" ] && [ -r "$held_list" ]; then
@@ -88,7 +95,7 @@ elif [ -z "$SIDECAR_BIN" ]; then
 else
     IFS=: read -ra held_arr <<< "$held_socks"
     for sock in "${held_arr[@]}"; do
-        out="$("$SIDECAR_BIN" admin held --socket "$sock" 2>/dev/null)"
+        out="$(sidecar_cli admin held --socket "$sock" 2>/dev/null)"
         if ! printf '%s' "$out" | jq -e '.ok == true' >/dev/null 2>&1; then
             held_err="${held_err:+$held_err; }could not ask the sidecar at $sock"
             held_bad="${held_bad:-}:$sock:"
@@ -111,7 +118,7 @@ if [ -n "$held_socks" ] && [ -n "$SIDECAR_BIN" ]; then
         case "${held_bad:-}" in *":$sock:"*) continue ;; esac
         akey="att_$(printf '%s' "$sock" | tr -c 'A-Za-z0-9' '_')"
         aseen="$(cat "$STATE_DIR/$akey.seen" 2>/dev/null | tr -dc '0-9')"; aseen="${aseen:-0}"
-        out="$("$SIDECAR_BIN" admin attention --since "$aseen" --socket "$sock" 2>/dev/null)"
+        out="$(sidecar_cli admin attention --since "$aseen" --socket "$sock" 2>/dev/null)"
         if ! printf '%s' "$out" | jq -e '.ok == true' >/dev/null 2>&1; then
             att_err="${att_err:+$att_err; }could not ask the sidecar at $sock"
             continue

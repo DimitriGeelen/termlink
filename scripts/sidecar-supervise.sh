@@ -167,6 +167,9 @@ cmd_start() {
     fi
     if [ "$keep" = on ] && sc=$(systemctl_bin); then
         "$sc" reset-failed "$(unit_of "$project")" >/dev/null 2>&1
+        # T-3438: keep-running means across reboots too; enable before start
+        # (W1 found units started but disabled, which only the backstop repaired).
+        "$sc" enable "$(unit_of "$project")" >/dev/null 2>&1 || { say "$project: systemctl enable failed"; return 1; }
         "$sc" start "$(unit_of "$project")" || { say "$project: systemctl start failed"; return 1; }
         say "$project: started under systemd ($(unit_of "$project"))"
     elif [ "$keep" = on ]; then
