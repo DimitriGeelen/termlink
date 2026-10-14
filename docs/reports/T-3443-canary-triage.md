@@ -67,3 +67,13 @@ Marker acked to offset 325 after the triage.
 - **Open:** whether to arm agents (relaunch through the launcher with `--reachable`), or to stop expecting the legacy
   rail armed on .107 while arc-011's doorbell (W2) replaces it. That is a choice about how this host runs, so it is put
   to the operator, not decided here.
+
+## 6. forever-archival — fired 2026-10-14 07:51 (new, after this triage began)
+
+- **Fires on:** project inboxes kept forever and growing without bound: `inbox:cacc73ea32b121dd/999-Agentic-Engineering-Framework`
+  (1435 records, 66.5/day over 21.6 days) and, in earlier entries, `inbox:cacc73ea32b121dd/010-termlink`.
+- **Cause:** project inboxes on this hub have `Retention::Forever`; the charter's non-goal #2 says topics are not a
+  system of record.
+- **Not done here:** the suggested remedy (cap the inbox and sweep) can drop mail a receiver has not read yet, and one
+  inbox is AEF's. A retention for project inboxes is a decision for the operator, coordinated with AEF; arc-011 will
+  also move this project's mail to per-agent inboxes (W4).
