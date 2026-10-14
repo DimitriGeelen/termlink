@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-12T19:17:19Z
-last_update: 2026-10-13T16:14:31Z
+last_update: 2026-10-14T09:14:42Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -349,6 +349,13 @@ date_finished: null
 - **Rejected:** A (capability reading: plumbing taken as exposure), B (partial inventory), D (design would start from the plaintext store). GLM's hub-side refusal of all unencrypted artifacts not adopted as worded: it would break today's `termlink file send`, a baseline rail.
 - **Corrections recorded:** sidecar-only check scope; field count is a tripwire, not a disclosure measure; threat boundary missing; scoring framed as a near-loss; the interpretation of FX-5 now settled by this ruling, not by the measurer.
 - **Left open:** inventory check (store x form x readers x retention) as the primary FX-5 check (follow-on task); whether the hub later refuses unencrypted artifacts from new writers; a confidentiality value driver.
+
+### 2026-10-14 — W1 go (operator ruling)
+- **Chose:** B — go now: the operator runs `runme.sh` (action 17 provisions and starts both sidecars under systemd), opens `claude-termlink-alt` through the launcher now; the main session joins at its next natural restart (R-48 "next natural start"). The 7-day window counts from when both agents are in.
+- **Why:** gate met (P0-P8 done, drain proven on the estate, W1 readiness "ready" in the 2026-10-13 22:13Z run); B proves provisioning, supervision and the stored-while-closed path today without interrupting the working session. Scored B +40, A +17, C −4.
+- **Rejected:** A (relaunch the main session now: interruption for a few hours' head start); C (wait for .132 and the framework upgrade: neither touches the sidecar path; .132 has since recovered).
+- **Recorded in:** `runme.sh` `ARC011_W1_GO`. Operator's words: "proceed" after the B recommendation (read as B).
+- **Left open:** the kill-switch drill and W2 (gated on 7 clean days with both agents in).
 
 ### 2026-10-13 — P7-4: instance ids for the W1 pair (operator ruling; corrects a default)
 - **Chose:** A — each pair member gets an instance id minted by the W1 runme action (e.g. `claude-termlink.w1-20261013`; corrected from the `@` form in the brief, which the API's name rule refuses — found by the P7 test), stable across sidecar restarts during W1 so the partner can address it, never reused (re-provisioning mints a new date-stamped id); each sidecar's config carries its partner's id. R-62's "a copy's runtime id is never reused" is read at provisioning granularity for W1; per-copy ids arrive with role resolution (R-67) in a later row.

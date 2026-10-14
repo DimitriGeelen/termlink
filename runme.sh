@@ -1313,7 +1313,7 @@ install_claude_fw_router
 # Seams (fixtures only): RUNME_W1_PROVISION, RUNME_W1_GO.
 # ---------------------------------------------------------------------------
 # The recorded operator go for W1: "<date>|<where it is recorded>". Empty = not given.
-ARC011_W1_GO="${RUNME_W1_GO-}"
+ARC011_W1_GO="${RUNME_W1_GO-2026-10-14|T-3426 Decisions: W1 go, operator ruling B}"
 seam W1_PROVISION RUNME_W1_PROVISION "bash $PROJECT_ROOT/scripts/arc011-w1-provision.sh"
 arc011_w1() {
     local out rc

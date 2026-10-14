@@ -221,7 +221,7 @@ exit "${FAKE_KS_RC:-0}"
 EOS
 chmod +x "$SCU/w1" "$SCU/tl"
 printf '/x/sidecar/claude-termlink.admin.sock\n' > "$SCU/admin.list"
-export RUNME_W1_PROVISION="bash $SCU/w1" FAKE_W1_CALLS="$SCU/w1-calls" \
+export RUNME_W1_GO= RUNME_W1_PROVISION="bash $SCU/w1" FAKE_W1_CALLS="$SCU/w1-calls" \
        RUNME_SIDECAR_TL="$SCU/tl" RUNME_SIDECAR_ADMIN_LIST="$SCU/admin.list"
 export RUNME_SIDECAR_UNIT_DIR="$SCU/units" RUNME_SIDECAR_ENV_DIR="$SCU/env" \
        RUNME_SIDECAR_SYSTEMCTL="$SCU/systemctl" RUNME_SIDECAR_SYSTEMD_RUN="$SCU/run-systemd"
