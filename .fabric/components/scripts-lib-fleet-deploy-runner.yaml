@@ -1,0 +1,21 @@
+id: scripts/lib/fleet-deploy-runner.sh
+name: fleet-deploy-runner
+type: script
+subsystem: unknown
+location: scripts/lib/fleet-deploy-runner.sh
+tags: []
+
+purpose: "T-3437: the swap+restart runner that fleet-deploy-binary.sh pushes to a hub's host. Generated here (sourced) so a fixture can emit and inspect it without ever running it against a live hub."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-14
+created_by: unknown

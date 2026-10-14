@@ -682,9 +682,11 @@ restart_hub
 # Seams (fixtures only): RUNME_FLEET_HUBS, RUNME_MUSL_SRC, RUNME_FLEET_DEPLOY,
 # RUNME_FLEET_DOCTOR, RUNME_FLEET_REMOTE, RUNME_TOFU, RUNME_FLEET_WAIT_SECS.
 # ---------------------------------------------------------------------------
-# greenfield (.132) is OUT until T-3437: its first swap moved the hub to a fresh
-# runtime dir (new cert + secret). Re-add it once the swap keeps the real dir.
-FLEET_HUBS="${RUNME_FLEET_HUBS:-ring20-management ring20-dashboard}"
+# greenfield (.132) was out between its first swap (2026-10-13: the hub moved to a
+# fresh runtime dir, new cert + secret) and T-3437, which resolves the running
+# hub's real dir from its own environment, refuses to stop it when that cannot be
+# confirmed, and fails the deploy if the cert changes. Back in from 2026-10-14.
+FLEET_HUBS="${RUNME_FLEET_HUBS:-ring20-management ring20-dashboard greenfield}"
 seam MUSL_SRC RUNME_MUSL_SRC "$PROJECT_ROOT/target/x86_64-unknown-linux-musl/local-fast/termlink"
 seam FLEET_DEPLOY RUNME_FLEET_DEPLOY "bash $PROJECT_ROOT/scripts/fleet-deploy-binary.sh"
 seam FLEET_DOCTOR RUNME_FLEET_DOCTOR "termlink fleet doctor --json"

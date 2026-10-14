@@ -1,10 +1,17 @@
 ---
 id: T-3437
-name: "fleet-deploy-binary --swap-restart moves a hub with no TERMLINK_RUNTIME_DIR to a fresh runtime dir (PL-021 rotation, .132 2026-10-13)"
+name: "fleet-deploy-binary --swap-restart moves a hub with no TERMLINK_RUNTIME_DIR
+  to a fresh runtime dir (PL-021 rotation, .132 2026-10-13)"
 description: >
-  scripts/fleet-deploy-binary.sh:291 reads only TERMLINK_RUNTIME_DIR from the running hub's environ; a hub using the default chain (XDG_RUNTIME_DIR/termlink, TMPDIR/termlink-UID, /tmp/termlink-UID) is relaunched in ~/.termlink/runtime and regenerates cert+secret. Fix: resolve the running hub's real dir (e.g. its hub.pid/hub.sock location or /proc/PID/fd), refuse to relaunch when it cannot be determined, and verify the fingerprint is unchanged before reporting success. Fixture for the default-chain case. Until fixed, .132 stays out of runme action 6.
+  scripts/fleet-deploy-binary.sh:291 reads only TERMLINK_RUNTIME_DIR from the running
+  hub's environ; a hub using the default chain (XDG_RUNTIME_DIR/termlink, TMPDIR/termlink-UID,
+  /tmp/termlink-UID) is relaunched in ~/.termlink/runtime and regenerates cert+secret.
+  Fix: resolve the running hub's real dir (e.g. its hub.pid/hub.sock location or /proc/PID/fd),
+  refuse to relaunch when it cannot be determined, and verify the fingerprint is unchanged
+  before reporting success. Fixture for the default-chain case. Until fixed, .132
+  stays out of runme action 6.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -38,8 +45,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-13T19:10:17Z
-last_update: 2026-10-13T19:10:42Z
-date_finished: null
+last_update: 2026-10-14T19:26:50Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +57,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-14T19:23:04Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3437: fleet-deploy-binary --swap-restart moves a hub with no TERMLINK_RUNTIME_DIR to a fresh runtime dir (PL-021 rotation, .132 2026-10-13)
@@ -62,8 +83,11 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `scripts/lib/hub-runtime-dir.sh` resolves a running hub's runtime dir from the hub's OWN environment in the binary's order (TERMLINK_RUNTIME_DIR, XDG_RUNTIME_DIR/termlink, TMPDIR/termlink-<uid>, /tmp/termlink-<uid>) and accepts it only when its hub.pid names that hub; fixtures on a fake /proc tree (no real process is ever signalled), including the .132 case (no TERMLINK_RUNTIME_DIR, hub in /tmp/termlink-0) and a pidfile mismatch
+- [x] The swap-restart runner embeds it, ABORTS before stopping anything when the dir cannot be confirmed, never falls back to ~/.termlink/runtime, relaunches with the confirmed dir, and after relaunch fails (non-zero, named) when the cert file changed or the port does not present that dir's cert
+- [x] Static fixture on the generated runner (emitted, never executed against a live hub) pins: library embedded, no fallback dir, abort-before-kill order, post-relaunch cert checks; existing `tests/fleet-deploy-chunk-retry-fixtures.sh` still passes
+- [x] greenfield (.132) re-added to runme action 6 only after the above; `runme.sh --dry-run` shows it staged 0.12.540 -> current through the fixed runner
+- [ ] Live proof: the operator's next `runme.sh` run upgrades .132 and reports `OK upgraded and verified: greenfield ... tofu verify ok (cert unchanged)`; the remote deploy log shows "runtime_dir=... (confirmed by hub.pid)" and "cert unchanged"
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -99,6 +123,11 @@ date_finished: null
 -->
 
 ## Verification
+
+bash tests/hub-runtime-dir-fixtures.sh > /tmp/.t3437-a 2>&1 && grep -q "16 passed, 0 failed" /tmp/.t3437-a
+bash tests/fleet-deploy-chunk-retry-fixtures.sh > /tmp/.t3437-b 2>&1 && grep -q ", 0 failed" /tmp/.t3437-b
+bash -n scripts/fleet-deploy-binary.sh && bash -n scripts/lib/fleet-deploy-runner.sh && bash -n scripts/lib/hub-runtime-dir.sh
+timeout 15 termlink hub probe 192.168.10.132:9100 > /tmp/.t3437-c 2>&1 && grep -q "sha256:aef925c6d2f4ac5417fad0ead003a31ff425d6b4536a65cc9543f5c2c14d0f86" /tmp/.t3437-c
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -269,6 +298,14 @@ date_finished: null
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
+**Symptom:** 2026-10-13 18:48Z, runme action 6 upgraded greenfield (.132) 0.12.61 -> 0.12.540 with `fleet-deploy-binary.sh --swap-restart`; the hub came back presenting a new cert (e06c21d2, was aef925c6) and a new secret. Every peer failed TOFU/auth; .132's own sessions lost their hub. Recovered by `scripts/hub-recover-original-runtime.sh` (T-3436), run on .132 by the Greenfield agent's operator.
+
+**Root cause:** the generated runner read only `TERMLINK_RUNTIME_DIR` from the running hub's `/proc/<pid>/environ` and, when absent, fell back to the exec session's variable or `~/.termlink/runtime`. A hub started without the variable had resolved its dir by the binary's default chain (`XDG_RUNTIME_DIR/termlink`, `TMPDIR/termlink-<uid>`, `/tmp/termlink-<uid>`), so the relaunch landed in a fresh dir and the binary minted a new cert and secret (persist-if-present had nothing to find).
+
+**Why structurally allowed:** T-3323 had fixed the same class for hubs WITH the variable and tested only that shape; nothing compared the dir the relaunch used with the dir the hub had used, and success was "hub UP", not "same cert". The runner was a heredoc inside the deploy script, so no fixture could exercise it without running it against a live hub.
+
+**Prevention:** the dir is resolved by `scripts/lib/hub-runtime-dir.sh` in the binary's own order from the hub's environment and uid, and accepted only when its `hub.pid` names the hub; otherwise the runner aborts before stopping anything. After relaunch it fails, named, when the cert file changed or the port presents another cert. The runner is generated by a sourceable library so `tests/hub-runtime-dir-fixtures.sh` pins resolution on a fake /proc tree and the runner's order statically (16 cases; a mutant restoring the fallback is caught). runme's own post-check (`tofu verify`) already caught it as FAILED, but only after the damage; the runner now refuses first.
+
 ## Evolution
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
@@ -349,3 +386,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3437-fleet-deploy-binary---swap-restart-moves.md
 - **Context:** Initial task creation
+
+### 2026-10-14T19:23:04Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

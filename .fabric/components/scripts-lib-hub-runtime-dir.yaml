@@ -1,0 +1,21 @@
+id: scripts/lib/hub-runtime-dir.sh
+name: hub-runtime-dir
+type: script
+subsystem: unknown
+location: scripts/lib/hub-runtime-dir.sh
+tags: []
+
+purpose: "T-3437 — the runtime dir a RUNNING hub actually uses, resolved from the hub's own environment exactly as the binary resolves it, and confirmed by its pidfile."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-14
+created_by: unknown
