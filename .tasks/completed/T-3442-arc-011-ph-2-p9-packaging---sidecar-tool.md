@@ -8,12 +8,12 @@ description: >
   checkout; install.sh verifies checksums then discards them, so status cannot re-verify;
   no clean-host lifecycle test. Wire-version refusal already exists (wire.rs:78).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-011, sidecar, release]
-components: []
+components: [crates/termlink-sidecar/src/client.rs, crates/termlink-sidecar/src/tools.rs, install.sh, scripts/sidecar-supervise.sh, tests/arc011-clean-host/inner.sh, tests/arc011-clean-host.sh, tests/install-sh-fixtures.sh, tests/sidecar-supervise-fixtures.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -42,8 +42,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-14T19:54:54Z
-last_update: 2026-10-14T20:17:25Z
-date_finished:
+last_update: 2026-10-14T20:17:32Z
+date_finished: 2026-10-14T20:17:32Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -387,3 +387,20 @@ touch crates/termlink-sidecar/src/lib.rs && cargo clippy -p termlink-sidecar --a
 
 ### 2026-10-14T19:58:36Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-38a43412
+- **Timestamp:** 2026-10-14T20:18:20Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Agent)** — `install.sh` keeps the release `checksums.txt` at `<prefix>/share/termlink/checksums.txt` and runs `tools install`; a base-URL seam lets a test install from a local "release" directory
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=share/termlink/checksums.txt in: `install.sh` keeps the release `checksums.txt` at `<prefix>/share/termlink/checksums.txt` and runs `tools install`; a base-URL seam lets a test instal`
+
+### 2026-10-14T20:17:32Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

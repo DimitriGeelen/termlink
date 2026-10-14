@@ -1,0 +1,102 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3442: arc-011 PH-2 P9: packaging - sidecar tooling ships with the release, checksums at install and in status, clean-host install/upgrade/rollback test
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-14T20:18:28Z
+# ============================================================================
+
+task_id: T-3442
+task_name: "arc-011 PH-2 P9: packaging - sidecar tooling ships with the release, checksums at install and in status, clean-host install/upgrade/rollback test"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-14T19:54:54Z
+completed: 2026-10-14T20:17:32Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-14T21:58:54+02:00
+last_commit: 2026-10-14T22:17:26+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  operator ruled P9-1 A (embed sidecar tools in the binary); P9 criteria. P9 packaging - sidecar tools embedded in the binary (tools install), install.sh keeps the checksum record + .prev + --rollback, status verifies the binary (SI-27), clean-host Docker test 18/18; fix: supervise accepted a previous process's heartbeat after restart
+
+# Key outcomes
+outcomes:
+  - '`termlink sidecar tools install [--prefix P] [--system]` writes the embedded supervise script (0755), unit template and backstop crontab to `<P>/share/termlink/sidecar/`, with every `/opt/termlink` reference rewritten to the installed location; `--system` also installs the unit and crontab (systemd/cron dirs, seams for tests) and reloads systemd; idempotent; the embedded files are byte-identical to the repo''s tested files apart from the rewritten paths (unit test)'
+  - '`install.sh` keeps the release `checksums.txt` at `<prefix>/share/termlink/checksums.txt` and runs `tools install`; a base-URL seam lets a test install from a local "release" directory'
+  - 'Sidecar status reports the running binary''s sha256 and `verified: yes|no|no-record` against that checksum record (SI-27); the text print shows it; an unknown wire version stays refused (existing `wire.rs` check, pinned by a test)'
+  - 'Clean-host test in Docker (no /opt/termlink, no Rust; 18/18, `docs/reports/T-3442-clean-host-result.md`; the container has no systemd, so the tools run in their cron-supervised mode and the `--system` file writes are pinned by unit test): install from a local release dir, start a hub and two sidecars from the installed binary, a message reaches STORED, then reinstall (upgrade path), roll back the binary from its backup, restart, store and message survive; script + result recorded'
+  - 'Fixtures for install.sh changes; release-artifact drift check still clean; cargo test + clippy clean for the crate'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'P9 packaging - sidecar tools embedded in the binary (tools install), install.sh keeps the checksum record + .prev + --rollback, status verifies the binary (SI-27), clean-host Docker test 18/18; fix: supervise accepted a previous process''s heartbeat after restart'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-sidecar/src/api.rs'
+  - 'crates/termlink-sidecar/src/client.rs'
+  - 'crates/termlink-sidecar/src/cli.rs'
+  - 'crates/termlink-sidecar/src/daemon.rs'
+  - 'crates/termlink-sidecar/src/lib.rs'
+  - 'crates/termlink-sidecar/src/tools.rs'
+  - 'crates/termlink-sidecar/src/wire.rs'
+  - 'crates/termlink-sidecar/tests/supervision_tests.rs'
+  - 'docs/design/arc-011-ph2-architecture.md'
+  - 'docs/reports/T-3442-clean-host-result.md'
+  - '.fabric/components/crates-termlink-sidecar-src-tools.yaml'
+  - '.fabric/components/tests-arc011-clean-host-inner.yaml'
+  - '.fabric/components/tests-arc011-clean-host.yaml'
+  - '.fabric/components/tests-install-sh-fixtures.yaml'
+  - 'install.sh'
+  - 'scripts/sidecar-supervise.sh'
+  - '.tasks/active/T-3426-arc-011-ph-2-planning-architecture--buil.md'
+  - '.tasks/active/T-3442-arc-011-ph-2-p9-packaging---sidecar-tool.md'
+  - 'tests/arc011-clean-host/inner.sh'
+  - 'tests/arc011-clean-host.sh'
+  - 'tests/install-sh-fixtures.sh'
+  - 'tests/sidecar-supervise-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-14T21:58:54'
+    action: 'T-3442: operator ruled P9-1 A (embed sidecar tools in the binary); P9 criteria'
+  - time: '2026-10-14T22:17:26'
+    action: 'T-3442: P9 packaging - sidecar tools embedded in the binary (tools install), install.sh keeps the checksum record + .prev + --rollback, status verifies the binary (SI-27), clean-host Docker test 18/18; fix: supervise accepted a previous process''s heartbeat after restart'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 22 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-011, sidecar, release]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 22
+  commits: 2
+  files_changed: 22
+  lines_added: 1205
+  lines_removed: 12
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3442-arc-011-ph-2-p9-packaging---sidecar-tool.md
+generated_by: context-agent-hybrid
