@@ -275,6 +275,11 @@ install_sidecar_supervision() {
 install_sidecar_supervision
 install_crontab sidecar-backstop.crontab          "$CRON_DIR/termlink-sidecar-backstop"
 
+# T-3443 (operator ruling, decision 5 B): this host no longer expects the legacy
+# push-wake rail armed (--expect-armed dropped); agents not expected armed are named
+# in .context/checks/waker-not-expected-allowlist. Revisit at arc-011 W2.
+install_crontab waker-liveness-canary.crontab     "$CRON_DIR/termlink-waker-liveness-canary"
+
 # close_task <T-ID> <reason>
 # Closes a task the operator has ALREADY approved closing, then VERIFIES it
 # landed in completed/ with status work-completed.

@@ -46,6 +46,13 @@
 #   TERMLINK_WAKER_TEST_JSON=<file>   canned agent-listeners.sh --json envelope
 #   TERMLINK_WAKER_STATE_DIR=<dir>    fixture dir for be-reachable*.state scan
 #   TERMLINK_WAKER_SKIP_PROC=1        skip /proc cmdline guard (fixture pids)
+#   TERMLINK_WAKER_ALLOWLIST=<file>   agents not expected to be armed (default
+#                                     .context/checks/waker-not-expected-allowlist)
+#
+# T-3443 (operator ruling, decision 5 B): an agent named in the allowlist with a
+# reason (`<agent_id>  # why; revisit: YYYY-MM-DD`) is COUNTED and REPORTED as
+# not armed but does not fire class (a). It never exempts class (b), a dead
+# waker: an agent that IS armed and whose waker died still fires.
 
 set -eu
 
@@ -58,6 +65,7 @@ FORMAT=human
 QUIET=0
 HEARTBEAT=1
 EXPECT_ARMED=0
+ALLOWLIST="${TERMLINK_WAKER_ALLOWLIST:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/.context/checks/waker-not-expected-allowlist}"
 HUB=""
 
 while [ $# -gt 0 ]; do
@@ -111,7 +119,7 @@ else
 fi
 
 # ── Classify in python (presence + state files) ──────────────────────────────
-REPORT="$(LISTENERS_JSON="$LISTENERS_JSON" python3 - "$STATE_DIR" "$FORMAT" \
+REPORT="$(LISTENERS_JSON="$LISTENERS_JSON" WAKER_ALLOWLIST="$ALLOWLIST" python3 - "$STATE_DIR" "$FORMAT" \
     "$EXPECT_ARMED" "$PRESENCE_ERROR" "${TERMLINK_WAKER_SKIP_PROC:-0}" <<'PY'
 import sys, os, json, glob
 
@@ -123,6 +131,16 @@ skip_proc = (sys.argv[5] == "1")
 # -- presence (classes a + c) -------------------------------------------------
 listeners_raw = os.environ.get("LISTENERS_JSON", "").strip()
 unwakeable = []          # class (a): LIVE, no pty_session
+acknowledged = []        # class (a) agents the operator does not expect armed
+allow = {}
+try:
+    for line in open(os.environ.get("WAKER_ALLOWLIST", "")):
+        body = line.split("#", 1)
+        name = body[0].strip()
+        if name:
+            allow[name] = body[1].strip() if len(body) > 1 else ""
+except OSError:
+    pass
 live_total = 0
 live_armed = 0
 presence_read = False
@@ -139,6 +157,8 @@ if listeners_raw:
         live_total += 1
         if l.get("pty_session"):
             live_armed += 1
+        elif l.get("agent_id") in allow:
+            acknowledged.append({"agent_id": l.get("agent_id"), "why": allow[l.get("agent_id")]})
         else:
             unwakeable.append({
                 "agent_id": l.get("agent_id"),
@@ -213,6 +233,7 @@ if fmt == "json":
         "live_armed": live_armed,
         "rail_dark": rail_dark,
         "unwakeable": unwakeable,
+        "acknowledged": acknowledged,
         "dead_wakers": dead_wakers,
         "armed_states": armed_states,
         "dormant_states": dormant_states,
@@ -238,12 +259,15 @@ else:
             print("      best, forever at worst. Arm agents via the T-2388 launcher (see above).")
         if presence_error:
             print("  (note: %s)" % presence_error)
+    if acknowledged:
+        print("ACK=%d not armed by decision: %s" % (len(acknowledged), ", ".join(a["agent_id"] for a in acknowledged)))
     print("FIRE=%d" % fire)
 PY
 )" || { echo "waker-liveness canary: classify error" >&2; exit 2; }
 
 FIRE="$(printf '%s\n' "$REPORT" | sed -n 's/^FIRE=//p' | tail -1)"
-BODY="$(printf '%s\n' "$REPORT" | grep -v '^FIRE=' || true)"
+ACKLINE="$(printf '%s\n' "$REPORT" | sed -n 's/^ACK=//p' | tail -1)"
+BODY="$(printf '%s\n' "$REPORT" | grep -v '^FIRE=' | grep -v '^ACK=' || true)"
 
 if [ "${FIRE:-0}" = 0 ]; then
     if [ "$QUIET" != 1 ]; then
@@ -253,6 +277,7 @@ if [ "${FIRE:-0}" = 0 ]; then
             note=""
             [ -n "$PRESENCE_ERROR" ] && note=" (note: ${PRESENCE_ERROR})"
             echo "waker-liveness canary: healthy — no unwakeable LIVE agents, no dead wakers${note}"
+            [ -n "$ACKLINE" ] && echo "  ($ACKLINE — see $ALLOWLIST)"
         fi
     fi
     exit 0
@@ -262,4 +287,5 @@ fi
 # T-3002 (C-39): date each firing cron entry — same frame as substrate-preflight.sh.
 [ "$QUIET" = 1 ] && [ "$FORMAT" != json ] && printf '=== %s ===\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 printf '%s\n' "$BODY"
+[ -n "$ACKLINE" ] && [ "$FORMAT" != json ] && echo "  ($ACKLINE — see $ALLOWLIST)"
 exit 1

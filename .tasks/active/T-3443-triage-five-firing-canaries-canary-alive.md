@@ -41,7 +41,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-14T21:39:09Z
-last_update: 2026-10-14T21:58:55Z
+last_update: 2026-10-14T22:35:33Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -342,6 +342,12 @@ bvp_scores_proposed:
 -->
 
 ## Decisions
+
+### 2026-10-15 — Decision 5: the dark push-wake rail (waker-liveness) (operator ruling)
+- **Chose:** B — stop expecting the legacy push-wake rail on this host until arc-011's doorbell (W2): `--expect-armed` dropped from the waker crontab (installed by runme action 1), and agents not expected armed are named with a reason in the git-tracked `.context/checks/waker-not-expected-allowlist` (`penelope`, `aef-greenfield-test`), counted and reported but not firing; a dead waker on an armed agent and any new unarmed agent still fire. Revisit at W2; the rail-dark expectation retires at W4.
+- **Why:** a canary red for weeks on an accepted state teaches everyone to ignore it; the decision belongs where the canary reads it. Mail reaches agents here via AEF's sidecar hook and arc-011 W1; arming would mean relaunching other projects' agents for a rail W4 retires. Scored B +27, A +8, D −8, C −26.
+- **Rejected:** A arm the agents; C leave red; D retire the canary now (loses the only dead-waker alarm before the replacement exists).
+- **Left open:** A for any single agent the operator wants armed; retiring the canary at W4.
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.

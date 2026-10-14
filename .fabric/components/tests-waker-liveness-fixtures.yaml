@@ -1,0 +1,21 @@
+id: tests/waker-liveness-fixtures.sh
+name: waker-liveness-fixtures
+type: script
+subsystem: unknown
+location: tests/waker-liveness-fixtures.sh
+tags: []
+
+purpose: "T-3443 (decision 5 B) — fixtures for the waker-liveness canary's allowlist: a named, reasoned agent that is LIVE without a waker is reported, not fired; anyone else still fires; a dead waker always fires; rail-dark only with…"
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-14
+created_by: unknown

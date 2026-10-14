@@ -1,0 +1,8 @@
+# Agents NOT expected to carry a push-waker on this host (waker-liveness canary,
+# class (a) only; a dead waker on an armed agent always fires).
+# Operator ruling 2026-10-15 (T-3443, decision 5 B): this host does not use the
+# arc-003/004 push-wake rail until arc-011's doorbell (W2); mail reaches agents via
+# AEF's sidecar hook and arc-011 W1. Revisit at W2; retire the canary's class (c)
+# expectation at W4. One agent per line: <agent_id>  # reason; revisit: YYYY-MM-DD
+penelope             # not this project's agent; not launched --reachable; revisit: at arc-011 W2
+aef-greenfield-test  # Greenfield's agent on .132, not this project's; revisit: at arc-011 W2
