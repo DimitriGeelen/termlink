@@ -350,6 +350,12 @@ date_finished: null
 - **Corrections recorded:** sidecar-only check scope; field count is a tripwire, not a disclosure measure; threat boundary missing; scoring framed as a near-loss; the interpretation of FX-5 now settled by this ruling, not by the measurer.
 - **Left open:** inventory check (store x form x readers x retention) as the primary FX-5 check (follow-on task); whether the hub later refuses unencrypted artifacts from new writers; a confidentiality value driver.
 
+### 2026-10-14 — P9-1: how the sidecar's supporting tools ship (operator ruling)
+- **Chose:** A — embed in the binary: `termlink sidecar tools install` writes the tested supervise script, unit template and backstop crontab to `<prefix>/share/termlink/sidecar/` (paths rewritten to that prefix); `install.sh` keeps the release checksum record and installs the tools; status reports whether the running binary matches the release checksum (yes / no / no record); a Docker clean-host install/upgrade/rollback/restart test.
+- **Why:** meets R-39 (start and supervise from the deployment, no checkout) and SI-27 with the files that passed today's fixtures and the live W1 run, inside the one artifact whose checksum is already verified; no new release plumbing. Scored A +37 (C +45 on drivers, but several sessions and a re-proof of P3; B +3; D −15).
+- **Rejected:** B release tarball (four places to keep in sync plus per-file checksums); C Rust rewrite now (later, with macOS/launchd R-8.g); D defer (R-39 stays unmet).
+- **Left open:** C as a later row; the generic launcher/provisioning form (the W1 provisioning script stays host-specific until W3).
+
 ### 2026-10-14 — W1 go (operator ruling)
 - **Chose:** B — go now: the operator runs `runme.sh` (action 17 provisions and starts both sidecars under systemd), opens `claude-termlink-alt` through the launcher now; the main session joins at its next natural restart (R-48 "next natural start"). The 7-day window counts from when both agents are in.
 - **Why:** gate met (P0-P8 done, drain proven on the estate, W1 readiness "ready" in the 2026-10-13 22:13Z run); B proves provisioning, supervision and the stored-while-closed path today without interrupting the working session. Scored B +40, A +17, C −4.
