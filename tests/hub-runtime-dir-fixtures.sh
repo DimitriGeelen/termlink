@@ -21,22 +21,27 @@ fakeproc() {
     mkdir -p "$T/proc/$pid"
     printf 'PATH=/usr/bin\0HOME=/root\0' > "$T/proc/$pid/environ"
     for kv in "$@"; do printf '%s\0' "$kv" >> "$T/proc/$pid/environ"; done
-    chown "$uid" "$T/proc/$pid"
+    # chown needs root; a CI runner is not root, so there the fake process keeps
+    # the runner's own uid and the expectations below follow it (ME_UID).
+    [ "$(id -u)" = 0 ] && chown "$uid" "$T/proc/$pid"
 }
+ME_UID=$(id -u)
+ROOTUID=$([ "$ME_UID" = 0 ] && echo 0 || echo "$ME_UID")
+OTHERUID=$([ "$ME_UID" = 0 ] && echo 1000 || echo "$ME_UID")
 pidfile() { mkdir -p "$T/fs$1"; echo "$2" > "$T/fs$1/hub.pid"; }
 res() { hub_runtime_dir "$1" 2> "$T/err"; }
 
 fakeproc 101 0 TERMLINK_RUNTIME_DIR=/var/lib/termlink; pidfile /var/lib/termlink 101
 check "1 an explicit TERMLINK_RUNTIME_DIR is used when its pidfile names the hub" '[ "$(res 101)" = /var/lib/termlink ]'
 
-fakeproc 102 0; pidfile /tmp/termlink-0 102
-check "2 the .132 case: no variables, uid 0 -> /tmp/termlink-0 (never ~/.termlink/runtime)" '[ "$(res 102)" = /tmp/termlink-0 ]'
+fakeproc 102 0; pidfile "/tmp/termlink-$ROOTUID" 102
+check "2 the .132 case: no variables -> /tmp/termlink-<hub uid> (never ~/.termlink/runtime)" '[ "$(res 102)" = "/tmp/termlink-$ROOTUID" ]'
 
 fakeproc 103 0 XDG_RUNTIME_DIR=/run/user/0 TMPDIR=/var/tmp; pidfile /run/user/0/termlink 103
 check "3 XDG_RUNTIME_DIR/termlink, and it wins over TMPDIR (the binary's order)" '[ "$(res 103)" = /run/user/0/termlink ]'
 
-fakeproc 104 1000 TMPDIR=/var/tmp; pidfile /var/tmp/termlink-1000 104
-check "4 TMPDIR/termlink-<uid> uses the HUB's uid, not the caller's" '[ "$(res 104)" = /var/tmp/termlink-1000 ]'
+fakeproc 104 1000 TMPDIR=/var/tmp; pidfile "/var/tmp/termlink-$OTHERUID" 104
+check "4 TMPDIR/termlink-<uid> uses the HUB's uid (as root: a different uid than the caller's)" '[ "$(res 104)" = "/var/tmp/termlink-$OTHERUID" ]'
 
 fakeproc 105 0 TERMLINK_RUNTIME_DIR=/srv/tl; pidfile /srv/tl 999
 check "5 a pidfile naming another process is refused, and says so" '! res 105 >/dev/null && grep -q "names .999., not 105" "$T/err"'

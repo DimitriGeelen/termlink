@@ -225,6 +225,18 @@ else
 fi
 cleanup
 
+# T-3443: the sweep writes its OWN completion heartbeat (--all only), so a past
+# firing stops reading as FIRING once the sweep runs clean again.
+HBT=$(mktemp -d); mkdir -p "$HBT/w" "$HBT/c"
+CANARY_SWEEP_WORKING_DIR="$HBT/w" CANARY_SWEEP_CRON_DIR="$HBT/c" bash "$SCRIPT" --all --quiet >/dev/null 2>&1
+if [ -e "$HBT/w/.canary-aliveness.heartbeat" ]; then ok "T-3443 the sweep writes its own heartbeat on completion"
+else bad "T-3443 no sweep heartbeat" "$(ls -a "$HBT/w")"; fi
+rm -f "$HBT/w/.canary-aliveness.heartbeat"
+CANARY_SWEEP_WORKING_DIR="$HBT/w" CANARY_SWEEP_CRON_DIR="$HBT/c" bash "$SCRIPT" --all --quiet --no-heartbeat >/dev/null 2>&1
+if [ ! -e "$HBT/w/.canary-aliveness.heartbeat" ]; then ok "T-3443 --no-heartbeat writes none"
+else bad "T-3443 --no-heartbeat still wrote one" ""; fi
+rm -rf "$HBT"
+
 echo
 echo "canary-aliveness sweep fixtures: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ] || exit 1

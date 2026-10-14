@@ -191,6 +191,9 @@ cp "$TMP/tl-old" "$TMP/bin/termlink"
 # T-3299: fixture mode — runme ABORTS (exit 2) if any action reaches a REAL
 # host default because its seam is missing, instead of touching the host.
 export RUNME_FIXTURE=1
+# T-3443: let the real-run cases run as a non-root CI user too (fixture mode only;
+# case 11 unsets this to test the real non-root refusal).
+export RUNME_FIXTURE_ALLOW_NONROOT=1
 # T-3435 (P3): sidecar supervision — scratch unit dir, settings dir, a fake
 # systemd marker dir, and a fake systemctl that logs calls and resolves the
 # template only when the unit file is really in the scratch unit dir.
@@ -393,11 +396,9 @@ else bad "log path printed" "$out"; fi
 # (case 11 pins that). A GitHub runner is non-root, so there these cases can only
 # fail on the refusal they are not testing. Skip them ONLY when CI is set AND we
 # are not root (T-3234 pattern) — non-root anywhere else still fails loudly.
+# T-3443: no longer skipped — RUNME_FIXTURE_ALLOW_NONROOT lets fixture mode run as
+# a non-root CI user, so cases 3-9 are asserted everywhere.
 REAL_RUN=1
-if [ "$(id -u)" != "0" ] && [ -n "${CI:-}" ]; then
-    REAL_RUN=0
-    echo "  SKIP  cases 3-9 (real install run): CI is set and uid=$(id -u) is not root; runme.sh refuses non-root (case 11) — NOT asserted"
-fi
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
 EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 19 ))   # +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +3 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
@@ -521,12 +522,12 @@ else bad "unknown arg => 2" "rc=$rc: $out"; fi
 # T-3237: when we are ALREADY non-root (a CI runner), no privilege drop is needed —
 # run it as ourselves; that is the real non-root refusal. runuser only works as root.
 if [ "$(id -u)" != "0" ]; then
-    out=$(RUNME_CRON_DIR="$TMP/cron" bash "$RUNME" 2>&1); rc=$?
+    out=$(env -u RUNME_FIXTURE_ALLOW_NONROOT RUNME_CRON_DIR="$TMP/cron" bash "$RUNME" 2>&1); rc=$?
     if [ "$rc" = "2" ] && echo "$out" | grep -q "needs root"; then ok "non-root run refuses with exit 2 and applies nothing"
     else bad "non-root refusal" "rc=$rc: $out"; fi
 elif command -v runuser >/dev/null 2>&1 && id nobody >/dev/null 2>&1; then
     chmod -R a+rx "$TMP" 2>/dev/null || true
-    out=$(runuser -u nobody -- env RUNME_CRON_DIR="$TMP/cron" bash "$RUNME" 2>&1); rc=$?
+    out=$(runuser -u nobody -- env -u RUNME_FIXTURE_ALLOW_NONROOT RUNME_CRON_DIR="$TMP/cron" bash "$RUNME" 2>&1); rc=$?
     if [ "$rc" = "2" ] && echo "$out" | grep -q "needs root"; then ok "non-root run refuses with exit 2 and applies nothing"
     else bad "non-root refusal" "rc=$rc: $out"; fi
 else

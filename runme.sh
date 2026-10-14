@@ -106,7 +106,13 @@ printf '=== runme.sh start %s  args=[%s]  uid=%s  head=%s ===\n' \
 
 # Refuse rather than half-apply. A partial application is worse than none: it
 # leaves the host in a state nobody described, and the operator believes it ran.
-if [ "$DRY_RUN" = "0" ] && [ -z "$DECIDE" ] && [ "$DISABLE_MISMATCH" = "0" ] && [ "$(id -u)" != "0" ]; then
+# T-3443: a FIXTURE run may opt out (RUNME_FIXTURE=1 plus RUNME_FIXTURE_ALLOW_NONROOT=1).
+# Safe because fixture mode aborts before reaching any real host default (T-3299),
+# and needed because CI runners are not root: without it 76 fixture cases failed on
+# this refusal there, so the guard layer stayed red for weeks for nothing they test.
+FIXTURE_NONROOT=0
+[ "${RUNME_FIXTURE:-0}" = "1" ] && [ "${RUNME_FIXTURE_ALLOW_NONROOT:-0}" = "1" ] && FIXTURE_NONROOT=1
+if [ "$DRY_RUN" = "0" ] && [ -z "$DECIDE" ] && [ "$DISABLE_MISMATCH" = "0" ] && [ "$(id -u)" != "0" ] && [ "$FIXTURE_NONROOT" = "0" ]; then
     echo "runme: needs root (these write to /etc/cron.d). Nothing was applied." >&2
     echo "       Run:  sudo ./runme.sh          (or ./runme.sh --dry-run to preview)" >&2
     exit 2

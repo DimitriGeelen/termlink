@@ -5,6 +5,10 @@ set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 S="$HERE/scripts/count-hub-plaintext-fields.sh"
 fails=0; n=0
+# The fixture copies scripts/agent-send.sh as text and never runs it; the redirect
+# keeps any future run away from the real woken-but-silent canary log anyway (T-3443).
+WS_TMP="$(mktemp -d)"; trap 'rm -rf "$WS_TMP"' EXIT
+export TERMLINK_WOKEN_SILENT_LOG="$WS_TMP/woken-silent-canary.log"
 ok() { n=$((n+1)); if [ "$2" = "$3" ]; then echo "ok $n $1"; else echo "not ok $n $1 (want '$3' got '$2')"; fails=$((fails+1)); fi; }
 
 mk() { # build a fixture root from the real tree's anchor files

@@ -59,6 +59,7 @@ CANARY_CRON_PATH="${CANARY_CRON_PATH:-/etc/cron.d/termlink-release-mirror-canary
 MAX_AGE_HOURS=48
 QUIET=0
 ALL=0
+NO_HEARTBEAT=0
 
 # Sweep-mode seams (PL-213) — fixtures point these at fixture dirs so the whole
 # sweep runs with no live cron and no real canary.
@@ -69,6 +70,7 @@ while [ $# -gt 0 ]; do
     case "$1" in
         --all) ALL=1 ;;
         --quiet) QUIET=1 ;;
+        --no-heartbeat) NO_HEARTBEAT=1 ;;
         --max-age-hours)
             shift
             [ $# -ge 1 ] || { echo "--max-age-hours requires a value" >&2; exit 2; }
@@ -87,6 +89,15 @@ while [ $# -gt 0 ]; do
     esac
     shift
 done
+
+# T-3443: the sweep's OWN completion heartbeat (T-2843 pattern). Without it
+# /canaries judged this canary by log content alone, so one past firing kept it
+# FIRING forever after the cause was fixed (2026-10-06 entry, still red on 10-14).
+# Written on EXIT, so a sweep that dies mid-run leaves it stale.
+if [ "$ALL" = 1 ] && [ "$NO_HEARTBEAT" = 0 ]; then
+    SWEEP_HB="${CANARY_ALIVENESS_HEARTBEAT_FILE:-$SWEEP_WORKING_DIR/.canary-aliveness.heartbeat}"
+    trap 'touch "$SWEEP_HB" 2>/dev/null || true' EXIT
+fi
 
 case "$MAX_AGE_HOURS" in
     ''|*[!0-9]*) echo "--max-age-hours must be a positive integer, got: $MAX_AGE_HOURS" >&2; exit 2 ;;
