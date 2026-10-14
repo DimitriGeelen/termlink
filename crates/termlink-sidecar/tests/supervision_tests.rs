@@ -102,6 +102,10 @@ fn heartbeat_names_every_component_fresh_and_status_reports_the_supervisor() {
     for (k, age) in sup["component_age_ms"].as_object().unwrap() {
         assert!(age.as_u64().unwrap() < 5_000, "{k} is {age} ms old: {sup}");
     }
+    // SI-27 (P9): the live status carries the binary check; a test binary has no
+    // release record, which must read "no-record", never "yes".
+    assert_eq!(st["binary"]["verified"], "no-record", "{}", st["binary"]);
+    assert_eq!(st["binary"]["sha256"].as_str().map(str::len), Some(64), "{}", st["binary"]);
     let printed = termlink_sidecar::client::render_status(&st);
     assert!(printed.contains("supervisor systemd  keep_running on"), "{printed}");
     drop(p);

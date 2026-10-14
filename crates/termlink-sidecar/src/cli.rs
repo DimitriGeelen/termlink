@@ -29,8 +29,44 @@ fn usage(cmd: &str) -> i32 {
     eprintln!("       {cmd} finalize --nonce <nonce>");
     eprintln!("       {cmd} send|reply|status ... (run with no arguments for their usage)");
     eprintln!("       {cmd} hub-id --hub-socket <path>   (print the hub's own id, read-only)");
+    eprintln!("       {cmd} tools install [--prefix DIR] [--system]   (supervise script, unit, backstop)");
     eprintln!("       {cmd} admin held|allow|deny ...");
     2
+}
+
+fn tools_install_main(rest: &[&str]) -> i32 {
+    let mut prefix = std::path::PathBuf::from("/usr/local");
+    let mut system = false;
+    let mut it = rest.iter();
+    while let Some(a) = it.next() {
+        match *a {
+            "--prefix" => match it.next() {
+                Some(p) => prefix = std::path::PathBuf::from(p),
+                None => {
+                    eprintln!("tools install: --prefix needs a directory");
+                    return 2;
+                }
+            },
+            "--system" => system = true,
+            other => {
+                eprintln!("tools install: unknown argument {other:?} (use --prefix DIR, --system)");
+                return 2;
+            }
+        }
+    }
+    let sys = system.then(crate::tools::SystemDirs::from_host);
+    match crate::tools::install(&prefix, sys.as_ref()) {
+        Ok(lines) => {
+            for l in lines {
+                println!("{l}");
+            }
+            0
+        }
+        Err(e) => {
+            eprintln!("tools install: FAILED: {e}");
+            1
+        }
+    }
 }
 
 fn hub_id_main(socket: &std::path::Path) -> i32 {
@@ -89,6 +125,9 @@ pub fn run(prefix: &[&str], args: &[String]) -> i32 {
         // PH-2 row P7: the hub's own id, for writing a sidecar config (the id the
         // sidecar then verifies on every exchange, FX-2). Read-only.
         ["hub-id", "--hub-socket", path] => hub_id_main(std::path::Path::new(path)),
+        // PH-2 row P9 (ruling P9-1 A): install the embedded supervise script, unit
+        // template and backstop crontab; --system also installs unit + crontab.
+        ["tools", "install", rest @ ..] => tools_install_main(rest),
         ["hook", event] => hook::main_hook(event),
         ["finalize", "--nonce", n] => hook::main_finalize(n),
         [verb @ ("send" | "reply" | "status" | "admin"), rest @ ..] => client::main_client(verb, rest),

@@ -140,6 +140,8 @@ pub fn start(cfg: &Config, store_root: &Path, runtime: &Path, home: &Path) -> Re
     let roster = roster_of(&cfg.roster)?;
     let store = Arc::new(Store::open(store_root, &cfg.agent).map_err(|e| e.to_string())?);
     let production = matches!(store.mode(), crate::estate::Mode::Production(_));
+    // SI-27: hash the running binary once now, so no status call pays for it.
+    let _ = crate::tools::binary_check();
     let identity = load_identity(cfg, production)?;
     if production && cfg.book.is_empty() {
         return Err("production needs an address book (book.peers) naming this project's agents".into());

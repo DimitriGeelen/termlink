@@ -13,12 +13,14 @@ REPO="DimitriGeelen/termlink"
 VERSION="${TERMLINK_VERSION:-latest}"
 PREFIX="${PREFIX:-/usr/local}"
 DRY_RUN="${DRY_RUN:-0}"
+ROLLBACK=0
 
 for arg in "$@"; do
     case "$arg" in
         --dry-run)    DRY_RUN=1 ;;
         --version=*)  VERSION="${arg#*=}" ;;
         --prefix=*)   PREFIX="${arg#*=}" ;;
+        --rollback)   ROLLBACK=1 ;;
         -h|--help)
             cat <<'EOF'
 termlink installer
@@ -26,11 +28,14 @@ termlink installer
 Usage:
   curl -fsSL https://raw.githubusercontent.com/DimitriGeelen/termlink/main/install.sh | sh
   sh install.sh [--version=vX.Y.Z] [--prefix=DIR] [--dry-run]
+  sh install.sh --rollback [--prefix=DIR]
 
 Options:
   --version=VERSION   install a specific release tag (default: latest)
   --prefix=DIR        install prefix; binary lands at DIR/bin/termlink (default: /usr/local)
   --dry-run           show what would happen without downloading or writing
+  --rollback          restore the binary (and its checksum record) the last
+                      install replaced, then reinstall its sidecar tools
   -h, --help          this help
 
 Environment:
@@ -83,7 +88,10 @@ case "$os-$arch" in
     *) die "no prebuilt binary for $os-$arch" ;;
 esac
 
-if [ "$VERSION" = "latest" ]; then
+if [ -n "${TERMLINK_INSTALL_BASE_URL:-}" ]; then
+    # Test seam (T-3442): install from a local "release" (e.g. file:///srv/rel).
+    base_url="$TERMLINK_INSTALL_BASE_URL"
+elif [ "$VERSION" = "latest" ]; then
     base_url="https://github.com/${REPO}/releases/latest/download"
 else
     base_url="https://github.com/${REPO}/releases/download/${VERSION}"
@@ -91,6 +99,35 @@ fi
 art_url="${base_url}/${artifact}"
 sum_url="${base_url}/checksums.txt"
 dest="${PREFIX}/bin/termlink"
+share="${PREFIX}/share/termlink"
+
+# as_owner CMD...: run directly when the prefix is writable, else through sudo.
+as_owner() {
+    if [ -w "$PREFIX" ] 2>/dev/null || { [ -d "$PREFIX/bin" ] && [ -w "$PREFIX/bin" ]; }; then "$@"
+    elif command -v sudo >/dev/null 2>&1; then sudo "$@"
+    else "$@"; fi
+}
+
+# T-3442 (arc-011 P9, R-39/SI-27): after the binary, install the sidecar's tools
+# (supervise script, unit template, backstop crontab) from the binary itself.
+install_tools() {
+    if "$dest" sidecar tools install --prefix "$PREFIX" >/dev/null 2>&1 \
+       || as_owner "$dest" sidecar tools install --prefix "$PREFIX" >/dev/null 2>&1; then
+        log "sidecar tools: ${share}/sidecar/"
+    else
+        log "note: this termlink has no 'sidecar tools install' (older release); sidecar tools not installed"
+    fi
+}
+
+if [ "$ROLLBACK" = "1" ]; then
+    [ -e "$dest.prev" ] || die "nothing to roll back: $dest.prev not found"
+    as_owner mv "$dest.prev" "$dest"
+    if [ -e "$share/checksums.txt.prev" ]; then as_owner mv "$share/checksums.txt.prev" "$share/checksums.txt"
+    else as_owner rm -f "$share/checksums.txt"; fi
+    log "rolled back: $dest ($("$dest" --version 2>/dev/null || echo unknown))"
+    install_tools
+    exit 0
+fi
 
 log "target:   $os-$arch → $artifact"
 log "version:  $VERSION"
@@ -139,6 +176,12 @@ sha_check "$tmp" >/dev/null 2>&1 \
 
 chmod +x "$tmp/$artifact"
 
+# Keep what this install replaces, for --rollback.
+if [ -e "$dest" ]; then
+    as_owner cp -p "$dest" "$dest.prev" || die "cannot keep the previous binary as $dest.prev"
+    [ -e "$share/checksums.txt" ] && as_owner cp -p "$share/checksums.txt" "$share/checksums.txt.prev"
+fi
+
 if [ -w "$PREFIX/bin" ] 2>/dev/null; then
     mv "$tmp/$artifact" "$dest"
 elif [ ! -e "$PREFIX/bin" ] && mkdir -p "$PREFIX/bin" 2>/dev/null; then
@@ -153,6 +196,12 @@ else
 fi
 
 log "installed: $dest"
+# SI-27: keep the release checksum record; `termlink sidecar status` re-verifies
+# the running binary against it on every call.
+as_owner mkdir -p "$share"
+as_owner cp "$tmp/checksums.txt" "$share/checksums.txt" || die "cannot write $share/checksums.txt"
+log "checksums: $share/checksums.txt"
+install_tools
 case ":$PATH:" in
     *":$PREFIX/bin:"*) : ;;
     *) log "note: $PREFIX/bin is not in your PATH — add it or use --prefix=\$HOME/.local" ;;

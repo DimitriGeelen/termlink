@@ -1,0 +1,21 @@
+id: tests/install-sh-fixtures.sh
+name: install-sh-fixtures
+type: script
+subsystem: unknown
+location: tests/install-sh-fixtures.sh
+tags: []
+
+purpose: "T-3442 (arc-011 P9) — hermetic fixtures for install.sh: the checksum record is kept (SI-27), the sidecar tools are installed from the binary, the previous binary is kept and --rollback restores it, and a bad checksum installs nothing."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-14
+created_by: unknown

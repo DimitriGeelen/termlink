@@ -119,6 +119,16 @@ pub fn render_status(v: &Value) -> String {
             oldest / 1000
         ));
     }
+    // SI-27 (P9): whether this binary is the released one.
+    if let Some(ver) = v["binary"]["verified"].as_str() {
+        let what = match ver {
+            "yes" => "matches the release checksum",
+            "no" => "DOES NOT match the release checksum",
+            "no-record" => "no release checksum record (not installed by install.sh)",
+            _ => "unreadable",
+        };
+        out.push_str(&format!("binary {}  {what}\n", v["binary"]["sha256"].as_str().map(|s| &s[..s.len().min(16)]).unwrap_or("?")));
+    }
     for m in v["messages"].as_array().into_iter().flatten() {
         out.push_str(&format!("message {}  stage {}", m["msg_id"].as_str().unwrap_or("?"), m["stage"].as_str().unwrap_or("?")));
         if let Some(l) = m["label"].as_str() {

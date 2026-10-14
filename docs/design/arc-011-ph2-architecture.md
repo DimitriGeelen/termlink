@@ -14,6 +14,7 @@ hand (estate guard, STUCK_AFTER_MS, READY_MAX_AGE_MS, client admin verbs).
 | Version | Date | Change | Task |
 |---|---|---|---|
 | 0.1 DRAFT | 2026-10-12 | First draft: what PH-1 leaves, components, waves, build table, operator questions | T-3426 |
+| 0.4 DRAFT | 2026-10-14 | 6.7 packaging as built (row P9) | T-3442 |
 | 0.3 DRAFT | 2026-10-13 | 6.6 K-7 as built (row P7); P7-1..P7-4 rulings in 6 | T-3438 |
 | 0.2 DRAFT | 2026-10-13 | 6.5 K-3 as built (row P3): component heartbeat, systemd template unit, supervise script, 10-minute cron backstop, runme action | T-3435 |
 
@@ -296,6 +297,27 @@ Row P3 builds items 5 to 8; row P7 builds items 1, 2 and 4 into the launcher.
 8. **Proven:** `p7_wiring_tests` 7 + `book` unit 4, `tl-claude-sidecar-fixtures` 13, `arc011-w1-provision-fixtures`
    20, `sidecar-supervise-fixtures` 39, `runme-fixtures` 125. Not yet proven: delivery between the two real sessions,
    which is W1 itself.
+
+### 6.7 Packaging as built (row P9, T-3442; ruling P9-1 A)
+
+1. **Tools in the binary.** `termlink sidecar tools install [--prefix P] [--system]` writes the embedded, tested
+   `sidecar-supervise.sh`, the unit template and a generated backstop crontab to `<P>/share/termlink/sidecar/`,
+   every checkout path rewritten to the install (heartbeat `/var/lib/termlink-sidecar/.backstop.heartbeat`, log
+   `/var/log/termlink-sidecar-backstop.log`); `--system` also writes the unit and `/etc/cron.d` entry and reloads
+   systemd. Idempotent. Unit tests pin that only the rewritten lines differ from the repo files.
+2. **install.sh** keeps the release `checksums.txt` at `<prefix>/share/termlink/checksums.txt`, runs `tools
+   install`, keeps the replaced binary and record as `.prev`, and `--rollback` restores them. A base-URL seam lets
+   a test install from a local release (`tests/install-sh-fixtures.sh`, 13).
+3. **SI-27.** Live status carries `binary {path, sha256, record, verified: yes|no|no-record}`; the hash is taken
+   once per process at sidecar start and added only on the socket path (not in the pure view). The text print
+   says whether the binary matches the release checksum. An unknown wire version is refused ("unsupported
+   version"), now pinned by a test.
+4. **Clean host (R-39.e, exit 5).** `tests/arc011-clean-host.sh`: Alpine, no checkout, no Rust; install from a
+   local two-version release, hub with `--tcp`, two production sidecars started from the installed tools,
+   delivery to STORED, checksum verified, upgrade, rollback, SIGKILL recovery — 18/18
+   (`docs/reports/T-3442-clean-host-result.md`). Host prerequisites: bash, procps `ps`, curl or wget.
+5. **Findings:** a hub has an id only with `--tcp`; the supervise script accepted the previous process's fresh
+   heartbeat after a restart (fixed: the heartbeat's pid must be the running pid).
 
 ## 7 Out of scope for PH-2
 

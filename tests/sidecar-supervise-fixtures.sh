@@ -33,8 +33,9 @@ if [ "\$1 \$2" = "sidecar start" ]; then
         echo '{"pid":'\$\$',"ts_ms":1000}' > "\$d/heartbeat.json"
         while :; do sleep 1; done   # hung, but still a 'sidecar start' process
     fi
+    hbpid=\$\$; [ -e "$T/wrongpid" ] && hbpid=1   # a heartbeat written by another process
     while :; do
-        echo '{"pid":'\$\$',"ts_ms":'\$((\$(date +%s) * 1000))'}' > "\$d/heartbeat.json"
+        echo '{"pid":'\$hbpid',"ts_ms":'\$((\$(date +%s) * 1000))'}' > "\$d/heartbeat.json"
         sleep 0.3
     done
 fi
@@ -50,7 +51,9 @@ cat > "$T/bin/systemctl" <<EOF
 #!/usr/bin/env bash
 echo "\$*" >> "$T/sysd/calls"
 v="\$1"; [ "\$v" = "is-active" ] && [ "\$2" = "--quiet" ] && shift
-[ "\$v" = "show" ] && { echo exit-code; exit 0; }
+if [ "\$v" = "show" ]; then
+    case "\$*" in *MainPID*) cat "$T/sysd/unit.pid" 2>/dev/null || echo 0 ;; *) echo exit-code ;; esac; exit 0
+fi
 pidf="$T/sysd/unit.pid"
 alive() { [ -e "\$pidf" ] && kill -0 "\$(cat "\$pidf")" 2>/dev/null; }
 case "\$v" in
@@ -195,6 +198,13 @@ check "10d another project is not touched" 'grep -q "proj--one" <<< "$out" && ! 
 out=$(nosd stop-project nothere 2>&1); rc=$?
 check "10e a project with no settings stops nothing and says so" '[ $rc = 0 ] && grep -q "nothing to stop" <<< "$out"'
 rm -f "$T/env/proj--"*.env
+
+# 11 a fresh heartbeat from ANOTHER process is not "up" (T-3442, clean-host finding:
+#    after a restart the old process's heartbeat is still fresh).
+reset; setting on; touch "$T/wrongpid"
+out=$(nosd start demo 2>&1); rc=$?
+check "11a start does not count a heartbeat written by another process" '[ $rc = 1 ] && grep -q "no fresh heartbeat" <<< "$out"'
+rm -f "$T/wrongpid"
 
 reset
 echo "---"

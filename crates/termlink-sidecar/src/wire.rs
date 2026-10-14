@@ -648,6 +648,19 @@ mod wire_tests {
         }
     }
 
+    /// SI-27 (P9): a message of another wire version is refused with a reason,
+    /// never read as this version.
+    #[test]
+    fn wire_unknown_version_is_refused_with_a_reason() {
+        let id = Identity::generate();
+        let mut v = msg_from(&id, "inst-b").to_value();
+        assert!(Msg::from_value(&v).is_ok());
+        v["v"] = Value::from(WIRE_VERSION + 1);
+        assert_eq!(Msg::from_value(&v), Err(Refusal::Malformed("unsupported version")));
+        v.as_object_mut().unwrap().remove("v");
+        assert!(Msg::from_value(&v).is_err(), "a message without a version is refused too");
+    }
+
     fn setup() -> (Identity, Roster) {
         let a = ident(1);
         let mut r = Roster::new();

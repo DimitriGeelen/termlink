@@ -1,0 +1,21 @@
+id: tests/arc011-clean-host.sh
+name: arc011-clean-host
+type: script
+subsystem: unknown
+location: tests/arc011-clean-host.sh
+tags: []
+
+purpose: "T-3442 (arc-011 PH-2 row P9; R-39.e, SI-27, exit 5) — clean-host install, upgrade, rollback and restart test."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-14
+created_by: unknown

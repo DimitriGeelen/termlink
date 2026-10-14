@@ -135,11 +135,27 @@ start_detached() {
 }
 
 # Wait until the sidecar answers with a fresh heartbeat (or the unit is active).
+# The pid of the sidecar running now: the unit's MainPID, or the detached pid.
+running_pid() {
+    local sc p
+    if sc=$(systemctl_bin) && "$sc" is-active --quiet "$(unit_of "$1")"; then
+        p=$("$sc" show -p MainPID --value "$(unit_of "$1")" 2>/dev/null)
+        [ -n "$p" ] && [ "$p" != 0 ] && { echo "$p"; return; }
+    fi
+    detached_pid "$1"
+}
+hb_pid() { local f; f=$(hb_file); [ -r "$f" ] && sed -n 's/.*"pid":\([0-9]*\).*/\1/p' "$f" | head -1; }
+
+# Up = running AND a fresh heartbeat written BY THAT PROCESS. A heartbeat from the
+# previous process is still fresh for up to STALE_MS after a restart, and accepting
+# it reported "started" before the new sidecar's sockets existed (T-3442, found by
+# the clean-host test).
 verify_up() {
-    local project="$1" i age
+    local project="$1" i age pid
     for ((i = 0; i < VERIFY_SECS * 2; i++)); do
+        pid=$(running_pid "$project")
         age=$(hb_age)
-        if { unit_active "$project" || [ -n "$(detached_pid "$project")" ]; } && [ -n "$age" ] && [ "$age" -le "$STALE_MS" ]; then
+        if [ -n "$pid" ] && [ "$(hb_pid)" = "$pid" ] && [ -n "$age" ] && [ "$age" -le "$STALE_MS" ]; then
             return 0
         fi
         sleep 0.5

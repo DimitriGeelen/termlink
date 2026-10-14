@@ -384,7 +384,15 @@ fn dispatch_inner(req: &Value, scope: Scope, store: &Store, agent: &str, hub_id:
         }
     }
     match op {
-        "status" => status_at(obj, store, agent, hub_id, sender, crate::store::now_ms(), &crate::deadline::Deadlines::R44E),
+        "status" => {
+            let mut v = status_at(obj, store, agent, hub_id, sender, crate::store::now_ms(), &crate::deadline::Deadlines::R44E);
+            // SI-27 (P9): the running binary against the release checksum record.
+            // Added here, on the live socket path, not in the pure view.
+            if v.get("ok") == Some(&serde_json::Value::Bool(true)) {
+                v["binary"] = crate::tools::binary_check();
+            }
+            v
+        }
         "send" => send(obj, sender, book, agent),
         "delivery" => delivery(obj, store, who),
         "held" => held(obj, store),

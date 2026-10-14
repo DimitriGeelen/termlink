@@ -42,7 +42,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-14T19:54:54Z
-last_update: 2026-10-14T19:58:54Z
+last_update: 2026-10-14T20:17:25Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -80,11 +80,11 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `termlink sidecar tools install [--prefix P] [--system]` writes the embedded supervise script (0755), unit template and backstop crontab to `<P>/share/termlink/sidecar/`, with every `/opt/termlink` reference rewritten to the installed location; `--system` also installs the unit and crontab (systemd/cron dirs, seams for tests) and reloads systemd; idempotent; the embedded files are byte-identical to the repo's tested files apart from the rewritten paths (unit test)
-- [ ] `install.sh` keeps the release `checksums.txt` at `<prefix>/share/termlink/checksums.txt` and runs `tools install`; a base-URL seam lets a test install from a local "release" directory
-- [ ] Sidecar status reports the running binary's sha256 and `verified: yes|no|no-record` against that checksum record (SI-27); the text print shows it; an unknown wire version stays refused (existing `wire.rs` check, pinned by a test)
-- [ ] Clean-host test in Docker (no /opt/termlink, no Rust): install from a local release dir, `tools install --system`-equivalent paths, start a hub and two sidecars from the installed binary, a message reaches STORED, then reinstall (upgrade path), roll back the binary from its backup, restart, store and message survive; script + result recorded
-- [ ] Fixtures for install.sh changes; release-artifact drift check still clean; cargo test + clippy clean for the crate
+- [x] `termlink sidecar tools install [--prefix P] [--system]` writes the embedded supervise script (0755), unit template and backstop crontab to `<P>/share/termlink/sidecar/`, with every `/opt/termlink` reference rewritten to the installed location; `--system` also installs the unit and crontab (systemd/cron dirs, seams for tests) and reloads systemd; idempotent; the embedded files are byte-identical to the repo's tested files apart from the rewritten paths (unit test)
+- [x] `install.sh` keeps the release `checksums.txt` at `<prefix>/share/termlink/checksums.txt` and runs `tools install`; a base-URL seam lets a test install from a local "release" directory
+- [x] Sidecar status reports the running binary's sha256 and `verified: yes|no|no-record` against that checksum record (SI-27); the text print shows it; an unknown wire version stays refused (existing `wire.rs` check, pinned by a test)
+- [x] Clean-host test in Docker (no /opt/termlink, no Rust; 18/18, `docs/reports/T-3442-clean-host-result.md`; the container has no systemd, so the tools run in their cron-supervised mode and the `--system` file writes are pinned by unit test): install from a local release dir, start a hub and two sidecars from the installed binary, a message reaches STORED, then reinstall (upgrade path), roll back the binary from its backup, restart, store and message survive; script + result recorded
+- [x] Fixtures for install.sh changes; release-artifact drift check still clean; cargo test + clippy clean for the crate
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -120,6 +120,15 @@ bvp_scores_proposed:
 -->
 
 ## Verification
+
+cargo test -p termlink-sidecar --lib tools > /tmp/.t3442-a 2>&1 && grep -q "test result: ok. 4 passed" /tmp/.t3442-a
+cargo test -p termlink-sidecar --lib wire_unknown_version > /tmp/.t3442-b 2>&1 && grep -q "test result: ok. 1 passed" /tmp/.t3442-b
+cargo test -p termlink-sidecar --test supervision_tests --test deadline_tests > /tmp/.t3442-c 2>&1 && ! grep -q "FAILED" /tmp/.t3442-c && grep -q "test result: ok. 10 passed" /tmp/.t3442-c
+bash tests/install-sh-fixtures.sh > /tmp/.t3442-d 2>&1 && grep -q "13 passed, 0 failed" /tmp/.t3442-d
+bash tests/sidecar-supervise-fixtures.sh > /tmp/.t3442-e 2>&1 && grep -q "41 passed, 0 failed" /tmp/.t3442-e
+bash scripts/check-release-artifact-drift.sh --quiet
+test -f docs/reports/T-3442-clean-host-result.md && grep -q "RESULT: 0 failed" docs/reports/T-3442-clean-host-result.md
+touch crates/termlink-sidecar/src/lib.rs && cargo clippy -p termlink-sidecar --all-targets > /tmp/.t3442-f 2>&1 && grep -q "Checking termlink-sidecar" /tmp/.t3442-f && ! grep -q -- "--> crates/termlink-sidecar" /tmp/.t3442-f
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -313,6 +322,11 @@ bvp_scores_proposed:
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-10-14 — what a clean host taught P9
+- **What changed:** the first clean-host run passed install and tools, then failed at the hub: a hub has an id only when started with `--tcp` (its TLS cert carries it). The next run passed delivery and then lost "messages" after every restart; the cause was `sidecar-supervise.sh` accepting the previous process's still-fresh heartbeat as proof the restarted one was up, so status calls hit sockets that did not exist yet. That defect was live on this host's W1 path too. Separately, hashing the binary on every status call slowed the pure view enough to break the deadline tests; the hash is now taken once per process and added only on the socket path.
+- **Plan impact:** an arc-011 host's hub must run with `--tcp` (true here already); the host prerequisites are bash, procps `ps`, curl/wget. The systemd path on a clean host and macOS stay outside this test.
+- **Triggered:** fixture 11a (wrong-pid heartbeat is not "up"); `tests/install-sh-fixtures.sh` so CI covers install.sh without Docker.
 
 ## Recommendation
 
