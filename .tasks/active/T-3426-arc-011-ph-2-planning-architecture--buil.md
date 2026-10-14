@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-12T19:17:19Z
-last_update: 2026-10-14T09:14:42Z
+last_update: 2026-10-14T19:23:03Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -442,6 +442,13 @@ date_finished: null
      legacy tasks lacking this section. -->
 
 ## Updates
+
+### 2026-10-14T19:22Z — W1 started; first real round trip [agent]
+- **Provisioned:** runme 2026-10-14T17:16Z rc=0 (action 17): both sidecars in production mode under systemd, instances `claude-termlink.w1-20261014`, `claude-termlink-alt.w1-20261014`. Units were started but not enabled; the backstop enabled them (2 `supervisor-backstop` notes) and `sidecar-supervise.sh start` now enables (commit 367876577).
+- **`-alt` joined** through `tl-claude.sh start --name claude-termlink-alt --sidecar --agent-id claude-termlink-alt` (the first suggested command lacked `--name`, ran from another project dir and carried `--resume`; corrected).
+- **Message 2b896306…:** SENT 17:23:57.060Z, RECEIVED .269Z, STORED .391Z (0.33 s), WAITING FOR RECIPIENT while `-alt` idled, HANDED_OVER 19:05:29.648Z at `-alt`'s first tool call, REPLIED 19:21:27.961Z after operator approval (`-alt` declined to act on the peer's reply request alone, as it should). Reply b2bb93c5… STORED at the main sidecar, to be handed over when the main session joins.
+- **Observed:** `claude` with no arguments opens Claude Code's session manager; prompts become background task sessions, each carrying the sidecar socket and receiving mail.
+- **Open in W1:** main session joins at its next natural restart; kill-switch drill; 7 clean days with both agents in.
 
 ### 2026-10-12T19:17:19Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
