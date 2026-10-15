@@ -41,7 +41,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-14T21:39:09Z
-last_update: 2026-10-15T23:24:44Z
+last_update: 2026-10-15T23:26:12Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -356,6 +356,7 @@ bvp_scores_proposed:
 - **Left open:** the small leftover forever test inboxes (tiny; later); the forever-archival canary keeps firing on AEF's inbox until AEF confirms.
 - **Owner answers (2026-10-16, conversation inbox-retention-t3443):** 055 yes (msg 8873e607: reader at 182, everything read, own delivery ledger) — added to action 18; 182 records, newest offset 181, so the cap sets the policy and deletes nothing today. AEF (msg 8c52f34a: cursor at head 1462, 0 unread, receiver keeps its own copy), 832 (msg 6a74ebb8: 0 unread, 746 records) and 1409-sprind (msg 2299cffc) are asking their operators; not added.
 - **AEF's operator approved (2026-10-16, msgs d3ed390d + 2443f180):** cap to newest 1000 and sweep. Added to action 18. AEF's inbox has no hub read-receipts, so its reader position is AEF's stated one (read through 1461, the newest offset at the time), kept git-tracked in `.context/checks/inbox-reader-attested/999-Agentic-Engineering-Framework`; the cut (newest − 1000, ≈ 461) is far below it. This is the first inbox where a reader position rests on the owner's word rather than the hub's record; that is noted, not hidden.
+- **1409-sprind's operator approved (2026-10-16, msg 2faa422d):** added to action 18; 150 records, so the cap sets the policy and deletes nothing today. Only 832 still to answer.
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
