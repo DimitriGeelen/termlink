@@ -1374,13 +1374,14 @@ arc011_w1
 # ---------------------------------------------------------------------------
 seam INBOX_TL RUNME_INBOX_TL "termlink"
 INBOX_KEEP=1000
-# 055 confirmed 2026-10-16 (msg 8873e607); 1409-sprind's operator 2026-10-16 (msg 2faa422d). T-3443 Decisions.
+# 055 confirmed 2026-10-16 (msg 8873e607); 1409-sprind's operator 2026-10-16 (msg 2faa422d); 832's operator 2026-10-16 (msg 026fa4ce). T-3443 Decisions.
 # AEF's operator approved 2026-10-16 (msgs d3ed390d, 2443f180). Its inbox carries no hub
 # read-receipts, so its reader position is the one AEF stated (read through offset 1461,
 # the newest then), kept in a git-tracked file; the cut check reads it like a marker.
 INBOX_TOPICS="${RUNME_INBOX_TOPICS-inbox:cacc73ea32b121dd/010-termlink|$PROJECT_ROOT/.context/working/session-alerts/inbox_cacc73ea32b121dd_010_termlink.seen
 inbox:cacc73ea32b121dd/055-agentic-fleet-cockpit|
 inbox:cacc73ea32b121dd/1409-sprind|
+inbox:cacc73ea32b121dd/832-Workflow-designer|
 inbox:cacc73ea32b121dd/999-Agentic-Engineering-Framework|$PROJECT_ROOT/.context/checks/inbox-reader-attested/999-Agentic-Engineering-Framework}"
 
 inbox_state() {  # <topic> -> "<kind> <value> <count> <min_receipt|none>" or "missing"
@@ -1441,7 +1442,11 @@ bound_one_inbox() {  # <topic> <marker file or empty>
     $INBOX_TL channel sweep "$topic" >/dev/null 2>&1
     read -r kind value count minr <<< "$(inbox_state "$topic")"
     if [ "$kind" = "messages" ] && [ "$value" = "$INBOX_KEEP" ] && [ "${count:-999999}" -le "$INBOX_KEEP" ]; then
-        say "  OK      $topic now keeps the newest $INBOX_KEEP; swept to $count records, every reader was past offset $cut (verified)"; DONE=$((DONE+1))
+        if [ "$cut" -ge 0 ]; then
+            say "  OK      $topic now keeps the newest $INBOX_KEEP; swept to $count records, every reader was past offset $cut (verified)"; DONE=$((DONE+1))
+        else
+            say "  OK      $topic now keeps the newest $INBOX_KEEP; $count records, nothing deleted (verified)"; DONE=$((DONE+1))
+        fi
     else
         say "  FAILED  $topic: after set-retention + sweep it reads '$kind $value $count'"; FAILED=$((FAILED+1))
     fi

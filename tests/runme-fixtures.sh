@@ -1174,6 +1174,12 @@ out=$(FAKE_INBOX_NOSWEEP=1 run); rc=$?
 if [ "$rc" = "1" ] && echo "$out" | grep -q "FAILED  inbox:t/010: after set-retention + sweep it reads 'messages 1000 1500'"; then
     ok "inbox: a sweep that does not take effect is FAILED, not OK"
 else bad "inbox no-sweep" "rc=$rc: $out"; fi
+echo "forever 0 182 181 none" > "$FAKE_INBOX_STATE"
+out=$(RUNME_INBOX_TOPICS="inbox:t/small|" run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      inbox:t/small now keeps the newest 1000; 182 records, nothing deleted (verified)"; then
+    ok "inbox: under the cap with no known reader -> policy set, nothing deleted, said so"
+else bad "inbox small" "rc=$rc: $out"; fi
+echo "messages 1000 1000 4999 4999" > "$FAKE_INBOX_STATE"
 out=$(FAKE_INBOX_MISSING=1 run); rc=$?
 if [ "$rc" = "1" ] && echo "$out" | grep -q "FAILED  inbox:t/010: cannot read it on the local hub"; then ok "inbox: an unreadable topic is FAILED, never a skip"
 else bad "inbox missing" "rc=$rc: $out"; fi
