@@ -78,6 +78,17 @@ chmod +x "$TMP/fake-tl-inbox"
 export RUNME_INBOX_TL="$TMP/fake-tl-inbox"
 export RUNME_INBOX_TOPICS="inbox:t/010|$TMP/inbox.marker"
 
+# T-3426 (action 19): fake W1 kill-switch drill; default = already passed (marker present).
+cat > "$TMP/fake-drill" <<'EOS'
+#!/usr/bin/env bash
+echo "drill ran" >> "$FAKE_DRILL_RAN"; echo "W1 kill-switch drill: 8 passed, 0 failed (probe m1)"; exit "${FAKE_DRILL_RC:-0}"
+EOS
+chmod +x "$TMP/fake-drill"
+export FAKE_DRILL_RAN="$TMP/drill.ran"
+export RUNME_W1_DRILL="$TMP/fake-drill"
+export RUNME_W1_DRILL_DONE="$TMP/drill.passed"
+echo "2026-10-16T00:00:00Z earlier pass" > "$RUNME_W1_DRILL_DONE"
+
 # T-3325 (action 10): stateful fake stale-sidecar detector. State file holds the
 # detector's JSON; default = nothing stale, so every other case skips the action.
 # The fake supervisor flips stale -> current unless FAKE_SIDECAR_NOFIX is set. The
@@ -430,7 +441,7 @@ else bad "log path printed" "$out"; fi
 REAL_RUN=1
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 20 ))   # +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +3 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
+EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 21 ))   # +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +3 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -1184,6 +1195,24 @@ out=$(FAKE_INBOX_MISSING=1 run); rc=$?
 if [ "$rc" = "1" ] && echo "$out" | grep -q "FAILED  inbox:t/010: cannot read it on the local hub"; then ok "inbox: an unreadable topic is FAILED, never a skip"
 else bad "inbox missing" "rc=$rc: $out"; fi
 echo "messages 1000 1000 4999 4999" > "$FAKE_INBOX_STATE"; echo 4999 > "$TMP/inbox.marker"
+
+
+# ---------------------------------------------------------------------------
+# 24. T-3426 — the W1 kill-switch drill runs once and records a pass (fake drill only).
+# ---------------------------------------------------------------------------
+rm -f "$RUNME_W1_DRILL_DONE" "$FAKE_DRILL_RAN"
+out=$(run --dry-run); rc=$?
+if echo "$out" | grep -q "would run the W1 kill-switch drill" && [ ! -f "$FAKE_DRILL_RAN" ]; then ok "drill: --dry-run runs nothing"
+else bad "drill dry-run" "rc=$rc: $out"; fi
+out=$(FAKE_DRILL_RC=1 run); rc=$?
+if [ "$rc" = "1" ] && echo "$out" | grep -q "FAILED  W1 kill-switch drill rc=1" && [ ! -s "$RUNME_W1_DRILL_DONE" ]; then ok "drill: a failed drill is FAILED and records no pass"
+else bad "drill fail" "rc=$rc: $out"; fi
+out=$(run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      W1 kill-switch drill passed" && grep -q "8 passed, 0 failed" "$RUNME_W1_DRILL_DONE"; then ok "drill: a pass is recorded"
+else bad "drill pass" "rc=$rc: $out"; fi
+: > "$FAKE_DRILL_RAN"; out=$(run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "skip    the W1 kill-switch drill already passed" && [ ! -s "$FAKE_DRILL_RAN" ]; then ok "drill: once passed it never runs again (idempotent)"
+else bad "drill idempotent" "rc=$rc: $out"; fi
 
 
 echo ""

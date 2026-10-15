@@ -1463,6 +1463,39 @@ head2 "18. Cap leftover forever project inboxes at the newest $INBOX_KEEP, only 
 bound_project_inboxes
 
 # ---------------------------------------------------------------------------
+# ACTION 19 — the W1 kill-switch drill on the real pair (T-3426; design 6.2.3.b, R-8.e)
+#
+# scripts/arc011-w1-killswitch-drill.sh switches delivery off on both W1 sidecars, sends one
+# probe, proves the partner refuses to hand it over (delivery-off), switches delivery on and
+# proves the same claim now passes (the control), then SIGKILLs the partner's MainPID and
+# proves systemd brings back a sidecar that still holds the probe. Delivery is put back on
+# on every exit path. Runs once: a pass is recorded in the marker and later runs skip.
+# A failed drill is FAILED and is re-run on the next runme.
+# Seams (fixtures only): RUNME_W1_DRILL, RUNME_W1_DRILL_DONE.
+# ---------------------------------------------------------------------------
+seam W1_DRILL RUNME_W1_DRILL "bash $PROJECT_ROOT/scripts/arc011-w1-killswitch-drill.sh"
+seam W1_DRILL_DONE RUNME_W1_DRILL_DONE "$PROJECT_ROOT/.context/working/w1-killswitch-drill.passed"
+w1_killswitch_drill() {
+    local out rc
+    if [ -s "$W1_DRILL_DONE" ]; then
+        say "  skip    the W1 kill-switch drill already passed ($(head -1 "$W1_DRILL_DONE"))"; SKIPPED=$((SKIPPED+1)); return
+    fi
+    if [ "$DRY_RUN" = "1" ]; then
+        say "  [DRY]   would run the W1 kill-switch drill (delivery off, probe refused, on, control, SIGKILL + restart)"; DONE=$((DONE+1)); return
+    fi
+    out=$($W1_DRILL 2>&1); rc=$?
+    printf '%s\n' "$out" | sed 's/^/  /'
+    if [ "$rc" = 0 ]; then
+        printf '%s %s\n' "$(date -u +%FT%TZ)" "$(tail -1 <<< "$out")" > "$W1_DRILL_DONE"
+        say "  OK      W1 kill-switch drill passed (recorded in $W1_DRILL_DONE)"; DONE=$((DONE+1))
+    else
+        say "  FAILED  W1 kill-switch drill rc=$rc (the lines above name the step)"; FAILED=$((FAILED+1))
+    fi
+}
+head2 "19. arc-011 W1: kill-switch drill on the pair, with a control and a SIGKILL restart (T-3426)"
+w1_killswitch_drill
+
+# ---------------------------------------------------------------------------
 # Verification — the project's own drift checker is the arbiter, not this script.
 # Using the repo's existing check rather than a bespoke one means this cannot
 # quietly disagree with what `fw audit` will say five minutes from now.
