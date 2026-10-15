@@ -1374,7 +1374,9 @@ arc011_w1
 # ---------------------------------------------------------------------------
 seam INBOX_TL RUNME_INBOX_TL "termlink"
 INBOX_KEEP=1000
-INBOX_TOPICS="${RUNME_INBOX_TOPICS-inbox:cacc73ea32b121dd/010-termlink|$PROJECT_ROOT/.context/working/session-alerts/inbox_cacc73ea32b121dd_010_termlink.seen}"
+# 055 confirmed 2026-10-16 (msg 8873e607, T-3443 Decisions).
+INBOX_TOPICS="${RUNME_INBOX_TOPICS-inbox:cacc73ea32b121dd/010-termlink|$PROJECT_ROOT/.context/working/session-alerts/inbox_cacc73ea32b121dd_010_termlink.seen
+inbox:cacc73ea32b121dd/055-agentic-fleet-cockpit|}"
 
 inbox_state() {  # <topic> -> "<kind> <value> <count> <min_receipt|none>" or "missing"
     $INBOX_TL channel info "$1" --json 2>/dev/null | python3 -c '
