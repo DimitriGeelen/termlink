@@ -49,6 +49,35 @@ EOS
 chmod +x "$TMP/fake-tl-fedprobe"
 export RUNME_FEDPROBE_TL="$TMP/fake-tl-fedprobe"
 
+# T-3443 (action 18): stateful fake termlink for one project inbox. State is
+# "<kind> <value> <count> <newest offset> <min receipt|none>" in $FAKE_INBOX_STATE;
+# default = already capped, so every other case skips action 18 without a real hub.
+export FAKE_INBOX_STATE="$TMP/inbox.state"
+echo "messages 1000 1000 4999 4999" > "$FAKE_INBOX_STATE"
+echo 4999 > "$TMP/inbox.marker"
+cat > "$TMP/fake-tl-inbox" <<'EOS'
+#!/usr/bin/env bash
+read -r kind value count newest minr < "$FAKE_INBOX_STATE"
+case "$1 $2" in
+  "channel info")
+    [ -n "${FAKE_INBOX_MISSING:-}" ] && { echo "unknown topic" >&2; exit 1; }
+    if [ "$minr" = none ]; then rc='[]'; else rc="[{\"sender_id\":\"a\",\"up_to\":$minr}]"; fi
+    [ "$value" = 0 ] && v=null || v=$value
+    printf '{"topic":"%s","count":%s,"retention":{"kind":"%s","value":%s},"receipts":%s}\n' "$3" "$count" "$kind" "$v" "$rc" ;;
+  "channel subscribe")
+    printf '{"msg_type":"note","offset":%s}\n' "$newest" ;;
+  "channel set-retention")
+    spec="$5"; echo "${spec%%:*} ${spec#*:} $count $newest $minr" > "$FAKE_INBOX_STATE" ;;
+  "channel sweep")
+    [ -n "${FAKE_INBOX_NOSWEEP:-}" ] && exit 0
+    [ "$kind" = "messages" ] && [ "$count" -gt "$value" ] && count=$value
+    echo "$kind $value $count $newest $minr" > "$FAKE_INBOX_STATE" ;;
+esac
+EOS
+chmod +x "$TMP/fake-tl-inbox"
+export RUNME_INBOX_TL="$TMP/fake-tl-inbox"
+export RUNME_INBOX_TOPICS="inbox:t/010|$TMP/inbox.marker"
+
 # T-3325 (action 10): stateful fake stale-sidecar detector. State file holds the
 # detector's JSON; default = nothing stale, so every other case skips the action.
 # The fake supervisor flips stale -> current unless FAKE_SIDECAR_NOFIX is set. The
@@ -401,7 +430,7 @@ else bad "log path printed" "$out"; fi
 REAL_RUN=1
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 19 ))   # +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +3 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
+EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 20 ))   # +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +3 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -1108,6 +1137,47 @@ else bad "kill switch unconfirmed" "rc=$rc: $out"; fi
 out=$(RUNME_SIDECAR_ADMIN_LIST="$SCU/none.list" run --sidecar-delivery on --why x); rc=$?
 if [ "$rc" = "1" ] && echo "$out" | grep -q "no sidecars listed"; then ok "kill switch: an empty list switches nothing and says so"
 else bad "kill switch empty list" "rc=$rc: $out"; fi
+
+
+# ---------------------------------------------------------------------------
+# 23. T-3443 — cap leftover forever project inboxes (fake termlink, scratch state only).
+# ---------------------------------------------------------------------------
+echo "forever 0 1042 1041 969" > "$FAKE_INBOX_STATE"; echo 1040 > "$TMP/inbox.marker"
+out=$(run --dry-run); rc=$?
+if echo "$out" | grep -q "would set inbox:t/010 retention forever -> messages 1000 and sweep offsets <= 41" && grep -q "^forever 0 1042 1041 969$" "$FAKE_INBOX_STATE"; then
+    ok "inbox: --dry-run reports the cut and changes nothing"
+else bad "inbox dry-run" "rc=$rc: $out"; fi
+out=$(run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      inbox:t/010 now keeps the newest 1000; swept to 1000 records, every reader was past offset 41 (verified)" && grep -q "^messages 1000 1000 " "$FAKE_INBOX_STATE"; then
+    ok "inbox: readers past the cut -> capped, swept, verified"
+else bad "inbox cap" "rc=$rc: $out $(cat "$FAKE_INBOX_STATE")"; fi
+out=$(run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "skip    inbox:t/010 already keeps the newest 1000"; then ok "inbox: second run skips (idempotent)"
+else bad "inbox idempotent" "rc=$rc: $out"; fi
+echo "forever 0 1500 1499 300" > "$FAKE_INBOX_STATE"
+out=$(run); rc=$?
+if [ "$rc" = "1" ] && echo "$out" | grep -q "refused — a reader is behind the cut point 499 (hub receipt at 300)" && grep -q "^forever 0 1500 1499 300$" "$FAKE_INBOX_STATE"; then
+    ok "inbox: a hub reader behind the cut is refused, nothing changed"
+else bad "inbox receipt behind" "rc=$rc: $out"; fi
+echo "forever 0 1500 1499 1499" > "$FAKE_INBOX_STATE"; echo 200 > "$TMP/inbox.marker"
+out=$(run); rc=$?
+if [ "$rc" = "1" ] && echo "$out" | grep -q "alert marker at 200" && grep -q "^forever 0 1500 " "$FAKE_INBOX_STATE"; then
+    ok "inbox: our own alert marker behind the cut is refused"
+else bad "inbox marker behind" "rc=$rc: $out"; fi
+echo "forever 0 1500 1499 none" > "$FAKE_INBOX_STATE"
+out=$(RUNME_INBOX_TOPICS="inbox:t/aef|" run); rc=$?
+if [ "$rc" = "1" ] && echo "$out" | grep -q "refused — no reader position is known" && grep -q "^forever 0 1500 " "$FAKE_INBOX_STATE"; then
+    ok "inbox: no known reader position is refused, never assumed read"
+else bad "inbox no readers" "rc=$rc: $out"; fi
+echo "forever 0 1500 1499 1499" > "$FAKE_INBOX_STATE"; echo 1499 > "$TMP/inbox.marker"
+out=$(FAKE_INBOX_NOSWEEP=1 run); rc=$?
+if [ "$rc" = "1" ] && echo "$out" | grep -q "FAILED  inbox:t/010: after set-retention + sweep it reads 'messages 1000 1500'"; then
+    ok "inbox: a sweep that does not take effect is FAILED, not OK"
+else bad "inbox no-sweep" "rc=$rc: $out"; fi
+out=$(FAKE_INBOX_MISSING=1 run); rc=$?
+if [ "$rc" = "1" ] && echo "$out" | grep -q "FAILED  inbox:t/010: cannot read it on the local hub"; then ok "inbox: an unreadable topic is FAILED, never a skip"
+else bad "inbox missing" "rc=$rc: $out"; fi
+echo "messages 1000 1000 4999 4999" > "$FAKE_INBOX_STATE"; echo 4999 > "$TMP/inbox.marker"
 
 
 echo ""

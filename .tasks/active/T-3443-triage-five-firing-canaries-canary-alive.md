@@ -41,7 +41,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-14T21:39:09Z
-last_update: 2026-10-14T22:35:33Z
+last_update: 2026-10-15T17:24:03Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -348,6 +348,12 @@ bvp_scores_proposed:
 - **Why:** a canary red for weeks on an accepted state teaches everyone to ignore it; the decision belongs where the canary reads it. Mail reaches agents here via AEF's sidecar hook and arc-011 W1; arming would mean relaunching other projects' agents for a rail W4 retires. Scored B +27, A +8, D −8, C −26.
 - **Rejected:** A arm the agents; C leave red; D retire the canary now (loses the only dead-waker alarm before the replacement exists).
 - **Left open:** A for any single agent the operator wants armed; retiring the canary at W4.
+
+### 2026-10-15 — Decision 6: project inbox retention (forever-archival) (operator ruling)
+- **Chose:** B — apply the T-3310 inbox default (newest 1000) to the leftover forever project inboxes, ours now, each other project's only after its owner confirms. runme action 18 caps and sweeps a topic only when every known reader (every hub read-receipt, plus our own alert marker) is past the cut point, and refuses (FAILED, reader named, nothing changed) otherwise or when no reader position is known. AEF, 832, 055 and 1409-sprind are asked to confirm; their inboxes join action 18's list only with that confirmation recorded here.
+- **Why:** these inboxes are forever by the pre-T-3310 omission bug, not by choice; measured 2026-10-15 ours is 1042 records, newest offset 1041, lowest reader at 969, our marker at 1040, so the cap deletes only offsets 0–41, all read. AEF's 1462-record inbox carries no hub read positions, so only AEF can say what is unread. Scored B +37, C +2, A −3, D −3.
+- **Rejected:** A cap all now (cannot prove AEF's oldest 462 are read); C keep forever with an owner (charter non-goal #2; decisions live in tasks, not mail); D wait for arc-011 W4 (no date; an acknowledged canary goes unread).
+- **Left open:** the small leftover forever test inboxes (tiny; later); the forever-archival canary keeps firing on AEF's inbox until AEF confirms.
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.

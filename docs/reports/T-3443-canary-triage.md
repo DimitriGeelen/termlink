@@ -77,3 +77,9 @@ Marker acked to offset 325 after the triage.
 - **Not done here:** the suggested remedy (cap the inbox and sweep) can drop mail a receiver has not read yet, and one
   inbox is AEF's. A retention for project inboxes is a decision for the operator, coordinated with AEF; arc-011 will
   also move this project's mail to per-agent inboxes (W4).
+- **Correction (2026-10-15):** the forever retention is not a policy anyone chose. T-3310 already made "newest 1000"
+  the default for `inbox:*`; inboxes auto-created before it fell through to forever (commit e5d758159). Leftover forever
+  project inboxes: AEF 1462, ours 1042, 832 746, 055 180, 1409-sprind 150. Ours: newest offset 1041, lowest hub read
+  receipt 969, our alert marker 1040. AEF's records no read receipts on the hub.
+- **Ruled B (operator, 2026-10-15):** cap ours now behind a reader check (runme action 18: refuses when any reader is
+  behind the cut point or none is known); the others only after their owner confirms.

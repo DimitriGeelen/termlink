@@ -1356,6 +1356,101 @@ head2 "17. arc-011 W1: the pair's sidecars (T-3438; readiness every run, switch-
 arc011_w1
 
 # ---------------------------------------------------------------------------
+# ACTION 18 — cap leftover forever project inboxes at the newest 1000 (T-3443, decision 6 B)
+#
+# T-3310 made "newest 1000" the default for inbox:* topics; inboxes auto-created before it
+# fell through to forever by omission, and the forever-archival canary fires on them.
+# Operator ruling 2026-10-15 (decision 6, option B): cap ours now, every other project's
+# only after its owner confirms. Sweeping deletes everything older than the newest 1000,
+# so each topic is capped ONLY when every known reader is already past the cut point:
+# every hub read-receipt, plus this project's own alert marker where one is named. A
+# topic with no reader positions, or one reader behind the cut, is REFUSED (FAILED, with
+# the reader named) and left untouched — no mail is dropped to quiet a canary.
+# Idempotent: a topic already at messages:1000 with <= 1000 records is a skip.
+# Verified: retention reads messages 1000 and the count is <= 1000 after the sweep.
+# Entries, one per line: "<topic>|<marker file or empty>". Add a project's inbox here only with its
+# owner's confirmation recorded in T-3443.
+# Seams (fixtures only): RUNME_INBOX_TL, RUNME_INBOX_TOPICS.
+# ---------------------------------------------------------------------------
+seam INBOX_TL RUNME_INBOX_TL "termlink"
+INBOX_KEEP=1000
+INBOX_TOPICS="${RUNME_INBOX_TOPICS-inbox:cacc73ea32b121dd/010-termlink|$PROJECT_ROOT/.context/working/session-alerts/inbox_cacc73ea32b121dd_010_termlink.seen}"
+
+inbox_state() {  # <topic> -> "<kind> <value> <count> <min_receipt|none>" or "missing"
+    $INBOX_TL channel info "$1" --json 2>/dev/null | python3 -c '
+import json, sys
+try:
+    d = json.load(sys.stdin)
+except Exception:
+    print("missing"); sys.exit(0)
+if "count" not in d:
+    print("missing"); sys.exit(0)
+r = d.get("retention") or {}
+ups = [x.get("up_to") for x in d.get("receipts") or [] if isinstance(x.get("up_to"), int)]
+print(r.get("kind", "?"), r.get("value") or 0, d.get("count", 0), min(ups) if ups else "none")'
+}
+
+inbox_newest() {  # <topic> -> newest offset, or empty
+    $INBOX_TL channel subscribe "$1" --from-latest --once --json 2>/dev/null | python3 -c '
+import json, sys
+for line in sys.stdin:
+    try:
+        print(json.loads(line)["offset"]); break
+    except Exception:
+        continue'
+}
+
+bound_one_inbox() {  # <topic> <marker file or empty>
+    local topic="$1" marker="$2" st kind value count minr newest cut m behind=""
+    st="$(inbox_state "$topic")"
+    if [ "$st" = "missing" ] || [ -z "$st" ]; then
+        say "  FAILED  $topic: cannot read it on the local hub (nothing changed)"; FAILED=$((FAILED+1)); return
+    fi
+    read -r kind value count minr <<< "$st"
+    if [ "$kind" = "messages" ] && [ "$value" = "$INBOX_KEEP" ] && [ "$count" -le "$INBOX_KEEP" ]; then
+        say "  skip    $topic already keeps the newest $INBOX_KEEP ($count records)"; SKIPPED=$((SKIPPED+1)); return
+    fi
+    newest="$(inbox_newest "$topic")"
+    case "$newest" in ''|*[!0-9]*) say "  FAILED  $topic: cannot read its newest offset (nothing changed)"; FAILED=$((FAILED+1)); return ;; esac
+    cut=$((newest - INBOX_KEEP))   # offsets <= cut are deleted by the sweep
+    if [ "$cut" -ge 0 ]; then
+        if [ "$minr" = "none" ] && [ -z "$marker" ]; then
+            say "  FAILED  $topic: refused — no reader position is known, so deleting offsets 0..$cut could drop unread mail (nothing changed)"; FAILED=$((FAILED+1)); return
+        fi
+        [ "$minr" != "none" ] && [ "$minr" -lt "$cut" ] && behind="hub receipt at $minr"
+        if [ -n "$marker" ]; then
+            m="$(tr -dc '0-9' < "$marker" 2>/dev/null)"
+            if [ -z "$m" ]; then behind="${behind:+$behind, }alert marker unreadable ($marker)"
+            elif [ "$m" -lt "$cut" ]; then behind="${behind:+$behind, }alert marker at $m"; fi
+        fi
+        if [ -n "$behind" ]; then
+            say "  FAILED  $topic: refused — a reader is behind the cut point $cut ($behind); nothing changed"; FAILED=$((FAILED+1)); return
+        fi
+    fi
+    if [ "$DRY_RUN" = "1" ]; then
+        say "  [DRY]   would set $topic retention $kind -> messages $INBOX_KEEP and sweep offsets <= $cut ($count records; readers at ${minr} / marker ${m:-n/a})"; DONE=$((DONE+1)); return
+    fi
+    $INBOX_TL channel set-retention "$topic" --retention "messages:$INBOX_KEEP" >/dev/null 2>&1
+    $INBOX_TL channel sweep "$topic" >/dev/null 2>&1
+    read -r kind value count minr <<< "$(inbox_state "$topic")"
+    if [ "$kind" = "messages" ] && [ "$value" = "$INBOX_KEEP" ] && [ "${count:-999999}" -le "$INBOX_KEEP" ]; then
+        say "  OK      $topic now keeps the newest $INBOX_KEEP; swept to $count records, every reader was past offset $cut (verified)"; DONE=$((DONE+1))
+    else
+        say "  FAILED  $topic: after set-retention + sweep it reads '$kind $value $count'"; FAILED=$((FAILED+1))
+    fi
+}
+
+bound_project_inboxes() {
+    local entry
+    while IFS= read -r entry; do
+        [ -n "$entry" ] || continue
+        bound_one_inbox "${entry%%|*}" "${entry#*|}"
+    done <<< "$INBOX_TOPICS"
+}
+head2 "18. Cap leftover forever project inboxes at the newest $INBOX_KEEP, only where every reader is past the cut (T-3443, decision 6 B)"
+bound_project_inboxes
+
+# ---------------------------------------------------------------------------
 # Verification — the project's own drift checker is the arbiter, not this script.
 # Using the repo's existing check rather than a bespoke one means this cannot
 # quietly disagree with what `fw audit` will say five minutes from now.
