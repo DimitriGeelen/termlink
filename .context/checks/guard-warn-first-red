@@ -4,7 +4,6 @@
 # check-release-publication-freshness.sh, which escalates after 14 days.
 # Do not hand-edit a date to silence escalation — fix the member, or reclassify it.
 check-audit-warning-acknowledgement.sh  2026-09-30T00:33:22Z
-check-canary-log-isolation.sh  2026-10-13T05:41:02Z
 check-go-propagation.sh  2026-10-03T05:41:01Z
 check-human-ac-escalation.sh  2026-10-07T05:41:01Z
 check-receiver-ack-lag.sh  2026-09-29T22:04:59Z
