@@ -531,6 +531,19 @@ the output in one pass after the last question.
    conversation operator-out-of-band-channels. At the operator's request an URGENT standardisation request went to
    AEF (framework:pickup offset 319) before he asked to wait for all four answers; AEF was told to hold triage until a
    supplement with the full inventory (inbox offset 561).
+   2a. **050-email-archive (Penelope) inventory received 2026-10-15** (sidecar msg a5a4bf6a, conversation
+       operator-out-of-band-channels; asked at their inbox offset 59, chased at 69). Five channels:
+       2aa. ntfy push (watchdog cron + systemd OnFailure unit, creds `/etc/ntfy-pen.env`): one-way; delivery
+            UNKNOWN — only failures are logged, 180 `HTTP 000` (no connection) failures, last 2026-10-12 17:51Z,
+            no success record.
+       2ab. Signal, self-only group via `pen-signal-say.sh`: one-way by rule; delivery not verified today.
+       2ac. runme.sh: two-way in effect (agent writes, operator runs, agent reads the log); authority = the operator
+            ran it (`--i-am-human` for Tier 0); `!` has no tty, so it cannot take secrets.
+       2ad. The Claude Code session + Watchtower `/approvals`: two-way; authority = typed or clicked. Their peer mail
+            sat 51 h unseen until 2026-10-15 (receiver `inject=false` and missing hooks, fixed with our diagnosis).
+       2ae. Email through Pen: possible, not used for alerts.
+       Pattern shared with ring20-manager's: the one-way push channels have no delivery proof; the two-way ones are
+       the session, Watchtower and runme. Still outstanding: AEF and ring20-dashboard.
 3. **GP-12 a measurable "very simple" — ruled A revised, after external review** (2026-10-06).
    3a. First recommendation: five structural proxies (one process per agent, one install command, one status call,
        ~10 API calls, a 1,000-line cap). Operator asked for external review: Codex and GLM (16 findings each,

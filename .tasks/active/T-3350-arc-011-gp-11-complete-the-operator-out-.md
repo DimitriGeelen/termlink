@@ -8,7 +8,7 @@ description: >
   the promised supplement to framework:pickup offset 319, then put GP-11 to the operator
   as one question.
 
-status: captured
+status: started-work
 workflow_type: specification
 owner: agent
 horizon: now
@@ -27,7 +27,7 @@ related_tasks: [T-3344]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T10:12:43Z
-last_update: '2026-10-06T10:17:52Z'
+last_update: 2026-10-15T16:33:32Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -187,3 +187,6 @@ grep -q 'GP-11' docs/design/interactive-agent-communication/interview-step-01.md
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3350-arc-011-gp-11-complete-the-operator-out-.md
 - **Context:** Initial task creation
+
+### 2026-10-15T16:32:57Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
