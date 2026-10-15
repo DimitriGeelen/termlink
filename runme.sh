@@ -1375,8 +1375,12 @@ arc011_w1
 seam INBOX_TL RUNME_INBOX_TL "termlink"
 INBOX_KEEP=1000
 # 055 confirmed 2026-10-16 (msg 8873e607, T-3443 Decisions).
+# AEF's operator approved 2026-10-16 (msgs d3ed390d, 2443f180). Its inbox carries no hub
+# read-receipts, so its reader position is the one AEF stated (read through offset 1461,
+# the newest then), kept in a git-tracked file; the cut check reads it like a marker.
 INBOX_TOPICS="${RUNME_INBOX_TOPICS-inbox:cacc73ea32b121dd/010-termlink|$PROJECT_ROOT/.context/working/session-alerts/inbox_cacc73ea32b121dd_010_termlink.seen
-inbox:cacc73ea32b121dd/055-agentic-fleet-cockpit|}"
+inbox:cacc73ea32b121dd/055-agentic-fleet-cockpit|
+inbox:cacc73ea32b121dd/999-Agentic-Engineering-Framework|$PROJECT_ROOT/.context/checks/inbox-reader-attested/999-Agentic-Engineering-Framework}"
 
 inbox_state() {  # <topic> -> "<kind> <value> <count> <min_receipt|none>" or "missing"
     $INBOX_TL channel info "$1" --json 2>/dev/null | python3 -c '
