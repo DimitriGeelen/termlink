@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-12T19:17:19Z
-last_update: 2026-10-15T23:50:21Z
+last_update: 2026-10-16T21:06:19Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -448,6 +448,16 @@ date_finished: null
      legacy tasks lacking this section. -->
 
 ## Updates
+
+### 2026-10-16T21:05Z — W1 kill-switch drill passed on the real pair [agent]
+- **Run:** runme 2026-10-16T21:05:05Z rc=0, action 19 (`scripts/arc011-w1-killswitch-drill.sh`, commit ffb42721f), 8/8:
+  preflight both on; switch off read back on both; probe e340a9b7… from the main sidecar STORED at `-alt`; claim refused
+  `delivery-off`; switch on read back; control: the same claim answered `claimed`; SIGKILL of `-alt` MainPID 3286930,
+  systemd started 3956131 answering with delivery on; the probe still STORED after the kill (R-8.e, R-15.e on the host).
+- **Note:** the control claim opened an attempt on the probe; it expires and the probe is re-offered to `-alt`'s session,
+  whose body says it is a drill probe needing no reply.
+- **Open in W1:** the main session joins at a natural restart (the 2026-10-16 restart was an environment repair, see
+  T-3445, and did not join); 7 clean days with both agents in.
 
 ### 2026-10-14T19:22Z — W1 started; first real round trip [agent]
 - **Provisioned:** runme 2026-10-14T17:16Z rc=0 (action 17): both sidecars in production mode under systemd, instances `claude-termlink.w1-20261014`, `claude-termlink-alt.w1-20261014`. Units were started but not enabled; the backstop enabled them (2 `supervisor-backstop` notes) and `sidecar-supervise.sh start` now enables (commit 367876577).

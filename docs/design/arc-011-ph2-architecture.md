@@ -297,6 +297,10 @@ Row P3 builds items 5 to 8; row P7 builds items 1, 2 and 4 into the launcher.
 8. **Proven:** `p7_wiring_tests` 7 + `book` unit 4, `tl-claude-sidecar-fixtures` 13, `arc011-w1-provision-fixtures`
    20, `sidecar-supervise-fixtures` 39, `runme-fixtures` 125. Not yet proven: delivery between the two real sessions,
    which is W1 itself.
+9. **W1 on the host.** First real round trip 2026-10-14 (T-3426 Updates). Kill-switch drill passed 2026-10-16 on the
+   real pair (runme action 19, `scripts/arc011-w1-killswitch-drill.sh`, 8/8, fixtures 11 with a restore-trap mutant):
+   delivery off refuses hand-over (`delivery-off`), on lets the same claim through (the control), and a SIGKILLed
+   sidecar comes back under systemd with its stored probe intact (R-8.e, R-15.e).
 
 ### 6.7 Packaging as built (row P9, T-3442; ruling P9-1 A)
 
