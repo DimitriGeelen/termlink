@@ -1,0 +1,21 @@
+id: .context/cron/root-mode-canary.crontab
+name: root-mode-canary
+type: script
+subsystem: unknown
+location: .context/cron/root-mode-canary.crontab
+tags: []
+
+purpose: "T-3425 — Root-directory mode canary Source of truth: /opt/termlink/.context/cron/root-mode-canary.crontab (git-tracked) Installed to: /etc/cron.d/termlink-root-mode-canary (USER field syntax — do NOT load into a user crontab)"
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-17
+created_by: unknown

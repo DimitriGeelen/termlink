@@ -1,0 +1,21 @@
+id: scripts/count-hub-plaintext-fields.sh
+name: count-hub-plaintext-fields
+type: script
+subsystem: unknown
+location: scripts/count-hub-plaintext-fields.sh
+tags: []
+purpose: 'guard-layer: source --no-heartbeat count-hub-plaintext-fields.sh (T-3427, arc-011 FX-5 "disclosure does not grow")'
+purpose_source: header-comment
+depends_on:
+- target: scripts/agent-send.sh
+  type: calls
+- target: scripts/agent-respond.sh
+  type: calls
+- target: scripts/chat-arc-broadcast.sh
+  type: calls
+- target: scripts/notify-ack-read.sh
+  type: calls
+depended_by: []
+last_verified: 2026-10-17
+created_by: unknown
+last_enriched: '2026-10-18'

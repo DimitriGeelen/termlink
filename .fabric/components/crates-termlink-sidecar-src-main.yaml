@@ -1,0 +1,21 @@
+id: crates/termlink-sidecar/src/main.rs
+name: main
+type: script
+subsystem: unknown
+location: crates/termlink-sidecar/src/main.rs
+tags: []
+
+purpose: "TODO: describe what this component does"
+purpose_source: none
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-17
+created_by: unknown

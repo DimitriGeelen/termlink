@@ -4,11 +4,14 @@ type: script
 subsystem: unknown
 location: scripts/notify-ack-read.sh
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: 'T-3067 — L3 of the confirm ladder: tell the sender its message reached a PROMPT, not merely a mailbox.'
 depends_on: []
 depended_by:
 - target: scripts/notify-injector.sh
   type: called_by
+- target: scripts/count-hub-plaintext-fields.sh
+  type: called_by
 last_verified: 2026-09-25
 created_by: unknown
-last_enriched: '2026-09-25'
+last_enriched: '2026-10-18'
+purpose_source: header-comment

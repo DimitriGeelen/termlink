@@ -1,0 +1,21 @@
+id: tests/hub-outage-collector-fixtures.sh
+name: hub-outage-collector-fixtures
+type: script
+subsystem: unknown
+location: tests/hub-outage-collector-fixtures.sh
+tags: []
+
+purpose: "T-3383 fixtures — collector, summariser, liveness canary. Hermetic: HUBOUT_TEST_PROBES feeds canned probe results; no real hub, no network, scratch dir only. guard-layer fixtures run via naming convention."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-17
+created_by: unknown

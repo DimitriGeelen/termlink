@@ -4,17 +4,15 @@ type: script
 subsystem: unknown
 location: scripts/notify-sidecar-api.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
+purpose: 'T-3135 — notify-sidecar API: the LOCAL control surface for this host''s mailbox and prompt (arc-011 slices S1 +
+  S12). Design: docs/design/arc-011-sidecar-api-architecture.md §6. Ops doc: docs/operations/notify-sidecar-api.md.'
 depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
+- target: scripts/lib/pty-state.sh
+  type: calls
 depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+- target: tests/standing-controls.sh
+  type: called_by
 last_verified: 2026-09-28
 created_by: unknown
+purpose_source: header-comment
+last_enriched: '2026-10-18'

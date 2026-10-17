@@ -4,18 +4,14 @@ type: script
 subsystem: unknown
 location: tests/hub-runtime-dir-fixtures.sh
 tags: []
-
-purpose: "T-3437 — fixtures for scripts/lib/hub-runtime-dir.sh and the swap-restart runner it is embedded in."
+purpose: T-3437 — fixtures for scripts/lib/hub-runtime-dir.sh and the swap-restart runner it is embedded in.
 purpose_source: header-comment
-
 depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+- target: scripts/lib/hub-runtime-dir.sh
+  type: calls
+- target: scripts/lib/fleet-deploy-runner.sh
+  type: calls
+depended_by: []
 last_verified: 2026-10-14
 created_by: unknown
+last_enriched: '2026-10-18'

@@ -4,17 +4,12 @@ type: script
 subsystem: unknown
 location: scripts/test-agent-send-orchestration.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
+purpose: T-2301 (arc-003 reliable-comms, V6 slice S4) — tests for the try-direct / fall-back-to-hub ORCHESTRATION in scripts/agent-send.sh.
 depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+- target: scripts/lib/reap-topic.sh
+  type: calls
+depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
+purpose_source: header-comment
+last_enriched: '2026-10-18'

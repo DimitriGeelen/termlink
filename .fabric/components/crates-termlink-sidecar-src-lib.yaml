@@ -1,0 +1,91 @@
+id: crates/termlink-sidecar/src/lib.rs
+name: lib
+type: script
+subsystem: unknown
+location: crates/termlink-sidecar/src/lib.rs
+tags: []
+purpose: 'TODO: describe what this component does'
+purpose_source: none
+depends_on:
+- target: crates/termlink-sidecar/src/estate.rs
+  type: calls
+- target: crates/termlink-sidecar/src/testkit.rs
+  type: calls
+- target: crates/termlink-sidecar/src/wire.rs
+  type: calls
+- target: crates/termlink-sidecar/src/store.rs
+  type: calls
+- target: crates/termlink-sidecar/src/api.rs
+  type: calls
+- target: crates/termlink-sidecar/src/send.rs
+  type: calls
+- target: crates/termlink-sidecar/src/pull.rs
+  type: calls
+- target: crates/termlink-sidecar/src/policy.rs
+  type: calls
+- target: crates/termlink-sidecar/src/frame.rs
+  type: calls
+- target: crates/termlink-sidecar/src/adapter/mod.rs
+  type: calls
+- target: crates/termlink-sidecar/src/deliver.rs
+  type: calls
+- target: crates/termlink-sidecar/src/hook.rs
+  type: calls
+- target: crates/termlink-sidecar/src/daemon.rs
+  type: calls
+- target: crates/termlink-sidecar/src/client.rs
+  type: calls
+- target: crates/termlink-sidecar/src/cli.rs
+  type: calls
+- target: crates/termlink-sidecar/src/deadline.rs
+  type: calls
+- target: crates/termlink-sidecar/src/beat.rs
+  type: calls
+- target: crates/termlink-sidecar/src/book.rs
+  type: calls
+- target: crates/termlink-sidecar/src/tools.rs
+  type: calls
+depended_by:
+- target: crates/termlink-sidecar/tests/acceptance.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/api_tests.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/cli_prefix.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/deadline_tests.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/deliver_tests.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/drain_tests.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/estate_kit.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/fc_matrix.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/hooks_live.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/hooks_tests.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/killswitch_tests.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/p7_wiring_tests.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/policy_tests.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/production_mode.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/receive_hub.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/record_print.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/send_hub.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/soak.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/store_tests.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/supervision_tests.rs
+  type: called_by
+last_verified: 2026-10-17
+created_by: unknown
+last_enriched: '2026-10-18'

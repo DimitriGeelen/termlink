@@ -1,0 +1,17 @@
+id: crates/termlink-sidecar/tests/record_print.rs
+name: record_print
+type: script
+subsystem: unknown
+location: crates/termlink-sidecar/tests/record_print.rs
+tags: []
+purpose: 'TODO: describe what this component does'
+purpose_source: none
+depends_on:
+- target: crates/termlink-session/src/lib.rs
+  type: calls
+- target: crates/termlink-sidecar/src/lib.rs
+  type: calls
+depended_by: []
+last_verified: 2026-10-17
+created_by: unknown
+last_enriched: '2026-10-18'

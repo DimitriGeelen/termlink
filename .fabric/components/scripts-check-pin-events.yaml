@@ -1,0 +1,15 @@
+id: scripts/check-pin-events.sh
+name: check-pin-events
+type: script
+subsystem: unknown
+location: scripts/check-pin-events.sh
+tags: []
+purpose: T-3384 — TOFU pin-event check (RR-18 interim control, operator ruling OQ-8 D″).
+purpose_source: header-comment
+depends_on: []
+depended_by:
+- target: scripts/session-start-alerts.sh
+  type: called_by
+last_verified: 2026-10-17
+created_by: unknown
+last_enriched: '2026-10-18'

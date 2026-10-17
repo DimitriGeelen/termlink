@@ -4,7 +4,7 @@ type: script
 subsystem: unknown
 location: scripts/agent-send.sh
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: 'T-1804 — deterministic doorbell+mail send verb (T-1800 build #1).'
 depends_on:
 - target: scripts/wake-confirm.sh
   type: calls
@@ -21,6 +21,11 @@ depended_by:
   type: called_by
 - target: tests/wake-confirm-reply-match.sh
   type: called_by
+- target: scripts/count-hub-plaintext-fields.sh
+  type: called_by
+- target: tests/count-hub-plaintext-fields-fixtures.sh
+  type: called_by
 last_verified: 2026-08-14
 created_by: unknown
-last_enriched: '2026-09-25'
+last_enriched: '2026-10-18'
+purpose_source: header-comment

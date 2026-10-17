@@ -1,0 +1,21 @@
+id: .context/cron/hub-outage-collector.crontab
+name: hub-outage-collector
+type: script
+subsystem: unknown
+location: .context/cron/hub-outage-collector.crontab
+tags: []
+
+purpose: "T-3383 — hub outage sampler (PH-0 6.2.1.a (1), hypothesis H-1) + its liveness canary Source of truth: /opt/termlink/.context/cron/hub-outage-collector.crontab (git-tracked) Installed to: /etc/cron.d/termlink-hub-outage-collector (USER…"
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-17
+created_by: unknown

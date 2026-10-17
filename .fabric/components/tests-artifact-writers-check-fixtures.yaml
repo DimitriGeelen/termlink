@@ -1,0 +1,21 @@
+id: tests/artifact-writers-check-fixtures.sh
+name: artifact-writers-check-fixtures
+type: script
+subsystem: unknown
+location: tests/artifact-writers-check-fixtures.sh
+tags: []
+
+purpose: "Fixtures for scripts/check-artifact-writers.sh (T-3432, FX-5 ruling C′). Hermetic: scratch crates."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-17
+created_by: unknown

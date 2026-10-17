@@ -4,18 +4,12 @@ type: script
 subsystem: unknown
 location: crates/termlink-sidecar/tests/acceptance.rs
 tags: []
-
-purpose: "arc-011 PH-1 B14 two-agent acceptance test: two real claude -p sessions as testdev, BV-1..BV-7 (T-3417)"
+purpose: 'arc-011 PH-1 B14 two-agent acceptance test: two real claude -p sessions as testdev, BV-1..BV-7 (T-3417)'
 purpose_source: none
-
 depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+- target: crates/termlink-sidecar/src/lib.rs
+  type: calls
+depended_by: []
 last_verified: 2026-10-12
 created_by: unknown
+last_enriched: '2026-10-18'

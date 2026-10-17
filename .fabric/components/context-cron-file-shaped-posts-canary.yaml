@@ -1,0 +1,16 @@
+id: .context/cron/file-shaped-posts-canary.crontab
+name: file-shaped-posts-canary
+type: script
+subsystem: unknown
+location: .context/cron/file-shaped-posts-canary.crontab
+tags: []
+purpose: 'T-3432 (arc-011 FX-5 ruling C, 2026-10-17) — File-shaped posts canary Source of truth: /opt/termlink/.context/cron/file-shaped-posts-canary.crontab
+  (git-tracked) Installed to: /etc/cron.d/termlink-file-shaped-posts-canary (USER field…'
+purpose_source: header-comment
+depends_on:
+- target: scripts/check-file-shaped-posts.sh
+  type: calls
+depended_by: []
+last_verified: 2026-10-17
+created_by: unknown
+last_enriched: '2026-10-18'

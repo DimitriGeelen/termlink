@@ -4,17 +4,14 @@ type: script
 subsystem: unknown
 location: scripts/check-stale-sidecar-code.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
+purpose: T-3205 — detect a LIVE notify-sidecar executing code that is no longer on disk.
+depends_on: []
 depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+- target: runme.sh
+  type: called_by
+- target: tests/stale-sidecar-code-fixtures.sh
+  type: called_by
 last_verified: 2026-09-29
 created_by: unknown
+purpose_source: header-comment
+last_enriched: '2026-10-18'

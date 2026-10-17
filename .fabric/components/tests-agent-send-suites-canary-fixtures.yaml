@@ -1,0 +1,15 @@
+id: tests/agent-send-suites-canary-fixtures.sh
+name: agent-send-suites-canary-fixtures
+type: script
+subsystem: unknown
+location: tests/agent-send-suites-canary-fixtures.sh
+tags: []
+purpose: 'guard-layer: source'
+purpose_source: header-comment
+depends_on:
+- target: scripts/check-agent-send-suites-freshness.sh
+  type: calls
+depended_by: []
+last_verified: 2026-10-17
+created_by: unknown
+last_enriched: '2026-10-18'

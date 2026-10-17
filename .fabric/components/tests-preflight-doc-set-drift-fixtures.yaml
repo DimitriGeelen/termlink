@@ -1,0 +1,15 @@
+id: tests/preflight-doc-set-drift-fixtures.sh
+name: preflight-doc-set-drift-fixtures
+type: script
+subsystem: unknown
+location: tests/preflight-doc-set-drift-fixtures.sh
+tags: []
+purpose: 'guard-layer: source'
+purpose_source: header-comment
+depends_on:
+- target: scripts/check-preflight-doc-set-drift.sh
+  type: calls
+depended_by: []
+last_verified: 2026-10-17
+created_by: unknown
+last_enriched: '2026-10-18'

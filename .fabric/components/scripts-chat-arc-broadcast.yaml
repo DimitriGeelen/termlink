@@ -4,13 +4,16 @@ type: script
 subsystem: unknown
 location: scripts/chat-arc-broadcast.sh
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: T-1856 — Cross-hub broadcast helper for agent-chat-arc.
 depends_on:
 - target: scripts/lib/hubs-toml-walk.sh
   type: calls
 depended_by:
 - target: scripts/check-fleet-recipient-agreement.sh
   type: called_by
+- target: scripts/count-hub-plaintext-fields.sh
+  type: called_by
 last_verified: 2026-08-14
 created_by: unknown
-last_enriched: '2026-09-25'
+last_enriched: '2026-10-18'
+purpose_source: header-comment

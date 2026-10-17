@@ -1,0 +1,16 @@
+id: .context/cron/vector-index-canary.crontab
+name: vector-index-canary
+type: script
+subsystem: unknown
+location: .context/cron/vector-index-canary.crontab
+tags: []
+purpose: 'T-3336 — Vector index freshness canary (fw ask / RAG memory alive and current) Source of truth: /opt/termlink/.context/cron/vector-index-canary.crontab
+  (git-tracked) Installed to: /etc/cron.d/termlink-vector-index-canary (USER field syntax…'
+purpose_source: header-comment
+depends_on:
+- target: scripts/check-vector-index-freshness.sh
+  type: calls
+depended_by: []
+last_verified: 2026-10-17
+created_by: unknown
+last_enriched: '2026-10-18'

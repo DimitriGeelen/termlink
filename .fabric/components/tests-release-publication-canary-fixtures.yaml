@@ -4,17 +4,12 @@ type: script
 subsystem: unknown
 location: tests/release-publication-canary-fixtures.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
+purpose: T-3243 — fixtures for scripts/check-release-publication-freshness.sh.
 depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+- target: scripts/check-release-publication-freshness.sh
+  type: calls
+depended_by: []
 last_verified: 2026-09-29
 created_by: unknown
+purpose_source: header-comment
+last_enriched: '2026-10-18'

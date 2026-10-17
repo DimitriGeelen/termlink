@@ -93,6 +93,10 @@ depends_on:
   type: calls
 - target: crates/termlink-session/src/assignment.rs
   type: calls
+- target: crates/termlink-session/src/audit_append.rs
+  type: calls
+- target: crates/termlink-session/src/invocation_audit.rs
+  type: calls
 last_verified: 2026-03-14
 created_by: T-043
 depended_by:
@@ -168,4 +172,30 @@ depended_by:
   type: called_by
 - target: crates/termlink-cli/src/commands/artifact.rs
   type: called_by
-last_enriched: '2026-09-26'
+- target: crates/termlink-hub/src/lib.rs
+  type: called_by
+- target: crates/termlink-hub/src/rpc_audit.rs
+  type: called_by
+- target: crates/termlink-sidecar/src/daemon.rs
+  type: called_by
+- target: crates/termlink-sidecar/src/pull.rs
+  type: called_by
+- target: crates/termlink-sidecar/src/send.rs
+  type: called_by
+- target: crates/termlink-sidecar/src/wire.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/deadline_tests.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/deliver_tests.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/fc_matrix.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/policy_tests.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/receive_hub.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/record_print.rs
+  type: called_by
+- target: crates/termlink-sidecar/tests/soak.rs
+  type: called_by
+last_enriched: '2026-10-18'

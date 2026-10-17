@@ -1,0 +1,21 @@
+id: .context/cron/sidecar-backstop.crontab
+name: sidecar-backstop
+type: script
+subsystem: unknown
+location: .context/cron/sidecar-backstop.crontab
+tags: []
+
+purpose: "T-3435 — arc-011 PH-2 row P3: cron backstop for project sidecars (OQ-f ruling D+ item 6) Source of truth: /opt/termlink/.context/cron/sidecar-backstop.crontab (git-tracked) Installed to: /etc/cron.d/termlink-sidecar-backstop (USER field…"
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-17
+created_by: unknown

@@ -4,11 +4,14 @@ type: script
 subsystem: unknown
 location: scripts/fleet-adoption-snapshot.sh
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: T-1843 — Fleet doorbell+mail adoption snapshot.
 depends_on:
 - target: scripts/lib/hubs-toml-walk.sh
   type: calls
-depended_by: []
+depended_by:
+- target: .context/cron/fleet-adoption-snapshot.crontab
+  type: called_by
 last_verified: 2026-05-28
 created_by: unknown
-last_enriched: '2026-09-25'
+last_enriched: '2026-10-18'
+purpose_source: header-comment

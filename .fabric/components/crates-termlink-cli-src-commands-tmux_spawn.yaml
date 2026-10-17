@@ -1,0 +1,15 @@
+id: crates/termlink-cli/src/commands/tmux_spawn.rs
+name: tmux_spawn
+type: script
+subsystem: cli
+location: crates/termlink-cli/src/commands/tmux_spawn.rs
+tags: []
+purpose: 'TODO: describe what this component does'
+purpose_source: none
+depends_on: []
+depended_by:
+- target: crates/termlink-cli/src/commands/mod.rs
+  type: called_by
+last_verified: 2026-10-17
+created_by: unknown
+last_enriched: '2026-10-18'

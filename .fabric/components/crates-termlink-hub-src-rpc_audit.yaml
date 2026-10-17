@@ -13,7 +13,9 @@ purpose: 'Append-only RPC audit log. Each parseable JSON-RPC dispatch records on
   T-1166 entry-gate measurement (legacy primitive call volume as % of total).
 
   '
-depends_on: []
+depends_on:
+- target: crates/termlink-session/src/lib.rs
+  type: calls
 depended_by:
 - target: crates/termlink-hub/src/server.rs
   type: calls
@@ -21,4 +23,4 @@ depended_by:
   type: called_by
 last_verified: 2026-04-27
 created_by: T-1304
-last_enriched: '2026-05-03'
+last_enriched: '2026-10-18'

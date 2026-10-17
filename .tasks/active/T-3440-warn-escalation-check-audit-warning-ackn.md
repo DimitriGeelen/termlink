@@ -1,10 +1,13 @@
 ---
 id: T-3440
-name: "WARN escalation: check-audit-warning-acknowledgement.sh red 14d (since 2026-09-30T00:33:22Z) — fix or reclassify"
+name: "WARN escalation: check-audit-warning-acknowledgement.sh red 14d (since 2026-09-30T00:33:22Z)
+  — fix or reclassify"
 description: >
-  WARN-tier guard member check-audit-warning-acknowledgement.sh has been red for more than 14 days (first seen red 2026-09-30T00:33:22Z). Operator binding condition (T-3258 rulings): a stale WARN becomes an action.
+  WARN-tier guard member check-audit-warning-acknowledgement.sh has been red for more
+  than 14 days (first seen red 2026-09-30T00:33:22Z). Operator binding condition (T-3258
+  rulings): a stale WARN becomes an action.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -38,8 +41,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-14T05:42:07Z
-last_update: 2026-10-14T05:42:07Z
-date_finished: null
+last_update: 2026-10-17T22:17:21Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +53,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-17T22:02:53Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3440: WARN escalation: check-audit-warning-acknowledgement.sh red 14d (since 2026-09-30T00:33:22Z) — fix or reclassify
@@ -402,3 +419,6 @@ while the member is still red restarts a 14-day window from the close date, then
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3440-warn-escalation-check-audit-warning-ackn.md
 - **Context:** Initial task creation
+
+### 2026-10-17T22:02:52Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

@@ -1,0 +1,21 @@
+id: tests/arc011-inventory-check-fixtures.sh
+name: arc011-inventory-check-fixtures
+type: script
+subsystem: unknown
+location: tests/arc011-inventory-check-fixtures.sh
+tags: []
+
+purpose: "arc011-inventory-check-fixtures.sh (T-3397) Hermetic proof for scripts/check-arc011-inventory.sh: scratch doc + inventory, no repo state. Includes the real-tree control and a mutant (cap test removed)."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-17
+created_by: unknown

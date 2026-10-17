@@ -20,6 +20,10 @@ depends_on:
   type: calls
 - target: crates/termlink-bus/src/claim.rs
   type: calls
+- target: crates/termlink-bus/src/activity.rs
+  type: calls
+- target: crates/termlink-bus/src/limits.rs
+  type: calls
 depended_by:
 - target: crates/termlink-hub/src/channel.rs
   type: called_by
@@ -27,6 +31,8 @@ depended_by:
   type: called_by
 - target: crates/termlink-hub/src/retention_sweeper.rs
   type: called_by
+- target: crates/termlink-hub/src/topic_policy.rs
+  type: called_by
 last_verified: 2026-04-20
 created_by: unknown
-last_enriched: '2026-08-14'
+last_enriched: '2026-10-18'

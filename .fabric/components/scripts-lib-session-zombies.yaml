@@ -4,17 +4,12 @@ type: script
 subsystem: unknown
 location: scripts/lib/session-zombies.py
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
+purpose: T-3296 (T-3291 S4) — shared detector for the session lifecycle leak.
+depends_on: []
 depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+- target: runme.sh
+  type: called_by
 last_verified: 2026-10-01
 created_by: unknown
+purpose_source: docstring
+last_enriched: '2026-10-18'

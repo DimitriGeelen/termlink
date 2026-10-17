@@ -1,0 +1,16 @@
+id: tests/count-hub-plaintext-fields-fixtures.sh
+name: count-hub-plaintext-fields-fixtures
+type: script
+subsystem: unknown
+location: tests/count-hub-plaintext-fields-fixtures.sh
+tags: []
+purpose: 'guard-layer fixtures for scripts/count-hub-plaintext-fields.sh (T-3427). Hermetic: copies the real anchor files
+  into a temp root; never touches a hub.'
+purpose_source: header-comment
+depends_on:
+- target: scripts/agent-send.sh
+  type: calls
+depended_by: []
+last_verified: 2026-10-17
+created_by: unknown
+last_enriched: '2026-10-18'

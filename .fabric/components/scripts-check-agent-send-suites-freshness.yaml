@@ -1,0 +1,15 @@
+id: scripts/check-agent-send-suites-freshness.sh
+name: check-agent-send-suites-freshness
+type: script
+subsystem: unknown
+location: scripts/check-agent-send-suites-freshness.sh
+tags: []
+purpose: T-3334 — daily run of the live-hub agent-send test suites.
+purpose_source: header-comment
+depends_on: []
+depended_by:
+- target: tests/agent-send-suites-canary-fixtures.sh
+  type: called_by
+last_verified: 2026-10-17
+created_by: unknown
+last_enriched: '2026-10-18'

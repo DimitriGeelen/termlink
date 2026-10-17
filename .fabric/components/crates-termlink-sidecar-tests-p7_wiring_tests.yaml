@@ -1,0 +1,15 @@
+id: crates/termlink-sidecar/tests/p7_wiring_tests.rs
+name: p7_wiring_tests
+type: script
+subsystem: unknown
+location: crates/termlink-sidecar/tests/p7_wiring_tests.rs
+tags: []
+purpose: 'TODO: describe what this component does'
+purpose_source: none
+depends_on:
+- target: crates/termlink-sidecar/src/lib.rs
+  type: calls
+depended_by: []
+last_verified: 2026-10-17
+created_by: unknown
+last_enriched: '2026-10-18'

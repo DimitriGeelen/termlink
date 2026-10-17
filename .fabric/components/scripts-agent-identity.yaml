@@ -1,11 +1,12 @@
-id: tests/reviewer-sovereignty-fixtures.sh
-name: reviewer-sovereignty-fixtures
+id: scripts/agent-identity.sh
+name: agent-identity
 type: script
 subsystem: unknown
-location: tests/reviewer-sovereignty-fixtures.sh
+location: scripts/agent-identity.sh
 tags: []
 
-purpose: "TODO: describe what this component does"
+purpose: "T-3286 — shared agent_id resolver for agent-chat producers."
+purpose_source: header-comment
 
 depends_on:
   # Format: - target: <relative-path>
@@ -16,5 +17,5 @@ depended_by:
   # Same format as depends_on — filled by enrich.py or manually
   []
 
-last_verified: 2026-09-29
+last_verified: 2026-10-17
 created_by: unknown

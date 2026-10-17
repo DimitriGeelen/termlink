@@ -1,0 +1,16 @@
+id: tests/standing-controls.sh
+name: standing-controls
+type: script
+subsystem: unknown
+location: tests/standing-controls.sh
+tags: []
+purpose: 'guard-layer: source warn # arc-011 PH-0 standing controls are EXPECTED red on today''s system until PH-1/PH-2 land
+  the status surface (T-3396); a red here is the exit criterion 6.2.1.c(2), not a regression'
+purpose_source: header-comment
+depends_on:
+- target: scripts/notify-sidecar-api.sh
+  type: calls
+depended_by: []
+last_verified: 2026-10-17
+created_by: unknown
+last_enriched: '2026-10-18'

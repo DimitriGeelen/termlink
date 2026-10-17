@@ -1,0 +1,21 @@
+id: scripts/rescue-stray-hub-mail.py
+name: rescue-stray-hub-mail
+type: script
+subsystem: unknown
+location: scripts/rescue-stray-hub-mail.py
+tags: []
+
+purpose: "T-3343 — re-post mail stranded on a stray hub into the canonical hub, once."
+purpose_source: docstring
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-17
+created_by: unknown

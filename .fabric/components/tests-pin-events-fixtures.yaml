@@ -1,0 +1,16 @@
+id: tests/pin-events-fixtures.sh
+name: pin-events-fixtures
+type: script
+subsystem: unknown
+location: tests/pin-events-fixtures.sh
+tags: []
+purpose: 'T-3384 — hermetic fixtures for scripts/check-pin-events.sh and the recorder wiring. No real ~/.termlink: every path
+  is a temp dir via env seams.'
+purpose_source: header-comment
+depends_on:
+- target: scripts/session-start-alerts.sh
+  type: calls
+depended_by: []
+last_verified: 2026-10-17
+created_by: unknown
+last_enriched: '2026-10-18'
