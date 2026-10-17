@@ -41,7 +41,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-13T16:48:12Z
-last_update: 2026-10-17T13:08:32Z
+last_update: 2026-10-17T13:09:39Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -284,6 +284,21 @@ bash tests/commit-pending-fixtures.sh > /tmp/.t3434c 2>&1
 python3 .agentic-framework/lib/watchtower_decision_revert.py > /tmp/.t3434r 2>&1 && grep -q "^0 Watchtower decision" /tmp/.t3434r
 
 ## RCA
+
+**Symptom:** G-114 — Watchtower decisions recorded in task files could be reverted by a later commit that swept a
+stale index entry; this task existed to take AEF's fix. A second, local symptom surfaced while doing it: the task's
+own fallback ("if v1.8.11 has not shipped, upgrade to v1.8.10") would have been a downgrade of 227 commits.
+
+**Root cause:** G-114 is in vendored AEF code (fixed upstream, carried by bleeding-edge 5c886336b; G-062: not
+patched here). The fallback was written on the assumption that release tags are ordered after the bleeding-edge
+build we run; AEF cuts hotfix tags (v1.8.10 = 1.8.9 + 5) from the release line, so a newer tag can be older code.
+
+**Why structurally allowed:** nothing compares a proposed target with the vendored commit before an upgrade; the
+version string (1.8.9+227 vs 1.8.10) reads as "1.8.10 is newer" when it is not.
+
+**Prevention:** the target is now chosen by ancestry, not by version string: `git merge-base --is-ancestor
+<ours> <target>` on an upstream clone before every re-vendor (recorded in this task's Decisions and in the register
+entry). The decision-revert check (`watchtower_decision_revert.py`, 0 reverted) stays as the G-114 detector.
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).

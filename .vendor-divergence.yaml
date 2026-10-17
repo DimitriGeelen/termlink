@@ -63,6 +63,9 @@ last_vendor_event:
 # tracked locally as T-2015.
 #
 # PRE-RE-VENDOR CHECKLIST
+#   0. Choose the target by ANCESTRY, never by version string (T-3434): on an upstream clone,
+#      git merge-base --is-ancestor <our vendored commit> <target> must succeed. A newer tag can be
+#      older code: v1.8.10 was 1.8.9 + 5 hotfixes and lacked 227 commits of our 1.8.9+227 build.
 #   1. bash scripts/check-vendor-divergence.sh      # nothing unclassified
 #   2. Confirm every `status: filed-upstream` below is now carried upstream,
 #      or accept losing it.
