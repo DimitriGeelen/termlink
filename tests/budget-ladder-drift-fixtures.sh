@@ -61,7 +61,10 @@ echo "budget-ladder-drift fixtures"
 : > "$TMP/empty-allow"
 out=$(bash "$CHECK" --allowlist "$TMP/empty-allow" 2>&1); rc=$?
 is   "real tree is clean with an empty ledger"      "$rc" "0"
-has  "real tree prints the live gate numbers"       "$out" "window=300000"
+# T-3444: read the expected window from the vendored gate itself, never a literal. The literal
+# 300000 broke when the T-3434 re-vendor moved the gate default to 800000 (a mutable anchor, T-3326).
+gate_default=$(grep -oE 'fw_config_int "CONTEXT_WINDOW" [0-9]+' .agentic-framework/agents/context/budget-gate.sh | head -1 | awk '{print $3}')
+has  "real tree prints the gate's own window (${gate_default:-unparsed})" "$out" "window=${gate_default:-UNPARSED}"
 has  "real tree carries a scope disclaimer"         "$out" "Scope:"
 hasnt "real tree reports no drift"                  "$out" "DRIFT"
 
