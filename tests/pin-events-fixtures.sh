@@ -58,6 +58,11 @@ if [ -x "$TL" ]; then
     TERMLINK_IDENTITY_DIR="$T/id" "$TL" tofu clear fix.example:9100 >/dev/null 2>&1
     jq -e 'select(.verb=="tofu-clear" and .address=="fix.example:9100" and (.old_fingerprint|startswith("sha256:")))' \
         "$TERMLINK_PIN_EVENTS_FILE" >/dev/null 2>&1 && ok "tofu clear records event (binary)" || bad "tofu clear records event (binary)"
+elif [ -n "${GITHUB_ACTIONS:-}" ]; then
+    # T-3444: the doc-lint guard-layer job builds no Rust, so the binary is absent there by design.
+    # The release gate runs `cargo test` first and does exercise this case; case 11 (static wiring +
+    # mutant) runs everywhere. Locally a missing binary still fails, so it is never silently skipped.
+    echo "SKIP  tofu clear records event (binary): no $TL in this CI job (no Rust build); case 11 covers the wiring"
 else
     bad "termlink binary missing at $TL (cargo build -p termlink)"
 fi
