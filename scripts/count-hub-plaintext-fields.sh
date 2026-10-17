@@ -53,6 +53,7 @@ receipt|metadata.evidence (free-text note)|scripts/notify-ack-read.sh|--metadata
 topic|metadata.description (topic title)|crates/termlink-cli/src/commands/channel.rs|format!("description={description}")
 inbox-mirror|envelope.payload.payload (hub copy of a deposit)|crates/termlink-hub/src/channel.rs|"payload": payload,
 sidecar|payload.body (message body, plaintext per PH-1 5.1)|crates/termlink-sidecar/src/wire.rs|m.insert("body".into(), self.body.clone().into());
+artifact-store|artifact blob (file send, stored as sent; FX-5 ruling C′, T-3432)|crates/termlink-hub/src/artifact.rs|store.put_streaming(staging_id, offset, &chunk, is_final, expected_sha256)
 '
 # Routing metadata keys: never content. Anything else found by the scan is unclassified.
 ROUTING_KEYS=" conversation_id up_to relay_hops to_circuit agent_id role listen_topics started_at interval_secs host pty_session capabilities addr cv_key _from _thread from_project stage sidecar_msg_id sidecar_digest sidecar_pk sidecar_sig in_reply_to description evidence "

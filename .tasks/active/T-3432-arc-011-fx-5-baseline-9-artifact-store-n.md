@@ -1,13 +1,19 @@
 ---
 id: T-3432
-name: "arc-011 FX-5: baseline 9 (artifact store), new-writer allowlist check, plaintext field size cap"
+name: "arc-011 FX-5: baseline 9 (artifact store), new-writer allowlist check, plaintext
+  field size cap"
 description: >
-  Operator ruling FX-5 C′ (T-3426, 2026-10-13): extend scripts/count-hub-plaintext-fields.sh with the artifact store (baseline 9) and update the T-3427 report; add a check that lists today's artifact-store writers (file send CLI and MCP) and fails on any new writer not going through the attachment encryption wrapper; add a size cap on plaintext message fields so a file cannot be tunnelled into an already-counted field. Must land before PH-2 row P15 (attachments).
+  Operator ruling FX-5 C′ (T-3426, 2026-10-13): extend scripts/count-hub-plaintext-fields.sh
+  with the artifact store (baseline 9) and update the T-3427 report; add a check that
+  lists today's artifact-store writers (file send CLI and MCP) and fails on any new
+  writer not going through the attachment encryption wrapper; add a size cap on plaintext
+  message fields so a file cannot be tunnelled into an already-counted field. Must
+  land before PH-2 row P15 (attachments).
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [arc:arc-011]
 components: []
 related_tasks: []
@@ -38,8 +44,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-13T16:12:01Z
-last_update: 2026-10-13T16:12:01Z
-date_finished: null
+last_update: 2026-10-17T14:48:14Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,20 +56,37 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-17T14:46:39Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3432: arc-011 FX-5: baseline 9 (artifact store), new-writer allowlist check, plaintext field size cap
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+FX-5 ruling C′ (T-3426 Decisions, 2026-10-13). Writer map measured 2026-10-17: the only emitter of the
+`artifact.put` RPC is `upload_artifact_chunked` (termlink-session), reached through `send_artifact_via_client`,
+whose production callers are the CLI `file send` (`commands/file.rs`), the CLI `artifact` command
+(`commands/artifact.rs`) and the MCP `file_send` tool (`termlink-mcp/src/tools.rs`).
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] (a) `count-hub-plaintext-fields.sh` counts the artifact store (anchor: the hub's `put_streaming` call); the real tree totals 9; its fixtures and the T-3427 report say 9
+- [ ] (b) A guard-layer static check fires on (1) any `artifact.put` emitter other than `upload_artifact_chunked` and (2) any caller of `send_artifact_via_client` not in a git-tracked allowlist; the three current callers are listed with reasons; fixtures cover both firing rules, the clean tree, comments and fail-closed tooling, with a mutant
+- [ ] (c) The hub refuses a plaintext message field above a size cap with a named error, the cap chosen from the largest field measured on this hub plus margin; unit tests pin refusal and acceptance; `cargo test` for the hub crate passes
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -349,3 +372,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3432-arc-011-fx-5-baseline-9-artifact-store-n.md
 - **Context:** Initial task creation
+
+### 2026-10-17T14:46:39Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
