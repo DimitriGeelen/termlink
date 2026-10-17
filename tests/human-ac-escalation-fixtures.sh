@@ -163,15 +163,20 @@ bash "$CHECK" --tasks-dir "$SCRATCH/nope" --allowlist "$LEDGER" >/dev/null 2>&1
 
 # ================================================================= Case 8
 echo
-echo "Case 8 — the real corpus is clean, and says so with its scope"
-rout="$(bash "$CHECK" 2>&1)"; rrc=$?
-[ "$rrc" = "0" ] && ok "real tree clean (rc 0)" || fail "real tree fires: $(head -2 <<< "$rout")"
+echo "Case 8 — a clean corpus says so with its scope; the real tree is read, never asserted clean"
+# T-3444: this case used to assert the LIVE tree was clean with exactly 29 acknowledged. That is a
+# mutable-corpus anchor (CLAUDE.md T-3326): it went red whenever a real task carried an open
+# escalation (T-3370, waiting on the operator), which is the check working, not a defect.
+rm -f "$T"/*.md; : > "$LEDGER"
+mk T-9008 '- [ ] [REVIEW] fine'
+rout="$(bash "$CHECK" --tasks-dir "$T" --allowlist "$LEDGER" 2>&1)"; rrc=$?
+[ "$rrc" = "0" ] && ok "clean fixture corpus exits 0" || fail "clean fixture fires: $(head -2 <<< "$rout")"
 grep -qF 'Scope: declared prefixes only' <<< "$rout" \
     && ok "the clean path states its scope, so a green is not over-read (T-2680)" \
     || fail "clean path does not disclose scope"
-grep -qE '29 acknowledged' <<< "$rout" \
-    && ok "all 29 known escalations are acknowledged and counted" \
-    || fail "acknowledgement count changed unexpectedly: $(head -1 <<< "$rout")"
+bash "$CHECK" >/dev/null 2>&1; rrc=$?
+{ [ "$rrc" = "0" ] || [ "$rrc" = "1" ]; } && ok "the real tree is read without a tooling error (rc $rrc; findings are the check's job, not this fixture's)" \
+    || fail "the real tree is a tooling error (rc $rrc)"
 
 echo
 echo "=== SUMMARY ==="
