@@ -246,6 +246,30 @@ out="$(run "$C" "$L" --quiet)"; rc=$?
 assert_rc 1 "$rc" "quiet firing still exits 1"
 assert_contains "$out" "T-9016" "quiet mode still names a real leak"
 
+echo "== case T-3459: an OPEN inception's filing-time recommendation is not a GO decision =="
+C="$TMPROOT/c3459"; L="$TMPROOT/c3459.ledger"; mkledger "$L" ""
+mkinception "$C" T-9501 "$OLD" '**Recommendation:** GO'
+sed -i 's/^status: work-completed$/status: started-work/' "$C/completed/T-9501-fixture.md"
+out="$(run "$C" "$L")"; rc=$?
+assert_rc 0 "$rc" "open inception recommending GO does not fire"
+assert_not_contains "$out" "T-9501" "open recommend-only inception is not listed"
+mkinception "$C" T-9502 "$OLD" '**Recommendation:** GO'
+out="$(run "$C" "$L")"; rc=$?
+assert_rc 1 "$rc" "the same recommendation on a work-completed inception still fires"
+assert_contains "$out" "T-9502" "completed GO inception is named"
+C="$TMPROOT/c3459b"; L="$TMPROOT/c3459b.ledger"; mkledger "$L" ""
+mkinception "$C" T-9503 "$OLD" '**Decision**: GO'
+sed -i 's/^status: work-completed$/status: started-work/' "$C/completed/T-9503-fixture.md"
+out="$(run "$C" "$L")"; rc=$?
+assert_rc 1 "$rc" "an open inception with an explicit Decision: GO still fires"
+C="$TMPROOT/c3459c"; L="$TMPROOT/c3459c.ledger"; mkledger "$L" ""
+# A completed inception that recommended DEFER and was closed with `decide go`
+# (meaning "accept the recommendation") is not an unbuilt GO: the recommendation
+# is read first for decided inceptions (T-2879 / T-942 shape).
+mkinception "$C" T-9504 "$OLD" "$(printf '**Recommendation:** DEFER\n\n**Decision**: GO')"
+out="$(run "$C" "$L")"; rc=$?
+assert_rc 0 "$rc" "a decided inception closed with GO under a DEFER recommendation does not fire"
+
 echo
 echo "=================================================="
 echo "  go-propagation fixtures: $PASS passed, $FAIL failed"

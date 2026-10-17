@@ -94,12 +94,32 @@ def field(fm, name):
     # being old — a today-decided task would fire. Strip before anything parses it.
     return m.group(1).strip().strip("'\"")
 
-def verdict(body):
-    """GO / NO-GO / DEFER / None. NO-GO must never read as GO."""
-    for pat in (r"^\*\*Recommendation:\*\*[ \t]*(.+)$",
-                r"^[-*][ \t]*\*\*Decision:?\*\*:?[ \t]*(.+)$",
-                r"^\*\*Decision\*\*:[ \t]*(.+)$",
-                r"Inception decision:[ \t]*(\S+)"):
+DECISION_PATS = (r"^[-*][ \t]*\*\*Decision:?\*\*:?[ \t]*(.+)$",
+                 r"^\*\*Decision\*\*:[ \t]*(.+)$",
+                 r"Inception decision:[ \t]*(\S+)")
+RECOMMENDATION_PATS = (r"^\*\*Recommendation:\*\*[ \t]*(.+)$",)
+
+def verdict(body, decided=True):
+    """GO / NO-GO / DEFER / None. NO-GO must never read as GO.
+
+    T-3459: the recommendation counts only once the inception is DECIDED
+    (work-completed). Every inception template carries a filing-time
+    `**Recommendation:**`, so an open inception that merely recommends GO is not a
+    GO decision; reading it as one made this check fire on T-3372 and T-3385 and
+    send the operator to triage decisions he had never made.
+
+    For a DECIDED inception the recommendation is still read FIRST, on purpose.
+    `fw inception decide ... go` is routinely used to mean "close it, accepting the
+    recommendation": 11 completed inceptions here record `**Decision**: GO` under a
+    NO-GO or DEFER recommendation (T-2879: "There is nothing to build"; T-942: GO
+    with rationale "Recommendation: DEFER"). Decision-first would fire on all 11 as
+    unbuilt GOs. Measured 2026-10-18; do not flip the order without re-reading them."""
+    if decided:
+        return _first_verdict(body, RECOMMENDATION_PATS + DECISION_PATS)
+    return _first_verdict(body, DECISION_PATS)
+
+def _first_verdict(body, pats):
+    for pat in pats:
         for m in re.finditer(pat, body, re.M):
             v = m.group(1).strip().upper()
             if v.startswith("NO-GO"): return "NO-GO"
@@ -126,7 +146,7 @@ for path in files:
         mentions[other].add(os.path.basename(path))
 
     if field(fm, "workflow_type") != "inception": continue
-    v = verdict(body)
+    v = verdict(body, decided=field(fm, "status") == "work-completed")
     if v != "GO": continue
     records.append({
         "id": tid, "file": os.path.basename(path),
