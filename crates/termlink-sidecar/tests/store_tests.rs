@@ -132,6 +132,25 @@ fn store_chain_line_without_record_is_loud_and_not_restored() {
     assert!(matches!(s.put(S, C, "m1", b"p"), Err(StoreError::MissingRecord { .. })));
 }
 
+/// T-3453: a STORED stage receipt from the recipient (peer_ts_ms set) has no
+/// local record by design; restart must not report it missing. A real local
+/// STORED line without its record still must (control in the same chain).
+#[test]
+fn store_peer_stored_receipt_is_not_a_missing_record() {
+    let e = Estate::create_without_hub().unwrap();
+    let root = e.store_root();
+    {
+        let s = Store::open(&root, "agent-b").unwrap();
+        s.append_event_unless(C, "STORED", "sent1", "peer-x", "d", LineExtra { peer_ts_ms: Some(1), ..Default::default() }, |_| false)
+            .unwrap();
+        s.put(S, C, "m1", b"p").unwrap();
+        fs::remove_file(s.dir().join("msgs/conv-1/1-m1.rec")).unwrap();
+    }
+    let s = Store::open(&root, "agent-b").unwrap();
+    assert_eq!(s.recovery().missing, vec![(C.to_string(), 1, "m1".to_string())]);
+    assert!(!s.attention_entries().iter().any(|l| l.contains("sent1")));
+}
+
 /// FC-9: a second sidecar on the same store is refused.
 #[test]
 fn store_second_open_refused_then_allowed_after_drop() {

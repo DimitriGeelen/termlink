@@ -854,7 +854,11 @@ impl Store {
                 }
             }
             for l in &lines {
-                if l.event != "STORED" {
+                // A STORED line carrying peer_ts_ms is a stage receipt from the
+                // recipient about a message we SENT (pull.rs, B7); it never has a
+                // record here. Checking it raised a false alarm on every restart
+                // of a sender (T-3453).
+                if l.event != "STORED" || l.peer_ts_ms.is_some() {
                     continue;
                 }
                 let good = self.rec_path(&conv, l.seq, &l.msg_id);
