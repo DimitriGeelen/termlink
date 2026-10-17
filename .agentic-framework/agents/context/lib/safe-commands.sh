@@ -1318,16 +1318,98 @@ _fw_find_has_action_predicate() {
 # `PATH=/tmp git commit` still fails this match (the strip stops at the denied
 # name, the residue does not look like a commit clause) and is refused. Fails
 # closed, and there is one copy of the denylist rather than two.
+# T-4203: the project's OWN tracked `bin/fw` shim, resolved. A consumer may track
+# a `bin/fw` shim that execs `.agentic-framework/bin/fw` (CLAUDE.md tells the
+# consumer's agent to type `bin/fw`), so that path is its own launcher too. Rule:
+# PROJECT_ROOT/bin/fw counts only when it is a REGULAR FILE and its realpath lies
+# under realpath(PROJECT_ROOT). A symlink escaping the project, a directory, or
+# an unset PROJECT_ROOT prints nothing and admits nothing. The shim's content is
+# not inspected: it is the tracked file the project itself ships.
+_fw_project_shim_real() {
+    [ -n "${PROJECT_ROOT:-}" ] || return 1
+    local _pr _s
+    _pr="$(realpath -e -- "$PROJECT_ROOT" 2>/dev/null)" || return 1
+    _s="$(realpath -e -- "$PROJECT_ROOT/bin/fw" 2>/dev/null)" || return 1
+    [ -f "$_s" ] || return 1
+    case "$_s" in "$_pr"/*) printf '%s' "$_s" ;; *) return 1 ;; esac
+}
+
+# T-4108: does this launcher path resolve to THIS project's own fw?
+_fw_is_own_launcher() {
+    local _l _a _b _c
+    _l="$(realpath -m -- "$1" 2>/dev/null)" || return 1
+    _a="$(realpath -m -- "${FRAMEWORK_ROOT:-/nonexistent}/bin/fw" 2>/dev/null)"
+    _b="$(realpath -m -- "${PROJECT_ROOT:-/nonexistent}/.agentic-framework/bin/fw" 2>/dev/null)"
+    _c="$(_fw_project_shim_real)" || _c=""
+    [ -n "$_l" ] && { [ "$_l" = "$_a" ] || [ "$_l" = "$_b" ] || { [ -n "$_c" ] && [ "$_l" = "$_c" ]; }; }
+}
+
+# T-4108 round 2: can this (already safe-judged) segment change the shell's
+# cwd? Only builtins can; an external program cannot. Unclassifiable → yes.
+_fw_segment_may_change_dir() {
+    local s w
+    s="$(_fw_strip_quoted "$1")" || return 0
+    s="${s#"${s%%[![:space:]]*}"}"
+    _fw_strip_env_prefixes "$s"; s="$_FW_ENV_STRIPPED"
+    w="${s%%[[:space:]]*}"
+    [ -z "$w" ] && return 1
+    [[ "$w" =~ ^[A-Za-z0-9_./+:@%,=-]+$ ]] || return 0
+    case "$w" in
+        cd|pushd|popd|source|.|eval|builtin|command|exec|trap|alias|enable|shopt|function) return 0 ;;
+    esac
+    return 1
+}
+
 _fw_is_git_commit_clause() {
-    local seg
+    local seg _lead _tok
+    local -a _toks=()
     seg="$(_fw_strip_quoted "$1")" || return 1
     seg="${seg#"${seg%%[![:space:]]*}"}"
-    _fw_strip_env_prefixes "$seg"; seg="$_FW_ENV_STRIPPED"
+    # T-4204: judge the prefix BEFORE it is stripped. The stripper below removes
+    # any NAME=VALUE it does not deny, so `PROJECT_ROOT=/x .agentic-framework/bin/fw
+    # git commit` reduced to the bare project launcher and was admitted, while
+    # fw ran with the overridden root. cmd_classify.py refuses the same command.
+    # Only the four documented commit-time bypass prefixes may lead a commit:
+    # they are read by the git hooks and the focus-drift gate, not by fw's root
+    # resolution. `time` (a keyword that changes nothing) is still tolerated.
+    _fw_strip_env_prefixes "$seg"
+    _lead="${seg:0:${#seg}-${#_FW_ENV_STRIPPED}}"
+    read -r -a _toks <<< "$_lead"
+    for _tok in "${_toks[@]}"; do
+        case "$_tok" in
+            time|-p) ;;
+            FW_SWITCH_FOCUS=1|FW_ALLOW_STALE_INDEX=1|FW_ALLOW_MASTER_COMMIT=1|FW_ALLOW_WORKTREE_CORPUS_COMMIT=1) ;;
+            *) return 1 ;;
+        esac
+    done
+    seg="$_FW_ENV_STRIPPED"
     # T-3814 (010 H1): the framework's own documented, secret-scanned spellings
     # are a commit too. The launcher must be exactly `fw`, `[./]bin/fw`,
     # `[./].agentic-framework/bin/fw`, or an absolute path ending in one of the
     # last two — not any binary whose name ends in "fw".
-    [[ "$seg" =~ ^((\./)?(\.agentic-framework/)?bin/fw|fw|/([^[:space:]]+/)?(\.agentic-framework/)?bin/fw)[[:space:]]+git[[:space:]]+commit([[:space:]]|$) ]] && return 0
+    [[ "$seg" =~ ^fw[[:space:]]+git[[:space:]]+commit([[:space:]]|$) ]] && return 0
+    # T-4108 round 2: a RELATIVE launcher runs from the SHELL's cwd, not the
+    # hook's — the Bash tool keeps its cwd across calls, so `cd /tmp/x` in one
+    # call made `bin/fw git commit` in the next run /tmp/x/bin/fw while the
+    # hook resolved the project's own. Resolve it against the payload `cwd`
+    # (the shell's cwd at the call); no absolute payload cwd → refuse. Any
+    # directory change earlier in the SAME command (cd/pushd/popd/source/…,
+    # flagged by is_commit_checkpoint_command) → refuse, even if it would land
+    # on the project: segments are judged one by one, so the cwd at this
+    # segment is unknowable here. No state is carried between calls.
+    if [[ "$seg" =~ ^((\./)?(\.agentic-framework/)?bin/fw)[[:space:]]+git[[:space:]]+commit([[:space:]]|$) ]]; then
+        [ "${_FW_CWD_CHANGED:-0}" = 0 ] || return 1
+        case "${_FW_PAYLOAD_CWD:-}" in /*) ;; *) return 1 ;; esac
+        _fw_is_own_launcher "${_FW_PAYLOAD_CWD}/${BASH_REMATCH[1]}"
+        return
+    fi
+    # T-4108: an ABSOLUTE launcher is admitted only when it resolves to this
+    # project's own fw — a planted /tmp/x/bin/fw would otherwise pass the
+    # wrap-up gates (critical budget included). Independent of cwd.
+    if [[ "$seg" =~ ^(/[^[:space:]]*/bin/fw)[[:space:]]+git[[:space:]]+commit([[:space:]]|$) ]]; then
+        _fw_is_own_launcher "${BASH_REMATCH[1]}"
+        return
+    fi
     [[ "$seg" =~ ^git[[:space:]]+commit([[:space:]]|$) ]]
 }
 
@@ -1462,6 +1544,9 @@ is_task_metadata_update_command() {
 # real `git commit`, and every other clause is independently admissible.
 is_commit_checkpoint_command() {
     local cmd="$1" seg found=0
+    # T-4108 round 2: set once a segment may have changed directory; read by
+    # _fw_is_git_commit_clause (dynamic scope, so it never outlives this call).
+    local _FW_CWD_CHANGED=0
     local -a segs=()
 
     # Command substitution can carry anything and is judged by nothing here.
@@ -1512,6 +1597,7 @@ is_commit_checkpoint_command() {
             continue
         fi
         _fw_single_command_is_safe "$seg" || return 1
+        _fw_segment_may_change_dir "$seg" && _FW_CWD_CHANGED=1
     done
     [ "$found" -eq 1 ]
 }

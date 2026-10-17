@@ -119,6 +119,43 @@ _supervision_notice() {
     fi
 }
 
+# T-4171 (dimitri-mint-dev P-009): warn/urgent were stderr on an exit-0 PreToolUse,
+# which Claude Code shows to neither the model nor the user — the operator's first
+# signal was the hard cut at critical. On the FIRST call of a Claude session in each
+# band, print hook JSON on stdout instead: `systemMessage` is shown to the operator,
+# `additionalContext` reaches the agent. Urgent also sends one fw_notify push.
+# Once per (Claude session, band), recorded in .budget-band-announced, so it is not
+# repeated on every tool call. Wrapped so it can never break the gate.
+_announce_band() {
+    local level="$1" tokens="$2"
+    {
+        local marker="$CONTEXT_DIR/working/.budget-band-announced"
+        local key="${CALLER_SID:--} ${level}"
+        grep -qxF "$key" "$marker" 2>/dev/null && return 0
+        echo "$key" >> "$marker"
+        local pct=$((tokens * 100 / CONTEXT_WINDOW))
+        local left=$(( TOKEN_CRITICAL > tokens ? TOKEN_CRITICAL - tokens : 0 ))
+        local op agent
+        if [ "$level" = "urgent" ]; then
+            op="Context budget URGENT: ~${pct}% of the ${CONTEXT_WINDOW}-token cap. A session restart is coming at 95% (~${left} tokens away). The agent will propose a planned handover at the next natural break."
+            agent="BUDGET URGENT (T-4171): context is at ~${pct}% of the ${CONTEXT_WINDOW}-token cap; the session is cut and restarted at 95% (~${left} tokens away). In your NEXT reply, tell the operator plainly that a restart is coming, and propose a planned handover at the next natural break: finish or commit the current unit, then run '$(_fw_cmd) handover'. Do not start new implementation work."
+        else
+            op="Context budget at ~${pct}% of the ${CONTEXT_WINDOW}-token cap (warn band, 75%). The session will be restarted at 95% (~${left} tokens away)."
+            agent="BUDGET WARN (T-4171): context is at ~${pct}% of the ${CONTEXT_WINDOW}-token cap; the session is restarted at 95% (~${left} tokens away). Mention this to the operator in your next reply, propose only small, bounded work, and commit before starting anything new."
+        fi
+        OP="$op" AGENT="$agent" python3 -c '
+import json, os
+print(json.dumps({"systemMessage": os.environ["OP"],
+                  "hookSpecificOutput": {"hookEventName": "PreToolUse",
+                                         "additionalContext": os.environ["AGENT"]}}))'
+        if [ "$level" = "urgent" ] && [ -f "$FRAMEWORK_ROOT/lib/notify.sh" ]; then
+            # shellcheck source=/dev/null
+            ( source "$FRAMEWORK_ROOT/lib/notify.sh" && \
+              fw_notify "Context budget urgent (~${pct}%)" "$op" "manual" "framework" ) >/dev/null 2>&1 </dev/null
+        fi
+    } 2>/dev/null || true
+}
+
 # T-4005: when the python3 call below yields nothing usable (python3 died, or
 # crashed before printing), the gate used to fall through to exit 0 even with a
 # cached level of critical. This runs without python: it reads the cached level
@@ -182,12 +219,12 @@ _budget_parser_dead_gate() {
 # the reader-facing messages say so (T-3204) — "~95% of context window" read as a
 # hard limit approaching, when it is a policy dial at its configured value, and the
 # two license opposite actions.
-CONTEXT_WINDOW=$(fw_config_int "CONTEXT_WINDOW" 300000)
+CONTEXT_WINDOW=$(fw_config_int "CONTEXT_WINDOW" 800000)
 
 # Token thresholds (autoCompact disabled — D-027)
-TOKEN_WARN=$((CONTEXT_WINDOW * 75 / 100))        # ~75% (225K at 300K)
-TOKEN_URGENT=$((CONTEXT_WINDOW * 85 / 100))      # ~85% (255K at 300K)
-TOKEN_CRITICAL=$((CONTEXT_WINDOW * 95 / 100))    # ~95% (285K at 300K)
+TOKEN_WARN=$((CONTEXT_WINDOW * 75 / 100))        # ~75% (600K at 800K)
+TOKEN_URGENT=$((CONTEXT_WINDOW * 85 / 100))      # ~85% (680K at 800K)
+TOKEN_CRITICAL=$((CONTEXT_WINDOW * 95 / 100))    # ~95% (760K at 800K)
 
 # How often to re-read the transcript (every Nth tool call)
 RECHECK_INTERVAL=$(fw_config_int "BUDGET_RECHECK_INTERVAL" 5)
@@ -286,7 +323,8 @@ _classifier = 'full'
 try:
     sys.path.insert(0, '$FRAMEWORK_ROOT/lib')
     from cmd_classify import classify as _classify
-    is_allowed_cmd, _reason = _classify(command)
+    _pcwd = data.get('cwd', '')
+    is_allowed_cmd, _reason = _classify(command, cwd=_pcwd if isinstance(_pcwd, str) else '', framework_root='$FRAMEWORK_ROOT', project_root='$PROJECT_ROOT')
 except Exception as _e:
     # Degraded: minimal anchored allowlist so a broken import can never deadlock
     # a session that is trying to wrap up (one gate prescribing what another
@@ -382,12 +420,14 @@ if [ "$CACHE_OWNER" != "foreign" ] && [ "${STATUS_AGE}" -lt "$STATUS_MAX_AGE" ];
         warn)
             echo "Note: Context at ~${STATUS_TOKENS} tokens (~$((STATUS_TOKENS * 100 / CONTEXT_WINDOW))% of the ${CONTEXT_WINDOW}-token budget cap). Commit before starting new work. (docs/context-compaction.md)" >&2
             _supervision_notice
+            _announce_band warn "$STATUS_TOKENS"   # T-4171
             exit 0
             ;;
         urgent)
             echo "WARNING: Context at ~${STATUS_TOKENS} tokens (~$((STATUS_TOKENS * 100 / CONTEXT_WINDOW))% of the ${CONTEXT_WINDOW}-token budget cap). Do not start new work. Commit and handover." >&2
             echo "  Details: docs/context-compaction.md (budget ladder, what to do at each level)" >&2
             _supervision_notice
+            _announce_band urgent "$STATUS_TOKENS"   # T-4171
             exit 0
             ;;
         critical)
@@ -591,12 +631,14 @@ case "$LEVEL" in
     warn)
         echo "Note: Context at ${TOKENS} tokens (~$((TOKENS * 100 / CONTEXT_WINDOW))% of the ${CONTEXT_WINDOW}-token budget cap). Commit before starting new work. (docs/context-compaction.md)" >&2
         _supervision_notice
+        _announce_band warn "$TOKENS"   # T-4171
         exit 0
         ;;
     urgent)
         echo "WARNING: Context at ${TOKENS} tokens (~$((TOKENS * 100 / CONTEXT_WINDOW))% of the ${CONTEXT_WINDOW}-token budget cap). Do not start new work. Commit and handover." >&2
         echo "  Details: docs/context-compaction.md (budget ladder, what to do at each level)" >&2
         _supervision_notice
+        _announce_band urgent "$TOKENS"   # T-4171
         exit 0
         ;;
     critical)

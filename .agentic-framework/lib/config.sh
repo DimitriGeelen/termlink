@@ -5,7 +5,7 @@
 #
 # Usage:
 #   source "$FRAMEWORK_ROOT/lib/config.sh"
-#   CONTEXT_WINDOW=$(fw_config "CONTEXT_WINDOW" 300000)
+#   CONTEXT_WINDOW=$(fw_config "CONTEXT_WINDOW" 800000)
 #   DISPATCH_LIMIT=$(fw_config_int "DISPATCH_LIMIT" 0)
 #
 # Origin: T-817 inception (traceAI pattern adoption), T-819 build
@@ -211,8 +211,9 @@ fw_consumer_yamls() {
 # Known settings registry — used by fw doctor and Watchtower /config
 # Format: KEY|DEFAULT|DESCRIPTION
 FW_CONFIG_REGISTRY=(
-    "CONTEXT_WINDOW|300000|Context window size for budget enforcement (tokens)"
+    "CONTEXT_WINDOW|800000|Context window size for budget enforcement (tokens)"
     "PORT|3000|Watchtower web UI listen port"
+    "UX_SHOT_WIDTHS|1024,1440,1920|Comma-separated viewport widths for fw ux shots (agents/ux-review/ux_shots.py). T-4202: a render-surface state is screenshotted at every width here; at least 3 entries, each 320-7680, no duplicates, validated at capture. Read by the check-visual-verification gate's width minimum. T-4212."
     "HOST|0.0.0.0|Watchtower bind address (env FW_HOST, read by web/config.py). A specific address makes the shell side probe and advertise that address instead of localhost; 0.0.0.0 or :: means all interfaces (T-4041, GitHub #88)"
     "PORT_SCAN_BASE|3000|First port tried when a project has no PORT set: fw serve scans 100 ports up from here, skips any held by another service, and records the chosen port as PORT in .framework.yaml (T-3662)"
     "CAPTURE_QUERY_TEXT|0|Keep the rendered prompt of a user query (fw ask) on disk in the dispatch blob. Default 0: the dispatch row keeps only prompt_sha256 and prompt_chars, so the typed query is not stored (arc-001 F-9, T-4061). Set 1 to opt in for debugging."
@@ -267,6 +268,7 @@ FW_CONFIG_REGISTRY=(
     # reaches nothing — which is the state 832 measured (0 of 342) and asked us
     # to make visible.
     "SIDECAR_CONSULT_WARN_HOURS|4|Hours an inbound peer consult may sit unread on the sidecar inbox before fw audit and fw doctor WARN (agents/audit/audit.sh, bin/fw doctor, lib/sidecar-audit.sh:fw_sidecar_inbox_stale_facts). Deliberately far below the sibling dm:* rail's 24: a dm: rail carries incidental posts, a consult is a PEER BLOCKED ON AN ANSWER. Origin T-3544/OBS-567 — 832-Workflow-designer waited six days and 010-termlink found 49 of ours unread on their own inbox. Raise it if the WARN nags; do not raise it to silence a real backlog."
+    "SIDECAR_HELD_WARN_HOURS|24|Hours peer mail may sit in the receiver store, never shown to any session, before fw audit and fw doctor WARN (lib/sidecar-audit.sh:fw_sidecar_held_unsurfaced_facts, lib/sidecar/inject.py:held_unsurfaced). T-4207: with injection off (receiver --no-inject) the prompt hook is the only delivery path, and 050-email-archive held 58 messages for 51 h with no WARN. Raise it only if a deliberately parked inbox nags."
     "SIDECAR_TICK|30|Seconds between ticks of the always-on sidecar watcher (lib/sidecar/watcher.py): each tick drains the agent's hub inbox topic(s) into the receiver, injects waiting peer messages (urgent at once, the rest only into a session whose own Stop hook reported it ready), escalates our own unconfirmed sends past their deadline, runs the loopback self-probe and writes .context/sidecar/liveness.yaml. Not live = no tick for 2 ticks. Values < 1 fall back to 30. T-3684/T-3685 (T-3397 design of record; operator 2026-10-02: 30 s)."
     "DELEGATION_SURFACE_WARN|50|Operator-only open-Human-criteria count above which fw audit and fw doctor WARN, but only while reviewer-closeable is 0 (agents/audit/audit.sh, lib/delegation.py:surface_verdict). T-3445 / D-626."
     "GITIGNORE_REGISTER_ADVISORY|1|Enable the audit WARN for .gitignore comment blocks that defer work without naming a T-/G-/OBS-/L- entry; 0 silences it (agents/audit/audit.sh, lib/gitignore-register.sh). T-2994."

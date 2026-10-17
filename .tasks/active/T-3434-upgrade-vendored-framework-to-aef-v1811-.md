@@ -2,12 +2,15 @@
 id: T-3434
 name: "Upgrade vendored framework to AEF v1.8.11 (G-114 decision-revert fix)"
 description: >
-  AEF v1.8.10 fixed G-114 (Watchtower decisions silently reverted by the next ordinary commit); v1.8.11 adds the one-time index reconcile (T-4166). Our vendored copy is 1.8.9+227. Upgrade via runme action after the .vendor-divergence.yaml pre-re-vendor checklist.
+  AEF v1.8.10 fixed G-114 (Watchtower decisions silently reverted by the next ordinary
+  commit); v1.8.11 adds the one-time index reconcile (T-4166). Our vendored copy is
+  1.8.9+227. Upgrade via runme action after the .vendor-divergence.yaml pre-re-vendor
+  checklist.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [framework, vendor]
 components: []
 related_tasks: []
@@ -38,8 +41,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-13T16:48:12Z
-last_update: 2026-10-13T16:49:10Z
-date_finished: null
+last_update: 2026-10-17T13:07:24Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +53,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-17T12:55:16Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3434: Upgrade vendored framework to AEF v1.8.11 (G-114 decision-revert fix)
@@ -62,10 +79,10 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Wait for AEF v1.8.11 (carries the T-4166 one-time index reconcile); if it has not shipped when this is picked up, upgrade to v1.8.10 instead and record why
+- [ ] Target per the 2026-10-17 operator ruling (A): AEF bleeding-edge `5c886336b` (v1.8.11 not tagged; v1.8.10 is a 5-commit hotfix on 1.8.9 lacking 227 commits we already run, so the old fallback would be a downgrade)
 - [ ] Pre-re-vendor checklist from `.vendor-divergence.yaml` run first: `CLAUDE.md` backed up to `CLAUDE.md.prevendor`, `bash scripts/check-vendor-divergence.sh` exit 0 (every local divergence registered)
-- [ ] Upgrade shipped as a `runme.sh` action (idempotent, verifies itself on disk); `latest.log` read and shows `rc=0`
-- [ ] After the upgrade: `.agentic-framework/VERSION` reports >= 1.8.10, `diff CLAUDE.md.prevendor CLAUDE.md` reviewed and project text above `## Core Principle` intact, `last_vendor_event` updated in `.vendor-divergence.yaml`, Watchtower restarted
+- [ ] Rehearsed on a throwaway copy first, then run in place from a full upstream clone at the target, as T-3420 did (an agent operation, not an operator command); `fw doctor` reports no new failure afterwards
+- [ ] After the upgrade: `.agentic-framework/VERSION` is newer than `1.8.9+227.ged683536a`, `diff CLAUDE.md.prevendor CLAUDE.md` reviewed and project text above `## Core Principle` intact, `last_vendor_event` updated in `.vendor-divergence.yaml`, Watchtower restarted
 - [ ] Decision-revert check rerun after the upgrade: `python3 .agentic-framework/lib/watchtower_decision_revert.py` reports 0 reverted (baseline before upgrade, 2026-10-13: 0 reverted, index had nothing staged under .tasks/.context/episodic)
 
 ### Human
@@ -329,6 +346,12 @@ python3 .agentic-framework/lib/watchtower_decision_revert.py > /tmp/.t3434 2>&1 
 
 ## Decisions
 
+### 2026-10-17 — Upgrade target: bleeding-edge 5c886336b, not v1.8.10 (operator ruling)
+- **Chose:** A — re-vendor to AEF `origin/bleeding-edge` at `5c886336b` (2026-10-17), continuing the T-3420 field-test line. Operator: "proceed as you see fit", read as the recommended A.
+- **Why:** measured 2026-10-17 on a metadata-only upstream clone: v1.8.11 is not tagged; `v1.8.10` (704c9988f) is 1.8.9 plus 5 hotfix commits and lacks 227 commits of our vendored `ed683536a`, so the task's fallback was a downgrade. Bleeding-edge contains all of ours plus 294 commits, including c1bc3f015 (T-4205 test leak, T-4207 no-inject mail surfaces, T-4208 one receiver per agent), which reach our own sidecar receiver only through the vendored copy. Scored A +21, B −7, C −28.
+- **Rejected:** B wait for the v1.8.11 tag (keeps known receiver bugs meanwhile for roughly the same code later); C v1.8.10 (drops 227 commits we run).
+- **Left open:** moving to the v1.8.11 tag once AEF cuts it.
+
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
      Format:
@@ -354,3 +377,7 @@ python3 .agentic-framework/lib/watchtower_decision_revert.py > /tmp/.t3434 2>&1 
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3434-upgrade-vendored-framework-to-aef-v1811-.md
 - **Context:** Initial task creation
+
+### 2026-10-17T12:55:15Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

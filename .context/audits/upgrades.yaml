@@ -324,3 +324,19 @@ upgrades:
     from_version: "1.8.3"
     to_version: "1.8.5"
     framework_root: "/tmp/claude-0/-opt-termlink/e817a600-b7cc-4402-a9cf-c959eb30f655/scratchpad/aef-full"
+  - timestamp: 2026-10-10T18:03:53Z
+    from_version: "1.8.5"
+    to_version: "1.8.8"
+    framework_root: "/tmp/claude-0/-opt-termlink/e817a600-b7cc-4402-a9cf-c959eb30f655/scratchpad/t3389/aef-v1.8.8"
+  - timestamp: 2026-10-11T09:56:10Z
+    from_version: "1.8.8"
+    to_version: "1.8.9"
+    framework_root: "/tmp/claude-0/-opt-termlink/e817a600-b7cc-4402-a9cf-c959eb30f655/scratchpad/t3389/aef-v1.8.8"
+  - timestamp: 2026-10-12T12:07:33Z
+    from_version: "1.8.9"
+    to_version: "1.8.9+227.ged683536a"
+    framework_root: "/tmp/claude-0/-opt-termlink/10c2f139-7c28-4c84-b41d-df672cbe37c4/scratchpad/t3420/aef"
+  - timestamp: 2026-10-17T13:02:07Z
+    from_version: "1.8.9+227.ged683536a"
+    to_version: "1.8.10+516.g5c886336b"
+    framework_root: "/tmp/claude-0/-opt-termlink/10c2f139-7c28-4c84-b41d-df672cbe37c4/scratchpad/aef"

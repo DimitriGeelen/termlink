@@ -300,10 +300,14 @@ fi
 SECTIONS=""       # Comma-separated section names (empty = all)
 OUTPUT_DIR=""     # Custom output directory (empty = default AUDITS_DIR)
 QUIET=false       # Suppress terminal output
+CHECK_IDS=""      # T-4209: comma-separated check ids (empty = not a single-check run)
+LIST_CHECKS=false # T-4209: print the check ids and exit
 
 while [[ $# -gt 0 ]]; do
     case $1 in
         --section|--sections) SECTIONS="$2"; shift 2 ;;
+        --check) CHECK_IDS="${2:-}"; shift $(( $# > 1 ? 2 : 1 )) ;;
+        --list-checks) LIST_CHECKS=true; shift ;;
         --output) OUTPUT_DIR="$2"; shift 2 ;;
         --quiet) QUIET=true; shift ;;
         --cron) OUTPUT_DIR="$CONTEXT_DIR/audits/cron"; QUIET=true; shift ;;
@@ -312,6 +316,8 @@ while [[ $# -gt 0 ]]; do
             echo ""
             echo "Options:"
             echo "  --section NAMES   Comma-separated sections to run (default: all)"
+            echo "  --check IDS       Run only these checks (comma-separated ids; see --list-checks)"
+            echo "  --list-checks     Print the available check ids and their section"
             echo "  --output DIR      Write YAML report to custom directory"
             echo "  --quiet           Suppress terminal output (for cron)"
             echo "  --cron            Shorthand for --output .context/audits/cron --quiet"
@@ -330,6 +336,39 @@ while [[ $# -gt 0 ]]; do
         *) shift ;;
     esac
 done
+
+# --- Single-check selector (T-4209) ---
+# A check is a top-level `check_<name>() {` function in this file; its id is the
+# name with `check_` stripped and `_` shown as `-`. The section is the last
+# `if should_run_section "<x>"` above it. Enumerating from the file itself means
+# there is no id table to drift: a new check_* function is selectable on arrival.
+# Logic that is still an inline block of a section is not selectable until it is
+# lifted into a function (check_fabric_coverage was the first).
+_audit_enumerate_checks() {
+    awk '
+        /^if should_run_section "[a-z0-9-]+"/ { match($0, /"[a-z0-9-]+"/); sec = substr($0, RSTART+1, RLENGTH-2) }
+        /^check_[a-z0-9_]+\(\) \{/ { n = $1; sub(/\(\).*/, "", n); sub(/^check_/, "", n); gsub(/_/, "-", n); print n "  " (sec == "" ? "-" : sec) }
+    ' "${BASH_SOURCE[0]}"
+}
+
+if [ "$LIST_CHECKS" = true ]; then
+    _audit_enumerate_checks
+    exit 0
+fi
+
+# Define the top-level functions of this file without running any section (they
+# sit inside the structure block, which a single-check run skips). Errors are
+# silenced here; the requested check's function is re-evaluated loudly by the caller.
+_audit_load_functions() {
+    local _blk
+    while IFS= read -r -d $'\f' _blk; do
+        eval "$_blk" 2>/dev/null || true
+    done < <(awk '
+        /^[A-Za-z_][A-Za-z0-9_]*\(\) \{/ { infn = 1 }
+        infn { print }
+        infn && /^\}$/ { infn = 0; printf "\f" }
+    ' "${BASH_SOURCE[0]}")
+}
 
 # T-1162/T-866/T-1464: flock guard + timeout — prevent zombie accumulation in cron AND
 # foreground races. Cron-mode (QUIET=true) stays silent on collision; foreground prints
@@ -563,7 +602,13 @@ _audit_record_section_run() {
 # holder dies, whatever the file's age. The mtime-based stale sweep and the
 # rm-on-exit both live only in the fallback arm below, where unlink IS the
 # release mechanism.
-if command -v flock >/dev/null 2>&1; then
+if [ -n "$CHECK_IDS" ]; then
+    # T-4209: a single-check run is a read-only probe. It takes no lock, so it
+    # neither waits for nor blocks a running full audit; and it starts no
+    # watchdog or section ledger, because it runs no section. It also writes
+    # neither the dated audit YAML nor history (see the dispatch after the header).
+    :
+elif command -v flock >/dev/null 2>&1; then
     exec 200>"$AUDIT_LOCK_FILE"
     if ! flock -n 200; then
         # Another audit is running. Cron mode (QUIET=true) stays silent; foreground
@@ -895,6 +940,52 @@ echo "Timestamp: $(date -Iseconds)"
 echo "Project: $PROJECT_ROOT"
 [ -n "$SECTIONS" ] && echo "Sections: $SECTIONS"
 echo ""
+
+# T-4209: single-check run. Validate the ids, run exactly those check functions,
+# print the same SUMMARY / AUDIT-SCOPE lines and use the normal exit codes, then
+# stop: no section runs, and no dated YAML, history or notification is written.
+if [ -n "$CHECK_IDS" ]; then
+    _valid_ids=$(_audit_enumerate_checks | awk '{print $1}')
+    _bad_ids=""
+    _run_fns=()
+    IFS=',' read -r -a _req_ids <<< "$CHECK_IDS"
+    for _id in "${_req_ids[@]}"; do
+        _id="${_id//_/-}"
+        [ -z "$_id" ] && continue
+        if echo "$_valid_ids" | grep -qx -- "$_id"; then
+            _run_fns+=("check_${_id//-/_}")
+        else
+            _bad_ids="$_bad_ids $_id"
+        fi
+    done
+    if [ -n "$_bad_ids" ] || [ ${#_run_fns[@]} -eq 0 ]; then
+        echo "Unknown audit check id(s):${_bad_ids:- (none given)}" >&2
+        echo "Valid ids (fw audit --list-checks):" >&2
+        echo "$_valid_ids" | sed 's/^/  /' >&2
+        exit 2
+    fi
+    _audit_load_functions
+    echo "Checks: ${_req_ids[*]}"
+    echo ""
+    for _fn in "${_run_fns[@]}"; do
+        if ! declare -F "$_fn" >/dev/null 2>&1; then
+            fail "Check function $_fn could not be loaded" \
+                 "audit.sh defines it but extracting it from the script failed" \
+                 "Run: bash -n $(basename "${BASH_SOURCE[0]}") and re-run"
+            continue
+        fi
+        "$_fn"
+    done
+    echo ""
+    echo "=== SUMMARY ==="
+    echo -e "${GREEN}Pass:${NC} $PASS_COUNT"
+    echo -e "${YELLOW}Warn:${NC} $WARN_COUNT"
+    echo -e "${RED}Fail:${NC} $FAIL_COUNT"
+    echo ""
+    echo "AUDIT-SCOPE: fails=$FAIL_COUNT ref=$FAIL_REF_COUNT worktree=$FAIL_WORKTREE_COUNT"
+    echo "=== END AUDIT ==="
+    if [ $FAIL_COUNT -gt 0 ]; then exit 2; elif [ $WARN_COUNT -gt 0 ]; then exit 1; else exit 0; fi
+fi
 
 # --- Task File Scans (T-955) ---
 # Single-pass Python scans replace 8 separate bash loops over task files.
@@ -2516,6 +2607,10 @@ fi
 # end GO-scope-not-propagated scan (T-3099)
 
 # Fabric drift detection (T-212 — component topology integrity)
+# T-4209: lifted into a function so `fw audit --check fabric-coverage` can run it
+# alone; a full/structure run calls it at the end of this block, same position,
+# so its output is unchanged.
+check_fabric_coverage() {
 if [ -d "$PROJECT_ROOT/.fabric/components" ]; then
     fabric_cards=$(find "$PROJECT_ROOT/.fabric/components/" -maxdepth 1 -name '*.yaml' -type f 2>/dev/null | wc -l)
     if [ "$fabric_cards" -gt 0 ]; then
@@ -2718,6 +2813,8 @@ DRIFTEOF
              "Widen .fabric/watch-patterns.yaml, or remove the cards if they are not components"
     fi
 fi
+}
+check_fabric_coverage
 
 # T-1771 (T-1768 GO follow-up): cron drift check.
 # Mirrors `bin/fw doctor` cron-drift logic so the registry → generated →
@@ -2899,6 +2996,23 @@ if [ -f "$FRAMEWORK_ROOT/lib/watchtower_decision_revert.py" ]; then
     fi
 fi
 
+# T-4166 / G-114: staged index entries that would revert committed decisions on the next commit.
+if [ -f "$FRAMEWORK_ROOT/lib/index_reconcile.py" ]; then
+    _ir_out=$(python3 -I "$FRAMEWORK_ROOT/lib/index_reconcile.py" --repo "$PROJECT_ROOT" 2>&1)
+    _ir_rc=$?
+    if [ "$_ir_rc" -eq 0 ]; then
+        pass "Index reconcile: no armed stale index entries"
+    elif [ "$_ir_rc" -eq 2 ]; then
+        warn "Armed stale index entries (G-114): $(echo "$_ir_out" | tail -1)" \
+             "$(echo "$_ir_out" | grep '^ARMED' | awk '{print $3}' | head -20 | tr '\n' ' ')" \
+             "Fix (index only, worktree untouched): bin/fw git reconcile-index --apply"
+    else
+        warn "Index reconcile: detector could not run (rc=$_ir_rc)" \
+             "$(echo "$_ir_out" | tail -2 | tr '\n' ';')" \
+             "Run: bin/fw git reconcile-index"
+    fi
+fi
+
 # T-3580 round 7: every spend-ceiling step-down (a review run registered one rung below what IW-7
 # requires) is a WARN — the lever must be visible even when it was exercised legitimately.
 _audit_review_step_downs() {
@@ -2930,11 +3044,17 @@ if ! fw_is_linked_worktree "$PROJECT_ROOT" && [ -f "$_wt_cur_pid_f" ] \
     if [ -n "$_wt_cur_pid" ] && kill -0 "$_wt_cur_pid" 2>/dev/null; then
         # shellcheck source=/dev/null
         . "$FRAMEWORK_ROOT/lib/watchtower-staleness.sh"
-        if _wt_cur_list=$(watchtower_stale_sources "$_wt_cur_pid" "$PROJECT_ROOT/web"); then
+        _wt_cur_rc=0
+        _wt_cur_list=$(watchtower_stale_sources "$_wt_cur_pid" "$(watchtower_web_dir)") || _wt_cur_rc=$?
+        if [ "$_wt_cur_rc" -eq 0 ]; then
             _wt_cur_n=$(printf '%s\n' "$_wt_cur_list" | grep -c .)
             _wt_cur_sample=$(printf '%s\n' "$_wt_cur_list" | head -3 | while IFS= read -r _f; do basename "$_f"; done | tr '\n' ' ')
             warn "Watchtower serving stale code: pid $_wt_cur_pid predates $_wt_cur_n file(s) under web/" \
                  "${_wt_cur_sample}— every web/ change since the process started is inert, including operator review/decision surfaces (G-104)" \
+                 "Run: bin/fw watchtower restart"
+        elif [ "$_wt_cur_rc" -eq 2 ]; then
+            warn "Watchtower currency cannot be determined: pid $_wt_cur_pid is running but $(watchtower_web_dir) is missing" \
+                 "a missing web tree is not evidence of currency (T-4132)" \
                  "Run: bin/fw watchtower restart"
         else
             pass "Watchtower currency: running pid $_wt_cur_pid is newer than every file under web/"
@@ -4142,6 +4262,33 @@ check_sidecar_watcher() {
     esac
 }
 check_sidecar_watcher
+
+# T-4207 (arc-011 sidecar): peer mail held past SIDECAR_HELD_WARN_HOURS that no
+# session was ever shown. Fact: lib/sidecar-audit.sh:fw_sidecar_held_unsurfaced_facts.
+# Silent when the receiver never ran here (rc 1). rc 2 is "the check could not run".
+check_sidecar_held_unsurfaced() {
+    [ -f "$FRAMEWORK_ROOT/lib/sidecar-audit.sh" ] || return 0
+    # shellcheck source=/dev/null
+    source "$FRAMEWORK_ROOT/lib/sidecar-audit.sh"
+    local _hu _hu_rc _hu_n
+    _hu=$(fw_sidecar_held_unsurfaced_facts "$PROJECT_ROOT" "$(fw_config SIDECAR_HELD_WARN_HOURS)"); _hu_rc=$?
+    case "$_hu_rc" in
+        1) return 0 ;;
+        2) warn "Held-mail check could not run" \
+               "fw sidecar held-unsurfaced --json produced no readable output" \
+               "Run: bin/fw sidecar held-unsurfaced --json — an unreadable check is the same silent-failure shape as an unreadable ledger (T-4207)" ;;
+        *)
+            _hu_n=$(printf '%s\n' "$_hu" | grep -c .)
+            if [ "$_hu_n" -gt 0 ] 2>/dev/null; then
+                warn "$_hu_n peer message(s) held past $(fw_config SIDECAR_HELD_WARN_HOURS)h, never shown to any session" \
+                     "$(printf '%s' "$_hu" | head -3 | tr '\n' ';')" \
+                     "Nothing is delivering them (injection off or no interactive session). Run: bin/fw sidecar held-unsurfaced --json (T-4207)"
+            else
+                pass "No peer mail held unsurfaced past $(fw_config SIDECAR_HELD_WARN_HOURS)h"
+            fi ;;
+    esac
+}
+check_sidecar_held_unsurfaced
 
 # T-3428 (OBS-463 leg 3, arc-006). A value driver that the estimator cannot
 # score is only a NAME. T-3427 stopped it distorting the ranking (an unscorable

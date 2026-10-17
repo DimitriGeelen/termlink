@@ -309,15 +309,28 @@ if [ -n "${PROJECT_ROOT:-}" ] && [ -n "${_FW_PATHS_DERIVED_BY:-}" ]; then
     _t3285_pr=$(cd "$PROJECT_ROOT" 2>/dev/null && pwd -P) || _t3285_pr="$PROJECT_ROOT"
     _t3285_der=$(cd "$_FW_PATHS_DERIVED_BY" 2>/dev/null && pwd -P) || _t3285_der="$_FW_PATHS_DERIVED_BY"
     if [ "$_t3285_pr" = "$_t3285_der" ]; then
+        # T-4218: the caller's own project is the cwd's project, else a valid CLAUDE_PROJECT_DIR
+        # (a Claude Code hook whose cwd is in no project, e.g. $HOME or a worker's /tmp). The cwd
+        # wins when it is a real project, as T-2446 ranks them. A non-project cwd with no
+        # CLAUDE_PROJECT_DIR keeps the leaked root (the T-3285 contract, unchanged).
         _t3285_cwd_root=$(find_project_root) || _t3285_cwd_root=""
+        _t3285_auth=""
         if [ -n "$_t3285_cwd_root" ] && ! _project_root_is_stale "$_t3285_cwd_root"; then
-            _t3285_cwd_canon=$(cd "$_t3285_cwd_root" 2>/dev/null && pwd -P) || _t3285_cwd_canon="$_t3285_cwd_root"
-            if [ "$_t3285_cwd_canon" != "$_t3285_pr" ]; then
-                PROJECT_ROOT="$_t3285_cwd_root"
+            _t3285_auth="$_t3285_cwd_root"
+        elif [ -n "${CLAUDE_PROJECT_DIR:-}" ] && \
+             { [ -f "$CLAUDE_PROJECT_DIR/.framework.yaml" ] || [ -d "$CLAUDE_PROJECT_DIR/.tasks" ]; }; then
+            _t3285_auth="$CLAUDE_PROJECT_DIR"
+        fi
+        if [ -n "$_t3285_auth" ]; then
+            _t3285_auth_canon=$(cd "$_t3285_auth" 2>/dev/null && pwd -P) || _t3285_auth_canon="$_t3285_auth"
+            if [ "$_t3285_auth_canon" != "$_t3285_pr" ]; then
+                # Loud, not silent (Reliability): the leaked value is named, and so is its replacement.
+                echo "fw: inherited PROJECT_ROOT=$PROJECT_ROOT is another project's (fw-leaked: _FW_PATHS_DERIVED_BY=$_FW_PATHS_DERIVED_BY); using $_t3285_auth_canon. Set PROJECT_ROOT on the command line to override." >&2
+                PROJECT_ROOT="$_t3285_auth_canon"
                 unset TASKS_DIR CONTEXT_DIR _FW_PATHS_DERIVED_BY
             fi
         fi
-        unset _t3285_cwd_root _t3285_cwd_canon
+        unset _t3285_cwd_root _t3285_auth _t3285_auth_canon
     fi
     unset _t3285_pr _t3285_der
 fi
@@ -1377,6 +1390,7 @@ show_help() {
     echo -e "  ${GREEN}note${NC} [text]          Lightweight observation capture"
     echo -e "  ${GREEN}notify${NC} <cmd>          Push notifications (setup, test, enable, disable, status)"
     echo -e "  ${GREEN}runme${NC} <cmd>           Operator handoff as one logged script line (new, watch, path)"
+    echo -e "  ${GREEN}operator${NC} pending      Live list of what waits on the operator (decided items never listed)"
     echo -e "  ${GREEN}cron${NC} <cmd>            Cron registry management (generate, status)"
     echo -e "  ${GREEN}peer${NC} <cmd>            v2 peer-consult (subscribe to TermLink inbox.queued + spawn responders)"
     echo -e "  ${GREEN}sidecar${NC} <cmd>         Peer-consult sidecar: whoami, send, inbox, status, sweep, e2e (live end-to-end check)"
@@ -1441,6 +1455,7 @@ show_help() {
     echo -e "  ${GREEN}bpmn${NC} <cmd>           Compile a BPMN diagram into AEF task skeletons"
     echo -e "  ${GREEN}corpus${NC} <cmd>         Spec-driven corpus authoring (derive, generate, canon, diff, prove, lint, explain)"
     echo -e "  ${GREEN}index${NC} <cmd>          Vector index maintenance (reindex — incremental, cron-driven)"
+    echo -e "  ${GREEN}estate${NC} <cmd>         Estate knowledge store (push — stage local index chunks, dry run unless --apply)"
     echo ""
     echo -e "${BOLD}Setup:${NC}"
     echo -e "  ${GREEN}init${NC} [dir]           Bootstrap a new project (auto-detects interactive mode)"
@@ -1473,6 +1488,7 @@ show_help() {
     echo -e "${BOLD}Utility:${NC}"
     echo -e "  ${GREEN}plugin-audit${NC}          Audit plugins for task-system awareness"
     echo -e "  ${GREEN}ux-review${NC} <url>       Browser-driving UX review of an interactive render surface"
+    echo -e "  ${GREEN}ux shots${NC} <T-ID> <state=URL>...  Screenshot each state at every UX_SHOT_WIDTHS width into .context/visual/ (T-4212)"
     echo -e "  ${GREEN}review${NC} cost|propose|approve|backend  Review/dispatch cost ledger and paid-backend approvals (T-3583, T-3586)"
     echo -e "  ${GREEN}gpu${NC} <cmd>             GPU coordination (recover)"
     echo -e "  ${GREEN}whoami${NC} ${CYAN}[--register]${NC} Which project this is (id, name, root) and which instance you are"
@@ -2952,13 +2968,18 @@ PY
                 if [ -f "$FRAMEWORK_ROOT/lib/watchtower-staleness.sh" ]; then
                     # shellcheck source=/dev/null
                     . "$FRAMEWORK_ROOT/lib/watchtower-staleness.sh"
-                    local _wt_stale _wt_stale_n
-                    if _wt_stale=$(watchtower_stale_sources "$_wt_pid" "$PROJECT_ROOT/web"); then
+                    local _wt_stale _wt_stale_n _wt_web _wt_rc=0
+                    _wt_web=$(watchtower_web_dir)
+                    _wt_stale=$(watchtower_stale_sources "$_wt_pid" "$_wt_web") || _wt_rc=$?
+                    if [ "$_wt_rc" -eq 0 ]; then
                         _wt_stale_n=$(printf '%s\n' "$_wt_stale" | grep -c .)
                         echo -e "  ${YELLOW}WARN${NC}  Watchtower process predates its own source ($_wt_stale_n file(s) newer than pid $_wt_pid)"
                         printf '%s\n' "$_wt_stale" | head -3 | sed 's|^|         - |'
                         echo -e "         Every web/ change since it started is inert, including any awaiting [REVIEW]."
                         echo -e "         Run: bin/fw watchtower restart"
+                        warnings=$((warnings + 1))
+                    elif [ "$_wt_rc" -eq 2 ]; then
+                        echo -e "  ${YELLOW}WARN${NC}  Watchtower currency cannot be determined ($_wt_web missing while pid $_wt_pid runs)"
                         warnings=$((warnings + 1))
                     fi
                 fi
@@ -3522,6 +3543,20 @@ else:
         warnings=$((warnings + 1))
     fi
 
+    # T-4166 / G-114: armed stale index entries (an old committed version of a task/episodic
+    # staged in the real index would be written back by the next ordinary commit).
+    if [ -f "$FRAMEWORK_ROOT/lib/index_reconcile.py" ] && git -C "$PROJECT_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
+        _ir_out=$(python3 -I "$FRAMEWORK_ROOT/lib/index_reconcile.py" --repo "$PROJECT_ROOT" 2>&1) && _ir_rc=0 || _ir_rc=$?  # T-4200: set -e
+        if [ "$_ir_rc" -eq 2 ]; then
+            echo -e "  ${YELLOW}WARN${NC}  Armed stale index entries (G-114): $(echo "$_ir_out" | tail -1)"
+            echo "$_ir_out" | grep '^ARMED' | head -10 | sed 's/^/         /'
+            echo -e "         Fix (index only, worktree untouched): bin/fw git reconcile-index --apply"
+            warnings=$((warnings + 1))
+        elif [ "$_ir_rc" -eq 0 ]; then
+            echo -e "  ${GREEN}OK${NC}  No armed stale index entries"
+        fi
+    fi
+
     _doctor_phase "Watchtower smoke test"  # T-3452
     # Check: Watchtower smoke test (T-486) — run if server is reachable
     # Use _watchtower_url for port detection (T-1154: no hardcoded 3000)
@@ -3712,6 +3747,36 @@ sys.exit(0 if '$_tl_topic' in names else 1)
                     echo "         A peer is waiting. Run: fw sidecar inbox --peek to read without draining, then fw sidecar inbox to drain"
                     warnings=$((warnings + 1))
                 done <<< "$_ib_rows"
+            fi
+            # T-4207: peer mail held past SIDECAR_HELD_WARN_HOURS that no session
+            # was ever shown. With injection off the prompt hook is the only
+            # delivery path; nothing else would notice the backlog. Same fact
+            # function as fw audit's check_sidecar_held_unsurfaced.
+            local _hu_rows _hu_rc _hu_n
+            _hu_rows=$(fw_sidecar_held_unsurfaced_facts "$PROJECT_ROOT" "$(fw_config SIDECAR_HELD_WARN_HOURS)") && _hu_rc=0 || _hu_rc=$?  # T-3837: set -e
+            if [ "$_hu_rc" -eq 2 ]; then
+                _doctor_warn_host "Held-mail check could not run (fw sidecar held-unsurfaced --json produced no readable output)"
+            elif [ "$_hu_rc" -eq 0 ] && [ -n "$_hu_rows" ]; then
+                local _hu_id _hu_age _hu_from
+                _hu_n=$(printf '%s\n' "$_hu_rows" | grep -c .)
+                echo -e "  ${YELLOW}WARN${NC}  $_hu_n peer message(s) held past $(fw_config SIDECAR_HELD_WARN_HOURS)h and never shown to any session"
+                echo "         Nothing is delivering them (injection off or no interactive session). Run: fw sidecar held-unsurfaced; then fw sidecar inbox --peek"
+                warnings=$((warnings + 1))
+            fi
+            # T-4208: two live receivers for one agent id, from any framework copy.
+            # Two receivers race for one inbox (055: vendored + AEF's). Same fact
+            # function as fw audit's check_sidecar_receivers_unique.
+            local _dup_rows _dup_rc _dup_agent _dup_n _dup_pids
+            _dup_rows=$(fw_sidecar_receiver_duplicates_facts) && _dup_rc=0 || _dup_rc=$?  # T-3837: set -e
+            if [ "$_dup_rc" -eq 2 ]; then
+                _doctor_warn_host "Receiver-duplicate check could not run (fw sidecar receiver-census --json produced no readable output)"
+            elif [ "$_dup_rc" -eq 0 ] && [ -n "$_dup_rows" ]; then
+                while IFS=$'\t' read -r _dup_agent _dup_n _dup_pids; do
+                    [ -z "$_dup_agent" ] && continue
+                    echo -e "  ${YELLOW}WARN${NC}  $_dup_n live receivers serve agent $_dup_agent (pids $_dup_pids)"
+                    echo "         Two receivers race for one inbox. Stop the copy you do not run from (its operator's call). See: fw sidecar receiver-census"
+                    warnings=$((warnings + 1))
+                done <<< "$_dup_rows"
             fi
         fi
         fi  # T-2452/F6-style --quick guard
@@ -4207,7 +4272,7 @@ print(sum(1 for e in entries if (e.get('status') or 'pending') == 'pending'))
         done
         # Validate ranges for known settings
         local cw
-        cw=$(fw_config_int "CONTEXT_WINDOW" 300000)
+        cw=$(fw_config_int "CONTEXT_WINDOW" 800000)
         if [ "$cw" -lt 50000 ]; then
             echo -e "  ${YELLOW}WARN${NC}  FW_CONTEXT_WINDOW=$cw is very low — budget gate will fire early"
             warnings=$((warnings + 1))
@@ -6250,6 +6315,24 @@ case "$cmd" in
             PYTHONPATH="$FRAMEWORK_ROOT" \
             python3 -m lib.reviewer.static_scan "$@"
         ;;
+    ux)
+        # T-4212: `fw ux shots` — screenshot each state at every configured width
+        # into .context/visual/<task>/ (T-4202 render-surface evidence convention).
+        case "${1:-}" in
+            shots)
+                shift
+                # Width list comes from the UX_SHOT_WIDTHS registry key; FW_UX_SHOT_WIDTHS env overrides it.
+                _ux_widths="$(source "$FRAMEWORK_ROOT/lib/config.sh" && PROJECT_ROOT="$PROJECT_ROOT" fw_config UX_SHOT_WIDTHS)"
+                exec env PROJECT_ROOT="$PROJECT_ROOT" FW_UX_SHOT_WIDTHS="${FW_UX_SHOT_WIDTHS:-$_ux_widths}" \
+                    python3 "$AGENTS_DIR/ux-review/ux_shots.py" "$@"
+                ;;
+            *)
+                echo "Usage: fw ux shots <task-id> <state=URL>... [--widths 1024,1440,1920] [--plan-only]" >&2
+                echo "       (ux-review, the palette/theme engine, is a separate verb: fw ux-review)" >&2
+                exit 2
+                ;;
+        esac
+        ;;
     ux-review)
         # T-2002: UX-review capture engine (approach C of inception T-2000) —
         # browser-driving console + interaction + guide-coherence review of an
@@ -7150,6 +7233,36 @@ except Exception as exc:
             *)
                 echo -e "${RED}Unknown index subcommand:${NC} $idx_subcmd"
                 echo "Run 'fw index reindex' or 'fw index --help'"
+                exit 1
+                ;;
+        esac
+        ;;
+    estate)
+        # T-4162 (T-4091 slice 1): stage new/changed/deleted index chunks for the estate store.
+        est_sub="${1:-}"
+        case "$est_sub" in
+            push)
+                shift
+                cd "$PROJECT_ROOT" && PYTHONPATH="$FRAMEWORK_ROOT${PYTHONPATH:+:$PYTHONPATH}" \
+                    exec python3 "$FRAMEWORK_ROOT/lib/estate_push.py" --project-root "$PROJECT_ROOT" "$@"
+                ;;
+            ingest)
+                # T-4163 (T-4091 slice 2): the central worker — drain staging, embed, write main.
+                shift
+                cd "$PROJECT_ROOT" && PYTHONPATH="$FRAMEWORK_ROOT${PYTHONPATH:+:$PYTHONPATH}" \
+                    exec python3 "$FRAMEWORK_ROOT/lib/estate_ingest.py" --project-root "$PROJECT_ROOT" "$@"
+                ;;
+            ""|-h|--help)
+                echo "Usage: fw estate push [--apply] [--categories A,B] [--url URL]"
+                echo "  estate push: diff the local vector index against the push ledger and stage"
+                echo "  new/changed chunks (text + payload, never vectors) and deletions in staging_aef."
+                echo "  Dry run unless --apply. Token: key store name qdrant_estate_staging_aef."
+                echo "Usage: fw estate ingest [--apply] [--max-points N] [--allow-daytime]"
+                echo "  estate ingest: drain staging_aef, embed with the pinned model, write the main"
+                echo "  collection. Dry run unless --apply. Token: key store name qdrant_estate_ingest_aef."
+                ;;
+            *)
+                echo -e "${RED}Unknown estate subcommand:${NC} $est_sub"
                 exit 1
                 ;;
         esac
@@ -8723,6 +8836,14 @@ for _base in (os.environ.get("PROJECT_ROOT", "."),
         _review_readiness = None
 
 ROOT = Path(os.environ.get("PROJECT_ROOT", ".")).resolve()
+# T-4096: each task's group comes from web.shared.review_queue_groups, the function
+# /approvals calls, so the two surfaces cannot admit or route differently.
+_rq_groups = None
+try:
+    from web.shared import review_queue_groups as _rqg
+    _rq_groups = _rqg(ROOT)
+except Exception:
+    _rq_groups = None
 ACTIVE = ROOT / ".tasks" / "active"
 if not ACTIVE.is_dir():
     print("No .tasks/active directory.", file=sys.stderr)
@@ -8897,6 +9018,8 @@ for f in sorted(ACTIVE.glob("*.md")):
     unchecked = count_unchecked_human_acs(text)
     if unchecked == 0:
         continue
+    if _rq_groups is not None and tid_v in _rq_groups["decisions"]:
+        continue  # T-4096: an inception GO/NO-GO is listed under DECISIONS only
     # T-1540 iter1 originally filtered to (owner=human OR status=work-completed) so
     # tasks with template-only Human ACs (the placeholder example AC inside the
     # `<!-- ... -->` block) wouldn't surface as spurious entries with verdict=?.
@@ -8923,6 +9046,8 @@ for f in sorted(ACTIVE.glob("*.md")):
         r_state, r_why = "waiting-on-agent", ["readiness predicate unavailable (web.shared not importable)"]
     else:
         r_state, r_why = _review_readiness(tid_v, status, text, f)
+    if _rq_groups is not None:  # T-4096: group membership decides, not a re-derivation
+        r_state = "ready" if tid_v in _rq_groups["ready"] else "waiting-on-agent"
     if r_state == "ready":
         rows.append((verdict, age_days, tid_v, name, unchecked))
     else:
@@ -9019,10 +9144,12 @@ if paused_rows:
 # and an agent cannot close a human-owned task directly. Per-task evidence
 # only, no batch-close affordance (CLAUDE.md §Human Task Completion Rule).
 if um_rows:
-    print(f"\033[1mREADY TO CLOSE — owner:human, no Human criteria, work already done ({len(um_rows)})\033[0m")
+    print(f"\033[1mREADY TO CLOSE — owner:human, no Human criteria, work already done ({len(um_rows)}) — reviewer route, not operator work\033[0m")
     for m in um_rows:
         print(f"  {m.task_id:<8}  {str(m.age_days)+'d':>5}  {m.agent_ac_count} agent AC(s) done")
-        print(f"    cd {ROOT} && bin/fw task update {m.task_id} --status work-completed")
+        # T-4156: not `task update --status work-completed` — R-033 refuses it for
+        # owner:human even from the operator's terminal. Route to the reviewer ladder.
+        print(f"    cd {ROOT} && bin/fw task delegate {m.task_id}   # then: bin/fw reviewer judge {m.task_id}")
     print()
 
 if rows:
@@ -10794,15 +10921,38 @@ PYPREDICT
                     exit 1
                 fi
                 echo -e "${BOLD}=== ShellCheck Lint ===${NC}"
+                # T-4122: enumerate through git so git-ignored trees are skipped.
+                # `.context/scratch/` holds full repo clones (GBs, ~4k .sh files);
+                # a bare `find` linted them all, reported their findings as ours
+                # and pushed the run past the 600 s invariant timeout. Only when
+                # FRAMEWORK_ROOT is itself a work-tree top level: a vendored
+                # .agentic-framework/ may be ignored by its consumer, and ls-files
+                # there would list nothing — that case keeps `find`, scratch pruned.
                 _lint_files=()
-                while IFS= read -r -d '' f; do
-                    _lint_files+=("$f")
-                done < <(find "$FRAMEWORK_ROOT" -name "*.sh" -not -path "*/node_modules/*" -not -path "*/.git/*" -not -path "*/test_helper*" -print0)
+                if [ "$(git -C "$FRAMEWORK_ROOT" rev-parse --show-toplevel 2>/dev/null)" = "$(cd "$FRAMEWORK_ROOT" && pwd -P)" ]; then
+                    while IFS= read -r -d '' f; do
+                        case "$f" in */node_modules/*|node_modules/*|*test_helper*) continue ;; esac
+                        [ -f "$FRAMEWORK_ROOT/$f" ] && _lint_files+=("$FRAMEWORK_ROOT/$f")
+                    done < <(git -C "$FRAMEWORK_ROOT" ls-files -z -co --exclude-standard -- '*.sh')
+                else
+                    while IFS= read -r -d '' f; do
+                        _lint_files+=("$f")
+                    done < <(find "$FRAMEWORK_ROOT" -path "$FRAMEWORK_ROOT/.context/scratch" -prune -o -name "*.sh" -not -path "*/node_modules/*" -not -path "*/.git/*" -not -path "*/test_helper*" -print0)
+                fi
                 _lint_fail=0
                 _lint_pass=0
                 _lint_warn=0
+                _lint_skip=0
                 for f in "${_lint_files[@]}"; do
                     _rel="${f#"$FRAMEWORK_ROOT"/}"
+                    # A .sh name with a non-shell shebang (python adapters such as
+                    # agents/sessions/*/list.sh) is not shell: ShellCheck can only
+                    # refuse it (SC1071), which reads as a lint failure of ours.
+                    _shebang=$(head -n 1 "$f" 2>/dev/null)
+                    case "$_shebang" in
+                        '#!'*python*|'#!'*node*|'#!'*perl*|'#!'*ruby*)
+                            _lint_skip=$((_lint_skip + 1)); continue ;;
+                    esac
                     if _sc_output=$(shellcheck -S warning "$f" 2>&1); then
                         _lint_pass=$((_lint_pass + 1))
                     else
@@ -10819,7 +10969,7 @@ PYPREDICT
                     fi
                 done
                 echo ""
-                echo -e "${BOLD}Lint:${NC} ${_lint_pass} pass, ${_lint_warn} warn, ${_lint_fail} fail (${#_lint_files[@]} files)"
+                echo -e "${BOLD}Lint:${NC} ${_lint_pass} pass, ${_lint_warn} warn, ${_lint_fail} fail, ${_lint_skip} skipped non-shell shebang (${#_lint_files[@]} files)"
                 [ "$_lint_fail" -gt 0 ] && _test_exit=1
 
                 # T-3217: a skipped bats test emits `ok N ... # skip`, which the
@@ -10827,18 +10977,11 @@ PYPREDICT
                 # tell apart from a test that ran. Static shapes only here (no
                 # bats runs), so it stays cheap enough to live on the lint pass.
                 # Empirical mode is `--tap`, fed from a real run.
-                if [ -f "$FRAMEWORK_ROOT/tools/bats-silent-skip-lint.py" ]; then
-                    echo ""
-                    echo -e "${BOLD}=== Silent-Skip Lint ===${NC}"
-                    if python3 "$FRAMEWORK_ROOT/tools/bats-silent-skip-lint.py" \
-                            "$FRAMEWORK_ROOT/tests/"; then
-                        echo -e "  ${GREEN}OK${NC}  no silent skips"
-                    else
-                        # exit 2 means the scan examined nothing — a different
-                        # failure from "found silent skips", and not a pass.
-                        _test_exit=1
-                    fi
-                fi
+                # T-4219: decision lives in lib/silent-skip-lint.sh (vendored
+                # copies ship no tests/ — NOT APPLICABLE there, not a failure).
+                # shellcheck source=/dev/null
+                source "$FRAMEWORK_ROOT/lib/silent-skip-lint.sh"
+                fw_silent_skip_lint "$FRAMEWORK_ROOT" || _test_exit=1
                 ;;
             --unit|unit)
                 # Bats + Pytest unit tests (T-2745: wire pytest tests/unit/)
@@ -11095,6 +11238,14 @@ PYPREDICT
                 ;;
         esac
         exit $_test_exit
+        ;;
+    operator)
+        # T-4095: live "what is pending for the operator" (never compose it from memory)
+        case "${1:-pending}" in
+            pending) shift 2>/dev/null || true
+                     exec python3 "$FRAMEWORK_ROOT/lib/operator_pending.py" pending "$@" ;;
+            *) echo "Usage: fw operator pending [--json]" >&2; exit 2 ;;
+        esac
         ;;
     runme)
         # T-3675: operator command handoff as one logged line (bash /abs/runme.sh)

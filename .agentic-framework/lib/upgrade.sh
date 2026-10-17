@@ -2015,6 +2015,25 @@ CRONREGEOF
             fi
         fi
         changes=$((changes + 1))
+        # T-4132: a running Watchtower keeps serving the pre-upgrade web/ bytes
+        # (Flask debug=False, no reloader). Notice only, no auto-restart: the
+        # operator may be mid-[REVIEW] in that very process, and a restart
+        # drops their session. The predicate is the same one `fw watchtower
+        # current` uses, so the notice fires iff that verb would say STALE.
+        if [ "$dry_run" != true ] && [ -f "$FRAMEWORK_ROOT/lib/watchtower-staleness.sh" ]; then
+            local _up_wt_pidf="$target_dir/.context/working/watchtower.pid" _up_wt_pid _up_wt_rc=0
+            if [ -f "$_up_wt_pidf" ]; then
+                _up_wt_pid=$(tr -d '[:space:]' < "$_up_wt_pidf" 2>/dev/null || true)
+                if [ -n "$_up_wt_pid" ] && kill -0 "$_up_wt_pid" 2>/dev/null; then
+                    # shellcheck source=/dev/null
+                    ( . "$FRAMEWORK_ROOT/lib/watchtower-staleness.sh"
+                      watchtower_stale_sources "$_up_wt_pid" "$vendored_dir/web" >/dev/null ) || _up_wt_rc=$?
+                    if [ "$_up_wt_rc" -eq 0 ]; then
+                        echo -e "  ${YELLOW}NOTE${NC}  Watchtower (pid $_up_wt_pid) predates the upgraded web/ files — restart it: ${BOLD}cd $target_dir && .agentic-framework/bin/fw watchtower restart${NC}"
+                    fi
+                fi
+            fi
+        fi
     else
         echo -e "  ${CYAN}SKIP${NC}  No .agentic-framework/ directory"
     fi
@@ -2799,6 +2818,20 @@ EOF
             echo -e "  ${YELLOW}SKIP${NC}  No settings.json — enforcement baseline not applicable"
             skipped=$((skipped + 1)) ;;
     esac
+
+    # T-4166 / G-114: T-4081/T-4127 are forward-only; reset stale index entries armed by a
+    # Watchtower decision made before this upgrade (index only, worktree untouched).
+    if [ "$dry_run" != true ] && [ -f "$FRAMEWORK_ROOT/lib/index_reconcile.py" ] \
+       && git -C "$target_dir" rev-parse --git-dir >/dev/null 2>&1; then
+        local _ir_out
+        _ir_out=$(python3 -I "$FRAMEWORK_ROOT/lib/index_reconcile.py" --repo "$target_dir" --apply --quiet 2>&1 || true)
+        # `|| true`: set -e is live here and the reconcile is advisory — it must never abort the upgrade.
+        if echo "$_ir_out" | grep -q '^RESET'; then
+            echo -e "  ${GREEN}RECONCILED${NC}  Stale index entries reset to HEAD (G-114):"
+            echo "$_ir_out" | sed 's/^/         /'
+            changes=$((changes + 1))
+        fi
+    fi
 
     # T-1323: Detect stale tracked __pycache__ files inside vendored framework.
     # do_vendor now ships a .gitignore that prevents future leaks; this advisory

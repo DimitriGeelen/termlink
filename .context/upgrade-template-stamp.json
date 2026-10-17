@@ -3,6 +3,11 @@
  ".claude/commands/conversations.md": "a38ba5bedd9ec390fab386765d0d83ece77b3afa717f1815a6dccee71a3446b3",
  ".claude/commands/recent-chat.md": "57ff99873ca5b3429e69f6c14ee112cb1d347d8edf5289b794363b8eb7d98fcd",
  ".claude/commands/recent-dm.md": "15f28afeb94353018a61ec4d73c3c3e306a15fd3b6579a3ee11a631079d3238e",
+ ".tasks/templates/inception.md": "231ef2c72a1cf899d1afd948a19105b3f196df7c6331cddabe7ff1fb02022ea5",
+ ".tasks/templates/path-c-deep-dive.md": "21abff0b4264b8dae043dee1507ee7613d66acd39510b42cdb3e98aaffdd03d0",
+ ".tasks/workflow/WM-001-selection-and-discovery.md": "521905271751ff018b8b268d88fe2e1cfe5376ce4ba0392a65a6ab012546f138",
+ ".tasks/workflow/WM-002-close-out-and-trailing-work.md": "8a471912e1e86806df91ccdddb1a13d2f608bae023ae5d09bf163e1c99aefe62",
+ ".tasks/workflow/WM-003-session-lifecycle.md": "83014f415247566fbb823ff08b12cb759c4e5705a3d85e44dfd9a8fdfbe10ff3",
  "scripts/agent-conversation-list.sh": "c7cb0f4745afc623152b0bb9d02d11cac8cb1e01b478830daed64bbad3b024b1",
  "scripts/agent-identity.sh": "01a5b85dc575b37ace7692e534113f477a897b700b292828f292848c18a764ca"
 }

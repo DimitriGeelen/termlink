@@ -136,10 +136,28 @@ except:
     # No command — allow (defensive)
     [ -z "$COMMAND" ] && exit 0
 
+    # T-4149: the session cwd, so a relative write target (`touch ../../x`) resolves.
+    CMD_CWD=$(echo "$INPUT" | python3 -c "
+import sys, json
+try:
+    print(json.load(sys.stdin).get('cwd', '') or '')
+except Exception:
+    print('')
+" 2>/dev/null)
+
     # Quick pre-filter: if no absolute path reference, skip Python analysis.
     # T-1702: include any leading-slash token (read-side detection needs to see
     # /root, /var, /home etc. even when they are not write/cd targets).
-    if ! echo "$COMMAND" | grep -qE '(cd\s+/|/opt/|/home/|/root/|/var/|/etc/|/usr/|>+\s*/|tee\s+/|\.agentic-framework/bin/fw)'; then
+    # T-4114: any tee with an absolute path anywhere after it must reach the
+    # analysis — `tee\s+/` let `tee -a /srv/x` skip it entirely.
+    # T-4126: same for the write verbs parsed in Pattern 3 and for `>|`.
+    # T-4149: the tokenised pass (Pattern 5) must see every spelling bash can turn
+    # into an outside path — any slash, `~`, `..`, a brace, a substitution, an escape,
+    # a quote (`"/"etc`), or a cd (bare `cd` goes HOME). A regex that names verbs is
+    # exactly the parser differential this task removes, so the filter names
+    # characters instead; what it skips cannot spell a path outside the cwd.
+    if ! echo "$COMMAND" | grep -qE '(cd\s+/|/opt/|/home/|/root/|/var/|/etc/|/usr/|>+\s*/|tee\s.*/|>\|\s*/|(^|[^[:alnum:]_.-])(cp|mv|install|ln|rsync|dd|sed|perl|truncate|chmod|chown|chgrp|touch|mkdir)\s.*/|\.agentic-framework/bin/fw)' \
+       && ! printf '%s' "$COMMAND" | grep -qE '[/~{$`\\"'"'"']|\.\.|(^|[^[:alnum:]_.-])(cd|pushd)([^[:alnum:]_.-]|$)'; then
         exit 0
     fi
 
@@ -159,6 +177,7 @@ except:
 
     # Detailed analysis: detect cd to another project + write operations
     export _BOUNDARY_CMD="$COMMAND"
+    export _BOUNDARY_CWD="$CMD_CWD"
     export _BOUNDARY_FW_LIB="$FRAMEWORK_ROOT/lib"   # T-3766: registered credential files
     MATCH_RESULT=$(python3 << 'PYEOF'
 import re, sys, os, subprocess
@@ -560,8 +579,129 @@ for fw_path in fw_pattern.findall(command):
         sys.exit(0)
 
 # Pattern 3: File write operations targeting absolute paths outside project
-write_ops = re.compile(r'(?:>>?\s*|tee\s+)(/[^\s;&|]+)')
-for target_file in write_ops.findall(command):
+#
+# T-4114: tee is parsed, not matched. `tee\s+(/path)` saw only a path in the
+# FIRST argument slot, so `tee -a /etc/fstab` (any option first) and
+# `tee /tmp/ok /etc/x` (outside path second) both walked past it — and the
+# read-side Pattern 4 allowlists /etc/, so nothing else caught them. Every
+# argument of tee up to the end of its segment is a write target; options
+# (`-a`, `--append`, `--output-error=warn`, `--`) are skipped, not terminators.
+write_ops = re.compile(r'>>?\|?\s*(/[^\s;&|]+)')   # T-4126: `>|` (noclobber override)
+_TEE_RE = re.compile(r'(?<![\w.-])tee(?![\w.-])')
+
+
+def _tee_targets(cmd):
+    for m in _TEE_RE.finditer(cmd):
+        seg = re.split(r'[;&|<>()\n]', cmd[m.end():], maxsplit=1)[0]
+        for tok in seg.split():
+            if tok.startswith('/'):
+                yield tok
+
+
+# T-4126: the other write verbs. tee above takes every absolute token; these
+# differ in WHICH operands are written, so each verb names its destinations.
+# Reading from an outside path is Pattern 4's concern and is not touched here.
+_WRAPPERS = {'sudo', 'env', 'nohup', 'command', 'exec', 'time', 'nice', 'ionice',
+             'timeout', 'setsid', 'stdbuf', 'builtin', 'doas'}
+# wrapper options that consume the next token (`sudo -u root cp ...`)
+_WRAPPER_ARG_OPTS = {'sudo': {'-u', '-g', '-h', '-C', '-D', '-R', '-T', '-p', '-r', '-t', '-U'},
+                     'doas': {'-u', '-C'}, 'env': {'-u', '-C', '-S'},
+                     'nice': {'-n'}, 'ionice': {'-c', '-n', '-p'},
+                     'timeout': {'-s', '-k'}, 'stdbuf': set()}
+_ALL_ABS = {'chmod', 'chown', 'chgrp', 'truncate', 'touch', 'mkdir', 'mknod', 'mkfifo'}
+_DEST_LAST = {'cp', 'install', 'ln', 'rsync'}
+_TARGET_DIR_OPT = re.compile(r'^(?:--target-directory=(.*)|-t(.+))$')
+
+
+def _write_verb_targets(cmd):
+    for seg in re.split(r'[;&|<>()\n]', cmd):
+        toks = seg.split()
+        i = 0
+        while i < len(toks):
+            t = toks[i]
+            base = t.rsplit('/', 1)[-1]
+            if re.match(r'^[A-Za-z_][A-Za-z0-9_]*=', t):       # VAR=val prefix
+                i += 1
+            elif base in _WRAPPERS:
+                i += 1
+                while i < len(toks) and toks[i].startswith('-'):
+                    i += 2 if toks[i] in _WRAPPER_ARG_OPTS.get(base, ()) else 1
+                if base == 'timeout' and i < len(toks):          # DURATION operand
+                    i += 1
+            else:
+                break
+        if i >= len(toks):
+            continue
+        verb = toks[i].rsplit('/', 1)[-1]
+        args = toks[i + 1:]
+        opts_done = False
+        pos, tdir, inplace, has_script_opt = [], [], False, False
+        j = 0
+        while j < len(args):
+            a = args[j]
+            j += 1
+            if not opts_done and a == '--':
+                opts_done = True
+                continue
+            if not opts_done and a.startswith('-') and a != '-':
+                m = _TARGET_DIR_OPT.match(a) if verb in _DEST_LAST | {'mv'} else None
+                if m:
+                    tdir.append(m.group(1) or m.group(2))
+                elif a in ('-t', '--target-directory') and verb in _DEST_LAST | {'mv'}:
+                    if j < len(args):
+                        tdir.append(args[j])
+                        j += 1
+                elif verb in ('sed', 'perl'):
+                    if a.startswith('--'):
+                        inplace = inplace or a.startswith('--in-place')
+                        has_script_opt = has_script_opt or a.startswith(('--expression', '--file'))
+                    else:
+                        inplace = inplace or bool(re.match(r'^-[a-hj-zA-HJ-LN-Z]*i(\..*)?$', a))
+                        if a in ('-e', '-f'):
+                            has_script_opt = True
+                            j += 1                              # script operand
+                        elif a.startswith(('-e', '-f')) and verb == 'sed':
+                            has_script_opt = True
+                elif verb == 'truncate' and a in ('-s', '--size', '-r', '--reference'):
+                    j += 1
+                elif verb in ('chmod', 'chown', 'chgrp') and a in ('--reference',):
+                    j += 1
+                elif verb == 'touch' and a in ('-d', '-t', '-r', '--date', '--reference'):
+                    j += 1
+                elif verb == 'rsync' and a in ('-e', '--rsh', '--exclude', '--include',
+                                               '--filter', '--rsync-path', '--log-file'):
+                    j += 1
+                continue
+            pos.append(a)
+        if verb == 'dd':
+            for a in args:
+                if a.startswith('of='):
+                    yield a[3:]
+        elif verb == 'mv':
+            # a move removes every source and creates the destination
+            for a in tdir + pos:
+                yield a
+        elif verb in _DEST_LAST:
+            if tdir:
+                for a in tdir:
+                    yield a
+            elif pos:
+                yield pos[-1]
+        elif verb in ('sed', 'perl'):
+            if inplace:
+                files = pos if (verb == 'perl' or has_script_opt) else pos[1:]
+                for a in files:
+                    yield a
+        elif verb in ('chmod', 'chown', 'chgrp'):
+            for a in pos[1:]:                                   # first positional = mode/owner
+                yield a
+        elif verb in _ALL_ABS:
+            for a in pos:
+                yield a
+
+
+for target_file in (list(write_ops.findall(command)) + list(_tee_targets(command))
+                    + [t for t in _write_verb_targets(command) if t.startswith('/')]):
     if target_file.startswith(('/tmp/', '/root/.claude/', '/dev/', '/etc/cron.d/')):
         continue
     if not target_file.startswith(project_root + '/'):
@@ -654,6 +794,62 @@ for tok in _tok_iter(command):
     if top not in KNOWN_TOPS:
         continue  # not a recognisable filesystem path; skip rather than FP
     print(f'BLOCKED|Outside-path argument {cand} (not in read-side allowlist)')
+    sys.exit(0)
+
+# Pattern 5 (T-4149): the write targets and cd destinations as BASH reads them.
+#
+# Patterns 1-3 read a quote-BLANKED copy with regexes, so their reading differed from
+# bash: `touch "/etc/X"` (target blanked), `to""uch /etc/X` (verb not recognised),
+# `touch /tmp/../etc/X` (prefix test before normalising), `> /tmp/x touch /etc/X`
+# (leading redirection taken as the verb), `sed -ibak … /etc/X` (suffix cluster) all
+# passed. This pass hands the RAW command to lib/shell_write_scan.py — the bash-style
+# tokeniser T-3695 already uses for the task-file guard — in boundary mode: quote
+# removal, realpath+normpath of every target, brace/tilde expansion, redirections
+# anywhere, option clusters, $(...)/`...`/<(...) bodies, unquoted heredoc bodies and
+# static `sh -c`/`eval` scripts. Text that does not lex is refused, not guessed.
+# Patterns 1-4 stay: this pass only ever adds refusals.
+#
+# NOT seen (same boundary as Tier 0, CLAUDE.md T-2742): a script file the command runs,
+# a target built at run time ($VAR, printf, a path read from a file), code inside an
+# interpreter (python -c, perl -e, awk), and write verbs the scanner does not name.
+_ROOTS = {project_root, os.path.realpath(project_root)}
+_ZONES = tuple(sorted({z for p in ('/tmp', '/root/.claude', '/dev', '/etc/cron.d')
+                       for z in (p, os.path.realpath(p))}))
+
+
+def _under(p, base):
+    return p == base or p.startswith(base.rstrip('/') + '/')
+
+
+def _write_guarded(p):
+    p = p.rstrip('/') or '/'
+    if any(_under(p, r) for r in _ROOTS) or any(_under(p, z) for z in _ZONES):
+        return False
+    return not _in_sibling_worktree(p)
+
+
+def _cd_ok(p):
+    p = p.rstrip('/') or '/'
+    # `cd /` (leaving a temp dir before `rm -rf $T`) is not another project; a relative
+    # write after it resolves under / and is judged as a write.
+    return (p == '/' or any(_under(p, r) for r in _ROOTS) or _under(p, '/tmp')
+            or _under(p, '/root/.claude') or _in_sibling_worktree(p))
+
+
+try:
+    sys.path.insert(0, os.environ.get('_BOUNDARY_FW_LIB', ''))
+    import shell_write_scan
+    _hits = shell_write_scan.scan_boundary(
+        os.environ.get('_BOUNDARY_CMD', ''),
+        os.environ.get('_BOUNDARY_CWD', '') or project_root,
+        _write_guarded, _cd_ok)
+except Exception as e:   # fail closed: an unreadable command is not a safe one
+    _hits = [type('H', (), {'reason': f'boundary tokeniser unavailable ({type(e).__name__})',
+                            'target': ''})()]
+if _hits:
+    h = _hits[0]
+    tgt = f' {h.target}' if h.target else ''
+    print(f'BLOCKED|{h.reason}{tgt} (outside project root {project_root})')
     sys.exit(0)
 
 print('SAFE')

@@ -32,6 +32,30 @@ CLAUDE_ARGS=()
 # writing a .restart-requested signal nobody consumes (the 300K→350K overrun bug).
 export FW_CLAUDE_FW_SUPERVISED=1
 
+# T-4218 (G-116): the session's project is the one claude-fw is launched in. A PROJECT_ROOT or
+# FRAMEWORK_ROOT inherited from elsewhere (a tmux server polluted by another project's dispatch,
+# a shell of another project) is replaced, with a stderr warning, so every fw call and hook in
+# this session acts on its own project. Runs before the tmux wrap below, which carries the
+# environment into the session. Outside any project the environment is left as it is.
+_cfw_pin_project() {
+    local d="$PWD" fwr=""
+    while [ "$d" != "/" ]; do
+        if [ -f "$d/.framework.yaml" ] || { [ -f "$d/FRAMEWORK.md" ] && [ -f "$d/bin/fw" ]; }; then break; fi
+        d=$(dirname "$d")
+    done
+    [ "$d" = "/" ] && return 0
+    d=$(cd "$d" && pwd -P)
+    if [ -n "${PROJECT_ROOT:-}" ] && [ "$PROJECT_ROOT" != "$d" ]; then
+        echo "claude-fw: WARNING: inherited PROJECT_ROOT=$PROJECT_ROOT is not this project; this session uses $d (T-4218)" >&2
+    fi
+    if [ -f "$d/.agentic-framework/bin/fw" ]; then fwr="$d/.agentic-framework"
+    elif [ -f "$d/FRAMEWORK.md" ] && [ -x "$d/bin/fw" ]; then fwr="$d"; fi
+    export PROJECT_ROOT="$d"
+    if [ -n "$fwr" ]; then export FRAMEWORK_ROOT="$fwr"; else unset FRAMEWORK_ROOT; fi
+    unset TASKS_DIR CONTEXT_DIR _FW_PATHS_DERIVED_BY
+}
+_cfw_pin_project
+
 # T-3247: remember whether the ORIGINAL invocation was headless. A restart hands
 # the resumed session no prompt (CLAUDE_ARGS=() below, T-3166), which is right for
 # an interactive terminal — SessionStart seeds it and the operator's session takes
@@ -61,6 +85,45 @@ for arg in "$@"; do
     esac
 done
 
+# T-4118 (832 T-1140, ring20-dashboard T-2509): bash holds this whole script in memory
+# for the wrapper's life, and the restart loop below can run for days. A wrapper started
+# before an upgrade kept the old _terminator_watch through every `claude` relaunch, so
+# the T-4032 "wait for the turn to end" fix never reached it and both sessions were
+# killed mid-tool-call. So remember what we were started as — original argv, resolved
+# path and content hash — and at the restart boundary (_cfw_reexec_if_changed, between
+# two claude runs, never during one) exec the file on disk if it is no longer that.
+_CFW_ORIG_ARGS=("$@")
+_CFW_SELF_PATH="$(readlink -f "$0" 2>/dev/null || echo "$0")"   # this script, as the tmux re-launch below
+_cfw_script_id() {
+    [ -r "$1" ] || return 1
+    local h; h=$(sha256sum < "$1" 2>/dev/null | cut -c1-64) || return 1
+    [ -n "$h" ] && printf '%s' "$h"
+}
+_CFW_SELF_ID="$(_cfw_script_id "$_CFW_SELF_PATH" || true)"
+# State a re-exec hands to the new copy. Honoured only when it names THIS pid (exec keeps
+# the pid; any other process that inherited it stray ignores it), then scrubbed so claude
+# and its children never see it.
+_CFW_RESUMED=0
+if [ -n "${FW_CFW_REEXEC_PID:-}" ] && [ "${FW_CFW_REEXEC_PID}" = "$$" ]; then
+    _CFW_RESUMED=1
+    _CFW_R_COUNT="${FW_CFW_REEXEC_COUNT:-0}"
+    _CFW_R_TIMES="${FW_CFW_REEXEC_TIMES:-}"
+    _CFW_R_ARGS="${FW_CFW_REEXEC_ARGS:-}"
+    _CFW_R_TL_SESSION="${FW_CFW_REEXEC_TL_SESSION:-}"
+    _CFW_R_TL_ENABLED="${FW_CFW_REEXEC_TL_ENABLED:-0}"
+    _CFW_R_OLD_ID="${FW_CFW_REEXEC_OLD_ID:-}"
+    [[ "$_CFW_R_COUNT" =~ ^[0-9]+$ ]] || _CFW_R_COUNT=0
+    [[ "$_CFW_R_TIMES" =~ ^[0-9\ ]*$ ]] || _CFW_R_TIMES=""
+    [[ "$_CFW_R_TL_SESSION" =~ ^[A-Za-z0-9._-]*$ ]] || _CFW_R_TL_SESSION=""
+    # The next run's claude argv (a restart replaces the user's, T-3166): NUL-joined, base64.
+    CLAUDE_ARGS=()
+    if [ -n "$_CFW_R_ARGS" ]; then
+        mapfile -d '' -t CLAUDE_ARGS < <(printf '%s' "$_CFW_R_ARGS" | base64 -d 2>/dev/null)
+    fi
+fi
+unset FW_CFW_REEXEC_PID FW_CFW_REEXEC_COUNT FW_CFW_REEXEC_TIMES FW_CFW_REEXEC_ARGS \
+    FW_CFW_REEXEC_TL_SESSION FW_CFW_REEXEC_TL_ENABLED FW_CFW_REEXEC_OLD_ID
+
 # T-4003 (operator 2026-10-09: "we wanted reliable to work for every project"): peer mail can
 # only reach an agent through a terminal something can type into — a TermLink session or a
 # tmux pane (lib/sidecar/inject.py c1/c2). A bare terminal window cannot be typed into from
@@ -72,6 +135,7 @@ done
 # (fleet panes), headless or non-terminal runs, dispatched workers, and when tmux is missing.
 # Opt out: FW_CLAUDE_FW_NO_TMUX=1.
 _cfw_should_wrap_tmux() {
+    [ "$_CFW_RESUMED" = 1 ] && return 1   # T-4118: a re-exec stays where the session already is
     [ "${FW_CLAUDE_FW_NO_TMUX:-0}" = 1 ] && return 1
     [ "${FW_CLAUDE_FW_IN_TMUX:-0}" = 1 ] && return 1
     [ "$TERMLINK_ENABLED" = 1 ] && return 1
@@ -104,7 +168,11 @@ if _cfw_should_wrap_tmux; then
     # destroy-unattached is set on THIS session only (T-4049, 055 G-014): the server is shared
     # by every wrapped project, and a session inside it inherits $TMUX, so a global setting
     # destroyed every detached session a wrapped agent created (fw termlink dispatch workers).
-    exec tmux -L fw-agents -f /dev/null new-session -s "$_cfw_name" -c "$PWD" "${_cfw_env[@]}" -- "$_cfw_self" "$@" \; \
+    # T-4217 (G-116): a tmux server takes its GLOBAL env from the process that starts it. The
+    # session's own paths travel via -e below, so the server itself must not inherit the
+    # caller's PROJECT_ROOT/FRAMEWORK_ROOT (another project's, if the server is shared).
+    exec env -u PROJECT_ROOT -u FRAMEWORK_ROOT -u _FW_PATHS_DERIVED_BY -u FW_ROUTED_FROM \
+        tmux -L fw-agents -f /dev/null new-session -s "$_cfw_name" -c "$PWD" "${_cfw_env[@]}" -- "$_cfw_self" "$@" \; \
         set-option -s escape-time 0 \; \
         set-option -g prefix None \; \
         set-option -g prefix2 None \; \
@@ -118,6 +186,12 @@ fi
 
 # TermLink session management
 TERMLINK_SESSION=""
+if [ "$_CFW_RESUMED" = 1 ]; then
+    # T-4118: same pid after exec, so claude-master-$$ is the session we already own.
+    TERMLINK_SESSION="$_CFW_R_TL_SESSION"
+    TERMLINK_ENABLED="$_CFW_R_TL_ENABLED"
+    [ -n "$TERMLINK_SESSION" ] || TERMLINK_ENABLED=0
+fi
 
 # T-3693: `fw-project=<16 hex of sha256(realpath project root)>`. Project root:
 # PROJECT_ROOT, else the nearest ancestor holding .framework.yaml (or the
@@ -168,6 +242,7 @@ _cfw_lib() {
 
 termlink_start() {
     if [ "$TERMLINK_ENABLED" != "1" ]; then return; fi
+    [ "$_CFW_RESUMED" = 1 ] && return   # T-4118: reuse the session spawned before the re-exec
     if ! command -v termlink >/dev/null 2>&1; then
         echo "claude-fw: --termlink requested but termlink not found on PATH. Ignoring."
         TERMLINK_ENABLED=0
@@ -351,6 +426,55 @@ is_signal_fresh() {
     fi
 }
 
+# T-4119 (832 T-1140): the handover limit was a fixed 180 s, but what runs under it is not.
+# The handover commit goes through post-commit hooks (59 s measured in 832) and the
+# pre-push gate, then the push, so one slow commit plus the handover commit outlives
+# 180 s. `timeout` cut the handover mid-push and the terminator killed claude straight
+# after. So the limit is a floor, not a ceiling: at the limit, if a git process of this
+# repo is still running (the commit, its hooks, or the push), the handover gets another
+# 30 s, up to FW_TERMINATOR_HANDOVER_MAX. With no git in flight it is cut at the limit as
+# before. The handover runs in its own process group, so the cut reaches the git
+# children it spawned, as `timeout` did. Linux (/proc); elsewhere nothing is found busy
+# and the limit is the old one.
+# _handover_git_busy <root> — is a git process running with its cwd inside <root>?
+_handover_git_busy() {
+    local root="$1" d cwd
+    for d in /proc/[0-9]*; do
+        cwd=$(readlink "$d/cwd" 2>/dev/null) || continue
+        case "$cwd" in "$root"|"$root"/*) ;; *) continue ;; esac
+        [ "$(cat "$d/comm" 2>/dev/null)" = git ] && return 0
+    done
+    return 1
+}
+# _bounded_handover <root> <limit> <ceiling> <out-file> <cmd...> — returns cmd's rc, or 124
+# when it was cut (the same code `timeout` gives).
+_bounded_handover() {
+    local root="$1" limit="$2" ceiling="$3" out="$4" pid start deadline now
+    shift 4
+    start=$(date +%s); deadline=$((start + limit))
+    set -m   # the job gets its own process group (pgid = pid) for the cut below
+    (cd "$root" && exec "$@") > "$out" 2>&1 &
+    pid=$!
+    set +m
+    while kill -0 "$pid" 2>/dev/null; do
+        sleep 1
+        now=$(date +%s)
+        [ "$now" -ge "$deadline" ] || continue
+        if [ $((now - start)) -lt "$ceiling" ] && _handover_git_busy "$root"; then
+            echo "claude-fw: handover still running git at ${limit}s — extending (T-4119)" >&2
+            deadline=$((now + 30))
+            [ "$deadline" -le $((start + ceiling)) ] || deadline=$((start + ceiling))
+            continue
+        fi
+        kill -TERM -- "-$pid" 2>/dev/null || kill -TERM "$pid" 2>/dev/null || true
+        sleep 2
+        kill -KILL -- "-$pid" 2>/dev/null || kill -KILL "$pid" 2>/dev/null || true
+        wait "$pid" 2>/dev/null || true
+        return 124
+    done
+    wait "$pid"
+}
+
 # T-3918 (G-110, RC-1 of ring20-manager's T-2248): never end a session at
 # budget-critical before a handover exists. budget-gate writes the restart signal
 # on the FIRST critical block (T-2403) and the terminator below used to SIGTERM
@@ -380,8 +504,9 @@ _ensure_handover_before_kill() {
     echo "claude-fw: budget-critical — writing a handover before ending the session (T-3918)..." >&2
     local started sha hl
     started=$(date +%s)
-    (cd "$root" && timeout "${FW_TERMINATOR_HANDOVER_TIMEOUT:-180}" bash "$fwbin" handover --commit \
-        > "$root/.context/working/.terminator.handover.out" 2>&1)
+    # T-4119: a floor, not a ceiling — see _bounded_handover.
+    _bounded_handover "$root" "${FW_TERMINATOR_HANDOVER_TIMEOUT:-180}" "${FW_TERMINATOR_HANDOVER_MAX:-900}" \
+        "$root/.context/working/.terminator.handover.out" bash "$fwbin" handover --commit
     rc=$?
     if [ "$rc" -eq 0 ]; then
         echo "[terminator] Handover generated at $ts" >> "$log" 2>/dev/null || true
@@ -415,6 +540,28 @@ _restart_handover_line() {
     else
         echo "  WARNING: NO handover exists (.context/handovers/LATEST.md missing). Run 'fw handover' first thing. Continuing in 3 seconds..."
     fi
+}
+
+# T-4170 (dimitri-mint-dev P-008): a budget restart looked like a crash — nothing on
+# screen said why the session ended. _handover_id names the handover a restart
+# resumes from (LATEST.md's session_id); the banner and the relaunch line both use it.
+_handover_id() {
+    local latest="$1/.context/handovers/LATEST.md" id
+    id=$(sed -n 's/^session_id:[[:space:]]*//p' "$latest" 2>/dev/null | head -1)
+    echo "${id:-unknown}"
+}
+
+# Printed just before the terminator ends claude: reason, handover, countdown.
+# Args: $1=project root, $2=seconds until the session ends.
+_budget_end_banner() {
+    local root="$1" secs="$2"
+    {
+        echo ""
+        echo "claude-fw: === CONTEXT BUDGET CRITICAL — this session is about to end (NOT a crash) ==="
+        echo "  Reason:   context budget reached the critical threshold; claude-fw restarts a fresh session"
+        echo "  Handover: $(_handover_id "$root") (.context/handovers/LATEST.md)"
+        echo "  Ending in ${secs}s — the new session resumes from that handover."
+    } >&2
 }
 
 # T-2373: budget-critical terminator (plain mode).
@@ -575,6 +722,9 @@ _terminator_watch() {
         # Keep the restart intent alive: the restart branch only honours a signal < 300 s old.
         touch "$sigfile" 2>/dev/null || true
         echo "claude-fw: budget-critical signal detected — ending claude to trigger auto-restart." >&2
+        local banner="${FW_TERMINATOR_BANNER_SECS:-5}"
+        _budget_end_banner "$root" "$banner"
+        sleep "$banner"
         for p in $pids; do kill -TERM "$p" 2>/dev/null || true; done
         sleep "$grace"
         for p in $pids; do kill -KILL "$p" 2>/dev/null || true; done
@@ -734,6 +884,12 @@ RESTART_WINDOW=$(_fw_cfg RESTART_WINDOW 3600)
 [[ "$RESTART_WINDOW" =~ ^[0-9]+$ ]] || RESTART_WINDOW=3600
 
 restart_times=()   # epoch seconds of restarts still inside the window
+if [ "$_CFW_RESUMED" = 1 ]; then
+    # T-4118: a re-exec is the same supervisor, so it keeps its restart count and budget.
+    restart_count="$_CFW_R_COUNT"
+    # shellcheck disable=SC2206 # validated digits-and-spaces above
+    restart_times=($_CFW_R_TIMES)
+fi
 
 # _restart_budget_prune — drop restarts older than the window, set RESTART_SPENT.
 #
@@ -931,6 +1087,12 @@ sidecar_start() {
 }
 _TERMLINK_REQUESTED=0
 for _a in "$@"; do [ "$_a" = "--termlink" ] && _TERMLINK_REQUESTED=1; done
+# T-4118: sidecar, banner and the `start armed` event belong to the first launch only.
+if [ "$_CFW_RESUMED" = 1 ]; then
+    echo "claude-fw: now running the updated wrapper (restart #${restart_count}, T-4118)" >&2
+    _record_loop_event start reexec \
+        "wrapper re-exec'd at the restart boundary: ${_CFW_R_OLD_ID:0:12} -> ${_CFW_SELF_ID:0:12} (${_CFW_SELF_PATH})"
+else
 sidecar_start
 
 # T-2411: one-shot startup overview (before main loop — not re-emitted on restart).
@@ -949,6 +1111,7 @@ _print_startup_banner
 # an in-loop start event would flatten. Non-fatal like every other call site.
 _record_loop_event start armed \
     "restart=$([ "$AUTO_RESTART" = false ] && echo disabled || echo enabled) max_restarts=${MAX_RESTARTS} window=${RESTART_WINDOW}s armed=$(_continuous_armed && echo yes || echo no) termlink=${TERMLINK_ENABLED:-0}"
+fi
 
 # T-3629: a relaunch must never hand claude an empty argv. Claude Code 2.1.28x
 # opens its AGENTS OVERVIEW, not a conversation, when started with no arguments
@@ -993,7 +1156,59 @@ _conversation_guard() {
     return 1
 }
 
+# T-4118: at the restart boundary, run the wrapper that is on disk now rather than the
+# one in memory. Called only between two claude runs — the previous claude has exited
+# and its terminator has been reaped — so no turn is ever cut short by it. The new copy
+# gets the ORIGINAL argv (its own flag parsing stays authoritative) plus the loop state
+# in FW_CFW_REEXEC_*; exec keeps the pid, so the EXIT trap does not fire and the
+# TermLink session claude-master-$$ carries over. Never fatal: a file that is gone,
+# unreadable, fails `bash -n`, or cannot be exec'd is a loud warning and the loop goes
+# on with the code it already has. FW_CLAUDE_FW_NO_REEXEC=1 opts out.
+_cfw_reexec_if_changed() {
+    [ "${FW_CLAUDE_FW_NO_REEXEC:-0}" = 1 ] && return 0
+    [ -n "$_CFW_SELF_ID" ] || return 0   # never fingerprinted: nothing to compare against
+    local now_id="" root log ts
+    ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+    root=$(git rev-parse --show-toplevel 2>/dev/null) || root=""
+    log=/dev/null
+    [ -n "$root" ] && [ -d "$root/.context/working" ] && log="$root/.context/working/.compact-log"
+    now_id=$(_cfw_script_id "$_CFW_SELF_PATH") || now_id=""
+    if [ -z "$now_id" ]; then
+        echo "claude-fw: WARNING: cannot read $_CFW_SELF_PATH at the restart boundary — continuing on the wrapper code loaded at start, which may be out of date (T-4118)" >&2
+        echo "[claude-fw] $ts re-exec check: $_CFW_SELF_PATH missing or unreadable — continuing on in-memory code ${_CFW_SELF_ID:0:12} (T-4118)" >> "$log" 2>/dev/null || true
+        return 0
+    fi
+    [ "$now_id" = "$_CFW_SELF_ID" ] && return 0
+    if ! bash -n "$_CFW_SELF_PATH" 2>/dev/null; then
+        echo "claude-fw: WARNING: $_CFW_SELF_PATH changed but does not parse (bash -n) — NOT switching to it; continuing on the code loaded at start (T-4118)" >&2
+        echo "[claude-fw] $ts re-exec refused: $_CFW_SELF_PATH ${now_id:0:12} fails bash -n — continuing on ${_CFW_SELF_ID:0:12} (T-4118)" >> "$log" 2>/dev/null || true
+        return 0
+    fi
+    echo "[claude-fw] $ts re-exec at restart boundary: $_CFW_SELF_PATH changed ${_CFW_SELF_ID:0:12} -> ${now_id:0:12} (restart #${restart_count}, T-4118)" >> "$log" 2>/dev/null || true
+    echo "claude-fw: wrapper updated on disk since this session started — re-executing it before the relaunch (T-4118)" >&2
+    local args_b64=""
+    [ "${#CLAUDE_ARGS[@]}" -gt 0 ] && args_b64=$(printf '%s\0' "${CLAUDE_ARGS[@]}" | base64 -w0)
+    export FW_CFW_REEXEC_PID="$$" \
+        FW_CFW_REEXEC_COUNT="$restart_count" \
+        FW_CFW_REEXEC_TIMES="${restart_times[*]+${restart_times[*]}}" \
+        FW_CFW_REEXEC_ARGS="$args_b64" \
+        FW_CFW_REEXEC_TL_SESSION="$TERMLINK_SESSION" \
+        FW_CFW_REEXEC_TL_ENABLED="${TERMLINK_ENABLED:-0}" \
+        FW_CFW_REEXEC_OLD_ID="$_CFW_SELF_ID"
+    shopt -s execfail
+    # shellcheck disable=SC2093 # execfail: a failed exec returns here and we carry on
+    exec bash "$_CFW_SELF_PATH" ${_CFW_ORIG_ARGS[@]+"${_CFW_ORIG_ARGS[@]}"}
+    shopt -u execfail
+    unset FW_CFW_REEXEC_PID FW_CFW_REEXEC_COUNT FW_CFW_REEXEC_TIMES FW_CFW_REEXEC_ARGS \
+        FW_CFW_REEXEC_TL_SESSION FW_CFW_REEXEC_TL_ENABLED FW_CFW_REEXEC_OLD_ID
+    echo "claude-fw: WARNING: exec of $_CFW_SELF_PATH failed — continuing on the code loaded at start (T-4118)" >&2
+    echo "[claude-fw] $ts re-exec FAILED: exec $_CFW_SELF_PATH — continuing on ${_CFW_SELF_ID:0:12} (T-4118)" >> "$log" 2>/dev/null || true
+    return 0
+}
+
 while true; do
+    # T-4118: between runs only — never mid-turn.
+    [ "$restart_count" -gt 0 ] && _cfw_reexec_if_changed
     # T-2373: record when this run started so the terminator only acts on a
     # signal written DURING the run (edge case a — not a leftover/stale signal).
     run_start_epoch=$(date +%s)
@@ -1214,6 +1429,8 @@ while true; do
         else
             echo "  Restart mode: fresh (new session, seeded from the handover)"
         fi
+        echo "  Reason: context budget critical — the previous session was ended on purpose, not a crash."
+        echo "  Handover: $(_handover_id "$(cd "$(dirname "$signal_file")/../.." && pwd)") (.context/handovers/LATEST.md)"
         # T-3919: say "committed" only when it is true (signal mtime read before rm below).
         _restart_handover_line "$(cd "$(dirname "$signal_file")/../.." && pwd)" \
             "$(stat -c %Y "$signal_file" 2>/dev/null || echo 0)"

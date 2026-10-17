@@ -29,6 +29,11 @@ Deliberately conservative extras: command substitution (`$(…)`, backticks) and
 subshell/group openers are refused wherever they appear, because both can carry
 an arbitrary command inside a segment whose leading verb looks fine.
 
+T-4150: steps 1-2 read the text through ONE tokeniser (`_scan`) that follows
+bash for comments, quotes and heredocs, and refuses process substitution, an
+expansion in an unquoted heredoc body, and any text it cannot read with
+certainty (unterminated quote, `$'…'`, nested quoting in `${…}`).
+
 Callable as a CLI so the classification can be probed against the *shipping*
 file rather than a retyped copy of it — the convention 832 used to find this,
 worth keeping:
@@ -37,6 +42,7 @@ worth keeping:
     python3 lib/cmd_classify.py 'git commit -m x'              # -> allowed, exit 0
 """
 
+import os
 import re
 import sys
 
@@ -103,12 +109,240 @@ _ENV_ASSIGN_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=[^\s]*\s+")
 
 _SUBSHELL_OPENERS = ("(", "{")
 
-# A heredoc operator, with the marker's quoting balanced: `<<EOF`, `<<'EOF'`,
-# `<<"EOF"`, `<<-EOF`. The backreference matters — `['\"]?(\w+)['\"]?` (the form
-# in check-project-boundary.sh) also matches the unbalanced `<<'EOF`, which is
-# not a thing bash produces and would let a stray apostrophe start a phantom
-# heredoc.
-_HEREDOC_RE = re.compile(r"<<-?\s*(['\"]?)(\w+)\1")
+# ── One tokeniser for comments, quotes and heredocs (T-4150) ──────────────────
+# T-2923 found heredoc bodies being judged as commands and fixed it with a
+# heredoc stripper that knew about quotes but not about comments. T-4150 is the
+# other half: three admits at critical, each a place where this module read the
+# text differently from bash —
+#
+#   `git status # <<EOF`  bash: comment text.  stripper: an opener, so the next
+#                         line (a real command) was blanked as heredoc data.
+#   `<<EOF … $(cmd) …`    bash expands $(…) in an UNQUOTED body.  stripper:
+#                         blanked it as data, quoted delimiter or not.
+#   `> >(cmd)`            process substitution: a command inside a word.
+#
+# So `_scan` below is the one place that decides where comments, quotes and
+# heredocs are, using bash's rules for each; `strip_heredocs` and
+# `strip_comments` both take its reading rather than re-deriving their own.
+# Where bash's reading is not certain from the text, it refuses.
+
+# Characters after which a `#` begins a word (and so a comment): bash's
+# metacharacters plus start-of-text. `a#b` and `${#x}` are not comments.
+_WORD_BREAK = " \t\n;&|()<>"
+
+# A heredoc delimiter word ends at an unquoted blank or metacharacter.
+_DELIM_END = " \t\n;&|()<>"
+
+
+class _Refused(Exception):
+    """The command cannot be read with certainty; the classifier refuses it."""
+
+
+def _read_delimiter(command, i):
+    """Read a heredoc delimiter word starting at `i` (blanks already skipped).
+
+    Returns (marker, quoted, end). Bash's rule: the delimiter is the word after
+    quote removal, and ANY quoting in it (quotes or a backslash) makes the
+    heredoc quoted — `<<E"O"F` is a quoted heredoc ended by `EOF`.
+    """
+    n = len(command)
+    marker = []
+    quoted = False
+    j = i
+    while j < n and command[j] not in _DELIM_END:
+        c = command[j]
+        if c in "$`":
+            # `<<$X`, `<<$'EOF'`: bash does no expansion here, but what quote
+            # removal does to `$'…'` is not something to guess at.
+            raise _Refused("heredoc delimiter contains an expansion character")
+        if c == "\\":
+            quoted = True
+            if j + 1 < n:
+                marker.append(command[j + 1])
+            j += 2
+            continue
+        if c in "'\"":
+            close = command.find(c, j + 1)
+            if close == -1:
+                raise _Refused("unterminated quote in heredoc delimiter")
+            quoted = True
+            marker.append(command[j + 1:close])
+            j = close + 1
+            continue
+        marker.append(c)
+        j += 1
+    word = "".join(marker)
+    if not word or "\n" in word:
+        raise _Refused("heredoc operator without a usable delimiter")
+    return word, quoted, j
+
+
+def _skip_dollar_brace(command, i):
+    """`command[i:i+2]` is `${` or `$[`: return the index after its close.
+
+    Refuses `$[…]`, and a `${…}` holding a quote, a backtick or `$(` (whose
+    nesting a flat tokeniser cannot follow) or never closing.
+    """
+    if command[i + 1] == "[":
+        raise _Refused("legacy arithmetic $[…] is not parsed here")
+    n = len(command)
+    depth = 0
+    j = i + 1
+    while j < n:
+        c = command[j]
+        if c == "\\":
+            j += 2
+            continue
+        if c in "'\"`" or command.startswith("$(", j):
+            raise _Refused("parameter expansion with nested quoting is not parsed here")
+        if c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+            if depth == 0:
+                return j + 1
+        j += 1
+    raise _Refused("unterminated parameter expansion")
+
+
+def _scan(command):
+    """Read `command` the way bash does; return (heredocs_blanked, comment_spans).
+
+    `heredocs_blanked` is the command with every heredoc body and terminator
+    line replaced by spaces (newlines kept, so positions are unchanged).
+    `comment_spans` lists (start, end) of every comment, in those positions.
+
+    Raises _Refused for anything bash would read as a command this module
+    cannot see (process substitution, an expansion in an unquoted heredoc
+    body) and for text whose reading is uncertain (an unterminated quote,
+    ANSI-C `$'…'` quoting, an odd heredoc delimiter).
+    """
+    out = list(command)
+    comments = []
+    n = len(command)
+    i = 0
+    in_single = in_double = False
+    prev = ""        # last character bash would see (line continuations skipped)
+    pending = []     # heredocs opened on this line: (marker, quoted, dash, op_start, op_end)
+
+    def take_bodies(start):
+        """Consume pending heredoc bodies from `start`; return the new index."""
+        j = start
+        for marker, quoted, dash, op_start, op_end in pending:
+            body_start = j
+            while True:
+                if j >= n:
+                    # Unterminated: bash takes the rest of the input as the
+                    # body. Leave it in place, so it is judged as commands
+                    # (T-2923 pinned that), but an unquoted one is expanded
+                    # by bash, so it may not carry a command substitution.
+                    body = command[body_start:]
+                    if not quoted and ("$(" in body or "`" in body):
+                        raise _Refused("unquoted heredoc body runs command substitution")
+                    return n
+                line_end = command.find("\n", j)
+                if line_end == -1:
+                    line_end = n
+                line = command[j:line_end]
+                if (line.lstrip("\t") if dash else line) == marker:
+                    body = command[body_start:j]
+                    if not quoted and ("$(" in body or "`" in body):
+                        raise _Refused("unquoted heredoc body runs command substitution")
+                    # The operator is blanked with its body, so a second
+                    # scan of the blanked text (strip_comments) finds no
+                    # opener whose body it would then hunt for.
+                    for k in list(range(op_start, op_end)) + list(range(body_start, line_end)):
+                        if out[k] != "\n":
+                            out[k] = " "
+                    j = line_end + 1
+                    break
+                j = line_end + 1
+        pending.clear()
+        return min(j, n)
+
+    while i < n:
+        c = command[i]
+        nxt = command[i + 1] if i + 1 < n else ""
+
+        if in_single:
+            if c == "'":
+                in_single = False
+            prev = c
+            i += 1
+            continue
+        if c == "\\":
+            # Escapes the next character outside single quotes. A backslash-
+            # newline is a line continuation: bash joins the lines, so it does
+            # not count as a word break for the `#` that may follow.
+            if nxt != "\n":
+                prev = "x"  # an escaped character is part of a word
+            i += 2
+            continue
+        if c == "$" and nxt in "{[":
+            # Inside `${…}` bash nests quoting (`"${x:-"<<'EOF'"}"` is ONE
+            # double-quoted word), which a flat quote tracker misreads; `$[…]`
+            # is legacy arithmetic. Refuse either when it could mislead.
+            i = _skip_dollar_brace(command, i)
+            prev = "}"
+            continue
+        if in_double:
+            if c == '"':
+                in_double = False
+            prev = c
+            i += 1
+            continue
+
+        # ── outside quotes ──
+        if c == "'":
+            if prev == "$":
+                raise _Refused("ANSI-C $'…' quoting is not parsed here")
+            in_single = True
+        elif c == '"':
+            in_double = True
+        elif c == "#" and (prev == "" or prev in _WORD_BREAK):
+            end = command.find("\n", i)
+            end = n if end == -1 else end
+            comments.append((i, end))
+            i = end
+            continue  # the newline (if any) is handled below
+        elif c in "<>" and nxt == "(":
+            raise _Refused("process substitution can carry an arbitrary command")
+        elif c == "<" and nxt == "<":
+            if command.startswith("<<<", i):
+                prev = "<"
+                i += 3  # here-string, not a heredoc
+                continue
+            j = i + 2
+            dash = j < n and command[j] == "-"
+            if dash:
+                j += 1
+            while j < n and command[j] in " \t":
+                j += 1
+            marker, quoted, j = _read_delimiter(command, j)
+            pending.append((marker, quoted, dash, i, j))
+            prev = command[j - 1]
+            i = j
+            continue
+        elif c == "\n" and pending:
+            i = take_bodies(i + 1)
+            prev = "\n"
+            continue
+        prev = c
+        i += 1
+
+    if in_single or in_double:
+        raise _Refused("unterminated quote")
+    # An operator on the last line with no body at all is left as it is.
+    return "".join(out), comments
+
+
+def shell_syntax_refusal(command):
+    """Return why `command` cannot be read with certainty, or "" when it can."""
+    try:
+        _scan(command)
+    except _Refused as exc:
+        return str(exc)
+    return ""
 
 
 def strip_heredocs(command):
@@ -122,116 +356,45 @@ def strip_heredocs(command):
     wrap up.
 
     Runs BEFORE `strip_comments` and `split_segments`, mirroring the ordering
-    T-2920 established in check-project-boundary.sh. The reason is the same
-    there and here: a heredoc body is a LARGER unit than a quoted string or a
-    comment, and it can contain either. A `#` in a commit message is not a
-    comment; an apostrophe in one is not an open quote. Strip the larger unit
-    first or the smaller strippers corrupt their own state on data they should
-    never have seen.
+    T-2920 established in check-project-boundary.sh: a body can contain `#` and
+    unbalanced quotes, which would corrupt the smaller strippers' state.
 
-    Two deliberate differences from the boundary hook's `_strip_heredocs`:
-
-    1. The TERMINATOR line is blanked too, not just the body. That hook scans
-       for path patterns, so a stray `EOF` token was harmless; this module
-       judges every segment's leading verb, and a bare `EOF` segment matches no
-       allowed verb and would block the very command we are trying to permit.
-    2. The operator is only recognised OUTSIDE quotes. `git commit -m "see
-       <<EOF"` starts no heredoc. Without that check a quoted mention followed
-       somewhere later by a line reading `EOF` would blank the real commands in
-       between — a false ALLOW, which is the silent direction and the one worth
-       spending code on.
+    The TERMINATOR line is blanked too, not just the body: a bare `EOF` segment
+    matches no allowed verb and would block the very command being permitted.
+    An operator is recognised only where bash recognises one — outside quotes
+    AND outside comments (T-4150: `git status # <<EOF` opens nothing). The body
+    ends only on a line equal to the delimiter (leading tabs removed for `<<-`),
+    which is bash's rule; a near miss such as `EOF ` is still body.
 
     Unterminated heredocs are left untouched, so the remaining text is judged as
-    commands. That fails closed.
+    commands. That fails closed. Text `_scan` refuses is returned unchanged;
+    `classify` refuses it before this runs.
     """
-    out = list(command)
-    n = len(command)
-    i = 0
-    in_single = in_double = False
-
-    while i < n:
-        c = command[i]
-        if c == "\\" and not in_single and i + 1 < n:
-            i += 2
-            continue
-        if c == "'" and not in_double:
-            in_single = not in_single
-            i += 1
-            continue
-        if c == '"' and not in_single:
-            in_double = not in_double
-            i += 1
-            continue
-        if in_single or in_double or c != "<":
-            i += 1
-            continue
-
-        m = _HEREDOC_RE.match(command, i)
-        if not m:
-            i += 1
-            continue
-
-        marker = m.group(2)
-        nl = command.find("\n", m.end())
-        if nl == -1:
-            break  # operator with no body on this command line
-
-        j = nl + 1
-        found = False
-        while j < n:
-            line_end = command.find("\n", j)
-            if line_end == -1:
-                line_end = n
-            # `.strip()` rather than bash's exact rule (`<<-` eats leading tabs,
-            # terminator alone on the line). Ending the region EARLY is the safe
-            # error: the remaining body lines are then judged as commands and
-            # block. Ending it late would hide real commands.
-            if command[j:line_end].strip() == marker:
-                # Blank body AND terminator line; keep newlines so segment
-                # positions downstream are unchanged.
-                for k in range(nl + 1, line_end):
-                    if out[k] != "\n":
-                        out[k] = " "
-                i = line_end
-                found = True
-                break
-            j = line_end + 1
-
-        if not found:
-            break  # unterminated — leave the rest to be judged as commands
-
-    return "".join(out)
+    try:
+        return _scan(command)[0]
+    except _Refused:
+        return command
 
 
 def strip_comments(command):
     """Remove `#` comments, honouring quotes.
 
     `npm run build # git commit` loses the comment (and its alibi);
-    `git commit -m "fix #42"` keeps its message intact.
+    `git commit -m "fix #42"` keeps its message intact. Where a comment starts
+    is `_scan`'s reading — a `#` at a word start, after a blank or a shell
+    metacharacter (`git status;# x`) — so this and `strip_heredocs` cannot
+    disagree about it. Text `_scan` refuses is returned unchanged.
     """
+    try:
+        _, spans = _scan(command)
+    except _Refused:
+        return command
     out = []
-    in_single = in_double = False
-    i = 0
-    n = len(command)
-    while i < n:
-        c = command[i]
-        if c == "\\" and not in_single and i + 1 < n:
-            out.append(c)
-            out.append(command[i + 1])
-            i += 2
-            continue
-        if c == "'" and not in_double:
-            in_single = not in_single
-        elif c == '"' and not in_single:
-            in_double = not in_double
-        elif c == "#" and not in_single and not in_double:
-            # A comment only starts at a token boundary: `a#b` is one word.
-            if not out or out[-1].isspace():
-                while i < n and command[i] != "\n":
-                    i += 1
-                continue
-        out.append(c)
-        i += 1
+    last = 0
+    for start, end in spans:
+        out.append(command[last:start])
+        last = end
+    out.append(command[last:])
     return "".join(out)
 
 
@@ -318,11 +481,96 @@ def split_segments(command):
     return segments
 
 
-def _segment_allowed(segment, after_pipe):
+# ── Launcher identity (T-4125, same class as T-4108) ─────────────────────────
+# The verb patterns above accept ANY path ending in `fw` or a wrap-up script, so
+# `/tmp/x/bin/fw handover` or `cd /tmp/x && bin/fw git commit` — a planted
+# launcher — was allowed at critical budget. A path-qualified launcher is
+# admitted only when it resolves to THIS project's own copy; a relative one is
+# resolved against the shell's cwd (the PreToolUse payload `cwd`, followed
+# through literal `cd ABS` clauses); a bare name is PATH-resolved and unchanged.
+_FW_LAUNCHER = "fw"
+_SCRIPT_LAUNCHERS = ("context.sh", "resume.sh", "checkpoint.sh",
+                     "budget-gate.sh", "handover.sh", "update-task.sh")
+
+# A leading assignment of one of these re-points what a bare name resolves to.
+_DANGEROUS_ENV = {"PATH", "BASH_ENV", "ENV", "CDPATH", "FRAMEWORK_ROOT",
+                  "PROJECT_ROOT", "PYTHONPATH", "PYTHONHOME", "HOME", "SHELL"}
+
+_CD_ARG_RE = re.compile(r"^[\w.\-/+@%:,=]+$")
+
+
+def _project_shim_real(pr):
+    """T-4203: the project's own tracked `bin/fw`, resolved, or None.
+
+    A consumer may track a `bin/fw` shim that execs `.agentic-framework/bin/fw`.
+    It is the project's own launcher only when it is a REGULAR FILE and its
+    realpath lies under realpath(PROJECT_ROOT). A symlink escaping the project,
+    a directory, or a missing file is not admitted. Mirrors `_fw_project_shim_real`
+    in agents/context/lib/safe-commands.sh; the two must agree.
+    """
+    root = os.path.realpath(pr)
+    shim = os.path.realpath(os.path.join(pr, "bin", "fw"))
+    if os.path.isfile(shim) and shim.startswith(root + os.sep):
+        return shim
+    return None
+
+
+class _Ctx:
+    """Where the command runs and which installs are 'ours'."""
+
+    def __init__(self, cwd=None, framework_root=None, project_root=None):
+        fr = framework_root or os.environ.get("FRAMEWORK_ROOT") or \
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        pr = project_root or os.environ.get("PROJECT_ROOT") or ""
+        self.cwd = os.path.realpath(cwd) if isinstance(cwd, str) and cwd.startswith("/") else None
+        self.fw_paths = {os.path.realpath(os.path.join(fr, "bin", "fw"))}
+        self.roots = [os.path.realpath(fr)]
+        if pr:
+            self.fw_paths.add(os.path.realpath(os.path.join(pr, ".agentic-framework", "bin", "fw")))
+            self.roots.append(os.path.realpath(os.path.join(pr, ".agentic-framework")))
+            shim = _project_shim_real(pr)
+            if shim:
+                self.fw_paths.add(shim)
+
+    def launcher_ok(self, token):
+        """Is path-qualified-or-bare `token` this install's own launcher?"""
+        base = os.path.basename(token)
+        if base not in (_FW_LAUNCHER,) + _SCRIPT_LAUNCHERS:
+            return True  # not a launcher verb (git, echo, cd, …)
+        if "/" not in token:
+            return True  # bare: resolved through PATH, unchanged
+        if token.startswith("/"):
+            path = token
+        else:
+            if self.cwd is None:
+                return False  # relative launcher, shell cwd unknown
+            path = os.path.join(self.cwd, token)
+        real = os.path.realpath(path)
+        if base == _FW_LAUNCHER:
+            return real in self.fw_paths
+        return any(real.startswith(r + os.sep) for r in self.roots)
+
+    def apply_cd(self, segment, isolated):
+        """Track the cwd through a `cd` segment; unknown when it cannot be told."""
+        m = re.match(r"cd\s+(\S+)\s*$", segment)
+        arg = m.group(1) if m else None
+        if isolated or arg is None or arg == "-" or not _CD_ARG_RE.match(arg):
+            self.cwd = None
+        elif arg.startswith("/"):
+            self.cwd = os.path.realpath(arg)
+        elif self.cwd is not None and (arg.startswith(("./", "../")) or arg in (".", "..")):
+            self.cwd = os.path.realpath(os.path.join(self.cwd, arg))
+        else:
+            self.cwd = None  # bare relative name: CDPATH could redirect it
+
+
+def _segment_allowed(segment, after_pipe, ctx=None):
     """Judge one segment. Returns (allowed, reason_when_blocked)."""
     s = segment.strip()
     if not s:
         return True, ""  # empty segment (trailing `;`) decides nothing
+    if ctx is None:
+        ctx = _Ctx()
 
     if "$(" in s or "`" in s:
         return False, "command substitution can carry an arbitrary command"
@@ -334,9 +582,13 @@ def _segment_allowed(segment, after_pipe):
         stripped = _ENV_ASSIGN_RE.sub("", s)
         if stripped == s:
             break
+        if s.split("=", 1)[0] in _DANGEROUS_ENV or s.split("=", 1)[0].startswith("LD_"):
+            return False, "assignment re-points command resolution"
         s = stripped
 
     if _ALLOWED_LEADING_RE.match(s):
+        if not ctx.launcher_ok(s.split()[0]):
+            return False, "launcher is not this project's own (T-4125)"
         return True, ""
     if after_pipe and _ALLOWED_PIPE_SINK_RE.match(s):
         return True, ""
@@ -345,13 +597,16 @@ def _segment_allowed(segment, after_pipe):
     return False, f"'{verb}' is not a wrap-up command"
 
 
-def classify(command):
+def classify(command, cwd=None, framework_root=None, project_root=None):
     """Classify a Bash command for the at-critical allowlist.
 
     Returns (allowed: bool, reason: str). `reason` is empty when allowed and
     names the specific segment that failed when blocked — so the agent can
     restructure the command instead of reaching for a bypass. A gate that says
     only "blocked" teaches nothing about what to type next.
+
+    `cwd` is the shell's working directory at the call (the hook payload's
+    `cwd`); without it a relative launcher is refused (T-4125).
     """
     if not command or not command.strip():
         return False, "empty command"
@@ -361,14 +616,26 @@ def classify(command):
     # strip_heredocs' docstring, and T-2920 for the same ordering rule in
     # check-project-boundary.sh, where getting it backwards voided the stripper
     # entirely).
+    # T-4150: refuse first anything bash would read as a command this module
+    # cannot see, or text whose reading is uncertain — fail closed.
+    refusal = shell_syntax_refusal(command)
+    if refusal:
+        return False, refusal
     cleaned = strip_heredocs(command)
     cleaned = strip_comments(cleaned)
     if not cleaned.strip():
         # The whole command was a comment.
         return False, "comment-only command"
 
-    for sep, segment in split_segments(cleaned):
-        ok, reason = _segment_allowed(segment, after_pipe=(sep == "|"))
+    ctx = _Ctx(cwd, framework_root, project_root)
+    segs = split_segments(cleaned)
+    for i, (sep, segment) in enumerate(segs):
+        ok, reason = _segment_allowed(segment, after_pipe=(sep == "|"), ctx=ctx)
+        if ok and re.match(r"\s*cd\s", segment):
+            nxt = segs[i + 1][0] if i + 1 < len(segs) else ""
+            # A cd in a pipeline/background runs in a subshell; one followed by
+            # `||` may have failed — either way the cwd is no longer knowable.
+            ctx.apply_cd(segment.strip(), sep in ("|", "&") or nxt in ("|", "&", "||"))
         if not ok:
             shown = segment.strip()
             if len(shown) > 60:
