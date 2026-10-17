@@ -1195,7 +1195,10 @@ HUMAN_TICKS_LEDGER="${RUNME_HUMAN_TICKS_LEDGER:-$PROJECT_ROOT/.context/reviews/h
 HUMAN_TICKS_PY="${RUNME_HUMAN_TICKS_PY:-$PROJECT_ROOT/.agentic-framework/lib/human_ac_ticks.py}"
 # T-3351:1 (accept step-2 residual risks) and T-3388:1 (sign off requirements v0.5.2): ticked by the operator in
 # Watchtower on 2026-10-11, which again wrote no provenance row (T-3393).
-OPERATOR_TICKS="T-3349:1 T-3351:1 T-3388:1"   # task:Human-AC-number, space-separated; each one the operator ticked themself
+# T-3291:1 and T-3302:1 ("approve go/no-go decision"): ticked by `fw inception decide` when the operator ruled GO
+# (2026-09-30 and 2026-10-01; both files record "Operator ...: GO" with his rationale). That output sat
+# uncommitted until T-3451 committed it under the agent's name on 2026-10-18 (T-3460), blocking pushes.
+OPERATOR_TICKS="T-3349:1 T-3351:1 T-3388:1 T-3291:1 T-3302:1"   # task:Human-AC-number, space-separated; each one the operator ticked themself
 
 has_operator_ack() { grep -F "\"task\": \"$1\"" "$HUMAN_TICKS_LEDGER" 2>/dev/null | grep -qF '"via": "operator-ack"'; }
 
@@ -1219,7 +1222,7 @@ ack_operator_ticks() {
     done
 }
 
-head2 "14. Record your own Watchtower ticks (T-3349 step 1, T-3351 step 2, T-3388 step 1 v0.5.2) so pushes are not blocked"
+head2 "14. Record your own ticks (T-3349 step 1, T-3351 step 2, T-3388 step 1 v0.5.2, T-3291 and T-3302 GO reviews) so pushes are not blocked"
 ack_operator_ticks
 
 # ---------------------------------------------------------------------------
