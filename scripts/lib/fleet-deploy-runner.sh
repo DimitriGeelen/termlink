@@ -45,7 +45,23 @@ done
 echo "running hub runtime_dir=\$RUN_RT (confirmed by hub.pid) args=\${RUN_ARGS[*]} cert_sha=\${CERT_SHA_BEFORE:0:16}"
 
 # Backup
-cp "\$TARGET" "\$TARGET.\$(date +%s).bak" 2>/dev/null || echo "WARN: backup failed"
+BAK="\$TARGET.\$(date +%s).bak"
+cp "\$TARGET" "\$BAK" 2>/dev/null || { echo "WARN: backup failed"; BAK=""; }
+
+# T-3447: swap BEFORE the stop. On Linux the running hub keeps its unlinked inode, so
+# from here on ANY restarter (this runner or the host's own watchdog) starts the new
+# binary. On .121 (2026-10-17) a watchdog relaunched the old file inside the old
+# stop-wait-swap window and the deploy left the old version serving.
+SWAPPED=0
+if rm -f "\$TARGET" 2>/dev/null && cp "\$NEW" "\$TARGET" 2>/dev/null && chmod +x "\$TARGET"; then
+  SWAPPED=1; echo "swap done before the stop (a restarter now starts the new binary)"
+else
+  echo "swap before the stop failed (busy file?); falling back to stop-wait-swap"
+  if [ ! -x "\$TARGET" ]; then
+    [ -n "\$BAK" ] && cp "\$BAK" "\$TARGET" && chmod +x "\$TARGET" || { echo "ABORT: \$TARGET missing and no backup to restore"; exit 1; }
+    echo "restored \$TARGET from \$BAK"
+  fi
+fi
 
 # Detach
 sleep 3
@@ -58,14 +74,15 @@ for i in \$(seq 1 15); do
 done
 pgrep -f '[t]ermlink hub start' >/dev/null && { pkill -9 -f '[t]ermlink hub start'; sleep 2; }
 
-# NTFS DrvFs: 5s wait for file-lock release
-sleep 5
-
-# rm-then-cp avoids "Text file busy" on NTFS DrvFs
-rm -f "\$TARGET" || { echo "ABORT: rm failed"; exit 1; }
-cp "\$NEW" "\$TARGET" || { echo "ABORT: cp failed"; exit 1; }
-chmod +x "\$TARGET"
-echo "swap done"
+if [ "\$SWAPPED" = 0 ]; then
+  # NTFS DrvFs: 5s wait for file-lock release
+  sleep 5
+  # rm-then-cp avoids "Text file busy" on NTFS DrvFs
+  rm -f "\$TARGET" || { echo "ABORT: rm failed"; exit 1; }
+  cp "\$NEW" "\$TARGET" || { echo "ABORT: cp failed"; exit 1; }
+  chmod +x "\$TARGET"
+  echo "swap done after the stop"
+fi
 
 # Relaunch detached, matching launcher pattern
 sleep 1
@@ -85,7 +102,31 @@ if ! pgrep -f '[t]ermlink hub start' >/dev/null; then
   echo "\$(date) hub did NOT come back"
   echo "===== deploy done ====="; exit 1
 fi
-echo "\$(date) hub UP version=\$(\"\$TARGET\" --version 2>&1 | head -1)"
+# T-3447: every running hub must run the NEW file. A hub some other restarter started from
+# the old file shows its exe as another path or "<path> (deleted)"; stop it once, relaunch.
+stale_hubs() {
+  local p e
+  for p in \$(pgrep -f '[t]ermlink hub start'); do
+    e=\$(readlink "/proc/\$p/exe")
+    [ "\$e" = "\$TARGET" ] || echo "\$p:\$e"
+  done
+}
+STALE=\$(stale_hubs)
+if [ -n "\$STALE" ]; then
+  echo "STALE: hub running another file: \$STALE — replacing it once"
+  while IFS= read -r s; do kill "\${s%%:*}"; done <<< "\$STALE"  # an exe may read "<path> (deleted)"
+  for i in \$(seq 1 15); do [ -z "\$(stale_hubs)" ] && break; sleep 1; done
+  if ! pgrep -f '[t]ermlink hub start' >/dev/null; then
+    TERMLINK_RUNTIME_DIR="\$RUNTIME" setsid nohup "\$TARGET" "\${RUN_ARGS[@]}" >> /tmp/termlink-hub.log 2>&1 < /dev/null &
+    echo "relaunched hub PID=\$!"
+  fi
+  sleep 5
+  STALE=\$(stale_hubs)
+  if [ -n "\$STALE" ] || ! pgrep -f '[t]ermlink hub start' >/dev/null; then
+    echo "STALE after one replacement: \${STALE:-no hub running}"; echo "===== deploy done ====="; exit 1
+  fi
+fi
+echo "\$(date) hub UP version=\$("\$TARGET" --version 2>&1 | head -1)"
 # T-3437: the relaunched hub must serve the SAME cert from the SAME dir.
 CERT_SHA_AFTER=\$(sha256sum "\$RUNTIME/hub.cert.pem" 2>/dev/null | cut -d' ' -f1)
 if [ -n "\$CERT_SHA_BEFORE" ] && [ "\$CERT_SHA_AFTER" != "\$CERT_SHA_BEFORE" ]; then

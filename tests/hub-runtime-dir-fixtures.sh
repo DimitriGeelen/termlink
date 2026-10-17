@@ -65,6 +65,13 @@ check "12 the relaunch uses the confirmed dir only" 'grep -q "^RUNTIME=\"\$RUN_R
 check "13 a changed cert file after relaunch fails, named" 'grep -q "CERT CHANGED" "$R" && grep -A1 "CERT CHANGED" "$R" | grep -q "exit 1"'
 check "14 a port not presenting its dir's cert fails, named" 'grep -q "CERT MISMATCH" "$R"'
 check "15 a hub that does not come back exits non-zero" 'grep -A2 "hub did NOT come back" "$R" | grep -q "exit 1"'
+swap_line=$(grep -n '^if rm -f "\$TARGET" 2>/dev/null && cp "\$NEW" "\$TARGET"' "$R" | cut -d: -f1)
+kill_line=$(grep -n '^kill "\$PID"' "$R" | cut -d: -f1)
+check "17 T-3447: the file is swapped BEFORE the hub is stopped" '[ -n "$swap_line" ] && [ -n "$kill_line" ] && [ "$swap_line" -lt "$kill_line" ]'
+check "18 T-3447: a failed early swap restores the backup and falls back to stop-wait-swap" 'grep -q "restored \$TARGET from \$BAK" "$R" && grep -q "^if \[ \"\$SWAPPED\" = 0 \]; then" "$R"'
+check "19 T-3447: a hub running another file (old or deleted exe) is replaced once, then STALE exits 1" 'grep -q "^stale_hubs() {" "$R" && grep -q "\[ \"\$e\" = \"\$TARGET\" \] || echo" "$R" && grep -A1 "STALE after one replacement" "$R" | grep -q "exit 1" || grep "STALE after one replacement" "$R" | grep -q "exit 1"'
+check "20 T-3447: the stale kill reads whole lines (an exe may contain \" (deleted)\")" 'grep -q "while IFS= read -r s; do kill \"\${s%%:\*}\"; done <<< \"\$STALE\"" "$R"'
+check "21 T-3447: the version line runs the binary, no literal quotes around the path" 'grep -q "hub UP version=\$(\"\$TARGET\" --version" "$R" && ! grep -q "\\\\\"\$TARGET\\\\\"" "$R"'
 check "16 fleet-deploy-binary.sh generates through the library (no second copy)" 'grep -q "write_deploy_runner \"\$DEPLOY_SCRIPT\"" "$ROOT/scripts/fleet-deploy-binary.sh" && ! grep -q "relaunching with TERMLINK_RUNTIME_DIR" "$ROOT/scripts/fleet-deploy-binary.sh"'
 
 echo "---"
