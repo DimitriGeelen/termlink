@@ -41,7 +41,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-17T21:08:57Z
-last_update: 2026-10-17T23:30:32Z
+last_update: 2026-10-17T23:35:05Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -107,7 +107,7 @@ while the member is still red restarts a 14-day window from the close date, then
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `check-go-propagation.sh` is green, or the operator has reclassified it (tier change recorded in docs/reports/T-3258-guard-classification-draft.md)
+- [x] `check-go-propagation.sh` is green (2026-10-18: 6 inceptions linked both ways to the build tasks that name their GO — T-3075, T-3076, T-3166, T-3284, T-3291, T-3302; T-3372 and T-3385 were false fires, never decided, fixed in T-3459), or the operator has reclassified it (tier change recorded in docs/reports/T-3258-guard-classification-draft.md)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -170,6 +170,7 @@ while the member is still red restarts a 14-day window from the close date, then
 # *.go → `go build ./...`; Cargo.toml → `cargo check`; tsconfig.json → `tsc --noEmit`;
 # pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
 # past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
+bash scripts/check-go-propagation.sh --no-heartbeat --quiet
 #
 # ── Mutable-corpus anchor (T-3326) ────────────────────────────────────────────
 # Do NOT anchor a verification line (or a unit test it runs) to MUTABLE corpus
@@ -327,6 +328,11 @@ while the member is still red restarts a 14-day window from the close date, then
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
+
+**Symptom:** `check-go-propagation.sh` (WARN) red since 2026-10-03 with 8 inceptions, escalated after 14 days.
+**Root cause:** two things. (1) Six GO inceptions had build tasks that named them in title or context, but nobody wrote `related_tasks` on either side: `fw inception decide` writes no link (the gap this check was built for, T-3038). (2) Two were false fires: open inceptions whose filing-time recommendation was read as a decision (T-3459).
+**Why structurally allowed:** linking after GO is a manual step nothing prompts; and the check's fixtures never built an open inception.
+**Prevention:** the 14-day escalation surfaced it and worked; T-3459 removes the false-fire class with fixtures. The manual link step remains (vendored decide path, G-062).
 
 ## Evolution
 
