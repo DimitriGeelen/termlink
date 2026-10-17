@@ -9,13 +9,13 @@ description: >
   exceed a threshold, or orphan .sock.data (no .json, >1h) exist. Shared detector
   lib reused by the S3b reap so detection and remediation cannot drift.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
-related_tasks: []
+components: [runme.sh]
+related_tasks: [T-3291]
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
@@ -27,8 +27,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-30T23:37:17Z
-last_update: 2026-09-30T23:37:37Z
-date_finished:
+last_update: 2026-09-30T23:47:29Z
+date_finished: 2026-09-30T23:46:39Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -265,3 +265,22 @@ awk '/^### Session-leak canary/{a=NR} /^## Core Principle/{c=NR} END{exit !(a &&
 
 ### 2026-09-30T23:37:37Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-32d13066
+- **Timestamp:** 2026-09-30T23:47:33Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** 2
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — `scripts/lib/session-zombies.py` classifies live `termlink register` processes (zombie / busy / young / attached) from a ps table + tmux pane table, and counts orphan `*.sock.data` (no `.json`, older 
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=scripts/lib/session-zombies.py in: `scripts/lib/session-zombies.py` classifies live `termlink register` processes (zombie / busy / young / attached) from a ps table + tmux pane table, a`
+- **AC#2 (Agent)** — `scripts/check-session-leak-freshness.sh`: exit 0 healthy / 1 firing (zombies > threshold OR orphans > 0) / 2 tooling (fail-closed); `--json`, `--quiet`, `--no-heartbeat`, `--threshold N`; heartbeat w
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=scripts/check-session-leak-freshness.sh in: `scripts/check-session-leak-freshness.sh`: exit 0 healthy / 1 firing (zombies > threshold OR orphans > 0) / 2 tooling (fail-closed); `--json`, `--quie`
+### 2026-09-30T23:46:39Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

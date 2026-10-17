@@ -5,16 +5,16 @@ description: >
   Inception: Canonical identity for claude-termlink - shared host key or per-agent
   key
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: []
-components: []
-related_tasks: []
+components: [runme.sh]
+related_tasks: [T-3303]
 created: 2026-10-01T08:46:25Z
-last_update: 2026-10-01T08:46:43Z
-date_finished:
+last_update: 2026-10-01T13:25:50Z
+date_finished: 2026-10-01T13:25:50Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -98,15 +98,15 @@ Read-only measurement (done): registration fingerprints, dm topics per key, syst
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -163,7 +163,11 @@ GO on option B (per-agent key canonical): the systemd agents already use per-age
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Operator 2026-10-01: GO on option B — claude-termlink's per-agent key (6738c073) is canonical; keep both sidecar mailboxes through the transition, retire d1993 for this agent once its topics are quiet. Honest case: attribution/reliability, not security (any root agent can read every key). docs/reports/T-3302-identity-canonical-brief.md (A -33, B +38, C -12)
+
+**Date**: 2026-10-01T13:25:50Z
 
 ## Updates
 
@@ -172,3 +176,30 @@ GO on option B (per-agent key canonical): the systemd agents already use per-age
 
 ### 2026-10-01T08:46:43Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-10-01T13:25:50Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Operator 2026-10-01: GO on option B — claude-termlink's per-agent key (6738c073) is canonical; keep both sidecar mailboxes through the transition, retire d1993 for this agent once its topics are quiet. Honest case: attribution/reliability, not security (any root agent can read every key). docs/reports/T-3302-identity-canonical-brief.md (A -33, B +38, C -12)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-5f5cba1e
+- **Timestamp:** 2026-10-01T13:25:51Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** none
+
+## Recommendation Verdict (v1.0)
+
+- **Scan ID:** RC-9b7ecece
+- **Timestamp:** 2026-10-01T13:25:51Z
+- **Overall:** UNVERIFIED
+- **Claims:** 0
+- No verifiable claims found in ## Recommendation
+
+### 2026-10-01T13:25:50Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO

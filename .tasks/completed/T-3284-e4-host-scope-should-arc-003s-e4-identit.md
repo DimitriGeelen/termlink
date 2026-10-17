@@ -12,7 +12,7 @@ owner: human
 horizon: null
 tags: []
 components: [runme.sh, tests/runme-fixtures.sh]
-related_tasks: []
+related_tasks: [T-3286, T-3287]
 created: 2026-09-30T17:52:09Z
 last_update: 2026-09-30T18:57:58Z
 date_finished: 2026-09-30T18:57:58Z

@@ -15,7 +15,7 @@ components:
   - scripts/notify-injector.sh
   - tests/notify-sidecar-api-fixtures.sh
   - docs/design/arc-011-sidecar-api-architecture.md
-related_tasks: []
+related_tasks: [T-3135]
 created: 2026-09-22T14:24:30Z
 last_update: 2026-09-25T06:52:47Z
 date_finished: 2026-09-25T06:52:47Z

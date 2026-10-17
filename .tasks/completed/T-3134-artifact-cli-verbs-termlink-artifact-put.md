@@ -18,7 +18,7 @@ components:
   - crates/termlink-cli/src/commands/artifact.rs
   - crates/termlink-cli/src/cli.rs
   - tests/artifact-cli-fixtures.sh
-related_tasks: [T-3140]
+related_tasks: [T-3140, T-3076]
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.

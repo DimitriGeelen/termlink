@@ -13,7 +13,7 @@ components:
   - scripts/notify-sidecar.sh
   - scripts/journal-mirror.sh
   - tests/notify-blob-fixtures.sh
-related_tasks: []
+related_tasks: [T-3134]
 created: 2026-09-22T14:25:34Z
 last_update: 2026-09-25T06:53:03Z
 date_finished: 2026-09-25T06:53:03Z

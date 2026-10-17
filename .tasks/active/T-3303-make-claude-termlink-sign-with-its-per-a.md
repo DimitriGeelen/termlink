@@ -15,7 +15,7 @@ owner: agent
 horizon: now
 tags: []
 components: []
-related_tasks: []
+related_tasks: [T-3302]
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
