@@ -87,9 +87,10 @@ jobs:
       # printed only. CI only READS the first-red ledger — it never writes the clock.
       # T-3444: vector-index-reader-no-rebuild-fixtures imports the vendored web/embeddings.py,
       # which needs sqlite_vec (to open the index) and ollama at import time. Without them the
-      # member ERRORed here. Pinned to the versions on the .107 host the fixture is proven on.
+      # member ERRORed here. Importing web.embeddings also loads the web package (Flask, PyYAML); the
+      # full set was found in a clean venv, where the fixture passes 4/4. Pinned to the .107 versions.
       - name: Install Python modules the fixtures import
-        run: python3 -m pip install --user --break-system-packages sqlite-vec==0.1.6 ollama==0.6.1
+        run: python3 -m pip install --user --break-system-packages sqlite-vec==0.1.6 ollama==0.6.1 Flask==3.1.2 PyYAML==6.0.3
 
       - name: Run guard layer
         run: bash scripts/run-guard-layer.sh

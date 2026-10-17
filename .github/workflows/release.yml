@@ -77,7 +77,7 @@ jobs:
       # release, not a fix for an observed one. Push CI (doc-lint.yml) keeps 300 s.
       # T-3444: same Python modules as doc-lint.yml (vector-index fixture imports web/embeddings.py).
       - name: Install Python modules the fixtures import
-        run: python3 -m pip install --user --break-system-packages sqlite-vec==0.1.6 ollama==0.6.1
+        run: python3 -m pip install --user --break-system-packages sqlite-vec==0.1.6 ollama==0.6.1 Flask==3.1.2 PyYAML==6.0.3
 
       - name: Run source-level guard layer
         env:

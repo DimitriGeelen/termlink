@@ -47,7 +47,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-14T21:56:49Z
-last_update: 2026-10-17T14:20:07Z
+last_update: 2026-10-17T14:31:20Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -279,7 +279,34 @@ bvp_scores_proposed:
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+bash scripts/check-verification-misfile.sh > /tmp/.t3444m 2>&1
+bash tests/human-ac-escalation-fixtures.sh > /tmp/.t3444h 2>&1
+bash tests/pin-events-fixtures.sh > /tmp/.t3444p 2>&1
+PIN_EVENTS_TL=/nonexistent GITHUB_ACTIONS=true bash tests/pin-events-fixtures.sh > /tmp/.t3444pc 2>&1 && grep -q "^SKIP  tofu clear" /tmp/.t3444pc
+bash tests/vector-index-reader-no-rebuild-fixtures.sh > /tmp/.t3444v 2>&1
+bash tests/budget-ladder-drift-fixtures.sh > /tmp/.t3444b 2>&1
+grep -q "sqlite-vec==0.1.6 ollama==0.6.1" .github/workflows/doc-lint.yml
+
 ## RCA
+
+**Symptom:** the guard-layer job (doc-lint.yml) had no green run on main from 2026-09-30, so the release-publication
+canary fired daily and the release gate could not pass.
+
+**Root cause:** five independent members, three shapes. (a) Two fixtures asserted MUTABLE real-tree state: the
+escalation fixture required the live corpus clean with exactly 29 acknowledged, and the budget-ladder fixture
+required the literal `window=300000` (broken by the T-3434 re-vendor, default 800000). (b) Two fixtures assumed the
+developer host: pin-events case 10 needed a built binary (the CI job builds no Rust), and the vector-index fixture
+needed `sqlite_vec`/`ollama` (not on the runner). (c) A content defect: T-3300 carried two verification commands
+under the wrong heading.
+
+**Why structurally allowed:** fixtures are written and run on .107, which has the binary, the Python modules and a
+corpus that happened to match; nothing ran them in the CI environment before merge, and CI's red was visible only
+through the daily canary, which had been firing for other reasons too.
+
+**Prevention:** fixtures read expected values from their source (the gate file) or use fixture trees, never live
+counts (T-3326 rule, now applied); CI-absent dependencies are installed in the workflow (pinned) or the case skips
+only under `GITHUB_ACTIONS` with the reason printed, failing locally; the release-publication canary stays the
+detector, and the WARN escalation clock files a task after 14 days red.
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
