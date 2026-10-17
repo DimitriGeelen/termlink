@@ -1,0 +1,16 @@
+# T-3432 (arc-011 FX-5 ruling C, 2026-10-17) — File-shaped posts canary
+# Source of truth: /opt/termlink/.context/cron/file-shaped-posts-canary.crontab (git-tracked)
+# Installed to:    /etc/cron.d/termlink-file-shaped-posts-canary (USER field syntax — do NOT load into a user crontab)
+#
+# Files sent as ordinary messages (document / artifact-chunk / filename / part+sha256), outside the
+# artifact path, land in the message body: plaintext on the hub, and no per-message size cap stops
+# a file cut into pieces. This daily canary names any NEW such post per topic since the last
+# acknowledgement. Empty log = healthy. /canaries auto-discovers this log.
+#
+# Operator action on firing: read the named topics and senders; ask the sender to use
+# `termlink file send`; once judged, acknowledge with: bash scripts/check-file-shaped-posts.sh --ack
+SHELL=/bin/bash
+PATH=/root/.cargo/bin:/usr/local/bin:/usr/bin:/bin
+
+# Daily at 07:47 UTC — offset from the :39 dead-letter and :27 stuck-claims canaries.
+47 7 * * * root cd /opt/termlink && bash scripts/check-file-shaped-posts.sh --quiet >> .context/working/.file-shaped-posts-canary.log 2>> .context/working/.file-shaped-posts-canary.log.stderr

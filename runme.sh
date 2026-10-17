@@ -220,6 +220,9 @@ install_crontab forever-owner-canary.crontab      "$CRON_DIR/termlink-forever-ow
 install_crontab agent-send-suites-canary.crontab  "$CRON_DIR/termlink-agent-send-suites-canary"
 install_crontab vector-index-canary.crontab       "$CRON_DIR/termlink-vector-index-canary"
 
+# T-3432 (arc-011 FX-5 ruling C) — daily: files sent as ordinary messages outside the artifact path.
+install_crontab file-shaped-posts-canary.crontab  "$CRON_DIR/termlink-file-shaped-posts-canary"
+
 # T-3383 (arc-011 PH-0 6.2.1.a (1)) — per-minute hub outage sampler for the H-1 / PN-1 re-check,
 # plus its 15-min liveness canary (a dead collector would silently shorten the 7-day run).
 install_crontab hub-outage-collector.crontab     "$CRON_DIR/termlink-hub-outage-collector"
