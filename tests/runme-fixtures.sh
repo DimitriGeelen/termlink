@@ -304,12 +304,18 @@ chmod +x "$H/systemctl"
 cat > "$H/hubbin" <<'EOS'
 #!/usr/bin/env bash
 [ "$1" = "--version" ] && { echo "termlink 9.9.9"; exit 0; }
-[ "$1 $2" = "hub status" ] && { echo "{\"ok\":true,\"pid\":$(cat "$FAKE_HUB_DIR/pid"),\"status\":\"running\"}"; exit 0; }
+if [ "$1 $2" = "hub status" ]; then
+    # T-3450: FAKE_HUB_STATUS_LAG=N reports "stopped" for the first N reads (the new hub has not
+    # written its pidfile yet), then running.
+    n=$(( $(cat "$FAKE_HUB_DIR/status-reads" 2>/dev/null || echo 0) + 1 )); echo "$n" > "$FAKE_HUB_DIR/status-reads"
+    if [ "$n" -le "${FAKE_HUB_STATUS_LAG:-0}" ]; then echo '{"ok":true,"status":"stopped"}'; exit 0; fi
+    echo "{\"ok\":true,\"pid\":$(cat "$FAKE_HUB_DIR/pid"),\"status\":\"running\"}"; exit 0
+fi
 exit 0
 EOS
 chmod +x "$H/hubbin"
 hub_state() { # hub_state <pid> <exe-target>
-    echo "$1" > "$H/pid"; mkdir -p "$H/proc/$1"; ln -sfn "$2" "$H/proc/$1/exe"; rm -f "$H/restarts"
+    echo "$1" > "$H/pid"; mkdir -p "$H/proc/$1"; ln -sfn "$2" "$H/proc/$1/exe"; rm -f "$H/restarts" "$H/status-reads"
     printf 'secret-bytes' > "$H/rt/hub.secret"
 }
 export FAKE_HUB_DIR="$H" FAKE_HUB_BIN="$H/hubbin"
@@ -670,6 +676,16 @@ out=$(run); rc=$?
 if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      restarted and verified: pid 400 -> 401" && [ "$(wc -l < "$H/restarts")" = "1" ]; then
     ok "hub: stale hub restarted once, new pid on the installed exe, secret+cert unchanged => OK"
 else bad "hub restart" "rc=$rc: $out"; fi
+hub_state 450 "/old/termlink (deleted)"
+out=$(FAKE_HUB_STATUS_LAG=1 run); rc=$?
+if [ "$rc" = "0" ] && echo "$out" | grep -q "OK      restarted and verified: pid 450 -> 451"; then
+    ok "hub (T-3450): hub status lagging one read behind the restart is re-read, not a false FAILED"
+else bad "hub status lag" "rc=$rc: $out"; fi
+hub_state 460 "/old/termlink (deleted)"
+out=$(FAKE_HUB_STATUS_LAG=999 run); rc=$?
+if [ "$rc" = "1" ] && echo "$out" | grep -q "hub-status-not-running-as-461"; then
+    ok "hub (T-3450): hub status that never reads running still FAILS, named"
+else bad "hub status never running" "rc=$rc: $out"; fi
 hub_state 500 "/old/termlink (deleted)"
 out=$(FAKE_HUB_RESTART_MODE=rotate run); rc=$?
 if [ "$rc" = "1" ] && echo "$out" | grep -q "hub.secret-CHANGED"; then

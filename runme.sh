@@ -594,9 +594,16 @@ restart_hub() {
     [ "$nexe" = "$HUB_BIN" ] || problems="$problems exe='${nexe:-none}';"
     [ "$(hub_hash hub.secret)" = "$sec0" ] || problems="$problems hub.secret-CHANGED(peers-need-reauth);"
     [ "$(hub_hash hub.cert.pem)" = "$crt0" ] || problems="$problems hub.cert-CHANGED(tofu-drift);"
-    local st; st="$("$HUB_BIN" hub status --json 2>/dev/null)"
-    case "$st" in *"\"pid\":$npid"*'"status":"running"'*|*'"status":"running"'*"\"pid\":$npid"*) : ;;
-        *) problems="$problems hub-status-not-running-as-$npid;";; esac
+    # T-3450: systemd reports the unit active before the new hub has written its pidfile and
+    # socket, so one read of `hub status` raced the startup (a false FAILED on 2026-10-17 at
+    # load ~30). Re-read within the same bounded window; fail only if it never reads running.
+    local st="" ok_status=0
+    for i in $(seq 1 "$HUB_WAIT"); do
+        st="$("$HUB_BIN" hub status --json 2>/dev/null)"
+        case "$st" in *"\"pid\":$npid"*'"status":"running"'*|*'"status":"running"'*"\"pid\":$npid"*) ok_status=1; break ;; esac
+        sleep 1
+    done
+    [ "$ok_status" = 1 ] || problems="$problems hub-status-not-running-as-$npid;"
     if [ -z "$problems" ]; then
         say "  OK      restarted and verified: pid $pid -> $npid, exe $nexe ($("$HUB_BIN" --version 2>/dev/null)); secret + cert unchanged"; DONE=$((DONE+1))
     else
