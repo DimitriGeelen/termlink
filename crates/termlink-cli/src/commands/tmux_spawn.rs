@@ -19,6 +19,7 @@ pub(crate) const PROJECT_SCOPED_ENV: &[&str] = &[
     "PROJECT_ROOT",
     "FRAMEWORK_ROOT",
     "_FW_PATHS_DERIVED_BY",
+    "FW_ROUTED_FROM", // set by newer AEF; 055 strips it too (T-3446)
     "CLAUDE_PROJECT_DIR",
     "TERMLINK_SIDECAR_SOCKET",
     "TERMLINK_SIDECAR_STATUS_SOCKET",
@@ -83,6 +84,15 @@ mod tests {
         assert!(a.windows(2).any(|w| w == ["-e", "PROJECT_ROOT=/opt/p"]));
         assert!(a.windows(2).any(|w| w == ["-e", "FRAMEWORK_ROOT=/opt/p/.agentic-framework"]));
         assert_eq!(a.last().map(String::as_str), Some("sleep 1"), "the shell command stays last");
+    }
+
+    #[test]
+    fn fw_routed_from_is_scoped_to_the_session() {
+        let c = tmux_new_session_from(Command::new("tmux"), "tl-z", "true", None, |k| {
+            (k == "FW_ROUTED_FROM").then(|| "/opt/other".to_string())
+        });
+        assert!(removed(&c, "FW_ROUTED_FROM"));
+        assert!(args(&c).windows(2).any(|w| w == ["-e", "FW_ROUTED_FROM=/opt/other"]));
     }
 
     #[test]
