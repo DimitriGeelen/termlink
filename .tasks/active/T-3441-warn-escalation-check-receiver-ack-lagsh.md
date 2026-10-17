@@ -1,10 +1,13 @@
 ---
 id: T-3441
-name: "WARN escalation: check-receiver-ack-lag.sh red 14d (since 2026-09-29T22:04:59Z) — fix or reclassify"
+name: "WARN escalation: check-receiver-ack-lag.sh red 14d (since 2026-09-29T22:04:59Z)
+  — fix or reclassify"
 description: >
-  WARN-tier guard member check-receiver-ack-lag.sh has been red for more than 14 days (first seen red 2026-09-29T22:04:59Z). Operator binding condition (T-3258 rulings): a stale WARN becomes an action.
+  WARN-tier guard member check-receiver-ack-lag.sh has been red for more than 14 days
+  (first seen red 2026-09-29T22:04:59Z). Operator binding condition (T-3258 rulings):
+  a stale WARN becomes an action.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -38,8 +41,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-14T05:42:21Z
-last_update: 2026-10-14T05:42:21Z
-date_finished: null
+last_update: 2026-10-17T22:26:35Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +53,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-17T22:24:40Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3441: WARN escalation: check-receiver-ack-lag.sh red 14d (since 2026-09-29T22:04:59Z) — fix or reclassify
@@ -116,7 +133,7 @@ while the member is still red restarts a 14-day window from the close date, then
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `check-receiver-ack-lag.sh` is green, or the operator has reclassified it (tier change recorded in docs/reports/T-3258-guard-classification-draft.md)
+- [x] `check-receiver-ack-lag.sh` is green, or the operator has reclassified it (tier change recorded in docs/reports/T-3258-guard-classification-draft.md)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -164,6 +181,9 @@ while the member is still red restarts a 14-day window from the close date, then
 # *.go → `go build ./...`; Cargo.toml → `cargo check`; tsconfig.json → `tsc --noEmit`;
 # pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
 # past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
+grep -q "^# guard-layer: source info " scripts/check-receiver-ack-lag.sh
+bash scripts/check-guard-severity-markers.sh > /tmp/.t3441 2>&1
+grep -q "check-receiver-ack-lag. WARN → INFO" docs/reports/T-3258-guard-classification-draft.md
 #
 # ── Mutable-corpus anchor (T-3326) ────────────────────────────────────────────
 # Do NOT anchor a verification line (or a unit test it runs) to MUTABLE corpus
@@ -377,6 +397,12 @@ while the member is still red restarts a 14-day window from the close date, then
 
 ## Decisions
 
+### 2026-10-18 — Backlog-reporting WARN members past 14 days (operator ruling)
+- **Chose:** C — `check-receiver-ack-lag` WARN → INFO; `voi-prompt` and `check-go-propagation` stay WARN and their items go to the operator one at a time.
+- **Why:** ack-lag's firing rows are DM rails between other projects' agents on shared host identities (d1993…, 9219…, 90d4…), so its escalation tasks could never be closed here, and a release canary red every day stops being read. Scored A −16, B 0, C +20.
+- **Rejected:** A (keep all WARN), B (all three INFO: the operator's own backlog goes silent).
+- **Left open:** each voi score and GO-linkage call; return ack-lag to WARN once DM identities are per project. Recorded in docs/reports/T-3258-guard-classification-draft.md § Operator rulings and the CLAUDE.md tier list.
+
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
      Format:
@@ -402,3 +428,6 @@ while the member is still red restarts a 14-day window from the close date, then
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3441-warn-escalation-check-receiver-ack-lagsh.md
 - **Context:** Initial task creation
+
+### 2026-10-17T22:24:40Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

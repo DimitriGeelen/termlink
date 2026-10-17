@@ -128,6 +128,12 @@ Approve or amend per row. A follow-up build task then edits each approved member
   (agent-defined, yours to overrule):** after the task is closed, a still-red member files again only once it has been
   red > 14 days past max(first-red, close date); the umbrella waits the same window after its close. The canary fires
   on stale, on accumulation, on each filing, and on a filing failure. No tier was changed; FAIL members are never filed on.
+- **Ruling 2026-10-18 (T-3441, option C): `check-receiver-ack-lag` WARN → INFO.** After 19 days red it was filing
+  escalation tasks nobody here could close: its firing rows are DM rails between other projects' agents on shared
+  host identities (d1993…, 9219…, 90d4…). `voi-prompt` and `check-go-propagation` stay WARN; their items are the
+  operator's to decide and are brought to him one at a time. Rejected: A (keep all three WARN: the release canary
+  red every day stops being read), B (all three INFO: the operator's own backlog would go silent). Open: return it
+  to WARN once DM identities are per project and its rows are ours to act on.
 - **PROPOSAL, not a ruling — SQ-22 (who commits the ledger and the filed tasks).** Proposed: **nobody unattended.**
   The canary leaves `.context/checks/guard-warn-first-red` and every filed `.tasks/active/T-*.md` UNCOMMITTED, and is
   LOUD about it: each filing fires as "filed T-XXXX … UNCOMMITTED: review, then commit it", an open task is reported

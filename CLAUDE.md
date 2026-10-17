@@ -2161,10 +2161,11 @@ run, and the attribution rule stands in for the drift check. Fixtures:
 missing file).
 
 Current markings (operator rulings in `docs/reports/T-3258-guard-classification-draft.md`
-§ Operator rulings): **INFO** invocation-usage; **WARN** voi-prompt, check-go-propagation,
+§ Operator rulings): **INFO** invocation-usage, check-receiver-ack-lag (2026-10-18, T-3441);
+**WARN** voi-prompt, check-go-propagation,
 check-human-ac-escalation, check-human-ac-steps-heading, check-handover-staleness,
 check-pickup-deferred-freshness, check-stranded-finalized-tasks, check-task-id-collisions,
-check-arc-slice-drift, check-installed-binary-drift, check-receiver-ack-lag,
+check-arc-slice-drift, check-installed-binary-drift,
 check-audit-warning-acknowledgement, check-budget-ladder-drift, check-episodic-parse,
 check-vendor-divergence, fabric-workflow-link; everything else FAIL (Part 3 of the draft
 is still being decided). Fixtures: `bash tests/guard-layer-severity-fixtures.sh`

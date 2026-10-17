@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# guard-layer: source warn  # reads LIVE bus state (DM ack frontiers), not the released code; SKIPs in CI without a hub
+# guard-layer: source info  # reads LIVE bus state (DM ack frontiers) of other projects' agents on shared host identities, which nobody here can act on; operator ruled INFO 2026-10-18 (T-3441, option C)
 # (no --no-heartbeat: these checks have no heartbeat companion to skip. The
 #  marker IS the invocation the runner uses, so declaring a flag we do not
 #  accept made check-receiver-ack-lag ERROR under the layer — a contract
