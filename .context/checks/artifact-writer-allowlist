@@ -1,0 +1,19 @@
+# Writers of the hub's artifact store, acknowledged (T-3432, arc-011 FX-5 ruling C′, 2026-10-13).
+# Read by scripts/check-artifact-writers.sh. Git-tracked on purpose (T-2681).
+# Format: <relpath>::<enclosing-fn>::<rule>   # reason
+# These are TODAY's writers (PH-0/PH-1 file transfer, plaintext on the hub, counted in the FX-5
+# baseline of 9). A new writer is growth under the "workflow" reading of FX-5: route it through the
+# attachment encryption wrapper (row P15), which joins this list with that reason. Do not add a
+# plain writer here without an operator ruling.
+
+# The one emitter of the artifact.put RPC: chunked upload, called only by send_artifact_via_client.
+crates/termlink-session/src/artifact.rs::upload_artifact_chunked::artifact-put-rpc   # the store's only write RPC call
+crates/termlink-session/src/artifact.rs::send_artifact_via_client::upload-chunked    # the shared send path; every writer below goes through it
+crates/termlink-session/src/artifact.rs::send_artifact_via_client::artifact-put-rpc  # capability lookup (does the hub serve artifact.put?), not a write
+
+# Today's callers of the shared send path (file transfer, PH-0).
+crates/termlink-cli/src/commands/file.rs::try_send_via_artifact::send-artifact        # `termlink file send`
+crates/termlink-cli/src/commands/artifact.rs::cmd_artifact_put::send-artifact         # `termlink artifact put`
+crates/termlink-cli/src/commands/artifact.rs::cmd_artifact_put::artifact-put-rpc      # the name in a timeout message, not a write
+crates/termlink-cli/src/commands/remote.rs::cmd_remote_send_file_inner::send-artifact # `termlink remote send-file` (found by this check, 2026-10-17)
+crates/termlink-mcp/src/tools.rs::termlink_file_send::send-artifact                   # MCP termlink_file_send
