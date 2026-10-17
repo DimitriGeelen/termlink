@@ -83,3 +83,18 @@ Marker acked to offset 325 after the triage.
   receipt 969, our alert marker 1040. AEF's records no read receipts on the hub.
 - **Ruled B (operator, 2026-10-15):** cap ours now behind a reader check (runme action 18: refuses when any reader is
   behind the cut point or none is known); the others only after their owner confirms.
+- **Done (2026-10-15/16):** all five owners confirmed (AEF, 832, 1409-sprind by their operators; 055 by its agent).
+  runme 2026-10-15T23:29Z capped ours (offsets 0–42 removed), AEF's (0–462, under AEF's stated read position 1461),
+  055's and 1409-sprind's (policy only); runme 2026-10-16T21:05Z capped 832's (policy only). The canary is healthy.
+
+## Close (2026-10-17)
+
+What stays open, named so a later reader does not take the close for "all clear":
+
+1. **release-publication still fires**, correctly, until a guard-layer run on main is green; the remaining reds are
+   T-3444.
+2. **Why termlink judged the queued `learning-P-001` row "corrupt"** is not determined (finding 2). The row decoded
+   cleanly and has every `PendingPost` field. It was test traffic, now deleted and backed up; if a real post is ever
+   dead-lettered as corrupt, start from `.context/working/dead-letters-backup-20261014.jsonl`.
+3. **The waker allowlist is revisited at W2** (decision 5).
+4. **The small forever test inboxes** (e2e-*, t3433-*, …, a few records each) were left as they are (decision 6).

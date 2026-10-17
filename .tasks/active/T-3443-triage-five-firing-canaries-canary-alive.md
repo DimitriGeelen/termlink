@@ -41,7 +41,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-14T21:39:09Z
-last_update: 2026-10-15T23:34:00Z
+last_update: 2026-10-17T12:44:37Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -79,10 +79,10 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Each of the five canaries has a written finding (cause, evidence) in `docs/reports/T-3443-canary-triage.md`
-- [ ] Each cause is fixed here, or filed as its own task, or put to the operator where it is theirs to decide; no canary is silenced by clearing its log or acking without processing
-- [ ] Inbound framework-pickup filings are triaged (task filed or reply to the filer) before the pickup marker is acked
-- [ ] Any unattended filings waiting in `.context/working/pending-commit.list` are committed by name (`scripts/commit-pending.sh commit`)
+- [x] Each of the five canaries has a written finding (cause, evidence) in `docs/reports/T-3443-canary-triage.md`
+- [x] Each cause is fixed here, or filed as its own task, or put to the operator where it is theirs to decide; no canary is silenced by clearing its log or acking without processing
+- [x] Inbound framework-pickup filings are triaged (task filed or reply to the filer) before the pickup marker is acked
+- [x] Any unattended filings waiting in `.context/working/pending-commit.list` are committed by name (`scripts/commit-pending.sh commit`)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -271,6 +271,13 @@ bvp_scores_proposed:
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+test "$(grep -c '^## [1-6]\.' docs/reports/T-3443-canary-triage.md)" = 6
+bash tests/canary-aliveness-sweep-fixtures.sh > /tmp/.t3443a 2>&1
+bash tests/waker-liveness-fixtures.sh > /tmp/.t3443w 2>&1
+bash scripts/check-forever-archival-freshness.sh --no-heartbeat > /tmp/.t3443f 2>&1
+bash tests/hub-runtime-dir-fixtures.sh > /tmp/.t3443h 2>&1
+test -s .context/working/dead-letters-backup-20261014.jsonl
 
 ## RCA
 
