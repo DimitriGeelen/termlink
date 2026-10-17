@@ -134,7 +134,8 @@ echo "  chunk:     $CHUNK bytes"
 # If the running hub binary on the remote already matches our sha, skip.
 echo ">>> idempotency check: query running hub binary sha"
 RUNNING_SHA=$(rexec 25 \
-  "PID=\$(pgrep -f '[t]ermlink hub start' | head -1); [ -n \"\$PID\" ] && sha256sum \"/proc/\$PID/exe\" 2>/dev/null | awk '{print \$1}'" 2>/dev/null | tr -d '[:space:]') || true
+  "PID=; for p in \$(pgrep -f '[h]ub start'); do case \"\$(readlink /proc/\$p/exe)\" in */termlink|*/termlink\\ *) PID=\$p; break ;; esac; done; [ -n \"\$PID\" ] && sha256sum \"/proc/\$PID/exe\" 2>/dev/null | awk '{print \$1}'" 2>/dev/null | tr -d '[:space:]') || true
+# T-3449: find the hub by its binary, not by the phrase "termlink hub start" (missed a hub run from an odd path)
 if [ "$RUNNING_SHA" = "$EXPECTED_SHA" ]; then
   echo "✓ remote hub already running this exact binary (sha matches) — nothing to do"
   exit 0

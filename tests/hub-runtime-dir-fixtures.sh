@@ -72,6 +72,25 @@ check "18 T-3447: a failed early swap restores the backup and falls back to stop
 check "19 T-3447: a hub running another file (old or deleted exe) is replaced once, then STALE exits 1" 'grep -q "^stale_hubs() {" "$R" && grep -q "\[ \"\$e\" = \"\$TARGET\" \] || echo" "$R" && grep -A1 "STALE after one replacement" "$R" | grep -q "exit 1" || grep "STALE after one replacement" "$R" | grep -q "exit 1"'
 check "20 T-3447: the stale kill reads whole lines (an exe may contain \" (deleted)\")" 'grep -q "while IFS= read -r s; do kill \"\${s%%:\*}\"; done <<< \"\$STALE\"" "$R"'
 check "21 T-3447: the version line runs the binary, no literal quotes around the path" 'grep -q "hub UP version=\$(\"\$TARGET\" --version" "$R" && ! grep -q "\\\\\"\$TARGET\\\\\"" "$R"'
+check "22 T-3449: no phrase-based 'termlink hub start' lookup remains in the runner's code" '! grep -vE "^[[:space:]]*#" "$R" | grep -q "termlink hub start"'
+check "23 T-3449: TARGET is the exe path with \" (deleted)\" stripped" 'grep -q "^TARGET=\$(real_path \"\$(readlink \"/proc/\$PID/exe\")\")" "$R"'
+check "24 T-3449: a stray \"<TARGET> (deleted)\" file is removed once nothing runs from it" 'grep -q "^STRAY=\"\$TARGET (deleted)\"" "$R" && grep -q "rm -f -- \"\$STRAY\"" "$R"'
+# Behaviour of the helpers, extracted from the generated runner and run against stand-ins for
+# pgrep and readlink (no real process is looked at): 101 a normal hub, 102 a hub on a replaced
+# binary, 103 a hub launched from the stray "(deleted)" file, 104 an unrelated "hub start".
+sed -n '/^real_path() {/,/^any_hub() {/p' "$R" > "$T/helpers.sh"
+helper_out=$(bash -c '
+pgrep() { printf "101\n102\n103\n104\n"; }
+readlink() { case "$1" in
+  /proc/101/exe) echo /usr/local/bin/termlink ;;
+  /proc/102/exe) echo "/usr/local/bin/termlink (deleted)" ;;
+  /proc/103/exe) echo "/usr/local/bin/termlink (deleted) (deleted)" ;;
+  /proc/104/exe) echo /usr/bin/python3 ;; esac; }
+. "$1"
+printf "%s|" "$(real_path "/usr/local/bin/termlink (deleted) (deleted)")"
+printf "%s" "$(hub_pids | tr "\n" ",")"' _ "$T/helpers.sh")
+check "25 T-3449: real_path strips every \" (deleted)\"" '[ "${helper_out%%|*}" = /usr/local/bin/termlink ]'
+check "26 T-3449: hub_pids finds hubs on normal, replaced and stray binaries, not other \"hub start\" processes" '[ "${helper_out#*|}" = "101,102,103," ]'
 check "16 fleet-deploy-binary.sh generates through the library (no second copy)" 'grep -q "write_deploy_runner \"\$DEPLOY_SCRIPT\"" "$ROOT/scripts/fleet-deploy-binary.sh" && ! grep -q "relaunching with TERMLINK_RUNTIME_DIR" "$ROOT/scripts/fleet-deploy-binary.sh"'
 
 echo "---"

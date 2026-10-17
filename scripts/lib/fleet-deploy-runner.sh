@@ -16,10 +16,25 @@ EXPECTED_SHA="$EXPECTED_SHA"
 ACTUAL=\$(sha256sum "\$NEW" | awk '{print \$1}')
 [ "\$ACTUAL" = "\$EXPECTED_SHA" ] || { echo "ABORT: sha mismatch"; exit 1; }
 
+# T-3449: the kernel reports a replaced binary as "<path> (deleted)". That is not a file
+# name: strip it (repeatedly) before using it as a path.
+real_path() { local e="\$1"; while [ "\${e% (deleted)}" != "\$e" ]; do e="\${e% (deleted)}"; done; printf '%s' "\$e"; }
+# T-3449: find hubs by what they ARE (a "hub start" process whose binary is termlink), not by
+# the phrase "termlink hub start" in the command line: a hub launched from an odd path
+# ("/usr/local/bin/termlink (deleted) hub start") does not contain that phrase and was missed.
+hub_pids() {
+  local p e
+  for p in \$(pgrep -f '[h]ub start'); do
+    e=\$(real_path "\$(readlink "/proc/\$p/exe" 2>/dev/null)")
+    case "\${e##*/}" in termlink|"termlink "*) echo "\$p" ;; esac
+  done
+}
+any_hub() { [ -n "\$(hub_pids)" ]; }
+
 # Locate the running hub binary's path via /proc/PID/exe
-PID=\$(pgrep -f '[t]ermlink hub start' | head -1)
+PID=\$(hub_pids | head -1)
 [ -z "\$PID" ] && { echo "no running hub — staging only"; exit 0; }
-TARGET=\$(readlink "/proc/\$PID/exe")
+TARGET=\$(real_path "\$(readlink "/proc/\$PID/exe")")
 echo "running hub PID=\$PID at \$TARGET"
 # T-3323: capture the RUNNING hub's runtime dir and arguments BEFORE the kill.
 # Relaunching with the exec session's env (or the old ~/.termlink/runtime
@@ -69,10 +84,10 @@ sleep 3
 # Kill, wait for exit
 kill "\$PID"
 for i in \$(seq 1 15); do
-  pgrep -f '[t]ermlink hub start' >/dev/null || { echo "hub exited after \${i}s"; break; }
+  any_hub || { echo "hub exited after \${i}s"; break; }
   sleep 1
 done
-pgrep -f '[t]ermlink hub start' >/dev/null && { pkill -9 -f '[t]ermlink hub start'; sleep 2; }
+any_hub && { for p in \$(hub_pids); do kill -9 "\$p"; done; sleep 2; }
 
 if [ "\$SWAPPED" = 0 ]; then
   # NTFS DrvFs: 5s wait for file-lock release
@@ -98,7 +113,7 @@ NEW_PID=\$!
 echo "relaunched hub PID=\$NEW_PID"
 
 sleep 5
-if ! pgrep -f '[t]ermlink hub start' >/dev/null; then
+if ! any_hub; then
   echo "\$(date) hub did NOT come back"
   echo "===== deploy done ====="; exit 1
 fi
@@ -106,7 +121,7 @@ fi
 # the old file shows its exe as another path or "<path> (deleted)"; stop it once, relaunch.
 stale_hubs() {
   local p e
-  for p in \$(pgrep -f '[t]ermlink hub start'); do
+  for p in \$(hub_pids); do
     e=\$(readlink "/proc/\$p/exe")
     [ "\$e" = "\$TARGET" ] || echo "\$p:\$e"
   done
@@ -116,13 +131,13 @@ if [ -n "\$STALE" ]; then
   echo "STALE: hub running another file: \$STALE — replacing it once"
   while IFS= read -r s; do kill "\${s%%:*}"; done <<< "\$STALE"  # an exe may read "<path> (deleted)"
   for i in \$(seq 1 15); do [ -z "\$(stale_hubs)" ] && break; sleep 1; done
-  if ! pgrep -f '[t]ermlink hub start' >/dev/null; then
+  if ! any_hub; then
     TERMLINK_RUNTIME_DIR="\$RUNTIME" setsid nohup "\$TARGET" "\${RUN_ARGS[@]}" >> /tmp/termlink-hub.log 2>&1 < /dev/null &
     echo "relaunched hub PID=\$!"
   fi
   sleep 5
   STALE=\$(stale_hubs)
-  if [ -n "\$STALE" ] || ! pgrep -f '[t]ermlink hub start' >/dev/null; then
+  if [ -n "\$STALE" ] || ! any_hub; then
     echo "STALE after one replacement: \${STALE:-no hub running}"; echo "===== deploy done ====="; exit 1
   fi
 fi
@@ -139,6 +154,14 @@ if [ -n "\$TCP_PORT" ]; then
     echo "CERT MISMATCH: port \$TCP_PORT presents \${FP_PORT:-nothing}, \$RUNTIME holds \${FP_FILE:-nothing} (the hub is not serving its own dir)"; echo "===== deploy done ====="; exit 1
   fi
   echo "cert unchanged: port \$TCP_PORT presents \$FP_PORT from \$RUNTIME"
+fi
+# T-3449: an earlier runner could leave a file literally named "<TARGET> (deleted)" and run a
+# hub from it. Once no process runs from it, remove it.
+STRAY="\$TARGET (deleted)"
+if [ -f "\$STRAY" ]; then
+  in_use=0
+  for p in \$(hub_pids); do [ "\$(readlink "/proc/\$p/exe")" = "\$STRAY" ] && in_use=1; done
+  if [ "\$in_use" = 0 ]; then rm -f -- "\$STRAY" && echo "removed stray \$STRAY"; else echo "WARN: \$STRAY still in use"; fi
 fi
 echo "===== deploy done ====="
 EOF
