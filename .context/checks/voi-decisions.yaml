@@ -1,7 +1,7 @@
 # voi_score decision store (T-3175). Managed by scripts/voi-prompt.sh.
 # `runs` counts --check invocations; a snooze recorded at run R is
 # askable again at R + snooze_runs. `history` is append-only.
-runs: 36
+runs: 37
 decisions:
   task:T-3200:
     choice: waive
@@ -25,6 +25,41 @@ decisions:
     recorded_at: '2026-10-17T23:15:46+00:00'
     recorded_at_run: 36
     value: '0.6'
+  task:T-3320:
+    choice: set
+    recorded_at: '2026-10-17T23:17:34+00:00'
+    recorded_at_run: 37
+    value: '0.4'
+  task:T-3321:
+    choice: set
+    recorded_at: '2026-10-17T23:17:34+00:00'
+    recorded_at_run: 37
+    value: '0.3'
+  task:T-3330:
+    choice: set
+    recorded_at: '2026-10-17T23:17:34+00:00'
+    recorded_at_run: 37
+    value: '0.5'
+  task:T-3333:
+    choice: set
+    recorded_at: '2026-10-17T23:17:34+00:00'
+    recorded_at_run: 37
+    value: '0.5'
+  task:T-3335:
+    choice: set
+    recorded_at: '2026-10-17T23:17:34+00:00'
+    recorded_at_run: 37
+    value: '0.6'
+  task:T-3372:
+    choice: set
+    recorded_at: '2026-10-17T23:17:34+00:00'
+    recorded_at_run: 37
+    value: '0.4'
+  task:T-3385:
+    choice: set
+    recorded_at: '2026-10-17T23:17:35+00:00'
+    recorded_at_run: 37
+    value: '0.6'
 history:
 - key: task:T-3200
   choice: waive
@@ -47,4 +82,39 @@ history:
   choice: set
   recorded_at: '2026-10-17T23:15:46+00:00'
   recorded_at_run: 36
+  value: '0.6'
+- key: task:T-3320
+  choice: set
+  recorded_at: '2026-10-17T23:17:34+00:00'
+  recorded_at_run: 37
+  value: '0.4'
+- key: task:T-3321
+  choice: set
+  recorded_at: '2026-10-17T23:17:34+00:00'
+  recorded_at_run: 37
+  value: '0.3'
+- key: task:T-3330
+  choice: set
+  recorded_at: '2026-10-17T23:17:34+00:00'
+  recorded_at_run: 37
+  value: '0.5'
+- key: task:T-3333
+  choice: set
+  recorded_at: '2026-10-17T23:17:34+00:00'
+  recorded_at_run: 37
+  value: '0.5'
+- key: task:T-3335
+  choice: set
+  recorded_at: '2026-10-17T23:17:34+00:00'
+  recorded_at_run: 37
+  value: '0.6'
+- key: task:T-3372
+  choice: set
+  recorded_at: '2026-10-17T23:17:34+00:00'
+  recorded_at_run: 37
+  value: '0.4'
+- key: task:T-3385
+  choice: set
+  recorded_at: '2026-10-17T23:17:35+00:00'
+  recorded_at_run: 37
   value: '0.6'

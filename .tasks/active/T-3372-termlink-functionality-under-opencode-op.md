@@ -20,7 +20,7 @@ date_finished: null
 target_blast_radius: 3            # int 0..9. Anticipated component count of the build work this inception would authorise on GO.
                                   # Substitutes for the absent components: list in the F8 cost formula (040). Required.
                                   # Guide: 0=docs only, 1=single file, 3=small subsystem (S), 5=cross-subsystem (M), 7=multi-arc (L), 9=framework-wide (XL).
-voi_score: 0.5                    # float 0..1. Value of Information — expected value of resolving this question,
+voi_score: 0.4                    # agent-set under operator delegation 2026-10-18: portability to one more agent runtime (OpenCode, 055 parity); valuable for D4 but serves a single runtime. — float 0..1. Value of Information — expected value of resolving this question,
                                   # independent of build cost. Higher when answer affects many tasks or unblocks a strategic decision. Required.
 ---
 

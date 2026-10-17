@@ -22,7 +22,7 @@ date_finished:
 target_blast_radius: 3            # int 0..9. Anticipated component count of the build work this inception would authorise on GO.
                                   # Substitutes for the absent components: list in the F8 cost formula (040). Required.
                                   # Guide: 0=docs only, 1=single file, 3=small subsystem (S), 5=cross-subsystem (M), 7=multi-arc (L), 9=framework-wide (XL).
-voi_score: 0.5                    # float 0..1. Value of Information — expected value of resolving this question,
+voi_score: 0.6                    # agent-set under operator delegation 2026-10-18: the source of arc-011's confirmed requirements (arc-011.yaml:30-60), so much is already answered; what remains still steers the whole delivery arc. — float 0..1. Value of Information — expected value of resolving this question,
                                   # independent of build cost. Higher when answer affects many tasks or unblocks a strategic decision. Required.
 bvp_scores_proposed:
   - ts: '2026-10-03T20:15:55Z'
