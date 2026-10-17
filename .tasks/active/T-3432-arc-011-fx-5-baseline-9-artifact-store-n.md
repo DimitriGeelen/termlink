@@ -44,7 +44,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-13T16:12:01Z
-last_update: 2026-10-17T16:40:59Z
+last_update: 2026-10-17T16:41:40Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -326,6 +326,16 @@ grep -q "^install_crontab file-shaped-posts-canary.crontab" runme.sh
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-10-17 — the size cap could not do what it was ruled to do
+- **What changed:** measuring .107 showed peers already send files as ordinary messages in 40 KB pieces (`artifact-chunk`, `document`), 91 messages in 5 topics, 8 of them ours. A per-message cap cannot stop a chunked file, and a cap low enough to bite would refuse real filings (up to 275 KB).
+- **Plan impact:** part (c) became a backstop cap (512 KB) plus a detector, by operator ruling C; "no tunnelling into a counted field" is now watched, not prevented, until P15 offers an encrypted path.
+- **Triggered:** the file-shaped-posts canary (built here); refusing such posts and their effect on the FX-5 baseline are left open for the operator at P15.
+
+### 2026-10-17 — a fourth artifact-store writer
+- **What changed:** the hand grep found three writers; the new check found a fourth, `termlink remote send-file`.
+- **Plan impact:** none beyond the allowlist; it confirms the check should scan every client crate rather than trust a list.
+- **Triggered:** nothing new.
 
 ## Recommendation
 
