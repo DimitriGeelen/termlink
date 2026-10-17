@@ -1,10 +1,13 @@
 ---
 id: T-3452
-name: "WARN escalation: voi-prompt.sh red 14d (since 2026-10-03T05:41:01Z) — fix or reclassify"
+name: "WARN escalation: voi-prompt.sh red 14d (since 2026-10-03T05:41:01Z) — fix or
+  reclassify"
 description: >
-  WARN-tier guard member voi-prompt.sh has been red for more than 14 days (first seen red 2026-10-03T05:41:01Z). Operator binding condition (T-3258 rulings): a stale WARN becomes an action.
+  WARN-tier guard member voi-prompt.sh has been red for more than 14 days (first seen
+  red 2026-10-03T05:41:01Z). Operator binding condition (T-3258 rulings): a stale
+  WARN becomes an action.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -38,8 +41,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-17T21:09:12Z
-last_update: 2026-10-17T21:09:12Z
-date_finished: null
+last_update: 2026-10-17T23:19:32Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +53,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-17T23:19:04Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3452: WARN escalation: voi-prompt.sh red 14d (since 2026-10-03T05:41:01Z) — fix or reclassify
@@ -96,7 +113,7 @@ while the member is still red restarts a 14-day window from the close date, then
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `voi-prompt.sh` is green, or the operator has reclassified it (tier change recorded in docs/reports/T-3258-guard-classification-draft.md)
+- [x] `voi-prompt.sh` is green (2026-10-18: 10 inceptions scored — T-3423 0.7 and T-3439 0.6 by operator ruling A; T-3455 and seven more under the operator's "same for the rest", reasons in each frontmatter), or the operator has reclassified it (tier change recorded in docs/reports/T-3258-guard-classification-draft.md)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -159,6 +176,7 @@ while the member is still red restarts a 14-day window from the close date, then
 # *.go → `go build ./...`; Cargo.toml → `cargo check`; tsconfig.json → `tsc --noEmit`;
 # pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
 # past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
+bash scripts/voi-prompt.sh --check --quiet
 #
 # ── Mutable-corpus anchor (T-3326) ────────────────────────────────────────────
 # Do NOT anchor a verification line (or a unit test it runs) to MUTABLE corpus
@@ -397,3 +415,6 @@ while the member is still red restarts a 14-day window from the close date, then
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3452-warn-escalation-voi-promptsh-red-14d-sin.md
 - **Context:** Initial task creation
+
+### 2026-10-17T23:19:03Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
