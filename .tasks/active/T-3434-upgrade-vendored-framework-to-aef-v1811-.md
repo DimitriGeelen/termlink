@@ -41,7 +41,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-13T16:48:12Z
-last_update: 2026-10-17T13:07:24Z
+last_update: 2026-10-17T13:08:32Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -79,11 +79,11 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Target per the 2026-10-17 operator ruling (A): AEF bleeding-edge `5c886336b` (v1.8.11 not tagged; v1.8.10 is a 5-commit hotfix on 1.8.9 lacking 227 commits we already run, so the old fallback would be a downgrade)
-- [ ] Pre-re-vendor checklist from `.vendor-divergence.yaml` run first: `CLAUDE.md` backed up to `CLAUDE.md.prevendor`, `bash scripts/check-vendor-divergence.sh` exit 0 (every local divergence registered)
-- [ ] Rehearsed on a throwaway copy first, then run in place from a full upstream clone at the target, as T-3420 did (an agent operation, not an operator command); `fw doctor` reports no new failure afterwards
-- [ ] After the upgrade: `.agentic-framework/VERSION` is newer than `1.8.9+227.ged683536a`, `diff CLAUDE.md.prevendor CLAUDE.md` reviewed and project text above `## Core Principle` intact, `last_vendor_event` updated in `.vendor-divergence.yaml`, Watchtower restarted
-- [ ] Decision-revert check rerun after the upgrade: `python3 .agentic-framework/lib/watchtower_decision_revert.py` reports 0 reverted (baseline before upgrade, 2026-10-13: 0 reverted, index had nothing staged under .tasks/.context/episodic)
+- [x] Target per the 2026-10-17 operator ruling (A): AEF bleeding-edge `5c886336b` (v1.8.11 not tagged; v1.8.10 is a 5-commit hotfix on 1.8.9 lacking 227 commits we already run, so the old fallback would be a downgrade)
+- [x] Pre-re-vendor checklist from `.vendor-divergence.yaml` run first: `CLAUDE.md` backed up to `CLAUDE.md.prevendor`, `bash scripts/check-vendor-divergence.sh` exit 0 (every local divergence registered)
+- [x] Rehearsed on a throwaway copy first, then run in place from a full upstream clone at the target, as T-3420 did (an agent operation, not an operator command); `fw doctor` reports no new failure afterwards
+- [x] After the upgrade: `.agentic-framework/VERSION` is newer than `1.8.9+227.ged683536a`, `diff CLAUDE.md.prevendor CLAUDE.md` reviewed and project text above `## Core Principle` intact, `last_vendor_event` updated in `.vendor-divergence.yaml`, Watchtower restarted
+- [x] Decision-revert check rerun after the upgrade: `python3 .agentic-framework/lib/watchtower_decision_revert.py` reports 0 reverted (baseline before upgrade, 2026-10-13: 0 reverted, index had nothing staged under .tasks/.context/episodic)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -274,6 +274,14 @@ python3 .agentic-framework/lib/watchtower_decision_revert.py > /tmp/.t3434 2>&1 
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+grep -q '^1.8.10+516.g5c886336b' .agentic-framework/VERSION
+grep -q '^  commit: 570c2e262' .vendor-divergence.yaml
+bash scripts/check-vendor-divergence.sh > /tmp/.t3434d 2>&1
+test "$(grep -c '^## Core Principle' CLAUDE.md)" = 1
+bash tests/safe-commands-checkpoint-fixtures.sh > /tmp/.t3434s 2>&1
+bash tests/commit-pending-fixtures.sh > /tmp/.t3434c 2>&1
+python3 .agentic-framework/lib/watchtower_decision_revert.py > /tmp/.t3434r 2>&1 && grep -q "^0 Watchtower decision" /tmp/.t3434r
 
 ## RCA
 
