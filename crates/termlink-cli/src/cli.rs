@@ -1543,6 +1543,13 @@ pub(crate) enum RemoteAction {
         #[arg(long, default_value = "10")]
         delay_ms: u64,
 
+        /// Match SESSION by exact session id only, never by display name (T-3448). Use when the
+        /// id was just confirmed: without it, if that session is gone, another one registered
+        /// with that id as its display name would receive the text. Honoured by hubs built
+        /// with T-3448 or later; an older hub ignores it and still matches names.
+        #[arg(long)]
+        by_id: bool,
+
         /// Permission scope: observe, interact, control, execute [default: control]
         #[arg(long, default_value = "control")]
         scope: String,

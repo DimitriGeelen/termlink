@@ -702,6 +702,8 @@ pub(crate) struct RemoteInjectOpts<'a> {
     pub enter: bool,
     pub key: Option<&'a str>,
     pub delay_ms: u64,
+    /// T-3448: send `exact_id: true` so the hub resolves the target by id only.
+    pub by_id: bool,
     pub json: bool,
     pub timeout_secs: u64,
 }
@@ -1585,9 +1587,9 @@ pub(crate) async fn cmd_remote_inject(
     conn: &RemoteConn<'_>,
     opts: &RemoteInjectOpts<'_>,
 ) -> Result<()> {
-    let RemoteInjectOpts { session, text, enter, key, delay_ms, json, timeout_secs } = *opts;
+    let RemoteInjectOpts { session, json, timeout_secs, .. } = *opts;
     let timeout_dur = std::time::Duration::from_secs(timeout_secs);
-    match tokio::time::timeout(timeout_dur, cmd_remote_inject_inner(conn, session, text, enter, key, delay_ms, json)).await {
+    match tokio::time::timeout(timeout_dur, cmd_remote_inject_inner(conn, opts)).await {
         Ok(result) => result,
         Err(_) => {
             if json {
@@ -1598,15 +1600,22 @@ pub(crate) async fn cmd_remote_inject(
     }
 }
 
-async fn cmd_remote_inject_inner(
-    conn: &RemoteConn<'_>,
-    session: &str,
-    text: &str,
-    enter: bool,
-    key: Option<&str>,
-    delay_ms: u64,
-    json: bool,
-) -> Result<()> {
+/// T-3448: the forwarded `command.inject` params. `exact_id` is sent only when asked, so the
+/// request an older hub sees is unchanged by default.
+pub(crate) fn remote_inject_params(session: &str, keys: Vec<serde_json::Value>, delay_ms: u64, by_id: bool) -> serde_json::Value {
+    let mut p = serde_json::json!({
+        "target": session,
+        "keys": keys,
+        "inject_delay_ms": delay_ms,
+    });
+    if by_id {
+        p["exact_id"] = serde_json::json!(true);
+    }
+    p
+}
+
+async fn cmd_remote_inject_inner(conn: &RemoteConn<'_>, opts: &RemoteInjectOpts<'_>) -> Result<()> {
+    let RemoteInjectOpts { session, text, enter, key, delay_ms, by_id, json, .. } = *opts;
     let mut client = match connect_remote_hub(conn.hub, conn.secret_file, conn.secret_hex, conn.scope).await {
         Ok(c) => c,
         Err(e) => {
@@ -1627,11 +1636,7 @@ async fn cmd_remote_inject_inner(
         keys.push(serde_json::json!({ "type": "key", "value": "Enter" }));
     }
 
-    let inject_params = serde_json::json!({
-        "target": session,
-        "keys": keys,
-        "inject_delay_ms": delay_ms,
-    });
+    let inject_params = remote_inject_params(session, keys, delay_ms, by_id);
 
     match client.call("command.inject", serde_json::json!("inject"), inject_params).await {
         Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => {
@@ -8620,6 +8625,16 @@ async fn cmd_remote_doctor_inner(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // T-3448: --by-id adds exact_id; without it the request is byte-for-byte the old shape.
+    #[test]
+    fn remote_inject_params_sends_exact_id_only_when_asked() {
+        let with = remote_inject_params("sess-1", vec![], 10, true);
+        assert_eq!(with["exact_id"], serde_json::json!(true));
+        assert_eq!(with["target"], "sess-1");
+        let without = remote_inject_params("sess-1", vec![], 10, false);
+        assert!(without.get("exact_id").is_none(), "default request must not change: {without}");
+    }
 
     const VALID_SECRET_HEX: &str =
         "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";

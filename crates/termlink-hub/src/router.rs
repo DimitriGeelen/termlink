@@ -1703,6 +1703,24 @@ fn handle_bypass_invalidate(id: serde_json::Value, params: &serde_json::Value) -
     }
 }
 
+/// T-3448: the entry whose id is exactly `target`; unless `exact_id`, else the first whose
+/// display name is `target`. Pure, so the race shape can be tested without a registry.
+pub(crate) fn match_target<'a, E>(
+    items: &'a [E],
+    target: &str,
+    exact_id: bool,
+    id: impl Fn(&E) -> &str,
+    name: impl Fn(&E) -> &str,
+) -> Option<&'a E> {
+    items.iter().find(|e| id(e) == target).or_else(|| {
+        if exact_id {
+            None
+        } else {
+            items.iter().find(|e| name(e) == target)
+        }
+    })
+}
+
 /// Forward a request to the target session specified in params.target.
 async fn forward_to_target(req: &Request, id: serde_json::Value) -> RpcResponse {
     // Extract target from params
@@ -1718,15 +1736,26 @@ async fn forward_to_target(req: &Request, id: serde_json::Value) -> RpcResponse 
         }
     };
 
+    // T-3448: `exact_id: true` resolves by session id ONLY (no display-name fallback), so the
+    // text goes to exactly the session the caller confirmed. Without it a session that registers
+    // with display_name == the confirmed id could win the name rule if the confirmed one is gone.
+    let exact_id = req.params.get("exact_id").and_then(|v| v.as_bool()).unwrap_or(false);
+
     // Resolve target: try local FS first, then remote store
-    let addr = if let Ok(reg) = manager::find_session(target) {
+    let local = if exact_id {
+        manager::list_sessions(false)
+            .ok()
+            .and_then(|all| match_target(&all, target, true, |r| r.id.as_str(), |r| r.display_name.as_str()).cloned())
+    } else {
+        manager::find_session(target).ok()
+    };
+    let addr = if let Some(reg) = local {
         reg.addr.to_transport_addr()
     } else if let Some(entry) = remote_store().and_then(|s| {
-        // Try by ID first, then by display name
+        // Try by ID first, then (unless exact_id) by display name
         s.get(target).or_else(|| {
-            s.list_live()
-                .into_iter()
-                .find(|e| e.display_name == target || e.id == target)
+            let live = s.list_live();
+            match_target(&live, target, exact_id, |e| e.id.as_str(), |e| e.display_name.as_str()).cloned()
         })
     }) {
         TransportAddr::Tcp {
@@ -2086,6 +2115,25 @@ mod tests {
         assert_eq!(result["display_name"], "target-sess");
 
         handle.abort();
+    }
+
+    // T-3448: the race 055 named — the confirmed id is gone, and another session registered
+    // with display_name equal to that id. Default mode matches the name; exact mode refuses.
+    #[test]
+    fn match_target_exact_id_never_falls_back_to_a_display_name() {
+        let items = vec![("sess-other".to_string(), "sess-confirmed".to_string())];
+        fn id(e: &(String, String)) -> &str {
+            &e.0
+        }
+        fn name(e: &(String, String)) -> &str {
+            &e.1
+        }
+        assert_eq!(match_target(&items, "sess-confirmed", false, id, name).map(|e| e.0.as_str()), Some("sess-other"));
+        assert!(match_target(&items, "sess-confirmed", true, id, name).is_none());
+        // The confirmed id itself still resolves in exact mode.
+        let items2 = vec![("sess-confirmed".to_string(), "x".to_string()), ("y".to_string(), "sess-confirmed".to_string())];
+        assert_eq!(match_target(&items2, "sess-confirmed", true, id, name).map(|e| e.0.as_str()), Some("sess-confirmed"));
+        assert_eq!(match_target(&items2, "sess-confirmed", false, id, name).map(|e| e.0.as_str()), Some("sess-confirmed"), "id wins over name in both modes");
     }
 
     #[tokio::test]

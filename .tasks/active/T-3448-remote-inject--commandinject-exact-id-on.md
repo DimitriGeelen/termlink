@@ -1,13 +1,22 @@
 ---
 id: T-3448
-name: "remote inject / command.inject: exact-id-only target mode (no display-name fallback) — 055 request"
+name: "remote inject / command.inject: exact-id-only target mode (no display-name
+  fallback) — 055 request"
 description: >
-  055 (conversation remote-inject-target, msg 558fa1ee) lets the operator type into an agent on another machine via termlink remote inject. The hub resolves the target by exact local session id, then a unique local display_name, then the remote store by display_name or id (router.rs forward_to_target ~1722-1729, manager.rs find_session ~277). If the confirmed session goes away between 055's remote list and the inject, a session registering with display_name equal to that id wins the name rule and receives the operator's text. Add an exact-id mode (e.g. param exact_id / CLI --by-id) that resolves by id only and refuses otherwise, for command.inject forwarding and remote inject; test the race shape (id absent, display_name == id present -> refused).
+  055 (conversation remote-inject-target, msg 558fa1ee) lets the operator type into
+  an agent on another machine via termlink remote inject. The hub resolves the target
+  by exact local session id, then a unique local display_name, then the remote store
+  by display_name or id (router.rs forward_to_target ~1722-1729, manager.rs find_session
+  ~277). If the confirmed session goes away between 055's remote list and the inject,
+  a session registering with display_name equal to that id wins the name rule and
+  receives the operator's text. Add an exact-id mode (e.g. param exact_id / CLI --by-id)
+  that resolves by id only and refuses otherwise, for command.inject forwarding and
+  remote inject; test the race shape (id absent, display_name == id present -> refused).
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -38,8 +47,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-17T17:20:34Z
-last_update: 2026-10-17T17:21:02Z
-date_finished: null
+last_update: 2026-10-17T18:21:25Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +59,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-17T18:10:06Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3448: remote inject / command.inject: exact-id-only target mode (no display-name fallback) — 055 request
@@ -62,8 +85,9 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] The hub's forwarding path honours `exact_id: true` in params: it resolves the target by exact session id only (local registry, then the remote store's id lookup), never by display name, and refuses with SESSION_NOT_FOUND otherwise; without the flag behaviour is unchanged
+- [x] Unit test of the resolver pins the race shape: id absent and a session whose display_name equals that id present -> exact mode refuses, default mode matches the name
+- [x] `termlink remote inject ... --by-id` sends `exact_id: true` (CLI help names it and why); the hub crate's and CLI's tests for this pass
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -268,6 +292,10 @@ date_finished: null
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+cargo test -p termlink-hub --lib -- match_target forward_ > /tmp/.t3448h 2>&1 && grep -q "test result: ok" /tmp/.t3448h
+cargo test -p termlink --bin termlink remote_inject_params > /tmp/.t3448c 2>&1 && grep -q "test result: ok. 1 passed" /tmp/.t3448c
+grep -q 'req.params.get("exact_id")' crates/termlink-hub/src/router.rs
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -364,3 +392,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3448-remote-inject--commandinject-exact-id-on.md
 - **Context:** Initial task creation
+
+### 2026-10-17T18:10:06Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

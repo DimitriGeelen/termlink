@@ -700,10 +700,10 @@ async fn main() -> Result<()> {
                 let session = commands::remote::resolve_remote_target(session, &conn).await?;
                 commands::remote::cmd_remote_status(&conn, &session, json, short, timeout).await
             }
-            RemoteAction::Inject { hub, session, text, secret_file, secret, enter, key, delay_ms, scope, json, timeout } => {
+            RemoteAction::Inject { hub, session, text, secret_file, secret, enter, key, delay_ms, by_id, scope, json, timeout } => {
                 let p = resolve_hub_profile(&hub, secret_file.as_deref(), secret.as_deref(), &scope)?;
                 let conn = RemoteConn { hub: &p.address, secret_file: p.secret_file.as_deref(), secret_hex: p.secret.as_deref(), scope: p.scope.as_deref().unwrap_or("control") };
-                let inject_opts = commands::remote::RemoteInjectOpts { session: &session, text: &text, enter, key: key.as_deref(), delay_ms, json, timeout_secs: timeout };
+                let inject_opts = commands::remote::RemoteInjectOpts { session: &session, text: &text, enter, key: key.as_deref(), delay_ms, by_id, json, timeout_secs: timeout };
                 commands::remote::cmd_remote_inject(&conn, &inject_opts).await
             }
             RemoteAction::SendFile { hub, session, path, secret_file, secret, chunk_size, scope, json, timeout } => {
