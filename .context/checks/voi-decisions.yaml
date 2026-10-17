@@ -20,6 +20,11 @@ decisions:
     recorded_at: '2026-10-17T23:12:59+00:00'
     recorded_at_run: 36
     value: '0.6'
+  task:T-3455:
+    choice: set
+    recorded_at: '2026-10-17T23:15:46+00:00'
+    recorded_at_run: 36
+    value: '0.6'
 history:
 - key: task:T-3200
   choice: waive
@@ -36,5 +41,10 @@ history:
 - key: task:T-3439
   choice: set
   recorded_at: '2026-10-17T23:12:59+00:00'
+  recorded_at_run: 36
+  value: '0.6'
+- key: task:T-3455
+  choice: set
+  recorded_at: '2026-10-17T23:15:46+00:00'
   recorded_at_run: 36
   value: '0.6'
