@@ -18,20 +18,9 @@ TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
 cd "$PROJECT_ROOT" && PYTHONPATH="$FW" T3337_TMP="$TMP" python3 - <<'PY'
 import os, sqlite3, sys
 from pathlib import Path
-# T-3444: embeddings.py imports `ollama` at the top, and the CI runner has no ollama module, so the
-# import failed and the fixture ERRORed there. This fixture never calls Ollama (build_index is a
-# tripwire), so a stub stands in when the real module is absent. T3337_SIMULATE_NO_OLLAMA=1 forces
-# that path on a host that has ollama, to prove it.
-if os.environ.get("T3337_SIMULATE_NO_OLLAMA") == "1":
-    sys.modules["ollama"] = None          # makes `import ollama` raise ImportError
-try:
-    import ollama  # noqa: F401
-except ImportError:
-    import types
-    stub = types.ModuleType("ollama")
-    stub.Client = object
-    sys.modules["ollama"] = stub
-    print("NOTE: ollama not installed; stubbed (this fixture never calls it)", file=sys.stderr)
+# T-3444: needs the real sqlite_vec (it opens the index) and ollama (imported at the top of
+# embeddings.py). CI installs both (doc-lint.yml, release.yml); without them this is TOOLING (exit 2),
+# never a pass, because stubbing sqlite_vec would make every case fail for the wrong reason.
 try:
     import web.embeddings as e
 except Exception as ex:
