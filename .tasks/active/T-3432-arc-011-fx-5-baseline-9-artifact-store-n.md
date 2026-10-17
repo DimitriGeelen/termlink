@@ -44,7 +44,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-13T16:12:01Z
-last_update: 2026-10-17T16:37:49Z
+last_update: 2026-10-17T16:40:59Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -85,10 +85,10 @@ fourth that the hand grep missed: `termlink remote send-file` (`commands/remote.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] (a) `count-hub-plaintext-fields.sh` counts the artifact store (anchor: the hub's `put_streaming` call); the real tree totals 9; its fixtures and the T-3427 report say 9
-- [ ] (b) A guard-layer static check fires on (1) any `artifact.put` emitter other than `upload_artifact_chunked` and (2) any caller of `send_artifact_via_client` not in a git-tracked allowlist; the current callers (four, see Context) are listed with reasons; fixtures cover both firing rules, the clean tree, comments and fail-closed tooling, with a mutant
-- [ ] (c) The hub refuses a plaintext message field above a size cap with a named error, the cap chosen from the largest field measured on this hub plus margin; unit tests pin refusal and acceptance; the hub crate's tests pass apart from timing-only tests unrelated to the change (named in the commit)
-- [ ] (c2, ruling C) A daily canary names new file-shaped posts outside the artifact path (fixtures incl. fail-closed tooling; crontab installed by runme action 1; existing posts acknowledged after being reported)
+- [x] (a) `count-hub-plaintext-fields.sh` counts the artifact store (anchor: the hub's `put_streaming` call); the real tree totals 9; its fixtures and the T-3427 report say 9
+- [x] (b) A guard-layer static check fires on (1) any `artifact.put` emitter other than `upload_artifact_chunked` and (2) any caller of `send_artifact_via_client` not in a git-tracked allowlist; the current callers (four, see Context) are listed with reasons; fixtures cover both firing rules, the clean tree, comments and fail-closed tooling, with a mutant
+- [x] (c) The hub refuses a plaintext message field above a size cap with a named error, the cap chosen from the largest field measured on this hub plus margin; unit tests pin refusal and acceptance; the hub crate's tests pass apart from timing-only tests unrelated to the change (named in the commit)
+- [x] (c2, ruling C) A daily canary names new file-shaped posts outside the artifact path (fixtures incl. fail-closed tooling; crontab installed by runme action 1; existing posts acknowledged after being reported)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
