@@ -513,6 +513,14 @@ pub mod error_code {
     /// Safe to introduce: no client crate branched on `-32004` or on
     /// `BusError::UnknownArtifact`, so nothing observable depended on the old value.
     pub const ARTIFACT_NOT_FOUND: i64 = -32024;
+
+    /// T-3432 (arc-011 FX-5 ruling C′, part c): a `channel.post` plaintext field (the decoded
+    /// payload, or one metadata value) is larger than the hub accepts. A backstop against a
+    /// whole file landing in a counted field in one message; the measured largest real field on
+    /// .107 was 296 KB (2026-10-17), so the cap sits above all observed traffic. Chunked file
+    /// transfer is not stopped by any per-message cap; that is watched by a canary instead.
+    /// `data` carries `{field, bytes, max_bytes}`.
+    pub const PLAINTEXT_FIELD_TOO_LARGE: i64 = -32025;
 }
 
 /// Default `protocol_version` when the field is missing on the wire.

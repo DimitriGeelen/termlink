@@ -761,6 +761,40 @@ pub(crate) fn apply_observed_addr(
     }
 }
 
+/// T-3432 (arc-011 FX-5 ruling C′, part c): the largest plaintext field `channel.post` accepts,
+/// the decoded payload or any one metadata value. A backstop against a whole file landing in a
+/// counted field in one message, set above every field measured on .107 (largest 296 KB,
+/// 2026-10-17), so no current traffic is refused. Chunked file transfer is not stopped by any
+/// per-message cap; a canary watches for it (scripts/check-file-shaped-posts.sh).
+pub(crate) const MAX_PLAINTEXT_FIELD_BYTES: usize = 512 * 1024;
+
+/// The first plaintext field over [`MAX_PLAINTEXT_FIELD_BYTES`], as `(field, bytes)`.
+pub(crate) fn oversize_plaintext_field(
+    payload_len: usize,
+    metadata: Option<&std::collections::BTreeMap<String, String>>,
+) -> Option<(String, usize)> {
+    if payload_len > MAX_PLAINTEXT_FIELD_BYTES {
+        return Some(("payload".to_string(), payload_len));
+    }
+    metadata?
+        .iter()
+        .find(|(_, v)| v.len() > MAX_PLAINTEXT_FIELD_BYTES)
+        .map(|(k, v)| (format!("metadata.{k}"), v.len()))
+}
+
+fn plaintext_too_large(id: Value, field: &str, bytes: usize) -> RpcResponse {
+    ErrorResponse::with_data(
+        id,
+        error_code::PLAINTEXT_FIELD_TOO_LARGE,
+        &format!(
+            "channel.post: {field} is {bytes} bytes, above the {MAX_PLAINTEXT_FIELD_BYTES}-byte cap \
+             on plaintext fields (FX-5) — send a file with `termlink file send`, not in a message"
+        ),
+        json!({ "field": field, "bytes": bytes, "max_bytes": MAX_PLAINTEXT_FIELD_BYTES }),
+    )
+    .into()
+}
+
 /// `channel.post(topic, msg_type, payload_b64, artifact_ref?, ts, sender_id,
 /// sender_pubkey_hex, signature_hex)` — verifies signature then appends.
 pub async fn handle_channel_post(
@@ -806,10 +840,17 @@ pub(crate) async fn handle_channel_post_with_peer(
         Some(p) => p,
         None => return ErrorResponse::new(id, -32602, "Missing 'payload_b64' in params").into(),
     };
+    // T-3432: refuse an oversize payload before decoding it (base64 is 4/3 of the bytes).
+    if payload_b64.len() / 4 * 3 > MAX_PLAINTEXT_FIELD_BYTES + 3 {
+        return plaintext_too_large(id, "payload", payload_b64.len() / 4 * 3);
+    }
     let payload = match base64::engine::general_purpose::STANDARD.decode(payload_b64) {
         Ok(b) => b,
         Err(e) => return ErrorResponse::new(id, -32602, &format!("payload_b64 decode: {e}")).into(),
     };
+    if let Some((field, bytes)) = oversize_plaintext_field(payload.len(), None) {
+        return plaintext_too_large(id, &field, bytes);
+    }
     let artifact_ref = param_str(params, "artifact_ref").map(|s| s.to_string());
     let ts_unix_ms = params
         .get("ts")
@@ -902,6 +943,9 @@ pub(crate) async fn handle_channel_post_with_peer(
                 .collect()
         })
         .unwrap_or_default();
+    if let Some((field, bytes)) = oversize_plaintext_field(0, Some(&metadata)) {
+        return plaintext_too_large(id, &field, bytes);
+    }
 
     // T-2297: stamp the hub-attested observed source address onto the envelope
     // metadata (or strip any client-supplied value when not attestable). MUST run
@@ -4702,6 +4746,52 @@ mod tests {
         let v = unwrap_success(resp);
         assert_eq!(v["offset"], 0);
         assert_eq!(v["ts"], 2);
+    }
+
+    // T-3432: the FX-5 plaintext field cap.
+    #[test]
+    fn oversize_plaintext_field_names_the_field() {
+        assert_eq!(oversize_plaintext_field(MAX_PLAINTEXT_FIELD_BYTES, None), None, "at the cap is allowed");
+        assert_eq!(
+            oversize_plaintext_field(MAX_PLAINTEXT_FIELD_BYTES + 1, None),
+            Some(("payload".to_string(), MAX_PLAINTEXT_FIELD_BYTES + 1))
+        );
+        let mut m = std::collections::BTreeMap::new();
+        m.insert("conversation_id".to_string(), "c".to_string());
+        assert_eq!(oversize_plaintext_field(10, Some(&m)), None);
+        m.insert("note".to_string(), "x".repeat(MAX_PLAINTEXT_FIELD_BYTES + 5));
+        assert_eq!(
+            oversize_plaintext_field(10, Some(&m)),
+            Some(("metadata.note".to_string(), MAX_PLAINTEXT_FIELD_BYTES + 5))
+        );
+    }
+
+    #[tokio::test]
+    async fn channel_post_refuses_an_oversize_payload_and_keeps_the_largest_real_one() {
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("t", Retention::Forever).unwrap();
+        let key = signing_key();
+        // 300 KB: above the largest field measured on .107 (296 KB), below the cap.
+        let ok = post_params(&key, "t", "note", &vec![b'a'; 300 * 1024], 1);
+        assert_eq!(unwrap_success(handle_channel_post_with(&bus, json!(1), &ok).await)["offset"], 0);
+        let big = post_params(&key, "t", "document", &vec![b'a'; MAX_PLAINTEXT_FIELD_BYTES + 1], 2);
+        let (code, msg) = unwrap_error(handle_channel_post_with(&bus, json!(2), &big).await);
+        assert_eq!(code, error_code::PLAINTEXT_FIELD_TOO_LARGE);
+        assert!(msg.contains("payload") && msg.contains("termlink file send"), "{msg}");
+        // Nothing was stored for the refused post.
+        assert_eq!(bus.topic_record_count("t").unwrap(), 1);
+    }
+
+    #[tokio::test]
+    async fn channel_post_refuses_an_oversize_metadata_value() {
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("t", Retention::Forever).unwrap();
+        let key = signing_key();
+        let mut p = post_params(&key, "t", "note", b"hi", 1);
+        p["metadata"] = json!({ "file": "x".repeat(MAX_PLAINTEXT_FIELD_BYTES + 1) });
+        let (code, msg) = unwrap_error(handle_channel_post_with(&bus, json!(1), &p).await);
+        assert_eq!(code, error_code::PLAINTEXT_FIELD_TOO_LARGE);
+        assert!(msg.contains("metadata.file"), "{msg}");
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
