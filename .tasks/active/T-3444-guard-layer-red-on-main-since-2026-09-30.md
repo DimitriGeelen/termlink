@@ -47,7 +47,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-14T21:56:49Z
-last_update: 2026-10-17T14:31:20Z
+last_update: 2026-10-17T14:42:43Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -84,12 +84,12 @@ bvp_scores_proposed:
 ## Acceptance Criteria
 
 ### Agent
-- [ ] (1) T-3300's two commands are under its `## Verification` and re-run; `check-verification-misfile.sh` exits 0
-- [ ] (2) `human-ac-escalation-fixtures` no longer asserts the live tree (it uses a fixture tree), and passes whatever the real task corpus holds
-- [ ] (3) `pin-events-fixtures` cause of the CI-only failure found and fixed; passes as root and as a non-root user with a private /tmp
-- [ ] (4) `vector-index-reader-no-rebuild-fixtures` does not ERROR where `ollama` is not installed (skips that case, saying so, or stubs the import)
-- [ ] (5, found 2026-10-17 in CI run 39035578477) `budget-ladder-drift-fixtures` reads the expected window from the vendored gate, not the literal 300000 the T-3434 re-vendor broke
-- [ ] One guard-layer run on main is green after the push (`doc-lint.yml`, read via `gh api`), or the remaining red is named with its own task
+- [x] (1) T-3300's two commands are under its `## Verification` and re-run; `check-verification-misfile.sh` exits 0
+- [x] (2) `human-ac-escalation-fixtures` no longer asserts the live tree (it uses a fixture tree), and passes whatever the real task corpus holds
+- [x] (3) `pin-events-fixtures` cause of the CI-only failure found and fixed; passes as root and as a non-root user with a private /tmp
+- [x] (4) `vector-index-reader-no-rebuild-fixtures` does not ERROR where `ollama` is not installed (skips that case, saying so, or stubs the import)
+- [x] (5, found 2026-10-17 in CI run 39035578477) `budget-ladder-drift-fixtures` reads the expected window from the vendored gate, not the literal 300000 the T-3434 re-vendor broke
+- [x] One guard-layer run on main is green after the push (`doc-lint.yml`, read via `gh api`), or the remaining red is named with its own task
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
