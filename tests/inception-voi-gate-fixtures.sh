@@ -7,6 +7,11 @@
 set -uo pipefail
 GATE="${GATE:-scripts/gate-inception-voi.sh}"
 TMP="$(mktemp -d)"; trap 'rm -rf -- "$TMP"' EXIT
+# T-3458: every gate call writes waivers to $FW_VOI_GATE_LEDGER, defaulting to the REAL
+# .context/checks/voi-waiver-ledger. Calls that did not set it leaked fixture waivers
+# (T-8/T-9/T-10) into the operator's ledger on every guard-layer run. Cases that test the
+# ledger still override this per call.
+export FW_VOI_GATE_LEDGER="$TMP/default-ledger"
 PASS=0; FAIL=0
 ok(){ PASS=$((PASS+1)); printf '  ok   %s\n' "$1"; }
 bad(){ FAIL=$((FAIL+1)); printf '  FAIL %s\n       %s\n' "$1" "${2:-}"; }
