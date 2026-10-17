@@ -12,7 +12,7 @@ tags: [arc:arc-011]
 components: []
 related_tasks: []
 created: 2026-10-12T13:56:33Z
-last_update: 2026-10-12T13:56:33Z
+last_update: 2026-10-17T22:58:38Z
 date_finished: null
 revisit_at: 2026-11-12
 revisit_evidence_needed: "arc-011 PH-1 exit (X6) recorded and PH-2 planning started, or 832 reports their stopgap secret was exposed"
@@ -20,7 +20,7 @@ revisit_evidence_needed: "arc-011 PH-1 exit (X6) recorded and PH-2 planning star
 target_blast_radius: 3            # int 0..9. Anticipated component count of the build work this inception would authorise on GO.
                                   # Substitutes for the absent components: list in the F8 cost formula (040). Required.
                                   # Guide: 0=docs only, 1=single file, 3=small subsystem (S), 5=cross-subsystem (M), 7=multi-arc (L), 9=framework-wide (XL).
-voi_score: 0.5                    # float 0..1. Value of Information — expected value of resolving this question,
+voi_score: 0.7                    # operator 2026-10-18 (option A): decides how other operators' agents are admitted to our hubs at all; feeds the identity/revocation work PH-2 is doing now (P10, OQ-h); 832 waits on it. Parked limits WHEN, not the value. — float 0..1. Value of Information — expected value of resolving this question,
                                   # independent of build cost. Higher when answer affects many tasks or unblocks a strategic decision. Required.
 ---
 

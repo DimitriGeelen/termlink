@@ -1,7 +1,7 @@
 # voi_score decision store (T-3175). Managed by scripts/voi-prompt.sh.
 # `runs` counts --check invocations; a snooze recorded at run R is
 # askable again at R + snooze_runs. `history` is append-only.
-runs: 9
+runs: 36
 decisions:
   task:T-3200:
     choice: waive
@@ -10,6 +10,11 @@ decisions:
     reason: 'Operator 2026-09-29: T-3200 is a NO-GO (operator''s decision, formal fw inception decide
       still his to run); value of resolving its question is moot. Operator delegated recording this reply
       (''I''d rather you record it'').'
+  task:T-3423:
+    choice: set
+    recorded_at: '2026-10-17T22:57:20+00:00'
+    recorded_at_run: 34
+    value: '0.7'
 history:
 - key: task:T-3200
   choice: waive
@@ -18,3 +23,8 @@ history:
   reason: 'Operator 2026-09-29: T-3200 is a NO-GO (operator''s decision, formal fw inception decide still
     his to run); value of resolving its question is moot. Operator delegated recording this reply (''I''d
     rather you record it'').'
+- key: task:T-3423
+  choice: set
+  recorded_at: '2026-10-17T22:57:20+00:00'
+  recorded_at_run: 34
+  value: '0.7'
