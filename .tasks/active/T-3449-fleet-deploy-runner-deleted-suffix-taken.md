@@ -48,7 +48,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-17T17:49:14Z
-last_update: 2026-10-17T17:51:29Z
+last_update: 2026-10-17T18:03:14Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -86,11 +86,11 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] The runner strips " (deleted)" (repeatedly) from the exe path before using it as TARGET
-- [ ] Hubs are found by a "hub start" process whose binary basename is termlink (with or without the suffix), never by the phrase "termlink hub start"; every pgrep/pkill on that phrase is gone from the runner
-- [ ] After a good swap, a stray "<TARGET> (deleted)" file nothing runs from is removed
-- [ ] `tests/hub-runtime-dir-fixtures.sh` pins all three on the generated runner, plus a behavioural test of the path/pid helpers on a fake /proc-like input; passes
-- [ ] .121 serves the runme-built version after the next runme run (or the remaining cause is named)
+- [x] The runner strips " (deleted)" (repeatedly) from the exe path before using it as TARGET
+- [x] Hubs are found by a "hub start" process whose binary basename is termlink (with or without the suffix), never by the phrase "termlink hub start"; every pgrep/pkill on that phrase is gone from the runner
+- [x] After a good swap, a stray "<TARGET> (deleted)" file nothing runs from is removed
+- [x] `tests/hub-runtime-dir-fixtures.sh` pins all three on the generated runner, plus a behavioural test of the path/pid helpers on a fake /proc-like input; passes
+- [x] .121 serves the runme-built version after the next runme run (or the remaining cause is named)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -295,7 +295,19 @@ bvp_scores_proposed:
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+bash tests/hub-runtime-dir-fixtures.sh > /tmp/.t3449 2>&1 && grep -q "26 passed, 0 failed" /tmp/.t3449
+bash tests/fleet-deploy-chunk-retry-fixtures.sh > /tmp/.t3449c 2>&1
+! grep -q "'\[t\]ermlink hub start'" scripts/fleet-deploy-binary.sh
+
 ## RCA
+
+**Symptom:** after the T-3447 fix, .121 still did not take a new binary: one deploy said the hub "did NOT come back" while it was serving, the next said "no running hub" and swapped nothing; .121 ran 0.12.590 from a file literally named `/usr/local/bin/termlink (deleted)`.
+
+**Root cause:** two assumptions about `/proc`. (1) `readlink /proc/<pid>/exe` of a replaced binary returns `<path> (deleted)`; the runner used that string as a file path, so it wrote and launched a file of that name. (2) Hubs were found by the command-line phrase `termlink hub start`; a hub launched from the odd path has `…termlink (deleted) hub start` and was invisible.
+
+**Why structurally allowed:** T-3447's fixtures checked the generated runner statically and never ran its process lookups; the first real run of the new code path was the live .121 deploy. runme's after-deploy version check did catch it (FAILED both times), which is why it did not go silent.
+
+**Prevention:** the path and pid helpers now run in the fixtures against stand-ins for `pgrep`/`readlink` covering a normal, a replaced and a stray-named binary; the version check in runme stays the live backstop.
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
