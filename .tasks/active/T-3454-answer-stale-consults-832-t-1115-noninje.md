@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-17T21:48:03Z
-last_update: 2026-10-17T21:51:36Z
+last_update: 2026-10-17T21:57:12Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -67,7 +67,7 @@ A peer nudge (dimitri-mint-dev T-124, 2026-10-17, arrived as a pty inject; claim
   - 055 T-305 (@49, thread T-305-send-reports-success-to-a-dead-shell): no reply found on any inbox or transcript → answered 2026-10-17, client_msg_id ff775dcc, RECEIVED.
   - dimitri-mint-dev 649c4ff1 (@269, conv tl-xhub-sidecar): no reply found → answered 2026-10-17, client_msg_id 32d0961f, RECEIVED.
 - [x] Each still-unanswered sender gets a reply on its own conversation that states current facts (verified this session) and, for the inception ask, that the decision is put to the operator
-- [ ] The cross-hub inception ask is put to the operator as a single decision, not opened unilaterally
+- [x] The cross-hub inception ask is put to the operator as a single decision, not opened unilaterally
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -126,6 +126,8 @@ A peer nudge (dimitri-mint-dev T-124, 2026-10-17, arrived as a pty inject; claim
 # run, add the line `# verification: none — <why nothing can be run>`; it is serviced
 # (queued for review: add a check / other evidence / accept). See docs/reports/T-4024-servicing-loop.md.
 #
+test -f .tasks/active/T-3455-arc-011-ph-3-input-cross-hub-sidecar-del.md
+grep -q "operator ruling" .tasks/active/T-3454-answer-stale-consults-832-t-1115-noninje.md
 # Toolchain hint (L-291): if you edited *.vbproj/*.csproj/*.xaml add `dotnet build`;
 # *.go → `go build ./...`; Cargo.toml → `cargo check`; tsconfig.json → `tsc --noEmit`;
 # pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
@@ -342,6 +344,12 @@ A peer nudge (dimitri-mint-dev T-124, 2026-10-17, arrived as a pty inject; claim
 -->
 
 ## Decisions
+
+### 2026-10-17 — Cross-hub sidecar delivery: inception now or in PH-3? (operator ruling)
+- **Chose:** B — fold into arc-011 PH-3. The measured gaps are parked in T-3455 (inception, horizon later, recommendation DEFER); shaping starts at PH-2 exit, with the operator.
+- **Why:** cross-host is PH-3 scope (arc-011-ph2-architecture.md:328) and depends on PH-2 outputs still being built (P10 hub signing key, revocation, W2 measurements). Scored A +13, B +24, C −26.
+- **Rejected:** A (a separate inception now, run alongside the W1/W2 trial; it would design on decisions not yet made); C (decline, which leaves cross-hub on DM + inject with no retry or confirmation).
+- **Left open:** when PH-3 starts; the PH-3 inception is run with the operator. Gap 6a (credentialed probe) was found already fixed upstream (AEF T-3806), so nothing was filed upstream.
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
