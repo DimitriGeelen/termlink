@@ -116,8 +116,10 @@ fi
 # 1. Post the receipt (the load-bearing ack agent-send.sh waits for).
 "$TERMLINK" channel post "$topic" --msg-type receipt \
     --metadata conversation_id="$cid" --metadata up_to="$up_to" \
-    --ensure-topic --json >/dev/null \
+    --ensure-topic --json </dev/null >/dev/null \
     || die "receipt post failed for topic '$topic'"
+# </dev/null (T-3456): a body-less post reads its payload from stdin; called from a
+# loop it would eat the caller's input, from a terminal it would wait for EOF.
 echo "agent-respond: receipt posted to '$topic' (cid=$cid, up_to=$up_to)"
 
 # 2. Optionally post the reply turn (the content).

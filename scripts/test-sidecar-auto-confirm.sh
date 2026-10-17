@@ -21,7 +21,10 @@ command -v "$TERMLINK" >/dev/null 2>&1 || { echo "SKIP: termlink not on PATH"; e
 command -v jq >/dev/null 2>&1           || { echo "SKIP: jq not available"; exit 0; }
 command -v sqlite3 >/dev/null 2>&1      || { echo "SKIP: sqlite3 not available"; exit 0; }
 
-selffp="$("$TERMLINK" channel info agent-presence --json 2>/dev/null | jq -r '.senders[0].sender_id // empty')"
+# The host's own key (T-3456). This used to read the first sender on agent-presence,
+# which on a busy host is some OTHER agent's identity; the sidecar then (correctly)
+# refused to sign receipts for it and T2-T4 failed for a reason unrelated to the code.
+selffp="$("$TERMLINK" identity show --json 2>/dev/null | jq -r '.fingerprint // empty')"
 [ -n "$selffp" ] || { echo "SKIP: cannot resolve self sender_id from local hub"; exit 0; }
 
 tmp="$(mktemp -d)"
@@ -108,6 +111,21 @@ if [ "$rc5" = "0" ] && grep -q "DELIVERED (stage=delivered)" "$tmp/t5.out"; then
 else
     fail "T5 rc=$rc5 out=$(tr '\n' '|' <"$tmp/t5.out")"
 fi
+
+# -------- T6 (T-3456): two topics in ONE cycle, both confirmed, empty receipt bodies --------
+# The receipt post had no body and read stdin, which inside the sidecar's topic loop is
+# the heredoc of remaining topics: it ate them (skipped this cycle) and posted their
+# names as the receipt body.
+echo "T6: one --once cycle confirms every topic, receipts carry no body"
+t6a="dm:s3t6a-$$:${selffp}"; t6b="dm:s3t6b-$$:${selffp}"
+seed_topic "$t6a"; seed_topic "$t6b"
+run_sidecar "$t6a $t6b" --auto-confirm
+da="$(delivered_count "$t6a")"; db="$(delivered_count "$t6b")"
+bodies="$(for t in "$t6a" "$t6b"; do "$TERMLINK" channel subscribe "$t" --cursor 0 --limit 300 --json 2>/dev/null; done \
+        | jq -r 'select(.msg_type=="receipt" and .metadata.stage=="delivered") | .payload_b64 // ""' | tr -d '\n')"
+{ [ "$da" = "1" ] && [ "$db" = "1" ] && [ -z "$bodies" ]; } \
+    && pass "T6 both topics confirmed in one cycle, empty receipt bodies" \
+    || fail "T6 receipts a=$da b=$db bodies_b64='${bodies:0:80}'"
 
 echo ""
 echo "Results: $PASS pass / $FAIL fail"

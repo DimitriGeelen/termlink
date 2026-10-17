@@ -514,7 +514,11 @@ probe_mail() {
             fi
             # V6-S3: recipient auto-confirm (journal + stage=delivered receipt), capped
             # below the first message addressed to someone else (T-3325).
-            [ "$auto_confirm" -eq 1 ] && _auto_confirm_topic "$t" "$fp" "$fmin" "$first"
+            # </dev/null is load-bearing (T-3456): the loop reads $topics from a
+            # heredoc on stdin, and a body-less `channel post` reads its payload from
+            # stdin, so the receipt swallowed the remaining topics as its body and
+            # they were skipped this cycle.
+            [ "$auto_confirm" -eq 1 ] && _auto_confirm_topic "$t" "$fp" "$fmin" "$first" </dev/null
         fi
     done <<EOF
 $topics
