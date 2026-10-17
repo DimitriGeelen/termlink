@@ -20,6 +20,7 @@ pub(crate) mod help;
 pub(crate) mod agent_find_idle;
 pub(crate) mod substrate;
 pub(crate) mod webhook;
+pub(crate) mod tmux_spawn;
 
 /// Display options shared across list-style commands (list, discover, remote list).
 pub(crate) struct ListDisplayOpts {

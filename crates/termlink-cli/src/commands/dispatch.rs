@@ -955,8 +955,8 @@ end tell"#
 
 fn spawn_via_tmux(session_name: &str, shell_cmd: &str) -> Result<()> {
     let tmux_session = format!("tl-{}", session_name);
-    let status = std::process::Command::new("tmux")
-        .args(["new-session", "-d", "-s", &tmux_session, shell_cmd])
+    // T-3445: project vars go to the session only, never into a server this call may start.
+    let status = super::tmux_spawn::tmux_new_session(&tmux_session, shell_cmd)
         .status()
         .context("Failed to run tmux")?;
 

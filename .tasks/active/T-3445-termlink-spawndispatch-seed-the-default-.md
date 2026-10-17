@@ -1,10 +1,18 @@
 ---
 id: T-3445
-name: "termlink spawn/dispatch seed the default tmux server's global env with the caller's project vars (055 T-536)"
+name: "termlink spawn/dispatch seed the default tmux server's global env with the
+  caller's project vars (055 T-536)"
 description: >
-  spawn_via_tmux (execution.rs:673) and dispatch.rs:959 run 'tmux new-session -d' on the default socket with the caller's full environment. When no default server runs, tmux starts one and the caller's env becomes its global env, inherited by every later session: on 2026-10-16 five fleet agents (and this project's main session) ran with PROJECT_ROOT/FRAMEWORK_ROOT of 055 after a 055 dispatch started the server (055 T-536). Fix: start the server from a scrubbed env (project vars removed) and pass session vars per session with -e; regression test without touching the host's default server (rule: pin -S, never fall back via TMUX_TMPDIR, 055 T-537).
+  spawn_via_tmux (execution.rs:673) and dispatch.rs:959 run 'tmux new-session -d'
+  on the default socket with the caller's full environment. When no default server
+  runs, tmux starts one and the caller's env becomes its global env, inherited by
+  every later session: on 2026-10-16 five fleet agents (and this project's main session)
+  ran with PROJECT_ROOT/FRAMEWORK_ROOT of 055 after a 055 dispatch started the server
+  (055 T-536). Fix: start the server from a scrubbed env (project vars removed) and
+  pass session vars per session with -e; regression test without touching the host's
+  default server (rule: pin -S, never fall back via TMUX_TMPDIR, 055 T-537).
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -38,8 +46,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-16T21:02:24Z
-last_update: 2026-10-16T21:02:24Z
-date_finished: null
+last_update: 2026-10-17T08:19:30Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,20 +58,43 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-17T08:12:45Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 1
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=1 (body:hand-wired-dispatch)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3445: termlink spawn/dispatch seed the default tmux server's global env with the caller's project vars (055 T-536)
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+055 (its T-536) traced the 2026-10-16 env leak to `termlink spawn`/`dispatch`: `spawn_via_tmux`
+(`execution.rs:673`, `dispatch.rs:956`) runs `tmux new-session -d` with the caller's whole environment. When no
+default server runs, tmux starts one and the caller's env becomes the server's global env, inherited by every
+session started on it later (five fleet agents and this project's main session ran with 055's PROJECT_ROOT /
+FRAMEWORK_ROOT). Fix: one shared builder that removes project-scoped vars from the tmux client's own env and hands
+them to the new session only, with `new-session -e K=V`.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] One shared builder used by both `spawn` and `dispatch`: the tmux process runs without the project-scoped vars
+      (PROJECT_ROOT, FRAMEWORK_ROOT, _FW_PATHS_DERIVED_BY, CLAUDE_PROJECT_DIR, TERMLINK_SIDECAR_SOCKET,
+      TERMLINK_SIDECAR_STATUS_SOCKET), and each one present in the caller is passed to the new session with `-e`
+- [x] Unit tests on the builder: removed from the client env, present as `-e` args, absent ones not invented
+- [x] Live test on a private tmux socket (`-L`, never the default server, killed only by that socket): a server the
+      spawn starts has no PROJECT_ROOT in its global env, while the new session has it; skipped when tmux is absent
+- [x] `cargo test -p termlink` passes and clippy reports no new warnings in the changed files
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -253,6 +284,11 @@ date_finished: null
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+cargo test -p termlink --bin termlink tmux_spawn > /tmp/.t3445 2>&1 && grep -q "test result: ok. 4 passed" /tmp/.t3445
+test "$(grep -c 'tmux_spawn::tmux_new_session(' crates/termlink-cli/src/commands/execution.rs crates/termlink-cli/src/commands/dispatch.rs | grep -c ':1$')" = 2
+! grep -q '"new-session"' crates/termlink-cli/src/commands/execution.rs crates/termlink-cli/src/commands/dispatch.rs
+test -z "$(ls /tmp/tmux-0/ 2>/dev/null | grep t3445)"
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -349,3 +385,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3445-termlink-spawndispatch-seed-the-default-.md
 - **Context:** Initial task creation
+
+### 2026-10-17T08:12:44Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
