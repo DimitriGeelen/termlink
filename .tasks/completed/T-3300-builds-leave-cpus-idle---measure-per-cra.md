@@ -8,10 +8,10 @@ description: >
   front end on stable, so 23 of 24 cores wait. Measure CPU/crate during a real rebuild,
   then fix what the data shows.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -26,8 +26,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-01T07:49:31Z
-last_update: 2026-10-01T07:49:49Z
-date_finished:
+last_update: 2026-10-01T08:06:03Z
+date_finished: 2026-10-01T08:06:03Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -99,9 +99,6 @@ bvp_scores_proposed:
        added to ## Verification. NEVER `... 2>&1 | grep -q ...` — that is the shape the
        Pipefail/SIGPIPE section below forbids, and this line used to prescribe it.
 -->
-
-! grep -q 'profile.local-nolto' Cargo.toml
-grep -q 'measurement 2' .tasks/active/T-3300-builds-leave-cpus-idle---measure-per-cra.md
 
 ## Verification
 
@@ -191,6 +188,11 @@ grep -q 'measurement 2' .tasks/active/T-3300-builds-leave-cpus-idle---measure-pe
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+# Moved here 2026-10-17 by T-3444: these two sat above the heading, so P-011 never ran them
+# (check-verification-misfile). Re-run then: both pass. Path updated to completed/.
+! grep -q 'profile.local-nolto' Cargo.toml
+grep -q 'measurement 2' .tasks/completed/T-3300-builds-leave-cpus-idle---measure-per-cra.md
 
 ## RCA
 
@@ -312,3 +314,16 @@ GPU: not applicable; rustc/LLVM have no GPU code path.
 
 ### 2026-10-01T07:49:49Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-84b23c79
+- **Timestamp:** 2026-10-01T08:06:05Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Reviewer:** inline
+- **Findings:** none
+
+### 2026-10-01T08:06:03Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

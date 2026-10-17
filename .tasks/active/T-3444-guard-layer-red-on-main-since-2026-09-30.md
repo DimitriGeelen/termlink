@@ -1,10 +1,19 @@
 ---
 id: T-3444
-name: "Guard layer red on main since 2026-09-30: remaining FAIL-tier members after T-3443"
+name: "Guard layer red on main since 2026-09-30: remaining FAIL-tier members after
+  T-3443"
 description: >
-  doc-lint.yml (guard-layer job) has had no green run on main since 2026-09-30 (release-publication canary). T-3443 fixed: hub-runtime-dir fixture (non-root CI), runme fixtures (76 cases failed on the non-root refusal), count-hub-plaintext-fields (woken-silent log). Remaining FAIL-tier as of run 38631352298: (1) check-verification-misfile fires on .tasks/active/T-3300 (commands under the wrong heading); (2) human-ac-escalation-fixtures asserts the REAL tree is clean and fails while T-3370 waits on the operator (mutable-corpus anchor, CLAUDE.md T-3326); (3) pin-events-fixtures fails in CI only (passes locally); (4) vector-index-reader-no-rebuild-fixtures ERROR in CI: cannot import web.embeddings (no module ollama on the runner). Get one green guard-layer run on main.
+  doc-lint.yml (guard-layer job) has had no green run on main since 2026-09-30 (release-publication
+  canary). T-3443 fixed: hub-runtime-dir fixture (non-root CI), runme fixtures (76
+  cases failed on the non-root refusal), count-hub-plaintext-fields (woken-silent
+  log). Remaining FAIL-tier as of run 38631352298: (1) check-verification-misfile
+  fires on .tasks/active/T-3300 (commands under the wrong heading); (2) human-ac-escalation-fixtures
+  asserts the REAL tree is clean and fails while T-3370 waits on the operator (mutable-corpus
+  anchor, CLAUDE.md T-3326); (3) pin-events-fixtures fails in CI only (passes locally);
+  (4) vector-index-reader-no-rebuild-fixtures ERROR in CI: cannot import web.embeddings
+  (no module ollama on the runner). Get one green guard-layer run on main.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -38,8 +47,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-14T21:56:49Z
-last_update: 2026-10-14T21:56:49Z
-date_finished: null
+last_update: 2026-10-17T14:03:51Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +59,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-17T14:02:50Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3444: Guard layer red on main since 2026-09-30: remaining FAIL-tier members after T-3443
@@ -61,9 +84,11 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] (1) T-3300's two commands are under its `## Verification` and re-run; `check-verification-misfile.sh` exits 0
+- [ ] (2) `human-ac-escalation-fixtures` no longer asserts the live tree (it uses a fixture tree), and passes whatever the real task corpus holds
+- [ ] (3) `pin-events-fixtures` cause of the CI-only failure found and fixed; passes as root and as a non-root user with a private /tmp
+- [ ] (4) `vector-index-reader-no-rebuild-fixtures` does not ERROR where `ollama` is not installed (skips that case, saying so, or stubs the import)
+- [ ] One guard-layer run on main is green after the push (`doc-lint.yml`, read via `gh api`), or the remaining red is named with its own task
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -349,3 +374,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3444-guard-layer-red-on-main-since-2026-09-30.md
 - **Context:** Initial task creation
+
+### 2026-10-17T14:02:50Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
