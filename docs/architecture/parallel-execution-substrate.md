@@ -303,6 +303,15 @@ socket and one port per listener — negligible at homelab scale. Note this is *
 loopback TCP explicitly,"* not a default the code already takes; the default same-host
 path is the auth-bypassed UDS, so this is an active configuration choice.
 
+**Addendum 2026-10-18 (T-2024 NO-GO, operator ruling).** Not adopted. The local socket
+is no longer auth-bypassed: since T-2448 the hub accepts a Unix-socket peer only when its
+credentials show the hub owner's uid, and refuses otherwise (fail-closed). Moving local
+clients to loopback TCP + HMAC would not separate agents on the fleet's hosts, where every
+agent runs as the same user and can read hub.secret, so it would admit exactly the same
+set; it would cost a fleet-wide migration and put all local traffic on the TLS handshake.
+Separation between co-resident agents is an identity question (per-agent keys and
+authorization), tracked as T-2422.
+
 ## 8. Open questions (substrate side)
 
 - **Hub federation.** Whether to add multi-hub federation/failover depends on ring20's

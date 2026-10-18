@@ -81,9 +81,9 @@ cost_estimate_proposed:
 ## Open Questions
 
 - **IW-1: Loopback TCP latency vs UDS at homelab scale — confirmed negligible per §7, but measure under concurrent-agent load to be sure.**
-  confidence: 1
-  disposition: open
-  rationale: UNRESOLVED — this is the GATE for the whole decision. §7 asserts the answer without measurement, and T-2019..T-2021 increase the concurrent-client load on the local hub well above prior measurement points. Same shape as T-1991 "agent-presence bloat" (asserted, then turned out to be wrong reason). Recommended action: spike before deciding. See docs/reports/T-2024-symmetric-auth-inception.md §3, §6 Track A.
+  confidence: 4
+  disposition: dissolved
+  rationale: Dissolved by the 2026-10-18 NO-GO (operator ruling A): latency no longer decides the question. Even at zero latency cost, HMAC on the local path adds no separation between agents on these hosts (every agent runs as root and can read hub.secret), so the migration is not taken and there is nothing to measure for it. The agent-separation question moved to T-2422. Original June text follows. UNRESOLVED — this is the GATE for the whole decision. §7 asserts the answer without measurement, and T-2019..T-2021 increase the concurrent-client load on the local hub well above prior measurement points. Same shape as T-1991 "agent-presence bloat" (asserted, then turned out to be wrong reason). Recommended action: spike before deciding. See docs/reports/T-2024-symmetric-auth-inception.md §3, §6 Track A.
 
 - **IW-2: Cert pinning store location for loopback case — same KnownHubStore or separate?**
   confidence: 4
@@ -157,7 +157,18 @@ At promotion time: (1) measure loopback TCP latency under concurrent-agent load;
 
 ## Recommendation
 
-**Recommendation:** DEFER with measurement-first plan. Spike latency under concurrent-agent load before locking the migration. Resume the decision with data (revisit_at=2026-09-08).
+**Recommendation:** NO-GO (operator ruling 2026-10-18, option A, via the T-3440 brief)
+
+**Rationale:** Unifying the local path onto TCP + HMAC + cert pinning was meant to reduce the trust surface. On these hosts it would not separate agents at all: every agent process runs as root and can read hub.secret, so HMAC admits exactly the set the same-user socket check admits today. The real question (agents seeing each other's DMs, raised by 832 the same day) is identity-based authorization, which is T-2422. Meanwhile the change would cost a fleet-wide migration and move all local traffic onto the TLS handshake, the path that was still slow under load in the T-3461 measurement.
+
+**Evidence:**
+- Local socket is fail-closed same-user since T-2448: crates/termlink-hub/src/server.rs:682-705 (`UnixPeerDecision`, peer credentials).
+- 2026-10-18 on .107: 13 `claude`, 12 `claude-fw`, 157 `termlink` processes, all root.
+- 832-Workflow-designer msg 8dd1ba95: any holder of hub.secret reads every dm: topic; recorded as input in T-2422.
+- T-3461 after-capture: the one probe over 3 s was a TLS handshake at load 55.
+- ADR updated: docs/architecture/parallel-execution-substrate.md §7 addendum 2026-10-18.
+
+**June filing (superseded):** DEFER with measurement-first plan. Spike latency under concurrent-agent load before locking the migration. Resume the decision with data (revisit_at=2026-09-08).
 
 **Rationale (one-paragraph):** Unlike T-2020/T-2021/T-2025/T-2027, this primitive is not verb-shaped — it's a transport-and-trust-model change that retires the UDS path. The cross-host TCP+HMAC+cert primitives already exist and work; nothing is missing infrastructure-wise. What IS missing is *measurement*: §7 asserts loopback TCP latency is negligible at homelab scale, but no spike has been run, and T-2019..T-2021 increase concurrent client load above prior measurement points. The same "asserted without evidence" shape as the T-1991 agent-presence bloat finding. The cost of a measurement spike (≤1 session) is small relative to the cost of cutting over and discovering a latency regression after some local-tool's UX degraded. Migration is recoverable but the risk surface is comparable to a CLI flag rename, not a verb addition.
 
@@ -187,6 +198,12 @@ At promotion time: (1) measure loopback TCP latency under concurrent-agent load;
 - *(Conditional, on Track A → NO-GO)* Audit-logging task — add structured audit log on UDS path so trust-model gap is observable.
 
 ## Decisions
+
+### 2026-10-18 — NO-GO (operator ruling, T-3440 brief, option A)
+- **Chose:** A. Keep the local Unix socket with its fail-closed same-user check (T-2448); no migration to loopback TCP. The trust question moves to T-2422 (per-agent authorization). ADR §7 gets an addendum.
+- **Why:** on hosts where every agent is root, HMAC on the local path admits the same set as the same-user check; unification adds no separation and costs a fleet migration plus more TLS handshakes on the path that was slowest under load (T-3461).
+- **Rejected:** B (latency spike: answers a question that no longer decides the outcome), C (full four-phase migration: no new protection for its cost), D (DEFER again).
+- **Open:** T-2422, including 832's DM read-privacy request.
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
