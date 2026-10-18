@@ -42,7 +42,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-18T23:03:50Z
-last_update: 2026-10-18T23:05:32Z
+last_update: 2026-10-18T23:17:42Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -90,6 +90,11 @@ Mechanism: `Meta` has one `Mutex<Connection>`; `with_conn` holds it across the
 statement, and a commit under `synchronous=FULL` holds it through the WAL fsync. Every
 read queues behind that. `handle_channel_list_with` (crates/termlink-hub/src/channel.rs:1940)
 does ~4 meta reads per topic × 531 topics, so it waits behind every commit in a burst.
+
+Second capture (23:05–23:20 UTC, fd resolved from /proc/<tid>/syscall): 183 probes,
+21 over 2 s, 4 at 30 s; all 16 long-fsync snapshots are on `bus/meta.db-wal` — the meta
+commit itself, not a topic log. ring20 from .122: fast when quiet (list 166 ms), list
+timed out 3/3 under load 40–50 while single infos mostly answered.
 
 Fix direction: a second, read-only connection (WAL readers do not block on the writer)
 behind its own lock, used by all pure-read Meta methods; plus one batched query for the
