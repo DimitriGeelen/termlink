@@ -155,6 +155,19 @@ defined in advance). The substrate's responsibility ends at making observation e
 be sound. Conflating "shipped #4" with "now optimistic" is the specific error this
 boundary exists to prevent.
 
+**Addendum 2026-10-18 (T-2022 NO-GO, operator ruling).** The substrate will not build
+filesystem-write observation. The T-2022 survey found no OS mechanism that is portable
+(Linux + macOS), works in capability-dropped containers, sees Rust agents' writes and is
+affordable (inotify, fanotify, eBPF, ptrace, LD_PRELOAD, FUSE). The declaration
+alternative it proposed now exists one layer up, where the dispatch decision is made:
+AEF's `fw write-set check T-A T-B` compares each task's declared `write_set:` plus the
+framework's implicit writes before parallel dispatch. After the fact, this repo's
+`scripts/check-task-id-collisions.sh` axes C and D flag the same file or line changed on
+more than one branch. So the policy stays conservative unless the AEF layer chooses to
+rely on write-set declarations; the substrate's part of this section is closed. Caveat
+recorded with the ruling: `write_set:` is declared on 0 tasks in this repo, so the
+declaration path exists but is not in use here.
+
 ## 5. The two planes
 
 Parallel execution needs two planes with *opposite* isolation needs, and the central

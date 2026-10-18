@@ -168,7 +168,18 @@ cost_estimate_proposed:
 
 ## Recommendation
 
-**Recommendation:** DEFER as captured (OS-level FS observation is not viable for ring20). Re-scope to a three-spike sub-arc exploring git-hook-enforced path declaration. revisit_at=2026-09-08.
+**Recommendation:** NO-GO (operator ruling 2026-10-18, option A, via the T-3440 brief)
+
+**Rationale:** The substrate primitive is not buildable at OS level (survey below, unchanged), and the declaration alternative the June re-scope proposed now exists in AEF, at the layer that makes the dispatch decision. A second declaration channel in the substrate (git hook → topic) would be a parallel source of truth for the same thing.
+
+**Evidence:**
+- AEF `fw write-set check T-A T-B` (vendored, `.agentic-framework/bin/fw write-set`): compares each task's declared `write_set:` and the framework's implicit writes; its help states the arc-011 orchestrator uses it before parallel dispatch (T-2337).
+- After the fact: `scripts/check-task-id-collisions.sh` axes C (same new file on several branches) and D (same deleted line on several sides).
+- No parallel worktree work in this repo by operator rule; parallelism is a fleet/AEF concern.
+- Caveat: `write_set:` is declared on 0 tasks here, so the declaration path exists but is unused.
+- ADR updated: docs/architecture/parallel-execution-substrate.md §4 addendum 2026-10-18.
+
+**June filing (superseded):** DEFER as captured (OS-level FS observation is not viable for ring20). Re-scope to a three-spike sub-arc exploring git-hook-enforced path declaration. revisit_at=2026-09-08.
 
 **Rationale (one-paragraph):** OS-level FS observation as a substrate primitive is not viable in the ring20 deployment. The mechanism survey (artifact §2) finds an empty intersection of (portable across Linux+macOS) ∧ (works in capability-dropped containers) ∧ (catches Rust agent writes) ∧ (acceptable perf cost). HOWEVER, the *concern* the primitive addresses — detecting parallel writes to the same file for the conservative→optimistic flip — is real and worth resolving at a different abstraction layer. The key insight: §4's "honor-system is unsafe" worry assumes *voluntary* announcement; if announcement is structurally enforced via a pre-commit git hook (the agent can't bypass without disabling the hook, which is itself observable), it moves from "honor-system" to "hook-enforced declaration" — sound for the ring20 cooperating-agent trust model. File granularity matches what AEF actually needs (git already operates there). Three small spikes test this re-scoping. If they succeed, the substrate gets the capability §6 #4 asks for at a tractable abstraction; if they fail, T-2022c falls back to kernel-mechanism on the Linux subset only.
 
@@ -200,6 +211,12 @@ cost_estimate_proposed:
 **Documentation follow-up:** add §3's "OS-level vs git-hook trade-off" reasoning to `docs/architecture/parallel-execution-substrate.md` as a §4 addendum.
 
 ## Decisions
+
+### 2026-10-18 — NO-GO for the substrate (operator ruling, T-3440 brief, option A)
+- **Chose:** A. The hub gets no filesystem-write observation. Collision avoidance before dispatch is AEF's `fw write-set check`; detection after the fact is check-task-id-collisions axes C/D. ADR §4 gets an addendum.
+- **Why:** no OS mechanism passes portability + container + Rust + cost; the git-hook declaration re-scope now exists as AEF write-set at the layer that owns the dispatch decision.
+- **Rejected:** B (git-hook spikes T-2022a/b: a second declaration channel next to write_set), C (DEFER again: ripe since 2026-09-08, the answer does not change by waiting).
+- **Open:** whether this repo starts declaring `write_set:` on new tasks (separate, small question; asked only if the operator wants it).
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
