@@ -41,7 +41,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-14T05:42:07Z
-last_update: 2026-10-18T17:20:24Z
+last_update: 2026-10-18T17:38:15Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -409,6 +409,11 @@ while the member is still red restarts a 14-day window from the close date, then
 - **Rejected:** A (acknowledge all: hides fixable work), C (no acknowledgement: escalation keeps firing on a fixed-and-filed remainder), D (nothing).
 - **Precondition stated in the brief:** verify first that a later `fw fabric enrich` keeps hand-added edges; if it overwrites them, come back before writing. Verified by reading: enrich.py:1353-1356/1374-1377 append to existing edges, and 1281-1285 derive depended_by from existing depends_on.
 - **Correction after the ruling (agent error):** there are NO orphan cards. All 411 zero-edge cards point at existing files; the "~29 orphans" came from keying the measurement by `location`, which collapsed the 50 workflow-designer cards that share 8 .bpmn files. Step "delete orphans" is void; nothing is deleted.
+
+### 2026-10-18 — 5b: the two stale arcs (operator ruling)
+- **Chose:** A. Close arc-001 (arc-parallel-substrate, 43/46 done, headline demonstrated by T-2211 substrate-drain-demo) and arc-002 (arc-substrate-fitness, 11/12 done, headline measured live 2026-10-18: cv-keys agent-presence = 2 entries, dead-letter table + canary working) as shipped. The open members (T-2022, T-2024, T-2026, T-2250: human DEFER inceptions with ripe revisit_at) stay as standalone deferred tasks.
+- **Why:** the headline mechanic of each arc is demonstrated; what kept them open is four deferred human questions that already carry their own revisit reminder, not agent work. Closing is the fix the ledger rule asks for.
+- **Rejected:** B (acknowledge open arcs: lists a fixable finding), C (decide the four inceptions first: four briefs on June questions nothing currently depends on), D (nothing).
 
 ## Decision
 
