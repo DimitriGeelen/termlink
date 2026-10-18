@@ -1,8 +1,18 @@
 ---
 id: T-3423
-name: "arc-011: per-peer least-privilege hub credentials across operators (832 request T-1107)"
+name: "arc-011: per-peer least-privilege hub credentials across operators (832 request
+  T-1107)"
 description: >
-  832-Workflow-designer request (their T-1107, operator-approved, conversation peer-credentials-t1107): a hub keeps an allow-list of peer ed25519 public keys; a peer authenticates by signing a hub challenge; each entry has a scope (message only: post to inbox:* or named topics), an expiry, and is revoked unilaterally by deleting it; on top, termlink peer request/approve puts a signed request in a PENDING queue that the other operator approves after a fingerprint check over a second channel. No hub secret crosses. Survey and options A-D: /opt/832-Workflow-designer/docs/reports/T-1107-cross-hub-credential-model.md. Operator ruling 2026-10-12 (T-3422): A, taken into arc-011 for its cross-hub/grant phases; builds on the OQ-2 ruling E (receiver holds unknown keys, operator admits). Current state of the four questions: docs/reports/T-3422-832-peer-credentials-answer.md.
+  832-Workflow-designer request (their T-1107, operator-approved, conversation peer-credentials-t1107):
+  a hub keeps an allow-list of peer ed25519 public keys; a peer authenticates by signing
+  a hub challenge; each entry has a scope (message only: post to inbox:* or named
+  topics), an expiry, and is revoked unilaterally by deleting it; on top, termlink
+  peer request/approve puts a signed request in a PENDING queue that the other operator
+  approves after a fingerprint check over a second channel. No hub secret crosses.
+  Survey and options A-D: /opt/832-Workflow-designer/docs/reports/T-1107-cross-hub-credential-model.md.
+  Operator ruling 2026-10-12 (T-3422): A, taken into arc-011 for its cross-hub/grant
+  phases; builds on the OQ-2 ruling E (receiver holds unknown keys, operator admits).
+  Current state of the four questions: docs/reports/T-3422-832-peer-credentials-answer.md.
 
 status: captured
 workflow_type: inception
@@ -12,16 +22,30 @@ tags: [arc:arc-011]
 components: []
 related_tasks: []
 created: 2026-10-12T13:56:33Z
-last_update: 2026-10-17T22:58:38Z
-date_finished: null
+last_update: '2026-10-18T22:32:57Z'
+date_finished:
 revisit_at: 2026-11-12
-revisit_evidence_needed: "arc-011 PH-1 exit (X6) recorded and PH-2 planning started, or 832 reports their stopgap secret was exposed"
+revisit_evidence_needed: "arc-011 PH-1 exit (X6) recorded and PH-2 planning started,
+  or 832 reports their stopgap secret was exposed"
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
 target_blast_radius: 3            # int 0..9. Anticipated component count of the build work this inception would authorise on GO.
                                   # Substitutes for the absent components: list in the F8 cost formula (040). Required.
                                   # Guide: 0=docs only, 1=single file, 3=small subsystem (S), 5=cross-subsystem (M), 7=multi-arc (L), 9=framework-wide (XL).
 voi_score: 0.7                    # operator 2026-10-18 (option A): decides how other operators' agents are admitted to our hubs at all; feeds the identity/revocation work PH-2 is doing now (P10, OQ-h); 832 waits on it. Parked limits WHEN, not the value. — float 0..1. Value of Information — expected value of resolving this question,
                                   # independent of build cost. Higher when answer affects many tasks or unblocks a strategic decision. Required.
+bvp_scores_proposed:
+  - ts: '2026-10-18T22:32:57Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 4
+      D4: 4
+      F-RECALL: 4
+      F-ORCH: 4
+    rationale: D1=4 (no-signal); D2=4 (no-signal); D3=4 (no-signal); D4=4 
+      (no-signal); F-RECALL=4 (no-signal); F-ORCH=4 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3423: arc-011: per-peer least-privilege hub credentials across operators (832 request T-1107)

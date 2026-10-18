@@ -1,8 +1,15 @@
 ---
 id: T-3462
-name: "arc-011 sidecar: sender keeps a message until the recipient reports STORED; resend on the R-44.e accept deadline, bounded, then needs-attention"
+name: "arc-011 sidecar: sender keeps a message until the recipient reports STORED;
+  resend on the R-44.e accept deadline, bounded, then needs-attention"
 description: >
-  Operator rule 2026-10-18 (T-3461 ruling): only a stored message counts as accepted. Today send.rs:552-563 drops the outbox row at hub POSTED and never resends; a post the hub loses leaves the sender at UNKNOWN with no alarm (deadline.rs). Keep responsibility until the recipient's STORED stage record; resend with the same msg id when it is overdue (60 s normal, 15 s urgent), bounded attempts with growing gaps (no flooding), then a needs-attention entry. Hub client_msg_id dedupe and the recipient store's Duplicate outcome prevent duplicates.
+  Operator rule 2026-10-18 (T-3461 ruling): only a stored message counts as accepted.
+  Today send.rs:552-563 drops the outbox row at hub POSTED and never resends; a post
+  the hub loses leaves the sender at UNKNOWN with no alarm (deadline.rs). Keep responsibility
+  until the recipient's STORED stage record; resend with the same msg id when it is
+  overdue (60 s normal, 15 s urgent), bounded attempts with growing gaps (no flooding),
+  then a needs-attention entry. Hub client_msg_id dedupe and the recipient store's
+  Duplicate outcome prevent duplicates.
 
 status: captured
 workflow_type: build
@@ -38,8 +45,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-18T09:39:15Z
-last_update: 2026-10-18T09:39:15Z
-date_finished: null
+last_update: '2026-10-18T22:32:59Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +57,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-18T22:32:59Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3462: arc-011 sidecar: sender keeps a message until the recipient reports STORED; resend on the R-44.e accept deadline, bounded, then needs-attention

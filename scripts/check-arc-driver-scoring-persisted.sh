@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# guard-layer: source warn  # arc-011's three drivers carry this exact gap until the operator re-attaches their specs (T-3440 5c, T-3472); FAIL tier once they are attached
+# guard-layer: source
+# (FAIL tier since 2026-10-19: arc-011's three drivers, the only residue of the bug, were
+# re-attached by the operator via runme action 20; it was WARN while they were not.)
 #
 # check-arc-driver-scoring-persisted.sh — T-3472 (G-019 detection for the
 # approve-driver persistence bug).
