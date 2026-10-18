@@ -1,13 +1,17 @@
 ---
 id: T-3461
-name: "Hub bus meta SQLite: commits fsync on tokio workers under one std Mutex (journal_mode=delete, synchronous=FULL, btrfs) - stalls the accept loop"
+name: "Hub bus meta SQLite: commits fsync on tokio workers under one std Mutex (journal_mode=delete,
+  synchronous=FULL, btrfs) - stalls the accept loop"
 description: >
-  T-3457 root cause. Fix options: WAL journal (same durability with synchronous=FULL, one fsync per commit, no journal-file churn), and run meta writes off the async workers (spawn_blocking) so a slow fsync cannot park every worker. Measure before/after with the T-3457 /proc capture.
+  T-3457 root cause. Fix options: WAL journal (same durability with synchronous=FULL,
+  one fsync per commit, no journal-file churn), and run meta writes off the async
+  workers (spawn_blocking) so a slow fsync cannot park every worker. Measure before/after
+  with the T-3457 /proc capture.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -38,8 +42,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-18T00:34:17Z
-last_update: 2026-10-18T00:36:26Z
-date_finished: null
+last_update: 2026-10-18T09:39:44Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +54,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-18T09:38:19Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3461: Hub bus meta SQLite: commits fsync on tokio workers under one std Mutex (journal_mode=delete, synchronous=FULL, btrfs) - stalls the accept loop
@@ -67,9 +85,11 @@ Inputs from ring20-manager (conv hub-107-stalls-t2402, msg 981305fa, 2026-10-18)
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] The hub answers a channel post as accepted only AFTER the post is durable: payload flushed to its log file, then the meta index committed with `synchronous=FULL` (operator rule 2026-10-18: "accepted is sent once it is stored")
+- [ ] Meta SQLite runs in WAL mode (journal-file create/delete per commit gone); verified on the live file after deploy (`PRAGMA journal_mode` = wal, `synchronous` = 2)
+- [ ] Meta writes and the flushes run off the async workers (spawn_blocking or a dedicated writer), so a slow fsync cannot stop the accept loop; a test with a deliberately slow flush shows the accept loop still answering
+- [ ] Before/after measured with the T-3457 /proc capture; ring20 re-measures 2 h (same-second bursts of 4+ peers, target < 1/h) after deploy
+- [ ] The T-2464 note in crates/termlink-bus/src/log.rs (payload not fsynced) is updated to the new contract
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -345,7 +365,12 @@ Inputs from ring20-manager (conv hub-107-stalls-t2402, msg 981305fa, 2026-10-18)
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
+### 2026-10-18 — How durable the hub's "accepted" is (operator ruling)
+- **Chose:** A, strengthened by the operator's rule: **every "accepted" signal in the flow is sent only once the message is actually stored.** For the hub: WAL + `synchronous=FULL`, the payload flushed too (closes the T-2464 gap), all of it off the async workers. Sender-side resend stays as the safety net (separate task), keyed to the existing R-44.e accept deadlines (60 s normal, 15 s urgent), bounded attempts with growing gaps, then needs-attention; message-id dedupe at hub and recipient prevents duplicates.
+- **Why:** an "accepted" that is not stored is a false signal: the sender stops trying and the message can vanish silently. The recipient sidecar already reports STORED only after its own fsync (pull.rs:424-426, store.rs:649-669); the hub now meets the same bar. The stall is fixed by moving the flush off the threads that accept connections, not by flushing less.
+- **Rejected:** B (WAL + NORMAL: the hub would say accepted before the data is safe); C (only move writes off the workers: posts still wait seconds on the lock); D (defer: messages are being lost now).
+- **Open:** flush cost per post on this btrfs host (measure; group commit is the lever if needed).
+
      Skip for tasks with no meaningful choices.
      Format:
      ### [date] — [topic]
@@ -370,3 +395,7 @@ Inputs from ring20-manager (conv hub-107-stalls-t2402, msg 981305fa, 2026-10-18)
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3461-hub-bus-meta-sqlite-commits-fsync-on-tok.md
 - **Context:** Initial task creation
+
+### 2026-10-18T09:38:18Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
