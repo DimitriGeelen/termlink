@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-18T13:43:15Z
-last_update: 2026-10-18T13:45:01Z
+last_update: 2026-10-18T13:52:42Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -65,7 +65,7 @@ Fix at the launcher, matching the launch-scoped rule: claude-fw passes the socke
 ### Agent
 - [x] claude-fw's injected command carries TERMLINK_SIDECAR_SOCKET (and the status socket when set) as a per-command prefix when claude-fw itself has them, and nothing when it does not
 - [x] The divergence is registered in .vendor-divergence.yaml
-- [ ] After the operator's Stop/Start, this session has TERMLINK_SIDECAR_SOCKET and a hook pull works
+- [x] After the operator's Stop/Start, this session has TERMLINK_SIDECAR_SOCKET and a hook pull works (2026-10-18 13:52Z: socket set in the session; sidecar delivery on, heartbeat fresh; no hook error from this session)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -128,6 +128,9 @@ Fix at the launcher, matching the launch-scoped rule: claude-fw passes the socke
 # *.go → `go build ./...`; Cargo.toml → `cargo check`; tsconfig.json → `tsc --noEmit`;
 # pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
 # past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
+bash -n .agentic-framework/bin/claude-fw
+grep -q '_tl_env="TERMLINK_SIDECAR_SOCKET=' .agentic-framework/bin/claude-fw
+grep -q "task: T-3464" .vendor-divergence.yaml
 #
 # ── Mutable-corpus anchor (T-3326) ────────────────────────────────────────────
 # Do NOT anchor a verification line (or a unit test it runs) to MUTABLE corpus
@@ -285,6 +288,11 @@ Fix at the launcher, matching the launch-scoped rule: claude-fw passes the socke
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
+
+**Symptom:** the fleet /opt/termlink agent restarted without TERMLINK_SIDECAR_SOCKET, silently leaving W1.
+**Root cause:** T-3463 changed `termlink spawn` to never forward the sidecar sockets, but claude-fw (the fleet launcher) relied on that forwarding to pass 055's env from itself into the spawned PTY.
+**Why structurally allowed:** T-3463 checked only tl-claude.sh as the legitimate launcher ("sets it explicitly") and did not search for other callers of `termlink spawn` that carried the socket; no test exercises the fleet launch path end to end. Caught within one restart because the operator restarted and the agent checked the env first thing.
+**Prevention:** the launcher now passes the socket explicitly; the divergence register entry warns that a re-vendor reverts it. Learning: before removing a forwarding behaviour, grep every caller that may depend on it (here `termlink spawn` in .agentic-framework/bin).
 
 ## Evolution
 
