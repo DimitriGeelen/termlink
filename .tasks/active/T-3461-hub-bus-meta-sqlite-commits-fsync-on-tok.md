@@ -42,7 +42,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-18T00:34:17Z
-last_update: 2026-10-18T16:09:22Z
+last_update: 2026-10-18T16:31:41Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -85,8 +85,8 @@ Inputs from ring20-manager (conv hub-107-stalls-t2402, msg 981305fa, 2026-10-18)
 ## Acceptance Criteria
 
 ### Agent
-- [ ] The hub answers a channel post as accepted only AFTER the post is durable: payload flushed to its log file, then the meta index committed with `synchronous=FULL` (operator rule 2026-10-18: "accepted is sent once it is stored")
-- [ ] Meta SQLite runs in WAL mode (journal-file create/delete per commit gone); verified on the live file after deploy (`PRAGMA journal_mode` = wal, `synchronous` = 2)
+- [x] The hub answers a channel post as accepted only AFTER the post is durable: payload flushed to its log file, then the meta index committed with `synchronous=FULL` (operator rule 2026-10-18: "accepted is sent once it is stored")
+- [x] Meta SQLite runs in WAL mode (journal-file create/delete per commit gone); verified on the live file after deploy (`PRAGMA journal_mode` = wal, `synchronous` = 2)
 - [x] Meta writes and the flushes run off the async workers (spawn_blocking or a dedicated writer), so a slow fsync cannot stop the accept loop; a test with a deliberately slow flush shows the accept loop still answering
 - [ ] Before/after measured with the T-3457 /proc capture; ring20 re-measures 2 h (same-second bursts of 4+ peers, target < 1/h) after deploy
 - [x] The T-2464 note in crates/termlink-bus/src/log.rs (payload not fsynced) is updated to the new contract
@@ -371,6 +371,10 @@ python3 -c "b=open('/var/lib/termlink/bus/meta.db','rb').read(20); assert b[18]=
 -->
 
 ## Decisions
+
+### 2026-10-18 — Deployed
+- 0.12.675 via runme (log runme-20261018T161559Z-3199287.log, rc=0): .107 restarted 16:21Z (pid 616776 -> 3343107, secret + cert unchanged); .122, .121, .132 upgraded and tofu-verified. Live /var/lib/termlink/bus/meta.db: header bytes 18/19 = 2/2, `PRAGMA journal_mode` = wal, meta.db-wal present. synchronous is per connection, pinned by `meta_opens_in_wal_with_synchronous_full`.
+- Before: T-3457 capture 2026-10-17 22:32-00:32Z, 12 probes over 3 s in 2 h (6/h). After: same capture running 16:31-18:31Z (scratchpad hubstall-after). ring20 asked to re-measure 2 h on conv hub-107-stalls-t2402 (client_msg_id 63ef307b).
 
 ### 2026-10-18 — How durable the hub's "accepted" is (operator ruling)
 - **Chose:** A, strengthened by the operator's rule: **every "accepted" signal in the flow is sent only once the message is actually stored.** For the hub: WAL + `synchronous=FULL`, the payload flushed too (closes the T-2464 gap), all of it off the async workers. Sender-side resend stays as the safety net (separate task), keyed to the existing R-44.e accept deadlines (60 s normal, 15 s urgent), bounded attempts with growing gaps, then needs-attention; message-id dedupe at hub and recipient prevents duplicates.
