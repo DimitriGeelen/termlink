@@ -65,7 +65,8 @@ step1_status: >
   operator sign-off pending (T-3349). Step 2 may not start before sign-off.
 horizon_plan:
   now:
-    - 'T-3426 PH-2 planning: docs/design/arc-011-ph2-architecture.md build table P0-P24, waves W1-W4 (existing rows: T-3365=P1, T-3362=P12, T-3358=P14, T-3361=P23)'
+    - 'T-3426 PH-2 planning: docs/design/arc-011-ph2-architecture.md build table P0-P24,
+      waves W1-W4 (existing rows: T-3365=P1, T-3362=P12, T-3358=P14, T-3361=P23)'
     - T-3344 step 1 requirements (started)
     - T-3348 fold rulings into step-1 doc v0.4
     - T-3349 operator sign-off of step 1 (owner human)
@@ -90,7 +91,8 @@ horizon_plan:
     - T-3364 NTP preflight check (CAND-13)
     - T-3365 termlink sidecar in the binary (OD-9)
     - T-3366 hub canonical id (OD-12)
-    - T-3423 per-peer least-privilege hub credentials across operators (832 request T-1107; operator ruling T-3422 A)
+    - T-3423 per-peer least-privilege hub credentials across operators (832 
+      request T-1107; operator ruling T-3422 A)
 aef_followups:
   - send-and-wait tool (CAND-10); TermLink supplies T-3347 -- framework:pickup 
     offset 318
@@ -182,6 +184,37 @@ scoped_drivers:
           reason: 392 chars, distinguishes from D2, Reliability
       ts: '2026-10-06T19:40:18Z'
       reviewer_id: static-v1
+    scoring:
+      kind: signals
+      strip_template: true
+      levels:
+        1:
+          keywords:
+            - sidecar receipt
+            - delivery stage
+            - delivered-unconfirmed
+        3:
+          keywords:
+            - HANDED_OVER
+            - peer_ts_ms
+            - receipt stage
+            - accepted only once
+          paths:
+            - crates/termlink-sidecar/src/*.rs
+            - scripts/notify-sidecar.sh
+        5:
+          keywords:
+            - notify-rail-e2e
+            - from the transcript
+            - durable accept
+            - accepted means stored
+          paths:
+            - scripts/notify-rail-e2e.sh
+            - crates/termlink-sidecar/src/store.rs
+            - crates/termlink-sidecar/src/pull.rs
+    scoring_source: 
+      /opt/termlink/docs/reports/T-3440-driver-specs/AS_DELIVERY_TRUTH.yaml
+    scoring_attached_at: '2026-10-18T22:32:23Z'
   - name: AS_FAILURE_SURFACED
     weight: 5
     approved_at: '2026-10-06T19:40:20Z'
@@ -204,6 +237,37 @@ scoped_drivers:
           reason: 341 chars, distinguishes from D1, Antifragility
       ts: '2026-10-06T19:40:20Z'
       reviewer_id: static-v1
+    scoring:
+      kind: signals
+      strip_template: true
+      levels:
+        1:
+          keywords:
+            - lost message
+            - message loss
+            - unconfirmed
+        3:
+          keywords:
+            - STUCK/DEAD
+            - needs-attention
+            - needs attention
+            - retry ladder
+            - dead-letter
+            - accept deadline
+          paths:
+            - scripts/check-*sidecar*.sh
+        5:
+          keywords:
+            - R-44
+            - standing control
+            - resend until
+            - escalat
+          paths:
+            - crates/termlink-sidecar/src/send.rs
+            - scripts/session-start-alerts.sh
+    scoring_source: 
+      /opt/termlink/docs/reports/T-3440-driver-specs/AS_FAILURE_SURFACED.yaml
+    scoring_attached_at: '2026-10-18T22:32:24Z'
   - name: AS_OPERATOR_SIMPLICITY
     weight: 4
     approved_at: '2026-10-06T19:40:22Z'
@@ -226,6 +290,39 @@ scoped_drivers:
           reason: 289 chars, distinguishes from D3, Usability
       ts: '2026-10-06T19:40:21Z'
       reviewer_id: static-v1
+    scoring:
+      kind: signals
+      strip_template: true
+      levels:
+        1:
+          keywords:
+            - install/upgrade
+            - upgrade path
+            - operator runs
+        3:
+          keywords:
+            - rollback
+            - status call
+            - zero manual
+            - one sidecar per agent
+            - GP-12
+            - Stop/Start
+          paths:
+            - scripts/sidecar-supervise.sh
+            - systemd-templates/termlink-sidecar@*
+        5:
+          keywords:
+            - automatic recovery
+            - kill-switch
+            - self-heal
+            - runme action
+          paths:
+            - scripts/arc011-w1-provision.sh
+            - scripts/arc011-w1-killswitch-drill.sh
+            - runme.sh
+    scoring_source: 
+      /opt/termlink/docs/reports/T-3440-driver-specs/AS_OPERATOR_SIMPLICITY.yaml
+    scoring_attached_at: '2026-10-18T22:32:26Z'
 proposed_scoped_drivers: []
 prover: bash scripts/notify-rail-e2e.sh --stages 
   precond,deliver,receipt,ladder,wake
