@@ -1,0 +1,15 @@
+# T-3440 5c (operator ruling A′) — draft scoring spec for arc-substrate-fitness
+# driver AS_RESOURCE_FOOTPRINT (weight 4, human-approved 2026-06-22).
+# Meaning: the substrate's storage and memory stay bounded (topic retention,
+# sweeps, log rotation, size caps) instead of growing forever.
+kind: signals
+strip_template: true
+levels:
+  1:
+    keywords: ["retention", "growth", "bloat"]
+  3:
+    keywords: ["sweep", "set-retention", "rotation", "size cap", "size-based"]
+    paths: ["scripts/check-topic-growth-freshness.sh", "scripts/check-forever-archival-freshness.sh"]
+  5:
+    keywords: ["bounded retention", "audit.jsonl", "rpc-audit"]
+    paths: ["crates/termlink-bus/src/retention.rs", "crates/termlink-bus/src/limits.rs"]

@@ -1,0 +1,15 @@
+# T-3440 5c (operator ruling A′) — draft scoring spec for arc-substrate-fitness
+# driver AS_COORDINATION_TRUTH (weight 6, human-approved 2026-06-22).
+# Meaning: what an operator or orchestrator reads about who is live / who holds
+# what is current state, not a stale log (presence, claims, find-idle).
+kind: signals
+strip_template: true
+levels:
+  1:
+    keywords: ["presence", "heartbeat", "find-idle", "claims-summary"]
+  3:
+    keywords: ["cv_key", "cv-key", "latest-per-cv-key", "LatestPerCvKey", "stale ghost", "current-state", "current state"]
+    paths: ["scripts/listener-heartbeat.sh", "scripts/agent-listeners*.sh"]
+  5:
+    keywords: ["presence compaction", "compact-to-latest", "find_idle_agents_from_hint"]
+    paths: ["crates/termlink-bus/src/retention.rs", "crates/termlink-bus/src/claim.rs"]
