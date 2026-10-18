@@ -82,24 +82,24 @@ cost_estimate_proposed:
 ## Open Questions
 
 - **IW-1: Exact RPC signatures — return shape for checkout/commit/publish?**
-  confidence: 4
-  disposition: dissolved
-  rationale: Dissolved by the 2026-10-18 NO-GO (operator ruling A): nothing is built, so no signatures are locked. June text: GENUINELY deferred. Return shapes couple to Foundation primitive semantics (T-2019 claim_id vs T-2021 assignment_id as scope handle). Provisional sketch in docs/reports/T-2026-typed-agent-launch-inception.md §5; do not lock until Foundation in production. See artifact §4.a.
+  confidence: 3
+  disposition: deferred
+  rationale: Deferred to the first build slice (T-2026 GO, 2026-10-18): the June blocker is gone (Foundation shipped), so the shape is now lockable; the slice locks it from the June sketch (report §5) against the shipped claim API before any verb is built. June text: GENUINELY deferred. Return shapes couple to Foundation primitive semantics (T-2019 claim_id vs T-2021 assignment_id as scope handle). Provisional sketch in docs/reports/T-2026-typed-agent-launch-inception.md §5; do not lock until Foundation in production. See artifact §4.a.
 
 - **IW-2: Scope binding — how is 'this agent's worktree' identified — by agent_id, session_id, or claim_id?**
   confidence: 4
-  disposition: dissolved
-  rationale: Dissolved by the 2026-10-18 NO-GO: no typed surface, so no scope binding is needed. June text: LIKELY `claim_id` from T-2019 (with T-2021's transfer_claim providing the orchestrator → worker handoff path). But final answer hinges on whether T-2021 lands as proposed or with shape changes. See artifact §6.IW-2.
+  disposition: answered
+  rationale: `claim_id` (T-2019), with `channel claim-transfer` (T-2021/T-2046) as the orchestrator → worker handoff: both shipped in June and are in production, which was the June condition. June text: LIKELY `claim_id` from T-2019 (with T-2021's transfer_claim providing the orchestrator → worker handoff path). But final answer hinges on whether T-2021 lands as proposed or with shape changes. See artifact §6.IW-2.
 
 - **IW-3: Worktree lifecycle — owned by hub (current dispatch --isolate model) or owned by spoke (more decentralized)?**
-  confidence: 4
-  disposition: dissolved
-  rationale: Dissolved by the 2026-10-18 NO-GO: no worktree lifecycle is added (worktrees are not used in this repo by operator rule; AEF dispatches workers in-checkout after `fw write-set check`). June text: GENUINELY deferred. Hub-owned simplifies merge but couples hosts; spoke-owned matches hub-and-spoke topology but requires worktree-creation primitives on spoke side. Choice hinges on observed cross-host AEF behavior that doesn't exist yet. See artifact §4.b.
+  confidence: 2
+  disposition: deferred
+  rationale: Deferred to the first build slice, where it comes back to the operator as one decision brief: hub-owned vs spoke-owned, and how the surface relates to the operator's standing rule that agents in this repo never use git worktrees (the rule governs this repo's own sessions; the surface is for orchestrated workers fleet-wide, but that boundary must be stated, not assumed). June text: GENUINELY deferred. Hub-owned simplifies merge but couples hosts; spoke-owned matches hub-and-spoke topology but requires worktree-creation primitives on spoke side. Choice hinges on observed cross-host AEF behavior that doesn't exist yet. See artifact §4.b.
 
 - **IW-4: Un-partitionable file handling — §5 says hub-owned regeneration after merge. Does THIS surface expose that, or is it separate?**
   confidence: 4
   disposition: answered
-  rationale: SEPARATE, and nothing is filed for it (2026-10-18 NO-GO): regenerating machine-maintained files after a merge is not a launch-surface concern. June text: SEPARATE (likely primitive #11). Un-partitionable file regeneration is a §5 concern about machine-generated state that doesn't merge cleanly; the typed-launch verbs are about ordinary agent commits. Splitting keeps T-2026 small and surface-focused. See artifact §6.IW-4.
+  rationale: SEPARATE (unchanged by the GO): regenerating machine-maintained files after a merge is not a launch-surface concern. June text: SEPARATE (likely primitive #11). Un-partitionable file regeneration is a §5 concern about machine-generated state that doesn't merge cleanly; the typed-launch verbs are about ordinary agent commits. Splitting keeps T-2026 small and surface-focused. See artifact §6.IW-4.
 
 ## Exploration Plan
 
@@ -163,11 +163,11 @@ After Foundation primitives land. Design phase reflects their actual shape, not 
 
 ## Recommendation
 
-**Recommendation:** NO-GO (operator ruling 2026-10-18, option A, via the T-3440 brief)
+**Recommendation:** GO (operator decision 2026-10-18T20:40:34Z via Watchtower; the operator then confirmed it was intended: "We are now focused on orchestration ... parallelism will be more in vogue. Let's prepare.")
 
-**Rationale:** The June blocker is gone (the Foundation primitives have been in production since June), so the question is decidable now, and the answer is no: nothing asks for typed checkout/commit/publish. Parallel work runs differently from the worktree-per-agent model this surface was designed for: AEF decides up front with `fw write-set check` and runs workers in the checkout, and this repo does not use worktrees by operator rule. An API with no consumer cannot have its shape validated. If an orchestrator later needs it, that starts as a new inception from its actual need.
+**Rationale:** The June blocker is gone: the Foundation primitives the RPC shape depended on (claim, claim-transfer, broadcast-with-replay) have been in production since June, so the surface can now be designed against real semantics. The operator's direction is orchestration, and parallel orchestrated work is expected to grow; a typed checkout/commit/publish surface turns the current shell convention into something an orchestrator can rely on and audit per agent. The agent's brief recommended NO-GO for lack of a current consumer; the operator weighed that against the orchestration direction and chose GO. The build starts with a design slice that locks the RPC shape and brings the worktree-ownership question (IW-3) back to the operator.
 
-**Evidence:**
+**Context the agent's NO-GO brief rested on (kept for the record, outweighed by the operator):**
 - Foundation done: T-2019 (claim), T-2021 (claim-transfer), T-2027 (broadcast-with-replay) are in .tasks/completed/.
 - No consumer: no reference to agent.checkout / agent.commit / agent.publish in crates/, scripts/ or the vendored framework (grep, 2026-10-18).
 - Existing worktree path stays: `termlink dispatch --isolate` (crates/termlink-cli/src/cli.rs:887).
@@ -203,7 +203,12 @@ agent.publish(branch, remote?) → {published, remote_ref, error?}
 
 ## Decisions
 
-### 2026-10-18 — NO-GO (operator ruling, T-3440 brief, option A)
+### 2026-10-18 — GO (operator, supersedes the NO-GO ruling below)
+- **Chose:** GO, recorded 20:40:34Z via Watchtower and confirmed in chat: "I thought that it would be a go. We are now focused on orchestration and that kind of thing. I think that parallelism will be more in swan [in vogue]. Let's prepare."
+- **Why:** orchestration is the current direction and parallel orchestrated work is expected to grow; Foundation has shipped, so the shape can be designed against real semantics.
+- **Next:** a design slice first (lock the RPC shape; IW-3 worktree ownership and its relation to the no-worktrees rule as an operator decision brief), then the verbs.
+
+### 2026-10-18 — NO-GO (operator ruling, T-3440 brief, option A) — SUPERSEDED by the GO above
 - **Chose:** A. Do not build typed agent.checkout/commit/publish. `dispatch --isolate` and the shell convention stay; a future need starts as a new inception.
 - **Why:** decidable now (Foundation shipped), but no consumer exists and the worktree-per-agent model it serves is not how parallel work runs here.
 - **Rejected:** B (build now: no consumer to validate the shape, built on worktrees the operator forbids here), C (DEFER again: a NO-GO keeps the door open just as well).
