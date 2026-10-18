@@ -1,0 +1,88 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2022: Substrate: filesystem-write observation (CSMA/CD-style collision detection)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-18T20:19:52Z
+# ============================================================================
+
+task_id: T-2022
+task_name: "Substrate: filesystem-write observation (CSMA/CD-style collision detection)"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-07T11:36:29Z
+completed: 2026-10-18T20:19:42Z
+duration_days: 133
+updates_count: 7
+first_commit: 2026-06-08T09:48:10+02:00
+last_commit: 2026-10-18T22:19:45+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  inception research artifact + DEFER with re-scoped sub-arc — substrate primitive #4 (FS-write observation). inception decision DEFER (via Watchtower). inception decision DEFER — decide chain finished (via Watchtower). inception decision NO-GO (via Watchtower)
+
+# Key outcomes
+outcomes:
+  - 'Problem statement validated'
+  - 'Assumptions tested'
+  - 'Recommendation written with rationale'
+  - '[REVIEW] Review exploration findings and approve go/no-go decision'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-10-18 — NO-GO for the substrate (operator ruling, T-3440 brief, option A)'
+    chose: 'A. The hub gets no filesystem-write observation. Collision avoidance before dispatch is AEF''s `fw write-set check`; detection after the fact is check-task-id-collisions axes C/D. ADR §4 gets an addendum.'
+    rationale: 'no OS mechanism passes portability + container + Rust + cost; the git-hook declaration re-scope now exists as AEF write-set at the layer that owns the dispatch decision.'
+    alternatives_rejected: ['B (git-hook spikes T-2022a/b: a second declaration channel next to write_set), C (DEFER again: ripe since 2026-09-08, the answer does not change by waiting).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/reports/T-2022-fs-write-observation-inception.md'
+  - '.tasks/active/T-2022-substrate-filesystem-write-observation-c.md'
+  - '.tasks/completed/T-2022-substrate-filesystem-write-observation-c.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-06-08T09:48:10'
+    action: 'T-2022: inception research artifact + DEFER with re-scoped sub-arc — substrate primitive #4 (FS-write observation)'
+  - time: '2026-06-08T13:20:50'
+    action: 'T-2022: inception decision DEFER (via Watchtower)'
+  - time: '2026-10-18T22:14:41'
+    action: 'T-2022: inception decision DEFER — decide chain finished (via Watchtower)'
+  - time: '2026-10-18T22:19:45'
+    action: 'T-2022: inception decision NO-GO (via Watchtower)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 192043 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-parallel-substrate, novel-mechanism]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 192043
+  commits: 4
+  files_changed: 3
+  lines_added: 309
+  lines_removed: 67
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2022-substrate-filesystem-write-observation-c.md
+generated_by: context-agent-hybrid

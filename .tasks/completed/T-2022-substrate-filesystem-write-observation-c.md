@@ -13,7 +13,7 @@ workflow_type: inception
 owner: human
 horizon: null
 tags: [arc:arc-parallel-substrate, novel-mechanism]
-components: []
+components: [scripts/check-approval-surfaces.sh, scripts/lib/approval_surfaces.py]
 related_tasks: [T-2018]
 created: 2026-06-07T11:36:29Z
 last_update: 2026-10-18T20:19:42Z
