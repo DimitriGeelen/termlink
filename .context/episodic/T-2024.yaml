@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2024: Substrate: symmetric authentication across UDS + TCP transports
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-18T20:26:22Z
+# ============================================================================
+
+task_id: T-2024
+task_name: "Substrate: symmetric authentication across UDS + TCP transports"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-07T11:36:37Z
+completed: 2026-10-18T20:26:11Z
+duration_days: 133
+updates_count: 5
+first_commit: 2026-06-08T09:37:31+02:00
+last_commit: 2026-10-18T22:26:14+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  inception research artifact + DEFER with measurement-first plan — substrate primitive #6 (symmetric auth). inception decision DEFER (via Watchtower). inception decision NO-GO (via Watchtower)
+
+# Key outcomes
+outcomes:
+  - 'Problem statement validated'
+  - 'Assumptions tested'
+  - 'Recommendation written with rationale'
+  - '[REVIEW] Review exploration findings and approve go/no-go decision'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-10-18 — NO-GO (operator ruling, T-3440 brief, option A)'
+    chose: 'A. Keep the local Unix socket with its fail-closed same-user check (T-2448); no migration to loopback TCP. The trust question moves to T-2422 (per-agent authorization). ADR §7 gets an addendum.'
+    rationale: 'on hosts where every agent is root, HMAC on the local path admits the same set as the same-user check; unification adds no separation and costs a fleet migration plus more TLS handshakes on the path that was slowest under load (T-3461).'
+    alternatives_rejected: ['B (latency spike: answers a question that no longer decides the outcome), C (full four-phase migration: no new protection for its cost), D (DEFER again).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/reports/T-2024-symmetric-auth-inception.md'
+  - '.tasks/active/T-2024-substrate-symmetric-authentication-acros.md'
+  - '.tasks/completed/T-2024-substrate-symmetric-authentication-acros.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-06-08T09:37:31'
+    action: 'T-2024: inception research artifact + DEFER with measurement-first plan — substrate primitive #6 (symmetric auth)'
+  - time: '2026-06-08T13:20:56'
+    action: 'T-2024: inception decision DEFER (via Watchtower)'
+  - time: '2026-10-18T22:26:14'
+    action: 'T-2024: inception decision NO-GO (via Watchtower)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 192049 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-parallel-substrate]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 192049
+  commits: 3
+  files_changed: 3
+  lines_added: 270
+  lines_removed: 57
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2024-substrate-symmetric-authentication-acros.md
+generated_by: context-agent-hybrid

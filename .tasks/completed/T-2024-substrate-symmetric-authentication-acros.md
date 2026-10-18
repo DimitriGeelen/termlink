@@ -12,7 +12,7 @@ workflow_type: inception
 owner: human
 horizon: null
 tags: [arc:arc-parallel-substrate]
-components: []
+components: [crates/termlink-bus/src/claim.rs, crates/termlink-bus/src/lib.rs, crates/termlink-bus/src/meta.rs, crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/main.rs, crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/router.rs, crates/termlink-mcp/src/tools.rs, crates/termlink-protocol/src/control.rs, crates/termlink-session/src/claim_client.rs]
 related_tasks: [T-2018]
 created: 2026-06-07T11:36:37Z
 last_update: 2026-10-18T20:26:11Z
