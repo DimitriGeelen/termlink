@@ -8,15 +8,15 @@ description: >
   / agent.publish(branch) makes the convention a first-class substrate concept the
   orchestrator can rely on.
 
-status: captured
+status: started-work
 workflow_type: inception
 owner: human
-horizon: later
+horizon: now
 tags: [arc:arc-parallel-substrate]
 components: []
 related_tasks: [T-2018]
 created: 2026-06-07T11:36:46Z
-last_update: '2026-09-08T21:30:38Z'
+last_update: 2026-10-18T20:40:35Z
 date_finished:
 revisit_at: 2026-09-08            # T-1451: DEFER until Foundation primitives (T-2019/T-2021) ship and stabilize
 revisit_evidence_needed: "Foundation primitives (T-2019, T-2020, T-2021, T-2027) shipped
@@ -219,37 +219,13 @@ agent.publish(branch, remote?) → {published, remote_ref, error?}
 
 ## Decision
 
-**Decision**: DEFER
+**Decision**: GO
 
-**Rationale**: Recommendation: DEFER until Foundation primitives (T-2019, T-2021, T-2027) ship and stabilize. revisit_at=2026-09-08.
+**Rationale**: The June blocker is gone (the Foundation primitives have been in production since June), so the question is decidable now, and the answer is no: nothing asks for typed checkout/commit/publish. Parallel work runs differently from the worktree-per-agent model this surface was designed for: AEF decides up front with `fw write-set check` and runs workers in the checkout, and this repo does not use worktrees by operator rule. An API with no consumer cannot have its shape validated. If an orchestrator later needs it, that starts as a new inception from its actual need.
 
-Rationale (one-paragraph): Typed RPCs are a real ergonomics + integration win — structured return shape feeds T-2022's path-declaration story, audit trail per agent, and could auto-release claims when commits succeed. But the verbs' return shapes COUPLE to Foundation primitive semantics: `agent.commit --scope X` needs to know what `scope` means, which depends on whether T-2021 ships `channel.transfer_claim` (likely) or a different shape. Worktree lifecycle (hub-owned vs spoke-owned, IW-3) hinges on observed cross-host AEF behavior that doesn't exist yet. Two of four IW questions are genuinely undecidable without Foundation in production. Designing now risks throwing the design away. The shell-convention path still works for current dispatch model — this is ergonomics, not a blocking gap. Other primitives have higher marginal value at the current point in the build curve.
+Typed RPCs are a real ergonomics + integration win — structured return shape feeds T-2022's path-declaration story, audit trail per agent, and could auto-release claims when commits succeed. But the verbs' return shapes COUPLE to Foundation primitive semantics: `agent.commit --scope X` needs to know what `scope` means, which depends on whether T-2021 ships `channel.transfer_claim` (likely) or a different shape. Worktree lifecycle (hub-owned vs spoke-owned, IW-3) hinges on observed cross-host AEF behavior that doesn't exist yet. Two of four IW questions are genuinely undecidable without Foundation in production. Designing now risks throwing the design away. The shell-convention path still works for current dispatch model — this is ergonomics, not a blocking gap. Other primitives have higher marginal value at the current point in the build curve.
 
-Full analysis: see [docs/reports/T-2026-typed-agent-launch-inception.md](../../docs/reports/T-2026-typed-agent-launch-inception.md).
-
-Provisional sketch (for orientation only — do NOT lock or build against):
-
-```
-agent.checkout(target_ref, in_worktree?) → {head, dirty}
-agent.commit(scope_id, message?, paths?) → {commit_hash, paths_modified, paths_added, paths_deleted}
-agent.publish(branch, remote?) → {published, remote_ref, error?}
-```
-
-- `scope_id` = `claim_id` from T-2019 (likely, contingent on T-2021 GO)
-- Each verb posts structured event to per-agent audit topic
-- `agent.commit` optionally fires `channel.release` on the named scope (one-step done-and-release)
-- Sketch only — final shape locks at revisit with Foundation in production
-
-GO criteria evaluation (from §Go/No-Go Criteria):
-- ⏸ "Signatures locked" — deferred, depend on Foundation.
-- ⏸ "Lifecycle decided" — deferred, needs cross-host AEF evidence.
-- ⏸ "Un-partitionable-file path in scope or split" — provisionally SPLIT (file as primitive #11 if needed).
-
-Open follow-up tasks to file:
-- (At revisit 2026-09-08, conditional on Foundation evidence) Build task: typed `agent.checkout` + `agent.commit` + `agent.publish` RPCs (~200 LOC, 4-5 vertical slices).
-- (Conditional) Inception for primitive #11: un-partitionable file handling per §5.
-
-**Date**: 2026-06-08T11:21:11Z
+**Date**: 2026-10-18T20:40:34Z
 
 ## Updates
 
@@ -295,3 +271,15 @@ Open follow-up tasks to file:
 - **Change:** horizon: now → later
 - **Change:** status: started-work → captured (auto-sync)
 - **Reason:** Inception decision: DEFER — parking task
+
+### 2026-10-18T20:40:34Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** The June blocker is gone (the Foundation primitives have been in production since June), so the question is decidable now, and the answer is no: nothing asks for typed checkout/commit/publish. Parallel work runs differently from the worktree-per-agent model this surface was designed for: AEF decides up front with `fw write-set check` and runs workers in the checkout, and this repo does not use worktrees by operator rule. An API with no consumer cannot have its shape validated. If an orchestrator later needs it, that starts as a new inception from its actual need.
+
+Typed RPCs are a real ergonomics + integration win — structured return shape feeds T-2022's path-declaration story, audit trail per agent, and could auto-release claims when commits succeed. But the verbs' return shapes COUPLE to Foundation primitive semantics: `agent.commit --scope X` needs to know what `scope` means, which depends on whether T-2021 ships `channel.transfer_claim` (likely) or a different shape. Worktree lifecycle (hub-owned vs spoke-owned, IW-3) hinges on observed cross-host AEF behavior that doesn't exist yet. Two of four IW questions are genuinely undecidable without Foundation in production. Designing now risks throwing the design away. The shell-convention path still works for current dispatch model — this is ergonomics, not a blocking gap. Other primitives have higher marginal value at the current point in the build curve.
+
+### 2026-10-18T20:40:35Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
+- **Reason:** Inception decision in progress
