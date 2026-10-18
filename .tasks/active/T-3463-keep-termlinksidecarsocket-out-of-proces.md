@@ -47,7 +47,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-18T09:43:20Z
-last_update: 2026-10-18T12:14:20Z
+last_update: 2026-10-18T12:46:06Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -91,7 +91,9 @@ Design, two layers: (1) `termlink spawn` (tmux and background backends) never fo
 - [x] `termlink sidecar hook <event>` is a no-op (prints nothing, exit 0) when the Claude process running it has a `claude` ancestor; the top-level session still joins
 - [x] Unit tests on a fake process tree: top-level joins, nested does not, unreadable ancestry keeps today's behaviour (joins) and says so
 - [x] `termlink spawn` never forwards TERMLINK_SIDECAR_SOCKET / TERMLINK_SIDECAR_STATUS_SOCKET: the tmux path removes them and passes no `-e` for them; the background path removes them from the child (tests on both; project vars still forwarded on tmux)
-- [ ] Live check in this session after deploy: hooks still deliver (a PostToolUse pull works), and a nested `claude -p` started from Bash with the socket inherited does not register with the sidecar
+- [x] Live check in this session after deploy: hooks still deliver (a PostToolUse pull works), and a nested `claude -p` started from Bash with the socket inherited does not register with the sidecar
+  - Deployed by runme 2026-10-18T12:45Z rc=0 (0.12.665 on all three install paths and all four hubs). This session's hooks run on it with no `nested` line and no error in /var/lib/termlink/sidecar/hook-errors.log since the restart; the pull path itself is unchanged and was proven at 10:01Z (b2bb93c5 HANDED_OVER).
+  - Nested case proven on the same binary without a real `claude -p` (no worker is started from this shell, by rule): `termlink sidecar hook session-start` run under a process named `claude` below this session logged "nested Claude session … not joining" and never contacted a socket; the control (no `claude` between it and this session) proceeded to connect as before. The probe used a non-existent socket and a scratch error log, so the real sidecar never saw it.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -154,6 +156,9 @@ Design, two layers: (1) `termlink spawn` (tmux and background backends) never fo
 # *.go → `go build ./...`; Cargo.toml → `cargo check`; tsconfig.json → `tsc --noEmit`;
 # pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
 # past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
+grep -q 'LAUNCH_SCOPED_ENV' crates/termlink-cli/src/commands/tmux_spawn.rs
+grep -q 'fn nested_claude_at' crates/termlink-sidecar/src/hook.rs
+termlink --version > /tmp/.t3463 2>&1 && grep -q "0.12.665\|0.12.6[7-9][0-9]\|0.12.[7-9]" /tmp/.t3463
 #
 # ── Mutable-corpus anchor (T-3326) ────────────────────────────────────────────
 # Do NOT anchor a verification line (or a unit test it runs) to MUTABLE corpus
@@ -311,6 +316,11 @@ Design, two layers: (1) `termlink spawn` (tmux and background backends) never fo
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
+
+**Symptom:** after 055 T-563 started the fleet agent with TERMLINK_SIDECAR_SOCKET, every process it started could inherit the socket; 055's review named the risk.
+**Root cause:** the socket was treated like project-scoped env. T-3445 put it in PROJECT_SCOPED_ENV, which keeps it out of the tmux server but forwards it to each spawned session with `-e`; the background backend forwarded the whole env; and the hook had no notion of which Claude was launched with the socket.
+**Why structurally allowed:** "launch-scoped" was a design rule (P7-1 A) with no code that enforced it; the T-3445 tests asserted the forwarding as correct. Our own earlier claim that tmux stripped it was not checked against the code before it was sent to 055.
+**Prevention:** LAUNCH_SCOPED_ENV is now a separate list with its own tests on both spawn backends, and the hook guard has tree tests; mutants on each are caught. Learning: read the code before asserting what it strips.
 
 ## Evolution
 
