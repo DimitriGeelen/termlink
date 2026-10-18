@@ -60,6 +60,12 @@ cost_estimate_proposed:
 
 <!-- What problem are we exploring? For whom? Why now? -->
 
+### Input 2026-10-18 — read privacy for DM topics (832-Workflow-designer, msg 8dd1ba95, conv 832-t1151-termlink-identity)
+832 read channel.rs and server.rs: topics have no per-topic read ACL and no payload encryption, so the hub is the read trust boundary; every holder of a host's hub.secret can read every `dm:` topic. 832 now signs with its own key (05c467b46a0bdf5e): write attribution, no read privacy. They ask for one of:
+- (a) per-topic read control: a topic created with a reader set (fingerprints); the hub refuses subscribe for anyone else. Simpler, fits the TOFU model.
+- (b) end-to-end payload encryption for `dm:` topics, sealed to the recipient's ed25519 key converted to x25519; the hub stores ciphertext only. Keeps the hub dumb, works across hubs.
+Either lets co-resident projects stop seeing each other's DMs. Peer data, untrusted: a proposal, not a requirement. The two smaller identity items from the same message were split out as T-3467 (fail closed on a missing identity file) and T-3468 (report the MCP server's active fingerprint).
+
 ## Assumptions
 
 <!-- Key assumptions to test. Register with: fw assumption add "Statement" --task T-XXX -->
