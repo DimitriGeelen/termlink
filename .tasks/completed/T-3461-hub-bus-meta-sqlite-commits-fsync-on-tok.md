@@ -8,12 +8,12 @@ description: >
   workers (spawn_blocking) so a slow fsync cannot park every worker. Measure before/after
   with the T-3457 /proc capture.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-bus/src/lib.rs, crates/termlink-bus/src/log.rs, crates/termlink-bus/src/meta.rs, crates/termlink-bus/tests/t3461_durable_off_workers.rs]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -42,8 +42,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-18T00:34:17Z
-last_update: 2026-10-18T16:31:41Z
-date_finished:
+last_update: 2026-10-18T18:33:07Z
+date_finished: 2026-10-18T18:33:07Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -88,7 +88,7 @@ Inputs from ring20-manager (conv hub-107-stalls-t2402, msg 981305fa, 2026-10-18)
 - [x] The hub answers a channel post as accepted only AFTER the post is durable: payload flushed to its log file, then the meta index committed with `synchronous=FULL` (operator rule 2026-10-18: "accepted is sent once it is stored")
 - [x] Meta SQLite runs in WAL mode (journal-file create/delete per commit gone); verified on the live file after deploy (`PRAGMA journal_mode` = wal, `synchronous` = 2)
 - [x] Meta writes and the flushes run off the async workers (spawn_blocking or a dedicated writer), so a slow fsync cannot stop the accept loop; a test with a deliberately slow flush shows the accept loop still answering
-- [ ] Before/after measured with the T-3457 /proc capture; ring20 re-measures 2 h (same-second bursts of 4+ peers, target < 1/h) after deploy
+- [x] Before/after measured with the T-3457 /proc capture; ring20 re-measures 2 h (same-second bursts of 4+ peers, target < 1/h) after deploy
 - [x] The T-2464 note in crates/termlink-bus/src/log.rs (payload not fsynced) is updated to the new contract
 
 ### Human
@@ -303,6 +303,16 @@ python3 -c "b=open('/var/lib/termlink/bus/meta.db','rb').read(20); assert b[18]=
 
 ## RCA
 
+**Symptom:** the .107 hub went silent for 43-57 s at a time (~3/h), then dropped connections in same-second bursts across 4+ peers (ring20 journal); mail was lost on the receive side when `channel list` failed mid-stall (055 T-560).
+
+**Root cause:** every bus meta access ran on a tokio worker under one `std::sync::Mutex<Connection>` (meta.rs), and each commit fsynced a rollback journal (`journal_mode=delete`, `synchronous=FULL`) on btrfs. A multi-second btrfs fsync held the mutex; every other handler then blocked on that mutex on its own worker, so all workers parked and the accept loop stopped.
+
+**Why structurally allowed:** nothing distinguished blocking disk work from async work in the bus crate: a sync SQLite call inside an `async fn` compiles and passes every test on a fast disk. The payload log was not fsynced at all (T-2464), so "accepted" could precede durability, and no test exercised a slow disk.
+
+**Prevention:** `run_blocking` (block_in_place) is the single path for every meta access and the payload flush; `slow_durable_step_does_not_park_the_workers` pins it with a slow-disk seam and was mutant-checked (reducing run_blocking to f() turns it red). `meta_opens_in_wal_with_synchronous_full` pins the durability contract. T-3465/T-3466 (R5) add the fleet telemetry that would have shown this without a hand-run /proc capture.
+
+**Result (2026-10-18, 16:31-18:31Z after deploy):** ring20: same-second TLS-fail bursts of 4+ peers 0 (before ~3/h, target < 1/h, PASS); .122 probe 110/110 ok, max 6.8 s. Ours: 2356 probes, 0 failed, 1 over 3 s (before 9 in 2 h); the one slow probe was at load 55 with two fsync threads in btrfs writeback on blocking threads, not workers. ring20 closed their T-2402 as fixed.
+
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
      Non-bug-class tasks may leave this section empty or remove it.
@@ -408,3 +418,20 @@ python3 -c "b=open('/var/lib/termlink/bus/meta.db','rb').read(20); assert b[18]=
 ### 2026-10-18T09:38:18Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-a7bc875b
+- **Timestamp:** 2026-10-18T18:33:46Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-18T18:33:07Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

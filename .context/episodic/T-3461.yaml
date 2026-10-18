@@ -1,0 +1,97 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3461: Hub bus meta SQLite: commits fsync on tokio workers under one std Mutex (journal_mode=delete, synchronous=FULL, btrfs) - stalls the accept loop
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-18T18:34:06Z
+# ============================================================================
+
+task_id: T-3461
+task_name: "Hub bus meta SQLite: commits fsync on tokio workers under one std Mutex (journal_mode=delete, synchronous=FULL, btrfs) - stalls the accept loop"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-18T00:34:17Z
+completed: 2026-10-18T18:33:07Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-18T02:36:26+02:00
+last_commit: 2026-10-18T18:31:41+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  record ring20 inputs (receive-side loss, NORMAL vs FULL is an operator decision, off-worker writes, acceptance measure). operator ruling - hub says accepted only once stored (WAL + synchronous=FULL + payload flush, off the async workers); sender resend filed as T-3462. bus meta in WAL + synchronous=FULL, payload fsynced before the index commit, all meta access and the payload flush via block_in_place so a slow fsync cannot park the tokio workers. deployed 0.12.675 fleet-wide, live meta.db in WAL; after-capture running, ring20 asked to re-measure
+
+# Key outcomes
+outcomes:
+  - 'The hub answers a channel post as accepted only AFTER the post is durable: payload flushed to its log file, then the meta index committed with `synchronous=FULL` (operator rule 2026-10-18: "accepted is sent once it is stored")'
+  - 'Meta SQLite runs in WAL mode (journal-file create/delete per commit gone); verified on the live file after deploy (`PRAGMA journal_mode` = wal, `synchronous` = 2)'
+  - 'Meta writes and the flushes run off the async workers (spawn_blocking or a dedicated writer), so a slow fsync cannot stop the accept loop; a test with a deliberately slow flush shows the accept loop still answering'
+  - 'Before/after measured with the T-3457 /proc capture; ring20 re-measures 2 h (same-second bursts of 4+ peers, target < 1/h) after deploy'
+  - 'The T-2464 note in crates/termlink-bus/src/log.rs (payload not fsynced) is updated to the new contract'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-10-18 — Deployed'
+  - decision: '2026-10-18 — How durable the hub''s "accepted" is (operator ruling)'
+    chose: 'A, strengthened by the operator''s rule: **every "accepted" signal in the flow is sent only once the message is actually stored.** For the hub: WAL + `synchronous=FULL`, the payload flushed too (closes the T-2464 gap), all of it off the async workers. Sender-side resend stays as the safety net (separate task), keyed to the existing R-44.e accept deadlines (60 s normal, 15 s urgent), bounded attempts with growing gaps, then needs-attention; message-id dedupe at hub and recipient prevents duplicates.'
+    rationale: 'an "accepted" that is not stored is a false signal: the sender stops trying and the message can vanish silently. The recipient sidecar already reports STORED only after its own fsync (pull.rs:424-426, store.rs:649-669); the hub now meets the same bar. The stall is fixed by moving the flush off the threads that accept connections, not by flushing less.'
+    alternatives_rejected: ['B (WAL + NORMAL: the hub would say accepted before the data is safe); C (only move writes off the workers: posts still wait seconds on the lock); D (defer: messages are being lost now).']
+  - decision: '2026-10-18 — How to get the writes off the workers'
+    chose: '`block_in_place` around every meta connection access and the payload write+fsync (`run_blocking` in lib.rs; inline on a current-thread runtime or outside one).'
+    rationale: 'the stall is every worker parking, not one: the fsyncing commit holds the std mutex, and every other handler then blocks on that mutex on its own worker. Wrapping only the commit would leave those waiters parking workers. `block_in_place` hands the worker''s queue to a fresh thread before blocking, so it covers the waiters too, needs no `''static` closures (the 36 meta methods keep `&self`), and costs ~tens of µs per call (reads measured at p50 76 µs total).'
+    alternatives_rejected: ['`spawn_blocking` (needs owned/''static data, an Arc<Meta> refactor of 36 methods for the same effect); a dedicated writer thread (a larger redesign; worth it only if group commit becomes necessary); a separate read connection (helps reads, not the parked waiters on the write lock).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-bus/src/lib.rs'
+  - 'crates/termlink-bus/src/log.rs'
+  - 'crates/termlink-bus/src/meta.rs'
+  - 'crates/termlink-bus/tests/t3461_durable_off_workers.rs'
+  - '.tasks/active/T-3461-hub-bus-meta-sqlite-commits-fsync-on-tok.md'
+  - '.tasks/active/T-3462-arc-011-sidecar-sender-keeps-a-message-u.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-18T02:36:26'
+    action: 'T-3461: record ring20 inputs (receive-side loss, NORMAL vs FULL is an operator decision, off-worker writes, acceptance measure)'
+  - time: '2026-10-18T11:39:47'
+    action: 'T-3461: operator ruling - hub says accepted only once stored (WAL + synchronous=FULL + payload flush, off the async workers); sender resend filed as T-3462'
+  - time: '2026-10-18T18:09:22'
+    action: 'T-3461: bus meta in WAL + synchronous=FULL, payload fsynced before the index commit, all meta access and the payload flush via block_in_place so a slow fsync cannot park the tokio workers'
+  - time: '2026-10-18T18:31:41'
+    action: 'T-3461: deployed 0.12.675 fleet-wide, live meta.db in WAL; after-capture running, ring20 asked to re-measure'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 1078 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1078
+  commits: 4
+  files_changed: 6
+  lines_added: 1403
+  lines_removed: 752
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3461-hub-bus-meta-sqlite-commits-fsync-on-tok.md
+generated_by: context-agent-hybrid
