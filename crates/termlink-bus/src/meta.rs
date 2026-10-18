@@ -5,13 +5,18 @@ use std::path::Path;
 use rusqlite::{Connection, OptionalExtension, params};
 
 use crate::claim::{ClaimInfo, ClaimsSummary, ReleaseInfo, TransferInfo};
-use crate::{BusError, Result, Retention};
+use crate::{BusError, Result, Retention, TopicSummary};
 
 /// SQLite sidecar tracking topics, cursors, and per-topic offset counters.
 /// Schema version is baked into a `schema_version` table — bump when the
 /// shape changes.
 pub(crate) struct Meta {
     conn: std::sync::Mutex<Connection>,
+    /// T-3473: a second connection, query_only, for pure reads. In WAL mode a
+    /// reader never waits for the writer, so a read no longer queues behind a
+    /// commit that is holding `conn` through its fsync (measured: one fsync over
+    /// 60 s on btrfs, and channel.list timing out behind it).
+    rconn: std::sync::Mutex<Connection>,
 }
 
 impl Meta {
@@ -28,11 +33,53 @@ impl Meta {
         }
         conn.execute_batch("PRAGMA synchronous=FULL; PRAGMA busy_timeout=5000;")?;
         init_schema(&conn)?;
+        // Opened after the schema exists. query_only makes a write through it an
+        // error instead of a silent second writer.
+        let rconn = Connection::open(path)?;
+        rconn.execute_batch("PRAGMA query_only=1; PRAGMA busy_timeout=5000;")?;
         let meta = Self {
             conn: std::sync::Mutex::new(conn),
+            rconn: std::sync::Mutex::new(rconn),
         };
         meta.migrate_t3310()?;
         Ok(meta)
+    }
+
+    /// T-3473: pure reads go here. Same `run_blocking` wrapping as `with_conn`,
+    /// but its own connection and lock, and no `test_slow_durable` (that seam
+    /// stands for a slow commit, which a read never makes).
+    fn with_read<R>(&self, f: impl FnOnce(&Connection) -> R) -> R {
+        crate::run_blocking(|| {
+            let conn = self.rconn.lock().expect("meta read mutex poisoned");
+            f(&conn)
+        })
+    }
+
+    /// T-3473: everything channel.list needs per topic, in one query instead of
+    /// four per topic: (name, retention, live record count, latest offset).
+    pub(crate) fn topic_summaries(&self) -> Result<Vec<TopicSummary>> {
+        self.with_read(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT t.name, t.retention_kind, t.retention_value, \
+                        (SELECT COUNT(*) FROM records r WHERE r.topic = t.name), \
+                        COALESCE(o.next_offset, 0) \
+                 FROM topics t LEFT JOIN offsets o ON o.topic = t.name \
+                 ORDER BY t.name",
+            )?;
+            let rows = stmt.query_map([], |r| {
+                let kind: String = r.get(1)?;
+                let value: i64 = r.get(2)?;
+                let next: i64 = r.get(4)?;
+                Ok(TopicSummary {
+                    name: r.get(0)?,
+                    retention: Retention::from_parts(&kind, value),
+                    count: r.get::<_, i64>(3)? as u64,
+                    latest_offset: if next > 0 { Some((next - 1) as u64) } else { None },
+                })
+            })?;
+            rows.collect::<std::result::Result<Vec<_>, _>>()
+                .map_err(BusError::Sqlite)
+        })
     }
 
     /// T-3461: every access to the connection goes through here. Taking the lock
@@ -111,7 +158,7 @@ impl Meta {
     }
 
     pub(crate) fn list_topics(&self) -> Result<Vec<String>> {
-        self.with_conn(|conn| {
+        self.with_read(|conn| {
             let mut stmt = conn.prepare("SELECT name FROM topics ORDER BY name")?;
             let names = stmt
                 .query_map([], |r| r.get::<_, String>(0))?
@@ -121,7 +168,7 @@ impl Meta {
     }
 
     pub(crate) fn topic_retention(&self, name: &str) -> Result<Option<Retention>> {
-        self.with_conn(|conn| {
+        self.with_read(|conn| {
             let row: rusqlite::Result<(String, i64)> = conn.query_row(
                 "SELECT retention_kind, retention_value FROM topics WHERE name = ?1",
                 params![name],
@@ -155,7 +202,7 @@ impl Meta {
     }
 
     pub(crate) fn topic_exists(&self, name: &str) -> Result<bool> {
-        self.with_conn(|conn| {
+        self.with_read(|conn| {
             let n: i64 = conn.query_row(
                 "SELECT COUNT(*) FROM topics WHERE name = ?1",
                 params![name],
@@ -259,7 +306,7 @@ impl Meta {
     /// callers can aggregate over a prefix without per-topic existence
     /// checks (T-1233 / T-1229a).
     pub(crate) fn count_records(&self, topic: &str) -> Result<u64> {
-        self.with_conn(|conn| {
+        self.with_read(|conn| {
             let count: i64 = conn.query_row(
                 "SELECT COUNT(*) FROM records WHERE topic = ?1",
                 params![topic],
@@ -274,7 +321,7 @@ impl Meta {
     /// subscribers to detect that their cursor fell behind the retention
     /// window and records were silently dropped (T-1285).
     pub(crate) fn oldest_offset(&self, topic: &str) -> Result<Option<u64>> {
-        self.with_conn(|conn| {
+        self.with_read(|conn| {
             let v: rusqlite::Result<Option<i64>> = conn.query_row(
                 "SELECT MIN(offset) FROM records WHERE topic = ?1",
                 params![topic],
@@ -300,7 +347,7 @@ impl Meta {
     /// sweep, offsets do not, so `count - 1` under-reports the latest offset by
     /// exactly the number of swept records → silent unread drop).
     pub(crate) fn latest_offset(&self, topic: &str) -> Result<Option<u64>> {
-        self.with_conn(|conn| {
+        self.with_read(|conn| {
             let v: rusqlite::Result<i64> = conn.query_row(
                 "SELECT next_offset FROM offsets WHERE topic = ?1",
                 params![topic],
@@ -317,7 +364,7 @@ impl Meta {
 
     /// Fetch record locators for `topic` with `offset >= cursor`, ordered.
     pub(crate) fn records_from(&self, topic: &str, cursor: u64) -> Result<Vec<RecordLoc>> {
-        self.with_conn(|conn| {
+        self.with_read(|conn| {
             let mut stmt = conn.prepare(
                 "SELECT offset, byte_pos, length FROM records \
                  WHERE topic = ?1 AND offset >= ?2 ORDER BY offset",
@@ -362,7 +409,7 @@ impl Meta {
 
     /// Read a subscriber cursor. Returns `None` if never persisted.
     pub(crate) fn get_cursor(&self, subscriber_id: &str, topic: &str) -> Result<Option<u64>> {
-        self.with_conn(|conn| {
+        self.with_read(|conn| {
             let v: rusqlite::Result<i64> = conn.query_row(
                 "SELECT last_offset FROM cursors WHERE subscriber_id = ?1 AND topic = ?2",
                 params![subscriber_id, topic],
@@ -806,7 +853,7 @@ impl Meta {
         include_expired: bool,
         now_ms: i64,
     ) -> Result<Vec<ClaimInfo>> {
-        self.with_conn(|conn| {
+        self.with_read(|conn| {
             let mut stmt = if include_expired {
                 conn.prepare(
                     "SELECT claim_id, topic, offset, claimed_by, claimed_at, claimed_until \
@@ -848,7 +895,7 @@ impl Meta {
     /// roster. Returns a deduped, lexicographically-sorted vector for
     /// deterministic test output.
     pub(crate) fn distinct_active_claimers(&self, now_ms: i64) -> Result<Vec<String>> {
-        self.with_conn(|conn| {
+        self.with_read(|conn| {
             let mut stmt = conn.prepare(
                 "SELECT DISTINCT claimed_by FROM claims \
                  WHERE claimed_until > ?1 \
@@ -874,7 +921,7 @@ impl Meta {
         topic: &str,
         now_ms: i64,
     ) -> Result<ClaimsSummary> {
-        self.with_conn(|conn| {
+        self.with_read(|conn| {
             let mut stmt = conn.prepare(
                 "SELECT \
                    COALESCE(SUM(CASE WHEN claimed_until >  ?2 THEN 1 ELSE 0 END), 0) AS active, \
@@ -1001,7 +1048,7 @@ impl Meta {
     pub(crate) fn all_activity(
         &self,
     ) -> Result<std::collections::HashMap<String, crate::activity::TopicActivity>> {
-        self.with_conn(|conn| {
+        self.with_read(|conn| {
             let mut stmt = conn.prepare(
                 "SELECT topic, tracking_since_ms, last_write_ms, last_writer, writes_total, \
                      last_fetch_ms, last_data_fetch_ms, fetches_total, unread_since_ms \
@@ -1033,7 +1080,7 @@ impl Meta {
 
     /// T-3309: named readers of `topic`, most recent first.
     pub(crate) fn topic_readers(&self, topic: &str) -> Result<Vec<crate::activity::ReaderActivity>> {
-        self.with_conn(|conn| {
+        self.with_read(|conn| {
             let mut stmt = conn.prepare(
                 "SELECT reader, last_fetch_ms, last_data_fetch_ms FROM topic_readers \
                  WHERE topic = ?1 ORDER BY last_fetch_ms DESC",
@@ -1276,7 +1323,7 @@ impl Meta {
 
     /// Owner and reason of every topic that has at least one of them.
     pub(crate) fn all_topic_owners(&self) -> Result<TopicOwners> {
-        self.with_conn(|conn| {
+        self.with_read(|conn| {
             let mut stmt = conn.prepare(
                 "SELECT name, owner, reason FROM topics WHERE owner IS NOT NULL OR reason IS NOT NULL",
             )?;
@@ -1299,7 +1346,7 @@ impl Meta {
     }
 
     pub(crate) fn bare_forever_summary(&self) -> Result<BareForeverSummary> {
-        self.with_conn(|conn| {
+        self.with_read(|conn| {
             let watch_since_ms: i64 = conn
                 .query_row(
                     "SELECT value FROM hub_state WHERE key = 'forever_watch_since_ms'",
@@ -1341,7 +1388,7 @@ impl Meta {
 
     /// Records, live bytes and oldest timestamp currently indexed for `topic`.
     pub(crate) fn topic_stats(&self, topic: &str) -> Result<crate::limits::TopicStats> {
-        self.with_conn(|conn| {
+        self.with_read(|conn| {
             let (records, live_bytes, oldest): (i64, i64, Option<i64>) = conn.query_row(
                 "SELECT COUNT(*), COALESCE(SUM(length), 0), MIN(ts_unix_ms) FROM records WHERE topic = ?1",
                 params![topic],

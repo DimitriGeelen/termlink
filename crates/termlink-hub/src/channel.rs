@@ -1943,9 +1943,42 @@ pub(crate) async fn handle_channel_list_with(
     params: &Value,
 ) -> RpcResponse {
     let prefix = param_str(params, "prefix").unwrap_or("");
-    let names = match bus.list_topics() {
+    // T-3473: one query for every topic's retention/count/latest_offset. The
+    // per-topic path below stays as the fallback, so a failed batch read costs
+    // speed, never the listing.
+    let summaries: Vec<termlink_bus::TopicSummary> = match bus.topic_summaries() {
         Ok(v) => v,
-        Err(e) => return ErrorResponse::internal_error(id, &format!("channel.list: {e}")).into(),
+        Err(e) => {
+            tracing::warn!(error = %e, "channel.list: batched topic read failed — reading per topic");
+            let names = match bus.list_topics() {
+                Ok(v) => v,
+                Err(e) => {
+                    return ErrorResponse::internal_error(id, &format!("channel.list: {e}")).into();
+                }
+            };
+            names
+                .into_iter()
+                .map(|name| termlink_bus::TopicSummary {
+                    // T-2439: a retention READ failure is logged and reported
+                    // as Forever, never silently.
+                    retention: match bus.topic_retention(&name) {
+                        Ok(r) => r,
+                        Err(e) => {
+                            tracing::warn!(
+                                topic = %name,
+                                error = %e,
+                                "channel.list: retention read failed — reporting Forever as fallback"
+                            );
+                            None
+                        }
+                    },
+                    // T-1233: a per-topic count error degrades to 0.
+                    count: bus.topic_record_count(&name).unwrap_or(0),
+                    latest_offset: bus.latest_offset(&name).ok().flatten(),
+                    name,
+                })
+                .collect()
+        }
     };
     // T-3309: activity is telemetry — a read failure drops the fields (logged),
     // never the listing.
@@ -1962,28 +1995,15 @@ pub(crate) async fn handle_channel_list_with(
         tracing::warn!(error = %e, "channel.list: topic owners read failed — omitting owners");
         Default::default()
     });
-    let filtered: Vec<Value> = names
+    let filtered: Vec<Value> = summaries
         .into_iter()
-        .filter(|n| prefix.is_empty() || n.starts_with(prefix))
-        .map(|name| {
-            // T-2439: distinguish "no retention configured" (a true
-            // Forever) from "retention READ failed" — the latter must
-            // not silently assert Forever to operators.
-            let ret = match bus.topic_retention(&name) {
-                Ok(r) => r.unwrap_or(Retention::Forever),
-                Err(e) => {
-                    tracing::warn!(
-                        topic = %name,
-                        error = %e,
-                        "channel.list: retention read failed — reporting Forever as fallback"
-                    );
-                    Retention::Forever
-                }
-            };
+        .filter(|s| prefix.is_empty() || s.name.starts_with(prefix))
+        .map(|s| {
+            let name = s.name;
+            let ret = s.retention.unwrap_or(Retention::Forever);
             // T-1233 / T-1229a: count enables single-round-trip aggregation
-            // (e.g. inbox.status replacement). Per-topic count error degrades
-            // to 0 rather than failing the whole list.
-            let count = bus.topic_record_count(&name).unwrap_or(0);
+            // (e.g. inbox.status replacement).
+            let count = s.count;
             // T-2533: `latest_offset` (= next_offset - 1) is the TRUE latest
             // offset, unaffected by sweeps — clients must use it for unread/ack
             // math instead of `count - 1` (which under-reports on swept topics
@@ -1992,7 +2012,7 @@ pub(crate) async fn handle_channel_list_with(
             // hubs), where the client falls back to the count-1 path.
             let mut entry =
                 json!({"name": name, "retention": retention_to_json(ret), "count": count});
-            if let Ok(Some(lo)) = bus.latest_offset(&name) {
+            if let Some(lo) = s.latest_offset {
                 entry["latest_offset"] = json!(lo);
             }
             let (owner, reason) = owners.get(&name).cloned().unwrap_or((None, None));

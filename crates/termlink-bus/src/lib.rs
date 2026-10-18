@@ -41,6 +41,17 @@ pub type SubscribeIter = Box<dyn Iterator<Item = Result<(Offset, Envelope)>> + S
 /// records in `[persisted_cursor, oldest_offset)` were swept and are
 /// permanently lost. This is the LOUD signal that closes the silent
 /// message-loss gap — `subscribe` alone silently jumps to `oldest_offset`.
+/// T-3473: one topic's listing fields, read in a single query for channel.list.
+/// `retention` is `None` when the stored policy does not parse; `latest_offset`
+/// follows `Bus::latest_offset` (None until the first post).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TopicSummary {
+    pub name: String,
+    pub retention: Option<Retention>,
+    pub count: u64,
+    pub latest_offset: Option<Offset>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Gap {
     /// The subscriber's last-persisted cursor (the offset it expected to
@@ -331,6 +342,12 @@ impl Bus {
     /// checking existence (T-1233 / T-1229a).
     pub fn topic_record_count(&self, topic: &str) -> Result<u64> {
         self.meta.count_records(topic)
+    }
+
+    /// T-3473: retention, record count and latest offset for every topic, in
+    /// one meta query (channel.list used to make four per topic).
+    pub fn topic_summaries(&self) -> Result<Vec<TopicSummary>> {
+        self.meta.topic_summaries()
     }
 
     /// T-2421: delete `topic` ENTIRELY — registry entry, records index,
