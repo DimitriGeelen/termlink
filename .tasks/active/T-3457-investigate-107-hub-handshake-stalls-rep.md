@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-17T22:29:12Z
-last_update: 2026-10-17T22:33:28Z
+last_update: 2026-10-18T00:35:08Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -61,9 +61,12 @@ ring20-manager (msg 57fee39f, conv hub-107-stalls-t2402, 2026-10-17/18) reports 
 ## Acceptance Criteria
 
 ### Agent
-- [ ] What the hub was doing at the three burst seconds is established from its journal and code (sweeps, locks, fsync, retention, handshake fan-in), with evidence cited, or stated as not determinable and why
-- [ ] Whether a TLS handshake timeout and the tokio worker count are configurable is answered from the code (file:line)
-- [ ] ring20 gets the findings on conv hub-107-stalls-t2402; any code change is filed as its own task
+- [x] What the hub was doing at the three burst seconds is established from its journal and code (sweeps, locks, fsync, retention, handshake fan-in), with evidence cited, or stated as not determinable and why
+  - Journal: the hub is silent 56.6 / 50.2 / 43.5 s before each burst; in the burst second it accepts all queued connections within ~0.1 ms and each fails with EOF 1–4 ms later (clients already gone). The accept loop (server.rs:816-860) never blocks, so every worker was parked.
+  - /proc capture 2026-10-17 22:32–00:32 UTC (2369 probes, 9 slow by 2.4–3.8 s, 12 snapshots): in EVERY snapshot one `tokio-rt-worker` is in syscall 74 (fsync), state D, in btrfs log commit (`btrfs_sync_log` / `wait_log_commit` / `barrier_all_devices` / `rq_qos_wait` / `lock_extent_buffer_for_io`); the other ~28 threads wait on futexes.
+  - Cause: bus meta SQLite (`/var/lib/termlink/bus/meta.db`, btrfs) opened with defaults (meta.rs:18): live `journal_mode=delete`, `synchronous=2` (FULL). Every write commit fsyncs several times on an async worker while holding the single `std::sync::Mutex<Connection>` (meta.rs:13); under load a btrfs fsync takes seconds and every handler that needs meta queues behind it. Not the retention sweep (ticks 21:22:09 / 22:22:09 do not align). Fix filed as T-3461.
+- [x] Whether a TLS handshake timeout and the tokio worker count are configurable is answered from the code (file:line) — `TERMLINK_CONN_HANDSHAKE_TIMEOUT_MS` (server.rs:964, default 30 s, applies only after accept); workers follow `TOKIO_WORKER_THREADS` (tokio 1.50; `#[tokio::main]` main.rs:60, default = cores = 24). Neither addresses an fsync convoy. The 10 s ring20 hit is the AEF sender probe timeout (termlink_transport.py:191).
+- [x] ring20 gets the findings on conv hub-107-stalls-t2402; any code change is filed as its own task (T-3461)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -126,6 +129,8 @@ ring20-manager (msg 57fee39f, conv hub-107-stalls-t2402, 2026-10-17/18) reports 
 # *.go → `go build ./...`; Cargo.toml → `cargo check`; tsconfig.json → `tsc --noEmit`;
 # pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
 # past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
+test -f .tasks/active/T-3461-hub-bus-meta-sqlite-commits-fsync-on-tok.md
+grep -q "TERMLINK_CONN_HANDSHAKE_TIMEOUT_MS" crates/termlink-hub/src/server.rs
 #
 # ── Mutable-corpus anchor (T-3326) ────────────────────────────────────────────
 # Do NOT anchor a verification line (or a unit test it runs) to MUTABLE corpus
@@ -283,6 +288,11 @@ ring20-manager (msg 57fee39f, conv hub-107-stalls-t2402, 2026-10-17/18) reports 
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
+
+**Symptom:** ring20 saw .107 hub probes time out (10 s) and bursts of same-second TLS handshake failures, while the host answered ping.
+**Root cause:** the bus meta SQLite commits with journal_mode=delete / synchronous=FULL on btrfs, on async worker threads, under one std Mutex; a multi-second btrfs fsync parks every worker and the accept loop stops (evidence in the ACs; fix is T-3461).
+**Why structurally allowed:** the T-2258 fix moved subscribe WALKS off the workers but not meta WRITES; nothing measures accept-loop latency, so the stalls showed only as TLS errors on clients, and a hub restart masks them for a while.
+**Prevention:** T-3461 (WAL + off-worker writes) with the /proc capture as the before/after measure; candidate follow-up: a probe-latency canary on the local hub.
 
 ## Evolution
 
