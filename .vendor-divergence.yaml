@@ -186,6 +186,18 @@ last_vendor_event:
 # ---------------------------------------------------------------------------
 
 divergences:
+  - task: T-3464
+    commit: pending-same-commit
+    commit_note: Registered in the same commit that carries the patch.
+    date: 2026-10-18
+    file: .agentic-framework/bin/claude-fw
+    status: local-only
+    kind: fix
+    generality: GENERIC
+    symptom: "claude-fw --termlink creates the PTY with `termlink spawn --shell` and injects `claude ...`; an env var set on claude-fw (055 sets TERMLINK_SIDECAR_SOCKET for the arc-011 W1 join) reached claude only because spawn forwarded it. termlink >= 0.12.665 (T-3463) treats the sidecar sockets as launch-scoped and never forwards them, so the fleet agent restarted without its sidecar."
+    fix: "The injected command carries TERMLINK_SIDECAR_SOCKET / TERMLINK_SIDECAR_STATUS_SOCKET as a per-command prefix when claude-fw has them (printf %q quoted); nothing is added when unset."
+    evidence: "bash -n clean; the built inject line simulated with and without the variable; live: socket present after the operator's Stop/Start (T-3464 AC3)."
+    upstream_note: "Not yet filed upstream. A re-vendor DELETES this and silently breaks the W1 join for any fleet agent on termlink >= 0.12.665."
   - task: T-3337
     commit: pending-same-commit
     commit_note: Registered in the same commit that carries the port.
