@@ -7,16 +7,16 @@ description: >
   authenticated path (loopback TCP same-host, TCP cross-host, both HMAC + cert pinning)
   to retire the privileged sidecar UDS listener.
 
-status: captured
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: later
+horizon: null
 tags: [arc:arc-parallel-substrate]
 components: []
 related_tasks: [T-2018]
 created: 2026-06-07T11:36:37Z
-last_update: '2026-09-08T21:30:38Z'
-date_finished:
+last_update: 2026-10-18T20:26:11Z
+date_finished: 2026-10-18T20:26:11Z
 revisit_at: 2026-09-08            # T-1451: DEFER pending measurement spike; revisit in 90d (gives Foundation primitives time to ship)
 revisit_evidence_needed: "Latency-spike numbers under concurrent-agent load (≥10 simultaneous
   clients), or a concrete UID-trust incident, or operator decision to retire the privileged
@@ -216,38 +216,13 @@ At promotion time: (1) measure loopback TCP latency under concurrent-agent load;
 
 ## Decision
 
-**Decision**: DEFER
+**Decision**: NO-GO
 
-**Rationale**: Recommendation: DEFER with measurement-first plan. Spike latency under concurrent-agent load before locking the migration. Resume the decision with data (revisit_at=2026-09-08).
+**Rationale**: Unifying the local path onto TCP + HMAC + cert pinning was meant to reduce the trust surface. On these hosts it would not separate agents at all: every agent process runs as root and can read hub.secret, so HMAC admits exactly the set the same-user socket check admits today. The real question (agents seeing each other's DMs, raised by 832 the same day) is identity-based authorization, which is T-2422. Meanwhile the change would cost a fleet-wide migration and move all local traffic onto the TLS handshake, the path that was still slow under load in the T-3461 measurement.
 
-Rationale (one-paragraph): Unlike T-2020/T-2021/T-2025/T-2027, this primitive is not verb-shaped — it's a transport-and-trust-model change that retires the UDS path. The cross-host TCP+HMAC+cert primitives already exist and work; nothing is missing infrastructure-wise. What IS missing is measurement: §7 asserts loopback TCP latency is negligible at homelab scale, but no spike has been run, and T-2019..T-2021 increase concurrent client load above prior measurement points. The same "asserted without evidence" shape as the T-1991 agent-presence bloat finding. The cost of a measurement spike (≤1 session) is small relative to the cost of cutting over and discovering a latency regression after some local-tool's UX degraded. Migration is recoverable but the risk surface is comparable to a CLI flag rename, not a verb addition.
+Unlike T-2020/T-2021/T-2025/T-2027, this primitive is not verb-shaped — it's a transport-and-trust-model change that retires the UDS path. The cross-host TCP+HMAC+cert primitives already exist and work; nothing is missing infrastructure-wise. What IS missing is *measurement*: §7 asserts loopback TCP latency is negligible at homelab scale, but no spike has been run, and T-2019..T-2021 increase concurrent client load above prior measurement points. The same "asserted without evidence" shape as the T-1991 agent-presence bloat finding. The cost of a measurement spike (≤1 session) is small relative to the cost of cutting over and discovering a latency regression after some local-tool's UX degraded. Migration is recoverable but the risk surface is comparable to a CLI flag rename, not a verb addition.
 
-Full analysis: see [docs/reports/T-2024-symmetric-auth-inception.md](../../docs/reports/T-2024-symmetric-auth-inception.md).
-
-Two-track unblock plan:
-
-Track A — measurement spike (can run now, ≤1 session):
-- Set up local hub with both UDS and TCP listeners on loopback.
-- Drive synthetic concurrent load: 10 clients × subscribe + 10 × post + 10 × claim/release cycles.
-- Measure: p50/p95/p99 round-trip latency for each path; CPU/syscall overhead; connection-establish cost.
-- Write `docs/reports/T-2024-latency-spike.md` with raw numbers + decision update.
-
-Track B — re-decide based on data (after Track A):
-- TCP-loopback p99 ≤ 2× UDS p99 → GO, file Phase-1 coexistence build task.
-- TCP-loopback p99 > 5× UDS p99 → NO-GO, document gap, leave UDS in place but file audit-logging task to make trust-model gap observable.
-- Between 2× and 5× → operator judgment with raw numbers in hand.
-
-GO criteria evaluation (from §Go/No-Go Criteria):
-- ⏸ "Latency measurement confirms §7's assumption" — UNRESOLVED, this is the gate.
-- ✅ "Migration recipe is reversible" — staged coexistence pattern (4 phases) keeps UDS available throughout deprecation cycle.
-- ✅ "UDS path can be retired cleanly" — yes, but only post-cutover after deprecation cycle completes.
-
-Open follow-up tasks to file:
-- (Immediate, on DEFER) Spike task — "T-2024 latency-measurement spike: TCP-loopback vs UDS under concurrent-agent load".
-- (Conditional, on Track A → GO) Phase-1 build task — coexistence path with opt-in config flag.
-- (Conditional, on Track A → NO-GO) Audit-logging task — add structured audit log on UDS path so trust-model gap is observable.
-
-**Date**: 2026-06-08T11:20:55Z
+**Date**: 2026-10-18T20:26:10Z
 
 ## Updates
 
@@ -294,3 +269,56 @@ Open follow-up tasks to file:
 - **Change:** horizon: now → later
 - **Change:** status: started-work → captured (auto-sync)
 - **Reason:** Inception decision: DEFER — parking task
+
+### 2026-10-18T20:26:10Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** NO-GO
+- **Rationale:** Unifying the local path onto TCP + HMAC + cert pinning was meant to reduce the trust surface. On these hosts it would not separate agents at all: every agent process runs as root and can read hub.secret, so HMAC admits exactly the set the same-user socket check admits today. The real question (agents seeing each other's DMs, raised by 832 the same day) is identity-based authorization, which is T-2422. Meanwhile the change would cost a fleet-wide migration and move all local traffic onto the TLS handshake, the path that was still slow under load in the T-3461 measurement.
+
+Unlike T-2020/T-2021/T-2025/T-2027, this primitive is not verb-shaped — it's a transport-and-trust-model change that retires the UDS path. The cross-host TCP+HMAC+cert primitives already exist and work; nothing is missing infrastructure-wise. What IS missing is *measurement*: §7 asserts loopback TCP latency is negligible at homelab scale, but no spike has been run, and T-2019..T-2021 increase concurrent client load above prior measurement points. The same "asserted without evidence" shape as the T-1991 agent-presence bloat finding. The cost of a measurement spike (≤1 session) is small relative to the cost of cutting over and discovering a latency regression after some local-tool's UX degraded. Migration is recoverable but the risk surface is comparable to a CLI flag rename, not a verb addition.
+
+### 2026-10-18T20:26:10Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
+- **Reason:** Inception decision in progress
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-a02ffde1
+- **Timestamp:** 2026-10-18T20:26:13Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 2
+
+**Verification-level findings:**
+
+  1. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-2
+     - evidence: `IW-2 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+  2. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-3
+     - evidence: `IW-3 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+
+## Recommendation Verdict (v1.0)
+
+- **Scan ID:** RC-795f64e9
+- **Timestamp:** 2026-10-18T20:26:13Z
+- **Overall:** CONTRADICTED
+- **Claims:** 11
+
+| Claim | Type | Status |
+|-------|------|--------|
+| `docs/reports/T-2024-latency-spike.md` | file | ✗ fail — file not found at PROJECT_ROOT |
+| `T-3440` | task | ✓ pass |
+| `T-2422` | task | ✓ pass |
+| `T-3461` | task | ✓ pass |
+| `T-2448` | task | ✓ pass |
+| `T-2020` | task | ✓ pass |
+| `T-2021` | task | ✓ pass |
+| `T-2025` | task | ✓ pass |
+| `T-2027` | task | ✓ pass |
+| `T-2019` | task | ✓ pass |
+| `T-1991` | task | ✓ pass |
+
+### 2026-10-18T20:26:11Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: NO-GO
