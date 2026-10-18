@@ -7,7 +7,14 @@ tags: []
 purpose: 'T-3425 — Root-directory mode canary Source of truth: /opt/termlink/.context/cron/root-mode-canary.crontab (git-tracked)
   Installed to: /etc/cron.d/termlink-root-mode-canary (USER field syntax — do NOT load into a user crontab)'
 purpose_source: header-comment
-depends_on: []
-depended_by: []
+depends_on:
+- target: scripts/check-root-mode-freshness.sh
+  type: triggers
+depended_by:
+- target: tests/runme-fixtures.sh
+  type: reads
+- target: tests/runme-fixtures.sh
+  type: read_by
 last_verified: 2026-10-17
 created_by: unknown
+last_enriched: '2026-10-18'

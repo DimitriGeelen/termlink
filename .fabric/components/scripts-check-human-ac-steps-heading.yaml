@@ -4,9 +4,14 @@ type: script
 subsystem: guard-layer
 location: scripts/check-human-ac-steps-heading.sh
 tags: []
-purpose: 'Human AC "Steps" heading canonical-form check (T-2859).'
+purpose: Human AC "Steps" heading canonical-form check (T-2859).
 depends_on: []
-depended_by: []
+depended_by:
+- target: tests/human-ac-steps-heading-fixtures.sh
+  type: calls
+- target: tests/human-ac-steps-heading-fixtures.sh
+  type: called_by
 last_verified: 2026-08-30
 created_by: unknown
 purpose_source: header-comment
+last_enriched: '2026-10-18'

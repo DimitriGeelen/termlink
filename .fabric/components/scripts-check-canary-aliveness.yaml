@@ -6,7 +6,9 @@ location: scripts/check-canary-aliveness.sh
 tags: []
 purpose: 'T-1723 / T-2175 — Meta-canary: detect when a watched canary has stopped running while the underlying drift it watches
   for may still be present.'
-depends_on: []
+depends_on:
+- target: scripts/check-mirror-freshness.sh
+  type: calls
 depended_by:
 - target: tests/canary-aliveness-sweep-fixtures.sh
   type: called_by
@@ -14,6 +16,38 @@ depended_by:
   type: called_by
 - target: .context/cron/fleet-capability-canary.crontab
   type: called_by
+- target: .context/cron/release-mirror-canary.crontab
+  type: triggers
+- target: .context/cron/canary-aliveness-sweep.crontab
+  type: triggers
+- target: .context/cron/preflight-doc-set-drift-canary.crontab
+  type: triggers
+- target: .context/cron/substrate-preflight-canary.crontab
+  type: triggers
+- target: .context/cron/charter-drift-canary.crontab
+  type: triggers
+- target: .context/cron/fleet-doorbell-mail-canary.crontab
+  type: triggers
+- target: .context/cron/charter-sentence-drift-canary.crontab
+  type: triggers
+- target: .context/cron/woken-silent-triage.crontab
+  type: triggers
+- target: .context/cron/canary-aliveness-sweep.crontab
+  type: triggers_by
+- target: .context/cron/charter-drift-canary.crontab
+  type: triggers_by
+- target: .context/cron/charter-sentence-drift-canary.crontab
+  type: triggers_by
+- target: .context/cron/fleet-doorbell-mail-canary.crontab
+  type: triggers_by
+- target: .context/cron/preflight-doc-set-drift-canary.crontab
+  type: triggers_by
+- target: .context/cron/release-mirror-canary.crontab
+  type: triggers_by
+- target: .context/cron/substrate-preflight-canary.crontab
+  type: triggers_by
+- target: .context/cron/woken-silent-triage.crontab
+  type: triggers_by
 last_verified: 2026-05-26
 created_by: unknown
 last_enriched: '2026-10-18'

@@ -4,8 +4,10 @@ type: script
 subsystem: operations
 location: scripts/lib/__init__.py
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: Shared helper modules for the scripts under scripts/.
 depends_on: []
 depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
+purpose_source: docstring
+standalone: true

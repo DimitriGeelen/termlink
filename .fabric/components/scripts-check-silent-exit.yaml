@@ -4,9 +4,14 @@ type: script
 subsystem: guard-layer
 location: scripts/check-silent-exit.sh
 tags: []
-purpose: 'check-silent-exit.sh (T-2666, G-019 prevention for the T-2663 silent-text-exit class)'
+purpose: check-silent-exit.sh (T-2666, G-019 prevention for the T-2663 silent-text-exit class)
 depends_on: []
-depended_by: []
+depended_by:
+- target: tests/silent-exit-check-fixtures.sh
+  type: calls
+- target: tests/silent-exit-check-fixtures.sh
+  type: called_by
 last_verified: 2026-08-14
 created_by: unknown
 purpose_source: header-comment
+last_enriched: '2026-10-18'

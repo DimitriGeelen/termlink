@@ -4,9 +4,14 @@ type: script
 subsystem: guard-layer
 location: scripts/check-decisions-yaml-format.sh
 tags: []
-purpose: 'check-decisions-yaml-format.sh (T-3317) — is .context/project/decisions.yaml in the'
+purpose: check-decisions-yaml-format.sh (T-3317) — is .context/project/decisions.yaml in the
 purpose_source: header-comment
 depends_on: []
-depended_by: []
+depended_by:
+- target: tests/decisions-yaml-format-fixtures.sh
+  type: calls
+- target: tests/decisions-yaml-format-fixtures.sh
+  type: called_by
 last_verified: 2026-10-17
 created_by: unknown
+last_enriched: '2026-10-18'

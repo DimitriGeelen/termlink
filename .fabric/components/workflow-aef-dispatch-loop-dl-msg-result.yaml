@@ -13,3 +13,4 @@ aef_uid: dl_msg_result
 bpmn_node_id: agt_4_worker
 created_by: T-2839
 last_verified: '2026-08-27'
+standalone: true

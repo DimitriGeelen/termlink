@@ -3,18 +3,18 @@ name: heartbeat
 type: cron-declaration
 subsystem: guard-layer-cron
 location: .context/cron/heartbeat.crontab
-tags: [cron, canary-trigger, guard-layer]
-
-purpose: "Cron declaration (git-tracked source of truth, installed to /etc/cron.d by the operator; check-cron-install-drift.sh compares). T-1438 — agent-chat-arc heartbeat for vendored field agents"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
+tags:
+- cron
+- canary-trigger
+- guard-layer
+purpose: Cron declaration (git-tracked source of truth, installed to /etc/cron.d by the operator; check-cron-install-drift.sh
+  compares). T-1438 — agent-chat-arc heartbeat for vendored field agents
+depends_on: []
 depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+- target: scripts/install-heartbeat-cron.sh
+  type: reads
+- target: scripts/install-heartbeat-cron.sh
+  type: read_by
 last_verified: 2026-09-28
 created_by: T-1438
+last_enriched: '2026-10-18'

@@ -10,3 +10,4 @@ depended_by: []
 last_verified: 2026-09-25
 created_by: T-3131
 purpose_source: docstring
+standalone: true

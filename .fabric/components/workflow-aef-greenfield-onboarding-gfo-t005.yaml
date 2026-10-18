@@ -7,9 +7,9 @@ tags:
 - workflow-step
 - aef-greenfield-onboarding
 - designer
-purpose: 'Workflow step (aef:uid gfo_t005, node agt_5_handover, serviceTask) — T-005: Generate Your First Handover (Session
-  End Protocol)'
+purpose: 'Workflow step (aef:uid gfo_t005, node agt_5_handover, serviceTask) — T-005: Generate Your First Handover (Session End Protocol)'
 workflow: aef-greenfield-onboarding
 aef_uid: gfo_t005
 bpmn_node_id: agt_5_handover
 created_by: T-2839
+standalone: true

@@ -4,9 +4,14 @@ type: script
 subsystem: guard-layer
 location: scripts/check-canary-log-isolation.sh
 tags: []
-purpose: 'check-canary-log-isolation.sh (T-2761, G-019 prevention for the T-2402-sibling class)'
+purpose: check-canary-log-isolation.sh (T-2761, G-019 prevention for the T-2402-sibling class)
 depends_on: []
-depended_by: []
+depended_by:
+- target: tests/canary-log-isolation-fixtures.sh
+  type: calls
+- target: tests/canary-log-isolation-fixtures.sh
+  type: called_by
 last_verified: 2026-08-26
 created_by: unknown
 purpose_source: header-comment
+last_enriched: '2026-10-18'

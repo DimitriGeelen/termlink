@@ -25,6 +25,10 @@ depended_by:
   type: called_by
 - target: scripts/test-agent-send-orchestration.sh
   type: called_by
+- target: tests/reap-topic-fixtures.sh
+  type: calls
+- target: tests/reap-topic-fixtures.sh
+  type: called_by
 last_verified: 2026-08-15
 created_by: unknown
 last_enriched: '2026-10-18'

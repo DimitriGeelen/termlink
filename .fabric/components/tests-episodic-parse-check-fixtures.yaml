@@ -5,7 +5,9 @@ subsystem: guard-layer
 location: tests/episodic-parse-check-fixtures.sh
 tags: []
 purpose: T-2805 — fixtures for scripts/check-episodic-parse.sh
-depends_on: []
+depends_on:
+- target: scripts/check-episodic-parse.sh
+  type: calls
 depended_by: []
 last_verified: 2026-08-26
 created_by: unknown

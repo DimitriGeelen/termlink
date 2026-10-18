@@ -5,7 +5,9 @@ subsystem: guard-layer
 location: tests/framework-tracking-drift-fixtures.sh
 tags: []
 purpose: tests/framework-tracking-drift-fixtures.sh — T-2814 regression fixtures.
-depends_on: []
+depends_on:
+- target: scripts/check-framework-tracking-drift.sh
+  type: calls
 depended_by: []
 last_verified: 2026-08-19
 created_by: unknown

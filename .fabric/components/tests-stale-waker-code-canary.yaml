@@ -5,7 +5,9 @@ subsystem: tests
 location: tests/stale-waker-code-canary.sh
 tags: []
 purpose: 'tests/stale-waker-code-canary.sh (T-2405) — hermetic test for the'
-depends_on: []
+depends_on:
+- target: scripts/check-stale-waker-code-freshness.sh
+  type: calls
 depended_by: []
 last_verified: 2026-08-14
 created_by: unknown

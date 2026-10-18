@@ -4,10 +4,10 @@ type: script
 subsystem: operations
 location: scripts/test-charter-drift-freshness.sh
 tags: []
-purpose: test-charter-drift-freshness.sh (T-2483) -- host-independent unit tests for the charter-drift canary. Feeds canned
-  `termlink help --json` fixtures via the PL-213 test hook so the canary runs with no live binary.
+purpose: test-charter-drift-freshness.sh (T-2483) -- host-independent unit tests for the charter-drift canary. Feeds canned `termlink help --json` fixtures via the PL-213 test hook so the canary runs with no live binary.
 depends_on: []
 depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
 purpose_source: header-comment
+standalone: true

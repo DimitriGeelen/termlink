@@ -8,6 +8,11 @@ purpose: 'T-3383 — hub outage sampler (PH-0 6.2.1.a (1), hypothesis H-1) + its
   (git-tracked) Installed to: /etc/cron.d/termlink-hub-outage-collector (USER…'
 purpose_source: header-comment
 depends_on: []
-depended_by: []
+depended_by:
+- target: tests/runme-fixtures.sh
+  type: reads
+- target: tests/runme-fixtures.sh
+  type: read_by
 last_verified: 2026-10-17
 created_by: unknown
+last_enriched: '2026-10-18'

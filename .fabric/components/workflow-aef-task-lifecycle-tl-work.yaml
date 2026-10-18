@@ -12,3 +12,4 @@ workflow: aef-task-lifecycle
 aef_uid: tl_work
 bpmn_node_id: agt_6_do
 created_by: T-2839
+standalone: true

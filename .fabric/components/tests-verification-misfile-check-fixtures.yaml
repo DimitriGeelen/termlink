@@ -5,7 +5,9 @@ subsystem: guard-layer
 location: tests/verification-misfile-check-fixtures.sh
 tags: []
 purpose: tests/verification-misfile-check-fixtures.sh (T-2831)
-depends_on: []
+depends_on:
+- target: scripts/verify-register-union.sh
+  type: calls
 depended_by: []
 last_verified: 2026-08-23
 created_by: unknown

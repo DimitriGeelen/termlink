@@ -12,3 +12,4 @@ workflow: aef-greenfield-onboarding
 aef_uid: gfo_t003
 bpmn_node_id: agt_3_first_commit
 created_by: T-2839
+standalone: true

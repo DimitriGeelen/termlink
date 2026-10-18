@@ -5,7 +5,9 @@ subsystem: guard-layer
 location: tests/notify-sidecar-supervisor-fixtures.sh
 tags: []
 purpose: T-3050 — fixtures for the notify-sidecar supervisor.
-depends_on: []
+depends_on:
+- target: scripts/notify-sidecar-supervisor.sh
+  type: calls
 depended_by: []
 last_verified: 2026-09-25
 created_by: unknown

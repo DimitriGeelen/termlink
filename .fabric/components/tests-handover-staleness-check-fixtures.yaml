@@ -5,7 +5,9 @@ subsystem: guard-layer
 location: tests/handover-staleness-check-fixtures.sh
 tags: []
 purpose: T-2883 — fixtures for scripts/check-handover-staleness.sh
-depends_on: []
+depends_on:
+- target: scripts/check-handover-staleness.sh
+  type: calls
 depended_by: []
 last_verified: 2026-09-03
 created_by: unknown

@@ -5,7 +5,9 @@ subsystem: guard-layer
 location: tests/agent-listeners-liveness-fixtures.sh
 tags: []
 purpose: T-2598 — load-bearing fixture for scripts/agent-listeners.sh future-clock safety.
-depends_on: []
+depends_on:
+- target: scripts/agent-listeners.sh
+  type: calls
 depended_by: []
 last_verified: 2026-08-14
 created_by: unknown

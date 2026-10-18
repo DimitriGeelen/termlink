@@ -6,7 +6,11 @@ location: tests/arc011-clean-host.sh
 tags: []
 purpose: T-3442 (arc-011 PH-2 row P9; R-39.e, SI-27, exit 5) — clean-host install, upgrade, rollback and restart test.
 purpose_source: header-comment
-depends_on: []
+depends_on:
+- target: install.sh
+  type: calls
+- target: tests/arc011-clean-host/inner.sh
+  type: calls
 depended_by: []
 last_verified: 2026-10-14
 created_by: unknown

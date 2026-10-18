@@ -5,7 +5,9 @@ subsystem: guard-layer
 location: tests/error-code-emission-fixtures.sh
 tags: []
 purpose: error-code-emission-fixtures.sh (T-2699)
-depends_on: []
+depends_on:
+- target: scripts/check-error-code-emission.sh
+  type: calls
 depended_by: []
 last_verified: 2026-08-14
 created_by: unknown

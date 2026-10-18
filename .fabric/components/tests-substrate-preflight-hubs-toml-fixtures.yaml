@@ -5,7 +5,9 @@ subsystem: guard-layer
 location: tests/substrate-preflight-hubs-toml-fixtures.sh
 tags: []
 purpose: substrate-preflight-hubs-toml-fixtures.sh (T-2742)
-depends_on: []
+depends_on:
+- target: scripts/substrate-preflight.sh
+  type: calls
 depended_by: []
 last_verified: 2026-08-15
 created_by: unknown

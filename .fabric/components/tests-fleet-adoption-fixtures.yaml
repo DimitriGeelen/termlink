@@ -5,7 +5,9 @@ subsystem: guard-layer
 location: tests/fleet-adoption-fixtures.sh
 tags: []
 purpose: T-2591 — load-bearing fixture for scripts/fleet-adoption-snapshot.sh
-depends_on: []
+depends_on:
+- target: scripts/fleet-adoption-snapshot.sh
+  type: calls
 depended_by: []
 last_verified: 2026-08-14
 created_by: unknown

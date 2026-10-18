@@ -12,3 +12,4 @@ workflow: aef-task-lifecycle
 aef_uid: tl_parked
 bpmn_node_id: agt_4_parked
 created_by: T-2839
+standalone: true

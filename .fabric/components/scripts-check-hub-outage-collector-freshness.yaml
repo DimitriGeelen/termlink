@@ -8,6 +8,11 @@ purpose: 'T-3383 — liveness canary for the hub-outage collector (PH-0 exit (1)
   it a dead cron leaves the 7-day run silently short.'
 purpose_source: header-comment
 depends_on: []
-depended_by: []
+depended_by:
+- target: tests/hub-outage-collector-fixtures.sh
+  type: calls
+- target: tests/hub-outage-collector-fixtures.sh
+  type: called_by
 last_verified: 2026-10-17
 created_by: unknown
+last_enriched: '2026-10-18'

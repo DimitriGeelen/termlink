@@ -10,6 +10,10 @@ depends_on: []
 depended_by:
 - target: .context/cron/file-shaped-posts-canary.crontab
   type: called_by
+- target: tests/file-shaped-posts-canary-fixtures.sh
+  type: calls
+- target: tests/file-shaped-posts-canary-fixtures.sh
+  type: called_by
 last_verified: 2026-10-17
 created_by: unknown
 last_enriched: '2026-10-18'

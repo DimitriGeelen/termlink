@@ -4,10 +4,11 @@ type: script
 subsystem: guard-layer-cron
 location: .context/cron/forever-owner-canary.crontab
 tags: []
-purpose: 'T-3310 (arc-012 step 5, D1 backstop) — "forever needs an owner" canary Source of truth: /opt/termlink/.context/cron/forever-owner-canary.crontab
-  (git-tracked) Installed to: /etc/cron.d/termlink-forever-owner-canary (USER field syntax — do…'
+purpose: 'T-3310 (arc-012 step 5, D1 backstop) — "forever needs an owner" canary Source of truth: /opt/termlink/.context/cron/forever-owner-canary.crontab (git-tracked) Installed to: /etc/cron.d/termlink-forever-owner-canary (USER field syntax — do…'
 purpose_source: header-comment
-depends_on: []
+depends_on:
+- target: scripts/check-forever-owner-freshness.sh
+  type: triggers
 depended_by: []
 last_verified: 2026-10-17
 created_by: unknown

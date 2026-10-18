@@ -5,7 +5,9 @@ subsystem: tests
 location: tests/relay-wake-confirm.sh
 tags: []
 purpose: 'T-2396 (G-083): verify scripts/wake-confirm.sh distinguishes CONSUMED from'
-depends_on: []
+depends_on:
+- target: scripts/wake-confirm.sh
+  type: calls
 depended_by: []
 last_verified: 2026-08-14
 created_by: unknown

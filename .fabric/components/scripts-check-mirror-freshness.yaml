@@ -5,17 +5,18 @@ subsystem: operations
 location: scripts/check-mirror-freshness.sh
 tags: []
 standalone: true
-
-purpose: "Operational check: compares OneDev origin HEAD to GitHub mirror HEAD; alerts on drift (G-007). Black-box git ls-remote; no source-level edges."
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
+purpose: 'Operational check: compares OneDev origin HEAD to GitHub mirror HEAD; alerts on drift (G-007). Black-box git ls-remote;
+  no source-level edges.'
+depends_on: []
 depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+- target: .context/cron/release-mirror-canary.crontab
+  type: triggers
+- target: scripts/check-canary-aliveness.sh
+  type: calls
+- target: .context/cron/release-mirror-canary.crontab
+  type: triggers_by
+- target: scripts/check-canary-aliveness.sh
+  type: called_by
 last_verified: 2026-04-19
 created_by: unknown
+last_enriched: '2026-10-18'

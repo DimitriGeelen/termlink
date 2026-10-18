@@ -6,7 +6,12 @@ location: scripts/check-human-ac-escalation.sh
 tags: []
 purpose: scripts/check-human-ac-escalation.sh — T-3186
 depends_on: []
-depended_by: []
+depended_by:
+- target: tests/human-ac-escalation-fixtures.sh
+  type: calls
+- target: tests/human-ac-escalation-fixtures.sh
+  type: called_by
 last_verified: 2026-09-27
 created_by: unknown
 purpose_source: header-comment
+last_enriched: '2026-10-18'

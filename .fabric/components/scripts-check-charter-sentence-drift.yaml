@@ -4,9 +4,14 @@ type: script
 subsystem: guard-layer
 location: scripts/check-charter-sentence-drift.sh
 tags: []
-purpose: 'check-charter-sentence-drift.sh (T-2484, G-019 charter-fork prevention)'
+purpose: check-charter-sentence-drift.sh (T-2484, G-019 charter-fork prevention)
 depends_on: []
-depended_by: []
+depended_by:
+- target: .context/cron/charter-sentence-drift-canary.crontab
+  type: triggers
+- target: .context/cron/charter-sentence-drift-canary.crontab
+  type: triggers_by
 last_verified: 2026-08-14
 created_by: unknown
 purpose_source: header-comment
+last_enriched: '2026-10-18'

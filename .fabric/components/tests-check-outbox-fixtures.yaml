@@ -5,7 +5,9 @@ subsystem: guard-layer
 location: tests/check-outbox-fixtures.sh
 tags: []
 purpose: T-2589 — load-bearing fixtures for scripts/check-outbox.sh outbound_unread.
-depends_on: []
+depends_on:
+- target: scripts/check-outbox.sh
+  type: calls
 depended_by: []
 last_verified: 2026-08-14
 created_by: unknown

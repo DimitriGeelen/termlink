@@ -11,7 +11,11 @@ depended_by:
   type: tests
 - target: workflow/aef-task-lifecycle/tl_verify
   type: tested_by_by
+- target: tests/verification-pipefail-check-fixtures.sh
+  type: calls
+- target: tests/verification-pipefail-check-fixtures.sh
+  type: called_by
 last_verified: 2026-08-20
 created_by: unknown
-last_enriched: '2026-09-25'
+last_enriched: '2026-10-18'
 purpose_source: header-comment

@@ -4,10 +4,10 @@ type: script
 subsystem: operations
 location: scripts/hub-recover-original-runtime.sh
 tags: []
-purpose: 'T-3436 — put a hub back on its ORIGINAL runtime dir after a relaunch moved it to a fresh one (2026-10-13, greenfield
-  .132: fleet-deploy-binary --swap-restart relaunched a hub that had no TERMLINK_RUNTIME_DIR into ~/.termlink/runtime, where…'
+purpose: 'T-3436 — put a hub back on its ORIGINAL runtime dir after a relaunch moved it to a fresh one (2026-10-13, greenfield .132: fleet-deploy-binary --swap-restart relaunched a hub that had no TERMLINK_RUNTIME_DIR into ~/.termlink/runtime, where…'
 purpose_source: header-comment
 depends_on: []
 depended_by: []
 last_verified: 2026-10-17
 created_by: unknown
+standalone: true

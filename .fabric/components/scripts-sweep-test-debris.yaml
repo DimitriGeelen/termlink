@@ -6,7 +6,12 @@ location: scripts/sweep-test-debris.sh
 tags: []
 purpose: 'scripts/sweep-test-debris.sh — T-2424: test-debris sweep via channel.delete (T-2421)'
 depends_on: []
-depended_by: []
+depended_by:
+- target: tests/sweep-debris-census-fixtures.sh
+  type: calls
+- target: tests/sweep-debris-census-fixtures.sh
+  type: called_by
 last_verified: 2026-08-14
 created_by: unknown
 purpose_source: header-comment
+last_enriched: '2026-10-18'

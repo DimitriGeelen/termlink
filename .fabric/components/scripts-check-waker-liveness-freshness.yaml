@@ -9,6 +9,10 @@ depends_on: []
 depended_by:
 - target: .context/cron/waker-liveness-canary.crontab
   type: called_by
+- target: tests/waker-liveness-fixtures.sh
+  type: calls
+- target: tests/waker-liveness-fixtures.sh
+  type: called_by
 last_verified: 2026-08-14
 created_by: unknown
 purpose_source: header-comment

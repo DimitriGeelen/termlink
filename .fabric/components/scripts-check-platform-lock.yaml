@@ -6,7 +6,12 @@ location: scripts/check-platform-lock.sh
 tags: []
 purpose: 'check-platform-lock.sh (T-2693, T-2690 G3 — Directive #4 Portability)'
 depends_on: []
-depended_by: []
+depended_by:
+- target: tests/platform-lock-check-fixtures.sh
+  type: calls
+- target: tests/platform-lock-check-fixtures.sh
+  type: called_by
 last_verified: 2026-08-14
 created_by: unknown
 purpose_source: header-comment
+last_enriched: '2026-10-18'

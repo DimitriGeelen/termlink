@@ -5,7 +5,9 @@ subsystem: guard-layer
 location: tests/unbounded-rpc-call-fixtures.sh
 tags: []
 purpose: unbounded-rpc-call-fixtures.sh (T-2669)
-depends_on: []
+depends_on:
+- target: scripts/check-unbounded-rpc-call.sh
+  type: calls
 depended_by: []
 last_verified: 2026-08-28
 created_by: unknown

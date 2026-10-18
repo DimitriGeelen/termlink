@@ -7,9 +7,15 @@ tags: []
 purpose: 'T-3438 — arc-011 PH-2 wave W1: provision and start the W1 pair''s sidecars (operator rulings P7-1 pair, P7-2 key
   register, P7-3 keep running, P7-4 provisioned instance ids; OQ-f D+). Called by /opt/termlink/runme.sh.'
 purpose_source: header-comment
-depends_on: []
+depends_on:
+- target: scripts/sidecar-supervise.sh
+  type: calls
 depended_by:
 - target: runme.sh
+  type: called_by
+- target: tests/arc011-w1-provision-fixtures.sh
+  type: calls
+- target: tests/arc011-w1-provision-fixtures.sh
   type: called_by
 last_verified: 2026-10-13
 created_by: unknown

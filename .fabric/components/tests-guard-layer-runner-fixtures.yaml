@@ -5,7 +5,9 @@ subsystem: guard-layer
 location: tests/guard-layer-runner-fixtures.sh
 tags: []
 purpose: guard-layer-runner-fixtures.sh (T-2684)
-depends_on: []
+depends_on:
+- target: scripts/run-guard-layer.sh
+  type: calls
 depended_by: []
 last_verified: 2026-08-14
 created_by: unknown

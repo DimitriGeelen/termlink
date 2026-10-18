@@ -4,9 +4,18 @@ type: script
 subsystem: guard-layer
 location: scripts/check-framework-tracking-drift.sh
 tags: []
-purpose: 'check-framework-tracking-drift.sh — T-2814.'
+purpose: check-framework-tracking-drift.sh — T-2814.
 depends_on: []
-depended_by: []
+depended_by:
+- target: tests/framework-tracking-drift-fixtures.sh
+  type: calls
+- target: tests/framework-dangling-ref-fixtures.sh
+  type: calls
+- target: tests/framework-dangling-ref-fixtures.sh
+  type: called_by
+- target: tests/framework-tracking-drift-fixtures.sh
+  type: called_by
 last_verified: 2026-08-19
 created_by: unknown
 purpose_source: header-comment
+last_enriched: '2026-10-18'

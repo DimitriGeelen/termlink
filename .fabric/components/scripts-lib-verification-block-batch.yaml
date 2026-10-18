@@ -5,8 +5,19 @@ subsystem: operations
 location: scripts/lib/verification-block-batch.py
 tags: []
 purpose: Batch form of the framework's `extract_verification_block` (T-3282, SQ-21 option 3).
-depends_on: []
-depended_by: []
+depends_on:
+- target: scripts/check-verification-heading-shadow.sh
+  type: reads
+depended_by:
+- target: tests/verification-heading-shadow-fixtures.sh
+  type: calls
+- target: scripts/check-verification-heading-shadow.sh
+  type: reads
+- target: scripts/check-verification-heading-shadow.sh
+  type: read_by
+- target: tests/verification-heading-shadow-fixtures.sh
+  type: called_by
 last_verified: 2026-10-01
 created_by: unknown
 purpose_source: docstring
+last_enriched: '2026-10-18'

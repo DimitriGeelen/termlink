@@ -10,3 +10,4 @@ depended_by: []
 last_verified: 2026-09-27
 created_by: unknown
 purpose_source: header-comment
+standalone: true

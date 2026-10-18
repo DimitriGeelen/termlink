@@ -36,6 +36,18 @@ depended_by:
   type: _by
 - target: crates/termlink-mcp/src/lib.rs
   type: called_by
+- target: tests/mutate-2783.sh
+  type: reads
+- target: scripts/test-mcp-desc-budget.sh
+  type: reads
+- target: scripts/check-mcp-parity-census.sh
+  type: reads
+- target: scripts/check-mcp-parity-census.sh
+  type: read_by
+- target: scripts/test-mcp-desc-budget.sh
+  type: read_by
+- target: tests/mutate-2783.sh
+  type: read_by
 last_verified: 2026-03-26
 created_by: unknown
-last_enriched: '2026-08-14'
+last_enriched: '2026-10-18'

@@ -4,9 +4,10 @@ type: script
 subsystem: operations
 location: scripts/agent-reply.sh
 tags: []
-purpose: T-1880 — ad-hoc one-keystroke reply verb. The SEND/RECEIVE-symmetry companion to agent-handoff (which sends a FIRST
-  contact).
-depends_on: []
+purpose: T-1880 — ad-hoc one-keystroke reply verb. The SEND/RECEIVE-symmetry companion to agent-handoff (which sends a FIRST contact).
+depends_on:
+- target: scripts/agent-respond.sh
+  type: reads
 depended_by: []
 last_verified: 2026-08-14
 created_by: unknown

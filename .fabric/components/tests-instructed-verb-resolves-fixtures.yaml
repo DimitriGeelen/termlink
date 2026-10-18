@@ -5,7 +5,9 @@ subsystem: guard-layer
 location: tests/instructed-verb-resolves-fixtures.sh
 tags: []
 purpose: tests/instructed-verb-resolves-fixtures.sh — T-3142 fixtures.
-depends_on: []
+depends_on:
+- target: scripts/check-instructed-verb-resolves.sh
+  type: calls
 depended_by: []
 last_verified: 2026-09-26
 created_by: unknown

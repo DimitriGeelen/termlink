@@ -5,7 +5,9 @@ subsystem: guard-layer
 location: tests/fleet-recipient-agreement-ci-skip-fixtures.sh
 tags: []
 purpose: T-3263 — CI-skip fixture for scripts/check-fleet-recipient-agreement.sh.
-depends_on: []
+depends_on:
+- target: scripts/check-fleet-recipient-agreement.sh
+  type: calls
 depended_by: []
 last_verified: 2026-10-01
 created_by: unknown

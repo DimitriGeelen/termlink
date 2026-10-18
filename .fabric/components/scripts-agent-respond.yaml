@@ -11,6 +11,10 @@ depended_by:
   type: called_by
 - target: scripts/count-hub-plaintext-fields.sh
   type: called_by
+- target: scripts/agent-reply.sh
+  type: reads
+- target: scripts/agent-reply.sh
+  type: read_by
 last_verified: 2026-05-25
 created_by: unknown
 last_enriched: '2026-10-18'

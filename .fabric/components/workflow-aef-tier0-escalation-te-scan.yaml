@@ -7,9 +7,9 @@ tags:
 - workflow-step
 - aef-tier0-escalation
 - designer
-purpose: Workflow step (aef:uid te_scan, node fw_1_scan, serviceTask) — scan command — keyword pre-filter + detailed pattern
-  match
+purpose: Workflow step (aef:uid te_scan, node fw_1_scan, serviceTask) — scan command — keyword pre-filter + detailed pattern match
 workflow: aef-tier0-escalation
 aef_uid: te_scan
 bpmn_node_id: fw_1_scan
 created_by: T-2839
+standalone: true

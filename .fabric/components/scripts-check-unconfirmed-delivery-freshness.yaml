@@ -6,7 +6,12 @@ location: scripts/check-unconfirmed-delivery-freshness.sh
 tags: []
 purpose: T-2295 (arc-003 reliable-comms, V3b) — unconfirmed-delivery canary.
 depends_on: []
-depended_by: []
+depended_by:
+- target: .context/cron/unconfirmed-delivery-canary.crontab
+  type: triggers
+- target: .context/cron/unconfirmed-delivery-canary.crontab
+  type: triggers_by
 last_verified: 2026-08-14
 created_by: unknown
 purpose_source: header-comment
+last_enriched: '2026-10-18'

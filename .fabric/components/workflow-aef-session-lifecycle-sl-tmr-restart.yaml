@@ -12,3 +12,4 @@ workflow: aef-session-lifecycle
 aef_uid: sl_tmr_restart
 bpmn_node_id: agt_8_wrapper
 created_by: T-2839
+standalone: true

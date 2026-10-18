@@ -5,7 +5,9 @@ subsystem: guard-layer
 location: tests/reap-topic-fixtures.sh
 tags: []
 purpose: tests/reap-topic-fixtures.sh — T-2754 fixture suite for scripts/lib/reap-topic.sh
-depends_on: []
+depends_on:
+- target: scripts/lib/reap-topic.sh
+  type: calls
 depended_by: []
 last_verified: 2026-08-15
 created_by: unknown

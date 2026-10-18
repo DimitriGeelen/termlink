@@ -11,6 +11,18 @@ depends_on: []
 depended_by:
 - target: tests/install-sh-fixtures.sh
   type: called_by
+- target: tests/arc011-clean-host.sh
+  type: calls
+- target: tests/release-artifact-drift-fixtures.sh
+  type: calls
+- target: scripts/check-release-artifact-drift.sh
+  type: reads
+- target: scripts/check-release-artifact-drift.sh
+  type: read_by
+- target: tests/arc011-clean-host.sh
+  type: called_by
+- target: tests/release-artifact-drift-fixtures.sh
+  type: called_by
 last_verified: 2026-04-19
 created_by: unknown
 last_enriched: '2026-10-18'

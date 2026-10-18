@@ -6,7 +6,12 @@ location: scripts/verify-register-union.sh
 tags: []
 purpose: verify-register-union.sh (T-2830)
 depends_on: []
-depended_by: []
+depended_by:
+- target: tests/verification-misfile-check-fixtures.sh
+  type: calls
+- target: tests/verification-misfile-check-fixtures.sh
+  type: called_by
 last_verified: 2026-08-26
 created_by: unknown
 purpose_source: header-comment
+last_enriched: '2026-10-18'

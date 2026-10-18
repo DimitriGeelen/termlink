@@ -7,10 +7,10 @@ tags:
 - workflow-step
 - aef-dispatch-loop
 - designer
-purpose: Workflow step (aef:uid dl_pause_resolve, node hum_1_operator, userTask) — operator resolves pause — fw pause resolve
-  dispatch_id --answer
+purpose: Workflow step (aef:uid dl_pause_resolve, node hum_1_operator, userTask) — operator resolves pause — fw pause resolve dispatch_id --answer
 workflow: aef-dispatch-loop
 aef_uid: dl_pause_resolve
 bpmn_node_id: hum_1_operator
 created_by: T-2839
 last_verified: '2026-08-27'
+standalone: true

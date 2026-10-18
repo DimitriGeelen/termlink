@@ -9,7 +9,11 @@ depends_on: []
 depended_by:
 - target: scripts/recent-dm.sh
   type: called_by
+- target: tests/chat-arc-recent-fixtures.sh
+  type: calls
+- target: tests/chat-arc-recent-fixtures.sh
+  type: called_by
 last_verified: 2026-05-28
 created_by: unknown
-last_enriched: '2026-08-14'
+last_enriched: '2026-10-18'
 purpose_source: header-comment

@@ -41,7 +41,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-14T05:42:07Z
-last_update: 2026-10-18T16:54:54Z
+last_update: 2026-10-18T17:19:48Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -402,6 +402,13 @@ while the member is still red restarts a 14-day window from the close date, then
      - **Why:** [rationale]
      - **Rejected:** [alternatives and why not]
 -->
+
+### 2026-10-18 — 5a: the 405 zero-edge fabric cards (operator ruling)
+- **Chose:** B. Add edges from literal path references between carded files (comment-only mentions excluded, ~286 cards), delete orphan cards whose file no longer exists (~29), mark the genuinely isolated rest `standalone: true` and acknowledge only that remainder in the audit-warning ledger, and file upstream that `underpopulated.py` ignores `standalone`.
+- **Why:** most of the 405 are fixable here (the enricher only looks at source/exec positions); the ledger's rule is fixable gets fixed, not listed. Measured 2026-10-18: 286 linkable, ~29 orphans, ~90 isolated; `underpopulated.py:51` counts edges only.
+- **Rejected:** A (acknowledge all: hides fixable work), C (no acknowledgement: escalation keeps firing on a fixed-and-filed remainder), D (nothing).
+- **Precondition stated in the brief:** verify first that a later `fw fabric enrich` keeps hand-added edges; if it overwrites them, come back before writing. Verified by reading: enrich.py:1353-1356/1374-1377 append to existing edges, and 1281-1285 derive depended_by from existing depends_on.
+- **Correction after the ruling (agent error):** there are NO orphan cards. All 411 zero-edge cards point at existing files; the "~29 orphans" came from keying the measurement by `location`, which collapsed the 50 workflow-designer cards that share 8 .bpmn files. Step "delete orphans" is void; nothing is deleted.
 
 ## Decision
 

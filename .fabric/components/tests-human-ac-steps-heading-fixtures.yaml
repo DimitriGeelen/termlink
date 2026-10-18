@@ -5,7 +5,9 @@ subsystem: guard-layer
 location: tests/human-ac-steps-heading-fixtures.sh
 tags: []
 purpose: Fixtures for scripts/check-human-ac-steps-heading.sh (T-2859).
-depends_on: []
+depends_on:
+- target: scripts/check-human-ac-steps-heading.sh
+  type: calls
 depended_by: []
 last_verified: 2026-08-30
 created_by: unknown

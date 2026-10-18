@@ -5,8 +5,19 @@ subsystem: guard-layer
 location: scripts/check-session-leak-freshness.sh
 tags: []
 purpose: T-3296 (T-3291 S4, G-019) — Session-leak canary.
-depends_on: []
-depended_by: []
+depends_on:
+- target: scripts/lib/session-zombies.py
+  type: calls
+depended_by:
+- target: scripts/lib/session-zombies.py
+  type: reads
+- target: .context/cron/session-leak-canary.crontab
+  type: triggers
+- target: .context/cron/session-leak-canary.crontab
+  type: triggers_by
+- target: scripts/lib/session-zombies.py
+  type: read_by
 last_verified: 2026-10-01
 created_by: unknown
 purpose_source: header-comment
+last_enriched: '2026-10-18'

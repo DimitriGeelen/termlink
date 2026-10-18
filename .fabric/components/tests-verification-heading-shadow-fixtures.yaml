@@ -4,11 +4,13 @@ type: script
 subsystem: guard-layer
 location: tests/verification-heading-shadow-fixtures.sh
 tags: []
-purpose: 'Fixture suite for check-verification-heading-shadow.sh (T-2877): 39 assertions weighted to the firing cases and
-  false-positive guards, with three mutants pinned (prose detector disabled, block scan short-circuited, fail-open on a missing
-  extractor).'
+purpose: 'Fixture suite for check-verification-heading-shadow.sh (T-2877): 39 assertions weighted to the firing cases and false-positive guards, with three mutants pinned (prose detector disabled, block scan short-circuited, fail-open on a missing extractor).'
 depends_on:
 - target: tests/verification-block-batch-proof.sh
+  type: calls
+- target: scripts/check-verification-heading-shadow.sh
+  type: calls
+- target: scripts/lib/verification-block-batch.py
   type: calls
 depended_by: []
 last_verified: 2026-09-01

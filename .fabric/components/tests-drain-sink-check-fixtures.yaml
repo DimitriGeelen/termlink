@@ -4,9 +4,10 @@ type: script
 subsystem: guard-layer
 location: tests/drain-sink-check-fixtures.sh
 tags: []
-purpose: drain-sink-check-fixtures.sh (T-2531) — load-bearing tests for scripts/check-drain-sink-caps.sh. No live binary;
-  pure fixtures.
-depends_on: []
+purpose: drain-sink-check-fixtures.sh (T-2531) — load-bearing tests for scripts/check-drain-sink-caps.sh. No live binary; pure fixtures.
+depends_on:
+- target: scripts/check-drain-sink-caps.sh
+  type: calls
 depended_by: []
 last_verified: 2026-08-14
 created_by: unknown

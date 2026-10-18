@@ -6,7 +6,16 @@ location: scripts/check-stuck-claims-freshness.sh
 tags: []
 purpose: T-2556 (T-2468 charter-verb completeness) — stuck-claims canary.
 depends_on: []
-depended_by: []
+depended_by:
+- target: .context/cron/stuck-claims-canary.crontab
+  type: triggers
+- target: tests/stuck-claims-check-fixtures.sh
+  type: calls
+- target: .context/cron/stuck-claims-canary.crontab
+  type: triggers_by
+- target: tests/stuck-claims-check-fixtures.sh
+  type: called_by
 last_verified: 2026-08-14
 created_by: unknown
 purpose_source: header-comment
+last_enriched: '2026-10-18'

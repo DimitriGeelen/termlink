@@ -4,9 +4,12 @@ type: script
 subsystem: guard-layer
 location: tests/warn-escalation-file-fixtures.sh
 tags: []
-purpose: T-3267 — fixtures for scripts/warn-escalation-file.sh and its wiring into the release canary (scripts/check-release-publication-freshness.sh
-  step c2).
-depends_on: []
+purpose: T-3267 — fixtures for scripts/warn-escalation-file.sh and its wiring into the release canary (scripts/check-release-publication-freshness.sh step c2).
+depends_on:
+- target: scripts/check-release-publication-freshness.sh
+  type: calls
+- target: scripts/warn-escalation-file.sh
+  type: calls
 depended_by: []
 last_verified: 2026-09-30
 created_by: unknown

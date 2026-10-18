@@ -5,7 +5,9 @@ subsystem: guard-layer
 location: tests/sweep-debris-census-fixtures.sh
 tags: []
 purpose: tests/sweep-debris-census-fixtures.sh — T-2756 fixtures for the sweep census.
-depends_on: []
+depends_on:
+- target: scripts/sweep-test-debris.sh
+  type: calls
 depended_by: []
 last_verified: 2026-08-15
 created_by: unknown

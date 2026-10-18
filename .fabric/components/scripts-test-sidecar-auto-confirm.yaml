@@ -4,10 +4,10 @@ type: script
 subsystem: operations
 location: scripts/test-sidecar-auto-confirm.sh
 tags: []
-purpose: T-2300 (arc-003 reliable-comms, V6 slice S3) — tests for the notify sidecar's --auto-confirm mode (recipient-side
-  journaled receipt) + agent-send.sh's stage-aware DELIVERED line.
+purpose: T-2300 (arc-003 reliable-comms, V6 slice S3) — tests for the notify sidecar's --auto-confirm mode (recipient-side journaled receipt) + agent-send.sh's stage-aware DELIVERED line.
 depends_on: []
 depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
 purpose_source: header-comment
+standalone: true

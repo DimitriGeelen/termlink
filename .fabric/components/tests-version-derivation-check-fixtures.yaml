@@ -5,7 +5,9 @@ subsystem: guard-layer
 location: tests/version-derivation-check-fixtures.sh
 tags: []
 purpose: version-derivation-check-fixtures.sh (T-2746)
-depends_on: []
+depends_on:
+- target: scripts/check-version-derivation.sh
+  type: calls
 depended_by: []
 last_verified: 2026-08-15
 created_by: unknown

@@ -4,9 +4,10 @@ type: script
 subsystem: guard-layer-cron
 location: .context/cron/session-leak-canary.crontab
 tags: []
-purpose: 'T-3296 (T-3291 S4, G-019) — Session-leak canary Source of truth: /opt/termlink/.context/cron/session-leak-canary.crontab
-  (git-tracked) Installed to: /etc/cron.d/termlink-session-leak-canary (USER field syntax — do NOT load into a user…'
-depends_on: []
+purpose: 'T-3296 (T-3291 S4, G-019) — Session-leak canary Source of truth: /opt/termlink/.context/cron/session-leak-canary.crontab (git-tracked) Installed to: /etc/cron.d/termlink-session-leak-canary (USER field syntax — do NOT load into a user…'
+depends_on:
+- target: scripts/check-session-leak-freshness.sh
+  type: triggers
 depended_by: []
 last_verified: 2026-10-01
 created_by: unknown

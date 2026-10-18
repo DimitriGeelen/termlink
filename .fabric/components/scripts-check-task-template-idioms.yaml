@@ -4,9 +4,14 @@ type: script
 subsystem: guard-layer
 location: scripts/check-task-template-idioms.sh
 tags: []
-purpose: 'check-task-template-idioms.sh (T-2777)'
+purpose: check-task-template-idioms.sh (T-2777)
 depends_on: []
-depended_by: []
+depended_by:
+- target: tests/task-template-idioms-fixtures.sh
+  type: calls
+- target: tests/task-template-idioms-fixtures.sh
+  type: called_by
 last_verified: 2026-08-18
 created_by: unknown
 purpose_source: header-comment
+last_enriched: '2026-10-18'

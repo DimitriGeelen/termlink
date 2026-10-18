@@ -4,10 +4,11 @@ type: script
 subsystem: guard-layer
 location: tests/sidecar-supervise-fixtures.sh
 tags: []
-purpose: 'T-3435 — fixtures for scripts/sidecar-supervise.sh (arc-011 PH-2 row P3, OQ-f D+). Hermetic: a fake sidecar binary
-  and a fake systemctl in a scratch dir; nothing touches /etc, /var/lib, the real systemd or a real sidecar.'
+purpose: 'T-3435 — fixtures for scripts/sidecar-supervise.sh (arc-011 PH-2 row P3, OQ-f D+). Hermetic: a fake sidecar binary and a fake systemctl in a scratch dir; nothing touches /etc, /var/lib, the real systemd or a real sidecar.'
 purpose_source: header-comment
-depends_on: []
+depends_on:
+- target: scripts/sidecar-supervise.sh
+  type: calls
 depended_by: []
 last_verified: 2026-10-13
 created_by: unknown

@@ -4,9 +4,14 @@ type: script
 subsystem: guard-layer
 location: scripts/check-error-code-emission.sh
 tags: []
-purpose: 'check-error-code-emission.sh (T-2699, T-2698 G1)'
+purpose: check-error-code-emission.sh (T-2699, T-2698 G1)
 depends_on: []
-depended_by: []
+depended_by:
+- target: tests/error-code-emission-fixtures.sh
+  type: calls
+- target: tests/error-code-emission-fixtures.sh
+  type: called_by
 last_verified: 2026-08-14
 created_by: unknown
 purpose_source: header-comment
+last_enriched: '2026-10-18'

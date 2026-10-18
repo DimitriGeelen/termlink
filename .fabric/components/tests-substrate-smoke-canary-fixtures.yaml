@@ -10,7 +10,8 @@ purpose: "Hermetic assertions (16) for check-substrate-smoke-freshness.sh — pi
 depends_on:
   # Format: - target: <relative-path>
   #          type: calls|reads|writes|triggers|renders
-  []
+- target: scripts/check-substrate-smoke-freshness.sh
+  type: calls
 
 depended_by:
   # Same format as depends_on — filled by enrich.py or manually

@@ -12,3 +12,4 @@ workflow: aef-tier0-escalation
 aef_uid: te_halt
 bpmn_node_id: fw_4_halt
 created_by: T-2839
+standalone: true

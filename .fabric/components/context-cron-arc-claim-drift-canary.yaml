@@ -4,9 +4,10 @@ type: script
 subsystem: guard-layer-cron
 location: .context/cron/arc-claim-drift-canary.crontab
 tags: []
-purpose: 'T-3288 (G-019 for T-3066) — Arc-claim-drift canary Source of truth: /opt/termlink/.context/cron/arc-claim-drift-canary.crontab
-  (git-tracked) Installed to: /etc/cron.d/termlink-arc-claim-drift-canary (USER field syntax — do NOT load into a…'
-depends_on: []
+purpose: 'T-3288 (G-019 for T-3066) — Arc-claim-drift canary Source of truth: /opt/termlink/.context/cron/arc-claim-drift-canary.crontab (git-tracked) Installed to: /etc/cron.d/termlink-arc-claim-drift-canary (USER field syntax — do NOT load into a…'
+depends_on:
+- target: scripts/check-arc-claim-drift.sh
+  type: triggers
 depended_by: []
 last_verified: 2026-10-01
 created_by: unknown

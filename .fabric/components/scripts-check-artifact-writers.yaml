@@ -4,9 +4,14 @@ type: script
 subsystem: guard-layer
 location: scripts/check-artifact-writers.sh
 tags: []
-purpose: 'check-artifact-writers.sh — who may write to the hub''s artifact store (T-3432, arc-011 FX-5 ruling C′)'
+purpose: check-artifact-writers.sh — who may write to the hub's artifact store (T-3432, arc-011 FX-5 ruling C′)
 purpose_source: header-comment
 depends_on: []
-depended_by: []
+depended_by:
+- target: tests/artifact-writers-check-fixtures.sh
+  type: calls
+- target: tests/artifact-writers-check-fixtures.sh
+  type: called_by
 last_verified: 2026-10-17
 created_by: unknown
+last_enriched: '2026-10-18'

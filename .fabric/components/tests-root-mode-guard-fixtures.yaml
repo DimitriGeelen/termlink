@@ -4,10 +4,13 @@ type: script
 subsystem: guard-layer
 location: tests/root-mode-guard-fixtures.sh
 tags: []
-purpose: 'T-3425 fixtures: tmux socket-path guard + root-mode canary. Hermetic: never runs tmux, never stats or touches the
-  real `/`.'
+purpose: 'T-3425 fixtures: tmux socket-path guard + root-mode canary. Hermetic: never runs tmux, never stats or touches the real `/`.'
 purpose_source: header-comment
-depends_on: []
+depends_on:
+- target: scripts/check-root-mode-freshness.sh
+  type: calls
+- target: scripts/hooks/check-tmux-socket-path.sh
+  type: calls
 depended_by: []
 last_verified: 2026-10-12
 created_by: unknown

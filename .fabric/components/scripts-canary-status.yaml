@@ -11,6 +11,18 @@ depended_by:
   type: called_by
 - target: scripts/session-start-alerts.sh
   type: called_by
+- target: tests/canary-status-worktree-fixtures.sh
+  type: calls
+- target: tests/canary-status-firing-fixtures.sh
+  type: calls
+- target: tests/canary-status-fixtures.sh
+  type: calls
+- target: tests/canary-status-firing-fixtures.sh
+  type: called_by
+- target: tests/canary-status-fixtures.sh
+  type: called_by
+- target: tests/canary-status-worktree-fixtures.sh
+  type: called_by
 last_verified: 2026-06-11
 created_by: unknown
 last_enriched: '2026-10-18'

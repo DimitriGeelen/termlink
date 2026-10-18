@@ -1,0 +1,21 @@
+id: crates/termlink-bus/tests/t3461_durable_off_workers.rs
+name: t3461_durable_off_workers
+type: script
+subsystem: bus
+location: crates/termlink-bus/tests/t3461_durable_off_workers.rs
+tags: []
+
+purpose: "T-3461: a slow durable step (meta commit, payload fsync) must not park the tokio workers. Before the fix, every meta commit ran on a worker under one std mutex; a multi-second btrfs fsync parked all…"
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-18
+created_by: unknown

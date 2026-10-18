@@ -9,6 +9,14 @@ depends_on: []
 depended_by:
 - target: scripts/check-release-publication-freshness.sh
   type: called_by
+- target: tests/commit-pending-fixtures.sh
+  type: calls
+- target: tests/focus-drift-helper-exception-fixtures.sh
+  type: calls
+- target: tests/commit-pending-fixtures.sh
+  type: called_by
+- target: tests/focus-drift-helper-exception-fixtures.sh
+  type: called_by
 last_verified: 2026-10-01
 created_by: unknown
 purpose_source: header-comment

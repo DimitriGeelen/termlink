@@ -5,7 +5,9 @@ subsystem: guard-layer
 location: tests/inception-voi-gate-fixtures.sh
 tags: []
 purpose: Fixtures for scripts/gate-inception-voi.sh (T-3174).
-depends_on: []
+depends_on:
+- target: scripts/voi-prompt.sh
+  type: calls
 depended_by: []
 last_verified: 2026-09-26
 created_by: unknown

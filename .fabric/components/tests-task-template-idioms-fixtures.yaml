@@ -5,7 +5,9 @@ subsystem: guard-layer
 location: tests/task-template-idioms-fixtures.sh
 tags: []
 purpose: task-template-idioms-fixtures.sh (T-2777)
-depends_on: []
+depends_on:
+- target: scripts/check-task-template-idioms.sh
+  type: calls
 depended_by: []
 last_verified: 2026-08-18
 created_by: unknown

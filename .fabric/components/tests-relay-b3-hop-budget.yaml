@@ -5,7 +5,9 @@ subsystem: tests
 location: tests/relay-b3-hop-budget.sh
 tags: []
 purpose: 'T-2395 (relay-loop B3): verify scripts/relay-hop-check.sh enforces the'
-depends_on: []
+depends_on:
+- target: scripts/relay-hop-check.sh
+  type: calls
 depended_by: []
 last_verified: 2026-08-14
 created_by: unknown

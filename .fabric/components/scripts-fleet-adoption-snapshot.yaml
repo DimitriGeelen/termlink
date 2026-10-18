@@ -11,6 +11,14 @@ depends_on:
 depended_by:
 - target: .context/cron/fleet-adoption-snapshot.crontab
   type: called_by
+- target: tests/fleet-adoption-fixtures.sh
+  type: calls
+- target: tests/fleet-adoption-tail-fixtures.sh
+  type: calls
+- target: tests/fleet-adoption-fixtures.sh
+  type: called_by
+- target: tests/fleet-adoption-tail-fixtures.sh
+  type: called_by
 last_verified: 2026-05-28
 created_by: unknown
 last_enriched: '2026-10-18'

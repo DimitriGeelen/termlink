@@ -7,7 +7,12 @@ tags: []
 purpose: 'relay-hop-check.sh — T-2395 (relay-loop B3): deterministic hop-budget circuit-breaker for the self-advancing agent
   exchange.'
 depends_on: []
-depended_by: []
+depended_by:
+- target: tests/relay-b3-hop-budget.sh
+  type: calls
+- target: tests/relay-b3-hop-budget.sh
+  type: called_by
 last_verified: 2026-08-14
 created_by: unknown
 purpose_source: header-comment
+last_enriched: '2026-10-18'

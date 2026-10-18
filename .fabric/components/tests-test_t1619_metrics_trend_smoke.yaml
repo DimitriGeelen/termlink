@@ -4,10 +4,10 @@ type: script
 subsystem: tests
 location: tests/test_t1619_metrics_trend_smoke.sh
 tags: []
-purpose: T-1621 / T-1619 — regression smoke test for `fw metrics api-usage` trend mode. 1. `fw metrics api-usage` (default
-  invocation, no flags) prints the 4-window trend table without a Python traceback.
+purpose: T-1621 / T-1619 — regression smoke test for `fw metrics api-usage` trend mode. 1. `fw metrics api-usage` (default invocation, no flags) prints the 4-window trend table without a Python traceback.
 depends_on: []
 depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
 purpose_source: header-comment
+standalone: true

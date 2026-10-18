@@ -5,7 +5,9 @@ subsystem: guard-layer
 location: tests/charter-drift-provenance-fixtures.sh
 tags: []
 purpose: T-2829 — fixtures for the charter-drift canary's PROVENANCE reporting.
-depends_on: []
+depends_on:
+- target: scripts/check-charter-drift-freshness.sh
+  type: calls
 depended_by: []
 last_verified: 2026-08-26
 created_by: unknown

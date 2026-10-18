@@ -4,9 +4,10 @@ type: script
 subsystem: guard-layer
 location: tests/alloc-sink-check-fixtures.sh
 tags: []
-purpose: alloc-sink-check-fixtures.sh (T-2527) — load-bearing tests for scripts/check-alloc-sink-clamps.sh. No live binary;
-  pure fixtures.
-depends_on: []
+purpose: alloc-sink-check-fixtures.sh (T-2527) — load-bearing tests for scripts/check-alloc-sink-clamps.sh. No live binary; pure fixtures.
+depends_on:
+- target: scripts/check-alloc-sink-clamps.sh
+  type: calls
 depended_by: []
 last_verified: 2026-08-14
 created_by: unknown

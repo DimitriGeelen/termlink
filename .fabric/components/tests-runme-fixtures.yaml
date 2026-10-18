@@ -5,7 +5,21 @@ subsystem: guard-layer
 location: tests/runme-fixtures.sh
 tags: []
 purpose: T-3052 — fixtures for runme.sh, the operator-action script.
-depends_on: []
+depends_on:
+- target: .context/cron/hub-outage-collector.crontab
+  type: reads
+- target: .context/cron/notify-sidecar-canary.crontab
+  type: reads
+- target: .context/cron/notify-sidecar-supervisor.crontab
+  type: reads
+- target: .context/cron/root-mode-canary.crontab
+  type: reads
+- target: .context/cron/sidecar-backstop.crontab
+  type: reads
+- target: runme.sh
+  type: calls
+- target: systemd-templates/termlink-sidecar@.service
+  type: reads
 depended_by: []
 last_verified: 2026-09-25
 created_by: unknown

@@ -11,7 +11,8 @@ purpose: "T-1406 regression guard: scans crates/**/src/**/*.rs for new direct ca
 depends_on:
   # Format: - target: <relative-path>
   #          type: calls|reads|writes|triggers|renders
-  []
+- target: crates/termlink-hub/src/rpc_audit.rs
+  type: reads
 
 depended_by:
   # Same format as depends_on — filled by enrich.py or manually

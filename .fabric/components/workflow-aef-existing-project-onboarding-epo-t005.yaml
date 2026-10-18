@@ -12,3 +12,4 @@ workflow: aef-existing-project-onboarding
 aef_uid: epo_t005
 bpmn_node_id: agt_5_handover
 created_by: T-2839
+standalone: true

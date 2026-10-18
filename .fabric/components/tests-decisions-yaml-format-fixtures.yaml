@@ -6,7 +6,9 @@ location: tests/decisions-yaml-format-fixtures.sh
 tags: []
 purpose: 'Fixtures for scripts/check-decisions-yaml-format.sh (T-3317). Hermetic: every case is a scratch file.'
 purpose_source: header-comment
-depends_on: []
+depends_on:
+- target: scripts/check-decisions-yaml-format.sh
+  type: calls
 depended_by: []
 last_verified: 2026-10-17
 created_by: unknown

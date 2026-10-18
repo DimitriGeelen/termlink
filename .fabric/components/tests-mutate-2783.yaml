@@ -10,7 +10,10 @@ purpose: "Mutation harness (T-2783): applies pinned mutants to verify guard fixt
 depends_on:
   # Format: - target: <relative-path>
   #          type: calls|reads|writes|triggers|renders
-  []
+- target: crates/termlink-cli/src/commands/channel.rs
+  type: reads
+- target: crates/termlink-mcp/src/tools.rs
+  type: reads
 
 depended_by:
   # Same format as depends_on — filled by enrich.py or manually

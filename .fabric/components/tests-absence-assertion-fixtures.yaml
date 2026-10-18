@@ -5,7 +5,9 @@ subsystem: guard-layer
 location: tests/absence-assertion-fixtures.sh
 tags: []
 purpose: tests/absence-assertion-fixtures.sh — T-3148 fixtures for check-absence-assertion.sh.
-depends_on: []
+depends_on:
+- target: scripts/check-absence-assertion.sh
+  type: calls
 depended_by: []
 last_verified: 2026-09-26
 created_by: unknown

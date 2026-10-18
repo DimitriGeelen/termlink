@@ -6,7 +6,12 @@ location: scripts/check-mcp-cli-twin-drift.sh
 tags: []
 purpose: 'T-2999 (value-review C-26): one-sided changes to _mcp/CLI helper twins.'
 depends_on: []
-depended_by: []
+depended_by:
+- target: tests/mcp-cli-twin-drift-fixtures.sh
+  type: calls
+- target: tests/mcp-cli-twin-drift-fixtures.sh
+  type: called_by
 last_verified: 2026-09-29
 created_by: unknown
 purpose_source: header-comment
+last_enriched: '2026-10-18'

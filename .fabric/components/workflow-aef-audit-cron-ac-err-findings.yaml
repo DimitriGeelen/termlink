@@ -12,3 +12,4 @@ workflow: aef-audit-cron
 aef_uid: ac_err_findings
 bpmn_node_id: agt_6_warn
 created_by: T-2839
+standalone: true

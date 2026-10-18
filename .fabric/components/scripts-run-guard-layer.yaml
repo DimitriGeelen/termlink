@@ -11,6 +11,14 @@ depended_by:
   type: called_by
 - target: scripts/check-release-publication-freshness.sh
   type: called_by
+- target: tests/guard-layer-severity-fixtures.sh
+  type: calls
+- target: tests/guard-layer-runner-fixtures.sh
+  type: calls
+- target: tests/guard-layer-runner-fixtures.sh
+  type: called_by
+- target: tests/guard-layer-severity-fixtures.sh
+  type: called_by
 last_verified: 2026-08-14
 created_by: unknown
 last_enriched: '2026-10-18'

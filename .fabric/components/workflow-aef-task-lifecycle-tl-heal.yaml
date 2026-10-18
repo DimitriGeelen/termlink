@@ -12,3 +12,4 @@ workflow: aef-task-lifecycle
 aef_uid: tl_heal
 bpmn_node_id: agt_8_healing
 created_by: T-2839
+standalone: true

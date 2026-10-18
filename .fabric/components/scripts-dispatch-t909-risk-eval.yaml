@@ -4,10 +4,10 @@ type: script
 subsystem: operations
 location: scripts/dispatch-t909-risk-eval.sh
 tags: []
-purpose: dispatch-t909-risk-eval.sh — Fires 3 termlink workers in parallel to evaluate the symlink fix proposed in T-909 from
-  different risk angles.
+purpose: dispatch-t909-risk-eval.sh — Fires 3 termlink workers in parallel to evaluate the symlink fix proposed in T-909 from different risk angles.
 depends_on: []
 depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
 purpose_source: header-comment
+standalone: true

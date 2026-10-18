@@ -7,9 +7,9 @@ tags:
 - workflow-step
 - aef-session-lifecycle
 - designer
-purpose: Workflow step (aef:uid sl_verify, node agt_6_push, serviceTask) — push-verify — git fetch + rev-list left-right must
-  be 0 0 (T-1277 slow-push); FF-land branch:master
+purpose: Workflow step (aef:uid sl_verify, node agt_6_push, serviceTask) — push-verify — git fetch + rev-list left-right must be 0 0 (T-1277 slow-push); FF-land branch:master
 workflow: aef-session-lifecycle
 aef_uid: sl_verify
 bpmn_node_id: agt_6_push
 created_by: T-2839
+standalone: true

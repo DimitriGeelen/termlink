@@ -4,9 +4,14 @@ type: script
 subsystem: guard-layer
 location: scripts/check-strict-star.sh
 tags: []
-purpose: 'check-strict-star.sh (T-2703, closing T-2702 finding F1)'
+purpose: check-strict-star.sh (T-2703, closing T-2702 finding F1)
 depends_on: []
-depended_by: []
+depended_by:
+- target: tests/strict-star-check-fixtures.sh
+  type: calls
+- target: tests/strict-star-check-fixtures.sh
+  type: called_by
 last_verified: 2026-08-18
 created_by: unknown
 purpose_source: header-comment
+last_enriched: '2026-10-18'

@@ -5,7 +5,9 @@ subsystem: guard-layer
 location: tests/mcp-cli-twin-drift-fixtures.sh
 tags: []
 purpose: 'T-2999: fixtures for scripts/check-mcp-cli-twin-drift.sh.'
-depends_on: []
+depends_on:
+- target: scripts/check-mcp-cli-twin-drift.sh
+  type: calls
 depended_by: []
 last_verified: 2026-09-29
 created_by: unknown

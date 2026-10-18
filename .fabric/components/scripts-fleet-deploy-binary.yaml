@@ -13,6 +13,10 @@ depended_by:
   type: called_by
 - target: runme.sh
   type: called_by
+- target: tests/fleet-deploy-chunk-retry-fixtures.sh
+  type: calls
+- target: tests/fleet-deploy-chunk-retry-fixtures.sh
+  type: called_by
 last_verified: 2026-08-14
 created_by: unknown
 last_enriched: '2026-10-18'

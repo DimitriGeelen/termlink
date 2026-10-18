@@ -7,9 +7,9 @@ tags:
 - workflow-step
 - aef-inception-flow
 - designer
-purpose: 'Workflow step (aef:uid if_file, node agt_1_file, serviceTask) — file inception — fw work-on --type inception (T-2204:
-  recommendation + rationale required at filing)'
+purpose: 'Workflow step (aef:uid if_file, node agt_1_file, serviceTask) — file inception — fw work-on --type inception (T-2204: recommendation + rationale required at filing)'
 workflow: aef-inception-flow
 aef_uid: if_file
 bpmn_node_id: agt_1_file
 created_by: T-2839
+standalone: true

@@ -10,7 +10,10 @@ purpose: "Cron declaration (git-tracked source of truth, installed to /etc/cron.
 depends_on:
   # Format: - target: <relative-path>
   #          type: calls|reads|writes|triggers|renders
-  []
+- target: scripts/check-canary-aliveness.sh
+  type: triggers
+- target: scripts/check-charter-drift-freshness.sh
+  type: triggers
 
 depended_by:
   # Same format as depends_on — filled by enrich.py or manually

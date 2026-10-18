@@ -11,6 +11,10 @@ depended_by:
   type: called_by
 - target: .context/cron/fleet-binary-canary.crontab
   type: called_by
+- target: scripts/test-check-fleet-binary-freshness.sh
+  type: calls
+- target: scripts/test-check-fleet-binary-freshness.sh
+  type: called_by
 last_verified: 2026-08-14
 created_by: unknown
 last_enriched: '2026-10-18'

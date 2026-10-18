@@ -7,10 +7,10 @@ tags:
 - workflow-step
 - aef-dispatch-loop
 - designer
-purpose: Workflow step (aef:uid dl_outcome, node agt_6_fw, serviceTask) — fw outcome evaluate + backprop — outcome rows joined
-  to dispatch rows (dispatch-outcomes.jsonl)
+purpose: Workflow step (aef:uid dl_outcome, node agt_6_fw, serviceTask) — fw outcome evaluate + backprop — outcome rows joined to dispatch rows (dispatch-outcomes.jsonl)
 workflow: aef-dispatch-loop
 aef_uid: dl_outcome
 bpmn_node_id: agt_6_fw
 created_by: T-2839
 last_verified: '2026-08-27'
+standalone: true

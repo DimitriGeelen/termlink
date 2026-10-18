@@ -12,3 +12,4 @@ workflow: aef-tier0-escalation
 aef_uid: te_retry
 bpmn_node_id: agt_1_retry
 created_by: T-2839
+standalone: true

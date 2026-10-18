@@ -4,10 +4,10 @@ type: script
 subsystem: operations
 location: scripts/demo-webhook-fanout.sh
 tags: []
-purpose: T-2343 (arc-004 push-transport, Candidate B) — webhook fan-out ISOLATED-HUB regression demo. Sibling of T-2342 (dm
-  rail) for the OTHER arc-004 candidate.
+purpose: T-2343 (arc-004 push-transport, Candidate B) — webhook fan-out ISOLATED-HUB regression demo. Sibling of T-2342 (dm rail) for the OTHER arc-004 candidate.
 depends_on: []
 depended_by: []
 last_verified: 2026-07-04
 created_by: unknown
 purpose_source: header-comment
+standalone: true

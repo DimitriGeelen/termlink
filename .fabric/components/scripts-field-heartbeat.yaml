@@ -4,10 +4,10 @@ type: script
 subsystem: operations
 location: scripts/field-heartbeat.sh
 tags: []
-purpose: 'T-1438 codified: drive each field host''s vendored agent to post a heartbeat to agent-chat-arc as itself. Sender_id
-  derives from the field host''s local identity file — chat-arc captures multi-host activity instead of just .107'
+purpose: 'T-1438 codified: drive each field host''s vendored agent to post a heartbeat to agent-chat-arc as itself. Sender_id derives from the field host''s local identity file — chat-arc captures multi-host activity instead of just .107'
 depends_on: []
 depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
 purpose_source: header-comment
+standalone: true

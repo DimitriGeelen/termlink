@@ -4,10 +4,10 @@ type: script
 subsystem: operations
 location: scripts/vendored-arc-heartbeat.sh
 tags: []
-purpose: 'T-1438 codified: minimal self-contained chat-arc heartbeat for vendored field agents. Runs LOCALLY on a field host
-  (.122, .141, .143, etc.).'
+purpose: 'T-1438 codified: minimal self-contained chat-arc heartbeat for vendored field agents. Runs LOCALLY on a field host (.122, .141, .143, etc.).'
 depends_on: []
 depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
 purpose_source: header-comment
+standalone: true

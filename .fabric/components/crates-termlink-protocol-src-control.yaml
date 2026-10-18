@@ -24,4 +24,8 @@ depended_by:
   type: read_by
 - target: crates/termlink-protocol/src/lib.rs
   type: called_by
-last_enriched: '2026-04-21'
+- target: scripts/check-error-code-docs.sh
+  type: reads
+- target: scripts/check-error-code-docs.sh
+  type: read_by
+last_enriched: '2026-10-18'

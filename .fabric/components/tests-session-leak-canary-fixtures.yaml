@@ -4,10 +4,10 @@ type: script
 subsystem: guard-layer
 location: tests/session-leak-canary-fixtures.sh
 tags: []
-purpose: 'T-3296 — fixtures for scripts/check-session-leak-freshness.sh and the shared detector scripts/lib/session-zombies.py.
-  Hermetic: canned ps + tmux tables and scratch sessions dirs; no live process, tmux server or real runtime dir is read.'
+purpose: 'T-3296 — fixtures for scripts/check-session-leak-freshness.sh and the shared detector scripts/lib/session-zombies.py. Hermetic: canned ps + tmux tables and scratch sessions dirs; no live process, tmux server or real runtime dir is read.'
 depends_on: []
 depended_by: []
 last_verified: 2026-10-01
 created_by: unknown
 purpose_source: header-comment
+standalone: true

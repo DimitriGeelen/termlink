@@ -4,10 +4,11 @@ type: script
 subsystem: tests
 location: tests/woken-silent-triage.sh
 tags: []
-purpose: tests/woken-silent-triage.sh (T-2416) — hermetic test for the woken-but-silent re-verify-and-clear triage (G-085
-  prevention).
+purpose: tests/woken-silent-triage.sh (T-2416) — hermetic test for the woken-but-silent re-verify-and-clear triage (G-085 prevention).
 depends_on:
 - target: scripts/wake-confirm.sh
+  type: calls
+- target: scripts/woken-silent-triage.sh
   type: calls
 depended_by: []
 last_verified: 2026-08-14

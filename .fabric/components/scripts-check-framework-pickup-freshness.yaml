@@ -6,7 +6,20 @@ location: scripts/check-framework-pickup-freshness.sh
 tags: []
 purpose: T-2231 — Surface unprocessed framework:pickup filings (G-063 mitigation).
 depends_on: []
-depended_by: []
+depended_by:
+- target: .context/cron/framework-pickup-canary.crontab
+  type: triggers
+- target: tests/pickup-canary-selffilter-fixtures.sh
+  type: calls
+- target: scripts/test-check-framework-pickup-freshness.sh
+  type: calls
+- target: .context/cron/framework-pickup-canary.crontab
+  type: triggers_by
+- target: scripts/test-check-framework-pickup-freshness.sh
+  type: called_by
+- target: tests/pickup-canary-selffilter-fixtures.sh
+  type: called_by
 last_verified: 2026-06-21
 created_by: unknown
 purpose_source: header-comment
+last_enriched: '2026-10-18'

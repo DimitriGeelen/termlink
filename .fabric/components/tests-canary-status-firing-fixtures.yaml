@@ -5,7 +5,9 @@ subsystem: guard-layer
 location: tests/canary-status-firing-fixtures.sh
 tags: []
 purpose: T-2826 — fixtures for canary-status.sh's FIRING classification.
-depends_on: []
+depends_on:
+- target: scripts/canary-status.sh
+  type: calls
 depended_by: []
 last_verified: 2026-08-26
 created_by: unknown

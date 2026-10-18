@@ -4,10 +4,10 @@ type: script
 subsystem: operations
 location: scripts/field-status.sh
 tags: []
-purpose: 'T-1438: per-host field rollout status — one line per host showing hub state, binary version, identity FP visibility,
-  skill presence, heartbeat-script presence, and last chat-arc activity.'
+purpose: 'T-1438: per-host field rollout status — one line per host showing hub state, binary version, identity FP visibility, skill presence, heartbeat-script presence, and last chat-arc activity.'
 depends_on: []
 depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
 purpose_source: header-comment
+standalone: true

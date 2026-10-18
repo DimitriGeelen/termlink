@@ -5,7 +5,9 @@ subsystem: guard-layer
 location: tests/mcp-parity-census-fixtures.sh
 tags: []
 purpose: mcp-parity-census-fixtures.sh (T-2747)
-depends_on: []
+depends_on:
+- target: scripts/check-mcp-parity-census.sh
+  type: calls
 depended_by: []
 last_verified: 2026-08-15
 created_by: unknown

@@ -4,10 +4,10 @@ type: script
 subsystem: tests
 location: tests/test_pl152_counter_arity_static.sh
 tags: []
-purpose: 'T-1623 — static check for PL-152 (counter-arity drift) on stats_for_window. PL-152 has fired three times in one
-  week: - T-1615: metrics legacy_unattributable miscounts - T-1619: metrics trend mode ValueError on default invocation'
+purpose: 'T-1623 — static check for PL-152 (counter-arity drift) on stats_for_window. PL-152 has fired three times in one week: - T-1615: metrics legacy_unattributable miscounts - T-1619: metrics trend mode ValueError on default invocation'
 depends_on: []
 depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
 purpose_source: header-comment
+standalone: true

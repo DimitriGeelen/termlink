@@ -4,9 +4,16 @@ type: script
 subsystem: guard-layer
 location: tests/commit-pending-fixtures.sh
 tags: []
-purpose: T-3269 — fixtures for scripts/commit-pending.sh (the SQ-22 option C pending-commit manifest) and its wiring into
-  /resume, the handover path and the procAsFit prompt.
-depends_on: []
+purpose: T-3269 — fixtures for scripts/commit-pending.sh (the SQ-22 option C pending-commit manifest) and its wiring into /resume, the handover path and the procAsFit prompt.
+depends_on:
+- target: scripts/check-release-publication-freshness.sh
+  type: calls
+- target: scripts/commit-pending.sh
+  type: calls
+- target: scripts/run-procasfit-round.sh
+  type: calls
+- target: scripts/warn-escalation-file.sh
+  type: calls
 depended_by: []
 last_verified: 2026-10-01
 created_by: unknown

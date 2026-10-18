@@ -8,6 +8,11 @@ purpose: 'T-3435 — arc-011 PH-2 row P3: cron backstop for project sidecars (OQ
   (git-tracked) Installed to: /etc/cron.d/termlink-sidecar-backstop (USER field…'
 purpose_source: header-comment
 depends_on: []
-depended_by: []
+depended_by:
+- target: tests/runme-fixtures.sh
+  type: reads
+- target: tests/runme-fixtures.sh
+  type: read_by
 last_verified: 2026-10-17
 created_by: unknown
+last_enriched: '2026-10-18'

@@ -4,9 +4,14 @@ type: script
 subsystem: guard-layer
 location: scripts/check-alloc-sink-clamps.sh
 tags: []
-purpose: 'check-alloc-sink-clamps.sh (T-2527, G-019 prevention for the T-2523/T-2526 class)'
+purpose: check-alloc-sink-clamps.sh (T-2527, G-019 prevention for the T-2523/T-2526 class)
 depends_on: []
-depended_by: []
+depended_by:
+- target: tests/alloc-sink-check-fixtures.sh
+  type: calls
+- target: tests/alloc-sink-check-fixtures.sh
+  type: called_by
 last_verified: 2026-08-14
 created_by: unknown
 purpose_source: header-comment
+last_enriched: '2026-10-18'

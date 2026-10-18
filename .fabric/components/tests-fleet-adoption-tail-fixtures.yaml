@@ -4,9 +4,10 @@ type: script
 subsystem: guard-layer
 location: tests/fleet-adoption-tail-fixtures.sh
 tags: []
-purpose: T-3254 — load-bearing fixture for the chat-arc TAIL derivation in scripts/fleet-adoption-snapshot.sh on a hub that
-  serves no `latest_offset`.
-depends_on: []
+purpose: T-3254 — load-bearing fixture for the chat-arc TAIL derivation in scripts/fleet-adoption-snapshot.sh on a hub that serves no `latest_offset`.
+depends_on:
+- target: scripts/fleet-adoption-snapshot.sh
+  type: calls
 depended_by: []
 last_verified: 2026-09-29
 created_by: unknown

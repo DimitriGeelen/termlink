@@ -9,7 +9,19 @@ depends_on: []
 depended_by:
 - target: scripts/diagnose-unconsumed.sh
   type: called_by
+- target: tests/agent-listeners-identity-fp.sh
+  type: calls
+- target: tests/agent-listeners-cv-read.sh
+  type: calls
+- target: tests/agent-listeners-liveness-fixtures.sh
+  type: calls
+- target: tests/agent-listeners-cv-read.sh
+  type: called_by
+- target: tests/agent-listeners-identity-fp.sh
+  type: called_by
+- target: tests/agent-listeners-liveness-fixtures.sh
+  type: called_by
 last_verified: 2026-08-14
 created_by: unknown
-last_enriched: '2026-09-25'
+last_enriched: '2026-10-18'
 purpose_source: header-comment

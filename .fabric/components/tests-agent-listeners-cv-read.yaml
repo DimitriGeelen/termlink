@@ -4,9 +4,10 @@ type: script
 subsystem: tests
 location: tests/agent-listeners-cv-read.sh
 tags: []
-purpose: 'T-2390: verify agent-listeners.sh reads presence via the cv_index (`channel subscribe --include-current-value`)
-  rather than the T-1844 count-based seek-to-tail, which is blind to live heartbeats under `latest_per_cv_key` retention (count…'
-depends_on: []
+purpose: 'T-2390: verify agent-listeners.sh reads presence via the cv_index (`channel subscribe --include-current-value`) rather than the T-1844 count-based seek-to-tail, which is blind to live heartbeats under `latest_per_cv_key` retention (count…'
+depends_on:
+- target: scripts/agent-listeners.sh
+  type: calls
 depended_by: []
 last_verified: 2026-08-14
 created_by: unknown

@@ -5,7 +5,9 @@ subsystem: guard-layer
 location: tests/planted-default-gate-fixtures.sh
 tags: []
 purpose: planted-default-gate-fixtures.sh (T-2855)
-depends_on: []
+depends_on:
+- target: scripts/check-planted-default-gate.sh
+  type: calls
 depended_by: []
 last_verified: 2026-08-29
 created_by: unknown

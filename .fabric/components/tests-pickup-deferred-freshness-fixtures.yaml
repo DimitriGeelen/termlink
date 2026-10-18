@@ -11,7 +11,8 @@ purpose: >-
 depends_on:
   # Format: - target: <relative-path>
   #          type: calls|reads|writes|triggers|renders
-  []
+- target: scripts/check-pickup-deferred-freshness.sh
+  type: calls
 
 depended_by:
   # Same format as depends_on — filled by enrich.py or manually

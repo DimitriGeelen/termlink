@@ -4,9 +4,16 @@ type: script
 subsystem: guard-layer
 location: scripts/check-release-artifact-drift.sh
 tags: []
-purpose: 'check-release-artifact-drift.sh (T-2751, G-019 prevention for the install-path drift class)'
-depends_on: []
-depended_by: []
+purpose: check-release-artifact-drift.sh (T-2751, G-019 prevention for the install-path drift class)
+depends_on:
+- target: install.sh
+  type: reads
+depended_by:
+- target: tests/release-artifact-drift-fixtures.sh
+  type: calls
+- target: tests/release-artifact-drift-fixtures.sh
+  type: called_by
 last_verified: 2026-08-15
 created_by: unknown
 purpose_source: header-comment
+last_enriched: '2026-10-18'

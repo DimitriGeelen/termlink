@@ -20,7 +20,13 @@ depends_on:
   type: calls
 - target: scripts/lib/session-zombies.py
   type: calls
-depended_by: []
+- target: systemd-templates/termlink-sidecar@.service
+  type: reads
+depended_by:
+- target: tests/runme-fixtures.sh
+  type: calls
+- target: tests/runme-fixtures.sh
+  type: called_by
 last_verified: 2026-09-25
 created_by: unknown
 last_enriched: '2026-10-18'

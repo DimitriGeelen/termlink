@@ -4,10 +4,10 @@ type: script
 subsystem: operations
 location: scripts/test-tl-claude-cmd.sh
 tags: []
-purpose: T-2403 — unit test for tl-claude.sh build_claude_cmd PROJECT_ROOT sanitization (+ composition with the T-2400 IS_SANDBOX
-  auto-accept prefix). Sources tl-claude in lib mode (TL_CLAUDE_LIB=1) so preflight/dispatch don't run.
+purpose: T-2403 — unit test for tl-claude.sh build_claude_cmd PROJECT_ROOT sanitization (+ composition with the T-2400 IS_SANDBOX auto-accept prefix). Sources tl-claude in lib mode (TL_CLAUDE_LIB=1) so preflight/dispatch don't run.
 depends_on: []
 depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
 purpose_source: header-comment
+standalone: true

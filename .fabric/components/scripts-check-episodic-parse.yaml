@@ -4,9 +4,14 @@ type: script
 subsystem: guard-layer
 location: scripts/check-episodic-parse.sh
 tags: []
-purpose: 'T-2805 — episodic-store readability check.'
+purpose: T-2805 — episodic-store readability check.
 depends_on: []
-depended_by: []
+depended_by:
+- target: tests/episodic-parse-check-fixtures.sh
+  type: calls
+- target: tests/episodic-parse-check-fixtures.sh
+  type: called_by
 last_verified: 2026-08-26
 created_by: unknown
 purpose_source: header-comment
+last_enriched: '2026-10-18'

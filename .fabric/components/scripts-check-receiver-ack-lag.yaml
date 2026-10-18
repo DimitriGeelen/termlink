@@ -6,7 +6,16 @@ location: scripts/check-receiver-ack-lag.sh
 tags: []
 purpose: '(no --no-heartbeat: these checks have no heartbeat companion to skip. The'
 depends_on: []
-depended_by: []
+depended_by:
+- target: tests/receiver-ack-lag-sender-fixtures.sh
+  type: calls
+- target: tests/receiver-ack-lag-scope-fixtures.sh
+  type: calls
+- target: tests/receiver-ack-lag-scope-fixtures.sh
+  type: called_by
+- target: tests/receiver-ack-lag-sender-fixtures.sh
+  type: called_by
 last_verified: 2026-08-26
 created_by: unknown
 purpose_source: header-comment
+last_enriched: '2026-10-18'

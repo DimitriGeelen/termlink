@@ -7,9 +7,9 @@ tags:
 - workflow-step
 - aef-tier0-escalation
 - designer
-purpose: Workflow step (aef:uid te_dedupe, node fw_2_dedupe, serviceTask) — dedupe + pre-auth check — idempotency sentinel,
-  prior approval/resolved-file hash+TTL match
+purpose: Workflow step (aef:uid te_dedupe, node fw_2_dedupe, serviceTask) — dedupe + pre-auth check — idempotency sentinel, prior approval/resolved-file hash+TTL match
 workflow: aef-tier0-escalation
 aef_uid: te_dedupe
 bpmn_node_id: fw_2_dedupe
 created_by: T-2839
+standalone: true

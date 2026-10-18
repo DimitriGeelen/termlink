@@ -4,10 +4,10 @@ type: script
 subsystem: operations
 location: scripts/test-pushwaker-filter.sh
 tags: []
-purpose: T-2316 (arc-004 WP1) — pure-helper unit test for the push-waker filter/dedup. Sources be-reachable-pushwaker.sh in
-  library mode (no main run) and exercises pushwaker_extract_payload / pushwaker_decide / pushwaker_dedup_ok.
+purpose: T-2316 (arc-004 WP1) — pure-helper unit test for the push-waker filter/dedup. Sources be-reachable-pushwaker.sh in library mode (no main run) and exercises pushwaker_extract_payload / pushwaker_decide / pushwaker_dedup_ok.
 depends_on: []
 depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
 purpose_source: header-comment
+standalone: true

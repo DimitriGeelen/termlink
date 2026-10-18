@@ -4,10 +4,11 @@ type: script
 subsystem: guard-layer
 location: tests/arc011-w1-killswitch-drill-fixtures.sh
 tags: []
-purpose: 'Fixtures for scripts/arc011-w1-killswitch-drill.sh (T-3426 W1). Fake sidecar sockets, fake kill switch, fake systemd:
-  never touches a real sidecar, socket or process.'
+purpose: 'Fixtures for scripts/arc011-w1-killswitch-drill.sh (T-3426 W1). Fake sidecar sockets, fake kill switch, fake systemd: never touches a real sidecar, socket or process.'
 purpose_source: header-comment
-depends_on: []
+depends_on:
+- target: scripts/arc011-w1-killswitch-drill.sh
+  type: calls
 depended_by: []
 last_verified: 2026-10-17
 created_by: unknown

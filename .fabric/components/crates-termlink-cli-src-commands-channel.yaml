@@ -4,7 +4,7 @@ type: script
 subsystem: cli
 location: crates/termlink-cli/src/commands/channel.rs
 tags: []
-purpose: 'CLI command handlers for the `termlink channel` bus verbs. CLI glue for the T-1160 channel bus.'
+purpose: CLI command handlers for the `termlink channel` bus verbs. CLI glue for the T-1160 channel bus.
 depends_on:
 - target: crates/termlink-protocol/src/lib.rs
   type: calls
@@ -13,7 +13,11 @@ depends_on:
 depended_by:
 - target: crates/termlink-cli/src/commands/mod.rs
   type: called_by
+- target: tests/mutate-2783.sh
+  type: reads
+- target: tests/mutate-2783.sh
+  type: read_by
 last_verified: 2026-04-20
 created_by: unknown
-last_enriched: '2026-04-21'
+last_enriched: '2026-10-18'
 purpose_source: header-comment

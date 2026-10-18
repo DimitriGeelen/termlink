@@ -6,7 +6,12 @@ location: scripts/T-1884-S1-classify.py
 tags: []
 purpose: T-1884 S1 spike — classifier for the review-waiting queue (refined).
 depends_on: []
-depended_by: []
+depended_by:
+- target: scripts/lib/review_classifier.py
+  type: reads
+- target: scripts/lib/review_classifier.py
+  type: read_by
 last_verified: 2026-08-14
 created_by: unknown
 purpose_source: docstring
+last_enriched: '2026-10-18'

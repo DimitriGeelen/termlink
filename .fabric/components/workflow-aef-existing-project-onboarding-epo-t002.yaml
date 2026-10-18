@@ -12,3 +12,4 @@ workflow: aef-existing-project-onboarding
 aef_uid: epo_t002
 bpmn_node_id: agt_2_first_commit
 created_by: T-2839
+standalone: true

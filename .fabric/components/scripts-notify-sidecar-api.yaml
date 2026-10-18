@@ -12,6 +12,10 @@ depends_on:
 depended_by:
 - target: tests/standing-controls.sh
   type: called_by
+- target: tests/notify-sidecar-api-fixtures.sh
+  type: calls
+- target: tests/notify-sidecar-api-fixtures.sh
+  type: called_by
 last_verified: 2026-09-28
 created_by: unknown
 purpose_source: header-comment

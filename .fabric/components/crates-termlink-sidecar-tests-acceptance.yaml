@@ -9,6 +9,8 @@ purpose_source: none
 depends_on:
 - target: crates/termlink-sidecar/src/lib.rs
   type: calls
+- target: scripts/arc011-ph1-demo.sh
+  type: reads
 depended_by: []
 last_verified: 2026-10-12
 created_by: unknown

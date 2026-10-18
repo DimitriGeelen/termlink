@@ -4,9 +4,14 @@ type: script
 subsystem: guard-layer
 location: scripts/check-unbounded-rpc-call.sh
 tags: []
-purpose: 'check-unbounded-rpc-call.sh (T-2669, G-019 prevention for the T-2641 hang class)'
+purpose: check-unbounded-rpc-call.sh (T-2669, G-019 prevention for the T-2641 hang class)
 depends_on: []
-depended_by: []
+depended_by:
+- target: tests/unbounded-rpc-call-fixtures.sh
+  type: calls
+- target: tests/unbounded-rpc-call-fixtures.sh
+  type: called_by
 last_verified: 2026-08-28
 created_by: unknown
 purpose_source: header-comment
+last_enriched: '2026-10-18'

@@ -10,6 +10,14 @@ depends_on: []
 depended_by:
 - target: tests/stale-sidecar-code-fixtures.sh
   type: called_by
+- target: tests/stale-waker-code-canary.sh
+  type: calls
+- target: .context/cron/stale-waker-code-canary.crontab
+  type: triggers
+- target: .context/cron/stale-waker-code-canary.crontab
+  type: triggers_by
+- target: tests/stale-waker-code-canary.sh
+  type: called_by
 last_verified: 2026-08-14
 created_by: unknown
 purpose_source: header-comment

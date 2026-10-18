@@ -6,7 +6,14 @@ location: scripts/lib/arc011-acceptance-report.py
 tags: []
 purpose: Renders docs/reports/arc011-ph1-acceptance.md from the B14 evidence, strace X4 audit and floor probes (T-3417)
 purpose_source: docstring
-depends_on: []
-depended_by: []
+depends_on:
+- target: scripts/arc011-ph1-demo.sh
+  type: reads
+depended_by:
+- target: scripts/arc011-ph1-demo.sh
+  type: calls
+- target: scripts/arc011-ph1-demo.sh
+  type: called_by
 last_verified: 2026-10-12
 created_by: unknown
+last_enriched: '2026-10-18'

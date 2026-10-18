@@ -5,7 +5,9 @@ subsystem: guard-layer
 location: tests/busy-spin-check-fixtures.sh
 tags: []
 purpose: busy-spin-check-fixtures.sh (T-2672)
-depends_on: []
+depends_on:
+- target: scripts/check-busy-spin.sh
+  type: calls
 depended_by: []
 last_verified: 2026-08-14
 created_by: unknown

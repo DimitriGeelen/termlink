@@ -5,7 +5,11 @@ subsystem: guard-layer
 location: tests/guard-layer-severity-fixtures.sh
 tags: []
 purpose: guard-layer-severity-fixtures.sh (T-3258, rewritten for T-3260's three tiers)
-depends_on: []
+depends_on:
+- target: scripts/check-guard-severity-markers.sh
+  type: calls
+- target: scripts/run-guard-layer.sh
+  type: calls
 depended_by: []
 last_verified: 2026-09-29
 created_by: unknown

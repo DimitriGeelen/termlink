@@ -4,10 +4,11 @@ type: script
 subsystem: guard-layer-cron
 location: .context/cron/agent-send-suites-canary.crontab
 tags: []
-purpose: 'T-3334 — Agent-send suites canary (daily run of the live-hub agent-send test suites) Source of truth: /opt/termlink/.context/cron/agent-send-suites-canary.crontab
-  (git-tracked) Installed to: /etc/cron.d/termlink-agent-send-suites-canary…'
+purpose: 'T-3334 — Agent-send suites canary (daily run of the live-hub agent-send test suites) Source of truth: /opt/termlink/.context/cron/agent-send-suites-canary.crontab (git-tracked) Installed to: /etc/cron.d/termlink-agent-send-suites-canary…'
 purpose_source: header-comment
-depends_on: []
+depends_on:
+- target: scripts/check-agent-send-suites-freshness.sh
+  type: triggers
 depended_by: []
 last_verified: 2026-10-17
 created_by: unknown

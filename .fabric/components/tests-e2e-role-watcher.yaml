@@ -4,10 +4,10 @@ type: script
 subsystem: e2e
 location: tests/e2e/role-watcher.sh
 tags: []
-purpose: 'Role-aware specialist watcher — uses role-specific system prompts Usage: role-watcher.sh <termlink-binary> <runtime-dir>
-  <claude-binary> <session-name> <role>'
+purpose: 'Role-aware specialist watcher — uses role-specific system prompts Usage: role-watcher.sh <termlink-binary> <runtime-dir> <claude-binary> <session-name> <role>'
 depends_on: []
 depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
 purpose_source: header-comment
+standalone: true

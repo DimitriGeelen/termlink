@@ -4,9 +4,10 @@ type: script
 subsystem: guard-layer
 location: tests/forever-owner-canary-fixtures.sh
 tags: []
-purpose: 'T-3310 fixtures for scripts/check-forever-owner-freshness.sh (D1 backstop canary). Hermetic: canned hub status JSON,
-  a fake task-create command, a scratch tasks dir, a fake pending-commit recorder. Never touches a hub or real task files.'
-depends_on: []
+purpose: 'T-3310 fixtures for scripts/check-forever-owner-freshness.sh (D1 backstop canary). Hermetic: canned hub status JSON, a fake task-create command, a scratch tasks dir, a fake pending-commit recorder. Never touches a hub or real task files.'
+depends_on:
+- target: scripts/check-forever-owner-freshness.sh
+  type: calls
 depended_by: []
 last_verified: 2026-10-02
 created_by: unknown

@@ -8,8 +8,12 @@ purpose: T-1831 — Fleet-wide doorbell+mail runtime health canary.
 depends_on:
 - target: scripts/lib/hubs-toml-walk.sh
   type: calls
-depended_by: []
+depended_by:
+- target: .context/cron/fleet-doorbell-mail-canary.crontab
+  type: triggers
+- target: .context/cron/fleet-doorbell-mail-canary.crontab
+  type: triggers_by
 last_verified: 2026-08-14
 created_by: unknown
-last_enriched: '2026-09-25'
+last_enriched: '2026-10-18'
 purpose_source: header-comment

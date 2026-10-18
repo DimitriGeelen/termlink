@@ -4,10 +4,10 @@ type: script
 subsystem: operations
 location: scripts/worker-backlog-drain.sh
 tags: []
-purpose: 'T-2205 (T-2018 §6 arc-parallel-substrate): worker-side companion to scripts/orchestrator-backlog-drain.sh (T-2204).
-  AEF integrators clone both scripts as a complete substrate consumer kit.'
+purpose: 'T-2205 (T-2018 §6 arc-parallel-substrate): worker-side companion to scripts/orchestrator-backlog-drain.sh (T-2204). AEF integrators clone both scripts as a complete substrate consumer kit.'
 depends_on: []
 depended_by: []
 last_verified: 2026-06-13
 created_by: unknown
 purpose_source: header-comment
+standalone: true

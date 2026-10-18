@@ -4,10 +4,10 @@ type: script
 subsystem: guard-layer
 location: scripts/check-budget-ladder-drift.sh
 tags: []
-purpose: 'check-budget-ladder-drift.sh — does the DOCUMENTED context-budget ladder match the LIVE gate? guard-layer: source
-  warn --no-heartbeat # can go red from a re-vendor with nothing fixable locally (vendored text, G-062)'
+purpose: 'check-budget-ladder-drift.sh — does the DOCUMENTED context-budget ladder match the LIVE gate? guard-layer: source warn --no-heartbeat # can go red from a re-vendor with nothing fixable locally (vendored text, G-062)'
 depends_on: []
 depended_by: []
 last_verified: 2026-09-20
 created_by: unknown
 purpose_source: header-comment
+standalone: true

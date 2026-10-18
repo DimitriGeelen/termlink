@@ -4,9 +4,14 @@ type: script
 subsystem: operations
 location: scripts/voi-prompt.sh
 tags: []
-purpose: 'T-3175 — ask about an unset voi_score, remember the answer, re-ask after N runs.'
+purpose: T-3175 — ask about an unset voi_score, remember the answer, re-ask after N runs.
 depends_on: []
-depended_by: []
+depended_by:
+- target: tests/inception-voi-gate-fixtures.sh
+  type: calls
+- target: tests/inception-voi-gate-fixtures.sh
+  type: called_by
 last_verified: 2026-09-26
 created_by: unknown
 purpose_source: header-comment
+last_enriched: '2026-10-18'

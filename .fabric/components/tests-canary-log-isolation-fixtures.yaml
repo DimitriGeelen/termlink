@@ -5,7 +5,9 @@ subsystem: guard-layer
 location: tests/canary-log-isolation-fixtures.sh
 tags: []
 purpose: tests/canary-log-isolation-fixtures.sh (T-2761)
-depends_on: []
+depends_on:
+- target: scripts/check-canary-log-isolation.sh
+  type: calls
 depended_by: []
 last_verified: 2026-08-26
 created_by: unknown

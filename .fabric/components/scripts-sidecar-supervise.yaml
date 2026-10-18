@@ -8,6 +8,19 @@ purpose: 'T-3435 — arc-011 PH-2 row P3 (K-3, R-8): start, stop and supervise a
   OQ-f ruling D+ (docs/design/arc-011-ph2-architecture.md 6.1).'
 purpose_source: header-comment
 depends_on: []
-depended_by: []
+depended_by:
+- target: tests/sidecar-supervise-fixtures.sh
+  type: calls
+- target: crates/termlink-sidecar/src/tools.rs
+  type: reads
+- target: scripts/arc011-w1-provision.sh
+  type: calls
+- target: crates/termlink-sidecar/src/tools.rs
+  type: read_by
+- target: scripts/arc011-w1-provision.sh
+  type: called_by
+- target: tests/sidecar-supervise-fixtures.sh
+  type: called_by
 last_verified: 2026-10-13
 created_by: unknown
+last_enriched: '2026-10-18'

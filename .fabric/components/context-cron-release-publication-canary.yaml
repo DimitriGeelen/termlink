@@ -4,9 +4,10 @@ type: script
 subsystem: guard-layer-cron
 location: .context/cron/release-publication-canary.crontab
 tags: []
-purpose: 'T-3243 (SQ-9 Q3, G-069 at the release layer) — Release-publication canary Source of truth: /opt/termlink/.context/cron/release-publication-canary.crontab
-  (git-tracked) Installed to: /etc/cron.d/termlink-release-publication-canary (USER…'
-depends_on: []
+purpose: 'T-3243 (SQ-9 Q3, G-069 at the release layer) — Release-publication canary Source of truth: /opt/termlink/.context/cron/release-publication-canary.crontab (git-tracked) Installed to: /etc/cron.d/termlink-release-publication-canary (USER…'
+depends_on:
+- target: scripts/check-release-publication-freshness.sh
+  type: triggers
 depended_by: []
 last_verified: 2026-09-29
 created_by: unknown

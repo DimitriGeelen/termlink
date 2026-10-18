@@ -5,7 +5,9 @@ subsystem: guard-layer
 location: tests/pickup-canary-selffilter-fixtures.sh
 tags: []
 purpose: tests/pickup-canary-selffilter-fixtures.sh — T-2816 regression fixtures.
-depends_on: []
+depends_on:
+- target: scripts/check-framework-pickup-freshness.sh
+  type: calls
 depended_by: []
 last_verified: 2026-08-20
 created_by: unknown

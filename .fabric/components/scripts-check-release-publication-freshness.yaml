@@ -13,6 +13,18 @@ depends_on:
 depended_by:
 - target: tests/release-publication-canary-fixtures.sh
   type: called_by
+- target: tests/commit-pending-fixtures.sh
+  type: calls
+- target: .context/cron/release-publication-canary.crontab
+  type: triggers
+- target: tests/warn-escalation-file-fixtures.sh
+  type: calls
+- target: .context/cron/release-publication-canary.crontab
+  type: triggers_by
+- target: tests/commit-pending-fixtures.sh
+  type: called_by
+- target: tests/warn-escalation-file-fixtures.sh
+  type: called_by
 last_verified: 2026-09-29
 created_by: unknown
 purpose_source: header-comment

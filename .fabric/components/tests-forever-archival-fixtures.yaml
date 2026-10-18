@@ -5,7 +5,9 @@ subsystem: guard-layer
 location: tests/forever-archival-fixtures.sh
 tags: []
 purpose: 'T-3220: fixtures for scripts/check-forever-archival-freshness.sh — the canary had none.'
-depends_on: []
+depends_on:
+- target: scripts/check-forever-archival-freshness.sh
+  type: calls
 depended_by: []
 last_verified: 2026-09-29
 created_by: unknown

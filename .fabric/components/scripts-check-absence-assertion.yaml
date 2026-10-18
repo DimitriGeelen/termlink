@@ -4,9 +4,14 @@ type: script
 subsystem: guard-layer
 location: scripts/check-absence-assertion.sh
 tags: []
-purpose: 'check-absence-assertion.sh — a `## Verification` leg that asserts something is ABSENT'
+purpose: check-absence-assertion.sh — a `## Verification` leg that asserts something is ABSENT
 depends_on: []
-depended_by: []
+depended_by:
+- target: tests/absence-assertion-fixtures.sh
+  type: calls
+- target: tests/absence-assertion-fixtures.sh
+  type: called_by
 last_verified: 2026-09-26
 created_by: unknown
 purpose_source: header-comment
+last_enriched: '2026-10-18'

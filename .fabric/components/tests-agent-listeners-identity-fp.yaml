@@ -4,9 +4,10 @@ type: script
 subsystem: tests
 location: tests/agent-listeners-identity-fp.sh
 tags: []
-purpose: 'T-2270: verify agent-listeners.sh surfaces identity_fingerprint from the heartbeat envelope''s top-level sender_id
-  (T-1427 verified fingerprint).'
-depends_on: []
+purpose: 'T-2270: verify agent-listeners.sh surfaces identity_fingerprint from the heartbeat envelope''s top-level sender_id (T-1427 verified fingerprint).'
+depends_on:
+- target: scripts/agent-listeners.sh
+  type: calls
 depended_by: []
 last_verified: 2026-08-14
 created_by: unknown

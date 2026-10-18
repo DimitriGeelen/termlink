@@ -4,10 +4,10 @@ type: script
 subsystem: e2e
 location: tests/e2e/run-all.sh
 tags: []
-purpose: 'Run All E2E Tests — discovers and runs level*.sh scripts in order Usage: ./tests/e2e/run-all.sh [--level N] [--from
-  N] [--to N]'
+purpose: 'Run All E2E Tests — discovers and runs level*.sh scripts in order Usage: ./tests/e2e/run-all.sh [--level N] [--from N] [--to N]'
 depends_on: []
 depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
 purpose_source: header-comment
+standalone: true

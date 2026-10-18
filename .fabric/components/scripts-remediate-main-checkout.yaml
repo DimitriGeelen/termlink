@@ -6,7 +6,12 @@ location: scripts/remediate-main-checkout.sh
 tags: []
 purpose: T-2803 — one-shot remediation for the main-checkout half of T-2819 / T-2822.
 depends_on: []
-depended_by: []
+depended_by:
+- target: tests/remediate-main-checkout-fixtures.sh
+  type: calls
+- target: tests/remediate-main-checkout-fixtures.sh
+  type: called_by
 last_verified: 2026-08-26
 created_by: unknown
 purpose_source: header-comment
+last_enriched: '2026-10-18'

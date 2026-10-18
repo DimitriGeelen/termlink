@@ -7,9 +7,9 @@ tags:
 - workflow-step
 - aef-existing-project-onboarding
 - designer
-purpose: 'Workflow step (aef:uid epo_t001, node agt_1_orientation, serviceTask) — T-001: Orientation and Framework Health
-  Check'
+purpose: 'Workflow step (aef:uid epo_t001, node agt_1_orientation, serviceTask) — T-001: Orientation and Framework Health Check'
 workflow: aef-existing-project-onboarding
 aef_uid: epo_t001
 bpmn_node_id: agt_1_orientation
 created_by: T-2839
+standalone: true

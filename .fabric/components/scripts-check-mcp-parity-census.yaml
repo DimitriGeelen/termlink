@@ -4,9 +4,18 @@ type: script
 subsystem: guard-layer
 location: scripts/check-mcp-parity-census.sh
 tags: []
-purpose: 'check-mcp-parity-census.sh (T-2747, herdr rank 13 — coverage census for the MCP/CLI parity suite)'
-depends_on: []
-depended_by: []
+purpose: check-mcp-parity-census.sh (T-2747, herdr rank 13 — coverage census for the MCP/CLI parity suite)
+depends_on:
+- target: crates/termlink-mcp/src/tools.rs
+  type: reads
+- target: crates/termlink-mcp/tests/parity.rs
+  type: reads
+depended_by:
+- target: tests/mcp-parity-census-fixtures.sh
+  type: calls
+- target: tests/mcp-parity-census-fixtures.sh
+  type: called_by
 last_verified: 2026-08-15
 created_by: unknown
 purpose_source: header-comment
+last_enriched: '2026-10-18'

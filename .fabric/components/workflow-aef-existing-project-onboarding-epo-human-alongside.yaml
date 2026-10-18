@@ -7,9 +7,9 @@ tags:
 - workflow-step
 - aef-existing-project-onboarding
 - designer
-purpose: 'Workflow step (aef:uid epo_human_alongside, node hum_alongside, userTask) — You: reading alongside, correcting when
-  it matters (never blocking)'
+purpose: 'Workflow step (aef:uid epo_human_alongside, node hum_alongside, userTask) — You: reading alongside, correcting when it matters (never blocking)'
 workflow: aef-existing-project-onboarding
 aef_uid: epo_human_alongside
 bpmn_node_id: hum_alongside
 created_by: T-2839
+standalone: true

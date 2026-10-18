@@ -7,7 +7,20 @@ tags: []
 purpose: 'Guard (T-2877): asserts that what the P-011 verification gate will EXECUTE is command-shaped, not markdown prose.
   Wraps the framework''s own extract_verification_block rather than reimplementing the heading rule. Fires when a counterfeit
   ''## Verification'' at column 0 shadows the genuine heading.'
-depends_on: []
-depended_by: []
+depends_on:
+- target: scripts/lib/verification-block-batch.py
+  type: reads
+- target: tests/verification-block-batch-proof.sh
+  type: reads
+depended_by:
+- target: tests/verification-heading-shadow-fixtures.sh
+  type: calls
+- target: scripts/lib/verification-block-batch.py
+  type: reads
+- target: scripts/lib/verification-block-batch.py
+  type: read_by
+- target: tests/verification-heading-shadow-fixtures.sh
+  type: called_by
 last_verified: 2026-09-01
 created_by: unknown
+last_enriched: '2026-10-18'

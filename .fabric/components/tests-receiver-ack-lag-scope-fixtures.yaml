@@ -5,7 +5,9 @@ subsystem: guard-layer
 location: tests/receiver-ack-lag-scope-fixtures.sh
 tags: []
 purpose: T-3256 — scope fixture for scripts/check-receiver-ack-lag.sh.
-depends_on: []
+depends_on:
+- target: scripts/check-receiver-ack-lag.sh
+  type: calls
 depended_by: []
 last_verified: 2026-09-29
 created_by: unknown

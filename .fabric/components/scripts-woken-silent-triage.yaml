@@ -6,7 +6,16 @@ location: scripts/woken-silent-triage.sh
 tags: []
 purpose: scripts/woken-silent-triage.sh (T-2416) — re-verify-and-clear the woken-but-silent canary log (G-085 prevention).
 depends_on: []
-depended_by: []
+depended_by:
+- target: tests/woken-silent-triage.sh
+  type: calls
+- target: .context/cron/woken-silent-triage.crontab
+  type: triggers
+- target: .context/cron/woken-silent-triage.crontab
+  type: triggers_by
+- target: tests/woken-silent-triage.sh
+  type: called_by
 last_verified: 2026-08-14
 created_by: unknown
 purpose_source: header-comment
+last_enriched: '2026-10-18'

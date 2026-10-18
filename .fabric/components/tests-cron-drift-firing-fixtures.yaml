@@ -5,7 +5,9 @@ subsystem: guard-layer
 location: tests/cron-drift-firing-fixtures.sh
 tags: []
 purpose: T-2821 — fixtures for check-cron-install-drift's firing behaviour.
-depends_on: []
+depends_on:
+- target: scripts/check-cron-install-drift.sh
+  type: calls
 depended_by: []
 last_verified: 2026-08-26
 created_by: unknown

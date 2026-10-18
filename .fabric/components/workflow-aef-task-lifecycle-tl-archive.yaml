@@ -7,9 +7,9 @@ tags:
 - workflow-step
 - aef-task-lifecycle
 - designer
-purpose: 'Workflow step (aef:uid tl_archive, node agt_13_archive, serviceTask) — archive: move to completed/, generate episodic
-  memory'
+purpose: 'Workflow step (aef:uid tl_archive, node agt_13_archive, serviceTask) — archive: move to completed/, generate episodic memory'
 workflow: aef-task-lifecycle
 aef_uid: tl_archive
 bpmn_node_id: agt_13_archive
 created_by: T-2839
+standalone: true

@@ -12,3 +12,4 @@ workflow: aef-existing-project-onboarding
 aef_uid: epo_t006
 bpmn_node_id: agt_6_learning
 created_by: T-2839
+standalone: true

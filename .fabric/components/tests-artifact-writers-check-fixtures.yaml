@@ -6,7 +6,9 @@ location: tests/artifact-writers-check-fixtures.sh
 tags: []
 purpose: 'Fixtures for scripts/check-artifact-writers.sh (T-3432, FX-5 ruling C′). Hermetic: scratch crates.'
 purpose_source: header-comment
-depends_on: []
+depends_on:
+- target: scripts/check-artifact-writers.sh
+  type: calls
 depended_by: []
 last_verified: 2026-10-17
 created_by: unknown

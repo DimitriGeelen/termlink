@@ -4,9 +4,14 @@ type: script
 subsystem: guard-layer
 location: scripts/check-handover-staleness.sh
 tags: []
-purpose: 'check-handover-staleness.sh (T-2883, G-019 prevention for the T-2882 class)'
+purpose: check-handover-staleness.sh (T-2883, G-019 prevention for the T-2882 class)
 depends_on: []
-depended_by: []
+depended_by:
+- target: tests/handover-staleness-check-fixtures.sh
+  type: calls
+- target: tests/handover-staleness-check-fixtures.sh
+  type: called_by
 last_verified: 2026-09-03
 created_by: unknown
 purpose_source: header-comment
+last_enriched: '2026-10-18'

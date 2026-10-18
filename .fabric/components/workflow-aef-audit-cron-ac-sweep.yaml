@@ -7,9 +7,9 @@ tags:
 - workflow-step
 - aef-audit-cron
 - designer
-purpose: Workflow step (aef:uid ac_sweep, node agt_2_fw, serviceTask) — fw audit — compliance sweep (exit 0 pass / 1 warnings
-  / 2 failures)
+purpose: Workflow step (aef:uid ac_sweep, node agt_2_fw, serviceTask) — fw audit — compliance sweep (exit 0 pass / 1 warnings / 2 failures)
 workflow: aef-audit-cron
 aef_uid: ac_sweep
 bpmn_node_id: agt_2_fw
 created_by: T-2839
+standalone: true

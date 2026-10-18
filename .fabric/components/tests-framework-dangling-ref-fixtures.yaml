@@ -5,7 +5,9 @@ subsystem: guard-layer
 location: tests/framework-dangling-ref-fixtures.sh
 tags: []
 purpose: tests/framework-dangling-ref-fixtures.sh — T-2817 regression fixtures (axis B).
-depends_on: []
+depends_on:
+- target: scripts/check-framework-tracking-drift.sh
+  type: calls
 depended_by: []
 last_verified: 2026-08-20
 created_by: unknown

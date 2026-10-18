@@ -4,10 +4,10 @@ type: script
 subsystem: operations
 location: scripts/lint-command-hints.sh
 tags: []
-purpose: lint-command-hints.sh — validate back-ticked `termlink <group> <verb>` hint strings in source against the real clap
-  command tree.
+purpose: lint-command-hints.sh — validate back-ticked `termlink <group> <verb>` hint strings in source against the real clap command tree.
 depends_on: []
 depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
 purpose_source: header-comment
+standalone: true

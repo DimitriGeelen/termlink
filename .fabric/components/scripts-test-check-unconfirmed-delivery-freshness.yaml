@@ -4,10 +4,10 @@ type: script
 subsystem: operations
 location: scripts/test-check-unconfirmed-delivery-freshness.sh
 tags: []
-purpose: T-2295 (arc-003 reliable-comms, V3b) — tests for the unconfirmed-delivery canary. Hub-independent via TERMLINK_UNCONFIRMED_TEST_JSON
-  (mirrors TERMLINK_GROWTH_TEST_JSON).
+purpose: T-2295 (arc-003 reliable-comms, V3b) — tests for the unconfirmed-delivery canary. Hub-independent via TERMLINK_UNCONFIRMED_TEST_JSON (mirrors TERMLINK_GROWTH_TEST_JSON).
 depends_on: []
 depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
 purpose_source: header-comment
+standalone: true

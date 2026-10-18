@@ -5,7 +5,9 @@ subsystem: guard-layer
 location: tests/silent-exit-check-fixtures.sh
 tags: []
 purpose: silent-exit-check-fixtures.sh (T-2666)
-depends_on: []
+depends_on:
+- target: scripts/check-silent-exit.sh
+  type: calls
 depended_by: []
 last_verified: 2026-08-14
 created_by: unknown

@@ -9,6 +9,10 @@ depends_on: []
 depended_by:
 - target: tests/verification-heading-shadow-fixtures.sh
   type: called_by
+- target: scripts/check-verification-heading-shadow.sh
+  type: reads
+- target: scripts/check-verification-heading-shadow.sh
+  type: read_by
 last_verified: 2026-10-01
 created_by: unknown
 purpose_source: header-comment

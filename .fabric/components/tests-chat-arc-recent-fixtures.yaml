@@ -4,9 +4,10 @@ type: script
 subsystem: guard-layer
 location: tests/chat-arc-recent-fixtures.sh
 tags: []
-purpose: T-2592 — load-bearing fixture for scripts/agent-chat-arc-recent.sh msg_type default. Drives the whole engine through
-  a mock `termlink` (TERMLINK_BIN) on a single --hub (bypasses the hubs.toml walk) and asserts the three-state filter
-depends_on: []
+purpose: T-2592 — load-bearing fixture for scripts/agent-chat-arc-recent.sh msg_type default. Drives the whole engine through a mock `termlink` (TERMLINK_BIN) on a single --hub (bypasses the hubs.toml walk) and asserts the three-state filter
+depends_on:
+- target: scripts/agent-chat-arc-recent.sh
+  type: calls
 depended_by: []
 last_verified: 2026-08-14
 created_by: unknown

@@ -5,7 +5,9 @@ subsystem: operations
 location: scripts/test-mcp-desc-budget.sh
 tags: []
 purpose: 'test-mcp-desc-budget.sh (arc-005 mcp-slimming, T-2406) — anti-regrowth guard for'
-depends_on: []
+depends_on:
+- target: crates/termlink-mcp/src/tools.rs
+  type: reads
 depended_by: []
 last_verified: 2026-08-14
 created_by: unknown

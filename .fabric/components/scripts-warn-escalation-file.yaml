@@ -7,7 +7,16 @@ tags: []
 purpose: 'warn-escalation-file.sh — T-3267: turn a stale or accumulating WARN guard into a FILED TASK (the operator''s binding
   condition on the WARN tier, T-3258 rulings: "after the 14-day limit it becomes an action.'
 depends_on: []
-depended_by: []
+depended_by:
+- target: tests/commit-pending-fixtures.sh
+  type: calls
+- target: tests/warn-escalation-file-fixtures.sh
+  type: calls
+- target: tests/commit-pending-fixtures.sh
+  type: called_by
+- target: tests/warn-escalation-file-fixtures.sh
+  type: called_by
 last_verified: 2026-09-30
 created_by: unknown
 purpose_source: header-comment
+last_enriched: '2026-10-18'

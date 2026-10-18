@@ -7,9 +7,9 @@ tags:
 - workflow-step
 - aef-audit-cron
 - designer
-purpose: Workflow step (aef:uid ac_emit, node agt_7_emit, serviceTask) — emit findings as tasks — fw audit --emit-tasks (captured/later,
-  never steals focus, T-100146)
+purpose: Workflow step (aef:uid ac_emit, node agt_7_emit, serviceTask) — emit findings as tasks — fw audit --emit-tasks (captured/later, never steals focus, T-100146)
 workflow: aef-audit-cron
 aef_uid: ac_emit
 bpmn_node_id: agt_7_emit
 created_by: T-2839
+standalone: true

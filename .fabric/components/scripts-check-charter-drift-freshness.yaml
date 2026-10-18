@@ -6,7 +6,20 @@ location: scripts/check-charter-drift-freshness.sh
 tags: []
 purpose: check-charter-drift-freshness.sh (T-2483, G-019 breadth-accretion prevention)
 depends_on: []
-depended_by: []
+depended_by:
+- target: tests/charter-drift-check-fixtures.sh
+  type: calls
+- target: .context/cron/charter-drift-canary.crontab
+  type: triggers
+- target: tests/charter-drift-provenance-fixtures.sh
+  type: calls
+- target: .context/cron/charter-drift-canary.crontab
+  type: triggers_by
+- target: tests/charter-drift-check-fixtures.sh
+  type: called_by
+- target: tests/charter-drift-provenance-fixtures.sh
+  type: called_by
 last_verified: 2026-08-14
 created_by: unknown
 purpose_source: header-comment
+last_enriched: '2026-10-18'

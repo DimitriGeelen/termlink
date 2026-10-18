@@ -6,7 +6,12 @@ location: scripts/check-task-finalization-freshness.sh
 tags: []
 purpose: T-2290 — Finalization-bypass canary (G-066 prevention).
 depends_on: []
-depended_by: []
+depended_by:
+- target: .context/cron/task-finalization-canary.crontab
+  type: triggers
+- target: .context/cron/task-finalization-canary.crontab
+  type: triggers_by
 last_verified: 2026-08-14
 created_by: unknown
 purpose_source: header-comment
+last_enriched: '2026-10-18'

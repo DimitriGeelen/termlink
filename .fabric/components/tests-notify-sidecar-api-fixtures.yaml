@@ -5,7 +5,11 @@ subsystem: guard-layer
 location: tests/notify-sidecar-api-fixtures.sh
 tags: []
 purpose: T-3135 — fixtures for notify-sidecar-api.sh + the supervisor's portable respawn core.
-depends_on: []
+depends_on:
+- target: scripts/notify-sidecar-api.sh
+  type: calls
+- target: scripts/notify-sidecar-supervisor.sh
+  type: calls
 depended_by: []
 last_verified: 2026-09-28
 created_by: unknown

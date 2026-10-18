@@ -5,7 +5,9 @@ subsystem: tests
 location: tests/agent-send-grace-window.sh
 tags: []
 purpose: tests/agent-send-grace-window.sh (T-2414) — pins the doorbell confirmation window against MEASURED peer latency.
-depends_on: []
+depends_on:
+- target: scripts/agent-send.sh
+  type: calls
 depended_by: []
 last_verified: 2026-08-14
 created_by: unknown

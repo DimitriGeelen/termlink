@@ -4,10 +4,10 @@ type: script
 subsystem: operations
 location: scripts/demo-webhook-retry.sh
 tags: []
-purpose: T-2344 (arc-004 push-transport, Candidate B) — webhook RETRY-LOOP E2E regression demo against a FLAKY sink. Sibling
-  of demo-webhook-fanout.sh (T-2343), which proves the direct-success path; THIS demo proves the T-2334 resilience chain
+purpose: T-2344 (arc-004 push-transport, Candidate B) — webhook RETRY-LOOP E2E regression demo against a FLAKY sink. Sibling of demo-webhook-fanout.sh (T-2343), which proves the direct-success path; THIS demo proves the T-2334 resilience chain
 depends_on: []
 depended_by: []
 last_verified: 2026-07-04
 created_by: unknown
 purpose_source: header-comment
+standalone: true

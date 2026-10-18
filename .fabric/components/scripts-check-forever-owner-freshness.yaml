@@ -6,7 +6,16 @@ location: scripts/check-forever-owner-freshness.sh
 tags: []
 purpose: T-3310 (arc-012 step 5, operator ruling D1 = D+, layers 2 and 3) — the "forever needs an owner" backstop canary.
 depends_on: []
-depended_by: []
+depended_by:
+- target: tests/forever-owner-canary-fixtures.sh
+  type: calls
+- target: .context/cron/forever-owner-canary.crontab
+  type: triggers
+- target: .context/cron/forever-owner-canary.crontab
+  type: triggers_by
+- target: tests/forever-owner-canary-fixtures.sh
+  type: called_by
 last_verified: 2026-10-02
 created_by: unknown
 purpose_source: header-comment
+last_enriched: '2026-10-18'

@@ -12,3 +12,4 @@ workflow: aef-tier0-escalation
 aef_uid: te_audit
 bpmn_node_id: fw_6_audit
 created_by: T-2839
+standalone: true

@@ -4,9 +4,14 @@ type: script
 subsystem: guard-layer
 location: scripts/check-canary-log-hygiene.sh
 tags: []
-purpose: 'check-canary-log-hygiene.sh (T-2685, G-019 prevention for the T-2683 F2 class)'
+purpose: check-canary-log-hygiene.sh (T-2685, G-019 prevention for the T-2683 F2 class)
 depends_on: []
-depended_by: []
+depended_by:
+- target: tests/canary-log-hygiene-fixtures.sh
+  type: calls
+- target: tests/canary-log-hygiene-fixtures.sh
+  type: called_by
 last_verified: 2026-08-14
 created_by: unknown
 purpose_source: header-comment
+last_enriched: '2026-10-18'

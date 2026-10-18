@@ -4,9 +4,10 @@ type: script
 subsystem: operations
 location: scripts/test-check-framework-pickup-freshness.sh
 tags: []
-purpose: T-2231 — black-box tests for check-framework-pickup-freshness.sh. Exercises the canary against the live framework:pickup
-  topic using a throwaway marker file (never touches the real marker).
-depends_on: []
+purpose: T-2231 — black-box tests for check-framework-pickup-freshness.sh. Exercises the canary against the live framework:pickup topic using a throwaway marker file (never touches the real marker).
+depends_on:
+- target: scripts/check-framework-pickup-freshness.sh
+  type: calls
 depended_by: []
 last_verified: 2026-06-21
 created_by: unknown

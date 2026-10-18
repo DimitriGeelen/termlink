@@ -6,7 +6,16 @@ location: scripts/check-notify-sidecar-freshness.sh
 tags: []
 purpose: T-3051 — notify-sidecar liveness canary (arc-003 deterministic wake rail).
 depends_on: []
-depended_by: []
+depended_by:
+- target: .context/cron/notify-sidecar-canary.crontab
+  type: triggers
+- target: tests/notify-sidecar-canary-fixtures.sh
+  type: calls
+- target: .context/cron/notify-sidecar-canary.crontab
+  type: triggers_by
+- target: tests/notify-sidecar-canary-fixtures.sh
+  type: called_by
 last_verified: 2026-09-25
 created_by: unknown
 purpose_source: header-comment
+last_enriched: '2026-10-18'

@@ -7,9 +7,9 @@ tags:
 - workflow-step
 - aef-inception-flow
 - designer
-purpose: Workflow step (aef:uid if_artifact, node agt_2_artifact, serviceTask) — create research artifact FIRST (C-001) —
-  docs/reports/T-XXX, dialogue log, incremental commits
+purpose: Workflow step (aef:uid if_artifact, node agt_2_artifact, serviceTask) — create research artifact FIRST (C-001) — docs/reports/T-XXX, dialogue log, incremental commits
 workflow: aef-inception-flow
 aef_uid: if_artifact
 bpmn_node_id: agt_2_artifact
 created_by: T-2839
+standalone: true

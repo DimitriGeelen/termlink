@@ -7,9 +7,9 @@ tags:
 - workflow-step
 - aef-session-lifecycle
 - designer
-purpose: Workflow step (aef:uid sl_init, node agt_1_session, serviceTask) — session init — fw context init, read LATEST.md
-  handover, set focus (Session Start Protocol)
+purpose: Workflow step (aef:uid sl_init, node agt_1_session, serviceTask) — session init — fw context init, read LATEST.md handover, set focus (Session Start Protocol)
 workflow: aef-session-lifecycle
 aef_uid: sl_init
 bpmn_node_id: agt_1_session
 created_by: T-2839
+standalone: true

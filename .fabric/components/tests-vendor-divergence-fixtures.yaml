@@ -5,7 +5,9 @@ subsystem: guard-layer
 location: tests/vendor-divergence-fixtures.sh
 tags: []
 purpose: T-2812 — fixtures for scripts/check-vendor-divergence.sh
-depends_on: []
+depends_on:
+- target: scripts/check-vendor-divergence.sh
+  type: calls
 depended_by: []
 last_verified: 2026-08-26
 created_by: unknown

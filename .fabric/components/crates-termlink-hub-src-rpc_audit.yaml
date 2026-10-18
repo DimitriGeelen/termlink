@@ -21,6 +21,10 @@ depended_by:
   type: calls
 - target: crates/termlink-hub/src/lib.rs
   type: called_by
+- target: crates/termlink-hub/tests/no_legacy_callers.rs
+  type: reads
+- target: crates/termlink-hub/tests/no_legacy_callers.rs
+  type: read_by
 last_verified: 2026-04-27
 created_by: T-1304
 last_enriched: '2026-10-18'

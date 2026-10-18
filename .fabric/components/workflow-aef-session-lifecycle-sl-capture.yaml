@@ -7,9 +7,9 @@ tags:
 - workflow-step
 - aef-session-lifecycle
 - designer
-purpose: Workflow step (aef:uid sl_capture, node agt_4_session, serviceTask) — session capture — uncaptured work → tasks,
-  decisions/learnings recorded (agents/session-capture)
+purpose: Workflow step (aef:uid sl_capture, node agt_4_session, serviceTask) — session capture — uncaptured work → tasks, decisions/learnings recorded (agents/session-capture)
 workflow: aef-session-lifecycle
 aef_uid: sl_capture
 bpmn_node_id: agt_4_session
 created_by: T-2839
+standalone: true

@@ -5,9 +5,15 @@ subsystem: operations
 location: scripts/lib/session-zombies.py
 tags: []
 purpose: T-3296 (T-3291 S4) — shared detector for the session lifecycle leak.
-depends_on: []
+depends_on:
+- target: scripts/check-session-leak-freshness.sh
+  type: reads
 depended_by:
 - target: runme.sh
+  type: called_by
+- target: scripts/check-session-leak-freshness.sh
+  type: calls
+- target: scripts/check-session-leak-freshness.sh
   type: called_by
 last_verified: 2026-10-01
 created_by: unknown

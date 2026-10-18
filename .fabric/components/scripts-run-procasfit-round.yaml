@@ -6,7 +6,12 @@ location: scripts/run-procasfit-round.sh
 tags: []
 purpose: T-3211 — dispatch ONE procAsFit round to its own TermLink worker and verify the handback by reading it.
 depends_on: []
-depended_by: []
+depended_by:
+- target: tests/commit-pending-fixtures.sh
+  type: calls
+- target: tests/commit-pending-fixtures.sh
+  type: called_by
 last_verified: 2026-09-28
 created_by: unknown
 purpose_source: header-comment
+last_enriched: '2026-10-18'

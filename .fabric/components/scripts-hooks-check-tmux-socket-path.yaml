@@ -7,6 +7,11 @@ tags: []
 purpose: 'T-3425 — PreToolUse(Bash) guard: refuse `tmux -S <path>` when <path> is not a socket.'
 purpose_source: header-comment
 depends_on: []
-depended_by: []
+depended_by:
+- target: tests/root-mode-guard-fixtures.sh
+  type: calls
+- target: tests/root-mode-guard-fixtures.sh
+  type: called_by
 last_verified: 2026-10-12
 created_by: unknown
+last_enriched: '2026-10-18'

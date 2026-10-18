@@ -5,7 +5,11 @@ subsystem: guard-layer
 location: tests/release-artifact-drift-fixtures.sh
 tags: []
 purpose: release-artifact-drift-fixtures.sh (T-2751)
-depends_on: []
+depends_on:
+- target: install.sh
+  type: calls
+- target: scripts/check-release-artifact-drift.sh
+  type: calls
 depended_by: []
 last_verified: 2026-08-15
 created_by: unknown

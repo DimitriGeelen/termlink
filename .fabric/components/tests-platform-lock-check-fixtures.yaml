@@ -5,7 +5,9 @@ subsystem: guard-layer
 location: tests/platform-lock-check-fixtures.sh
 tags: []
 purpose: platform-lock-check-fixtures.sh (T-2693)
-depends_on: []
+depends_on:
+- target: scripts/check-platform-lock.sh
+  type: calls
 depended_by: []
 last_verified: 2026-08-14
 created_by: unknown

@@ -9,7 +9,15 @@ depends_on: []
 depended_by:
 - target: runme.sh
   type: called_by
+- target: tests/cron-drift-firing-fixtures.sh
+  type: calls
+- target: tests/cron-install-drift-fixtures.sh
+  type: calls
+- target: tests/cron-drift-firing-fixtures.sh
+  type: called_by
+- target: tests/cron-install-drift-fixtures.sh
+  type: called_by
 last_verified: 2026-08-14
 created_by: unknown
-last_enriched: '2026-09-25'
+last_enriched: '2026-10-18'
 purpose_source: header-comment

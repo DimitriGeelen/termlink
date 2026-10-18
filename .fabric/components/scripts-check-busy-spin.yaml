@@ -4,9 +4,14 @@ type: script
 subsystem: guard-layer
 location: scripts/check-busy-spin.sh
 tags: []
-purpose: 'check-busy-spin.sh (T-2672, G-019 prevention for the T-2658/T-2636/T-2640/T-2670/T-2671'
+purpose: check-busy-spin.sh (T-2672, G-019 prevention for the T-2658/T-2636/T-2640/T-2670/T-2671
 depends_on: []
-depended_by: []
+depended_by:
+- target: tests/busy-spin-check-fixtures.sh
+  type: calls
+- target: tests/busy-spin-check-fixtures.sh
+  type: called_by
 last_verified: 2026-08-14
 created_by: unknown
 purpose_source: header-comment
+last_enriched: '2026-10-18'

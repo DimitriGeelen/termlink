@@ -7,10 +7,10 @@ tags:
 - workflow-step
 - aef-dispatch-loop
 - designer
-purpose: Workflow step (aef:uid dl_resolve, node agt_2_fw, serviceTask) — fw resolver dispatch — match workflow, assemble
-  envelope, telemetry to dispatches.jsonl
+purpose: Workflow step (aef:uid dl_resolve, node agt_2_fw, serviceTask) — fw resolver dispatch — match workflow, assemble envelope, telemetry to dispatches.jsonl
 workflow: aef-dispatch-loop
 aef_uid: dl_resolve
 bpmn_node_id: agt_2_fw
 created_by: T-2839
 last_verified: '2026-08-27'
+standalone: true

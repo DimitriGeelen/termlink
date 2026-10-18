@@ -4,13 +4,17 @@ type: script
 subsystem: guard-layer
 location: scripts/check-preflight-doc-set-drift.sh
 tags: []
-purpose: 'T-2188 — /preflight check-count drift canary.'
+purpose: T-2188 — /preflight check-count drift canary.
 depends_on:
 - target: scripts/substrate-preflight.sh
   type: calls
 depended_by:
 - target: tests/preflight-doc-set-drift-fixtures.sh
   type: called_by
+- target: .context/cron/preflight-doc-set-drift-canary.crontab
+  type: triggers
+- target: .context/cron/preflight-doc-set-drift-canary.crontab
+  type: triggers_by
 last_verified: 2026-08-14
 created_by: unknown
 last_enriched: '2026-10-18'

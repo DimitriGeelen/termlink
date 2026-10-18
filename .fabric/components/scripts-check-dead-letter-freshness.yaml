@@ -6,7 +6,12 @@ location: scripts/check-dead-letter-freshness.sh
 tags: []
 purpose: T-2558 (T-2468 antifragility lens) — dead-letter canary.
 depends_on: []
-depended_by: []
+depended_by:
+- target: .context/cron/dead-letter-canary.crontab
+  type: triggers
+- target: .context/cron/dead-letter-canary.crontab
+  type: triggers_by
 last_verified: 2026-08-14
 created_by: unknown
 purpose_source: header-comment
+last_enriched: '2026-10-18'

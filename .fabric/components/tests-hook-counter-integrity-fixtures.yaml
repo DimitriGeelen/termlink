@@ -5,7 +5,9 @@ subsystem: guard-layer
 location: tests/hook-counter-integrity-fixtures.sh
 tags: []
 purpose: hook-counter-integrity-fixtures.sh (T-2795)
-depends_on: []
+depends_on:
+- target: .context/cron/hook-counter-integrity-canary.crontab
+  type: reads
 depended_by: []
 last_verified: 2026-08-18
 created_by: unknown

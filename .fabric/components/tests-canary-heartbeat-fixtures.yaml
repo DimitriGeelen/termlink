@@ -5,7 +5,9 @@ subsystem: guard-layer
 location: tests/canary-heartbeat-fixtures.sh
 tags: []
 purpose: T-2691 — fixture tests for canary heartbeat COMPLETION semantics.
-depends_on: []
+depends_on:
+- target: scripts/check-forever-archival-freshness.sh
+  type: calls
 depended_by: []
 last_verified: 2026-09-25
 created_by: unknown

@@ -4,9 +4,14 @@ type: script
 subsystem: guard-layer
 location: scripts/check-arc-claim-drift.sh
 tags: []
-purpose: 'T-3066 — a closed arc asserts a capability. Is anything still checking it?'
+purpose: T-3066 — a closed arc asserts a capability. Is anything still checking it?
 depends_on: []
-depended_by: []
+depended_by:
+- target: .context/cron/arc-claim-drift-canary.crontab
+  type: triggers
+- target: .context/cron/arc-claim-drift-canary.crontab
+  type: triggers_by
 last_verified: 2026-09-25
 created_by: unknown
 purpose_source: header-comment
+last_enriched: '2026-10-18'

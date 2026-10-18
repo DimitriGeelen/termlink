@@ -4,10 +4,11 @@ type: script
 subsystem: guard-layer
 location: tests/arc011-inventory-check-fixtures.sh
 tags: []
-purpose: 'arc011-inventory-check-fixtures.sh (T-3397) Hermetic proof for scripts/check-arc011-inventory.sh: scratch doc +
-  inventory, no repo state. Includes the real-tree control and a mutant (cap test removed).'
+purpose: 'arc011-inventory-check-fixtures.sh (T-3397) Hermetic proof for scripts/check-arc011-inventory.sh: scratch doc + inventory, no repo state. Includes the real-tree control and a mutant (cap test removed).'
 purpose_source: header-comment
-depends_on: []
+depends_on:
+- target: scripts/check-arc011-inventory.sh
+  type: calls
 depended_by: []
 last_verified: 2026-10-17
 created_by: unknown
