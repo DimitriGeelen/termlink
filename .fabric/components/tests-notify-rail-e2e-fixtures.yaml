@@ -1,20 +1,12 @@
 id: tests/notify-rail-e2e-fixtures.sh
 name: notify-rail-e2e-fixtures
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: tests/notify-rail-e2e-fixtures.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: 'T-3061 — fixtures for scripts/notify-rail-e2e.sh (the two-party notify-rail prover).'
+depends_on: []
+depended_by: []
 last_verified: 2026-09-25
 created_by: unknown
+purpose_source: header-comment

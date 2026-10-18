@@ -1,20 +1,13 @@
 id: scripts/dispatch-t909-risk-eval.sh
 name: dispatch-t909-risk-eval
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/dispatch-t909-risk-eval.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: dispatch-t909-risk-eval.sh — Fires 3 termlink workers in parallel to evaluate the symlink fix proposed in T-909 from
+  different risk angles.
+depends_on: []
+depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
+purpose_source: header-comment

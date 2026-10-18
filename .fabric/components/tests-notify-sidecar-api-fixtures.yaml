@@ -1,20 +1,12 @@
 id: tests/notify-sidecar-api-fixtures.sh
 name: notify-sidecar-api-fixtures
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: tests/notify-sidecar-api-fixtures.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: T-3135 — fixtures for notify-sidecar-api.sh + the supervisor's portable respawn core.
+depends_on: []
+depended_by: []
 last_verified: 2026-09-28
 created_by: unknown
+purpose_source: header-comment

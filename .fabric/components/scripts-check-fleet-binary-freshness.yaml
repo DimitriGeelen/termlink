@@ -1,7 +1,7 @@
 id: scripts/check-fleet-binary-freshness.sh
 name: check-fleet-binary-freshness
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: scripts/check-fleet-binary-freshness.sh
 tags: []
 purpose: T-2359 — Fleet binary-freshness canary (G-069 prevention).

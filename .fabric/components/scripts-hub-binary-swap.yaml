@@ -1,10 +1,10 @@
 id: scripts/hub-binary-swap.sh
 name: hub-binary-swap
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/hub-binary-swap.sh
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: 'T-1438: Operator-side helper to safely swap a staged termlink binary into place on a remote hub.'
 depends_on: []
 depended_by:
 - target: tests/test_t1640_pgrep_self_match.sh
@@ -12,3 +12,4 @@ depended_by:
 last_verified: 2026-08-14
 created_by: unknown
 last_enriched: '2026-09-25'
+purpose_source: header-comment

@@ -1,7 +1,7 @@
 id: crates/termlink-sidecar/src/cli.rs
 name: cli
 type: script
-subsystem: unknown
+subsystem: sidecar
 location: crates/termlink-sidecar/src/cli.rs
 tags: []
 purpose: 'TODO: describe what this component does'

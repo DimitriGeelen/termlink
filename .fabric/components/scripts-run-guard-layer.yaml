@@ -1,7 +1,7 @@
 id: scripts/run-guard-layer.sh
 name: run-guard-layer
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/run-guard-layer.sh
 tags: []
 purpose: T-2684 (T-2683 F1/G1) — single entry point for the source-level guard layer.

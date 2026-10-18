@@ -1,20 +1,12 @@
 id: scripts/demo-ws-reprobe-recovery.sh
 name: demo-ws-reprobe-recovery
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/demo-ws-reprobe-recovery.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: T-2341 / arc-004 push-transport — WS re-probe recovery demo evidence (proves T-2340).
+depends_on: []
+depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
+purpose_source: header-comment

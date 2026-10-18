@@ -1,7 +1,7 @@
 id: scripts/commit-pending.sh
 name: commit-pending
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/commit-pending.sh
 tags: []
 purpose: 'commit-pending.sh — T-3269: the "pending commit" manifest (SQ-22 option C).'

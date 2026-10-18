@@ -1,21 +1,14 @@
 id: tests/test_g052_inception_decision_gate.sh
 name: test_g052_inception_decision_gate
 type: script
-subsystem: unknown
+subsystem: tests
 location: tests/test_g052_inception_decision_gate.sh
 tags: []
 standalone: true
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: 'T-1626 / G-052 — regression test for the inception-decision completion gate. 1. update-task.sh BLOCKS work-completed
+  for an inception task with no `**Decision**: (GO|NO-GO|DEFER)` line in the body — exit 1, helpful G-052 message printed.'
+depends_on: []
+depended_by: []
 last_verified: 2026-05-06
 created_by: unknown
+purpose_source: header-comment

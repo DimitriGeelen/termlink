@@ -1,7 +1,7 @@
 id: tests/verification-heading-shadow-fixtures.sh
 name: verification-heading-shadow-fixtures
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: tests/verification-heading-shadow-fixtures.sh
 tags: []
 purpose: 'Fixture suite for check-verification-heading-shadow.sh (T-2877): 39 assertions weighted to the firing cases and

@@ -1,20 +1,12 @@
 id: scripts/check-arc-claim-drift.sh
 name: check-arc-claim-drift
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: scripts/check-arc-claim-drift.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: 'T-3066 — a closed arc asserts a capability. Is anything still checking it?'
+depends_on: []
+depended_by: []
 last_verified: 2026-09-25
 created_by: unknown
+purpose_source: header-comment

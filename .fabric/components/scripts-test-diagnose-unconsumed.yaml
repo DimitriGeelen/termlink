@@ -1,20 +1,12 @@
 id: scripts/test-diagnose-unconsumed.sh
 name: test-diagnose-unconsumed
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/test-diagnose-unconsumed.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: 'test-diagnose-unconsumed.sh (T-2479) -- host-independent unit tests for the'
+depends_on: []
+depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
+purpose_source: header-comment

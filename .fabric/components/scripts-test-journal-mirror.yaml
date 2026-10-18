@@ -1,10 +1,10 @@
 id: scripts/test-journal-mirror.sh
 name: test-journal-mirror
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/test-journal-mirror.sh
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: T-2298 (arc-003 reliable-comms, V6 slice S1) — tests for the per-conversation journal mirror + query verb.
 depends_on:
 - target: scripts/lib/reap-topic.sh
   type: calls
@@ -12,3 +12,4 @@ depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
 last_enriched: '2026-09-25'
+purpose_source: header-comment

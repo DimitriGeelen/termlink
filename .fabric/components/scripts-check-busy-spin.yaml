@@ -1,20 +1,12 @@
 id: scripts/check-busy-spin.sh
 name: check-busy-spin
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: scripts/check-busy-spin.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: 'check-busy-spin.sh (T-2672, G-019 prevention for the T-2658/T-2636/T-2640/T-2670/T-2671'
+depends_on: []
+depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
+purpose_source: header-comment

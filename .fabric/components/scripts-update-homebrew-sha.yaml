@@ -1,20 +1,12 @@
 id: scripts/update-homebrew-sha.sh
 name: update-homebrew-sha
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/update-homebrew-sha.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: 'Update SHA256 hashes in Homebrew formula from GitHub release checksums Usage: ./scripts/update-homebrew-sha.sh v0.1.0'
+depends_on: []
+depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
+purpose_source: header-comment

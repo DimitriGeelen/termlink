@@ -1,20 +1,12 @@
 id: scripts/check-error-code-emission.sh
 name: check-error-code-emission
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: scripts/check-error-code-emission.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: 'check-error-code-emission.sh (T-2699, T-2698 G1)'
+depends_on: []
+depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
+purpose_source: header-comment

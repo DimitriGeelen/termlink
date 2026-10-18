@@ -1,21 +1,12 @@
 id: tests/vector-index-reader-no-rebuild-fixtures.sh
 name: vector-index-reader-no-rebuild-fixtures
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: tests/vector-index-reader-no-rebuild-fixtures.sh
 tags: []
-
-purpose: "guard-layer: source"
+purpose: 'T-3337 — a vector-index READER must never rebuild (and so never delete) the index.'
 purpose_source: header-comment
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+depends_on: []
+depended_by: []
 last_verified: 2026-10-17
 created_by: unknown

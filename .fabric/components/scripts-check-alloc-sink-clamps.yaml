@@ -1,20 +1,12 @@
 id: scripts/check-alloc-sink-clamps.sh
 name: check-alloc-sink-clamps
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: scripts/check-alloc-sink-clamps.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: 'check-alloc-sink-clamps.sh (T-2527, G-019 prevention for the T-2523/T-2526 class)'
+depends_on: []
+depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
+purpose_source: header-comment

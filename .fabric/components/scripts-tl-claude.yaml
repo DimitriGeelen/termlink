@@ -1,7 +1,7 @@
 id: scripts/tl-claude.sh
 name: tl-claude
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/tl-claude.sh
 tags: []
 purpose: tl-claude.sh — Launch Claude Code inside a TermLink session

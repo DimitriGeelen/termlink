@@ -1,20 +1,12 @@
 id: scripts/archive-governance-artifacts.sh
 name: archive-governance-artifacts
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/archive-governance-artifacts.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: archive-governance-artifacts.sh — T-2998 (value-review C-25).
+depends_on: []
+depended_by: []
 last_verified: 2026-09-25
 created_by: unknown
+purpose_source: header-comment

@@ -1,20 +1,12 @@
 id: scripts/notify-wake-consumer.sh
 name: notify-wake-consumer
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/notify-wake-consumer.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: T-3061 — the missing consumer for the deterministic notify rail.
+depends_on: []
+depended_by: []
 last_verified: 2026-09-25
 created_by: unknown
+purpose_source: header-comment

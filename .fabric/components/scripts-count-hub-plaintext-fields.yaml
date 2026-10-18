@@ -1,10 +1,10 @@
 id: scripts/count-hub-plaintext-fields.sh
 name: count-hub-plaintext-fields
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/count-hub-plaintext-fields.sh
 tags: []
-purpose: 'guard-layer: source --no-heartbeat count-hub-plaintext-fields.sh (T-3427, arc-011 FX-5 "disclosure does not grow")'
+purpose: 'count-hub-plaintext-fields.sh (T-3427, arc-011 FX-5 "disclosure does not grow")'
 purpose_source: header-comment
 depends_on:
 - target: scripts/agent-send.sh

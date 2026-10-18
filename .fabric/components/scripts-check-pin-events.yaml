@@ -1,7 +1,7 @@
 id: scripts/check-pin-events.sh
 name: check-pin-events
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: scripts/check-pin-events.sh
 tags: []
 purpose: T-3384 — TOFU pin-event check (RR-18 interim control, operator ruling OQ-8 D″).

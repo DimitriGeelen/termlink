@@ -1,20 +1,12 @@
 id: tests/stranded-finalized-check-fixtures.sh
 name: stranded-finalized-check-fixtures
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: tests/stranded-finalized-check-fixtures.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: tests/stranded-finalized-check-fixtures.sh (T-2833)
+depends_on: []
+depended_by: []
 last_verified: 2026-08-23
 created_by: unknown
+purpose_source: header-comment

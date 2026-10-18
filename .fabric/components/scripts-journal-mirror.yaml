@@ -1,7 +1,7 @@
 id: scripts/journal-mirror.sh
 name: journal-mirror
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/journal-mirror.sh
 tags: []
 purpose: T-2298 (arc-003 reliable-comms, V6 slice S1) — per-conversation journal mirror.

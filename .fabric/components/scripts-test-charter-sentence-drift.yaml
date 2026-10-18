@@ -1,20 +1,12 @@
 id: scripts/test-charter-sentence-drift.sh
 name: test-charter-sentence-drift
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/test-charter-sentence-drift.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: test-charter-sentence-drift.sh (T-2484) -- host-independent unit tests for the charter canonical-sentence sync canary.
+depends_on: []
+depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
+purpose_source: header-comment

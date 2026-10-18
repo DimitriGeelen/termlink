@@ -1,21 +1,12 @@
 id: scripts/lib/arc011-acceptance-report.py
 name: arc011-acceptance-report
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/lib/arc011-acceptance-report.py
 tags: []
-
-purpose: "Renders docs/reports/arc011-ph1-acceptance.md from the B14 evidence, strace X4 audit and floor probes (T-3417)"
+purpose: Renders docs/reports/arc011-ph1-acceptance.md from the B14 evidence, strace X4 audit and floor probes (T-3417)
 purpose_source: docstring
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+depends_on: []
+depended_by: []
 last_verified: 2026-10-12
 created_by: unknown

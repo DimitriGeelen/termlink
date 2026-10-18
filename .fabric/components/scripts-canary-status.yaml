@@ -1,7 +1,7 @@
 id: scripts/canary-status.sh
 name: canary-status
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/canary-status.sh
 tags: []
 purpose: 'T-2172 — canary-status: unified cron-canary visibility scanner.'

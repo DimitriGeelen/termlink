@@ -1,7 +1,7 @@
 id: crates/termlink-sidecar/src/hook.rs
 name: hook
 type: script
-subsystem: unknown
+subsystem: sidecar
 location: crates/termlink-sidecar/src/hook.rs
 tags: []
 purpose: 'TODO: describe what this component does'

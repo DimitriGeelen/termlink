@@ -1,7 +1,7 @@
 id: crates/termlink-sidecar/tests/production_mode.rs
 name: production_mode
 type: script
-subsystem: unknown
+subsystem: sidecar
 location: crates/termlink-sidecar/tests/production_mode.rs
 tags: []
 purpose: 'TODO: describe what this component does'

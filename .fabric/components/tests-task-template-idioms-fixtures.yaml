@@ -1,20 +1,12 @@
 id: tests/task-template-idioms-fixtures.sh
 name: task-template-idioms-fixtures
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: tests/task-template-idioms-fixtures.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: task-template-idioms-fixtures.sh (T-2777)
+depends_on: []
+depended_by: []
 last_verified: 2026-08-18
 created_by: unknown
+purpose_source: header-comment

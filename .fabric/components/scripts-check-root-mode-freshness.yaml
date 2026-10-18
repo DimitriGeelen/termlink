@@ -1,21 +1,12 @@
 id: scripts/check-root-mode-freshness.sh
 name: check-root-mode-freshness
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: scripts/check-root-mode-freshness.sh
 tags: []
-
-purpose: "T-3425 — Root-directory mode canary (boot + hourly)."
+purpose: T-3425 — Root-directory mode canary (boot + hourly).
 purpose_source: header-comment
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+depends_on: []
+depended_by: []
 last_verified: 2026-10-12
 created_by: unknown

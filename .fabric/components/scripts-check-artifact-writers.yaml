@@ -1,21 +1,12 @@
 id: scripts/check-artifact-writers.sh
 name: check-artifact-writers
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: scripts/check-artifact-writers.sh
 tags: []
-
-purpose: "guard-layer: source --no-heartbeat check-artifact-writers.sh — who may write to the hub's artifact store (T-3432, arc-011 FX-5 ruling C′)"
+purpose: 'check-artifact-writers.sh — who may write to the hub''s artifact store (T-3432, arc-011 FX-5 ruling C′)'
 purpose_source: header-comment
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+depends_on: []
+depended_by: []
 last_verified: 2026-10-17
 created_by: unknown

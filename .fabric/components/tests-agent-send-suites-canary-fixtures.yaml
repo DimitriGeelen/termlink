@@ -1,10 +1,10 @@
 id: tests/agent-send-suites-canary-fixtures.sh
 name: agent-send-suites-canary-fixtures
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: tests/agent-send-suites-canary-fixtures.sh
 tags: []
-purpose: 'guard-layer: source'
+purpose: 'T-3334 — fixtures for scripts/check-agent-send-suites-freshness.sh. Hermetic: stub'
 purpose_source: header-comment
 depends_on:
 - target: scripts/check-agent-send-suites-freshness.sh

@@ -1,20 +1,13 @@
 id: tests/commit-pending-fixtures.sh
 name: commit-pending-fixtures
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: tests/commit-pending-fixtures.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: T-3269 — fixtures for scripts/commit-pending.sh (the SQ-22 option C pending-commit manifest) and its wiring into
+  /resume, the handover path and the procAsFit prompt.
+depends_on: []
+depended_by: []
 last_verified: 2026-10-01
 created_by: unknown
+purpose_source: header-comment

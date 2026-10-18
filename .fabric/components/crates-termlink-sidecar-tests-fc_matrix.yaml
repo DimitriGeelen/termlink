@@ -1,7 +1,7 @@
 id: crates/termlink-sidecar/tests/fc_matrix.rs
 name: fc_matrix
 type: script
-subsystem: unknown
+subsystem: sidecar
 location: crates/termlink-sidecar/tests/fc_matrix.rs
 tags: []
 purpose: 'TODO: describe what this component does'

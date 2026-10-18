@@ -1,7 +1,7 @@
 id: scripts/chat-arc-broadcast.sh
 name: chat-arc-broadcast
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/chat-arc-broadcast.sh
 tags: []
 purpose: T-1856 — Cross-hub broadcast helper for agent-chat-arc.

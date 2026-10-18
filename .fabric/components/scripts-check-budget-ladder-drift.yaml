@@ -1,20 +1,13 @@
 id: scripts/check-budget-ladder-drift.sh
 name: check-budget-ladder-drift
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: scripts/check-budget-ladder-drift.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: 'check-budget-ladder-drift.sh — does the DOCUMENTED context-budget ladder match the LIVE gate? guard-layer: source
+  warn --no-heartbeat # can go red from a re-vendor with nothing fixable locally (vendored text, G-062)'
+depends_on: []
+depended_by: []
 last_verified: 2026-09-20
 created_by: unknown
+purpose_source: header-comment

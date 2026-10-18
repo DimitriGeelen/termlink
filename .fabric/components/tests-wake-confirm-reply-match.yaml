@@ -1,10 +1,10 @@
 id: tests/wake-confirm-reply-match.sh
 name: wake-confirm-reply-match
 type: script
-subsystem: unknown
+subsystem: tests
 location: tests/wake-confirm-reply-match.sh
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: 'tests/wake-confirm-reply-match.sh (T-2412) — hermetic test for the broadened'
 depends_on:
 - target: scripts/wake-confirm.sh
   type: calls
@@ -14,3 +14,4 @@ depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
 last_enriched: '2026-09-25'
+purpose_source: header-comment

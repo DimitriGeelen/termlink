@@ -1,10 +1,10 @@
 id: tests/stale-sidecar-code-fixtures.sh
 name: stale-sidecar-code-fixtures
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: tests/stale-sidecar-code-fixtures.sh
 tags: []
-purpose: 'guard-layer: source'
+purpose: 'T-3205 — fixtures for the stale-sidecar-code detector.'
 depends_on:
 - target: scripts/check-stale-sidecar-code.sh
   type: calls

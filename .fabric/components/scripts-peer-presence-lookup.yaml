@@ -1,10 +1,10 @@
 id: scripts/peer-presence-lookup.sh
 name: peer-presence-lookup
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/peer-presence-lookup.sh
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: peer-presence-lookup.sh (T-1896)
 depends_on:
 - target: scripts/agent-listeners-fleet.sh
   type: calls
@@ -14,3 +14,4 @@ depended_by:
 last_verified: 2026-05-31
 created_by: unknown
 last_enriched: '2026-08-14'
+purpose_source: header-comment

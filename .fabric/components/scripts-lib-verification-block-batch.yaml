@@ -1,20 +1,12 @@
 id: scripts/lib/verification-block-batch.py
 name: verification-block-batch
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/lib/verification-block-batch.py
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: Batch form of the framework's `extract_verification_block` (T-3282, SQ-21 option 3).
+depends_on: []
+depended_by: []
 last_verified: 2026-10-01
 created_by: unknown
+purpose_source: docstring

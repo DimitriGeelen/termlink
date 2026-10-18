@@ -1,10 +1,11 @@
 id: tests/e2e/level4-multi-specialist.sh
 name: level4-multi-specialist
 type: script
-subsystem: unknown
+subsystem: e2e
 location: tests/e2e/level4-multi-specialist.sh
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: 'Level 4: Multi-Specialist — Parallel agents with different roles Orchestrator spawns 3 specialists in parallel:
+  - reviewer: analyzes code quality - tester: identifies test gaps'
 depends_on:
 - target: tests/e2e/setup.sh
   type: calls
@@ -12,3 +13,4 @@ depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
 last_enriched: '2026-08-14'
+purpose_source: header-comment

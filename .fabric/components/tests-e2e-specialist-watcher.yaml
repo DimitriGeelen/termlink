@@ -1,10 +1,11 @@
 id: tests/e2e/specialist-watcher.sh
 name: specialist-watcher
 type: script
-subsystem: unknown
+subsystem: e2e
 location: tests/e2e/specialist-watcher.sh
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: 'Persistent specialist watcher — polls for task.delegate events and dispatches to claude -p Usage: specialist-watcher.sh
+  <termlink-binary> <runtime-dir> <claude-binary> [session-name]'
 depends_on: []
 depended_by:
 - target: tests/e2e/level6-reflection-fleet.sh
@@ -12,3 +13,4 @@ depended_by:
 last_verified: 2026-08-14
 created_by: unknown
 last_enriched: '2026-08-14'
+purpose_source: header-comment

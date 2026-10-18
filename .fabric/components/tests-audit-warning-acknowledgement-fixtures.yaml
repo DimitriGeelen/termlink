@@ -1,20 +1,12 @@
 id: tests/audit-warning-acknowledgement-fixtures.sh
 name: audit-warning-acknowledgement-fixtures
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: tests/audit-warning-acknowledgement-fixtures.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: Fixtures for scripts/check-audit-warning-acknowledgement.sh (T-3167).
+depends_on: []
+depended_by: []
 last_verified: 2026-09-26
 created_by: unknown
+purpose_source: header-comment

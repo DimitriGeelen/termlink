@@ -1,20 +1,12 @@
 id: tests/safe-commands-write-pattern-fixtures.sh
 name: safe-commands-write-pattern-fixtures
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: tests/safe-commands-write-pattern-fixtures.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: tests/safe-commands-write-pattern-fixtures.sh — T-3178
+depends_on: []
+depended_by: []
 last_verified: 2026-09-27
 created_by: unknown
+purpose_source: header-comment

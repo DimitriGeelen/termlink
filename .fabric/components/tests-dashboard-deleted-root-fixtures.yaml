@@ -1,20 +1,12 @@
 id: tests/dashboard-deleted-root-fixtures.sh
 name: dashboard-deleted-root-fixtures
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: tests/dashboard-deleted-root-fixtures.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: 'dashboard-deleted-root-fixtures.sh (T-2848)'
+depends_on: []
+depended_by: []
 last_verified: 2026-08-28
 created_by: unknown
+purpose_source: header-comment

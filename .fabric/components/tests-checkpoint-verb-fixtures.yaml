@@ -1,21 +1,12 @@
 id: tests/checkpoint-verb-fixtures.sh
 name: checkpoint-verb-fixtures
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: tests/checkpoint-verb-fixtures.sh
 tags: []
-
-purpose: "Fixtures for T-3316: checkpoint.sh verb surface."
+purpose: 'Fixtures for T-3316: checkpoint.sh verb surface.'
 purpose_source: header-comment
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+depends_on: []
+depended_by: []
 last_verified: 2026-10-17
 created_by: unknown

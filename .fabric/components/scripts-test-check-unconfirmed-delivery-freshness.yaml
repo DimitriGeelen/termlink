@@ -1,20 +1,13 @@
 id: scripts/test-check-unconfirmed-delivery-freshness.sh
 name: test-check-unconfirmed-delivery-freshness
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/test-check-unconfirmed-delivery-freshness.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: T-2295 (arc-003 reliable-comms, V3b) — tests for the unconfirmed-delivery canary. Hub-independent via TERMLINK_UNCONFIRMED_TEST_JSON
+  (mirrors TERMLINK_GROWTH_TEST_JSON).
+depends_on: []
+depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
+purpose_source: header-comment

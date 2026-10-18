@@ -1,20 +1,12 @@
 id: scripts/check-decisions-register.sh
 name: check-decisions-register
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: scripts/check-decisions-register.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: 'T-2969 — local detector for .context/project/decisions.yaml corruption.'
+depends_on: []
+depended_by: []
 last_verified: 2026-09-25
 created_by: unknown
+purpose_source: header-comment

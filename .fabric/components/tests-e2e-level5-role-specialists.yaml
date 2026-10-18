@@ -1,10 +1,11 @@
 id: tests/e2e/level5-role-specialists.sh
 name: level5-role-specialists
 type: script
-subsystem: unknown
+subsystem: e2e
 location: tests/e2e/level5-role-specialists.sh
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: 'Level 5: Role-Specific Specialists — Domain experts with tailored prompts Orchestrator spawns 3 role-aware specialists,
+  each with: - Domain-specific system prompt (from role-prompts/*.md) - Role-appropriate tool permissions (reviewer: Read…'
 depends_on:
 - target: tests/e2e/setup.sh
   type: calls
@@ -12,3 +13,4 @@ depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
 last_enriched: '2026-08-14'
+purpose_source: header-comment

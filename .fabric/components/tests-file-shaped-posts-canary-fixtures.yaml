@@ -1,21 +1,13 @@
 id: tests/file-shaped-posts-canary-fixtures.sh
 name: file-shaped-posts-canary-fixtures
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: tests/file-shaped-posts-canary-fixtures.sh
 tags: []
-
-purpose: "Fixtures for scripts/check-file-shaped-posts.sh (T-3432, FX-5 ruling C). Canned hub output via FILE_SHAPED_TEST_DIR; never reads a hub."
+purpose: Fixtures for scripts/check-file-shaped-posts.sh (T-3432, FX-5 ruling C). Canned hub output via FILE_SHAPED_TEST_DIR;
+  never reads a hub.
 purpose_source: header-comment
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+depends_on: []
+depended_by: []
 last_verified: 2026-10-17
 created_by: unknown

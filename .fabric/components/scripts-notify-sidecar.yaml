@@ -1,7 +1,7 @@
 id: scripts/notify-sidecar.sh
 name: notify-sidecar
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/notify-sidecar.sh
 tags: []
 purpose: T-2294 (arc-003 reliable-comms, V3a) — deterministic notify sidecar.

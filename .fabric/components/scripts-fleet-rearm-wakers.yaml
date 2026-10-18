@@ -1,20 +1,12 @@
 id: scripts/fleet-rearm-wakers.sh
 name: fleet-rearm-wakers
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/fleet-rearm-wakers.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: fleet-rearm-wakers.sh (T-2404) — roll new push-waker code onto RUNNING agents WITHOUT relaunching their claude REPL.
+depends_on: []
+depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
+purpose_source: header-comment

@@ -1,10 +1,10 @@
 id: scripts/check-approval-surfaces.sh
 name: check-approval-surfaces
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: scripts/check-approval-surfaces.sh
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: check-approval-surfaces.sh — every pending operator action, on BOTH surfaces.
 depends_on: []
 depended_by:
 - target: workflow/aef-task-lifecycle/tl_human_review
@@ -22,3 +22,4 @@ depended_by:
 last_verified: 2026-08-26
 created_by: unknown
 last_enriched: '2026-09-25'
+purpose_source: header-comment

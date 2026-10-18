@@ -1,7 +1,7 @@
 id: crates/termlink-sidecar/tests/soak.rs
 name: soak
 type: script
-subsystem: unknown
+subsystem: sidecar
 location: crates/termlink-sidecar/tests/soak.rs
 tags: []
 purpose: 'TODO: describe what this component does'

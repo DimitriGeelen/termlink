@@ -1,7 +1,7 @@
 id: scripts/lib/hub-runtime-dir.sh
 name: hub-runtime-dir
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/lib/hub-runtime-dir.sh
 tags: []
 purpose: T-3437 — the runtime dir a RUNNING hub actually uses, resolved from the hub's own environment exactly as the binary

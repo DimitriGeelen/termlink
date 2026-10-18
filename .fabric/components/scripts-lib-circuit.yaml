@@ -1,7 +1,7 @@
 id: scripts/lib/circuit.py
 name: circuit
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/lib/circuit.py
 tags: []
 purpose: T-3325 — five-level circuit addressing for the notify sidecar.

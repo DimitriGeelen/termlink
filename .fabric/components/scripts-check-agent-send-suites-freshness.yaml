@@ -1,7 +1,7 @@
 id: scripts/check-agent-send-suites-freshness.sh
 name: check-agent-send-suites-freshness
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: scripts/check-agent-send-suites-freshness.sh
 tags: []
 purpose: T-3334 — daily run of the live-hub agent-send test suites.

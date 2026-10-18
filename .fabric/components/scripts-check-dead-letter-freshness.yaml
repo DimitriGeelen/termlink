@@ -1,20 +1,12 @@
 id: scripts/check-dead-letter-freshness.sh
 name: check-dead-letter-freshness
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: scripts/check-dead-letter-freshness.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: T-2558 (T-2468 antifragility lens) — dead-letter canary.
+depends_on: []
+depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
+purpose_source: header-comment

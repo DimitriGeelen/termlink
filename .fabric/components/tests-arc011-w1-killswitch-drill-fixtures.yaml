@@ -1,21 +1,13 @@
 id: tests/arc011-w1-killswitch-drill-fixtures.sh
 name: arc011-w1-killswitch-drill-fixtures
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: tests/arc011-w1-killswitch-drill-fixtures.sh
 tags: []
-
-purpose: "Fixtures for scripts/arc011-w1-killswitch-drill.sh (T-3426 W1). Fake sidecar sockets, fake kill switch, fake systemd: never touches a real sidecar, socket or process."
+purpose: 'Fixtures for scripts/arc011-w1-killswitch-drill.sh (T-3426 W1). Fake sidecar sockets, fake kill switch, fake systemd:
+  never touches a real sidecar, socket or process.'
 purpose_source: header-comment
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+depends_on: []
+depended_by: []
 last_verified: 2026-10-17
 created_by: unknown

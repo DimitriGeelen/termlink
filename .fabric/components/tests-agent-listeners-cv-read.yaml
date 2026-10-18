@@ -1,20 +1,13 @@
 id: tests/agent-listeners-cv-read.sh
 name: agent-listeners-cv-read
 type: script
-subsystem: unknown
+subsystem: tests
 location: tests/agent-listeners-cv-read.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: 'T-2390: verify agent-listeners.sh reads presence via the cv_index (`channel subscribe --include-current-value`)
+  rather than the T-1844 count-based seek-to-tail, which is blind to live heartbeats under `latest_per_cv_key` retention (count…'
+depends_on: []
+depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
+purpose_source: header-comment

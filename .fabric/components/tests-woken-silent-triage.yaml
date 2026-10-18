@@ -1,10 +1,11 @@
 id: tests/woken-silent-triage.sh
 name: woken-silent-triage
 type: script
-subsystem: unknown
+subsystem: tests
 location: tests/woken-silent-triage.sh
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: tests/woken-silent-triage.sh (T-2416) — hermetic test for the woken-but-silent re-verify-and-clear triage (G-085
+  prevention).
 depends_on:
 - target: scripts/wake-confirm.sh
   type: calls
@@ -12,3 +13,4 @@ depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
 last_enriched: '2026-09-25'
+purpose_source: header-comment

@@ -1,20 +1,12 @@
 id: tests/agent-send-grace-window.sh
 name: agent-send-grace-window
 type: script
-subsystem: unknown
+subsystem: tests
 location: tests/agent-send-grace-window.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: tests/agent-send-grace-window.sh (T-2414) — pins the doorbell confirmation window against MEASURED peer latency.
+depends_on: []
+depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
+purpose_source: header-comment

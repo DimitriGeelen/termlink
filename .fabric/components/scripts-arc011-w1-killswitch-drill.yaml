@@ -1,7 +1,7 @@
 id: scripts/arc011-w1-killswitch-drill.sh
 name: arc011-w1-killswitch-drill
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/arc011-w1-killswitch-drill.sh
 tags: []
 purpose: arc011-w1-killswitch-drill.sh — the W1 kill-switch drill on the real pair (T-3426, arc-011 PH-2 W1).

@@ -1,20 +1,12 @@
 id: tests/cron-install-drift-fixtures.sh
 name: cron-install-drift-fixtures
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: tests/cron-install-drift-fixtures.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: cron-install-drift-fixtures.sh (T-2682)
+depends_on: []
+depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
+purpose_source: header-comment

@@ -1,7 +1,7 @@
 id: scripts/agent-respond.sh
 name: agent-respond
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/agent-respond.sh
 tags: []
 purpose: 'T-1805 — pickup-and-respond ritual: the receiver''s mechanical ack (T-1800 build #2).'

@@ -1,20 +1,12 @@
 id: scripts/deploy-remote.sh
 name: deploy-remote
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/deploy-remote.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: 'T-1013: Deploy termlink binary + hub service to a remote host via SSH.'
+depends_on: []
+depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
+purpose_source: header-comment

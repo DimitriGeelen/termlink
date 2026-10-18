@@ -1,10 +1,10 @@
 id: tests/vector-index-freshness-fixtures.sh
 name: vector-index-freshness-fixtures
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: tests/vector-index-freshness-fixtures.sh
 tags: []
-purpose: 'guard-layer: source'
+purpose: 'T-3336 — fixtures for scripts/check-vector-index-freshness.sh. Hermetic: a tiny'
 purpose_source: header-comment
 depends_on:
 - target: scripts/check-vector-index-freshness.sh

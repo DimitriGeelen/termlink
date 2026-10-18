@@ -1,7 +1,7 @@
 id: runme.sh
 name: runme
 type: script
-subsystem: unknown
+subsystem: operations
 location: runme.sh
 tags: []
 purpose: runme.sh — pending operator actions for 010-termlink.

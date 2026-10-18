@@ -1,21 +1,12 @@
 id: scripts/install-heartbeat-cron.sh
 name: install-heartbeat-cron
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/install-heartbeat-cron.sh
 tags: []
 standalone: true
-
-purpose: "Installer: writes agent-chat-arc heartbeat cron entry into /etc/cron.d. Standalone — pure file emission."
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: 'Installer: writes agent-chat-arc heartbeat cron entry into /etc/cron.d. Standalone — pure file emission.'
+depends_on: []
+depended_by: []
 last_verified: 2026-05-03
 created_by: unknown

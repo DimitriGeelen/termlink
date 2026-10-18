@@ -1,20 +1,12 @@
 id: scripts/lib/composer-state.py
 name: composer-state
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/lib/composer-state.py
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: T-3079 — is the Claude Code composer EMPTY? Decided from a RAW PTY tail.
+depends_on: []
+depended_by: []
 last_verified: 2026-09-25
 created_by: unknown
+purpose_source: docstring

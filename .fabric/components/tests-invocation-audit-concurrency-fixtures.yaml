@@ -1,20 +1,12 @@
 id: tests/invocation-audit-concurrency-fixtures.sh
 name: invocation-audit-concurrency-fixtures
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: tests/invocation-audit-concurrency-fixtures.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: 'T-2996: prove the property the invocation-audit sink DEPENDS ON, across real'
+depends_on: []
+depended_by: []
 last_verified: 2026-09-20
 created_by: unknown
+purpose_source: header-comment

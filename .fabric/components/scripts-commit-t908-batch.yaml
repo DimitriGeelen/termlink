@@ -1,20 +1,12 @@
 id: scripts/commit-t908-batch.sh
 name: commit-t908-batch
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/commit-t908-batch.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: commit-t908-batch.sh — commits the T-908 research artifact with tier0 approval dance
+depends_on: []
+depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
+purpose_source: header-comment

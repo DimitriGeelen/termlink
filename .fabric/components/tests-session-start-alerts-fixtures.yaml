@@ -1,10 +1,10 @@
 id: tests/session-start-alerts-fixtures.sh
 name: session-start-alerts-fixtures
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: tests/session-start-alerts-fixtures.sh
 tags: []
-purpose: 'guard-layer: source'
+purpose: 'T-3327 — fixtures for scripts/session-start-alerts.sh: firing canaries and peer mail'
 purpose_source: header-comment
 depends_on:
 - target: scripts/session-start-alerts.sh

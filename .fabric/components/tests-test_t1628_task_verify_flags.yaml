@@ -1,21 +1,13 @@
 id: tests/test_t1628_task_verify_flags.sh
 name: test_t1628_task_verify_flags
 type: script
-subsystem: unknown
+subsystem: tests
 location: tests/test_t1628_task_verify_flags.sh
 tags: []
 standalone: true
-
-purpose: "T-1628 regression test: validates fw task verify --json + --strict flag behavior. Bash-level test; no Rust source edges."
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: 'T-1628 regression test: validates fw task verify --json + --strict flag behavior. Bash-level test; no Rust source
+  edges.'
+depends_on: []
+depended_by: []
 last_verified: 2026-05-06
 created_by: unknown

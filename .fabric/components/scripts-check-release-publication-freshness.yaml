@@ -1,7 +1,7 @@
 id: scripts/check-release-publication-freshness.sh
 name: check-release-publication-freshness
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: scripts/check-release-publication-freshness.sh
 tags: []
 purpose: check-release-publication-freshness.sh — T-3243 (SQ-9 Q3, G-069 class at the release layer)

@@ -1,7 +1,7 @@
 id: scripts/arc011-w1-provision.sh
 name: arc011-w1-provision
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/arc011-w1-provision.sh
 tags: []
 purpose: 'T-3438 — arc-011 PH-2 wave W1: provision and start the W1 pair''s sidecars (operator rulings P7-1 pair, P7-2 key

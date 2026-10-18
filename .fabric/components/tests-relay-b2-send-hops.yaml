@@ -1,10 +1,10 @@
 id: tests/relay-b2-send-hops.sh
 name: relay-b2-send-hops
 type: script
-subsystem: unknown
+subsystem: tests
 location: tests/relay-b2-send-hops.sh
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: 'T-2395 (relay-loop B2/B3): verify agent-send.sh threads the relay_hops counter'
 depends_on:
 - target: scripts/agent-send.sh
   type: calls
@@ -12,3 +12,4 @@ depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
 last_enriched: '2026-09-25'
+purpose_source: header-comment

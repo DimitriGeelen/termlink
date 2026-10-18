@@ -1,10 +1,11 @@
 id: scripts/orchestrator-backlog-drain.sh
 name: orchestrator-backlog-drain
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/orchestrator-backlog-drain.sh
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: 'T-2204 (T-2018 §6 arc-parallel-substrate): first in-tree consumer of the substrate primitives shipped over the last
+  several sessions.'
 depends_on:
 - target: scripts/agent-send.sh
   type: calls
@@ -12,3 +13,4 @@ depended_by: []
 last_verified: 2026-06-13
 created_by: unknown
 last_enriched: '2026-09-25'
+purpose_source: header-comment

@@ -1,10 +1,10 @@
 id: tests/substrate-preflight-single-hub-fixtures.sh
 name: substrate-preflight-single-hub-fixtures
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: tests/substrate-preflight-single-hub-fixtures.sh
 tags: []
-purpose: 'guard-layer: source'
+purpose: 'T-3340 — fixtures for substrate-preflight Check 7 (single-hub). Hermetic: candidate'
 purpose_source: header-comment
 depends_on:
 - target: scripts/substrate-preflight.sh

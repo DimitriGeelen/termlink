@@ -1,20 +1,13 @@
 id: tests/e2e/run-all.sh
 name: run-all
 type: script
-subsystem: unknown
+subsystem: e2e
 location: tests/e2e/run-all.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: 'Run All E2E Tests — discovers and runs level*.sh scripts in order Usage: ./tests/e2e/run-all.sh [--level N] [--from
+  N] [--to N]'
+depends_on: []
+depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
+purpose_source: header-comment

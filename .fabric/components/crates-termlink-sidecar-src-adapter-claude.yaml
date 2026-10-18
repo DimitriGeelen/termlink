@@ -1,7 +1,7 @@
 id: crates/termlink-sidecar/src/adapter/claude.rs
 name: claude
 type: script
-subsystem: unknown
+subsystem: sidecar
 location: crates/termlink-sidecar/src/adapter/claude.rs
 tags: []
 purpose: 'TODO: describe what this component does'

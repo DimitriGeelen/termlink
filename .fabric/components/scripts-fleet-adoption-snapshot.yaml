@@ -1,7 +1,7 @@
 id: scripts/fleet-adoption-snapshot.sh
 name: fleet-adoption-snapshot
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/fleet-adoption-snapshot.sh
 tags: []
 purpose: T-1843 — Fleet doorbell+mail adoption snapshot.

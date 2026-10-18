@@ -1,20 +1,12 @@
 id: tests/handover-staleness-check-fixtures.sh
 name: handover-staleness-check-fixtures
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: tests/handover-staleness-check-fixtures.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: T-2883 — fixtures for scripts/check-handover-staleness.sh
+depends_on: []
+depended_by: []
 last_verified: 2026-09-03
 created_by: unknown
+purpose_source: header-comment

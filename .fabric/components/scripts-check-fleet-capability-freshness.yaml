@@ -1,7 +1,7 @@
 id: scripts/check-fleet-capability-freshness.sh
 name: check-fleet-capability-freshness
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: scripts/check-fleet-capability-freshness.sh
 tags: []
 purpose: T-2415 — Fleet capability-freshness canary (G-084 prevention).

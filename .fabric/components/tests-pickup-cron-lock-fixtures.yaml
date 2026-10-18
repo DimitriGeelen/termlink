@@ -1,10 +1,12 @@
 id: tests/pickup-cron-lock-fixtures.sh
 name: pickup-cron-lock-fixtures
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: tests/pickup-cron-lock-fixtures.sh
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: pickup-cron-lock-fixtures.sh — hermetic fixtures for scripts/check-pickup-cron-lock.sh (T-2870). Weighted toward
+  the FIRING cases and the false-positive guards, per the repo rule that a register-driven check trivially green is not a
+  check.
 depends_on:
 - target: scripts/check-pickup-cron-lock.sh
   type: calls
@@ -12,3 +14,4 @@ depended_by: []
 last_verified: 2026-09-07
 created_by: unknown
 last_enriched: '2026-09-25'
+purpose_source: header-comment

@@ -92,3 +92,75 @@ subsystems:
       - agents/mesh/orchestrate.sh
       - agents/mesh/prompt-template.sh
       - agents/mesh/worker.sh
+
+  # T-3440 (2026-10-18): path routing for `fw fabric enrich --describe-only`.
+  # 500 cards sat at `subsystem: unknown` because no entry declared `paths:`.
+  # Patterns follow where files actually live; longest pattern wins, so
+  # `scripts/check-*.sh` beats `scripts/*`. Ids reuse the vocabulary cards
+  # already carry (bus, guard-layer, guard-layer-cron, e2e, distribution).
+  - id: sidecar
+    name: sidecar
+    description: "arc-011 per-agent sidecar — receives, stores and hands over peer messages"
+    root: crates/termlink-sidecar/
+    depends_on: [protocol, session]
+    paths:
+      - crates/termlink-sidecar/*
+
+  - id: bus
+    name: bus
+    description: "Channel bus — per-topic append-only logs plus the SQLite meta index"
+    root: crates/termlink-bus/
+    depends_on: []
+    paths:
+      - crates/termlink-bus/*
+
+  - id: guard-layer
+    name: guard-layer
+    description: "Source-level static checks and their hermetic fixture suites (scripts/run-guard-layer.sh)"
+    root: scripts/
+    depends_on: []
+    paths:
+      - scripts/check-*.sh
+      - tests/*fixtures*.sh
+
+  - id: guard-layer-cron
+    name: guard-layer-cron
+    description: "Canary and job crontabs installed to /etc/cron.d"
+    root: .context/cron/
+    depends_on: [guard-layer]
+    paths:
+      - .context/cron/*
+
+  - id: e2e
+    name: e2e
+    description: "End-to-end scenario scripts against live sessions and hubs"
+    root: tests/e2e/
+    depends_on: [cli, hub]
+    paths:
+      - tests/e2e/*
+
+  - id: tests
+    name: tests
+    description: "Other test and prover scripts under tests/ (not fixture suites, not e2e)"
+    root: tests/
+    depends_on: []
+    paths:
+      - tests/*
+
+  - id: operations
+    name: operations
+    description: "Operator and agent scripts: comms helpers, canaries, launchers, runme"
+    root: scripts/
+    depends_on: [cli]
+    paths:
+      - scripts/*
+      - runme.sh
+
+  - id: distribution
+    name: distribution
+    description: "Install and service files shipped to hosts"
+    root: systemd-templates/
+    depends_on: []
+    paths:
+      - systemd-templates/*
+      - install.sh

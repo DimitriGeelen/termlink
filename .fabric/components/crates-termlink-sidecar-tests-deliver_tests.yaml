@@ -1,7 +1,7 @@
 id: crates/termlink-sidecar/tests/deliver_tests.rs
 name: deliver_tests
 type: script
-subsystem: unknown
+subsystem: sidecar
 location: crates/termlink-sidecar/tests/deliver_tests.rs
 tags: []
 purpose: 'TODO: describe what this component does'

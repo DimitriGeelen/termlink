@@ -1,10 +1,10 @@
 id: tests/notify-sidecar-receipt-identity-fixtures.sh
 name: notify-sidecar-receipt-identity-fixtures
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: tests/notify-sidecar-receipt-identity-fixtures.sh
 tags: []
-purpose: 'guard-layer: source'
+purpose: 'T-3065 — fixtures for the identity the auto-confirm receipt is SIGNED with.'
 depends_on:
 - target: scripts/notify-sidecar.sh
   type: calls

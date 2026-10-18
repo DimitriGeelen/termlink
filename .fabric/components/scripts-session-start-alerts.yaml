@@ -1,7 +1,7 @@
 id: scripts/session-start-alerts.sh
 name: session-start-alerts
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/session-start-alerts.sh
 tags: []
 purpose: T-3327 — what needs attention at session start, by name.

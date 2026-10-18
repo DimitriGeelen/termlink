@@ -1,7 +1,7 @@
 id: tests/hub-runtime-dir-fixtures.sh
 name: hub-runtime-dir-fixtures
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: tests/hub-runtime-dir-fixtures.sh
 tags: []
 purpose: T-3437 — fixtures for scripts/lib/hub-runtime-dir.sh and the swap-restart runner it is embedded in.

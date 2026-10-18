@@ -1,20 +1,12 @@
 id: tests/unbounded-rpc-call-fixtures.sh
 name: unbounded-rpc-call-fixtures
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: tests/unbounded-rpc-call-fixtures.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: unbounded-rpc-call-fixtures.sh (T-2669)
+depends_on: []
+depended_by: []
 last_verified: 2026-08-28
 created_by: unknown
+purpose_source: header-comment

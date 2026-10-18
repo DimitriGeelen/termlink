@@ -1,10 +1,10 @@
 id: tests/canary-aliveness-sweep-fixtures.sh
 name: canary-aliveness-sweep-fixtures
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: tests/canary-aliveness-sweep-fixtures.sh
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: 'tests/canary-aliveness-sweep-fixtures.sh (T-2878)'
 depends_on:
 - target: scripts/check-canary-aliveness.sh
   type: calls
@@ -12,3 +12,4 @@ depended_by: []
 last_verified: 2026-09-01
 created_by: unknown
 last_enriched: '2026-09-25'
+purpose_source: header-comment

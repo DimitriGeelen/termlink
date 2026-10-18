@@ -1,20 +1,12 @@
 id: scripts/check-absence-assertion.sh
 name: check-absence-assertion
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: scripts/check-absence-assertion.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: 'check-absence-assertion.sh — a `## Verification` leg that asserts something is ABSENT'
+depends_on: []
+depended_by: []
 last_verified: 2026-09-26
 created_by: unknown
+purpose_source: header-comment

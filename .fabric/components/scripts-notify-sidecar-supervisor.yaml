@@ -1,7 +1,7 @@
 id: scripts/notify-sidecar-supervisor.sh
 name: notify-sidecar-supervisor
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/notify-sidecar-supervisor.sh
 tags: []
 purpose: 'T-3050 — notify-sidecar supervisor: autostart + self-heal for the arc-003 deterministic wake rail.'

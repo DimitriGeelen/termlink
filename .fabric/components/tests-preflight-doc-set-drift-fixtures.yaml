@@ -1,10 +1,10 @@
 id: tests/preflight-doc-set-drift-fixtures.sh
 name: preflight-doc-set-drift-fixtures
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: tests/preflight-doc-set-drift-fixtures.sh
 tags: []
-purpose: 'guard-layer: source'
+purpose: 'T-3379 — fixtures for scripts/check-preflight-doc-set-drift.sh, pinning the stream'
 purpose_source: header-comment
 depends_on:
 - target: scripts/check-preflight-doc-set-drift.sh

@@ -1,7 +1,7 @@
 id: scripts/lib/fleet-deploy-runner.sh
 name: fleet-deploy-runner
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/lib/fleet-deploy-runner.sh
 tags: []
 purpose: 'T-3437: the swap+restart runner that fleet-deploy-binary.sh pushes to a hub''s host. Generated here (sourced) so

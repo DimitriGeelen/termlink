@@ -1,20 +1,13 @@
 id: tests/focus-drift-helper-exception-fixtures.sh
 name: focus-drift-helper-exception-fixtures
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: tests/focus-drift-helper-exception-fixtures.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: T-3270 (operator ruling SQ-23 option 2) — the focus-drift gate names the pending-commit helper (scripts/commit-pending.sh,
+  T-3269) as an explicit, narrow, visible exception.
+depends_on: []
+depended_by: []
 last_verified: 2026-10-01
 created_by: unknown
+purpose_source: header-comment

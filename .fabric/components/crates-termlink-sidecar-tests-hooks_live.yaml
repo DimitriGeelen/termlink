@@ -1,7 +1,7 @@
 id: crates/termlink-sidecar/tests/hooks_live.rs
 name: hooks_live
 type: script
-subsystem: unknown
+subsystem: sidecar
 location: crates/termlink-sidecar/tests/hooks_live.rs
 tags: []
 purpose: 'TODO: describe what this component does'

@@ -1,20 +1,13 @@
 id: scripts/field-heartbeat.sh
 name: field-heartbeat
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/field-heartbeat.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: 'T-1438 codified: drive each field host''s vendored agent to post a heartbeat to agent-chat-arc as itself. Sender_id
+  derives from the field host''s local identity file — chat-arc captures multi-host activity instead of just .107'
+depends_on: []
+depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
+purpose_source: header-comment

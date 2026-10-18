@@ -1,20 +1,12 @@
 id: scripts/check-unbounded-rpc-call.sh
 name: check-unbounded-rpc-call
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: scripts/check-unbounded-rpc-call.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: 'check-unbounded-rpc-call.sh (T-2669, G-019 prevention for the T-2641 hang class)'
+depends_on: []
+depended_by: []
 last_verified: 2026-08-28
 created_by: unknown
+purpose_source: header-comment

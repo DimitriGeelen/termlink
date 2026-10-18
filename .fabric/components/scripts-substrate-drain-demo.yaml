@@ -1,10 +1,11 @@
 id: scripts/substrate-drain-demo.sh
 name: substrate-drain-demo
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/substrate-drain-demo.sh
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: 'T-2211 (arc-parallel-substrate, T-2018 §6): self-contained operator-facing proof of the arc''s HEADLINE MECHANIC
+  — "multiple agents execute disjoint work-units concurrently and merge cleanly without conflicts."'
 depends_on: []
 depended_by:
 - target: scripts/substrate-smoke.sh
@@ -12,3 +13,4 @@ depended_by:
 last_verified: 2026-08-14
 created_by: unknown
 last_enriched: '2026-09-25'
+purpose_source: header-comment

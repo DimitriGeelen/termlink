@@ -1,7 +1,7 @@
 id: scripts/fleet-deploy-binary.sh
 name: fleet-deploy-binary
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/fleet-deploy-binary.sh
 tags: []
 purpose: 'T-1420 / PL-096: Stream a termlink binary to a fleet host via base64-over-remote-exec.'

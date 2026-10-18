@@ -1,20 +1,12 @@
 id: scripts/test-be-reachable-dormancy.sh
 name: test-be-reachable-dormancy
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/test-be-reachable-dormancy.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: 'T-2328 (PL-237): unit tests for be-reachable.sh''s push-wake dormancy WARN.'
+depends_on: []
+depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
+purpose_source: header-comment

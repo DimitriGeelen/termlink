@@ -1,10 +1,10 @@
 id: scripts/lib/review_validators.py
 name: review_validators
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/lib/review_validators.py
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: T-1885 v0.1 — Validators for fw independent-review.
 depends_on: []
 depended_by:
 - target: scripts/independent-review.py
@@ -12,3 +12,4 @@ depended_by:
 last_verified: 2026-08-14
 created_by: unknown
 last_enriched: '2026-09-25'
+purpose_source: docstring

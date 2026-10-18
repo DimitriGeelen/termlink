@@ -1,7 +1,7 @@
 id: scripts/lib/pty-state.sh
 name: pty-state
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/lib/pty-state.sh
 tags: []
 purpose: scripts/lib/pty-state.sh — the ONE copy of the Claude Code REPL state classifier.

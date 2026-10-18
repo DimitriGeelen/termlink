@@ -1,10 +1,10 @@
 id: scripts/bench-pushwake-latency.sh
 name: bench-pushwake-latency
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/bench-pushwake-latency.sh
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: T-2320 (arc-004 push-transport, follow-on verification).
 depends_on:
 - target: scripts/be-reachable.sh
   type: calls
@@ -12,3 +12,4 @@ depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
 last_enriched: '2026-09-25'
+purpose_source: header-comment

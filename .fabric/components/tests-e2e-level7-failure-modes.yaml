@@ -1,20 +1,13 @@
 id: tests/e2e/level7-failure-modes.sh
 name: level7-failure-modes
 type: script
-subsystem: unknown
+subsystem: e2e
 location: tests/e2e/level7-failure-modes.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: 'Level 7: Failure Modes — crash recovery, process death, event ordering Tests TermLink''s behavior under failure
+  conditions: 1. Specialist crash mid-task → stale detection works 2. Orchestrator death → specialist sessions survive'
+depends_on: []
+depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
+purpose_source: header-comment

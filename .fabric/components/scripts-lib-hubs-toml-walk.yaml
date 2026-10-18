@@ -1,10 +1,10 @@
 id: scripts/lib/hubs-toml-walk.sh
 name: hubs-toml-walk
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/lib/hubs-toml-walk.sh
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: T-1892 — Shared helpers for hubs.toml-walking scripts.
 depends_on: []
 depended_by:
 - target: scripts/agent-listeners-fleet.sh
@@ -20,3 +20,4 @@ depended_by:
 last_verified: 2026-05-31
 created_by: unknown
 last_enriched: '2026-09-25'
+purpose_source: header-comment

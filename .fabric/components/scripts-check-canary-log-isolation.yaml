@@ -1,20 +1,12 @@
 id: scripts/check-canary-log-isolation.sh
 name: check-canary-log-isolation
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: scripts/check-canary-log-isolation.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: 'check-canary-log-isolation.sh (T-2761, G-019 prevention for the T-2402-sibling class)'
+depends_on: []
+depended_by: []
 last_verified: 2026-08-26
 created_by: unknown
+purpose_source: header-comment

@@ -1,7 +1,7 @@
 id: scripts/notify-ack-read.sh
 name: notify-ack-read
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/notify-ack-read.sh
 tags: []
 purpose: 'T-3067 — L3 of the confirm ladder: tell the sender its message reached a PROMPT, not merely a mailbox.'

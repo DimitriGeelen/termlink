@@ -1,7 +1,7 @@
 id: crates/termlink-sidecar/src/book.rs
 name: book
 type: script
-subsystem: unknown
+subsystem: sidecar
 location: crates/termlink-sidecar/src/book.rs
 tags: []
 purpose: 'TODO: describe what this component does'

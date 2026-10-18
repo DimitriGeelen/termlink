@@ -1,7 +1,7 @@
 id: scripts/test-agent-send-orchestration.sh
 name: test-agent-send-orchestration
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/test-agent-send-orchestration.sh
 tags: []
 purpose: T-2301 (arc-003 reliable-comms, V6 slice S4) — tests for the try-direct / fall-back-to-hub ORCHESTRATION in scripts/agent-send.sh.

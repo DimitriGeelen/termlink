@@ -1,10 +1,10 @@
 id: scripts/check-fleet-doorbell-mail-health.sh
 name: check-fleet-doorbell-mail-health
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: scripts/check-fleet-doorbell-mail-health.sh
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: T-1831 — Fleet-wide doorbell+mail runtime health canary.
 depends_on:
 - target: scripts/lib/hubs-toml-walk.sh
   type: calls
@@ -12,3 +12,4 @@ depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
 last_enriched: '2026-09-25'
+purpose_source: header-comment

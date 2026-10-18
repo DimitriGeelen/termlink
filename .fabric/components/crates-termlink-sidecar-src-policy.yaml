@@ -1,7 +1,7 @@
 id: crates/termlink-sidecar/src/policy.rs
 name: policy
 type: script
-subsystem: unknown
+subsystem: sidecar
 location: crates/termlink-sidecar/src/policy.rs
 tags: []
 purpose: 'TODO: describe what this component does'

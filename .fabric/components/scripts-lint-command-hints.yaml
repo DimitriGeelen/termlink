@@ -1,20 +1,13 @@
 id: scripts/lint-command-hints.sh
 name: lint-command-hints
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/lint-command-hints.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: lint-command-hints.sh — validate back-ticked `termlink <group> <verb>` hint strings in source against the real clap
+  command tree.
+depends_on: []
+depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
+purpose_source: header-comment

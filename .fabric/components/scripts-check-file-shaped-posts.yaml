@@ -1,7 +1,7 @@
 id: scripts/check-file-shaped-posts.sh
 name: check-file-shaped-posts
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: scripts/check-file-shaped-posts.sh
 tags: []
 purpose: check-file-shaped-posts.sh — files sent as ordinary messages, outside the artifact path (T-3432)

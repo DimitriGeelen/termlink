@@ -1,7 +1,7 @@
 id: tests/verification-block-batch-proof.sh
 name: verification-block-batch-proof
 type: script
-subsystem: unknown
+subsystem: tests
 location: tests/verification-block-batch-proof.sh
 tags: []
 purpose: T-3282 — full-corpus equivalence PROOF for scripts/lib/verification-block-batch.py.

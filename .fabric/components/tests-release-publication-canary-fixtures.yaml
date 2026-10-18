@@ -1,7 +1,7 @@
 id: tests/release-publication-canary-fixtures.sh
 name: release-publication-canary-fixtures
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: tests/release-publication-canary-fixtures.sh
 tags: []
 purpose: T-3243 — fixtures for scripts/check-release-publication-freshness.sh.

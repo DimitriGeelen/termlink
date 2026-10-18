@@ -1,10 +1,10 @@
 id: scripts/sim-verify.sh
 name: sim-verify
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/sim-verify.sh
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: sim-verify.sh — Simulation-based verification of human ACs
 depends_on:
 - target: agents/mesh/dispatch.sh
   type: calls
@@ -16,3 +16,4 @@ depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
 last_enriched: '2026-09-25'
+purpose_source: header-comment

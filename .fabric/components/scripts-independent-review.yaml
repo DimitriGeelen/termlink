@@ -1,10 +1,10 @@
 id: scripts/independent-review.py
 name: independent-review
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/independent-review.py
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: fw independent-review (T-1885 v0.1) — drain the review-waiting queue.
 depends_on:
 - target: scripts/lib/review_classifier.py
   type: uses
@@ -14,3 +14,4 @@ depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
 last_enriched: '2026-09-25'
+purpose_source: docstring

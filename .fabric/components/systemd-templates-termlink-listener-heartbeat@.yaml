@@ -1,20 +1,12 @@
 id: systemd-templates/termlink-listener-heartbeat@.service
 name: termlink-listener-heartbeat@
 type: script
-subsystem: unknown
+subsystem: distribution
 location: systemd-templates/termlink-listener-heartbeat@.service
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: T-1840 — persistent agent-presence heartbeat (T-1830/T-1832).
+depends_on: []
+depended_by: []
 last_verified: 2026-08-15
 created_by: unknown
+purpose_source: header-comment

@@ -1,20 +1,12 @@
 id: tests/receiver-ack-lag-sender-fixtures.sh
 name: receiver-ack-lag-sender-fixtures
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: tests/receiver-ack-lag-sender-fixtures.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: T-3277 (SQ-19) — sender-classification fixtures for scripts/check-receiver-ack-lag.sh.
+depends_on: []
+depended_by: []
 last_verified: 2026-10-01
 created_by: unknown
+purpose_source: header-comment

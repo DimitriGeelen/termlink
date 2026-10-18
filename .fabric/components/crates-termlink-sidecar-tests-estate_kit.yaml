@@ -1,7 +1,7 @@
 id: crates/termlink-sidecar/tests/estate_kit.rs
 name: estate_kit
 type: script
-subsystem: unknown
+subsystem: sidecar
 location: crates/termlink-sidecar/tests/estate_kit.rs
 tags: []
 purpose: 'TODO: describe what this component does'

@@ -1,20 +1,12 @@
 id: scripts/check-planted-default-gate.sh
 name: check-planted-default-gate
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: scripts/check-planted-default-gate.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: 'check-planted-default-gate.sh (T-2855, G-019 prevention for the class 832 named)'
+depends_on: []
+depended_by: []
 last_verified: 2026-08-29
 created_by: unknown
+purpose_source: header-comment

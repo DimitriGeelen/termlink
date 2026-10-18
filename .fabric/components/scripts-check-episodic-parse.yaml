@@ -1,20 +1,12 @@
 id: scripts/check-episodic-parse.sh
 name: check-episodic-parse
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: scripts/check-episodic-parse.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: 'T-2805 — episodic-store readability check.'
+depends_on: []
+depended_by: []
 last_verified: 2026-08-26
 created_by: unknown
+purpose_source: header-comment

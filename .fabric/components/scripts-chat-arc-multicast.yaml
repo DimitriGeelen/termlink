@@ -1,7 +1,7 @@
 id: scripts/chat-arc-multicast.sh
 name: chat-arc-multicast
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/chat-arc-multicast.sh
 tags: []
 standalone: true

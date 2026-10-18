@@ -1,20 +1,12 @@
 id: tests/test_tl_dispatch_meta.sh
 name: test_tl_dispatch_meta
 type: script
-subsystem: unknown
+subsystem: tests
 location: tests/test_tl_dispatch_meta.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: T-1442 / U-005 — regression test for tl-dispatch.sh meta.json schema. 1.
+depends_on: []
+depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
+purpose_source: header-comment

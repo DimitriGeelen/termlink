@@ -1,20 +1,12 @@
 id: scripts/list-closeable.sh
 name: list-closeable
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/list-closeable.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: scripts/list-closeable.sh — surface agent-eligible closeable tasks (T-2207).
+depends_on: []
+depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
+purpose_source: header-comment

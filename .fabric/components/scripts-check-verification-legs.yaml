@@ -1,20 +1,12 @@
 id: scripts/check-verification-legs.py
 name: check-verification-legs
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/check-verification-legs.py
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: How many verification legs would the P-011 gate actually run, per task?
+depends_on: []
+depended_by: []
 last_verified: 2026-08-26
 created_by: unknown
+purpose_source: docstring

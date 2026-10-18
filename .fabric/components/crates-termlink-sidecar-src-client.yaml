@@ -1,7 +1,7 @@
 id: crates/termlink-sidecar/src/client.rs
 name: client
 type: script
-subsystem: unknown
+subsystem: sidecar
 location: crates/termlink-sidecar/src/client.rs
 tags: []
 purpose: arc-011 PH-1 agent-side client verbs send, reply, status over the sidecar local API (B14, T-3417)

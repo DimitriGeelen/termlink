@@ -1,7 +1,7 @@
 id: scripts/lib/session-zombies.py
 name: session-zombies
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/lib/session-zombies.py
 tags: []
 purpose: T-3296 (T-3291 S4) — shared detector for the session lifecycle leak.

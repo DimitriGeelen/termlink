@@ -1,7 +1,7 @@
 id: .context/cron/file-shaped-posts-canary.crontab
 name: file-shaped-posts-canary
 type: script
-subsystem: unknown
+subsystem: guard-layer-cron
 location: .context/cron/file-shaped-posts-canary.crontab
 tags: []
 purpose: 'T-3432 (arc-011 FX-5 ruling C, 2026-10-17) — File-shaped posts canary Source of truth: /opt/termlink/.context/cron/file-shaped-posts-canary.crontab

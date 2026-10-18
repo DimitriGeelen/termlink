@@ -1,10 +1,10 @@
 id: scripts/lib/approval_surfaces.py
 name: approval_surfaces
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/lib/approval_surfaces.py
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: Shared logic for check-approval-surfaces.sh.
 depends_on: []
 depended_by:
 - target: workflow/aef-session-lifecycle/sl_review
@@ -18,3 +18,4 @@ depended_by:
 last_verified: 2026-08-26
 created_by: unknown
 last_enriched: '2026-09-25'
+purpose_source: docstring

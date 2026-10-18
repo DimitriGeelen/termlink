@@ -1,20 +1,13 @@
 id: scripts/test-notify-sidecar.sh
 name: test-notify-sidecar
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/test-notify-sidecar.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: T-2294 (arc-003 reliable-comms, V3a) — tests for the deterministic notify sidecar + self-check pair (notify-sidecar.sh
+  + notify-check.sh).
+depends_on: []
+depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
+purpose_source: header-comment

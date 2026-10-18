@@ -1,20 +1,12 @@
 id: tests/sweep-debris-census-fixtures.sh
 name: sweep-debris-census-fixtures
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: tests/sweep-debris-census-fixtures.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: tests/sweep-debris-census-fixtures.sh — T-2756 fixtures for the sweep census.
+depends_on: []
+depended_by: []
 last_verified: 2026-08-15
 created_by: unknown
+purpose_source: header-comment

@@ -1,7 +1,7 @@
 id: .context/cron/vector-index-canary.crontab
 name: vector-index-canary
 type: script
-subsystem: unknown
+subsystem: guard-layer-cron
 location: .context/cron/vector-index-canary.crontab
 tags: []
 purpose: 'T-3336 — Vector index freshness canary (fw ask / RAG memory alive and current) Source of truth: /opt/termlink/.context/cron/vector-index-canary.crontab

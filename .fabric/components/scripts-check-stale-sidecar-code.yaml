@@ -1,7 +1,7 @@
 id: scripts/check-stale-sidecar-code.sh
 name: check-stale-sidecar-code
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: scripts/check-stale-sidecar-code.sh
 tags: []
 purpose: T-3205 — detect a LIVE notify-sidecar executing code that is no longer on disk.

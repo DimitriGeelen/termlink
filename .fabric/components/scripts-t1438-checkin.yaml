@@ -1,20 +1,12 @@
 id: scripts/t1438-checkin.sh
 name: t1438-checkin
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/t1438-checkin.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: 'T-1438 24h check-in: verify .122 ring20-management hub state after 2026-05-01 swap.'
+depends_on: []
+depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
+purpose_source: header-comment

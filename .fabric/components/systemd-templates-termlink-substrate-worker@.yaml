@@ -1,20 +1,12 @@
 id: systemd-templates/termlink-substrate-worker@.service
 name: termlink-substrate-worker@
 type: script
-subsystem: unknown
+subsystem: distribution
 location: systemd-templates/termlink-substrate-worker@.service
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: 'T-2167 — persistent substrate worker pickup loop (T-2152 / T-2018 §6 #1 + #3).'
+depends_on: []
+depended_by: []
 last_verified: 2026-06-11
 created_by: unknown
+purpose_source: header-comment

@@ -1,7 +1,7 @@
 id: scripts/check-waker-liveness-freshness.sh
 name: check-waker-liveness-freshness
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: scripts/check-waker-liveness-freshness.sh
 tags: []
 purpose: T-2387 — Waker-liveness canary (G-069 shipped≠live guard for the comms rail).

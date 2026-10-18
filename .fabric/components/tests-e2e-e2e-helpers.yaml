@@ -1,10 +1,10 @@
 id: tests/e2e/e2e-helpers.sh
 name: e2e-helpers
 type: script
-subsystem: unknown
+subsystem: e2e
 location: tests/e2e/e2e-helpers.sh
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: 'Shared helpers for e2e tests Source this file in e2e tests: source "$(dirname "$0")/e2e-helpers.sh"'
 depends_on: []
 depended_by:
 - target: tests/e2e/setup.sh
@@ -12,3 +12,4 @@ depended_by:
 last_verified: 2026-08-14
 created_by: unknown
 last_enriched: '2026-08-14'
+purpose_source: header-comment

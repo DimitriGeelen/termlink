@@ -1,7 +1,7 @@
 id: crates/termlink-sidecar/tests/killswitch_tests.rs
 name: killswitch_tests
 type: script
-subsystem: unknown
+subsystem: sidecar
 location: crates/termlink-sidecar/tests/killswitch_tests.rs
 tags: []
 purpose: 'TODO: describe what this component does'

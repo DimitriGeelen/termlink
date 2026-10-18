@@ -1,7 +1,7 @@
 id: crates/termlink-sidecar/src/daemon.rs
 name: daemon
 type: script
-subsystem: unknown
+subsystem: sidecar
 location: crates/termlink-sidecar/src/daemon.rs
 tags: []
 purpose: 'TODO: describe what this component does'

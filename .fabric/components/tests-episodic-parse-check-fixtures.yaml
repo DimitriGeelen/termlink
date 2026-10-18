@@ -1,20 +1,12 @@
 id: tests/episodic-parse-check-fixtures.sh
 name: episodic-parse-check-fixtures
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: tests/episodic-parse-check-fixtures.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: T-2805 — fixtures for scripts/check-episodic-parse.sh
+depends_on: []
+depended_by: []
 last_verified: 2026-08-26
 created_by: unknown
+purpose_source: header-comment

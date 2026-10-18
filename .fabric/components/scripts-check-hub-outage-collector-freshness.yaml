@@ -1,21 +1,13 @@
 id: scripts/check-hub-outage-collector-freshness.sh
 name: check-hub-outage-collector-freshness
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: scripts/check-hub-outage-collector-freshness.sh
 tags: []
-
-purpose: "T-3383 — liveness canary for the hub-outage collector (PH-0 exit (1): \"a canary detects it if it stops\"). Without it a dead cron leaves the 7-day run silently short."
+purpose: 'T-3383 — liveness canary for the hub-outage collector (PH-0 exit (1): "a canary detects it if it stops"). Without
+  it a dead cron leaves the 7-day run silently short.'
 purpose_source: header-comment
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+depends_on: []
+depended_by: []
 last_verified: 2026-10-17
 created_by: unknown

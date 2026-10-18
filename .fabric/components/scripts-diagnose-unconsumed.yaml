@@ -1,10 +1,10 @@
 id: scripts/diagnose-unconsumed.sh
 name: diagnose-unconsumed
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/diagnose-unconsumed.sh
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: diagnose-unconsumed.sh (T-2479, G-083 loud consumption-contract)
 depends_on:
 - target: scripts/agent-listeners.sh
   type: calls
@@ -18,3 +18,4 @@ depended_by:
 last_verified: 2026-08-14
 created_by: unknown
 last_enriched: '2026-09-25'
+purpose_source: header-comment

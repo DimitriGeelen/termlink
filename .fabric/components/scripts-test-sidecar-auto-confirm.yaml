@@ -1,20 +1,13 @@
 id: scripts/test-sidecar-auto-confirm.sh
 name: test-sidecar-auto-confirm
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/test-sidecar-auto-confirm.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: T-2300 (arc-003 reliable-comms, V6 slice S3) — tests for the notify sidecar's --auto-confirm mode (recipient-side
+  journaled receipt) + agent-send.sh's stage-aware DELIVERED line.
+depends_on: []
+depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
+purpose_source: header-comment

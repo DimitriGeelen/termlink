@@ -1,10 +1,10 @@
 id: tests/guard-runner-coverage-fixtures.sh
 name: guard-runner-coverage-fixtures
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: tests/guard-runner-coverage-fixtures.sh
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: T-2929 — fixtures for scripts/check-guard-runner-coverage.sh
 depends_on:
 - target: scripts/run-guard-layer.sh
   type: calls
@@ -12,3 +12,4 @@ depended_by: []
 last_verified: 2026-09-08
 created_by: unknown
 last_enriched: '2026-09-25'
+purpose_source: header-comment

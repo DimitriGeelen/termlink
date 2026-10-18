@@ -1,7 +1,7 @@
 id: tests/pin-events-fixtures.sh
 name: pin-events-fixtures
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: tests/pin-events-fixtures.sh
 tags: []
 purpose: 'T-3384 — hermetic fixtures for scripts/check-pin-events.sh and the recorder wiring. No real ~/.termlink: every path

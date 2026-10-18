@@ -1,20 +1,13 @@
 id: scripts/test-journal-reaper.sh
 name: test-journal-reaper
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/test-journal-reaper.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: T-2302 (arc-003 reliable-comms, V6 slice S5) — tests for scripts/journal-reaper.sh and the recent-dm.sh journal-merge
+  read path.
+depends_on: []
+depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
+purpose_source: header-comment

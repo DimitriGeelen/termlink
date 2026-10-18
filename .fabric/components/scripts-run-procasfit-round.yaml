@@ -1,20 +1,12 @@
 id: scripts/run-procasfit-round.sh
 name: run-procasfit-round
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/run-procasfit-round.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: T-3211 — dispatch ONE procAsFit round to its own TermLink worker and verify the handback by reading it.
+depends_on: []
+depended_by: []
 last_verified: 2026-09-28
 created_by: unknown
+purpose_source: header-comment

@@ -1,7 +1,7 @@
 id: scripts/substrate-preflight.sh
 name: substrate-preflight
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/substrate-preflight.sh
 tags: []
 purpose: T-2154 — substrate pre-flight health check.

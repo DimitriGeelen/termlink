@@ -1,20 +1,12 @@
 id: scripts/check-forever-owner-freshness.sh
 name: check-forever-owner-freshness
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: scripts/check-forever-owner-freshness.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: T-3310 (arc-012 step 5, operator ruling D1 = D+, layers 2 and 3) — the "forever needs an owner" backstop canary.
+depends_on: []
+depended_by: []
 last_verified: 2026-10-02
 created_by: unknown
+purpose_source: header-comment

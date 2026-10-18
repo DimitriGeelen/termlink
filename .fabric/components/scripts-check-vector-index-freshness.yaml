@@ -1,7 +1,7 @@
 id: scripts/check-vector-index-freshness.sh
 name: check-vector-index-freshness
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: scripts/check-vector-index-freshness.sh
 tags: []
 purpose: T-3336 — is the vector index (fw ask / RAG memory) alive and current?

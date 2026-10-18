@@ -1,10 +1,10 @@
 id: tests/notify-sidecar-inbox-fixtures.sh
 name: notify-sidecar-inbox-fixtures
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: tests/notify-sidecar-inbox-fixtures.sh
 tags: []
-purpose: 'guard-layer: source'
+purpose: 'T-3203 — fixtures for notify-sidecar''s mail-topic enumeration.'
 depends_on:
 - target: scripts/notify-sidecar.sh
   type: calls

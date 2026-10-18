@@ -1,20 +1,13 @@
 id: .context/cron/release-publication-canary.crontab
 name: release-publication-canary
 type: script
-subsystem: unknown
+subsystem: guard-layer-cron
 location: .context/cron/release-publication-canary.crontab
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: 'T-3243 (SQ-9 Q3, G-069 at the release layer) — Release-publication canary Source of truth: /opt/termlink/.context/cron/release-publication-canary.crontab
+  (git-tracked) Installed to: /etc/cron.d/termlink-release-publication-canary (USER…'
+depends_on: []
+depended_by: []
 last_verified: 2026-09-29
 created_by: unknown
+purpose_source: header-comment

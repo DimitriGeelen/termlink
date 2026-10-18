@@ -1,20 +1,12 @@
 id: tests/bvp-derived-blast-radius-fixtures.sh
 name: bvp-derived-blast-radius-fixtures
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: tests/bvp-derived-blast-radius-fixtures.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: tests/bvp-derived-blast-radius-fixtures.sh — T-3189
+depends_on: []
+depended_by: []
 last_verified: 2026-09-27
 created_by: unknown
+purpose_source: header-comment

@@ -1,20 +1,12 @@
 id: tests/notify-ack-read-fixtures.sh
 name: notify-ack-read-fixtures
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: tests/notify-ack-read-fixtures.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: 'T-3067 — fixtures for scripts/notify-ack-read.sh (L3 stage=read) and for the'
+depends_on: []
+depended_by: []
 last_verified: 2026-09-25
 created_by: unknown
+purpose_source: header-comment

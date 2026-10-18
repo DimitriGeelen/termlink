@@ -1,10 +1,11 @@
 id: scripts/wake-confirm.sh
 name: wake-confirm
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/wake-confirm.sh
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: 'wake-confirm.sh — T-2396 (G-083 / PL-253): standalone consumption-confirmation for a wake. Answers the one question
+  the doorbell never did on its own: "was my rung message actually CONSUMED, or is it sitting unread?"'
 depends_on: []
 depended_by:
 - target: scripts/agent-send.sh
@@ -18,3 +19,4 @@ depended_by:
 last_verified: 2026-08-14
 created_by: unknown
 last_enriched: '2026-09-25'
+purpose_source: header-comment

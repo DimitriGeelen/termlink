@@ -1,21 +1,12 @@
 id: scripts/check-decisions-yaml-format.sh
 name: check-decisions-yaml-format
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: scripts/check-decisions-yaml-format.sh
 tags: []
-
-purpose: "guard-layer: source"
+purpose: 'check-decisions-yaml-format.sh (T-3317) — is .context/project/decisions.yaml in the'
 purpose_source: header-comment
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+depends_on: []
+depended_by: []
 last_verified: 2026-10-17
 created_by: unknown

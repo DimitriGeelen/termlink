@@ -1,20 +1,13 @@
 id: scripts/relay-hop-check.sh
 name: relay-hop-check
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/relay-hop-check.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: 'relay-hop-check.sh — T-2395 (relay-loop B3): deterministic hop-budget circuit-breaker for the self-advancing agent
+  exchange.'
+depends_on: []
+depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
+purpose_source: header-comment

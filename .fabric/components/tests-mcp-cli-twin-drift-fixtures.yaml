@@ -1,20 +1,12 @@
 id: tests/mcp-cli-twin-drift-fixtures.sh
 name: mcp-cli-twin-drift-fixtures
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: tests/mcp-cli-twin-drift-fixtures.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: 'T-2999: fixtures for scripts/check-mcp-cli-twin-drift.sh.'
+depends_on: []
+depended_by: []
 last_verified: 2026-09-29
 created_by: unknown
+purpose_source: header-comment

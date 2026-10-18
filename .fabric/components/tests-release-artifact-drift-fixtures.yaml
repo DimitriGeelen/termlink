@@ -1,20 +1,12 @@
 id: tests/release-artifact-drift-fixtures.sh
 name: release-artifact-drift-fixtures
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: tests/release-artifact-drift-fixtures.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: release-artifact-drift-fixtures.sh (T-2751)
+depends_on: []
+depended_by: []
 last_verified: 2026-08-15
 created_by: unknown
+purpose_source: header-comment

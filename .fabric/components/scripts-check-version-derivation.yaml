@@ -1,20 +1,12 @@
 id: scripts/check-version-derivation.sh
 name: check-version-derivation
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: scripts/check-version-derivation.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: 'check-version-derivation.sh (T-2746, G-019 prevention for the T-1458 / T-2744 class)'
+depends_on: []
+depended_by: []
 last_verified: 2026-08-15
 created_by: unknown
+purpose_source: header-comment

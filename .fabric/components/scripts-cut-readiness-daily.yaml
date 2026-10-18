@@ -1,20 +1,12 @@
 id: scripts/cut-readiness-daily.sh
 name: cut-readiness-daily
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/cut-readiness-daily.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: T-1466 / T-1469 — daily cron wrapper for T-1166 cut-readiness tracking.
+depends_on: []
+depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
+purpose_source: header-comment

@@ -1,7 +1,7 @@
 id: scripts/notify-sidecar-api.sh
 name: notify-sidecar-api
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/notify-sidecar-api.sh
 tags: []
 purpose: 'T-3135 — notify-sidecar API: the LOCAL control surface for this host''s mailbox and prompt (arc-011 slices S1 +

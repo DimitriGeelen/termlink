@@ -1,10 +1,10 @@
 id: scripts/be-reachable.sh
 name: be-reachable
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/be-reachable.sh
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: T-1841 — be-reachable wrapper for ephemeral claude-code sessions.
 depends_on: []
 depended_by:
 - target: scripts/bench-pushwake-latency.sh
@@ -20,3 +20,4 @@ depended_by:
 last_verified: 2026-05-28
 created_by: unknown
 last_enriched: '2026-09-25'
+purpose_source: header-comment

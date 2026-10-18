@@ -1,20 +1,12 @@
 id: tests/planted-default-gate-fixtures.sh
 name: planted-default-gate-fixtures
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: tests/planted-default-gate-fixtures.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: planted-default-gate-fixtures.sh (T-2855)
+depends_on: []
+depended_by: []
 last_verified: 2026-08-29
 created_by: unknown
+purpose_source: header-comment

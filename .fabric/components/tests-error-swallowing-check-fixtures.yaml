@@ -1,20 +1,12 @@
 id: tests/error-swallowing-check-fixtures.sh
 name: error-swallowing-check-fixtures
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: tests/error-swallowing-check-fixtures.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: error-swallowing-check-fixtures.sh (T-2792)
+depends_on: []
+depended_by: []
 last_verified: 2026-08-18
 created_by: unknown
+purpose_source: header-comment

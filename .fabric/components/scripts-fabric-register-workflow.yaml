@@ -1,20 +1,12 @@
 id: scripts/fabric-register-workflow.sh
 name: fabric-register-workflow
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/fabric-register-workflow.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: fabric-register-workflow.sh — register a workflow's steps as fabric components.
+depends_on: []
+depended_by: []
 last_verified: 2026-08-26
 created_by: unknown
+purpose_source: header-comment

@@ -1,20 +1,12 @@
 id: scripts/T-1884-S3-cli-watch.py
 name: T-1884-S3-cli-watch
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/T-1884-S3-cli-watch.py
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: T-1884 S3 spike — CLI-watch render validator.
+depends_on: []
+depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
+purpose_source: docstring

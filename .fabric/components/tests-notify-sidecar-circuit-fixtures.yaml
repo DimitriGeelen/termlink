@@ -1,10 +1,10 @@
 id: tests/notify-sidecar-circuit-fixtures.sh
 name: notify-sidecar-circuit-fixtures
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: tests/notify-sidecar-circuit-fixtures.sh
 tags: []
-purpose: 'guard-layer: source'
+purpose: 'T-3325 — fixtures for five-level circuit addressing in the notify sidecar'
 purpose_source: header-comment
 depends_on:
 - target: scripts/notify-sidecar.sh

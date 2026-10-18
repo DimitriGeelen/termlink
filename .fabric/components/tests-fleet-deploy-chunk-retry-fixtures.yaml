@@ -1,21 +1,13 @@
 id: tests/fleet-deploy-chunk-retry-fixtures.sh
 name: fleet-deploy-chunk-retry-fixtures
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: tests/fleet-deploy-chunk-retry-fixtures.sh
 tags: []
-
-purpose: "T-3394: scripts/fleet-deploy-binary.sh chunk retry, error logging and abort cleanup. Hermetic: a fake `termlink` on PATH runs each \"remote exec\" command locally and can fail a named chunk a given number of times."
+purpose: 'T-3394: scripts/fleet-deploy-binary.sh chunk retry, error logging and abort cleanup. Hermetic: a fake `termlink`
+  on PATH runs each "remote exec" command locally and can fail a named chunk a given number of times.'
 purpose_source: header-comment
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+depends_on: []
+depended_by: []
 last_verified: 2026-10-17
 created_by: unknown

@@ -1,10 +1,10 @@
 id: scripts/agent-listeners.sh
 name: agent-listeners
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/agent-listeners.sh
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: T-1833 — agent-presence discovery reader (T-1830 sub-build b).
 depends_on: []
 depended_by:
 - target: scripts/diagnose-unconsumed.sh
@@ -12,3 +12,4 @@ depended_by:
 last_verified: 2026-08-14
 created_by: unknown
 last_enriched: '2026-09-25'
+purpose_source: header-comment

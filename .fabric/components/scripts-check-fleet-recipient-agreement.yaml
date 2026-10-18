@@ -1,10 +1,10 @@
 id: scripts/check-fleet-recipient-agreement.sh
 name: check-fleet-recipient-agreement
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: scripts/check-fleet-recipient-agreement.sh
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: '(no --no-heartbeat: these checks have no heartbeat companion to skip. The'
 depends_on:
 - target: scripts/chat-arc-broadcast.sh
   type: calls
@@ -12,3 +12,4 @@ depended_by: []
 last_verified: 2026-08-26
 created_by: unknown
 last_enriched: '2026-09-25'
+purpose_source: header-comment

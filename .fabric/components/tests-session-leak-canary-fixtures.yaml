@@ -1,20 +1,13 @@
 id: tests/session-leak-canary-fixtures.sh
 name: session-leak-canary-fixtures
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: tests/session-leak-canary-fixtures.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: 'T-3296 — fixtures for scripts/check-session-leak-freshness.sh and the shared detector scripts/lib/session-zombies.py.
+  Hermetic: canned ps + tmux tables and scratch sessions dirs; no live process, tmux server or real runtime dir is read.'
+depends_on: []
+depended_by: []
 last_verified: 2026-10-01
 created_by: unknown
+purpose_source: header-comment

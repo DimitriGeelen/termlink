@@ -1,10 +1,11 @@
 id: tests/e2e/level6-reflection-fleet.sh
 name: level6-reflection-fleet
 type: script
-subsystem: unknown
+subsystem: e2e
 location: tests/e2e/level6-reflection-fleet.sh
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: 'Level 6: Reflection Fleet — 10 agents review the project 10 specialists each analyze a different aspect of the TermLink
+  project: 1. architecture — crate structure, dependency graph, modularity 2.'
 depends_on:
 - target: tests/e2e/level1-echo.sh
   type: calls
@@ -16,3 +17,4 @@ depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
 last_enriched: '2026-08-14'
+purpose_source: header-comment

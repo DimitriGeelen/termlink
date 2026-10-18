@@ -1,7 +1,7 @@
 id: scripts/check-stale-waker-code-freshness.sh
 name: check-stale-waker-code-freshness
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: scripts/check-stale-waker-code-freshness.sh
 tags: []
 purpose: check-stale-waker-code-freshness.sh (T-2405, G-019 detection for T-2404) — surface agents whose LIVE push-waker process

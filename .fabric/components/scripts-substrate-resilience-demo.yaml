@@ -1,10 +1,11 @@
 id: scripts/substrate-resilience-demo.sh
 name: substrate-resilience-demo
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/substrate-resilience-demo.sh
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: 'T-2223 (arc-parallel-substrate, T-2018 §6): self-contained operator-facing proof of the substrate''s RELIABILITY
+  + ANTIFRAGILITY properties (constitutional directives #2 + #1) under the offline-queue primitive (#5, T-2051) and exactly-once…'
 depends_on: []
 depended_by:
 - target: scripts/substrate-smoke.sh
@@ -12,3 +13,4 @@ depended_by:
 last_verified: 2026-06-13
 created_by: unknown
 last_enriched: '2026-09-25'
+purpose_source: header-comment

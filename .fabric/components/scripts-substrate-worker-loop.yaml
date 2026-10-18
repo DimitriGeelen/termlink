@@ -1,20 +1,12 @@
 id: scripts/substrate-worker-loop.sh
 name: substrate-worker-loop
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/substrate-worker-loop.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: T-2146 — canonical substrate worker loop (hello-world for substrate users).
+depends_on: []
+depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
+purpose_source: header-comment

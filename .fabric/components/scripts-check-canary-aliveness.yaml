@@ -1,7 +1,7 @@
 id: scripts/check-canary-aliveness.sh
 name: check-canary-aliveness
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: scripts/check-canary-aliveness.sh
 tags: []
 purpose: 'T-1723 / T-2175 — Meta-canary: detect when a watched canary has stopped running while the underlying drift it watches

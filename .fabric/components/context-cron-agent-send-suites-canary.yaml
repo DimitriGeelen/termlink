@@ -1,21 +1,13 @@
 id: .context/cron/agent-send-suites-canary.crontab
 name: agent-send-suites-canary
 type: script
-subsystem: unknown
+subsystem: guard-layer-cron
 location: .context/cron/agent-send-suites-canary.crontab
 tags: []
-
-purpose: "T-3334 — Agent-send suites canary (daily run of the live-hub agent-send test suites) Source of truth: /opt/termlink/.context/cron/agent-send-suites-canary.crontab (git-tracked) Installed to: /etc/cron.d/termlink-agent-send-suites-canary…"
+purpose: 'T-3334 — Agent-send suites canary (daily run of the live-hub agent-send test suites) Source of truth: /opt/termlink/.context/cron/agent-send-suites-canary.crontab
+  (git-tracked) Installed to: /etc/cron.d/termlink-agent-send-suites-canary…'
 purpose_source: header-comment
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+depends_on: []
+depended_by: []
 last_verified: 2026-10-17
 created_by: unknown

@@ -1,20 +1,12 @@
 id: scripts/check-topic-growth-freshness.sh
 name: check-topic-growth-freshness
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: scripts/check-topic-growth-freshness.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: T-2252 — Topic-growth canary (arc-002 R2 sweep-cron guard; PL-168 / G-019 class).
+depends_on: []
+depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
+purpose_source: header-comment

@@ -1,20 +1,12 @@
 id: tests/guard-layer-severity-fixtures.sh
 name: guard-layer-severity-fixtures
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: tests/guard-layer-severity-fixtures.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: guard-layer-severity-fixtures.sh (T-3258, rewritten for T-3260's three tiers)
+depends_on: []
+depended_by: []
 last_verified: 2026-09-29
 created_by: unknown
+purpose_source: header-comment

@@ -1,20 +1,12 @@
 id: scripts/test-check-fleet-doorbell-mail-health.sh
 name: test-check-fleet-doorbell-mail-health
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/test-check-fleet-doorbell-mail-health.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: T-1831 — tests for check-fleet-doorbell-mail-health.sh.
+depends_on: []
+depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
+purpose_source: header-comment

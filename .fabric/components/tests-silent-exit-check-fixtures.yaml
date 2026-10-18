@@ -1,20 +1,12 @@
 id: tests/silent-exit-check-fixtures.sh
 name: silent-exit-check-fixtures
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: tests/silent-exit-check-fixtures.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: silent-exit-check-fixtures.sh (T-2666)
+depends_on: []
+depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
+purpose_source: header-comment

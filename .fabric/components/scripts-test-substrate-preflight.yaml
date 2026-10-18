@@ -1,20 +1,12 @@
 id: scripts/test-substrate-preflight.sh
 name: test-substrate-preflight
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/test-substrate-preflight.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: T-2227 — regression tests for substrate-preflight.sh Check 4 (binary freshness / T-2181 + T-2226 feature-aware staleness).
+depends_on: []
+depended_by: []
 last_verified: 2026-06-14
 created_by: unknown
+purpose_source: header-comment

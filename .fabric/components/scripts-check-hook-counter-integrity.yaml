@@ -1,20 +1,12 @@
 id: scripts/check-hook-counter-integrity.sh
 name: check-hook-counter-integrity
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: scripts/check-hook-counter-integrity.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: check-hook-counter-integrity.sh (T-2795)
+depends_on: []
+depended_by: []
 last_verified: 2026-08-18
 created_by: unknown
+purpose_source: header-comment

@@ -1,10 +1,10 @@
 id: tests/tl-claude-identity-binding.sh
 name: tl-claude-identity-binding
 type: script
-subsystem: unknown
+subsystem: tests
 location: tests/tl-claude-identity-binding.sh
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: 'tests/tl-claude-identity-binding.sh (T-2411) — hermetic test for per-agent'
 depends_on:
 - target: scripts/tl-claude.sh
   type: calls
@@ -14,3 +14,4 @@ depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
 last_enriched: '2026-09-25'
+purpose_source: header-comment

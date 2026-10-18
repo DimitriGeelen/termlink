@@ -1,20 +1,12 @@
 id: tests/canary-log-hygiene-fixtures.sh
 name: canary-log-hygiene-fixtures
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: tests/canary-log-hygiene-fixtures.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: canary-log-hygiene-fixtures.sh (T-2685)
+depends_on: []
+depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
+purpose_source: header-comment

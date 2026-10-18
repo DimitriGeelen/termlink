@@ -1,10 +1,10 @@
 id: scripts/check-unpaired-capture.sh
 name: check-unpaired-capture
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: scripts/check-unpaired-capture.sh
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: '(no --no-heartbeat: these checks have no heartbeat companion to skip. The'
 depends_on: []
 depended_by:
 - target: workflow/aef-task-lifecycle/tl_verify
@@ -14,3 +14,4 @@ depended_by:
 last_verified: 2026-08-26
 created_by: unknown
 last_enriched: '2026-09-25'
+purpose_source: header-comment

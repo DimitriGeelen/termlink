@@ -1,10 +1,10 @@
 id: scripts/test-agent-conversation-list.sh
 name: test-agent-conversation-list
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/test-agent-conversation-list.sh
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: T-1827 — tests for agent-conversation-list.sh.
 depends_on:
 - target: scripts/lib/reap-topic.sh
   type: calls
@@ -12,3 +12,4 @@ depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
 last_enriched: '2026-09-25'
+purpose_source: header-comment

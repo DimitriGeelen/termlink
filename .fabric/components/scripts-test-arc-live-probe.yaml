@@ -1,20 +1,13 @@
 id: scripts/test-arc-live-probe.sh
 name: test-arc-live-probe
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/test-arc-live-probe.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: test-arc-live-probe.sh (T-2480) -- host-independent unit tests for the G-069 "shipped == live" gate. Feeds canned
+  fleet-doctor + cv-keys fixtures via the PL-213 test hooks so the probe runs with no live hub.
+depends_on: []
+depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
+purpose_source: header-comment

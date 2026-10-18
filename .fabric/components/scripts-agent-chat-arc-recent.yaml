@@ -1,10 +1,10 @@
 id: scripts/agent-chat-arc-recent.sh
 name: agent-chat-arc-recent
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/agent-chat-arc-recent.sh
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: T-1849 — fleet-wide "what's been said?" verb on agent-chat-arc.
 depends_on: []
 depended_by:
 - target: scripts/recent-dm.sh
@@ -12,3 +12,4 @@ depended_by:
 last_verified: 2026-05-28
 created_by: unknown
 last_enriched: '2026-08-14'
+purpose_source: header-comment

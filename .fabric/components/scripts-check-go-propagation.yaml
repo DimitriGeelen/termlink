@@ -1,20 +1,12 @@
 id: scripts/check-go-propagation.sh
 name: check-go-propagation
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: scripts/check-go-propagation.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: 'check-go-propagation.sh — GO-recorded inceptions that never propagated their scope.'
+depends_on: []
+depended_by: []
 last_verified: 2026-09-25
 created_by: unknown
+purpose_source: header-comment

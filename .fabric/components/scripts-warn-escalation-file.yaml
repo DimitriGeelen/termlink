@@ -1,20 +1,13 @@
 id: scripts/warn-escalation-file.sh
 name: warn-escalation-file
 type: script
-subsystem: unknown
+subsystem: operations
 location: scripts/warn-escalation-file.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
-depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+purpose: 'warn-escalation-file.sh — T-3267: turn a stale or accumulating WARN guard into a FILED TASK (the operator''s binding
+  condition on the WARN tier, T-3258 rulings: "after the 14-day limit it becomes an action.'
+depends_on: []
+depended_by: []
 last_verified: 2026-09-30
 created_by: unknown
+purpose_source: header-comment

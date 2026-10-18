@@ -1,10 +1,10 @@
 id: tests/agent-send-idle-gate.sh
 name: agent-send-idle-gate
 type: script
-subsystem: unknown
+subsystem: tests
 location: tests/agent-send-idle-gate.sh
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: 'tests/agent-send-idle-gate.sh (T-2410) — hermetic test for the sender-side'
 depends_on:
 - target: scripts/lib-idle-gate.sh
   type: calls
@@ -14,3 +14,4 @@ depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
 last_enriched: '2026-09-25'
+purpose_source: header-comment

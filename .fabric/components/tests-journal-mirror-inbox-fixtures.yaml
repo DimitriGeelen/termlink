@@ -1,10 +1,10 @@
 id: tests/journal-mirror-inbox-fixtures.sh
 name: journal-mirror-inbox-fixtures
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: tests/journal-mirror-inbox-fixtures.sh
 tags: []
-purpose: 'guard-layer: source'
+purpose: 'T-3201 — fixtures for journal-mirror''s topic enumeration.'
 depends_on:
 - target: scripts/journal-mirror.sh
   type: calls

@@ -1,10 +1,10 @@
 id: scripts/check-preflight-doc-set-drift.sh
 name: check-preflight-doc-set-drift
 type: script
-subsystem: unknown
+subsystem: guard-layer
 location: scripts/check-preflight-doc-set-drift.sh
 tags: []
-purpose: 'guard-layer: source --no-heartbeat T-2188 — /preflight check-count drift canary.'
+purpose: 'T-2188 — /preflight check-count drift canary.'
 depends_on:
 - target: scripts/substrate-preflight.sh
   type: calls
