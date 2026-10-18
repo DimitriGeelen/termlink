@@ -9,12 +9,12 @@ description: >
   three drivers were approved 2026-10-06 with valid specs that were dropped. Local
   vendored patch + upstream filing + guard (operator ruling 5c = A-prime).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [bug, vendored, bvp]
-components: []
+components: [scripts/check-arc-driver-scoring-persisted.sh, tests/arc-approve-driver-scoring-fixtures.sh, tests/arc-driver-scoring-persisted-fixtures.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -43,8 +43,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-18T21:29:56Z
-last_update: 2026-10-18T21:34:54Z
-date_finished:
+last_update: 2026-10-18T21:34:56Z
+date_finished: 2026-10-18T21:34:56Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -401,3 +401,22 @@ grep -q "T-3472" .vendor-divergence.yaml && bash scripts/check-vendor-divergence
 
 ### 2026-10-18T21:33:01Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-89855728
+- **Timestamp:** 2026-10-18T21:35:02Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 2
+
+**Per-AC findings:**
+
+- **AC#4 (Agent)** — Guard scripts/check-arc-driver-scoring-persisted.sh fires on a reviewer-scorable driver with no stored block (WARN tier with reason); its fixtures pass; on the real tree it names arc-011's three drive
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=scripts/check-arc-driver-scoring-persisted.sh in: Guard scripts/check-arc-driver-scoring-persisted.sh fires on a reviewer-scorable driver with no stored block (WARN tier with reason); its fixtures pas`
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-18T21:34:56Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

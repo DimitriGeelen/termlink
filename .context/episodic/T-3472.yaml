@@ -1,0 +1,88 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3472: Fix: fw arc approve-driver validates --scoring-file but never persists the scoring block (and refuses existing drivers)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-18T21:35:13Z
+# ============================================================================
+
+task_id: T-3472
+task_name: "Fix: fw arc approve-driver validates --scoring-file but never persists the scoring block (and refuses existing drivers)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-18T21:29:56Z
+completed: 2026-10-18T21:34:56Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-18T23:34:54+02:00
+last_commit: 2026-10-18T23:34:54+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  approve-driver persists --scoring-file inline and attaches to existing drivers (vendored patch, registered, filed upstream 332); guard check-arc-driver-scoring-persisted (warn) + fixtures
+
+# Key outcomes
+outcomes:
+  - 'approve-driver validates a --scoring-file with the estimator''s validate_scoring_spec before the entry is appended (human paths included) and stores the block inline as `scoring:`, re-reading it to prove the estimator accepts it'
+  - '--scoring-file on an already-approved driver attaches the spec in place on the operator path only, keeping approved_at/approved_by and refusing a weight change'
+  - 'Fixture suite tests/arc-approve-driver-scoring-fixtures.sh (6 cases) passes; a mutant that removes the store step turns case 1 red'
+  - 'Guard scripts/check-arc-driver-scoring-persisted.sh fires on a reviewer-scorable driver with no stored block (WARN tier with reason); its fixtures pass; on the real tree it names arc-011''s three drivers'
+  - 'The vendored patch is registered in .vendor-divergence.yaml and filed upstream at framework:pickup (offset 332)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'approve-driver persists --scoring-file inline and attaches to existing drivers (vendored patch, registered, filed upstream 332); guard check-arc-driver-scoring-persisted (warn) + fixtures'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/lib/arc.sh'
+  - '.fabric/components/scripts-check-arc-driver-scoring-persisted.yaml'
+  - '.fabric/components/tests-arc-approve-driver-scoring-fixtures.yaml'
+  - '.fabric/components/tests-arc-driver-scoring-persisted-fixtures.yaml'
+  - 'scripts/check-arc-driver-scoring-persisted.sh'
+  - '.tasks/active/T-3440-warn-escalation-check-audit-warning-ackn.md'
+  - '.tasks/active/T-3472-fix-fw-arc-approve-driver-validates---sc.md'
+  - 'tests/arc-approve-driver-scoring-fixtures.sh'
+  - 'tests/arc-driver-scoring-persisted-fixtures.sh'
+  - '.vendor-divergence.yaml'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-18T23:34:54'
+    action: 'T-3472: approve-driver persists --scoring-file inline and attaches to existing drivers (vendored patch, registered, filed upstream 332); guard check-arc-driver-scoring-persisted (warn) + fixtures'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [bug, vendored, bvp]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 10
+  lines_added: 749
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3472-fix-fw-arc-approve-driver-validates---sc.md
+generated_by: context-agent-hybrid
