@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-18T00:34:17Z
-last_update: 2026-10-18T00:34:17Z
+last_update: 2026-10-18T00:36:26Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -56,7 +56,13 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Root cause from T-3457 (see its ACs for evidence): bus meta SQLite (`/var/lib/termlink/bus/meta.db`, btrfs) runs `journal_mode=delete`, `synchronous=FULL`; commits fsync on tokio workers under the single `std::sync::Mutex<Connection>` (crates/termlink-bus/src/meta.rs:13,18); a multi-second btrfs fsync parks every worker and stops the accept loop (silent 43–57 s, then same-second EOF bursts).
+
+Inputs from ring20-manager (conv hub-107-stalls-t2402, msg 981305fa, 2026-10-18):
+1. Stalls lose mail on the RECEIVE side too: 055's inbox check fell back to the wrong filter when `channel list` failed during a stall and skipped 2 consults (fixed on their side as 055 T-560).
+2. `synchronous=NORMAL` is the usual WAL pairing: durable against process crashes; the last commits can be lost only on power loss / OS crash. That durability tradeoff is the OPERATOR's to decide explicitly (decision brief before building it); `WAL + synchronous=FULL` keeps today's durability and still drops the journal-file churn.
+3. Moving the writes off the async workers (spawn_blocking or a dedicated writer thread) is what frees the accept loop, independent of the journal mode.
+4. Acceptance measure offered by ring20: re-measure 2 h with the same journal query, bursts of 4+ peers failing in the same second, target under 1/h. Tell them on that conversation when deployed.
 
 ## Acceptance Criteria
 
