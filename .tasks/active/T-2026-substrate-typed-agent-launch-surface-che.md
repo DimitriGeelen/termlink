@@ -84,7 +84,7 @@ cost_estimate_proposed:
 - **IW-1: Exact RPC signatures — return shape for checkout/commit/publish?**
   confidence: 3
   disposition: deferred
-  rationale: Deferred to the first build slice (T-2026 GO, 2026-10-18): the June blocker is gone (Foundation shipped), so the shape is now lockable; the slice locks it from the June sketch (report §5) against the shipped claim API before any verb is built. June text: GENUINELY deferred. Return shapes couple to Foundation primitive semantics (T-2019 claim_id vs T-2021 assignment_id as scope handle). Provisional sketch in docs/reports/T-2026-typed-agent-launch-inception.md §5; do not lock until Foundation in production. See artifact §4.a.
+  rationale: Deferred to T-3469, the first build slice (T-2026 GO, 2026-10-18): the June blocker is gone (Foundation shipped), so the shape is now lockable; the slice locks it from the June sketch (report §5) against the shipped claim API before any verb is built. June text: GENUINELY deferred. Return shapes couple to Foundation primitive semantics (T-2019 claim_id vs T-2021 assignment_id as scope handle). Provisional sketch in docs/reports/T-2026-typed-agent-launch-inception.md §5; do not lock until Foundation in production. See artifact §4.a.
 
 - **IW-2: Scope binding — how is 'this agent's worktree' identified — by agent_id, session_id, or claim_id?**
   confidence: 4
@@ -94,7 +94,7 @@ cost_estimate_proposed:
 - **IW-3: Worktree lifecycle — owned by hub (current dispatch --isolate model) or owned by spoke (more decentralized)?**
   confidence: 2
   disposition: deferred
-  rationale: Deferred to the first build slice, where it comes back to the operator as one decision brief: hub-owned vs spoke-owned, and how the surface relates to the operator's standing rule that agents in this repo never use git worktrees (the rule governs this repo's own sessions; the surface is for orchestrated workers fleet-wide, but that boundary must be stated, not assumed). June text: GENUINELY deferred. Hub-owned simplifies merge but couples hosts; spoke-owned matches hub-and-spoke topology but requires worktree-creation primitives on spoke side. Choice hinges on observed cross-host AEF behavior that doesn't exist yet. See artifact §4.b.
+  rationale: Deferred to T-3469, the first build slice, where it comes back to the operator as one decision brief: hub-owned vs spoke-owned, and how the surface relates to the operator's standing rule that agents in this repo never use git worktrees (the rule governs this repo's own sessions; the surface is for orchestrated workers fleet-wide, but that boundary must be stated, not assumed). June text: GENUINELY deferred. Hub-owned simplifies merge but couples hosts; spoke-owned matches hub-and-spoke topology but requires worktree-creation primitives on spoke side. Choice hinges on observed cross-host AEF behavior that doesn't exist yet. See artifact §4.b.
 
 - **IW-4: Un-partitionable file handling — §5 says hub-owned regeneration after merge. Does THIS surface expose that, or is it separate?**
   confidence: 4
@@ -173,7 +173,7 @@ After Foundation primitives land. Design phase reflects their actual shape, not 
 - Existing worktree path stays: `termlink dispatch --isolate` (crates/termlink-cli/src/cli.rs:887).
 - T-2022 NO-GO (2026-10-18) removed the path-declaration story this surface would have fed.
 
-**June filing (superseded):** DEFER until Foundation primitives (T-2019, T-2021, T-2027) ship and stabilize. revisit_at=2026-09-08.
+**June filing (superseded):** waited on the Foundation primitives T-2019, T-2021 and T-2027; all three have since shipped and are completed.
 
 **Rationale (one-paragraph):** Typed RPCs are a real ergonomics + integration win — structured return shape feeds T-2022's path-declaration story, audit trail per agent, and could auto-release claims when commits succeed. But the verbs' return shapes COUPLE to Foundation primitive semantics: `agent.commit --scope X` needs to know what `scope` means, which depends on whether T-2021 ships `channel.transfer_claim` (likely) or a different shape. Worktree lifecycle (hub-owned vs spoke-owned, IW-3) hinges on observed cross-host AEF behavior that doesn't exist yet. Two of four IW questions are genuinely undecidable without Foundation in production. Designing now risks throwing the design away. The shell-convention path still works for current dispatch model — this is ergonomics, not a blocking gap. Other primitives have higher marginal value at the current point in the build curve.
 
