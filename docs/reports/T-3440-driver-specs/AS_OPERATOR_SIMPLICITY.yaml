@@ -1,0 +1,15 @@
+# T-3440 5c (operator ruling A′) — draft scoring spec for arc-011 driver
+# AS_OPERATOR_SIMPLICITY (weight 4). Original rationale: acceptance by verified
+# behaviour: truthful status call, automatic recovery with zero manual steps,
+# clean install/upgrade/rollback, one sidecar per agent (GP-12).
+kind: signals
+strip_template: true
+levels:
+  1:
+    keywords: ["install/upgrade", "upgrade path", "operator runs"]
+  3:
+    keywords: ["rollback", "status call", "zero manual", "one sidecar per agent", "GP-12", "Stop/Start"]
+    paths: ["scripts/sidecar-supervise.sh", "systemd-templates/termlink-sidecar@*"]
+  5:
+    keywords: ["automatic recovery", "kill-switch", "self-heal", "runme action"]
+    paths: ["scripts/arc011-w1-provision.sh", "scripts/arc011-w1-killswitch-drill.sh", "runme.sh"]

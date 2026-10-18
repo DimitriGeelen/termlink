@@ -1,0 +1,15 @@
+# T-3440 5c (operator ruling A′) — draft scoring spec for arc-011 driver
+# AS_FAILURE_SURFACED (weight 5). Original rationale: a stalled or lost message
+# becomes a visible STUCK/DEAD and a needs-attention entry within the declared
+# deadline; the real failures stay standing controls.
+kind: signals
+strip_template: true
+levels:
+  1:
+    keywords: ["lost message", "message loss", "unconfirmed"]
+  3:
+    keywords: ["STUCK/DEAD", "needs-attention", "needs attention", "retry ladder", "dead-letter", "accept deadline"]
+    paths: ["scripts/check-*sidecar*.sh"]
+  5:
+    keywords: ["R-44", "standing control", "resend until", "escalat"]
+    paths: ["crates/termlink-sidecar/src/send.rs", "scripts/session-start-alerts.sh"]

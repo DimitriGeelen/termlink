@@ -33,4 +33,24 @@ directly.
 
 ## arc-011 (reviewer-approved 2026-10-06; specs lost by the T-3472 bug)
 
-Not drafted yet. Comes after the operator has seen this table.
+Redrafted from the original rationales (proposal commit f16232341). Following the
+claude -p review, AS_DELIVERY_TRUTH and AS_OPERATOR_SIMPLICITY favour proof surfaces
+(receipt stages, the e2e prover, the sidecar store/pull path, provisioning and the
+kill-switch drill) over topic words.
+
+Round 1 was too noisy: keyword matching is case-insensitive, so `STORED` matched every
+"stored", and generic words (operator, install, stage, deadline, silent) fired across
+the controls (non-zero: arc 33/33/44 of 56 vs controls 6/8/8 of 17). Round 2 narrowed
+them. Members: all 56 tasks tagged arc-011. Controls: 17 completed tasks outside
+arc-011 and arc-substrate-fitness (every 20th of T-29xx..T-34xx).
+
+| Driver | arc-011 (56): L1-2 / L3-4 / L5 | non-zero | controls (17): L1-2 / L3-4 / L5 | non-zero |
+|---|---|---|---|---|
+| AS_DELIVERY_TRUTH | 1 / 16 / 2 | 19/56 (34%) | 1 / 1 / 1 | 3/17 (18%) |
+| AS_FAILURE_SURFACED | 0 / 4 / 8 | 12/56 (21%) | 1 / 0 / 1 | 2/17 (12%) |
+| AS_OPERATOR_SIMPLICITY | 0 / 7 / 7 | 14/56 (25%) | 0 / 0 / 2 | 2/17 (12%) |
+
+Reading: all three separate arc work from unrelated work by roughly 2x, weaker than the
+arc-substrate-fitness specs, and they cover fewer members (many arc-011 tasks are
+design and planning tasks the signals do not touch; those score a measured 0). The
+same caveat applies: topic signals, not proven effect.

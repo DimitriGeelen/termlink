@@ -1,0 +1,17 @@
+# T-3440 5c (operator ruling A′) — draft scoring spec for arc-011 driver
+# AS_DELIVERY_TRUTH (weight 6). Original rationale (proposal f16232341): every
+# stage and state a sender, receiver or cockpit sees is computed from the hub
+# record and proven (HANDED_OVER from the transcript); nothing reports delivered
+# without it. Signals favour proof surfaces (receipt stages, the e2e prover, the
+# sidecar store/pull path) over the topic word "delivery".
+kind: signals
+strip_template: true
+levels:
+  1:
+    keywords: ["sidecar receipt", "delivery stage", "delivered-unconfirmed"]
+  3:
+    keywords: ["HANDED_OVER", "peer_ts_ms", "receipt stage", "accepted only once"]
+    paths: ["crates/termlink-sidecar/src/*.rs", "scripts/notify-sidecar.sh"]
+  5:
+    keywords: ["notify-rail-e2e", "from the transcript", "durable accept", "accepted means stored"]
+    paths: ["scripts/notify-rail-e2e.sh", "crates/termlink-sidecar/src/store.rs", "crates/termlink-sidecar/src/pull.rs"]
