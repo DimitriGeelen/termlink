@@ -1,0 +1,21 @@
+id: tests/arc-driver-scoring-persisted-fixtures.sh
+name: arc-driver-scoring-persisted-fixtures
+type: script
+subsystem: guard-layer
+location: tests/arc-driver-scoring-persisted-fixtures.sh
+tags: []
+
+purpose: "T-3472 — fixtures for scripts/check-arc-driver-scoring-persisted.sh. Hermetic: scratch arc files only."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-18
+created_by: unknown

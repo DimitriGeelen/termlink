@@ -186,6 +186,18 @@ last_vendor_event:
 # ---------------------------------------------------------------------------
 
 divergences:
+  - task: T-3472
+    commit: pending-same-commit
+    commit_note: Registered in the same commit that carries the patch.
+    date: 2026-10-18
+    file: .agentic-framework/lib/arc.sh
+    status: filed-upstream
+    kind: fix
+    generality: GENERIC
+    symptom: "`fw arc approve-driver --scoring-file F` passed F to the static reviewer (which recorded 'inline scoring: validates') but stored the scoped_drivers entry WITHOUT `scoring:`; the estimator reads only an inline block, so the driver scored nothing. The dedup check also refused --scoring-file on an existing driver. arc-011's three drivers lost their specs this way on 2026-10-06."
+    fix: "New helper _arc_persist_scoring: validates F with estimator.validate_scoring_spec before the entry is appended (human paths included), stores the block inline after the append and re-reads it; --scoring-file on an existing driver attaches in place on the operator path only, keeping approval fields and refusing a weight change."
+    evidence: "tests/arc-approve-driver-scoring-fixtures.sh 6/6; mutant removing the store step turns case 1 red; guard scripts/check-arc-driver-scoring-persisted.sh (fixtures 6/6) names arc-011's three drivers on the real tree."
+    upstream_note: "Filed upstream 2026-10-18 at framework:pickup offset 332 (also asks to align the reviewer, which accepts scoring_file:, with the estimator, which ignores it). Until carried, a re-vendor DELETES the patch; stored `scoring:` blocks in arc YAML survive it."
   - task: T-3464
     commit: pending-same-commit
     commit_note: Registered in the same commit that carries the patch.

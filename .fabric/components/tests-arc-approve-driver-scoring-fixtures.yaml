@@ -1,0 +1,21 @@
+id: tests/arc-approve-driver-scoring-fixtures.sh
+name: arc-approve-driver-scoring-fixtures
+type: script
+subsystem: guard-layer
+location: tests/arc-approve-driver-scoring-fixtures.sh
+tags: []
+
+purpose: "T-3472 — fw arc approve-driver must PERSIST a --scoring-file spec inline."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-18
+created_by: unknown
