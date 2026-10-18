@@ -1,3 +1,4 @@
+//! Receiver checks that decide whether a verified sender's message is accepted, using the allow-list, operator lists and signed priority.
 //! C-7 receiver checks (architecture note section 7; SI-18, SI-23, SI-8, allow-list).
 //!
 //! Inputs are deliberately few (SI-8): the verified sender fingerprint, the

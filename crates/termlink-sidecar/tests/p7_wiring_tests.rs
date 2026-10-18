@@ -1,3 +1,4 @@
+//! Tests of the operator key register and the project address book, using temp dirs and a test estate.
 //! PH-2 row P7 (T-3438): the operator's key register (P7-2, PR-1a) and the
 //! project address book (SI-20 pinned main, SI-21 own-project default, R-62
 //! exact instance, P7-4 provisioned instance ids). Temp dirs and a test estate

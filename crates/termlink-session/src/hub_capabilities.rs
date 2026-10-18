@@ -1,3 +1,4 @@
+//! Client-side helper and cache for the `hub.capabilities` JSON-RPC method, used to learn which methods a peer hub serves.
 //! Client-side helper + cache for the `hub.capabilities` JSON-RPC method (T-1215).
 //!
 //! Lets a federating caller discover which methods a peer hub serves. Used by

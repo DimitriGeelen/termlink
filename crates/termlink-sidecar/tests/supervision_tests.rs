@@ -1,3 +1,4 @@
+//! Tests of the component heartbeat, its status view, the exit on a silent component and the admin note.
 //! PH-2 row P3 (K-3, R-8, FP-1 failure 4): the component heartbeat, its status
 //! view, the exit for restart when a component goes silent, and the admin note
 //! the cron backstop writes when it had to act.

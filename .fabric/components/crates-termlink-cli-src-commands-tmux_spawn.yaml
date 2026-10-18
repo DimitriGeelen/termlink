@@ -4,8 +4,8 @@ type: script
 subsystem: cli
 location: crates/termlink-cli/src/commands/tmux_spawn.rs
 tags: []
-purpose: 'TODO: describe what this component does'
-purpose_source: none
+purpose: 'Starts a tmux session without leaking the caller''s environment into the tmux server''s global environment. Starting a tmux session without leaking the caller''s project into the tmux server (T-3445). `…'
+purpose_source: header-comment
 depends_on: []
 depended_by:
 - target: crates/termlink-cli/src/commands/mod.rs

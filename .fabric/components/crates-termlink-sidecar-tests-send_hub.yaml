@@ -4,8 +4,8 @@ type: script
 subsystem: sidecar
 location: crates/termlink-sidecar/tests/send_hub.rs
 tags: []
-purpose: 'TODO: describe what this component does'
-purpose_source: none
+purpose: 'Hermetic tests for the send path (send.rs) against a throwaway hub. B6 tests for C-5 (send.rs) against a throwaway hub. Hermetic: testkit estate only.'
+purpose_source: header-comment
 depends_on:
 - target: crates/termlink-sidecar/src/lib.rs
   type: calls

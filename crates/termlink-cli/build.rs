@@ -1,3 +1,4 @@
+//! Build script that derives the crate version from git tags, falling back to the Cargo.toml version.
 //! Build script: derive version from git tags (matching framework T-648 pattern).
 //!
 //! - Tagged commit `v0.8.0` → version `0.8.0`

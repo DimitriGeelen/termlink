@@ -5,7 +5,7 @@ subsystem: cli
 location: crates/termlink-cli/build.rs
 tags: []
 
-purpose: "TODO: describe what this component does"
+purpose: "Build script that derives the crate version from git tags, falling back to the Cargo.toml version. Build script: derive version from git tags (matching framework T-648 pattern). - Tagged commit `v0.8…"
 
 depends_on:
   # Format: - target: <relative-path>
@@ -18,3 +18,4 @@ depended_by:
 
 last_verified: 2026-08-14
 created_by: unknown
+purpose_source: header-comment

@@ -4,7 +4,7 @@ type: script
 subsystem: mcp
 location: crates/termlink-mcp/tests/parity.rs
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: 'Parity tests that run each MCP tool and its CLI verb on the same fixture and diff their structured JSON output. MCP / CLI parity test harness (T-1909, T-1904 GO-PARITY follow-up). For every (MCP-tool…'
 depends_on:
 - target: crates/termlink-test-utils/src/lib.rs
   type: calls
@@ -14,3 +14,4 @@ depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
 last_enriched: '2026-08-14'
+purpose_source: header-comment

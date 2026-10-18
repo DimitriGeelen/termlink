@@ -4,8 +4,8 @@ type: script
 subsystem: sidecar
 location: crates/termlink-sidecar/tests/hooks_live.rs
 tags: []
-purpose: 'TODO: describe what this component does'
-purpose_source: none
+purpose: 'On-demand live check that runs one real `claude -p` session with the sidecar hook in a throwaway estate. B10 live check (run on demand, not in CI): one real `claude -p` session with the PostToolUse h…'
+purpose_source: header-comment
 depends_on:
 - target: crates/termlink-sidecar/src/lib.rs
   type: calls

@@ -1,3 +1,4 @@
+//! Supporting tools (supervise script and systemd template) shipped inside the sidecar binary.
 //! The sidecar's supporting tools, shipped inside the binary (PH-2 row P9,
 //! operator ruling P9-1 A; R-39, SI-27).
 //!

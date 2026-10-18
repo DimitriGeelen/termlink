@@ -1,3 +1,4 @@
+//! TermLink agent channel bus: append-only per-topic logs, per-recipient cursors and per-topic retention, embedded by the hub as a library.
 //! TermLink agent channel bus (T-1155).
 //!
 //! Append-only per-topic log, per-recipient cursor store, and per-topic

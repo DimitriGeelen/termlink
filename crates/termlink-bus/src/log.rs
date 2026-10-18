@@ -1,3 +1,4 @@
+//! Append-only on-disk topic log: path derivation, envelope encoding and decoding, and the appender and reader iterator.
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};

@@ -1,3 +1,4 @@
+//! Terminal screen grid driven by a vte parser, with cursor, SGR and alternate-screen handling, rendered for session mirroring.
 use std::io::{self, Write};
 
 use unicode_width::UnicodeWidthChar;

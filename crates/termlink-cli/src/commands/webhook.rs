@@ -1,3 +1,4 @@
+//! The `termlink webhook` verbs for authoring the outbound webhook fan-out configuration.
 //! `termlink webhook` — CLI config-authoring verbs for the arc-004 webhook
 //! fan-out feature (T-2336, Slice 5).
 //!

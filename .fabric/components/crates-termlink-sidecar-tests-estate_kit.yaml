@@ -4,8 +4,8 @@ type: script
 subsystem: sidecar
 location: crates/termlink-sidecar/tests/estate_kit.rs
 tags: []
-purpose: 'TODO: describe what this component does'
-purpose_source: none
+purpose: 'Tests of the estate guard and the disposable test estate harness.'
+purpose_source: header-comment
 depends_on:
 - target: crates/termlink-sidecar/src/lib.rs
   type: calls

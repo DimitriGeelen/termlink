@@ -4,8 +4,8 @@ type: script
 subsystem: bus
 location: crates/termlink-bus/src/activity.rs
 tags: []
-purpose: 'TODO: describe what this component does'
-purpose_source: none
+purpose: 'Per-topic activity (last writer, write count, readers) kept outside the message log so retention cannot delete it. T-3309 (arc-012, T-3304 IW-4 C''): per-topic activity, kept OUTSIDE the message log s…'
+purpose_source: header-comment
 depends_on: []
 depended_by:
 - target: crates/termlink-bus/src/lib.rs

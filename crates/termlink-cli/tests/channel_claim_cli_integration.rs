@@ -1,3 +1,4 @@
+//! End-to-end test of `termlink channel claim/release/renew` against an in-test fake hub on a Unix socket.
 //! T-2032 — end-to-end CLI smoke test for `termlink channel claim/release/renew`.
 //!
 //! Spins up an in-test FakeHub on a Unix socket (same pattern as

@@ -1,3 +1,4 @@
+//! Claim and deliver: hands stored messages to the agent at a tool call, re-running the receiver checks each time.
 //! C-9 claim and deliver (architecture note sections 4.6, 6.4, 7.1, D-4; SI-30,
 //! SI-17, FC-4, FC-11, FC-13, CR-17).
 //!

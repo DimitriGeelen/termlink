@@ -4,8 +4,8 @@ type: script
 subsystem: sidecar
 location: crates/termlink-sidecar/tests/api_tests.rs
 tags: []
-purpose: 'TODO: describe what this component does'
-purpose_source: none
+purpose: 'Hermetic tests for the sidecar local API (api.rs) and the status view. B5 tests for C-4 (api.rs) and the status view. Hermetic: testkit estate only.'
+purpose_source: header-comment
 depends_on:
 - target: crates/termlink-sidecar/src/lib.rs
   type: calls

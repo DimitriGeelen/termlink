@@ -1,3 +1,4 @@
+//! Multi-session mirror composer: paints the screens of several tagged sessions into one terminal grid.
 //! Multi-session mirror composer (T-236).
 //!
 //! Composes N sessions matching a tag into a single TUI grid. Reuses the

@@ -4,7 +4,7 @@ type: script
 subsystem: protocol
 location: crates/termlink-protocol/src/retention_defaults.rs
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: 'The single table of default retentions for a new topic, shared by the hub, the CLI and the MCP create tool. T-3310 (arc-012 step 5, operator rulings D1/D2): the ONE table of default retentions for a…'
 depends_on: []
 depended_by:
 - target: crates/termlink-protocol/src/lib.rs
@@ -12,3 +12,4 @@ depended_by:
 last_verified: 2026-10-02
 created_by: unknown
 last_enriched: '2026-10-18'
+purpose_source: header-comment

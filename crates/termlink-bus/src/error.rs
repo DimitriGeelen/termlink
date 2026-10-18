@@ -1,3 +1,4 @@
+//! The `BusError` enum and `Result` alias used across the bus crate.
 use thiserror::Error;
 
 pub type Result<T> = std::result::Result<T, BusError>;

@@ -1,3 +1,4 @@
+//! CLI wrappers around the session crate's artifact upload and download helpers, so a shell script can move artifact bytes.
 //! T-3134 (arc-011 S2): thin CLI wrappers over the existing
 //! `send_artifact_via_client` / `download_artifact_via_client` helpers
 //! (`crates/termlink-session/src/artifact.rs`, landed in T-1164b/T-1248/T-1249).

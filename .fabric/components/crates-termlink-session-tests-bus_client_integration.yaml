@@ -4,7 +4,7 @@ type: script
 subsystem: session
 location: crates/termlink-session/tests/bus_client_integration.rs
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: 'Integration tests for the `BusClient` offline queue and flush against an in-test fake hub. Integration tests for `BusClient` offline queue + flush (T-1161). These exercise the full transport path (Un…'
 depends_on:
 - target: crates/termlink-session/src/lib.rs
   type: calls
@@ -14,3 +14,4 @@ depended_by: []
 last_verified: 2026-04-20
 created_by: unknown
 last_enriched: '2026-05-03'
+purpose_source: header-comment

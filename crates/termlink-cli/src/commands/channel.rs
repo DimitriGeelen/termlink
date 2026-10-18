@@ -1,3 +1,4 @@
+//! CLI command handlers for the `termlink channel` bus verbs.
 //! CLI glue for the T-1160 channel bus.
 
 use std::collections::BTreeMap;

@@ -1,3 +1,4 @@
+//! Tests that `termlink sidecar ...` re-executes its finalizer through the same subcommand.
 //! PH-2 row P1 (T-3365): `termlink sidecar ...` re-executes its finalizer
 //! through the same subcommand. Its own test binary, because the prefix is set
 //! once per process.

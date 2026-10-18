@@ -4,7 +4,7 @@ type: script
 subsystem: cli
 location: crates/termlink-cli/src/commands/help.rs
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: 'The `termlink help` command, rendering the same tool catalogue as the MCP `termlink_help` tool, as JSON or as text.'
 depends_on: []
 depended_by:
 - target: crates/termlink-cli/src/commands/mod.rs
@@ -12,3 +12,4 @@ depended_by:
 last_verified: 2026-06-05
 created_by: unknown
 last_enriched: '2026-07-03'
+purpose_source: header-comment

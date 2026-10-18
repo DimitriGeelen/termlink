@@ -1,3 +1,4 @@
+//! Tests that the sidecar runs as the `termlink sidecar ...` subcommand.
 //! PH-2 row P1 (T-3365, OQ-a ruled A): the sidecar runs as `termlink sidecar ...`.
 use std::process::Command;
 

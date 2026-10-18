@@ -4,8 +4,8 @@ type: script
 subsystem: sidecar
 location: crates/termlink-sidecar/src/wire.rs
 tags: []
-purpose: 'TODO: describe what this component does'
-purpose_source: none
+purpose: 'Wire format and signing for sidecar messages, with identity fields carried inside the signed payload. C-3 wire format and signing (architecture note section 5; R-75, SI-3, SI-4, SI-26). The hub''s sig…'
+purpose_source: header-comment
 depends_on:
 - target: crates/termlink-protocol/src/lib.rs
   type: calls

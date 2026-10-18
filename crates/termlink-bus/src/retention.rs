@@ -1,3 +1,4 @@
+//! The per-topic `Retention` policy enum (for example forever or bounded) applied when a topic is swept or trimmed.
 use serde::{Deserialize, Serialize};
 
 /// Per-topic retention policy. Enforced explicitly by `Bus::sweep` (to land

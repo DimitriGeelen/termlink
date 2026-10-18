@@ -1,3 +1,4 @@
+//! SQLite metadata store for the bus: topics, cursors, record offsets, claims, topic activity and related state.
 use std::collections::HashMap;
 use std::path::Path;
 

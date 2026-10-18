@@ -1,3 +1,4 @@
+//! Parity tests that run each MCP tool and its CLI verb on the same fixture and diff their structured JSON output.
 //! MCP / CLI parity test harness (T-1909, T-1904 GO-PARITY follow-up).
 //!
 //! For every (MCP-tool, CLI-verb) pair that maps to the same logical

@@ -1,3 +1,4 @@
+//! Size-capped O_APPEND line writer shared by the hub's rpc audit and the invocation audit sinks.
 //! Size-capped O_APPEND line writer shared by the hub's `rpc_audit` and the
 //! `invocation_audit` sink (T-2251; moved here by T-3033 so the session daemon
 //! can use it without depending on termlink-hub).

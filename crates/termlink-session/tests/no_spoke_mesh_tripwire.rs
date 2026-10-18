@@ -1,3 +1,4 @@
+//! Tripwire test for the architecture invariant that spokes never connect to one another.
 //! T-2703 — tripwire for the architecture doc's decisive invariant: **spokes never
 //! connect to one another**.
 //!

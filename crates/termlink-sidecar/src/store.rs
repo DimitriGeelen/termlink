@@ -1,3 +1,4 @@
+//! Durable on-disk record store for a sidecar: locks, conversation logs, message records and claims.
 //! C-2 durable record store (architecture note section 4).
 //!
 //! Layout under `<store>/sidecar/<agent>/` (dirs 0700, files 0600):

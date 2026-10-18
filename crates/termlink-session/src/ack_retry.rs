@@ -1,3 +1,4 @@
+//! Client-side helper that posts a message and retries until the recipient acknowledges it.
 //! Client-side ack-with-retry helper (T-2286, Design A of T-2285).
 //!
 //! Closes the producer half of §9 hard-dependency #5 (the parallel-execution

@@ -1,3 +1,4 @@
+//! Soak tests, run on demand, that no stored message is lost or handed over twice over a long run.
 //! B13 soak (X5): H-16 and H-17 (step 3 section 9).
 //!
 //!   cargo test -p termlink-sidecar --release soak_ -- --ignored --nocapture

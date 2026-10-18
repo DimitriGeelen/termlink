@@ -4,8 +4,8 @@ type: script
 subsystem: sidecar
 location: crates/termlink-sidecar/tests/deliver_tests.rs
 tags: []
-purpose: 'TODO: describe what this component does'
-purpose_source: none
+purpose: 'Hermetic tests for the frame, claim-and-deliver and transcript evidence reader. B9 tests for C-8 (frame.rs), C-9 (deliver.rs) and the C-11 evidence reader. Hermetic: testkit estate only; transcripts…'
+purpose_source: header-comment
 depends_on:
 - target: crates/termlink-session/src/lib.rs
   type: calls

@@ -4,8 +4,8 @@ type: script
 subsystem: sidecar
 location: crates/termlink-sidecar/tests/store_tests.rs
 tags: []
-purpose: 'TODO: describe what this component does'
-purpose_source: none
+purpose: 'Tests for the durable record store, run with the `failpoints` feature. B4 tests for C-2 (store.rs). Run with `--features failpoints`.'
+purpose_source: header-comment
 depends_on:
 - target: crates/termlink-sidecar/src/lib.rs
   type: calls

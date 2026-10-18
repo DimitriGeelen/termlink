@@ -5,7 +5,7 @@ subsystem: session
 location: crates/termlink-session/build.rs
 tags: []
 
-purpose: "TODO: describe what this component does"
+purpose: "Build script that derives the version from git tags so session metadata records the version of the registering binary. Build script: derive version from git tags, so `SessionMetadata::termlink_versio…"
 
 depends_on:
   # Format: - target: <relative-path>
@@ -18,3 +18,4 @@ depended_by:
 
 last_verified: 2026-08-15
 created_by: unknown
+purpose_source: header-comment

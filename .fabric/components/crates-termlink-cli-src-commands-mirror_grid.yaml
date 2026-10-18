@@ -4,7 +4,7 @@ type: script
 subsystem: cli
 location: crates/termlink-cli/src/commands/mirror_grid.rs
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: 'Terminal screen grid driven by a vte parser, with cursor, SGR and alternate-screen handling, rendered for session mirroring.'
 depends_on: []
 depended_by:
 - target: crates/termlink-cli/src/commands/mod.rs
@@ -12,3 +12,4 @@ depended_by:
 last_verified: 2026-04-23
 created_by: unknown
 last_enriched: '2026-04-24'
+purpose_source: header-comment

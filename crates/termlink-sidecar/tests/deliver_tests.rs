@@ -1,3 +1,4 @@
+//! Hermetic tests for the frame, claim-and-deliver and transcript evidence reader.
 //! B9 tests for C-8 (frame.rs), C-9 (deliver.rs) and the C-11 evidence reader.
 //! Hermetic: testkit estate only; transcripts are fixtures in the real Claude
 //! Code record shape (B1 spike).

@@ -4,8 +4,8 @@ type: script
 subsystem: sidecar
 location: crates/termlink-sidecar/tests/p7_wiring_tests.rs
 tags: []
-purpose: 'TODO: describe what this component does'
-purpose_source: none
+purpose: 'Tests of the operator key register and the project address book, using temp dirs and a test estate. PH-2 row P7 (T-3438): the operator''s key register (P7-2, PR-1a) and the project address book (SI-20…'
+purpose_source: header-comment
 depends_on:
 - target: crates/termlink-sidecar/src/lib.rs
   type: calls

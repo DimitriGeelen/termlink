@@ -1,3 +1,4 @@
+//! Ceilings checked on every post that trim the oldest records of a bounded topic once it passes twice its limit.
 //! T-3310 (arc-012 step 5, operator ruling D3 = C): ceilings checked on post.
 //!
 //! The hub's background sweeper (T-2427) only runs where it is switched on, and

@@ -1,3 +1,4 @@
+//! Builds the text frame that a peer message becomes inside an agent's context, from values the sidecar verified itself.
 //! C-8 frame (architecture note section 6.5; SI-7, SI-8, FC-12).
 //!
 //! The frame is the only text a peer message becomes inside an agent's context.

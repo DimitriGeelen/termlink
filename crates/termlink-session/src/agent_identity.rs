@@ -1,3 +1,4 @@
+//! Agent identity: one ed25519 keypair per agent, stored as a seed file with mode 0600.
 //! Agent cryptographic identity (T-1159, T-1155 S-4).
 //!
 //! One ed25519 keypair per agent, stored as a 32-byte seed at

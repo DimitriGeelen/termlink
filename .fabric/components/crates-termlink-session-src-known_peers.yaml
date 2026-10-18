@@ -4,7 +4,7 @@ type: script
 subsystem: session
 location: crates/termlink-session/src/known_peers.rs
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: 'Known-peer keyring that pins each peer''s ed25519 key on first sight (trust on first use) and flags later changes. Known-peer keyring with TOFU semantics (T-1159). On first observation of a peer''s ed2…'
 depends_on: []
 depended_by:
 - target: crates/termlink-session/src/lib.rs
@@ -12,3 +12,4 @@ depended_by:
 last_verified: 2026-04-20
 created_by: unknown
 last_enriched: '2026-04-21'
+purpose_source: header-comment

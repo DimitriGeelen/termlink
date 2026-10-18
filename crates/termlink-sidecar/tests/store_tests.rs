@@ -1,3 +1,4 @@
+//! Tests for the durable record store, run with the `failpoints` feature.
 //! B4 tests for C-2 (store.rs). Run with `--features failpoints`.
 #![cfg(feature = "failpoints")]
 

@@ -1,3 +1,4 @@
+//! Build script that derives the version from git tags so session metadata records the version of the registering binary.
 //! Build script: derive version from git tags, so `SessionMetadata::termlink_version`
 //! records the binary that registered the session rather than a frozen constant.
 //!

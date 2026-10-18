@@ -5,8 +5,8 @@ subsystem: cli
 location: crates/termlink-cli/tests/sidecar_subcommand.rs
 tags: []
 
-purpose: "TODO: describe what this component does"
-purpose_source: none
+purpose: "Tests that the sidecar runs as the `termlink sidecar ...` subcommand. PH-2 row P1 (T-3365, OQ-a ruled A): the sidecar runs as `termlink sidecar ...`."
+purpose_source: header-comment
 
 depends_on:
   # Format: - target: <relative-path>

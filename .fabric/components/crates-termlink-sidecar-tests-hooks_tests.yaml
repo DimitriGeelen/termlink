@@ -4,8 +4,8 @@ type: script
 subsystem: sidecar
 location: crates/termlink-sidecar/tests/hooks_tests.rs
 tags: []
-purpose: 'TODO: describe what this component does'
-purpose_source: none
+purpose: 'Hermetic tests for the hook entry points, the daemon and the sender labels. B10 tests for C-11 (hook.rs, daemon.rs) and the sender labels (FC-5, FC-6, FC-7). Hermetic: testkit estate only. `hooks_scr…'
+purpose_source: header-comment
 depends_on:
 - target: crates/termlink-sidecar/src/lib.rs
   type: calls

@@ -1,3 +1,4 @@
+//! Outbound webhook delivery: HMAC-signed POSTs to hosts on a deny-by-default allowlist.
 //! Outbound webhook fan-out — Slice 1 (T-2332, descends from the T-2331 GO).
 //!
 //! **SEND PRIMITIVE ONLY.** Security-first, opt-in. This slice delivers the

@@ -1,3 +1,4 @@
+//! Estate guard that refuses to run unless HOME, the runtime dir and the store root all sit inside one marked throwaway tree.
 //! C-1 estate guard: refuse to run unless `HOME`, the runtime dir and the store
 //! root all sit inside one throwaway tree marked by [`MARKER`].
 

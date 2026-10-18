@@ -1,3 +1,4 @@
+//! Hub-side handlers for the `channel.*` RPC surface, backed by the embedded bus and verifying sender signatures on post.
 //! Hub-side handlers for the T-1160 `channel.*` RPC surface.
 //!
 //! The hub owns one [`termlink_bus::Bus`] keyed off `<runtime_dir>/bus/`

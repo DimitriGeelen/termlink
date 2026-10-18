@@ -1,3 +1,4 @@
+//! Per-topic activity (last writer, write count, readers) kept outside the message log so retention cannot delete it.
 //! T-3309 (arc-012, T-3304 IW-4 C'): per-topic activity, kept OUTSIDE the
 //! message log so retention can never delete it.
 //!

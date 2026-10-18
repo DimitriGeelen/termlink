@@ -1,3 +1,4 @@
+//! Component heartbeat that lets a sidecar notice when one of its internal loops has gone silent.
 //! Component heartbeat (K-3, R-8, FP-1 failure 4).
 //!
 //! A sidecar is several cooperating loops in one process: the send pump, the

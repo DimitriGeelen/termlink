@@ -4,7 +4,7 @@ type: script
 subsystem: cli
 location: crates/termlink-cli/src/commands/webhook.rs
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: 'The `termlink webhook` verbs for authoring the outbound webhook fan-out configuration. `termlink webhook` — CLI config-authoring verbs for the arc-004 webhook fan-out feature (T-2336, Slice 5).'
 depends_on:
 - target: crates/termlink-hub/src/lib.rs
   type: calls
@@ -14,3 +14,4 @@ depended_by:
 last_verified: 2026-07-03
 created_by: unknown
 last_enriched: '2026-08-14'
+purpose_source: header-comment

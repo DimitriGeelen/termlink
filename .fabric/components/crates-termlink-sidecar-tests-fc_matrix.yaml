@@ -4,8 +4,8 @@ type: script
 subsystem: sidecar
 location: crates/termlink-sidecar/tests/fc_matrix.rs
 tags: []
-purpose: 'TODO: describe what this component does'
-purpose_source: none
+purpose: 'Tests of the fail-closed cases not covered elsewhere: hub outage, disk full and secret scan. B12: the fail-closed rows not covered by an earlier step''s tests (architecture note 9.1): FC-1 hub half, F…'
+purpose_source: header-comment
 depends_on:
 - target: crates/termlink-protocol/src/lib.rs
   type: calls

@@ -4,7 +4,7 @@ type: script
 subsystem: session
 location: crates/termlink-session/src/offline_queue.rs
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: 'Durable SQLite-backed FIFO of `channel.post` calls that could not be delivered, drained when the hub is reachable again. Client-side offline queue for bus posts (T-1161). Backs a durable FIFO of `cha…'
 depends_on: []
 depended_by:
 - target: crates/termlink-session/src/lib.rs
@@ -12,3 +12,4 @@ depended_by:
 last_verified: 2026-04-20
 created_by: unknown
 last_enriched: '2026-04-21'
+purpose_source: header-comment

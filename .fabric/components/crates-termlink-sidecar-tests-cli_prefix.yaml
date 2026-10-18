@@ -4,8 +4,8 @@ type: script
 subsystem: sidecar
 location: crates/termlink-sidecar/tests/cli_prefix.rs
 tags: []
-purpose: 'TODO: describe what this component does'
-purpose_source: none
+purpose: 'Tests that `termlink sidecar ...` re-executes its finalizer through the same subcommand. PH-2 row P1 (T-3365): `termlink sidecar ...` re-executes its finalizer through the same subcommand. Its own te…'
+purpose_source: header-comment
 depends_on:
 - target: crates/termlink-sidecar/src/lib.rs
   type: calls

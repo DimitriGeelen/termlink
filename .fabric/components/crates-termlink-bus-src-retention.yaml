@@ -4,7 +4,7 @@ type: script
 subsystem: bus
 location: crates/termlink-bus/src/retention.rs
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: 'The per-topic `Retention` policy enum (for example forever or bounded) applied when a topic is swept or trimmed.'
 depends_on: []
 depended_by:
 - target: crates/termlink-bus/src/lib.rs
@@ -12,3 +12,4 @@ depended_by:
 last_verified: 2026-04-20
 created_by: unknown
 last_enriched: '2026-04-21'
+purpose_source: header-comment

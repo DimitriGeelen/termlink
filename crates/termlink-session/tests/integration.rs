@@ -1,3 +1,4 @@
+//! End-to-end tests of multi-session communication over real Unix socket listeners.
 //! End-to-end integration tests for multi-session communication.
 //!
 //! These tests spin up real sessions with Unix socket listeners and verify

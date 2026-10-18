@@ -1,3 +1,4 @@
+//! Hermetic tests for the hook entry points, the daemon and the sender labels.
 //! B10 tests for C-11 (hook.rs, daemon.rs) and the sender labels (FC-5, FC-6, FC-7).
 //! Hermetic: testkit estate only. `hooks_scripted_demo` is also what
 //! `scripts/arc011-ph1-demo.sh --scripted` runs (R-69: the demo is the test).

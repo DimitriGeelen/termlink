@@ -1,3 +1,4 @@
+//! The sidecar's local API on per-scope Unix sockets (send, status, admin) and the status view.
 //! C-4 local API (architecture note section 3) and the C-10 status view.
 //!
 //! One unix stream socket per scope under `<runtime>/sidecar/` (dir 0700, sockets

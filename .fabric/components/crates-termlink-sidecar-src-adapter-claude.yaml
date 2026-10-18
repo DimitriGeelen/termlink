@@ -4,8 +4,8 @@ type: script
 subsystem: sidecar
 location: crates/termlink-sidecar/src/adapter/claude.rs
 tags: []
-purpose: 'TODO: describe what this component does'
-purpose_source: none
+purpose: 'Claude adapter: reads the Claude Code transcript as evidence of what was delivered to the agent. C-11 Claude adapter: the transcript evidence reader (architecture note 6.4; SI-17, FC-11, FC-13). The…'
+purpose_source: header-comment
 depends_on: []
 depended_by:
 - target: crates/termlink-sidecar/src/adapter/mod.rs

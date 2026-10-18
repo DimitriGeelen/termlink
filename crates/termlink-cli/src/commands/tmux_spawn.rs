@@ -1,3 +1,4 @@
+//! Starts a tmux session without leaking the caller's environment into the tmux server's global environment.
 //! Starting a tmux session without leaking the caller's project into the tmux server (T-3445).
 //!
 //! `tmux new-session` run with the caller's environment does two things when no server is

@@ -4,8 +4,8 @@ type: script
 subsystem: sidecar
 location: crates/termlink-sidecar/src/daemon.rs
 tags: []
-purpose: 'TODO: describe what this component does'
-purpose_source: none
+purpose: 'The sidecar process started by `termlink-sidecar start`, which opens the store, send pump, receive loop, deliverer and API sockets. The sidecar process: `termlink-sidecar start --config <file>` (B10)…'
+purpose_source: header-comment
 depends_on:
 - target: crates/termlink-protocol/src/lib.rs
   type: calls

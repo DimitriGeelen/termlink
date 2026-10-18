@@ -1,3 +1,4 @@
+//! Hermetic tests for the send path (send.rs) against a throwaway hub.
 //! B6 tests for C-5 (send.rs) against a throwaway hub. Hermetic: testkit estate only.
 
 use base64::Engine as _;

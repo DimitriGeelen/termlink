@@ -1,3 +1,4 @@
+//! The `substrate-status` CLI verb: one view composed from the four read-side substrate primitives.
 //! T-2111: substrate-status — unified one-shot CLI verb composing the four
 //! read-side substrate primitives into one situational-awareness view.
 //!

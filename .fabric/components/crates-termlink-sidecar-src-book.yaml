@@ -4,8 +4,8 @@ type: script
 subsystem: sidecar
 location: crates/termlink-sidecar/src/book.rs
 tags: []
-purpose: 'TODO: describe what this component does'
-purpose_source: none
+purpose: 'The address book of a provisioned sidecar, mapping each agent of its project to a provisioned instance id. The address book of a provisioned sidecar (PH-2 row P7; SI-20 pin, SI-21 fixed default, R-62…'
+purpose_source: header-comment
 depends_on: []
 depended_by:
 - target: crates/termlink-sidecar/src/lib.rs

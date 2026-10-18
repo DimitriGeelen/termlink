@@ -1,3 +1,4 @@
+//! Receive path: reads the agent's inbox topic from a durable cursor, verifies each message and records it in the store.
 //! C-6 receive path (architecture note sections 4.3, 5.2, 5.3, 5.5; table 13 B7).
 //!
 //! A `Receiver` reads this agent's own inbox topic from a durable cursor. For a

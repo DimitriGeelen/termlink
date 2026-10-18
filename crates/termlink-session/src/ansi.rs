@@ -1,3 +1,4 @@
+//! ANSI escape handling, including `strip_ansi_codes` which removes control sequences from a string.
 /// True if `ch` is an ECMA-48 CSI *final byte* (`0x40..=0x7E`), which ends a
 /// control sequence.
 ///

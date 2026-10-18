@@ -1,3 +1,4 @@
+//! Tests of the estate guard and the disposable test estate harness.
 use std::fs;
 use termlink_sidecar::estate::{self, EstateError};
 use termlink_sidecar::testkit::Estate;

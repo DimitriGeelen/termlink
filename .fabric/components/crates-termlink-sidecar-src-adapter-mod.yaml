@@ -4,8 +4,8 @@ type: script
 subsystem: sidecar
 location: crates/termlink-sidecar/src/adapter/mod.rs
 tags: []
-purpose: 'TODO: describe what this component does'
-purpose_source: none
+purpose: 'Harness adapters for the sidecar; currently the Claude adapter. Harness adapters (C-11).'
+purpose_source: header-comment
 depends_on:
 - target: crates/termlink-sidecar/src/adapter/claude.rs
   type: calls

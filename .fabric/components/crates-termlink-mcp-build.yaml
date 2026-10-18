@@ -5,7 +5,7 @@ subsystem: mcp
 location: crates/termlink-mcp/build.rs
 tags: []
 
-purpose: "TODO: describe what this component does"
+purpose: "Build script that derives the version from git tags so the MCP `termlink_version` tool matches `termlink version --json`. Build script: derive version from git tags so `termlink_version` MCP tool ret…"
 
 depends_on:
   # Format: - target: <relative-path>
@@ -18,3 +18,4 @@ depended_by:
 
 last_verified: 2026-08-14
 created_by: unknown
+purpose_source: header-comment

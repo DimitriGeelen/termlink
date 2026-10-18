@@ -4,7 +4,7 @@ type: script
 subsystem: session
 location: crates/termlink-session/src/agent_identity.rs
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: 'Agent identity: one ed25519 keypair per agent, stored as a seed file with mode 0600. Agent cryptographic identity (T-1159, T-1155 S-4). One ed25519 keypair per agent, stored as a 32-byte seed at'
 depends_on: []
 depended_by:
 - target: crates/termlink-session/src/lib.rs
@@ -12,3 +12,4 @@ depended_by:
 last_verified: 2026-04-20
 created_by: unknown
 last_enriched: '2026-04-21'
+purpose_source: header-comment

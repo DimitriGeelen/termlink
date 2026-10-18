@@ -4,7 +4,7 @@ type: script
 subsystem: bus
 location: crates/termlink-bus/src/envelope.rs
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: 'The bus `Envelope` type: a single message with an opaque payload, as appended to a topic log.'
 depends_on: []
 depended_by:
 - target: crates/termlink-bus/src/lib.rs
@@ -12,3 +12,4 @@ depended_by:
 last_verified: 2026-04-20
 created_by: unknown
 last_enriched: '2026-04-21'
+purpose_source: header-comment

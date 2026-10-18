@@ -4,8 +4,8 @@ type: script
 subsystem: sidecar
 location: crates/termlink-sidecar/src/frame.rs
 tags: []
-purpose: 'TODO: describe what this component does'
-purpose_source: none
+purpose: 'Builds the text frame that a peer message becomes inside an agent''s context, from values the sidecar verified itself. C-8 frame (architecture note section 6.5; SI-7, SI-8, FC-12). The frame is the on…'
+purpose_source: header-comment
 depends_on: []
 depended_by:
 - target: crates/termlink-sidecar/src/lib.rs

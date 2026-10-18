@@ -4,7 +4,7 @@ type: script
 subsystem: hub
 location: crates/termlink-hub/src/topic_lint.rs
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: 'Soft lint at emit that checks topic names against role rules and writes warnings to the `routing:lint` topic without rejecting. Topic↔role soft-lint at emit (T-1300, per T-1297 GO § Spike 3). Rules l…'
 depends_on: []
 depended_by:
 - target: crates/termlink-hub/src/lib.rs
@@ -12,3 +12,4 @@ depended_by:
 last_verified: 2026-04-27
 created_by: unknown
 last_enriched: '2026-05-03'
+purpose_source: header-comment

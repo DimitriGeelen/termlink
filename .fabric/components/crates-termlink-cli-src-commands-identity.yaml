@@ -4,7 +4,7 @@ type: script
 subsystem: cli
 location: crates/termlink-cli/src/commands/identity.rs
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: 'CLI command handlers for agent cryptographic identity. CLI glue for agent cryptographic identity (T-1159).'
 depends_on:
 - target: crates/termlink-session/src/lib.rs
   type: calls
@@ -14,3 +14,4 @@ depended_by:
 last_verified: 2026-04-20
 created_by: unknown
 last_enriched: '2026-04-21'
+purpose_source: header-comment

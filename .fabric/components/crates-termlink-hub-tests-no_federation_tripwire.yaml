@@ -5,7 +5,7 @@ subsystem: hub
 location: crates/termlink-hub/tests/no_federation_tripwire.rs
 tags: []
 
-purpose: "TODO: describe what this component does"
+purpose: "Tripwire test for the charter non-goal that TermLink is not an inter-hub federation layer. Charter non-goal #1 tripwire — \"TermLink is NOT an inter-hub federation layer.\" T-2569 (filed by the T-2468…"
 
 depends_on:
   # Format: - target: <relative-path>
@@ -18,3 +18,4 @@ depended_by:
 
 last_verified: 2026-08-14
 created_by: unknown
+purpose_source: header-comment

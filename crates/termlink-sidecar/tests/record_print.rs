@@ -1,3 +1,4 @@
+//! Hermetic tests for reply, the record print and the vocabulary of printed labels.
 //! B11 tests: reply (BV-6), the record print (BV-7) and the FC-16 vocabulary.
 //! Hermetic: testkit estate only.
 

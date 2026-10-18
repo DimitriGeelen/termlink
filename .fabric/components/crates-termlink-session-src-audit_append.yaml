@@ -4,7 +4,7 @@ type: script
 subsystem: session
 location: crates/termlink-session/src/audit_append.rs
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: 'Size-capped O_APPEND line writer shared by the hub''s rpc audit and the invocation audit sinks. Size-capped O_APPEND line writer shared by the hub''s `rpc_audit` and the `invocation_audit` sink (T-2251…'
 depends_on: []
 depended_by:
 - target: crates/termlink-session/src/lib.rs
@@ -12,3 +12,4 @@ depended_by:
 last_verified: 2026-09-29
 created_by: unknown
 last_enriched: '2026-10-18'
+purpose_source: header-comment

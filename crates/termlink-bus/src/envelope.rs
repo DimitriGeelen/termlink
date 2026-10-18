@@ -1,3 +1,4 @@
+//! The bus `Envelope` type: a single message with an opaque payload, as appended to a topic log.
 use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};

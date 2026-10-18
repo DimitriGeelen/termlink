@@ -1,3 +1,4 @@
+//! The address book of a provisioned sidecar, mapping each agent of its project to a provisioned instance id.
 //! The address book of a provisioned sidecar (PH-2 row P7; SI-20 pin, SI-21
 //! fixed default, R-62 exact instance; operator rulings P7-1 to P7-4).
 //!

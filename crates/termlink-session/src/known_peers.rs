@@ -1,3 +1,4 @@
+//! Known-peer keyring that pins each peer's ed25519 key on first sight (trust on first use) and flags later changes.
 //! Known-peer keyring with TOFU semantics (T-1159).
 //!
 //! On first observation of a peer's ed25519 public key, `learn()` pins it.

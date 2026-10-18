@@ -1,3 +1,4 @@
+//! Hub-side handlers for the `artifact.put` and `artifact.get` RPC methods over the content-addressed blob store.
 //! Hub-side handlers for the T-1248 / T-1164a `artifact.*` RPC surface.
 //!
 //! Two methods, both Tier-A:

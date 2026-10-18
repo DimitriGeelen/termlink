@@ -1,3 +1,4 @@
+//! Tests of the fail-closed cases not covered elsewhere: hub outage, disk full and secret scan.
 //! B12: the fail-closed rows not covered by an earlier step's tests
 //! (architecture note 9.1): FC-1 hub half, FC-2 ENOSPC, FC-8 hub outage,
 //! FC-17 secret scan. Hermetic: testkit estate only.

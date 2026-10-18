@@ -1,3 +1,4 @@
+//! The 30 second tick and the receiver-side overdue-notice deadlines.
 //! The tick and the R-44.e deadlines (PH-2 row P2; operator rulings OQ-d A and OQ-c A).
 //!
 //! One tick is 30 s (R-17): every PH-2 bound counts in it. The 500 ms loop that

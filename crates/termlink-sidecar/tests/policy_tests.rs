@@ -1,3 +1,4 @@
+//! Hermetic tests for the receiver checks in policy.rs and the built-in allow-list.
 //! B8 tests for C-7 (policy.rs): SI-18, SI-23, SI-8 and the built-in allow-list.
 //! Hermetic: testkit estate only.
 

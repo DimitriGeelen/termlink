@@ -4,7 +4,7 @@ type: script
 subsystem: session
 location: crates/termlink-session/src/artifact.rs
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: 'Sender helper that uploads an artifact with `artifact.put` and announces it with a `channel.post` of type artifact. Sender helper for the T-1164b artifact migration. Provides `send_artifact_via_clien…'
 depends_on:
 - target: crates/termlink-protocol/src/lib.rs
   type: calls
@@ -14,3 +14,4 @@ depended_by:
 last_verified: 2026-04-25
 created_by: unknown
 last_enriched: '2026-05-03'
+purpose_source: header-comment

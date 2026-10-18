@@ -1,3 +1,4 @@
+//! The single entry point for every sidecar verb, used by the `termlink-sidecar` binary and by `termlink sidecar`.
 //! One entry point for every sidecar verb (PH-2 row P1, OQ-a ruled A).
 //!
 //! Called by the thin `termlink-sidecar` binary with an empty prefix and by

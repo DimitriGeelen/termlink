@@ -4,7 +4,7 @@ type: script
 subsystem: session
 location: crates/termlink-session/src/invocation_audit.rs
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: 'Per-tool and per-verb invocation telemetry written to an audit sink. T-2996 (value-review C-45): per-tool / per-verb invocation telemetry. Lives in `termlink-session` since T-3033 so the session daem…'
 depends_on: []
 depended_by:
 - target: crates/termlink-session/src/lib.rs
@@ -14,3 +14,4 @@ depended_by:
 last_verified: 2026-09-29
 created_by: unknown
 last_enriched: '2026-10-18'
+purpose_source: header-comment

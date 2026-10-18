@@ -4,8 +4,8 @@ type: script
 subsystem: sidecar
 location: crates/termlink-sidecar/src/api.rs
 tags: []
-purpose: 'TODO: describe what this component does'
-purpose_source: none
+purpose: 'The sidecar''s local API on per-scope Unix sockets (send, status, admin) and the status view. C-4 local API (architecture note section 3) and the C-10 status view. One unix stream socket per scope und…'
+purpose_source: header-comment
 depends_on: []
 depended_by:
 - target: crates/termlink-sidecar/src/lib.rs

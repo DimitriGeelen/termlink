@@ -1,3 +1,4 @@
+//! CLI command handlers for agent cryptographic identity.
 //! CLI glue for agent cryptographic identity (T-1159).
 
 use std::path::PathBuf;

@@ -4,7 +4,7 @@ type: script
 subsystem: bus
 location: crates/termlink-bus/src/limits.rs
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: 'Ceilings checked on every post that trim the oldest records of a bounded topic once it passes twice its limit. T-3310 (arc-012 step 5, operator ruling D3 = C): ceilings checked on post. The hub''s bac…'
 depends_on: []
 depended_by:
 - target: crates/termlink-bus/src/lib.rs
@@ -12,3 +12,4 @@ depended_by:
 last_verified: 2026-10-02
 created_by: unknown
 last_enriched: '2026-10-18'
+purpose_source: header-comment

@@ -1,3 +1,4 @@
+//! The `termlink help` command, rendering the same tool catalogue as the MCP `termlink_help` tool, as JSON or as text.
 // T-2002 (cycle 13 #1): `termlink help` — CLI parity with MCP `termlink_help`.
 //
 // Wraps `termlink_mcp::build_cli_help_json` and renders either the raw JSON

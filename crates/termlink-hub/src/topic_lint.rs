@@ -1,3 +1,4 @@
+//! Soft lint at emit that checks topic names against role rules and writes warnings to the `routing:lint` topic without rejecting.
 //! Topic↔role soft-lint at emit (T-1300, per T-1297 GO § Spike 3).
 //!
 //! Rules live in `<runtime_dir>/topic_roles.yaml` if present, else

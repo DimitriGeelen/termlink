@@ -4,7 +4,7 @@ type: script
 subsystem: session
 location: crates/termlink-session/src/hub_capabilities.rs
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: 'Client-side helper and cache for the `hub.capabilities` JSON-RPC method, used to learn which methods a peer hub serves. Client-side helper + cache for the `hub.capabilities` JSON-RPC method (T-1215).…'
 depends_on:
 - target: crates/termlink-protocol/src/lib.rs
   type: calls
@@ -14,3 +14,4 @@ depended_by:
 last_verified: 2026-04-24
 created_by: unknown
 last_enriched: '2026-04-24'
+purpose_source: header-comment

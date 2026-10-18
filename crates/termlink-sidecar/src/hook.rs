@@ -1,3 +1,4 @@
+//! Claude Code hook entry points run by `termlink-sidecar hook <event>` from the agent's settings.
 //! C-11 Claude adapter: hook entry points (architecture note 6.2, 6.3, 6.4).
 //!
 //! `termlink-sidecar hook <event>` is what the agent's `settings.json` runs.

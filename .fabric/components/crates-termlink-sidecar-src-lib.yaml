@@ -4,8 +4,8 @@ type: script
 subsystem: sidecar
 location: crates/termlink-sidecar/src/lib.rs
 tags: []
-purpose: 'TODO: describe what this component does'
-purpose_source: none
+purpose: 'Library for the sidecar crate. arc-011 PH-1 sidecar library. B2 scope: `estate` (C-1 guard) and `testkit` (C-12 core).'
+purpose_source: header-comment
 depends_on:
 - target: crates/termlink-sidecar/src/estate.rs
   type: calls

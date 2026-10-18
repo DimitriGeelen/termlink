@@ -4,8 +4,8 @@ type: script
 subsystem: sidecar
 location: crates/termlink-sidecar/src/beat.rs
 tags: []
-purpose: 'TODO: describe what this component does'
-purpose_source: none
+purpose: 'Component heartbeat that lets a sidecar notice when one of its internal loops has gone silent. Component heartbeat (K-3, R-8, FP-1 failure 4). A sidecar is several cooperating loops in one process: t…'
+purpose_source: header-comment
 depends_on: []
 depended_by:
 - target: crates/termlink-sidecar/src/lib.rs

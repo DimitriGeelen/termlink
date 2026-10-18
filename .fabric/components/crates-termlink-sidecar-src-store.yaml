@@ -4,8 +4,8 @@ type: script
 subsystem: sidecar
 location: crates/termlink-sidecar/src/store.rs
 tags: []
-purpose: 'TODO: describe what this component does'
-purpose_source: none
+purpose: 'Durable on-disk record store for a sidecar: locks, conversation logs, message records and claims. C-2 durable record store (architecture note section 4). Layout under `<store>/sidecar/<agent>/` (dirs…'
+purpose_source: header-comment
 depends_on: []
 depended_by:
 - target: crates/termlink-sidecar/src/lib.rs

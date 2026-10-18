@@ -1,3 +1,4 @@
+//! Claude adapter: reads the Claude Code transcript as evidence of what was delivered to the agent.
 //! C-11 Claude adapter: the transcript evidence reader (architecture note 6.4;
 //! SI-17, FC-11, FC-13). The hook entry points are B10.
 //!

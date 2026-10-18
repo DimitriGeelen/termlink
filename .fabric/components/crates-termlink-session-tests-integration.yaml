@@ -4,7 +4,7 @@ type: script
 subsystem: session
 location: crates/termlink-session/tests/integration.rs
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: 'End-to-end tests of multi-session communication over real Unix socket listeners. End-to-end integration tests for multi-session communication. These tests spin up real sessions with Unix socket liste…'
 depends_on:
 - target: crates/termlink-session/src/lib.rs
   type: calls
@@ -16,3 +16,4 @@ depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
 last_enriched: '2026-08-14'
+purpose_source: header-comment

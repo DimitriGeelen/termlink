@@ -4,7 +4,7 @@ type: script
 subsystem: session
 location: crates/termlink-session/tests/claim_client_integration.rs
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: 'Integration tests for the claim client against an in-test JSON-RPC fake hub, including auto-renew and drop behaviour. T-2031 — integration tests for the claim-client surface against a minimal in-test…'
 depends_on:
 - target: crates/termlink-protocol/src/lib.rs
   type: calls
@@ -14,3 +14,4 @@ depended_by: []
 last_verified: 2026-08-14
 created_by: unknown
 last_enriched: '2026-08-14'
+purpose_source: header-comment

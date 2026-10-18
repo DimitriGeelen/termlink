@@ -1,3 +1,4 @@
+//! Helper that reads, aggregates and trims inbox topics through `channel.subscribe`, `channel.list` and `channel.trim`.
 //! T-1220 wedge a (T-1225): inbox.* receiver migration helper. Channel-only
 //! post T-1166 cut (T-1415 AC3 cleanup).
 //!

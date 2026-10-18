@@ -4,8 +4,8 @@ type: script
 subsystem: sidecar
 location: crates/termlink-sidecar/src/send.rs
 tags: []
-purpose: 'TODO: describe what this component does'
-purpose_source: none
+purpose: 'Send path: signs a message, puts it in the durable outbox, records it as sent and returns its id. C-5 send path (architecture note section 3.2 `send`, 5.1, 5.5; D-3, D-4). `Sender::send` signs the me…'
+purpose_source: header-comment
 depends_on:
 - target: crates/termlink-protocol/src/lib.rs
   type: calls

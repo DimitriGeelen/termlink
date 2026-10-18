@@ -4,7 +4,7 @@ type: script
 subsystem: session
 location: crates/termlink-session/src/ack_retry.rs
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: 'Client-side helper that posts a message and retries until the recipient acknowledges it. Client-side ack-with-retry helper (T-2286, Design A of T-2285). Closes the producer half of §9 hard-dependency…'
 depends_on: []
 depended_by:
 - target: crates/termlink-session/src/lib.rs
@@ -12,3 +12,4 @@ depended_by:
 last_verified: 2026-06-25
 created_by: unknown
 last_enriched: '2026-07-03'
+purpose_source: header-comment

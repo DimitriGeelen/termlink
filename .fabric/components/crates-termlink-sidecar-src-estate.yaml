@@ -4,8 +4,8 @@ type: script
 subsystem: sidecar
 location: crates/termlink-sidecar/src/estate.rs
 tags: []
-purpose: 'TODO: describe what this component does'
-purpose_source: none
+purpose: 'Estate guard that refuses to run unless HOME, the runtime dir and the store root all sit inside one marked throwaway tree. C-1 estate guard: refuse to run unless `HOME`, the runtime dir and the store…'
+purpose_source: header-comment
 depends_on: []
 depended_by:
 - target: crates/termlink-sidecar/src/lib.rs

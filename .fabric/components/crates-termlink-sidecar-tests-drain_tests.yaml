@@ -4,8 +4,8 @@ type: script
 subsystem: sidecar
 location: crates/termlink-sidecar/tests/drain_tests.rs
 tags: []
-purpose: 'TODO: describe what this component does'
-purpose_source: none
+purpose: 'Tests of drain and rollback: a drained sidecar pulls and hands over nothing and keeps its stored messages. PH-2 row P4 (FP 6.2.3.e): drain and rollback. A drained sidecar pulls no new mail (it stays…'
+purpose_source: header-comment
 depends_on:
 - target: crates/termlink-sidecar/src/lib.rs
   type: calls

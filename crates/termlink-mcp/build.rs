@@ -1,3 +1,4 @@
+//! Build script that derives the version from git tags so the MCP `termlink_version` tool matches `termlink version --json`.
 //! Build script: derive version from git tags so `termlink_version` MCP
 //! tool returns the same `version`/`commit`/`target` as `termlink version
 //! --json` (T-1912 — T-1909 third-catch convergence).

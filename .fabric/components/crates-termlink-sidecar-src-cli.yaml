@@ -4,8 +4,8 @@ type: script
 subsystem: sidecar
 location: crates/termlink-sidecar/src/cli.rs
 tags: []
-purpose: 'TODO: describe what this component does'
-purpose_source: none
+purpose: 'The single entry point for every sidecar verb, used by the `termlink-sidecar` binary and by `termlink sidecar`. One entry point for every sidecar verb (PH-2 row P1, OQ-a ruled A). Called by the thin…'
+purpose_source: header-comment
 depends_on: []
 depended_by:
 - target: crates/termlink-sidecar/src/lib.rs

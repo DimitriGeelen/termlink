@@ -1,3 +1,4 @@
+//! Tests of the production start mode against the estate rule, in fresh temp dirs.
 //! PH-2 row P1 (T-3365): the production start mode next to the PH-1 estate rule.
 //! Everything here lives in fresh temp dirs; no real production path is touched.
 use std::fs;

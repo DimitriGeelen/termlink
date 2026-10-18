@@ -1,3 +1,4 @@
+//! Wire format and signing for sidecar messages, with identity fields carried inside the signed payload.
 //! C-3 wire format and signing (architecture note section 5; R-75, SI-3, SI-4, SI-26).
 //!
 //! The hub's signed bytes do not cover `metadata`, so every identity-bearing

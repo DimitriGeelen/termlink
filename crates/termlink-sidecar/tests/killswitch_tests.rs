@@ -1,3 +1,4 @@
+//! Tests of the kill switch for one sidecar or every listed one, through the client binary.
 //! PH-2 row P6 (SI-23, OQ-e ruled A): the kill switch for one sidecar or every
 //! listed one, through the client binary, each flip read back.
 use serde_json::{Value, json};

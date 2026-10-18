@@ -4,7 +4,7 @@ type: script
 subsystem: bus
 location: crates/termlink-bus/src/lib.rs
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: 'TermLink agent channel bus: append-only per-topic logs, per-recipient cursors and per-topic retention, embedded by the hub as a library. TermLink agent channel bus (T-1155). Append-only per-topic log…'
 depends_on:
 - target: crates/termlink-bus/src/envelope.rs
   type: calls
@@ -36,3 +36,4 @@ depended_by:
 last_verified: 2026-04-20
 created_by: unknown
 last_enriched: '2026-10-18'
+purpose_source: header-comment

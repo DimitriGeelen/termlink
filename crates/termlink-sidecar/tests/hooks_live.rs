@@ -1,3 +1,4 @@
+//! On-demand live check that runs one real `claude -p` session with the sidecar hook in a throwaway estate.
 //! B10 live check (run on demand, not in CI): one real `claude -p` session with
 //! the PostToolUse hook pointed at a sidecar in a throwaway estate.
 //!

@@ -1,3 +1,4 @@
+//! Integration tests that drive the MCP server through an rmcp client against real TermLink sessions.
 //! Integration tests for the TermLink MCP server.
 //!
 //! Uses rmcp client + real TermLink sessions to verify all MCP tools

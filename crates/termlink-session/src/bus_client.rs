@@ -1,3 +1,4 @@
+//! Client for the channel bus that posts directly and falls back to the local offline queue when the hub is unreachable.
 //! Client abstraction for the T-1155 channel bus (T-1161).
 //!
 //! Wraps `client::rpc_call` with an offline-tolerant envelope:

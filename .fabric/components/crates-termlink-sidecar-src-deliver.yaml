@@ -4,8 +4,8 @@ type: script
 subsystem: sidecar
 location: crates/termlink-sidecar/src/deliver.rs
 tags: []
-purpose: 'TODO: describe what this component does'
-purpose_source: none
+purpose: 'Claim and deliver: hands stored messages to the agent at a tool call, re-running the receiver checks each time. C-9 claim and deliver (architecture note sections 4.6, 6.4, 7.1, D-4; SI-30, SI-17, FC-…'
+purpose_source: header-comment
 depends_on: []
 depended_by:
 - target: crates/termlink-sidecar/src/lib.rs

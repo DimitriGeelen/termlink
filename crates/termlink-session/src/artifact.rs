@@ -1,3 +1,4 @@
+//! Sender helper that uploads an artifact with `artifact.put` and announces it with a `channel.post` of type artifact.
 //! Sender helper for the T-1164b artifact migration.
 //!
 //! Provides `send_artifact_via_client` — a single async entry point that

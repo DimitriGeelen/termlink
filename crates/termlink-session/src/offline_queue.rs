@@ -1,3 +1,4 @@
+//! Durable SQLite-backed FIFO of `channel.post` calls that could not be delivered, drained when the hub is reachable again.
 //! Client-side offline queue for bus posts (T-1161).
 //!
 //! Backs a durable FIFO of `channel.post` RPC calls that couldn't be

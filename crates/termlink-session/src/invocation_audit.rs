@@ -1,3 +1,4 @@
+//! Per-tool and per-verb invocation telemetry written to an audit sink.
 //! T-2996 (value-review C-45): per-tool / per-verb invocation telemetry.
 //!
 //! Lives in `termlink-session` since T-3033 so the session daemon can record

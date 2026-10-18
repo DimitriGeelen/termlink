@@ -4,7 +4,7 @@ type: script
 subsystem: hub
 location: crates/termlink-hub/src/channel.rs
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: 'Hub-side handlers for the `channel.*` RPC surface, backed by the embedded bus and verifying sender signatures on post. Hub-side handlers for the T-1160 `channel.*` RPC surface. The hub owns one [`ter…'
 depends_on:
 - target: crates/termlink-bus/src/lib.rs
   type: calls
@@ -18,3 +18,4 @@ depended_by:
 last_verified: 2026-04-20
 created_by: unknown
 last_enriched: '2026-05-03'
+purpose_source: header-comment

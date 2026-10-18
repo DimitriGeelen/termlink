@@ -1,3 +1,4 @@
+//! Tripwire test for the charter non-goal that TermLink is not an inter-hub federation layer.
 //! Charter non-goal #1 tripwire — "TermLink is NOT an inter-hub federation layer."
 //!
 //! T-2569 (filed by the T-2468 non-goal-guard review; built under the T-2678

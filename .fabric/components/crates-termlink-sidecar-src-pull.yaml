@@ -4,8 +4,8 @@ type: script
 subsystem: sidecar
 location: crates/termlink-sidecar/src/pull.rs
 tags: []
-purpose: 'TODO: describe what this component does'
-purpose_source: none
+purpose: 'Receive path: reads the agent''s inbox topic from a durable cursor, verifies each message and records it in the store. C-6 receive path (architecture note sections 4.3, 5.2, 5.3, 5.5; table 13 B7). A…'
+purpose_source: header-comment
 depends_on:
 - target: crates/termlink-protocol/src/lib.rs
   type: calls

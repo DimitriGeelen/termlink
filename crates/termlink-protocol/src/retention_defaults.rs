@@ -1,3 +1,4 @@
+//! The single table of default retentions for a new topic, shared by the hub, the CLI and the MCP create tool.
 //! T-3310 (arc-012 step 5, operator rulings D1/D2): the ONE table of default
 //! retentions for a new topic, shared by the hub (`channel.create` with no
 //! retention), the CLI (`channel create`, `--ensure-topic`) and the MCP create

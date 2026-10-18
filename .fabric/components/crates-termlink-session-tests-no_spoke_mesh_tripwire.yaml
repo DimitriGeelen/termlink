@@ -5,7 +5,7 @@ subsystem: session
 location: crates/termlink-session/tests/no_spoke_mesh_tripwire.rs
 tags: []
 
-purpose: "TODO: describe what this component does"
+purpose: "Tripwire test for the architecture invariant that spokes never connect to one another. T-2703 — tripwire for the architecture doc's decisive invariant: **spokes never connect to one another**."
 
 depends_on:
   # Format: - target: <relative-path>
@@ -18,3 +18,4 @@ depended_by:
 
 last_verified: 2026-08-14
 created_by: unknown
+purpose_source: header-comment

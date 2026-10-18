@@ -1,3 +1,4 @@
+//! Hermetic tests for the sidecar local API (api.rs) and the status view.
 //! B5 tests for C-4 (api.rs) and the status view. Hermetic: testkit estate only.
 
 use serde_json::{Value, json};

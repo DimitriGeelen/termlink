@@ -1,3 +1,4 @@
+//! Typed helpers for the assignment and result-manifest payload contract.
 //! Typed helpers for the T-2838 assignment / result-manifest payload contract.
 //!
 //! T-2838 decomposition item 3. The schemas were drafted and round-tripped in

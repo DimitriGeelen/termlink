@@ -1,3 +1,4 @@
+//! Content-addressed blob store for artifacts, laid out as `<root>/<first-2-hex>/<sha256>`.
 //! Content-addressed blob store (T-1248 / T-1164a).
 //!
 //! Layout: `<root>/<first-2-hex>/<full-sha256>`. Sharding by the first two

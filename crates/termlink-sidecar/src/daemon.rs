@@ -1,3 +1,4 @@
+//! The sidecar process started by `termlink-sidecar start`, which opens the store, send pump, receive loop, deliverer and API sockets.
 //! The sidecar process: `termlink-sidecar start --config <file>` (B10).
 //!
 //! One process per agent, inside the estate guard (C-1): it opens the store

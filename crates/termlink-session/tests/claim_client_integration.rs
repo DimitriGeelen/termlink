@@ -1,3 +1,4 @@
+//! Integration tests for the claim client against an in-test JSON-RPC fake hub, including auto-renew and drop behaviour.
 //! T-2031 — integration tests for the claim-client surface against a minimal
 //! in-test JSON-RPC fake hub. Same pattern as `bus_client_integration.rs`:
 //! no dependency on `termlink-hub`; tests the wire contract + LeasedClaim

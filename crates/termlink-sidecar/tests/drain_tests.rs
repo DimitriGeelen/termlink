@@ -1,3 +1,4 @@
+//! Tests of drain and rollback: a drained sidecar pulls and hands over nothing and keeps its stored messages.
 //! PH-2 row P4 (FP 6.2.3.e): drain and rollback. A drained sidecar pulls no new
 //! mail (it stays on the hub, the cursor does not move), hands nothing over, and
 //! keeps every stored message not yet handed over; the kept count is compared

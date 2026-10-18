@@ -1,3 +1,4 @@
+//! Hub-side topic policy: the optional retention config file and the rule that a forever-retained topic needs an owner.
 //! T-3310 (arc-012 step 5): hub-side topic policy — the retention config file
 //! (D3: limits are configurable) and the "forever needs an owner" enforcement
 //! (D1, operator ruling D+).

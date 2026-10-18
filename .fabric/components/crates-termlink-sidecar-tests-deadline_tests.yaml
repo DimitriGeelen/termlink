@@ -4,8 +4,8 @@ type: script
 subsystem: sidecar
 location: crates/termlink-sidecar/tests/deadline_tests.rs
 tags: []
-purpose: 'TODO: describe what this component does'
-purpose_source: none
+purpose: 'Tests of the 30 second tick and the receiver overdue deadlines on a simulated clock. PH-2 row P2 (T-3428): the 30 s tick and the R-44.e deadlines, on a simulated clock. Sender labels from the hub rec…'
+purpose_source: header-comment
 depends_on:
 - target: crates/termlink-session/src/lib.rs
   type: calls

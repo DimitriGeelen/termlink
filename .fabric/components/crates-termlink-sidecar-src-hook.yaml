@@ -4,8 +4,8 @@ type: script
 subsystem: sidecar
 location: crates/termlink-sidecar/src/hook.rs
 tags: []
-purpose: 'TODO: describe what this component does'
-purpose_source: none
+purpose: 'Claude Code hook entry points run by `termlink-sidecar hook <event>` from the agent''s settings. C-11 Claude adapter: hook entry points (architecture note 6.2, 6.3, 6.4). `termlink-sidecar hook <event…'
+purpose_source: header-comment
 depends_on: []
 depended_by:
 - target: crates/termlink-sidecar/src/lib.rs

@@ -4,7 +4,7 @@ type: script
 subsystem: hub
 location: crates/termlink-hub/src/topic_policy.rs
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: 'Hub-side topic policy: the optional retention config file and the rule that a forever-retained topic needs an owner. T-3310 (arc-012 step 5): hub-side topic policy — the retention config file (D3: li…'
 depends_on:
 - target: crates/termlink-bus/src/lib.rs
   type: calls
@@ -14,3 +14,4 @@ depended_by:
 last_verified: 2026-10-02
 created_by: unknown
 last_enriched: '2026-10-18'
+purpose_source: header-comment

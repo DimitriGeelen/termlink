@@ -4,8 +4,8 @@ type: script
 subsystem: sidecar
 location: crates/termlink-sidecar/src/testkit.rs
 tags: []
-purpose: 'TODO: describe what this component does'
-purpose_source: none
+purpose: 'Disposable estate test harness with its own HOME, runtime dir, keys and throwaway hub. C-12 core: the disposable estate harness (E-1, E-2, E-3, E-5). `Estate::create()` builds a marked throwaway tree…'
+purpose_source: header-comment
 depends_on: []
 depended_by:
 - target: crates/termlink-sidecar/src/lib.rs

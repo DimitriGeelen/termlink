@@ -1,3 +1,4 @@
+//! Disposable estate test harness with its own HOME, runtime dir, keys and throwaway hub.
 //! C-12 core: the disposable estate harness (E-1, E-2, E-3, E-5).
 //!
 //! `Estate::create()` builds a marked throwaway tree with its own HOME, runtime

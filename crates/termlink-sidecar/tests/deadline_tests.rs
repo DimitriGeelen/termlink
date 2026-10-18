@@ -1,3 +1,4 @@
+//! Tests of the 30 second tick and the receiver overdue deadlines on a simulated clock.
 //! PH-2 row P2 (T-3428): the 30 s tick and the R-44.e deadlines, on a simulated
 //! clock. Sender labels from the hub record; the receiver's overdue notices.
 use serde_json::{Value, json};

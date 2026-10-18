@@ -4,8 +4,8 @@ type: script
 subsystem: sidecar
 location: crates/termlink-sidecar/tests/supervision_tests.rs
 tags: []
-purpose: 'TODO: describe what this component does'
-purpose_source: none
+purpose: 'Tests of the component heartbeat, its status view, the exit on a silent component and the admin note. PH-2 row P3 (K-3, R-8, FP-1 failure 4): the component heartbeat, its status view, the exit for re…'
+purpose_source: header-comment
 depends_on:
 - target: crates/termlink-sidecar/src/lib.rs
   type: calls

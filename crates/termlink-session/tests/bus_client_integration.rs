@@ -1,3 +1,4 @@
+//! Integration tests for the `BusClient` offline queue and flush against an in-test fake hub.
 //! Integration tests for `BusClient` offline queue + flush (T-1161).
 //!
 //! These exercise the full transport path (Unix-socket JSON-RPC) against a

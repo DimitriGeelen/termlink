@@ -4,7 +4,7 @@ type: script
 subsystem: bus
 location: crates/termlink-bus/src/artifact_store.rs
 tags: []
-purpose: 'TODO: describe what this component does'
+purpose: 'Content-addressed blob store for artifacts, laid out as `<root>/<first-2-hex>/<sha256>`. Content-addressed blob store (T-1248 / T-1164a). Layout: `<root>/<first-2-hex>/<full-sha256>`. Sharding by the…'
 depends_on: []
 depended_by:
 - target: crates/termlink-bus/src/lib.rs
@@ -12,3 +12,4 @@ depended_by:
 last_verified: 2026-04-25
 created_by: unknown
 last_enriched: '2026-05-03'
+purpose_source: header-comment

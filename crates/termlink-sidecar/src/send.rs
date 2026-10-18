@@ -1,3 +1,4 @@
+//! Send path: signs a message, puts it in the durable outbox, records it as sent and returns its id.
 //! C-5 send path (architecture note section 3.2 `send`, 5.1, 5.5; D-3, D-4).
 //!
 //! `Sender::send` signs the message (wire.rs), puts it in the durable outbox (the

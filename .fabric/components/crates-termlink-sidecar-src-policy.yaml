@@ -4,8 +4,8 @@ type: script
 subsystem: sidecar
 location: crates/termlink-sidecar/src/policy.rs
 tags: []
-purpose: 'TODO: describe what this component does'
-purpose_source: none
+purpose: 'Receiver checks that decide whether a verified sender''s message is accepted, using the allow-list, operator lists and signed priority. C-7 receiver checks (architecture note section 7; SI-18, SI-23,…'
+purpose_source: header-comment
 depends_on: []
 depended_by:
 - target: crates/termlink-sidecar/src/lib.rs
