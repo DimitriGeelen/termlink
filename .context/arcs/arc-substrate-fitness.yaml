@@ -39,10 +39,104 @@ scoped_drivers:              # max 3, weight ≤6 each (M2). Approved by fw arc 
   - name: AS_COORDINATION_TRUTH
     weight: 6
     approved_at: '2026-06-22T19:15:07Z'
+    scoring:
+      kind: signals
+      strip_template: true
+      levels:
+        1:
+          keywords:
+            - presence
+            - heartbeat
+            - find-idle
+            - claims-summary
+        3:
+          keywords:
+            - cv_key
+            - cv-key
+            - latest-per-cv-key
+            - LatestPerCvKey
+            - stale ghost
+            - current-state
+            - current state
+          paths:
+            - scripts/listener-heartbeat.sh
+            - scripts/agent-listeners*.sh
+        5:
+          keywords:
+            - presence compaction
+            - compact-to-latest
+            - find_idle_agents_from_hint
+          paths:
+            - crates/termlink-bus/src/retention.rs
+            - crates/termlink-bus/src/claim.rs
+    scoring_source: 
+      /opt/termlink/docs/reports/T-3440-driver-specs/AS_COORDINATION_TRUTH.yaml
+    scoring_attached_at: '2026-10-18T22:12:16Z'
   - name: AS_FAILURE_OBSERVABILITY
     weight: 5
     approved_at: '2026-06-22T19:15:08Z'
+    scoring:
+      kind: signals
+      strip_template: true
+      levels:
+        1:
+          keywords:
+            - silent
+            - poison
+            - observab
+        3:
+          keywords:
+            - dead-letter
+            - dead_letter
+            - dead letter
+            - canary
+            - queue-status
+            - breaker
+          paths:
+            - scripts/check-*-freshness.sh
+            - crates/termlink-session/src/offline_queue.rs
+        5:
+          keywords:
+            - telemetry
+            - rollup
+            - queue.log
+            - fleet view
+          paths:
+            - crates/termlink-hub/src/circuit_breaker.rs
+    scoring_source: 
+      /opt/termlink/docs/reports/T-3440-driver-specs/AS_FAILURE_OBSERVABILITY.yaml
+    scoring_attached_at: '2026-10-18T22:12:17Z'
   - name: AS_RESOURCE_FOOTPRINT
     weight: 4
     approved_at: '2026-06-22T19:15:08Z'
+    scoring:
+      kind: signals
+      strip_template: true
+      levels:
+        1:
+          keywords:
+            - retention
+            - growth
+            - bloat
+        3:
+          keywords:
+            - sweep
+            - set-retention
+            - rotation
+            - size cap
+            - size-based
+          paths:
+            - scripts/check-topic-growth-freshness.sh
+            - scripts/check-forever-archival-freshness.sh
+        5:
+          keywords:
+            - bounded retention
+            - audit.jsonl
+            - rpc-audit
+          paths:
+            - crates/termlink-bus/src/retention.rs
+            - crates/termlink-bus/src/limits.rs
+    scoring_source: 
+      /opt/termlink/docs/reports/T-3440-driver-specs/AS_RESOURCE_FOOTPRINT.yaml
+    scoring_attached_at: '2026-10-18T22:12:18Z'
 proposed_scoped_drivers: []  # PROPOSALS from HANDOFF-termlink-remediation-2026-06-22 (claude-primary). NOT approved.
