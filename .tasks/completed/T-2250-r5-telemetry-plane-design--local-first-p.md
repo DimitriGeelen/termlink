@@ -4,17 +4,17 @@ name: "R5 telemetry plane design — local-first per-agent failure telemetry"
 description: >
   Inception: R5 telemetry plane design — local-first per-agent failure telemetry
 
-status: captured
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: later
+horizon: null
 arc_id: arc-substrate-fitness
 tags: [arc:arc-substrate-fitness]
 components: []
 related_tasks: [T-2242, T-2243, T-2245]
 created: 2026-06-23T07:53:59Z
-last_update: '2026-09-08T21:30:38Z'
-date_finished:
+last_update: 2026-10-18T18:29:32Z
+date_finished: 2026-10-18T18:29:32Z
 revisit_at: 2026-07-25          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 revisit_evidence_needed: "R7 hygiene cleanup landed (measurement surface de-noised)
   + R4 daily-aggregated-push transport validated live"                                                                                    # T-1451
@@ -209,23 +209,11 @@ R5 is the arc-002 observable-governance design node (Lock 2, after R4 shipped). 
 
 ## Decision
 
-**Decision**: DEFER
+**Decision**: GO
 
-<!-- CORRECTED 2026-06-25: was erroneously recorded NO-GO via Watchtower (misclick);
-     the recommendation was DEFER and the recorded rationale itself read as a DEFER
-     rationale. Reopened to started-work; awaiting formal re-record via
-     `fw inception decide T-2250 defer`. revisit_at + revisit_evidence_needed set
-     per T-1451/G-053. -->
+**Rationale**: Since June most of the original six signals got measured by other work; three did not, and nothing gives a fleet-wide view. Build only that: queue and breaker events logged locally by default, and a daily rollup over TermLink (Q2 transport) to a bounded collection topic. The T-3461 hub-stall investigation on 2026-10-18 had to use a hand-run /proc capture and ask ring20 to query its own journal, which is exactly the blindness R5 names.
 
-**Rationale**: DEFER (per the recommendation below).
-
-Rationale:
-
-R5 is the arc-002 observable-governance design node (Lock 2, after R4 shipped). Q2 already set direction (local-first capture+aggregate; daily AGGREGATED push riding R4's durable queue; tiered retention). This inception fleshes the design at decision-depth and reconciles an internal plan tension (R5 one-liner says 'NOT-over-TermLink' while Q2 resolved to a daily aggregated push OVER TermLink). DEFER pending the design write-up + the human's GO/NO-GO on transport and on whether to open the build now vs after R7 hygiene de-noises the measurement surface.
-
-Evidence:
-
-**Date**: 2026-06-25T06:31:02Z
+**Date**: 2026-10-18T18:29:29Z
 
 ## Updates
 
@@ -264,3 +252,45 @@ Evidence:
 - **Change:** status: started-work → captured
 - **Change:** horizon: later → later
 - **Reason:** T-1865 sweep: DEFER limbo recovery
+
+### 2026-10-18T18:29:29Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Since June most of the original six signals got measured by other work; three did not, and nothing gives a fleet-wide view. Build only that: queue and breaker events logged locally by default, and a daily rollup over TermLink (Q2 transport) to a bounded collection topic. The T-3461 hub-stall investigation on 2026-10-18 had to use a hand-run /proc capture and ask ring20 to query its own journal, which is exactly the blindness R5 names.
+
+### 2026-10-18T18:29:30Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
+- **Reason:** Inception decision in progress
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-d6d0baee
+- **Timestamp:** 2026-10-18T18:29:34Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+## Recommendation Verdict (v1.0)
+
+- **Scan ID:** RC-93db0166
+- **Timestamp:** 2026-10-18T18:29:34Z
+- **Overall:** CONTRADICTED
+- **Claims:** 9
+
+| Claim | Type | Status |
+|-------|------|--------|
+| `.context/working/.hub-outage-samples.ndjson` | file | ✓ pass |
+| `~/.termlink/queue.log` | file | ✗ fail — file not found at PROJECT_ROOT |
+| `claims.log` | module | ✓ pass |
+| `governor.log` | module | ✓ pass |
+| `T-3461` | task | ✓ pass |
+| `T-2243` | task | ✓ pass |
+| `T-3383` | task | ✓ pass |
+| `T-2083` | task | ✓ pass |
+| `T-2086` | task | ✓ pass |
+
+### 2026-10-18T18:29:32Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
