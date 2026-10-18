@@ -702,11 +702,7 @@ fn spawn_via_tmux(session_name: &str, shell_cmd: &str) -> Result<()> {
 pub(crate) fn spawn_detached(shell_cmd: &str) -> std::io::Result<std::process::Child> {
     use std::os::unix::process::CommandExt;
 
-    let mut cmd = std::process::Command::new("sh");
-    cmd.args(["-c", shell_cmd])
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .stdin(std::process::Stdio::null());
+    let mut cmd = detached_command(shell_cmd);
 
     // SAFETY: runs in the forked child before exec. `setsid` is
     // async-signal-safe, which is the constraint that applies here.
@@ -720,6 +716,20 @@ pub(crate) fn spawn_detached(shell_cmd: &str) -> std::io::Result<std::process::C
     }
 
     cmd.spawn()
+}
+
+/// The `sh -c` command [`spawn_detached`] runs, before `setsid` is attached.
+/// T-3463: the spawning agent's sidecar sockets never reach a spawned session.
+fn detached_command(shell_cmd: &str) -> std::process::Command {
+    let mut cmd = std::process::Command::new("sh");
+    for var in super::tmux_spawn::LAUNCH_SCOPED_ENV {
+        cmd.env_remove(var);
+    }
+    cmd.args(["-c", shell_cmd])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .stdin(std::process::Stdio::null());
+    cmd
 }
 
 fn spawn_via_background(session_name: &str, shell_cmd: &str) -> Result<()> {
@@ -769,6 +779,19 @@ mod tests {
     // host: SIGHUP on hangup goes to the launcher's session, so a child that
     // leads its OWN session is out of its reach. `getsid(pid) == pid` is that,
     // and it is observable in-process on both platforms.
+
+    /// T-3463: the background backend never hands a spawned session the spawning
+    /// agent's sidecar sockets.
+    #[test]
+    fn t3463_background_spawn_removes_sidecar_sockets() {
+        let c = detached_command("true");
+        for var in crate::commands::tmux_spawn::LAUNCH_SCOPED_ENV {
+            assert!(
+                c.get_envs().any(|(k, v)| k == std::ffi::OsStr::new(var) && v.is_none()),
+                "{var} must be removed from the background child"
+            );
+        }
+    }
 
     /// Reap a child we only spawned to inspect, so the test leaves no strays.
     fn kill_and_reap(mut child: std::process::Child) {

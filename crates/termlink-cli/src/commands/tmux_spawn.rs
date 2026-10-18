@@ -21,9 +21,14 @@ pub(crate) const PROJECT_SCOPED_ENV: &[&str] = &[
     "_FW_PATHS_DERIVED_BY",
     "FW_ROUTED_FROM", // set by newer AEF; 055 strips it too (T-3446)
     "CLAUDE_PROJECT_DIR",
-    "TERMLINK_SIDECAR_SOCKET",
-    "TERMLINK_SIDECAR_STATUS_SOCKET",
 ];
+
+/// T-3463: one agent's sidecar sockets. Unlike PROJECT_SCOPED_ENV they are not passed on to
+/// the new session at all: a session joins its sidecar only by being LAUNCHED with the socket
+/// (operator ruling P7-1 A). `tl-claude.sh` sets it explicitly in the command it injects, so
+/// forwarding it here only made every spawned session (and dispatched worker) able to take
+/// the spawning agent's mail.
+pub(crate) const LAUNCH_SCOPED_ENV: &[&str] = &["TERMLINK_SIDECAR_SOCKET", "TERMLINK_SIDECAR_STATUS_SOCKET"];
 
 /// Build `tmux [-L socket] new-session -d -s <session> [-e K=V ...] <shell_cmd>` on `base`
 /// (normally `Command::new("tmux")`), with every project-scoped variable removed from the tmux
@@ -45,6 +50,9 @@ pub(crate) fn tmux_new_session_from(
         if let Some(v) = lookup(var) {
             base.arg("-e").arg(format!("{var}={v}"));
         }
+    }
+    for var in LAUNCH_SCOPED_ENV {
+        base.env_remove(var);
     }
     base.arg(shell_cmd);
     base
@@ -84,6 +92,21 @@ mod tests {
         assert!(a.windows(2).any(|w| w == ["-e", "PROJECT_ROOT=/opt/p"]));
         assert!(a.windows(2).any(|w| w == ["-e", "FRAMEWORK_ROOT=/opt/p/.agentic-framework"]));
         assert_eq!(a.last().map(String::as_str), Some("sleep 1"), "the shell command stays last");
+    }
+
+    #[test]
+    fn t3463_sidecar_sockets_are_never_forwarded_to_the_session() {
+        let c = tmux_new_session_from(Command::new("tmux"), "tl-s", "true", None, |k| match k {
+            "TERMLINK_SIDECAR_SOCKET" => Some("/var/lib/termlink/sidecar/a.send.sock".into()),
+            "TERMLINK_SIDECAR_STATUS_SOCKET" => Some("/var/lib/termlink/sidecar/a.status.sock".into()),
+            "PROJECT_ROOT" => Some("/opt/p".into()),
+            _ => None,
+        });
+        for var in LAUNCH_SCOPED_ENV {
+            assert!(removed(&c, var), "{var} must be removed from the tmux client env");
+            assert!(!args(&c).iter().any(|a| a.starts_with(&format!("{var}="))), "{var} must not be passed with -e");
+        }
+        assert!(args(&c).windows(2).any(|w| w == ["-e", "PROJECT_ROOT=/opt/p"]), "project vars still go to the session");
     }
 
     #[test]

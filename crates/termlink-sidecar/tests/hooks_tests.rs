@@ -295,3 +295,37 @@ fn hooks_scripted_demo() {
     }
     println!("arc011-ph1 scripted demo: SENT -> RECEIVED -> STORED -> CLAIMED -> HANDED_OVER, both sidecars stopped cleanly");
 }
+
+/// T-3463: a fake /proc tree; each entry is (pid, comm, ppid).
+fn fake_proc(root: &Path, procs: &[(u32, &str, u32)]) {
+    for (pid, comm, ppid) in procs {
+        let d = root.join(pid.to_string());
+        std::fs::create_dir_all(&d).unwrap();
+        std::fs::write(d.join("comm"), format!("{comm}\n")).unwrap();
+        std::fs::write(d.join("stat"), format!("{pid} ({comm}) S {ppid} 1 1 0 -1\n")).unwrap();
+    }
+}
+
+#[test]
+fn t3463_top_level_session_joins_nested_session_does_not() {
+    let e = Estate::create_without_hub().unwrap();
+    let p = e.root().join("proc");
+    // The fleet session as measured on .107: tmux server -> termlink -> bash (claude-fw) -> claude.
+    // "tmux: server" carries a space; a naive split of stat would misread its ppid.
+    fake_proc(&p, &[(50, "tmux: server", 1), (60, "termlink", 50), (70, "bash", 60), (80, "claude", 70)]);
+    assert_eq!(hook::nested_claude_at(&p, 80), Some(false), "the top-level session must join");
+    // A claude -p started from that agent's Bash tool: claude(80) -> bash(90) -> claude(100).
+    fake_proc(&p, &[(90, "bash", 80), (100, "claude", 90)]);
+    assert_eq!(hook::nested_claude_at(&p, 100), Some(true), "a Claude started by a Claude must not join");
+    // A comm holding ')' and spaces must not break the ppid parse.
+    fake_proc(&p, &[(110, "a) b (c", 100), (120, "claude", 110)]);
+    assert_eq!(hook::nested_claude_at(&p, 120), Some(true));
+}
+
+#[test]
+fn t3463_unreadable_ancestry_is_unknown_not_nested() {
+    let e = Estate::create_without_hub().unwrap();
+    let p = e.root().join("proc");
+    fake_proc(&p, &[(80, "claude", 70)]); // parent 70 missing: cannot tell
+    assert_eq!(hook::nested_claude_at(&p, 80), None, "unknown ancestry keeps today's behaviour (join)");
+}

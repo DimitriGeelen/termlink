@@ -121,11 +121,62 @@ pub fn run(event: &str, input: &str, socket: Option<&Path>, log: Option<&Path>) 
     }
 }
 
+/// T-3463: is the Claude process running this hook itself started by another
+/// Claude? A session joins its sidecar only by being LAUNCHED with the socket
+/// (operator ruling P7-1 A), but every process an agent starts inherits its
+/// environment, so a `claude -p` an agent runs from its own shell would otherwise
+/// run these hooks and could be handed that agent's mail.
+///
+/// Walks the ancestors of `start_pid` under `proc_root`: the first `claude` is the
+/// hook's own session; a second one above it means nested. `Some(false)` when the
+/// walk reached the top with at most one; `None` when the ancestry cannot be read
+/// (no procfs, e.g. macOS), in which case the caller keeps the pre-T-3463
+/// behaviour and joins.
+pub fn nested_claude_at(proc_root: &Path, start_pid: u32) -> Option<bool> {
+    let mut pid = start_pid;
+    let mut seen = 0u32;
+    for _ in 0..64 {
+        if pid <= 1 {
+            return Some(false);
+        }
+        let dir = proc_root.join(pid.to_string());
+        let comm = std::fs::read_to_string(dir.join("comm")).ok()?;
+        if comm.trim() == "claude" {
+            seen += 1;
+            if seen >= 2 {
+                return Some(true);
+            }
+        }
+        // ppid is the 2nd field after the LAST ')': comm may hold spaces and ')'.
+        let stat = std::fs::read_to_string(dir.join("stat")).ok()?;
+        let rest = &stat[stat.rfind(')')? + 1..];
+        pid = rest.split_whitespace().nth(1)?.parse().ok()?;
+    }
+    None
+}
+
+/// T-3463: [`nested_claude_at`] on this host, starting from the hook's parent.
+fn nested_claude() -> Option<bool> {
+    let root = Path::new("/proc");
+    if !root.join("self").exists() {
+        return None;
+    }
+    nested_claude_at(root, std::os::unix::process::parent_id())
+}
+
 /// Read stdin (bounded), run the hook, print, spawn the finalizer. Exit code is
 /// always 0: the turn fails open.
 pub fn main_hook(event: &str) -> i32 {
     let socket = std::env::var_os(SOCKET_ENV).map(PathBuf::from);
     let log = errlog_path(socket.as_deref());
+    // T-3463: a Claude started by an agent inherited that agent's socket; it never
+    // joins. Said once per session (at session-start), not on every tool call.
+    if socket.is_some() && nested_claude() == Some(true) {
+        if event == "session-start" {
+            log_error(log.as_deref(), event, "nested Claude session (started by another Claude): not joining the sidecar (T-3463, P7-1 A)");
+        }
+        return 0;
+    }
     let mut input = String::new();
     if let Err(e) = std::io::stdin().take(MAX_INPUT).read_to_string(&mut input) {
         log_error(log.as_deref(), event, &format!("cannot read stdin: {e}"));

@@ -1,10 +1,19 @@
 ---
 id: T-3463
-name: "Keep TERMLINK_SIDECAR_SOCKET out of processes the main agent starts itself (Bash tool children, background spawn) - P7-1 A after 055 T-563"
+name: "Keep TERMLINK_SIDECAR_SOCKET out of processes the main agent starts itself
+  (Bash tool children, background spawn) - P7-1 A after 055 T-563"
 description: >
-  055 T-563 (operator ruling C) starts the fleet /opt/termlink agent with TERMLINK_SIDECAR_SOCKET. Everything that agent forks inherits it, so a worker it starts could join claude-termlink's mailbox (reverses P7-1 A). Covered today: termlink spawn via tmux strips it (T-3445, tmux_spawn.rs PROJECT_SCOPED_ENV). Not covered: spawn_via_background (execution.rs:725, no env_remove) and anything run from the agent's own Bash tool (claude -p, scripts). Candidate: the session-start hook writes 'unset TERMLINK_SIDECAR_SOCKET TERMLINK_SIDECAR_STATUS_SOCKET' to CLAUDE_ENV_FILE so Bash tool commands lose it while hooks keep it (verify the mechanism first); background spawn strips PROJECT_SCOPED_ENV like tmux does. Until done: no workers started from the main agent's shell.
+  055 T-563 (operator ruling C) starts the fleet /opt/termlink agent with TERMLINK_SIDECAR_SOCKET.
+  Everything that agent forks inherits it, so a worker it starts could join claude-termlink's
+  mailbox (reverses P7-1 A). Covered today: termlink spawn via tmux strips it (T-3445,
+  tmux_spawn.rs PROJECT_SCOPED_ENV). Not covered: spawn_via_background (execution.rs:725,
+  no env_remove) and anything run from the agent's own Bash tool (claude -p, scripts).
+  Candidate: the session-start hook writes 'unset TERMLINK_SIDECAR_SOCKET TERMLINK_SIDECAR_STATUS_SOCKET'
+  to CLAUDE_ENV_FILE so Bash tool commands lose it while hooks keep it (verify the
+  mechanism first); background spawn strips PROJECT_SCOPED_ENV like tmux does. Until
+  done: no workers started from the main agent's shell.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -38,8 +47,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-18T09:43:20Z
-last_update: 2026-10-18T09:43:50Z
-date_finished: null
+last_update: 2026-10-18T12:14:20Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,20 +59,39 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-18T12:08:12Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3463: Keep TERMLINK_SIDECAR_SOCKET out of processes the main agent starts itself (Bash tool children, background spawn) - P7-1 A after 055 T-563
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+055 T-563 (operator ruling C, 2026-10-18) starts the fleet /opt/termlink agent with TERMLINK_SIDECAR_SOCKET. Every process that agent starts inherits it, so a Claude it launches itself (e.g. `claude -p` from its Bash tool) would run the sidecar hooks and could claim claude-termlink's mail, reversing P7-1 A ("a session joins W1 only by being started with the socket").
+
+**Correction (2026-10-18):** earlier text here and the message to 055 said tmux spawns already strip it (T-3445). Wrong: T-3445 keeps the vars out of the tmux SERVER's global env but forwards them to the new session with `-e` (`tmux_spawn.rs:43-48`), so a `termlink spawn` session (and `fw termlink dispatch` workers) DO receive the socket today.
+
+Design, two layers: (1) `termlink spawn` (tmux and background backends) never forwards the sidecar sockets: they are launch-scoped, and `tl-claude.sh` sets them explicitly in the command it injects (`build_claude_cmd`, lines 183-185), so nothing legitimate depends on forwarding. (2) `termlink sidecar hook` does nothing when its Claude process has another Claude among its ancestors, covering a `claude -p` an agent runs straight from its Bash tool.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `termlink sidecar hook <event>` is a no-op (prints nothing, exit 0) when the Claude process running it has a `claude` ancestor; the top-level session still joins
+- [x] Unit tests on a fake process tree: top-level joins, nested does not, unreadable ancestry keeps today's behaviour (joins) and says so
+- [x] `termlink spawn` never forwards TERMLINK_SIDECAR_SOCKET / TERMLINK_SIDECAR_STATUS_SOCKET: the tmux path removes them and passes no `-e` for them; the background path removes them from the child (tests on both; project vars still forwarded on tmux)
+- [ ] Live check in this session after deploy: hooks still deliver (a PostToolUse pull works), and a nested `claude -p` started from Bash with the socket inherited does not register with the sidecar
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -364,3 +392,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3463-keep-termlinksidecarsocket-out-of-proces.md
 - **Context:** Initial task creation
+
+### 2026-10-18T12:08:12Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
