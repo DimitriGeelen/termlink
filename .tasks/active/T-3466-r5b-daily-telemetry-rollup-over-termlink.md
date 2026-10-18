@@ -1,8 +1,11 @@
 ---
 id: T-3466
-name: "R5b: daily telemetry rollup over TermLink to a bounded collection topic (T-2250 GO)"
+name: "R5b: daily telemetry rollup over TermLink to a bounded collection topic (T-2250
+  GO)"
 description: >
-  T-2250 GO (narrowed): roll up each host's local telemetry (R5a events + T-3383 hub-outage samples) daily and post the aggregate over TermLink to a bounded topic, so every host's view is collected, not only .107.
+  T-2250 GO (narrowed): roll up each host's local telemetry (R5a events + T-3383 hub-outage
+  samples) daily and post the aggregate over TermLink to a bounded topic, so every
+  host's view is collected, not only .107.
 
 status: captured
 workflow_type: build
@@ -39,8 +42,8 @@ arc_id: arc-substrate-fitness
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-18T18:30:29Z
-last_update: 2026-10-18T18:30:29Z
-date_finished: null
+last_update: '2026-10-18T22:12:57Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -51,6 +54,25 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-18T22:12:57Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      AS_COORDINATION_TRUTH: 0
+      AS_FAILURE_OBSERVABILITY: 5
+      AS_RESOURCE_FOOTPRINT: 5
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: 'AS_COORDINATION_TRUTH=0 (L0: no signal); AS_FAILURE_OBSERVABILITY=5
+      (L1:keyword=silent,L3:keyword=dead-letter); AS_RESOURCE_FOOTPRINT=5 (L1:keyword=retention,L5:keyword=bounded
+      retention); D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=2 (body:env-class-handled); F-RECALL=2
+      (body:lightly-promoted); F-ORCH=0 (no-signal)'
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3466: R5b: daily telemetry rollup over TermLink to a bounded collection topic (T-2250 GO)
