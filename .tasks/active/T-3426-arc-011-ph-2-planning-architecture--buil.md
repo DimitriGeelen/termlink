@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-12T19:17:19Z
-last_update: 2026-10-18T08:58:57Z
+last_update: 2026-10-18T10:02:27Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -454,6 +454,12 @@ date_finished: null
      legacy tasks lacking this section. -->
 
 ## Updates
+
+### 2026-10-18T10:01Z — W1 joined: the main session runs on its sidecar [agent]
+- **How:** 055 T-563 (operator ruling C) started the fleet /opt/termlink agent with `TERMLINK_SIDECAR_SOCKET=/var/lib/termlink/sidecar/claude-termlink.send.sock`; the operator did Stop/Start from the cockpit.
+- **Verified in the new session:** the socket is in the session env (`TERMLINK_AGENT_ID=claude-termlink`); `-alt`'s reply b2bb93c5 ("W1 test 1 received", conv c-bdca52a2d32ceb34, STORED 2026-10-14T19:21:41Z) was handed over by the PostToolUse hook into this conversation; sidecar status `HANDED_OVER 2026-10-18T10:01:41.203Z`.
+- **Effect:** both W1 agents now run on their sidecars; the 7 clean days that gate W2 count from 2026-10-18T10:01Z (earliest W2: 2026-10-25T10:01Z), subject to K-18/K-19 and the other W2 entry conditions.
+- **Open:** T-3463 (keep the socket out of processes this agent starts itself) before any worker is started from this shell.
 
 ### 2026-10-16T21:05Z — W1 kill-switch drill passed on the real pair [agent]
 - **Run:** runme 2026-10-16T21:05:05Z rc=0, action 19 (`scripts/arc011-w1-killswitch-drill.sh`, commit ffb42721f), 8/8:
