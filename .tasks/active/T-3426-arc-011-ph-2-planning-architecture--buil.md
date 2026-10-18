@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-12T19:17:19Z
-last_update: 2026-10-16T21:06:19Z
+last_update: 2026-10-18T08:58:57Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -327,6 +327,12 @@ date_finished: null
 -->
 
 ## Decisions
+
+### 2026-10-18 — W1 join: how the fleet-managed main session gets TERMLINK_SIDECAR_SOCKET (operator ruling)
+- **Context:** the operator works through the 055 fleet window and cannot relaunch the session himself; /opt/termlink is a fleet agent (claude-fw --termlink, autorestart, resume) whose launcher passes no per-agent env (env -i boundary). Conversation agent-relaunch-in-fleet-window with 055.
+- **Chose:** C (operator: "3") — 055 adds a per-agent env field to the cockpit fleet config, with an allow-list of env names, so ONLY the fleet's /opt/termlink session starts with TERMLINK_SIDECAR_SOCKET=/var/lib/termlink/sidecar/claude-termlink.send.sock. Joining stays keyed to the launch (P7-1 A); the fleet keeps autorestart/resume; no declaration, no T-477 two-agents risk.
+- **Rejected:** A (project-wide settings.local.json env: every Claude in /opt/termlink, incl. dispatched workers and claude -p, would become a receiver for claude-termlink mail, reversing P7-1 A; a guard would be extra build on our side); B (declare /opt/termlink as a live agent joined via cockpit Join: available today, but takes the project out of fleet management).
+- **Left open:** 055 builds it (task, tests, independent review, operator deploy runme); W1 join and the 7-day W2 clock wait for that deploy plus one Stop/Start from the cockpit.
 
 ### 2026-10-12 — OQ-a: how the sidecar ships (operator ruling)
 - **Chose:** A — fold it into the main binary as `termlink sidecar …` (row P1, T-3365).
