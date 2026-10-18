@@ -94,15 +94,22 @@ echo "2026-10-16T00:00:00Z earlier pass" > "$RUNME_W1_DRILL_DONE"
 # all three drivers already carry a spec, so every other case skips the action.
 export RUNME_ARCS_DIR="$TMP/arcs" RUNME_DRIVER_SPECS="$TMP/specs" RUNME_ARC_ATTACH="$TMP/fake-attach"
 mkdir -p "$RUNME_ARCS_DIR" "$RUNME_DRIVER_SPECS"
-for d in AS_COORDINATION_TRUTH AS_FAILURE_OBSERVABILITY AS_RESOURCE_FOOTPRINT; do
+for d in AS_COORDINATION_TRUTH AS_FAILURE_OBSERVABILITY AS_RESOURCE_FOOTPRINT AS_DELIVERY_TRUTH AS_FAILURE_SURFACED AS_OPERATOR_SIMPLICITY; do
     printf 'kind: signals\nlevels:\n  3: {keywords: [x]}\n' > "$RUNME_DRIVER_SPECS/$d.yaml"
 done
-arcs_specced() {  # write the scratch arc with (1) or without (0) scoring blocks
-    { echo "id: arc-002"; echo "scoped_drivers:"
-      for d in AS_COORDINATION_TRUTH AS_FAILURE_OBSERVABILITY AS_RESOURCE_FOOTPRINT; do
-          echo "  - name: $d"; echo "    weight: 4"
-          [ "$1" = 1 ] && echo "    scoring: {kind: signals, levels: {3: {keywords: [x]}}}"
-      done; } > "$RUNME_ARCS_DIR/arc-substrate-fitness.yaml"
+arcs_specced() {  # write both scratch arcs with (1) or without (0) scoring blocks
+    local arc drivers d
+    for arc in arc-substrate-fitness arc-011; do
+        case $arc in
+            arc-011) drivers="AS_DELIVERY_TRUTH AS_FAILURE_SURFACED AS_OPERATOR_SIMPLICITY" ;;
+            *)       drivers="AS_COORDINATION_TRUTH AS_FAILURE_OBSERVABILITY AS_RESOURCE_FOOTPRINT" ;;
+        esac
+        { echo "id: $arc"; echo "scoped_drivers:"
+          for d in $drivers; do
+              echo "  - name: $d"; echo "    weight: 4"
+              [ "$1" = 1 ] && echo "    scoring: {kind: signals, levels: {3: {keywords: [x]}}}"
+          done; } > "$RUNME_ARCS_DIR/$arc.yaml"
+    done
 }
 arcs_specced 1
 cat > "$TMP/fake-attach" <<'EOS'
@@ -477,7 +484,7 @@ else bad "log path printed" "$out"; fi
 REAL_RUN=1
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 26 ))   # +3 driver specs (T-3440 5c); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
+EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 29 ))   # +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -1273,10 +1280,10 @@ out=$(FAKE_ATTACH_LIE=1 run); rc=$?
 if [ "$rc" = "1" ] && echo "$out" | grep -q "attach reported success but no valid scoring block is stored"; then ok "specs: a claimed attach that stored nothing is FAILED"
 else bad "specs lie" "rc=$rc: $out"; fi
 out=$(run); rc=$?
-if [ "$rc" = "0" ] && [ "$(echo "$out" | grep -c "OK      attached and verified")" = "3" ]; then ok "specs: all three attached and verified on disk"
+if [ "$rc" = "0" ] && [ "$(echo "$out" | grep -c "OK      attached and verified")" = "6" ] && grep -q "scoring:" "$RUNME_ARCS_DIR/arc-011.yaml"; then ok "specs: all six attached and verified on disk, both arcs"
 else bad "specs attach" "rc=$rc: $out"; fi
 out=$(run); rc=$?
-if [ "$rc" = "0" ] && [ "$(echo "$out" | grep -c "already carries a scoring spec")" = "3" ]; then ok "specs: idempotent (skips once attached)"
+if [ "$rc" = "0" ] && [ "$(echo "$out" | grep -c "already carries a scoring spec")" = "6" ]; then ok "specs: idempotent (skips once attached)"
 else bad "specs idempotent" "rc=$rc: $out"; fi
 
 

@@ -1546,9 +1546,13 @@ sys.exit(0)
 PY
 }
 
+# arc-011's three were added on the operator's second "ja" (2026-10-19), after the
+# narrowed specs' spread (docs/reports/T-3440-driver-specs/README.md).
+DRIVER_SPEC_PAIRS="arc-substrate-fitness:AS_COORDINATION_TRUTH arc-substrate-fitness:AS_FAILURE_OBSERVABILITY arc-substrate-fitness:AS_RESOURCE_FOOTPRINT arc-011:AS_DELIVERY_TRUTH arc-011:AS_FAILURE_SURFACED arc-011:AS_OPERATOR_SIMPLICITY"
 attach_driver_specs() {
-    local arc="arc-substrate-fitness" d spec
-    for d in AS_COORDINATION_TRUTH AS_FAILURE_OBSERVABILITY AS_RESOURCE_FOOTPRINT; do
+    local pair arc d spec
+    for pair in $DRIVER_SPEC_PAIRS; do
+        arc="${pair%%:*}"; d="${pair#*:}"
         spec="$DRIVER_SPECS/$d.yaml"
         if arc_driver_has_scoring "$arc" "$d"; then
             say "  skip    $arc $d already carries a scoring spec"; SKIPPED=$((SKIPPED+1)); continue
@@ -1570,7 +1574,7 @@ attach_driver_specs() {
     done
 }
 
-head2 "20. Scoring specs for arc-substrate-fitness's three value drivers (T-3440 5c, T-3472)"
+head2 "20. Scoring specs for the value drivers of arc-substrate-fitness and arc-011 (T-3440 5c, T-3472)"
 attach_driver_specs
 
 # ---------------------------------------------------------------------------
