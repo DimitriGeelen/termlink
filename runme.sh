@@ -1509,6 +1509,71 @@ head2 "19. arc-011 W1: kill-switch drill on the pair, with a control and a SIGKI
 w1_killswitch_drill
 
 # ---------------------------------------------------------------------------
+# ACTION 20 — attach scoring specs to arc-substrate-fitness's three drivers
+# (T-3440 5c, operator ruling A′ 2026-10-18; operator "ja" to attaching after
+# seeing the score spread in docs/reports/T-3440-driver-specs/README.md).
+#
+# Attaching a spec to an approved scoped driver is the operator's act, so it
+# runs here, from the operator's own run, with --i-am-human. It needs the T-3472
+# fix (approve-driver now stores the spec and attaches to an existing driver).
+# Idempotent: a driver whose arc entry already carries a `scoring:` block is
+# skipped. Verified on disk: after attaching, the arc YAML must hold a valid
+# block the estimator reads, else FAILED.
+# Seams (fixtures only): RUNME_ARCS_DIR, RUNME_ARC_ATTACH (command taking
+# <arc> <driver> <spec-file>), RUNME_DRIVER_SPECS (spec dir).
+# ---------------------------------------------------------------------------
+seam ARCS_DIR RUNME_ARCS_DIR "$PROJECT_ROOT/.context/arcs"
+seam DRIVER_SPECS RUNME_DRIVER_SPECS "$PROJECT_ROOT/docs/reports/T-3440-driver-specs"
+seam ARC_ATTACH RUNME_ARC_ATTACH "arc_attach_real"
+arc_attach_real() { "$FW" arc approve-driver "$1" "$2" --scoring-file "$3" --i-am-human; }
+
+arc_driver_has_scoring() {  # <arc> <driver> -> 0 when the stored entry carries a valid scoring block
+    FWR="$PROJECT_ROOT/.agentic-framework" python3 - "$ARCS_DIR/$1.yaml" "$2" <<'PY'
+import importlib.util, os, sys, yaml
+try:
+    d = yaml.safe_load(open(sys.argv[1])) or {}
+except Exception:
+    sys.exit(2)
+e = next((s for s in d.get("scoped_drivers") or [] if s.get("name") == sys.argv[2]), None)
+b = (e or {}).get("scoring")
+if not isinstance(b, dict) or not b:
+    sys.exit(1)
+p = os.path.join(os.environ["FWR"], "agents/termlink/bvp-estimator/estimator.py")
+if os.path.isfile(p):
+    s = importlib.util.spec_from_file_location("e", p); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+    sys.exit(1 if m.validate_scoring_spec(b) else 0)
+sys.exit(0)
+PY
+}
+
+attach_driver_specs() {
+    local arc="arc-substrate-fitness" d spec
+    for d in AS_COORDINATION_TRUTH AS_FAILURE_OBSERVABILITY AS_RESOURCE_FOOTPRINT; do
+        spec="$DRIVER_SPECS/$d.yaml"
+        if arc_driver_has_scoring "$arc" "$d"; then
+            say "  skip    $arc $d already carries a scoring spec"; SKIPPED=$((SKIPPED+1)); continue
+        fi
+        if [ ! -f "$spec" ]; then
+            say "  FAILED  $arc $d: spec file missing ($spec)"; FAILED=$((FAILED+1)); continue
+        fi
+        if [ "$DRY_RUN" = "1" ]; then
+            say "  [DRY]   would attach $spec to $arc $d"; DONE=$((DONE+1)); continue
+        fi
+        if ! $ARC_ATTACH "$arc" "$d" "$spec" >/tmp/.runme-attach-"$d".log 2>&1; then
+            say "  FAILED  attaching $d refused: $(tail -1 /tmp/.runme-attach-"$d".log)"; FAILED=$((FAILED+1)); continue
+        fi
+        if arc_driver_has_scoring "$arc" "$d"; then
+            say "  OK      attached and verified: $arc $d now carries a valid scoring spec"; DONE=$((DONE+1))
+        else
+            say "  FAILED  $arc $d: attach reported success but no valid scoring block is stored"; FAILED=$((FAILED+1))
+        fi
+    done
+}
+
+head2 "20. Scoring specs for arc-substrate-fitness's three value drivers (T-3440 5c, T-3472)"
+attach_driver_specs
+
+# ---------------------------------------------------------------------------
 # Verification — the project's own drift checker is the arbiter, not this script.
 # Using the repo's existing check rather than a bespoke one means this cannot
 # quietly disagree with what `fw audit` will say five minutes from now.
