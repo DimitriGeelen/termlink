@@ -169,9 +169,18 @@ live-host hygiene.
 
 ## Recommendation
 
-**Recommendation:** DEFER
+**Recommendation:** GO (narrowed to the gaps; operator ruling 2026-10-18, option B)
 
-**Rationale:**
+**Rationale:** Since June most of the original six signals got measured by other work; three did not, and nothing gives a fleet-wide view. Build only that: queue and breaker events logged locally by default, and a daily rollup over TermLink (Q2 transport) to a bounded collection topic. The T-3461 hub-stall investigation on 2026-10-18 had to use a hand-run /proc capture and ask ring20 to query its own journal, which is exactly the blindness R5 names.
+
+**Evidence:**
+- Covered: post discards → dead-letter table (T-2243) + dead-letter canary (cron `termlink-dead-letter-canary` installed).
+- Covered from ONE host: hub reachability + RTT → `.context/working/.hub-outage-samples.ndjson`, 70,623 samples since 2026-10-11 (T-3383, cron `termlink-hub-outage-collector`), observed from .107 only.
+- Partly covered: crashed agents → frozen-husk + session-leak canaries; arc-011 sidecar heartbeat.
+- NOT covered: queue flaps (`~/.termlink/queue.log`, `claims.log`, `governor.log` do not exist: the `--watch --log` tooling of T-2083..T-2086 is never run); circuit-breaker trips; any fleet-wide aggregate.
+- Report: docs/reports/T-2250-r5-telemetry-plane-design.md (design, §3 schema, §5 transport).
+
+**Filing-time rationale (2026-06, superseded by the above):**
 
 R5 is the arc-002 observable-governance design node (Lock 2, after R4 shipped). Q2 already set direction (local-first capture+aggregate; daily AGGREGATED push riding R4's durable queue; tiered retention). This inception fleshes the design at decision-depth and reconciles an internal plan tension (R5 one-liner says 'NOT-over-TermLink' while Q2 resolved to a daily aggregated push OVER TermLink). DEFER pending the design write-up + the human's GO/NO-GO on transport and on whether to open the build now vs after R7 hygiene de-noises the measurement surface.
 
@@ -182,6 +191,12 @@ R5 is the arc-002 observable-governance design node (Lock 2, after R4 shipped). 
      can be revised before fw inception decide. -->
 
 ## Decisions
+
+### 2026-10-18 — GO, narrowed to the gaps (operator ruling, via T-3440 brief)
+- **Chose:** B. Build only what is still not measured: (1) outbound-queue and circuit-breaker events logged locally by default (not only under `--watch --log`); (2) a daily rollup of the local logs, including the T-3383 hub-outage samples, posted over TermLink (Q2 transport, resolves IW-1) to a bounded collection topic so every host's view is collected, not only .107's.
+- **Why:** measured 2026-10-18: post discards (T-2243 dead-letter + canary) and per-hub reachability/RTT (T-3383, 70,623 samples since 2026-10-11, observed from .107 only) are covered; clean-exit is partly covered (frozen-husk, session-leak canaries, arc-011 sidecar heartbeat). NOT covered: queue flaps (`~/.termlink/queue.log` absent, nothing runs the watch), breaker trips, and any fleet-wide view; the T-3461 hub-stall investigation needed a hand-run /proc capture and ring20 querying its own journal.
+- **Rejected:** A NO-GO (the gaps were felt today), C DEFER again (third deferral of a question ripe since 2026-07-25), D the full six-signal recorder (duplicates T-3383).
+- **Open:** IW-2 exact signal list comes back with the build tasks; IW-3 (after R7) treated as satisfied pending a check (T-2251 done, sweep-test-debris.sh present; not fully audited).
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
