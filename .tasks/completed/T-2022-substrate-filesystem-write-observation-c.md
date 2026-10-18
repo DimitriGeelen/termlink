@@ -8,16 +8,16 @@ description: >
   expected to split into sub-pieces. Absence FORCES conservative launch policy; presence
   is precondition (not trigger) for optimistic.
 
-status: captured
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: later
+horizon: null
 tags: [arc:arc-parallel-substrate, novel-mechanism]
 components: []
 related_tasks: [T-2018]
 created: 2026-06-07T11:36:29Z
-last_update: 2026-10-18T20:14:40Z
-date_finished:
+last_update: 2026-10-18T20:19:42Z
+date_finished: 2026-10-18T20:19:42Z
 revisit_at: 2026-09-08            # T-1451: DEFER pending Foundation primitives + AEF serialization-cost evidence
 revisit_evidence_needed: "Either (a) AEF-layer incident attributable to lacking write-observation;
   (b) successful git-hook path-declaration spike (T-2022a); or (c) ring20 deployment-shape
@@ -229,13 +229,13 @@ cost_estimate_proposed:
 
 ## Decision
 
-**Decision**: DEFER
+**Decision**: NO-GO
 
 **Rationale**: The substrate primitive is not buildable at OS level (survey below, unchanged), and the declaration alternative the June re-scope proposed now exists in AEF, at the layer that makes the dispatch decision. A second declaration channel in the substrate (git hook → topic) would be a parallel source of truth for the same thing.
 
 OS-level FS observation as a substrate primitive is not viable in the ring20 deployment. The mechanism survey (artifact §2) finds an empty intersection of (portable across Linux+macOS) ∧ (works in capability-dropped containers) ∧ (catches Rust agent writes) ∧ (acceptable perf cost). HOWEVER, the *concern* the primitive addresses — detecting parallel writes to the same file for the conservative→optimistic flip — is real and worth resolving at a different abstraction layer. The key insight: §4's "honor-system is unsafe" worry assumes *voluntary* announcement; if announcement is structurally enforced via a pre-commit git hook (the agent can't bypass without disabling the hook, which is itself observable), it moves from "honor-system" to "hook-enforced declaration" — sound for the ring20 cooperating-agent trust model. File granularity matches what AEF actually needs (git already operates there). Three small spikes test this re-scoping. If they succeed, the substrate gets the capability §6 #4 asks for at a tractable abstraction; if they fail, T-2022c falls back to kernel-mechanism on the Linux subset only.
 
-**Date**: 2026-10-18T20:14:40Z
+**Date**: 2026-10-18T20:19:41Z
 
 ## Updates
 
@@ -295,3 +295,53 @@ OS-level FS observation as a substrate primitive is not viable in the ring20 dep
 ### 2026-10-18T20:14:40Z — status-update [task-update-agent]
 - **Change:** horizon: later → later
 - **Reason:** Inception decision: DEFER — parking task
+
+### 2026-10-18T20:19:41Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** NO-GO
+- **Rationale:** The substrate primitive is not buildable at OS level (survey below, unchanged), and the declaration alternative the June re-scope proposed now exists in AEF, at the layer that makes the dispatch decision. A second declaration channel in the substrate (git hook → topic) would be a parallel source of truth for the same thing.
+
+OS-level FS observation as a substrate primitive is not viable in the ring20 deployment. The mechanism survey (artifact §2) finds an empty intersection of (portable across Linux+macOS) ∧ (works in capability-dropped containers) ∧ (catches Rust agent writes) ∧ (acceptable perf cost). HOWEVER, the *concern* the primitive addresses — detecting parallel writes to the same file for the conservative→optimistic flip — is real and worth resolving at a different abstraction layer. The key insight: §4's "honor-system is unsafe" worry assumes *voluntary* announcement; if announcement is structurally enforced via a pre-commit git hook (the agent can't bypass without disabling the hook, which is itself observable), it moves from "honor-system" to "hook-enforced declaration" — sound for the ring20 cooperating-agent trust model. File granularity matches what AEF actually needs (git already operates there). Three small spikes test this re-scoping. If they succeed, the substrate gets the capability §6 #4 asks for at a tractable abstraction; if they fail, T-2022c falls back to kernel-mechanism on the Linux subset only.
+
+### 2026-10-18T20:19:41Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
+- **Reason:** Inception decision in progress
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-83b7d583
+- **Timestamp:** 2026-10-18T20:19:44Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 4
+
+**Verification-level findings:**
+
+  1. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-2
+     - evidence: `IW-2 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+  2. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-3
+     - evidence: `IW-3 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+  3. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-4
+     - evidence: `IW-4 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+  4. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-5
+     - evidence: `IW-5 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+
+## Recommendation Verdict (v1.0)
+
+- **Scan ID:** RC-4929f42d
+- **Timestamp:** 2026-10-18T20:19:44Z
+- **Overall:** CONFIRMED
+- **Claims:** 4
+
+| Claim | Type | Status |
+|-------|------|--------|
+| `scripts/check-task-id-collisions.sh` | file | ✓ pass |
+| `docs/architecture/parallel-execution-substrate.md` | file | ✓ pass |
+| `T-3440` | task | ✓ pass |
+| `T-2337` | task | ✓ pass |
+
+### 2026-10-18T20:19:42Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: NO-GO
