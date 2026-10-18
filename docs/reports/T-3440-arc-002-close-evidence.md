@@ -1,5 +1,7 @@
 # T-3440 — arc-002 (arc-substrate-fitness) close evidence
 
+> **Status (2026-10-18): NOT a close.** The operator ruled the arc stays open while member work remains (T-3440 Decisions). This is a progress record of what is shipped.
+
 Operator ruling 5b = A, 2026-10-18: close as shipped.
 
 ## Headline mechanic

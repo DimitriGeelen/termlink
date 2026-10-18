@@ -41,7 +41,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-14T05:42:07Z
-last_update: 2026-10-18T17:38:15Z
+last_update: 2026-10-18T17:39:50Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -414,6 +414,7 @@ while the member is still red restarts a 14-day window from the close date, then
 - **Chose:** A. Close arc-001 (arc-parallel-substrate, 43/46 done, headline demonstrated by T-2211 substrate-drain-demo) and arc-002 (arc-substrate-fitness, 11/12 done, headline measured live 2026-10-18: cv-keys agent-presence = 2 entries, dead-letter table + canary working) as shipped. The open members (T-2022, T-2024, T-2026, T-2250: human DEFER inceptions with ripe revisit_at) stay as standalone deferred tasks.
 - **Why:** the headline mechanic of each arc is demonstrated; what kept them open is four deferred human questions that already carry their own revisit reminder, not agent work. Closing is the fix the ledger rule asks for.
 - **Rejected:** B (acknowledge open arcs: lists a fixable finding), C (decide the four inceptions first: four briefs on June questions nothing currently depends on), D (nothing).
+- **REVISED by the operator the same day (supersedes the ruling above):** "No closed recommendation, no evidence. I cannot close it. So it is not closed ... Same thing as a task. If it's not completed, we cannot close it. We still need stuff to do." The arcs stay OPEN: an arc with open member work is not complete, exactly like a task. The Watchtower close page showed no recommendation and no evidence (the agent had put the evidence in a report and the hand-off text, not on the arc). Agent error: the brief treated "headline demonstrated" as "complete" and framed four open members as not-work. Consequence: the stale-arc WARN is a true finding (the remaining work is not moving) and stays unacknowledged; the remedy is to do the remaining members. docs/reports/T-3440-arc-002-close-evidence.md is kept as a progress record, not a close.
 
 ## Decision
 
