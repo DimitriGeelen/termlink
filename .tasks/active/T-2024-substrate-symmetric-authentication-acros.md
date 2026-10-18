@@ -87,12 +87,12 @@ cost_estimate_proposed:
 
 - **IW-2: Cert pinning store location for loopback case — same KnownHubStore or separate?**
   confidence: 4
-  disposition: resolved
+  disposition: answered
   rationale: SAME KnownHubStore. Loopback hubs are just hubs at `127.0.0.1:port` — `KnownHubStore` is already keyed by address. No new store needed. See artifact §5.IW-2.
 
 - **IW-3: Migration — how does an existing UDS-only deployment upgrade without downtime?**
   confidence: 3
-  disposition: resolved
+  disposition: answered
   rationale: STAGED COEXISTENCE — 4 phases. Phase-1: ship TCP path alongside UDS, no behavior change. Phase-2: clients opt into TCP via config flag, default still UDS. Phase-3: flip the default, UDS deprecation warning. Phase-4: remove UDS. Each phase = ≥1 release; shape is clear, per-phase task scoping at GO time. See artifact §4, §5.IW-3.
 
 ## Exploration Plan

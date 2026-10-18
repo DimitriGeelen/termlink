@@ -83,27 +83,27 @@ cost_estimate_proposed:
 
 - **IW-1: Mechanism — inotify, fanotify, ptrace, LD_PRELOAD wrapper, eBPF, FUSE?**
   confidence: 4
-  disposition: resolved
+  disposition: answered
   rationale: NONE at OS level. Mechanism survey (docs/reports/T-2022-fs-write-observation-inception.md §2): inotify=Linux-only (blocks macOS); fanotify+eBPF=CAP requirements not available in container deployment; ptrace=10× syscall slowdown unacceptable; LD_PRELOAD=Rust binaries variable + statically-linked bypass; FUSE=breaks POSIX semantics. The intersection of (portable across Linux+macOS) ∧ (works in capability-dropped containers) ∧ (catches Rust agent writes) ∧ (acceptable perf) is EMPTY. Re-scope to git-hook-enforced path declaration. See artifact §3.
 
 - **IW-2: Per-ring20-host viability — does the chosen mechanism work on every host? Container restrictions?**
   confidence: 4
-  disposition: resolved
+  disposition: answered
   rationale: OS-LEVEL MECHANISMS FAIL on portability OR container caps for ring20. Git-hook approach is portable by construction (every host already has git). See artifact §2-§3.
 
 - **IW-3: Blind spots — what file ops are NOT observable?**
   confidence: 3
-  disposition: resolved
+  disposition: answered
   rationale: For OS-level: every mechanism has a blind spot that breaks the §4 soundness argument. For git-hook: blind spot = unstaged scratch writes that never become commits — but those don't matter because they never persist to shared state. The orchestrator only cares about writes that AGREE WITH OTHER AGENTS' WORK at merge time. See artifact §3, §5.IW-3.
 
 - **IW-4: Cost — per-syscall overhead, kernel buffer pressure, scaling with concurrent agents?**
   confidence: 4
-  disposition: resolved
+  disposition: answered
   rationale: OS-level: prohibitive for most mechanisms (ptrace 10×, FUSE severe). Git-hook: one network post per commit (typically O(seconds) apart per agent), negligible cost. Scales linearly with commit rate, not write rate. See artifact §5.IW-4.
 
 - **IW-5: Granularity — directory-level, file-level, byte-range — and what does AEF layer need?**
   confidence: 4
-  disposition: resolved
+  disposition: answered
   rationale: FILE-LEVEL is sufficient. AEF needs "is anyone else touching path X" — directory is coarse, byte-range is overkill. Git already operates at file granularity, matching the natural abstraction. See artifact §5.IW-5.
 
 ## Exploration Plan
