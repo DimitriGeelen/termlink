@@ -10,7 +10,7 @@ owner: human
 horizon: null
 arc_id: arc-substrate-fitness
 tags: [arc:arc-substrate-fitness]
-components: []
+components: [scripts/check-approval-surfaces.sh, scripts/lib/approval_surfaces.py]
 related_tasks: [T-2242, T-2243, T-2245]
 created: 2026-06-23T07:53:59Z
 last_update: 2026-10-18T18:29:32Z

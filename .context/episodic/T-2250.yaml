@@ -3,7 +3,7 @@
 # ============================================================================
 # STATUS: AUTO-GENERATED
 # Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
-# Generated: 2026-06-25T06:31:06Z
+# Generated: 2026-10-18T18:29:49Z
 # ============================================================================
 
 task_id: T-2250
@@ -13,15 +13,15 @@ enrichment_status: complete  # AC checked + decisions recorded
 
 # Timeline
 created: 2026-06-23T07:53:59Z
-completed: 2026-06-25T06:31:02Z
-duration_days: 2
-updates_count: 3
+completed: 2026-10-18T18:29:32Z
+duration_days: 117
+updates_count: 7
 first_commit: 2026-06-23T09:56:53+02:00
-last_commit: 2026-06-23T09:56:53+02:00
+last_commit: 2026-10-18T20:29:35+02:00
 
 # Summary (auto-generated from git commit messages)
 summary: |
-  R5 telemetry-plane design inception (arc-002 Lock 2); agent rec DEFER
+  R5 telemetry-plane design inception (arc-002 Lock 2); agent rec DEFER. correct accidental NO-GO → DEFER (reopen + revisit_at per T-1451/G-053). inception decision GO (via Watchtower)
 
 # Key outcomes
 outcomes:
@@ -36,10 +36,10 @@ challenges:
 
 # Decisions (from task file Decisions section)
 decisions:
-  - decision: '[date] — [topic]'
-    chose: '[what was decided]'
-    rationale: '[rationale]'
-    alternatives_rejected: ['[alternatives and why not]']
+  - decision: '2026-10-18 — GO, narrowed to the gaps (operator ruling, via T-3440 brief)'
+    chose: 'B. Build only what is still not measured: (1) outbound-queue and circuit-breaker events logged locally by default (not only under `--watch --log`); (2) a daily rollup of the local logs, including the T-3383 hub-outage samples, posted over TermLink (Q2 transport, resolves IW-1) to a bounded collection topic so every host''s view is collected, not only .107''s.'
+    rationale: 'measured 2026-10-18: post discards (T-2243 dead-letter + canary) and per-hub reachability/RTT (T-3383, 70,623 samples since 2026-10-11, observed from .107 only) are covered; clean-exit is partly covered (frozen-husk, session-leak canaries, arc-011 sidecar heartbeat). NOT covered: queue flaps (`~/.termlink/queue.log` absent, nothing runs the watch), breaker trips, and any fleet-wide view; the T-3461 hub-stall investigation needed a hand-run /proc capture and ring20 querying its own journal.'
+    alternatives_rejected: ['A NO-GO (the gaps were felt today), C DEFER again (third deferral of a question ripe since 2026-07-25), D the full six-signal recorder (duplicates T-3383).']
 
 # Artifacts (auto-mined from git --name-only)
 artifacts:
@@ -48,15 +48,23 @@ artifacts:
   - 'docs/plans/T-2242-substrate-fitness-ingestion.md'
   - 'docs/reports/T-2250-r5-telemetry-plane-design.md'
   - '.tasks/active/T-2250-r5-telemetry-plane-design--local-first-p.md'
+  - '.tasks/completed/T-2144-substrate-primitive-review--identify-nex.md'
+  - '.tasks/completed/T-2249-r1-rescope-register-as-presence-producer.md'
+  - '.tasks/completed/T-2250-r5-telemetry-plane-design--local-first-p.md'
+  - '.tasks/completed/T-2257-pickup-worktree-aware-fw-resolution-part.md'
 
 # Timeline (auto-mined from git log)
 git_timeline:
-  - time: "2026-06-23T09:56:53"
-    action: "T-2250: R5 telemetry-plane design inception (arc-002 Lock 2); agent rec DEFER"
+  - time: '2026-06-23T09:56:53'
+    action: 'T-2250: R5 telemetry-plane design inception (arc-002 Lock 2); agent rec DEFER'
+  - time: '2026-06-25T08:35:07'
+    action: 'T-2250: correct accidental NO-GO → DEFER (reopen + revisit_at per T-1451/G-053)'
+  - time: '2026-10-18T20:29:35'
+    action: 'T-2250: inception decision GO (via Watchtower)'
 
 # What worked well (requires judgment — [TODO] if enrichment_status is pending)
 successes:
-  # Completed successfully in 1 commit(s), 2797 min
+  # Completed successfully in 3 commit(s), 169115 min
 
 # Related tasks
 related_tasks:
@@ -69,11 +77,15 @@ tags: [arc:arc-substrate-fitness]
 
 # Passive metrics (derived automatically — do not edit)
 metrics:
-  wall_clock_minutes: 2797
-  commits: 1
-  files_changed: 5
-  lines_added: 297
-  lines_removed: 5
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 169115
+  commits: 3
+  files_changed: 6
+  lines_added: 396
+  lines_removed: 33
 
 # Metadata
 source_file: /opt/termlink/.tasks/completed/T-2250-r5-telemetry-plane-design--local-first-p.md
