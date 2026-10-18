@@ -62,6 +62,39 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::Notify;
 use tokio::time::{timeout, Duration};
 
+/// T-3461: run blocking disk work (SQLite commits, payload fsync) without
+/// parking a tokio worker. On a multi-thread runtime this is
+/// `block_in_place`: the worker hands its other tasks to a fresh thread
+/// before blocking, so the hub keeps accepting connections while a btrfs
+/// fsync takes seconds. On a current-thread runtime (unit tests) or with no
+/// runtime at all, `block_in_place` is unavailable or pointless, so the work
+/// runs inline as before.
+pub(crate) fn run_blocking<R>(f: impl FnOnce() -> R) -> R {
+    use tokio::runtime::{Handle, RuntimeFlavor};
+    match Handle::try_current() {
+        Ok(h) if h.runtime_flavor() == RuntimeFlavor::MultiThread => {
+            tokio::task::block_in_place(f)
+        }
+        _ => f(),
+    }
+}
+
+static TEST_SLOW_DURABLE_MS: AtomicU64 = AtomicU64::new(0);
+
+/// Test seam (T-3461): make every durable step (meta access, payload flush)
+/// sleep this long, standing in for a slow fsync. 0 (the default) disables it.
+#[doc(hidden)]
+pub fn set_test_slow_durable_ms(ms: u64) {
+    TEST_SLOW_DURABLE_MS.store(ms, Ordering::SeqCst);
+}
+
+pub(crate) fn test_slow_durable() {
+    let ms = TEST_SLOW_DURABLE_MS.load(Ordering::Relaxed);
+    if ms > 0 {
+        std::thread::sleep(std::time::Duration::from_millis(ms));
+    }
+}
+
 /// Channel bus instance. Backed by a per-topic append-only log under
 /// `<root>/topics/` and a SQLite metadata sidecar at `<root>/meta.db`.
 pub struct Bus {

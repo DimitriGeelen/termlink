@@ -42,7 +42,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-18T00:34:17Z
-last_update: 2026-10-18T09:39:44Z
+last_update: 2026-10-18T16:09:22Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -87,9 +87,9 @@ Inputs from ring20-manager (conv hub-107-stalls-t2402, msg 981305fa, 2026-10-18)
 ### Agent
 - [ ] The hub answers a channel post as accepted only AFTER the post is durable: payload flushed to its log file, then the meta index committed with `synchronous=FULL` (operator rule 2026-10-18: "accepted is sent once it is stored")
 - [ ] Meta SQLite runs in WAL mode (journal-file create/delete per commit gone); verified on the live file after deploy (`PRAGMA journal_mode` = wal, `synchronous` = 2)
-- [ ] Meta writes and the flushes run off the async workers (spawn_blocking or a dedicated writer), so a slow fsync cannot stop the accept loop; a test with a deliberately slow flush shows the accept loop still answering
+- [x] Meta writes and the flushes run off the async workers (spawn_blocking or a dedicated writer), so a slow fsync cannot stop the accept loop; a test with a deliberately slow flush shows the accept loop still answering
 - [ ] Before/after measured with the T-3457 /proc capture; ring20 re-measures 2 h (same-second bursts of 4+ peers, target < 1/h) after deploy
-- [ ] The T-2464 note in crates/termlink-bus/src/log.rs (payload not fsynced) is updated to the new contract
+- [x] The T-2464 note in crates/termlink-bus/src/log.rs (payload not fsynced) is updated to the new contract
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -294,6 +294,13 @@ Inputs from ring20-manager (conv hub-107-stalls-t2402, msg 981305fa, 2026-10-18)
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+# WAL + FULL, slow-durable step does not park workers (mutant-checked: run_blocking -> f() turns it red)
+timeout 900 cargo test -p termlink-bus > /tmp/.t3461-bus 2>&1 && grep -q "slow_durable_step_does_not_park_the_workers ... ok" /tmp/.t3461-bus && grep -q "meta_opens_in_wal_with_synchronous_full ... ok" /tmp/.t3461-bus
+# payload fsynced before the index commit
+grep -q "file.sync_data()" crates/termlink-bus/src/log.rs && grep -q "Since T-3461 the append path fsyncs the" crates/termlink-bus/src/log.rs
+# live hub meta.db is in WAL mode (file header bytes 18/19 == 2)
+python3 -c "b=open('/var/lib/termlink/bus/meta.db','rb').read(20); assert b[18]==2 and b[19]==2, b[18:20]"
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -370,14 +377,12 @@ Inputs from ring20-manager (conv hub-107-stalls-t2402, msg 981305fa, 2026-10-18)
 - **Why:** an "accepted" that is not stored is a false signal: the sender stops trying and the message can vanish silently. The recipient sidecar already reports STORED only after its own fsync (pull.rs:424-426, store.rs:649-669); the hub now meets the same bar. The stall is fixed by moving the flush off the threads that accept connections, not by flushing less.
 - **Rejected:** B (WAL + NORMAL: the hub would say accepted before the data is safe); C (only move writes off the workers: posts still wait seconds on the lock); D (defer: messages are being lost now).
 - **Open:** flush cost per post on this btrfs host (measure; group commit is the lever if needed).
+  **Measured 2026-10-18** (`measure_post_and_read_latency`, btrfs, load avg ~20): durable post p50 10.5 ms, p99 29 ms; snapshot read p50 76 µs, p99 118 µs. No group commit needed at current post rates.
 
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+### 2026-10-18 — How to get the writes off the workers
+- **Chose:** `block_in_place` around every meta connection access and the payload write+fsync (`run_blocking` in lib.rs; inline on a current-thread runtime or outside one).
+- **Why:** the stall is every worker parking, not one: the fsyncing commit holds the std mutex, and every other handler then blocks on that mutex on its own worker. Wrapping only the commit would leave those waiters parking workers. `block_in_place` hands the worker's queue to a fresh thread before blocking, so it covers the waiters too, needs no `'static` closures (the 36 meta methods keep `&self`), and costs ~tens of µs per call (reads measured at p50 76 µs total).
+- **Rejected:** `spawn_blocking` (needs owned/'static data, an Arc<Meta> refactor of 36 methods for the same effect); a dedicated writer thread (a larger redesign; worth it only if group commit becomes necessary); a separate read connection (helps reads, not the parked waiters on the write lock).
 
 ## Decision
 

@@ -16,6 +16,16 @@ pub(crate) struct Meta {
 impl Meta {
     pub(crate) fn open(path: &Path) -> Result<Self> {
         let conn = Connection::open(path)?;
+        // T-3461: WAL keeps the durability of the old rollback journal when paired
+        // with synchronous=FULL (every commit fsyncs the WAL before it returns), and
+        // drops the per-commit journal-file create/delete that cost extra fsyncs on
+        // btrfs. Do NOT weaken synchronous: the hub reports a post as accepted only
+        // once it is stored (operator ruling 2026-10-18, see T-3461 Decisions).
+        let mode: String = conn.query_row("PRAGMA journal_mode=WAL", [], |r| r.get(0))?;
+        if !mode.eq_ignore_ascii_case("wal") {
+            eprintln!("termlink-bus: WARN meta.db journal_mode is {mode}, not wal");
+        }
+        conn.execute_batch("PRAGMA synchronous=FULL; PRAGMA busy_timeout=5000;")?;
         init_schema(&conn)?;
         let meta = Self {
             conn: std::sync::Mutex::new(conn),
@@ -24,81 +34,104 @@ impl Meta {
         Ok(meta)
     }
 
+    /// T-3461: every access to the connection goes through here. Taking the lock
+    /// and running the statement (whose commit fsyncs) happen inside
+    /// `crate::run_blocking`, so a slow disk parks a blocking thread, never a
+    /// tokio worker: the hub's accept loop keeps running while a commit waits.
+    fn with_conn<R>(&self, f: impl FnOnce(&Connection) -> R) -> R {
+        crate::run_blocking(|| {
+            let conn = self.conn.lock().expect("meta mutex poisoned");
+            crate::test_slow_durable();
+            f(&conn)
+        })
+    }
+
+    fn with_conn_mut<R>(&self, f: impl FnOnce(&mut Connection) -> R) -> R {
+        crate::run_blocking(|| {
+            let mut conn = self.conn.lock().expect("meta mutex poisoned");
+            crate::test_slow_durable();
+            f(&mut conn)
+        })
+    }
+
     /// Idempotent topic creation. Returns `Ok(true)` when the topic was
     /// newly inserted by this call, `Ok(false)` when a row with the same
     /// (name, retention) already existed. T-1429.5 added the bool so
     /// clients can do "describe-on-first-create" without re-emitting
     /// topic_metadata envelopes on every idempotent re-call.
     pub(crate) fn create_topic(&self, name: &str, retention: Retention) -> Result<bool> {
-        let conn = self.conn.lock().expect("meta mutex poisoned");
-        let existing: Option<(String, i64)> = conn
-            .query_row(
-                "SELECT retention_kind, retention_value FROM topics WHERE name = ?1",
-                params![name],
-                |r| Ok((r.get(0)?, r.get(1)?)),
-            )
-            .ok();
-        if let Some((kind, value)) = existing {
-            // T-2500: a stored row that does not parse into a known Retention is
-            // a corruption / schema-drift / cross-version signal — surface it
-            // LOUD rather than fabricating `Forever` (the old `unwrap_or(Forever)`
-            // silently masked it, then either reported a phantom `existing:
-            // Forever` policy mismatch or accepted the corrupt topic as a valid
-            // Forever topic → unbounded growth). Mirrors `topic_retention`, which
-            // already propagates the parse-failure as `None`.
-            let got = match Retention::from_parts(&kind, value) {
-                Some(r) => r,
-                None => {
-                    return Err(BusError::CorruptRetention {
+        self.with_conn(|conn| {
+            let existing: Option<(String, i64)> = conn
+                .query_row(
+                    "SELECT retention_kind, retention_value FROM topics WHERE name = ?1",
+                    params![name],
+                    |r| Ok((r.get(0)?, r.get(1)?)),
+                )
+                .ok();
+            if let Some((kind, value)) = existing {
+                // T-2500: a stored row that does not parse into a known Retention is
+                // a corruption / schema-drift / cross-version signal — surface it
+                // LOUD rather than fabricating `Forever` (the old `unwrap_or(Forever)`
+                // silently masked it, then either reported a phantom `existing:
+                // Forever` policy mismatch or accepted the corrupt topic as a valid
+                // Forever topic → unbounded growth). Mirrors `topic_retention`, which
+                // already propagates the parse-failure as `None`.
+                let got = match Retention::from_parts(&kind, value) {
+                    Some(r) => r,
+                    None => {
+                        return Err(BusError::CorruptRetention {
+                            name: name.to_string(),
+                            kind,
+                            value,
+                        });
+                    }
+                };
+                if got != retention {
+                    return Err(BusError::TopicPolicyMismatch {
                         name: name.to_string(),
-                        kind,
-                        value,
+                        existing: got,
+                        requested: retention,
                     });
                 }
-            };
-            if got != retention {
-                return Err(BusError::TopicPolicyMismatch {
-                    name: name.to_string(),
-                    existing: got,
-                    requested: retention,
-                });
+                return Ok(false);
             }
-            return Ok(false);
-        }
-        let now_ms = now_unix_ms();
-        conn.execute(
-            "INSERT INTO topics (name, retention_kind, retention_value, created_at) \
-             VALUES (?1, ?2, ?3, ?4)",
-            params![name, retention.kind(), retention.value(), now_ms],
-        )?;
-        conn.execute(
-            "INSERT INTO offsets (topic, next_offset) VALUES (?1, 0)",
-            params![name],
-        )?;
-        Ok(true)
+            let now_ms = now_unix_ms();
+            conn.execute(
+                "INSERT INTO topics (name, retention_kind, retention_value, created_at) \
+                 VALUES (?1, ?2, ?3, ?4)",
+                params![name, retention.kind(), retention.value(), now_ms],
+            )?;
+            conn.execute(
+                "INSERT INTO offsets (topic, next_offset) VALUES (?1, 0)",
+                params![name],
+            )?;
+            Ok(true)
+        })
     }
 
     pub(crate) fn list_topics(&self) -> Result<Vec<String>> {
-        let conn = self.conn.lock().expect("meta mutex poisoned");
-        let mut stmt = conn.prepare("SELECT name FROM topics ORDER BY name")?;
-        let names = stmt
-            .query_map([], |r| r.get::<_, String>(0))?
-            .collect::<std::result::Result<Vec<_>, _>>()?;
-        Ok(names)
+        self.with_conn(|conn| {
+            let mut stmt = conn.prepare("SELECT name FROM topics ORDER BY name")?;
+            let names = stmt
+                .query_map([], |r| r.get::<_, String>(0))?
+                .collect::<std::result::Result<Vec<_>, _>>()?;
+            Ok(names)
+        })
     }
 
     pub(crate) fn topic_retention(&self, name: &str) -> Result<Option<Retention>> {
-        let conn = self.conn.lock().expect("meta mutex poisoned");
-        let row: rusqlite::Result<(String, i64)> = conn.query_row(
-            "SELECT retention_kind, retention_value FROM topics WHERE name = ?1",
-            params![name],
-            |r| Ok((r.get(0)?, r.get(1)?)),
-        );
-        match row {
-            Ok((k, v)) => Ok(Retention::from_parts(&k, v)),
-            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
-            Err(e) => Err(BusError::Sqlite(e)),
-        }
+        self.with_conn(|conn| {
+            let row: rusqlite::Result<(String, i64)> = conn.query_row(
+                "SELECT retention_kind, retention_value FROM topics WHERE name = ?1",
+                params![name],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            );
+            match row {
+                Ok((k, v)) => Ok(Retention::from_parts(&k, v)),
+                Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+                Err(e) => Err(BusError::Sqlite(e)),
+            }
+        })
     }
 
     /// T-2244 (R2a): change the retention policy of an ALREADY-EXISTING
@@ -111,22 +144,24 @@ impl Meta {
     /// Does not sweep — the caller runs `Bus::sweep` to enforce the new
     /// policy against existing records.
     pub(crate) fn set_topic_retention(&self, name: &str, retention: Retention) -> Result<bool> {
-        let conn = self.conn.lock().expect("meta mutex poisoned");
-        let n = conn.execute(
-            "UPDATE topics SET retention_kind = ?1, retention_value = ?2 WHERE name = ?3",
-            params![retention.kind(), retention.value(), name],
-        )?;
-        Ok(n > 0)
+        self.with_conn(|conn| {
+            let n = conn.execute(
+                "UPDATE topics SET retention_kind = ?1, retention_value = ?2 WHERE name = ?3",
+                params![retention.kind(), retention.value(), name],
+            )?;
+            Ok(n > 0)
+        })
     }
 
     pub(crate) fn topic_exists(&self, name: &str) -> Result<bool> {
-        let conn = self.conn.lock().expect("meta mutex poisoned");
-        let n: i64 = conn.query_row(
-            "SELECT COUNT(*) FROM topics WHERE name = ?1",
-            params![name],
-            |r| r.get(0),
-        )?;
-        Ok(n > 0)
+        self.with_conn(|conn| {
+            let n: i64 = conn.query_row(
+                "SELECT COUNT(*) FROM topics WHERE name = ?1",
+                params![name],
+                |r| r.get(0),
+            )?;
+            Ok(n > 0)
+        })
     }
 
     /// Atomically reserve the next offset for `topic` and insert a
@@ -139,24 +174,25 @@ impl Meta {
         length: u64,
         ts_unix_ms: i64,
     ) -> Result<u64> {
-        let mut conn = self.conn.lock().expect("meta mutex poisoned");
-        let tx = conn.transaction()?;
-        let current: i64 = tx.query_row(
-            "SELECT next_offset FROM offsets WHERE topic = ?1",
-            params![topic],
-            |r| r.get(0),
-        )?;
-        tx.execute(
-            "UPDATE offsets SET next_offset = ?1 WHERE topic = ?2",
-            params![current + 1, topic],
-        )?;
-        tx.execute(
-            "INSERT INTO records (topic, offset, byte_pos, length, ts_unix_ms) \
-             VALUES (?1, ?2, ?3, ?4, ?5)",
-            params![topic, current, byte_pos as i64, length as i64, ts_unix_ms],
-        )?;
-        tx.commit()?;
-        Ok(current as u64)
+        self.with_conn_mut(|conn| {
+            let tx = conn.transaction()?;
+            let current: i64 = tx.query_row(
+                "SELECT next_offset FROM offsets WHERE topic = ?1",
+                params![topic],
+                |r| r.get(0),
+            )?;
+            tx.execute(
+                "UPDATE offsets SET next_offset = ?1 WHERE topic = ?2",
+                params![current + 1, topic],
+            )?;
+            tx.execute(
+                "INSERT INTO records (topic, offset, byte_pos, length, ts_unix_ms) \
+                 VALUES (?1, ?2, ?3, ?4, ?5)",
+                params![topic, current, byte_pos as i64, length as i64, ts_unix_ms],
+            )?;
+            tx.commit()?;
+            Ok(current as u64)
+        })
     }
 
     /// Delete records from `topic`. `before_offset=Some(N)` removes
@@ -165,18 +201,19 @@ impl Meta {
     /// Index-only delete (log file bytes remain — same convention as
     /// `sweep_records`). Unknown topic returns `Ok(0)`. T-1234 / T-1230a.
     pub(crate) fn trim_records(&self, topic: &str, before_offset: Option<u64>) -> Result<u64> {
-        let conn = self.conn.lock().expect("meta mutex poisoned");
-        let removed = match before_offset {
-            Some(off) => conn.execute(
-                "DELETE FROM records WHERE topic = ?1 AND offset < ?2",
-                params![topic, off as i64],
-            )?,
-            None => conn.execute(
-                "DELETE FROM records WHERE topic = ?1",
-                params![topic],
-            )?,
-        };
-        Ok(removed as u64)
+        self.with_conn(|conn| {
+            let removed = match before_offset {
+                Some(off) => conn.execute(
+                    "DELETE FROM records WHERE topic = ?1 AND offset < ?2",
+                    params![topic, off as i64],
+                )?,
+                None => conn.execute(
+                    "DELETE FROM records WHERE topic = ?1",
+                    params![topic],
+                )?,
+            };
+            Ok(removed as u64)
+        })
     }
 
     /// T-2421: delete a topic and ALL its associated state — registry row,
@@ -188,30 +225,31 @@ impl Meta {
     /// `Ok(None)` when no such topic was registered (caller decides whether
     /// absence is an error — the hub reports it loudly, no stealth success).
     pub(crate) fn delete_topic(&self, name: &str) -> Result<Option<u64>> {
-        let mut conn = self.conn.lock().expect("meta mutex poisoned");
-        let tx = conn.transaction()?;
-        let existed: i64 = tx.query_row(
-            "SELECT COUNT(*) FROM topics WHERE name = ?1",
-            params![name],
-            |r| r.get(0),
-        )?;
-        if existed == 0 {
-            return Ok(None);
-        }
-        let records: i64 = tx.query_row(
-            "SELECT COUNT(*) FROM records WHERE topic = ?1",
-            params![name],
-            |r| r.get(0),
-        )?;
-        tx.execute("DELETE FROM records WHERE topic = ?1", params![name])?;
-        tx.execute("DELETE FROM cursors WHERE topic = ?1", params![name])?;
-        tx.execute("DELETE FROM offsets WHERE topic = ?1", params![name])?;
-        tx.execute("DELETE FROM claims WHERE topic = ?1", params![name])?;
-        tx.execute("DELETE FROM topic_activity WHERE topic = ?1", params![name])?;
-        tx.execute("DELETE FROM topic_readers WHERE topic = ?1", params![name])?;
-        tx.execute("DELETE FROM topics WHERE name = ?1", params![name])?;
-        tx.commit()?;
-        Ok(Some(records as u64))
+        self.with_conn_mut(|conn| {
+            let tx = conn.transaction()?;
+            let existed: i64 = tx.query_row(
+                "SELECT COUNT(*) FROM topics WHERE name = ?1",
+                params![name],
+                |r| r.get(0),
+            )?;
+            if existed == 0 {
+                return Ok(None);
+            }
+            let records: i64 = tx.query_row(
+                "SELECT COUNT(*) FROM records WHERE topic = ?1",
+                params![name],
+                |r| r.get(0),
+            )?;
+            tx.execute("DELETE FROM records WHERE topic = ?1", params![name])?;
+            tx.execute("DELETE FROM cursors WHERE topic = ?1", params![name])?;
+            tx.execute("DELETE FROM offsets WHERE topic = ?1", params![name])?;
+            tx.execute("DELETE FROM claims WHERE topic = ?1", params![name])?;
+            tx.execute("DELETE FROM topic_activity WHERE topic = ?1", params![name])?;
+            tx.execute("DELETE FROM topic_readers WHERE topic = ?1", params![name])?;
+            tx.execute("DELETE FROM topics WHERE name = ?1", params![name])?;
+            tx.commit()?;
+            Ok(Some(records as u64))
+        })
     }
 
     /// Count records currently indexed for `topic`. Records pruned by
@@ -220,13 +258,14 @@ impl Meta {
     /// callers can aggregate over a prefix without per-topic existence
     /// checks (T-1233 / T-1229a).
     pub(crate) fn count_records(&self, topic: &str) -> Result<u64> {
-        let conn = self.conn.lock().expect("meta mutex poisoned");
-        let count: i64 = conn.query_row(
-            "SELECT COUNT(*) FROM records WHERE topic = ?1",
-            params![topic],
-            |r| r.get(0),
-        )?;
-        Ok(count as u64)
+        self.with_conn(|conn| {
+            let count: i64 = conn.query_row(
+                "SELECT COUNT(*) FROM records WHERE topic = ?1",
+                params![topic],
+                |r| r.get(0),
+            )?;
+            Ok(count as u64)
+        })
     }
 
     /// Smallest offset still indexed for `topic`, or `None` if the topic has
@@ -234,18 +273,19 @@ impl Meta {
     /// subscribers to detect that their cursor fell behind the retention
     /// window and records were silently dropped (T-1285).
     pub(crate) fn oldest_offset(&self, topic: &str) -> Result<Option<u64>> {
-        let conn = self.conn.lock().expect("meta mutex poisoned");
-        let v: rusqlite::Result<Option<i64>> = conn.query_row(
-            "SELECT MIN(offset) FROM records WHERE topic = ?1",
-            params![topic],
-            |r| r.get(0),
-        );
-        match v {
-            Ok(Some(n)) => Ok(Some(n as u64)),
-            Ok(None) => Ok(None),
-            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
-            Err(e) => Err(BusError::Sqlite(e)),
-        }
+        self.with_conn(|conn| {
+            let v: rusqlite::Result<Option<i64>> = conn.query_row(
+                "SELECT MIN(offset) FROM records WHERE topic = ?1",
+                params![topic],
+                |r| r.get(0),
+            );
+            match v {
+                Ok(Some(n)) => Ok(Some(n as u64)),
+                Ok(None) => Ok(None),
+                Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+                Err(e) => Err(BusError::Sqlite(e)),
+            }
+        })
     }
 
     /// Largest offset ever assigned for `topic` (= `next_offset - 1`), or
@@ -259,36 +299,38 @@ impl Meta {
     /// sweep, offsets do not, so `count - 1` under-reports the latest offset by
     /// exactly the number of swept records → silent unread drop).
     pub(crate) fn latest_offset(&self, topic: &str) -> Result<Option<u64>> {
-        let conn = self.conn.lock().expect("meta mutex poisoned");
-        let v: rusqlite::Result<i64> = conn.query_row(
-            "SELECT next_offset FROM offsets WHERE topic = ?1",
-            params![topic],
-            |r| r.get(0),
-        );
-        match v {
-            Ok(0) => Ok(None),
-            Ok(n) => Ok(Some((n - 1) as u64)),
-            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
-            Err(e) => Err(BusError::Sqlite(e)),
-        }
+        self.with_conn(|conn| {
+            let v: rusqlite::Result<i64> = conn.query_row(
+                "SELECT next_offset FROM offsets WHERE topic = ?1",
+                params![topic],
+                |r| r.get(0),
+            );
+            match v {
+                Ok(0) => Ok(None),
+                Ok(n) => Ok(Some((n - 1) as u64)),
+                Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+                Err(e) => Err(BusError::Sqlite(e)),
+            }
+        })
     }
 
     /// Fetch record locators for `topic` with `offset >= cursor`, ordered.
     pub(crate) fn records_from(&self, topic: &str, cursor: u64) -> Result<Vec<RecordLoc>> {
-        let conn = self.conn.lock().expect("meta mutex poisoned");
-        let mut stmt = conn.prepare(
-            "SELECT offset, byte_pos, length FROM records \
-             WHERE topic = ?1 AND offset >= ?2 ORDER BY offset",
-        )?;
-        let rows = stmt.query_map(params![topic, cursor as i64], |r| {
-            Ok(RecordLoc {
-                offset: r.get::<_, i64>(0)? as u64,
-                byte_pos: r.get::<_, i64>(1)? as u64,
-                length: r.get::<_, i64>(2)? as u64,
-            })
-        })?;
-        rows.collect::<std::result::Result<Vec<_>, _>>()
-            .map_err(BusError::Sqlite)
+        self.with_conn(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT offset, byte_pos, length FROM records \
+                 WHERE topic = ?1 AND offset >= ?2 ORDER BY offset",
+            )?;
+            let rows = stmt.query_map(params![topic, cursor as i64], |r| {
+                Ok(RecordLoc {
+                    offset: r.get::<_, i64>(0)? as u64,
+                    byte_pos: r.get::<_, i64>(1)? as u64,
+                    length: r.get::<_, i64>(2)? as u64,
+                })
+            })?;
+            rows.collect::<std::result::Result<Vec<_>, _>>()
+                .map_err(BusError::Sqlite)
+        })
     }
 
     /// Persist a subscriber cursor for the given (subscriber, topic).
@@ -306,29 +348,31 @@ impl Meta {
         topic: &str,
         offset: u64,
     ) -> Result<()> {
-        let conn = self.conn.lock().expect("meta mutex poisoned");
-        conn.execute(
-            "INSERT INTO cursors (subscriber_id, topic, last_offset) VALUES (?1, ?2, ?3) \
-             ON CONFLICT(subscriber_id, topic) DO UPDATE SET \
-             last_offset = MAX(last_offset, excluded.last_offset)",
-            params![subscriber_id, topic, offset as i64],
-        )?;
-        Ok(())
+        self.with_conn(|conn| {
+            conn.execute(
+                "INSERT INTO cursors (subscriber_id, topic, last_offset) VALUES (?1, ?2, ?3) \
+                 ON CONFLICT(subscriber_id, topic) DO UPDATE SET \
+                 last_offset = MAX(last_offset, excluded.last_offset)",
+                params![subscriber_id, topic, offset as i64],
+            )?;
+            Ok(())
+        })
     }
 
     /// Read a subscriber cursor. Returns `None` if never persisted.
     pub(crate) fn get_cursor(&self, subscriber_id: &str, topic: &str) -> Result<Option<u64>> {
-        let conn = self.conn.lock().expect("meta mutex poisoned");
-        let v: rusqlite::Result<i64> = conn.query_row(
-            "SELECT last_offset FROM cursors WHERE subscriber_id = ?1 AND topic = ?2",
-            params![subscriber_id, topic],
-            |r| r.get(0),
-        );
-        match v {
-            Ok(n) => Ok(Some(n as u64)),
-            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
-            Err(e) => Err(BusError::Sqlite(e)),
-        }
+        self.with_conn(|conn| {
+            let v: rusqlite::Result<i64> = conn.query_row(
+                "SELECT last_offset FROM cursors WHERE subscriber_id = ?1 AND topic = ?2",
+                params![subscriber_id, topic],
+                |r| r.get(0),
+            );
+            match v {
+                Ok(n) => Ok(Some(n as u64)),
+                Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+                Err(e) => Err(BusError::Sqlite(e)),
+            }
+        })
     }
 
     /// Delete records matching a retention policy. Returns the set of
@@ -341,36 +385,37 @@ impl Meta {
         keep_after_ts_ms: Option<i64>,
         keep_last_n: Option<u64>,
     ) -> Result<u64> {
-        let mut conn = self.conn.lock().expect("meta mutex poisoned");
-        let tx = conn.transaction()?;
-        let mut deleted: u64 = 0;
-        if let Some(ts) = keep_after_ts_ms {
-            let n = tx.execute(
-                "DELETE FROM records WHERE topic = ?1 AND ts_unix_ms < ?2",
-                params![topic, ts],
-            )?;
-            deleted += n as u64;
-        }
-        if let Some(n) = keep_last_n {
-            let total: i64 = tx.query_row(
-                "SELECT COUNT(*) FROM records WHERE topic = ?1",
-                params![topic],
-                |r| r.get(0),
-            )?;
-            if (total as u64) > n {
-                let drop_n = (total as u64) - n;
-                let removed = tx.execute(
-                    "DELETE FROM records WHERE rowid IN (\
-                        SELECT rowid FROM records WHERE topic = ?1 \
-                        ORDER BY offset ASC LIMIT ?2\
-                     )",
-                    params![topic, drop_n as i64],
+        self.with_conn_mut(|conn| {
+            let tx = conn.transaction()?;
+            let mut deleted: u64 = 0;
+            if let Some(ts) = keep_after_ts_ms {
+                let n = tx.execute(
+                    "DELETE FROM records WHERE topic = ?1 AND ts_unix_ms < ?2",
+                    params![topic, ts],
                 )?;
-                deleted += removed as u64;
+                deleted += n as u64;
             }
-        }
-        tx.commit()?;
-        Ok(deleted)
+            if let Some(n) = keep_last_n {
+                let total: i64 = tx.query_row(
+                    "SELECT COUNT(*) FROM records WHERE topic = ?1",
+                    params![topic],
+                    |r| r.get(0),
+                )?;
+                if (total as u64) > n {
+                    let drop_n = (total as u64) - n;
+                    let removed = tx.execute(
+                        "DELETE FROM records WHERE rowid IN (\
+                            SELECT rowid FROM records WHERE topic = ?1 \
+                            ORDER BY offset ASC LIMIT ?2\
+                         )",
+                        params![topic, drop_n as i64],
+                    )?;
+                    deleted += removed as u64;
+                }
+            }
+            tx.commit()?;
+            Ok(deleted)
+        })
     }
 
     /// Delete the specific `offsets` from `topic` in a single transaction.
@@ -384,18 +429,19 @@ impl Meta {
         if offsets.is_empty() {
             return Ok(0);
         }
-        let mut conn = self.conn.lock().expect("meta mutex poisoned");
-        let tx = conn.transaction()?;
-        let mut deleted: u64 = 0;
-        {
-            let mut stmt =
-                tx.prepare("DELETE FROM records WHERE topic = ?1 AND offset = ?2")?;
-            for off in offsets {
-                deleted += stmt.execute(params![topic, *off as i64])? as u64;
+        self.with_conn_mut(|conn| {
+            let tx = conn.transaction()?;
+            let mut deleted: u64 = 0;
+            {
+                let mut stmt =
+                    tx.prepare("DELETE FROM records WHERE topic = ?1 AND offset = ?2")?;
+                for off in offsets {
+                    deleted += stmt.execute(params![topic, *off as i64])? as u64;
+                }
             }
-        }
-        tx.commit()?;
-        Ok(deleted)
+            tx.commit()?;
+            Ok(deleted)
+        })
     }
 
     /// T-2029: attempt to claim `(topic, offset)` for `claimer` until
@@ -410,76 +456,77 @@ impl Meta {
         ttl_ms: u32,
         now_ms: i64,
     ) -> Result<ClaimInfo> {
-        let mut conn = self.conn.lock().expect("meta mutex poisoned");
-        let tx = conn.transaction()?;
-        // T-2572: reject a claim at/beyond the frontier BEFORE inserting. Valid
-        // claimable offsets are [0, next_offset); an offset >= next_offset names
-        // work that has not been posted. Accepting it and then `release --ack`
-        // would advance the claimer's cursor to offset+1 via a monotonic-MAX
-        // upsert that never rewinds, silently skipping every genuine record up
-        // to that offset (unbounded data loss the gap check cannot see). A topic
-        // with no offsets row has next_offset = 0, so NO offset is claimable.
-        let next_offset: i64 = tx
-            .query_row(
-                "SELECT next_offset FROM offsets WHERE topic = ?1",
-                params![topic],
-                |r| r.get(0),
-            )
-            .optional()?
-            .unwrap_or(0);
-        if offset as i64 >= next_offset {
-            drop(tx);
-            return Err(BusError::ClaimOffsetBeyondFrontier {
-                topic: topic.to_string(),
-                offset,
-                frontier: next_offset as u64,
-            });
-        }
-        // Lazy expiry: drop any expired claim on this (topic, offset).
-        tx.execute(
-            "DELETE FROM claims \
-             WHERE topic = ?1 AND offset = ?2 AND claimed_until <= ?3",
-            params![topic, offset as i64, now_ms],
-        )?;
-        let claimed_until = now_ms.saturating_add(i64::from(ttl_ms));
-        let claim_id = generate_claim_id(topic, offset, now_ms);
-        let attempt = tx.execute(
-            "INSERT INTO claims \
-             (claim_id, topic, offset, claimed_by, claimed_at, claimed_until) \
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            params![
-                claim_id,
-                topic,
-                offset as i64,
-                claimer,
-                now_ms,
-                claimed_until
-            ],
-        );
-        match attempt {
-            Ok(_) => {
-                tx.commit()?;
-                Ok(ClaimInfo {
-                    claim_id,
-                    topic: topic.to_string(),
-                    offset,
-                    claimer: claimer.to_string(),
-                    claimed_at: now_ms,
-                    claimed_until,
-                })
-            }
-            Err(rusqlite::Error::SqliteFailure(err, _))
-                if err.code == rusqlite::ErrorCode::ConstraintViolation =>
-            {
-                // UNIQUE(topic, offset) — another worker holds an active claim.
+        self.with_conn_mut(|conn| {
+            let tx = conn.transaction()?;
+            // T-2572: reject a claim at/beyond the frontier BEFORE inserting. Valid
+            // claimable offsets are [0, next_offset); an offset >= next_offset names
+            // work that has not been posted. Accepting it and then `release --ack`
+            // would advance the claimer's cursor to offset+1 via a monotonic-MAX
+            // upsert that never rewinds, silently skipping every genuine record up
+            // to that offset (unbounded data loss the gap check cannot see). A topic
+            // with no offsets row has next_offset = 0, so NO offset is claimable.
+            let next_offset: i64 = tx
+                .query_row(
+                    "SELECT next_offset FROM offsets WHERE topic = ?1",
+                    params![topic],
+                    |r| r.get(0),
+                )
+                .optional()?
+                .unwrap_or(0);
+            if offset as i64 >= next_offset {
                 drop(tx);
-                Err(BusError::ClaimConflict {
+                return Err(BusError::ClaimOffsetBeyondFrontier {
                     topic: topic.to_string(),
                     offset,
-                })
+                    frontier: next_offset as u64,
+                });
             }
-            Err(e) => Err(BusError::Sqlite(e)),
-        }
+            // Lazy expiry: drop any expired claim on this (topic, offset).
+            tx.execute(
+                "DELETE FROM claims \
+                 WHERE topic = ?1 AND offset = ?2 AND claimed_until <= ?3",
+                params![topic, offset as i64, now_ms],
+            )?;
+            let claimed_until = now_ms.saturating_add(i64::from(ttl_ms));
+            let claim_id = generate_claim_id(topic, offset, now_ms);
+            let attempt = tx.execute(
+                "INSERT INTO claims \
+                 (claim_id, topic, offset, claimed_by, claimed_at, claimed_until) \
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                params![
+                    claim_id,
+                    topic,
+                    offset as i64,
+                    claimer,
+                    now_ms,
+                    claimed_until
+                ],
+            );
+            match attempt {
+                Ok(_) => {
+                    tx.commit()?;
+                    Ok(ClaimInfo {
+                        claim_id,
+                        topic: topic.to_string(),
+                        offset,
+                        claimer: claimer.to_string(),
+                        claimed_at: now_ms,
+                        claimed_until,
+                    })
+                }
+                Err(rusqlite::Error::SqliteFailure(err, _))
+                    if err.code == rusqlite::ErrorCode::ConstraintViolation =>
+                {
+                    // UNIQUE(topic, offset) — another worker holds an active claim.
+                    drop(tx);
+                    Err(BusError::ClaimConflict {
+                        topic: topic.to_string(),
+                        offset,
+                    })
+                }
+                Err(e) => Err(BusError::Sqlite(e)),
+            }
+        })
     }
 
     /// T-2029: release a claim. When `ack=true` the claimer's cursor for
@@ -493,64 +540,65 @@ impl Meta {
         ack: bool,
         now_ms: i64,
     ) -> Result<ReleaseInfo> {
-        let mut conn = self.conn.lock().expect("meta mutex poisoned");
-        let tx = conn.transaction()?;
-        let row: rusqlite::Result<(String, i64, String, i64)> = tx.query_row(
-            "SELECT topic, offset, claimed_by, claimed_until FROM claims WHERE claim_id = ?1",
-            params![claim_id],
-            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
-        );
-        let (topic, offset_i, claimed_by, claimed_until) = match row {
-            Ok(t) => t,
-            Err(rusqlite::Error::QueryReturnedNoRows) => {
-                return Err(BusError::ClaimNotFound(claim_id.to_string()));
+        self.with_conn_mut(|conn| {
+            let tx = conn.transaction()?;
+            let row: rusqlite::Result<(String, i64, String, i64)> = tx.query_row(
+                "SELECT topic, offset, claimed_by, claimed_until FROM claims WHERE claim_id = ?1",
+                params![claim_id],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+            );
+            let (topic, offset_i, claimed_by, claimed_until) = match row {
+                Ok(t) => t,
+                Err(rusqlite::Error::QueryReturnedNoRows) => {
+                    return Err(BusError::ClaimNotFound(claim_id.to_string()));
+                }
+                Err(e) => return Err(BusError::Sqlite(e)),
+            };
+            // T-2603 — lease-expiry gate, symmetric with renew_claim / transfer_claim.
+            // Checked BEFORE ownership (mirrors transfer_claim): a lapsed lease is
+            // lapsed regardless of who calls. Without this, a worker whose lease
+            // expired could still release(ack=true) and silently advance its cursor
+            // past an offset another worker was free to reprocess — a silent
+            // ownership-invariant violation (Reliability #2). The stale row is
+            // lazily evicted here so the slot becomes cleanly claimable.
+            if claimed_until <= now_ms {
+                tx.execute("DELETE FROM claims WHERE claim_id = ?1", params![claim_id])?;
+                tx.commit()?;
+                return Err(BusError::ClaimExpired {
+                    claim_id: claim_id.to_string(),
+                });
             }
-            Err(e) => return Err(BusError::Sqlite(e)),
-        };
-        // T-2603 — lease-expiry gate, symmetric with renew_claim / transfer_claim.
-        // Checked BEFORE ownership (mirrors transfer_claim): a lapsed lease is
-        // lapsed regardless of who calls. Without this, a worker whose lease
-        // expired could still release(ack=true) and silently advance its cursor
-        // past an offset another worker was free to reprocess — a silent
-        // ownership-invariant violation (Reliability #2). The stale row is
-        // lazily evicted here so the slot becomes cleanly claimable.
-        if claimed_until <= now_ms {
-            tx.execute("DELETE FROM claims WHERE claim_id = ?1", params![claim_id])?;
-            tx.commit()?;
-            return Err(BusError::ClaimExpired {
-                claim_id: claim_id.to_string(),
-            });
-        }
-        if claimed_by != claimer {
-            return Err(BusError::ClaimNotOwned {
-                claim_id: claim_id.to_string(),
-                claimed_by,
-                attempted_by: claimer.to_string(),
-            });
-        }
-        let offset_u = offset_i as u64;
-        if ack {
-            // Advance the claimer's cursor monotonically past this offset.
+            if claimed_by != claimer {
+                return Err(BusError::ClaimNotOwned {
+                    claim_id: claim_id.to_string(),
+                    claimed_by,
+                    attempted_by: claimer.to_string(),
+                });
+            }
+            let offset_u = offset_i as u64;
+            if ack {
+                // Advance the claimer's cursor monotonically past this offset.
+                tx.execute(
+                    "INSERT INTO cursors (subscriber_id, topic, last_offset) \
+                     VALUES (?1, ?2, ?3) \
+                     ON CONFLICT(subscriber_id, topic) DO UPDATE SET \
+                     last_offset = MAX(last_offset, excluded.last_offset)",
+                    params![claimer, topic, (offset_u + 1) as i64],
+                )?;
+            }
             tx.execute(
-                "INSERT INTO cursors (subscriber_id, topic, last_offset) \
-                 VALUES (?1, ?2, ?3) \
-                 ON CONFLICT(subscriber_id, topic) DO UPDATE SET \
-                 last_offset = MAX(last_offset, excluded.last_offset)",
-                params![claimer, topic, (offset_u + 1) as i64],
+                "DELETE FROM claims WHERE claim_id = ?1",
+                params![claim_id],
             )?;
-        }
-        tx.execute(
-            "DELETE FROM claims WHERE claim_id = ?1",
-            params![claim_id],
-        )?;
-        tx.commit()?;
-        Ok(ReleaseInfo {
-            claim_id: claim_id.to_string(),
-            topic,
-            offset: offset_u,
-            ack,
-            forced_from: None,
-            forced_reason: None,
+            tx.commit()?;
+            Ok(ReleaseInfo {
+                claim_id: claim_id.to_string(),
+                topic,
+                offset: offset_u,
+                ack,
+                forced_from: None,
+                forced_reason: None,
+            })
         })
     }
 
@@ -571,33 +619,34 @@ impl Meta {
         claim_id: &str,
         reason: Option<&str>,
     ) -> Result<ReleaseInfo> {
-        let mut conn = self.conn.lock().expect("meta mutex poisoned");
-        let tx = conn.transaction()?;
-        let row: rusqlite::Result<(String, i64, String)> = tx.query_row(
-            "SELECT topic, offset, claimed_by FROM claims WHERE claim_id = ?1",
-            params![claim_id],
-            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
-        );
-        let (topic, offset_i, claimed_by) = match row {
-            Ok(t) => t,
-            Err(rusqlite::Error::QueryReturnedNoRows) => {
-                return Err(BusError::ClaimNotFound(claim_id.to_string()));
-            }
-            Err(e) => return Err(BusError::Sqlite(e)),
-        };
-        let offset_u = offset_i as u64;
-        tx.execute(
-            "DELETE FROM claims WHERE claim_id = ?1",
-            params![claim_id],
-        )?;
-        tx.commit()?;
-        Ok(ReleaseInfo {
-            claim_id: claim_id.to_string(),
-            topic,
-            offset: offset_u,
-            ack: false,
-            forced_from: Some(claimed_by),
-            forced_reason: reason.map(|s| s.to_string()),
+        self.with_conn_mut(|conn| {
+            let tx = conn.transaction()?;
+            let row: rusqlite::Result<(String, i64, String)> = tx.query_row(
+                "SELECT topic, offset, claimed_by FROM claims WHERE claim_id = ?1",
+                params![claim_id],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            );
+            let (topic, offset_i, claimed_by) = match row {
+                Ok(t) => t,
+                Err(rusqlite::Error::QueryReturnedNoRows) => {
+                    return Err(BusError::ClaimNotFound(claim_id.to_string()));
+                }
+                Err(e) => return Err(BusError::Sqlite(e)),
+            };
+            let offset_u = offset_i as u64;
+            tx.execute(
+                "DELETE FROM claims WHERE claim_id = ?1",
+                params![claim_id],
+            )?;
+            tx.commit()?;
+            Ok(ReleaseInfo {
+                claim_id: claim_id.to_string(),
+                topic,
+                offset: offset_u,
+                ack: false,
+                forced_from: Some(claimed_by),
+                forced_reason: reason.map(|s| s.to_string()),
+            })
         })
     }
 
@@ -622,52 +671,53 @@ impl Meta {
         reason: Option<&str>,
         now_ms: i64,
     ) -> Result<TransferInfo> {
-        let mut conn = self.conn.lock().expect("meta mutex poisoned");
-        let tx = conn.transaction()?;
-        let row: rusqlite::Result<(String, i64, String, i64, i64)> = tx.query_row(
-            "SELECT topic, offset, claimed_by, claimed_at, claimed_until \
-             FROM claims WHERE claim_id = ?1",
-            params![claim_id],
-            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)),
-        );
-        let (topic, offset_i, claimed_by, claimed_at, claimed_until) = match row {
-            Ok(t) => t,
-            Err(rusqlite::Error::QueryReturnedNoRows) => {
-                return Err(BusError::ClaimNotFound(claim_id.to_string()));
-            }
-            Err(e) => return Err(BusError::Sqlite(e)),
-        };
-        if claimed_until <= now_ms {
-            tx.execute(
-                "DELETE FROM claims WHERE claim_id = ?1",
+        self.with_conn_mut(|conn| {
+            let tx = conn.transaction()?;
+            let row: rusqlite::Result<(String, i64, String, i64, i64)> = tx.query_row(
+                "SELECT topic, offset, claimed_by, claimed_at, claimed_until \
+                 FROM claims WHERE claim_id = ?1",
                 params![claim_id],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)),
+            );
+            let (topic, offset_i, claimed_by, claimed_at, claimed_until) = match row {
+                Ok(t) => t,
+                Err(rusqlite::Error::QueryReturnedNoRows) => {
+                    return Err(BusError::ClaimNotFound(claim_id.to_string()));
+                }
+                Err(e) => return Err(BusError::Sqlite(e)),
+            };
+            if claimed_until <= now_ms {
+                tx.execute(
+                    "DELETE FROM claims WHERE claim_id = ?1",
+                    params![claim_id],
+                )?;
+                tx.commit()?;
+                return Err(BusError::ClaimExpired {
+                    claim_id: claim_id.to_string(),
+                });
+            }
+            if claimed_by != by {
+                return Err(BusError::ClaimNotOwned {
+                    claim_id: claim_id.to_string(),
+                    claimed_by,
+                    attempted_by: by.to_string(),
+                });
+            }
+            tx.execute(
+                "UPDATE claims SET claimed_by = ?1 WHERE claim_id = ?2",
+                params![to_owner, claim_id],
             )?;
             tx.commit()?;
-            return Err(BusError::ClaimExpired {
+            Ok(TransferInfo {
                 claim_id: claim_id.to_string(),
-            });
-        }
-        if claimed_by != by {
-            return Err(BusError::ClaimNotOwned {
-                claim_id: claim_id.to_string(),
-                claimed_by,
-                attempted_by: by.to_string(),
-            });
-        }
-        tx.execute(
-            "UPDATE claims SET claimed_by = ?1 WHERE claim_id = ?2",
-            params![to_owner, claim_id],
-        )?;
-        tx.commit()?;
-        Ok(TransferInfo {
-            claim_id: claim_id.to_string(),
-            topic,
-            offset: offset_i as u64,
-            from_owner: claimed_by,
-            to_owner: to_owner.to_string(),
-            claimed_at,
-            claimed_until,
-            reason: reason.map(|s| s.to_string()),
+                topic,
+                offset: offset_i as u64,
+                from_owner: claimed_by,
+                to_owner: to_owner.to_string(),
+                claimed_at,
+                claimed_until,
+                reason: reason.map(|s| s.to_string()),
+            })
         })
     }
 
@@ -685,62 +735,63 @@ impl Meta {
         additional_ttl_ms: u32,
         now_ms: i64,
     ) -> Result<ClaimInfo> {
-        let mut conn = self.conn.lock().expect("meta mutex poisoned");
-        let tx = conn.transaction()?;
-        let row: rusqlite::Result<(String, i64, String, i64, i64)> = tx.query_row(
-            "SELECT topic, offset, claimed_by, claimed_at, claimed_until \
-             FROM claims WHERE claim_id = ?1",
-            params![claim_id],
-            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)),
-        );
-        let (topic, offset_i, claimed_by, claimed_at, old_until) = match row {
-            Ok(t) => t,
-            Err(rusqlite::Error::QueryReturnedNoRows) => {
-                return Err(BusError::ClaimNotFound(claim_id.to_string()));
-            }
-            Err(e) => return Err(BusError::Sqlite(e)),
-        };
-        if old_until <= now_ms {
-            // Lazy evict: drop the stale row so a follow-up `claim_offset` can
-            // succeed against this (topic, offset). Caller sees ClaimExpired
-            // — a different code than ClaimNotFound so the client can tell
-            // "your lease lapsed" from "wrong id".
-            tx.execute(
-                "DELETE FROM claims WHERE claim_id = ?1",
+        self.with_conn_mut(|conn| {
+            let tx = conn.transaction()?;
+            let row: rusqlite::Result<(String, i64, String, i64, i64)> = tx.query_row(
+                "SELECT topic, offset, claimed_by, claimed_at, claimed_until \
+                 FROM claims WHERE claim_id = ?1",
                 params![claim_id],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)),
+            );
+            let (topic, offset_i, claimed_by, claimed_at, old_until) = match row {
+                Ok(t) => t,
+                Err(rusqlite::Error::QueryReturnedNoRows) => {
+                    return Err(BusError::ClaimNotFound(claim_id.to_string()));
+                }
+                Err(e) => return Err(BusError::Sqlite(e)),
+            };
+            if old_until <= now_ms {
+                // Lazy evict: drop the stale row so a follow-up `claim_offset` can
+                // succeed against this (topic, offset). Caller sees ClaimExpired
+                // — a different code than ClaimNotFound so the client can tell
+                // "your lease lapsed" from "wrong id".
+                tx.execute(
+                    "DELETE FROM claims WHERE claim_id = ?1",
+                    params![claim_id],
+                )?;
+                tx.commit()?;
+                return Err(BusError::ClaimExpired {
+                    claim_id: claim_id.to_string(),
+                });
+            }
+            if claimed_by != claimer {
+                return Err(BusError::ClaimNotOwned {
+                    claim_id: claim_id.to_string(),
+                    claimed_by,
+                    attempted_by: claimer.to_string(),
+                });
+            }
+            // Monotonic-forward: a renew must never move the deadline EARLIER. Setting
+            // `now + additional_ttl_ms` absolutely would SHORTEN a long-lived lease when
+            // additional_ttl_ms is small (e.g. the 30s CLI default renewing a 1h lease),
+            // reopening the slot mid-work → double-dispatch. Clamp to old_until so renew
+            // only ever extends (same invariant as the cursor MAX-upsert). T-2510.
+            let new_until = now_ms
+                .saturating_add(i64::from(additional_ttl_ms))
+                .max(old_until);
+            tx.execute(
+                "UPDATE claims SET claimed_until = ?1 WHERE claim_id = ?2",
+                params![new_until, claim_id],
             )?;
             tx.commit()?;
-            return Err(BusError::ClaimExpired {
+            Ok(ClaimInfo {
                 claim_id: claim_id.to_string(),
-            });
-        }
-        if claimed_by != claimer {
-            return Err(BusError::ClaimNotOwned {
-                claim_id: claim_id.to_string(),
-                claimed_by,
-                attempted_by: claimer.to_string(),
-            });
-        }
-        // Monotonic-forward: a renew must never move the deadline EARLIER. Setting
-        // `now + additional_ttl_ms` absolutely would SHORTEN a long-lived lease when
-        // additional_ttl_ms is small (e.g. the 30s CLI default renewing a 1h lease),
-        // reopening the slot mid-work → double-dispatch. Clamp to old_until so renew
-        // only ever extends (same invariant as the cursor MAX-upsert). T-2510.
-        let new_until = now_ms
-            .saturating_add(i64::from(additional_ttl_ms))
-            .max(old_until);
-        tx.execute(
-            "UPDATE claims SET claimed_until = ?1 WHERE claim_id = ?2",
-            params![new_until, claim_id],
-        )?;
-        tx.commit()?;
-        Ok(ClaimInfo {
-            claim_id: claim_id.to_string(),
-            topic,
-            offset: offset_i as u64,
-            claimer: claimed_by,
-            claimed_at,
-            claimed_until: new_until,
+                topic,
+                offset: offset_i as u64,
+                claimer: claimed_by,
+                claimed_at,
+                claimed_until: new_until,
+            })
         })
     }
 
@@ -754,38 +805,39 @@ impl Meta {
         include_expired: bool,
         now_ms: i64,
     ) -> Result<Vec<ClaimInfo>> {
-        let conn = self.conn.lock().expect("meta mutex poisoned");
-        let mut stmt = if include_expired {
-            conn.prepare(
-                "SELECT claim_id, topic, offset, claimed_by, claimed_at, claimed_until \
-                 FROM claims WHERE topic = ?1 ORDER BY offset ASC, claimed_at ASC",
-            )?
-        } else {
-            conn.prepare(
-                "SELECT claim_id, topic, offset, claimed_by, claimed_at, claimed_until \
-                 FROM claims WHERE topic = ?1 AND claimed_until > ?2 \
-                 ORDER BY offset ASC, claimed_at ASC",
-            )?
-        };
-        let mapper = |r: &rusqlite::Row| -> rusqlite::Result<ClaimInfo> {
-            let offset_i: i64 = r.get(2)?;
-            Ok(ClaimInfo {
-                claim_id: r.get(0)?,
-                topic: r.get(1)?,
-                offset: offset_i as u64,
-                claimer: r.get(3)?,
-                claimed_at: r.get(4)?,
-                claimed_until: r.get(5)?,
-            })
-        };
-        let rows = if include_expired {
-            stmt.query_map(params![topic], mapper)?
-                .collect::<rusqlite::Result<Vec<_>>>()?
-        } else {
-            stmt.query_map(params![topic, now_ms], mapper)?
-                .collect::<rusqlite::Result<Vec<_>>>()?
-        };
-        Ok(rows)
+        self.with_conn(|conn| {
+            let mut stmt = if include_expired {
+                conn.prepare(
+                    "SELECT claim_id, topic, offset, claimed_by, claimed_at, claimed_until \
+                     FROM claims WHERE topic = ?1 ORDER BY offset ASC, claimed_at ASC",
+                )?
+            } else {
+                conn.prepare(
+                    "SELECT claim_id, topic, offset, claimed_by, claimed_at, claimed_until \
+                     FROM claims WHERE topic = ?1 AND claimed_until > ?2 \
+                     ORDER BY offset ASC, claimed_at ASC",
+                )?
+            };
+            let mapper = |r: &rusqlite::Row| -> rusqlite::Result<ClaimInfo> {
+                let offset_i: i64 = r.get(2)?;
+                Ok(ClaimInfo {
+                    claim_id: r.get(0)?,
+                    topic: r.get(1)?,
+                    offset: offset_i as u64,
+                    claimer: r.get(3)?,
+                    claimed_at: r.get(4)?,
+                    claimed_until: r.get(5)?,
+                })
+            };
+            let rows = if include_expired {
+                stmt.query_map(params![topic], mapper)?
+                    .collect::<rusqlite::Result<Vec<_>>>()?
+            } else {
+                stmt.query_map(params![topic, now_ms], mapper)?
+                    .collect::<rusqlite::Result<Vec<_>>>()?
+            };
+            Ok(rows)
+        })
     }
 
     /// T-2045: list distinct `claimed_by` values across ALL topics where
@@ -795,16 +847,17 @@ impl Meta {
     /// roster. Returns a deduped, lexicographically-sorted vector for
     /// deterministic test output.
     pub(crate) fn distinct_active_claimers(&self, now_ms: i64) -> Result<Vec<String>> {
-        let conn = self.conn.lock().expect("meta mutex poisoned");
-        let mut stmt = conn.prepare(
-            "SELECT DISTINCT claimed_by FROM claims \
-             WHERE claimed_until > ?1 \
-             ORDER BY claimed_by ASC",
-        )?;
-        let rows = stmt
-            .query_map(params![now_ms], |r| r.get::<_, String>(0))?
-            .collect::<rusqlite::Result<Vec<_>>>()?;
-        Ok(rows)
+        self.with_conn(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT DISTINCT claimed_by FROM claims \
+                 WHERE claimed_until > ?1 \
+                 ORDER BY claimed_by ASC",
+            )?;
+            let rows = stmt
+                .query_map(params![now_ms], |r| r.get::<_, String>(0))?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            Ok(rows)
+        })
     }
 
     /// T-2039: aggregate claim state for `topic`. Single SQL over the
@@ -820,34 +873,35 @@ impl Meta {
         topic: &str,
         now_ms: i64,
     ) -> Result<ClaimsSummary> {
-        let conn = self.conn.lock().expect("meta mutex poisoned");
-        let mut stmt = conn.prepare(
-            "SELECT \
-               COALESCE(SUM(CASE WHEN claimed_until >  ?2 THEN 1 ELSE 0 END), 0) AS active, \
-               COALESCE(SUM(CASE WHEN claimed_until <= ?2 THEN 1 ELSE 0 END), 0) AS expired, \
-               MIN(CASE WHEN claimed_until >  ?2 THEN claimed_at    ELSE NULL END) AS oldest_active_at, \
-               MIN(CASE WHEN claimed_until >  ?2 THEN claimed_until ELSE NULL END) AS next_active_expiry, \
-               MAX(CASE WHEN claimed_until <= ?2 THEN claimed_until ELSE NULL END) AS newest_expired_at \
-             FROM claims WHERE topic = ?1",
-        )?;
-        let summary = stmt.query_row(params![topic, now_ms], |r| {
-            let active_i: i64 = r.get(0)?;
-            let expired_i: i64 = r.get(1)?;
-            let oldest_active_at_ms: Option<i64> = r.get(2)?;
-            let next_active_expiry_ms: Option<i64> = r.get(3)?;
-            let newest_expired_at_ms: Option<i64> = r.get(4)?;
-            let oldest_active_age_ms = oldest_active_at_ms
-                .map(|t| (now_ms - t).max(0));
-            Ok(ClaimsSummary {
-                active_count: active_i.max(0) as u64,
-                expired_count: expired_i.max(0) as u64,
-                oldest_active_at_ms,
-                oldest_active_age_ms,
-                next_active_expiry_ms,
-                newest_expired_at_ms,
-            })
-        })?;
-        Ok(summary)
+        self.with_conn(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT \
+                   COALESCE(SUM(CASE WHEN claimed_until >  ?2 THEN 1 ELSE 0 END), 0) AS active, \
+                   COALESCE(SUM(CASE WHEN claimed_until <= ?2 THEN 1 ELSE 0 END), 0) AS expired, \
+                   MIN(CASE WHEN claimed_until >  ?2 THEN claimed_at    ELSE NULL END) AS oldest_active_at, \
+                   MIN(CASE WHEN claimed_until >  ?2 THEN claimed_until ELSE NULL END) AS next_active_expiry, \
+                   MAX(CASE WHEN claimed_until <= ?2 THEN claimed_until ELSE NULL END) AS newest_expired_at \
+                 FROM claims WHERE topic = ?1",
+            )?;
+            let summary = stmt.query_row(params![topic, now_ms], |r| {
+                let active_i: i64 = r.get(0)?;
+                let expired_i: i64 = r.get(1)?;
+                let oldest_active_at_ms: Option<i64> = r.get(2)?;
+                let next_active_expiry_ms: Option<i64> = r.get(3)?;
+                let newest_expired_at_ms: Option<i64> = r.get(4)?;
+                let oldest_active_age_ms = oldest_active_at_ms
+                    .map(|t| (now_ms - t).max(0));
+                Ok(ClaimsSummary {
+                    active_count: active_i.max(0) as u64,
+                    expired_count: expired_i.max(0) as u64,
+                    oldest_active_at_ms,
+                    oldest_active_age_ms,
+                    next_active_expiry_ms,
+                    newest_expired_at_ms,
+                })
+            })?;
+            Ok(summary)
+        })
     }
 }
 
@@ -892,17 +946,18 @@ impl Meta {
     /// T-3309: record a write. Sets `unread_since_ms` only if it is unset, so it
     /// keeps the OLDEST write still waiting for a data fetch.
     pub(crate) fn note_write(&self, topic: &str, writer: &str, ts_ms: i64) -> Result<()> {
-        let conn = self.conn.lock().expect("meta mutex poisoned");
-        conn.execute(
-            "INSERT INTO topic_activity (topic, tracking_since_ms, last_write_ms, last_writer, \
-                 writes_total, unread_since_ms) VALUES (?1, ?2, ?2, ?3, 1, ?2) \
-             ON CONFLICT(topic) DO UPDATE SET \
-                 last_write_ms = MAX(COALESCE(last_write_ms, 0), ?2), \
-                 last_writer = ?3, writes_total = writes_total + 1, \
-                 unread_since_ms = COALESCE(unread_since_ms, ?2)",
-            params![topic, ts_ms, writer],
-        )?;
-        Ok(())
+        self.with_conn(|conn| {
+            conn.execute(
+                "INSERT INTO topic_activity (topic, tracking_since_ms, last_write_ms, last_writer, \
+                     writes_total, unread_since_ms) VALUES (?1, ?2, ?2, ?3, 1, ?2) \
+                 ON CONFLICT(topic) DO UPDATE SET \
+                     last_write_ms = MAX(COALESCE(last_write_ms, 0), ?2), \
+                     last_writer = ?3, writes_total = writes_total + 1, \
+                     unread_since_ms = COALESCE(unread_since_ms, ?2)",
+                params![topic, ts_ms, writer],
+            )?;
+            Ok(())
+        })
     }
 
     /// T-3309: record a `channel.subscribe` fetch. `returned > 0` is a DATA fetch,
@@ -916,78 +971,81 @@ impl Meta {
         now_ms: i64,
     ) -> Result<()> {
         let data: Option<i64> = (returned > 0).then_some(now_ms);
-        let mut conn = self.conn.lock().expect("meta mutex poisoned");
-        let tx = conn.transaction()?;
-        tx.execute(
-            "INSERT INTO topic_activity (topic, tracking_since_ms, last_fetch_ms, \
-                 last_data_fetch_ms, fetches_total) VALUES (?1, ?2, ?2, ?3, 1) \
-             ON CONFLICT(topic) DO UPDATE SET \
-                 last_fetch_ms = ?2, fetches_total = fetches_total + 1, \
-                 last_data_fetch_ms = COALESCE(?3, last_data_fetch_ms), \
-                 unread_since_ms = CASE WHEN ?3 IS NULL THEN unread_since_ms ELSE NULL END",
-            params![topic, now_ms, data],
-        )?;
-        if let Some(r) = reader.filter(|r| !r.is_empty()) {
+        self.with_conn_mut(|conn| {
+            let tx = conn.transaction()?;
             tx.execute(
-                "INSERT INTO topic_readers (topic, reader, last_fetch_ms, last_data_fetch_ms) \
-                     VALUES (?1, ?2, ?3, ?4) \
-                 ON CONFLICT(topic, reader) DO UPDATE SET last_fetch_ms = ?3, \
-                     last_data_fetch_ms = COALESCE(?4, last_data_fetch_ms)",
-                params![topic, r, now_ms, data],
+                "INSERT INTO topic_activity (topic, tracking_since_ms, last_fetch_ms, \
+                     last_data_fetch_ms, fetches_total) VALUES (?1, ?2, ?2, ?3, 1) \
+                 ON CONFLICT(topic) DO UPDATE SET \
+                     last_fetch_ms = ?2, fetches_total = fetches_total + 1, \
+                     last_data_fetch_ms = COALESCE(?3, last_data_fetch_ms), \
+                     unread_since_ms = CASE WHEN ?3 IS NULL THEN unread_since_ms ELSE NULL END",
+                params![topic, now_ms, data],
             )?;
-        }
-        tx.commit()?;
-        Ok(())
+            if let Some(r) = reader.filter(|r| !r.is_empty()) {
+                tx.execute(
+                    "INSERT INTO topic_readers (topic, reader, last_fetch_ms, last_data_fetch_ms) \
+                         VALUES (?1, ?2, ?3, ?4) \
+                     ON CONFLICT(topic, reader) DO UPDATE SET last_fetch_ms = ?3, \
+                         last_data_fetch_ms = COALESCE(?4, last_data_fetch_ms)",
+                    params![topic, r, now_ms, data],
+                )?;
+            }
+            tx.commit()?;
+            Ok(())
+        })
     }
 
     /// T-3309: activity rows for every tracked topic (for `channel.list`).
     pub(crate) fn all_activity(
         &self,
     ) -> Result<std::collections::HashMap<String, crate::activity::TopicActivity>> {
-        let conn = self.conn.lock().expect("meta mutex poisoned");
-        let mut stmt = conn.prepare(
-            "SELECT topic, tracking_since_ms, last_write_ms, last_writer, writes_total, \
-                 last_fetch_ms, last_data_fetch_ms, fetches_total, unread_since_ms \
-             FROM topic_activity",
-        )?;
-        let rows = stmt.query_map([], |r| {
-            Ok((
-                r.get::<_, String>(0)?,
-                crate::activity::TopicActivity {
-                    tracking_since_ms: r.get(1)?,
-                    last_write_ms: r.get(2)?,
-                    last_writer: r.get(3)?,
-                    writes_total: r.get::<_, i64>(4)? as u64,
-                    last_fetch_ms: r.get(5)?,
-                    last_data_fetch_ms: r.get(6)?,
-                    fetches_total: r.get::<_, i64>(7)? as u64,
-                    unread_since_ms: r.get(8)?,
-                },
-            ))
-        })?;
-        let mut out = std::collections::HashMap::new();
-        for row in rows {
-            let (t, a) = row?;
-            out.insert(t, a);
-        }
-        Ok(out)
+        self.with_conn(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT topic, tracking_since_ms, last_write_ms, last_writer, writes_total, \
+                     last_fetch_ms, last_data_fetch_ms, fetches_total, unread_since_ms \
+                 FROM topic_activity",
+            )?;
+            let rows = stmt.query_map([], |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    crate::activity::TopicActivity {
+                        tracking_since_ms: r.get(1)?,
+                        last_write_ms: r.get(2)?,
+                        last_writer: r.get(3)?,
+                        writes_total: r.get::<_, i64>(4)? as u64,
+                        last_fetch_ms: r.get(5)?,
+                        last_data_fetch_ms: r.get(6)?,
+                        fetches_total: r.get::<_, i64>(7)? as u64,
+                        unread_since_ms: r.get(8)?,
+                    },
+                ))
+            })?;
+            let mut out = std::collections::HashMap::new();
+            for row in rows {
+                let (t, a) = row?;
+                out.insert(t, a);
+            }
+            Ok(out)
+        })
     }
 
     /// T-3309: named readers of `topic`, most recent first.
     pub(crate) fn topic_readers(&self, topic: &str) -> Result<Vec<crate::activity::ReaderActivity>> {
-        let conn = self.conn.lock().expect("meta mutex poisoned");
-        let mut stmt = conn.prepare(
-            "SELECT reader, last_fetch_ms, last_data_fetch_ms FROM topic_readers \
-             WHERE topic = ?1 ORDER BY last_fetch_ms DESC",
-        )?;
-        let rows = stmt.query_map(params![topic], |r| {
-            Ok(crate::activity::ReaderActivity {
-                reader: r.get(0)?,
-                last_fetch_ms: r.get(1)?,
-                last_data_fetch_ms: r.get(2)?,
-            })
-        })?;
-        Ok(rows.collect::<std::result::Result<Vec<_>, _>>()?)
+        self.with_conn(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT reader, last_fetch_ms, last_data_fetch_ms FROM topic_readers \
+                 WHERE topic = ?1 ORDER BY last_fetch_ms DESC",
+            )?;
+            let rows = stmt.query_map(params![topic], |r| {
+                Ok(crate::activity::ReaderActivity {
+                    reader: r.get(0)?,
+                    last_fetch_ms: r.get(1)?,
+                    last_data_fetch_ms: r.get(2)?,
+                })
+            })?;
+            Ok(rows.collect::<std::result::Result<Vec<_>, _>>()?)
+        })
     }
 }
 
@@ -1088,6 +1146,24 @@ fn now_unix_ms() -> i64 {
 }
 
 #[cfg(test)]
+mod t3461_pragma_tests {
+    use super::Meta;
+
+    #[test]
+    fn meta_opens_in_wal_with_synchronous_full() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let meta = Meta::open(&dir.path().join("meta.db")).unwrap();
+        let (mode, sync): (String, i64) = meta.with_conn(|c| {
+            let mode = c.query_row("PRAGMA journal_mode", [], |r| r.get(0)).unwrap();
+            let sync = c.query_row("PRAGMA synchronous", [], |r| r.get(0)).unwrap();
+            (mode, sync)
+        });
+        assert_eq!(mode.to_ascii_lowercase(), "wal");
+        assert_eq!(sync, 2, "synchronous must be FULL (2): accepted means stored");
+    }
+}
+
+#[cfg(test)]
 mod claim_id_tests {
     use super::{compose_claim_id, generate_claim_id};
 
@@ -1161,21 +1237,22 @@ impl Meta {
     /// Add the T-3310 columns to an existing `topics` table. `ALTER TABLE ADD
     /// COLUMN` is not idempotent in SQLite, so each column is checked first.
     pub(crate) fn migrate_t3310(&self) -> Result<()> {
-        let conn = self.conn.lock().expect("meta mutex poisoned");
-        let cols: Vec<String> = conn
-            .prepare("PRAGMA table_info(topics)")?
-            .query_map([], |r| r.get::<_, String>(1))?
-            .collect::<std::result::Result<_, _>>()?;
-        for col in ["owner", "reason"] {
-            if !cols.iter().any(|c| c == col) {
-                conn.execute(&format!("ALTER TABLE topics ADD COLUMN {col} TEXT"), [])?;
+        self.with_conn(|conn| {
+            let cols: Vec<String> = conn
+                .prepare("PRAGMA table_info(topics)")?
+                .query_map([], |r| r.get::<_, String>(1))?
+                .collect::<std::result::Result<_, _>>()?;
+            for col in ["owner", "reason"] {
+                if !cols.iter().any(|c| c == col) {
+                    conn.execute(&format!("ALTER TABLE topics ADD COLUMN {col} TEXT"), [])?;
+                }
             }
-        }
-        conn.execute(
-            "INSERT OR IGNORE INTO hub_state (key, value) VALUES ('forever_watch_since_ms', ?1)",
-            params![now_unix_ms()],
-        )?;
-        Ok(())
+            conn.execute(
+                "INSERT OR IGNORE INTO hub_state (key, value) VALUES ('forever_watch_since_ms', ?1)",
+                params![now_unix_ms()],
+            )?;
+            Ok(())
+        })
     }
 
     /// Set owner and/or reason on an existing topic. `None` leaves a field
@@ -1186,124 +1263,131 @@ impl Meta {
         owner: Option<&str>,
         reason: Option<&str>,
     ) -> Result<bool> {
-        let conn = self.conn.lock().expect("meta mutex poisoned");
-        let n = conn.execute(
-            "UPDATE topics SET owner = COALESCE(?2, owner), reason = COALESCE(?3, reason) \
-             WHERE name = ?1",
-            params![name, owner, reason],
-        )?;
-        Ok(n > 0)
+        self.with_conn(|conn| {
+            let n = conn.execute(
+                "UPDATE topics SET owner = COALESCE(?2, owner), reason = COALESCE(?3, reason) \
+                 WHERE name = ?1",
+                params![name, owner, reason],
+            )?;
+            Ok(n > 0)
+        })
     }
 
     /// Owner and reason of every topic that has at least one of them.
     pub(crate) fn all_topic_owners(&self) -> Result<TopicOwners> {
-        let conn = self.conn.lock().expect("meta mutex poisoned");
-        let mut stmt = conn.prepare(
-            "SELECT name, owner, reason FROM topics WHERE owner IS NOT NULL OR reason IS NOT NULL",
-        )?;
-        let rows = stmt.query_map([], |r| {
-            Ok((r.get::<_, String>(0)?, (r.get(1)?, r.get(2)?)))
-        })?;
-        Ok(rows.collect::<std::result::Result<_, _>>()?)
+        self.with_conn(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT name, owner, reason FROM topics WHERE owner IS NOT NULL OR reason IS NOT NULL",
+            )?;
+            let rows = stmt.query_map([], |r| {
+                Ok((r.get::<_, String>(0)?, (r.get(1)?, r.get(2)?)))
+            })?;
+            Ok(rows.collect::<std::result::Result<_, _>>()?)
+        })
     }
 
     /// Record a bare-forever create of a new topic.
     pub(crate) fn note_bare_forever(&self, topic: &str, sender: &str, ts_ms: i64) -> Result<()> {
-        let conn = self.conn.lock().expect("meta mutex poisoned");
-        conn.execute(
-            "INSERT INTO forever_requests (ts_ms, topic, sender) VALUES (?1, ?2, ?3)",
-            params![ts_ms, topic, sender],
-        )?;
-        Ok(())
+        self.with_conn(|conn| {
+            conn.execute(
+                "INSERT INTO forever_requests (ts_ms, topic, sender) VALUES (?1, ?2, ?3)",
+                params![ts_ms, topic, sender],
+            )?;
+            Ok(())
+        })
     }
 
     pub(crate) fn bare_forever_summary(&self) -> Result<BareForeverSummary> {
-        let conn = self.conn.lock().expect("meta mutex poisoned");
-        let watch_since_ms: i64 = conn
-            .query_row(
-                "SELECT value FROM hub_state WHERE key = 'forever_watch_since_ms'",
-                [],
-                |r| r.get(0),
-            )
-            .unwrap_or_else(|_| now_unix_ms());
-        let last_create_ms: Option<i64> =
-            conn.query_row("SELECT MAX(ts_ms) FROM forever_requests", [], |r| r.get(0))?;
-        let mut stmt = conn.prepare(
-            "SELECT sender, COUNT(*), MAX(ts_ms) FROM forever_requests \
-             GROUP BY sender ORDER BY MAX(ts_ms) DESC",
-        )?;
-        let senders = stmt
-            .query_map([], |r| {
-                Ok(BareForeverSender {
-                    sender: r.get(0)?,
-                    creates: r.get::<_, i64>(1)? as u64,
-                    last_ms: r.get(2)?,
-                })
-            })?
-            .collect::<std::result::Result<_, _>>()?;
-        Ok(BareForeverSummary { watch_since_ms, last_create_ms, senders })
+        self.with_conn(|conn| {
+            let watch_since_ms: i64 = conn
+                .query_row(
+                    "SELECT value FROM hub_state WHERE key = 'forever_watch_since_ms'",
+                    [],
+                    |r| r.get(0),
+                )
+                .unwrap_or_else(|_| now_unix_ms());
+            let last_create_ms: Option<i64> =
+                conn.query_row("SELECT MAX(ts_ms) FROM forever_requests", [], |r| r.get(0))?;
+            let mut stmt = conn.prepare(
+                "SELECT sender, COUNT(*), MAX(ts_ms) FROM forever_requests \
+                 GROUP BY sender ORDER BY MAX(ts_ms) DESC",
+            )?;
+            let senders = stmt
+                .query_map([], |r| {
+                    Ok(BareForeverSender {
+                        sender: r.get(0)?,
+                        creates: r.get::<_, i64>(1)? as u64,
+                        last_ms: r.get(2)?,
+                    })
+                })?
+                .collect::<std::result::Result<_, _>>()?;
+            Ok(BareForeverSummary { watch_since_ms, last_create_ms, senders })
+        })
     }
 
     /// Test seam: move the watch clock (the clock is otherwise set once, on
     /// the first open of a T-3310 bus).
     pub(crate) fn set_forever_watch_since(&self, ms: i64) -> Result<()> {
-        let conn = self.conn.lock().expect("meta mutex poisoned");
-        conn.execute(
-            "INSERT INTO hub_state (key, value) VALUES ('forever_watch_since_ms', ?1) \
-             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-            params![ms],
-        )?;
-        Ok(())
+        self.with_conn(|conn| {
+            conn.execute(
+                "INSERT INTO hub_state (key, value) VALUES ('forever_watch_since_ms', ?1) \
+                 ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                params![ms],
+            )?;
+            Ok(())
+        })
     }
 
     /// Records, live bytes and oldest timestamp currently indexed for `topic`.
     pub(crate) fn topic_stats(&self, topic: &str) -> Result<crate::limits::TopicStats> {
-        let conn = self.conn.lock().expect("meta mutex poisoned");
-        let (records, live_bytes, oldest): (i64, i64, Option<i64>) = conn.query_row(
-            "SELECT COUNT(*), COALESCE(SUM(length), 0), MIN(ts_unix_ms) FROM records WHERE topic = ?1",
-            params![topic],
-            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
-        )?;
-        Ok(crate::limits::TopicStats {
-            records: records as u64,
-            live_bytes: live_bytes as u64,
-            oldest_ts_ms: oldest,
+        self.with_conn(|conn| {
+            let (records, live_bytes, oldest): (i64, i64, Option<i64>) = conn.query_row(
+                "SELECT COUNT(*), COALESCE(SUM(length), 0), MIN(ts_unix_ms) FROM records WHERE topic = ?1",
+                params![topic],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            )?;
+            Ok(crate::limits::TopicStats {
+                records: records as u64,
+                live_bytes: live_bytes as u64,
+                oldest_ts_ms: oldest,
+            })
         })
     }
 
     /// Drop the oldest records of `topic` until at most `target` live bytes
     /// remain. Returns the number of records deleted. Index-only.
     pub(crate) fn keep_bytes(&self, topic: &str, target: u64) -> Result<u64> {
-        let mut conn = self.conn.lock().expect("meta mutex poisoned");
-        let tx = conn.transaction()?;
-        // Walk newest-first, summing lengths; the first offset whose running
-        // total passes `target` and everything older goes.
-        let cutoff: Option<i64> = {
-            let mut stmt = tx.prepare(
-                "SELECT offset, length FROM records WHERE topic = ?1 ORDER BY offset DESC",
-            )?;
-            let mut rows = stmt.query(params![topic])?;
-            let mut total: u64 = 0;
-            let mut cut = None;
-            while let Some(row) = rows.next()? {
-                let off: i64 = row.get(0)?;
-                let len: i64 = row.get(1)?;
-                total = total.saturating_add(len as u64);
-                if total > target {
-                    cut = Some(off);
-                    break;
+        self.with_conn_mut(|conn| {
+            let tx = conn.transaction()?;
+            // Walk newest-first, summing lengths; the first offset whose running
+            // total passes `target` and everything older goes.
+            let cutoff: Option<i64> = {
+                let mut stmt = tx.prepare(
+                    "SELECT offset, length FROM records WHERE topic = ?1 ORDER BY offset DESC",
+                )?;
+                let mut rows = stmt.query(params![topic])?;
+                let mut total: u64 = 0;
+                let mut cut = None;
+                while let Some(row) = rows.next()? {
+                    let off: i64 = row.get(0)?;
+                    let len: i64 = row.get(1)?;
+                    total = total.saturating_add(len as u64);
+                    if total > target {
+                        cut = Some(off);
+                        break;
+                    }
                 }
-            }
-            cut
-        };
-        let deleted = match cutoff {
-            Some(off) => tx.execute(
-                "DELETE FROM records WHERE topic = ?1 AND offset <= ?2",
-                params![topic, off],
-            )? as u64,
-            None => 0,
-        };
-        tx.commit()?;
-        Ok(deleted)
+                cut
+            };
+            let deleted = match cutoff {
+                Some(off) => tx.execute(
+                    "DELETE FROM records WHERE topic = ?1 AND offset <= ?2",
+                    params![topic, off],
+                )? as u64,
+                None => 0,
+            };
+            tx.commit()?;
+            Ok(deleted)
+        })
     }
 }

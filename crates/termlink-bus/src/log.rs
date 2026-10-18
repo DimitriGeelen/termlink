@@ -46,22 +46,34 @@ impl LogAppender {
         })
     }
 
-    /// Append one record. Returns the byte offset the record starts at
-    /// (i.e. position of the length prefix). Caller is responsible for
-    /// mapping byte-offset → logical offset via the SQLite offsets table.
+    /// Append one record and make it durable. Returns the byte offset the
+    /// record starts at (i.e. position of the length prefix). Caller is
+    /// responsible for mapping byte-offset → logical offset via the SQLite
+    /// offsets table.
+    ///
+    /// T-3461: the payload is fsynced (`sync_data`) before this returns, and
+    /// `Bus::post` commits the index only after that, so the index never points
+    /// at bytes that were not on disk. This closes the T-2464 gap: "accepted"
+    /// means stored (operator rule 2026-10-18). The write and the fsync run in
+    /// `run_blocking`, off the tokio workers.
     pub(crate) async fn append(&self, payload: &[u8]) -> Result<u64> {
         let mut guard = self.inner.lock().await;
-        let start = guard.seek(SeekFrom::End(0))?;
         let len = u64::try_from(payload.len()).map_err(|e| {
             BusError::Io(std::io::Error::new(
                 std::io::ErrorKind::InvalidInput,
                 format!("payload too large: {e}"),
             ))
         })?;
-        guard.write_all(&len.to_be_bytes())?;
-        guard.write_all(payload)?;
-        guard.flush()?;
-        Ok(start)
+        let file: &mut File = &mut guard;
+        crate::run_blocking(|| -> Result<u64> {
+            let start = file.seek(SeekFrom::End(0))?;
+            file.write_all(&len.to_be_bytes())?;
+            file.write_all(payload)?;
+            file.flush()?;
+            crate::test_slow_durable();
+            file.sync_data()?;
+            Ok(start)
+        })
     }
 }
 
@@ -100,9 +112,11 @@ impl Iterator for ReaderIter {
 
     fn next(&mut self) -> Option<Self::Item> {
         // Loop so a single poison record (truncated payload / undecodable bytes)
-        // becomes a logged GAP, not a WALL: the append path fsyncs the SQLite index
-        // but not the payload (T-2464), so a crash mid-append can leave the index
-        // pointing at bytes that never fully hit disk. Before this loop, that one bad
+        // becomes a logged GAP, not a WALL. Since T-3461 the append path fsyncs the
+        // payload before it commits the index, so a new record cannot be indexed
+        // without its bytes on disk. Records written before T-3461 (when only the
+        // index was fsynced, T-2464) and plain disk corruption can still leave the
+        // index pointing at missing or damaged bytes, so the skip stays. Before this loop, that one bad
         // record made `next()` return `Some(Err(..))`, and every consumer's `item?`
         // aborted the whole topic's replay — permanently, on every re-subscribe. We
         // now skip the poison offset and continue. Every skip is LOUD (eprintln to
