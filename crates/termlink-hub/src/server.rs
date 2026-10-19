@@ -1217,10 +1217,13 @@ async fn handle_line_connection<S>(
                 break;
             }
         };
+        // T-3478: hub-side timing, so a slow call a client sees can be attributed.
+        let started = std::time::Instant::now();
         if let Some(mut json) =
             process_request_message(line, &token_secret, &mut granted_scope, peer_pid, &peer_addr)
                 .await
         {
+            let handled = started.elapsed();
             json.push('\n');
             // T-3474: flush after every response. Over TLS, write_all returns once
             // rustls holds the bytes; what did not fit the socket send buffer stays
@@ -1234,6 +1237,21 @@ async fn handle_line_connection<S>(
             if let Err(e) = writer.flush().await {
                 tracing::debug!(error = %e, "Hub: flush failed, client disconnected");
                 break;
+            }
+            let written = started.elapsed() - handled;
+            let total_ms = (handled + written).as_millis() as u64;
+            if crate::rpc_audit::is_slow(total_ms, crate::rpc_audit::slow_ms()) {
+                // The request is parsed a second time only when it was slow.
+                let method = serde_json::from_str::<serde_json::Value>(line)
+                    .ok()
+                    .and_then(|v| v.get("method").and_then(|m| m.as_str()).map(str::to_string))
+                    .unwrap_or_else(|| "(unparsed)".to_string());
+                crate::rpc_audit::record_slow(
+                    &method,
+                    peer_addr.as_deref(),
+                    handled.as_millis() as u64,
+                    written.as_millis() as u64,
+                );
             }
         }
     }

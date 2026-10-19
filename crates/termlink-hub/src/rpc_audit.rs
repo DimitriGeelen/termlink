@@ -267,6 +267,60 @@ fn enqueue(path: &Path, line: String) {
     }
 }
 
+/// T-3478: requests at or above this many ms get a second, `slow:true` audit
+/// line. `TERMLINK_AUDIT_SLOW_MS` overrides it; `0` turns the slow line off.
+pub const DEFAULT_SLOW_MS: u64 = 1000;
+static SLOW_MS: OnceLock<u64> = OnceLock::new();
+
+pub fn slow_ms() -> u64 {
+    *SLOW_MS.get_or_init(|| {
+        std::env::var("TERMLINK_AUDIT_SLOW_MS")
+            .ok()
+            .and_then(|v| v.trim().parse::<u64>().ok())
+            .unwrap_or(DEFAULT_SLOW_MS)
+    })
+}
+
+/// T-3478: pure — the threshold check, separate so tests do not touch the env.
+pub(crate) fn is_slow(total_ms: u64, threshold_ms: u64) -> bool {
+    threshold_ms > 0 && total_ms >= threshold_ms
+}
+
+/// T-3478: pure — one `slow:true` line. `handle_ms` is from the request line
+/// being read to the response being ready; `write_ms` is writing and flushing it.
+pub(crate) fn build_slow_line(
+    ts_ms: u128,
+    method: &str,
+    peer_addr: Option<&str>,
+    handle_ms: u64,
+    write_ms: u64,
+) -> String {
+    let mut parts = vec![
+        format!("\"ts\":{ts_ms}"),
+        format!("\"method\":{}", json_escape(method)),
+        "\"slow\":true".to_string(),
+    ];
+    if let Some(a) = peer_addr
+        && !a.is_empty()
+    {
+        parts.push(format!("\"peer_addr\":{}", json_escape(a)));
+    }
+    parts.push(format!("\"handle_ms\":{handle_ms}"));
+    parts.push(format!("\"write_ms\":{write_ms}"));
+    format!("{{{}}}", parts.join(","))
+}
+
+/// T-3478: record a request that took at least the slow threshold, so a slow
+/// call seen by a client can be attributed to the hub (line present) or not.
+/// The receipt line from `record` is unchanged; this is a second line.
+pub fn record_slow(method: &str, peer_addr: Option<&str>, handle_ms: u64, write_ms: u64) {
+    if !is_slow(handle_ms + write_ms, slow_ms()) {
+        return;
+    }
+    let Some(path) = current_path() else { return };
+    enqueue(path, build_slow_line(now_ms(), method, peer_addr, handle_ms, write_ms));
+}
+
 /// T-3475: audit lines dropped since the hub started.
 pub fn dropped_total() -> u64 {
     DROPPED.load(std::sync::atomic::Ordering::Relaxed)
@@ -509,6 +563,28 @@ mod tests {
     // audit write lock (standing in for a write stuck on btrfs writeback); the
     // enqueue must still return at once, and the line must land once the lock is
     // released. A synchronous append (the pre-T-3475 shape) blocks here and fails.
+    // ── T-3478: the slow line ──
+    #[test]
+    fn slow_threshold_is_inclusive_and_zero_disables() {
+        assert!(!is_slow(999, 1000));
+        assert!(is_slow(1000, 1000));
+        assert!(is_slow(5232, 1000));
+        assert!(!is_slow(60_000, 0), "threshold 0 turns the slow line off");
+    }
+
+    #[test]
+    fn slow_line_carries_split_timing_and_parses() {
+        let l = build_slow_line(7, "channel.list", Some("192.168.10.122:50774"), 4900, 332);
+        let v: serde_json::Value = serde_json::from_str(&l).expect("valid JSON");
+        assert_eq!(v["method"], "channel.list");
+        assert_eq!(v["slow"], true);
+        assert_eq!(v["peer_addr"], "192.168.10.122:50774");
+        assert_eq!(v["handle_ms"], 4900);
+        assert_eq!(v["write_ms"], 332);
+        let local = build_slow_line(7, "channel.list", None, 1, 2);
+        assert!(!local.contains("peer_addr"), "local callers carry no peer_addr: {local}");
+    }
+
     #[test]
     fn enqueue_returns_while_the_audit_write_is_stuck() {
         let dir = TempDir::new().unwrap();
