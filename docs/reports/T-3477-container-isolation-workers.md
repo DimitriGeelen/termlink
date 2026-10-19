@@ -40,6 +40,31 @@ push to a namespaced branch, integrate through a PR or merge queue.
 5. **Lighter option and other hosts:** bubblewrap/unshare sandbox with a clone versus
    Docker on isolation, start time and complexity; hosts without Docker.
 
+## 3a. Spike results (2026-10-19, .107)
+
+1. **Login (IW-1), options established, nothing run:**
+   1a. `claude setup-token` creates a long-lived subscription token; it reaches the
+       container as an environment variable (`CLAUDE_CODE_OAUTH_TOKEN`), so no credential
+       file is copied. Needs the operator to run it once (interactive), and a decision on
+       where the token is stored.
+   1b. An API key works but is a paid route (operator approval each time).
+   1c. Bind-mounting `~/.claude` shares the operator's credentials: ruled out.
+2. **TermLink from inside (IW-3):**
+   2a. On Docker's default bridge network the container cannot reach the hub at
+       192.168.10.107:9100: three probes timed out after 10 s. ufw is active with
+       `INPUT DROP`, and the bridge subnet is not allowed.
+   2b. With `--network host` the same probe returned the hub fingerprint
+       (`sha256:cacc73ea…`) in 1.19 s including container start.
+   2c. Hub auth has no scoped credential: `termlink token create` issues tokens for a
+       session, not for the hub. A container that must post or claim would need the full
+       `hub.secret`. A per-worker, scoped, short-lived hub token is a missing primitive.
+3. **Start cost (IW-4):** bare `alpine:3` container start 0.92 s; a bubblewrap sandbox
+   (read-only root, private /tmp and pid namespace) 0.02 s. Image and build-cache disk not
+   measured yet.
+4. **Prior work on this host:** an image `aef-greenfield-testbed:latest` (484 MB, Ubuntu
+   24.04, built 2026-10-18) exists. It is AEF's; ask the AEF agent what it proved before
+   building our own.
+
 ## 4. Relationship to other work
 
 1. T-3469 IW-3 (who owns the checkout) may be answered by this: inside a container the
