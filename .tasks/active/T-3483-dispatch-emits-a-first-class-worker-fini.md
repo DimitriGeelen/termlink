@@ -45,7 +45,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-19T15:38:49Z
-last_update: 2026-10-19T20:18:05Z
+last_update: 2026-10-19T20:18:32Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -96,9 +96,9 @@ Found 2026-10-19 (converted from build to inception, because the premise was par
 ## Open Questions
 
 - **IW-1: Does 1409 run an AEF version with T-4152 and worker.done, and which dispatch path (fw termlink dispatch, termlink dispatch, spawn)?**
-  confidence: 0
-  disposition:
-  rationale:
+  confidence: 3
+  disposition: answered
+  rationale: 1409 (msg 0712b298, 2026-10-19): fw v1.8.10 vendored (1.8.12 pending); they dispatch with fw termlink dispatch and wait with `fw termlink wait --name`, plus their own end-signal file for reviewers. A durable worker.done on a hub topic would help: waiters often start late (after compaction or in a new session), and one waiter matched itself in pgrep and never returned. A record queryable after the fact would replace both.
 - **IW-2: Is a durable done-record needed beyond the session event, and where: a hub topic (e.g. per project, cv_key = worker name, so a late waiter reads the current value), the claim release, or the dispatch manifest?**
   confidence: 1
   disposition:
