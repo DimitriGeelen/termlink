@@ -42,7 +42,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-19T22:33:23Z
-last_update: 2026-10-19T22:33:47Z
+last_update: 2026-10-19T22:45:04Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -90,9 +90,17 @@ produce a signature from an identity nobody has pinned.
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `termlink identity sign <file>` prints the detached ed25519 signature (hex) over the file's bytes, signed with the identity from the read-only per-agent resolver; `--json` gives `{ok, signature_hex, fingerprint, public_key_hex, source}`; no identity -> exit 3 with a message, nothing created
-- [ ] `termlink identity verify --pubkey-hex X --sig Y <file>` exits 0 when valid, 1 when invalid (prints why), 2 on bad input (unreadable file, malformed hex); optional `--fingerprint F` also requires the key's fingerprint to equal F; `--json` supported
-- [ ] Round-trip test: sign then verify passes; a changed byte, a different key and a wrong `--fingerprint` each fail with exit 1; CLI parse tests for both subcommands; `cargo test -p termlink` passes
+- [x] `termlink identity sign <file>` prints the detached ed25519 signature (hex) over the file's bytes, signed with the identity from the read-only per-agent resolver; `--json` gives `{ok, signature_hex, fingerprint, public_key_hex, source}`; no identity -> exit 3 with a message, nothing created
+- [x] `termlink identity verify --pubkey-hex X --sig Y <file>` exits 0 when valid, 1 when invalid (prints why), 2 on bad input (unreadable file, malformed hex); optional `--fingerprint F` also requires the key's fingerprint to equal F; `--json` supported
+- [x] Round-trip test: sign then verify passes; a changed byte, a different key and a wrong `--fingerprint` each fail with exit 1; CLI parse tests for both subcommands; `cargo test -p termlink` passes
+
+Evidence (2026-10-20): built by TermLink worker w-t3485 (commit 8da5c68aa), reviewed by the
+orchestrating session, which switched `check_detached_hex` to `verify_strict` (rejects weak keys
+and malleable signatures; a detached signature is used as proof of authorship). Tests:
+`detached_sign_verify_roundtrip_and_failure_modes`, `identity_sign_parses`,
+`identity_verify_parses`; CLI suite 1201 + 3 + 180 + 3 pass. Live: signed a file with this
+session's per-agent identity (6738c073bbcc587a): verify with --fingerprint rc 0; a changed file
+rc 1 "bad signature"; malformed key rc 2.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -143,6 +151,10 @@ produce a signature from an identity nobody has pinned.
 -->
 
 ## Verification
+
+grep -q 'verify_strict' crates/termlink-session/src/agent_identity.rs
+cargo test -q -p termlink-session --lib detached_sign_verify_roundtrip_and_failure_modes > /tmp/.t3485a 2>&1 && grep -q "1 passed" /tmp/.t3485a
+cargo test -q -p termlink --bin termlink identity_ > /tmp/.t3485b 2>&1 && grep -q "passed" /tmp/.t3485b
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.

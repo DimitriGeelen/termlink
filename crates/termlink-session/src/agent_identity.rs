@@ -205,9 +205,11 @@ pub fn check_detached_hex(pubkey_hex: &str, sig_hex: &str, msg: &[u8]) -> Result
     let pk = VerifyingKey::from_bytes(&hex_array::<32>(pubkey_hex, "public key")?)
         .map_err(|e| IdentityError::BadInput(format!("public key is not a valid ed25519 key: {e}")))?;
     let sig = Signature::from_bytes(&hex_array::<64>(sig_hex, "signature")?);
+    // verify_strict: a detached signature is used as proof of authorship (ring20's
+    // signed proposals), so also reject weak keys and malleable signatures.
     Ok(DetachedCheck {
         fingerprint: fingerprint_of(&pk),
-        signature_ok: Identity::verify(&pk, msg, &sig),
+        signature_ok: pk.verify_strict(msg, &sig).is_ok(),
     })
 }
 
