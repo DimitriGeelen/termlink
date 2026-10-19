@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3475: Hub rpc-audit append blocks request workers: one write stalled on btrfs writeback holds the global audit lock for every request
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-19T18:42:39Z
+# ============================================================================
+
+task_id: T-3475
+task_name: "Hub rpc-audit append blocks request workers: one write stalled on btrfs writeback holds the global audit lock for every request"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-19T10:14:01Z
+completed: 2026-10-19T18:42:19Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-19T12:18:43+02:00
+last_commit: 2026-10-19T12:18:43+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  rpc-audit lines go to a dedicated writer thread; requests never wait on audit I/O
+
+# Key outcomes
+outcomes:
+  - '`rpc_audit::record` hands the line to a dedicated writer thread and returns without file I/O; lines keep their order'
+  - 'A full queue drops the line, increments a counter and logs a rate-limited warn (no silent loss)'
+  - 'A test holds the audit write lock and shows `record()` returning within 200 ms wall clock, then the line landing once the lock is released; mutant (synchronous append) fails it'
+  - '`cargo test -p termlink-hub` passes'
+  - 'After deploy, a 2-hour channel-list capture on .107 shows no call over 2 s outside a deploy window (closes T-3473 AC 5 too) — accepted by operator ruling 2026-10-19 (see T-3473 Decisions): before T-3475 12/2023 over 2 s (max 13.4 s), after 3/2034 (max 5.2 s), after T-3478 3/2028 (max 3.5 s) with no hub-side slow line for channel.list; the audit writes now block only the `rpc-audit` thread, not request workers (snapshots 2026-10-19 12:11–12:25Z)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-hub/src/rpc_audit.rs'
+  - '.tasks/active/T-3475-hub-rpc-audit-append-blocks-request-work.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-19T12:18:43'
+    action: 'T-3475: rpc-audit lines go to a dedicated writer thread; requests never wait on audit I/O'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 508 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [hub, audit, latency, ring20]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 508
+  commits: 1
+  files_changed: 2
+  lines_added: 495
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3475-hub-rpc-audit-append-blocks-request-work.md
+generated_by: context-agent-hybrid

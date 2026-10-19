@@ -1,0 +1,91 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3473: Hub meta reads wait behind commit fsync: separate WAL read connection + batch channel.list reads (T-3461 regression)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-19T18:43:19Z
+# ============================================================================
+
+task_id: T-3473
+task_name: "Hub meta reads wait behind commit fsync: separate WAL read connection + batch channel.list reads (T-3461 regression)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-18T23:03:50Z
+completed: 2026-10-19T18:42:59Z
+duration_days: 1
+updates_count: 2
+first_commit: 2026-10-19T01:05:51+02:00
+last_commit: 2026-10-19T12:10:11+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  capture task — hub meta reads queue behind >60 s commit fsync (T-3461 regression, ring20 report). meta pure reads on a separate query_only WAL connection; channel.list reads all topics in one query. second capture — long fsyncs are on meta.db-wal; ring20 confirms load-linked, not network. ACs 1-4 met and deployed; residual 2-4 s list latency on .107 open (candidate: sync rpc-audit write on the worker)
+
+# Key outcomes
+outcomes:
+  - 'Pure-read `Meta` methods use a separate read-only connection with its own lock; writes keep the existing connection and durability (WAL, synchronous=FULL)'
+  - 'A test holds a slow commit (via the `set_test_slow_durable_ms` seam) and shows a concurrent meta read returning within 700 ms wall clock; mutant (read via the write connection) fails it'
+  - '`channel.list` gets retention/count/latest_offset for all topics in a bounded number of meta queries, not ~4 per topic; output unchanged (existing channel.list tests pass)'
+  - '`cargo test -p termlink-bus -p termlink-hub` passes'
+  - 'After deploy, a 15-min TLS capture on .107 shows no channel info/list over 2 s during a commit burst, and ring20 confirms from .122 — accepted by operator ruling 2026-10-19 with the residual attributed (see Decisions): ring20 confirmed 5/5 lists from .122 at 102–104 ms (msg 62503df7); .107 capture after T-3478 = 3 of 2028 probes over 2 s (max 3.5 s), none with a hub-side `slow:true` channel.list line, i.e. the hub handled every list in < 1 s'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-10-19 — Close with the residual attributed (operator ruling)'
+    chose: 'close T-3473 (and T-3475) with AC 5 accepted on evidence: ring20 5/5 from .122 at 102–104 ms; on .107, 3 of 2028 probes over 2 s (max 3.5 s) with no hub-side `slow:true` `channel.list` line, so the hub handled every list in < 1 s and the residual lies outside request handling (client start, TLS/accept under load 30–60).'
+    rationale: 'the property the task exists for (reads no longer wait behind a commit) is proven hub-side; the literal "no call over 2 s" includes client-side time the fix cannot reach. Operator, 2026-10-19: "proceed as you see fit" on the proposal to close on this basis.'
+    alternatives_rejected: ['keep both open to chase client-side latency — a different problem; reopen as its own task if a client-side delay ever matters.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-bus/src/lib.rs'
+  - 'crates/termlink-bus/src/meta.rs'
+  - 'crates/termlink-bus/tests/t3473_reads_do_not_wait_on_commit.rs'
+  - 'crates/termlink-hub/src/channel.rs'
+  - '.tasks/active/T-3473-hub-meta-reads-wait-behind-commit-fsync-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-19T01:05:51'
+    action: 'T-3473: capture task — hub meta reads queue behind >60 s commit fsync (T-3461 regression, ring20 report)'
+  - time: '2026-10-19T01:17:41'
+    action: 'T-3473: meta pure reads on a separate query_only WAL connection; channel.list reads all topics in one query'
+  - time: '2026-10-19T01:22:58'
+    action: 'T-3473: second capture — long fsyncs are on meta.db-wal; ring20 confirms load-linked, not network'
+  - time: '2026-10-19T12:10:11'
+    action: 'T-3473: ACs 1-4 met and deployed; residual 2-4 s list latency on .107 open (candidate: sync rpc-audit write on the worker)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 1179 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [hub, bus, regression, ring20]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1179
+  commits: 4
+  files_changed: 5
+  lines_added: 655
+  lines_removed: 46
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3473-hub-meta-reads-wait-behind-commit-fsync-.md
+generated_by: context-agent-hybrid

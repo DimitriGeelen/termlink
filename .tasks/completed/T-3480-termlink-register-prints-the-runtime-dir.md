@@ -9,12 +9,12 @@ description: >
   Suggestion: print the runtime dir and hub on register, and warn when it differs
   from the live hub's runtime dir.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [cli, register, ring20-suggestion]
-components: []
+components: [crates/termlink-cli/src/commands/session.rs]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -43,8 +43,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-19T15:35:39Z
-last_update: 2026-10-19T18:40:27Z
-date_finished:
+last_update: 2026-10-19T18:44:16Z
+date_finished: 2026-10-19T18:44:16Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -85,9 +85,16 @@ elsewhere: `commands::infrastructure::resolve_hub_paths()` finds it (default dir
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `termlink register` (text mode) prints the runtime dir it registered into on stderr; `--json` output carries a `runtime_dir` field
-- [ ] When a hub is running (pidfile Running) in a different dir than the session's runtime dir, register prints a WARN on stderr naming both dirs and the fix (`TERMLINK_RUNTIME_DIR=<hub dir>`); no warning when they match or no hub runs
-- [ ] The decision is a pure helper with unit tests for match / mismatch / no hub; `cargo test -p termlink` passes
+- [x] `termlink register` (text mode) prints the runtime dir it registered into on stderr; `--json` output carries a `runtime_dir` field
+- [x] When a hub is running (pidfile Running) in a different dir than the session's runtime dir, register prints a WARN on stderr naming both dirs and the fix (`TERMLINK_RUNTIME_DIR=<hub dir>`); no warning when they match or no hub runs
+- [x] The decision is a pure helper with unit tests for match / mismatch / no hub; `cargo test -p termlink` passes
+
+Evidence (2026-10-19): built by TermLink worker w-t3480 (commit c2c84a123, session.rs only),
+reviewed by the orchestrating session: helper `runtime_dir_mismatch_warning`, called after
+registration with the hub dir from `resolve_hub_paths()` + `pidfile::check == Running`; with
+`TERMLINK_RUNTIME_DIR` set the lookup is confined to that dir, so no false warning. Worker ran
+`cargo test -p termlink`: 1199 + 180 + 3 + 3 pass. The WARN goes to stderr in every mode (also
+`--json`/`--quiet`) so a mismatch is never silent.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -138,6 +145,9 @@ elsewhere: `commands::infrastructure::resolve_hub_paths()` finds it (default dir
 -->
 
 ## Verification
+
+grep -q 'fn runtime_dir_mismatch_warning' crates/termlink-cli/src/commands/session.rs
+cargo test -q -p termlink --bin termlink runtime_dir_warning_match_mismatch_no_hub > /tmp/.t3480 2>&1 && grep -q "1 passed" /tmp/.t3480
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -392,3 +402,20 @@ elsewhere: `commands::infrastructure::resolve_hub_paths()` finds it (default dir
 ### 2026-10-19T18:40:27Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-d95384a9
+- **Timestamp:** 2026-10-19T18:44:52Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-19T18:44:16Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

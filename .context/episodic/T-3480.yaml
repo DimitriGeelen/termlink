@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3480: termlink register prints the runtime dir/hub it registered into and warns when that is not the running hub's dir
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-19T18:45:02Z
+# ============================================================================
+
+task_id: T-3480
+task_name: "termlink register prints the runtime dir/hub it registered into and warns when that is not the running hub's dir"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-19T15:35:39Z
+completed: 2026-10-19T18:44:16Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-19T20:40:48+02:00
+last_commit: 2026-10-19T20:42:52+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  scope and acceptance criteria (register reports its runtime dir and warns on hub mismatch). register prints runtime dir, warns on hub dir mismatch
+
+# Key outcomes
+outcomes:
+  - '`termlink register` (text mode) prints the runtime dir it registered into on stderr; `--json` output carries a `runtime_dir` field'
+  - 'When a hub is running (pidfile Running) in a different dir than the session''s runtime dir, register prints a WARN on stderr naming both dirs and the fix (`TERMLINK_RUNTIME_DIR=<hub dir>`); no warning when they match or no hub runs'
+  - 'The decision is a pure helper with unit tests for match / mismatch / no hub; `cargo test -p termlink` passes'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/commands/session.rs'
+  - '.tasks/active/T-3480-termlink-register-prints-the-runtime-dir.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-19T20:40:48'
+    action: 'T-3480: scope and acceptance criteria (register reports its runtime dir and warns on hub mismatch)'
+  - time: '2026-10-19T20:42:52'
+    action: 'T-3480: register prints runtime dir, warns on hub dir mismatch'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 188 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [cli, register, ring20-suggestion]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 188
+  commits: 2
+  files_changed: 2
+  lines_added: 439
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3480-termlink-register-prints-the-runtime-dir.md
+generated_by: context-agent-hybrid

@@ -1,19 +1,19 @@
 ---
-id: T-3473
-name: "Hub meta reads wait behind commit fsync: separate WAL read connection + batch
-  channel.list reads (T-3461 regression)"
+id: T-3475
+name: "Hub rpc-audit append blocks request workers: one write stalled on btrfs writeback
+  holds the global audit lock for every request"
 description: >
-  Since T-3461 every meta.db access shares one std mutex and commits hold it through
-  the WAL fsync. Under btrfs writeback one fsync took >60 s (capture 2026-10-18 22:52
-  and 23:00 UTC); channel list (~4 meta reads x 531 topics) and channel info hit the
-  30 s client timeout from .107 and .122 (ring20 report, conv ring20-107-channel-list-wedge).
+  rpc_audit::record runs on the tokio worker for every request and takes AUDIT_WRITE_LOCK
+  around the file append. A write stuck in folio_wait_writeback (seen 2026-10-19 09:52Z)
+  parks that worker and every other request queues on the mutex. Leading candidate
+  for the residual 2-4 s channel.list latency left after T-3473.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
-tags: [hub, bus, regression, ring20]
-components: []
+horizon: null
+tags: [hub, audit, latency, ring20]
+components: [crates/termlink-hub/src/rpc_audit.rs, crates/termlink-hub/src/server.rs]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -41,9 +41,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-10-18T23:03:50Z
-last_update: 2026-10-18T23:23:00Z
-date_finished:
+created: 2026-10-19T10:14:01Z
+last_update: 2026-10-19T18:42:19Z
+date_finished: 2026-10-19T18:42:19Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -55,7 +55,7 @@ date_finished:
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 bvp_scores_proposed:
-  - ts: '2026-10-18T23:05:32Z'
+  - ts: '2026-10-19T10:14:19Z'
     estimator: bvp-estimator-v1-heuristic
     scores:
       D1: 4
@@ -70,62 +70,32 @@ bvp_scores_proposed:
     rubric_sha: e4a00f38e801
 ---
 
-# T-3473: Hub meta reads wait behind commit fsync: separate WAL read connection + batch channel.list reads (T-3461 regression)
+# T-3475: Hub rpc-audit append blocks request workers: one write stalled on btrfs writeback holds the global audit lock for every request
 
 ## Context
 
-Regression of T-3461 (0.12.705). ring20 reported `channel list` / `channel info
-agent-chat-arc` timing out at 30 s on .107 from .122 (conv ring20-107-channel-list-wedge,
-msgs 3210c407, 9121ab62).
-
-Evidence (2026-10-18, capture `scratchpad/meta-read-capture.sh`, channel info over TLS
-every 3 s for 15 min): 176 probes, 10 over 2 s, 4 at the 30 s client timeout. In every
-slow snapshot exactly one hub thread is in `fsync` on btrfs (`btrfs_sync_log` /
-`wait_log_commit`), and the same tid stays there for over a minute (2962650:
-22:52:12→22:53:18; 1180794: 23:00:26→23:01:33) at load 46–68, while futex waiters
-grow 65→205 (each `block_in_place` hands the runtime to a fresh worker). When quiet,
-list/info take 0.19–0.32 s.
-
-Mechanism: `Meta` has one `Mutex<Connection>`; `with_conn` holds it across the
-statement, and a commit under `synchronous=FULL` holds it through the WAL fsync. Every
-read queues behind that. `handle_channel_list_with` (crates/termlink-hub/src/channel.rs:1940)
-does ~4 meta reads per topic × 531 topics, so it waits behind every commit in a burst.
-
-Second capture (23:05–23:20 UTC, fd resolved from /proc/<tid>/syscall): 183 probes,
-21 over 2 s, 4 at 30 s; all 16 long-fsync snapshots are on `bus/meta.db-wal` — the meta
-commit itself, not a topic log. ring20 from .122: fast when quiet (list 166 ms), list
-timed out 3/3 under load 40–50 while single infos mostly answered.
-
-**After deploy (0.12.715 at 08:2xZ, then 0.12.716 with T-3474 at ~10:00Z), 2026-10-19:**
-1. The .122 timeouts after this deploy were a different bug: the hub never flushed a
-   response, so remote peers got only the first 155,552 bytes of the 278 KB list (T-3474,
-   fixed and closed). ring20 then confirmed 5/5 lists from .122 at 102–104 ms.
-2. Our own channel-list capture on .107 (08:30–10:05Z, every 3 s, 1650 probes): 11 over
-   2 s, max 13.4 s. Four of them (09:52–10:03, up to 13.4 s) fall inside the runme
-   build + hub restart window. The other 7 are 2.5–4.1 s (08:57, six at 09:24); before the
-   fix they were 30 s timeouts.
-3. The residual is NOT explained yet. In the 09:24 snapshot the only busy thread is a
-   meta.db-wal fsync; the 09:52 one also shows the rpc-audit append blocked in
-   `folio_wait_writeback`. `rpc_audit::record` writes synchronously on the tokio worker
-   (server.rs:~1619), outside `run_blocking`, so a write stalled behind btrfs writeback
-   parks a worker for every request: the leading candidate, not proven. AC 5 stays open
-   until this is either fixed or measured clean.
-
-Fix direction: a second, read-only connection (WAL readers do not block on the writer)
-behind its own lock, used by all pure-read Meta methods; plus one batched query for the
-per-topic fields channel.list needs. Pending: second capture naming WHICH file the long
-fsync is on (meta WAL vs topic log); if it is the topic log, reads of meta still should
-not wait, but the post path needs its own look.
+Follow-up to T-3473 (residual 2.5–4.1 s channel.list on .107 after the read-connection fix).
+`rpc_audit::record` (crates/termlink-hub/src/rpc_audit.rs) is called for every dispatched
+request on the tokio worker (server.rs:~1619) and `append_line` holds the global
+`AUDIT_WRITE_LOCK` across open + write. The 09:52Z capture shows the audit write blocked in
+`folio_wait_writeback` on btrfs. While it is blocked, every other request blocks on the mutex,
+on a worker. Fix: hand the line to one dedicated writer thread through a bounded channel; the
+request never waits on audit I/O. If the channel is full, drop the line, count it, and warn
+(rate-limited). An audit line must never cost request latency, and a drop must never be
+silent.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] Pure-read `Meta` methods use a separate read-only connection with its own lock; writes keep the existing connection and durability (WAL, synchronous=FULL)
-- [x] A test holds a slow commit (via the `set_test_slow_durable_ms` seam) and shows a concurrent meta read returning within 700 ms wall clock; mutant (read via the write connection) fails it
-- [x] `channel.list` gets retention/count/latest_offset for all topics in a bounded number of meta queries, not ~4 per topic; output unchanged (existing channel.list tests pass)
-- [x] `cargo test -p termlink-bus -p termlink-hub` passes
-- [ ] After deploy, a 15-min TLS capture on .107 shows no channel info/list over 2 s during a commit burst, and ring20 confirms from .122
+- [x] `rpc_audit::record` hands the line to a dedicated writer thread and returns without file I/O; lines keep their order
+- [x] A full queue drops the line, increments a counter and logs a rate-limited warn (no silent loss)
+- [x] A test holds the audit write lock and shows `record()` returning within 200 ms wall clock, then the line landing once the lock is released; mutant (synchronous append) fails it
+- [x] `cargo test -p termlink-hub` passes
+- [x] After deploy, a 2-hour channel-list capture on .107 shows no call over 2 s outside a deploy window (closes T-3473 AC 5 too) — accepted by operator ruling 2026-10-19 (see T-3473 Decisions): before T-3475 12/2023 over 2 s (max 13.4 s), after 3/2034 (max 5.2 s), after T-3478 3/2028 (max 3.5 s) with no hub-side slow line for channel.list; the audit writes now block only the `rpc-audit` thread, not request workers (snapshots 2026-10-19 12:11–12:25Z)
+
+Evidence: `enqueue_returns_while_the_audit_write_is_stuck` passes; the synchronous-append
+mutant failed it (0.20 s); hub suite 526/526 at commit, 528/528 ×5 after T-3479.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -176,6 +146,9 @@ not wait, but the post path needs its own look.
 -->
 
 ## Verification
+
+grep -q 'fn enqueue(path: &Path, line: String)' crates/termlink-hub/src/rpc_audit.rs
+cargo test -q -p termlink-hub --lib enqueue_returns_while_the_audit_write_is_stuck > /tmp/.t3475 2>&1 && grep -q "1 passed" /tmp/.t3475
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -346,6 +319,20 @@ not wait, but the post path needs its own look.
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
+**Symptom:** after T-3473, `channel list` on .107 still took 2.5–13 s at times (12/2023 probes).
+
+**Root cause:** `rpc_audit::record` ran for every request on the tokio worker and held the global
+`AUDIT_WRITE_LOCK` across open + write of `rpc-audit.jsonl`. A write blocked in
+`folio_wait_writeback` on btrfs (09:52Z snapshot) held the lock, so every other request waited
+on it, on a worker.
+
+**Why structurally allowed:** the audit sink was designed as cheap, best-effort telemetry and
+never considered as a latency source; nothing measured per-request hub-side time.
+
+**Prevention:** the writer-thread design makes request latency independent of audit I/O, pinned
+by `enqueue_returns_while_the_audit_write_is_stuck` (mutant-checked); drops are counted and
+warned. T-3478's slow-request line makes any new per-request stall visible in the hub's log.
+
 ## Evolution
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
@@ -422,10 +409,27 @@ not wait, but the post path needs its own look.
 
 ## Updates
 
-### 2026-10-18T23:03:50Z — task-created [task-create-agent]
+### 2026-10-19T10:14:01Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3473-hub-meta-reads-wait-behind-commit-fsync-.md
+- **Output:** /opt/termlink/.tasks/active/T-3475-hub-rpc-audit-append-blocks-request-work.md
 - **Context:** Initial task creation
 
-### 2026-10-18T23:05:32Z — status-update [task-update-agent]
+### 2026-10-19T10:14:19Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-a4765a90
+- **Timestamp:** 2026-10-19T18:42:29Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-19T18:42:19Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
