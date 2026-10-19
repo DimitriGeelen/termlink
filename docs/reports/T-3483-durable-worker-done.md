@@ -41,6 +41,24 @@
   durably with the child's exit status; no AEF change, but no result path, and the exit status
   is the shell's, not necessarily the worker's.
 
+- **E. Sidecar notification + durable record.** `run.sh` ends with `fw sidecar send` to the
+  dispatching agent ("worker N finished, exit X, result P"): push, arrives at the dispatcher's
+  next prompt, durable inbox (a hub topic), receipts, retry ladder, cross-host via a
+  hub-qualified address. Plus the option-C record for lookup by observers (Watchtower, T-3476,
+  a second orchestrator) that nobody addresses. Needs the dispatcher's address recorded at
+  dispatch time so the worker knows whom to notify.
+- **E′. Sidecar only.** As E without the TermLink record; observers learn nothing unless they
+  are addressed too.
+
+Correction (operator question, 2026-10-19): an earlier draft said the sidecar "cannot reach an
+orchestrator". Wrong: it reaches any addressed agent, also cross-host (we reach ring20 on .122
+that way). The real limit is that it reaches only the addressees.
+
+Backlog check (2026-10-19): no termlink task for sidecar-delivered worker completion. Nearest:
+arc-011 `role-handback/1` (T-3348/T-3351/T-3352/T-3357), a JSON record a role step returns; it is
+a format, not a delivery path, and could be the payload of E. Asked AEF (conv
+`termlink-worker-done-sidecar`) whether their backlog has it.
+
 ## 3. Dialogue log
 
 1. 2026-10-19, 1409 support-round suggestion; converted from build to inception after the facts
