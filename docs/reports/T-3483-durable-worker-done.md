@@ -137,6 +137,11 @@ output hash", templates `prompts/orchestration/*.md`. Lessons: never write harne
 "you cannot run commands" into the worker contract (it blinded codex); test the worker profile
 with the real uid ownership.
 
+ring20 follow-up (msg 182bbbb2): open in principle to a shared primitive ("one implementation
+beats two parallel ones"), but (1) it is their operator's call, so ask formally as a question
+they can take to him; (2) arc-009 is already offered upstream to AEF (ring20 T-2281), so a shared
+primitive must be agreed three-way (TermLink, AEF, ring20) to avoid a third copy.
+
 **Synthesis.** Everyone converges on a durable per-dispatch record as the truth, keyed by a
 dispatch id with attempts and fencing, `done`/`lost` written by the supervisor/runtime from
 evidence, not by the worker. ring20 has built exactly that for its supervisor; the open question
