@@ -151,3 +151,10 @@ for termlink is whether to build a generic TermLink primitive or adopt/generalis
 
 1. 2026-10-19, 1409 support-round suggestion; converted from build to inception after the facts
    above; IW-1 answered by 1409.
+2. 2026-10-19, operator: "why don't we use the sidecar?" Added E/E′; corrected the claim that the
+   sidecar cannot reach an orchestrator (it reaches any addressee).
+3. 2026-10-19, operator: widen to orchestrator<->worker communication (status, questions,
+   updates, for reporting, validation and monitoring); the contract belongs in the worker
+   instruction; consult ring20 (who works on orchestration).
+4. 2026-10-19, operator ruling: **C with the conditions** (ring20's operator decides on their
+   side; three-way agreement TermLink + AEF + ring20). "Proceed as suggested."

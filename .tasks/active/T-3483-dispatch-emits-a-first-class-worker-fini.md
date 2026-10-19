@@ -45,7 +45,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-19T15:38:49Z
-last_update: 2026-10-19T20:18:32Z
+last_update: 2026-10-19T21:34:40Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -100,20 +100,20 @@ Found 2026-10-19 (converted from build to inception, because the premise was par
   disposition: answered
   rationale: 1409 (msg 0712b298, 2026-10-19): fw v1.8.10 vendored (1.8.12 pending); they dispatch with fw termlink dispatch and wait with `fw termlink wait --name`, plus their own end-signal file for reviewers. A durable worker.done on a hub topic would help: waiters often start late (after compaction or in a new session), and one waiter matched itself in pgrep and never returned. A record queryable after the fact would replace both.
 - **IW-2: Is a durable done-record needed beyond the session event, and where: a hub topic (e.g. per project, cv_key = worker name, so a late waiter reads the current value), the claim release, or the dispatch manifest?**
-  confidence: 1
-  disposition:
-  rationale:
+  confidence: 3
+  disposition: answered
+  rationale: Yes, needed: a durable per-dispatch record on the hub, keyed by a dispatch id with numbered attempts and fencing (not the worker name), lifecycle dispatched -> running -> done | lost; not the claim release (ring20 S-1 rejected claims as the truth: no fencing generation; a claim may be the lease underneath). Evidence: codex + claude reviews, AEF (msg d098bfb1), ring20's production model (msg 0e3b9000); docs/reports/T-3483-durable-worker-done.md §2b.
 - **IW-3: Which side owns it: AEF run.sh (vendored, upstream per G-062), termlink dispatch, or both; and does T-3476's assignment service consume it?**
-  confidence: 1
-  disposition:
-  rationale:
+  confidence: 2
+  disposition: answered
+  rationale: Shared, agreed three-way (operator ruling C with conditions, 2026-10-19): TermLink provides the ledger primitive, `worker wait`/lookup and hub-written `lost` on confirmed session end; the supervisor (AEF run.sh wrapper; ring20's supervisor) is the single writer of done from fenced evidence; ring20's S-1 contract is the base; AEF owns run.sh and the worker instruction. Conditions: ring20's operator decides on their side; agreement TermLink + AEF + ring20 (ring20 T-2281 already offered arc-009 to AEF). T-3476 is the intended consumer; how it consumes is decided in T-3476.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] IW-1..IW-3 disposed with evidence (1409's answer, AEF's view, a check of the termlink dispatch path)
-- [ ] Recommendation written with rationale
+- [x] IW-1..IW-3 disposed with evidence (1409's answer, AEF's view, a check of the termlink dispatch path)
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -387,6 +387,20 @@ Found 2026-10-19 (converted from build to inception, because the premise was par
      commit, that is a calibration failure — recommend GO or NO-GO.
 -->
 
+**Recommendation:** GO (option C, with ring20's two conditions)
+
+**Rationale:** Everyone consulted converges on one durable per-dispatch record as the truth,
+keyed by a dispatch id with attempts and fencing, `done`/`lost` written by the supervisor from
+evidence, not by the worker; ring20 already runs exactly this in production (arc-009). Building a
+second model would leave the orchestrator, Watchtower and T-3476 with two formats. GO authorises
+the three-way agreement and, after it, a TermLink build task for the ledger primitive.
+
+**Evidence:**
+- 1409 (msg 0712b298): late waiters and a pgrep self-match; wants a record queryable after the fact
+- AEF (msg d098bfb1): no backlog item; sidecar id per project; workers not endpoints (T-4423); recommends the TermLink record as primitive
+- codex + claude reviews: dispatch id not name, lifecycle with `lost`, runtime reports terminal state (docs/reports/T-3483-consult/)
+- ring20 (msg 0e3b9000, 182bbbb2): production model, record over claim, open to one shared primitive agreed three-way
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.
@@ -397,6 +411,22 @@ Found 2026-10-19 (converted from build to inception, because the premise was par
      - **Why:** [rationale]
      - **Rejected:** [alternatives and why not]
 -->
+
+### 2026-10-19 — How a dispatched worker reports status, questions and done (operator ruling)
+- **Chose:** C with conditions: one shared contract based on ring20's arc-009 S-1 model.
+  TermLink provides the per-dispatch ledger on the hub, `worker wait`/lookup and `lost` only on a
+  confirmed session end; the supervisor (AEF run.sh wrapper) is the single writer of `done` from
+  fenced evidence (dispatch id + attempt + nonce); the worker instruction carries ring20's
+  hand-back block and the communication split (status in the record, questions to the
+  orchestrator via sidecar, answers via the worker's own inbox with an ack per command).
+  Conditions: ring20's operator decides on their side; agreement three-way TermLink + AEF +
+  ring20 (ring20 T-2281 already offered arc-009 to AEF) so there is one implementation.
+- **Why:** ring20 has solved the hard parts (fencing, lost-only-on-evidence, recovery after an
+  uncertain launch) and runs them; one format for the fleet.
+- **Rejected:** A (no cross-host record); B (own TermLink record with the worker as writer: no
+  fencing, a second format); D (ring20's supervisor as-is: built for their sandbox and hosts).
+- **Left open:** the answer path for questions back to a worker (AEF, because of T-4423);
+  record retention; a sidecar notice as a later layer.
 
 ## Decision
 
