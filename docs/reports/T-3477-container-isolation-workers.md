@@ -170,3 +170,13 @@ long prompts, and parallel runs fail with "database is locked"; run one at a tim
 
 1. 2026-10-19, operator: explore containerisation further, to add isolation if it is an
    option.
+2. 2026-10-19, operator: get external advice on whether and how to build containers for our
+   purposes (orchestration, different models, harnesses, MCP, skills, commands, role-specific
+   or subset `CLAUDE.md`, per-project container sets for TermLink / Workflow designer, image
+   versioning); reflect first, write one question, send to five external designers and
+   Perplexity. Done: five answered (§3b), Perplexity pending via dimitri-mint-dev's seat.
+3. 2026-10-19, operator: process the result, and share it with ring20-manager (who works on
+   orchestration) for feedback before finalising. Sent on conversation
+   `termlink-t3477-container-workers` (4 questions: changes, where assignment lives / overlap
+   with T-3476, estate constraints, pilot participation). Finalising waits for ring20 and
+   Perplexity.
