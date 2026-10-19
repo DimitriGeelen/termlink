@@ -4585,3 +4585,29 @@ learnings:
   task: T-3425
   date: 2026-10-12
   context: Added via context agent
+- id: PL-399
+  learning: "Fleet doctor observed tofu-violation on hub 'greenfield' (192.168.10.132:9100). date_observed=2026-10-13T18:48:37Z hub_fingerprint=sha256:aef925c6d2f4ac5417fad0ead003a31ff425d6b4536a65cc9543f5c2c14d0f86. T-1051 Option D auto-registration — if a later agent sees a different pinned fingerprint for this hub, this learning is stale and should not be acted on."
+  source: T-1052
+  task: T-1051
+  date: 2026-10-13
+  context: fleet-doctor auto-registered
+  application: "Drift-detection: compare hub_fingerprint in this learning against current KnownHubStore.get(address)"
+- id: PL-400
+  learning: "Fleet doctor observed auth-mismatch on hub 'greenfield' (192.168.10.132:9100). date_observed=2026-10-13T19:07:32Z hub_fingerprint=sha256:e06c21d2c04f5d873c8ea852e65b6bb1701ec3fa75821b392e81ccb45a8b8021. T-1051 Option D auto-registration — if a later agent sees a different pinned fingerprint for this hub, this learning is stale and should not be acted on."
+  source: T-1052
+  task: T-1051
+  date: 2026-10-13
+  context: fleet-doctor auto-registered
+  application: "Drift-detection: compare hub_fingerprint in this learning against current KnownHubStore.get(address)"
+- id: PL-401
+  learning: "A body-less 'termlink channel post' reads its payload from stdin: inside a while-read loop it eats the loop's input (later items skipped, their text posted as the body); always give it </dev/null or an explicit body"
+  source: unknown
+  task: T-3456
+  date: 2026-10-17
+  context: Added via context agent
+- id: PL-402
+  learning: "An AsyncWrite over tokio-rustls must be flushed before the task goes back to waiting on the read side: write_all only hands bytes to rustls, and records that did not fit the socket send buffer stay there until the next write or flush. Loopback/duplex tests never show it; test with a stream that forwards only on flush."
+  source: unknown
+  task: T-3474
+  date: 2026-10-19
+  context: Added via context agent

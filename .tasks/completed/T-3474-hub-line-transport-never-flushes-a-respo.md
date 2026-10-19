@@ -9,12 +9,12 @@ description: >
   nothing (channel list 278 KB from .122 timed out 5/5; hub socket bytes_sent=bytes_acked=155552,
   Send-Q 0).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [hub, tls, bug, ring20]
-components: []
+components: [crates/termlink-hub/src/server.rs]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -43,8 +43,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-19T09:40:25Z
-last_update: 2026-10-19T09:40:42Z
-date_finished:
+last_update: 2026-10-19T10:09:20Z
+date_finished: 2026-10-19T10:09:20Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -87,10 +87,16 @@ a T-3461/T-3473 regression.
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] The line transport flushes after every response write; a flush error ends the connection like a write error
-- [ ] A test drives the line transport over a stream that forwards bytes only on flush and receives the full response; mutant (flush removed) fails it
-- [ ] `cargo test -p termlink-hub` passes (known-flaky 50 ms snapshot bound aside, see T-3473)
-- [ ] After deploy, `channel list --hub 192.168.10.107:9100` from .122 succeeds (ring20 confirms on the conversation)
+- [x] The line transport flushes after every response write; a flush error ends the connection like a write error
+- [x] A test drives the line transport over a stream that forwards bytes only on flush and receives the full response; mutant (flush removed) fails it
+- [x] `cargo test -p termlink-hub` passes (known-flaky 50 ms snapshot bound aside, see T-3473)
+- [x] After deploy, `channel list --hub 192.168.10.107:9100` from .122 succeeds (ring20 confirms on the conversation)
+
+Evidence (2026-10-19): mutant without the flush failed `line_transport_flushes_each_response`
+(3 s timeout); termlink-hub suite 525/525. Deployed 0.12.716 via runme
+(runme-20261019T095123Z-139657.log, rc=0; .107 restarted, .122/.121/.132 upgraded, secret +
+cert unchanged). ring20 from .122 (msg 62503df7): 10:06:06–10:07:26Z, 5/5 rc 0, 102–104 ms,
+31,293 bytes rendered each — was 5/5 timeouts cut at 155,552 bytes before.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -141,6 +147,9 @@ a T-3461/T-3473 regression.
 -->
 
 ## Verification
+
+grep -q 'flush failed, client disconnected' crates/termlink-hub/src/server.rs
+cargo test -q -p termlink-hub --lib line_transport_flushes_each_response > /tmp/.t3474 2>&1 && grep -q "1 passed" /tmp/.t3474
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -311,6 +320,27 @@ a T-3461/T-3473 regression.
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
+**Symptom:** `channel list` from a remote host (.122) to the .107 hub timed out at 30 s every
+time under load; small replies (`channel info`, ~1 KB) worked; the same call from .107 itself
+always worked.
+
+**Root cause:** `handle_line_connection` wrote each response with `write_all` and never
+`flush()`. With tokio-rustls, `write_all` completes once rustls holds the plaintext; TLS
+records that could not go out because the socket would block stay in rustls until the next
+write or flush. The loop then waits for the next request, so a reply bigger than the socket
+send buffer (~155 KB here) was cut off and the client waited forever.
+
+**Why structurally allowed:** every hub transport test runs over loopback, a `duplex`, or a
+Unix socket, where buffers take the whole reply in one write — the stall needs a real
+network peer with a smaller window. Replies large enough to hit it are rare (only
+`channel list`, ~278 KB with 531 topics), and the client reports it as a generic timeout
+that looked like hub slowness (it was first read as part of T-3473).
+
+**Prevention:** `line_transport_flushes_each_response` drives the line transport over a
+stream that only forwards bytes on flush, so any response path that skips the flush fails
+in CI regardless of buffer sizes (mutant-checked). Learning recorded: "an AsyncWrite over
+TLS needs an explicit flush before waiting on the read side".
+
 ## Evolution
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
@@ -394,3 +424,20 @@ a T-3461/T-3473 regression.
 
 ### 2026-10-19T09:40:42Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-d3eee628
+- **Timestamp:** 2026-10-19T10:09:25Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-19T10:09:20Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
