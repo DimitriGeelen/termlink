@@ -92,6 +92,56 @@ message class, for review:
    stays unused.
 Consulting ring20-manager (orchestration, arc-009) on this (conv `termlink-t3483-worker-comms`).
 
+## 2b. External review and ring20 (2026-10-19; verbatim in `T-3483-consult/`)
+
+Reviewers: codex, claude -p (opencode GLM timed out twice; not retried, see ring20 below).
+
+1. Both choose C as the durable primitive and advise against the sidecar notice for now (AEF's
+   constraints remove its benefit; a background `worker wait` already is the push). Add the
+   notice later as a consumer of the record.
+2. Both: key by a unique dispatch/execution id minted at dispatch, not the worker name (name
+   reuse returns a stale result instantly, worse than a hang). Name stays a label.
+3. Lifecycle `dispatched -> running -> done | lost`; absence of a record means "unknown". `wait`
+   distinguishes unknown, timeout and transport failure from a worker failure, and must be
+   race-free between "read current value" and "subscribe".
+4. The supervisor/runtime reports terminal state, not the worker (k8s Job controller, Erlang
+   DOWN, CI "lost"); a killed worker never says done.
+5. Only the dispatched execution may publish done; days-based retention; result as hash +
+   summary, not a local path; the dispatch handle records which hub.
+6. claude: consider modelling a dispatch as a claim (done = release with outcome, crash = lease
+   expiry); reuse `role-handback/1` as the payload.
+
+**ring20-manager (msg 0e3b9000): already runs this "record" model in production** (arc-009
+supervisor, design `docs/designs/orchestration-s1-contract.md` §2/§6/§7/§9 on .122; first live
+writer today, run 01813bdab2c6). Differences that matter:
+(a) Append-only ledger, single writer (the supervisor, under a lease), keyed by commission id =
+    AEF dispatch_id of attempt 1; attempts numbered; fencing = (commission, attempt) + a random
+    per-attempt nonce in the prompt that the hand-back must echo.
+(b) `done` is never a worker-written event: the supervisor reads the hand-back from a root-owned
+    stdout file, only after the unit is inactive, only the last fenced block with the right
+    nonce. "The capability is the channel, not a token the worker holds." Old-attempt events are
+    logged as `fence_reject`.
+(c) `lost` only after the worker is confirmed gone (unit inactive), never on a missed heartbeat;
+    a hub-written `lost` should need the same evidence.
+(d) Result = output hash (commit sha or hand-back sha256); the review verdict must name it.
+(e) Recovery rules per last state (especially an uncertain `launching`) are what people
+    underestimate.
+Record vs claim: **record**. Their S-1 rejected TermLink claims as the commission truth (no
+fencing generation); a claim is fine as the lease under the record; completion stays a record
+transition, not a release. Questions today: one-shot workers cannot ask (sandboxed, no hub
+access); a question becomes `status: blocked` in the hand-back. For S-4 standing workers they
+would align with our split: status in the record, questions to the orchestrator, answers via the
+worker's own command inbox with an ack per command id. Reuse: their hand-back block (commission,
+attempt, nonce, status, summary, findings), "reviewer on a different route, verdict bound to the
+output hash", templates `prompts/orchestration/*.md`. Lessons: never write harness-specific
+"you cannot run commands" into the worker contract (it blinded codex); test the worker profile
+with the real uid ownership.
+
+**Synthesis.** Everyone converges on a durable per-dispatch record as the truth, keyed by a
+dispatch id with attempts and fencing, `done`/`lost` written by the supervisor/runtime from
+evidence, not by the worker. ring20 has built exactly that for its supervisor; the open question
+for termlink is whether to build a generic TermLink primitive or adopt/generalise ring20's.
+
 ## 3. Dialogue log
 
 1. 2026-10-19, 1409 support-round suggestion; converted from build to inception after the facts
