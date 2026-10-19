@@ -47,6 +47,24 @@ were searched for assignment/sidecar/queue wording; the closest records are item
 So the parts exist; what is missing is the one deterministic place that composes them, owns
 the queue, and hands out IDs.
 
+**AEF answer (999 agent via sidecar, 2026-10-19, msg a2e5989e):**
+
+1. No task, report or decision in AEF records a deterministic assignment service; if the
+   discussion happened it never reached a file. Nearest: AEF
+   `docs/reports/T-1061-termlink-governance-substrate.md` (TermLink as governance/dispatch
+   substrate) and `docs/reports/T-3287-identity-taxonomy-circuit-model.md` §Election policy
+   (~l.122, ~l.180): first-claim, bid or supervisor-assign listed as an open choice.
+2. AEF today: `lib/aef_election.py` (first-to-claim; bid/supervisor-assign not built);
+   `fw termlink dispatch` (the orchestrating agent picks the task and spawns a worker, max 5,
+   no queue, no availability matching); `fw resolver loop` / `fw outcome` route by task type
+   to a workflow and model, not to workers. Nothing assigns by worker availability and nothing
+   holds a request queue.
+3. Task IDs: AEF T-1279 locks allocation inside one checkout only. Cross-checkout uniqueness
+   was AEF T-1107 ("globally unique IDs vs collision defense"), decided DEFER; no central
+   allocator exists. (Our August pickup landed under another AEF id; they offered to trace it.)
+4. AEF suggests building on T-3287's election question and T-1107's deferred ID question,
+   and names AEF dispatch as a natural first client (relevant to IW-5).
+
 ## 3. Questions (mirrored as IW-1..IW-5 on the task)
 
 1. **Scope:** one service for both ID allocation and work assignment, or two?
