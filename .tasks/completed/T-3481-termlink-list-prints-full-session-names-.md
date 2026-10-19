@@ -1,19 +1,17 @@
 ---
-id: T-3482
-name: "termlink pty mirror: --quiet or banner on stderr so the 'Mirroring … Press
-  Ctrl+C' line does not land in the mirrored stream"
+id: T-3481
+name: "termlink list prints full session names when stdout is not a tty"
 description: >
-  055-agentic-fleet-cockpit support-round reply 2026-10-19: pty mirror prints its
-  banner into the mirrored stream, where it lands on the agent prompt line until the
-  next redraw (seen in the cockpit for .121/.122). Viewers need a clean screen: print
-  the banner on stderr, or add --quiet.
+  ring20 support-round reply 2026-10-19 (inbox @1098): 'termlink list' truncates names
+  (ring20-dashboa…), so a script filtering on the name column matched the wrong session.
+  Print full names when stdout is not a terminal; truncation is for humans only.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
-tags: [cli, pty, 055-suggestion]
-components: []
+horizon: null
+tags: [cli, list, ring20-suggestion]
+components: [crates/termlink-cli/src/commands/session.rs]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -41,9 +39,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-10-19T15:38:15Z
-last_update: 2026-10-19T17:53:12Z
-date_finished:
+created: 2026-10-19T15:35:58Z
+last_update: 2026-10-19T17:59:23Z
+date_finished: 2026-10-19T17:59:23Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -55,7 +53,7 @@ date_finished:
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 bvp_scores_proposed:
-  - ts: '2026-10-19T17:53:13Z'
+  - ts: '2026-10-19T17:46:35Z'
     estimator: bvp-estimator-v1-heuristic
     scores:
       D1: 4
@@ -70,20 +68,25 @@ bvp_scores_proposed:
     rubric_sha: e4a00f38e801
 ---
 
-# T-3482: termlink pty mirror: --quiet or banner on stderr so the 'Mirroring … Press Ctrl+C' line does not land in the mirrored stream
+# T-3481: termlink list prints full session names when stdout is not a tty
 
 ## Context
 
-The banner (`commands/pty.rs` ~1100) is already on stderr. 055 still sees it in the mirrored
-screen because its remote view runs over `ssh -T`, where stderr and stdout reach the same
-viewer. Fix: a `--quiet` flag on both `mirror` and `pty mirror` that suppresses the banner.
+`cmd_list` (crates/termlink-cli/src/commands/session.rs) renders `truncate(display_name, 15)`
+in all three table forms. ring20 (2026-10-19) filtered on that column from a script and matched
+the wrong session (`ring20-dashboa…`). Truncation is for a human at a terminal only.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `termlink mirror --quiet` and `termlink pty mirror --quiet` print no banner (single-session and `--tag` grid); without the flag the banner is unchanged
-- [ ] A CLI parse test pins `--quiet` on both forms; `cargo test -p termlink` passes
+- [x] `termlink list` prints the full session name when stdout is not a terminal, and the truncated name (15 chars) at a terminal; all three table forms use the same rule
+- [x] Unit test pins the rule for both cases (pure helper taking `is_tty`)
+- [x] `cargo test -p termlink` (CLI crate) passes
+
+Evidence (2026-10-19): piped `termlink list` shows `cashweb-integration`,
+`framework-agent-systemd` in full; `list_name_is_full_when_not_a_tty_and_truncated_at_a_tty`
+passes; CLI suite 1197 + 180 pass. Ships to the fleet with the next runme run.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -134,6 +137,9 @@ viewer. Fix: a `--quiet` flag on both `mirror` and `pty mirror` that suppresses 
 -->
 
 ## Verification
+
+test "$(grep -c 'list_name(&' crates/termlink-cli/src/commands/session.rs)" -eq 3
+cargo test -q -p termlink --bin termlink list_name_is_full_when_not_a_tty > /tmp/.t3481 2>&1 && grep -q "1 passed" /tmp/.t3481
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -380,11 +386,28 @@ viewer. Fix: a `--quiet` flag on both `mirror` and `pty mirror` that suppresses 
 
 ## Updates
 
-### 2026-10-19T15:38:15Z — task-created [task-create-agent]
+### 2026-10-19T15:35:58Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-3482-termlink-pty-mirror---quiet-or-banner-on.md
+- **Output:** /opt/termlink/.tasks/active/T-3481-termlink-list-prints-full-session-names-.md
 - **Context:** Initial task creation
 
-### 2026-10-19T17:53:12Z — status-update [task-update-agent]
+### 2026-10-19T17:46:33Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-8ae3b6b1
+- **Timestamp:** 2026-10-19T17:59:26Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-19T17:59:23Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

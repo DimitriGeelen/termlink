@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3482: termlink pty mirror: --quiet or banner on stderr so the 'Mirroring … Press Ctrl+C' line does not land in the mirrored stream
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-19T17:59:06Z
+# ============================================================================
+
+task_id: T-3482
+task_name: "termlink pty mirror: --quiet or banner on stderr so the 'Mirroring … Press Ctrl+C' line does not land in the mirrored stream"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-19T15:38:15Z
+completed: 2026-10-19T17:58:10Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-19T19:57:48+02:00
+last_commit: 2026-10-19T19:57:48+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink mirror / pty mirror --quiet suppresses the 'Mirroring … Ctrl+C' banner
+
+# Key outcomes
+outcomes:
+  - '`termlink mirror --quiet` and `termlink pty mirror --quiet` print no banner (single-session and `--tag` grid); without the flag the banner is unchanged'
+  - 'A CLI parse test pins `--quiet` on both forms; `cargo test -p termlink` passes'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/mirror_grid_composer.rs'
+  - 'crates/termlink-cli/src/commands/pty.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - '.tasks/active/T-3482-termlink-pty-mirror---quiet-or-banner-on.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-19T19:57:48'
+    action: 'T-3482: termlink mirror / pty mirror --quiet suppresses the ''Mirroring … Ctrl+C'' banner'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 139 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [cli, pty, 055-suggestion]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 139
+  commits: 1
+  files_changed: 5
+  lines_added: 448
+  lines_removed: 21
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3482-termlink-pty-mirror---quiet-or-banner-on.md
+generated_by: context-agent-hybrid
