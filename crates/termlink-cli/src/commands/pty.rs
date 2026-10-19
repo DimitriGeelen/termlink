@@ -1062,7 +1062,7 @@ pub(crate) async fn cmd_stream(target: &str) -> Result<()> {
     result
 }
 
-pub(crate) async fn cmd_mirror(target: &str, scrollback_lines: u64, raw: bool) -> Result<()> {
+pub(crate) async fn cmd_mirror(target: &str, scrollback_lines: u64, raw: bool, quiet: bool) -> Result<()> {
     let reg = manager::find_session(target)
         .context(format!("Session '{}' not found", target))?;
 
@@ -1097,12 +1097,14 @@ pub(crate) async fn cmd_mirror(target: &str, scrollback_lines: u64, raw: bool) -
         .await
         .context("Failed to connect to data plane")?;
 
-    eprintln!(
-        "Mirroring {} ({}){} — read-only. Press Ctrl+C to stop.",
-        reg.display_name,
-        reg.id,
-        if raw { " [raw]" } else { "" }
-    );
+    if !quiet {
+        eprintln!(
+            "Mirroring {} ({}){} — read-only. Press Ctrl+C to stop.",
+            reg.display_name,
+            reg.id,
+            if raw { " [raw]" } else { "" }
+        );
+    }
 
     // T-2732: `--raw` is byte passthrough — the child's output reaches the
     // operator's terminal unparsed, so it can switch on alt screen, mouse

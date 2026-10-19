@@ -165,7 +165,7 @@ impl Panel {
     }
 }
 
-pub(crate) async fn cmd_mirror_tag(tag: &str, scrollback_lines: u64) -> Result<()> {
+pub(crate) async fn cmd_mirror_tag(tag: &str, scrollback_lines: u64, quiet: bool) -> Result<()> {
     // 1. Discover sessions with matching tag.
     let all = manager::list_sessions(false).context("Failed to list sessions")?;
     let sessions: Vec<_> = all
@@ -180,13 +180,15 @@ pub(crate) async fn cmd_mirror_tag(tag: &str, scrollback_lines: u64) -> Result<(
     let (mut term_cols, mut term_rows) = terminal_size();
     let layouts = compute_layout(sessions.len(), term_cols.max(1u16), term_rows.max(1u16));
 
-    eprintln!(
-        "Mirroring {} session(s) tagged '{}' in {}×{} terminal — Ctrl+C to stop.",
-        sessions.len(),
-        tag,
-        term_cols,
-        term_rows
-    );
+    if !quiet {
+        eprintln!(
+            "Mirroring {} session(s) tagged '{}' in {}×{} terminal — Ctrl+C to stop.",
+            sessions.len(),
+            tag,
+            term_cols,
+            term_rows
+        );
+    }
 
     // 3. Connect all data-plane sockets in parallel. For each session, also
     //    prefetch scrollback via the control plane and feed it into the panel's

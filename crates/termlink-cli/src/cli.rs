@@ -416,6 +416,11 @@ pub(crate) enum Command {
         /// Mirror all sessions with this tag in a grid layout (mutually exclusive with target)
         #[arg(long, conflicts_with = "target")]
         tag: Option<String>,
+
+        /// Do not print the "Mirroring … Press Ctrl+C" banner (for viewers that show
+        /// stderr in the mirrored screen, e.g. over `ssh -T`) (T-3482)
+        #[arg(long)]
+        quiet: bool,
     },
 
     // === Hidden backward-compat aliases for Event commands ===
@@ -6667,6 +6672,11 @@ pub(crate) enum PtyCommand {
         /// Mirror all sessions with this tag in a grid layout (mutually exclusive with target)
         #[arg(long, conflicts_with = "target")]
         tag: Option<String>,
+
+        /// Do not print the "Mirroring … Press Ctrl+C" banner (for viewers that show
+        /// stderr in the mirrored screen, e.g. over `ssh -T`) (T-3482)
+        #[arg(long)]
+        quiet: bool,
     },
 }
 
@@ -7082,6 +7092,29 @@ pub(crate) enum SubstrateAction {
 mod cli_tests {
     use super::*;
     use clap::Parser;
+
+    /// T-3482: `--quiet` exists on both mirror forms and defaults to off.
+    #[test]
+    fn mirror_quiet_flag_parses_on_both_forms() {
+        let cli = Cli::try_parse_from(["termlink", "pty", "mirror", "s1", "--quiet"]).expect("parse");
+        match cli.command {
+            Command::Pty(PtyCommand::Mirror { quiet, .. }) => assert!(quiet),
+            _ => panic!("expected Pty::Mirror"),
+        }
+        let cli = Cli::try_parse_from(["termlink", "mirror", "--tag", "t", "--quiet"]).expect("parse");
+        match cli.command {
+            Command::Mirror { quiet, tag, .. } => {
+                assert!(quiet);
+                assert_eq!(tag.as_deref(), Some("t"));
+            }
+            _ => panic!("expected Mirror"),
+        }
+        let cli = Cli::try_parse_from(["termlink", "mirror", "s1"]).expect("parse");
+        match cli.command {
+            Command::Mirror { quiet, .. } => assert!(!quiet, "banner stays on by default"),
+            _ => panic!("expected Mirror"),
+        }
+    }
 
     /// T-1645: `event watch --hub` parses to Watch{ hub: true, targets: empty }.
     #[test]
