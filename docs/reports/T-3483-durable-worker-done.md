@@ -77,6 +77,21 @@ a format, not a delivery path, and could be the payload of E. Asked AEF (conv
    its session). AEF will file its side once T-3483 settles the record's shape, and wants the
    chosen topic/cv_key.
 
+**Scope widened (operator, 2026-10-19): orchestrator <-> worker communication.** Proposed split by
+message class, for review:
+1. Status / progress (frequent; read by orchestrator, Watchtower, T-3476): the per-dispatch
+   record, not the sidecar: `dispatched` -> `running` (+progress) -> `done` | `lost`. One
+   queryable source for monitoring and validation; nothing floods the orchestrator's prompt.
+2. Questions / escalations (rare; need an answer): the sidecar to the orchestrator (receipts,
+   retries, surfaces at its next prompt). The answer path is open: workers are not sidecar
+   endpoints since AEF T-4423 (hijack risk), so either AEF lets a worker receive from its own
+   orchestrator only, or the worker reads the answer from its dispatch record.
+3. Done: the record is the truth; a sidecar notice may sit on top later.
+4. The contract goes into the **worker instruction** (dispatch prompt / role bundle): how to
+   report status, how to ask, where answers arrive, how to report done. Without it the channel
+   stays unused.
+Consulting ring20-manager (orchestration, arc-009) on this (conv `termlink-t3483-worker-comms`).
+
 ## 3. Dialogue log
 
 1. 2026-10-19, 1409 support-round suggestion; converted from build to inception after the facts
