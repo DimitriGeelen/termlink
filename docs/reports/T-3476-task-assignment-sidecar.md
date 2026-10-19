@@ -65,6 +65,11 @@ the queue, and hands out IDs.
 4. AEF suggests building on T-3287's election question and T-1107's deferred ID question,
    and names AEF dispatch as a natural first client (relevant to IW-5).
 
+5. Follow-up (msg 349ce580): our August pickup (offsets 15-16) never became an AEF task.
+   It is now AEF T-4393 (inception, horizon next): decide with T-1107's options and align
+   with our T-3476 so central ID allocation is designed once; it also asks why the pickup
+   did not surface. We re-sent the pickup text verbatim on the conversation.
+
 ## 3. Questions (mirrored as IW-1..IW-5 on the task)
 
 1. **Scope:** one service for both ID allocation and work assignment, or two?
