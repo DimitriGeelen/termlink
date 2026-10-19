@@ -3397,6 +3397,19 @@ mod tests {
         (dir, bus)
     }
 
+    /// T-3479: one budget for wall-clock bounds in these tests. Since T-3461 every
+    /// post fsyncs, so a bound tuned on a quiet disk flakes on a loaded host.
+    /// `TERMLINK_TEST_TIME_FACTOR` (default 1) scales every bound; the base values
+    /// are chosen from the failure each test exists to catch, not from disk speed.
+    fn test_budget(base: std::time::Duration) -> std::time::Duration {
+        let factor = std::env::var("TERMLINK_TEST_TIME_FACTOR")
+            .ok()
+            .and_then(|v| v.trim().parse::<u32>().ok())
+            .filter(|f| *f >= 1)
+            .unwrap_or(1);
+        base * factor
+    }
+
     fn signing_key() -> SigningKey {
         // Deterministic for test stability.
         SigningKey::from_bytes(&[42u8; 32])
@@ -3648,10 +3661,14 @@ mod tests {
         let elapsed = start.elapsed();
         let v = unwrap_success(resp);
         assert_eq!(v["messages"].as_array().unwrap().len(), 0);
-        // Snapshot path — should be effectively instant.
+        // Snapshot path — no long-poll. T-3479: the bound is what separates "returned
+        // without waiting for a post" from a long-poll, whose shortest realistic wait
+        // is seconds (cap 60 s); it also covers the durable note_fetch write, which on
+        // a loaded btrfs host took more than the old 50 ms.
+        let bound = test_budget(std::time::Duration::from_millis(1000));
         assert!(
-            elapsed < std::time::Duration::from_millis(50),
-            "snapshot path took {elapsed:?}, expected < 50ms"
+            elapsed < bound,
+            "snapshot path took {elapsed:?}, expected < {bound:?} (timeout_ms=0 must not long-poll)"
         );
     }
 
@@ -5113,17 +5130,19 @@ mod tests {
             }));
         }
 
-        // Bound the whole thing. Pre-fix this exceeds the bound (hang);
-        // post-fix it completes in well under a second.
+        // Bound the whole thing. Pre-fix this never completes (hang). T-3479: the
+        // 150 posts each fsync since T-3461, which took over 10 s at load ~60, so the
+        // bound is 60 s: still finite, still catches a hang.
         let collect = async {
             for h in handles {
                 h.await.expect("task panicked");
             }
         };
-        let res = tokio::time::timeout(std::time::Duration::from_secs(10), collect).await;
+        let bound = test_budget(std::time::Duration::from_secs(60));
+        let res = tokio::time::timeout(bound, collect).await;
         assert!(
             res.is_ok(),
-            "T-2258: concurrent subscribe walks + writes did not complete within 10s — read-path worker starvation / hang"
+            "T-2258: concurrent subscribe walks + writes did not complete within {bound:?} — read-path worker starvation / hang"
         );
     }
 
