@@ -234,6 +234,23 @@ fn bind_identity_messages(
     }
 }
 
+/// T-3480: warning when the session registered outside the running hub's dir.
+fn runtime_dir_mismatch_warning(
+    session_dir: &std::path::Path,
+    hub_dir: Option<&std::path::Path>,
+) -> Option<String> {
+    let hub_dir = hub_dir?;
+    if hub_dir == session_dir {
+        return None;
+    }
+    Some(format!(
+        "WARN: registered into {} but the running hub uses {} — this session will be invisible to the hub. Fix: export TERMLINK_RUNTIME_DIR={} and re-register.",
+        session_dir.display(),
+        hub_dir.display(),
+        hub_dir.display()
+    ))
+}
+
 pub(crate) async fn cmd_register(opts: RegisterOpts) -> Result<()> {
     let RegisterOpts { name, roles, tags, cap, shell, enable_token_secret, allowed_commands, json, quiet, identity_key } = opts;
     let verbose = !json && !quiet;
@@ -318,9 +335,25 @@ pub(crate) async fn cmd_register(opts: RegisterOpts) -> Result<()> {
         }
     }
 
+    // T-3480: say which runtime dir we registered into, and warn when a hub
+    // runs elsewhere (session would be alive locally but invisible to the hub).
+    let session_runtime_dir = termlink_session::discovery::runtime_dir();
+    if verbose {
+        eprintln!("Runtime dir: {}", session_runtime_dir.display());
+    }
+    let (hub_pidfile, _hub_socket) = super::infrastructure::resolve_hub_paths();
+    let running_hub_dir = match termlink_hub::pidfile::check(&hub_pidfile) {
+        termlink_hub::pidfile::PidfileStatus::Running(_) => hub_pidfile.parent().map(|p| p.to_path_buf()),
+        _ => None,
+    };
+    if let Some(w) = runtime_dir_mismatch_warning(&session_runtime_dir, running_hub_dir.as_deref()) {
+        eprintln!("{w}");
+    }
+
     if json {
         println!("{}", serde_json::json!({
             "ok": true,
+            "runtime_dir": session_runtime_dir.to_string_lossy(),
             "id": session.id(),
             "display_name": session.display_name(),
             "socket_path": session.registration.socket_path().display().to_string(),
@@ -1430,6 +1463,18 @@ mod tests {
     use termlink_protocol::TransportAddr;
     use termlink_session::identity::SessionId;
     use termlink_session::lifecycle::SessionState;
+
+    // T-3480: runtime-dir mismatch decision.
+    #[test]
+    fn runtime_dir_warning_match_mismatch_no_hub() {
+        use std::path::Path;
+        let a = Path::new("/run/user/0/termlink");
+        let b = Path::new("/var/lib/termlink");
+        assert!(runtime_dir_mismatch_warning(a, Some(a)).is_none());
+        assert!(runtime_dir_mismatch_warning(a, None).is_none());
+        let w = runtime_dir_mismatch_warning(a, Some(b)).unwrap();
+        assert!(w.contains("/run/user/0/termlink") && w.contains("TERMLINK_RUNTIME_DIR=/var/lib/termlink"));
+    }
 
     // T-3481: full names for scripts, truncated only at a terminal.
     #[test]
