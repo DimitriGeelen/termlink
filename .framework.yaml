@@ -8,7 +8,8 @@ initialized_at: 2026-03-25T17:34:50Z
 upstream_repo: DimitriGeelen/agentic-engineering-framework
 upgraded_from: 1.8.9+227.ged683536a
 last_upgrade: 2026-10-17T13:02:07Z
-inception_commit_limit: 5
+# inception_commit_limit (lowercase) is never read: the gate reads INCEPTION_COMMIT_LIMIT
+# only (case-sensitive lookup; filed upstream framework:pickup offset 339). Set below.
 PORT: 3003
 version_sha: 5c886336b3a506a329201d34d7d55a30c82c437d
 RAIL_PROJECT_LABEL: 010-termlink
@@ -18,3 +19,5 @@ MESSAGING_TOOLKIT: 1
 
 # arc-011 OQ-f D+ / P7-3: keep this project's sidecars running under supervision
 SIDECAR_KEEP_RUNNING: on
+# Operator ruling 2026-10-19: 10 exploration commits before an inception decision.
+INCEPTION_COMMIT_LIMIT: 10

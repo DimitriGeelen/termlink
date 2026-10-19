@@ -61,9 +61,39 @@ push to a namespaced branch, integrate through a PR or merge queue.
 3. **Start cost (IW-4):** bare `alpine:3` container start 0.92 s; a bubblewrap sandbox
    (read-only root, private /tmp and pid namespace) 0.02 s. Image and build-cache disk not
    measured yet.
-4. **Prior work on this host:** an image `aef-greenfield-testbed:latest` (484 MB, Ubuntu
-   24.04, built 2026-10-18) exists. It is AEF's; ask the AEF agent what it proved before
-   building our own.
+4. **Prior work on this host:** `aef-greenfield-testbed:latest` (484 MB, Ubuntu 24.04, built
+   2026-10-18). AEF agent's answer (2026-10-19, msg 0881f46f): built by dimitri-mint-dev
+   (their T-126 spike, T-127 runner; `tools/greenfield-testbed/` in that repo) for AEF's
+   greenfield orchestrator (AEF T-4299, awaiting a decision).
+   4a. Proved: level 1 install smoke without agent or credential (137 s); level 2 a full
+       greenfield run with an agent inside (315–765 s per run), framework and hooks
+       installed inside the container, leak-clean.
+   4b. Login: a dedicated `claude setup-token` identity (not the operator's), fetched at run
+       time from a secret-store slot by a read-only machine identity, written to a mode-600
+       env file and passed to one `docker exec --env-file`; never in the image, never
+       mounted; run records grepped for the token before keeping. Each runner is meant to get
+       its own identity. This answers IW-1 in principle: proven elsewhere on this host.
+   4c. Not proved: TermLink inside (none installed), build cache, more than one image.
+       Next: ask dimitri-mint-dev about adding TermLink and a network mode.
+   4d. dimitri-mint-dev's answer (2026-10-19, msg e76a3140; their evidence
+       docs/reports/T-126-isolated-greenfield-testbed.md, T-133, T-141):
+       - Do NOT add TermLink to `aef-greenfield-testbed`: it holds only what a new user
+         has, so adding TermLink changes what the greenfield test measures. Build a derived
+         image in our repo (`FROM aef-greenfield-testbed:latest` + the musl binary), or ask
+         for an optional run.sh flag that copies a binary into the running container.
+       - Network: a ufw rule for the docker bridge subnet to 9100/tcp only (an operator
+         system change on .107). Avoid `--network host`: the worker would see every
+         host-bound service (~13 Watchtowers, the hub admin surface) while their L2 runs an
+         autonomous agent with bypass permissions.
+       - Credentials: never mount the full `hub.secret` into a container running an
+         autonomous agent. For a spike, a throwaway hub inside the docker network with its
+         own secret, or wait for a scoped per-worker token. Claude token pattern: fetched at
+         run time (Infisical), mode-600 temp env file for one `docker exec`, deleted after,
+         leak grep of the whole record (run.sh exits 4 on a hit).
+       - Measured: image 484 MB; Claude Code install ~13–15 s; L1 3 min 25 s (292 s under
+         I/O load); L2 8 min 37 s (19 min under I/O load, their T-135). No build-cache or
+         bare cold-start figures. Note AEF T-4317: never unpack a record inside another
+         project (session trap).
 
 ## 4. Relationship to other work
 
