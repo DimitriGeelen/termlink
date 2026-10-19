@@ -13,6 +13,18 @@ use termlink_session::server;
 
 use crate::util::{parse_signal, truncate};
 
+/// T-3481: the NAME column. Truncated to 15 chars for a human at a terminal; the
+/// full name when stdout is a pipe or file, so a script filtering on the column
+/// cannot match the wrong session (ring20 hit `ring20-dashboa…`).
+fn list_name(name: &str) -> String {
+    use std::io::IsTerminal;
+    list_name_for(name, std::io::stdout().is_terminal())
+}
+
+fn list_name_for(name: &str, is_tty: bool) -> String {
+    if is_tty { truncate(name, 15) } else { name.to_string() }
+}
+
 use termlink_protocol::format_age;
 
 /// Filter a list of session registrations by tag, name, role, and capability.
@@ -806,7 +818,7 @@ pub(crate) async fn cmd_list(filter: &ListFilterOpts<'_>, display: &super::ListD
             println!(
                 "{:<14} {:<16} registered by {}",
                 session.id.as_str(),
-                truncate(&session.display_name, 15),
+                list_name(&session.display_name),
                 recorded
             );
         }
@@ -838,7 +850,7 @@ pub(crate) async fn cmd_list(filter: &ListFilterOpts<'_>, display: &super::ListD
         println!(
             "{:<14} {:<16} {:<6} {:<6} {:<8} {}",
             session.id.as_str(),
-            truncate(&session.display_name, 15),
+            list_name(&session.display_name),
             session.state,
             age,
             session.pid,
@@ -908,7 +920,7 @@ pub(crate) fn cmd_clean(dry_run: bool, json: bool, no_header: bool, count: bool)
         println!(
             "{:<14} {:<16} {:<8} {}",
             &s.id[..s.id.len().min(13)],
-            truncate(&s.display_name, 15),
+            list_name(&s.display_name),
             s.pid,
             &s.created_at[..s.created_at.len().min(19)],
         );
@@ -1418,6 +1430,15 @@ mod tests {
     use termlink_protocol::TransportAddr;
     use termlink_session::identity::SessionId;
     use termlink_session::lifecycle::SessionState;
+
+    // T-3481: full names for scripts, truncated only at a terminal.
+    #[test]
+    fn list_name_is_full_when_not_a_tty_and_truncated_at_a_tty() {
+        let name = "ring20-dashboard-agent";
+        assert_eq!(list_name_for(name, false), "ring20-dashboard-agent");
+        assert_eq!(list_name_for(name, true), "ring20-dashboa…");
+        assert_eq!(list_name_for("short", true), "short");
+    }
     use termlink_session::registration::{Registration, RegistrationAddr, SessionMetadata};
 
     // T-2642: the bind-failure warning must fire regardless of verbosity —
