@@ -31,6 +31,10 @@ pub enum IdentityError {
     AlreadyExists(PathBuf),
     #[error("signature error: {0}")]
     Signature(ed25519_dalek::SignatureError),
+    /// Caller-supplied input that cannot be interpreted (malformed hex, a key that is
+    /// not on the curve). Distinct from "signature does not verify" (a `DetachedCheck`).
+    #[error("bad input: {0}")]
+    BadInput(String),
 }
 
 impl From<ed25519_dalek::SignatureError> for IdentityError {
@@ -169,6 +173,11 @@ impl Identity {
     pub fn verifying_key(&self) -> VerifyingKey {
         self.signing.verifying_key()
     }
+
+    /// T-3485: detached signature over `msg` as 128 lowercase hex chars.
+    pub fn sign_hex(&self, msg: &[u8]) -> String {
+        hex_encode(&self.sign(msg).to_bytes())
+    }
 }
 
 /// Compute the fingerprint of a public key (first 16 hex chars of sha256).
@@ -177,6 +186,52 @@ pub fn fingerprint_of(pk: &VerifyingKey) -> String {
     hasher.update(pk.as_bytes());
     let digest = hasher.finalize();
     hex_encode(&digest)[..16].to_string()
+}
+
+/// T-3485: outcome of checking a detached signature. Malformed input never reaches
+/// this type (it is `IdentityError::BadInput`), so `signature_ok: false` always means
+/// "well-formed, and it does not verify".
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DetachedCheck {
+    /// Fingerprint of the supplied public key (`fingerprint_of`).
+    pub fingerprint: String,
+    /// True when the signature verifies over the message under that key.
+    pub signature_ok: bool,
+}
+
+/// T-3485: verify a detached ed25519 signature given as hex. `pubkey_hex` is 64 hex
+/// chars (a 32-byte key) and `sig_hex` is 128 hex chars (a 64-byte signature).
+pub fn check_detached_hex(pubkey_hex: &str, sig_hex: &str, msg: &[u8]) -> Result<DetachedCheck> {
+    let pk = VerifyingKey::from_bytes(&hex_array::<32>(pubkey_hex, "public key")?)
+        .map_err(|e| IdentityError::BadInput(format!("public key is not a valid ed25519 key: {e}")))?;
+    let sig = Signature::from_bytes(&hex_array::<64>(sig_hex, "signature")?);
+    Ok(DetachedCheck {
+        fingerprint: fingerprint_of(&pk),
+        signature_ok: Identity::verify(&pk, msg, &sig),
+    })
+}
+
+/// Decode exactly `N` bytes from a hex string. Rejects wrong length and non-hex
+/// characters (including multi-byte input) instead of guessing.
+fn hex_array<const N: usize>(s: &str, what: &str) -> Result<[u8; N]> {
+    let s = s.trim();
+    if s.len() != N * 2 {
+        return Err(IdentityError::BadInput(format!(
+            "{what}: expected {} hex chars, got {}",
+            N * 2,
+            s.len()
+        )));
+    }
+    let mut out = [0u8; N];
+    for (i, slot) in out.iter_mut().enumerate() {
+        let pair = s
+            .get(i * 2..i * 2 + 2)
+            .filter(|p| p.bytes().all(|c| c.is_ascii_hexdigit()))
+            .ok_or_else(|| IdentityError::BadInput(format!("{what}: non-hex character")))?;
+        *slot = u8::from_str_radix(pair, 16)
+            .map_err(|_| IdentityError::BadInput(format!("{what}: non-hex character")))?;
+    }
+    Ok(out)
 }
 
 /// Resolve `<base>/identity.key`. Exposed so CLI code can report the exact
@@ -421,6 +476,37 @@ mod tests {
         // Wrong key fails.
         let other = Identity::generate();
         assert!(!Identity::verify(&other.verifying_key(), msg, &sig));
+    }
+
+    // T-3485: detached sign/verify round-trip over hex, with a temp identity.
+    #[test]
+    fn detached_sign_verify_roundtrip_and_failure_modes() {
+        let tmp = TempDir::new().unwrap();
+        let ident = Identity::load_or_create(tmp.path()).unwrap();
+        let msg = b"review proposal payload";
+        let sig_hex = ident.sign_hex(msg);
+        let pk_hex = ident.public_key_hex();
+        assert_eq!(sig_hex.len(), 128);
+
+        // Valid: signature verifies, fingerprint is the key's own.
+        let ok = check_detached_hex(&pk_hex, &sig_hex, msg).unwrap();
+        assert!(ok.signature_ok);
+        assert_eq!(ok.fingerprint, ident.fingerprint());
+
+        // A changed byte in the message fails.
+        assert!(!check_detached_hex(&pk_hex, &sig_hex, b"review proposal payloaD").unwrap().signature_ok);
+
+        // A different key fails (signature is well-formed, just not by that key).
+        let other = Identity::load_or_create_from_file(&tmp.path().join("other.key")).unwrap();
+        let wrong_key = check_detached_hex(&other.public_key_hex(), &sig_hex, msg).unwrap();
+        assert!(!wrong_key.signature_ok);
+        assert_ne!(wrong_key.fingerprint, ident.fingerprint());
+
+        // Malformed input is an error, not a verdict.
+        assert!(matches!(check_detached_hex("zz", &sig_hex, msg), Err(IdentityError::BadInput(_))));
+        assert!(matches!(check_detached_hex(&pk_hex, "ab", msg), Err(IdentityError::BadInput(_))));
+        let non_hex = format!("g{}", &sig_hex[1..]);
+        assert!(matches!(check_detached_hex(&pk_hex, &non_hex, msg), Err(IdentityError::BadInput(_))));
     }
 
     #[test]

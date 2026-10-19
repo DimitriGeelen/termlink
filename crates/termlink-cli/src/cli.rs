@@ -1860,6 +1860,38 @@ pub(crate) enum IdentityAction {
         #[arg(long)]
         json: bool,
     },
+    /// Detached ed25519 signature over a file's bytes, with the resolved agent identity
+    /// (T-3485). Read-only resolver: with no identity it exits 3 and creates nothing.
+    Sign {
+        /// File whose bytes are signed
+        file: std::path::PathBuf,
+
+        /// Output as JSON: {ok, signature_hex, fingerprint, public_key_hex, source}
+        #[arg(long)]
+        json: bool,
+    },
+    /// Verify a detached ed25519 signature over a file (T-3485). Exit 0 valid,
+    /// 1 invalid (bad signature or fingerprint mismatch), 2 bad input.
+    Verify {
+        /// Public key, 64 hex chars
+        #[arg(long = "pubkey-hex", value_name = "HEX")]
+        pubkey_hex: String,
+
+        /// Detached signature, 128 hex chars (as printed by `identity sign`)
+        #[arg(long = "sig", value_name = "HEX")]
+        sig: String,
+
+        /// Also require the key's fingerprint to equal this value
+        #[arg(long, value_name = "FP")]
+        fingerprint: Option<String>,
+
+        /// File whose bytes were signed
+        file: std::path::PathBuf,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// Channel bus subcommands (T-1160, T-1155)
@@ -7092,6 +7124,62 @@ pub(crate) enum SubstrateAction {
 mod cli_tests {
     use super::*;
     use clap::Parser;
+
+    /// T-3485: `identity sign <file> [--json]` parses; `--json` defaults to off.
+    #[test]
+    fn identity_sign_parses() {
+        let cli = Cli::try_parse_from(["termlink", "identity", "sign", "/tmp/p.json"]).expect("parse");
+        match cli.command {
+            Command::Identity { action: IdentityAction::Sign { file, json } } => {
+                assert_eq!(file, std::path::PathBuf::from("/tmp/p.json"));
+                assert!(!json);
+            }
+            _ => panic!("expected Identity::Sign"),
+        }
+        let cli = Cli::try_parse_from(["termlink", "identity", "sign", "--json", "/tmp/p.json"]).expect("parse");
+        match cli.command {
+            Command::Identity { action: IdentityAction::Sign { json, .. } } => assert!(json),
+            _ => panic!("expected Identity::Sign"),
+        }
+        // The file is required.
+        assert!(Cli::try_parse_from(["termlink", "identity", "sign"]).is_err());
+    }
+
+    /// T-3485: `identity verify --pubkey-hex X --sig Y [--fingerprint F] <file>` parses.
+    #[test]
+    fn identity_verify_parses() {
+        let cli = Cli::try_parse_from([
+            "termlink", "identity", "verify", "--pubkey-hex", "aa", "--sig", "bb",
+            "--fingerprint", "cc", "/tmp/p.json",
+        ])
+        .expect("parse");
+        match cli.command {
+            Command::Identity {
+                action: IdentityAction::Verify { pubkey_hex, sig, fingerprint, file, json },
+            } => {
+                assert_eq!(pubkey_hex, "aa");
+                assert_eq!(sig, "bb");
+                assert_eq!(fingerprint.as_deref(), Some("cc"));
+                assert_eq!(file, std::path::PathBuf::from("/tmp/p.json"));
+                assert!(!json);
+            }
+            _ => panic!("expected Identity::Verify"),
+        }
+        // --pubkey-hex and --sig are required; --fingerprint is optional.
+        assert!(Cli::try_parse_from(["termlink", "identity", "verify", "--sig", "bb", "/tmp/p"]).is_err());
+        assert!(Cli::try_parse_from(["termlink", "identity", "verify", "--pubkey-hex", "aa", "/tmp/p"]).is_err());
+        let cli = Cli::try_parse_from([
+            "termlink", "identity", "verify", "--pubkey-hex", "aa", "--sig", "bb", "--json", "/tmp/p",
+        ])
+        .expect("parse");
+        match cli.command {
+            Command::Identity { action: IdentityAction::Verify { fingerprint, json, .. } } => {
+                assert!(fingerprint.is_none());
+                assert!(json);
+            }
+            _ => panic!("expected Identity::Verify"),
+        }
+    }
 
     /// T-3482: `--quiet` exists on both mirror forms and defaults to off.
     #[test]

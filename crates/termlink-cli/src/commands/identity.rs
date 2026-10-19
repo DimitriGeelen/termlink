@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use anyhow::{Context, Result, anyhow};
 use serde_json::json;
 
-use termlink_session::agent_identity::{Identity, IdentityError, identity_path};
+use termlink_session::agent_identity::{Identity, IdentityError, check_detached_hex, identity_path};
 
 /// Resolve the base directory for the identity file. Default is
 /// `~/.termlink`. Tests and alternate installs can override with the
@@ -162,6 +162,122 @@ pub(crate) fn cmd_identity_rotate(force: bool, json_output: bool) -> Result<()> 
     let base = identity_base_dir()?;
     let ident = Identity::init(&base, true)?;
     print_identity_result(&base, &ident, "rotated", json_output)
+}
+
+/// T-3485: sign a file's bytes with the resolved per-agent identity. Uses the
+/// READ-ONLY resolver: a key minted on the spot would produce a signature from an
+/// identity nobody has pinned, so a missing key is exit 3 and nothing is created.
+pub(crate) fn cmd_identity_sign(file: &std::path::Path, json_output: bool) -> Result<()> {
+    let (src, found) = super::channel::load_identity_no_create()?;
+    let ident = match found {
+        Ok(ident) => ident,
+        Err(path) => {
+            if json_output {
+                println!(
+                    "{}",
+                    json!({
+                        "ok": false,
+                        "error": "no_identity",
+                        "path": path.display().to_string(),
+                        "source": src.kind(),
+                        "hint": "read-only sign: no key exists for this identity, and none was created",
+                    })
+                );
+            } else {
+                eprintln!(
+                    "No identity at {} ({}); nothing was created, nothing was signed.",
+                    path.display(),
+                    src.kind()
+                );
+            }
+            std::process::exit(3);
+        }
+    };
+    let bytes = std::fs::read(file)
+        .unwrap_or_else(|e| bad_input_exit(json_output, "unreadable_file", &format!("cannot read {}: {e}", file.display())));
+    let signature_hex = ident.sign_hex(&bytes);
+    if json_output {
+        println!(
+            "{}",
+            json!({
+                "ok": true,
+                "signature_hex": signature_hex,
+                "fingerprint": ident.fingerprint(),
+                "public_key_hex": ident.public_key_hex(),
+                "source": src.kind(),
+            })
+        );
+    } else {
+        println!("{signature_hex}");
+    }
+    Ok(())
+}
+
+/// T-3485: verify a detached signature over a file. Exit 0 valid, 1 invalid (says
+/// which check failed), 2 bad input (unreadable file or malformed hex). Never writes.
+pub(crate) fn cmd_identity_verify(
+    pubkey_hex: &str,
+    sig_hex: &str,
+    file: &std::path::Path,
+    fingerprint: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let bytes = std::fs::read(file)
+        .unwrap_or_else(|e| bad_input_exit(json_output, "unreadable_file", &format!("cannot read {}: {e}", file.display())));
+    let check = match check_detached_hex(pubkey_hex, sig_hex, &bytes) {
+        Ok(check) => check,
+        Err(e) => bad_input_exit(json_output, "bad_input", &e.to_string()),
+    };
+    let fingerprint_ok = fingerprint.is_none_or(|want| want.trim().eq_ignore_ascii_case(&check.fingerprint));
+    let reason = if !check.signature_ok {
+        Some("bad_signature")
+    } else if !fingerprint_ok {
+        Some("fingerprint_mismatch")
+    } else {
+        None
+    };
+    let Some(reason) = reason else {
+        if json_output {
+            println!(
+                "{}",
+                json!({"ok": true, "valid": true, "fingerprint": check.fingerprint})
+            );
+        } else {
+            println!("VALID: signature verifies (fingerprint {})", check.fingerprint);
+        }
+        return Ok(());
+    };
+    if json_output {
+        println!(
+            "{}",
+            json!({
+                "ok": false,
+                "valid": false,
+                "reason": reason,
+                "fingerprint": check.fingerprint,
+                "expected_fingerprint": fingerprint,
+            })
+        );
+    } else if reason == "bad_signature" {
+        println!("INVALID: bad signature (the file bytes or the signature differ from what was signed)");
+    } else {
+        println!(
+            "INVALID: fingerprint mismatch (key is {}, expected {})",
+            check.fingerprint,
+            fingerprint.unwrap_or_default()
+        );
+    }
+    std::process::exit(1);
+}
+
+/// Report a bad-input failure and exit 2 (distinct from 1 = signature invalid).
+fn bad_input_exit(json_output: bool, error: &str, detail: &str) -> ! {
+    if json_output {
+        println!("{}", json!({"ok": false, "error": error, "detail": detail}));
+    } else {
+        eprintln!("{detail}");
+    }
+    std::process::exit(2);
 }
 
 fn print_identity_result(

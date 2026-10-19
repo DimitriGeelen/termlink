@@ -834,6 +834,10 @@ async fn main() -> Result<()> {
                 commands::identity::cmd_identity_show(json, resolve, no_create)
             }
             IdentityAction::Rotate { force, json } => commands::identity::cmd_identity_rotate(force, json),
+            IdentityAction::Sign { file, json } => commands::identity::cmd_identity_sign(&file, json),
+            IdentityAction::Verify { pubkey_hex, sig, fingerprint, file, json } => {
+                commands::identity::cmd_identity_verify(&pubkey_hex, &sig, &file, fingerprint.as_deref(), json)
+            }
         },
         Command::Channel { action } => match action {
             ChannelAction::Create { name, retention, owner, reason, hub, json } => {
