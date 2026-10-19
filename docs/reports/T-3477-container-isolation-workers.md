@@ -167,6 +167,26 @@ long prompts, and parallel runs fail with "database is locked"; run one at a tim
    (image digest + source SHA + bundle hashes + harness + model + task/attempt + policy +
    limits) is the unit, and the orchestrator picks from an approved capability catalogue.
 
+**dimitri-mint-dev second opinion (first-hand from their testbed T-126..T-148; verbatim in
+`T-3477-consult/dimitri-mint-dev.md`)** agrees and adds measured specifics:
+1. Three layers: base → one image per harness version → nothing project/role baked (fresh clone
+   + role bundle at start).
+2. Docker-published ports bypass UFW; they filter in DOCKER-USER on .107 now (their T-149).
+3. One hourly job class on .107 wrote ~282 GiB/day; put worker scratch on a volume that is not
+   inside a snapshotted subvolume.
+4. Make the git boundary the gate (push a branch only; host-side checks before merge), because
+   Codex/opencode run no AEF hooks.
+5. Container layouts change "outside the project": AEF's boundary check let `/work/*` through
+   until AEF T-4395; reuse their 15-case hook probe (`tools/greenfield-testbed/boundary-probe.sh`).
+6. AEF install + doctor costs ~3.5 min per fresh worker: pre-install the pinned framework in a
+   cached layer or volume.
+7. Run workers with `--init` (no zombie reaping otherwise; Watchtower stop hung, AEF T-4306).
+8. Ship results as an archive plus an envelope; never unpack a worker's tree inside another
+   project (AEF T-4317).
+9. First step: `FROM aef-greenfield-testbed` + the static TermLink binary, one real small
+   TermLink bug with an existing test; go if it passes the AEF gates with no host state touched,
+   a clean leak grep and wall time within 2x a host session.
+
 **ring20-manager (orchestration, arc-009)**, first reply 2026-10-19 (msg 0326268a): received
 after a 2.5 h sidecar outage on their side (AEF T-4416); a full answer will come from their S-4
 session (first standing worker); short version: **interested in the pilot**.
