@@ -1222,8 +1222,17 @@ async fn handle_line_connection<S>(
                 .await
         {
             json.push('\n');
+            // T-3474: flush after every response. Over TLS, write_all returns once
+            // rustls holds the bytes; what did not fit the socket send buffer stays
+            // in rustls until a flush, and the loop goes back to reading. A remote
+            // peer then got the first ~155 KB of a 278 KB channel.list and nothing
+            // more (loopback's larger buffer hid it).
             if let Err(e) = writer.write_all(json.as_bytes()).await {
                 tracing::debug!(error = %e, "Hub: client disconnected");
+                break;
+            }
+            if let Err(e) = writer.flush().await {
+                tracing::debug!(error = %e, "Hub: flush failed, client disconnected");
                 break;
             }
         }
@@ -1827,6 +1836,79 @@ mod tests {
              (T-2528 idle-timeout reclaims the governor slot); it hung — the idle \
              timeout wrap is missing/ineffective"
         );
+    }
+
+    /// T-3474: a stream that holds written bytes until it is flushed — the way
+    /// tokio-rustls holds records that did not fit the socket send buffer.
+    struct FlushGated<S> {
+        inner: S,
+        pending: Vec<u8>,
+    }
+
+    impl<S: AsyncRead + Unpin> AsyncRead for FlushGated<S> {
+        fn poll_read(
+            mut self: Pin<&mut Self>,
+            cx: &mut Context<'_>,
+            buf: &mut ReadBuf<'_>,
+        ) -> Poll<std::io::Result<()>> {
+            Pin::new(&mut self.inner).poll_read(cx, buf)
+        }
+    }
+
+    impl<S: AsyncWrite + Unpin> AsyncWrite for FlushGated<S> {
+        fn poll_write(
+            mut self: Pin<&mut Self>,
+            _cx: &mut Context<'_>,
+            buf: &[u8],
+        ) -> Poll<std::io::Result<usize>> {
+            self.pending.extend_from_slice(buf);
+            Poll::Ready(Ok(buf.len()))
+        }
+
+        fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+            while !self.pending.is_empty() {
+                let this = &mut *self;
+                match Pin::new(&mut this.inner).poll_write(cx, &this.pending) {
+                    Poll::Ready(Ok(n)) => {
+                        this.pending.drain(..n);
+                    }
+                    Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
+                    Poll::Pending => return Poll::Pending,
+                }
+            }
+            Pin::new(&mut self.inner).poll_flush(cx)
+        }
+
+        fn poll_shutdown(
+            mut self: Pin<&mut Self>,
+            cx: &mut Context<'_>,
+        ) -> Poll<std::io::Result<()>> {
+            Pin::new(&mut self.inner).poll_shutdown(cx)
+        }
+    }
+
+    // ── T-3474: a response must reach the peer without waiting for a later write.
+    // Removing the flush after write_all leaves the bytes in FlushGated (as in
+    // rustls) and the read below times out.
+    #[tokio::test]
+    async fn line_transport_flushes_each_response() {
+        let (client, server) = tokio::io::duplex(64 * 1024);
+        let gated = FlushGated { inner: server, pending: Vec::new() };
+        let handler = tokio::spawn(handle_line_connection(gated, None, None, None, None));
+
+        let (cr, mut cw) = tokio::io::split(client);
+        cw.write_all(b"{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"hub.version\"}\n")
+            .await
+            .unwrap();
+        let mut lines = BufReader::new(cr).lines();
+        let got = tokio::time::timeout(std::time::Duration::from_secs(3), lines.next_line()).await;
+        handler.abort();
+
+        let line = got
+            .expect("no response within 3 s: the line transport did not flush it")
+            .unwrap()
+            .expect("connection closed without a response");
+        assert!(line.contains("\"id\":1"), "unexpected response: {line}");
     }
 
     #[tokio::test]
