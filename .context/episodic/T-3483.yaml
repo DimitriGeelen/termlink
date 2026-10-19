@@ -1,0 +1,102 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3483: Dispatch emits a first-class worker-finished event/status (exit code + result path) when the worker process ends
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-19T22:03:00Z
+# ============================================================================
+
+task_id: T-3483
+task_name: "Dispatch emits a first-class worker-finished event/status (exit code + result path) when the worker process ends"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-19T15:38:49Z
+completed: 2026-10-19T22:02:43Z
+duration_days: 0
+updates_count: 4
+first_commit: 2026-10-19T22:18:28+02:00
+last_commit: 2026-10-20T00:02:48+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  converted to inception — worker.done already exists in AEF run.sh and sessions end since AEF T-4152; open question is a durable done-record. IW-1 answered — 1409 on fw 1.8.10, waits start late; a durable worker.done record would replace their end-signal file and pgrep waiter. research artifact — facts, four options for a durable worker-done record. options E/E' (sidecar notification to the dispatcher, with/without the durable record); corrected the 'cannot reach an orchestrator' claim; backlog check. AEF answer — nothing in their backlog; sidecar id is per project, short-lived dispatchers have no receiver; AEF recommends the TermLink record as primitive, sidecar as optional layer. scope widened to orchestrator<->worker communication (status via dispatch record, questions via sidecar, contract in the worker instruction); consulting ring20. reviews (codex, claude) + ring20 production model recorded; synthesis: durable per-dispatch record, dispatch id + attempt fencing, done/lost written by the supervisor from evidence. ring20 open to a shared primitive; needs their operator's go and a three-way agreement (arc-009 already offered to AEF, ring20 T-2281). operator ruling C with conditions recorded; IW-2/IW-3 answered; recommendation GO; ready for the Watchtower decision. inception decision GO (via Watchtower)
+
+# Key outcomes
+outcomes:
+  - 'IW-1..IW-3 disposed with evidence (1409''s answer, AEF''s view, a check of the termlink dispatch path)'
+  - 'Recommendation written with rationale'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-10-19 — How a dispatched worker reports status, questions and done (operator ruling)'
+    chose: 'C with conditions: one shared contract based on ring20''s arc-009 S-1 model. TermLink provides the per-dispatch ledger on the hub, `worker wait`/lookup and `lost` only on a confirmed session end; the supervisor (AEF run.sh wrapper) is the single writer of `done` from fenced evidence (dispatch id + attempt + nonce); the worker instruction carries ring20''s hand-back block and the communication split (status in the record, questions to the orchestrator via sidecar, answers via the worker''s own inbox with an ack per command). Conditions: ring20''s operator decides on their side; agreement three-way TermLink + AEF + ring20 (ring20 T-2281 already offered arc-009 to AEF) so there is one implementation.'
+    rationale: 'ring20 has solved the hard parts (fencing, lost-only-on-evidence, recovery after an uncertain launch) and runs them; one format for the fleet.'
+    alternatives_rejected: ['A (no cross-host record); B (own TermLink record with the worker as writer: no fencing, a second format); D (ring20''s supervisor as-is: built for their sandbox and hosts). - **Left open:** the answer path for questions back to a worker (AEF, because of T-4423); record retention; a sidecar notice as a later layer.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/reports/T-3483-consult/brief.md'
+  - 'docs/reports/T-3483-consult/claude.md'
+  - 'docs/reports/T-3483-consult/codex.md'
+  - 'docs/reports/T-3483-consult/ring20.md'
+  - 'docs/reports/T-3483-durable-worker-done.md'
+  - '.tasks/active/T-3483-dispatch-emits-a-first-class-worker-fini.md'
+  - '.tasks/completed/T-3483-dispatch-emits-a-first-class-worker-fini.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-19T22:18:28'
+    action: 'T-3483: converted to inception — worker.done already exists in AEF run.sh and sessions end since AEF T-4152; open question is a durable done-record'
+  - time: '2026-10-19T22:38:40'
+    action: 'T-3483: IW-1 answered — 1409 on fw 1.8.10, waits start late; a durable worker.done record would replace their end-signal file and pgrep waiter'
+  - time: '2026-10-19T22:55:57'
+    action: 'T-3483: research artifact — facts, four options for a durable worker-done record'
+  - time: '2026-10-19T23:01:39'
+    action: 'T-3483: options E/E'' (sidecar notification to the dispatcher, with/without the durable record); corrected the ''cannot reach an orchestrator'' claim; backlog check'
+  - time: '2026-10-19T23:05:50'
+    action: 'T-3483: AEF answer — nothing in their backlog; sidecar id is per project, short-lived dispatchers have no receiver; AEF recommends the TermLink record as primitive, sidecar as optional layer'
+  - time: '2026-10-19T23:08:47'
+    action: 'T-3483: scope widened to orchestrator<->worker communication (status via dispatch record, questions via sidecar, contract in the worker instruction); consulting ring20'
+  - time: '2026-10-19T23:31:31'
+    action: 'T-3483: reviews (codex, claude) + ring20 production model recorded; synthesis: durable per-dispatch record, dispatch id + attempt fencing, done/lost written by the supervisor from evidence'
+  - time: '2026-10-19T23:34:39'
+    action: 'T-3483: ring20 open to a shared primitive; needs their operator''s go and a three-way agreement (arc-009 already offered to AEF, ring20 T-2281)'
+  - time: '2026-10-19T23:47:10'
+    action: 'T-3483: operator ruling C with conditions recorded; IW-2/IW-3 answered; recommendation GO; ready for the Watchtower decision'
+  - time: '2026-10-20T00:02:48'
+    action: 'T-3483: inception decision GO (via Watchtower)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 10 commit(s), 383 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [dispatch, orchestration, 1409-suggestion]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 383
+  commits: 10
+  files_changed: 7
+  lines_added: 870
+  lines_removed: 23
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3483-dispatch-emits-a-first-class-worker-fini.md
+generated_by: context-agent-hybrid
