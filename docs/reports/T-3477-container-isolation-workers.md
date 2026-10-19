@@ -147,6 +147,30 @@ long prompts, and parallel runs fail with "database is locked"; run one at a tim
 7. Subsetting `CLAUDE.md` is a policy decision for the operator: define the mandatory core
    (claude, codex).
 
+**Perplexity (6th reviewer, via dimitri-mint-dev's seat, 2026-10-19; verbatim with sources in
+`T-3477-consult/perplexity.md`)** agrees with points 1–8 and adds:
+1. A **trusted broker** instead of a hub token: the peer sidecar stays outside the worker under
+   the supervisor; workers get a narrow endpoint (assignment, heartbeat, bounded task-topic
+   messages); the broker keeps the full hub secret and authorises every call. Never generic
+   terminal control or arbitrary JSON-RPC forwarding.
+2. Workers commit locally; a **trusted publisher** pushes approved `workers/<task>/<attempt>`
+   branches with credentials workers never see; only the authority service closes tasks.
+3. **Fencing epochs**: lease expiry cannot stop a partitioned worker; stale attempts must be
+   unable to publish or change task state after reassignment.
+4. A central ID allocator prevents ID collisions, not redundant work; assignments need scope,
+   ownership and overlap checks (relevant to T-3476).
+5. Docker and ufw: published ports bypass ufw through the DOCKER-USER/NAT path; host-service
+   access follows INPUT; test IPv4, IPv6 and sibling containers rather than trusting a recipe.
+6. System-level and service-install tests are meaningless in a container; route them to
+   disposable VMs (the 0909 test VM may fit here).
+7. "The core abstraction is an execution contract, not a role image": the dispatched manifest
+   (image digest + source SHA + bundle hashes + harness + model + task/attempt + policy +
+   limits) is the unit, and the orchestrator picks from an approved capability catalogue.
+
+**ring20-manager (orchestration, arc-009)**, first reply 2026-10-19 (msg 0326268a): received
+after a 2.5 h sidecar outage on their side (AEF T-4416); a full answer will come from their S-4
+session (first standing worker); short version: **interested in the pilot**.
+
 **Disagreements / weak points**
 1. Which incidents containers fix: claude says only #1 (session re-rooting); GLM says #2 and
    #4 (fresh full filesystem) but not #1; deepseek says none without fixed paths and a full
