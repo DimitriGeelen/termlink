@@ -203,9 +203,73 @@ pub fn record(
     }
     let Some(path) = current_path() else { return };
     let line = build_audit_line(now_ms(), method, from, peer_pid, peer_addr, topic);
-    if let Err(e) = append_line(path, &line) {
-        tracing::debug!(error = %e, "rpc_audit: append failed (suppressed)");
+    enqueue(path, line);
+}
+
+/// T-3475: lines waiting for the writer thread. Bounded so a disk that stalls for
+/// minutes cannot grow the hub's memory without limit.
+const QUEUE_CAP: usize = 16_384;
+
+/// T-3475: lines dropped because the queue was full. Counted and warned about,
+/// never silent.
+static DROPPED: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+static LAST_DROP_WARN: Mutex<Option<Instant>> = Mutex::new(None);
+
+type AuditTx = std::sync::mpsc::SyncSender<(PathBuf, String)>;
+static AUDIT_TX: OnceLock<Option<AuditTx>> = OnceLock::new();
+
+/// T-3475: one writer thread does all audit I/O. `record` runs on a tokio worker
+/// for every request; before this it opened and wrote the file there, under the
+/// global write lock, so one write stalled on btrfs writeback (2026-10-19 09:52Z,
+/// `folio_wait_writeback`) held up every request behind it.
+fn audit_tx() -> Option<&'static AuditTx> {
+    AUDIT_TX
+        .get_or_init(|| {
+            let (tx, rx) = std::sync::mpsc::sync_channel::<(PathBuf, String)>(QUEUE_CAP);
+            std::thread::Builder::new()
+                .name("rpc-audit".into())
+                .spawn(move || {
+                    for (path, line) in rx {
+                        if let Err(e) = append_line(&path, &line) {
+                            tracing::debug!(error = %e, "rpc_audit: append failed (suppressed)");
+                        }
+                    }
+                })
+                .map_err(|e| tracing::warn!(error = %e, "rpc_audit: writer thread not started, writing inline"))
+                .ok()
+                .map(|_| tx)
+        })
+        .as_ref()
+}
+
+fn enqueue(path: &Path, line: String) {
+    use std::sync::mpsc::TrySendError;
+    let Some(tx) = audit_tx() else {
+        // No writer thread: the old inline path, slow but not lossy.
+        if let Err(e) = append_line(path, &line) {
+            tracing::debug!(error = %e, "rpc_audit: append failed (suppressed)");
+        }
+        return;
+    };
+    match tx.try_send((path.to_path_buf(), line)) {
+        Ok(()) => {}
+        Err(TrySendError::Full(_)) | Err(TrySendError::Disconnected(_)) => {
+            let n = DROPPED.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
+            let mut last = LAST_DROP_WARN.lock().unwrap_or_else(|p| p.into_inner());
+            if last.is_none_or(|t| t.elapsed() >= Duration::from_secs(60)) {
+                *last = Some(Instant::now());
+                tracing::warn!(
+                    dropped_total = n,
+                    "rpc_audit: writer behind (disk stalled?), audit lines dropped"
+                );
+            }
+        }
     }
+}
+
+/// T-3475: audit lines dropped since the hub started.
+pub fn dropped_total() -> u64 {
+    DROPPED.load(std::sync::atomic::Ordering::Relaxed)
 }
 
 /// Pure: assemble one JSONL audit line. Public-in-crate so tests can
@@ -441,6 +505,37 @@ mod tests {
 
     /// Reset OnceLock by writing the path directly via the test helper.
     /// Tests that need an isolated path should own their own TempDir.
+    // ── T-3475: the request path never waits for audit I/O. The test holds the
+    // audit write lock (standing in for a write stuck on btrfs writeback); the
+    // enqueue must still return at once, and the line must land once the lock is
+    // released. A synchronous append (the pre-T-3475 shape) blocks here and fails.
+    #[test]
+    fn enqueue_returns_while_the_audit_write_is_stuck() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("rpc-audit.jsonl");
+        let marker = format!("t3475-{}", now_ms());
+        let guard = audit_write_lock().lock().unwrap_or_else(|p| p.into_inner());
+
+        let (tx, rx) = std::sync::mpsc::channel();
+        let (p, m) = (path.clone(), marker.clone());
+        std::thread::spawn(move || {
+            enqueue(&p, build_audit_line(1, "channel.post", None, None, None, Some(&m)));
+            let _ = tx.send(());
+        });
+        let returned = rx.recv_timeout(Duration::from_millis(200));
+        drop(guard);
+        assert!(returned.is_ok(), "record/enqueue waited on the audit write lock");
+
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            if fs::read_to_string(&path).is_ok_and(|b| b.contains(&marker)) {
+                break;
+            }
+            assert!(Instant::now() < deadline, "queued audit line never reached the file");
+            std::thread::sleep(Duration::from_millis(20));
+        }
+    }
+
     fn force_path(path: PathBuf) {
         // OnceLock::set returns Err if already set — allow that; tests below
         // run in-process and only the first one wins. We work around this by
