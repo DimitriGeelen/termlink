@@ -59,6 +59,24 @@ arc-011 `role-handback/1` (T-3348/T-3351/T-3352/T-3357), a JSON record a role st
 a format, not a delivery path, and could be the payload of E. Asked AEF (conv
 `termlink-worker-done-sidecar`) whether their backlog has it.
 
+**AEF answer (2026-10-19, msg d098bfb1):**
+1. No AEF task (built, planned or rejected) for sidecar-delivered worker completion, nor for
+   recording the dispatcher's identity in the dispatch. Nearest: AEF T-4027 (captured; 1409's
+   pickup T-1815: every dispatch gets a waker, plus a "worker done, result unfetched > 15 min"
+   signal, the same problem from the waiting side); T-4152 (done: run.sh writes exit_code before
+   it exits; `fw termlink wait/status` read that file); T-4423 (done today: workers run with
+   `FW_DISPATCHED_WORKER=1` and are not sidecar endpoints).
+2. Constraints on a sidecar notice: (a) the dispatch records task, name and wdir but not the
+   dispatching session; the sidecar id is per PROJECT, so a notice surfaces in whichever session
+   holds the project receiver, right only with a single parent session; (b) a short-lived
+   dispatcher (cron, one-shot script) has no receiver, so the inbox is durable but unread;
+   (c) the harness already re-invokes the parent when a background wait exits.
+3. AEF recommends: the TermLink-owned durable `worker:done` record (cv_key = worker name,
+   `termlink worker wait`) as the primitive, because it does not depend on who dispatched; a
+   sidecar notice as an optional layer once the dispatch records the dispatcher's agent (later
+   its session). AEF will file its side once T-3483 settles the record's shape, and wants the
+   chosen topic/cv_key.
+
 ## 3. Dialogue log
 
 1. 2026-10-19, 1409 support-round suggestion; converted from build to inception after the facts
