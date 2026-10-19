@@ -42,7 +42,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-18T23:03:50Z
-last_update: 2026-10-18T23:17:42Z
+last_update: 2026-10-18T23:23:00Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -96,6 +96,21 @@ Second capture (23:05–23:20 UTC, fd resolved from /proc/<tid>/syscall): 183 pr
 commit itself, not a topic log. ring20 from .122: fast when quiet (list 166 ms), list
 timed out 3/3 under load 40–50 while single infos mostly answered.
 
+**After deploy (0.12.715 at 08:2xZ, then 0.12.716 with T-3474 at ~10:00Z), 2026-10-19:**
+1. The .122 timeouts after this deploy were a different bug: the hub never flushed a
+   response, so remote peers got only the first 155,552 bytes of the 278 KB list (T-3474,
+   fixed and closed). ring20 then confirmed 5/5 lists from .122 at 102–104 ms.
+2. Our own channel-list capture on .107 (08:30–10:05Z, every 3 s, 1650 probes): 11 over
+   2 s, max 13.4 s. Four of them (09:52–10:03, up to 13.4 s) fall inside the runme
+   build + hub restart window. The other 7 are 2.5–4.1 s (08:57, six at 09:24); before the
+   fix they were 30 s timeouts.
+3. The residual is NOT explained yet. In the 09:24 snapshot the only busy thread is a
+   meta.db-wal fsync; the 09:52 one also shows the rpc-audit append blocked in
+   `folio_wait_writeback`. `rpc_audit::record` writes synchronously on the tokio worker
+   (server.rs:~1619), outside `run_blocking`, so a write stalled behind btrfs writeback
+   parks a worker for every request: the leading candidate, not proven. AC 5 stays open
+   until this is either fixed or measured clean.
+
 Fix direction: a second, read-only connection (WAL readers do not block on the writer)
 behind its own lock, used by all pure-read Meta methods; plus one batched query for the
 per-topic fields channel.list needs. Pending: second capture naming WHICH file the long
@@ -106,10 +121,10 @@ not wait, but the post path needs its own look.
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Pure-read `Meta` methods use a separate read-only connection with its own lock; writes keep the existing connection and durability (WAL, synchronous=FULL)
-- [ ] A test holds a slow commit (via the `set_test_slow_durable_ms` seam) and shows a concurrent meta read returning within 700 ms wall clock; mutant (read via the write connection) fails it
-- [ ] `channel.list` gets retention/count/latest_offset for all topics in a bounded number of meta queries, not ~4 per topic; output unchanged (existing channel.list tests pass)
-- [ ] `cargo test -p termlink-bus -p termlink-hub` passes
+- [x] Pure-read `Meta` methods use a separate read-only connection with its own lock; writes keep the existing connection and durability (WAL, synchronous=FULL)
+- [x] A test holds a slow commit (via the `set_test_slow_durable_ms` seam) and shows a concurrent meta read returning within 700 ms wall clock; mutant (read via the write connection) fails it
+- [x] `channel.list` gets retention/count/latest_offset for all topics in a bounded number of meta queries, not ~4 per topic; output unchanged (existing channel.list tests pass)
+- [x] `cargo test -p termlink-bus -p termlink-hub` passes
 - [ ] After deploy, a 15-min TLS capture on .107 shows no channel info/list over 2 s during a commit burst, and ring20 confirms from .122
 
 ### Human
