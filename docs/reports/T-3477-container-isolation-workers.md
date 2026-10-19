@@ -95,6 +95,69 @@ push to a namespaced branch, integrate through a PR or merge queue.
          bare cold-start figures. Note AEF T-4317: never unpack a record inside another
          project (session trap).
 
+## 3b. External design review, round 1 (2026-10-19)
+
+Operator asked for five external designers plus Perplexity on the wider construct:
+heterogeneous workers (models, harnesses, MCP, skills, commands, role-specific `CLAUDE.md`),
+per-project container sets (TermLink, Workflow designer, AEF) and image versioning. Brief
+and answers verbatim in `docs/reports/T-3477-consult/`. Reviewers: codex, claude -p, opencode
+GLM-5.3, DeepSeek v4.1, Nemotron-3-ultra. Perplexity: via dimitri-mint-dev's browser seat,
+pending their operator's approval. (opencode note: default output mode hangs without a tty on
+long prompts, and parallel runs fail with "database is locked"; run one at a time with
+`--format json`.)
+
+**Where all five agree**
+1. Containerise: one disposable Docker container per work unit. Not microVMs/VMs as the
+   baseline (escalation for untrusted code only); bubblewrap has no image/versioning story.
+2. The container is not the security or governance boundary. Containers fix at most part of
+   the four incidents; the central allocator (T-3476) and fail-closed guards are needed
+   regardless. GLM: otherwise "containers just make the same bugs parallel".
+3. A small image family, never one image per role: base → (project toolchain) → harness, with
+   the harness version pinned and self-update off. Role = configuration injected at start
+   (role `CLAUDE.md`, skills, MCP config, commands, model, credentials).
+4. Compose role `CLAUDE.md` from one canonical, segmented source by a generator with a
+   recorded hash and a CI check; never hand-kept copies.
+5. Dispatch by image digest, never `latest`; every result records image digest, config bundle
+   hash, rendered `CLAUDE.md` hash, harness version, model id, base commit. GLM/codex: this
+   makes runs attributable, not replayable.
+6. Never `--network host`; never the full hub secret in a container. A server-enforced scoped,
+   short-lived per-worker hub token is the long pole (GLM) and the first real prerequisite;
+   until then a throwaway hub. Claude: a broad hub token is a container escape, because
+   TermLink can inject into terminal sessions; the token must exclude session control.
+7. Disk is the hard constraint: admission floor (~15 % free), sccache and shared read-only
+   registry caches (never a shared writable `target/`), cap Rust workers (~3), short
+   retention, keep forensics as exported artefacts.
+8. A one-week pilot with deliberate failure injection (remove a guard, `--no-verify`, expire a
+   lease, reach a LAN UI) and explicit go/stop criteria.
+
+**Additions worth keeping**
+1. Enforce governance outside the container (claude, codex): the remote only accepts pushes to
+   `worker|agent/<task>/*`, merges stay with operator/orchestrator; Codex and opencode do not
+   run Claude hooks, so client-side gates cannot be the control. Entry point self-tests every
+   guard and refuses to start if any passes a known-bad input.
+2. Firewall: a ufw INPUT rule does not stop a container reaching other LAN hosts; check
+   FORWARD/DOCKER-USER, IPv6 and container-to-container (claude, codex, deepseek).
+3. A control arm in the pilot: plain clone + allocator without containers (deepseek).
+4. One shared subscription identity across parallel workers breaks attribution, rate limits and
+   revocation; check terms for concurrent automated sessions (claude, deepseek).
+5. Integration, not isolation, may be the real bottleneck; stop if merging costs more operator
+   time than the work saves (claude).
+6. Run the harness inside a TermLink-registered PTY in the container so the operator can watch
+   and kill with existing tools (claude); a designed operator console (nemotron).
+7. Subsetting `CLAUDE.md` is a policy decision for the operator: define the mandatory core
+   (claude, codex).
+
+**Disagreements / weak points**
+1. Which incidents containers fix: claude says only #1 (session re-rooting); GLM says #2 and
+   #4 (fresh full filesystem) but not #1; deepseek says none without fixed paths and a full
+   clone. Consistent reading: a container helps only together with fixed paths, explicit IDs
+   and fail-closed guards.
+2. Image axes: claude/deepseek/codex put a project-toolchain layer between base and harness;
+   GLM uses one image per harness only.
+3. Nemotron is the weakest answer: it rejects `--network host` but uses it, with the full hub
+   secret in an env var, in its own first step, and bakes `target/` into the project image on
+   a full disk. Kept for two additions (per-ecosystem cache volumes, operator console).
+
 ## 4. Relationship to other work
 
 1. T-3469 IW-3 (who owns the checkout) may be answered by this: inside a container the
