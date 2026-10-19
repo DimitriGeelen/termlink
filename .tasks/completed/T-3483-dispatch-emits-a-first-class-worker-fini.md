@@ -9,12 +9,12 @@ description: >
   event only if the worker emits it; nothing reports that the worker process ended.
   Relevant to T-3476 (assignment needs to know when a worker is free).
 
-status: started-work
+status: work-completed
 workflow_type: inception
 target_blast_radius: 3
 voi_score: 0.5
 owner: agent
-horizon: now
+horizon: null
 tags: [dispatch, orchestration, 1409-suggestion]
 components: []
 related_tasks: []
@@ -45,8 +45,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-19T15:38:49Z
-last_update: 2026-10-19T21:34:40Z
-date_finished:
+last_update: 2026-10-19T22:02:43Z
+date_finished: 2026-10-19T22:02:43Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -430,13 +430,15 @@ the three-way agreement and, after it, a TermLink build task for the ledger prim
 
 ## Decision
 
-<!-- Filled at completion of inception tasks via:
-     fw inception decide T-XXX go|no-go|defer --rationale "..."
+**Decision**: GO
 
-     For non-inception tasks this section is ignored. Kept in template
-     so `fw inception decide` (lib/inception.sh) finds the anchor heading
-     without auto-creating; T-1832 added auto-create as fallback for
-     legacy tasks lacking this section. -->
+**Rationale**: Everyone consulted converges on one durable per-dispatch record as the truth,
+keyed by a dispatch id with attempts and fencing, `done`/`lost` written by the supervisor from
+evidence, not by the worker; ring20 already runs exactly this in production (arc-009). Building a
+second model would leave the orchestrator, Watchtower and T-3476 with two formats. GO authorises
+the three-way agreement and, after it, a TermLink build task for the ledger primitive.
+
+**Date**: 2026-10-19T22:02:42Z
 
 ## Updates
 
@@ -451,3 +453,50 @@ the three-way agreement and, after it, a TermLink build task for the ledger prim
 
 ### 2026-10-19T20:18:05Z — status-update [task-update-agent]
 - **Change:** workflow_type: build → inception
+
+### 2026-10-19T22:02:42Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Everyone consulted converges on one durable per-dispatch record as the truth,
+keyed by a dispatch id with attempts and fencing, `done`/`lost` written by the supervisor from
+evidence, not by the worker; ring20 already runs exactly this in production (arc-009). Building a
+second model would leave the orchestrator, Watchtower and T-3476 with two formats. GO authorises
+the three-way agreement and, after it, a TermLink build task for the ledger primitive.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-9bb377d8
+- **Timestamp:** 2026-10-19T22:02:46Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 2
+
+**Per-AC findings:**
+
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+**Verification-level findings:**
+
+  1. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-1
+     - evidence: `IW-1 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+
+## Recommendation Verdict (v1.0)
+
+- **Scan ID:** RC-b6cce245
+- **Timestamp:** 2026-10-19T22:02:47Z
+- **Overall:** CONTRADICTED
+- **Claims:** 5
+
+| Claim | Type | Status |
+|-------|------|--------|
+| `lib/review.sh:205-211` | file | ✗ fail — file not found at PROJECT_ROOT |
+| `T-2945` | task | ✓ pass |
+| `T-2421` | task | ✓ pass |
+| `T-3476` | task | ✓ pass |
+| `T-4423` | task | ✗ fail — no task file in .tasks/{active,completed}/ |
+
+### 2026-10-19T22:02:43Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
