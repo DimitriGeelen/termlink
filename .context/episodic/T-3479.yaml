@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3479: Two hub tests flake under host load since T-3461 durable posts: 50 ms snapshot bound and 10 s t2258 concurrency bound
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-19T15:46:53Z
+# ============================================================================
+
+task_id: T-3479
+task_name: "Two hub tests flake under host load since T-3461 durable posts: 50 ms snapshot bound and 10 s t2258 concurrency bound"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-19T15:29:10Z
+completed: 2026-10-19T15:44:52Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-19T17:44:46+02:00
+last_commit: 2026-10-19T17:44:46+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  test time bounds from the failure each test catches, scaled by TERMLINK_TEST_TIME_FACTOR
+
+# Key outcomes
+outcomes:
+  - 'A test helper scales time bounds by `TERMLINK_TEST_TIME_FACTOR` (default 1); both tests use it'
+  - 'Snapshot test: bound 1 s base, still fails if `timeout_ms=0` engages a long-poll (mutant: a 3 s default long-poll, stricter than the 60 s cap) — checked'
+  - 't2258 test: bound 60 s base, still fails on a hang (the pre-fix behaviour never completes)'
+  - 'Both tests pass 5/5 in a row in the full `cargo test -p termlink-hub` under the current host load'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-hub/src/channel.rs'
+  - '.tasks/active/T-3479-two-hub-tests-flake-under-host-load-sinc.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-19T17:44:46'
+    action: 'T-3479: test time bounds from the failure each test catches, scaled by TERMLINK_TEST_TIME_FACTOR'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 15 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [tests, flaky, hub, release-gate]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 15
+  commits: 1
+  files_changed: 2
+  lines_added: 434
+  lines_removed: 7
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3479-two-hub-tests-flake-under-host-load-sinc.md
+generated_by: context-agent-hybrid

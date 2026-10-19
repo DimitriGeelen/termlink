@@ -9,12 +9,12 @@ description: >
   run in the release gate. Re-base each bound on the failure it exists to catch (a
   long-poll engaging on timeout_ms=0; a hang) instead of on a fast disk.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [tests, flaky, hub, release-gate]
-components: []
+components: [crates/termlink-hub/src/channel.rs]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -43,8 +43,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-19T15:29:10Z
-last_update: 2026-10-19T15:30:55Z
-date_finished:
+last_update: 2026-10-19T15:44:52Z
+date_finished: 2026-10-19T15:44:52Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -406,3 +406,20 @@ cargo test -q -p termlink-hub --lib channel_subscribe_no_hang_under_concurrent_w
 
 ### 2026-10-19T15:30:55Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-d38b73a1
+- **Timestamp:** 2026-10-19T15:46:39Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-19T15:44:52Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
