@@ -1,0 +1,89 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3490: Worker binding: --worker-binding <dispatch>:<attempt> on spawn/register, unique among live sessions, returned by discover (T-3484 slice 1)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-20T14:34:52Z
+# ============================================================================
+
+task_id: T-3490
+task_name: "Worker binding: --worker-binding <dispatch>:<attempt> on spawn/register, unique among live sessions, returned by discover (T-3484 slice 1)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-20T14:17:17Z
+completed: 2026-10-20T14:34:33Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-10-20T16:31:46+02:00
+last_commit: 2026-10-20T16:34:31+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  worker binding (--worker-binding dispatch:attempt) on spawn/register, unique among live sessions, returned by discover. verification commands
+
+# Key outcomes
+outcomes:
+  - '`termlink spawn` and `termlink register` accept `--worker-binding <dispatch_id>:<attempt>` (attempt a positive integer, dispatch_id non-empty, no `:`); malformed values are refused with a clear error before anything registers'
+  - 'The binding is stored in the session registration and returned by `termlink discover --json` / `list --json` and the `session.discover` RPC (field `worker_binding: {dispatch_id, attempt}`, absent when unset); old registrations without it still load'
+  - 'A second LIVE registration with the same binding is refused (non-zero exit, message naming the live session holding it), on the local file-registration path and on `session.register_remote`; a binding held only by a dead registration does not block'
+  - 'The session name is never parsed for the binding (a session named `tl-D-1-a1` without the flag has no binding)'
+  - 'Unit tests for parsing, round-trip through the registration file, uniqueness (live vs dead holder); `cargo test -p termlink-session` and `-p termlink-hub` pass; flag documented in `--help` and docs/operations (where spawn/register are described)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/execution.rs'
+  - 'crates/termlink-cli/src/commands/session.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - 'crates/termlink-hub/src/remote_store.rs'
+  - 'crates/termlink-hub/src/router.rs'
+  - 'crates/termlink-session/src/manager.rs'
+  - 'crates/termlink-session/src/registration.rs'
+  - 'docs/operations/session-control-getting-started.md'
+  - '.tasks/active/T-3490-worker-binding---worker-binding-dispatch.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-20T16:31:46'
+    action: 'T-3490: worker binding (--worker-binding dispatch:attempt) on spawn/register, unique among live sessions, returned by discover'
+  - time: '2026-10-20T16:34:31'
+    action: 'T-3490: verification commands'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 17 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 17
+  commits: 2
+  files_changed: 10
+  lines_added: 900
+  lines_removed: 32
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3490-worker-binding---worker-binding-dispatch.md
+generated_by: context-agent-hybrid
