@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3374: A guard-layer fixture writes rows into the live .context/checks/voi-waiver-ledger
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-20T15:50:03Z
+# ============================================================================
+
+task_id: T-3374
+task_name: "A guard-layer fixture writes rows into the live .context/checks/voi-waiver-ledger"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-06T11:40:30Z
+completed: 2026-10-20T15:49:46Z
+duration_days: 14
+updates_count: 3
+first_commit: 2026-10-20T17:48:47+02:00
+last_commit: 2026-10-20T17:48:47+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  remove 18 leaked fixture rows from voi-waiver-ledger; add hermetic recurrence guard (writer was fixed in T-3458, rows remained)
+
+# Key outcomes
+outcomes:
+  - 'The guard-layer member that appends to the real `.context/checks/voi-waiver-ledger` is identified (named in Updates with the line that writes) and pointed at a temp ledger; a full `run-guard-layer.sh` run leaves the real ledger byte-identical (checked by hashing it before and after)'
+  - 'The leaked fixture rows (T-8 ''throwaway spike...'', T-9 ''absent on purpose...'', T-10 empty, and any older copies) are removed from the real ledger, and nothing else in it changes'
+  - 'A guard catches a recurrence: a fixture/check that fails if a guard-layer run changes the real ledger (or the member refuses to write outside a temp dir under test)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'remove 18 leaked fixture rows from voi-waiver-ledger; add hermetic recurrence guard (writer was fixed in T-3458, rows remained)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/checks/voi-waiver-ledger'
+  - '.fabric/components/tests-voi-ledger-hermetic-fixtures.yaml'
+  - '.tasks/active/T-3374-a-guard-layer-fixture-writes-rows-into-t.md'
+  - 'tests/voi-ledger-hermetic-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-20T17:48:47'
+    action: 'T-3374: remove 18 leaked fixture rows from voi-waiver-ledger; add hermetic recurrence guard (writer was fixed in T-3458, rows remained)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 20409 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 20409
+  commits: 1
+  files_changed: 4
+  lines_added: 95
+  lines_removed: 26
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3374-a-guard-layer-fixture-writes-rows-into-t.md
+generated_by: context-agent-hybrid
