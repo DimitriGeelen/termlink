@@ -13,6 +13,9 @@ use termlink_session::manager;
 use crate::cli::SpawnBackend;
 use crate::util::shell_escape;
 
+// T-3386: lite worker for short bounded jobs (RR-13 / CR-21).
+pub(crate) mod lite;
+
 /// Options for the `termlink dispatch` command.
 pub(crate) struct DispatchOpts {
     pub count: u32,

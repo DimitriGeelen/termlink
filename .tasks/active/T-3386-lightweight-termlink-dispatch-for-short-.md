@@ -43,7 +43,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-10T09:01:28Z
-last_update: 2026-10-20T19:51:28Z
+last_update: 2026-10-20T19:58:40Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -75,17 +75,18 @@ bvp_scores_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Operator ruling RR-13 / CR-21 (T-3351 Decisions, 2026-10-10). Design, measurements and limits:
+`docs/operations/lite-dispatch.md`. Code: `crates/termlink-cli/src/commands/dispatch/lite.rs`.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Current overhead measured first: `docs/operations/lite-dispatch.md` records, for one trivial job, the start cost of today's full worker (`claude -p` in the project: CLAUDE.md, hooks, MCP, skills) against the lite worker (wall time, input/cache tokens, cost), with the exact commands so it can be re-measured
-- [ ] New module beside dispatch.rs (`commands/dispatch/lite.rs`) builds the lite worker command: no CLAUDE.md auto-discovery, hooks, MCP servers or skills; a short caller system prompt; a bounded tool list (default read-only `Read,Grep,Glob`); optional model; unit tests pin each of these flags
-- [ ] The job prompt reaches the worker as one shell-escaped argument, never interpolated into the shell line (unit test with quotes, `$()` and newlines)
-- [ ] The result comes back as a file: the worker writes `result.md` and `exit_code` into its job dir and emits `task.completed` carrying `result_path` and `exit_code`, so `termlink dispatch`'s existing collect returns it (unit test on the built shell line)
-- [ ] `cargo test -p termlink-cli dispatch::` passes and `cargo clippy -p termlink-cli` has no warnings in the new module; wiring that lies outside this worker's area (cli.rs / main.rs flag, vendored `fw termlink dispatch --lite`) is written as a proposal in Updates, not edited
+- [x] Current overhead measured first: `docs/operations/lite-dispatch.md` records, for one trivial job, the start cost of today's full worker (`claude -p` in the project: CLAUDE.md, hooks, MCP, skills) against the lite worker (wall time, input/cache tokens, cost), with the exact commands so it can be re-measured
+- [x] New module beside dispatch.rs (`commands/dispatch/lite.rs`) builds the lite worker command: no CLAUDE.md auto-discovery, hooks, MCP servers or skills; a short caller system prompt; a bounded tool list (default read-only `Read,Grep,Glob`); optional model; unit tests pin each of these flags
+- [x] The job prompt reaches the worker as one shell-escaped argument, never interpolated into the shell line (unit test with quotes, `$()` and newlines)
+- [x] The result comes back as a file: the worker writes `result.md` and `exit_code` into its job dir and emits `task.completed` carrying `result_path` and `exit_code`, so `termlink dispatch`'s existing collect returns it (unit test on the built shell line)
+- [x] `cargo test -p termlink --bin termlink dispatch::` passes and `cargo clippy -p termlink --bin termlink` has no warnings (the crate in crates/termlink-cli is the package `termlink`) in the new module; wiring that lies outside this worker's area (cli.rs / main.rs flag, vendored `fw termlink dispatch --lite`) is written as a proposal in Updates, not edited
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -121,6 +122,11 @@ bvp_scores_proposed:
 -->
 
 ## Verification
+
+timeout 1800 cargo test -p termlink --bin termlink dispatch:: > /tmp/.t3386-test 2>&1 && grep -q "test result: ok" /tmp/.t3386-test
+timeout 1800 cargo clippy -p termlink --bin termlink > /tmp/.t3386-clippy 2>&1 && ! grep -q "dispatch/lite.rs" /tmp/.t3386-clippy
+test -f docs/operations/lite-dispatch.md && grep -q "159,384" docs/operations/lite-dispatch.md && grep -q -- "--safe-mode" docs/operations/lite-dispatch.md
+grep -q "pub(crate) mod lite;" crates/termlink-cli/src/commands/dispatch.rs
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -372,3 +378,30 @@ bvp_scores_proposed:
 ### 2026-10-20T19:51:28Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-10-20 — measured, built, wiring proposed [w-lite-dispatch]
+- **Measured (trivial job, haiku, from /opt/termlink):** full `claude -p` 15.6 s, 159,384 input tokens, $0.1488;
+  lite 5.0 s, 3,205 tokens, $0.0006 (~50× fewer tokens, ~230× cheaper). A real Grep job ran lite in 7.5 s,
+  $0.0003, correct answer. Details + re-measure commands: `docs/operations/lite-dispatch.md`.
+- **Built:** `crates/termlink-cli/src/commands/dispatch/lite.rs` (declared `pub(crate) mod lite;` in dispatch.rs):
+  `LiteJob` + `lite_worker_argv` (`--safe-mode --strict-mcp-config --disable-slash-commands
+  --no-session-persistence --system-prompt … --tools Read,Grep,Glob [--model] [--max-budget-usd]`),
+  `lite_worker_shell_line` (result.md / stderr.log / exit_code in the job dir, then `termlink emit
+  "$TERMLINK_WORKER_NAME" task.completed --payload {"result_path":…,"exit_code":N}`), and
+  `cmd_dispatch_lite`, which runs the job through the existing `cmd_dispatch` (count 1, tag `lite`).
+  9 unit tests incl. an end-to-end run of the shell line with a fake worker and a fake termlink.
+- **Not wired (outside this worker's area — proposal 1, cli.rs + main.rs):** add to `Command::Dispatch`
+  `--lite` (bool), `--prompt <TEXT>` (required with --lite, conflicts with the trailing command),
+  `--system-prompt`, `--tools <csv>` (default Read,Grep,Glob; `""` = none), `--max-budget-usd <f64>`,
+  `--out-dir <PATH>` (default `lite::default_job_dir()`); in main.rs, when `lite` is set call
+  `commands::dispatch::lite::cmd_dispatch_lite(LiteOpts { job: LiteJob { prompt, system_prompt, tools,
+  model, max_budget_usd, job_dir, worker_bin: "claude".into() }, timeout, backend, json_output: json })`
+  instead of `cmd_dispatch`. Then drop the module's `#![allow(dead_code)]`.
+- **Not edited (vendored — proposal 2, `.agentic-framework/agents/termlink/termlink.sh`, upstream per
+  G-062):** `fw termlink dispatch --lite` that writes a `lite` sentinel into the worker dir; in run.sh, when
+  present, add `--safe-mode --strict-mcp-config --disable-slash-commands --no-session-persistence
+  --system-prompt "<short>"` and default `TOOLS_FLAG` to `--tools Read,Grep,Glob`, refused for
+  `TASK_TYPE=review` (its own pinned start, T-3580). Equivalent once proposal 1 lands: delegate to
+  `termlink dispatch --lite`.
+- **Limit stated in the doc:** `--safe-mode` drops this project's hooks, so lite is for read-and-answer
+  jobs; anything that edits, commits or runs tests stays a full worker.
