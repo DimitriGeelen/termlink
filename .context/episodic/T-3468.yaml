@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3468: MCP server: report which identity fingerprint the running server signs with (832 request)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-20T09:41:26Z
+# ============================================================================
+
+task_id: T-3468
+task_name: "MCP server: report which identity fingerprint the running server signs with (832 request)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-18T19:33:18Z
+completed: 2026-10-20T09:40:53Z
+duration_days: 2
+updates_count: 2
+first_commit: 2026-10-20T11:19:54+02:00
+last_commit: 2026-10-20T11:40:51+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  scope and acceptance criteria (report the identity the running MCP server signs with, plus a mismatch flag). termlink_agent_identity reports the identity the running MCP server signs with (source, real path, matches_current_resolution). review fix — the session crate owns the identity precedence (resolve_signing_identity_path_and_source); the MCP report delegates to it instead of a copy
+
+# Key outcomes
+outcomes:
+  - '`termlink_agent_identity` (and the identity part of `termlink_whoami` if it has one) reports the fingerprint, public key, resolution source and real key path of the identity the server''s post path signs with'
+  - 'It also reports whether a fresh resolution right now gives the same fingerprint (`matches_current_resolution`), so a server started under an old env or a rotated key is visible'
+  - 'Unit test covers the fields and the mismatch case; `cargo test -p termlink-mcp` passes'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'review fix — the session crate owns the identity precedence (resolve_signing_identity_path_and_source); the MCP report delegates to it instead of a copy'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-mcp/src/tools.rs'
+  - 'crates/termlink-session/src/agent_identity.rs'
+  - '.tasks/active/T-3468-mcp-server-report-which-identity-fingerp.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-20T11:19:54'
+    action: 'T-3468: scope and acceptance criteria (report the identity the running MCP server signs with, plus a mismatch flag)'
+  - time: '2026-10-20T11:37:51'
+    action: 'T-3468: termlink_agent_identity reports the identity the running MCP server signs with (source, real path, matches_current_resolution)'
+  - time: '2026-10-20T11:40:51'
+    action: 'T-3468: review fix — the session crate owns the identity precedence (resolve_signing_identity_path_and_source); the MCP report delegates to it instead of a copy'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 2287 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 2287
+  commits: 3
+  files_changed: 3
+  lines_added: 261
+  lines_removed: 89
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3468-mcp-server-report-which-identity-fingerp.md
+generated_by: context-agent-hybrid
