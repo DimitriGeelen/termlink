@@ -11230,13 +11230,6 @@ pub struct DoctorParams {
     pub strict: Option<bool>,
 }
 
-// T-1712: pure rollup function for the strict verdict — testable without a
-// real environment. Mirrors `fail_count > 0 || (strict && warn_count > 0)`
-// exit gate in CLI infrastructure.rs.
-pub(crate) fn doctor_ok_rollup(fail_count: u32, warn_count: u32, strict: bool) -> bool {
-    !(fail_count > 0 || (strict && warn_count > 0))
-}
-
 // T-1713: auto-heal preview classifier helpers (G-057 punch-list #4).
 //
 // Three pure helpers replicate the CLI's auto-heal classification logic
@@ -13539,211 +13532,21 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_doctor",
-        description = "Run health checks on the TermLink environment. Returns a structured JSON report with pass/warn/fail status for: runtime directory, sessions directory, session liveness, hub status, orphaned sockets, dispatch manifest, and version. Use this to diagnose connectivity or infrastructure issues before attempting operations. Pass `strict: true` to elevate warnings into the `ok` rollup verdict (zero-tolerance gating)."
+        description = "Run health checks on the TermLink environment. Returns a structured JSON report `{ok, strict, checks[{check,status,message}], summary{pass,warn,fail}}` covering: runtime directory, sessions directory, session liveness, hub status, ufw rule vs. listener, orphaned sockets, dispatch manifest, inbox topics, client secret cache + self-hub profiles, shared identities, and version. The check list is the same code the CLI `termlink doctor --json` runs. Use this to diagnose connectivity or infrastructure issues before attempting operations. Pass `strict: true` to elevate warnings into the `ok` rollup verdict (zero-tolerance gating). Read-only: never applies `--fix` remediations.",
+        annotations(title = "TermLink doctor", read_only_hint = true)
     )]
     async fn termlink_doctor(&self, Parameters(p): Parameters<DoctorParams>) -> String {
-        use termlink_session::{discovery, liveness};
-
-        let mut checks: Vec<serde_json::Value> = Vec::new();
-        let mut pass_count = 0u32;
-        let mut warn_count = 0u32;
-        let mut fail_count = 0u32;
-
-        macro_rules! check {
-            ($name:expr, pass, $msg:expr) => {{
-                pass_count += 1;
-                checks.push(serde_json::json!({"check": $name, "status": "pass", "message": $msg}));
-            }};
-            ($name:expr, warn, $msg:expr) => {{
-                warn_count += 1;
-                checks.push(serde_json::json!({"check": $name, "status": "warn", "message": $msg}));
-            }};
-            ($name:expr, fail, $msg:expr) => {{
-                fail_count += 1;
-                checks.push(serde_json::json!({"check": $name, "status": "fail", "message": $msg}));
-            }};
-        }
-
-        // 1. Runtime directory
-        let runtime_dir = discovery::runtime_dir();
-        if runtime_dir.exists() {
-            check!("runtime_dir", pass, format!("{}", runtime_dir.display()));
-        } else {
-            check!("runtime_dir", fail, format!("{} does not exist", runtime_dir.display()));
-        }
-
-        // 2. Sessions directory
-        let sessions_dir = discovery::sessions_dir();
-        if sessions_dir.exists() {
-            check!("sessions_dir", pass, format!("{}", sessions_dir.display()));
-        } else {
-            check!("sessions_dir", warn, format!("{} does not exist (no sessions yet)", sessions_dir.display()));
-        }
-
-        // 3. Session health
-        let sessions = manager::list_sessions(true).unwrap_or_default();
-        let total = sessions.len();
-        let mut alive = 0u32;
-        let mut dead = 0u32;
-        let mut stale_names: Vec<String> = Vec::new();
-
-        for s in &sessions {
-            if liveness::process_exists(s.pid) {
-                match client::rpc_call(s.socket_path(), "termlink.ping", serde_json::json!({})).await {
-                    Ok(_) => alive += 1,
-                    Err(_) => {
-                        dead += 1;
-                        stale_names.push(s.display_name.clone());
-                    }
-                }
-            } else {
-                dead += 1;
-                stale_names.push(s.display_name.clone());
-            }
-        }
-
-        if total == 0 {
-            check!("sessions", pass, "no sessions registered");
-        } else if dead == 0 {
-            check!("sessions", pass, format!("{total} registered, all responding"));
-        } else {
-            check!("sessions", warn, format!("{total} registered, {alive} alive, {dead} dead/stale: {}", stale_names.join(", ")));
-        }
-
-        // 4. Hub status
-        let hub_socket = termlink_hub::server::hub_socket_path();
-        let pidfile_path = termlink_hub::pidfile::hub_pidfile_path();
-        let hub_secret_path = termlink_hub::server::hub_secret_path();
-        let hub_has_tcp = hub_secret_path.exists();
-        let transport = if hub_has_tcp { "unix+tcp" } else { "unix" };
-        match termlink_hub::pidfile::check(&pidfile_path) {
-            termlink_hub::pidfile::PidfileStatus::Running(pid) => {
-                match client::rpc_call(&hub_socket, "termlink.ping", serde_json::json!({})).await {
-                    Ok(_) => check!("hub", pass, format!("running (PID {pid}), responding, transport={transport}")),
-                    Err(_) => check!("hub", warn, format!("running (PID {pid}), but not responding (transport={transport})")),
-                }
-            }
-            termlink_hub::pidfile::PidfileStatus::Stale(pid) => {
-                check!("hub", warn, format!("stale pidfile (PID {pid} is dead)"));
-            }
-            termlink_hub::pidfile::PidfileStatus::NotRunning => {
-                check!("hub", pass, "not running (use termlink_hub_start with tcp_addr=\"0.0.0.0:9100\" for cross-host)");
-            }
-        }
-
-        // 5. Orphaned sockets
-        if sessions_dir.exists() {
-            let mut orphan_count = 0u32;
-            if let Ok(entries) = std::fs::read_dir(&sessions_dir) {
-                for entry in entries.flatten() {
-                    let path = entry.path();
-                    if let Some(ext) = path.extension()
-                        && ext == "sock" {
-                            let json_path = path.with_extension("json");
-                            if !json_path.exists() {
-                                orphan_count += 1;
-                            }
-                        }
-                }
-            }
-            if orphan_count > 0 {
-                check!("sockets", warn, format!("{orphan_count} orphaned socket(s)"));
-            } else {
-                check!("sockets", pass, "no orphaned sockets");
-            }
-        }
-
-        // 6. Dispatch manifest
-        {
-            let project_root = std::env::current_dir().unwrap_or_default();
-            let manifest_path = project_root.join(".termlink").join("dispatch-manifest.json");
-            if manifest_path.exists() {
-                match std::fs::read_to_string(&manifest_path) {
-                    Ok(content) => {
-                        if let Ok(manifest) = serde_json::from_str::<serde_json::Value>(&content) {
-                            let pending = manifest["dispatches"]
-                                .as_array()
-                                .map(|arr| {
-                                    arr.iter()
-                                        .filter(|d| d["status"].as_str() == Some("pending"))
-                                        .count()
-                                })
-                                .unwrap_or(0);
-                            let total = manifest["dispatches"]
-                                .as_array()
-                                .map(|a| a.len())
-                                .unwrap_or(0);
-                            if pending > 0 {
-                                check!("dispatch", warn, format!("{pending} pending dispatch(es) of {total} total"));
-                            } else {
-                                check!("dispatch", pass, format!("{total} dispatch(es), none pending"));
-                            }
-                        } else {
-                            check!("dispatch", warn, "dispatch manifest exists but failed to parse");
-                        }
-                    }
-                    Err(e) => {
-                        check!("dispatch", warn, format!("failed to read dispatch manifest: {e}"));
-                    }
-                }
-            } else {
-                check!("dispatch", pass, "no dispatch manifest");
-            }
-        }
-
-        // 6b. Identity attribution — T-1706 (parity with CLI doctor T-1705).
-        // Groups sessions by identity_fingerprint; warns when 2+ co-resident
-        // sessions share an FP (PL-166 / G-056 shared-host condition). MCP
-        // callers (LLM agents) now see the same hint as `termlink doctor`.
-        // Excludes pre-T-1436 sessions (no identity_fingerprint) from grouping.
-        {
-            use std::collections::BTreeMap;
-            let mut by_fp: BTreeMap<String, usize> = BTreeMap::new();
-            for s in &sessions {
-                if let Some(fp) = s.metadata.identity_fingerprint.as_deref() {
-                    *by_fp.entry(fp.to_string()).or_insert(0) += 1;
-                }
-            }
-            let shared: Vec<(&String, &usize)> =
-                by_fp.iter().filter(|(_, n)| **n >= 2).collect();
-            if shared.is_empty() {
-                let with_fp: usize = by_fp.values().sum();
-                check!("identity", pass, format!("no shared identities ({with_fp} session(s) with FP)"));
-            } else {
-                let total_shared: usize = shared.iter().map(|(_, n)| **n).sum();
-                let groups_desc: Vec<_> = shared.iter().map(|(fp, n)| {
-                    let short_fp = &fp[..8.min(fp.len())];
-                    format!("{}\u{00D7}{}", short_fp, n)
-                }).collect();
-                check!("identity", warn, format!(
-                    "{total_shared} sessions share {} identity FP [{}] — pass --identity-key at register for per-agent identity (T-1700)",
-                    shared.len(),
-                    groups_desc.join(", ")
-                ));
-            }
-        }
-
-        // 7. Version
-        let version = env!("CARGO_PKG_VERSION");
-        check!("version", pass, format!("termlink-mcp {version}"));
-
-        // T-1712: top-level `ok` rollup with strict semantics matching CLI
-        // `--strict` exit-code gate. The `strict` echo field tells the caller
-        // which mode was applied (helps when the param was defaulted).
-        let strict = p.strict.unwrap_or(false);
-        let ok = doctor_ok_rollup(fail_count, warn_count, strict);
-
-        let result = serde_json::json!({
-            "ok": ok,
-            "strict": strict,
-            "checks": checks,
-            "summary": {
-                "pass": pass_count,
-                "warn": warn_count,
-                "fail": fail_count,
-            }
-        });
-        serde_json::to_string_pretty(&result).unwrap_or_else(json_err)
+        // T-3214: one check list, shared with the CLI via the neutral
+        // `termlink-doctor` crate (operator ruling SQ-8, option 1b). MCP never
+        // passes `fix`: remediation stays an explicit operator CLI action.
+        let report = termlink_doctor::run_doctor(&termlink_doctor::DoctorOptions {
+            fix: false,
+            strict: p.strict.unwrap_or(false),
+            project_root: std::env::current_dir().unwrap_or_default(),
+            version_message: format!("termlink-mcp {}", env!("CARGO_PKG_VERSION")),
+        })
+        .await;
+        serde_json::to_string_pretty(&report.to_json()).unwrap_or_else(json_err)
     }
 
     #[tool(
@@ -46218,32 +46021,6 @@ not-json
         let json = serde_json::json!({"strict": true});
         let p: DoctorParams = serde_json::from_value(json).unwrap();
         assert_eq!(p.strict, Some(true));
-    }
-
-    #[test]
-    fn doctor_ok_rollup_clean_environment_is_ok() {
-        // No fails, no warns → ok regardless of strict.
-        assert!(doctor_ok_rollup(0, 0, false));
-        assert!(doctor_ok_rollup(0, 0, true));
-    }
-
-    #[test]
-    fn doctor_ok_rollup_fails_dominate_regardless_of_strict() {
-        // fail > 0 → never ok, regardless of strict or warns.
-        assert!(!doctor_ok_rollup(1, 0, false));
-        assert!(!doctor_ok_rollup(1, 0, true));
-        assert!(!doctor_ok_rollup(1, 5, false));
-        assert!(!doctor_ok_rollup(1, 5, true));
-    }
-
-    #[test]
-    fn doctor_ok_rollup_warn_only_strict_changes_verdict() {
-        // Non-strict + warns → still ok (matches CLI exit code 0).
-        assert!(doctor_ok_rollup(0, 1, false));
-        assert!(doctor_ok_rollup(0, 10, false));
-        // Strict + warns → not ok (matches CLI exit code 1).
-        assert!(!doctor_ok_rollup(0, 1, true));
-        assert!(!doctor_ok_rollup(0, 10, true));
     }
 
     // T-1694: ChannelPostParams metadata field — deserialization + JSON shape.

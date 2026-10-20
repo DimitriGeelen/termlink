@@ -136,7 +136,7 @@ with `strict` mirrored — it is the only one that cannot re-drift, and the CLI 
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] AC0 — The operator's ruling on SQ-8 (option 1 / 2 / 3 above, and `strict` mirrored vs
+- [x] AC0 — The operator's ruling on SQ-8 (option 1 / 2 / 3 above, and `strict` mirrored vs
       dropped) is recorded in `## Decisions
 
 ### 2026-10-01 — SQ-8 RULED by the operator: option 1b
@@ -145,18 +145,18 @@ with `strict` mirrored — it is the only one that cannot re-drift, and the CLI 
 - **Scoring** (joint value drivers): 1 = +46, 2 = +9, 3 = −20; steelman/strawman given in the session dialogue 2026-10-01.
 ` BEFORE any source edit. Producer-not-judge: the agent
       that wrote the options does not pick one.
-- [ ] AC1 — After the ruling: `termlink_doctor` (MCP) and `termlink doctor --json` (CLI) emit the
+- [x] AC1 — After the ruling: `termlink_doctor` (MCP) and `termlink doctor --json` (CLI) emit the
       SAME check list — same `check` names in the same order, same `status` per check — against an
       empty runtime dir, and the same `ok` verdict under `strict` with warnings present.
-- [ ] AC2 — `parity_doctor` (T-2991 PAIR 33) carries no `#[ignore]` and passes; the two MCP
+- [x] AC2 — `parity_doctor` (T-2991 PAIR 33) carries no `#[ignore]` and passes; the two MCP
       integration tests (`test_doctor_empty_env`, `test_doctor_with_sessions`) still pass
       in-process.
-- [ ] AC3 — Whichever option lands, no NEW copy of a hubs.toml parser or dispatch-manifest parser
+- [x] AC3 — Whichever option lands, no NEW copy of a hubs.toml parser or dispatch-manifest parser
       exists in `tools.rs` (grep for a second `fn load_hubs_config` / `DispatchManifest` impl is
       empty), and `bash scripts/check-drain-sink-caps.sh` + `bash scripts/check-platform-lock.sh`
       scan clean (option 2 adds an `.output()` site → allowlist entry with reason; the `ufw`/`ss`
       spawns must not be re-introduced in the MCP crate un-acknowledged).
-- [ ] AC4 — RCA + Evolution filled (root cause: two hand-maintained check lists; prevention: one
+- [x] AC4 — RCA + Evolution filled (root cause: two hand-maintained check lists; prevention: one
       list, or a live parity pair that fails CI on the next divergence).
 
 ### Human
@@ -281,6 +281,17 @@ with `strict` mirrored — it is the only one that cannot re-drift, and the CLI 
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+cargo build -p termlink-doctor -p termlink-mcp -p termlink > /tmp/.t3214-build 2>&1
+cargo test -p termlink-doctor > /tmp/.t3214-d 2>&1 && grep -q "test result: ok" /tmp/.t3214-d
+cargo test -p termlink-mcp --test mcp_integration test_doctor > /tmp/.t3214-i 2>&1 && grep -q "3 passed" /tmp/.t3214-i
+cargo test -p termlink-mcp --test parity parity_doctor > /tmp/.t3214-p 2>&1 && grep -q "2 passed" /tmp/.t3214-p
+cargo test -p termlink --bin termlink > /tmp/.t3214-c 2>&1 && grep -q "test result: ok" /tmp/.t3214-c
+test -f crates/termlink-mcp/tests/parity.rs && ! grep -q 'ignore = "T-3214' crates/termlink-mcp/tests/parity.rs
+test -f crates/termlink-mcp/src/tools.rs && ! grep -qE "fn load_hubs_config|impl DispatchManifest|struct DispatchManifest" crates/termlink-mcp/src/tools.rs
+grep -q "termlink_doctor::run_doctor" crates/termlink-mcp/src/tools.rs && grep -q "termlink_doctor::run_doctor" crates/termlink-cli/src/commands/infrastructure.rs
+bash scripts/check-drain-sink-caps.sh --no-heartbeat
+bash scripts/check-platform-lock.sh
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -296,6 +307,14 @@ with `strict` mirrored — it is the only one that cannot re-drift, and the CLI 
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
+
+**Symptom:** MCP `termlink_doctor` lacked `ufw_listener`, `inbox`, `secret_cache` and `secret_cache_profiles`. It alone echoed `strict`, and the two `ok` verdicts disagreed under strict. An agent reading MCP doctor could not see secret-cache drift or a firewall rule with no listener.
+
+**Root cause:** two hand-maintained check lists. `cmd_doctor` (CLI) and `termlink_doctor` (MCP) were written as parallel copies (the T-1706/T-1712 "G-057 parallel-implementation" pattern). Every check added to the CLI afterwards (T-934, T-1001/T-1415, T-1171, T-1284) landed in one copy only. The helpers those checks need (`audit_secret_cache`, the hubs.toml loader, `DispatchManifest`) lived in the CLI crate, which depends on `termlink-mcp` and not the reverse. So porting a check meant duplicating a parser, and nobody did.
+
+**Why structurally allowed:** nothing compared the two lists. `parity_doctor` (T-2991) found the drift on its first run but was `#[ignore]`d pending this task, so CI stayed green.
+
+**Prevention:** one list. `crates/termlink-doctor::run_doctor` is the only place a check exists, and both surfaces call it. A check added there appears on both, and one added anywhere else is a visible second implementation. `parity_doctor` (un-ignored) and the new `parity_doctor_strict_with_warning` fail CI if the presentation layer diverges (envelope keys, `ok`, `strict`, CLI exit code vs `ok`). The platform-lock and drain-sink scanners now include the new crate, so the moved `ufw`/`ss` spawns are scanned and acknowledged rather than silently out of scope.
 
 ## Evolution
 
@@ -320,6 +339,12 @@ with `strict` mirrored — it is the only one that cannot re-drift, and the CLI 
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-10-20 — what "move the checks down" actually had to move
+- **What changed:** the checks were never the hard part. Their data sources were: the hubs.toml model and loader (`config.rs`), and the dispatch-manifest data model (`manifest.rs`). Both moved into `termlink-doctor` as `hubs_config` and `manifest`. The CLI re-exports them, so its ~112 `crate::config::` / `crate::manifest::` call sites and their tests are unchanged. Strict loader, save, profile resolution and git-worktree operations stay in the CLI. `resolve_hub_paths` (T-3340) moved too, because the MCP doctor needs the same `/var/lib/termlink` fallback the CLI uses.
+- **Plan impact:** the two scanners' default roots did not include the new crate. Moving the `ufw`/`ss` spawns out of the CLI made `check-platform-lock` report clean with 10 sites scanned instead of 12: green because it had stopped looking. Both scanners now list `crates/termlink-doctor/src`, the spawns are acknowledged at their new signature, and the stale CLI platform-lock entries are gone.
+- **Plan impact:** text-mode follow-up lines (stale names, `--fix` outcomes, hints) became `Check::notes`, which only the CLI renders, so `--fix` behaviour and wording are preserved. The CLI now prints its lines after collection rather than while each check runs; the content is the same.
+- **Triggered:** fabric cards for the three new files were not created, because `fw fabric register` refuses: no `.fabric/subsystems.yaml` rule matches `crates/termlink-doctor/`. That needs a subsystem entry, which I left for a follow-up because other workers share `.fabric/`.
 
 ## Recommendation
 
@@ -361,6 +386,12 @@ with `strict` mirrored — it is the only one that cannot re-drift, and the CLI 
      - **Rejected:** [alternatives and why not]
 -->
 
+### 2026-10-01 — SQ-8 RULED by the operator: option 1b
+- (Copied here from AC0, where the ruling text was recorded inline.) **Chose:** a neutral `termlink-doctor` crate both the CLI and `termlink-mcp` depend on. Mirror `strict` into the CLI envelope and make the CLI's `ok` honour it. Annotate `termlink_doctor` with `readOnlyHint: true` and a `title`. **Rejected:** checks inside `termlink-mcp`; a subprocess; duplicated helpers.
+
+### 2026-10-20 — MCP never applies `--fix`
+- **Chose:** `run_doctor` takes `fix`, and MCP always passes `false`. **Why:** the read-only annotation must be true, and remediation stays an explicit operator CLI action. **Rejected:** a `fix` MCP param, which would make the tool destructive and contradict the ruled annotation.
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
@@ -380,3 +411,11 @@ with `strict` mirrored — it is the only one that cannot re-drift, and the CLI 
 
 ### 2026-10-01T15:49:18Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-10-20 — option 1b landed [agent w-mcp]
+- **New crate `crates/termlink-doctor`:** `run_doctor(&DoctorOptions) -> DoctorReport` is the one check list: runtime_dir, sessions_dir, sessions, hub, ufw_listener, sockets, dispatch, inbox, secret_cache, secret_cache_profiles, identity, version. `DoctorReport::to_json()` gives `{ok, strict, checks, summary}`, and `ok()` = no fails and, under strict, no warns. Moved in with it: `hubs_config` (HubsConfig/HubEntry, config-dir resolver, read-only loader), `manifest` (DispatchManifest data model + rfc3339 helpers), `resolve_hub_paths(_in)`, and the secret-cache / identity / inbox helpers. The CLI re-exports all of them, so existing call sites and tests are unchanged.
+- **CLI:** `cmd_doctor` only renders: text lines plus `Check::notes`, or JSON. Exit code is `!report.ok()`, so the envelope now carries `strict` and its `ok` agrees with the exit code.
+- **MCP:** `termlink_doctor` calls `run_doctor` with `fix: false` and is annotated `title = "TermLink doctor"`, `read_only_hint = true`. The local `doctor_ok_rollup` and its 3 tests moved to the doctor crate as `DoctorReport::ok` tests.
+- **Tests:** `parity_doctor` un-ignored and passing. New `parity_doctor_strict_with_warning` (orphaned `.sock` → warn, both `ok:false`, CLI echoes `strict`, CLI exit 1). New `test_doctor_annotated_read_only`. `test_doctor_empty_env` now also asserts the secret-cache checks and `strict`. Both doctor integration tests run under a temp HOME (`TempHome` guard), so the shared checks never read the real `~/.termlink`. Results: doctor 4/4; MCP lib 941, integration 101, parity 39 (0 ignored); CLI bin 1220.
+- **Static checks:** `check-platform-lock.sh` and `check-drain-sink-caps.sh` default roots now include `crates/termlink-doctor/src`. The `ufw`/`ss` spawns are acknowledged at their new signature `lib.rs::ufw_listener_check` (stale CLI platform-lock entries removed). Both scan clean: 12 and 8 sites. Their fixture suites pass (26/26, 6/6). alloc-sink, silent-exit, busy-spin, version-derivation, parity-census and error-code-emission all clean.
+- **Not done:** no fabric cards for the new crate's files. `fw fabric register` refuses until `.fabric/subsystems.yaml` has a rule for `crates/termlink-doctor/` (see Evolution).

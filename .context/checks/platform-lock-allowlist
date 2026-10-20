@@ -44,8 +44,8 @@
 # block is skipped entirely, and the `ss -tln` call inside it is never reached. The
 # enclosing comment already documents this as best-effort: "ufw unavailable or
 # unreadable is a skipped check, not a warning".
-crates/termlink-cli/src/commands/infrastructure.rs::cmd_doctor::cmd:ufw  # Ok+success gate; absent ufw skips the whole block (best-effort by design)
-crates/termlink-cli/src/commands/infrastructure.rs::cmd_doctor::cmd:ss   # nested inside the ufw-success block above; unreachable without ufw
+crates/termlink-doctor/src/lib.rs::ufw_listener_check::cmd:ufw  # T-3214 (moved from CLI cmd_doctor): Ok+success gate; absent ufw skips the whole check (best-effort by design), on every surface (CLI + MCP)
+crates/termlink-doctor/src/lib.rs::ufw_listener_check::cmd:ss   # T-3214: reached only after ufw succeeded AND named a termlink rule; unreachable without ufw
 
 # ── /proc reads: guarded by a runtime probe that names the limitation (T-2691) ────
 # Both sites are the PID-ancestor walk behind `whoami`. They still read /proc — that

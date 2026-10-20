@@ -1661,17 +1661,12 @@ async fn parity_help() {
 // `message` is stripped and the check LIST is compared by (check, status)
 // with the summary counts by value.
 //
-// DIVERGENCE FOUND on first run and RE-CONFIRMED against a fresh release build
-// (recorded, not patched): against an empty runtime dir + empty HOME the CLI
-// emits 10 checks (`runtime_dir sessions_dir sessions hub ufw_listener dispatch
-// secret_cache secret_cache_profiles identity version`) and MCP emits 8
-// (`runtime_dir sessions_dir sessions hub sockets dispatch identity version`):
-// MCP lacks `ufw_listener` / `secret_cache` / `secret_cache_profiles`, the CLI
-// lacks `sockets`, and MCP carries a top-level `strict` key the CLI does not
-// echo. An agent reading MCP doctor cannot see secret-cache drift the
-// operator's CLI would show. Owned by T-3214; un-ignore when it lands.
+// History: on first run the two surfaces diverged (CLI 10 checks, MCP 8; MCP
+// lacked ufw_listener / secret_cache / secret_cache_profiles and alone echoed
+// `strict`). T-3214 moved the check list into the neutral `termlink-doctor`
+// crate that both call, so the lists cannot drift apart again; this pair now
+// guards the presentation layer (envelope shape, `ok`, `strict`).
 #[tokio::test]
-#[ignore = "T-3214 drift: MCP termlink_doctor lacks ufw_listener/secret_cache/secret_cache_profiles, CLI lacks sockets, MCP adds `strict` — un-ignore when T-3214 lands"]
 async fn parity_doctor() {
     let _lock = ENV_LOCK.lock().await;
     let dir = TestDir::new("parity-doctor");
@@ -1697,6 +1692,42 @@ async fn parity_doctor() {
 
     let ignore: HashSet<&'static str> = ["message", "ts_ms", "pid"].into_iter().collect();
     diff_json("doctor", &mcp_json, &cli_json, &ignore).expect("doctor parity");
+}
+
+// PAIR 33b (T-3214 AC1): under strict with a warning present, both surfaces
+// report the same `ok` (false), echo `strict: true`, and the CLI's exit code
+// agrees with its own envelope. An orphaned `.sock` (no registration JSON)
+// produces the `sockets` warning without needing a live session.
+#[tokio::test]
+async fn parity_doctor_strict_with_warning() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("parity-doctor-strict");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+    unsafe { std::env::set_var("HOME", &dir.path) };
+    std::fs::write(dir.sessions_dir().join("orphan.sock"), b"").unwrap();
+
+    let client = mcp_client().await;
+    let mcp_raw = call_mcp(&client, "termlink_doctor", json!({"strict": true})).await;
+    let mcp_json: Value = serde_json::from_str(&mcp_raw)
+        .unwrap_or_else(|e| panic!("MCP doctor response not JSON: {e}\nraw: {mcp_raw}"));
+
+    let bin = find_termlink_bin_fresh().expect("find termlink binary (fresh)");
+    let mut cmd = termlink_cmd(&bin, &dir.path);
+    cmd.env("HOME", &dir.path);
+    cmd.args(["doctor", "--json", "--strict"]);
+    let output = cmd.output().expect("CLI doctor --json --strict");
+    let cli_json: Value = serde_json::from_slice(&output.stdout)
+        .unwrap_or_else(|e| panic!("CLI doctor response not JSON: {e}\nstdout: {}\nstderr: {}",
+            String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr)));
+
+    assert!(mcp_json["summary"]["warn"].as_u64().unwrap() > 0, "fixture produced no warning: {mcp_json}");
+    assert_eq!(mcp_json["ok"], false, "MCP strict+warn must not be ok: {mcp_json}");
+    assert_eq!(cli_json["ok"], false, "CLI strict+warn must not be ok: {cli_json}");
+    assert_eq!(cli_json["strict"], true, "CLI must echo strict: {cli_json}");
+    assert_eq!(output.status.code(), Some(1), "CLI exit must agree with ok=false");
+
+    let ignore: HashSet<&'static str> = ["message", "ts_ms", "pid"].into_iter().collect();
+    diff_json("doctor_strict", &mcp_json, &cli_json, &ignore).expect("doctor strict parity");
 }
 
 // ---------------------------------------------------------------------------

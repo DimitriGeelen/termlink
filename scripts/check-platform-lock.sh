@@ -108,6 +108,7 @@ if [ "${#ROOTS[@]}" -eq 0 ]; then
         crates/termlink-hub/src
         crates/termlink-bus/src
         crates/termlink-protocol/src
+        crates/termlink-doctor/src
     )
 fi
 [ -n "$ALLOWLIST" ] || ALLOWLIST="${PLATFORM_LOCK_ALLOWLIST:-$(_default_allowlist)}"

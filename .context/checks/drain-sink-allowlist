@@ -40,3 +40,10 @@ crates/termlink-mcp/src/tools.rs::termlink_fleet_reauth::output
 # separate portability question of those scripts being absent from consumer
 # installs — that is a packaging gap, not an unbounded-drain one.
 crates/termlink-mcp/src/tools.rs::run_t1836_subprocess::output
+
+# T-3214: the doctor's ufw-vs-listener check moved from the CLI (not a drain-sink
+# root) into the neutral termlink-doctor crate, which the long-lived MCP server
+# now runs. Both `.output()` calls are fixed trusted argv (`ufw status`, `ss -tln`)
+# with no peer-influenced input; output is a local firewall/socket table, bounded
+# by host configuration, not by peer bytes. INTERNAL by the T-2529 threat model.
+crates/termlink-doctor/src/lib.rs::ufw_listener_check::output

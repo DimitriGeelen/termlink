@@ -1,0 +1,18 @@
+[package]
+name = "termlink-doctor"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "TermLink doctor — the one environment health-check list shared by the CLI and the MCP server"
+
+[dependencies]
+termlink-session = { workspace = true }
+termlink-hub = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+libc = { workspace = true }
+toml = "0.8"

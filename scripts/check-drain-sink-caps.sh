@@ -48,7 +48,7 @@
 #     --json          emit {ok, firing:[{file,line,fn,sink}], checked, candidates}
 #     --quiet         print only on firing (cron mode); clean prints nothing
 #     --no-heartbeat  skip the heartbeat touch (meta-canary invokes with this)
-#     --root <dir>    override scan roots (repeatable; default = the 5 daemon crates)
+#     --root <dir>    override scan roots (repeatable; default = the 5 daemon crates + termlink-doctor, T-3214)
 #     --allowlist <f> override allowlist path (fixtures point this at a scratch file)
 #
 # Origin: T-2531 (this build). Sibling of scripts/check-alloc-sink-clamps.sh (T-2527) and
@@ -85,7 +85,7 @@ command -v grep >/dev/null 2>&1 || { echo "check-drain-sink: grep not found (req
 
 if [ "${#ROOTS[@]}" -eq 0 ]; then
     ROOTS=(crates/termlink-mcp/src crates/termlink-hub/src crates/termlink-session/src \
-           crates/termlink-bus/src crates/termlink-protocol/src)
+           crates/termlink-bus/src crates/termlink-protocol/src crates/termlink-doctor/src)
 fi
 for r in "${ROOTS[@]}"; do
     [ -e "$r" ] || { echo "check-drain-sink: scan root not found: $r" >&2; exit 2; }

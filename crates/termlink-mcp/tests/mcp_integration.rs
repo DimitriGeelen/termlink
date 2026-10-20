@@ -18,6 +18,33 @@ static ENV_LOCK: Mutex<()> = Mutex::const_new(());
 
 type McpClient = rmcp::service::RunningService<RoleClient, ()>;
 
+/// Points HOME at a temp dir for the guard's lifetime, then restores it. Use
+/// only while holding `ENV_LOCK`.
+struct TempHome {
+    _dir: TestDir,
+    old: Option<std::ffi::OsString>,
+}
+
+impl TempHome {
+    fn new(tag: &str) -> Self {
+        let dir = TestDir::new(tag);
+        let old = std::env::var_os("HOME");
+        unsafe { std::env::set_var("HOME", &dir.path) };
+        TempHome { _dir: dir, old }
+    }
+}
+
+impl Drop for TempHome {
+    fn drop(&mut self) {
+        unsafe {
+            match self.old.take() {
+                Some(h) => std::env::set_var("HOME", h),
+                None => std::env::remove_var("HOME"),
+            }
+        }
+    }
+}
+
 /// Helper: create MCP client connected to TermLinkTools server in-process.
 async fn mcp_client() -> McpClient {
     let (server_transport, client_transport) = tokio::io::duplex(65536);
@@ -775,6 +802,9 @@ async fn test_doctor_empty_env() {
     let _lock = ENV_LOCK.lock().await;
     let dir = TestDir::new("mcp-doctor-empty");
     unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+    // T-3214: the shared doctor reads ~/.termlink (secrets, hubs.toml); keep it
+    // off the real one.
+    let _home = TempHome::new("mcp-doctor-empty-home");
 
     let client = mcp_client().await;
     let result = call(&client, "termlink_doctor", json!({})).await;
@@ -791,6 +821,37 @@ async fn test_doctor_empty_env() {
         + parsed["summary"]["fail"].as_u64().unwrap_or(0);
     assert!(total >= 4, "expected at least 4 checks, got {total}");
 
+    // T-3214: the shared check list includes the four checks MCP used to lack
+    // (ufw_listener / inbox are conditional on host state; the two secret-cache
+    // checks always run) and the envelope echoes `strict` like the CLI's.
+    let names: Vec<&str> = parsed["checks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|c| c["check"].as_str())
+        .collect();
+    for expected in ["secret_cache", "secret_cache_profiles", "identity", "version"] {
+        assert!(names.contains(&expected), "missing {expected} in {names:?}");
+    }
+    assert_eq!(parsed["strict"], false);
+
+    client.cancel().await.unwrap();
+}
+
+/// T-3214 (SQ-8 ruling): `termlink_doctor` advertises itself read-only.
+#[tokio::test]
+async fn test_doctor_annotated_read_only() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("mcp-doctor-annot");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let client = mcp_client().await;
+    let tools = client.list_all_tools().await.unwrap();
+    let doctor = tools.iter().find(|t| t.name == "termlink_doctor").expect("doctor tool");
+    let ann = doctor.annotations.as_ref().expect("doctor annotations");
+    assert_eq!(ann.read_only_hint, Some(true));
+    assert_eq!(ann.title.as_deref(), Some("TermLink doctor"));
+
     client.cancel().await.unwrap();
 }
 
@@ -799,6 +860,9 @@ async fn test_doctor_with_sessions() {
     let _lock = ENV_LOCK.lock().await;
     let dir = TestDir::new("mcp-doctor-sessions");
     unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+    // T-3214: the shared doctor reads ~/.termlink (secrets, hubs.toml); keep it
+    // off the real one.
+    let _home = TempHome::new("mcp-doctor-sessions-home");
 
     let (_h, _reg) = start_session(&dir.sessions_dir(), "doctor-test", vec!["worker".into()]).await;
 

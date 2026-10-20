@@ -5,6 +5,7 @@ members = [
     "crates/termlink-session",
     "crates/termlink-hub",
     "crates/termlink-mcp",
+    "crates/termlink-doctor",
     "crates/termlink-cli",
     "crates/termlink-test-utils",
     "crates/termlink-bus",
@@ -88,6 +89,7 @@ termlink-protocol = { path = "crates/termlink-protocol" }
 termlink-session = { path = "crates/termlink-session" }
 termlink-hub = { path = "crates/termlink-hub" }
 termlink-mcp = { path = "crates/termlink-mcp" }
+termlink-doctor = { path = "crates/termlink-doctor" }
 termlink-test-utils = { path = "crates/termlink-test-utils" }
 termlink-bus = { path = "crates/termlink-bus" }
 

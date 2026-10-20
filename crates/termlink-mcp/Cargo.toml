@@ -30,6 +30,7 @@ regex = { workspace = true }
 termlink-protocol = { workspace = true }
 termlink-session = { workspace = true }
 termlink-hub = { workspace = true }
+termlink-doctor = { workspace = true }
 
 [dev-dependencies]
 rmcp = { version = "~1.3", features = ["client", "server", "transport-io", "macros", "transport-async-rw"] }
