@@ -3,7 +3,8 @@
 # Sourced by scripts (and embedded verbatim into fleet-deploy-binary.sh's remote
 # runner). Defines one function:
 #
-#   hub_termlink_env <pid>  reads /proc/<pid>/environ and sets two arrays:
+#   hub_termlink_env <pid> [environ-file]  reads /proc/<pid>/environ (or, T-3499, a
+#     NUL-separated snapshot file taken before the hub was stopped) and sets two arrays:
 #     HUB_TL_ENV    every TERMLINK_<NAME>=<value> entry of the hub, verbatim
 #     HUB_ENV_ARGS  arguments for env(1): "-u <var>" for each TERMLINK_* var of
 #                   the CALLER (so the exec session's own settings never leak
@@ -21,11 +22,11 @@
 #
 # Seam (fixtures only): HUB_PROC_ROOT (default /proc) — a fake /proc tree.
 hub_termlink_env() {
-    local pid="$1" env kv v
+    local pid="$1" env="${2:-}" kv v
     local -a all=()
     HUB_TL_ENV=(); HUB_ENV_ARGS=()
-    env="${HUB_PROC_ROOT:-/proc}/$pid/environ"
-    if [ -z "$pid" ] || [ ! -f "$env" ] || ! mapfile -d '' all < "$env" 2>/dev/null; then
+    [ -n "$env" ] || env="${HUB_PROC_ROOT:-/proc}/$pid/environ"
+    if { [ -z "$pid" ] && [ -z "${2:-}" ]; } || [ ! -f "$env" ] || ! mapfile -d '' all < "$env" 2>/dev/null; then
         echo "hub_termlink_env: cannot read $env" >&2; return 1
     fi
     for kv in "${all[@]}"; do

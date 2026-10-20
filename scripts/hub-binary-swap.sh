@@ -78,6 +78,12 @@ done
 
 [ -z "$HUB" ] && { echo "ERROR: HUB required (see --help)" >&2; exit 1; }
 
+# T-3499: relaunch carries the hub's TERMLINK_* environment (T-3497 reader) and
+# its arguments as an argv, not a pasted string.
+# shellcheck disable=SC1091
+. "$(dirname "${BASH_SOURCE[0]}")/lib/hub-swap-remote.sh"
+SWAP_TMP=$(mktemp -d); trap 'rm -rf "$SWAP_TMP"' EXIT
+
 # --- Resolve secret + session -----------------------------------------------
 SECRET_FILE=""
 if grep -q "^\[hubs\.${HUB}\]" "$HOME/.termlink/hubs.toml" 2>/dev/null; then
@@ -107,6 +113,9 @@ sys.stderr.write(d.get("stderr",""))
 sys.exit(d.get("exit_code", 0) or 0)
 '
 }
+
+# run_remote_script FILE: send a bash script to the host as base64 (it uses arrays).
+run_remote_script() { run_remote "printf %s '$(base64 -w0 "$1")' | base64 -d | bash -s"; }
 
 echo ">>> hub-binary-swap on $HUB (session=$SESSION)"
 echo ">>> staged binary: $STAGED_PATH"
@@ -149,6 +158,15 @@ SECRET_SHA=$(parse_kv      "$PRE_STATE" SECRET_SHA)
 CERT_SHA=$(parse_kv        "$PRE_STATE" CERT_SHA)
 UNIT_PRESENT=$(parse_kv    "$PRE_STATE" UNIT_PRESENT)
 
+# T-3499: capture the hub's TERMLINK_* environment + argv before anything stops.
+# Fail-closed: an unreadable environment aborts here (set -e), nothing has moved.
+write_swap_probe "$SWAP_TMP/probe.sh"
+PROBE=$(run_remote_script "$SWAP_TMP/probe.sh") || { echo "ABORT: cannot capture the running hub's environment; refusing to swap (T-3499)" >&2; exit 2; }
+HUB_ENV_B64=$(parse_kv  "$PROBE" HUB_ENV_B64)
+HUB_ARGV_B64=$(parse_kv "$PROBE" HUB_ARGV_B64)
+HUB_PID=$(parse_kv      "$PROBE" HUB_PID)
+[ -n "$HUB_ARGV_B64" ] && [ -n "$HUB_PID" ] || { echo "ABORT: environment probe returned no data; refusing to swap (T-3499)" >&2; exit 2; }
+
 # --- G-070 guard: never create a detached hub on a systemd-supervised host ---
 # T-2360. Origin: T-2351 relaunched the .107 hub via setsid-nohup while
 # termlink-hub.service supervised it — the unit crash-looped 2178 times against
@@ -186,8 +204,8 @@ if [ "$DRY_RUN" = "1" ]; then
   echo "  1. cp /usr/local/bin/termlink /usr/local/bin/termlink.bak"
   echo "  2. mv $STAGED_PATH /usr/local/bin/termlink"
   echo "  3. kill $HUB_PID"
-  echo "  4. wait for hub to exit, then relaunch with TERMLINK_RUNTIME_DIR=$HUB_RUNTIME_DIR"
-  echo "     and original args (from cmdline)"
+  echo "  4. wait for hub to exit, then relaunch with the hub's own TERMLINK_* environment"
+  echo "     (read from /proc/$HUB_PID/environ) and its original argv"
   echo "  5. verify hub up + secret/cert SHAs unchanged"
   echo "     pre-secret=$SECRET_SHA"
   echo "     pre-cert=$CERT_SHA"
@@ -197,45 +215,8 @@ fi
 # --- Swap -------------------------------------------------------------------
 echo ">>> performing swap (atomic mv) + relaunch"
 
-# Extract args after "termlink hub start" from the cmdline
-HUB_ARGS=$(echo "$HUB_CMDLINE" | sed 's|^.*termlink hub start ||; s| *$||')
-
-SWAP_RESULT=$(run_remote "
-set -e
-cp /usr/local/bin/termlink /usr/local/bin/termlink.bak
-mv '$STAGED_PATH' /usr/local/bin/termlink
-chmod +x /usr/local/bin/termlink
-
-# Kill the running hub (and wait for socket release)
-kill $HUB_PID 2>/dev/null || true
-for i in 1 2 3 4 5; do
-  if ! pgrep -f '[t]ermlink hub start' >/dev/null; then break; fi
-  sleep 1
-done
-if pgrep -f '[t]ermlink hub start' >/dev/null; then
-  echo 'ERR: hub did not exit within 5s' >&2
-  exit 1
-fi
-
-# Relaunch with same env + args, detached (nohup + setsid + redirect to /dev/null)
-TERMLINK_RUNTIME_DIR='$HUB_RUNTIME_DIR' setsid nohup /usr/local/bin/termlink hub start $HUB_ARGS </dev/null >>/var/log/termlink-hub.log 2>&1 &
-disown
-sleep 1
-
-# Wait up to 10s for the socket to come back
-for i in 1 2 3 4 5 6 7 8 9 10; do
-  if pgrep -f '[t]ermlink hub start' >/dev/null && ss -tlnp 2>/dev/null | grep -q ':9100'; then
-    UP=1
-    break
-  fi
-  sleep 1
-done
-echo \"HUB_UP=\${UP:-0}\"
-echo \"HUB_PID_NEW=\$(pgrep -f '[t]ermlink hub start' | head -1)\"
-echo \"POST_SECRET_SHA=\$(sha256sum /var/lib/termlink/hub.secret | awk '{print \$1}')\"
-echo \"POST_CERT_SHA=\$(sha256sum /var/lib/termlink/hub.cert.pem | awk '{print \$1}')\"
-echo \"POST_BIN_VERSION=\$(/usr/local/bin/termlink --version)\"
-")
+write_swap_relaunch "$SWAP_TMP/swap.sh" swap "$STAGED_PATH" "$HUB_PID" "$HUB_ENV_B64" "$HUB_ARGV_B64"
+SWAP_RESULT=$(run_remote_script "$SWAP_TMP/swap.sh")
 
 echo "$SWAP_RESULT" | sed 's/^/  /'
 HUB_UP=$(parse_kv          "$SWAP_RESULT" HUB_UP)
@@ -294,17 +275,7 @@ fi
 
 # --- Rollback ---------------------------------------------------------------
 echo ">>> ROLLBACK initiated"
-ROLLBACK_RESULT=$(run_remote "
-set -e
-test -f /usr/local/bin/termlink.bak || { echo 'ERR: backup missing — manual recovery required' >&2; exit 1; }
-pkill -f '[t]ermlink hub start' 2>/dev/null || true
-sleep 2
-mv /usr/local/bin/termlink.bak /usr/local/bin/termlink
-TERMLINK_RUNTIME_DIR='$HUB_RUNTIME_DIR' setsid nohup /usr/local/bin/termlink hub start $HUB_ARGS </dev/null >>/var/log/termlink-hub.log 2>&1 &
-disown
-sleep 2
-echo 'ROLLBACK_VERSION='\$(/usr/local/bin/termlink --version)
-echo 'ROLLBACK_HUB_UP='\$(pgrep -f '[t]ermlink hub start' | head -1)
-") || { echo "FATAL: rollback itself failed — operator intervention required"; exit 5; }
+write_swap_relaunch "$SWAP_TMP/rollback.sh" rollback "$STAGED_PATH" "$HUB_PID" "$HUB_ENV_B64" "$HUB_ARGV_B64"
+ROLLBACK_RESULT=$(run_remote_script "$SWAP_TMP/rollback.sh") || { echo "FATAL: rollback itself failed — operator intervention required"; exit 5; }
 echo "$ROLLBACK_RESULT" | sed 's/^/  /'
 exit 4
