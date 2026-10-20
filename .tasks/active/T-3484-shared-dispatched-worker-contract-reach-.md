@@ -41,7 +41,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-19T22:03:42Z
-last_update: 2026-10-20T08:11:30Z
+last_update: 2026-10-20T09:30:10Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -134,6 +134,12 @@ Replies so far:
    grace 120 s, answer TTL 10 min, retention 30/180 days, shadow switch after >= 50 dispatches
    over >= 7 days; (4) does ring20 need its own reconciler; (5) local fallback during a hub
    outage out of scope for v0.1.
+6. AEF (msg 9d174c4a): agrees to an explicit (dispatch_id, attempt) binding field at spawn,
+   returned by discover, instead of a naming convention, and to measured restart/outage figures
+   instead of the unsourced numbers; both fold into v0.2 after our review.
+7. ring20 (msg c5d728d9, their T-2249): no separate reconciler; their supervisor reconciles its
+   own commission ledger; for container workers they would adopt the AEF transition table and
+   conformance cases rather than run a second one, and will check v0.1 against their ledger.
 5. ring20 (msg 8be20b13): operator decision and the T-3477 answer both expected from their next
    session, starting today.
 
