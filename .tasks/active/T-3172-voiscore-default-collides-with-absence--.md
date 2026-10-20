@@ -15,7 +15,7 @@ description: >
   and the local half is measurement plus a filing. Same collision reportedly applies
   to target_blast_radius: 3.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -33,7 +33,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-26T18:15:46Z
-last_update: '2026-09-27T21:34:09Z'
+last_update: 2026-10-20T18:05:28Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -54,6 +54,20 @@ cost_estimate_proposed:
       effort: 8
     rationale: blast_radius=1 (1-file-ref-derived-T-3189); tier=2 
       (workflow:build); effort=8 (lines=261,acs=4)
+    rubric_sha: e4a00f38e801
+bvp_scores_proposed:
+  - ts: '2026-10-20T18:05:29Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
 ---
 
@@ -96,8 +110,9 @@ layer down and is discarded at precisely the point a ranking decision is made on
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Measure first: how many inceptions carry the template default 0.5, how many have no voi_score, how many were genuinely assessed; record the numbers in Updates
+- [x] The local inception template (.tasks/templates/inception.md, project-owned) no longer pre-fills a value that scores the same as "not assessed": it ships the field empty/commented with a one-line instruction; existing task files are NOT rewritten
+- [x] If the collision is in vendored scoring code (the grandfathered absent path), it is filed upstream at framework:pickup (G-062) with the measured numbers, not patched under .agentic-framework/
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -221,6 +236,11 @@ layer down and is discarded at precisely the point a ranking decision is made on
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+grep -qE '^voi_score:[[:space:]]*(#.*)?$' .tasks/templates/inception.md
+test -f .tasks/templates/inception.md && ! grep -qE '^voi_score:[[:space:]]*[0-9]' .tasks/templates/inception.md
+grep -q 'T-3172' .tasks/templates/inception.md
+test -z "$(git status --porcelain .agentic-framework/agents/termlink/bvp-estimator/estimator.py .agentic-framework/lib/inception_schema_backfill.py .agentic-framework/agents/context/check-inception-schema.py)"
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -317,3 +337,30 @@ layer down and is discarded at precisely the point a ranking decision is made on
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3172-voiscore-default-collides-with-absence--.md
 - **Context:** Initial task creation
+
+### 2026-10-20T18:05:28Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-10-20 — measured, template fixed, filed upstream [w-voi]
+- **Measured (265 inceptions, active+completed, frontmatter only):** 250 carry `voi_score: 0.5`,
+  0 carry nothing, 15 carry a considered value (0.2×2, 0.3×2, 0.4×4, 0.6×4, 0.7, 0.8, 0.9).
+  `target_blast_radius`: 260 of 265 at the default 3.
+- **The corpus moved since filing (103 / 141 / 1 on 2026-09-26), and not because anything was
+  assessed.** The 141 absent ones were backfilled to 0.5 by vendored
+  `lib/inception_schema_backfill.py` (T-3948, `DEFAULTS = voi_score "0.5"`, run by `fw upgrade`
+  and by convert-to-inception). That erased the last distinguisher — the estimator's rationale
+  string `voi-absent-grandfathered` vs `voi:0.50`. The ~14 newly considered values came from
+  operator rulings (T-3423, T-3439, WM-002 …).
+- **Worse than the task states:** `int(round(v*5))` maps 0.3 (1.5→2), 0.4 and 0.5 all to 2, so
+  256 of 265 inceptions score exactly 2.
+- **Template:** `.tasks/templates/inception.md` now ships `voi_score:` empty with a one-line
+  T-3172 instruction. An empty value is YAML null, so the vendored T-2188 schema gate
+  (`check-inception-schema.py`, post-edit judging) refuses the first agent Edit of a new
+  inception until a value is set — the gate forces the choice, not a comment. No existing task
+  file rewritten. `target_blast_radius: 3` left as is (out of AC scope; reported upstream).
+- **Filed upstream:** `framework:pickup` offset **352** — estimator collision + rounding,
+  backfill default, the schema gate's error text that suggests `voi_score: 0.5` as the fix,
+  and the upstream template default.
+- **Residual:** `fw upgrade` / convert-to-inception will still backfill 0.5 into any inception
+  lacking the field, and the gate's message still suggests 0.5. Both upstream (offset 352).
+  Whether a re-vendor overwrites project `.tasks/templates/` was not checked.
