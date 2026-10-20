@@ -11,10 +11,10 @@ description: >
   then a needs-attention entry. Hub client_msg_id dedupe and the recipient store's
   Duplicate outcome prevent duplicates.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [arc:arc-011]
 components: []
 related_tasks: []
@@ -45,7 +45,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-18T09:39:15Z
-last_update: '2026-10-18T22:32:59Z'
+last_update: 2026-10-20T19:51:15Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -77,14 +77,17 @@ bvp_scores_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Operator ruling 2026-10-18 (T-3461): only a stored message counts as accepted. See the description; R-44.e deadlines live in `crates/termlink-sidecar/src/deadline.rs`.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] When the hub accepts a message post (POSTED), the sender keeps a durable record of the signed post (it survives a Sender restart), instead of forgetting the message once the outbox row is removed; stage records (no msg id) are not tracked
+- [ ] A message whose recipient has reported STORED (or any later stage) is released: its record is removed and it is never resent
+- [ ] A message with no STORED report past the R-44.e accept deadline (60 s normal, 15 s urgent = priority >= 5) is resent through the outbox with the same msg id as `client_msg_id`, and a `RESENT` line is written to its chain
+- [ ] Resends are bounded with growing gaps (deadline × 2^n after each attempt, at most MAX_RESENDS); after the last one runs out, the record is dropped and a needs-attention entry (`not-accepted`) names the message — no endless flooding
+- [ ] Tests in crates/termlink-sidecar (temp dirs and a fake hub only, never the real runtime dir or live hub) cover: record kept at POSTED, release on STORED, resend after deadline (normal and urgent), growing gap, give-up attention entry, restart durability; `cargo test -p termlink-sidecar` passes
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -385,3 +388,7 @@ bvp_scores_proposed:
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3462-arc-011-sidecar-sender-keeps-a-message-u.md
 - **Context:** Initial task creation
+
+### 2026-10-20T19:51:15Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
