@@ -87,7 +87,8 @@ T-2250 GO (operator, 2026-10-18), narrowed to the gaps. Queue flaps and circuit-
 - [ ] Hub circuit-breaker open/close (per session and per model) is appended to a local NDJSON log with ts, key, state, consecutive failures and open duration
 - [ ] Both logs are bounded (size or age cap with rotation) so they cannot grow without limit; the bound is tested
 - [ ] A write failure never fails the queue or the breaker (best-effort, one stderr line), tested
-- [ ] The exact signal list is shown to the operator before build (T-2250 IW-2 open point) and their answer recorded in Decisions
+- [ ] Reconnects are appended to a local NDJSON log with ts, peer, downtime_ms and attempt number (operator ruling B, 2026-10-20)
+- [x] The exact signal list is shown to the operator before build (T-2250 IW-2 open point) and their answer recorded in Decisions
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -371,6 +372,21 @@ T-2250 GO (operator, 2026-10-18), narrowed to the gaps. Queue flaps and circuit-
      - **Why:** [rationale]
      - **Rejected:** [alternatives and why not]
 -->
+
+### 2026-10-20 — R5 signal list (T-2250 IW-2), operator ruling B
+- **Chose:** B — start with four event signals: `queue_flap` (offline-queue pending/drained),
+  `breaker_trip` (circuit breaker open/close), `reconnect` (peer, downtime, attempt), and
+  `post_discard` as a COUNTER in the daily rollup read from the existing dead-letter table
+  (T-2243), not as a second local log. Local raw logs bounded to 24–48 h.
+- **Why:** closes the measured blind spots (queue, breaker, reconnect; the T-3461 investigation
+  needed per-peer reconnect data by hand) without double-logging what the dead-letter table
+  already records, and with a small footprint on a host at 88 % disk.
+- **Rejected:** A (all six now: `rtt_sample` costs disk before its footprint is measured;
+  `clean_exit` is useless until crash correlation is designed); C (only queue + breaker: drops
+  reconnect, the signal the last incident needed); D (defer: the next incident is investigated by
+  hand again).
+- **Left open:** `rtt_sample` after a footprint measurement; `clean_exit` after a correlation
+  design (follow-ups).
 
 ## Decision
 
