@@ -25,7 +25,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-01T19:23:07Z
-last_update: 2026-10-20T19:02:16Z
+last_update: 2026-10-20T19:25:40Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -231,6 +231,16 @@ grep -q "0 failed" /tmp/.t3311.out
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-10-20 — an env-only setting does not survive every restart path
+- **What changed:** turning the sweeper on is one environment variable, but where it has to live depends on how
+  the hub is supervised. On .122 (systemd) a drop-in carries it across every restart. On .121 (watchdog) it lived
+  only in the watchdog, and our own upgrade relaunch (--swap-restart) silently dropped it (ring20-dashboard found
+  this the same day).
+- **Plan impact:** "set the variable" was not enough. A setting is only on if every restart path carries it.
+- **Triggered:** T-3497 (swap-restart carries TERMLINK_* from /proc/<pid>/environ, fail-closed) and T-3499 (the
+  same for hub-binary-swap.sh), both done. ring20-dashboard suggested a hub-side config file read at start; the
+  hub config file from T-3310 is the natural home if env proves fragile again.
 
 ## Recommendation
 
