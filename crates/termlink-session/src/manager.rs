@@ -100,8 +100,15 @@ impl Session {
         }
 
         // T-3490: a worker binding is unique among LIVE sessions. A dead
-        // holder does not block (its stale file is cleaned up). Same TOCTOU
-        // window as the display-name check above.
+        // holder does not block (its stale file is cleaned up). T-3484: unlike
+        // the display-name check above, this one is load-bearing (the hub
+        // derives "lost" from which live session carries a binding), so the
+        // check and the registration write below run under one exclusive lock.
+        // Held until the end of this function; released when `_binding_lock` drops.
+        let _binding_lock = match binding {
+            Some(_) => Some(BindingLock::acquire(sessions_dir)?),
+            None => None,
+        };
         if let Some(ref b) = binding
             && let Some(existing) = find_live_by_worker_binding_in(sessions_dir, b)?
         {
@@ -451,7 +458,30 @@ pub fn clean_stale_sessions(
     Ok(stale)
 }
 
-/// Find a session by display name in a specific directory.
+/// T-3484: exclusive advisory lock (`flock`) on `<sessions_dir>/.worker-binding.lock`,
+/// serialising "is this binding held by a live session?" with the registration
+/// write that claims it. Released when dropped (closing the fd releases the lock),
+/// including on every error path of `register_bound_in`.
+struct BindingLock {
+    _file: std::fs::File,
+}
+
+impl BindingLock {
+    fn acquire(sessions_dir: &Path) -> Result<Self, SessionError> {
+        use std::os::unix::io::AsRawFd;
+        let file = std::fs::OpenOptions::new()
+            .create(true)
+            .truncate(false)
+            .write(true)
+            .open(sessions_dir.join(".worker-binding.lock"))?;
+        // Blocking: another register holds it only for a scan plus one file write.
+        if unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX) } != 0 {
+            return Err(std::io::Error::last_os_error().into());
+        }
+        Ok(Self { _file: file })
+    }
+}
+
 /// Find a LIVE session in `sessions_dir` holding `binding` (T-3490).
 /// Registrations of dead processes are ignored.
 pub fn find_live_by_worker_binding_in(
@@ -472,6 +502,7 @@ pub fn find_live_by_worker_binding(
         .find(|r| r.worker_binding.as_ref() == Some(binding)))
 }
 
+/// Find a session by display name in a specific directory.
 fn find_by_display_name(
     sessions_dir: &Path,
     name: &str,
@@ -793,6 +824,45 @@ mod tests {
         let sessions = list_sessions_in(&dir, true).unwrap();
         assert_eq!(sessions.len(), 2);
 
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+        #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn worker_binding_concurrent_registers_exactly_one_wins() {
+        // T-3484: the uniqueness check and the write are serialised by a lock, so
+        // racing registrations of the SAME binding never produce two live holders.
+        let dir = unique_test_dir("binding-race");
+        let b = WorkerBinding::parse("disp-race:1").unwrap();
+        let mut handles = Vec::new();
+        for i in 0..8 {
+            let (dir, b) = (dir.clone(), b.clone());
+            handles.push(tokio::spawn(async move {
+                Session::register_bound_in(
+                    SessionConfig { display_name: Some(format!("racer-{i}")), ..Default::default() },
+                    Some(b),
+                    &dir,
+                )
+                .await
+            }));
+        }
+        let mut won = Vec::new();
+        let mut refused = 0;
+        for h in handles {
+            match h.await.unwrap() {
+                Ok(s) => won.push(s),
+                Err(SessionError::BindingConflict(..)) => refused += 1,
+                Err(e) => panic!("unexpected error: {e}"),
+            }
+        }
+        assert_eq!(won.len(), 1, "exactly one live holder of the binding");
+        assert_eq!(refused, 7);
+        let holders = list_sessions_in(&dir, false)
+            .unwrap()
+            .into_iter()
+            .filter(|r| r.worker_binding.as_ref() == Some(&b))
+            .count();
+        assert_eq!(holders, 1, "one registration file carries the binding");
+        drop(won);
         let _ = std::fs::remove_dir_all(&dir);
     }
 
