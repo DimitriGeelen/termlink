@@ -1,0 +1,88 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3496: Re-vendor AEF v1.8.13 -> v1.8.14 (security hotfix T-4485: git --output obfuscated forms)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-20T17:17:45Z
+# ============================================================================
+
+task_id: T-3496
+task_name: "Re-vendor AEF v1.8.13 -> v1.8.14 (security hotfix T-4485: git --output obfuscated forms)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-20T17:15:40Z
+completed: 2026-10-20T17:17:31Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-10-20T19:17:00+02:00
+last_commit: 2026-10-20T19:17:29+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  re-vendor AEF v1.8.13 -> v1.8.14 (security hotfix T-4485, git --output obfuscated forms; under operator ruling A of T-3489). register baseline -> 766b1324d (the v1.8.14 re-vendor). RCA
+
+# Key outcomes
+outcomes:
+  - 'v1.8.14 descends from v1.8.13 (merge-base --is-ancestor); rehearsed on a throwaway clone first (rc 0), env hygiene per the checklist (T-3489)'
+  - 'The one preserved file upstream changed (agents/context/lib/safe-commands.sh) 3-way merged, base v1.8.13: clean; lib/shell_write_scan.py taken from upstream byte-identical; spot check: plain `git log` safe, `"--output=x"`, `--out\put=x`, `$o`, `--outp=x` all gated'
+  - 'safe-commands checkpoint + write-pattern, vendor-divergence and budget-ladder fixtures pass; CLAUDE.md project part byte-identical; fw doctor no new FAIL; register baseline updated'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 're-vendor AEF v1.8.13 -> v1.8.14 (security hotfix T-4485, git --output obfuscated forms; under operator ruling A of T-3489)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/agents/context/lib/safe-commands.sh'
+  - '.agentic-framework/.fw-vendor-stamp.json'
+  - '.agentic-framework/lib/shell_write_scan.py'
+  - '.agentic-framework/VERSION'
+  - '.context/audits/upgrades.yaml'
+  - '.framework.yaml'
+  - '.tasks/active/T-3496-re-vendor-aef-v1813---v1814-security-hot.md'
+  - '.vendor-divergence.yaml'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-20T19:17:00'
+    action: 'T-3496: re-vendor AEF v1.8.13 -> v1.8.14 (security hotfix T-4485, git --output obfuscated forms; under operator ruling A of T-3489)'
+  - time: '2026-10-20T19:17:09'
+    action: 'T-3496: register baseline -> 766b1324d (the v1.8.14 re-vendor)'
+  - time: '2026-10-20T19:17:29'
+    action: 'T-3496: RCA'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1
+  commits: 3
+  files_changed: 8
+  lines_added: 480
+  lines_removed: 17
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3496-re-vendor-aef-v1813---v1814-security-hot.md
+generated_by: context-agent-hybrid
