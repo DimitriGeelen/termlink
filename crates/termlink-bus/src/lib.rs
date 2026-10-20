@@ -2432,18 +2432,26 @@ mod tests {
 
     #[tokio::test]
     async fn renew_claim_extends_claimed_until_past_original_deadline() {
-        // Worker grabs a slot with a short initial TTL; before it lapses
-        // they renew with a longer additional_ttl_ms. The refreshed
-        // claimed_until must reflect now + additional_ttl_ms — strictly
-        // beyond the original deadline.
+        // Worker grabs a slot with an initial TTL; before it lapses they renew
+        // with a longer additional_ttl_ms. The refreshed claimed_until must
+        // reflect now + additional_ttl_ms — strictly beyond the original deadline.
+        //
+        // The initial TTL is deliberately long (60s). `claim_offset` reads the
+        // clock BEFORE it waits on the meta write lock, so a lock stall between
+        // that read and the insert (T-3507: observed 1.9s under host load) lands
+        // the claim's deadline in the past. With a short TTL the renew then sees
+        // an expired row and fails with ClaimExpired — a failure of the harness,
+        // not of renew. A long initial lease keeps the property under test (the
+        // renewal pushes the deadline past the original one) independent of
+        // wall-clock contention.
         let (_dir, bus) = tmp_bus();
         bus.create_topic("work", Retention::Forever).unwrap();
         bus.post("work", &env("work", b"m0")).await.unwrap();
-        let initial = bus.claim_offset("work", 0, "worker-A", 200).unwrap();
-        // Renew with a 60s extension. The new claimed_until must be at
+        let initial = bus.claim_offset("work", 0, "worker-A", 60_000).unwrap();
+        // Renew with a 120s extension. The new claimed_until must be at
         // least old_until + 100ms (i.e. the renewal genuinely pushed it
         // forward, not just re-confirmed the same deadline).
-        let renewed = bus.renew_claim(&initial.claim_id, "worker-A", 60_000).unwrap();
+        let renewed = bus.renew_claim(&initial.claim_id, "worker-A", 120_000).unwrap();
         assert_eq!(renewed.claim_id, initial.claim_id);
         assert_eq!(renewed.offset, 0);
         assert_eq!(renewed.claimer, "worker-A");
