@@ -26,6 +26,17 @@ run() { RUNME_CRON_DIR="$TMP/cron" bash "$RUNME" "$@" 2>&1; }
 
 mkdir -p "$TMP/cron"
 
+# T-3311 (action 21): fake `fleet governor-status --json`. $FAKE_SWEEP_FILE holds the
+# hub's interval; default 3600 = already on, so every other case skips action 21
+# without touching a real hub.
+export FAKE_SWEEP_FILE="$TMP/sweep.interval" RUNME_SWEEP_GOV="$TMP/fake-gov"
+echo 3600 > "$FAKE_SWEEP_FILE"
+cat > "$TMP/fake-gov" <<'EOS'
+#!/usr/bin/env bash
+printf '{"hubs":[{"name":"%s","retention_sweep_interval_secs":%s}]}\n' "${RUNME_SWEEP_HUB:-ring20-management}" "$(cat "$FAKE_SWEEP_FILE")"
+EOS
+chmod +x "$TMP/fake-gov"
+
 # T-2988 (action 9): stateful fake termlink for health:ring20-fedprobe. State is
 # "<kind> <value> <count>" in $FAKE_FEDPROBE_STATE; default = already bounded, so
 # every other case below skips action 9 without touching a real hub.
@@ -395,6 +406,10 @@ cat > "$F/remote" <<'EOS'
 #!/usr/bin/env bash
 echo "$2" >> "$FAKE_FLEET_DIR/remote-cmds"
 case "$2" in
+  *"t3311-sweep.conf"*)   # T-3311 action 21: drop-in + restart; must match BEFORE the plain unit probe
+    [ "${FAKE_UNIT:-1}" = "1" ] || { echo NO-UNIT; exit 0; }
+    [ "${FAKE_SWEEP_APPLIES:-1}" = "1" ] && echo 3600 > "$FAKE_SWEEP_FILE"
+    echo RUNME-SWEEP-OK ;;
   *"systemctl cat termlink-hub"*) [ "${FAKE_UNIT:-1}" = "1" ] && echo "/usr/local/bin/termlink" ;;
   *"systemctl restart termlink-hub"*)
     [ "${FAKE_SWAP_CONFIRM:-1}" = "1" ] || { echo "install: cannot create regular file: Text file busy"; exit 1; }
@@ -484,7 +499,7 @@ else bad "log path printed" "$out"; fi
 REAL_RUN=1
 # The summary's already-done count is derived from runme.sh itself, never a literal:
 # a literal went stale when T-3068 added a third crontab and failed on every host.
-EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 29 ))   # +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
+EXPECT_N=$(( $(grep -c '^install_crontab ' "$RUNME") + $(printf '%s\n' "$RUNME_TEST_CLOSES" | grep -c '|') + $(printf '%s\n' "$RUNME_TEST_APPROVED_DECISIONS" | grep -c '|')  + 30 ))   # +1 .122 retention sweeper (T-3311 action 21); +6 driver specs (T-3440 5c: arc-substrate-fitness 3, arc-011 3); +1 W1 drill (T-3426); +1 inbox cap (T-3443); +1 W1 readiness/wait (T-3438); +2 sidecar supervision: settings dir + unit template (T-3435); +1 claude-fw router (T-3421); +1 testdev claude (T-3416); +5 operator tick records (T-3351, T-3393: T-3349, T-3351, T-3388; T-3460: T-3291, T-3302); +1 sidecar sweep cron (T-3370); +1 stray-hub stop (T-3343); +1 reindex schedule (T-3336); +1 termlink install (T-3287); +1 hub unit (T-3299); +1 hub restart (T-3290); +1 fleet hub (T-3290 action 6); +1 zombie reap (T-3297); +1 identity env (T-3303); +1 fedprobe bound (T-2988); +1 sidecar restart (T-3325)
 
 if [ "$REAL_RUN" = "1" ]; then
 # ---------------------------------------------------------------------------
@@ -1285,6 +1300,42 @@ else bad "specs attach" "rc=$rc: $out"; fi
 out=$(run); rc=$?
 if [ "$rc" = "0" ] && [ "$(echo "$out" | grep -c "already carries a scoring spec")" = "6" ]; then ok "specs: idempotent (skips once attached)"
 else bad "specs idempotent" "rc=$rc: $out"; fi
+
+# ---------------------------------------------------------------------------
+# T-3311 action 21 — retention sweeper on the .122 hub, through fakes only.
+# ---------------------------------------------------------------------------
+sweep_case() { echo "$1" > "$FAKE_SWEEP_FILE"; rm -f "$F/remote-cmds"; }
+export RUNME_SWEEP_HUB=fake-hub
+sweep_case 3600
+out=$(run); s21=$(echo "$out" | sed -n '/^.*21\. Retention sweeper/,/^.*Verification/p')
+if echo "$s21" | grep -q "skip    fake-hub already sweeps every 3600s" && ! grep -q "t3311" "$F/remote-cmds" 2>/dev/null; then
+    ok "sweeper: already on => skip, nothing sent to the hub"
+else bad "sweeper skip" "$s21"; fi
+sweep_case 0
+out=$(run --dry-run); s21=$(echo "$out" | sed -n '/^.*21\. Retention sweeper/,/^.*Verification/p')
+if echo "$out" | grep -q "21. Retention sweeper on for the .122 hub — THE .122 HUB RESTARTS" \
+   && echo "$s21" | grep -q "would add TERMLINK_SWEEP_INTERVAL_SECS=3600 .* and RESTART that hub" \
+   && ! grep -q "t3311" "$F/remote-cmds" 2>/dev/null; then
+    ok "sweeper: heading says the hub restarts; --dry-run sends nothing"
+else bad "sweeper dry-run" "$s21"; fi
+sweep_case 0
+out=$(run); s21=$(echo "$out" | sed -n '/^.*21\. Retention sweeper/,/^.*Verification/p')
+if echo "$s21" | grep -q "OK      fake-hub restarted and sweeps every 3600s" \
+   && grep -q "termlink-hub.service.d/t3311-sweep.conf" "$F/remote-cmds" && grep -q "daemon-reload" "$F/remote-cmds" \
+   && grep -q "systemctl restart termlink-hub" "$F/remote-cmds"; then
+    ok "sweeper: drop-in written, daemon-reload, restart through the unit, verified 3600"
+else bad "sweeper apply" "$s21 // $(cat "$F/remote-cmds" 2>/dev/null)"; fi
+sweep_case 0
+out=$(FAKE_UNIT=0 run); rc=$?; s21=$(echo "$out" | sed -n '/^.*21\. Retention sweeper/,/^.*Verification/p')
+if [ "$rc" = "1" ] && echo "$s21" | grep -q "FAILED  fake-hub has no termlink-hub.service — nothing changed"; then
+    ok "sweeper: no unit => FAILED, nothing changed"
+else bad "sweeper no unit" "rc=$rc: $s21"; fi
+sweep_case 0
+out=$(FAKE_SWEEP_APPLIES=0 run); rc=$?; s21=$(echo "$out" | sed -n '/^.*21\. Retention sweeper/,/^.*Verification/p')
+if [ "$rc" = "1" ] && echo "$s21" | grep -q "FAILED  fake-hub after restart: interval='0' (want 3600)"; then
+    ok "sweeper: restart that does not take effect => FAILED (verified, not trusted)"
+else bad "sweeper not applied" "rc=$rc: $s21"; fi
+sweep_case 3600; unset RUNME_SWEEP_HUB
 
 
 echo ""

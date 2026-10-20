@@ -1,13 +1,16 @@
 ---
 id: T-3311
-name: "Turn the hub retention sweeper on at .122 (runme) and ask ring20-dashboard about .121"
+name: "Turn the hub retention sweeper on at .122 (runme) and ask ring20-dashboard
+  about .121"
 description: >
-  arc-012 step 6 (T-3304 IW-2 C): TERMLINK_SWEEP_INTERVAL_SECS is 0 on .122 and .121 (fleet governor-status). Add .122 to the systemd unit via runme.sh; message ring20-dashboard-agent for .121 (no foothold). Verify via retention_sweep_runs_total.
+  arc-012 step 6 (T-3304 IW-2 C): TERMLINK_SWEEP_INTERVAL_SECS is 0 on .122 and .121
+  (fleet governor-status). Add .122 to the systemd unit via runme.sh; message ring20-dashboard-agent
+  for .121 (no foothold). Verify via retention_sweep_runs_total.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [arc:arc-012]
 components: []
 related_tasks: []
@@ -22,8 +25,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-01T19:23:07Z
-last_update: 2026-10-01T19:23:19Z
-date_finished: null
+last_update: 2026-10-20T16:18:24Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,6 +37,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-20T16:18:25Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3311: Turn the hub retention sweeper on at .122 (runme) and ask ring20-dashboard about .121
@@ -46,8 +63,9 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] runme action 21 sets TERMLINK_SWEEP_INTERVAL_SECS=3600 on the .122 hub through a systemd drop-in and a restart through the unit, with the heading saying plainly that the .122 hub restarts (ring20-management's condition, msg 245b71d9); idempotent; verified on disk (governor interval, fleet doctor ok, tofu ok); 5 hermetic fixtures (skip, dry-run, apply, no unit, restart not taking effect)
+- [x] ring20-dashboard asked about .121: they set it in their watchdog themselves (their T-2554, msg 7b9d5272)
+- [ ] After the operator's runme: .122 governor shows retention_sweep_interval_secs 3600 and retention_sweep_runs_total rising; ring20-management told when it ran; .121 confirmed by ring20-dashboard
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -171,6 +189,9 @@ date_finished: null
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+bash tests/runme-fixtures.sh > /tmp/.t3311.out 2>&1 && grep -q "sweeper: drop-in written, daemon-reload, restart through the unit, verified 3600" /tmp/.t3311.out
+grep -q "0 failed" /tmp/.t3311.out
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -270,3 +291,7 @@ date_finished: null
 
 ### 2026-10-01T19:23:19Z — status-update [task-update-agent]
 - **Change:** tags: +arc:arc-012
+
+### 2026-10-20T16:18:24Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

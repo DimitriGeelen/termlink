@@ -1548,6 +1548,76 @@ head2 "20. Scoring specs for the value drivers of arc-substrate-fitness and arc-
 attach_driver_specs
 
 # ---------------------------------------------------------------------------
+# ACTION 21 — retention sweeper ON for the .122 hub (T-3311, arc-012 step 6)
+#
+# Bounded retention is enforced only when something sweeps; .122 ran with
+# TERMLINK_SWEEP_INTERVAL_SECS unset (governor: interval 0, runs 0), so its
+# bounded topics never shrank. ring20-management said yes on 2026-10-20 (msg
+# 245b71d9) on one condition: say plainly that THE .122 HUB RESTARTS — its
+# registered desk shells (operator desk, live agent, manager) drop off the hub for
+# a moment and re-register — and tell them when it ran.
+# How: a systemd drop-in (termlink-hub.service.d/t3311-sweep.conf), not an edit of
+# their unit; daemon-reload, then a delayed, detached restart THROUGH the unit (G-070)
+# so this exec returns first. Idempotent: skip when the hub already reports 3600.
+# Verified after: governor interval 3600, fleet doctor ok (secret still
+# authenticates), tofu verify ok (cert unchanged).
+# Seams (fixtures only): RUNME_SWEEP_GOV (command printing `fleet governor-status
+# --json`), plus the fleet seams above (RUNME_FLEET_REMOTE, RUNME_FLEET_DOCTOR,
+# RUNME_TOFU, RUNME_FLEET_WAIT_SECS).
+# ---------------------------------------------------------------------------
+seam SWEEP_GOV RUNME_SWEEP_GOV "termlink fleet governor-status --json"
+SWEEP_HUB="${RUNME_SWEEP_HUB:-ring20-management}"   # override: fixtures only
+SWEEP_SECS=3600
+
+sweep_interval_of() {  # <hub-name> -> retention_sweep_interval_secs, empty if unknown
+    timeout 90 $SWEEP_GOV 2>/dev/null | python3 -c '
+import json,sys
+try: d=json.load(sys.stdin)
+except Exception: sys.exit(0)
+for h in d.get("hubs",[]):
+    if (h.get("name") or h.get("hub"))==sys.argv[1]:
+        g=h.get("governor") or h
+        v=g.get("retention_sweep_interval_secs")
+        print("" if v is None else v); break
+' "$1"
+}
+
+enable_sweep_122() {
+    local now addr out i
+    now="$(sweep_interval_of "$SWEEP_HUB")"
+    if [ "$now" = "$SWEEP_SECS" ]; then
+        say "  skip    $SWEEP_HUB already sweeps every ${SWEEP_SECS}s"; SKIPPED=$((SKIPPED+1)); return
+    fi
+    addr="$(fleet_hub_field "$SWEEP_HUB" address)"
+    if [ -z "$addr" ]; then
+        say "  FAILED  $SWEEP_HUB not found or unreachable in fleet doctor — sweeper not enabled"; FAILED=$((FAILED+1)); return
+    fi
+    if [ "$DRY_RUN" = "1" ]; then
+        say "  [DRY]   would add TERMLINK_SWEEP_INTERVAL_SECS=$SWEEP_SECS to termlink-hub.service on $SWEEP_HUB ($addr, now '${now:-unknown}') and RESTART that hub"
+        DONE=$((DONE+1)); return
+    fi
+    say "  restart $SWEEP_HUB ($addr): the .122 hub restarts now; its registered sessions re-register"
+    out="$(fleet_remote "$SWEEP_HUB" "systemctl cat termlink-hub >/dev/null 2>&1 || { echo NO-UNIT; exit 0; }; mkdir -p /etc/systemd/system/termlink-hub.service.d && printf '[Service]\nEnvironment=TERMLINK_SWEEP_INTERVAL_SECS=$SWEEP_SECS\n' > /etc/systemd/system/termlink-hub.service.d/t3311-sweep.conf && systemctl daemon-reload && (setsid sh -c 'sleep 2; systemctl restart termlink-hub' </dev/null >/dev/null 2>&1 &) && echo RUNME-SWEEP-OK" 2>&1)"
+    case "$out" in
+        *RUNME-SWEEP-OK*) : ;;
+        *NO-UNIT*) say "  FAILED  $SWEEP_HUB has no termlink-hub.service — nothing changed"; FAILED=$((FAILED+1)); return ;;
+        *) say "  FAILED  drop-in/restart on $SWEEP_HUB did not confirm: $(printf '%s' "$out" | tail -1)"; FAILED=$((FAILED+1)); return ;;
+    esac
+    for i in $(seq 1 "$FLEET_WAIT"); do
+        [ "$(sweep_interval_of "$SWEEP_HUB")" = "$SWEEP_SECS" ] && break; sleep 1
+    done
+    now="$(sweep_interval_of "$SWEEP_HUB")"
+    if [ "$now" = "$SWEEP_SECS" ] && [ "$(fleet_hub_field "$SWEEP_HUB" status)" = "ok" ] && $TOFU "$addr" >/dev/null 2>&1; then
+        say "  OK      $SWEEP_HUB restarted and sweeps every ${SWEEP_SECS}s (governor); fleet doctor ok; tofu verify ok (cert unchanged)"; DONE=$((DONE+1))
+    else
+        say "  FAILED  $SWEEP_HUB after restart: interval='${now:-none}' (want $SWEEP_SECS), or fleet doctor/tofu not ok"; FAILED=$((FAILED+1))
+    fi
+}
+
+head2 "21. Retention sweeper on for the .122 hub — THE .122 HUB RESTARTS (T-3311; ring20-management agreed)"
+enable_sweep_122
+
+# ---------------------------------------------------------------------------
 # Verification — the project's own drift checker is the arbiter, not this script.
 # Using the repo's existing check rather than a bespoke one means this cannot
 # quietly disagree with what `fw audit` will say five minutes from now.
