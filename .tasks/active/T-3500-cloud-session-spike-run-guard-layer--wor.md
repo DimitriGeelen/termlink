@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-20T19:55:25Z
-last_update: 2026-10-20T19:55:25Z
+last_update: 2026-10-20T20:01:24Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -390,6 +390,41 @@ date_finished: null
   7. End with one JSON object: {"commit", "cargo_test": {"passed", "failed", "failed_names"},
      "guard_layer": {"summary", "not_pass": [...], "cannot_run_off_host": [...]}, "timings_s": {...},
      "pushed": false}.
+
+### 2026-10-20 — jobs (c) review and (d) crash/fuzz (operator GO via ring20's plan: caps $25 / $20)
+Pinned commit: 717e8fb80b1dd6a29ba0cd2885f984eff046580f (GitHub mirror verified synced). It contains
+T-3322 (d38a19b68) and T-3462 (888988dbf). Same setup as above (repository DimitriGeelen/termlink,
+environment Default, Run now), one task per prompt.
+
+Prompt (c) — independent review:
+
+  Review two changes in TermLink as an independent reviewer. `git checkout 717e8fb80b1dd6a29ba0cd2885f984eff046580f`.
+  Never push, branch, commit or open a pull request; do not modify tracked files.
+  A. Commit d38a19b68 (crates/termlink-bus: topic-log compaction). The claim: a rewrite to a new generation
+     (temp file, fsync, rename) and the switch of byte_pos plus generation in one commit under the topic
+     lock, so concurrent readers and a crash at any point never see a broken log or a lost record.
+  B. Commit 888988dbf (crates/termlink-sidecar: the sender keeps a posted message until the recipient
+     reports STORED, with bounded resend and NOT_ACCEPTED). The claim: no message is ever dropped silently,
+     and no message is applied twice.
+  For each: read `git show <commit>`, the surrounding code and tests; try to break the claim (races, crash
+  windows, fsync ordering, lock scope, error paths, duplicate delivery); run `cargo test -p termlink-bus`
+  and `cargo test -p termlink-sidecar`. Report findings ranked by severity, each with file:line, a concrete
+  failure scenario, and a suggested test that would expose it. Say plainly where you found nothing. End
+  with JSON {"commit", "findings": [{"change", "severity", "file", "line", "scenario"}], "tests_run", "pushed": false}.
+
+Prompt (d) — crash and fuzz runs:
+
+  Stress-test TermLink's topic-log compaction and the sidecar keep-until-stored path.
+  `git checkout 717e8fb80b1dd6a29ba0cd2885f984eff046580f`. Never push, branch, commit or open a pull request.
+  1. Run the existing crash and concurrency tests of crates/termlink-bus (compaction) and the
+     crates/termlink-sidecar fault-matrix tests in loops: `for i in $(seq 1 300); do cargo test -q -p termlink-bus
+     <filter> || break; done`, choosing filters from the test names. Report the number of iterations and
+     every failure with its seed or output.
+  2. Write a throwaway stress harness, OUTSIDE the repo (/tmp), that posts many records, sweeps, triggers
+     compaction while concurrent readers subscribe, and kills the process at random points (SIGKILL), then
+     checks that every surviving offset reads back intact and in order. Run it for at least 30 minutes.
+  3. Report: iterations, failures with reproduction steps, and whether any failure is a real defect or a
+     harness artefact. End with JSON {"commit", "loops": {...}, "harness_minutes", "failures": [...], "pushed": false}.
 
 ### 2026-10-20T19:55:25Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
