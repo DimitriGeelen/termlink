@@ -33,7 +33,7 @@
 ".tasks/workflow/WM-003-session-lifecycle.md": "83014f415247566fbb823ff08b12cb759c4e5705a3d85e44dfd9a8fdfbe10ff3",
 ".upstream": "1b0811e3c9cbe1040d9eb2d1fe80ce7094c70fa2bc75be5bdb8d76a4fb755cb4",
 "FRAMEWORK.md": "0dfd095daa44c9f32dfcead24f306eacc59eb84c07b761603b17dcecb4b8f1e0",
-"VERSION": "7a88b182d7f292a45549ff265ce7467a8e8262c173169085087c408de38f1842",
+"VERSION": "1d31a140c5ad267acb61345373ee129ebdac01dee14166bf66d9122264158e41",
 "agents/antigravity/subagent_dispatch.py": "e9e1c6cb0e0a06711f30869e3eec4ddc0b7450012b0bc98b8dbd4a53438ca11b",
 "agents/audit/AGENT.md": "a74aecdbd55761ab3c3dfc0d146b4dbe0851c2bc9b3e27911fec7731426c0388",
 "agents/audit/active-task-scan.py": "816760f633b7b4ed867df93b0eb3df711f88b7ff0e94d766cc1384ef9a8dfc80",
@@ -100,7 +100,7 @@
 "agents/context/lib/learning.sh": "2fecbf57da8ecee1dd3d52d256ede04dd7e239ad4225f813d2500a6ca266abfc",
 "agents/context/lib/memory-recall.py": "fb244f0bfd5d17e4d8b6aae7b730ed869301c3c7851f58af5a831ada0ac0765d",
 "agents/context/lib/pattern.sh": "c024260d4933e31614a0ff22bb6d9524090459904e600f9a22c15b3e1d2ebfea",
-"agents/context/lib/safe-commands.sh": "9c856b38357ed51da04ba636e9c558d5a50e6df5617eb574d935b5c15806bd2d",
+"agents/context/lib/safe-commands.sh": "0fe2791367e9b53b51318133b596ac68940959e41e4b0a5bca53def24a2e68f6",
 "agents/context/lib/status.sh": "ea584e638d68913c790b5c0461ae7dc256aa1f2a6d799c5c715ae1312d5e8b38",
 "agents/context/loop-detect.sh": "98e749440e807a77d1c02022fc643c3de094f920e76146c019a8b1fda4493eb9",
 "agents/context/pl007-scanner.sh": "c951a0a5d7b40dc9051b10c7d71220c07367021e6871d1315d360f48b0c0d0e7",
@@ -3208,7 +3208,7 @@
 "lib/seeds/tasks/upgrade/define-project-objectives.md": "5eff7211ddbe1de7cb5798f4b3523050706ecdc53c92fe40c7bdf6f43addf47f",
 "lib/settings_merge.py": "e218c6790fa46e907ebb70efc7945d8601e4800042e483e68c3b40ea7f9b96c2",
 "lib/setup.sh": "502806892a6e8c461282f41d21055bb0df42a5df24f882a7b9834caa77ba3bbf",
-"lib/shell_write_scan.py": "2d5faf42f36aab8972b050b784dc76c447743f47c5c8aba7bfd86259f5914ded",
+"lib/shell_write_scan.py": "7b50ad9f4580e9884e1b4f8737aefae352bbe21673a2f15b5edc9b61b1d09330",
 "lib/sidecar-audit.sh": "e563d461be7383e7be35c356bb3a609d2b2d23f06cc751328b326ecfc76d28d0",
 "lib/sidecar/__init__.py": "bbb840cd126fcd9a67500d6e4d715beb2704456c8b145e48bda88709e4b6b1b3",
 "lib/sidecar/adapter.py": "053329106cad97863d6591bce53770862c9e580d4bb4a47080863f06dad472a8",
@@ -3598,5 +3598,5 @@
 },
 "schema": 1,
 "source": "fw vendor (T-3850)",
-"written_at": "2026-10-20T13:55:57Z"
+"written_at": "2026-10-20T17:11:46Z"
 }

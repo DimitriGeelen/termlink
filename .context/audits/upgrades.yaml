@@ -344,3 +344,7 @@ upgrades:
     from_version: "1.8.10+516.g5c886336b"
     to_version: "1.8.13"
     framework_root: "/tmp/fw-upstream-1RY0bn/fw"
+  - timestamp: 2026-10-20T17:11:52Z
+    from_version: "1.8.13"
+    to_version: "1.8.14"
+    framework_root: "/tmp/fw-upstream-UWjYb5/fw"
