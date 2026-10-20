@@ -38,7 +38,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-20T14:19:12Z
-last_update: 2026-10-20T14:19:12Z
+last_update: 2026-10-20T14:35:20Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -64,7 +64,7 @@ date_finished: null
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
 - [x] `scripts/reap-zombie-sessions.sh` carries runme action 7's reap unchanged in behaviour (same detector, targets listed before any is touched, pid re-verified as that register session right before the signal, SIGTERM only, stuck target = FAILED, detector failure = fail-closed); `--dry-run`, `--quiet`
 - [x] runme action 7 calls the script, still resolving its seams itself (fixture runs that miss a seam still refuse, T-3299); all runme fixtures pass, including the 7 zombie cases now exercising the script
-- [ ] `.context/cron/zombie-reap.crontab` runs it daily before the 05:57Z session-leak canary, split-stream logging (T-2685), installed by runme action 1; check-canary-log-hygiene and cron-install-drift clean after install
+- [x] `.context/cron/zombie-reap.crontab` runs it daily before the 05:57Z session-leak canary, split-stream logging (T-2685), installed by runme action 1; check-canary-log-hygiene and cron-install-drift clean after install
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -269,6 +269,11 @@ date_finished: null
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+bash tests/runme-fixtures.sh > /tmp/.t3491.out 2>&1 && grep -q "0 failed" /tmp/.t3491.out
+cmp -s /etc/cron.d/termlink-zombie-reap .context/cron/zombie-reap.crontab
+bash scripts/check-canary-log-hygiene.sh > /tmp/.t3491h 2>&1
+bash scripts/reap-zombie-sessions.sh --dry-run > /tmp/.t3491d 2>&1
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -360,6 +365,11 @@ date_finished: null
      legacy tasks lacking this section. -->
 
 ## Updates
+
+### 2026-10-20 — live
+- runme-20261020T150846Z-2870103 (rc=0) installed `/etc/cron.d/termlink-zombie-reap` (identical to
+  source) and, through the same script, reaped the 7 zombies the dry run had listed. The first daily
+  run is at 07:30 host time, before the 07:57 session-leak canary.
 
 ### 2026-10-20T14:19:12Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
