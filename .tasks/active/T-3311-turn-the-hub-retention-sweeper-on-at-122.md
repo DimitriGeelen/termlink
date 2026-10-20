@@ -25,7 +25,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-01T19:23:07Z
-last_update: 2026-10-20T16:18:27Z
+last_update: 2026-10-20T19:02:16Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -65,7 +65,7 @@ bvp_scores_proposed:
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
 - [x] runme action 21 sets TERMLINK_SWEEP_INTERVAL_SECS=3600 on the .122 hub through a systemd drop-in and a restart through the unit, with the heading saying plainly that the .122 hub restarts (ring20-management's condition, msg 245b71d9); idempotent; verified on disk (governor interval, fleet doctor ok, tofu ok); 5 hermetic fixtures (skip, dry-run, apply, no unit, restart not taking effect)
 - [x] ring20-dashboard asked about .121: they set it in their watchdog themselves (their T-2554, msg 7b9d5272)
-- [ ] After the operator's runme: .122 governor shows retention_sweep_interval_secs 3600 and retention_sweep_runs_total rising; ring20-management told when it ran; .121 confirmed by ring20-dashboard
+- [x] After the operator's runme: .122 governor shows retention_sweep_interval_secs 3600 and retention_sweep_runs_total rising; ring20-management told when it ran; .121 confirmed by ring20-dashboard
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -291,6 +291,8 @@ grep -q "0 failed" /tmp/.t3311.out
 - .121: ring20-dashboard applied it through their watchdog at 18:04Z, governor 3600 (msg 508f0659). Their
   first attempt was undone by our own upgrade relaunch, which dropped the hub environment: filed as T-3497.
 - Open: retention_sweep_runs_total > 0 on both, due about an hour after each restart.
+- 19:25Z `fleet governor-status`: .107 (local-hub, local-test, workstation-107-public), ring20-management and
+  ring20-dashboard all interval 3600, runs 1. greenfield (.132, test VM) stays 0: outside this task.
 
 ### 2026-10-01T19:23:07Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
