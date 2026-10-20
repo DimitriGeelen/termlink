@@ -7,7 +7,7 @@ description: >
   each hub's build sha, then set or justify each floor/exemption with the evidence
   in the conf.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -25,7 +25,7 @@ related_tasks: [T-3005]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-29T19:57:01Z
-last_update: '2026-09-29T19:58:49Z'
+last_update: 2026-10-20T15:24:38Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -50,6 +50,19 @@ bvp_scores_proposed:
     rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
       (body:component-discoverability); D4=2 (body:env-class-handled); 
       F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+  - ts: '2026-10-20T15:24:39Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
 cost_estimate_proposed:
   - ts: '2026-09-29T19:58:04Z'
@@ -84,8 +97,9 @@ Files: `.context/cron/fleet-version-floors.conf` (ring20-management floored at 0
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Each hub's served version and build lineage established with evidence (`termlink fleet doctor --json` hub_version; how each hub was built/deployed per the 2026-10-20 runme log `.context/working/runme-logs/runme-20261020T115627Z-2735729.log`, which upgraded .122/.121/.132 from this repo)
+- [x] `.context/cron/fleet-version-floors.conf` sets or justifies a floor/exemption for every hub with that evidence cited inline (ring20-dashboard's exemption removed if it now runs our lineage, or kept with the reason)
+- [x] `bash scripts/check-fleet-binary-freshness.sh` exits 0 against the live fleet and the fixture that exercises it (`tests/fleet-capability-canary.sh`; the script has no fixture suite of its own) passes; CLAUDE.md is not edited (the historical notes there stay)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -209,6 +223,10 @@ Files: `.context/cron/fleet-version-floors.conf` (ring20-management floored at 0
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+bash scripts/check-fleet-binary-freshness.sh > /tmp/.t3255c 2>&1 || grep -q "unreachable" /tmp/.t3255c
+bash tests/fleet-capability-canary.sh > /tmp/.t3255f 2>&1 && grep -q "ALL PASS" /tmp/.t3255f
+grep -q "^ring20-dashboard 0.12.786" .context/cron/fleet-version-floors.conf
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -301,7 +319,19 @@ Files: `.context/cron/fleet-version-floors.conf` (ring20-management floored at 0
 
 ## Updates
 
+### 2026-10-20 — floors set from evidence (worker w-floors, finished by the orchestrator)
+- All hubs run this repo's lineage since runme-20261020T115627Z-2735729 (0.12.786; .107 and .122
+  at 0.12.800 after the follow-up run). Floors raised to 0.12.786 for local-test,
+  workstation-107-public, ring20-management and ring20-dashboard (its exemption removed: .121 is
+  our lineage, not a fork); greenfield gets its first floor; laptop-141 stays exempt (transient WSL).
+- `check-fleet-binary-freshness.sh` exit 0 against the live fleet; `tests/fleet-capability-canary.sh` ALL PASS.
+- The worker could not commit because the task was still `captured`; the orchestrator set it to
+  started-work and committed.
+
 ### 2026-09-29T19:57:01Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3255-re-verify-fleet-version-floors-for-12112.md
 - **Context:** Initial task creation
+
+### 2026-10-20T15:24:38Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
