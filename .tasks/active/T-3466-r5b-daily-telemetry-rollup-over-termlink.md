@@ -86,7 +86,7 @@ T-2250 GO (operator, 2026-10-18), narrowed to the gaps. Only .107 observes anyth
 ### Agent
 - [ ] A daily rollup turns each host's local logs (T-3465 queue, breaker and reconnect events, T-3383 hub-outage samples) plus the dead-letter count (T-2243 table, operator ruling B 2026-10-20) into one aggregate per (host, signal, day): counts and max downtime (RTT percentiles deferred with `rtt_sample`)
 - [ ] The aggregate is posted over TermLink through the durable offline queue (a failed push is retried or dead-lettered, never silently lost), to a collection topic with bounded retention (never forever-raw)
-- [ ] Raw local data stays local with a 24-48 h bound; only aggregates leave the host
+- [ ] Raw local data stays local with a 24-48 h bound; only aggregates leave the host. Since T-3465 bounds the local logs by size (1 MiB + backup), the rollup reads only events of the last day from `~/.termlink/queue.log`, `reconnect.log` and `<runtime_dir>/circuit-breaker.jsonl`
 - [ ] A read verb or script shows the fleet view: per host and per day, the aggregates, plus which hosts did NOT report (a missing host is the signal, not a gap)
 - [ ] Running on at least two hosts (.107 and one ring20 host) is shown in the collection topic
 
