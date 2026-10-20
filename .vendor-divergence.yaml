@@ -194,6 +194,21 @@ last_vendor_event:
 # ---------------------------------------------------------------------------
 
 divergences:
+  # AEF TRIAGE of our 2026-10-20 proposals (framework:pickup 341-350; AEF T-4472, msg de408dc4;
+  # tracked here as T-3494). When AEF reports one landed (task id + commit), flip that entry to
+  # landed-upstream and drop it from .fwvendor-preserve.yaml.
+  #   341 T-3472 lib/arc.sh ............ adapt  -> AEF T-4473
+  #   342 T-3464 bin/claude-fw ......... adapt  -> AEF T-4474 (re-merge with T-4462 'command claude')
+  #   343 T-3337/T-3370 discovery.py ... DECLINED: import already fixed (T-4468); our other hunk edits a
+  #                                       function nothing upstream calls -> stays LOCAL for good
+  #   344 T-3336 web/embeddings.py ..... adapt  -> AEF T-4475
+  #   345 T-3270 check-active-task.sh .. DECLINED: exempts our scripts/commit-pending.sh, which AEF does
+  #                                       not have -> stays LOCAL for good (TermLink-specific)
+  #   346 T-3269/T-2882 handover.sh .... adapt  -> AEF T-4476 (all but the commit-pending hunk, which stays local)
+  #   347 T-3189 estimator.py .......... evaluate -> AEF T-4477 (overlaps their T-3512 write_set costing)
+  #   348 T-3184/85/76 lib/bvp.sh ...... adapt  -> AEF T-4478 (split hunks, telemetry first)
+  #   349 T-3178/T-3370 safe-commands .. adapt  -> AEF T-4479 (security gate: only hunks passing a fresh red/green test)
+  #   350 T-2687 lib/pickup.sh ......... apply  -> AEF T-4480
   - task: T-3472
     commit: pending-same-commit
     commit_note: Registered in the same commit that carries the patch.
