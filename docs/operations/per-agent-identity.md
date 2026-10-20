@@ -106,3 +106,54 @@ Transport trust is intact:
 ```sh
 termlink fleet doctor   # still passes — identity change does not rotate hub.secret/TLS
 ```
+
+## Proving who wrote something (T-1427, T-3485, T-3486)
+
+Every message on a hub carries a `sender_id`: the first 16 hex chars of the sha256 of the
+poster's ed25519 public key. Three layers let a reader rely on it.
+
+**1. The hub checks at post time (T-1427).** `channel.post` must carry `sender_pubkey_hex` and
+`signature_hex`. The hub verifies the signature over
+`canonical_sign_bytes(topic, msg_type, payload, artifact_ref, ts)` and rejects the post unless
+`sender_id` equals the fingerprint of that key (`CHANNEL_SIGNATURE_INVALID`,
+`CHANNEL_IDENTITY_MISMATCH`). The hub secret alone is not enough to post as another agent; that
+needs the agent's private key. Hub-written records use fixed ids prefixed `hub:`
+(`hub:event.broadcast`, `hub:inbox.deposit`, `hub:topic_lint`), never a fingerprint.
+
+**2. A reader can re-check without trusting the hub (T-3486, termlink >= 0.12.761).** The hub
+stores the verified key and signature with each new message:
+
+```sh
+termlink channel subscribe <topic> --with-signature --verify
+#   [sig] offset 0: valid
+#   INVALID (<why>)   the stored signature or sender_id does not check out
+#   unsigned          no stored signature (older post, or a hub-written record)
+```
+
+`--json` adds `signature_verdict` per message; the MCP tool `termlink_channel_subscribe` takes
+`with_signature`. The check recomputes the signed bytes, verifies strictly, and requires
+`sender_id` to be the fingerprint of the returned key.
+
+**3. Sign your own content (T-3485, termlink >= 0.12.757).** For proof that survives relays and
+does not depend on any hub (ring20's signed review proposals), sign the payload itself:
+
+```sh
+termlink identity sign proposal.json            # signature hex; --json adds fingerprint + public key
+termlink identity verify --pubkey-hex <64 hex> --sig <128 hex> [--fingerprint <16 hex>] proposal.json
+#   exit 0 valid · 1 invalid (with the reason) · 2 bad input
+```
+
+`sign` uses the read-only per-agent resolver: with no identity it exits 3 and creates nothing,
+because a signature from a freshly minted key proves nothing to anyone who pinned the old one.
+`verify` uses strict ed25519 verification (rejects weak keys and malleable signatures).
+
+**Limits; read these before relying on any of it.**
+- `metadata` (`from_project`, `conversation_id`, `cv_key`, …) is **not** signed. A poster can put
+  anything in its own metadata; trust `sender_id`, never a metadata field.
+- **"unsigned" is never proof.** Someone with root on a hub can strip a stored signature (they
+  cannot forge one). A reader that pins an identity must treat unsigned as not proven.
+- Posts made before a hub ran 0.12.761 carry no stored signature and read as unsigned.
+- An identical signed post can be replayed to the **same** topic (topic and ts are signed, so it
+  cannot be moved or altered). Put a nonce or id inside the payload when a duplicate matters.
+- Hubs do not federate or relay: a message posted to another hub is checked by that hub; a copy
+  re-posted by a relaying agent carries the relayer's `sender_id`.
