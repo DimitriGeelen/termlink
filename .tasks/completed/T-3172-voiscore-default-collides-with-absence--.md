@@ -15,10 +15,10 @@ description: >
   and the local half is measurement plus a filing. Same collision reportedly applies
   to target_blast_radius: 3.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -33,8 +33,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-26T18:15:46Z
-last_update: 2026-10-20T18:05:28Z
-date_finished:
+last_update: 2026-10-20T20:37:41Z
+date_finished: 2026-10-20T20:37:41Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -364,3 +364,15 @@ test -z "$(git status --porcelain .agentic-framework/agents/termlink/bvp-estimat
 - **Residual:** `fw upgrade` / convert-to-inception will still backfill 0.5 into any inception
   lacking the field, and the gate's message still suggests 0.5. Both upstream (offset 352).
   Whether a re-vendor overwrites project `.tasks/templates/` was not checked.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-4f28d579
+- **Timestamp:** 2026-10-20T20:37:43Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-10-20T20:37:41Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
