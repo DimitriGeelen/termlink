@@ -8,10 +8,10 @@ description: >
   unsigned is never proof, pre-upgrade posts unsigned, hub-root caveat) and how ring20
   uses it.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [docs, identity, security]
 components: []
 related_tasks: []
@@ -42,8 +42,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-20T09:23:16Z
-last_update: 2026-10-20T09:23:36Z
-date_finished:
+last_update: 2026-10-20T09:24:43Z
+date_finished: 2026-10-20T09:24:43Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -82,8 +82,8 @@ docs/operations/per-agent-identity.md.
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] per-agent-identity.md has a section on proving authorship: the hub check at post time, `identity sign`/`verify`, `subscribe --with-signature --verify`, with exit codes
-- [ ] The section states the limits: metadata is not signed; "unsigned" is never proof; posts before the upgrade are unsigned; replay to the same topic; a hub-root attacker can strip but not forge
+- [x] per-agent-identity.md has a section on proving authorship: the hub check at post time, `identity sign`/`verify`, `subscribe --with-signature --verify`, with exit codes
+- [x] The section states the limits: metadata is not signed; "unsigned" is never proof; posts before the upgrade are unsigned; replay to the same topic; a hub-root attacker can strip but not forge
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -134,6 +134,10 @@ docs/operations/per-agent-identity.md.
 -->
 
 ## Verification
+
+grep -q '^## Proving who wrote something' docs/operations/per-agent-identity.md
+grep -q 'never proof' docs/operations/per-agent-identity.md
+grep -q 'identity verify --pubkey-hex' docs/operations/per-agent-identity.md
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -387,3 +391,20 @@ docs/operations/per-agent-identity.md.
 
 ### 2026-10-20T09:23:36Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-4e4b1924
+- **Timestamp:** 2026-10-20T09:24:47Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-20T09:24:43Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
