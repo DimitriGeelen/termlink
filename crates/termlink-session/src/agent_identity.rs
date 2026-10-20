@@ -288,18 +288,35 @@ fn resolve_signing_identity_path<F>(fallback_base: &Path, get_env: F) -> PathBuf
 where
     F: Fn(&str) -> Option<String>,
 {
+    resolve_signing_identity_path_and_source(fallback_base, get_env).0
+}
+
+/// T-3468: the same resolution as [`resolve_signing_identity`], also naming the rule that
+/// picked the file (`TERMLINK_IDENTITY_FILE`, `TERMLINK_IDENTITY_DIR`, `TERMLINK_AGENT_ID` or
+/// `host-default`). The single owner of the precedence: callers that need the source (the MCP
+/// server's identity report) use this instead of keeping their own copy.
+pub fn resolve_signing_identity_path_and_source<F>(
+    fallback_base: &Path,
+    get_env: F,
+) -> (PathBuf, &'static str)
+where
+    F: Fn(&str) -> Option<String>,
+{
     if let Some(file) = get_env("TERMLINK_IDENTITY_FILE") {
-        return PathBuf::from(file);
+        return (PathBuf::from(file), "TERMLINK_IDENTITY_FILE");
     }
     if let Some(dir) = get_env("TERMLINK_IDENTITY_DIR") {
-        return identity_path(Path::new(&dir));
+        return (identity_path(Path::new(&dir)), "TERMLINK_IDENTITY_DIR");
     }
     if let Some(agent_id) = get_env("TERMLINK_AGENT_ID").filter(|s| !s.trim().is_empty())
         && let Some(home) = get_env("HOME")
     {
-        return per_agent_identity_path(&PathBuf::from(home).join(".termlink"), &agent_id);
+        return (
+            per_agent_identity_path(&PathBuf::from(home).join(".termlink"), &agent_id),
+            "TERMLINK_AGENT_ID",
+        );
     }
-    identity_path(fallback_base)
+    (identity_path(fallback_base), "host-default")
 }
 
 /// Sanitize a logical agent id into a single filesystem-safe filename

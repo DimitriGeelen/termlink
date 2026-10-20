@@ -8239,22 +8239,9 @@ fn signing_identity_path_and_source<F>(
 where
     F: Fn(&str) -> Option<String>,
 {
-    use termlink_session::agent_identity::{identity_path, per_agent_identity_path};
-    if let Some(file) = get_env("TERMLINK_IDENTITY_FILE") {
-        return (std::path::PathBuf::from(file), "TERMLINK_IDENTITY_FILE");
-    }
-    if let Some(dir) = get_env("TERMLINK_IDENTITY_DIR") {
-        return (identity_path(std::path::Path::new(&dir)), "TERMLINK_IDENTITY_DIR");
-    }
-    if let Some(agent_id) = get_env("TERMLINK_AGENT_ID").filter(|s| !s.trim().is_empty())
-        && let Some(home) = get_env("HOME")
-    {
-        return (
-            per_agent_identity_path(&std::path::PathBuf::from(home).join(".termlink"), &agent_id),
-            "TERMLINK_AGENT_ID",
-        );
-    }
-    (identity_path(fallback_base), "host-default")
+    // T-3468 review: delegate to the session crate, the single owner of the precedence,
+    // so the report can never drift from what `resolve_signing_identity` actually uses.
+    termlink_session::agent_identity::resolve_signing_identity_path_and_source(fallback_base, get_env)
 }
 
 fn describe_signing_identity(

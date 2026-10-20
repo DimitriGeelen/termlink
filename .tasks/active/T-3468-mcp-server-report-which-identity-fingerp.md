@@ -1,13 +1,17 @@
 ---
 id: T-3468
-name: "MCP server: report which identity fingerprint the running server signs with (832 request)"
+name: "MCP server: report which identity fingerprint the running server signs with
+  (832 request)"
 description: >
-  832-Workflow-designer (msg 8dd1ba95): the MCP server resolves its signing key once at start and nothing reports which key a running server uses. Expose the active fingerprint (e.g. in termlink_whoami / termlink_agent_identity output) for the serving process.
+  832-Workflow-designer (msg 8dd1ba95): the MCP server resolves its signing key once
+  at start and nothing reports which key a running server uses. Expose the active
+  fingerprint (e.g. in termlink_whoami / termlink_agent_identity output) for the serving
+  process.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -38,8 +42,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-18T19:33:18Z
-last_update: 2026-10-18T19:33:18Z
-date_finished: null
+last_update: 2026-10-20T09:37:51Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +54,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-20T09:20:00Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 3
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=3 (body:portability-abstraction); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3468: MCP server: report which identity fingerprint the running server signs with (832 request)
@@ -68,9 +86,22 @@ identity (tools.rs ~20086 mentions the CLI `load_identity_or_create` fallback) a
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `termlink_agent_identity` (and the identity part of `termlink_whoami` if it has one) reports the fingerprint, public key, resolution source and real key path of the identity the server's post path signs with
-- [ ] It also reports whether a fresh resolution right now gives the same fingerprint (`matches_current_resolution`), so a server started under an old env or a rotated key is visible
-- [ ] Unit test covers the fields and the mismatch case; `cargo test -p termlink-mcp` passes
+- [x] `termlink_agent_identity` (and the identity part of `termlink_whoami` if it has one) reports the fingerprint, public key, resolution source and real key path of the identity the server's post path signs with
+- [x] It also reports whether a fresh resolution right now gives the same fingerprint (`matches_current_resolution`), so a server started under an old env or a rotated key is visible
+- [x] Unit test covers the fields and the mismatch case; `cargo test -p termlink-mcp` passes
+
+Evidence (2026-10-20): built by TermLink worker w-t3468 (commit 9781791f6, tools.rs only): all 48
+MCP signing call sites go through `resolve_and_record_signing_identity`, which records the first
+identity the process signs with (OnceLock: fingerprint, public key, real path, source);
+`termlink_agent_identity` returns those plus `matches_current_resolution` and
+`current_resolution`, and no longer always reports `identity.json`. `termlink_whoami` left as is:
+its `identity_fingerprint` is the registered session's, not the MCP signing key. Review fix by
+the orchestrating session: the worker had to mirror the precedence in the MCP crate (it could
+not touch the session crate while another worker ran); the session crate now exposes
+`resolve_signing_identity_path_and_source`, the single owner of the precedence, and the MCP
+helper delegates to it, so the report cannot drift. Worker's `cargo test -p termlink-mcp`: 944
+unit + 99 integration + 37 parity, 0 failed; after the review fix the session precedence test and
+both t3468 tests pass.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -121,6 +152,9 @@ identity (tools.rs ~20086 mentions the CLI `load_identity_or_create` fallback) a
 -->
 
 ## Verification
+
+grep -q 'pub fn resolve_signing_identity_path_and_source' crates/termlink-session/src/agent_identity.rs
+cargo test -q -p termlink-mcp --lib t3468 > /tmp/.t3468 2>&1 && grep -q "2 passed" /tmp/.t3468
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -371,3 +405,7 @@ identity (tools.rs ~20086 mentions the CLI `load_identity_or_create` fallback) a
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3468-mcp-server-report-which-identity-fingerp.md
 - **Context:** Initial task creation
+
+### 2026-10-20T09:19:59Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
