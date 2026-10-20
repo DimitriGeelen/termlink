@@ -13,12 +13,12 @@ description: >
   verify locally. Note: metadata is not covered by the signature and must stay documented
   as such.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [bus, security, signature, ring20-request]
-components: []
+components: [crates/termlink-bus/src/envelope.rs, crates/termlink-bus/src/lib.rs, crates/termlink-bus/src/log.rs, crates/termlink-bus/tests/t3461_durable_off_workers.rs, crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/main.rs, crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/retention_sweeper.rs, crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -47,8 +47,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-19T22:34:51Z
-last_update: 2026-10-20T07:55:08Z
-date_finished:
+last_update: 2026-10-20T08:47:29Z
+date_finished: 2026-10-20T08:47:29Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -109,11 +109,21 @@ outside the signature and must keep being documented as such.
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `Envelope` gains `signature: Option<EnvelopeSignature>` (serde default, skipped when None); a record encoded before this change still decodes (test with a literal pre-change JSON record)
-- [ ] `channel.post` stores the verified public key and signature; hub-originated envelopes store none
-- [ ] `channel.subscribe` with `with_signature: true` returns `sender_pubkey_hex` + `signature_hex` per message when stored; without it the wire output is unchanged (test)
-- [ ] CLI `channel subscribe --with-signature --verify` reports valid / INVALID / unsigned per message; MCP `termlink_channel_subscribe` accepts `with_signature`
-- [ ] Tests: post -> subscribe with signature -> local verify passes; a tampered payload or a swapped sender_id fails; `cargo test -p termlink-bus -p termlink-hub -p termlink` (and the MCP crate) pass
+- [x] `Envelope` gains `signature: Option<EnvelopeSignature>` (serde default, skipped when None); a record encoded before this change still decodes (test with a literal pre-change JSON record)
+- [x] `channel.post` stores the verified public key and signature; hub-originated envelopes store none
+- [x] `channel.subscribe` with `with_signature: true` returns `sender_pubkey_hex` + `signature_hex` per message when stored; without it the wire output is unchanged (test)
+- [x] CLI `channel subscribe --with-signature --verify` reports valid / INVALID / unsigned per message; MCP `termlink_channel_subscribe` accepts `with_signature`
+- [x] Tests: post -> subscribe with signature -> local verify passes; a tampered payload or a swapped sender_id fails; `cargo test -p termlink-bus -p termlink-hub -p termlink` (and the MCP crate) pass
+
+Evidence (2026-10-20): built by TermLink worker w-t3486 (commit 106fed98e, 11 files), reviewed
+by the orchestrating session (envelope field + pre-change decode test; hub stores only the
+just-verified key/signature; `signature_verdict` recomputes `canonical_sign_bytes`, verifies with
+`verify_strict` and requires sender_id == fingerprint). 13 new tests; worker's full run
+`cargo test -p termlink-bus -p termlink-hub -p termlink -p termlink-mcp`: 17 suites, 3148 passed,
+0 failed. Notes: `--verify` covers the signed fields only (metadata is outside the signature,
+stated in the help); the hub's post-time check still uses non-strict `verify` (unchanged
+behaviour); "unsigned" is never proof (a hub-root attacker can strip a signature), so a reader
+pinning an identity must treat unsigned as not proven. Live check follows the next runme deploy.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -164,6 +174,10 @@ outside the signature and must keep being documented as such.
 -->
 
 ## Verification
+
+grep -q 'pub struct EnvelopeSignature' crates/termlink-bus/src/envelope.rs
+grep -q 'fn signature_verdict' crates/termlink-cli/src/commands/channel.rs
+cargo test -q -p termlink-bus --lib pre_change_record_still_decodes_with_no_signature > /tmp/.t3486 2>&1 && grep -q "1 passed" /tmp/.t3486
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -418,3 +432,20 @@ outside the signature and must keep being documented as such.
 ### 2026-10-20T07:55:08Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-d86971bb
+- **Timestamp:** 2026-10-20T08:47:33Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-20T08:47:29Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

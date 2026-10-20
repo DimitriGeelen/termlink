@@ -1,0 +1,91 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3486: Store the poster's ed25519 signature with each envelope and expose it on read (channel subscribe --with-signature) so readers can re-verify without trusting the hub
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-20T08:47:45Z
+# ============================================================================
+
+task_id: T-3486
+task_name: "Store the poster's ed25519 signature with each envelope and expose it on read (channel subscribe --with-signature) so readers can re-verify without trusting the hub"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-19T22:34:51Z
+completed: 2026-10-20T08:47:29Z
+duration_days: 1
+updates_count: 2
+first_commit: 2026-10-20T09:56:47+02:00
+last_commit: 2026-10-20T10:37:29+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  design and acceptance criteria (store verified signature with each envelope, with_signature read, reader-side --verify). store the poster's verified ed25519 signature with each envelope; channel subscribe --with-signature exposes it; --verify re-checks locally
+
+# Key outcomes
+outcomes:
+  - '`Envelope` gains `signature: Option<EnvelopeSignature>` (serde default, skipped when None); a record encoded before this change still decodes (test with a literal pre-change JSON record)'
+  - '`channel.post` stores the verified public key and signature; hub-originated envelopes store none'
+  - '`channel.subscribe` with `with_signature: true` returns `sender_pubkey_hex` + `signature_hex` per message when stored; without it the wire output is unchanged (test)'
+  - 'CLI `channel subscribe --with-signature --verify` reports valid / INVALID / unsigned per message; MCP `termlink_channel_subscribe` accepts `with_signature`'
+  - 'Tests: post -> subscribe with signature -> local verify passes; a tampered payload or a swapped sender_id fails; `cargo test -p termlink-bus -p termlink-hub -p termlink` (and the MCP crate) pass'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-bus/src/envelope.rs'
+  - 'crates/termlink-bus/src/lib.rs'
+  - 'crates/termlink-bus/src/log.rs'
+  - 'crates/termlink-bus/tests/t3461_durable_off_workers.rs'
+  - 'crates/termlink-bus/tests/t3473_reads_do_not_wait_on_commit.rs'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - 'crates/termlink-hub/src/channel.rs'
+  - 'crates/termlink-hub/src/retention_sweeper.rs'
+  - 'crates/termlink-mcp/src/tools.rs'
+  - '.tasks/active/T-3486-store-the-posters-ed25519-signature-with.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-20T09:56:47'
+    action: 'T-3486: design and acceptance criteria (store verified signature with each envelope, with_signature read, reader-side --verify)'
+  - time: '2026-10-20T10:37:29'
+    action: 'T-3486: store the poster''s verified ed25519 signature with each envelope; channel subscribe --with-signature exposes it; --verify re-checks locally'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 612 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [bus, security, signature, ring20-request]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 612
+  commits: 2
+  files_changed: 12
+  lines_added: 859
+  lines_removed: 7
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3486-store-the-posters-ed25519-signature-with.md
+generated_by: context-agent-hybrid
