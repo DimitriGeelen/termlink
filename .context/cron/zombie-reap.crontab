@@ -1,0 +1,12 @@
+# T-3491 — daily reap of idle zombie `termlink register --shell` sessions
+# Source of truth: /opt/termlink/.context/cron/zombie-reap.crontab (git-tracked)
+# Installed to:    /etc/cron.d/termlink-zombie-reap (USER field syntax — do NOT load into a user crontab)
+#
+# Runs scripts/reap-zombie-sessions.sh (the same code as runme action 7, operator-approved
+# 2026-10-20) at 07:30 host time, before the session-leak canary at 07:57, so the canary
+# reports only sessions this could not reap. Same detector as the canary; targets listed
+# before any is touched; SIGTERM only. --quiet: nothing is written when there is nothing to
+# reap, so the .log holds only actual reaps; diagnostics go to .stderr (T-2685).
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+30 7 * * * root cd /opt/termlink && bash scripts/reap-zombie-sessions.sh --quiet >> .context/working/.zombie-reap.log 2>> .context/working/.zombie-reap.log.stderr

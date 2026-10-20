@@ -223,6 +223,9 @@ install_crontab vector-index-canary.crontab       "$CRON_DIR/termlink-vector-ind
 # T-3466 (R5b, T-2250 GO) — daily rollup of this host's telemetry to telemetry:daily.
 install_crontab telemetry-rollup.crontab          "$CRON_DIR/termlink-telemetry-rollup"
 
+# T-3491 — daily zombie-session reap (same code as action 7), before the session-leak canary.
+install_crontab zombie-reap.crontab               "$CRON_DIR/termlink-zombie-reap"
+
 # T-3432 (arc-011 FX-5 ruling C) — daily: files sent as ordinary messages outside the artifact path.
 install_crontab file-shaped-posts-canary.crontab  "$CRON_DIR/termlink-file-shaped-posts-canary"
 
@@ -834,55 +837,19 @@ seam ZOMBIE_PROC RUNME_ZOMBIE_PROC "/proc"
 seam ZOMBIE_KILL RUNME_ZOMBIE_KILL "kill -TERM"
 ZOMBIE_WAIT="${RUNME_ZOMBIE_WAIT_SECS:-10}"
 
-zombie_still_is() {  # <pid> <name> -> 0 if the pid is still that register session
-    local cl
-    # T-3301: the redirect sits inside a group whose stderr is discarded — a bare
-    # `< file 2>/dev/null` reports the failed open BEFORE the 2> applies, which
-    # printed one bash error per exited session into the operator's log.
-    cl="$( { tr '\0' ' ' < "$ZOMBIE_PROC/$1/cmdline"; } 2>/dev/null )" || return 1
-    case "$cl" in *termlink*" register "*"--name $2 "*) return 0 ;; esac
-    return 1
-}
-
+# T-3491: the reap itself lives in scripts/reap-zombie-sessions.sh so the daily cron
+# runs the same code. The seams above are still resolved HERE (so a fixture run that
+# misses one refuses, T-3299) and passed to the script explicitly.
 reap_zombie_sessions() {
-    local json list n
-    if ! json="$($ZOMBIE_DETECT 2>/dev/null)"; then
-        say "  FAILED  zombie detector could not run — nothing reaped"; FAILED=$((FAILED+1)); return
-    fi
-    list="$(printf '%s' "$json" | python3 -c '
-import json,sys
-for z in json.load(sys.stdin).get("zombie",[]):
-    print(z["pid"], z["name"], z["age_s"]//86400, z.get("tmux_session") or "-")')" || {
-        say "  FAILED  zombie detector output unreadable — nothing reaped"; FAILED=$((FAILED+1)); return; }
-    n="$(printf '%s' "$list" | grep -c . || true)"
-    if [ "$n" = "0" ]; then
-        say "  skip    no zombie sessions (idle >24h, detached, shell childless)"; SKIPPED=$((SKIPPED+1)); return
-    fi
-    say "  targets $n zombie session(s) — listed before any is touched:"
-    printf '%s\n' "$list" | while read -r pid name days tm; do
-        say "            pid $pid  $name  ${days}d  tmux=$tm"
-    done
-    if [ "$DRY_RUN" = "1" ]; then
-        say "  [DRY]   would SIGTERM these $n session(s) after re-verifying each pid"; DONE=$((DONE+1)); return
-    fi
-    local pid name days tm i gone=0 skipped=0 stuck=""
-    while read -r pid name days tm; do
-        if ! zombie_still_is "$pid" "$name"; then
-            skipped=$((skipped+1)); say "  skip    pid $pid is no longer register '$name' — not signalled"; continue
-        fi
-        $ZOMBIE_KILL "$pid" 2>/dev/null || true
-        for i in $(seq 1 "$ZOMBIE_WAIT"); do
-            zombie_still_is "$pid" "$name" || break
-            sleep 1
-        done
-        if zombie_still_is "$pid" "$name"; then stuck="$stuck $pid($name)"; else gone=$((gone+1)); fi
-    done <<< "$list"
-    if [ -z "$stuck" ]; then
-        local note=""; [ "$skipped" -gt 0 ] && note="; $skipped skipped (pid no longer that session)"
-        say "  OK      reaped and verified: $gone session(s) exited on SIGTERM$note"; DONE=$((DONE+1))
-    else
-        say "  FAILED  still running after SIGTERM (not escalated to SIGKILL):$stuck — $gone exited"; FAILED=$((FAILED+1))
-    fi
+    local out rc
+    local args=(); [ "$DRY_RUN" = "1" ] && args=(--dry-run)
+    out="$(RUNME_ZOMBIE_DETECT="$ZOMBIE_DETECT" RUNME_ZOMBIE_PROC="$ZOMBIE_PROC" \
+           RUNME_ZOMBIE_KILL="$ZOMBIE_KILL" RUNME_ZOMBIE_WAIT_SECS="$ZOMBIE_WAIT" \
+           bash "$PROJECT_ROOT/scripts/reap-zombie-sessions.sh" "${args[@]}")"; rc=$?
+    [ -n "$out" ] && say "$out"
+    if [ "$rc" != "0" ]; then FAILED=$((FAILED+1))
+    elif grep -q "^  skip    no zombie sessions" <<< "$out"; then SKIPPED=$((SKIPPED+1))
+    else DONE=$((DONE+1)); fi
 }
 
 head2 "7. Zombie register sessions — one-time reap (T-3297, T-3291 S3b)"
