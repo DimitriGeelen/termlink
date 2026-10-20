@@ -5,12 +5,15 @@
 #
 # Sources (this project's own material only): docs/CHARTER.md (authoritative
 # purpose and non-goals), README.md (four core verbs, guarantees), the arcs in
-# .context/arcs/, and the operator's arc-011 step-1 rulings
-# (docs/reports/T-3344-step1-rulings-summary.md). Drafted under T-3371.
+# .context/arcs/, and the operator's rulings. Drafted under T-3371; tightened and
+# widened 2026-10-21 by operator ruling after a reflection on the weeks' work
+# (trust, dispatched workers, "accepted means stored", the hub as the record,
+# the operator's role).
 headline: >-
-  TermLink is the coordination substrate for a fleet of AI agents and the humans
-  who run them: through a hub, they discover each other, exchange durable
-  messages, claim work and control terminal sessions, on one machine or many.
+  TermLink is the trusted coordination substrate for a fleet of AI agents and
+  their operator: through a hub they discover each other, exchange durable
+  messages, dispatch and hand back work, and control terminal sessions, on one
+  machine or many.
 objectives:
   - id: O-1
     text: >-
@@ -23,25 +26,31 @@ objectives:
       lists no agent whose heartbeat is outside the LIVE window (arc-002).
   - id: O-2
     text: >-
-      A message sent to a peer is never silently lost: it is delivered, or the
-      sender can see exactly where it stopped (not received, not stored, not
-      handed over, not answered), and a reader whose position was swept is told
-      about the gap rather than skipping it.
+      A message counts as accepted only once it is stored, and it is never
+      silently lost: the sender sees exactly where it stopped (received, stored,
+      handed over, answered), a reader whose position was swept gets a gap notice
+      instead of skipping, and the hub stays responsive while its host is under
+      load.
     measure: >-
       Partly measured. Today: the arc-003 "no silent loss" prover
-      (`scripts/check-arc-claim-drift.sh`, daily on this host) passes, and the
-      dead-letter and unconfirmed-delivery canary logs are empty. The
-      sender-visible stage chain and the gap notice (arc-010, arc-011) are not
-      measured yet; their measure is the verified-behaviour acceptance the
-      operator ruled for arc-010 (GP-12 / CAND-3), once built.
+      (`scripts/check-arc-claim-drift.sh`, daily) passes; the dead-letter and
+      unconfirmed-delivery canary logs are empty; the hub's slow-request lines in
+      rpc-audit.jsonl (T-3478) show no channel.create/channel.post over 5 s while
+      the disk is under 90% busy (T-3488 criterion). Not yet: the sender-visible
+      stage chain and the gap notice (arc-010, arc-011), measured by their
+      verified-behaviour acceptance once built.
   - id: O-3
     text: >-
-      Several agents can divide a queue of work so that each unit is done once,
-      handed off without a race, and recovered automatically when a worker dies.
+      A dispatched unit of work is done once and recorded once, in one
+      authoritative record that TermLink, the Agentic Engineering Framework and
+      ring20 give the same meaning; it is handed off without races, recovered when
+      its worker dies, and every worker gets its own cheap, isolated workspace.
     measure: >-
-      The substrate-smoke canary log is empty (`scripts/substrate-smoke.sh`:
-      claim, claim-transfer, worker loop, lease expiry and hub-blip stages, run
-      daily); the stuck-claims canary log is empty.
+      Today: the substrate-smoke and stuck-claims canary logs are empty (claim,
+      transfer, lease expiry, hub blip). As the worker contract lands (T-3484,
+      T-3501..T-3504): the shared conformance vector file passes against the hub
+      backend, and live runs show every unit counted exactly once. Workspaces per
+      the IW-3 ruling (T-3469: a clone per claim, copy-on-write on btrfs).
   - id: O-4
     text: >-
       An agent or operator can start a terminal session, run a command in it and
@@ -53,26 +62,48 @@ objectives:
   - id: O-5
     text: >-
       What is shipped is what the fleet runs: releases are published and
-      installable on Linux and macOS, and every hub serves the binary and
-      capabilities it is expected to.
+      installable on Linux and macOS, every hub serves the binary and
+      capabilities it is expected to, and every host's health is collected, not
+      only one host's.
     measure: >-
       The release-publication canary log is empty (newest tag has a published
       GitHub release; watched workflows green within 7 days); the macOS test job
       gates the release build; the fleet-binary and fleet-capability canary logs
-      are empty.
+      are empty; `scripts/telemetry-fleet-view.sh` names no host missing a daily
+      report (T-3466).
   - id: O-6
     text: >-
-      When something breaks, the operator hears about it at the moment it happens
-      and in one place, and the health reports they read are clean or carry a
-      cited reason, instead of re-reporting the same findings unread.
+      The operator is interrupted only for genuine decisions, never acts as a
+      courier between agents, gets every action to run as one command, and hears
+      about a failure at the moment it happens and in one place, with health
+      reports that are clean or carry a cited reason.
     measure: >-
       `/canaries` (scripts/canary-status.sh) reports every canary HEALTHY, none
       FIRING, STALE or ERRORING; `fw audit` and `fw doctor` show zero failures
-      with every warning fixed or acknowledged (arc-008). The in-band loudness of
-      each comms failure mode (arc-007) is not measured yet beyond these.
+      with every warning fixed or acknowledged (arc-008). Operator actions arrive
+      as `/opt/termlink/runme.sh` or a Watchtower link, never as copy-paste
+      blocks; decisions arrive one at a time with a recommendation. Not yet
+      measured: how often the operator relays something an agent could have
+      sent itself, and the in-band loudness of each comms failure mode (arc-007).
+  - id: O-7
+    text: >-
+      Every message, injection and lifecycle write can be traced to the identity
+      that made it, and is accepted only from an identity allowed to make it: no
+      peer can act as the operator, no worker can sign off its own work in the
+      supervisor's place, and holding the hub secret is not enough to type into
+      someone's session.
+    measure: >-
+      Partly measured. Today: the hub verifies every post's signature and binds
+      sender_id to the key (T-1427); readers re-check stored signatures
+      (`channel subscribe --verify`, T-3486); every agent has its own identity
+      key (T-2292) and a missing key can fail closed (T-3467). Not yet: signed
+      inject with a per-session allowlist (T-3493), the supervisor token for
+      worker lifecycle writes (T-3501), operator identity for resolve (worker
+      contract), per-agent authorisation (T-2422); each becomes a check once
+      built.
 out_of_scope:
   - "Inter-hub federation: each hub owns its own topics; cross-hub visibility is explicit, client-driven cross-posting, never automatic (charter non-goal 1, G-060)."
   - "A durable database or system of record: topics are retention-bounded logs for coordination, not archival storage (charter non-goal 2)."
   - "A social or engagement platform: reactions, pins, polls, leaderboards and other analytics that serve no coordination purpose are removal candidates, not features (charter non-goal 3)."
-  - "A workflow or orchestration engine: TermLink provides the mechanism (claim, lease, DM, doorbell, presence); orchestration policy belongs to the Agentic Engineering Framework (charter non-goal 4)."
-  - "A security boundary between mutually distrusting tenants: the trust model is a cooperating fleet with TOFU-pinned hubs and a shared secret (charter non-goal 5)."
+  - "A workflow or orchestration engine: TermLink provides the mechanism (claim, lease, DM, doorbell, presence, the dispatch record); orchestration policy belongs to the Agentic Engineering Framework (charter non-goal 4)."
+  - "A security boundary between mutually distrusting tenants: the trust model is a cooperating fleet with TOFU-pinned hubs and a shared secret (charter non-goal 5); within the fleet, every action is still attributable and authorised (O-7)."

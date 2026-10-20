@@ -13,7 +13,7 @@ tags: [objectives-authoring]
 components: []
 related_tasks: []
 created: 2026-10-06T11:19:34Z
-last_update: 2026-10-20T21:41:55Z
+last_update: 2026-10-20T23:41:14Z
 date_finished: 2026-10-20T21:41:31Z
 bvp_scores_proposed:
   - ts: '2026-10-20T19:51:39Z'
@@ -136,6 +136,25 @@ borrowing a green.
 - **Left open:** O-2's per-stage message view and O-6's in-band loudness become measurable as arc-010 and
   arc-011 deliver.
 - The `### Human` review box is the operator's to tick (via Watchtower); the agent does not tick it.
+
+### 2026-10-21 — objectives tightened and widened (operator ruling, supersedes the entry above)
+- **Context:** the operator reopened the decision: "the trust system is a long road and the objectives
+  should show it", and asked for a reflection against the weeks' work, not a single tweak.
+- **Reflection (what the draft missed):** trust (identity, signatures, inject, supervisor token, operator
+  identity); dispatched workers and the shared contract (O-3 covered only claims); "accepted means
+  stored" (T-3461 ruling) and hub responsiveness under load (T-3488); arc-011's hub-as-record (gap notice);
+  the operator's role (decisions only, never a courier, one command); measures that leaned on "canary log
+  empty" instead of outcome numbers.
+- **Chose:** the revised file, operator "yes" (2026-10-21):
+  - headline "trusted … and their operator … dispatch and hand back work";
+  - O-2 tightened (stored before accepted, gap notice, responsive under load, slow-line measure);
+  - O-3 widened to dispatched work with one shared authoritative record and cheap isolated workspaces;
+  - O-5 adds every host's daily health;
+  - O-6 widened to the operator's role;
+  - new O-7, trust;
+  - out-of-scope item 5 clarified ("within the fleet every action is attributable and authorised").
+  O-1 and O-4 are unchanged.
+- **Rejected:** the as-written draft (blind to trust and to the worker direction).
 
 ## Updates
 
