@@ -70,7 +70,15 @@ last_vendor_event:
 #   2. Confirm every `status: filed-upstream` below is now carried upstream,
 #      or accept losing it.
 #   3. cp CLAUDE.md CLAUDE.md.prevendor              # the 844 lines
-#   4. Run the re-vendor.
+#   4. Run the re-vendor. Run it with FRAMEWORK_ROOT, PROJECT_ROOT and FW_ROUTED_FROM UNSET
+#      (`env -u ...`): a session exports them pointing at the OLD vendored copy, and the upgrade
+#      then judges the wrong tree ("source does not contain this consumer's commit", T-3489).
+#      A PRESERVEd file keeps OUR copy whole, upstream security fixes in it included: 3-way merge
+#      every preserved file upstream changed (base = our vendored commit), then run the FULL guard
+#      layer (bash scripts/run-guard-layer.sh) on the rehearsal BEFORE the real run. T-3489's
+#      merge passed the two fixture suites it ran and still left two guard reds: new upstream
+#      code inside a preserved function did not follow our convention, and our budget-ladder
+#      guard parsed a form upstream had replaced.
 #   5. diff CLAUDE.md.prevendor CLAUDE.md            # re-apply what was dropped
 #   6. Re-check the modes listed under `mode-only` (PL-205 fail-open).
 #   7. Update `last_vendor_event` here.

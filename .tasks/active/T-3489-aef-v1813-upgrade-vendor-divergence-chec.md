@@ -41,7 +41,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-20T11:36:20Z
-last_update: 2026-10-20T14:37:50Z
+last_update: 2026-10-20T14:39:47Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -309,6 +309,20 @@ python3 .agentic-framework/lib/watchtower_decision_revert.py > /tmp/.t3489r 2>&1
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
+
+**Symptom:** The upgrade's first rehearsal refused ("source does not contain this consumer's commit") although ancestry was verified. After the real upgrade, the guard layer had two new FAIL-tier reds. `safe-commands-write-pattern-fixtures` failed: "still contains an echo|grep rule". `budget-ladder-drift-fixtures` failed: "cannot find TOKEN_WARN percentage".
+
+**Root cause:**
+1. The session exports FRAMEWORK_ROOT, PROJECT_ROOT and FW_ROUTED_FROM, all pointing at the old vendored copy, which is not a git repo, so the upgrade's version check looked there.
+2. A preserved file is kept whole, so new upstream code in it arrives only through our 3-way merge. The new `sed w` and `sort -o` rules merged cleanly but in upstream's `echo|grep` form inside a function our T-3178 patch had converted to herestrings (L-387 fail-open under pipefail).
+3. Upstream replaced the 75/85/95% ladder with `lib/budget_ladder.py` (T-4226), and our guard parsed the old form.
+
+**Why structurally allowed:**
+1. The checklist named no environment hygiene.
+2. The plan verified the merge with only the two fixture suites T-3434 used, not the full guard layer, so "merged clean" was read as "correct".
+3. Nothing ties a local guard to the upstream form it parses.
+
+**Prevention:** `.vendor-divergence.yaml` checklist step 4 now says to unset the three variables, to 3-way merge every preserved file upstream changed, and to run the FULL guard layer on the rehearsal before the real run (this commit). The budget guard now reads the gate's own source of truth (`budget_ladder.py`, 0ca79c3b5), so a future ladder change shows as a ladder change, not as a parse failure.
 
 ## Evolution
 
