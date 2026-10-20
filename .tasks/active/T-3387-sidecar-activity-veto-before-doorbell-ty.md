@@ -1,13 +1,23 @@
 ---
 id: T-3387
-name: "Sidecar activity veto before doorbell typing + derived busy bit on presence (OQ-16 D, CR-5)"
+name: "Sidecar activity veto before doorbell typing + derived busy bit on presence
+  (OQ-16 D, CR-5)"
 description: >
-  Operator ruling OQ-16 D (T-3351, 2026-10-10). Before typing the doorbell, after the readiness re-check, the sidecar measures the agent's own process tree locally: network bytes sent over the last 1-2 s (primary; a model request sends megabytes vs <= 2.8 KB keep-alive per 30 s, 055 measurement), CPU and disk I/O secondary; clear activity blocks typing (doorbell retried); activity never means ready. Do not use bytes-received recency (fooled by keep-alive). Hosts without /proc: no veto, shown in status (platform-lock check). Presence heartbeat carries a derived busy bit with its sample time; raw telemetry stays on the host (no hub store). Thresholds are starting values measured in the first build (H-11). Write real ACs before editing source (G-020).
+  Operator ruling OQ-16 D (T-3351, 2026-10-10). Before typing the doorbell, after
+  the readiness re-check, the sidecar measures the agent's own process tree locally:
+  network bytes sent over the last 1-2 s (primary; a model request sends megabytes
+  vs <= 2.8 KB keep-alive per 30 s, 055 measurement), CPU and disk I/O secondary;
+  clear activity blocks typing (doorbell retried); activity never means ready. Do
+  not use bytes-received recency (fooled by keep-alive). Hosts without /proc: no veto,
+  shown in status (platform-lock check). Presence heartbeat carries a derived busy
+  bit with its sample time; raw telemetry stays on the host (no hub store). Thresholds
+  are starting values measured in the first build (H-11). Write real ACs before editing
+  source (G-020).
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -38,8 +48,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-10T12:34:41Z
-last_update: 2026-10-10T12:34:41Z
-date_finished: null
+last_update: 2026-10-20T19:51:23Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +60,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-20T19:51:26Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3387: Sidecar activity veto before doorbell typing + derived busy bit on presence (OQ-16 D, CR-5)
@@ -71,8 +95,11 @@ sessions anyway.
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] New module `crates/termlink-sidecar/src/activity.rs` measures the agent's own process tree (rooted at the process whose fd/0 is the conversation's pty, per 055 T-491, not at a recorded claude pid) over a 1-2 s window: network bytes SENT per owned socket inode (primary; 055's `ss` by-inode method), CPU ticks and disk I/O bytes (secondary). Bytes-received / lastrcv are never read. Unit tests run against a fake `/proc` tree and canned `ss` output in temp dirs.
+- [ ] A doorbell gate (`activity::gate`) rings only when the readiness re-check says READY *and* the veto finds no clear activity; clear activity holds the doorbell with a retry; activity-quiet never turns a not-ready agent into ready (OQ-16 D 1-2). Each case has a test, and one mutant (veto ignored) is shown red.
+- [ ] Where the host cannot measure (no `/proc`): no veto, the gate falls back to the readiness re-check alone, and the sidecar `status` output carries an `activity_veto` field naming the state (`available` / `network unmeasured` / `unavailable: no /proc`) (OQ-16 D 3).
+- [ ] Presence fields derived from a sample carry only `busy` (true / false / null when unmeasurable) and its sample time `busy_sample_ms`; no raw byte, tick or I/O figure appears in them (OQ-16 D 4: raw telemetry stays on the host). Tested.
+- [ ] Starting thresholds (network sent, CPU, disk over the window) are named constants citing 055's numbers (megabytes per model request vs <= 2.8 KB keep-alive per 30 s) and marked as H-11 starting values to be measured; `cargo test -p termlink-sidecar` passes.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -355,3 +382,7 @@ sessions anyway.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3387-sidecar-activity-veto-before-doorbell-ty.md
 - **Context:** Initial task creation
+
+### 2026-10-20T19:51:23Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
