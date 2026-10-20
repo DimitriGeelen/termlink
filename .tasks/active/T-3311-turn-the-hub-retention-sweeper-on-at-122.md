@@ -25,7 +25,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-01T19:23:07Z
-last_update: 2026-10-20T16:18:24Z
+last_update: 2026-10-20T16:18:27Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -283,6 +283,14 @@ grep -q "0 failed" /tmp/.t3311.out
      legacy tasks lacking this section. -->
 
 ## Updates
+
+### 2026-10-20 — live on .122 and .121; waiting for the first sweep counts
+- .122: runme-20261020T172613Z-3315503 (rc=0, 17:46Z) added the drop-in and restarted through the unit;
+  governor interval 3600; ring20-management confirmed all three desks re-registered (msg cf5b7460) and was
+  told when it ran.
+- .121: ring20-dashboard applied it through their watchdog at 18:04Z, governor 3600 (msg 508f0659). Their
+  first attempt was undone by our own upgrade relaunch, which dropped the hub environment: filed as T-3497.
+- Open: retention_sweep_runs_total > 0 on both, due about an hour after each restart.
 
 ### 2026-10-01T19:23:07Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
