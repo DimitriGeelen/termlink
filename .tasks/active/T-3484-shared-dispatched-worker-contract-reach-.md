@@ -41,7 +41,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-19T22:03:42Z
-last_update: 2026-10-20T10:54:27Z
+last_update: 2026-10-20T19:24:48Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -156,6 +156,14 @@ Replies so far:
    answered; raise it on v0.2. ring20 (msg b193272e) will not run its own reconciler: its
    supervisor submits late evidence via T5. Mapping and vector runs wait on ring20's operator
    decision (their T-2443); the contract lands in their arc-010.
+10. 2026-10-20 evening: AEF v0.2 (f600187a6) includes all four of our design points and `paused`.
+    TermLink answered AGREE with three non-blocking v0.2.1 fixes:
+    - a §3.4 row producing T7c;
+    - a default for `deadline_dispatched`;
+    - closing open question 3 with ring20's answer.
+    Build slices filed: T-3501 (records + CAS RPCs), T-3502 (state sweep), T-3503 (answer path + resolve)
+    and T-3504 (CLI/MCP + shared vector file). Each is gated: build starts only after ring20 agrees to v0.2.
+    The worker binding is atomic since c677ef64f.
 
 Implication so far: the shared primitive must let the supervisor (not only the hub) write `lost`
 from its own evidence, and accept a supervisor writing on behalf of a worker with no hub access.
