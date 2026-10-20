@@ -6,12 +6,12 @@ description: >
   T-2250 GO (narrowed): queue flaps and breaker trips are not recorded unless someone
   runs --watch --log; record them by default to a bounded local log.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: next
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-hub/src/circuit_breaker.rs, crates/termlink-hub/src/server.rs, crates/termlink-session/src/bus_client.rs, crates/termlink-session/src/lib.rs, crates/termlink-session/src/offline_queue.rs]
 related_tasks: [T-2250, T-3466, T-3383]
 arc_id: arc-substrate-fitness
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
@@ -41,8 +41,8 @@ arc_id: arc-substrate-fitness
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-18T18:29:59Z
-last_update: '2026-10-18T22:12:56Z'
-date_finished:
+last_update: 2026-10-20T09:31:59Z
+date_finished: 2026-10-20T09:31:59Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -83,11 +83,27 @@ T-2250 GO (operator, 2026-10-18), narrowed to the gaps. Queue flaps and circuit-
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Outbound-queue pending/drained transitions are appended to a local NDJSON log by default (no `--watch` needed), using the existing T-2085 line schema
-- [ ] Hub circuit-breaker open/close (per session and per model) is appended to a local NDJSON log with ts, key, state, consecutive failures and open duration
-- [ ] Both logs are bounded (size or age cap with rotation) so they cannot grow without limit; the bound is tested
-- [ ] A write failure never fails the queue or the breaker (best-effort, one stderr line), tested
-- [ ] Reconnects are appended to a local NDJSON log with ts, peer, downtime_ms and attempt number (operator ruling B, 2026-10-20)
+- [x] Outbound-queue pending/drained transitions are appended to a local NDJSON log by default (no `--watch` needed), using the existing T-2085 line schema
+- [x] Hub circuit-breaker open/close (per session and per model) is appended to a local NDJSON log with ts, key, state, consecutive failures and open duration
+- [x] Both logs are bounded (size or age cap with rotation) so they cannot grow without limit; the bound is tested
+- [x] A write failure never fails the queue or the breaker (best-effort, one stderr line), tested
+- [x] Reconnects are appended to a local NDJSON log with ts, peer, downtime_ms and attempt number (operator ruling B, 2026-10-20)
+
+Evidence (2026-10-20): built by TermLink worker w-t3465 (commit 8cc799ce6, 6 files), reviewed
+by the orchestrating session. Shared writer `termlink-session/src/event_log.rs` (one thread,
+bounded channel of 1024, try_send, drops counted; reuses `append_line_capped`). queue_flap from
+`OfflineQueue` (enqueue on empty -> pending; pop/dead_letter emptying -> drained), T-2085 schema,
+`queue.log` beside the queue file (`~/.termlink/queue.log`). breaker_trip from
+`CircuitBreakerRegistry` and `ModelCircuitBreaker`, states open/reopen/closed, at
+`<runtime_dir>/circuit-breaker.jsonl` after `circuit_breaker::init` (called in server.rs).
+reconnect from `BusClient::flush` after failed passes (downtime_ms, attempt), `reconnect.log`
+beside the queue file. Tests: bound, write-failure isolation for queue and breaker, each signal.
+Worker's run of `cargo test -p termlink-bus -p termlink-hub -p termlink-session -p termlink`: no
+failures. **Deviation from the ruling, recorded:** the bound is size-based (1 MiB + one `.1`
+backup per log, `TERMLINK_EVENT_LOG_MAX_BYTES`), not the 24–48 h age window; these events are
+rare, so the window is in practice longer. T-3466's rollup reads only the last day, which keeps
+the 24–48 h intent for anything that leaves the host. Not covered: CLI commands that use plain
+`rpc_call` without a `BusClient` do not feed the reconnect log.
 - [x] The exact signal list is shown to the operator before build (T-2250 IW-2 open point) and their answer recorded in Decisions
 
 ### Human
@@ -139,6 +155,10 @@ T-2250 GO (operator, 2026-10-18), narrowed to the gaps. Queue flaps and circuit-
 -->
 
 ## Verification
+
+grep -q 'fn append_capped' crates/termlink-session/src/event_log.rs
+cargo test -q -p termlink-session --lib transitions_are_logged_by_default_in_t2085_schema > /tmp/.t3465a 2>&1 && grep -q "1 passed" /tmp/.t3465a
+cargo test -q -p termlink-hub --lib open_reopen_and_close_are_logged_for_session_and_model > /tmp/.t3465b 2>&1 && grep -q "1 passed" /tmp/.t3465b
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -333,6 +353,18 @@ T-2250 GO (operator, 2026-10-18), narrowed to the gaps. Queue flaps and circuit-
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-10-20 — signal list ruled, reconnect added, size bound instead of age
+- **What changed:** the operator ruled the R5 signal list (B): reconnect joined queue and breaker
+  events; post_discard stays a rollup counter from the dead-letter table; rtt_sample and
+  clean_exit were deferred. The only place a real hub-down -> up transition with known downtime is
+  observed turned out to be `BusClient::flush`, so reconnect is logged there, not in the CLI
+  websocket loop.
+- **Plan impact:** the local bound is size-based (1 MiB + backup) rather than the 24–48 h age
+  window; the age window moves to what leaves the host (T-3466 reads only the last day). CLI
+  commands that never use a `BusClient` do not feed the reconnect log.
+- **Triggered:** T-3466 must read the last day only and add the dead-letter count; follow-ups for
+  rtt_sample (after a footprint measurement) and clean_exit (after a correlation design).
+
 ## Recommendation
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
@@ -404,3 +436,24 @@ T-2250 GO (operator, 2026-10-18), narrowed to the gaps. Queue flaps and circuit-
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3465-r5a-log-outbound-queue-and-circuit-break.md
 - **Context:** Initial task creation
+
+### 2026-10-20T09:16:06Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-068b1ced
+- **Timestamp:** 2026-10-20T09:32:03Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-20T09:31:59Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

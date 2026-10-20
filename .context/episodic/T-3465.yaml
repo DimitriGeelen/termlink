@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3465: R5a: log outbound-queue and circuit-breaker events locally by default (T-2250 GO)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-20T09:32:14Z
+# ============================================================================
+
+task_id: T-3465
+task_name: "R5a: log outbound-queue and circuit-breaker events locally by default (T-2250 GO)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-10-18T18:29:59Z
+completed: 2026-10-20T09:31:59Z
+duration_days: 2
+updates_count: 2
+first_commit: 2026-10-20T11:28:59+02:00
+last_commit: 2026-10-20T11:28:59+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  always-on bounded local logs for queue flaps, breaker trips and reconnects
+
+# Key outcomes
+outcomes:
+  - 'Outbound-queue pending/drained transitions are appended to a local NDJSON log by default (no `--watch` needed), using the existing T-2085 line schema'
+  - 'Hub circuit-breaker open/close (per session and per model) is appended to a local NDJSON log with ts, key, state, consecutive failures and open duration'
+  - 'Both logs are bounded (size or age cap with rotation) so they cannot grow without limit; the bound is tested'
+  - 'A write failure never fails the queue or the breaker (best-effort, one stderr line), tested'
+  - 'Reconnects are appended to a local NDJSON log with ts, peer, downtime_ms and attempt number (operator ruling B, 2026-10-20)'
+  - 'The exact signal list is shown to the operator before build (T-2250 IW-2 open point) and their answer recorded in Decisions'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-10-20 — R5 signal list (T-2250 IW-2), operator ruling B'
+    chose: 'B — start with four event signals: `queue_flap` (offline-queue pending/drained), `breaker_trip` (circuit breaker open/close), `reconnect` (peer, downtime, attempt), and `post_discard` as a COUNTER in the daily rollup read from the existing dead-letter table (T-2243), not as a second local log. Local raw logs bounded to 24–48 h.'
+    rationale: 'closes the measured blind spots (queue, breaker, reconnect; the T-3461 investigation needed per-peer reconnect data by hand) without double-logging what the dead-letter table already records, and with a small footprint on a host at 88 % disk.'
+    alternatives_rejected: ['A (all six now: `rtt_sample` costs disk before its footprint is measured; `clean_exit` is useless until crash correlation is designed); C (only queue + breaker: drops reconnect, the signal the last incident needed); D (defer: the next incident is investigated by hand again). - **Left open:** `rtt_sample` after a footprint measurement; `clean_exit` after a correlation design (follow-ups).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-hub/src/circuit_breaker.rs'
+  - 'crates/termlink-hub/src/server.rs'
+  - 'crates/termlink-session/src/bus_client.rs'
+  - 'crates/termlink-session/src/event_log.rs'
+  - 'crates/termlink-session/src/lib.rs'
+  - 'crates/termlink-session/src/offline_queue.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-20T11:28:59'
+    action: 'T-3465: always-on bounded local logs for queue flaps, breaker trips and reconnects'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 2342 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 2342
+  commits: 2
+  files_changed: 9
+  lines_added: 567
+  lines_removed: 29
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3465-r5a-log-outbound-queue-and-circuit-break.md
+generated_by: context-agent-hybrid
