@@ -2,12 +2,17 @@
 id: T-3386
 name: "Lightweight TermLink dispatch for short jobs (replace vendor sub-agents, CR-21)"
 description: >
-  Operator ruling RR-13 (T-3351, 2026-10-10): all delegation goes through TermLink; vendor sub-agents are not used. A one-minute search or review through fw termlink dispatch today costs a full session start and many tokens. Make dispatch light enough for short bounded jobs (fast start, small prompt, result returned as a file/handback) so cost is never a reason to fall back on vendor sub-agents. Measure current dispatch overhead first. Write real ACs before editing source (G-020).
+  Operator ruling RR-13 (T-3351, 2026-10-10): all delegation goes through TermLink;
+  vendor sub-agents are not used. A one-minute search or review through fw termlink
+  dispatch today costs a full session start and many tokens. Make dispatch light enough
+  for short bounded jobs (fast start, small prompt, result returned as a file/handback)
+  so cost is never a reason to fall back on vendor sub-agents. Measure current dispatch
+  overhead first. Write real ACs before editing source (G-020).
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -38,8 +43,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-10T09:01:28Z
-last_update: 2026-10-10T09:01:28Z
-date_finished: null
+last_update: 2026-10-20T19:51:28Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +55,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-20T19:51:30Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 1
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=1 (body:hand-wired-dispatch)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3386: Lightweight TermLink dispatch for short jobs (replace vendor sub-agents, CR-21)
@@ -62,8 +81,11 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] Current overhead measured first: `docs/operations/lite-dispatch.md` records, for one trivial job, the start cost of today's full worker (`claude -p` in the project: CLAUDE.md, hooks, MCP, skills) against the lite worker (wall time, input/cache tokens, cost), with the exact commands so it can be re-measured
+- [ ] New module beside dispatch.rs (`commands/dispatch/lite.rs`) builds the lite worker command: no CLAUDE.md auto-discovery, hooks, MCP servers or skills; a short caller system prompt; a bounded tool list (default read-only `Read,Grep,Glob`); optional model; unit tests pin each of these flags
+- [ ] The job prompt reaches the worker as one shell-escaped argument, never interpolated into the shell line (unit test with quotes, `$()` and newlines)
+- [ ] The result comes back as a file: the worker writes `result.md` and `exit_code` into its job dir and emits `task.completed` carrying `result_path` and `exit_code`, so `termlink dispatch`'s existing collect returns it (unit test on the built shell line)
+- [ ] `cargo test -p termlink-cli dispatch::` passes and `cargo clippy -p termlink-cli` has no warnings in the new module; wiring that lies outside this worker's area (cli.rs / main.rs flag, vendored `fw termlink dispatch --lite`) is written as a proposal in Updates, not edited
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -346,3 +368,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3386-lightweight-termlink-dispatch-for-short-.md
 - **Context:** Initial task creation
+
+### 2026-10-20T19:51:28Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
