@@ -86,3 +86,39 @@ Disk saturation as the trigger: high (about 85%) — it is directly measured and
 2. "Hub-wide dip every 60 s near :45": not supported by the audit data (no :45 spike in slow-end seconds); the real periodicity is hourly (:20–:24, :40–:44).
 3. "35 s journal lag 22:40:18Z to 22:40:53Z": confirmed and generalised: 320 of 31 097 lines lagged > 2 s, max 64.6 s, evidence the whole box was IO-blocked. PSI now reads low; the historical record is sar.
 4. "Retention sweeps ruled out": confirmed (only one slow `channel.sweep`, 5 s, and the hourly sweep at :19:36 is outside the :20–:24 peak by design).
+
+## Daytime stalls (2026-10-20 08–10:30Z)
+
+Read-only follow-up. Times: audit `ts` is UTC ms; sar and `journalctl` (without `--utc`) print local CEST (UTC+2), so sar `10:20` = 08:20Z. Sources: `/var/lib/termlink/rpc-audit.jsonl{.1,}`, `journalctl -u termlink-hub`, `sar -d` on `sa20`, `/etc/cron.d`, `find -newermt` on `/opt/termlink/target` (TZ=UTC).
+
+### Numbers
+
+1. **The slow set is mostly subscribes, not writes.** In 08:00–10:30Z there are 554 `slow:true` lines: 511 `channel.subscribe`, 20 `channel.post`, 19 `channel.create`, 1 `set_retention`, 1 `sweep`, 2 other. None of the subscribe lines carries `requested_wait_ms`, so these are snapshot reads (no `timeout_ms`), not long-polls. Matched back to their normal lines (287 of 554), 54 are `inbox:*` subscribes from the two `termlink sidecar start` processes (pid 3956131 `claude-termlink-alt`, pid 3287399 `claude-termlink`), and the rest are spread over many `inbox:*`, `dm:*` and `sidecar:*` topics. The 267 unmatched lines were not attributed to a topic.
+2. **Slow per 10-minute UTC bin** (count): 08:10 73, 08:20 66, 08:30 1, 08:40 15, 08:50 42, 09:00 43, 09:20 62, 09:50 66, 10:20 **122** (the worst bin: 5 creates, 7 posts, 110 subscribes; worst single request 68 897 ms create at 10:22:35, 46 365 ms post at 10:22:42).
+3. **Disk, sar (UTC), nvme0n1.** Quiet from 06:10 to 07:50Z (write 2–14 MB/s, util < 5%, queue < 1). Busy from 08:00 to 10:50Z without a break: write 15–58 MB/s, util 16–56%, avg queue 7–58, await 4–24 ms. Examples: 08:20 wkB 51.5 MB/s, aqu 58, util 56; 10:20 wkB 26.8 MB/s, aqu 14; 10:30 wkB 39.3 MB/s, aqu 47. **So the premise "the disk was quiet" does not hold for this window; it was quiet only before 08:00Z**, and the slow reads start only after that.
+4. **Cargo write volume** (`find /opt/termlink/target -newermt`, bytes by mtime minute, UTC): 08:10 bin 1.8 GB (1 230 files), 08:20 bin 3.9 GB (1 987), 08:50 bin 1.2 GB (2 979), 09:20 bin 8.0 GB (5 681), 09:40 bin 2.3 GB, 09:50 bin 0.7 GB. Test binaries written 08:18–08:21Z (`t3473_reads_do_not_wait_on_commit`, `parity`, `termlink_mcp`, `termlink_bus`, `cli_integration`). A 93 MB and a 40 MB binary written 09:51–09:53Z (link output of `local-fast/termlink`). **The 10:20 bin has no target writes at all** (none in 10:00–10:50Z); a > 5 MB file scan of `/opt/termlink`, `/var/lib/termlink`, `/var/log`, `/tmp` for 10:10–10:32Z found nothing. A wider scan of `/var/lib /root /opt` timed out, so that bin's writer is not identified.
+5. **Hub restarts on 0.12.775.** Stop/start at 07:56:19Z, 08:54:00Z, 09:49:35Z. The 09:49:34Z binary install (`/usr/local/bin/termlink`, mtime 11:49 CEST) is the 0.12.775 deploy. Slow lines in ±3 min of each restart: 0, 2, 0. **No restart-induced cluster.** The one slow burst after the 09:49 deploy (09:53:23–09:58:39Z: two creates at 19 348 and 19 346 ms, posts up to 7 128 ms) lines up with the 09:51–09:53Z link writes in item 4, not with the restart.
+6. **Journal lag of hub lines.** 6 070 tracing lines in 08:00–10:30Z; 10 lagged > 2 s, max 21.7 s (08:59:13Z) and 12.4 s (08:59:22Z). Only about 0.2% of lines lagged, so journald was not the bottleneck in the 10:20 bin.
+7. **Does an idempotent create take the write path?** In the working tree (uncommitted T-3488 edit to `crates/termlink-bus/src/meta.rs`), `create_topic` runs its SELECT inside `with_conn_mut`, which takes the global write mutex. For a topic that already exists it then returns `Ok(false)` and drops the transaction with no insert. So an existing-topic create waits on the mutex but does not fsync. I did not read `create_topic_owned` (`lib.rs:180`) or the post-create `topic_metadata` path, so I cannot say whether an existing-topic create also re-posts metadata.
+
+### Peers and topics
+
+- Creates and posts come from mixed peers: `.132` (the heaviest remote poster), `.121`, `.122`, `.107`, and unix-socket callers. The worst create (68.9 s) is from `.132`. Nothing singles out one peer for the creates.
+- Subscribes are unix-socket (`peer_addr` absent) and concentrated on `inbox:*` topics of the two sidecars. These subscribes persist fetch telemetry through `note_subscribe_fetch` → `bus.note_fetch` (throttled to once per 60 s per (topic, reader), `channel.rs:~1378`). That commit goes through the same global write mutex, so the subscribe waits the same fsync queue as posts.
+
+### Most likely cause
+
+Host-wide write load on the same NVMe/btrfs root (not a restart, not one peer, not one topic) makes each durable commit slow. The hub serialises those commits behind one write mutex (post: payload `sync_data` + `record_append` + `note_write`; subscribe: `note_fetch` once a minute per reader). Waiting on that queue turns a multi-second fsync into 1–69 s request latency for every caller that needs the mutex, including snapshot subscribes that never write data to the caller. The clearest case is 08:10–08:29Z: test/link writes of 1.8–3.9 GB per 10 minutes coincide with 139 slow lines. The 10:20 cluster (122 lines) has no target writes, so its writer is still unidentified; the `:20` hourly `fw index reindex` and project-audit jobs are the candidates in the cron files, but I could not confirm that any of them wrote during that bin.
+
+### Confidence
+
+- Disk-busy window as the environment for all of 08:00–10:50Z: **high (~90%)**. sar and the audit agree; the timezone mapping is checked against the 08:18–08:21Z test-binary writes landing in the sar row labelled 10:20.
+- Serialised commits (mutex plus fsync) as the amplifier: **medium (~65%)**, carried over from the first section; the subscribe result supports it, since reads should not wait on disk if the mutex were not in the path.
+- Cargo as the main writer in 08:10–09:55Z: **medium (~60%)**; four of six bins match, the 10:20 bin does not.
+- The 10:20 cluster's writer: **unknown**.
+
+### What would settle it
+
+- `iostat -x 1` plus `pidstat -d 1` during the next 10:20-style `:20` window, and `/proc/<hub-pid>/task/*/wchan` sampled during a stall (confirms `btrfs_sync_file` vs `futex` on the write mutex).
+- Add the wait-vs-fsync split to the T-3478 slow line (already proposed in section 6, fix 4). It turns "which fsync" from inference into a measurement.
+- Rule out the sidecar snapshot subscribes as write load: check `note_subscribe_fetch` throttling in the 08–10Z window (count of persisted fetches per minute).
