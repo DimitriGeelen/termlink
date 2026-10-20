@@ -279,6 +279,104 @@ fn runtime_dir_mismatch_warning(
     ))
 }
 
+/// T-3492: every runtime dir a session could live in, regardless of
+/// `TERMLINK_RUNTIME_DIR` (which makes the normal scan exclusive). Mirrors the
+/// resolution order in `discovery::runtime_dir` plus the systemd pool.
+/// Test seam: `TERMLINK_HINT_CANDIDATE_DIRS` (colon-separated; empty = none)
+/// replaces the list, so integration tests never read the real dirs.
+fn candidate_runtime_dirs() -> Vec<std::path::PathBuf> {
+    use std::path::PathBuf;
+    if let Ok(list) = std::env::var("TERMLINK_HINT_CANDIDATE_DIRS") {
+        return std::env::split_paths(&list)
+            .filter(|p| !p.as_os_str().is_empty())
+            .collect();
+    }
+    let uid = unsafe { libc::getuid() };
+    let mut dirs = vec![PathBuf::from("/var/lib/termlink")];
+    if let Ok(xdg) = std::env::var("XDG_RUNTIME_DIR") {
+        dirs.push(PathBuf::from(xdg).join("termlink"));
+    }
+    if let Ok(tmpdir) = std::env::var("TMPDIR") {
+        dirs.push(PathBuf::from(tmpdir).join(format!("termlink-{uid}")));
+    }
+    dirs.push(PathBuf::from(format!("/tmp/termlink-{uid}")));
+    let mut seen = std::collections::HashSet::new();
+    dirs.retain(|d| seen.insert(d.clone()));
+    dirs
+}
+
+/// T-3492: live-session count (or the read error) for each candidate dir
+/// other than `resolved`. Dirs with no live sessions are dropped; unreadable
+/// ones are kept, because the normal scan skips them silently.
+fn probe_other_runtime_dirs(
+    resolved: &std::path::Path,
+    candidates: &[std::path::PathBuf],
+) -> Vec<(std::path::PathBuf, Result<usize, String>)> {
+    candidates
+        .iter()
+        .filter(|d| d.as_path() != resolved)
+        .filter_map(|d| match manager::list_sessions_in(&d.join("sessions"), false) {
+            Ok(v) if v.is_empty() => None,
+            Ok(v) => Some((d.clone(), Ok(v.len()))),
+            Err(e) => Some((d.clone(), Err(e.to_string()))),
+        })
+        .collect()
+}
+
+/// T-3492: when nothing was found in `resolved`, name the other dirs that do
+/// hold live sessions (or could not be read). Returns the stderr line and the
+/// `runtime_dir_hint` JSON value. Pure — unit-tested.
+fn empty_runtime_dir_hint(
+    found: usize,
+    resolved: &std::path::Path,
+    others: &[(std::path::PathBuf, Result<usize, String>)],
+) -> Option<(String, serde_json::Value)> {
+    if found > 0 || others.is_empty() {
+        return None;
+    }
+    let best = others
+        .iter()
+        .filter_map(|(d, r)| r.as_ref().ok().map(|n| (d, *n)))
+        .max_by_key(|(_, n)| *n);
+    let mut parts = Vec::new();
+    for (d, r) in others {
+        match r {
+            Ok(n) => parts.push(format!("{} has {n} live session(s)", d.display())),
+            Err(e) => parts.push(format!("{}/sessions could not be read ({e})", d.display())),
+        }
+    }
+    let fix = match best {
+        Some((d, _)) => format!(" Fix: export TERMLINK_RUNTIME_DIR={}", d.display()),
+        None => " Sessions there are invisible to this user.".to_string(),
+    };
+    let line = format!(
+        "hint: 0 sessions in {}; {}.{fix}",
+        resolved.display(),
+        parts.join("; ")
+    );
+    let json = serde_json::json!({
+        "resolved_runtime_dir": resolved.display().to_string(),
+        "others": others.iter().map(|(d, r)| match r {
+            Ok(n) => serde_json::json!({"runtime_dir": d.display().to_string(), "live_sessions": n}),
+            Err(e) => serde_json::json!({"runtime_dir": d.display().to_string(), "error": e}),
+        }).collect::<Vec<_>>(),
+        "suggest": best.map(|(d, _)| format!("TERMLINK_RUNTIME_DIR={}", d.display())),
+    });
+    Some((line, json))
+}
+
+/// T-3492: the hint for `list` / `discover` when they found nothing. Checks the
+/// unfiltered live set first, so a filter that matched nothing never triggers it.
+pub(crate) fn runtime_dir_hint_if_empty(found: usize) -> Option<(String, serde_json::Value)> {
+    if found > 0 {
+        return None;
+    }
+    let all = manager::list_sessions(false).map(|v| v.len()).unwrap_or(0);
+    let resolved = termlink_session::discovery::runtime_dir();
+    let others = probe_other_runtime_dirs(&resolved, &candidate_runtime_dirs());
+    empty_runtime_dir_hint(all, &resolved, &others)
+}
+
 pub(crate) async fn cmd_register(opts: RegisterOpts) -> Result<()> {
     let RegisterOpts { name, roles, tags, cap, shell, enable_token_secret, allowed_commands, json, quiet, identity_key, worker_binding } = opts;
     let verbose = !json && !quiet;
@@ -745,9 +843,22 @@ pub(crate) async fn cmd_list(filter: &ListFilterOpts<'_>, display: &super::ListD
         sort_sessions(&mut sessions, key);
     }
 
+    // T-3492: nothing here, but another runtime dir has live sessions (or
+    // could not be read) — say so on stderr; JSON carries it as a field.
+    let rt_hint = runtime_dir_hint_if_empty(sessions.len());
+    if let Some((line, _)) = &rt_hint {
+        eprintln!("{line}");
+    }
+    let with_rt_hint = |mut v: serde_json::Value| {
+        if let Some((_, h)) = &rt_hint {
+            v["runtime_dir_hint"] = h.clone();
+        }
+        v
+    };
+
     if display.count {
         if display.json {
-            println!("{}", serde_json::json!({"ok": true, "count": sessions.len()}));
+            println!("{}", with_rt_hint(serde_json::json!({"ok": true, "count": sessions.len()})));
         } else {
             println!("{}", sessions.len());
         }
@@ -795,7 +906,7 @@ pub(crate) async fn cmd_list(filter: &ListFilterOpts<'_>, display: &super::ListD
     if display.names {
         if display.json {
             let items: Vec<&str> = sessions.iter().map(|s| s.display_name.as_str()).collect();
-            println!("{}", serde_json::json!({"ok": true, "names": items}));
+            println!("{}", with_rt_hint(serde_json::json!({"ok": true, "names": items})));
         } else {
             for s in &sessions {
                 println!("{}", s.display_name);
@@ -807,7 +918,7 @@ pub(crate) async fn cmd_list(filter: &ListFilterOpts<'_>, display: &super::ListD
     if display.ids {
         if display.json {
             let items: Vec<&str> = sessions.iter().map(|s| s.id.as_str()).collect();
-            println!("{}", serde_json::json!({"ok": true, "ids": items}));
+            println!("{}", with_rt_hint(serde_json::json!({"ok": true, "ids": items})));
         } else {
             for s in &sessions {
                 println!("{}", s.id.as_str());
@@ -836,7 +947,7 @@ pub(crate) async fn cmd_list(filter: &ListFilterOpts<'_>, display: &super::ListD
             with_worker_binding(&mut v, s);
             v
         }).collect();
-        let mut envelope = serde_json::json!({"ok": true, "sessions": items});
+        let mut envelope = with_rt_hint(serde_json::json!({"ok": true, "sessions": items}));
         if stale_binary {
             // Additive only — the existing shape is untouched, so a consumer
             // that does not know about --stale-binary still parses this.
@@ -1509,6 +1620,64 @@ mod tests {
         assert!(runtime_dir_mismatch_warning(a, None).is_none());
         let w = runtime_dir_mismatch_warning(a, Some(b)).unwrap();
         assert!(w.contains("/run/user/0/termlink") && w.contains("TERMLINK_RUNTIME_DIR=/var/lib/termlink"));
+    }
+
+    // T-3492: hint when the resolved dir is empty but another holds sessions.
+    #[tokio::test]
+    async fn runtime_dir_hint_names_the_dir_that_has_live_sessions() {
+        let resolved = tempfile::tempdir().unwrap();
+        let other = tempfile::tempdir().unwrap();
+        let empty = tempfile::tempdir().unwrap();
+        let sessions = other.path().join("sessions");
+        std::fs::create_dir_all(&sessions).unwrap();
+        let _live = termlink_session::Session::register_in(SessionConfig::default(), &sessions)
+            .await
+            .unwrap();
+        let candidates = vec![
+            resolved.path().to_path_buf(),
+            other.path().to_path_buf(),
+            empty.path().to_path_buf(),
+        ];
+        let others = probe_other_runtime_dirs(resolved.path(), &candidates);
+        assert_eq!(others.len(), 1, "only the dir with a live session: {others:?}");
+        let (line, json) = empty_runtime_dir_hint(0, resolved.path(), &others).unwrap();
+        let (r, o) = (resolved.path().display(), other.path().display());
+        assert!(line.contains(&format!("0 sessions in {r}")), "{line}");
+        assert!(line.contains(&format!("{o} has 1 live session(s)")), "{line}");
+        assert!(line.contains(&format!("TERMLINK_RUNTIME_DIR={o}")), "{line}");
+        assert_eq!(json["others"][0]["live_sessions"], 1);
+        assert_eq!(json["suggest"], format!("TERMLINK_RUNTIME_DIR={o}"));
+
+        // Sessions were found: no hint, whatever the other dirs hold.
+        assert!(empty_runtime_dir_hint(2, resolved.path(), &others).is_none());
+    }
+
+    #[tokio::test]
+    async fn runtime_dir_hint_absent_when_no_other_dir_has_sessions() {
+        let resolved = tempfile::tempdir().unwrap();
+        let empty = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(empty.path().join("sessions")).unwrap();
+        let candidates = vec![
+            resolved.path().to_path_buf(),
+            empty.path().to_path_buf(),
+            resolved.path().join("does-not-exist"),
+        ];
+        let others = probe_other_runtime_dirs(resolved.path(), &candidates);
+        assert!(others.is_empty(), "{others:?}");
+        assert!(empty_runtime_dir_hint(0, resolved.path(), &others).is_none());
+    }
+
+    #[test]
+    fn runtime_dir_hint_reports_an_unreadable_dir() {
+        // The normal scan skips an unreadable dir silently; the hint must not.
+        let others = vec![(
+            std::path::PathBuf::from("/var/lib/termlink"),
+            Err("Permission denied (os error 13)".to_string()),
+        )];
+        let (line, json) =
+            empty_runtime_dir_hint(0, std::path::Path::new("/tmp/termlink-0"), &others).unwrap();
+        assert!(line.contains("/var/lib/termlink/sessions could not be read"), "{line}");
+        assert!(json["suggest"].is_null());
     }
 
     // T-3481: full names for scripts, truncated only at a terminal.

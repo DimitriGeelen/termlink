@@ -203,6 +203,8 @@ pub fn termlink_cmd(binary: &Path, runtime_dir: &Path) -> Command {
     let mut cmd = Command::new(binary);
     cmd.env("TERMLINK_RUNTIME_DIR", runtime_dir);
     cmd.env("RUST_LOG", "");
+    // T-3492: the empty-list runtime-dir hint must not read the real dirs.
+    cmd.env("TERMLINK_HINT_CANDIDATE_DIRS", "");
     cmd
 }
 

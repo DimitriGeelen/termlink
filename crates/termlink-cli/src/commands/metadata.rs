@@ -239,9 +239,22 @@ pub(crate) async fn cmd_discover(
         do_filter(sessions)
     };
 
+    // T-3492: nothing here, but another runtime dir has live sessions (or
+    // could not be read) — say so on stderr; JSON carries it as a field.
+    let rt_hint = super::session::runtime_dir_hint_if_empty(filtered.len());
+    if let Some((line, _)) = &rt_hint {
+        eprintln!("{line}");
+    }
+    let with_rt_hint = |mut v: serde_json::Value| {
+        if let Some((_, h)) = &rt_hint {
+            v["runtime_dir_hint"] = h.clone();
+        }
+        v
+    };
+
     if display.count {
         if display.json {
-            println!("{}", serde_json::json!({"ok": true, "count": filtered.len()}));
+            println!("{}", with_rt_hint(serde_json::json!({"ok": true, "count": filtered.len()})));
         } else {
             println!("{}", filtered.len());
         }
@@ -315,7 +328,7 @@ pub(crate) async fn cmd_discover(
                 "socket_path": s.socket_path().display().to_string(),
             })
         }).collect();
-        println!("{}", serde_json::json!({"ok": true, "sessions": items}));
+        println!("{}", with_rt_hint(serde_json::json!({"ok": true, "sessions": items})));
         return Ok(());
     }
 
