@@ -2,9 +2,10 @@
 id: T-3415
 name: "WARN accumulation: 6 WARN guard members red at once (> 5) — pay down"
 description: >
-  6 WARN-tier guard members are red at the same time, above the accumulation limit of 5. Operator binding condition (T-3258 rulings): WARN debt must not build up.
+  6 WARN-tier guard members are red at the same time, above the accumulation limit
+  of 5. Operator binding condition (T-3258 rulings): WARN debt must not build up.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -38,8 +39,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-12T05:42:06Z
-last_update: 2026-10-12T05:42:06Z
-date_finished: null
+last_update: 2026-10-20T15:28:59Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +51,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-20T15:29:00Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3415: WARN accumulation: 6 WARN guard members red at once (> 5) — pay down
@@ -73,7 +88,7 @@ passes 14 days. Red now (from .context/checks/guard-warn-first-red):
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] At most 5 WARN members are red at once (each fixed, or reclassified by the operator)
+- [x] At most 5 WARN members are red at once (each fixed, or reclassified by the operator)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -260,6 +275,9 @@ passes 14 days. Red now (from .context/checks/guard-warn-first-red):
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+out=$(bash scripts/check-go-propagation.sh --no-heartbeat 2>&1); echo "$out" | grep -q "0 firing"
+out=$(bash scripts/check-budget-ladder-drift.sh --no-heartbeat 2>&1); test -n "$out"
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -352,7 +370,21 @@ passes 14 days. Red now (from .context/checks/guard-warn-first-red):
 
 ## Updates
 
+### 2026-10-20 — pay-down measured (w-guards)
+Full `run-guard-layer.sh` today (219 members): WARN red = 4 (limit 5), INFO red = 1. The six in the filing: 
+- `check-go-propagation.sh` — now GREEN (177 GO, 0 firing, 71 acknowledged). Cleared by earlier work, nothing done here.
+- `check-budget-ladder-drift.sh` — fixed in 0ca79c3b5 (T-3489).
+- `check-receiver-ack-lag.sh` — reclassified INFO by the operator 2026-10-18 (T-3441); still non-zero, no longer counted.
+- `check-human-ac-escalation.sh` — RED: 1 unacknowledged, T-3370's `[RUBBER-STAMP]` Human AC ("peer mail reaches this session without nudging"). Clears when the operator converts it to an Agent/[REVIEWER] AC, re-prefixes it `[REVIEW]`, or acknowledges it in `.context/checks/human-ac-escalation-allowlist`. The check says conversion is the operator's call; not done here.
+- `voi-prompt.sh` — RED: asks the operator for a voi_score decision on T-3476, T-3477, T-3493 (never asked). Clears on `scripts/voi-prompt.sh --record --task <ID> --choice set|waive|snooze`. Operator's question (T-3200), not a code defect.
+- `standing-controls.sh` (tests/) — RED by design: six arc-011 PH-0 controls stay red until PH-1/PH-2 land the status surface (T-3396). Clears when that status surface lands.
+- `check-audit-warning-acknowledgement.sh` (red in the 2026-10-20 run, not in the filing's list) — RED: 2 unexamined audit WARNs, (a) 5 source files without a fabric card (one, tests/voi-ledger-hermetic-fixtures.sh, registered by T-3374; the rest belong to other workers: event_log.rs, reap-zombie-sessions.sh, t3473 test, two crontabs), (b) Sidecar rows past retry, sweep cron not running; plus a never-acknowledgeable FAIL: `cron(zombie-reap)` crontab not installed in /etc/cron.d. Clears when those cards are registered and the crontabs/sweep cron are installed (host action, not done here).
+No first-red date was edited. Also noticed, out of scope: FAIL-tier `check-arc-claim-drift.sh` is red in the same run.
+
 ### 2026-10-12T05:42:06Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3415-warn-accumulation-6-warn-guard-members-r.md
 - **Context:** Initial task creation
+
+### 2026-10-20T15:28:59Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
