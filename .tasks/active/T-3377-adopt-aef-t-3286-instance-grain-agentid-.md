@@ -1,13 +1,22 @@
 ---
 id: T-3377
-name: "Adopt AEF T-3286 instance-grain agent_id stamping in TermLink's doorbell+mail toolkit"
+name: "Adopt AEF T-3286 instance-grain agent_id stamping in TermLink's doorbell+mail
+  toolkit"
 description: >
-  AEF changed its copies of our toolkit on 2026-09-06 (T-3286, commit 9b8424cd1): senders stamp metadata.agent_id with the sender's own instance identity via a shared resolver, scripts/agent-identity.sh (already vendored into our scripts/ by the 1.8.3 upgrade). Our agent-send.sh stamps agent_id its own way (4 sites); agent-respond.sh and agent-conversation-status.sh do not, and none source agent-identity.sh. Found while reviewing the 16 .upstream template copies of the 1.8.5 upgrade (T-3376). Port the resolver use into the three scripts so co-resident agents stop collapsing to one correspondent; keep our newer code otherwise. Source: AEF lib/templates/scripts at v1.8.5.
+  AEF changed its copies of our toolkit on 2026-09-06 (T-3286, commit 9b8424cd1):
+  senders stamp metadata.agent_id with the sender's own instance identity via a shared
+  resolver, scripts/agent-identity.sh (already vendored into our scripts/ by the 1.8.3
+  upgrade). Our agent-send.sh stamps agent_id its own way (4 sites); agent-respond.sh
+  and agent-conversation-status.sh do not, and none source agent-identity.sh. Found
+  while reviewing the 16 .upstream template copies of the 1.8.5 upgrade (T-3376).
+  Port the resolver use into the three scripts so co-resident agents stop collapsing
+  to one correspondent; keep our newer code otherwise. Source: AEF lib/templates/scripts
+  at v1.8.5.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -38,8 +47,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-06T19:52:37Z
-last_update: 2026-10-06T19:52:37Z
-date_finished: null
+last_update: 2026-10-20T19:51:33Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +59,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-20T19:51:35Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3377: Adopt AEF T-3286 instance-grain agent_id stamping in TermLink's doorbell+mail toolkit
@@ -62,8 +85,11 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] `scripts/agent-send.sh` sources `scripts/agent-identity.sh` (overridable via `AGENT_IDENTITY_LIB`, die with exit 2 if absent) and stamps `--metadata agent_id=<resolve_agent_id>` on the turn post, keeping every other metadata arg it already sends (conversation_id, relay_hops, to_circuit)
+- [ ] `scripts/agent-respond.sh` sources the same resolver, resolves once, and stamps `metadata.agent_id` on BOTH the receipt post and the optional reply turn post
+- [ ] `scripts/agent-conversation-status.sh`'s stale "agent-send/respond do not write metadata.agent_id" comment is corrected (reader chain `.metadata.agent_id // ._from // .sender_id` already handles it; no logic change)
+- [ ] A hermetic fixture suite `tests/agent-identity-stamping-fixtures.sh` (fake `termlink` via `TERMLINK_BIN`, temp dirs only) proves: the send turn and both respond posts carry agent_id; `FW_AGENT_ID` wins; whoami `display_name@session_id` is used otherwise; two co-resident senders with different session ids stamp different agent_ids; and the stamp is NOT taken from `be-reachable.state`
+- [ ] Existing agent-send/respond test suites still pass (agent-send-grace-window, agent-send-idle-gate, relay-b1-doorbell-rail, relay-b2-send-hops, tl-claude-identity-binding, wake-confirm-reply-match)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -346,3 +372,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3377-adopt-aef-t-3286-instance-grain-agentid-.md
 - **Context:** Initial task creation
+
+### 2026-10-20T19:51:33Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
