@@ -1,13 +1,19 @@
 ---
 id: T-3322
-name: "Reclaim dead space in topic logs: rewrite a log over 8 MB and more than half dead, offsets unchanged"
+name: "Reclaim dead space in topic logs: rewrite a log over 8 MB and more than half
+  dead, offsets unchanged"
 description: >
-  T-3310 D3 (operator ruling C, 2026-10-02): sweeps delete index rows but log files never shrink (agent-presence 31.6 MB on disk vs 0.55 MB live). Rewrite a topic log keeping live records only, byte_pos updated, offsets unchanged, atomic rename under the topic lock, safe against concurrent readers and a crash mid-rewrite (crash tests). Trigger: file > 8 MB and > 50% dead, configurable in the hub config file from T-3310. After T-3310.
+  T-3310 D3 (operator ruling C, 2026-10-02): sweeps delete index rows but log files
+  never shrink (agent-presence 31.6 MB on disk vs 0.55 MB live). Rewrite a topic log
+  keeping live records only, byte_pos updated, offsets unchanged, atomic rename under
+  the topic lock, safe against concurrent readers and a crash mid-rewrite (crash tests).
+  Trigger: file > 8 MB and > 50% dead, configurable in the hub config file from T-3310.
+  After T-3310.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [arc:arc-012]
 components: []
 related_tasks: [T-3310]
@@ -22,8 +28,8 @@ related_tasks: [T-3310]
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-02T15:12:07Z
-last_update: 2026-10-02T15:12:07Z
-date_finished: null
+last_update: 2026-10-20T19:51:04Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,6 +40,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-20T19:51:09Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3322: Reclaim dead space in topic logs: rewrite a log over 8 MB and more than half dead, offsets unchanged
@@ -46,8 +66,11 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] termlink-bus rewrites a topic log keeping live records only when the file is over `reclaim_min_file_bytes` (default 8 MiB) AND more than `reclaim_min_dead_pct` (default 50) % dead; both thresholds are fields of `Ceilings` (the struct the T-3310 hub config file sets). After a rewrite the file shrinks, every live record keeps its offset and its envelope bytes, and `byte_pos` points into the new file (unit test).
+- [ ] The rewrite writes the new log to a temp file, fsyncs it, renames it, fsyncs the directory and only then switches the index (byte_pos + log generation) in ONE SQLite commit, all while holding the topic's append lock; a post's append and its index commit happen under that same lock, so no record is lost or mis-pointed by a concurrent post (test with concurrent posts).
+- [ ] Crash tests: a simulated crash after the temp write, after the rename (before the index commit) and after the commit (before the old file is removed), followed by a reopen of the bus, each leave every live record readable at its original offset, new posts work, stale files are cleaned up, and a later reclaim succeeds.
+- [ ] Concurrent readers never see a broken log: an iterator opened before a rewrite keeps reading the old file correctly, and readers subscribing in a loop during rewrites + posts always get the right payload for each offset (test).
+- [ ] Meta stays WAL + synchronous=FULL and a post is still one index commit (T-3488 test `a_post_is_two_durable_steps_and_a_create_is_one` still passes); the whole termlink-bus test suite passes.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -267,3 +290,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3322-reclaim-dead-space-in-topic-logs-rewrite.md
 - **Context:** Initial task creation
+
+### 2026-10-20T19:51:04Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
