@@ -48,6 +48,21 @@ step 4), so an exported-but-empty var never diverts a session to
   TERMLINK_AGENT_ID="$agent_id"` from their `--agent-id`, so every heartbeat and
   DM post signs with the per-agent key.
 
+### Refusing to create a missing key (T-3467)
+
+Every path above creates the key file when it is missing. That is right for a first run and wrong
+after a key is lost: the new key signs as a stranger to every peer that pinned the old one. To make
+a missing key an error instead, set
+
+```sh
+export TERMLINK_IDENTITY_NO_CREATE=1     # 1 / true / yes / on, any case
+```
+
+With it set, every load-or-create path (CLI posts, `register`, the MCP server's signing key) fails
+with `no identity key at <path> and TERMLINK_IDENTITY_NO_CREATE is set` and writes nothing. An
+existing key still loads normally. Any other value, or no value, keeps the old auto-create.
+`termlink identity init` is an explicit request for a new key and is not affected.
+
 ## Backward compatibility
 
 A single-agent host that sets **no** `TERMLINK_AGENT_ID` is **unchanged** — it

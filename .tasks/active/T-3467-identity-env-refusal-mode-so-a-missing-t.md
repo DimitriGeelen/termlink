@@ -1,13 +1,17 @@
 ---
 id: T-3467
-name: "Identity: env refusal mode so a missing TERMLINK_IDENTITY_FILE fails closed instead of auto-creating a key (832 request)"
+name: "Identity: env refusal mode so a missing TERMLINK_IDENTITY_FILE fails closed
+  instead of auto-creating a key (832 request)"
 description: >
-  832-Workflow-designer (msg 8dd1ba95): TERMLINK_IDENTITY_FILE pointing at a missing path silently creates a new keypair there. --no-create exists only as a CLI flag under --resolve (cli.rs:1845, 6351). Add an env (e.g. TERMLINK_IDENTITY_NO_CREATE=1) honoured by every key-loading path, so a project whose key is lost fails closed.
+  832-Workflow-designer (msg 8dd1ba95): TERMLINK_IDENTITY_FILE pointing at a missing
+  path silently creates a new keypair there. --no-create exists only as a CLI flag
+  under --resolve (cli.rs:1845, 6351). Add an env (e.g. TERMLINK_IDENTITY_NO_CREATE=1)
+  honoured by every key-loading path, so a project whose key is lost fails closed.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -38,8 +42,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-18T19:33:05Z
-last_update: 2026-10-18T19:33:05Z
-date_finished: null
+last_update: 2026-10-20T11:02:38Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,20 +54,40 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-20T11:02:39Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3467: Identity: env refusal mode so a missing TERMLINK_IDENTITY_FILE fails closed instead of auto-creating a key (832 request)
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+832 (msg 8dd1ba95): a lost project key is silently replaced by a fresh one, which then signs as a
+stranger to every peer that pinned the old key. All key-creating paths (CLI `load_identity_or_create`,
+register, MCP `resolve_signing_identity`, `termlink_identity` MCP tool) funnel into
+`Identity::load_or_create` / `load_or_create_from_file` (crates/termlink-session/src/agent_identity.rs),
+so the refusal is enforced there once.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `TERMLINK_IDENTITY_NO_CREATE` set to a true value (1/true/yes/on, any case) makes `Identity::load_or_create` and `load_or_create_from_file` return `CreationRefused` for a missing key and write nothing; an existing key still loads; unset or any other value keeps today's auto-create
+- [x] The CLI host-default path goes through `load_or_create` (no separate `init` call), so `channel post` with the variable set and no key fails with a message naming the path and the variable
+- [x] `termlink identity init` (explicit) is unaffected
+- [x] Unit tests for the value parsing and both refuse/load cases; `cargo test -p termlink-session agent_identity` passes; documented in docs/operations/per-agent-identity.md
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -268,6 +292,10 @@ date_finished: null
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+timeout 900 cargo test -p termlink-session --lib agent_identity > /tmp/.t3467.out 2>&1 && grep -q "test result: ok" /tmp/.t3467.out
+grep -q "refused_creation_writes_nothing_and_names_the_path" crates/termlink-session/src/agent_identity.rs
+grep -q "TERMLINK_IDENTITY_NO_CREATE" docs/operations/per-agent-identity.md
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -360,7 +388,21 @@ date_finished: null
 
 ## Updates
 
+### 2026-10-20 — built
+- `load_or_create_at(path, refuse_create)` is the one core under `load_or_create` and
+  `load_or_create_from_file`; `IdentityError::CreationRefused`. The CLI host-default branch no
+  longer calls `init` separately. 19 agent_identity tests pass (3 new).
+- Live (debug binary, scratch key path): with the variable set, `channel post` exits 1 with the
+  path and the variable named, and no file is written. Unset: the key is created as before.
+- Test-hygiene lesson: `TERMLINK_IDENTITY_FILE` + a scratch `TERMLINK_RUNTIME_DIR` does NOT isolate
+  the offline queue (`~/.termlink/outbound.sqlite`); the hub-less test post was queued there
+  (id 1750) and was deleted by id before it could flush. Redirect `HOME` for such tests.
+
 ### 2026-10-18T19:33:05Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3467-identity-env-refusal-mode-so-a-missing-t.md
 - **Context:** Initial task creation
+
+### 2026-10-20T11:02:38Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

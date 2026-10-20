@@ -99,16 +99,10 @@ pub(crate) fn load_identity_or_create() -> Result<Identity> {
             .map_err(|e| anyhow!("Failed to load identity from TERMLINK_IDENTITY_FILE: {e}")),
         IdentitySource::PerAgent { path, agent_id } => Identity::load_or_create_from_file(&path)
             .map_err(|e| anyhow!("Failed to load per-agent identity ({agent_id}): {e}")),
-        IdentitySource::HostDefault { base } => {
-            let path = identity_path(&base);
-            if !path.exists() {
-                // Auto-create on first use — matches 'termlink identity show' UX of surfacing
-                // the missing file, but channel.post *needs* a key to proceed.
-                Identity::init(&base, false).map_err(|e| anyhow!("Failed to init identity: {e}"))
-            } else {
-                Identity::load_or_create(&base).map_err(|e| anyhow!("Failed to load identity: {e}"))
-            }
-        }
+        // Auto-create on first use (channel.post *needs* a key), unless
+        // TERMLINK_IDENTITY_NO_CREATE forbids it (T-3467) — load_or_create enforces that.
+        IdentitySource::HostDefault { base } => Identity::load_or_create(&base)
+            .map_err(|e| anyhow!("Failed to load identity: {e}")),
     }
 }
 

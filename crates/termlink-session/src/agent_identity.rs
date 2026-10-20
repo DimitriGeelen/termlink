@@ -35,6 +35,32 @@ pub enum IdentityError {
     /// not on the curve). Distinct from "signature does not verify" (a `DetachedCheck`).
     #[error("bad input: {0}")]
     BadInput(String),
+    /// T-3467: the key file is missing and `TERMLINK_IDENTITY_NO_CREATE` forbids minting
+    /// a replacement. Failing closed is the point: a fresh key signs as a stranger to every
+    /// peer that pinned the lost one.
+    #[error(
+        "no identity key at {0} and TERMLINK_IDENTITY_NO_CREATE is set: refusing to create a \
+         new key (restore the key file, or unset TERMLINK_IDENTITY_NO_CREATE to mint a new identity)"
+    )]
+    CreationRefused(PathBuf),
+}
+
+/// T-3467: when set to a true value (`1`, `true`, `yes`, `on`; any case), every
+/// load-or-create path refuses to create a missing key and returns
+/// [`IdentityError::CreationRefused`]. `termlink identity init` (an explicit request
+/// for a new key) is not affected.
+pub const NO_CREATE_ENV: &str = "TERMLINK_IDENTITY_NO_CREATE";
+
+/// T-3467: pure — whether a `TERMLINK_IDENTITY_NO_CREATE` value forbids creation.
+pub fn no_create_requested(value: Option<&str>) -> bool {
+    matches!(
+        value.map(|v| v.trim().to_ascii_lowercase()).as_deref(),
+        Some("1" | "true" | "yes" | "on")
+    )
+}
+
+fn no_create_from_env() -> bool {
+    no_create_requested(std::env::var(NO_CREATE_ENV).ok().as_deref())
 }
 
 impl From<ed25519_dalek::SignatureError> for IdentityError {
@@ -65,16 +91,7 @@ impl Identity {
     /// Load the identity at `<base>/identity.key` or generate a new one
     /// atomically if the file is missing. Created files are chmod 600.
     pub fn load_or_create(base: &Path) -> Result<Self> {
-        let path = identity_path(base);
-        match fs::read(&path) {
-            Ok(bytes) => Self::from_seed_bytes(&bytes),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                let ident = Self::generate();
-                write_seed_atomic(&path, ident.seed_bytes())?;
-                Ok(ident)
-            }
-            Err(e) => Err(IdentityError::Io(e)),
-        }
+        load_or_create_at(&identity_path(base), no_create_from_env())
     }
 
     /// Load the identity at `path` directly (no `identity.key` suffix
@@ -85,15 +102,7 @@ impl Identity {
     /// on a shared host can present distinct envelope identities (PL-166
     /// resolution path; T-1693 Shape 1 wiring).
     pub fn load_or_create_from_file(path: &Path) -> Result<Self> {
-        match fs::read(path) {
-            Ok(bytes) => Self::from_seed_bytes(&bytes),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                let ident = Self::generate();
-                write_seed_atomic(path, ident.seed_bytes())?;
-                Ok(ident)
-            }
-            Err(e) => Err(IdentityError::Io(e)),
-        }
+        load_or_create_at(path, no_create_from_env())
     }
 
     /// Bootstrap a new identity at `<base>/identity.key`. Refuses to
@@ -272,6 +281,24 @@ pub fn per_agent_identity_path(base: &Path, agent_id: &str) -> PathBuf {
 /// Routing them through this keeps the MCP wire `sender_id` in lockstep with the
 /// registration fingerprint. `fallback_base` is the handler's existing
 /// `$HOME/.termlink` dir, used only when no env override applies.
+/// T-3467: the one load-or-create core behind [`Identity::load_or_create`] and
+/// [`Identity::load_or_create_from_file`]. `refuse_create` comes from
+/// `TERMLINK_IDENTITY_NO_CREATE` in production and is passed directly in tests.
+fn load_or_create_at(path: &Path, refuse_create: bool) -> Result<Identity> {
+    match fs::read(path) {
+        Ok(bytes) => Identity::from_seed_bytes(&bytes),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            if refuse_create {
+                return Err(IdentityError::CreationRefused(path.to_path_buf()));
+            }
+            let ident = Identity::generate();
+            write_seed_atomic(path, ident.seed_bytes())?;
+            Ok(ident)
+        }
+        Err(e) => Err(IdentityError::Io(e)),
+    }
+}
+
 pub fn resolve_signing_identity(fallback_base: &Path) -> Result<Identity> {
     let path = resolve_signing_identity_path(fallback_base, |k| std::env::var(k).ok());
     Identity::load_or_create_from_file(&path)
@@ -564,6 +591,39 @@ mod tests {
         let b = Identity::load_or_create_from_file(&b_path).unwrap();
         assert_ne!(a.fingerprint(), b.fingerprint());
         assert_ne!(a.public_key_hex(), b.public_key_hex());
+    }
+
+    // ── T-3467: TERMLINK_IDENTITY_NO_CREATE ──
+    #[test]
+    fn no_create_value_parsing() {
+        for v in ["1", "true", "TRUE", "yes", "On", " 1 "] {
+            assert!(no_create_requested(Some(v)), "{v:?} must refuse creation");
+        }
+        for v in ["0", "false", "no", "", "2", "enabled"] {
+            assert!(!no_create_requested(Some(v)), "{v:?} must keep auto-create");
+        }
+        assert!(!no_create_requested(None), "unset keeps auto-create");
+    }
+
+    #[test]
+    fn refused_creation_writes_nothing_and_names_the_path() {
+        let tmp = TempDir::new().unwrap();
+        let path = tmp.path().join("sub").join("project.key");
+        let err = load_or_create_at(&path, true).expect_err("missing key must fail closed");
+        assert!(matches!(err, IdentityError::CreationRefused(ref p) if p == &path), "{err:?}");
+        let msg = err.to_string();
+        assert!(msg.contains(&path.display().to_string()) && msg.contains(NO_CREATE_ENV), "{msg}");
+        assert!(!path.exists(), "no key may be written");
+        assert!(!path.parent().unwrap().exists(), "not even the parent directory");
+    }
+
+    #[test]
+    fn refusal_still_loads_an_existing_key() {
+        let tmp = TempDir::new().unwrap();
+        let path = tmp.path().join("project.key");
+        let created = load_or_create_at(&path, false).unwrap();
+        let loaded = load_or_create_at(&path, true).expect("an existing key always loads");
+        assert_eq!(created.fingerprint(), loaded.fingerprint());
     }
 
     #[test]
