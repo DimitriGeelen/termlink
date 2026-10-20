@@ -13,7 +13,7 @@ tags: [objectives-authoring]
 components: []
 related_tasks: []
 created: 2026-10-06T11:19:34Z
-last_update: 2026-10-20T21:41:31Z
+last_update: 2026-10-20T21:41:55Z
 date_finished: 2026-10-20T21:41:31Z
 bvp_scores_proposed:
   - ts: '2026-10-20T19:51:39Z'
@@ -123,6 +123,19 @@ borrowing a green.
 1. Out-of-scope list = the five charter non-goals, verbatim in meaning (docs/CHARTER.md).
 2. Measures cite existing scripts and logs: comms-selftest, substrate-smoke, session-selftest,
    arc-claim-drift, the canary logs and the release-publication canary.
+
+## Decisions
+
+### 2026-10-21 — objectives accepted as written (operator ruling)
+- **Chose:** A, accept `.context/project/objectives.yaml` as written. The operator first answered "b"
+  (accept with wording changes), then, asked which changes, said "all good": no changes.
+- **Why:** the headline and O-1..O-6 restate the charter's verbs and guarantees, each with a measure
+  already collected, and the out-of-scope list is the charter's non-goals.
+- **Rejected:** C (rewrite: each objective maps to a real promise); D (defer: arcs keep running without a
+  stated purpose).
+- **Left open:** O-2's per-stage message view and O-6's in-band loudness become measurable as arc-010 and
+  arc-011 deliver.
+- The `### Human` review box is the operator's to tick (via Watchtower); the agent does not tick it.
 
 ## Updates
 
