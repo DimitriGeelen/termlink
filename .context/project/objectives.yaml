@@ -1,0 +1,78 @@
+# Project objectives — termlink.
+#
+# Authored intent; progress is derived, never written here.
+# Arcs reference these ids via `supports: [O-n, ...]`.
+#
+# Sources (this project's own material only): docs/CHARTER.md (authoritative
+# purpose and non-goals), README.md (four core verbs, guarantees), the arcs in
+# .context/arcs/, and the operator's arc-011 step-1 rulings
+# (docs/reports/T-3344-step1-rulings-summary.md). Drafted under T-3371.
+headline: >-
+  TermLink is the coordination substrate for a fleet of AI agents and the humans
+  who run them: through a hub, they discover each other, exchange durable
+  messages, claim work and control terminal sessions, on one machine or many.
+objectives:
+  - id: O-1
+    text: >-
+      An agent or operator who asks who is around sees only peers that are live
+      and can actually be reached, never stale ghosts or agents nothing can wake.
+    measure: >-
+      `scripts/comms-selftest.sh --peer <id> --discover-only` passes for a live
+      peer; the waker-liveness canary log is empty
+      (.context/working/.waker-liveness-canary.log); `termlink agent find-idle`
+      lists no agent whose heartbeat is outside the LIVE window (arc-002).
+  - id: O-2
+    text: >-
+      A message sent to a peer is never silently lost: it is delivered, or the
+      sender can see exactly where it stopped (not received, not stored, not
+      handed over, not answered), and a reader whose position was swept is told
+      about the gap rather than skipping it.
+    measure: >-
+      Partly measured. Today: the arc-003 "no silent loss" prover
+      (`scripts/check-arc-claim-drift.sh`, daily on this host) passes, and the
+      dead-letter and unconfirmed-delivery canary logs are empty. The
+      sender-visible stage chain and the gap notice (arc-010, arc-011) are not
+      measured yet; their measure is the verified-behaviour acceptance the
+      operator ruled for arc-010 (GP-12 / CAND-3), once built.
+  - id: O-3
+    text: >-
+      Several agents can divide a queue of work so that each unit is done once,
+      handed off without a race, and recovered automatically when a worker dies.
+    measure: >-
+      The substrate-smoke canary log is empty (`scripts/substrate-smoke.sh`:
+      claim, claim-transfer, worker loop, lease expiry and hub-blip stages, run
+      daily); the stuck-claims canary log is empty.
+  - id: O-4
+    text: >-
+      An agent or operator can start a terminal session, run a command in it and
+      read its output from elsewhere, and sessions nobody uses do not pile up.
+    measure: >-
+      The session-control canary log is empty (`scripts/session-selftest.sh`:
+      spawn, exec round-trip, cleanup, run daily); the session-leak canary log is
+      empty (zombie count at or below its threshold, no orphaned data sockets).
+  - id: O-5
+    text: >-
+      What is shipped is what the fleet runs: releases are published and
+      installable on Linux and macOS, and every hub serves the binary and
+      capabilities it is expected to.
+    measure: >-
+      The release-publication canary log is empty (newest tag has a published
+      GitHub release; watched workflows green within 7 days); the macOS test job
+      gates the release build; the fleet-binary and fleet-capability canary logs
+      are empty.
+  - id: O-6
+    text: >-
+      When something breaks, the operator hears about it at the moment it happens
+      and in one place, and the health reports they read are clean or carry a
+      cited reason, instead of re-reporting the same findings unread.
+    measure: >-
+      `/canaries` (scripts/canary-status.sh) reports every canary HEALTHY, none
+      FIRING, STALE or ERRORING; `fw audit` and `fw doctor` show zero failures
+      with every warning fixed or acknowledged (arc-008). The in-band loudness of
+      each comms failure mode (arc-007) is not measured yet beyond these.
+out_of_scope:
+  - "Inter-hub federation: each hub owns its own topics; cross-hub visibility is explicit, client-driven cross-posting, never automatic (charter non-goal 1, G-060)."
+  - "A durable database or system of record: topics are retention-bounded logs for coordination, not archival storage (charter non-goal 2)."
+  - "A social or engagement platform: reactions, pins, polls, leaderboards and other analytics that serve no coordination purpose are removal candidates, not features (charter non-goal 3)."
+  - "A workflow or orchestration engine: TermLink provides the mechanism (claim, lease, DM, doorbell, presence); orchestration policy belongs to the Agentic Engineering Framework (charter non-goal 4)."
+  - "A security boundary between mutually distrusting tenants: the trust model is a cooperating fleet with TOFU-pinned hubs and a shared secret (charter non-goal 5)."
