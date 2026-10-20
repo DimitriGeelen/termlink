@@ -8,12 +8,12 @@ description: >
   hub arguments, the same env-dropping bug T-3497 fixed in fleet-deploy-binary. Reuse
   T-3497's environ carry-over (fail-closed) and quote the args; fixture.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [scripts/hub-binary-swap.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -42,8 +42,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-20T19:13:12Z
-last_update: 2026-10-20T19:23:47Z
-date_finished:
+last_update: 2026-10-20T20:38:07Z
+date_finished: 2026-10-20T20:38:07Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -395,3 +395,20 @@ bash tests/hub-termlink-env-fixtures.sh > /tmp/.t3499b 2>&1 && grep -q ' 0 faile
 - **Change:** `scripts/lib/hub-swap-remote.sh` (new) generates the probe/swap/rollback scripts run on the hub host, with T-3497's `hub-termlink-env.sh` embedded (not copied); the reader gained an optional environ-file argument so rollback reuses a pre-stop snapshot. `hub-binary-swap.sh` captures TERMLINK_* env + argv (NUL-joined, base64) before anything stops, aborting (exit 2) if unreadable, and relaunches via `env ... setsid nohup "$BIN" "${RUN_ARGS[@]}"` in both swap and rollback.
 - **Evidence:** `tests/hub-binary-swap-fixtures.sh` 13 passed (fake /proc, fake setsid; 2 mutants red); `tests/hub-termlink-env-fixtures.sh` 19 passed.
 - **Not done:** no live swap exercised against a real hub.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-e513d021
+- **Timestamp:** 2026-10-20T20:38:11Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-20T20:38:07Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

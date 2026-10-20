@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3499: scripts/hub-binary-swap.sh drops the hub's TERMLINK_* environment and leaves hub args unquoted (T-3497 sibling)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-20T20:38:30Z
+# ============================================================================
+
+task_id: T-3499
+task_name: "scripts/hub-binary-swap.sh drops the hub's TERMLINK_* environment and leaves hub args unquoted (T-3497 sibling)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-20T19:13:12Z
+completed: 2026-10-20T20:38:07Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-10-20T21:26:39+02:00
+last_commit: 2026-10-20T21:26:39+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  hub-binary-swap relaunch carries the hub's TERMLINK_* env and quotes its args (reuses T-3497 reader, fail-closed)
+
+# Key outcomes
+outcomes:
+  - '`scripts/hub-binary-swap.sh` relaunches with every TERMLINK_* variable from the running hub''s /proc/<pid>/environ (reusing T-3497''s helper, not a copy), refusing when it cannot be read; the hub arguments are passed quoted, so an argument with spaces survives'
+  - 'Hermetic fixture (fake /proc, fake hub binary recording its argv and env): TERMLINK_* carried, other env not, unreadable environ refuses, an argument with a space arrives intact; one mutant shown red'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'scripts/hub-binary-swap.sh'
+  - 'scripts/lib/hub-swap-remote.sh'
+  - 'scripts/lib/hub-termlink-env.sh'
+  - '.tasks/active/T-3499-scriptshub-binary-swapsh-drops-the-hubs-.md'
+  - 'tests/hub-binary-swap-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-20T21:26:39'
+    action: 'T-3499: hub-binary-swap relaunch carries the hub''s TERMLINK_* env and quotes its args (reuses T-3497 reader, fail-closed)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 84 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 84
+  commits: 1
+  files_changed: 5
+  lines_added: 591
+  lines_removed: 57
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3499-scriptshub-binary-swapsh-drops-the-hubs-.md
+generated_by: context-agent-hybrid
