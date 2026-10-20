@@ -44,7 +44,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-20T16:25:49Z
-last_update: 2026-10-20T18:05:27Z
+last_update: 2026-10-20T18:22:20Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -412,4 +412,5 @@ bash tests/substrate-preflight-single-hub-fixtures.sh > /tmp/.t3495v4 2>&1 && gr
 - **CLI (`hub status`):** probes the unix socket when the pidfile is live; JSON `socket_ok`/`socket_error`/`ok`, `--short` and text report the failure, `--check` exits 1.
 - **Preflight:** Check 8 `hub-socket` (high) FAILs on `socket_ok:false`; seam `TERMLINK_PREFLIGHT_TEST_HUB_STATUS_JSON`; fixtures `tests/substrate-preflight-hub-socket-fixtures.sh` (4 assertions).
 - **Tests:** 4 new hub tests (deleted -> re-created + WARN; live replacement -> WARN once, untouched; dead replacement -> re-created; probe fails on missing/refused, passes on live) and 2 CLI integration tests (fake `termlink`-named process, temp runtime dir). `cargo test -p termlink-hub` and `cargo test -p termlink`: all pass, 0 failed. Temp dirs only; nothing touches /var/lib/termlink or the live hub.
+- **Attribution:** the `hub status` socket probe in `crates/termlink-cli/src/commands/infrastructure.rs` landed inside commit bd3391d84 (T-3498), which a concurrent worker committed with the whole file while this edit was uncommitted. The code is T-3495's (marked `T-3495` in the source); the rest is in 305a80d31.
 - **Note:** preflight fixtures that do not set the new seam (e.g. single-hub) now also run a read-only `termlink hub status --json` against the host's hub, the same class of read Check 5 already performs there.
