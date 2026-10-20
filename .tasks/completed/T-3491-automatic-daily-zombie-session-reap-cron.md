@@ -2,14 +2,18 @@
 id: T-3491
 name: "Automatic daily zombie-session reap (cron) sharing runme action 7's logic"
 description: >
-  session-leak canary fired 4x since 2026-10-05 because zombie register sessions are only reaped when runme runs. Extract runme action 7 into scripts/reap-zombie-sessions.sh (same detector, list-before-touch, pid re-verify, SIGTERM only), call it from runme and from a daily cron before the 05:57Z canary. Operator approved 2026-10-20 (suggestion 3).
+  session-leak canary fired 4x since 2026-10-05 because zombie register sessions are
+  only reaped when runme runs. Extract runme action 7 into scripts/reap-zombie-sessions.sh
+  (same detector, list-before-touch, pid re-verify, SIGTERM only), call it from runme
+  and from a daily cron before the 05:57Z canary. Operator approved 2026-10-20 (suggestion
+  3).
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [runme.sh]
 related_tasks: []
 # write_set:                      # T-3512: optional — globs (relative to PROJECT_ROOT)
 #                                 # naming the files this task intends to write. Declared
@@ -38,8 +42,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-20T14:19:12Z
-last_update: 2026-10-20T14:35:20Z
-date_finished: null
+last_update: 2026-10-20T15:42:55Z
+date_finished: 2026-10-20T15:42:55Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,6 +54,20 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-10-20T15:30:47Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 3
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=3
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-3491: Automatic daily zombie-session reap (cron) sharing runme action 7's logic
@@ -272,7 +290,7 @@ date_finished: null
 bash tests/runme-fixtures.sh > /tmp/.t3491.out 2>&1 && grep -q "0 failed" /tmp/.t3491.out
 cmp -s /etc/cron.d/termlink-zombie-reap .context/cron/zombie-reap.crontab
 bash scripts/check-canary-log-hygiene.sh > /tmp/.t3491h 2>&1
-bash scripts/reap-zombie-sessions.sh --dry-run > /tmp/.t3491d 2>&1
+bash scripts/reap-zombie-sessions.sh --dry-run > /tmp/.t3491d 2>&1 && grep -qE "would SIGTERM these [0-9]+ session|skip    no zombie sessions" /tmp/.t3491d
 
 ## RCA
 
@@ -375,3 +393,23 @@ bash scripts/reap-zombie-sessions.sh --dry-run > /tmp/.t3491d 2>&1
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3491-automatic-daily-zombie-session-reap-cron.md
 - **Context:** Initial task creation
+
+### 2026-10-20T15:30:46Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-d8f7884b
+- **Timestamp:** 2026-10-20T15:47:32Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Human)** — [REVIEWER] Block message names both bypass mechanisms
+  - **reviewer-prose-mismatch** (partial, heuristic) — `matched='reads' in: Verdict: PASS; no findings on `block-message-completeness``
+
+### 2026-10-20T15:42:55Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

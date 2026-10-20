@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-3491: Automatic daily zombie-session reap (cron) sharing runme action 7's logic
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-10-20T15:47:42Z
+# ============================================================================
+
+task_id: T-3491
+task_name: "Automatic daily zombie-session reap (cron) sharing runme action 7's logic"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-10-20T14:19:12Z
+completed: 2026-10-20T15:42:55Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-10-20T16:35:18+02:00
+last_commit: 2026-10-20T17:30:33+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  zombie reap moved to scripts/reap-zombie-sessions.sh (runme action 7 calls it, seams still resolved by runme); daily cron at 07:30 before the session-leak canary. cron installed and reap verified live (7 sessions); verification
+
+# Key outcomes
+outcomes:
+  - '`scripts/reap-zombie-sessions.sh` carries runme action 7''s reap unchanged in behaviour (same detector, targets listed before any is touched, pid re-verified as that register session right before the signal, SIGTERM only, stuck target = FAILED, detector failure = fail-closed); `--dry-run`, `--quiet`'
+  - 'runme action 7 calls the script, still resolving its seams itself (fixture runs that miss a seam still refuse, T-3299); all runme fixtures pass, including the 7 zombie cases now exercising the script'
+  - '`.context/cron/zombie-reap.crontab` runs it daily before the 05:57Z session-leak canary, split-stream logging (T-2685), installed by runme action 1; check-canary-log-hygiene and cron-install-drift clean after install'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/cron/zombie-reap.crontab'
+  - 'runme.sh'
+  - 'scripts/reap-zombie-sessions.sh'
+  - '.tasks/active/T-3491-automatic-daily-zombie-session-reap-cron.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-10-20T16:35:18'
+    action: 'T-3491: zombie reap moved to scripts/reap-zombie-sessions.sh (runme action 7 calls it, seams still resolved by runme); daily cron at 07:30 before the session-leak canary'
+  - time: '2026-10-20T17:30:33'
+    action: 'T-3491: cron installed and reap verified live (7 sessions); verification'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 83 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 83
+  commits: 2
+  files_changed: 4
+  lines_added: 499
+  lines_removed: 50
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-3491-automatic-daily-zombie-session-reap-cron.md
+generated_by: context-agent-hybrid
