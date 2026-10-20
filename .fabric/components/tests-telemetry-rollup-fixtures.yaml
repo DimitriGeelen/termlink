@@ -1,0 +1,21 @@
+id: tests/telemetry-rollup-fixtures.sh
+name: telemetry-rollup-fixtures
+type: script
+subsystem: guard-layer
+location: tests/telemetry-rollup-fixtures.sh
+tags: []
+
+purpose: "T-3466 fixtures — telemetry-rollup.sh + telemetry-fleet-view.sh. Hermetic: every input is a TELEMETRY_* seam, the termlink binary is a fake that records its arguments; no hub, no network, scratch dir only."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-20
+created_by: unknown

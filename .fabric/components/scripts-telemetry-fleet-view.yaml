@@ -1,0 +1,21 @@
+id: scripts/telemetry-fleet-view.sh
+name: telemetry-fleet-view
+type: script
+subsystem: operations
+location: scripts/telemetry-fleet-view.sh
+tags: []
+
+purpose: "telemetry-fleet-view.sh — T-3466 (R5b): the fleet view over the daily aggregates that scripts/telemetry-rollup.sh posts to `telemetry:daily`."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-20
+created_by: unknown

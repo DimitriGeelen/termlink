@@ -220,6 +220,9 @@ install_crontab forever-owner-canary.crontab      "$CRON_DIR/termlink-forever-ow
 install_crontab agent-send-suites-canary.crontab  "$CRON_DIR/termlink-agent-send-suites-canary"
 install_crontab vector-index-canary.crontab       "$CRON_DIR/termlink-vector-index-canary"
 
+# T-3466 (R5b, T-2250 GO) — daily rollup of this host's telemetry to telemetry:daily.
+install_crontab telemetry-rollup.crontab          "$CRON_DIR/termlink-telemetry-rollup"
+
 # T-3432 (arc-011 FX-5 ruling C) — daily: files sent as ordinary messages outside the artifact path.
 install_crontab file-shaped-posts-canary.crontab  "$CRON_DIR/termlink-file-shaped-posts-canary"
 

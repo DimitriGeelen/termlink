@@ -1,0 +1,12 @@
+# T-3466 — R5b daily telemetry rollup (T-2250 GO)
+# Source of truth: /opt/termlink/.context/cron/telemetry-rollup.crontab (git-tracked)
+# Installed to:    /etc/cron.d/termlink-telemetry-rollup (USER field syntax — do NOT load into a user crontab)
+#
+# Once a day, after UTC midnight (02:30 host time = 00:30Z in summer, 01:30Z in winter): roll up
+# yesterday's local telemetry (queue flaps, reconnects, breaker trips, hub-outage samples, dead
+# letters) into one aggregate and post it to telemetry:daily (retention days:400) through the
+# durable offline queue. Raw data stays on the host. Not a canary: the .log holds one success line
+# per day; diagnostics go to .stderr (T-2685).
+SHELL=/bin/bash
+PATH=/root/.cargo/bin:/usr/local/bin:/usr/bin:/bin
+30 2 * * * root cd /opt/termlink && bash scripts/telemetry-rollup.sh >> .context/working/.telemetry-rollup.log 2>> .context/working/.telemetry-rollup.log.stderr

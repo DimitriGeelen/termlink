@@ -1,0 +1,21 @@
+id: scripts/telemetry-rollup.sh
+name: telemetry-rollup
+type: script
+subsystem: operations
+location: scripts/telemetry-rollup.sh
+tags: []
+
+purpose: "telemetry-rollup.sh — T-3466 (R5b, T-2250 GO): roll up one UTC day of this host's local telemetry into ONE aggregate and post it over TermLink to a bounded collection topic, so every host's view is collected and not only .107's."
+purpose_source: header-comment
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-10-20
+created_by: unknown

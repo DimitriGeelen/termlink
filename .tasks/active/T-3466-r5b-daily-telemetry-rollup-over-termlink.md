@@ -7,10 +7,10 @@ description: >
   samples) daily and post the aggregate over TermLink to a bounded topic, so every
   host's view is collected, not only .107.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: [T-2250, T-3465, T-3383]
@@ -42,7 +42,7 @@ arc_id: arc-substrate-fitness
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-10-18T18:30:29Z
-last_update: '2026-10-18T22:12:57Z'
+last_update: 2026-10-20T11:09:31Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -84,10 +84,10 @@ T-2250 GO (operator, 2026-10-18), narrowed to the gaps. Only .107 observes anyth
 ## Acceptance Criteria
 
 ### Agent
-- [ ] A daily rollup turns each host's local logs (T-3465 queue, breaker and reconnect events, T-3383 hub-outage samples) plus the dead-letter count (T-2243 table, operator ruling B 2026-10-20) into one aggregate per (host, signal, day): counts and max downtime (RTT percentiles deferred with `rtt_sample`)
-- [ ] The aggregate is posted over TermLink through the durable offline queue (a failed push is retried or dead-lettered, never silently lost), to a collection topic with bounded retention (never forever-raw)
-- [ ] Raw local data stays local with a 24-48 h bound; only aggregates leave the host. Since T-3465 bounds the local logs by size (1 MiB + backup), the rollup reads only events of the last day from `~/.termlink/queue.log`, `reconnect.log` and `<runtime_dir>/circuit-breaker.jsonl`
-- [ ] A read verb or script shows the fleet view: per host and per day, the aggregates, plus which hosts did NOT report (a missing host is the signal, not a gap)
+- [x] A daily rollup turns each host's local logs (T-3465 queue, breaker and reconnect events, T-3383 hub-outage samples) plus the dead-letter count (T-2243 table, operator ruling B 2026-10-20) into one aggregate per (host, signal, day): counts and max downtime (RTT percentiles deferred with `rtt_sample`)
+- [x] The aggregate is posted over TermLink through the durable offline queue (a failed push is retried or dead-lettered, never silently lost), to a collection topic with bounded retention (never forever-raw)
+- [x] Raw local data stays local with a 24-48 h bound; only aggregates leave the host. Since T-3465 bounds the local logs by size (1 MiB + backup), the rollup reads only events of the last day from `~/.termlink/queue.log`, `reconnect.log` and `<runtime_dir>/circuit-breaker.jsonl`
+- [x] A read verb or script shows the fleet view: per host and per day, the aggregates, plus which hosts did NOT report (a missing host is the signal, not a gap)
 - [ ] Running on at least two hosts (.107 and one ring20 host) is shown in the collection topic
 
 ### Human
@@ -293,6 +293,10 @@ T-2250 GO (operator, 2026-10-18), narrowed to the gaps. Only .107 observes anyth
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+bash tests/telemetry-rollup-fixtures.sh > /tmp/.t3466.out 2>&1 && grep -q "FAIL: 0" /tmp/.t3466.out
+grep -q "telemetry-rollup.crontab" runme.sh
+test -f .context/cron/telemetry-rollup.crontab
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -385,7 +389,26 @@ T-2250 GO (operator, 2026-10-18), narrowed to the gaps. Only .107 observes anyth
 
 ## Updates
 
+### 2026-10-20 — built; .107 reporting, second host pending
+- `scripts/telemetry-rollup.sh` aggregates one UTC day: queue flaps, reconnects, breaker trips,
+  hub outages, and dead letters. An absent source is reported as "absent", never as zero. It posts
+  via `channel post` (offline queue) to `telemetry:daily` (retention days:400, no cv_key).
+  `scripts/telemetry-fleet-view.sh` shows the aggregates per host and per day, names every
+  missing report (exit 1), and keeps the latest re-run.
+- Fixtures: `tests/telemetry-rollup-fixtures.sh`, 25 assertions. The mutant that drops the `.1`
+  backup reddens R2-R4.
+- Cron: `.context/cron/telemetry-rollup.crontab` (02:30 host time), installed by runme action 1;
+  pending the next runme.
+- Live: .107's 2026-10-19 aggregate is at offset 0 of telemetry:daily on .107. The fleet view
+  shows it and names the missing 10-18 report.
+- AC5 open: a ring20 host must run it with `--hub 192.168.10.107:9100` (their host, their call;
+  asked).
+
 ### 2026-10-18T18:30:29Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-3466-r5b-daily-telemetry-rollup-over-termlink.md
 - **Context:** Initial task creation
+
+### 2026-10-20T11:09:31Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
