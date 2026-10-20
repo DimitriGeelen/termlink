@@ -70,6 +70,30 @@ the queue, and hands out IDs.
    with our T-3476 so central ID allocation is designed once; it also asks why the pickup
    did not surface. We re-sent the pickup text verbatim on the conversation.
 
+## 2b. Evidence since filing (2026-10-19/20)
+
+1. **ID allocation is moving upstream.** Our August pickup became AEF T-4393 (inception, horizon
+   next), to be decided with AEF T-1107's options and designed once together with T-3476.
+2. **Perplexity (T-3477 review):** "A central ID allocator prevents ID collisions, not redundant
+   work. Assignments need explicit scope, ownership and overlap checks." So allocation (IW-3) and
+   assignment (IW-4) are different problems; one service may host both, but solving one does not
+   solve the other.
+3. **The shared dispatched-worker contract (T-3483 GO, T-3484 in progress)** already puts part
+   of this in the hub: a per-dispatch record keyed by dispatch id, with attempts and nonces
+   allocated by the hub, `done`/`lost` lifecycle and a CAS on every transition (AEF conditions,
+   AEF T-4435). An assignment service would consume that record ("worker N is free again") and
+   create dispatches; it should not invent a second state store.
+4. **ring20 (orchestration, arc-009)** runs a supervisor as the single writer of commission
+   records; one-shot workers have no hub access. Where assignment lives in their picture is part
+   of the T-3477 question still open with them.
+5. **AEF dispatch today** picks the task in the orchestrating agent and spawns up to 5 workers,
+   with no queue and no availability matching (AEF answer, 2026-10-19).
+
+Implication for sequencing: T-3476's assignment half depends on the T-3484 transition table
+(the record it reads and writes); its ID half depends on AEF T-4393. Shaping can continue, but a
+recommendation should wait for both, or the design will be built on a record shape that is
+still being agreed.
+
 ## 3. Questions (mirrored as IW-1..IW-5 on the task)
 
 1. **Scope:** one service for both ID allocation and work assignment, or two?
