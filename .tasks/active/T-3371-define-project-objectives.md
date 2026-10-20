@@ -5,16 +5,16 @@ description: >
   Seeded once by fw upgrade (T-3636): this project has no .context/project/objectives.yaml.
   Author it once, from this project's own material: a headline, a few objectives each
   with a measure, and what is out of scope. Progress is derived from the work afterwards.
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: [objectives-authoring]
 components: []
 related_tasks: []
 created: 2026-10-06T11:19:34Z
-last_update: 2026-10-20T19:51:38Z
-date_finished:
+last_update: 2026-10-20T21:41:31Z
+date_finished: 2026-10-20T21:41:31Z
 bvp_scores_proposed:
   - ts: '2026-10-20T19:51:39Z'
     estimator: bvp-estimator-v1-heuristic
@@ -111,6 +111,19 @@ grep -qi 'authored intent; progress is derived' .context/project/objectives.yaml
      **Evidence:**
      - Finding 1 -->
 
+**Recommendation:** GO (accept the draft as written; edit any wording you would not use).
+
+**Rationale:** the headline is the charter sentence restated around its four verbs. Each objective is one
+verb or one cross-cutting promise (shipped = live, failures heard), and every measure is something this
+host already produces daily (canary logs, provers), so progress can be derived without new tooling. The
+two not-yet-measurable parts (O-2's stage chain, O-6's in-band loudness) say so plainly instead of
+borrowing a green.
+
+**Evidence:**
+1. Out-of-scope list = the five charter non-goals, verbatim in meaning (docs/CHARTER.md).
+2. Measures cite existing scripts and logs: comms-selftest, substrate-smoke, session-selftest,
+   arc-claim-drift, the canary logs and the release-publication canary.
+
 ## Updates
 
 <!-- Auto-populated by git mining at task completion.
@@ -138,3 +151,15 @@ grep -qi 'authored intent; progress is derived' .context/project/objectives.yaml
   `fw termlink dispatch` because this worker was told not to spawn anything. The
   operator's Human [REVIEW] AC is therefore the first content review.
 - Verification commands (below) pass: shape check prints `6 5`, header grep OK.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-02f20589
+- **Timestamp:** 2026-10-20T21:41:34Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-10-20T21:41:31Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
